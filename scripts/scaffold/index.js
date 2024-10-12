@@ -13,13 +13,7 @@ import process from 'node:process';
 // Configuration
 const CONFIG = {
   minNodeVersion: '14.0.0',
-  directories: [
-    'public',
-    'public/icons',
-    'source',
-    'source/styles',
-    'source/components',
-  ],
+  directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
     '@adbl/dom': 'latest',
   },

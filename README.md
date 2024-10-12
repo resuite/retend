@@ -1,12 +1,12 @@
-# Grenade
+# JSX DOM elements
 
-A lightweight library for building web applications with JSX.
+A lightweight library for building vanilla web applications with JSX.
 
-[![downloads (@adbl/grenade)](https://img.shields.io/npm/dm/@adbl/grenade?label=downloads)](https://www.npmjs.com/package/@adbl/grenade)
+[![downloads (@adbl/library)](https://img.shields.io/npm/dm/@adbl/library?label=downloads)](https://www.npmjs.com/package/@adbl/library)
 
 ## Table of Contents
 
-- [Grenade](#grenade)
+- [JSX DOM elements](#jsx-dom-elements)
   - [Table of Contents](#table-of-contents)
   - [Key Features](#key-features)
   - [Installation](#installation)
@@ -23,7 +23,7 @@ A lightweight library for building web applications with JSX.
     - [Programmatic Navigation](#programmatic-navigation)
     - [Dynamic Route Parameters](#dynamic-route-parameters)
     - [Wildcard Routes](#wildcard-routes)
-  - [Why Grenade?](#why-grenade)
+  - [Why This Library?](#why-this-library)
   - [License](#license)
 
 ## Key Features
@@ -32,14 +32,13 @@ A lightweight library for building web applications with JSX.
 - **JSX Support**: Familiar syntax for React developers
 - **Reactive**: Built-in reactivity with `@adbl/cells`
 - **Routing**: Built-in routing system for single-page applications
-- **No Build Step Required**: Can be used directly in the browser
 
 ## Installation
 
-To create a new Grenade project, run the following command:
+To create a new project with this library, run the following command:
 
 ```bash
-npx create-grenade-app
+npx @adbl/new
 ```
 
 Follow the prompts to configure your project, then:
@@ -50,16 +49,15 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` in your browser to see your new Grenade app!
+Open `http://localhost:5173` in your browser to see your new app!
 
 ## Usage
 
 ### Quick Start
 
-Here's a simple example to get you started with Grenade:
+Here's a simple example to get you started with the library:
 
 ```jsx
-import { createElement } from '@adbl/grenade';
 import { Cell } from '@adbl/cells';
 
 const Counter = () => {
@@ -68,7 +66,13 @@ const Counter = () => {
   return (
     <div>
       <output>{count}</output>
-      <button onClick={() => count.value++}>Increment</button>
+      <button
+        onClick={() => {
+          count.value++;
+        }}
+      >
+        Increment
+      </button>
     </div>
   );
 };
@@ -78,16 +82,14 @@ document.body.append(<Counter />);
 
 ### JSX Syntax
 
-Grenade supports JSX syntax, allowing you to write HTML-like code within your JavaScript files:
+The library supports JSX syntax, allowing you to write HTML-like code within your JavaScript files:
 
 ```jsx
-import { createElement } from '@adbl/grenade';
-
 const Greeting = (props) => {
   return (
     <div>
       <h1>Hello, {props.name}!</h1>
-      <p>Welcome to Grenade</p>
+      <p>Welcome to the library</p>
     </div>
   );
 };
@@ -100,11 +102,11 @@ document.body.append(<Greeting name="World" />);
 Use the `For` function to efficiently render lists:
 
 ```jsx
-import { createElement, For } from '@adbl/grenade';
+import { For } from '@adbl/dom';
 import { Cell } from '@adbl/cells';
 
 const listItems = Cell.source([
-  'Learn Grenade',
+  'Learn the library',
   'Build a web app',
   'Deploy to production',
 ]);
@@ -132,56 +134,88 @@ listItems.value.push('Celebrate success');
 Use the `If` function for conditional rendering:
 
 ```jsx
-import { createElement, If } from '@adbl/grenade';
+import { If } from '@adbl/dom';
 import { Cell } from '@adbl/cells';
 
 const isLoggedIn = Cell.source(false);
 const username = Cell.source('');
 
-const LoginStatus = () => (
-  <div>
+// Greeting component for logged in users
+function Greeting() {
+  return (
+    <div>
+      <h1>Welcome back, {username}!</h1>
+      <button
+        onClick={() => {
+          isLoggedIn.value = false;
+        }}
+      >
+        Logout
+      </button>
+    </div>
+  );
+}
+
+// Login page component for non-logged in users
+function LoginPage() {
+  return (
+    <div>
+      <h1>Please log in</h1>
+      <input
+        type="text"
+        placeholder="Enter username"
+        onInput={(_, input) => {
+          username.value = input.value;
+        }}
+      />
+      <button
+        onClick={() => {
+          isLoggedIn.value = true;
+        }}
+      >
+        Login
+      </button>
+    </div>
+  );
+}
+
+// Component to render login status using the If function
+// The If function takes three arguments: a condition, a component to render if the condition is true, and a component to render if the condition is false
+function LoginStatus() {
+  return <div>
     {If(
+      // Condition: check if the user is logged in
       isLoggedIn,
-      () => (
-        <div>
-          <h1>Welcome back, {username}!</h1>
-          <button onClick={() => (isLoggedIn.value = false)}>Logout</button>
-        </div>
-      ),
-      () => (
-        <div>
-          <h1>Please log in</h1>
-          <input
-            type="text"
-            placeholder="Enter username"
-            onInput={(e) => (username.value = e.target.value)}
-          />
-          <button onClick={() => (isLoggedIn.value = true)}>Login</button>
-        </div>
-      )
+      // If true, render the Greeting component
+      Greeting,
+      // If false, render the LoginPage component
+      LoginPage
     )}
   </div>
 );
 
+// Appending the LoginStatus component to the body
 document.body.append(<LoginStatus />);
 ```
 
 ## Routing
 
-Grenade includes a routing system for single-page applications.
+The library includes a routing system for single-page applications.
 
 ### Setting Up the Router
 
 ```jsx
-import {
-  createWebRouter,
-  type RouteRecords,
-  createElement,
-} from '@adbl/grenade';
+import { createWebRouter, type RouteRecords } from '@adbl/dom';
 
-const Home = () => <h1>Welcome to the Home Page</h1>;
-const About = () => <h1>About Us</h1>;
-const NotFound = () => <h1>404 - Page Not Found</h1>;
+const Home = () => {
+  return <h1>Welcome to the Home Page</h1>;
+};
+const About = () => {
+  return <h1>About Us</h1>;
+};
+const NotFound = () => {
+  return <h1>404 - Page Not Found</h1>;
+};
 
 const routes: RouteRecords = [
   { name: 'home', path: '/', component: Home },
@@ -198,7 +232,7 @@ document.body.appendChild(<router.Outlet />);
 Use the `useRouter` hook to access routing functionality:
 
 ```jsx
-import { createElement, useRouter } from '@adbl/grenade';
+import { useRouter } from '@adbl/dom';
 
 const App = () => {
   const router = useRouter();
@@ -222,7 +256,7 @@ export default App;
 
 ### Nested Routing
 
-Grenade supports nested routing for complex application structures:
+The library supports nested routing for complex application structures:
 
 ```jsx
 const routes: RouteRecords = [
@@ -267,7 +301,9 @@ Navigate programmatically using the `navigate` method:
 ```jsx
 const ProfileButton = () => {
   const { navigate } = useRouter();
-  const goToProfile = () => navigate('/profile/123');
+  const goToProfile = () => {
+    navigate('/profile/123');
+  };
 
   return <button onClick={goToProfile}>View Profile</button>;
 };
@@ -304,9 +340,9 @@ Handle 404 pages and other catch-all scenarios:
 }
 ```
 
-## Why Grenade?
+## Why This Library?
 
-Grenade provides a lightweight alternative to larger frameworks, offering a familiar React-like syntax with built-in routing capabilities. It's perfect for developers who want the flexibility of JSX and powerful routing without the overhead of a full framework.
+This library provides a lightweight alternative to larger frameworks, offering a familiar React-like syntax with built-in routing capabilities. It's perfect for developers who want the flexibility of JSX and powerful routing without the overhead of a full framework.
 
 ## License
 

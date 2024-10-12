@@ -1,0 +1,32 @@
+{
+  "name": "@adbl/scaffold",
+  "version": "0.0.0",
+  "description": "Scaffold a new Vanilla Javascript App with JSX.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adebola-io/dom.git"
+  },
+  "keywords": [
+    "web",
+    "javascript",
+    "jsx",
+    "reactivity"
+  ],
+  "author": "Adebola Akomolafe",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/adebola-io/dom/issues"
+  },
+  "homepage": "https://github.com/adebola-io/dom#readme",
+  "dependencies": {
+    "@types/node": "^22.7.5",
+    "chalk": "^5.3.0",
+    "inquirer": "^12.0.0",
+    "ora": "^8.1.0",
+    "semver": "^7.6.3"
+  }
+}
