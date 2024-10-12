@@ -10,19 +10,6 @@ if (fs.existsSync('types')) {
   fs.rmSync('types', { recursive: true, force: true });
   console.log('Done!');
 }
-fs.writeFileSync(
-  'index.js',
-  fs
-    .readFileSync('index.js', 'utf8')
-    .replace('', '')
-    .replace('/// <reference path="./types/index.d.ts" />\n', ''),
-);
 
 console.log('Building types...');
 execSync('npx tsc --project jsconfig.json', { stdio: 'inherit' });
-fs.writeFileSync(
-  'index.js',
-  `
-/// <reference path="./types/index.d.ts" />
-${fs.readFileSync('index.js', 'utf8').trimStart()}`,
-);

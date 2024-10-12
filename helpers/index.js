@@ -1,4 +1,4 @@
-import { setAttributeFromProps } from '../jsx.js';
+import { setAttributeFromProps } from '../library/jsx.js';
 
 /**
  * @typedef InlineSvgProps

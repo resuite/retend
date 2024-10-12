@@ -38,7 +38,7 @@ A lightweight library for building vanilla web applications with JSX.
 To create a new project with this library, run the following command:
 
 ```bash
-npx @adbl/new
+npx @adbl/scaffold
 ```
 
 Follow the prompts to configure your project, then:
@@ -205,7 +205,7 @@ The library includes a routing system for single-page applications.
 ### Setting Up the Router
 
 ```jsx
-import { createWebRouter, type RouteRecords } from '@adbl/dom';
+import { createWebRouter, type RouteRecords } from '@adbl/dom/router';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -232,7 +232,7 @@ document.body.appendChild(<router.Outlet />);
 Use the `useRouter` hook to access routing functionality:
 
 ```jsx
-import { useRouter } from '@adbl/dom';
+import { useRouter } from '@adbl/dom/router';
 
 const App = () => {
   const router = useRouter();

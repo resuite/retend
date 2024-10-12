@@ -1,10 +1,15 @@
 {
   "name": "@adbl/scaffold",
-  "version": "0.0.0",
+  "version": "0.0.1",
+  "private": false,
+  "type": "module",
   "description": "Scaffold a new Vanilla Javascript App with JSX.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
+  },
+  "bin": {
+    "scaffold": "index.js"
   },
   "repository": {
     "type": "git",

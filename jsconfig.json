@@ -20,6 +20,6 @@
 
     "outDir": "types"
   },
-  "include": ["library/**/*", "library/jsx.js"],
+  "include": ["library", "helpers", "router"],
   "exclude": ["types/**/*", "tests/**/*", "node_modules/**/*"]
 }

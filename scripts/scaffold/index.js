@@ -35,7 +35,7 @@ const questions = [
     type: 'input',
     name: 'projectName',
     message: chalk.magenta('What is the name of your project?'),
-    default: 'my-grenade-app',
+    default: 'my-app',
     validate: (input) =>
       /^[a-z0-9-]+$/.test(input) ||
       chalk.red(
@@ -77,6 +77,9 @@ const questions = [
   },
 ];
 
+/**
+ * Main function to create a new project
+ */
 async function main() {
   let projectDir;
   try {
@@ -132,6 +135,9 @@ async function main() {
   }
 }
 
+/**
+ * Function to check the current Node.js version
+ */
 function checkNodeVersion() {
   const currentVersion = process.version;
   if (semver.lt(currentVersion, CONFIG.minNodeVersion)) {
@@ -141,6 +147,11 @@ function checkNodeVersion() {
   }
 }
 
+/**
+ * Function to create the project structure
+ * @param {string} projectDir - The directory where the project will be created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createProjectStructure(projectDir, answers) {
   await fs.mkdir(projectDir, { recursive: true });
 
@@ -153,7 +164,6 @@ async function createProjectStructure(projectDir, answers) {
   }
 
   await Promise.all([
-    createIcon(projectDir),
     createIndexHtml(projectDir, answers),
     createViteConfig(projectDir, answers),
     createStyleFiles(projectDir, answers),
@@ -162,6 +172,7 @@ async function createProjectStructure(projectDir, answers) {
     createPackageJson(projectDir, answers),
     createAppComponent(projectDir, answers),
     createConfigFile(projectDir, answers),
+    createVSCodeFolder(projectDir, answers),
   ]);
 
   if (answers.useTailwind) {
@@ -169,6 +180,10 @@ async function createProjectStructure(projectDir, answers) {
   }
 }
 
+/**
+ * Function to initialize a Git repository in the project directory
+ * @param {string} projectDir - The directory where the project is created
+ */
 async function initializeGit(projectDir) {
   try {
     execSync('git init', { cwd: projectDir, stdio: 'ignore' });
@@ -185,6 +200,10 @@ async function initializeGit(projectDir) {
   }
 }
 
+/**
+ * Function to clean up the project directory in case of an error
+ * @param {string} [projectDir] - The directory where the project is created
+ */
 async function cleanupProject(projectDir) {
   if (projectDir) {
     try {
@@ -198,6 +217,11 @@ async function cleanupProject(projectDir) {
   }
 }
 
+/**
+ * Function to create the index.html file
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createIndexHtml(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const styleExtension = answers.cssPreprocessor === 'SCSS' ? 'scss' : 'css';
@@ -207,14 +231,17 @@ async function createIndexHtml(projectDir, answers) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Grenade API app</title>
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <link rel="stylesheet" href="/source/styles/base.${styleExtension}">
+    <title>${answers.projectName}</title>
+    <link rel="stylesheet" href="./source/styles/base.${styleExtension}">
+    ${
+      answers.useTailwind
+        ? `<link rel="stylesheet" href="./source/styles/tailwind.${styleExtension}">`
+        : ''
+    }
   </head>
   <body>
-    <div id="app">
-    </div>
-    <script type="module" src="/source/main.${extension}"></script>
+    <div id="app"></div>
+    <script type="module" src="./source/main.${extension}"></script>
   </body>
 </html>
   `.trim();
@@ -222,35 +249,11 @@ async function createIndexHtml(projectDir, answers) {
   await fs.writeFile(path.join(projectDir, 'index.html'), content);
 }
 
-async function createIcon(projectDir) {
-  const icon = `<svg width="191" height="191" viewBox="0 0 191 191" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <g clip-path="url(#clip0_7_2)">
-        <g clip-path="url(#clip1_7_2)">
-            <rect x="4" y="4" width="183" height="183" rx="32.1636" fill="url(#paint0_linear_7_2)" />
-            <line x1="244.452" y1="12.1822" x2="17.9893" y2="238.645" stroke="white" stroke-width="14" />
-            <line x1="148.412" y1="-22.2431" x2="-78.0502" y2="204.219" stroke="white" stroke-width="14" />
-            <ellipse cx="31.7881" cy="167.788" rx="49.349" ry="49.3467" transform="rotate(134.826 31.7881 167.788)"
-                fill="white" />
-        </g>
-        <rect x="9.435" y="9.435" width="172.13" height="172.13" rx="26.7286" stroke="white" stroke-width="10.87" />
-    </g>
-    <rect x="2" y="2" width="187" height="187" rx="34.15" stroke="#355FAC" stroke-width="4" />
-    <defs>
-        <linearGradient id="paint0_linear_7_2" x1="95.5" y1="4" x2="95.5" y2="187" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#538ACA" />
-            <stop offset="1" stop-color="#04187C" />
-        </linearGradient>
-        <clipPath id="clip0_7_2">
-            <rect x="4" y="4" width="183" height="183" rx="32.15" fill="white" />
-        </clipPath>
-        <clipPath id="clip1_7_2">
-            <rect x="4" y="4" width="183" height="183" rx="32.1636" fill="white" />
-        </clipPath>
-    </defs>
-</svg>`;
-  await fs.writeFile(path.join(projectDir, 'public', 'logo.svg'), icon);
-}
-
+/**
+ * Function to create the Vite configuration file
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createViteConfig(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
@@ -263,6 +266,19 @@ export default defineConfig({
       '@': path.resolve(__dirname, './source'),
     },
   },
+${
+  answers.cssPreprocessor === 'SCSS'
+    ? `
+  css: {
+    preprocessorOptions: {
+      scss: {
+         api: 'modern-compiler',
+      },
+    }
+  },
+`
+    : ''
+}
   esbuild: {
     jsxFactory: '__jsx',
     jsxFragment: '__jsxFragment',
@@ -276,6 +292,10 @@ export default defineConfig({
   );
 }
 
+/**
+ * Function to create the PostCSS configuration file
+ * @param {string} projectDir - The directory where the project is created
+ */
 async function createPostcssConfig(projectDir) {
   const content = `
 export default {
@@ -292,6 +312,11 @@ export default {
   );
 }
 
+/**
+ * Function to create the base styles and Tailwind CSS files
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createStyleFiles(projectDir, answers) {
   const extension = answers.cssPreprocessor === 'SCSS' ? 'scss' : 'css';
 
@@ -305,28 +330,20 @@ async function createStyleFiles(projectDir, answers) {
 }
 
 body {
-  font-family: var(--font-family);
   line-height: 1.5;
-  font-weight: 400;
+  margin: 0;
   color: var(--text-color);
   background-color: var(--background-color);
-  font-synthesis: none;
+  font-family: var(--font-family);
+  font-weight: 400;
   text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
 }
 
-#app {
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-a {
-  color: var(--primary-color);
-  text-decoration: none;
-}
-  `.trim();
+  `.trimStart();
 
   await fs.writeFile(
     path.join(projectDir, `source/styles/base.${extension}`),
@@ -366,29 +383,31 @@ export default {
 }
 
 /**
- * @param {string} projectDir
- * @param {{ language: string; useRouter: any; }} answers
+ * Function to create the main file
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createMainFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   let content = `
 /// <reference types="vite/client" />
 
-import { defineJsxGlobals } from '@adbl/dom';
-defineJsxGlobals();
+import { jsx } from '@adbl/dom';
+jsx.defineJsxGlobals();
 `;
 
   if (answers.useRouter) {
     content += `
-import { define } from './router';
-const router = define();
-document.getElementById('app')?.appendChild(router.Outlet());
+import { createRouter } from './router';
+const router = createRouter();
+
+document.getElementById('app')?.replaceChildren(router.Outlet({}));
       `;
   } else {
     content += `
 import { App } from './App';
 
-document.getElementById('app')?.appendChild(App());
+document.getElementById('app')?.replaceChildren(App());
     `;
   }
 
@@ -398,6 +417,11 @@ document.getElementById('app')?.appendChild(App());
   );
 }
 
+/**
+ * Function to create the router file
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createRouterFile(projectDir, answers) {
   if (!answers.useRouter) {
     return;
@@ -405,10 +429,10 @@ async function createRouterFile(projectDir, answers) {
 
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
-import { createWebRouter } from '@adbl/grenade';
+import { createWebRouter } from '@adbl/dom/router';
 import { homeRoutes } from './pages/home/routes';
 
-export function define() {
+export function createRouter() {
   const routes = [
     {
       name: 'App',
@@ -432,15 +456,33 @@ export function define() {
   await createViewStructure(projectDir, 'home', answers);
 }
 
+/**
+ * Function to create the view structure
+ * @param {string} projectDir - The directory where the project is created
+ * @param {string} viewName - The name of the view
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createViewStructure(projectDir, viewName, answers) {
   await createComponentStructure(projectDir, viewName, true, answers);
 }
 
+/**
+ * Function to create the App component
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createAppComponent(projectDir, answers) {
   if (answers.useRouter) return; // Only create App component if not using router
   await createComponentStructure(projectDir, 'App', false, answers);
 }
 
+/**
+ * Function to create the component structure
+ * @param {string} projectDir - The directory where the project is created
+ * @param {string} componentName - The name of the component
+ * @param {boolean} isView - Whether the component is a view
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 async function createComponentStructure(
   projectDir,
   componentName,
@@ -456,52 +498,55 @@ async function createComponentStructure(
   await fs.mkdir(componentDir, { recursive: true });
 
   const tailwind = Boolean(answers.useTailwind);
-  const containerClass = `${componentName}-${isView ? 'view' : ''}`;
+  const containerClass = `${componentName}${isView ? 'View' : ''}`;
 
   const containerClasses = tailwind
-    ? 'min-h-screen flex items-center justify-center'
-    : containerClass;
+    ? '"min-h-screen flex items-center justify-center"'
+    : `{styles.${containerClass}}`;
 
   const mainElementClasses = tailwind
-    ? 'max-w-7xl mx-auto p-8 text-center'
-    : `${containerClass}__Content`;
+    ? '"max-w-7xl mx-auto p-8 text-center"'
+    : '{styles.content}';
 
   const headingClasses = tailwind
-    ? 'text-5xl font-bold mb-4'
-    : `${containerClass}__Heading`;
-  const gradientClass = `${containerClass}__Gradient`;
-  const paragraphClasses = tailwind ? 'mb-8' : `${containerClass}__Text`;
-  const subTextClasses = tailwind
-    ? 'text-gray-600'
-    : `${containerClass}__ReadTheDocs`;
+    ? '"text-5xl font-bold mb-4"'
+    : '{styles.heading}';
 
-  const imageElementClasses = tailwind
-    ? 'mb-4 mx-auto'
-    : `${containerClass}__Image`;
+  const gradientClass = tailwind
+    ? '"inline-block bg-gradient-to-br from-black to-blue-900 text-transparent bg-clip-text"'
+    : '{styles.gradient}';
+
+  const paragraphClasses = tailwind ? '"mb-8"' : '{styles.paragraph}';
+  const subTextClasses = tailwind ? '"text-gray-600"' : '{styles.readTheDocs}';
 
   const textContent = isView
-    ? `You're viewing the ${capitalizeFirstLetter(componentName)} page`
+    ? `You\'re viewing the ${capitalize(componentName)} page`
     : "You're all set to start building amazing things!";
 
-  const linkClasses = tailwind ? 'text-blue-600' : `${containerClass}__Link`;
-  const linkSuffix = isView ? 'to learn more' : 'to get started.';
+  const linkClasses = tailwind ? '"text-blue-600"' : '{styles.link}';
+  const linkSuffix = isView ? 'to learn more.' : 'to get started.';
+  const cssImport = tailwind
+    ? ''
+    : `import styles from \'./${
+        isView ? 'styles' : componentName
+      }.module.${styleExtension}\';\n`;
 
   const content = `
-export ${isView ? 'default' : ''} function ${componentName}() {
+${cssImport}
+export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
   return (
-    <div class="${containerClasses}">
-      <main class="${mainElementClasses}">
-        <img src="/logo.svg" alt="Logo" class="${imageElementClasses}" />
-        <h1 class="${headingClasses}">
-          <span class="${gradientClass}">dom.</span>
+    <div class=${containerClasses}>
+      <main class=${mainElementClasses}>
+        <h1 class=${headingClasses}>
+          <span class=${gradientClass}>${answers.projectName}.</span>
         </h1>
-        <p class="${paragraphClasses}>${textContent}</p>
-        <p class="${subTextClasses}">
-          Check out the
+        <p class=${paragraphClasses}>${textContent}</p>
+        <p class=${subTextClasses}>
+          Check out the{' '}
           <a
             href="https://github.com/adebola-io/dom"
             target="_blank" rel="noopener noreferrer"
-            class="${linkClasses}"
+            class=${linkClasses}
           >
             documentation
           </a> ${linkSuffix}
@@ -518,57 +563,51 @@ export ${isView ? 'default' : ''} function ${componentName}() {
   );
 
   if (!tailwind) {
-    const stylesContent = `
-.${containerClass} {
+    const stylesContent = `.${containerClass} {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+}
 
-  .${containerClass}__Content {
-    margin: 0 auto;
-    padding: 2rem;
-    text-align: center;
-  }
+.content {
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
 
-  .${containerClass}__Image {
-    margin-bottom: 1rem;
-    margin-inline: auto;
-  }
+.heading {
+  font-size: 3.2em;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+}
+    
+.gradient {
+  display: inline-block;
+  background: linear-gradient(to bottom right, #000000 60%, #000033 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
-  .${containerClass}__Heading {
-    font-size: 3.2em;
-    line-height: 1.1;
-    margin-bottom: 1rem;
-  }
-     
-  ${containerClass}__Gradient {
-    display: inline-block;
-    background: linear-gradient(to bottom right, #000000 60%, #000033 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
+.readTheDocs {
+  color: #888;
+}
 
-  .${containerClass}__Text {
-    color: #888;
-  }
+.paragraph {
+  margin-block-end: 1rem;
+}
 
-  .${containerClass}__ReadTheDocs {
-    color: #888;
-  }
-
-  .${containerClass}__Link {
-    color: #646cff;
-    text-decoration: inherit;
-  }
+.link {
+  color: #646cff;
+  text-decoration: inherit;
 }
 `;
 
     await fs.writeFile(
       path.join(
         componentDir,
-        `${isView ? 'styles' : componentName}.${styleExtension}`
+        `${isView ? 'styles' : componentName}.module.${styleExtension}`
       ),
       stylesContent
     );
@@ -576,11 +615,11 @@ export ${isView ? 'default' : ''} function ${componentName}() {
 
   if (isView) {
     const routesContent = `
-import { defineRoutes, lazy } from '@adbl/dom';
+import { defineRoutes, lazy } from '@adbl/dom/router';
 
 export const ${componentName}Routes = defineRoutes([
   {
-    name: '${capitalizeFirstLetter(componentName)} View',
+    name: '${capitalize(componentName)} View',
     path: '/${componentName}',
     component: lazy(() => import('./index')),
   },
@@ -676,13 +715,39 @@ async function createConfigFile(projectDir, answers) {
   );
 }
 
-function cleanup() {
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode(false);
+/**
+ * Function to create the .vscode folder with extension recommendations
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
+async function createVSCodeFolder(projectDir, answers) {
+  const vscodeDir = path.join(projectDir, '.vscode');
+  await fs.mkdir(vscodeDir, { recursive: true });
+
+  const extensions = ['biomejs.biome', 'esbenp.prettier-vscode'];
+
+  if (answers.language === 'TypeScript') {
+    extensions.push('ms-vscode.vscode-typescript-next');
   }
-  process.stdin.removeAllListeners('keypress');
-  process.stdout.removeAllListeners('resize');
-  process.removeAllListeners('SIGINT');
+
+  if (answers.useTailwind) {
+    extensions.push('bradlc.vscode-tailwindcss');
+  } else {
+    extensions.push('clinyong.vscode-css-modules', '1yasa.css-better-sorting');
+  }
+
+  if (answers.cssPreprocessor === 'SCSS') {
+    extensions.push('syler.sass-indented');
+  }
+
+  const extensionsContent = {
+    recommendations: extensions,
+  };
+
+  await fs.writeFile(
+    path.join(vscodeDir, 'extensions.json'),
+    JSON.stringify(extensionsContent, null, 2)
+  );
 }
 
 function displayCompletionMessage(projectName) {
@@ -704,7 +769,7 @@ function displayCompletionMessage(projectName) {
   console.log(chalk.blue('\nHappy coding! 🚀'));
 }
 
-function capitalizeFirstLetter(string) {
+function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 

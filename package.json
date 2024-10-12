@@ -4,9 +4,6 @@
   "description": "JSX Dom Elements.",
   "private": false,
   "type": "module",
-  "module": "./index.js",
-  "typings": "./types/index.d.ts",
-  "main": "library/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "node scripts/build.js"
@@ -20,18 +17,18 @@
   },
   "exports": {
     ".": {
-      "import": "./index.js",
-      "require": "./index.js"
+      "import": "./library/index.js",
+      "types": "./types/library/index.d.ts"
     },
     "./router": {
-      "import": "./library/router.js",
+      "import": "./router/index.js",
       "types": "./types/router/index.d.ts"
     },
     "./library/jsx-runtime": {
       "import": "./library/jsx-runtime.js"
     },
     "./helpers": {
-      "import": "./library/helpers/index.js",
+      "import": "./helpers/index.js",
       "types": "./types/helpers/index.d.ts"
     }
   },

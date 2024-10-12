@@ -1,5 +1,5 @@
-import { setAttribute, setAttributeFromProps } from '../jsx.js';
-import { generateChildNodes } from '../utils.js';
+import { setAttribute, setAttributeFromProps } from '../library/jsx.js';
+import { generateChildNodes } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddleware, RouterMiddlewareResponse } from './middleware.js';
 import { MatchedRoute, RouteTree } from './routeTree.js';
@@ -7,6 +7,8 @@ import { MatchedRoute, RouteTree } from './routeTree.js';
 export * from './lazy.js';
 export * from './routeTree.js';
 export * from './middleware.js';
+
+/// <reference path="../library/jsx-runtime.d.ts" />
 
 /**
  * @typedef {LazyRoute | (() => JSX.Template)} ComponentOrComponentLoader
@@ -230,7 +232,7 @@ export class Router {
     let outletIndex = 0;
     /** @type {NodeListOf<HTMLElement>} */
     const outlets = window.document.querySelectorAll(
-      `div[data-grenade-outlet][data-router-id="${this.id}"]`,
+      `div[data-grenade-outlet][data-router-id="${this.id}"]`
     );
 
     while (currentMatchedRoute) {
@@ -343,8 +345,8 @@ export class Router {
         'active',
         Boolean(
           this.currentPath?.fullPath &&
-            link.dataset.href?.startsWith(this.currentPath.fullPath),
-        ),
+            link.dataset.href?.startsWith(this.currentPath.fullPath)
+        )
       );
     }
 
@@ -369,7 +371,7 @@ export function createWebRouter(routerOptions) {
   ROUTER_INSTANCE = router;
 
   window.addEventListener('popstate', async (event) => {
-    if (Reflect.get(router, 'outlets').length > 0 && !router.isLoading) {
+    if (!router.isLoading) {
       router.isLoading = true;
       await router.loadPath(window.location.pathname, false, event);
       router.isLoading = false;
@@ -377,7 +379,7 @@ export function createWebRouter(routerOptions) {
   });
 
   window.addEventListener('hashchange', async (event) => {
-    if (Reflect.get(router, 'outlets').length > 0 && !router.isLoading) {
+    if (!router.isLoading) {
       router.isLoading = true;
       await router.loadPath(window.location.hash, false, event);
       router.isLoading = false;
@@ -385,7 +387,7 @@ export function createWebRouter(routerOptions) {
   });
 
   window.addEventListener('load', async (event) => {
-    if (Reflect.get(router, 'outlets').length > 0 && !router.isLoading) {
+    if (!router.isLoading) {
       router.isLoading = true;
       await router.loadPath(window.location.pathname, false, event);
       router.isLoading = false;
@@ -393,7 +395,7 @@ export function createWebRouter(routerOptions) {
   });
 
   window.addEventListener('DOMContentLoaded', async (event) => {
-    if (Reflect.get(router, 'outlets').length > 0 && !router.isLoading) {
+    if (!router.isLoading) {
       router.isLoading = true;
       await router.loadPath(window.location.pathname, false, event);
       router.isLoading = false;
