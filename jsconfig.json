@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
+    "allowUnreachableCode": false,
+    "allowJs": true,
+
+    "noImplicitReturns": true,
+
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+
+    "checkJs": true,
+    "strict": true,
+
+    "outDir": "types"
+  },
+  "include": ["library/**/*", "library/jsx.js"],
+  "exclude": ["types/**/*", "tests/**/*", "node_modules/**/*"]
+}

@@ -1,0 +1,60 @@
+{
+  "name": "@adbl/dom",
+  "version": "0.0.0",
+  "description": "JSX Dom Elements.",
+  "private": false,
+  "type": "module",
+  "module": "./index.js",
+  "typings": "./types/index.d.ts",
+  "main": "library/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node scripts/build.js"
+  },
+  "keywords": [
+    "web",
+    "javascript"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.js"
+    },
+    "./router": {
+      "import": "./library/router.js",
+      "types": "./types/router/index.d.ts"
+    },
+    "./library/jsx-runtime": {
+      "import": "./library/jsx-runtime.js"
+    },
+    "./helpers": {
+      "import": "./library/helpers/index.js",
+      "types": "./types/helpers/index.d.ts"
+    }
+  },
+  "homepage": "https://github.com/adebola-io/dom#readme",
+  "bugs": {
+    "url": "https://github.com/adebola-io/dom/issues"
+  },
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "directory": "github.com/adebola-io/dom",
+    "type": "git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "chalk": "^5.3.0",
+    "inquirer": "^11.1.0",
+    "ora": "^8.1.0",
+    "semver": "^7.6.3",
+    "typescript": "^5.5.2"
+  },
+  "dependencies": {
+    "@adbl/cells": "latest",
+    "csstype": "^3.1.3"
+  }
+}
