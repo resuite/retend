@@ -1,5 +1,3 @@
-/// <reference path="../library/jsx-runtime.d.ts" />
-
 /**
  * @typedef {() => (Promise<{
  *  default: () => JSX.Template

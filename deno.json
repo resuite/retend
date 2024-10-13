@@ -1,0 +1,41 @@
+{
+  "name": "@adbl/dom",
+  "version": "0.0.1",
+  "description": "JSX Dom Elements.",
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
+    "allowUnreachableCode": false,
+    "lib": ["DOM", "ESNext"],
+
+    "strictFunctionTypes": true,
+
+    "noImplicitReturns": true,
+
+    "checkJs": true,
+    "strict": true,
+    "types": ["./jsx-runtime"]
+  },
+  "imports": {
+    "@adbl/cells": "npm:@adbl/cells"
+  },
+  "exclude": [
+    "source",
+    "node_modules",
+    ".npmignore",
+    "bun.lockb",
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "tsconfig.json",
+    "scripts",
+    "tests"
+  ],
+  "exports": {
+    ".": "./dist/library/index.js",
+    "./router": "./dist/router/index.js",
+    "./jsx-runtime": "./dist/jsx-runtime/index.js",
+    "./helpers": "./dist/helpers/index.js",
+    "./render": "./dist/render/index.js"
+  }
+}

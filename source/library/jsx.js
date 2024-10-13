@@ -92,24 +92,21 @@ const camelCasedAttributes = new Set([
  * Creates a new DOM element with the specified tag name, props, and children.
  *
  * @template {Record<PropertyKey, any>} Props
- * @template {string | ((props: Props & { children: any } | typeof DocumentFragment, context: any) => Node | Promise<Node>)} TagName
- * @param {TagName} tagname - The HTML tag name for the element.
+ * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
  * @param {...*} children - The child elements of the element.
- * @returns {Node} A new virtual DOM element.
+ * @returns {Node} A new  DOM element.
  */
 export function h(tagname, props, ...children) {
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
-    const tagname = window.document.createDocumentFragment();
+    const fragment = globalThis.window.document.createDocumentFragment();
     for (const child of children) {
-      tagname.appendChild(normalizeJsxChild(child, tagname));
+      fragment.appendChild(normalizeJsxChild(child, fragment));
     }
-    //@ts-ignore
-    return tagname;
+    return fragment;
   }
 
   if (typeof tagname === 'function') {
-    // @ts-ignore
     const component = tagname(
       {
         children,
@@ -119,7 +116,7 @@ export function h(tagname, props, ...children) {
     );
 
     if (component instanceof Promise) {
-      const placeholder = window.document.createComment('---');
+      const placeholder = globalThis.window.document.createComment('---');
       component.then((component) => {
         placeholder.replaceWith(component);
       });
@@ -131,16 +128,19 @@ export function h(tagname, props, ...children) {
 
   const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
 
-  /** @type {JsxElement} */ //@ts-ignore
+  /** @type {JsxElement} */ //@ts-ignore: coercion.
   const element =
     tagname === 'svg'
-      ? window.document.createElementNS('http://www.w3.org/2000/svg', tagname)
+      ? globalThis.window.document.createElementNS(
+          'http://www.w3.org/2000/svg',
+          tagname
+        )
       : tagname === 'math'
-      ? window.document.createElementNS(
+      ? globalThis.window.document.createElementNS(
           'http://www.w3.org/1998/Math/MathML',
           tagname
         )
-      : window.document.createElementNS(defaultNamespace, tagname);
+      : globalThis.window.document.createElementNS(defaultNamespace, tagname);
 
   element.__eventListenerList = new Map();
   element.__attributeCells = new Set();
@@ -154,8 +154,8 @@ export function h(tagname, props, ...children) {
   for (const child of children) {
     const childNode = normalizeJsxChild(child, element);
     if (
-      childNode instanceof window.HTMLElement &&
-      window.customElements.get(childNode.tagName.toLowerCase())
+      childNode instanceof globalThis.window.HTMLElement &&
+      globalThis.window.customElements.get(childNode.tagName.toLowerCase())
     ) {
       element.appendChild(childNode);
       continue;
@@ -163,21 +163,20 @@ export function h(tagname, props, ...children) {
 
     if (
       (tagname === 'svg' || tagname === 'math') &&
-      childNode instanceof window.HTMLElement
+      childNode instanceof globalThis.window.HTMLElement
     ) {
-      const temp = window.document.createElementNS(
+      const temp = globalThis.window.document.createElementNS(
         element.namespaceURI ?? '',
         'div'
       );
       temp.innerHTML = childNode.outerHTML;
-      element.append(...temp.children);
+      element.append(...Array.from(temp.children));
       continue;
     }
 
     element.appendChild(childNode);
   }
 
-  // @ts-ignore
   return element;
 }
 
@@ -375,12 +374,12 @@ function isSomewhatFalsy(value) {
  * @returns {Node} The normalized child element.
  */
 export function normalizeJsxChild(child, _parent) {
-  if (child instanceof window.Node) {
+  if (child instanceof globalThis.window.Node) {
     return child;
   }
 
   if (Array.isArray(child)) {
-    const fragment = window.document.createDocumentFragment();
+    const fragment = globalThis.window.document.createDocumentFragment();
 
     for (const element of child) {
       fragment.appendChild(normalizeJsxChild(element, fragment));
@@ -393,9 +392,9 @@ export function normalizeJsxChild(child, _parent) {
     return document.createTextNode('');
   }
 
-  // @ts-ignore
+  // @ts-ignore: There is an error with the @adbl/cells library. Booleans should be allowed here.
   if (Cell.isCell(child)) {
-    const textNode = window.document.createTextNode('');
+    const textNode = globalThis.window.document.createTextNode('');
     /** @param {any} value */
     const callback = (value) => {
       textNode.textContent = value;
@@ -415,7 +414,7 @@ export function normalizeJsxChild(child, _parent) {
     return textNode;
   }
 
-  return window.document.createTextNode(child?.toString() ?? '');
+  return globalThis.window.document.createTextNode(child?.toString() ?? '');
 }
 
 export class DocumentFragmentPlaceholder {}
@@ -429,4 +428,6 @@ export function defineJsxGlobals() {
   Reflect.set(globalThis, '__jsxFragment', DocumentFragmentPlaceholder);
 }
 
+export const jsx = h;
+export const jsxFragment = DocumentFragmentPlaceholder;
 export default h;

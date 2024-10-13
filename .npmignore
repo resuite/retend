@@ -1,8 +1,11 @@
-jsconfig.json
+tsconfig.json
 bun.lockb
 deno.json
+deno.lock
 .gitignore
 .vscode
 examples
 .gitpod.yml
 scripts
+source
+*.tgz

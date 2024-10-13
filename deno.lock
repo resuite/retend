@@ -1,0 +1,32 @@
+{
+  "version": "4",
+  "specifiers": {
+    "npm:@adbl/cells@*": "0.0.6",
+    "npm:@adbl/cells@latest": "0.0.6",
+    "npm:csstype@^3.1.3": "3.1.3",
+    "npm:typescript@^5.5.2": "5.6.3"
+  },
+  "npm": {
+    "@adbl/cells@0.0.6": {
+      "integrity": "sha512-Bc8ahfEum0bDd1I8q9wKeDtW5ED1fDwA8GmbJ+QQQ12JX8fCwD7XmjPJnbug7xdng+Gasc33LHyQ1cO3pzVUbg=="
+    },
+    "csstype@3.1.3": {
+      "integrity": "sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw=="
+    },
+    "typescript@5.6.3": {
+      "integrity": "sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:@adbl/cells@*"
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:@adbl/cells@latest",
+        "npm:csstype@^3.1.3",
+        "npm:typescript@^5.5.2"
+      ]
+    }
+  }
+}

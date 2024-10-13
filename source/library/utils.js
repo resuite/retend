@@ -68,22 +68,22 @@ export function generateChildNodes(children) {
     typeof children === 'number' ||
     typeof children === 'boolean'
   ) {
-    return [window.document.createTextNode(String(children))];
+    return [globalThis.window.document.createTextNode(String(children))];
   }
 
   if (children instanceof Promise) {
-    const placeholder = window.document.createComment('-------');
+    const placeholder = globalThis.window.document.createComment('-------');
     children.then((template) => {
       placeholder.replaceWith(...generateChildNodes(template));
     });
     return [placeholder];
   }
 
-  if (children instanceof window.DocumentFragment) {
+  if (children instanceof globalThis.window.DocumentFragment) {
     return Array.from(children.childNodes);
   }
 
-  if (children instanceof window.Node) {
+  if (children instanceof globalThis.window.Node) {
     return [children];
   }
 

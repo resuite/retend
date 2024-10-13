@@ -52,8 +52,8 @@ export function If(value, fn, elseFn) {
     return;
   }
 
-  const rangeStart = window.document.createComment('----');
-  const rangeEnd = window.document.createComment('----');
+  const rangeStart = globalThis.window.document.createComment('----');
+  const rangeEnd = globalThis.window.document.createComment('----');
 
   /** @param {T} value */
   const callback = (value) => {

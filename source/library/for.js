@@ -44,8 +44,8 @@ export function For(list, fn) {
     return snapshot;
   }
 
-  const rangeStart = window.document.createComment('----');
-  const rangeEnd = window.document.createComment('----');
+  const rangeStart = globalThis.window.document.createComment('----');
+  const rangeEnd = globalThis.window.document.createComment('----');
   const uniqueSymbolMarker = Symbol();
   /**
    * @type {Map<any, {

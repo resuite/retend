@@ -1,6 +1,6 @@
 {
   "name": "@adbl/dom",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "JSX Dom Elements.",
   "private": false,
   "type": "module",
@@ -17,19 +17,24 @@
   },
   "exports": {
     ".": {
-      "import": "./library/index.js",
-      "types": "./types/library/index.d.ts"
+      "import": "./dist/library/index.js",
+      "types": "./dist/library/index.d.ts"
     },
     "./router": {
-      "import": "./router/index.js",
-      "types": "./types/router/index.d.ts"
+      "import": "./dist/router/index.js",
+      "types": "./dist/router/index.d.ts"
     },
-    "./library/jsx-runtime": {
-      "import": "./library/jsx-runtime.js"
+    "./jsx-runtime": {
+      "import": "./dist/jsx-runtime/index.js",
+      "types": "./dist/jsx-runtime/index.d.ts"
     },
     "./helpers": {
-      "import": "./helpers/index.js",
-      "types": "./types/helpers/index.d.ts"
+      "import": "./dist/helpers/index.js",
+      "types": "./dist/helpers/index.d.ts"
+    },
+    "./render": {
+      "import": "./dist/render/index.js",
+      "types": "./dist/render/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/dom#readme",

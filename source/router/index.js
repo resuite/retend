@@ -1,14 +1,12 @@
 import { setAttribute, setAttributeFromProps } from '../library/jsx.js';
 import { generateChildNodes } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
-import { RouterMiddleware, RouterMiddlewareResponse } from './middleware.js';
-import { MatchedRoute, RouteTree } from './routeTree.js';
+import { RouterMiddlewareResponse } from './middleware.js';
+import { RouteTree } from './routeTree.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
 export * from './middleware.js';
-
-/// <reference path="../library/jsx-runtime.d.ts" />
 
 /**
  * @typedef {LazyRoute | (() => JSX.Template)} ComponentOrComponentLoader
@@ -16,6 +14,11 @@ export * from './middleware.js';
 
 /**
  * @typedef {import('./routeTree.js').RouteRecords<ComponentOrComponentLoader>} RouteRecords
+ */
+
+/**
+ * @template T
+ * @typedef {import('./routeTree.js').MatchedRoute<T>} MatchedRoute
  */
 
 /**
@@ -29,7 +32,7 @@ let ROUTER_INSTANCE = null;
  * @typedef RouterOptions
  * @property {RouteRecords} routes
  * The routes to be rendered by the router.
- * @property {RouterMiddleware[]} [middlewares]
+ * @property {import('./middleware.js').RouterMiddleware[]} [middlewares]
  * Middleware to be executed before each route change.
  * @property {number} [maxRedirects]
  * The maximum number of redirects to allow before the router stops and throws an error.
@@ -66,7 +69,7 @@ export class Router {
   /**
    * Defines an anchor element and handles click events to navigate to the specified route.
    *
-   * @type {(props: JSX.JsxHtmlAnchorElement) => HTMLAnchorElement}
+   * @type {(props?: JSX.JsxHtmlAnchorElement) => HTMLAnchorElement}
    * @param {JSX.JsxHtmlAnchorElement} props - The component props.
    * @returns {HTMLAnchorElement} The rendered `<router-link>` component.
    */
@@ -78,14 +81,21 @@ export class Router {
    *
    * This component is used internally by the `Router` class to handle route changes and
    * render the appropriate component.
-   * @type {(props: JSX.JsxHtmlDivElement) => HTMLDivElement}
+   * @type {(props?: JSX.JsxHtmlDivElement) => HTMLDivElement}
    * @param {JSX.JsxHtmlDivElement} props
    */
   Outlet;
 
+  /**
+   * The global `window` object, which provides access to the browser's JavaScript API.
+   *
+   * @type {Window | undefined}
+   */
+  window;
+
   /** @param {RouterOptions} routeOptions */
   constructor(routeOptions) {
-    this.id = window.crypto.randomUUID();
+    this.id = crypto.randomUUID();
     this.routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
     this.middlewares = routeOptions.middlewares ?? [];
     this.maxRedirects = routeOptions.maxRedirects ?? 50;
@@ -96,36 +106,50 @@ export class Router {
     this.params = new Map();
 
     this.Outlet = (props) => {
-      const outlet = document.createElement('div');
+      if (!this.window) {
+        throw new Error('Cannot create Outlet in undefined window.');
+      }
+      const outlet = this.window.document.createElement('div');
 
-      for (const [key, value] of Object.entries(props)) {
-        // @ts-expect-error
-        setAttributeFromProps(outlet, key, value);
+      if (props) {
+        for (const [key, value] of Object.entries(props)) {
+          // @ts-expect-error: The outlet is not of the type JsxElement.
+          setAttributeFromProps(outlet, key, value);
+        }
       }
 
       outlet.toggleAttribute('data-grenade-outlet', true);
       outlet.setAttribute('data-router-id', this.id);
-      outlet.replaceChildren(...generateChildNodes(props.children));
+      if (props) {
+        outlet.replaceChildren(...generateChildNodes(props.children));
+      }
 
       return outlet;
     };
 
     this.Link = (props) => {
-      const a = window.document.createElement('a');
-      if (!('to' in props)) {
+      if (!this.window) {
+        throw new Error('Cannot create Link in undefined window.');
+      }
+      const a = this.window?.document.createElement('a');
+      if (!props || !('to' in props)) {
         console.error('missing to attribute for link component.');
       }
 
-      for (const [key, value] of Object.entries(props)) {
-        // @ts-expect-error
-        setAttribute(a, key, value);
+      if (props) {
+        for (const [key, value] of Object.entries(props)) {
+          // @ts-expect-error: a is not of type JsxElement.
+          setAttribute(a, key, value);
+        }
       }
 
       a.addEventListener('click', (event) => {
         event.preventDefault();
         this.navigate(a.href);
       });
-      a.replaceChildren(...generateChildNodes(props.children));
+      if (props) {
+        a.replaceChildren(...generateChildNodes(props.children));
+      }
 
       return a;
     };
@@ -133,24 +157,31 @@ export class Router {
   }
 
   /**
+   * Sets the window object for the router.
+   * @param {Window} window - The window object to set.
+   */
+  setWindow(window) {
+    this.window = window;
+  }
+
+  /**
    * Pushes the specified path to the browser's history and renders the corresponding route component.
    *
    * @param {string} path - The path to navigate to.
-   * @return {Promise<undefined>}
+   * @return {Promise<void>}
    */
   navigate = async (path) => {
     if (path === '#') {
       return;
     }
     await this.loadPath(path, true);
-    return;
   };
 
   /**
    * Navigates back in the browser's history.
    */
-  async back() {
-    window.history.back();
+  back() {
+    this.window?.history.back();
   }
 
   /**
@@ -219,9 +250,13 @@ export class Router {
 
     if (matchResult.subTree === null) {
       console.warn(`No route matches path: ${path}`);
-      const outlet = document.querySelector('div[data-grenade-outlet]');
+      const outlet = this.window?.document.querySelector(
+        'div[data-grenade-outlet]'
+      );
       outlet?.removeAttribute('data-path');
-      outlet?.replaceChildren(emptyRoute(path));
+      if (this.window) {
+        outlet?.replaceChildren(emptyRoute(path, this.window));
+      }
       return true;
     }
 
@@ -230,9 +265,11 @@ export class Router {
     /** @type {MatchedRoute<ComponentOrComponentLoader> | null} */
     let currentMatchedRoute = matchResult.subTree;
     let outletIndex = 0;
-    /** @type {NodeListOf<HTMLElement>} */
-    const outlets = window.document.querySelectorAll(
-      `div[data-grenade-outlet][data-router-id="${this.id}"]`
+    /** @type {HTMLElement[]} */
+    const outlets = Array.from(
+      this.window?.document.querySelectorAll(
+        `div[data-grenade-outlet][data-router-id="${this.id}"]`
+      ) ?? []
     );
 
     while (currentMatchedRoute) {
@@ -269,7 +306,9 @@ export class Router {
 
           console.warn(`No component from route: ${path}`);
           outlet?.removeAttribute('data-path');
-          outlet?.replaceChildren(emptyRoute(path));
+          if (this.window) {
+            outlet?.replaceChildren(emptyRoute(path, this.window));
+          }
           return true;
         }
 
@@ -291,8 +330,8 @@ export class Router {
         // stored in the outlet's dataset, so we need to check before replacing.
         if (outlet.dataset.path === currentMatchedRoute.fullPath) {
           outlet.replaceChildren(...generateChildNodes(renderedComponent));
-          if (currentMatchedRoute.title) {
-            window.document.title = currentMatchedRoute.title;
+          if (currentMatchedRoute.title && this.window) {
+            this.window.document.title = currentMatchedRoute.title;
           }
         } else {
           return false;
@@ -351,9 +390,54 @@ export class Router {
     }
 
     if (navigate && wasLoaded) {
-      window.history.pushState(null, '', path);
+      this.window?.history.pushState(null, '', path);
     }
   };
+
+  /**
+   * Attaches event listeners to the window object for handling navigation events.
+   *
+   * This method sets up listeners for the following events:
+   * - popstate: Triggered when navigating through browser history
+   * - hashchange: Triggered when the URL hash changes
+   * - load: Triggered when the page finishes loading
+   * - DOMContentLoaded: Triggered when the initial HTML document has been completely loaded and parsed
+   *
+   * Each listener manages the loading state and calls the loadPath method with appropriate parameters.
+   */
+  attachWindowListeners() {
+    this.window?.addEventListener('popstate', async (event) => {
+      if (!this.isLoading && this.window) {
+        this.isLoading = true;
+        await this.loadPath(this.window.location.pathname, false, event);
+        this.isLoading = false;
+      }
+    });
+
+    this.window?.addEventListener('hashchange', async (event) => {
+      if (!this.isLoading && this.window) {
+        this.isLoading = true;
+        await this.loadPath(this.window.location.hash, false, event);
+        this.isLoading = false;
+      }
+    });
+
+    this.window?.addEventListener('load', async (event) => {
+      if (!this.isLoading && this.window) {
+        this.isLoading = true;
+        await this.loadPath(this.window.location.pathname, false, event);
+        this.isLoading = false;
+      }
+    });
+
+    this.window?.addEventListener('DOMContentLoaded', async (event) => {
+      if (!this.isLoading && this.window) {
+        this.isLoading = true;
+        await this.loadPath(this.window.location.pathname, false, event);
+        this.isLoading = false;
+      }
+    });
+  }
 
   isLoading = false;
 }
@@ -369,38 +453,6 @@ export class Router {
 export function createWebRouter(routerOptions) {
   const router = new Router(routerOptions);
   ROUTER_INSTANCE = router;
-
-  window.addEventListener('popstate', async (event) => {
-    if (!router.isLoading) {
-      router.isLoading = true;
-      await router.loadPath(window.location.pathname, false, event);
-      router.isLoading = false;
-    }
-  });
-
-  window.addEventListener('hashchange', async (event) => {
-    if (!router.isLoading) {
-      router.isLoading = true;
-      await router.loadPath(window.location.hash, false, event);
-      router.isLoading = false;
-    }
-  });
-
-  window.addEventListener('load', async (event) => {
-    if (!router.isLoading) {
-      router.isLoading = true;
-      await router.loadPath(window.location.pathname, false, event);
-      router.isLoading = false;
-    }
-  });
-
-  window.addEventListener('DOMContentLoaded', async (event) => {
-    if (!router.isLoading) {
-      router.isLoading = true;
-      await router.loadPath(window.location.pathname, false, event);
-      router.isLoading = false;
-    }
-  });
 
   return router;
 }
@@ -439,11 +491,12 @@ export function defineRoutes(routes) {
  * Generates a DocumentFragment node with a text node indicating that the specified route path was not found.
  *
  * @param {string} path - The route path that was not found.
+ * @param {Window} window - The window object.
  * @returns {DocumentFragment} A DocumentFragment node containing a text node with the "Route not found" message.
  */
-function emptyRoute(path) {
+function emptyRoute(path, window) {
   console.warn(`Route not found: ${path}`);
-  const node = new window.DocumentFragment();
+  const node = window.document.createDocumentFragment();
   node.appendChild(window.document.createTextNode(`Route not found: ${path}`));
   return node;
 }

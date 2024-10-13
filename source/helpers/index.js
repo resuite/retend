@@ -23,26 +23,26 @@ const svgMap = new Map();
  */
 export async function InlineSvg(props) {
   try {
-    const { href, ...rest } = props;
     let svg = svgMap.get(props.href);
     if (!svg) {
       const response = await fetch(props.href, svgFetchOptions);
       svg = await response.text();
       svgMap.set(props.href, svg);
     }
-    const range = window.document.createRange();
+    const range = globalThis.window.document.createRange();
     const element = range.createContextualFragment(svg).querySelector('svg');
 
     if (element) {
       Reflect.set(element, '__attributeCells', new Set());
       Reflect.set(element, '__eventListenerList', new Map());
-      for (const [attribute, value] of Object.entries(rest)) {
+      for (const [attribute, value] of Object.entries(props)) {
+        if (attribute === 'href') continue;
         setAttributeFromProps(/** @type {any} */ (element), attribute, value);
       }
     }
-    return element ?? window.document.createElement('template');
+    return element ?? globalThis.window.document.createElement('template');
   } catch (error) {
     console.error('Error fetching SVG:', error);
-    return window.document.createElement('template');
+    return globalThis.window.document.createElement('template');
   }
 }

@@ -18,7 +18,7 @@ const CONFIG = {
     '@adbl/dom': 'latest',
   },
   devDependencies: {
-    vite: '^5.4.1',
+    vite: '^5.4.8',
     typescript: '^5.5.2',
     tailwindcss: '^3.4.10',
     autoprefixer: '^10.4.20',
@@ -390,24 +390,34 @@ export default {
 async function createMainFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   let content = `
-/// <reference types="vite/client" />
-
-import { jsx } from '@adbl/dom';
-jsx.defineJsxGlobals();
+import { defineJsxGlobals } from '@adbl/dom';
+import { render } from '@adbl/dom/render';
 `;
 
   if (answers.useRouter) {
     content += `
 import { createRouter } from './router';
-const router = createRouter();
 
-document.getElementById('app')?.replaceChildren(router.Outlet({}));
-      `;
+defineJsxGlobals();
+
+const router = createRouter();
+router.attachToWindow(window);
+
+const root = window.document.getElementById('app');
+if (root !== null) {
+  render(root, router.Outlet(), window)
+}
+`;
   } else {
     content += `
 import { App } from './App';
 
-document.getElementById('app')?.replaceChildren(App());
+jsx.defineJsxGlobals();
+
+const root = window.document.getElementById('app');
+if (root !== null) {
+  render(root, App(), window)
+}
     `;
   }
 
@@ -695,8 +705,9 @@ async function createConfigFile(projectDir, answers) {
       noUnusedLocals: true,
       noUnusedParameters: true,
       noFallthroughCasesInSwitch: true,
-      jsx: 'preserve',
-      types: ['@adbl/dom/library/jsx-runtime'],
+      jsx: 'react-jsx',
+      jsxImportSource: '@adbl/dom',
+      types: ['@adbl/dom/jsx-runtime'],
       baseUrl: '.',
       paths: {
         '@/*': ['./source/*'],
