@@ -1,6 +1,9 @@
 import { Cell } from '@adbl/cells';
 import { generateChildNodes } from './utils.js';
 
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
 /**
  * Creates a dynamic mapping of an iterable to DOM nodes, efficiently updating when the iterable changes.
  *

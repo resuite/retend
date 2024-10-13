@@ -15,27 +15,19 @@
 
     "checkJs": true,
     "strict": true,
-    "types": ["./jsx-runtime"]
+    "types": ["./dist/jsx-runtime"]
   },
   "imports": {
     "@adbl/cells": "npm:@adbl/cells"
   },
-  "exclude": [
-    "source",
-    "node_modules",
-    ".npmignore",
-    "bun.lockb",
-    "pnpm-lock.yaml",
-    "package-lock.json",
-    "tsconfig.json",
-    "scripts",
-    "tests"
-  ],
+  "publish": {
+    "exclude": ["!dist"]
+  },
   "exports": {
-    ".": "./dist/library/index.js",
-    "./router": "./dist/router/index.js",
-    "./jsx-runtime": "./dist/jsx-runtime/index.js",
-    "./helpers": "./dist/helpers/index.js",
-    "./render": "./dist/render/index.js"
+    ".": "./dist/library/index.d.ts",
+    "./router": "./dist/router/index.d.ts",
+    "./jsx-runtime": "./dist/jsx-runtime/index.d.ts",
+    "./helpers": "./dist/helpers/index.d.ts",
+    "./render": "./dist/render/index.d.ts"
   }
 }

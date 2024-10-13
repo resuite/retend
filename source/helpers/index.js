@@ -5,6 +5,9 @@ import { setAttributeFromProps } from '../library/jsx.js';
  * @property {string} href address of the svg icon to inline.
  */
 
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
 /**
  * @typedef {InlineSvgProps & JSX.IntrinsicElements['svg']} SvgProps
  */

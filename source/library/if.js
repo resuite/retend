@@ -1,6 +1,9 @@
 import { Cell } from '@adbl/cells';
 import { generateChildNodes } from './utils.js';
 
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
 /**
  * Conditionally renders nodes based on the truthiness of a value.
  *

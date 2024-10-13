@@ -8,6 +8,9 @@ export * from './lazy.js';
 export * from './routeTree.js';
 export * from './middleware.js';
 
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
 /**
  * @typedef {LazyRoute | (() => JSX.Template)} ComponentOrComponentLoader
  */
@@ -181,7 +184,7 @@ export class Router {
    * Navigates back in the browser's history.
    */
   back() {
-    this.window?.history.back();
+    this.window?.history?.back();
   }
 
   /**
@@ -390,7 +393,7 @@ export class Router {
     }
 
     if (navigate && wasLoaded) {
-      this.window?.history.pushState(null, '', path);
+      this.window?.history?.pushState(null, '', path);
     }
   };
 

@@ -1,3 +1,6 @@
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
 /**
  * @typedef {() => (Promise<{
  *  default: () => JSX.Template

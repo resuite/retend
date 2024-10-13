@@ -54,6 +54,9 @@ export function toKebabCase(str) {
     .toLowerCase();
 }
 
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
 /**
  * Generates an array of DOM nodes from a given input.
  * @param {JSX.Template | TemplateStringsArray} children - The input to generate DOM nodes from.

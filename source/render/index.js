@@ -1,5 +1,8 @@
 import { generateChildNodes } from '../library/utils.js';
 
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
 /**
  * Renders a JSX template to a string.
  *
@@ -40,11 +43,16 @@ export async function renderToString(template, window) {
   }
 
   if (template instanceof window.Node) {
-    if (template instanceof window.Text) {
+    /*
+     * TODO: There is a bug in happy-dom where
+     * template instanceof window.Text is always false,
+     * even when the nodeType is Node.TEXT_NODE
+     */
+    if (template.nodeType === window.Node.TEXT_NODE) {
       return template.textContent ?? '';
     }
 
-    if (template instanceof window.Comment) {
+    if (template.nodeType === window.Node.COMMENT_NODE) {
       return `<!--${template.textContent}-->`;
     }
 
@@ -54,6 +62,8 @@ export async function renderToString(template, window) {
       for (const attribute of Array.from(template.attributes)) {
         text += ` ${attribute.name}="${attribute.value}"`;
       }
+
+      text += '>';
 
       for (const child of Array.from(template.childNodes)) {
         text += await renderToString(child, window);

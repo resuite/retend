@@ -279,10 +279,6 @@ ${
 `
     : ''
 }
-  esbuild: {
-    jsxFactory: '__jsx',
-    jsxFragment: '__jsxFragment',
-  },
 });
   `.trim();
 
@@ -390,15 +386,13 @@ export default {
 async function createMainFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   let content = `
-import { defineJsxGlobals } from '@adbl/dom';
+/// <reference types="vite/client" />
 import { render } from '@adbl/dom/render';
 `;
 
   if (answers.useRouter) {
     content += `
 import { createRouter } from './router';
-
-defineJsxGlobals();
 
 const router = createRouter();
 router.attachToWindow(window);
@@ -411,8 +405,6 @@ if (root !== null) {
   } else {
     content += `
 import { App } from './App';
-
-jsx.defineJsxGlobals();
 
 const root = window.document.getElementById('app');
 if (root !== null) {
@@ -705,9 +697,7 @@ async function createConfigFile(projectDir, answers) {
       noUnusedLocals: true,
       noUnusedParameters: true,
       noFallthroughCasesInSwitch: true,
-      jsx: 'react-jsx',
       jsxImportSource: '@adbl/dom',
-      types: ['@adbl/dom/jsx-runtime'],
       baseUrl: '.',
       paths: {
         '@/*': ['./source/*'],

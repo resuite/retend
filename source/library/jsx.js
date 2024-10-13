@@ -94,10 +94,11 @@ const camelCasedAttributes = new Set([
  * @template {Record<PropertyKey, any>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
- * @param {...*} children - The child elements of the element.
+ * @param {...*} childNodes - The child elements of the element.
  * @returns {Node} A new  DOM element.
  */
-export function h(tagname, props, ...children) {
+export function h(tagname, props, ...childNodes) {
+  const children = props.children || childNodes;
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
     const fragment = globalThis.window.document.createDocumentFragment();
     for (const child of children) {
@@ -151,14 +152,15 @@ export function h(tagname, props, ...children) {
       setAttributeFromProps(element, key, value);
     }
 
-  for (const child of children) {
+  /** @param {any} child */
+  const appendChild = (child) => {
     const childNode = normalizeJsxChild(child, element);
     if (
       childNode instanceof globalThis.window.HTMLElement &&
       globalThis.window.customElements.get(childNode.tagName.toLowerCase())
     ) {
       element.appendChild(childNode);
-      continue;
+      return;
     }
 
     if (
@@ -171,10 +173,18 @@ export function h(tagname, props, ...children) {
       );
       temp.innerHTML = childNode.outerHTML;
       element.append(...Array.from(temp.children));
-      continue;
+      return;
     }
 
     element.appendChild(childNode);
+  };
+
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      appendChild(child);
+    }
+  } else {
+    appendChild(children);
   }
 
   return element;
