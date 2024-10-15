@@ -192,7 +192,7 @@ export function h(tagname, props, ...childNodes) {
 
 /**
  * @typedef HiddenElementProperties
- * @property {Map<string, () => void>} __eventListenerList
+ * @property {Map<string, (() => void)[]>} __eventListenerList
  * List of event listeners set as attributes on the element.
  * @property {Set<object | ((value: any) => void)>} __attributeCells
  * List of cell callbacks set as attributes on the element.
@@ -256,7 +256,7 @@ export function setAttribute(element, key, value) {
     );
     // remove stale listeners
     element.removeEventListener(eventName, value);
-    const oldValue = element.__eventListenerList.get(eventName);
+    const oldValue = element.__eventListenerList.get(eventName)?.at(0);
     if (oldValue !== undefined && oldValue !== value) {
       element.removeEventListener(eventName, oldValue);
       element.__eventListenerList.delete(eventName);

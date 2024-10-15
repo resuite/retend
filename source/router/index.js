@@ -42,7 +42,10 @@ let ROUTER_INSTANCE = null;
  */
 
 export class Router {
-  /** @private @type {string} */
+  /**
+   * The unique identifier for the router instance.
+   * @type {string}
+   */
   id;
 
   /** @private @type {HTMLElement[]} */
@@ -298,8 +301,14 @@ export class Router {
           matchedComponentOrLazyLoader === undefined
         ) {
           const outlet = outlets[outletIndex];
+          if (currentMatchedRoute.title && this.window) {
+            this.window.document.title = currentMatchedRoute.title;
+          }
           if (currentMatchedRoute.child) {
             currentMatchedRoute = currentMatchedRoute.child;
+            if (currentMatchedRoute.title && this.window) {
+              this.window.document.title = currentMatchedRoute.title;
+            }
             continue;
           }
           if (currentMatchedRoute.redirect) {
@@ -370,16 +379,20 @@ export class Router {
 
   /**
    * Loads the matching routes for a path.
-   * @param {string} path
+   * @param {string} rawPath
    * @param {boolean} [navigate]
    * @param {Event} [_event]
    * Event that triggered the navigation.
    */
-  loadPath = async (path, navigate, _event) => {
+  loadPath = async (rawPath, navigate, _event) => {
+    const [pathRoot, pathQuery] = rawPath.split('?');
+    // Ensures that .html is removed from the path.
+    const path =
+      (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
+      (pathQuery ?? '');
     if (this.currentPath?.fullPath === path) {
       return;
     }
-
     const wasLoaded = await this.updateDOMWithMatchingPath(path);
 
     for (const link of this.links) {

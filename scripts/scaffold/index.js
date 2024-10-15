@@ -279,6 +279,10 @@ ${
 `
     : ''
 }
+  jsxInject:
+    'import { h as __h, DocumentFragmentPlaceholder as __fragment } from "@adbl/dom"',
+  jsxFactory: '__h',
+  jsxFragment: '__fragment',
 });
   `.trim();
 
@@ -395,7 +399,8 @@ import { render } from '@adbl/dom/render';
 import { createRouter } from './router';
 
 const router = createRouter();
-router.attachToWindow(window);
+router.window = window;
+router.attachWindowListeners();
 
 const root = window.document.getElementById('app');
 if (root !== null) {
@@ -643,7 +648,7 @@ async function createPackageJson(projectDir, answers) {
     version: '0.0.0',
     type: 'module',
     scripts: {
-      dev: 'vite',
+      dev: 'vite --port 5229',
       build: 'vite build',
       preview: 'vite preview',
     },
@@ -697,6 +702,7 @@ async function createConfigFile(projectDir, answers) {
       noUnusedLocals: true,
       noUnusedParameters: true,
       noFallthroughCasesInSwitch: true,
+      jsx: 'react-jsx',
       jsxImportSource: '@adbl/dom',
       baseUrl: '.',
       paths: {
