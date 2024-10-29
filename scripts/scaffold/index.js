@@ -135,6 +135,15 @@ async function main() {
   }
 }
 
+function generateLightColor() {
+  // Generate high values for RGB to ensure light colors
+  const r = Math.floor(Math.random() * 56) + 200; // 200-255
+  const g = Math.floor(Math.random() * 56) + 200; // 200-255
+  const b = Math.floor(Math.random() * 56) + 200; // 200-255
+
+  return `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`;
+}
+
 /**
  * Function to check the current Node.js version
  */
@@ -508,7 +517,7 @@ async function createComponentStructure(
   const containerClass = `${componentName}${isView ? 'View' : ''}`;
 
   const containerClasses = tailwind
-    ? '"min-h-screen flex items-center justify-center"'
+    ? '"min-h-screen flex items-center justify-center bg-gradient-to-r from-[${generateLightColor()}] to-[${generateLightColor()}] to-white"'
     : `{styles.${containerClass}}`;
 
   const mainElementClasses = tailwind
@@ -575,6 +584,7 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
   display: flex;
   align-items: center;
   justify-content: center;
+  background-image: linear-gradient(60deg, ${generateLightColor()}, ${generateLightColor()}, white);
 }
 
 .content {
