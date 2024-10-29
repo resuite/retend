@@ -1,6 +1,6 @@
 {
   "name": "@adbl/dom",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "JSX Dom Elements.",
   "private": false,
   "type": "module",
