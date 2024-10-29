@@ -139,7 +139,7 @@ for (const route of preRenderedRoutes) {
         '<!-- app-head -->',
         `${importedCss
           .map((cssLink) => {
-            return `<link rel="preload" crossorigin href="${cssLink}" as="style" />`;
+            return `<link rel="stylesheet" href="${cssLink}">`;
           })
           .join('\n')}
         <title>${title}</title>`
