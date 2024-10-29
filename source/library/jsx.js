@@ -352,10 +352,11 @@ export function setAttribute(element, key, value) {
   });
 
   if (attributeName === 'class-name' || attributeName === 'class') {
-    if (typeof value === 'string') {
-      element.setAttribute('class', value);
-    } else if (Array.isArray(value)) {
-      element.setAttribute('class', value.join(' '));
+    const normalizedClass = normalizeClassValue(value, element);
+    if (normalizedClass) {
+      element.setAttribute('class', normalizedClass);
+    } else {
+      element.removeAttribute('class');
     }
     return;
   }
@@ -425,6 +426,89 @@ export function normalizeJsxChild(child, _parent) {
   }
 
   return globalThis.window.document.createTextNode(child?.toString() ?? '');
+}
+
+/**
+ * Normalizes a JSX class attribute value to a string.
+ *
+ * Handles various input types for class values, including strings, arrays, objects, and cells.
+ *
+ * @param {string | string[] | Record<string, boolean > | Cell<string>} val - The class value to normalize.
+ * @param {JsxElement} element The target element with the class.
+ * @returns {string} The normalized class value as a string.
+ */
+export function normalizeClassValue(val, element) {
+  if (typeof val === 'string') {
+    return val;
+  }
+
+  if (Array.isArray(val)) {
+    let result = '';
+    for (const [index, value] of val.entries()) {
+      const normalized = normalizeClassValue(value, element);
+      if (normalized) {
+        result += normalized;
+      }
+      if (index !== value.length - 1) {
+        result += ' ';
+      }
+    }
+    return result;
+  }
+
+  if (Cell.isCell(val)) {
+    let currentClassToken = val.value;
+    /** @type {(newValue: string) => void} */
+    const callback = (newValue) => {
+      try {
+        element.classList.remove(currentClassToken);
+      } catch {}
+      try {
+        element.classList.add(newValue);
+      } catch {}
+      currentClassToken = newValue;
+    };
+
+    val.listen(callback, { weak: true });
+    element.__attributeCells.add(val);
+    element.__attributeCells.add(callback);
+    return currentClassToken;
+  }
+
+  if (typeof val === 'object' && val !== null) {
+    let result = '';
+    for (const [key, value] of Object.entries(val)) {
+      if (Cell.isCell(value)) {
+        /** @type {(newValue: boolean) => void} */
+        const callback = (newValue) => {
+          if (newValue) {
+            try {
+              element.classList.add(key);
+            } catch {}
+          } else {
+            try {
+              element.classList.remove(key);
+            } catch {}
+          }
+        };
+
+        value.listen(callback, { weak: true });
+        element.__attributeCells.add(value);
+        element.__attributeCells.add(callback);
+        if (value.value) {
+          result += ` ${key}`;
+        }
+        continue;
+      }
+
+      if (!value) {
+        result += ` ${key}`;
+      }
+    }
+    return result;
+  }
+
+  return '';
 }
 
 export class DocumentFragmentPlaceholder {}

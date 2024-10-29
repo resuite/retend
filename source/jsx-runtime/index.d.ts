@@ -838,7 +838,10 @@ export namespace JSX {
     /**
      * Assigns a space-separated list of CSS classes to the element.
      */
-    class?: string | (string | import('@adbl/cells').Cell<string>)[];
+    // The class can be a string, an array of string, an iterable,
+    // an object with string keys, or a combination of the above.
+    // It is hard to type.
+    class?: unknown;
 
     /**
      * Defines inline CSS styles for the element. Can be a string or an object.
