@@ -2,7 +2,7 @@
 
 A lightweight library for building vanilla web applications with JSX.
 
-[![downloads (@adbl/library)](https://img.shields.io/npm/dm/@adbl/library?label=downloads)](https://www.npmjs.com/package/@adbl/library)
+[![downloads (@adbl/dom)](https://img.shields.io/npm/dm/@adbl/dom?label=downloads)](https://www.npmjs.com/package/@adbl/dom)
 
 ## Table of Contents
 
