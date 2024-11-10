@@ -1,5 +1,5 @@
 import { setAttribute, setAttributeFromProps } from '../library/jsx.js';
-import { generateChildNodes } from '../library/utils.js';
+import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { RouteTree } from './routeTree.js';
@@ -33,12 +33,23 @@ let ROUTER_INSTANCE = null;
 
 /**
  * @typedef RouterOptions
+ *
  * @property {RouteRecords} routes
  * The routes to be rendered by the router.
+ *
  * @property {import('./middleware.js').RouterMiddleware[]} [middlewares]
  * Middleware to be executed before each route change.
+ *
  * @property {number} [maxRedirects]
  * The maximum number of redirects to allow before the router stops and throws an error.
+ *
+ * @property {number} [maxKeepAliveCount]
+ * The maximum number of routes that can be kept alive in the router's cache.
+ * It defaults to 10.
+ *
+ * @property {number} [maxPreloadCount]
+ * The maximum number of routes to preload.
+ * it defaults to 10.
  */
 
 export class Router {
@@ -71,6 +82,9 @@ export class Router {
 
   /** @type {Promise<boolean>} */
   rendering;
+
+  /** @private @type {FixedSizeMap<string, Node[]>} */
+  keepAliveCache;
 
   /**
    * Defines an anchor element and handles click events to navigate to the specified route.
@@ -110,6 +124,9 @@ export class Router {
     this.rendering = Promise.resolve(false);
     this.links = [];
     this.params = new Map();
+    this.keepAliveCache = new FixedSizeMap(
+      routeOptions.maxKeepAliveCount ?? 10
+    );
 
     this.Outlet = (props) => {
       if (!this.window) {
@@ -336,12 +353,19 @@ export class Router {
         }
 
         outlet.dataset.path = currentMatchedRoute.fullPath;
-        const renderedComponent = matchedComponent();
+        const renderedComponent =
+          this.keepAliveCache.get(path) ?? matchedComponent();
 
         // if the component performs a redirect, it would change the route
         // stored in the outlet's dataset, so we need to check before replacing.
         if (outlet.dataset.path === currentMatchedRoute.fullPath) {
-          outlet.replaceChildren(...generateChildNodes(renderedComponent));
+          const newRoute = generateChildNodes(renderedComponent);
+          outlet.replaceChildren(...newRoute);
+
+          if (currentMatchedRoute.keepAlive) {
+            this.keepAliveCache.set(path, newRoute);
+          }
+
           if (currentMatchedRoute.title && this.window) {
             this.window.document.title = currentMatchedRoute.title;
           }

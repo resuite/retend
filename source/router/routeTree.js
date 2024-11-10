@@ -19,16 +19,27 @@
 /**
  * @template T
  * @typedef RouteRecordWithComponent
+ *
  * @property {string} name
  * The name of the route.
+ *
  * @property {string} path
  * The path pattern to match against the URL.
+ *
  * @property {string} [redirect]
  * The path to redirect to when the route is matched, if there is no component.
+ *
  * @property {string} [title]
  * The title to give the document when the route is matched.
  * if there are nested routes with a title set, the title will be overwritten.
+ *
  * @property {T} component
+ * The component to render when the route is matched.
+ *
+ * @property {boolean} [keepAlive]
+ * Whether or not to persist the route's component in the router's cache.
+ * Its validity is determined by whether or not the route has an associated component.
+ * Routes with redirects or children are not considered for keep-alive.
  */
 
 /**
@@ -53,6 +64,7 @@ export class Route {
   /** @type {boolean} */ isWildcard = false;
   /** @type {boolean} */ isTransient = false;
   /** @type {Route<T>[]} */ children = [];
+  /** @type {boolean} */ keepAlive = false;
 
   /**
    * Creates a new Route instance with the specified path.
@@ -74,6 +86,7 @@ export class MatchedRoute {
   /** @type {boolean} */ isDynamic;
   /** @type {boolean} */ isTransient;
   /** @type {MatchedRoute<T> | null} */ child;
+  /** @type {boolean} */ keepAlive;
 
   /**
    * @param {Route<T>} route
@@ -87,6 +100,7 @@ export class MatchedRoute {
     this.isTransient = route.isTransient;
     this.child = null;
     this.title = route.title;
+    this.keepAlive = route.keepAlive;
   }
 }
 
@@ -251,7 +265,7 @@ export class RouteTree {
       const previousRootSegments = rootPathSegments.slice(0, -1);
       const previousTargetSegments = targetPathSegments.slice(
         0,
-        previousRootSegments.length - 2,
+        previousRootSegments.length - 2
       );
 
       const dynamicPathMatched = previousTargetSegments
@@ -268,7 +282,7 @@ export class RouteTree {
       rewrittenParamValue = this.parameterMap.get(rewrittenParamName);
       this.parameterMap.set(
         rewrittenParamName,
-        targetPathSegments[targetIndex],
+        targetPathSegments[targetIndex]
       );
 
       if (
@@ -382,6 +396,8 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     current.component = routeRecord.component;
     current.redirect = routeRecord.redirect ?? null;
     current.title = routeRecord.title ?? null;
+    current.keepAlive =
+      'keepAlive' in routeRecord ? Boolean(routeRecord.keepAlive) : false;
 
     const fullPath = `${parentFullPath}/${routeRecord.path}`;
     current.fullPath = fullPath.replace(/\/+/g, '/');
