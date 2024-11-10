@@ -2,7 +2,7 @@ import { setAttribute, setAttributeFromProps } from '../library/jsx.js';
 import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
-import { RouteTree } from './routeTree.js';
+import { MatchResult, RouteTree } from './routeTree.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -26,6 +26,23 @@ export * from './middleware.js';
 
 /**
  * @typedef {RouteRecords[number]} RouteRecord
+ */
+
+/**
+ * @typedef {Object} ExtraLinkData
+ *
+ * @property {boolean | 'enter-viewport' | 'hover' | 'focus'} [preload]
+ * Whether or not to preload the route, and when to do so.
+ * Possible values are:
+ * - `false`: Do not preload the route.
+ * - `'enter-viewport'`: Preload the route when the user enters the viewport.
+ * - `'hover'`: Preload the route when the user hovers over the link.
+ * - `'focus'`: Preload the route when the user focuses on the link.
+ * - `true`: Preload the route if the link is hovered over.
+ */
+
+/**
+ * @typedef {JSX.JsxHtmlAnchorElement & ExtraLinkData} RouterLinkProps
  */
 
 /** @type {Router | null } */
@@ -89,7 +106,7 @@ export class Router {
   /**
    * Defines an anchor element and handles click events to navigate to the specified route.
    *
-   * @type {(props?: JSX.JsxHtmlAnchorElement) => HTMLAnchorElement}
+   * @type {(props?: RouterLinkProps) => HTMLAnchorElement}
    * @param {JSX.JsxHtmlAnchorElement} props - The component props.
    * @returns {HTMLAnchorElement} The rendered `<router-link>` component.
    */
@@ -164,6 +181,13 @@ export class Router {
           // @ts-expect-error: a is not of type JsxElement.
           setAttribute(a, key, value);
         }
+
+        if (props.preload) {
+          switch (props.preload) {
+            case 'enter-viewport':
+              break;
+          }
+        }
       }
 
       a.addEventListener('click', (event) => {
@@ -212,6 +236,110 @@ export class Router {
   }
 
   /**
+   * Preloads the route component corresponding to the specified path.
+   *
+   * @param {string} path - The path to preload.
+   * @param {import('./middleware.js').RouteData} [workingPath] - The path to use as the current path when preloading.
+   * @returns {Promise<void>} A promise that resolves when the preload is complete.
+   */
+  preload = async (path, workingPath) => {
+    if (path === '#') {
+      return;
+    }
+
+    const matchResult = this.routeTree.match(path);
+
+    matchResult.flattenTransientRoutes();
+    const targetMatch = matchResult.leaf();
+    const currentPath = workingPath ?? this.currentPath;
+
+    if (targetMatch !== null) {
+      const finalPath = this.runMiddlewares(
+        path,
+        matchResult,
+        targetMatch,
+        currentPath,
+        'preload'
+      );
+      if (finalPath !== path) {
+        if (finalPath !== undefined) {
+          await this.preload(finalPath, workingPath);
+        }
+        return;
+      }
+    }
+
+    if (matchResult.subTree === null) {
+      return;
+    }
+  };
+
+  /**
+   * @private
+   * @param {string} path
+   * @param {MatchResult<ComponentOrComponentLoader>} matchResult
+   * @param {MatchedRoute<ComponentOrComponentLoader>} targetMatch
+   * @param {import('./middleware.js').RouteData | null} [workingPath]
+   * @param {'navigate' | 'preload'} mode
+   * @returns {string | undefined} The final path to navigate to or preload.
+   */
+  runMiddlewares(
+    path,
+    matchResult,
+    targetMatch,
+    workingPath,
+    mode = 'navigate'
+  ) {
+    const currentPath = workingPath ?? this.currentPath;
+    const sourcePath = currentPath
+      ? {
+          name: currentPath.name,
+          params: currentPath.params,
+          query: currentPath.query,
+          fullPath: currentPath.fullPath,
+        }
+      : null;
+    const targetPath = {
+      name: targetMatch.name,
+      params: matchResult.params,
+      query: matchResult.searchQueryParams,
+      fullPath: targetMatch.fullPath,
+    };
+    const middlewareArgs = {
+      from: sourcePath,
+      to: targetPath,
+    };
+    for (const middleware of this.middlewares) {
+      const middlewareResponse = middleware.callback(middlewareArgs);
+      if (middlewareResponse instanceof RouterMiddlewareResponse) {
+        if (middlewareResponse.type === 'redirect') {
+          // Block deep redirects
+          if (this.redirectStackCount > this.maxRedirects) {
+            if (mode === 'navigate') {
+              const message = `Your router redirected too many times (${this.maxRedirects}). This is probably due to a circular redirect in your route configuration.`;
+              console.warn(message);
+            }
+            return;
+          }
+          // Ignore same-path redirects
+          if (middlewareResponse.path === path) {
+            continue;
+          }
+          this.redirectStackCount++;
+          return this.runMiddlewares(
+            middlewareResponse.path,
+            matchResult,
+            targetMatch,
+            workingPath,
+            mode
+          );
+        }
+      }
+    }
+    return path;
+  }
+
+  /**
    * Loads the route component corresponding to the specified path into the `<router-outlet>`
    * element.
    *
@@ -230,48 +358,18 @@ export class Router {
 
     const targetMatch = matchResult.leaf();
     if (targetMatch !== null) {
-      const sourcePath = this.currentPath
-        ? {
-            name: this.currentPath.name,
-            params: this.currentPath.params,
-            query: this.currentPath.query,
-            fullPath: this.currentPath.fullPath,
-          }
-        : null;
-
-      const targetPath = {
-        name: targetMatch.name,
-        params: matchResult.params,
-        query: matchResult.searchQueryParams,
-        fullPath: targetMatch.fullPath,
-      };
-
-      const middlewareArgs = {
-        from: sourcePath,
-        to: targetPath,
-      };
-
-      for (const middleware of this.middlewares) {
-        const middlewareResponse = await middleware.callback(middlewareArgs);
-        if (middlewareResponse instanceof RouterMiddlewareResponse) {
-          if (middlewareResponse.type === 'redirect') {
-            // Block deep redirects
-            if (this.redirectStackCount > this.maxRedirects) {
-              const message = `Your router redirected too many times (${this.maxRedirects}). This is probably due to a circular redirect in your route configuration.`;
-              console.warn(message);
-              return false;
-            }
-
-            // Ignore same-path redirects
-            if (middlewareResponse.path === path) {
-              continue;
-            }
-
-            this.redirectStackCount++;
-            await this.navigate(middlewareResponse.path);
-            return false;
-          }
+      const finalPath = this.runMiddlewares(
+        path,
+        matchResult,
+        targetMatch,
+        this.currentPath,
+        'navigate'
+      );
+      if (finalPath !== path) {
+        if (finalPath !== undefined) {
+          await this.navigate(finalPath);
         }
+        return false;
       }
     }
 
