@@ -155,7 +155,7 @@ export class Router {
         throw new Error('Cannot create Link in undefined window.');
       }
       const a = this.window?.document.createElement('a');
-      if (!props || !('to' in props)) {
+      if (!props || !('href' in props)) {
         console.error('missing to attribute for link component.');
       }
 
@@ -167,8 +167,12 @@ export class Router {
       }
 
       a.addEventListener('click', (event) => {
-        event.preventDefault();
-        this.navigate(a.href);
+        // Only navigate if the href is not a valid URL.
+        // For valid URLs, the browser will handle the navigation.
+        if (props?.href && !URL.canParse(props.href)) {
+          event.preventDefault();
+          this.navigate(props.href);
+        }
       });
       if (props) {
         a.replaceChildren(...generateChildNodes(props.children));
