@@ -1,6 +1,63 @@
 import { Cell } from '@adbl/cells';
 
 /**
+ * Observes when an element is connected to the DOM and executes a callback
+ * @param {Element} element - The element to observe
+ * @param {() => void} callback - Function to execute when element is connected
+ * @returns {{ disconnect: () => void }} Object with method to stop observing
+ */
+export function onConnected(element, callback) {
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        if (document.contains(element)) {
+          callback();
+          observer.disconnect();
+          break;
+        }
+      }
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+
+  // Handle case where element is already in DOM
+  if (document.contains(element)) {
+    callback();
+    observer.disconnect();
+  }
+
+  return {
+    disconnect: () => observer.disconnect(),
+  };
+}
+
+/**
+ * Observes when an element enters the viewport and executes a callback
+ * @param {Element} element - The element to observe
+ * @param {() => void} callback - Function to execute when element enters viewport
+ * @returns {{ disconnect: () => void }} Object with method to stop observing
+ */
+export function onViewportEnter(element, callback) {
+  const observer = new IntersectionObserver((entries) => {
+    const [entry] = entries;
+    if (entry.isIntersecting) {
+      callback();
+      observer.disconnect();
+    }
+  });
+
+  observer.observe(element);
+
+  return {
+    disconnect: () => observer.disconnect(),
+  };
+}
+
+/**
  * A {@link Map} implementation that automatically removes the oldest entry when the maximum size is reached.
  * @template K, V
  * @extends {Map<K, V>}
