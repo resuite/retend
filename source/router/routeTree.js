@@ -35,11 +35,6 @@
  *
  * @property {T} component
  * The component to render when the route is matched.
- *
- * @property {boolean} [keepAlive]
- * Whether or not to persist the route's component in the router's cache.
- * Its validity is determined by whether or not the route has an associated component.
- * Routes with redirects or children are not considered for keep-alive.
  */
 
 /**
@@ -64,7 +59,6 @@ export class Route {
   /** @type {boolean} */ isWildcard = false;
   /** @type {boolean} */ isTransient = false;
   /** @type {Route<T>[]} */ children = [];
-  /** @type {boolean} */ keepAlive = false;
 
   /**
    * Creates a new Route instance with the specified path.
@@ -86,7 +80,6 @@ export class MatchedRoute {
   /** @type {boolean} */ isDynamic;
   /** @type {boolean} */ isTransient;
   /** @type {MatchedRoute<T> | null} */ child;
-  /** @type {boolean} */ keepAlive;
 
   /**
    * @param {Route<T>} route
@@ -100,7 +93,6 @@ export class MatchedRoute {
     this.isTransient = route.isTransient;
     this.child = null;
     this.title = route.title;
-    this.keepAlive = route.keepAlive;
   }
 }
 
@@ -396,8 +388,6 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     current.component = routeRecord.component;
     current.redirect = routeRecord.redirect ?? null;
     current.title = routeRecord.title ?? null;
-    current.keepAlive =
-      'keepAlive' in routeRecord ? Boolean(routeRecord.keepAlive) : false;
 
     const fullPath = `${parentFullPath}/${routeRecord.path}`;
     current.fullPath = fullPath.replace(/\/+/g, '/');

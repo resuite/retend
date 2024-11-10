@@ -35,8 +35,31 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  */
 
 /**
+ * @typedef {Object} ExtraOutletData
+ * @property {TransitionOptions} [transitionOptions]
+ * These define the transition properties to be applied to the children
+ * of the outlet when the path changes.
+ *
+ * @property {boolean} [keepAlive]
+ * As the outlet's children change, the outlet keeps track
+ * of each route's nodes and reuses them when the path is rendered again.
+ *
+ * @property {number} [maxKeepAliveCount]
+ * The maximum number of routes that can be kept alive by the outlet.
+ * It defaults to 10.
+ */
+
+/**
  * @typedef {JSX.JsxHtmlAnchorElement & ExtraLinkData} RouterLinkProps
  */
+
+/** @typedef {HTMLDivElement & {
+ *  transitionOptions?: TransitionOptions;
+ *  keepAlive?: boolean;
+ *  keepAliveCache?: FixedSizeMap<string, Node[]>;
+ * }} RouterOutlet */
+
+/** @typedef {JSX.JsxHtmlDivElement & ExtraOutletData} RouterOutletProps */
 
 /** @type {Router | null } */
 let ROUTER_INSTANCE = null;
@@ -52,10 +75,6 @@ let ROUTER_INSTANCE = null;
  *
  * @property {number} [maxRedirects]
  * The maximum number of redirects to allow before the router stops and throws an error.
- *
- * @property {number} [maxKeepAliveCount]
- * The maximum number of routes that can be kept alive in the router's cache.
- * It defaults to 10.
  *
  * @property {boolean} [stackMode]
  * If set to `true`, the router will treat the routes as a stack, and will automatically
@@ -133,9 +152,6 @@ export class Router {
   /** @type {Promise<boolean>} */
   rendering;
 
-  /** @private @type {FixedSizeMap<string, Node[]>} */
-  keepAliveCache;
-
   /** @private @type {boolean} */
   stackMode;
 
@@ -157,7 +173,7 @@ export class Router {
    *
    * This component is used internally by the `Router` class to handle route changes and
    * render the appropriate component.
-   * @type {(props?: JSX.JsxHtmlDivElement) => HTMLDivElement}
+   * @type {(props?: RouterOutletProps) => HTMLDivElement}
    * @param {JSX.JsxHtmlDivElement} props
    */
   Outlet;
@@ -180,9 +196,6 @@ export class Router {
     this.rendering = Promise.resolve(false);
     this.links = [];
     this.params = new Map();
-    this.keepAliveCache = new FixedSizeMap(
-      routeOptions.maxKeepAliveCount ?? 10
-    );
     this.stackMode = routeOptions.stackMode ?? false;
     this.routerHistory = [];
 
@@ -201,7 +214,20 @@ export class Router {
 
       outlet.toggleAttribute('data-grenade-outlet', true);
       outlet.setAttribute('data-router-id', this.id);
+
       if (props) {
+        if (props.transitionOptions) {
+          Reflect.set(outlet, 'transitionOptions', props.transitionOptions);
+        }
+        if (props.keepAlive) {
+          Reflect.set(outlet, 'keepAlive', props.keepAlive);
+          const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
+          Reflect.set(
+            outlet,
+            'keepAliveCache',
+            new FixedSizeMap(maxKeepAliveCount)
+          );
+        }
         outlet.replaceChildren(...generateChildNodes(props.children));
       }
 
@@ -368,8 +394,7 @@ export class Router {
   }
 
   /**
-   * Loads the route component corresponding to the specified path into the `<router-outlet>`
-   * element.
+   * Loads the route component corresponding to the specified path into the router outlet.
    *
    * @param {string} path
    * @returns {Promise<boolean>} A promise that resolves to `true` if the route was loaded successfully, `false` otherwise.
@@ -418,7 +443,7 @@ export class Router {
     /** @type {MatchedRoute<ComponentOrComponentLoader> | null} */
     let currentMatchedRoute = matchResult.subTree;
     let outletIndex = 0;
-    /** @type {HTMLElement[]} */
+    /** @type {RouterOutlet[]} */
     const outlets = Array.from(
       this.window?.document.querySelectorAll(
         `div[data-grenade-outlet][data-router-id="${this.id}"]`
@@ -501,17 +526,18 @@ export class Router {
 
         outlet.dataset.path = currentMatchedRoute.fullPath;
         const renderedComponent =
-          this.keepAliveCache.get(path) ?? matchedComponent();
+          outlet.keepAliveCache?.get(path) ?? matchedComponent();
 
         // if the component performs a redirect, it would change the route
         // stored in the outlet's dataset, so we need to check before replacing.
         if (outlet.dataset.path === currentMatchedRoute.fullPath) {
+          // if the outlet is keep alive, we need to cache the current nodes
+          const currentNodes = Array.from(outlet.childNodes);
+          if (outlet.keepAlive && this.currentPath) {
+            outlet.keepAliveCache?.set(this.currentPath.fullPath, currentNodes);
+          }
           const newRoute = generateChildNodes(renderedComponent);
           outlet.replaceChildren(...newRoute);
-
-          if (currentMatchedRoute.keepAlive) {
-            this.keepAliveCache.set(path, newRoute);
-          }
 
           if (currentMatchedRoute.title && this.window) {
             this.window.document.title = currentMatchedRoute.title;
