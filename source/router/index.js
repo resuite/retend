@@ -8,6 +8,8 @@ export * from './lazy.js';
 export * from './routeTree.js';
 export * from './middleware.js';
 
+const HISTORY_STORAGE_KEY = 'rhistory';
+
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
@@ -54,6 +56,50 @@ let ROUTER_INSTANCE = null;
  * @property {number} [maxKeepAliveCount]
  * The maximum number of routes that can be kept alive in the router's cache.
  * It defaults to 10.
+ *
+ * @property {boolean} [stackMode]
+ * If set to `true`, the router will treat the routes as a stack, and will automatically
+ * go back or forward based on the route history.
+ */
+
+/** @typedef {(nodes: Node[]) => void | { className?: string, duration?: number }} PreTransitionCallback */
+
+/** @typedef {(nodes: Node[]) => void} PostTransitionCallback */
+
+/**
+ * @typedef TransitionOptions
+ *
+ * @property {string} [className]
+ * The class name to apply to the transition element.
+ * When the transition is triggered, the class name will be applied to the element, along with the `enter` or `leave` class.
+ * These classes can be combined in different ways to create complex transition effects.
+ *
+ * @property {number} [duration]
+ * The duration of the transition in milliseconds.
+ *
+ * @property {PreTransitionCallback} [onBeforeRouteEnter]
+ * A function that is called before the transition starts.
+ * It receives an array of nodes that are about to be transitioned in.
+ * The function can return an object with `className` and `duration` properties to customize the transition.
+ *
+ * @property {PreTransitionCallback} [onBeforeRouteLeave]
+ * A function that is called before the transition ends.
+ * It receives an array of nodes that are about to be transitioned out.
+ * The function can return an object with `className` and `duration` properties to customize the transition.
+ *
+ * @property {PostTransitionCallback} [onAfterEnter]
+ * A function that is called after the entering transition ends.
+ *
+ * @property {PostTransitionCallback} [onAfterLeave]
+ * A function that is called after the leaving transition ends.
+ *
+ * @property {boolean} [directionAware]
+ * If set to `true`, the transition classes will also include `forwards` or `backwards` depending on the direction
+ * of routing. This is only valid when the `stackMode` option is set to `true` on the router.
+ */
+
+/**
+ * @typedef {'forwards' | 'backwards'} NavigationDirection
  */
 
 export class Router {
@@ -89,6 +135,12 @@ export class Router {
 
   /** @private @type {FixedSizeMap<string, Node[]>} */
   keepAliveCache;
+
+  /** @private @type {boolean} */
+  stackMode;
+
+  /** @private @type {string[]} */
+  routerHistory;
 
   /**
    * Defines an anchor element and handles click events to navigate to the specified route.
@@ -131,6 +183,8 @@ export class Router {
     this.keepAliveCache = new FixedSizeMap(
       routeOptions.maxKeepAliveCount ?? 10
     );
+    this.stackMode = routeOptions.stackMode ?? false;
+    this.routerHistory = [];
 
     this.Outlet = (props) => {
       if (!this.window) {
@@ -193,6 +247,39 @@ export class Router {
    */
   setWindow(window) {
     this.window = window;
+  }
+
+  /**
+   * @private
+   * Pushes the specified path to the router's history.
+   * @param {string} path - The path to push.
+   */
+  pushHistory(path) {
+    this.routerHistory.push(path);
+    this.persistHistory();
+  }
+
+  /**
+   * @private
+   * Removes the most recent path from the router's history and persists the updated history.
+   */
+  popHistory() {
+    this.routerHistory.pop();
+    this.persistHistory();
+  }
+
+  /**
+   * @private
+   * Persists the current router history to the browser's session storage.
+   * This allows the history to be restored across page reloads or browser sessions.
+   */
+  persistHistory() {
+    if (this.window?.sessionStorage) {
+      this.window.sessionStorage.setItem(
+        HISTORY_STORAGE_KEY,
+        JSON.stringify(this.routerHistory)
+      );
+    }
   }
 
   /**
@@ -395,6 +482,23 @@ export class Router {
           matchedComponent = matchedComponentOrLazyLoader;
         }
 
+        /** @type {NavigationDirection} */
+        let transitionDirection = 'forwards';
+        if (this.stackMode) {
+          const currentPath = this.routerHistory.at(-1);
+          const previousPath = this.routerHistory.at(-2);
+
+          if (previousPath === currentMatchedRoute.fullPath) {
+            this.popHistory();
+            transitionDirection = 'backwards';
+          } else if (currentPath !== currentMatchedRoute.fullPath) {
+            // If the path is still constant, nothing to do.
+            // Otherwise, we need to push the new path to the history.
+            this.pushHistory(currentMatchedRoute.fullPath);
+          }
+          console.log('Stack Mode', this.routerHistory, transitionDirection);
+        }
+
         outlet.dataset.path = currentMatchedRoute.fullPath;
         const renderedComponent =
           this.keepAliveCache.get(path) ?? matchedComponent();
@@ -460,7 +564,10 @@ export class Router {
     if (this.currentPath?.fullPath === path) {
       return;
     }
+
+    const oldRouterHistoryLength = this.routerHistory.length;
     const wasLoaded = await this.updateDOMWithMatchingPath(path);
+    const newRouterHistoryLength = this.routerHistory.length;
 
     for (const link of this.links) {
       link.toggleAttribute(
@@ -473,6 +580,20 @@ export class Router {
     }
 
     if (navigate && wasLoaded) {
+      // If the new history length is less than the old history length
+      // in stack mode, it means that the user navigated backwards in the history.
+      if (this.stackMode && newRouterHistoryLength < oldRouterHistoryLength) {
+        this.window?.history?.back();
+        return;
+      }
+
+      // If the new history length is equal to the old history length,
+      // in stack mode, it means no navigation occurred.
+      if (this.stackMode && newRouterHistoryLength === oldRouterHistoryLength) {
+        return;
+      }
+
+      // otherwise, we can assume that the user navigated forward in the history.
       this.window?.history?.pushState(null, '', path);
     }
   };
@@ -487,8 +608,33 @@ export class Router {
    * - DOMContentLoaded: Triggered when the initial HTML document has been completely loaded and parsed
    *
    * Each listener manages the loading state and calls the loadPath method with appropriate parameters.
+   *
+   * The router also retrieves any saved history from the browser's session storage
+   * and merges it with the current history.
    */
   attachWindowListeners() {
+    const savedSessionHistory =
+      this.window?.sessionStorage?.getItem(HISTORY_STORAGE_KEY);
+    if (savedSessionHistory) {
+      try {
+        // In cases where entries have already been added to the history
+        // before attaching the window listeners,
+        // we need to concat them with the saved history.
+        const savedHistoryArray = JSON.parse(savedSessionHistory);
+        if (Array.isArray(savedHistoryArray)) {
+          // dedupe last entry
+          if (
+            savedHistoryArray.length > 0 &&
+            savedHistoryArray.at(-1) === this.routerHistory[0]
+          ) {
+            savedHistoryArray.pop();
+          }
+          this.routerHistory = savedHistoryArray.concat(this.routerHistory);
+        }
+      } catch (error) {
+        console.error('Error parsing session history:', error);
+      }
+    }
     this.window?.addEventListener('popstate', async (event) => {
       if (!this.isLoading && this.window) {
         this.isLoading = true;
