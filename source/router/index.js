@@ -30,15 +30,6 @@ export * from './middleware.js';
 
 /**
  * @typedef {Object} ExtraLinkData
- *
- * @property {boolean | 'enter-viewport' | 'hover' | 'focus'} [preload]
- * Whether or not to preload the route, and when to do so.
- * Possible values are:
- * - `false`: Do not preload the route.
- * - `'enter-viewport'`: Preload the route when the user enters the viewport.
- * - `'hover'`: Preload the route when the user hovers over the link.
- * - `'focus'`: Preload the route when the user focuses on the link.
- * - `true`: Preload the route if the link is hovered over.
  */
 
 /**
@@ -63,10 +54,6 @@ let ROUTER_INSTANCE = null;
  * @property {number} [maxKeepAliveCount]
  * The maximum number of routes that can be kept alive in the router's cache.
  * It defaults to 10.
- *
- * @property {number} [maxPreloadCount]
- * The maximum number of routes to preload.
- * it defaults to 10.
  */
 
 export class Router {
@@ -181,13 +168,6 @@ export class Router {
           // @ts-expect-error: a is not of type JsxElement.
           setAttribute(a, key, value);
         }
-
-        if (props.preload) {
-          switch (props.preload) {
-            case 'enter-viewport':
-              break;
-          }
-        }
       }
 
       a.addEventListener('click', (event) => {
@@ -234,45 +214,6 @@ export class Router {
   back() {
     this.window?.history?.back();
   }
-
-  /**
-   * Preloads the route component corresponding to the specified path.
-   *
-   * @param {string} path - The path to preload.
-   * @param {import('./middleware.js').RouteData} [workingPath] - The path to use as the current path when preloading.
-   * @returns {Promise<void>} A promise that resolves when the preload is complete.
-   */
-  preload = async (path, workingPath) => {
-    if (path === '#') {
-      return;
-    }
-
-    const matchResult = this.routeTree.match(path);
-
-    matchResult.flattenTransientRoutes();
-    const targetMatch = matchResult.leaf();
-    const currentPath = workingPath ?? this.currentPath;
-
-    if (targetMatch !== null) {
-      const finalPath = this.runMiddlewares(
-        path,
-        matchResult,
-        targetMatch,
-        currentPath,
-        'preload'
-      );
-      if (finalPath !== path) {
-        if (finalPath !== undefined) {
-          await this.preload(finalPath, workingPath);
-        }
-        return;
-      }
-    }
-
-    if (matchResult.subTree === null) {
-      return;
-    }
-  };
 
   /**
    * @private
