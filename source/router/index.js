@@ -86,7 +86,11 @@ let ROUTER_INSTANCE = null;
  * @typedef {T | Promise<T>} PromiseOrNot
  */
 
-/** @typedef {(nodes: Node[]) => PromiseOrNot<void | { className?: string, duration?: number }>} PreAnimationCallback */
+/**
+ * @typedef {'onBeforeEnter' | 'onBeforeExit' | 'onAfterEnter' | 'onAfterExit'} AnimationCallbackKey
+ */
+
+/** @typedef {(nodes: Node[]) => PromiseOrNot<void | Omit<AnimationOptions, AnimationCallbackKey>>} PreAnimationCallback */
 
 /** @typedef {(nodes: Node[]) => PromiseOrNot<void>} PostAnimationCallback */
 
@@ -100,6 +104,9 @@ let ROUTER_INSTANCE = null;
  *
  * @property {number} [duration]
  * The duration of the animation in milliseconds.
+ *
+ * @property {string} [easing]
+ * The easing function for the animation.
  *
  * @property {PreAnimationCallback} [onBeforeEnter]
  * A function that is called before the animation starts.
@@ -119,7 +126,7 @@ let ROUTER_INSTANCE = null;
  */
 
 /**
- * @typedef {'forwards' | 'backwards'} NavigationDirection
+ * @typedef {'normal' | 'reverse'} NavigationDirection
  */
 
 export class Router {
@@ -209,7 +216,9 @@ export class Router {
       const outlet = this.window.document.createElement('div');
 
       if (props) {
-        for (const [key, value] of Object.entries(props)) {
+        const { keepAlive, maxKeepAliveCount, animationOptions, ...rest } =
+          props;
+        for (const [key, value] of Object.entries(rest)) {
           // @ts-expect-error: The outlet is not of the type JsxElement.
           setAttributeFromProps(outlet, key, value);
         }
@@ -507,14 +516,14 @@ export class Router {
         }
 
         /** @type {NavigationDirection} */
-        let animationDirection = 'forwards';
+        let animationDirection = 'normal';
         if (this.stackMode) {
           const currentPath = this.routerHistory.at(-1);
           const previousPath = this.routerHistory.at(-2);
 
           if (previousPath === currentMatchedRoute.fullPath) {
             this.popHistory();
-            animationDirection = 'backwards';
+            animationDirection = 'reverse';
           } else if (currentPath !== currentMatchedRoute.fullPath) {
             // If the path is still constant, nothing to do.
             // Otherwise, we need to push the new path to the history.
@@ -531,12 +540,20 @@ export class Router {
         // stored in the outlet's dataset, so we need to check before replacing.
         if (outlet.dataset.path === currentMatchedRoute.fullPath) {
           // if the outlet is keep alive, we need to cache the current nodes
-          const currentNodes = Array.from(outlet.childNodes);
+          const oldNodes = Array.from(outlet.childNodes);
           if (outlet.keepAlive && this.currentPath) {
-            outlet.keepAliveCache?.set(this.currentPath.fullPath, currentNodes);
+            outlet.keepAliveCache?.set(this.currentPath.fullPath, oldNodes);
           }
-          const newRoute = generateChildNodes(renderedComponent);
-          outlet.replaceChildren(...newRoute);
+          const newNodes = generateChildNodes(renderedComponent);
+          const replaced = await this.handleAnimations(
+            outlet,
+            oldNodes,
+            newNodes,
+            animationDirection
+          );
+          if (!replaced) {
+            outlet.replaceChildren(...newNodes);
+          }
 
           if (currentMatchedRoute.title && this.window) {
             this.window.document.title = currentMatchedRoute.title;
@@ -570,6 +587,116 @@ export class Router {
     if (this.redirectStackCount > 0) {
       this.redirectStackCount--;
     }
+    return true;
+  };
+
+  /**
+   * Handles animations for DOM elements during route changes.
+   * @param {RouterOutlet} outlet - The DOM element that will contain the new route content.
+   * @param {Node[]} oldNodes - The DOM elements that will be removed from the outlet.
+   * @param {Node[]} newNodes - The DOM elements that will be added to the outlet.
+   * @param {NavigationDirection} animationDirection - The direction of the animation, either 'enter' or 'exit'.
+   *
+   * @returns {Promise<void | boolean>}
+   * A Promise that resolves when the animations are complete. It will return true if the nodes were replaced
+   * during animation.
+   */
+  handleAnimations = async (outlet, oldNodes, newNodes, animationDirection) => {
+    // ---------------
+    // Handling enter and exit animations
+    // ---------------
+    const animationOptions = outlet.animationOptions;
+    if (!animationOptions) return;
+
+    // Exiting previous nodes.
+    const exitAnimationExecutor = async () => {
+      const { name, duration, easing } = {
+        ...animationOptions,
+        ...(await animationOptions.onBeforeExit?.(oldNodes)),
+      };
+      if (!name) {
+        await animationOptions.onAfterExit?.(oldNodes);
+        return;
+      }
+
+      await Promise.all(
+        oldNodes.map(async (node) => {
+          if (!('style' in node || 'getAnimations' in node)) return;
+
+          const element =
+            /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
+
+          const finalDuration = `${duration ?? 0}ms`;
+          const finalEasing = easing ?? 'ease-in';
+          const finalName =
+            animationDirection === 'reverse' ? `${name}-enter` : `${name}-exit`;
+
+          // duration | easing-function | delay | iteration-count | direction | fill-mode | play-state | name
+          element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName}`;
+
+          await Promise.all(element.getAnimations().map((a) => a.finished));
+        })
+      );
+
+      await animationOptions.onAfterExit?.(oldNodes);
+      // The animations are removed after the hook runs so that they don't glitch
+      // back to their original state if there is a delay.
+      for (const node of oldNodes) {
+        if (!('style' in node)) continue;
+
+        const element =
+          /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
+        element.style.removeProperty('animation');
+      }
+    };
+
+    // Entering new nodes.
+    const enterAnimationExecutor = async () => {
+      const { name, duration, easing } = {
+        ...animationOptions,
+        ...(await animationOptions.onBeforeEnter?.(newNodes)),
+      };
+      if (!name) {
+        await animationOptions.onAfterEnter?.(newNodes);
+        return;
+      }
+
+      for (const node of newNodes) {
+        // Skip non-HTML elements, and elements created in non-browser environments.
+        if (!('style' in node || 'getAnimations' in node)) continue;
+
+        const element =
+          /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
+
+        const finalDuration = `${duration ?? 0}ms`;
+        const finalEasing = easing ?? 'ease-in';
+        const finalName =
+          animationDirection === 'reverse' ? `${name}-exit` : `${name}-enter`;
+        // duration | easing-function | delay | iteration-count | direction | fill-mode | play-state | name
+        element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName} `;
+      }
+
+      // The new nodes need to be added to the DOM before the animation starts.
+      outlet.replaceChildren(...newNodes);
+
+      await Promise.all(
+        newNodes.map(async (node) => {
+          // Skip non-HTML elements, and elements created in non-browser environments.
+          if (!('style' in node || 'getAnimations' in node)) return;
+
+          const element =
+            /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
+
+          await Promise.all(element.getAnimations().map((a) => a.finished));
+          element.style.removeProperty('animation');
+        })
+      );
+
+      await animationOptions.onAfterEnter?.(newNodes);
+    };
+
+    await exitAnimationExecutor();
+    await enterAnimationExecutor();
     return true;
   };
 
