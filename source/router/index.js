@@ -481,14 +481,8 @@ export class Router {
           matchedComponentOrLazyLoader === undefined
         ) {
           const outlet = outlets[outletIndex];
-          if (currentMatchedRoute.title && this.window) {
-            this.window.document.title = currentMatchedRoute.title;
-          }
           if (currentMatchedRoute.child) {
             currentMatchedRoute = currentMatchedRoute.child;
-            if (currentMatchedRoute.title && this.window) {
-              this.window.document.title = currentMatchedRoute.title;
-            }
             continue;
           }
           if (currentMatchedRoute.redirect) {
@@ -555,8 +549,13 @@ export class Router {
             outlet.replaceChildren(...newNodes);
           }
 
-          if (currentMatchedRoute.title && this.window) {
-            this.window.document.title = currentMatchedRoute.title;
+          if (
+            this.window &&
+            (currentMatchedRoute.title || lastMatchedRoute.title)
+          ) {
+            const title =
+              currentMatchedRoute.title || lastMatchedRoute.title || '';
+            this.window.document.title = title;
           }
         } else {
           return false;
@@ -718,6 +717,7 @@ export class Router {
     }
 
     const oldRouterHistoryLength = this.routerHistory.length;
+    const oldTitle = this.window?.document.title;
     const wasLoaded = await this.updateDOMWithMatchingPath(path);
     const newRouterHistoryLength = this.routerHistory.length;
 
@@ -733,20 +733,36 @@ export class Router {
 
     if (navigate && wasLoaded) {
       // If the new history length is less than the old history length
-      // in stack mode, it means that the user navigated backwards in the history.
+      // in stack mode, it means that the user navigated backwards in the history:
       if (this.stackMode && newRouterHistoryLength < oldRouterHistoryLength) {
-        this.window?.history?.back();
+        this.window?.history.back();
         return;
       }
 
       // If the new history length is equal to the old history length,
-      // in stack mode, it means no navigation occurred.
+      // in stack mode, it means no navigation occurred:
       if (this.stackMode && newRouterHistoryLength === oldRouterHistoryLength) {
         return;
       }
 
       // otherwise, we can assume that the user navigated forward in the history.
-      this.window?.history?.pushState(null, '', path);
+      //
+      // Title management becomes difficult here, because if the title
+      // changed during navigation, the browser would end up
+      // storing the new title with the old route,
+      // which leads to a confusing experience.
+      if (this.window) {
+        const newTitle = this.window.document?.title;
+        if (oldTitle && newTitle !== oldTitle) {
+          this.window.document.title = oldTitle;
+        }
+
+        this.window.history?.pushState(null, '', path);
+
+        if (newTitle) {
+          this.window.document.title = newTitle;
+        }
+      }
     }
   };
 
