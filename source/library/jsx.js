@@ -94,11 +94,10 @@ const camelCasedAttributes = new Set([
  * @template {Record<PropertyKey, any>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
- * @param {...*} childNodes - The child elements of the element.
  * @returns {Node} A new  DOM element.
  */
-export function h(tagname, props, ...childNodes) {
-  const children = props.children || childNodes;
+export function h(tagname, props) {
+  const children = props.children;
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
     const fragment = globalThis.window.document.createDocumentFragment();
     for (const child of children) {

@@ -263,7 +263,8 @@ export class Router {
       }
 
       if (props) {
-        for (const [key, value] of Object.entries(props)) {
+        const { children, ...rest } = props;
+        for (const [key, value] of Object.entries(rest)) {
           // @ts-expect-error: a is not of type JsxElement.
           setAttribute(a, key, value);
         }
