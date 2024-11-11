@@ -36,8 +36,8 @@ const HISTORY_STORAGE_KEY = 'rhistory';
 
 /**
  * @typedef {Object} ExtraOutletData
- * @property {TransitionOptions} [transitionOptions]
- * These define the transition properties to be applied to the children
+ * @property {AnimationOptions} [animationOptions]
+ * These define the animation properties to be applied to the children
  * of the outlet when the path changes.
  *
  * @property {boolean} [keepAlive]
@@ -54,7 +54,7 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  */
 
 /** @typedef {HTMLDivElement & {
- *  transitionOptions?: TransitionOptions;
+ *  animationOptions?: AnimationOptions;
  *  keepAlive?: boolean;
  *  keepAliveCache?: FixedSizeMap<string, Node[]>;
  * }} RouterOutlet */
@@ -81,40 +81,41 @@ let ROUTER_INSTANCE = null;
  * go back or forward based on the route history.
  */
 
-/** @typedef {(nodes: Node[]) => void | { className?: string, duration?: number }} PreTransitionCallback */
+/**
+ * @template T
+ * @typedef {T | Promise<T>} PromiseOrNot
+ */
 
-/** @typedef {(nodes: Node[]) => void} PostTransitionCallback */
+/** @typedef {(nodes: Node[]) => PromiseOrNot<void | { className?: string, duration?: number }>} PreAnimationCallback */
+
+/** @typedef {(nodes: Node[]) => PromiseOrNot<void>} PostAnimationCallback */
 
 /**
- * @typedef TransitionOptions
+ * @typedef AnimationOptions
  *
- * @property {string} [className]
- * The class name to apply to the transition element.
- * When the transition is triggered, the class name will be applied to the element, along with the `enter` or `leave` class.
- * These classes can be combined in different ways to create complex transition effects.
+ * @property {string} [name]
+ * The base name to apply to the animation elements.
+ * When the animation is triggered, the keyframe name will be used to look for `{name}-enter` and `{name}-leave` CSS animation.
+ * These keyframes can be combined in different ways to create complex transition effects.
  *
  * @property {number} [duration]
- * The duration of the transition in milliseconds.
+ * The duration of the animation in milliseconds.
  *
- * @property {PreTransitionCallback} [onBeforeRouteEnter]
- * A function that is called before the transition starts.
- * It receives an array of nodes that are about to be transitioned in.
- * The function can return an object with `className` and `duration` properties to customize the transition.
+ * @property {PreAnimationCallback} [onBeforeEnter]
+ * A function that is called before the animation starts.
+ * It receives an array of nodes that are about to be animated in.
+ * The function can return an object with different `name` and `duration` properties to customize the animation.
  *
- * @property {PreTransitionCallback} [onBeforeRouteLeave]
- * A function that is called before the transition ends.
- * It receives an array of nodes that are about to be transitioned out.
- * The function can return an object with `className` and `duration` properties to customize the transition.
+ * @property {PreAnimationCallback} [onBeforeExit]
+ * A function that is called before the animation ends.
+ * It receives an array of nodes that are about to be animated out.
+ * The function can return an object with `className` and `duration` properties to customize the animation.
  *
- * @property {PostTransitionCallback} [onAfterEnter]
- * A function that is called after the entering transition ends.
+ * @property {PostAnimationCallback} [onAfterEnter]
+ * A function that is called after the entering animation ends.
  *
- * @property {PostTransitionCallback} [onAfterLeave]
- * A function that is called after the leaving transition ends.
- *
- * @property {boolean} [directionAware]
- * If set to `true`, the transition classes will also include `forwards` or `backwards` depending on the direction
- * of routing. This is only valid when the `stackMode` option is set to `true` on the router.
+ * @property {PostAnimationCallback} [onAfterExit]
+ * A function that is called after the exit animation ends.
  */
 
 /**
@@ -203,6 +204,8 @@ export class Router {
       if (!this.window) {
         throw new Error('Cannot create Outlet in undefined window.');
       }
+
+      /** @type {RouterOutlet} */
       const outlet = this.window.document.createElement('div');
 
       if (props) {
@@ -216,17 +219,13 @@ export class Router {
       outlet.setAttribute('data-router-id', this.id);
 
       if (props) {
-        if (props.transitionOptions) {
-          Reflect.set(outlet, 'transitionOptions', props.transitionOptions);
+        if (props.animationOptions) {
+          outlet.animationOptions = props.animationOptions;
         }
         if (props.keepAlive) {
-          Reflect.set(outlet, 'keepAlive', props.keepAlive);
+          outlet.keepAlive = props.keepAlive;
           const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
-          Reflect.set(
-            outlet,
-            'keepAliveCache',
-            new FixedSizeMap(maxKeepAliveCount)
-          );
+          outlet.keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
         }
         outlet.replaceChildren(...generateChildNodes(props.children));
       }
@@ -508,20 +507,20 @@ export class Router {
         }
 
         /** @type {NavigationDirection} */
-        let transitionDirection = 'forwards';
+        let animationDirection = 'forwards';
         if (this.stackMode) {
           const currentPath = this.routerHistory.at(-1);
           const previousPath = this.routerHistory.at(-2);
 
           if (previousPath === currentMatchedRoute.fullPath) {
             this.popHistory();
-            transitionDirection = 'backwards';
+            animationDirection = 'backwards';
           } else if (currentPath !== currentMatchedRoute.fullPath) {
             // If the path is still constant, nothing to do.
             // Otherwise, we need to push the new path to the history.
             this.pushHistory(currentMatchedRoute.fullPath);
           }
-          console.log('Stack Mode', this.routerHistory, transitionDirection);
+          console.log('Stack Mode', this.routerHistory, animationDirection);
         }
 
         outlet.dataset.path = currentMatchedRoute.fullPath;
