@@ -216,8 +216,13 @@ export class Router {
       const outlet = this.window.document.createElement('div');
 
       if (props) {
-        const { keepAlive, maxKeepAliveCount, animationOptions, ...rest } =
-          props;
+        const {
+          keepAlive,
+          maxKeepAliveCount,
+          animationOptions,
+          children,
+          ...rest
+        } = props;
         for (const [key, value] of Object.entries(rest)) {
           // @ts-expect-error: The outlet is not of the type JsxElement.
           setAttributeFromProps(outlet, key, value);
