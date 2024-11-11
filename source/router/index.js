@@ -1,4 +1,8 @@
-import { setAttribute, setAttributeFromProps } from '../library/jsx.js';
+import {
+  setAttribute,
+  setAttributeFromProps,
+  appendChild,
+} from '../library/jsx.js';
 import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
@@ -50,7 +54,7 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  */
 
 /**
- * @typedef {JSX.JsxHtmlAnchorElement & ExtraLinkData} RouterLinkProps
+ * @typedef {JSX.IntrinsicElements['a'] & ExtraLinkData} RouterLinkProps
  */
 
 /** @typedef {HTMLDivElement & {
@@ -212,7 +216,7 @@ export class Router {
         throw new Error('Cannot create Outlet in undefined window.');
       }
 
-      /** @type {RouterOutlet} */
+      /** @type {RouterOutlet } */
       const outlet = this.window.document.createElement('div');
 
       if (props) {
@@ -227,6 +231,9 @@ export class Router {
           // @ts-expect-error: The outlet is not of the type JsxElement.
           setAttributeFromProps(outlet, key, value);
         }
+
+        // @ts-expect-error: The outlet is not of the type JsxElement.
+        appendChild(outlet, outlet.tagName.toLowerCase(), props.children);
       }
 
       outlet.toggleAttribute('data-grenade-outlet', true);
@@ -241,7 +248,6 @@ export class Router {
           const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
           outlet.keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
         }
-        outlet.replaceChildren(...generateChildNodes(props.children));
       }
 
       return outlet;
@@ -261,19 +267,20 @@ export class Router {
           // @ts-expect-error: a is not of type JsxElement.
           setAttribute(a, key, value);
         }
+
+        // @ts-expect-error: The outlet is not of the type JsxElement.
+        appendChild(a, a.tagName.toLowerCase(), props.children);
       }
 
       a.addEventListener('click', (event) => {
         // Only navigate if the href is not a valid URL.
         // For valid URLs, the browser will handle the navigation.
-        if (props?.href && !URL.canParse(props.href)) {
+        const href = a.getAttribute('href');
+        if (href && !URL.canParse(href)) {
           event.preventDefault();
-          this.navigate(props.href);
+          this.navigate(href);
         }
       });
-      if (props) {
-        a.replaceChildren(...generateChildNodes(props.children));
-      }
 
       return a;
     };
@@ -322,7 +329,7 @@ export class Router {
   }
 
   /**
-   * Pushes the specified path to the browser's history and renders the corresponding route component.
+   * Updates the browser history and renders the corresponding route component.
    *
    * @param {string} path - The path to navigate to.
    * @return {Promise<void>}
@@ -514,23 +521,6 @@ export class Router {
           matchedComponent = matchedComponentOrLazyLoader;
         }
 
-        /** @type {NavigationDirection} */
-        let animationDirection = 'normal';
-        if (this.stackMode) {
-          const currentPath = this.routerHistory.at(-1);
-          const previousPath = this.routerHistory.at(-2);
-
-          if (previousPath === currentMatchedRoute.fullPath) {
-            this.popHistory();
-            animationDirection = 'reverse';
-          } else if (currentPath !== currentMatchedRoute.fullPath) {
-            // If the path is still constant, nothing to do.
-            // Otherwise, we need to push the new path to the history.
-            this.pushHistory(currentMatchedRoute.fullPath);
-          }
-          console.log('Stack Mode', this.routerHistory, animationDirection);
-        }
-
         outlet.dataset.path = currentMatchedRoute.fullPath;
         const renderedComponent =
           outlet.keepAliveCache?.get(path) ?? matchedComponent();
@@ -538,6 +528,10 @@ export class Router {
         // if the component performs a redirect, it would change the route
         // stored in the outlet's dataset, so we need to check before replacing.
         if (outlet.dataset.path === currentMatchedRoute.fullPath) {
+          const animationDirection = this.chooseNavigationDirection(
+            currentMatchedRoute.fullPath
+          );
+
           // if the outlet is keep alive, we need to cache the current nodes
           const oldNodes = Array.from(outlet.childNodes);
           if (outlet.keepAlive && this.currentPath) {
@@ -592,6 +586,39 @@ export class Router {
       this.redirectStackCount--;
     }
     return true;
+  };
+
+  getRouterPathHistory() {
+    return [...this.routerHistory];
+  }
+
+  /**
+   * @private
+   * @param {string} targetPath
+   * @returns {NavigationDirection}
+   */
+  chooseNavigationDirection = (targetPath) => {
+    /** @type {NavigationDirection} */
+    let animationDirection = 'normal';
+    const currentPath = this.routerHistory.at(-1);
+    if (!this.stackMode || currentPath === targetPath) {
+      return animationDirection;
+    }
+
+    const previousIndex = this.routerHistory.findLastIndex(
+      (path) => path === targetPath
+    );
+    if (previousIndex !== -1) {
+      animationDirection = 'reverse';
+      while (this.routerHistory.length > previousIndex + 1) {
+        this.popHistory();
+      }
+    } else {
+      // If the path is not found, we need to push the new path to the history.
+      this.pushHistory(targetPath);
+    }
+
+    return animationDirection;
   };
 
   /**
@@ -738,9 +765,19 @@ export class Router {
 
     if (navigate && wasLoaded) {
       // If the new history length is less than the old history length
-      // in stack mode, it means that the user navigated backwards in the history:
+      // in stack mode, it means that the user navigated backwards in the history.
+      // We keep popping the browser history till they are equal in length.
       if (this.stackMode && newRouterHistoryLength < oldRouterHistoryLength) {
-        this.window?.history.back();
+        let i = oldRouterHistoryLength;
+        // Detaching the window prevents the router from reacting to any events
+        // triggered by going back.
+        const window = this.window;
+        this.window = undefined;
+        while (window && newRouterHistoryLength < i) {
+          window.history.back();
+          i--;
+        }
+        this.window = window;
         return;
       }
 
@@ -819,7 +856,7 @@ export class Router {
     this.window?.addEventListener('hashchange', async (event) => {
       if (!this.isLoading && this.window) {
         this.isLoading = true;
-        await this.loadPath(this.window.location.hash, false, event);
+        await this.loadPath(this.window.location.pathname, false, event);
         this.isLoading = false;
       }
     });

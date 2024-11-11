@@ -152,42 +152,47 @@ export function h(tagname, props, ...childNodes) {
       setAttributeFromProps(element, key, value);
     }
 
-  /** @param {any} child */
-  const appendChild = (child) => {
-    const childNode = normalizeJsxChild(child, element);
-    if (
-      childNode instanceof globalThis.window.HTMLElement &&
-      globalThis.window.customElements.get(childNode.tagName.toLowerCase())
-    ) {
-      element.appendChild(childNode);
-      return;
-    }
-
-    if (
-      (tagname === 'svg' || tagname === 'math') &&
-      childNode instanceof globalThis.window.HTMLElement
-    ) {
-      const temp = globalThis.window.document.createElementNS(
-        element.namespaceURI ?? '',
-        'div'
-      );
-      temp.innerHTML = childNode.outerHTML;
-      element.append(...Array.from(temp.children));
-      return;
-    }
-
-    element.appendChild(childNode);
-  };
-
-  if (Array.isArray(children)) {
-    for (const child of children) {
-      appendChild(child);
-    }
-  } else {
-    appendChild(children);
-  }
+  appendChild(element, tagname, children);
 
   return element;
+}
+
+/**
+ *  @param {JsxElement} element
+ * @param {string} tagname
+ *  @param {any} child
+ */
+export function appendChild(element, tagname, child) {
+  if (Array.isArray(child)) {
+    for (const childNode of child) {
+      appendChild(element, tagname, childNode);
+    }
+    return;
+  }
+
+  const childNode = normalizeJsxChild(child, element);
+  if (
+    childNode instanceof globalThis.window.HTMLElement &&
+    globalThis.window.customElements.get(childNode.tagName.toLowerCase())
+  ) {
+    element.appendChild(childNode);
+    return;
+  }
+
+  if (
+    (tagname === 'svg' || tagname === 'math') &&
+    childNode instanceof globalThis.window.HTMLElement
+  ) {
+    const temp = globalThis.window.document.createElementNS(
+      element.namespaceURI ?? '',
+      'div'
+    );
+    temp.innerHTML = childNode.outerHTML;
+    element.append(...Array.from(temp.children));
+    return;
+  }
+
+  element.appendChild(childNode);
 }
 
 /**
@@ -282,7 +287,7 @@ export function setAttribute(element, key, value) {
     return;
   }
 
-  if (key === 'children' && createdByJsx) {
+  if (key === 'children') {
     return;
   }
 
