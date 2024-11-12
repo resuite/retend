@@ -1,3 +1,4 @@
+import { Cell, SourceCell } from '@adbl/cells';
 import {
   setAttribute,
   setAttributeFromProps,
@@ -61,7 +62,7 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  * @template [T=JSX.Template]
  * @typedef RouterRelayProps
  *
- * @property {string} name
+ * @property {string} id
  * The name of the relay. This is used to identify the relay and its variant instances in the router.
  *
  * @property {RelayCallback} [onNodesReceived]
@@ -72,7 +73,7 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  * A callback function that is called when the router matches and
  * sends nodes from this relay to a new route.
  *
- * @property {() => T} fallback
+ * @property {() => T} source
  * In cases where there is no previous route, or no nodes have been received,
  * this function is called to provide the initial value of the relay.
  * The nodes are still passed to the `onNodesReceived` callback.
@@ -84,6 +85,10 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  * @property {number} [duration]
  * The duration of the relay transition in milliseconds.
  * It defaults to `300`.
+ *
+ * @property {string} [easing]
+ * The easing function of the relay transition.
+ * It defaults to `ease`.
  */
 
 /**
@@ -107,7 +112,9 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  *  __onNodesSent?: (nodes: Node[]) => void;
  *  __animated?: boolean;
  *  __duration?: number;
+ *  __easing?: string;
  *  __vacuum?: HTMLElement;
+ *  __pausedAnimations?: RelayAnimation[];
  * }} RouterRelay
  */
 
@@ -186,6 +193,10 @@ let ROUTER_INSTANCE = null;
  */
 
 /**
+ * @typedef {Animation & { __pausedByRelay: boolean }} RelayAnimation
+ */
+
+/**
  * A client-side router for building dynamic web applications.
  *
  * The router manages navigation between different views in your application,
@@ -231,7 +242,7 @@ export class Router {
   /** @private RouterMiddleware[] */
   middlewares;
 
-  /** @private @type {import('./middleware.js').RouteData | null} */
+  /** @private @type {SourceCell<import('./middleware.js').RouteData>} */
   currentPath;
 
   /** @private @type {number} */
@@ -349,7 +360,10 @@ export class Router {
     this.routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
     this.middlewares = routeOptions.middlewares ?? [];
     this.maxRedirects = routeOptions.maxRedirects ?? 50;
-    this.currentPath = null;
+    this.currentPath = Cell.source(
+      /** @type {import('./middleware.js').RouteData} */ ({})
+    );
+
     this.redirectStackCount = 0;
     this.rendering = Promise.resolve(false);
     this.links = [];
@@ -450,22 +464,26 @@ export class Router {
       }
       this.attachRelayStyles();
 
-      /** @type {RouterRelay<ReturnType<NonNullable<NonNullable<(typeof props)>['fallback']>>>} */
+      /** @type {RouterRelay<ReturnType<NonNullable<NonNullable<(typeof props)>['source']>>>} */
       const relay = this.window.document.createElement('div');
       relay.toggleAttribute('data-x-relay', true);
 
+      relay.__easing = props?.easing ?? 'ease';
+      relay.__animated = props?.animated ?? true;
+      relay.__duration = props?.duration ?? 300;
+
       if (props) {
-        if (props.name) {
-          relay.dataset.xRelayName = props.name;
-          relay.__name = props.name;
+        if (props.id) {
+          relay.dataset.xRelayName = props.id;
+          relay.__name = props.id;
         }
 
         if (props.onNodesReceived) {
           relay.__onNodesReceived = props.onNodesReceived;
         }
 
-        if (props.fallback) {
-          relay.__render = props.fallback;
+        if (props.source) {
+          relay.__render = props.source;
 
           if (!this.isLoading) {
             // @ts-ignore: The render type is generic.
@@ -479,9 +497,6 @@ export class Router {
         if (props.onNodesSent) {
           relay.__onNodesSent = props.onNodesSent;
         }
-
-        relay.__animated = props.animated ?? true;
-        relay.__duration = props.duration ?? 300;
       }
 
       return relay;
@@ -568,10 +583,12 @@ export class Router {
    * @return {Promise<void>} A promise that resolves when the navigation is complete.
    */
   navigate = async (path) => {
+    this.isLoading = true;
     if (path === '#') {
       return;
     }
     await this.loadPath(path, true);
+    this.isLoading = false;
   };
 
   /**
@@ -611,7 +628,7 @@ export class Router {
     workingPath,
     mode = 'navigate'
   ) {
-    const currentPath = workingPath ?? this.currentPath;
+    const currentPath = workingPath ?? this.currentPath.value;
     const sourcePath = currentPath
       ? {
           name: currentPath.name,
@@ -682,7 +699,7 @@ export class Router {
         path,
         matchResult,
         targetMatch,
-        this.currentPath,
+        this.currentPath.value,
         'navigate'
       );
       if (finalPath !== path) {
@@ -719,94 +736,101 @@ export class Router {
 
     while (currentMatchedRoute) {
       const outlet = outlets[outletIndex];
+      if (outlet === undefined) break;
 
-      if (outlet === undefined) {
-        break;
+      if (outlet.dataset.path === currentMatchedRoute.fullPath) {
+        outletIndex++;
+        lastMatchedRoute = currentMatchedRoute;
+        currentMatchedRoute = currentMatchedRoute.child;
+        continue;
       }
 
-      if (outlet.hasAttribute('ct-static')) {
-        outlet.removeAttribute('ct-static');
-        outlet.removeAttribute('data-path');
-      }
+      const matchedComponentOrLazyLoader = currentMatchedRoute.component;
 
-      if (outlet.dataset.path !== currentMatchedRoute.fullPath) {
-        const matchedComponentOrLazyLoader = currentMatchedRoute.component;
+      /** @type {ComponentOrComponentLoader} */
+      let matchedComponent;
 
-        /** @type {ComponentOrComponentLoader} */
-        let matchedComponent;
-
-        if (
-          matchedComponentOrLazyLoader === null ||
-          matchedComponentOrLazyLoader === undefined
-        ) {
-          const outlet = outlets[outletIndex];
-          if (currentMatchedRoute.child) {
-            currentMatchedRoute = currentMatchedRoute.child;
-            continue;
-          }
-          if (currentMatchedRoute.redirect) {
-            await this.navigate(currentMatchedRoute.redirect);
-            return false;
-          }
-
-          console.warn(`No component from route: ${path}`);
-          outlet?.removeAttribute('data-path');
-          if (this.window) {
-            outlet?.replaceChildren(emptyRoute(path, this.window));
-          }
-          return true;
+      if (
+        matchedComponentOrLazyLoader === null ||
+        matchedComponentOrLazyLoader === undefined
+      ) {
+        const outlet = outlets[outletIndex];
+        if (currentMatchedRoute.child) {
+          currentMatchedRoute = currentMatchedRoute.child;
+          continue;
         }
-
-        if (matchedComponentOrLazyLoader instanceof LazyRoute) {
-          const component = await matchedComponentOrLazyLoader.importer();
-          if ('default' in component) {
-            matchedComponent = component.default;
-          } else {
-            matchedComponent = component;
-          }
-        } else {
-          matchedComponent = matchedComponentOrLazyLoader;
-        }
-
-        outlet.dataset.path = currentMatchedRoute.fullPath;
-        const renderedComponent =
-          outlet.__keepAliveCache?.get(path) ?? matchedComponent();
-
-        // if the component performs a redirect, it would change the route
-        // stored in the outlet's dataset, so we need to check before replacing.
-        if (outlet.dataset.path === currentMatchedRoute.fullPath) {
-          const animationDirection = this.chooseNavigationDirection(
-            currentMatchedRoute.fullPath
-          );
-
-          // if the outlet is keep alive, we need to cache the current nodes
-          if (outlet.__keepAlive && this.currentPath) {
-            outlet.__keepAliveCache?.set(
-              this.currentPath.fullPath,
-              Array.from(outlet.childNodes)
-            );
-          }
-          const newNodes = generateChildNodes(renderedComponent);
-          const replaced = await this.handleAnimations(
-            outlet,
-            newNodes,
-            animationDirection
-          );
-          if (!replaced) {
-            outlet.replaceChildren(...newNodes);
-          }
-
-          if (
-            this.window &&
-            (currentMatchedRoute.title || lastMatchedRoute.title)
-          ) {
-            const title =
-              currentMatchedRoute.title || lastMatchedRoute.title || '';
-            this.window.document.title = title;
-          }
-        } else {
+        if (currentMatchedRoute.redirect) {
+          await this.navigate(currentMatchedRoute.redirect);
           return false;
         }
+
+        console.warn(`No component from route: ${path}`);
+        outlet?.removeAttribute('data-path');
+        if (this.window) {
+          outlet?.replaceChildren(emptyRoute(path, this.window));
+        }
+        return true;
+      }
+
+      if (matchedComponentOrLazyLoader instanceof LazyRoute) {
+        const component = await matchedComponentOrLazyLoader.importer();
+        if ('default' in component) {
+          matchedComponent = component.default;
+        } else {
+          matchedComponent = component;
+        }
+      } else {
+        matchedComponent = matchedComponentOrLazyLoader;
+      }
+
+      outlet.dataset.path = currentMatchedRoute.fullPath;
+
+      const renderedComponent =
+        outlet.__keepAliveCache?.get(path) ?? matchedComponent();
+
+      const oldPath = this.currentPath.value?.fullPath;
+      if (this.currentPath.value?.fullPath !== currentMatchedRoute.fullPath) {
+        this.currentPath.value = {
+          name: currentMatchedRoute.name,
+          fullPath: currentMatchedRoute.fullPath,
+          params: matchResult.params,
+          query: matchResult.searchQueryParams,
+        };
+      }
+
+      // if the component performs a redirect, it would change the route
+      // stored in the outlet's dataset, so we need to check before replacing.
+      if (outlet.dataset.path !== currentMatchedRoute.fullPath) {
+        return false;
+      }
+
+      const animationDirection = this.chooseNavigationDirection(
+        currentMatchedRoute.fullPath
+      );
+
+      // if the outlet is keep alive, we need to cache the current nodes
+      if (outlet.__keepAlive && oldPath) {
+        const snapshot = Array.from(outlet.childNodes);
+        outlet.__keepAliveCache?.set(oldPath, snapshot);
+      }
+
+      const newNodes = generateChildNodes(renderedComponent);
+
+      const replaced = await this.handleAnimations(
+        outlet,
+        newNodes,
+        animationDirection
+      );
+      if (!replaced) {
+        outlet.replaceChildren(...newNodes);
+      }
+
+      if (
+        this.window &&
+        (currentMatchedRoute.title || lastMatchedRoute.title)
+      ) {
+        const title = currentMatchedRoute.title || lastMatchedRoute.title || '';
+        this.window.document.title = title;
       }
 
       outletIndex++;
@@ -823,16 +847,10 @@ export class Router {
       await this.navigate(lastMatchedRoute.redirect);
     }
 
-    this.currentPath = {
-      name: lastMatchedRoute.name,
-      params: matchResult.params,
-      query: matchResult.searchQueryParams,
-      fullPath: lastMatchedRoute.fullPath,
-    };
-
     if (this.redirectStackCount > 0) {
       this.redirectStackCount--;
     }
+
     return true;
   };
 
@@ -870,6 +888,15 @@ export class Router {
   };
 
   /**
+   * Returns a reactive cell that contains the current route data.
+   */
+  getCurrentRoute() {
+    return Cell.derived(() => {
+      return { ...this.currentPath.value };
+    });
+  }
+
+  /**
    * @private
    * Handles animations and relay transitions for DOM elements during route changes.
    * @param {RouterOutlet} outlet - The DOM element that will contain the new route content.
@@ -893,6 +920,10 @@ export class Router {
      * positioning.
      */
     let topLayer;
+    /** @type {DOMRect} */
+    let relayStartRect;
+    /** @type {{ width: number, height: number }} */
+    let relayEndDim;
     /** @type {RouterRelay[]} */
     const exitRelayNodes = Array.from(
       outlet.querySelectorAll('[data-x-relay]')
@@ -904,8 +935,9 @@ export class Router {
     const enterRelayNodes = Array.from(
       holder.querySelectorAll('[data-x-relay]')
     );
+
     const relayExecutorStart = async () => {
-      for (const enterRelay of Array.from(enterRelayNodes)) {
+      for (const enterRelay of enterRelayNodes) {
         const correspondingExit = exitRelayNodes.find((exitRelay) => {
           return exitRelay.dataset.xRelay === enterRelay.dataset.xRelay;
         });
@@ -928,7 +960,19 @@ export class Router {
           continue;
         }
 
-        const exitRect = correspondingExit.getBoundingClientRect();
+        const animations = /** @type {RelayAnimation[]} */ (
+          correspondingExit
+            .getAnimations({ subtree: true })
+            .filter((animation) => animation.playState === 'running')
+        );
+
+        for (const animation of animations) {
+          animation.pause();
+          /** @type {RelayAnimation} */ (animation).__pausedByRelay = true;
+        }
+
+        relayStartRect = correspondingExit.getBoundingClientRect();
+        relayEndDim = getFinalRect(correspondingExit);
         if (!topLayer && this.window && correspondingExit.__animated) {
           topLayer = this.window.document.createElement('div');
           topLayer.style.position = 'fixed';
@@ -946,29 +990,19 @@ export class Router {
         }
 
         if (topLayer && this.window) {
-          let exitRelayVacuum = this.window.document.createElement('div');
+          const exitRelayVacuum = this.window.document.createElement('div');
 
-          exitRelayVacuum.style.height = `${exitRect.height}px`;
-          exitRelayVacuum.style.width = `${exitRect.width}px`;
+          exitRelayVacuum.style.height = `${relayStartRect.height}px`;
+          exitRelayVacuum.style.width = `${relayStartRect.width}px`;
           exitRelayVacuum.style.display = 'inline-block';
 
           correspondingExit.replaceWith(exitRelayVacuum);
           correspondingExit.__vacuum = exitRelayVacuum;
 
-          topLayer.append(correspondingExit);
-          correspondingExit.setAttribute(
-            'style',
-            `position: fixed; 
-            top: ${exitRect.top}px; 
-            left: ${exitRect.left}px; 
-            width: ${exitRect.width}px; 
-            height: ${exitRect.height}px;`
-          );
+          const enterRelayVacuum = this.window.document.createElement('div');
 
-          let enterRelayVacuum = this.window.document.createElement('div');
-
-          enterRelayVacuum.style.height = `${exitRect.height}px`;
-          enterRelayVacuum.style.width = `${exitRect.width}px`;
+          enterRelayVacuum.style.height = `${relayEndDim.height}px`;
+          enterRelayVacuum.style.width = `${relayEndDim.width}px`;
           enterRelayVacuum.style.display = 'inline-block';
 
           enterRelay.replaceWith(enterRelayVacuum);
@@ -976,12 +1010,22 @@ export class Router {
 
           enterRelay.setAttribute(
             'style',
-            correspondingExit.getAttribute('style') ?? ''
+            `position: fixed; 
+            top: ${relayStartRect.top}px; 
+            left: ${relayStartRect.left}px; 
+            width: ${relayStartRect.width}px; 
+            height: ${relayStartRect.height}px;`
           );
-          correspondingExit.replaceWith(enterRelay);
+          topLayer.append(enterRelay);
         }
 
+        enterRelay.__pausedAnimations = animations;
         enterRelay.replaceChildren(...exitRelayContents);
+        for (const animation of animations) {
+          // Pausing an animation stabilizes the state of the element,
+          // even if it has changed parents.
+          animation.pause();
+        }
       }
     };
 
@@ -989,61 +1033,20 @@ export class Router {
     // Relay Cleanup
     // ---------------
     const relayExecutorFinish = async () => {
-      await Promise.all(
-        exitRelayNodes.map(async (exitRelay) => {
-          exitRelay.removeAttribute('data-x-relay-matched');
-          if (!exitRelay.__vacuum) return;
-
-          const vacuumRect = getFinalRect(exitRelay.__vacuum);
-
-          const transitionDuration = `${exitRelay.__duration}ms`;
-          exitRelay.style.transitionDuration = transitionDuration;
-          exitRelay.style.top = `${vacuumRect.top}px`;
-          exitRelay.style.left = `${vacuumRect.left}px`;
-
-          await Promise.all(
-            exitRelay.getAnimations?.().map((animation) => animation.finished)
-          );
-
-          exitRelay.__vacuum?.replaceWith(exitRelay);
-          exitRelay.style.cssText = `transition-duration: ${transitionDuration}`;
-
-          await Promise.all(
-            exitRelay.getAnimations?.().map((animation) => animation.finished)
-          );
-
-          exitRelay.removeAttribute('style');
-          exitRelay.__vacuum = undefined;
-        })
-      );
-
-      await Promise.all(
-        enterRelayNodes.map(async (enterRelay) => {
-          if (!enterRelay.__vacuum) return;
-
-          enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
-
-          const vacuumRect = getFinalRect(enterRelay.__vacuum);
-          const transitionDuration = `${enterRelay.__duration}ms`;
-          enterRelay.style.transitionDuration = transitionDuration;
-          enterRelay.style.top = `${vacuumRect.top}px`;
-          enterRelay.style.left = `${vacuumRect.left}px`;
-
-          await Promise.all(
-            enterRelay.getAnimations?.().map((animation) => animation.finished)
-          );
-
-          enterRelay.__vacuum?.replaceWith(enterRelay);
-          enterRelay.style.cssText = `transition-duration: ${transitionDuration}`;
-
-          await Promise.all(
-            enterRelay.getAnimations?.().map((animation) => animation.finished)
-          );
-
-          enterRelay.removeAttribute('style');
-          enterRelay.__vacuum = undefined;
-        })
-      );
+      await Promise.all([
+        Promise.all(
+          exitRelayNodes.map(async (exitRelay) => {
+            exitRelay.removeAttribute('data-x-relay-matched');
+            await transitionRelay(exitRelay, relayStartRect, relayEndDim);
+          })
+        ),
+        Promise.all(
+          enterRelayNodes.map(async (enterRelay) => {
+            enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
+            await transitionRelay(enterRelay, relayStartRect, relayEndDim);
+          })
+        ),
+      ]);
 
       topLayer?.remove();
     };
@@ -1052,7 +1055,7 @@ export class Router {
     // Exiting previous nodes.
     // ---------------
     const exitAnimationExecutor = async () => {
-      let oldNodes = Array.from(outlet.childNodes);
+      const oldNodes = Array.from(outlet.childNodes);
       const { name, duration, easing } = {
         ...animationOptions,
         ...(await animationOptions.onBeforeExit?.(oldNodes)),
@@ -1073,7 +1076,9 @@ export class Router {
           // duration | easing-function | delay | iteration-count | direction | fill-mode | name
           element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName}`;
 
-          await Promise.all(element.getAnimations().map((a) => a.finished));
+          await Promise.all(
+            element.getAnimations({ subtree: true }).map((a) => a.finished)
+          );
         })
       );
 
@@ -1097,7 +1102,11 @@ export class Router {
         ...(await animationOptions.onBeforeEnter?.(newNodes)),
       };
       if (!name) {
-        await animationOptions.onAfterEnter?.(newNodes);
+        outlet.replaceChildren(...newNodes);
+        await Promise.all([
+          relayExecutorFinish(),
+          animationOptions.onAfterEnter?.(newNodes),
+        ]);
         return;
       }
 
@@ -1157,7 +1166,7 @@ export class Router {
     const path =
       (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
       (pathQuery ?? '');
-    if (this.currentPath?.fullPath === path) {
+    if (this.currentPath.value?.fullPath === path) {
       return;
     }
 
@@ -1170,8 +1179,8 @@ export class Router {
       link.toggleAttribute(
         'active',
         Boolean(
-          this.currentPath?.fullPath &&
-            link.dataset.href?.startsWith(this.currentPath.fullPath)
+          this.currentPath.value?.fullPath &&
+            link.dataset.href?.startsWith(this.currentPath.value.fullPath)
         )
       );
     }
@@ -1368,33 +1377,96 @@ function getFinalRect(element) {
 
   // Traverse up the DOM tree to collect all animations and elements to hide
   while (currentElement) {
-    animations.push(...currentElement.getAnimations());
+    animations.push(
+      ...currentElement.getAnimations({ subtree: element === currentElement })
+    );
     elementsToHide.push(currentElement);
     currentElement = currentElement.parentElement;
   }
 
   // Hide elements with visibility: hidden to prevent visual glitches while keeping layout
-  elementsToHide.forEach((el) => (el.style.visibility = 'hidden'));
+  for (const el of elementsToHide) {
+    el.style.visibility = 'hidden';
+  }
 
   // Move all animations to their final state
-  animations.forEach((animation) => {
+  for (const animation of animations) {
     animation.pause();
     if (animation.effect) {
       Reflect.set(animation, '__currentTime', animation.currentTime);
-      animation.currentTime =
-        animation.effect.getComputedTiming().endTime ?? null;
+      const endTime = animation.effect.getComputedTiming().endTime;
+      animation.currentTime = endTime ?? null;
     }
-  });
+  }
 
   // Get the final bounding rect while elements are hidden
   const finalRect = element.getBoundingClientRect();
 
   // Reset animations and visibility
-  animations.forEach((animation) => {
-    animation.play();
+  for (const animation of animations) {
+    if (/** @type {RelayAnimation} */ (animation).__pausedByRelay !== true) {
+      animation.play();
+    }
     animation.currentTime = Reflect.get(animation, '__currentTime');
-  });
-  elementsToHide.forEach((el) => el.style.removeProperty('visibility'));
+  }
+  for (const el of elementsToHide) {
+    el.style.removeProperty('visibility');
+  }
 
   return finalRect;
+}
+
+/**
+ *
+ * @param {RouterRelay} relay
+ * @param {DOMRect} initialRect
+ * @param {{width: number, height: number}} endDimensions
+ */
+async function transitionRelay(relay, initialRect, endDimensions) {
+  if (!relay.__vacuum) return;
+
+  const vacuumRect = getFinalRect(relay.__vacuum);
+
+  // Calculate the transform needed to move from current to vacuum position
+  const deltaX =
+    vacuumRect.left -
+    initialRect.left -
+    (initialRect.width - relay.offsetWidth);
+  const deltaY =
+    vacuumRect.top -
+    initialRect.top -
+    (initialRect.height - relay.offsetHeight);
+
+  const keyframes = [
+    {
+      transform: `translate(${deltaX}px, ${deltaY}px)`,
+      height: `${endDimensions.height}px`,
+      width: `${endDimensions.width}px`,
+    },
+  ];
+
+  if (relay.__pausedAnimations) {
+    for (const animation of relay.__pausedAnimations) {
+      animation.play();
+    }
+  }
+
+  await Promise.all([
+    relay.animate(keyframes, {
+      duration: relay.__duration,
+      easing: relay.__easing,
+    }).finished,
+    relay.__pausedAnimations?.map((animation) => animation.finished),
+  ]);
+  relay.__pausedAnimations = undefined;
+
+  relay.__vacuum?.replaceWith(relay);
+  relay.style.cssText = `transition-duration: ${relay.__duration}ms`;
+
+  await Promise.all(
+    relay.getAnimations?.().map((animation) => animation.finished)
+  );
+
+  relay.removeAttribute('style');
+  relay.__vacuum = undefined;
 }

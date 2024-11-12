@@ -169,6 +169,8 @@ export function appendChild(element, tagname, child) {
     return;
   }
 
+  if (!child) return;
+
   const childNode = normalizeJsxChild(child, element);
   if (
     childNode instanceof globalThis.window.HTMLElement &&

@@ -149,7 +149,6 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
         if (!Reflect.has(element, '__attributeCells')) {
           Reflect.set(element, '__attributeCells', new Set());
         }
-        Reflect.set(element, '__attributeCells', new Set());
         element.__attributeCells.add(callback);
         element.__attributeCells.add(value);
 
@@ -227,5 +226,18 @@ export function generateChildNodes(children) {
 export function isNotObject(value) {
   return (
     !value.toString || !/function|object/.test(typeof value) || value === null
+  );
+}
+
+/**
+ * Checks if the given promise is currently pending.
+ *
+ * @param {Promise<any>} promise - The promise to check.
+ * @returns {Promise<boolean>} `true` if the promise is currently pending, `false` otherwise.
+ */
+export async function isPromisePending(promise) {
+  const pending = Symbol('pending');
+  return Promise.race([promise, Promise.resolve(pending)]).then(
+    (value) => value === pending
   );
 }
