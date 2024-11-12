@@ -38,6 +38,8 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  * @typedef {Object} ExtraLinkData
  */
 
+/** @typedef {HTMLElement | SVGAElement | MathMLElement} DomElement */
+
 /**
  * @typedef {Object} ExtraOutletData
  * @property {AnimationOptions} [animationOptions]
@@ -53,17 +55,63 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  * It defaults to 10.
  */
 
+/** @typedef {(nodes: Node[]) => PromiseOrNot<void>} RelayCallback */
+
+/**
+ * @template [T=JSX.Template]
+ * @typedef RouterRelayProps
+ *
+ * @property {string} name
+ * The name of the relay. This is used to identify the relay and its variant instances in the router.
+ *
+ * @property {RelayCallback} [onNodesReceived]
+ * A callback function that is called when the router matches and
+ * receives nodes into the relay from a previous route.
+ *
+ * @property {RelayCallback} [onNodesSent]
+ * A callback function that is called when the router matches and
+ * sends nodes from this relay to a new route.
+ *
+ * @property {() => T} fallback
+ * In cases where there is no previous route, or no nodes have been received,
+ * this function is called to provide the initial value of the relay.
+ * The nodes are still passed to the `onNodesReceived` callback.
+ *
+ * @property {boolean} [animated]
+ * If set to `false`, the relay will not animate the transition between routes.
+ * It defaults to `true`.
+ *
+ * @property {number} [duration]
+ * The duration of the relay transition in milliseconds.
+ * It defaults to `300`.
+ */
+
 /**
  * @typedef {JSX.IntrinsicElements['a'] & ExtraLinkData} RouterLinkProps
  */
 
-/** @typedef {HTMLDivElement & {
- *  animationOptions?: AnimationOptions;
- *  keepAlive?: boolean;
- *  keepAliveCache?: FixedSizeMap<string, Node[]>;
- * }} RouterOutlet */
+/**
+ * @typedef {HTMLDivElement & {
+ *  __animationOptions?: AnimationOptions;
+ *  __keepAlive?: boolean;
+ *  __keepAliveCache?: FixedSizeMap<string, Node[]>;
+ * }} RouterOutlet
+ */
 
-/** @typedef {JSX.JsxHtmlDivElement & ExtraOutletData} RouterOutletProps */
+/**
+ * @template [T=JSX.Template]
+ * @typedef {HTMLDivElement & {
+ *  __name?: string;
+ *  __render?: () => T;
+ *  __onNodesReceived?: (nodes: Node[]) => void;
+ *  __onNodesSent?: (nodes: Node[]) => void;
+ *  __animated?: boolean;
+ *  __duration?: number;
+ *  __vacuum?: HTMLElement;
+ * }} RouterRelay
+ */
+
+/** @typedef {JSX.IntrinsicElements['div'] & ExtraOutletData} RouterOutletProps */
 
 /** @type {Router | null } */
 let ROUTER_INSTANCE = null;
@@ -83,6 +131,10 @@ let ROUTER_INSTANCE = null;
  * @property {boolean} [stackMode]
  * If set to `true`, the router will treat the routes as a stack, and will automatically
  * go back or forward based on the route history.
+ *
+ * @property {number} [relayLayerIndex]
+ * The z-index to set on the element that will handle relay transitions.
+ * It defaults to 9999.
  */
 
 /**
@@ -133,6 +185,33 @@ let ROUTER_INSTANCE = null;
  * @typedef {'normal' | 'reverse'} NavigationDirection
  */
 
+/**
+ * A client-side router for building dynamic web applications.
+ *
+ * The router manages navigation between different views in your application,
+ * handling URL changes and rendering the appropriate components.
+ *
+ * @example
+ * Basic Usage
+ * ```tsx
+ * // Create and configure the router
+ * const router = createWebRouter({
+ *   routes: [
+ *     { path: '/', component: Home },
+ *     { path: '/about', component: About }
+ *   ]
+ * })
+ *
+ * // Add the router outlet where components will render
+ * <router.Outlet />
+ *
+ * // Create links for navigation
+ * <router.Link href="/about">About</router.Link>
+ * ```
+ *
+ * The router provides additional features like animations, caching, and
+ * advanced navigation patterns that can be added as your needs grow.
+ */
 export class Router {
   /**
    * The unique identifier for the router instance.
@@ -170,12 +249,29 @@ export class Router {
   /** @private @type {string[]} */
   routerHistory;
 
+  /** @private @type {number} */
+  relayTopLayerZIndex;
+
+  /** @private @type {boolean} */
+  relaySheetAttached;
+
   /**
    * Defines an anchor element and handles click events to navigate to the specified route.
    *
    * @type {(props?: RouterLinkProps) => HTMLAnchorElement}
-   * @param {JSX.JsxHtmlAnchorElement} props - The component props.
-   * @returns {HTMLAnchorElement} The rendered `<router-link>` component.
+   * @param {RouterLinkProps} props - The component props.
+   * @returns {HTMLAnchorElement} The rendered anchor element.
+   *
+   * @example
+   * ```tsx
+   * // Basic navigation
+   * <router.Link href="/about">About</router.Link>
+   *
+   * // With additional attributes
+   * <router.Link href="/contact" class="button">
+   *   Contact Us
+   * </router.Link>
+   * ```
    */
   Link;
 
@@ -183,12 +279,62 @@ export class Router {
    * Defines an element that serves as the router outlet, rendering the component
    * associated with the current route.
    *
-   * This component is used internally by the `Router` class to handle route changes and
+   * This component is used internally by the {@link Router} class to handle route changes and
    * render the appropriate component.
    * @type {(props?: RouterOutletProps) => HTMLDivElement}
-   * @param {JSX.JsxHtmlDivElement} props
+   * @param {RouterOutletProps} props
+   * @returns {HTMLDivElement} The rendered div element that serves as the router outlet.
+   *
+   * @example
+   * ```tsx
+   * // Basic usage
+   * <router.Outlet />
+   *
+   * // With animations
+   * <router.Outlet
+   *   animationOptions={{
+   *     name: 'fade',
+   *     duration: 300,
+   *   }}
+   * />
+   * ```
    */
   Outlet;
+
+  /**
+   * A component that enables smooth transitions of DOM nodes between routes.
+   *
+   * The Relay component maintains continuity of elements across route changes by
+   * preserving and transferring nodes between matching relay instances. Each relay
+   * instance is identified by a unique name and can define how nodes are handled
+   * during transitions.
+   *
+   * @type {<T=JSX.Template>(props?: RouterRelayProps<T>) => HTMLDivElement}
+   * @param {RouterRelayProps} props
+   * @returns {HTMLDivElement} The rendered div element that serves as the relay container.
+   *
+   * @example
+   * ```tsx
+   * // In list route
+   * <router.Relay
+   *   name="card-photo"
+   *   render={() => <img src={photo.url} alt={photo.alt} />}
+   *   onNodesSend={(nodes) => {
+   *     // Prepare nodes for transition
+   *   }}
+   * />
+   *
+   * // In detail route
+   * <router.Relay
+   *   name="card-photo"
+   *   render={() => <img src={photo.url} alt={photo.alt} />}
+   *   onNodesReceive={([image]) => {
+   *     // Transform nodes for detail view
+   *   }}
+   * />
+   * ```
+   */
+  Relay;
 
   /**
    * The global `window` object, which provides access to the browser's JavaScript API.
@@ -209,8 +355,13 @@ export class Router {
     this.links = [];
     this.params = new Map();
     this.stackMode = routeOptions.stackMode ?? false;
+    this.relayTopLayerZIndex = routeOptions.relayLayerIndex ?? 9999;
     this.routerHistory = [];
+    this.relaySheetAttached = false;
 
+    // ---------------
+    // Outlet Implementation
+    // ---------------
     this.Outlet = (props) => {
       if (!this.window) {
         throw new Error('Cannot create Outlet in undefined window.');
@@ -241,18 +392,21 @@ export class Router {
 
       if (props) {
         if (props.animationOptions) {
-          outlet.animationOptions = props.animationOptions;
+          outlet.__animationOptions = props.animationOptions;
         }
         if (props.keepAlive) {
-          outlet.keepAlive = props.keepAlive;
+          outlet.__keepAlive = props.keepAlive;
           const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
-          outlet.keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
+          outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
         }
       }
 
       return outlet;
     };
 
+    // ---------------
+    // Link Implementation
+    // ---------------
     this.Link = (props) => {
       if (!this.window) {
         throw new Error('Cannot create Link in undefined window.');
@@ -286,6 +440,65 @@ export class Router {
       return a;
     };
     this.Link = this.Link.bind(this);
+
+    // ---------------
+    // Relay Implementation
+    // ---------------
+    this.Relay = (props) => {
+      if (!this.window) {
+        throw new Error('Cannot create Relay in undefined window.');
+      }
+      this.attachRelayStyles();
+
+      /** @type {RouterRelay<ReturnType<NonNullable<NonNullable<(typeof props)>['fallback']>>>} */
+      const relay = this.window.document.createElement('div');
+      relay.toggleAttribute('data-x-relay', true);
+
+      if (props) {
+        if (props.name) {
+          relay.dataset.xRelayName = props.name;
+          relay.__name = props.name;
+        }
+
+        if (props.onNodesReceived) {
+          relay.__onNodesReceived = props.onNodesReceived;
+        }
+
+        if (props.fallback) {
+          relay.__render = props.fallback;
+
+          if (!this.isLoading) {
+            // @ts-ignore: The render type is generic.
+            const nodes = generateChildNodes(relay.__render?.());
+            // @ts-ignore: The relay is not of the type JsxElement.
+            appendChild(relay, relay.tagName.toLowerCase(), nodes);
+            relay.__onNodesReceived?.(nodes);
+          }
+        }
+
+        if (props.onNodesSent) {
+          relay.__onNodesSent = props.onNodesSent;
+        }
+
+        relay.__animated = props.animated ?? true;
+        relay.__duration = props.duration ?? 300;
+      }
+
+      return relay;
+    };
+  }
+
+  attachRelayStyles() {
+    if (this.relaySheetAttached) return;
+
+    const styleSheet = new CSSStyleSheet();
+    styleSheet.replaceSync(
+      `[data-x-relay] {
+        display: inline-block;
+      }`
+    );
+    this.window?.document.adoptedStyleSheets?.push(styleSheet);
+    this.relaySheetAttached = true;
   }
 
   /**
@@ -332,8 +545,27 @@ export class Router {
   /**
    * Updates the browser history and renders the corresponding route component.
    *
-   * @param {string} path - The path to navigate to.
-   * @return {Promise<void>}
+   * @example
+   * ```tsx
+   * // Basic navigation
+   * router.navigate('/about')
+   *
+   * // Navigate with query parameters
+   * router.navigate('/search?query=test')
+   *
+   * // Navigate to dynamic routes
+   * router.navigate(`/photos/${photoId}`)
+   * ```
+   *
+   * The navigation process:
+   * 1. Updates the URL without page reload
+   * 2. Matches the new path to a route
+   * 3. Runs configured middleware
+   * 4. Handles route transitions and animations
+   * 5. Updates the browser history
+   *
+   * @param {string} path - The path to navigate to
+   * @return {Promise<void>} A promise that resolves when the navigation is complete.
    */
   navigate = async (path) => {
     if (path === '#') {
@@ -344,6 +576,20 @@ export class Router {
 
   /**
    * Navigates back in the browser's history.
+   *
+   * When called, triggers a history.back() which the router will detect and handle,
+   * running any configured exit animations in reverse.
+   *
+   * @example
+   * ```tsx
+   * // Basic usage
+   * router.back()
+   *
+   * // Common use case in a component
+   * <button onClick={() => router.back()}>
+   *   Go Back
+   * </button>
+   * ```
    */
   back() {
     this.window?.history?.back();
@@ -524,7 +770,7 @@ export class Router {
 
         outlet.dataset.path = currentMatchedRoute.fullPath;
         const renderedComponent =
-          outlet.keepAliveCache?.get(path) ?? matchedComponent();
+          outlet.__keepAliveCache?.get(path) ?? matchedComponent();
 
         // if the component performs a redirect, it would change the route
         // stored in the outlet's dataset, so we need to check before replacing.
@@ -534,14 +780,15 @@ export class Router {
           );
 
           // if the outlet is keep alive, we need to cache the current nodes
-          const oldNodes = Array.from(outlet.childNodes);
-          if (outlet.keepAlive && this.currentPath) {
-            outlet.keepAliveCache?.set(this.currentPath.fullPath, oldNodes);
+          if (outlet.__keepAlive && this.currentPath) {
+            outlet.__keepAliveCache?.set(
+              this.currentPath.fullPath,
+              Array.from(outlet.childNodes)
+            );
           }
           const newNodes = generateChildNodes(renderedComponent);
           const replaced = await this.handleAnimations(
             outlet,
-            oldNodes,
             newNodes,
             animationDirection
           );
@@ -623,9 +870,9 @@ export class Router {
   };
 
   /**
-   * Handles animations for DOM elements during route changes.
+   * @private
+   * Handles animations and relay transitions for DOM elements during route changes.
    * @param {RouterOutlet} outlet - The DOM element that will contain the new route content.
-   * @param {Node[]} oldNodes - The DOM elements that will be removed from the outlet.
    * @param {Node[]} newNodes - The DOM elements that will be added to the outlet.
    * @param {NavigationDirection} animationDirection - The direction of the animation, either 'enter' or 'exit'.
    *
@@ -633,37 +880,197 @@ export class Router {
    * A Promise that resolves when the animations are complete. It will return true if the nodes were replaced
    * during animation.
    */
-  handleAnimations = async (outlet, oldNodes, newNodes, animationDirection) => {
-    // ---------------
-    // Handling enter and exit animations
-    // ---------------
-    const animationOptions = outlet.animationOptions;
-    if (!animationOptions) return;
+  handleAnimations = async (outlet, newNodes, animationDirection) => {
+    const animationOptions = outlet.__animationOptions ?? {};
+    if (!this.window) return;
 
+    // ---------------
+    // Handling relays
+    // ---------------
+    /**
+     * @type {HTMLElement}
+     * A dummy top-layer that will be maintain the relay
+     * positioning.
+     */
+    let topLayer;
+    /** @type {RouterRelay[]} */
+    const exitRelayNodes = Array.from(
+      outlet.querySelectorAll('[data-x-relay]')
+    );
+    // Creating a fragment allows query selector to work on the new nodes.
+    const holder = this.window.document.createDocumentFragment();
+    holder.append(...newNodes);
+    /** @type {RouterRelay[]} */
+    const enterRelayNodes = Array.from(
+      holder.querySelectorAll('[data-x-relay]')
+    );
+    const relayExecutorStart = async () => {
+      for (const enterRelay of Array.from(enterRelayNodes)) {
+        const correspondingExit = exitRelayNodes.find((exitRelay) => {
+          return exitRelay.dataset.xRelay === enterRelay.dataset.xRelay;
+        });
+        if (!correspondingExit) {
+          // No corresponding exit relay found.
+          const relayContents = generateChildNodes(enterRelay.__render?.());
+          enterRelay.replaceChildren(...relayContents);
+          enterRelay.__onNodesReceived?.(relayContents);
+          continue;
+        }
+
+        // A corresponding exit relay was found.
+        const exitRelayContents = Array.from(correspondingExit.childNodes);
+        correspondingExit.__onNodesSent?.(exitRelayContents);
+        correspondingExit.dataset.xRelayMatched = 'true';
+
+        if (!enterRelay.__animated) {
+          enterRelay.replaceChildren(...exitRelayContents);
+          enterRelay.__onNodesReceived?.(exitRelayContents);
+          continue;
+        }
+
+        const exitRect = correspondingExit.getBoundingClientRect();
+        if (!topLayer && this.window && correspondingExit.__animated) {
+          topLayer = this.window.document.createElement('div');
+          topLayer.style.position = 'fixed';
+          topLayer.style.top = '0';
+          topLayer.style.left = '0';
+          topLayer.style.width = '100%';
+          topLayer.style.height = '100%';
+          topLayer.style.pointerEvents = 'none';
+          topLayer.style.zIndex = this.relayTopLayerZIndex.toString();
+          if (this.relayTopLayerZIndex < 0) {
+            this.window.document.body.prepend(topLayer);
+          } else {
+            this.window.document.body.append(topLayer);
+          }
+        }
+
+        if (topLayer && this.window) {
+          let exitRelayVacuum = this.window.document.createElement('div');
+
+          exitRelayVacuum.style.height = `${exitRect.height}px`;
+          exitRelayVacuum.style.width = `${exitRect.width}px`;
+          exitRelayVacuum.style.display = 'inline-block';
+
+          correspondingExit.replaceWith(exitRelayVacuum);
+          correspondingExit.__vacuum = exitRelayVacuum;
+
+          topLayer.append(correspondingExit);
+          correspondingExit.setAttribute(
+            'style',
+            `position: fixed; 
+            top: ${exitRect.top}px; 
+            left: ${exitRect.left}px; 
+            width: ${exitRect.width}px; 
+            height: ${exitRect.height}px;`
+          );
+
+          let enterRelayVacuum = this.window.document.createElement('div');
+
+          enterRelayVacuum.style.height = `${exitRect.height}px`;
+          enterRelayVacuum.style.width = `${exitRect.width}px`;
+          enterRelayVacuum.style.display = 'inline-block';
+
+          enterRelay.replaceWith(enterRelayVacuum);
+          enterRelay.__vacuum = enterRelayVacuum;
+
+          enterRelay.setAttribute(
+            'style',
+            correspondingExit.getAttribute('style') ?? ''
+          );
+          correspondingExit.replaceWith(enterRelay);
+        }
+
+        enterRelay.replaceChildren(...exitRelayContents);
+      }
+    };
+
+    // ---------------
+    // Relay Cleanup
+    // ---------------
+    const relayExecutorFinish = async () => {
+      await Promise.all(
+        exitRelayNodes.map(async (exitRelay) => {
+          exitRelay.removeAttribute('data-x-relay-matched');
+          if (!exitRelay.__vacuum) return;
+
+          const vacuumRect = getFinalRect(exitRelay.__vacuum);
+
+          const transitionDuration = `${exitRelay.__duration}ms`;
+          exitRelay.style.transitionDuration = transitionDuration;
+          exitRelay.style.top = `${vacuumRect.top}px`;
+          exitRelay.style.left = `${vacuumRect.left}px`;
+
+          await Promise.all(
+            exitRelay.getAnimations?.().map((animation) => animation.finished)
+          );
+
+          exitRelay.__vacuum?.replaceWith(exitRelay);
+          exitRelay.style.cssText = `transition-duration: ${transitionDuration}`;
+
+          await Promise.all(
+            exitRelay.getAnimations?.().map((animation) => animation.finished)
+          );
+
+          exitRelay.removeAttribute('style');
+          exitRelay.__vacuum = undefined;
+        })
+      );
+
+      await Promise.all(
+        enterRelayNodes.map(async (enterRelay) => {
+          if (!enterRelay.__vacuum) return;
+
+          enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
+
+          const vacuumRect = getFinalRect(enterRelay.__vacuum);
+          const transitionDuration = `${enterRelay.__duration}ms`;
+          enterRelay.style.transitionDuration = transitionDuration;
+          enterRelay.style.top = `${vacuumRect.top}px`;
+          enterRelay.style.left = `${vacuumRect.left}px`;
+
+          await Promise.all(
+            enterRelay.getAnimations?.().map((animation) => animation.finished)
+          );
+
+          enterRelay.__vacuum?.replaceWith(enterRelay);
+          enterRelay.style.cssText = `transition-duration: ${transitionDuration}`;
+
+          await Promise.all(
+            enterRelay.getAnimations?.().map((animation) => animation.finished)
+          );
+
+          enterRelay.removeAttribute('style');
+          enterRelay.__vacuum = undefined;
+        })
+      );
+
+      topLayer?.remove();
+    };
+
+    // ---------------
     // Exiting previous nodes.
+    // ---------------
     const exitAnimationExecutor = async () => {
+      let oldNodes = Array.from(outlet.childNodes);
       const { name, duration, easing } = {
         ...animationOptions,
         ...(await animationOptions.onBeforeExit?.(oldNodes)),
       };
-      if (!name) {
-        await animationOptions.onAfterExit?.(oldNodes);
-        return;
-      }
 
       await Promise.all(
         oldNodes.map(async (node) => {
-          if (!('style' in node || 'getAnimations' in node)) return;
-
-          const element =
-            /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
+          if (!name || !('style' in node || 'getAnimations' in node)) return;
+          const element = /** @type {DomElement} */ (node);
+          // ignore relays
+          if (element.dataset?.xRelayMatched) return;
 
           const finalDuration = `${duration ?? 0}ms`;
           const finalEasing = easing ?? 'ease-in';
           const finalName =
             animationDirection === 'reverse' ? `${name}-enter` : `${name}-exit`;
 
-          // duration | easing-function | delay | iteration-count | direction | fill-mode | play-state | name
+          // duration | easing-function | delay | iteration-count | direction | fill-mode | name
           element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName}`;
 
           await Promise.all(element.getAnimations().map((a) => a.finished));
@@ -675,15 +1082,16 @@ export class Router {
       // back to their original state if there is a delay.
       for (const node of oldNodes) {
         if (!('style' in node)) continue;
-
-        const element =
-          /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
+        const element = /** @type {DomElement} */ (node);
+        // ignore relays
+        if (element.dataset?.xRelayMatched) return;
         element.style.removeProperty('animation');
       }
     };
 
     // Entering new nodes.
     const enterAnimationExecutor = async () => {
+      const newNodes = Array.from(holder.childNodes);
       const { name, duration, easing } = {
         ...animationOptions,
         ...(await animationOptions.onBeforeEnter?.(newNodes)),
@@ -696,39 +1104,43 @@ export class Router {
       for (const node of newNodes) {
         // Skip non-HTML elements, and elements created in non-browser environments.
         if (!('style' in node || 'getAnimations' in node)) continue;
-
-        const element =
-          /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
+        const element = /** @type {DomElement} */ (node);
+        // ignore relays
+        if (element.dataset?.xRelayMatched) return;
 
         const finalDuration = `${duration ?? 0}ms`;
         const finalEasing = easing ?? 'ease-in';
         const finalName =
           animationDirection === 'reverse' ? `${name}-exit` : `${name}-enter`;
-        // duration | easing-function | delay | iteration-count | direction | fill-mode | play-state | name
+
+        // duration | easing-function | delay | iteration-count | direction | fill-mode | name
         element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName} `;
       }
 
       // The new nodes need to be added to the DOM before the animation starts.
       outlet.replaceChildren(...newNodes);
 
-      await Promise.all(
-        newNodes.map(async (node) => {
-          // Skip non-HTML elements, and elements created in non-browser environments.
-          if (!('style' in node || 'getAnimations' in node)) return;
+      await Promise.all([
+        relayExecutorFinish(),
+        Promise.all(
+          newNodes.map(async (node) => {
+            // Skip non-HTML elements, and elements created in non-browser environments.
+            if (!('style' in node || 'getAnimations' in node)) return;
 
-          const element =
-            /** @type {HTMLElement | SVGAElement | MathMLElement} */ (node);
-
-          await Promise.all(element.getAnimations().map((a) => a.finished));
-          element.style.removeProperty('animation');
-        })
-      );
-
-      await animationOptions.onAfterEnter?.(newNodes);
+            const element = /** @type {DomElement} */ (node);
+            // ignore relays
+            if (element.dataset?.xRelayMatched) return;
+            await Promise.all(element.getAnimations().map((a) => a.finished));
+            element.style.removeProperty('animation');
+          })
+        ).then(() => animationOptions.onAfterEnter?.(newNodes)),
+      ]);
     };
 
+    await relayExecutorStart();
     await exitAnimationExecutor();
-    await enterAnimationExecutor();
+    await enterAnimationExecutor(); // the relay executor finish runs inside.
+
     return true;
   };
 
@@ -939,4 +1351,50 @@ function emptyRoute(path, window) {
   const node = window.document.createDocumentFragment();
   node.appendChild(window.document.createTextNode(`Route not found: ${path}`));
   return node;
+}
+
+/**
+ * Calculates the final bounding rectangle of an element before any ongoing animations end.
+ * This function traverses up the DOM tree from the given element, collecting all active animations and elements to temporarily hide. It then moves all animations to their final state, gets the final bounding rectangle of the element, and resets the animations and visibility.
+ * This is useful for cases where an element's position or size changes due to animations, and you need to know the final layout before the animations complete.
+ * @param {DomElement} element - The element to get the final bounding rectangle for.
+ * @returns {DOMRect} The final bounding rectangle of the element.
+ */
+function getFinalRect(element) {
+  const animations = [];
+  const elementsToHide = [];
+  /** @type {DomElement | null} */
+  let currentElement = element;
+
+  // Traverse up the DOM tree to collect all animations and elements to hide
+  while (currentElement) {
+    animations.push(...currentElement.getAnimations());
+    elementsToHide.push(currentElement);
+    currentElement = currentElement.parentElement;
+  }
+
+  // Hide elements with visibility: hidden to prevent visual glitches while keeping layout
+  elementsToHide.forEach((el) => (el.style.visibility = 'hidden'));
+
+  // Move all animations to their final state
+  animations.forEach((animation) => {
+    animation.pause();
+    if (animation.effect) {
+      Reflect.set(animation, '__currentTime', animation.currentTime);
+      animation.currentTime =
+        animation.effect.getComputedTiming().endTime ?? null;
+    }
+  });
+
+  // Get the final bounding rect while elements are hidden
+  const finalRect = element.getBoundingClientRect();
+
+  // Reset animations and visibility
+  animations.forEach((animation) => {
+    animation.play();
+    animation.currentTime = Reflect.get(animation, '__currentTime');
+  });
+  elementsToHide.forEach((el) => el.style.removeProperty('visibility'));
+
+  return finalRect;
 }
