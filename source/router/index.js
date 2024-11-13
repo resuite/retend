@@ -14,6 +14,7 @@ export * from './routeTree.js';
 export * from './middleware.js';
 
 const HISTORY_STORAGE_KEY = 'rhistory';
+const PARAM_REGEX = /:(\w+)/g;
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
@@ -215,7 +216,7 @@ let ROUTER_INSTANCE = null;
  */
 
 /**
- * @typedef {Animation & { __pausedByRelay: boolean }} RelayAnimation
+ * @typedef {CSSTransition & { __pausedByRelay: boolean }} RelayAnimation
  */
 
 /**
@@ -469,7 +470,14 @@ export class Router {
         appendChild(a, a.tagName.toLowerCase(), props.children);
       }
 
-      a.addEventListener('click', (event) => {
+      /**
+       * @param {Event} event
+       */
+      const handleNavigate = (event) => {
+        if (this.isLoading) {
+          event.preventDefault();
+          return;
+        }
         // Only navigate if the href is not a valid URL.
         // For valid URLs, the browser will handle the navigation.
         const href = a.getAttribute('href');
@@ -477,7 +485,9 @@ export class Router {
           event.preventDefault();
           this.navigate(href);
         }
-      });
+      };
+
+      a.addEventListener('click', handleNavigate);
 
       return a;
     };
@@ -538,6 +548,7 @@ export class Router {
     styleSheet.replaceSync(
       `[data-x-relay] {
         display: inline-block;
+        overflow: hidden;
       }`
     );
     this.window?.document.adoptedStyleSheets?.push(styleSheet);
@@ -961,6 +972,13 @@ export class Router {
     const exitRelayNodes = Array.from(
       outlet.querySelectorAll('[data-x-relay]')
     );
+    /** @type {Map<string, RouterRelay>} */
+    const exitRelayNodeMap = new Map();
+    for (const relayNode of exitRelayNodes) {
+      const name = relayNode.dataset.xRelayName;
+      if (!name) continue;
+      exitRelayNodeMap.set(name, relayNode);
+    }
     // Creating a fragment allows query selector to work on the new nodes.
     const holder = this.window.document.createDocumentFragment();
     holder.append(...newNodes);
@@ -971,9 +989,9 @@ export class Router {
 
     const relayExecutorStart = async () => {
       for (const enterRelay of enterRelayNodes) {
-        const correspondingExit = exitRelayNodes.find((exitRelay) => {
-          return exitRelay.dataset.xRelayName === enterRelay.dataset.xRelayName;
-        });
+        const name = enterRelay.dataset.xRelayName;
+        if (!name) continue;
+        const correspondingExit = exitRelayNodeMap.get(name);
 
         if (!correspondingExit) {
           // No corresponding exit relay found.
@@ -1003,7 +1021,7 @@ export class Router {
         const animations = /** @type {RelayAnimation[]} */ (
           correspondingExit
             .getAnimations({ subtree: true })
-            .filter((animation) => animation.playState === 'running')
+            .filter((animation) => animation instanceof CSSTransition)
         );
 
         for (const animation of animations) {
@@ -1022,11 +1040,6 @@ export class Router {
           topLayer.style.height = '100%';
           topLayer.style.pointerEvents = 'none';
           topLayer.style.zIndex = this.relayOptions.relayLayerIndex.toString();
-          if (this.relayOptions.relayLayerIndex < 0) {
-            this.window.document.body.prepend(topLayer);
-          } else {
-            this.window.document.body.append(topLayer);
-          }
         }
 
         if (topLayer && this.window) {
@@ -1034,7 +1047,6 @@ export class Router {
 
           exitRelayVacuum.style.height = `${relayStartRect.height}px`;
           exitRelayVacuum.style.width = `${relayStartRect.width}px`;
-          exitRelayVacuum.style.display = 'inline-block';
 
           correspondingExit.replaceWith(exitRelayVacuum);
           correspondingExit.__vacuum = exitRelayVacuum;
@@ -1043,7 +1055,6 @@ export class Router {
 
           enterRelayVacuum.style.height = `${relayEndDim.height}px`;
           enterRelayVacuum.style.width = `${relayEndDim.width}px`;
-          enterRelayVacuum.style.display = 'inline-block';
 
           enterRelay.replaceWith(enterRelayVacuum);
           enterRelay.__vacuum = enterRelayVacuum;
@@ -1067,6 +1078,14 @@ export class Router {
           animation.pause();
         }
       }
+
+      if (!topLayer) return;
+
+      if (this.relayOptions.relayLayerIndex < 0) {
+        this.window?.document.body.prepend(topLayer);
+      } else {
+        this.window?.document.body.append(topLayer);
+      }
     };
 
     // ---------------
@@ -1075,7 +1094,7 @@ export class Router {
     const relayExecutorFinish = async () => {
       await Promise.all([
         Promise.all(
-          exitRelayNodes.map(async (exitRelay) => {
+          [...exitRelayNodeMap].map(async ([_, exitRelay]) => {
             exitRelay.removeAttribute('data-x-relay-matched');
             await transitionRelay(exitRelay, relayStartRect, relayEndDim);
           })
@@ -1400,14 +1419,14 @@ function emptyRoute(path, window) {
 
 /**
  * Calculates the final bounding rectangle of an element before any ongoing animations end.
- * This function traverses up the DOM tree from the given element, collecting all active animations and elements to temporarily hide. It then moves all animations to their final state, gets the final bounding rectangle of the element, and resets the animations and visibility.
+ * This function traverses up the DOM tree from the given element, collecting all active animations.
+ * It then moves all animations to their final state, gets the final bounding rectangle of the element, and resets the animations.
  * This is useful for cases where an element's position or size changes due to animations, and you need to know the final layout before the animations complete.
  * @param {DomElement} element - The element to get the final bounding rectangle for.
  * @returns {DOMRect} The final bounding rectangle of the element.
  */
 function getFinalRect(element) {
   const animations = [];
-  const elementsToHide = [];
   /** @type {DomElement | null} */
   let currentElement = element;
 
@@ -1416,13 +1435,7 @@ function getFinalRect(element) {
     animations.push(
       ...currentElement.getAnimations({ subtree: element === currentElement })
     );
-    elementsToHide.push(currentElement);
     currentElement = currentElement.parentElement;
-  }
-
-  // Hide elements with visibility: hidden to prevent visual glitches while keeping layout
-  for (const el of elementsToHide) {
-    el.style.visibility = 'hidden';
   }
 
   // Move all animations to their final state
@@ -1445,9 +1458,6 @@ function getFinalRect(element) {
     }
     animation.currentTime = Reflect.get(animation, '__currentTime');
   }
-  for (const el of elementsToHide) {
-    el.style.removeProperty('visibility');
-  }
 
   return finalRect;
 }
@@ -1464,14 +1474,8 @@ async function transitionRelay(relay, initialRect, endDimensions) {
   const vacuumRect = getFinalRect(relay.__vacuum);
 
   // Calculate the transform needed to move from current to vacuum position
-  const deltaX =
-    vacuumRect.left -
-    initialRect.left -
-    (initialRect.width - relay.offsetWidth);
-  const deltaY =
-    vacuumRect.top -
-    initialRect.top -
-    (initialRect.height - relay.offsetHeight);
+  const deltaX = vacuumRect.left - initialRect.left;
+  const deltaY = vacuumRect.top - initialRect.top;
 
   const keyframes = [
     {
@@ -1515,11 +1519,8 @@ async function transitionRelay(relay, initialRect, endDimensions) {
  * @returns {string} The path with the named parameters substituted.
  */
 function substituteParameters(path, params) {
-  // Create a regular expression to match named parameters enclosed in ":".
-  const paramRegex = /:(\w+)/g;
-
   // Replace each matched parameter with its corresponding value from the params object.
-  return path.replace(paramRegex, (match, paramName) => {
+  return path.replace(PARAM_REGEX, (match, paramName) => {
     return params.get(paramName) || match; // If the parameter is not found, return the original match.
   });
 }
