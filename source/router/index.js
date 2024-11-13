@@ -96,6 +96,19 @@ const PARAM_REGEX = /:(\w+)/g;
  */
 
 /**
+ * @typedef RouteSnapShot
+ *
+ * @property {Node[]} nodes
+ * The nodes that were in the outlet when the snapshot was taken.
+ *
+ * @property {[number, number]} outletScroll
+ * The (x, y) scroll positions of the outlet when the snapshot was taken.
+ *
+ * @property {[number, number]} windowScroll
+ * The (x, y) scroll positions of the window when the snapshot was taken.
+ */
+
+/**
  * @typedef {JSX.IntrinsicElements['a'] & ExtraLinkData} RouterLinkProps
  */
 
@@ -103,7 +116,7 @@ const PARAM_REGEX = /:(\w+)/g;
  * @typedef {HTMLDivElement & {
  *  __animationOptions?: AnimationOptions;
  *  __keepAlive?: boolean;
- *  __keepAliveCache?: FixedSizeMap<string, Node[]>;
+ *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  * }} RouterOutlet
  */
 
@@ -825,7 +838,7 @@ export class Router {
       outlet.dataset.path = currentMatchedRoute.fullPath;
 
       const renderedComponent =
-        outlet.__keepAliveCache?.get(path) ?? matchedComponent();
+        outlet.__keepAliveCache?.get(path)?.nodes ?? matchedComponent();
 
       const oldPath = this.currentPath.value?.fullPath;
       if (this.currentPath.value?.fullPath !== currentMatchedRoute.fullPath) {
@@ -852,8 +865,13 @@ export class Router {
 
       // if the outlet is keep alive, we need to cache the current nodes
       if (outlet.__keepAlive && oldPath) {
-        const snapshot = Array.from(outlet.childNodes);
-        outlet.__keepAliveCache?.set(oldPath, snapshot);
+        const nodes = Array.from(outlet.childNodes);
+        recordScrollPositions(nodes);
+        outlet.__keepAliveCache?.set(oldPath, {
+          nodes,
+          outletScroll: [outlet.scrollLeft, outlet.scrollTop],
+          windowScroll: [this.window?.scrollX ?? 0, this.window?.scrollY ?? 0],
+        });
       }
 
       const newNodes = generateChildNodes(renderedComponent);
@@ -864,7 +882,7 @@ export class Router {
         animationDirection
       );
       if (!replaced) {
-        outlet.replaceChildren(...newNodes);
+        renderRouteIntoOutlet(outlet, newNodes, this.window);
       }
 
       if (
@@ -1157,7 +1175,7 @@ export class Router {
         ...(await animationOptions.onBeforeEnter?.(newNodes)),
       };
       if (!name) {
-        outlet.replaceChildren(...newNodes);
+        renderRouteIntoOutlet(outlet, newNodes, this.window);
         await Promise.all([
           relayExecutorFinish(),
           animationOptions.onAfterEnter?.(newNodes),
@@ -1182,7 +1200,7 @@ export class Router {
       }
 
       // The new nodes need to be added to the DOM before the animation starts.
-      outlet.replaceChildren(...newNodes);
+      renderRouteIntoOutlet(outlet, newNodes, this.window);
 
       await Promise.all([
         relayExecutorFinish(),
@@ -1322,6 +1340,11 @@ export class Router {
         console.error('Error parsing session history:', error);
       }
     }
+
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
     this.window?.addEventListener('popstate', async (event) => {
       if (!this.isLoading && this.window) {
         this.isLoading = true;
@@ -1523,4 +1546,62 @@ function substituteParameters(path, params) {
   return path.replace(PARAM_REGEX, (match, paramName) => {
     return params.get(paramName) || match; // If the parameter is not found, return the original match.
   });
+}
+
+/**
+ * @typedef {Element & {
+ *  __recordedScrollTop: number,
+ *  __recordedScrollLeft: number
+ * }} RecordedElement
+ */
+
+/**
+ * Traverses through a set of DOM nodes to record their scroll positions.
+ * @param {Node[]} nodes
+ */
+function recordScrollPositions(nodes) {
+  for (const node of nodes) {
+    if (!('scrollTop' in node)) continue;
+
+    const element = /** @type {RecordedElement} */ (node);
+    element.__recordedScrollTop = element.scrollTop;
+    element.__recordedScrollLeft = element.scrollLeft;
+  }
+}
+
+/**
+ *
+ * @param {RouterOutlet} outlet
+ * @param {Node[]} newNodes
+ * @param {Window} [window]
+ */
+function renderRouteIntoOutlet(outlet, newNodes, window) {
+  outlet.replaceChildren(...newNodes);
+  if (outlet.__keepAlive) {
+    for (const node of newNodes) {
+      if ('__recordedScrollTop' in node) {
+        const element = /** @type {RecordedElement} */ (node);
+        element.scrollTop = element.__recordedScrollTop;
+        element.scrollLeft = element.__recordedScrollLeft;
+      }
+
+      const path = outlet.dataset.path;
+      if (!path) return;
+
+      const cache = outlet.__keepAliveCache?.get(path);
+      if (cache) {
+        outlet.scrollTo({
+          left: cache.outletScroll[0],
+          top: cache.outletScroll[1],
+          behavior: 'instant',
+        });
+
+        window?.scrollTo({
+          left: cache.windowScroll[0],
+          top: cache.windowScroll[1],
+          behavior: 'instant',
+        });
+      }
+    }
+  }
 }
