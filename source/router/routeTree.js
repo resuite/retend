@@ -19,16 +19,22 @@
 /**
  * @template T
  * @typedef RouteRecordWithComponent
+ *
  * @property {string} name
  * The name of the route.
+ *
  * @property {string} path
  * The path pattern to match against the URL.
+ *
  * @property {string} [redirect]
  * The path to redirect to when the route is matched, if there is no component.
+ *
  * @property {string} [title]
  * The title to give the document when the route is matched.
  * if there are nested routes with a title set, the title will be overwritten.
+ *
  * @property {T} component
+ * The component to render when the route is matched.
  */
 
 /**
@@ -251,7 +257,7 @@ export class RouteTree {
       const previousRootSegments = rootPathSegments.slice(0, -1);
       const previousTargetSegments = targetPathSegments.slice(
         0,
-        previousRootSegments.length - 2,
+        previousRootSegments.length - 2
       );
 
       const dynamicPathMatched = previousTargetSegments
@@ -268,7 +274,7 @@ export class RouteTree {
       rewrittenParamValue = this.parameterMap.get(rewrittenParamName);
       this.parameterMap.set(
         rewrittenParamName,
-        targetPathSegments[targetIndex],
+        targetPathSegments[targetIndex]
       );
 
       if (

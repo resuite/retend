@@ -1057,6 +1057,7 @@ export namespace JSX {
 
   interface JsxNativeProps {
     key?: string | number;
+    ref?: import('@adbl/cells').Cell<unknown>;
     children?: Node | string | TemplateStringsArray | Node[];
     dangerouslySetInnerHTML?: {
       __html: string;

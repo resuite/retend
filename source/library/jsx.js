@@ -1,4 +1,4 @@
-import { Cell } from '@adbl/cells';
+import { Cell, SourceCell } from '@adbl/cells';
 import { convertObjectToCssStylesheet } from './utils.js';
 
 const camelCasedAttributes = new Set([
@@ -94,11 +94,10 @@ const camelCasedAttributes = new Set([
  * @template {Record<PropertyKey, any>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
- * @param {...*} childNodes - The child elements of the element.
  * @returns {Node} A new  DOM element.
  */
-export function h(tagname, props, ...childNodes) {
-  const children = props.children || childNodes;
+export function h(tagname, props) {
+  const children = props.children;
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
     const fragment = globalThis.window.document.createDocumentFragment();
     for (const child of children) {
@@ -152,42 +151,49 @@ export function h(tagname, props, ...childNodes) {
       setAttributeFromProps(element, key, value);
     }
 
-  /** @param {any} child */
-  const appendChild = (child) => {
-    const childNode = normalizeJsxChild(child, element);
-    if (
-      childNode instanceof globalThis.window.HTMLElement &&
-      globalThis.window.customElements.get(childNode.tagName.toLowerCase())
-    ) {
-      element.appendChild(childNode);
-      return;
-    }
-
-    if (
-      (tagname === 'svg' || tagname === 'math') &&
-      childNode instanceof globalThis.window.HTMLElement
-    ) {
-      const temp = globalThis.window.document.createElementNS(
-        element.namespaceURI ?? '',
-        'div'
-      );
-      temp.innerHTML = childNode.outerHTML;
-      element.append(...Array.from(temp.children));
-      return;
-    }
-
-    element.appendChild(childNode);
-  };
-
-  if (Array.isArray(children)) {
-    for (const child of children) {
-      appendChild(child);
-    }
-  } else {
-    appendChild(children);
-  }
+  appendChild(element, tagname, children);
 
   return element;
+}
+
+/**
+ *  @param {JsxElement} element
+ * @param {string} tagname
+ *  @param {any} child
+ */
+export function appendChild(element, tagname, child) {
+  if (Array.isArray(child)) {
+    for (const childNode of child) {
+      appendChild(element, tagname, childNode);
+    }
+    return;
+  }
+
+  if (!child) return;
+
+  const childNode = normalizeJsxChild(child, element);
+  if (
+    childNode instanceof globalThis.window.HTMLElement &&
+    globalThis.window.customElements.get(childNode.tagName.toLowerCase())
+  ) {
+    element.appendChild(childNode);
+    return;
+  }
+
+  if (
+    (tagname === 'svg' || tagname === 'math') &&
+    childNode instanceof globalThis.window.HTMLElement
+  ) {
+    const temp = globalThis.window.document.createElementNS(
+      element.namespaceURI ?? '',
+      'div'
+    );
+    temp.innerHTML = childNode.outerHTML;
+    element.append(...Array.from(temp.children));
+    return;
+  }
+
+  element.appendChild(childNode);
 }
 
 /**
@@ -222,6 +228,14 @@ export function h(tagname, props, ...childNodes) {
  */
 export function setAttributeFromProps(element, key, value) {
   if (Cell.isCell(value)) {
+    if (key === 'ref') {
+      element.__attributeCells.add(value);
+      if (value instanceof SourceCell) {
+        value.value = element;
+      }
+      return;
+    }
+
     /** @param {any} value */
     const callback = (value) => {
       setAttribute(element, key, value);
@@ -282,7 +296,7 @@ export function setAttribute(element, key, value) {
     return;
   }
 
-  if (key === 'children' && createdByJsx) {
+  if (key === 'children') {
     return;
   }
 
@@ -461,10 +475,10 @@ export function normalizeClassValue(val, element) {
     /** @type {(newValue: string) => void} */
     const callback = (newValue) => {
       try {
-        element.classList.remove(currentClassToken);
+        element.classList.remove(...currentClassToken.split(' '));
       } catch {}
       try {
-        element.classList.add(newValue);
+        element.classList.add(...newValue.split(' '));
       } catch {}
       currentClassToken = newValue;
     };
@@ -483,11 +497,11 @@ export function normalizeClassValue(val, element) {
         const callback = (newValue) => {
           if (newValue) {
             try {
-              element.classList.add(key);
+              element.classList.add(...key.split(' '));
             } catch {}
           } else {
             try {
-              element.classList.remove(key);
+              element.classList.remove(...key.split(' '));
             } catch {}
           }
         };

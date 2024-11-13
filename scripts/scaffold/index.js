@@ -517,7 +517,7 @@ async function createComponentStructure(
   const containerClass = `${componentName}${isView ? 'View' : ''}`;
 
   const containerClasses = tailwind
-    ? `"min-h-screen flex items-center justify-center bg-gradient-to-r from-[${generateLightColor()}] to-[${generateLightColor()}] to-white"`
+    ? `"min-h-screen flex items-center justify-center bg-gradient-to-r from-[${generateLightColor()}] to-[${generateLightColor()}]"`
     : `{styles.${containerClass}}`;
 
   const mainElementClasses = tailwind
