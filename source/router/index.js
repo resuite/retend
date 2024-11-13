@@ -65,6 +65,9 @@ const HISTORY_STORAGE_KEY = 'rhistory';
  * @property {string} id
  * The name of the relay. This is used to identify the relay and its variant instances in the router.
  *
+ * @property {Cell<HTMLElement | null>} [ref]
+ * A cell that can be used to reference the relay element.
+ *
  * @property {RelayCallback} [onNodesReceived]
  * A callback function that is called when the router matches and
  * receives nodes into the relay from a previous route.
@@ -139,9 +142,28 @@ let ROUTER_INSTANCE = null;
  * If set to `true`, the router will treat the routes as a stack, and will automatically
  * go back or forward based on the route history.
  *
+ * @property {RouterRelayOptions} [relayOptions]
+ * Options for the handling of router relays.
+ */
+
+/**
+ * @typedef RouterRelayOptions
+ *
  * @property {number} [relayLayerIndex]
  * The z-index to set on the element that will handle relay transitions.
  * It defaults to 9999.
+ *
+ * @property {boolean} [animated]
+ * Whether to animate the relay transitions.
+ * It defaults to true.
+ *
+ * @property {number} [duration]
+ * The default duration of relay transitions in milliseconds.
+ * It defaults to 300.
+ *
+ * @property {string} [easing]
+ * The default easing function for relay transitions.
+ * It defaults to 'ease'.
  */
 
 /**
@@ -260,8 +282,8 @@ export class Router {
   /** @private @type {string[]} */
   routerHistory;
 
-  /** @private @type {number} */
-  relayTopLayerZIndex;
+  /** @private @type {Required<RouterRelayOptions>} */
+  relayOptions;
 
   /** @private @type {boolean} */
   relaySheetAttached;
@@ -369,7 +391,13 @@ export class Router {
     this.links = [];
     this.params = new Map();
     this.stackMode = routeOptions.stackMode ?? false;
-    this.relayTopLayerZIndex = routeOptions.relayLayerIndex ?? 9999;
+    this.relayOptions = {
+      relayLayerIndex: 9999,
+      animated: true,
+      duration: 300,
+      easing: 'ease',
+      ...routeOptions.relayOptions,
+    };
     this.routerHistory = [];
     this.relaySheetAttached = false;
 
@@ -468,9 +496,9 @@ export class Router {
       const relay = this.window.document.createElement('div');
       relay.toggleAttribute('data-x-relay', true);
 
-      relay.__easing = props?.easing ?? 'ease';
-      relay.__animated = props?.animated ?? true;
-      relay.__duration = props?.duration ?? 300;
+      relay.__easing = props?.easing ?? this.relayOptions.easing;
+      relay.__animated = props?.animated ?? this.relayOptions.animated;
+      relay.__duration = props?.duration ?? this.relayOptions.duration;
 
       if (props) {
         if (props.id) {
@@ -792,7 +820,10 @@ export class Router {
       if (this.currentPath.value?.fullPath !== currentMatchedRoute.fullPath) {
         this.currentPath.value = {
           name: currentMatchedRoute.name,
-          fullPath: currentMatchedRoute.fullPath,
+          fullPath: substituteParameters(
+            currentMatchedRoute.fullPath,
+            matchResult.params
+          ),
           params: matchResult.params,
           query: matchResult.searchQueryParams,
         };
@@ -892,7 +923,9 @@ export class Router {
    */
   getCurrentRoute() {
     return Cell.derived(() => {
-      return { ...this.currentPath.value };
+      return {
+        ...this.currentPath.value,
+      };
     });
   }
 
@@ -939,13 +972,20 @@ export class Router {
     const relayExecutorStart = async () => {
       for (const enterRelay of enterRelayNodes) {
         const correspondingExit = exitRelayNodes.find((exitRelay) => {
-          return exitRelay.dataset.xRelay === enterRelay.dataset.xRelay;
+          return exitRelay.dataset.xRelayName === enterRelay.dataset.xRelayName;
         });
+
         if (!correspondingExit) {
           // No corresponding exit relay found.
-          const relayContents = generateChildNodes(enterRelay.__render?.());
-          enterRelay.replaceChildren(...relayContents);
-          enterRelay.__onNodesReceived?.(relayContents);
+          // if the relay already has contents, it is most likely a relay that was
+          // cached and is being reused. We can skip the render step.
+          if (enterRelay.childNodes.length === 0 || !outlet.__keepAlive) {
+            const relayContents = generateChildNodes(enterRelay.__render?.());
+            enterRelay.replaceChildren(...relayContents);
+            enterRelay.__onNodesReceived?.(relayContents);
+          } else {
+            enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
+          }
           continue;
         }
 
@@ -981,8 +1021,8 @@ export class Router {
           topLayer.style.width = '100%';
           topLayer.style.height = '100%';
           topLayer.style.pointerEvents = 'none';
-          topLayer.style.zIndex = this.relayTopLayerZIndex.toString();
-          if (this.relayTopLayerZIndex < 0) {
+          topLayer.style.zIndex = this.relayOptions.relayLayerIndex.toString();
+          if (this.relayOptions.relayLayerIndex < 0) {
             this.window.document.body.prepend(topLayer);
           } else {
             this.window.document.body.append(topLayer);
@@ -1056,35 +1096,31 @@ export class Router {
     // ---------------
     const exitAnimationExecutor = async () => {
       const oldNodes = Array.from(outlet.childNodes);
+      //@ts-ignore
       const { name, duration, easing } = {
         ...animationOptions,
         ...(await animationOptions.onBeforeExit?.(oldNodes)),
       };
-
       await Promise.all(
         oldNodes.map(async (node) => {
           if (!name || !('style' in node || 'getAnimations' in node)) return;
           const element = /** @type {DomElement} */ (node);
           // ignore relays
           if (element.dataset?.xRelayMatched) return;
-
           const finalDuration = `${duration ?? 0}ms`;
           const finalEasing = easing ?? 'ease-in';
           const finalName =
             animationDirection === 'reverse' ? `${name}-enter` : `${name}-exit`;
-
           // duration | easing-function | delay | iteration-count | direction | fill-mode | name
           element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName}`;
-
           await Promise.all(
             element.getAnimations({ subtree: true }).map((a) => a.finished)
           );
         })
       );
-
       await animationOptions.onAfterExit?.(oldNodes);
-      // The animations are removed after the hook runs so that they don't glitch
-      // back to their original state if there is a delay.
+      // // The animations are removed after the hook runs so that they don't glitch
+      // // back to their original state if there is a delay.
       for (const node of oldNodes) {
         if (!('style' in node)) continue;
         const element = /** @type {DomElement} */ (node);
@@ -1469,4 +1505,21 @@ async function transitionRelay(relay, initialRect, endDimensions) {
 
   relay.removeAttribute('style');
   relay.__vacuum = undefined;
+}
+
+/**
+ * Substitutes named parameters in a path string with their corresponding values.
+ *
+ * @param {string} path - The path string containing named parameters.
+ * @param {Map<string, string>} params - An object containing the values for the named parameters.
+ * @returns {string} The path with the named parameters substituted.
+ */
+function substituteParameters(path, params) {
+  // Create a regular expression to match named parameters enclosed in ":".
+  const paramRegex = /:(\w+)/g;
+
+  // Replace each matched parameter with its corresponding value from the params object.
+  return path.replace(paramRegex, (match, paramName) => {
+    return params.get(paramName) || match; // If the parameter is not found, return the original match.
+  });
 }

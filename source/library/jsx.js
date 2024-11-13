@@ -1,4 +1,4 @@
-import { Cell } from '@adbl/cells';
+import { Cell, SourceCell } from '@adbl/cells';
 import { convertObjectToCssStylesheet } from './utils.js';
 
 const camelCasedAttributes = new Set([
@@ -228,6 +228,14 @@ export function appendChild(element, tagname, child) {
  */
 export function setAttributeFromProps(element, key, value) {
   if (Cell.isCell(value)) {
+    if (key === 'ref') {
+      element.__attributeCells.add(value);
+      if (value instanceof SourceCell) {
+        value.value = element;
+      }
+      return;
+    }
+
     /** @param {any} value */
     const callback = (value) => {
       setAttribute(element, key, value);
@@ -467,10 +475,10 @@ export function normalizeClassValue(val, element) {
     /** @type {(newValue: string) => void} */
     const callback = (newValue) => {
       try {
-        element.classList.remove(currentClassToken);
+        element.classList.remove(...currentClassToken.split(' '));
       } catch {}
       try {
-        element.classList.add(newValue);
+        element.classList.add(...newValue.split(' '));
       } catch {}
       currentClassToken = newValue;
     };
@@ -489,11 +497,11 @@ export function normalizeClassValue(val, element) {
         const callback = (newValue) => {
           if (newValue) {
             try {
-              element.classList.add(key);
+              element.classList.add(...key.split(' '));
             } catch {}
           } else {
             try {
-              element.classList.remove(key);
+              element.classList.remove(...key.split(' '));
             } catch {}
           }
         };
