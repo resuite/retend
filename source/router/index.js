@@ -8,6 +8,7 @@ import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
+import { linkNodesToComponent } from '../render/index.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -552,6 +553,8 @@ export class Router {
           if (!this.isLoading) {
             // @ts-ignore: The render type is generic.
             const nodes = generateChildNodes(relay.__render?.(relay.__props));
+            linkNodesToComponent(nodes, relay.__render, relay.__props);
+
             // @ts-ignore: The relay is not of the type JsxElement.
             appendChild(relay, relay.tagName.toLowerCase(), nodes);
             relay.__onNodesReceived?.(nodes);
@@ -888,6 +891,9 @@ export class Router {
       }
 
       const newNodes = generateChildNodes(renderedComponent);
+      linkNodesToComponent(newNodes, matchedComponent, undefined, {
+        maxInstanceCount: 1,
+      });
 
       const replaced = await this.handleAnimations(
         outlet,
@@ -1030,9 +1036,13 @@ export class Router {
           // cached and is being reused. We can skip the render step.
           if (enterRelay.childNodes.length === 0 || !outlet.__keepAlive) {
             const props = enterRelay.__props ?? {};
-            const relayContents = generateChildNodes(
-              enterRelay.__render?.(props)
-            );
+            /** @type {Node[]} */
+            let relayContents = [];
+            if (enterRelay.__render) {
+              relayContents = generateChildNodes(enterRelay.__render(props));
+              linkNodesToComponent(relayContents, enterRelay.__render, props);
+            }
+
             enterRelay.replaceChildren(...relayContents);
             enterRelay.__onNodesReceived?.(relayContents);
           } else {

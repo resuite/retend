@@ -288,10 +288,6 @@ ${
 `
     : ''
 }
-  jsxInject:
-    'import { h as __h, DocumentFragmentPlaceholder as __fragment } from "@adbl/dom"',
-  jsxFactory: '__h',
-  jsxFragment: '__fragment',
 });
   `.trim();
 

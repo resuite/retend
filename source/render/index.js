@@ -1,7 +1,212 @@
-import { generateChildNodes } from '../library/utils.js';
+import { generateChildNodes, isDevMode } from '../library/utils.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
+
+/**
+ * @typedef Instance
+ *
+ * @property {Record<string, unknown>} [props]
+ * Props passed to the component instance.
+ *
+ * @property {Node[]} nodes
+ * Nodes returned from the component instance.
+ */
+
+/** @type {WeakMap<Function, Instance[]>} */
+export const jsxFunctionInstances = new WeakMap();
+
+/** @typedef {Node & { __linked?: boolean, __promise?: Promise<Node[]> }} LinkableNode */
+
+/**
+ * @typedef {Object} HMRFunctionOptions
+ *
+ * @property {number} [maxInstanceCount]
+ * The maximum number of instances of the component that can be linked to the render function.
+ */
+
+/**
+ * Links a set of DOM nodes to (ideally) its parent
+ * factory function.
+ *
+ * It only works in development mode.
+ * @param {LinkableNode[]} nodes The nodes to link.
+ * @param {Function & {__hmrSymbol?: symbol}} factory The factory function of the component.
+ * @param {any} [props] Props that were used to create the component.
+ * @param {HMRFunctionOptions} [options]
+ */
+export function linkNodesToComponent(nodes, factory, props, options) {
+  if (!isDevMode) return;
+
+  let jsxFunctions = jsxFunctionInstances;
+  // @ts-ignore: The Vite types are not installed.
+  if (import.meta.hot) {
+    // @ts-ignore: The Vite types are not installed.
+    jsxFunctions = import.meta.hot.data.jsxFunctionInstances ?? new WeakMap();
+  }
+  const instanceList = jsxFunctions.get(factory) ?? [];
+
+  /** @type {Instance} */
+  const newInstance = {
+    props,
+    nodes: [],
+  };
+
+  for (const node of nodes) {
+    if (!(node instanceof globalThis.window.Node)) continue;
+    // A node can only be linked to at most one parent function.
+    if (node.__linked) continue;
+    // In case of a promise, we need to link to the resolved nodes.
+    if (node.__promise) {
+      const promise = node.__promise;
+      promise.then((nodes) => {
+        newInstance.nodes.push(...nodes);
+      });
+      continue;
+    }
+    newInstance.nodes.push(node);
+  }
+
+  if (options?.maxInstanceCount) {
+    instanceList.length = options.maxInstanceCount - 1;
+  }
+
+  instanceList.push(newInstance);
+  jsxFunctions.set(factory, instanceList);
+
+  // @ts-ignore: The Vite types are not installed.
+  if (import.meta.hot) {
+    // @ts-ignore: The Vite types are not installed.
+    import.meta.hot.data.jsxFunctionInstances = jsxFunctions;
+  }
+}
+
+/**
+ * Hot reload handler for JSX components, updating only changed functions within a module.
+ * Compares instances of JSX function components between the old and new modules to selectively
+ * re-render only those that have changed. This approach avoids unnecessary re-renders and
+ * optimizes hot module replacement (HMR) for JSX files.
+ *
+ * @param {Object} newModule - The updated module with potentially changed function components.
+ * @param {string} url - The module's URL, used to dynamically import and compare the old module.
+ */
+export const hotReloadModule = async (newModule, url) => {
+  if (!newModule) {
+    return;
+  }
+
+  // Dynamically import the old module using its URL.
+  const oldModule = await import(/* @vite-ignore */ url);
+
+  // Convert new module properties into an iterable array.
+  const moduleData = Object.entries(newModule);
+
+  for (const [key, newInstance] of moduleData) {
+    const oldInstance = oldModule[key];
+    if (!oldInstance) {
+      continue;
+    }
+
+    // Ensure both old and new instances are functions before proceeding.
+    if (typeof oldInstance !== 'function') continue;
+    if (typeof newInstance !== 'function') continue;
+
+    // If the function code has not changed, skip re-rendering.
+    if (oldInstance.toString() === newInstance.toString()) {
+      continue;
+    }
+
+    /** @type {WeakMap<Function, Instance[]>} */
+    const jsxFunctionInstances =
+      // @ts-ignore: Ignore TypeScript errors due to missing Vite types.
+      import.meta.hot?.data?.jsxFunctionInstances ?? new WeakMap();
+    const componentInstances = jsxFunctionInstances.get(oldInstance);
+
+    // Skip functions with no active JSX instances to re-render.
+    if (!componentInstances) {
+      continue;
+    }
+
+    // Invalidate the old instance by removing it from the map.
+    jsxFunctionInstances.delete(oldInstance);
+
+    for (const instance of componentInstances) {
+      // Generate new child nodes for the updated component instance.
+      const newNodes = generateChildNodes(newInstance(instance.props));
+      const fragment = document.createDocumentFragment();
+      fragment.append(...newNodes);
+
+      // Handle DOM replacement to update the component's rendered nodes.
+      const anchorNode = instance.nodes[0];
+      for (const node of instance.nodes) {
+        if (node === anchorNode) {
+          continue;
+        }
+        node.parentElement?.removeChild(node);
+      }
+
+      // Replace the old anchor node with the new DOM fragment.
+      anchorNode.parentNode?.replaceChild(fragment, anchorNode);
+
+      // Re-link the new nodes to the component instance, preserving props.
+      linkNodesToComponent(newNodes, newInstance, instance.props);
+    }
+  }
+};
+
+/**
+ * A Vite plugin to enable hot module replacement (HMR) for JSX and TSX files
+ * in the Vite build environment. This plugin specifically targets files with
+ * `.jsx` or `.tsx` extensions, excluding files in the `node_modules` directory.
+ * It injects code to handle HMR by calling a custom hot reload handler function
+ * from the '@adbl/dom/render' package.
+ *
+ * @returns A Vite plugin object with a `name` property and `transform` hook.
+ */
+export const hmrPlugin = () => {
+  return {
+    name: 'vite-dom-jsx',
+
+    /**
+     * Transforms the given module code by injecting HMR handling for `.jsx` and
+     * `.tsx` files, enabling automatic updates during development. Excludes modules
+     * in `node_modules`.
+     *
+     * @param {string} code - The source code of the module being transformed.
+     * @param {string} id - The unique identifier (path) of the module.
+     * @returns {{code: string, map: null} | null} An object with the transformed code
+     * and a null source map, or `null` if the module should not be transformed.
+     */
+    transform(code, id) {
+      if (id.includes('node_modules')) {
+        return null;
+      }
+
+      const isJsx = id.endsWith('.jsx') || id.endsWith('.tsx');
+
+      if (!isJsx) {
+        return null;
+      }
+
+      const injectedCode = `
+import { hotReloadModule as __HMR__ } from '@adbl/dom/render';
+
+${code}
+
+if (import.meta.hot) {
+  import.meta.hot.accept((newModule) => {
+    __HMR__(newModule, import.meta.url);
+  });
+}
+      `;
+
+      return {
+        code: injectedCode,
+        map: null,
+      };
+    },
+  };
+};
 
 /**
  * Renders a JSX template to a string.
