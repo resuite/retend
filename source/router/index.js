@@ -60,11 +60,13 @@ const PARAM_REGEX = /:(\w+)/g;
 /** @typedef {(nodes: Node[]) => PromiseOrNot<void>} RelayCallback */
 
 /**
- * @template [T=JSX.Template]
+ * @template SourceProps
+ * @template {(props: SourceProps) => JSX.Template} [SourceFn=(props: SourceProps) => JSX.Template]
  * @typedef RouterRelayProps
  *
  * @property {string} id
- * The name of the relay. This is used to identify the relay and its variant instances in the router.
+ * The name to use in identifying the relay.
+ * This will be used to match relays across route changes.
  *
  * @property {Cell<HTMLElement | null>} [ref]
  * A cell that can be used to reference the relay element.
@@ -77,10 +79,13 @@ const PARAM_REGEX = /:(\w+)/g;
  * A callback function that is called when the router matches and
  * sends nodes from this relay to a new route.
  *
- * @property {() => T} source
+ * @property {SourceFn} source
  * In cases where there is no previous route, or no nodes have been received,
  * this function is called to provide the initial value of the relay.
  * The nodes are still passed to the `onNodesReceived` callback.
+ *
+ * @property {SourceProps} [sourceProps]
+ * The props to pass to the render function, if any are necessary.
  *
  * @property {boolean} [animated]
  * If set to `false`, the relay will not animate the transition between routes.
@@ -102,10 +107,10 @@ const PARAM_REGEX = /:(\w+)/g;
  * The nodes that were in the outlet when the snapshot was taken.
  *
  * @property {[number, number]} outletScroll
- * The (x, y) scroll positions of the outlet when the snapshot was taken.
+ * The `(x, y)` scroll positions of the outlet when the snapshot was taken.
  *
  * @property {[number, number]} windowScroll
- * The (x, y) scroll positions of the window when the snapshot was taken.
+ * The `(x, y)` scroll positions of the window when the snapshot was taken.
  */
 
 /**
@@ -121,10 +126,12 @@ const PARAM_REGEX = /:(\w+)/g;
  */
 
 /**
- * @template [T=JSX.Template]
+ * @template [SourceProps=object]
+ * @template {(props: SourceProps) => JSX.Template} [SourceFn=(props: SourceProps) => JSX.Template]
  * @typedef {HTMLDivElement & {
  *  __name?: string;
- *  __render?: () => T;
+ *  __props: SourceProps;
+ *  __render?: SourceFn;
  *  __onNodesReceived?: (nodes: Node[]) => void;
  *  __onNodesSent?: (nodes: Node[]) => void;
  *  __animated?: boolean;
@@ -356,30 +363,32 @@ export class Router {
    * instance is identified by a unique name and can define how nodes are handled
    * during transitions.
    *
-   * @type {<T=JSX.Template>(props?: RouterRelayProps<T>) => HTMLDivElement}
-   * @param {RouterRelayProps} props
+   * @type {<Props, SourceFn extends (props: Props) => JSX.Template>(props: RouterRelayProps<Props, SourceFn>) => HTMLDivElement}
    * @returns {HTMLDivElement} The rendered div element that serves as the relay container.
    *
    * @example
    * ```tsx
-   * // In list route
+   * // Base component
+   * function Photo({ photo }) {
+   *   return <img src={photo.url} alt={photo.alt} />;
+   * }
+   *
+   * // in `/list` route
    * <router.Relay
-   *   name="card-photo"
-   *   render={() => <img src={photo.url} alt={photo.alt} />}
-   *   onNodesSend={(nodes) => {
-   *     // Prepare nodes for transition
-   *   }}
+   *   id="card-photo"
+   *   source={Photo}
+   *   sourceProps={{ photo }}
    * />
    *
-   * // In detail route
+   * // in `/detail` route
    * <router.Relay
-   *   name="card-photo"
-   *   render={() => <img src={photo.url} alt={photo.alt} />}
-   *   onNodesReceive={([image]) => {
-   *     // Transform nodes for detail view
-   *   }}
+   *   id="card-photo"
+   *   source={Photo}
+   *   sourceProps={{ photo }}
    * />
    * ```
+   *
+   * As you move between routes, the elements will transition from one state to the next.
    */
   Relay;
 
@@ -515,7 +524,7 @@ export class Router {
       }
       this.attachRelayStyles();
 
-      /** @type {RouterRelay<ReturnType<NonNullable<NonNullable<(typeof props)>['source']>>>} */
+      /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ //@ts-ignore: The type is correct, but the type is not.
       const relay = this.window.document.createElement('div');
       relay.toggleAttribute('data-x-relay', true);
 
@@ -533,12 +542,16 @@ export class Router {
           relay.__onNodesReceived = props.onNodesReceived;
         }
 
+        if (props.sourceProps) {
+          relay.__props = props.sourceProps;
+        }
+
         if (props.source) {
           relay.__render = props.source;
 
           if (!this.isLoading) {
             // @ts-ignore: The render type is generic.
-            const nodes = generateChildNodes(relay.__render?.());
+            const nodes = generateChildNodes(relay.__render?.(relay.__props));
             // @ts-ignore: The relay is not of the type JsxElement.
             appendChild(relay, relay.tagName.toLowerCase(), nodes);
             relay.__onNodesReceived?.(nodes);
@@ -1016,7 +1029,10 @@ export class Router {
           // if the relay already has contents, it is most likely a relay that was
           // cached and is being reused. We can skip the render step.
           if (enterRelay.childNodes.length === 0 || !outlet.__keepAlive) {
-            const relayContents = generateChildNodes(enterRelay.__render?.());
+            const props = enterRelay.__props ?? {};
+            const relayContents = generateChildNodes(
+              enterRelay.__render?.(props)
+            );
             enterRelay.replaceChildren(...relayContents);
             enterRelay.__onNodesReceived?.(relayContents);
           } else {
@@ -1453,7 +1469,7 @@ function getFinalRect(element) {
   /** @type {DomElement | null} */
   let currentElement = element;
 
-  // Traverse up the DOM tree to collect all animations and elements to hide
+  // Traverse up the DOM tree to collect all animations.
   while (currentElement) {
     animations.push(
       ...currentElement.getAnimations({ subtree: element === currentElement })
@@ -1470,11 +1486,9 @@ function getFinalRect(element) {
       animation.currentTime = endTime ?? null;
     }
   }
-
-  // Get the final bounding rect while elements are hidden
   const finalRect = element.getBoundingClientRect();
 
-  // Reset animations and visibility
+  // Reset animations
   for (const animation of animations) {
     if (/** @type {RelayAnimation} */ (animation).__pausedByRelay !== true) {
       animation.play();
