@@ -280,22 +280,13 @@ let ROUTER_INSTANCE = null;
  * advanced navigation patterns that can be added as your needs grow.
  */
 export class Router {
-  /**
-   * The unique identifier for the router instance.
-   * @type {string}
-   */
-  id;
-
-  /** @private @type {HTMLElement[]} */
-  links;
-
   /** @type {Map<string, string>} */
   params;
 
-  /** @private RouteTree<ReturnType<import('../component.js').ElementConstructor>> */
+  /** @private @type {RouteTree<ComponentOrComponentLoader>} */
   routeTree;
 
-  /** @private RouterMiddleware[] */
+  /** @private @type {import('./middleware.js').RouterMiddleware[]} */
   middlewares;
 
   /** @private @type {SourceCell<import('./middleware.js').RouteData>} */
@@ -306,9 +297,6 @@ export class Router {
 
   /** @private @type {number} */
   maxRedirects;
-
-  /** @type {Promise<boolean>} */
-  rendering;
 
   /** @private @type {boolean} */
   stackMode;
@@ -323,10 +311,39 @@ export class Router {
   relaySheetAttached;
 
   /**
+   * The global `window` object, which provides access to the browser's JavaScript API.
+   * @type {Window | undefined}
+   */
+  window;
+
+  /** @param {RouterOptions} routeOptions */
+  constructor(routeOptions) {
+    this.routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
+    this.middlewares = routeOptions.middlewares ?? [];
+    this.maxRedirects = routeOptions.maxRedirects ?? 50;
+    this.currentPath = Cell.source(
+      /** @type {import('./middleware.js').RouteData} */ ({})
+    );
+
+    this.redirectStackCount = 0;
+    this.params = new Map();
+    this.stackMode = routeOptions.stackMode ?? false;
+    this.relayOptions = {
+      relayLayerIndex: 9999,
+      animated: true,
+      duration: 300,
+      easing: 'ease',
+      ...routeOptions.relayOptions,
+    };
+    this.routerHistory = [];
+    this.relaySheetAttached = false;
+  }
+
+  /**
    * Defines an anchor element and handles click events to navigate to the specified route.
    *
    * @type {(props?: RouterLinkProps) => HTMLAnchorElement}
-   * @param {RouterLinkProps} props - The component props.
+   * @param {RouterLinkProps} [props] - The component props.
    * @returns {HTMLAnchorElement} The rendered anchor element.
    *
    * @example
@@ -340,7 +357,57 @@ export class Router {
    * </router.Link>
    * ```
    */
-  Link;
+  Link = (props) => {
+    if (!this.window) {
+      throw new Error('Cannot create Link in undefined window.');
+    }
+    const a = this.window?.document.createElement('a');
+    if (!props || !('href' in props)) {
+      console.error('missing to attribute for link component.');
+    }
+    if (props && 'active' in props) {
+      console.error('active attribute is reserved for router.');
+    }
+    const currentRoute = this.getCurrentRoute();
+    currentRoute.listen(({ fullPath }) => {
+      a.toggleAttribute(
+        'active',
+        Boolean(fullPath && a.dataset.href?.startsWith(fullPath))
+      );
+    });
+
+    if (props) {
+      const { children, ...rest } = props;
+      for (const [key, value] of Object.entries(rest)) {
+        // @ts-expect-error: a is not of type JsxElement.
+        setAttribute(a, key, value);
+      }
+
+      // @ts-expect-error: The outlet is not of the type JsxElement.
+      appendChild(a, a.tagName.toLowerCase(), props.children);
+    }
+
+    /**
+     * @param {Event} event
+     */
+    const handleNavigate = (event) => {
+      if (this.isLoading) {
+        event.preventDefault();
+        return;
+      }
+      // Only navigate if the href is not a valid URL.
+      // For valid URLs, the browser will handle the navigation.
+      const href = a.getAttribute('href');
+      if (href && !URL.canParse(href)) {
+        event.preventDefault();
+        this.navigate(href);
+      }
+    };
+
+    a.addEventListener('click', handleNavigate);
+
+    return a;
+  };
 
   /**
    * Defines an element that serves as the router outlet, rendering the component
@@ -349,7 +416,7 @@ export class Router {
    * This component is used internally by the {@link Router} class to handle route changes and
    * render the appropriate component.
    * @type {(props?: RouterOutletProps) => HTMLDivElement}
-   * @param {RouterOutletProps} props
+   * @param {RouterOutletProps} [props]
    * @returns {HTMLDivElement} The rendered div element that serves as the router outlet.
    *
    * @example
@@ -366,7 +433,46 @@ export class Router {
    * />
    * ```
    */
-  Outlet;
+  Outlet = (props) => {
+    if (!this.window) {
+      throw new Error('Cannot create Outlet in undefined window.');
+    }
+
+    /** @type {RouterOutlet } */
+    const outlet = this.window.document.createElement('div');
+
+    if (props) {
+      const {
+        keepAlive,
+        maxKeepAliveCount,
+        animationOptions,
+        children,
+        ...rest
+      } = props;
+      for (const [key, value] of Object.entries(rest)) {
+        // @ts-expect-error: The outlet is not of the type JsxElement.
+        setAttributeFromProps(outlet, key, value);
+      }
+
+      // @ts-expect-error: The outlet is not of the type JsxElement.
+      appendChild(outlet, outlet.tagName.toLowerCase(), props.children);
+    }
+
+    outlet.toggleAttribute('data-x-outlet', true);
+
+    if (props) {
+      if (props.animationOptions) {
+        outlet.__animationOptions = props.animationOptions;
+      }
+      if (props.keepAlive) {
+        outlet.__keepAlive = props.keepAlive;
+        const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
+        outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
+      }
+    }
+
+    return outlet;
+  };
 
   /**
    * A component that enables smooth transitions of DOM nodes between routes.
@@ -409,184 +515,61 @@ export class Router {
    * <PhotoRelay />
    * ```
    */
-  Relay;
+  Relay = (props) => {
+    if (!this.window) {
+      throw new Error('Cannot create Relay in undefined window.');
+    }
+    this.attachRelayStyles();
 
-  /**
-   * The global `window` object, which provides access to the browser's JavaScript API.
-   *
-   * @type {Window | undefined}
-   */
-  window;
+    const relay =
+      /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ (
+        this.window.document.createElement('div')
+      );
+    relay.toggleAttribute('data-x-relay', true);
 
-  /** @param {RouterOptions} routeOptions */
-  constructor(routeOptions) {
-    this.id = crypto.randomUUID();
-    this.routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
-    this.middlewares = routeOptions.middlewares ?? [];
-    this.maxRedirects = routeOptions.maxRedirects ?? 50;
-    this.currentPath = Cell.source(
-      /** @type {import('./middleware.js').RouteData} */ ({})
-    );
+    relay.__easing = props?.easing ?? this.relayOptions.easing;
+    relay.__animated = props?.animated ?? this.relayOptions.animated;
+    relay.__duration = props?.duration ?? this.relayOptions.duration;
 
-    this.redirectStackCount = 0;
-    this.rendering = Promise.resolve(false);
-    this.links = [];
-    this.params = new Map();
-    this.stackMode = routeOptions.stackMode ?? false;
-    this.relayOptions = {
-      relayLayerIndex: 9999,
-      animated: true,
-      duration: 300,
-      easing: 'ease',
-      ...routeOptions.relayOptions,
-    };
-    this.routerHistory = [];
-    this.relaySheetAttached = false;
-
-    // ---------------
-    // Outlet Implementation
-    // ---------------
-    this.Outlet = (props) => {
-      if (!this.window) {
-        throw new Error('Cannot create Outlet in undefined window.');
-      }
-
-      /** @type {RouterOutlet } */
-      const outlet = this.window.document.createElement('div');
-
-      if (props) {
-        const {
-          keepAlive,
-          maxKeepAliveCount,
-          animationOptions,
-          children,
-          ...rest
-        } = props;
-        for (const [key, value] of Object.entries(rest)) {
-          // @ts-expect-error: The outlet is not of the type JsxElement.
-          setAttributeFromProps(outlet, key, value);
-        }
-
-        // @ts-expect-error: The outlet is not of the type JsxElement.
-        appendChild(outlet, outlet.tagName.toLowerCase(), props.children);
-      }
-
-      outlet.toggleAttribute('data-grenade-outlet', true);
-      outlet.setAttribute('data-router-id', this.id);
-
-      if (props) {
-        if (props.animationOptions) {
-          outlet.__animationOptions = props.animationOptions;
-        }
-        if (props.keepAlive) {
-          outlet.__keepAlive = props.keepAlive;
-          const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
-          outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
-        }
-      }
-
-      return outlet;
-    };
-
-    // ---------------
-    // Link Implementation
-    // ---------------
-    this.Link = (props) => {
-      if (!this.window) {
-        throw new Error('Cannot create Link in undefined window.');
-      }
-      const a = this.window?.document.createElement('a');
-      if (!props || !('href' in props)) {
-        console.error('missing to attribute for link component.');
-      }
-
-      if (props) {
-        const { children, ...rest } = props;
-        for (const [key, value] of Object.entries(rest)) {
-          // @ts-expect-error: a is not of type JsxElement.
-          setAttribute(a, key, value);
-        }
-
-        // @ts-expect-error: The outlet is not of the type JsxElement.
-        appendChild(a, a.tagName.toLowerCase(), props.children);
-      }
-
-      /**
-       * @param {Event} event
-       */
-      const handleNavigate = (event) => {
-        if (this.isLoading) {
-          event.preventDefault();
-          return;
-        }
-        // Only navigate if the href is not a valid URL.
-        // For valid URLs, the browser will handle the navigation.
-        const href = a.getAttribute('href');
-        if (href && !URL.canParse(href)) {
-          event.preventDefault();
-          this.navigate(href);
-        }
-      };
-
-      a.addEventListener('click', handleNavigate);
-
-      return a;
-    };
-    this.Link = this.Link.bind(this);
-
-    // ---------------
-    // Relay Implementation
-    // ---------------
-    this.Relay = (props) => {
-      if (!this.window) {
-        throw new Error('Cannot create Relay in undefined window.');
-      }
-      this.attachRelayStyles();
-
-      /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ //@ts-ignore: The type is correct, but the type is not.
-      const relay = this.window.document.createElement('div');
-      relay.toggleAttribute('data-x-relay', true);
-
-      relay.__easing = props?.easing ?? this.relayOptions.easing;
-      relay.__animated = props?.animated ?? this.relayOptions.animated;
-      relay.__duration = props?.duration ?? this.relayOptions.duration;
-
-      if (props) {
-        if (props.id) {
-          relay.dataset.xRelayName = props.id;
-          relay.__name = props.id;
-        }
-
-        if (props.onNodesReceived) {
-          relay.__onNodesReceived = props.onNodesReceived;
-        }
-
-        if (props.sourceProps) {
-          relay.__props = props.sourceProps;
-        }
-
-        if (props.source) {
-          relay.__render = props.source;
-
-          if (!this.isLoading) {
-            // @ts-ignore: The render type is generic.
-            const nodes = generateChildNodes(relay.__render?.(relay.__props));
-            linkNodesToComponent(nodes, relay.__render, relay.__props);
-
-            // @ts-ignore: The relay is not of the type JsxElement.
-            appendChild(relay, relay.tagName.toLowerCase(), nodes);
-            relay.__onNodesReceived?.(nodes);
-          }
-        }
-
-        if (props.onNodesSent) {
-          relay.__onNodesSent = props.onNodesSent;
-        }
-      }
-
+    if (!props) {
       return relay;
-    };
-  }
+    }
+
+    if (props.id) {
+      relay.dataset.xRelayName = props.id;
+      relay.__name = props.id;
+    } else {
+      console.warn('Relay must have an id.');
+    }
+
+    if (props.onNodesReceived) {
+      relay.__onNodesReceived = props.onNodesReceived;
+    }
+
+    if (props.sourceProps) {
+      relay.__props = props.sourceProps;
+    }
+
+    if (props.source) {
+      relay.__render = props.source;
+
+      if (!this.isLoading) {
+        // @ts-ignore: The render type is generic.
+        const nodes = generateChildNodes(relay.__render?.(relay.__props));
+        linkNodesToComponent(nodes, relay.__render, relay.__props);
+
+        // @ts-ignore: The relay is not of the type JsxElement.
+        appendChild(relay, relay.tagName.toLowerCase(), nodes);
+        relay.__onNodesReceived?.(nodes);
+      }
+    }
+
+    if (props.onNodesSent) {
+      relay.__onNodesSent = props.onNodesSent;
+    }
+
+    return relay;
+  };
 
   /**
    * @private
@@ -818,9 +801,7 @@ export class Router {
     let outletIndex = 0;
     /** @type {RouterOutlet[]} */
     const outlets = Array.from(
-      this.window?.document.querySelectorAll(
-        `div[data-grenade-outlet][data-router-id="${this.id}"]`
-      ) ?? []
+      this.window?.document.querySelectorAll(`div[data-x-outlet]`) ?? []
     );
 
     while (currentMatchedRoute) {
@@ -1030,7 +1011,7 @@ export class Router {
     // ---------------
     /**
      * @type {HTMLElement}
-     * A dummy top-layer that will be maintain the relay
+     * A dummy top-layer that will be used to maintain the relay
      * positioning.
      */
     let topLayer;
@@ -1362,16 +1343,6 @@ export class Router {
     const oldTitle = this.window?.document.title;
     const wasLoaded = await this.updateDOMWithMatchingPath(path);
     const newRouterHistoryLength = this.routerHistory.length;
-
-    for (const link of this.links) {
-      link.toggleAttribute(
-        'active',
-        Boolean(
-          this.currentPath.value?.fullPath &&
-            link.dataset.href?.startsWith(this.currentPath.value.fullPath)
-        )
-      );
-    }
 
     if (navigate && wasLoaded) {
       // If the new history length is less than the old history length

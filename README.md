@@ -1,6 +1,6 @@
 # unfinished
 
-A lightweight library for converting JSX expressions into DOM elements (and it has a router too!)
+`unfinished` is a lightweight library for converting JSX expressions into DOM elements (and it has a router too!). The name is tongue-in-cheek.
 
 [![downloads (@adbl/unfinished)](https://img.shields.io/npm/dm/@adbl/unfinished?label=downloads)](https://www.npmjs.com/package/@adbl/unfinished)
 
@@ -22,9 +22,9 @@ A lightweight library for converting JSX expressions into DOM elements (and it h
     - [Programmatic Navigation](#programmatic-navigation)
     - [Dynamic Route Parameters](#dynamic-route-parameters)
     - [Wildcard Routes](#wildcard-routes)
-  - [Stack Mode Navigation](#stack-mode-navigation)
-    - [Enabling Stack Mode](#enabling-stack-mode)
-    - [Example Stack Mode Flow](#example-stack-mode-flow)
+    - [Stack Mode Navigation](#stack-mode-navigation)
+      - [Enabling Stack Mode](#enabling-stack-mode)
+      - [Example Stack Mode Flow](#example-stack-mode-flow)
     - [Keep Alive Routes](#keep-alive-routes)
     - [Outlet Animations](#outlet-animations)
       - [Basic Animation Setup](#basic-animation-setup)
@@ -408,11 +408,11 @@ Handle 404 pages and other catch-all scenarios:
 }
 ```
 
-## Stack Mode Navigation
+### Stack Mode Navigation
 
 **Stack Mode** turns the router into a stack-based navigation system. This lets routes act like a stack, where each route is a unique entry that can be navigated to and from.
 
-### Enabling Stack Mode
+#### Enabling Stack Mode
 
 To enable Stack Mode, set `stackMode: true` in your router configuration:
 
@@ -423,7 +423,7 @@ const router = createWebRouter({
 });
 ```
 
-### Example Stack Mode Flow
+#### Example Stack Mode Flow
 
 ```tsx
 // Starting at /home
