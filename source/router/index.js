@@ -382,26 +382,32 @@ export class Router {
    * @example
    * ```tsx
    * // Base component
-   * function Photo({ photo }) {
-   *   return <img src={photo.url} alt={photo.alt} />;
+   * function Photo() {
+   *  return (
+   *    <img
+   *      src="example.com/image.png"
+   *      alt="An example photo for describing how relays work"
+   *    />
+   *  );
    * }
    *
-   * // in `/list` route
-   * <router.Relay
-   *   id="card-photo"
-   *   source={Photo}
-   *   sourceProps={{ photo }}
-   * />
+   * // Relay component
+   * function PhotoRelay() {
+   *  const router = useRouter();
+   *  return (
+   *    <router.Relay id="continuous-photo" source={Photo} />
+   *  );
+   * }
    *
-   * // in `/detail` route
-   * <router.Relay
-   *   id="card-photo"
-   *   source={Photo}
-   *   sourceProps={{ photo }}
-   * />
+   * // You can add the PhotoRelay in different routes and they will all share the same state,
+   * // transitioning from one page to the other. For example:
+   *
+   * // home/index.tsx
+   * <PhotoRelay />
+   *
+   * // detail/index.tsx
+   * <PhotoRelay />
    * ```
-   *
-   * As you move between routes, the elements will transition from one state to the next.
    */
   Relay;
 
