@@ -16,6 +16,7 @@ const CONFIG = {
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
     '@adbl/unfinished': 'latest',
+    '@adbl/cells': 'latest',
   },
   devDependencies: {
     vite: '^5.4.8',
@@ -62,18 +63,6 @@ const questions = [
     message: chalk.magenta('Which language would you like to use?'),
     choices: ['TypeScript', 'JavaScript'],
     default: 'TypeScript',
-  },
-  {
-    type: 'confirm',
-    name: 'useRouter',
-    message: chalk.magenta('Do you want to use a router?'),
-    default: true,
-  },
-  {
-    type: 'confirm',
-    name: 'useCells',
-    message: chalk.green('Add @adbl/cells for fine-grained reactivity? ✨'),
-    default: true,
   },
 ];
 
@@ -168,9 +157,7 @@ async function createProjectStructure(projectDir, answers) {
     await fs.mkdir(path.join(projectDir, dir), { recursive: true });
   }
 
-  if (answers.useRouter) {
-    await fs.mkdir(path.join(projectDir, 'source/pages'), { recursive: true });
-  }
+  await fs.mkdir(path.join(projectDir, 'source/views'), { recursive: true });
 
   await Promise.all([
     createIndexHtml(projectDir, answers),
@@ -179,7 +166,6 @@ async function createProjectStructure(projectDir, answers) {
     createMainFile(projectDir, answers),
     createRouterFile(projectDir, answers),
     createPackageJson(projectDir, answers),
-    createAppComponent(projectDir, answers),
     createConfigFile(projectDir, answers),
     createVSCodeFolder(projectDir, answers),
   ]);
@@ -275,9 +261,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './source'),
-    },
-    plugins: [hmrPlugin()],
+    }
   },
+  plugins: [hmrPlugin()],
 ${
   answers.cssPreprocessor === 'SCSS'
     ? `
@@ -400,10 +386,6 @@ async function createMainFile(projectDir, answers) {
   let content = `
 /// <reference types="vite/client" />
 import { render } from '@adbl/unfinished/render';
-`;
-
-  if (answers.useRouter) {
-    content += `
 import { createRouter } from './router';
 
 const router = createRouter();
@@ -415,16 +397,6 @@ if (root !== null) {
   render(root, router.Outlet(), window)
 }
 `;
-  } else {
-    content += `
-import { App } from './App';
-
-const root = window.document.getElementById('app');
-if (root !== null) {
-  render(root, App(), window)
-}
-    `;
-  }
 
   await fs.writeFile(
     path.join(projectDir, `source/main.${extension}`),
@@ -438,23 +410,19 @@ if (root !== null) {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createRouterFile(projectDir, answers) {
-  if (!answers.useRouter) {
-    return;
-  }
-
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
 import { createWebRouter } from '@adbl/unfinished/router';
-import { homeRoutes } from './pages/home/routes';
+import { startRoutes } from './views/start/routes';
 
 export function createRouter() {
   const routes = [
     {
       name: 'App',
       path: '/',
-      redirect: '/home',
+      redirect: '/start',
       children: [
-        ...homeRoutes,
+        ...startRoutes,
       ],
     },
   ];
@@ -467,8 +435,8 @@ export function createRouter() {
     content
   );
 
-  // Create home view structure
-  await createViewStructure(projectDir, 'home', answers);
+  // Create start view structure
+  await createViewStructure(projectDir, 'start', answers);
 }
 
 /**
@@ -479,16 +447,6 @@ export function createRouter() {
  */
 async function createViewStructure(projectDir, viewName, answers) {
   await createComponentStructure(projectDir, viewName, true, answers);
-}
-
-/**
- * Function to create the App component
- * @param {string} projectDir - The directory where the project is created
- * @param {Record<string, any>} answers - The answers to the project creation questions
- */
-async function createAppComponent(projectDir, answers) {
-  if (answers.useRouter) return; // Only create App component if not using router
-  await createComponentStructure(projectDir, 'App', false, answers);
 }
 
 /**
@@ -508,7 +466,7 @@ async function createComponentStructure(
   const styleExtension = answers.cssPreprocessor === 'SCSS' ? 'scss' : 'css';
 
   const componentDir = isView
-    ? path.join(projectDir, `source/pages/${componentName}`)
+    ? path.join(projectDir, `source/views/${componentName}`)
     : path.join(projectDir, 'source');
   await fs.mkdir(componentDir, { recursive: true });
 
@@ -527,9 +485,7 @@ async function createComponentStructure(
     ? '"text-5xl font-bold mb-4"'
     : '{styles.heading}';
 
-  const gradientClass = tailwind
-    ? '"inline-block bg-gradient-to-br from-black to-blue-900 text-transparent bg-clip-text"'
-    : '{styles.gradient}';
+  const textClass = tailwind ? '"inline-block"' : '{styles.headingText}';
 
   const paragraphClasses = tailwind ? '"mb-8"' : '{styles.paragraph}';
   const subTextClasses = tailwind ? '"text-gray-600"' : '{styles.readTheDocs}';
@@ -553,7 +509,7 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
     <div class=${containerClasses}>
       <main class=${mainElementClasses}>
         <h1 class=${headingClasses}>
-          <span class=${gradientClass}>${answers.projectName}.</span>
+          <span class=${textClass}>${answers.projectName}.</span>
         </h1>
         <p class=${paragraphClasses}>${textContent}</p>
         <p class=${subTextClasses}>
@@ -597,13 +553,9 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
   line-height: 1.1;
   margin-bottom: 1rem;
 }
-    
-.gradient {
+
+.headingText {
   display: inline-block;
-  background: linear-gradient(to bottom right, #000000 60%, #000033 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 .readTheDocs {
@@ -668,10 +620,6 @@ async function createPackageJson(projectDir, answers) {
       vite: CONFIG.devDependencies.vite,
     },
   };
-
-  if (answers.useCells) {
-    content.dependencies['@adbl/cells'] = 'latest';
-  }
 
   if (answers.language === 'TypeScript') {
     content.devDependencies.typescript = CONFIG.devDependencies.typescript;
