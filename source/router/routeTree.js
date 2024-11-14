@@ -349,6 +349,14 @@ export class RouteTree {
 }
 
 /**
+ * @type {WeakMap<object, Route<any>[]>}
+ * A weakmap that matches a route component to its corresponding route record.
+ * It allows me to surgically change the component function of a route when changing
+ * functions in HMR.
+ */
+export const routeToComponent = new WeakMap();
+
+/**
  * @template T
  * Constructs a new `RouteTree` instance from an array of route records.
  *
@@ -385,7 +393,17 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     }
 
     current.name = routeRecord.name ?? null;
-    current.component = routeRecord.component;
+    const component = routeRecord.component;
+    current.component = component;
+
+    if (
+      (typeof component === 'object' || typeof component === 'function') &&
+      component !== null
+    ) {
+      const match = routeToComponent.get(component) ?? [];
+      match.push(current);
+      routeToComponent.set(component, match);
+    }
     current.redirect = routeRecord.redirect ?? null;
     current.title = routeRecord.title ?? null;
 

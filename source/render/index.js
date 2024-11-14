@@ -1,4 +1,5 @@
 import { generateChildNodes, isDevMode } from '../library/utils.js';
+import { routeToComponent } from '../router/routeTree.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
@@ -100,6 +101,10 @@ export const hotReloadModule = async (newModule, url) => {
 
   // Convert new module properties into an iterable array.
   const moduleData = Object.entries(newModule);
+  if (moduleData.length === 0) {
+    // globalThis.window?.location?.reload?.();
+    return;
+  }
 
   for (const [key, newInstance] of moduleData) {
     const oldInstance = oldModule[key];
@@ -111,45 +116,81 @@ export const hotReloadModule = async (newModule, url) => {
     if (typeof oldInstance !== 'function') continue;
     if (typeof newInstance !== 'function') continue;
 
-    // If the function code has not changed, skip re-rendering.
-    if (oldInstance.toString() === newInstance.toString()) {
-      continue;
+    // If the function is a routing component, then it needs to swapped out
+    // in the route tree.
+    if (routeToComponent.has(oldInstance)) {
+      const matches = routeToComponent.get(oldInstance);
+      if (matches) {
+        for (const match of matches) {
+          match.component = newInstance;
+        }
+        routeToComponent.set(newInstance, matches);
+      }
+      routeToComponent.delete(oldInstance);
+    }
+
+    // If the function is a routing component (a function that renders into a router outlet),
+    // keep-alive cache needs to be invalidated, or it will override the new HMR render
+    // when the route is visited again.
+    if (oldInstance.__routeLevelFunction) {
+      /** @type {Array<import('../router/index.js').RouteRender>} */
+      const routeRenders = oldInstance.__routeRenders;
+      if (routeRenders)
+        for (const routeRender of routeRenders) {
+          routeRender.outlet.__keepAliveCache?.delete(routeRender.path);
+        }
+      newInstance.__routeLevelFunction = true;
+      newInstance.__routeRenders = oldInstance.__routeRenders;
     }
 
     /** @type {WeakMap<Function, Instance[]>} */
     const jsxFunctionInstances =
       // @ts-ignore: Ignore TypeScript errors due to missing Vite types.
       import.meta.hot?.data?.jsxFunctionInstances ?? new WeakMap();
-    const componentInstances = jsxFunctionInstances.get(oldInstance);
+    const componentInstances = jsxFunctionInstances?.get?.(oldInstance);
 
     // Skip functions with no active JSX instances to re-render.
     if (!componentInstances) {
-      continue;
+      globalThis.window?.location?.reload?.();
+      return;
     }
 
     // Invalidate the old instance by removing it from the map.
     jsxFunctionInstances.delete(oldInstance);
 
     for (const instance of componentInstances) {
-      // Generate new child nodes for the updated component instance.
-      const newNodes = generateChildNodes(newInstance(instance.props));
-      const fragment = document.createDocumentFragment();
-      fragment.append(...newNodes);
-
-      // Handle DOM replacement to update the component's rendered nodes.
-      const anchorNode = instance.nodes[0];
-      for (const node of instance.nodes) {
-        if (node === anchorNode) {
-          continue;
-        }
-        node.parentElement?.removeChild(node);
+      // if the node is not in the DOM, skip re-rendering.
+      if (!instance.nodes[0]?.isConnected) {
+        linkNodesToComponent(instance.nodes, newInstance, instance.props);
+        continue;
       }
 
-      // Replace the old anchor node with the new DOM fragment.
-      anchorNode.parentNode?.replaceChild(fragment, anchorNode);
+      try {
+        // Generate new child nodes for the updated component instance.
+        const newNodes = generateChildNodes(newInstance(instance.props));
 
-      // Re-link the new nodes to the component instance, preserving props.
-      linkNodesToComponent(newNodes, newInstance, instance.props);
+        const fragment = document.createDocumentFragment();
+        fragment.append(...newNodes);
+
+        // Handle DOM replacement to update the component's rendered nodes.
+        const anchorNode = instance.nodes[0];
+        for (const node of instance.nodes) {
+          if (node === anchorNode) {
+            continue;
+          }
+          node.parentElement?.removeChild(node);
+        }
+
+        // Replace the old anchor node with the new DOM fragment.
+        anchorNode.parentNode?.replaceChild(fragment, anchorNode);
+
+        // Re-link the new nodes to the component instance, preserving props.
+        linkNodesToComponent(newNodes, newInstance, instance.props);
+      } catch (error) {
+        console.error(error);
+        // Fallback to old instance if new instance fails to render.
+        linkNodesToComponent(instance.nodes, oldInstance, instance.props);
+      }
     }
   }
 };

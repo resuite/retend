@@ -21,7 +21,7 @@ const PARAM_REGEX = /:(\w+)/g;
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 /**
- * @typedef {LazyRoute | (() => JSX.Template)} ComponentOrComponentLoader
+ * @typedef {LazyRoute | ((() => JSX.Template) & { __routeLevelFunction?: boolean, __routeRenders?: RouteRender[] })} ComponentOrComponentLoader
  */
 
 /**
@@ -35,6 +35,16 @@ const PARAM_REGEX = /:(\w+)/g;
 
 /**
  * @typedef {RouteRecords[number]} RouteRecord
+ */
+
+/**
+ * @typedef RouteRender
+ *
+ * @property {RouterOutlet} outlet
+ * Router outlet where the function is rendered.
+ *
+ * @property {string} path
+ * The path of the route where the function is rendered.
  */
 
 /**
@@ -577,7 +587,6 @@ export class Router {
     styleSheet.replaceSync(
       `[data-x-relay] {
         display: inline-block;
-        overflow: hidden;
       }`
     );
     this.window?.document.adoptedStyleSheets?.push(styleSheet);
@@ -851,37 +860,51 @@ export class Router {
         matchedComponent = matchedComponentOrLazyLoader;
       }
 
-      outlet.dataset.path = currentMatchedRoute.fullPath;
+      const fullPath = substituteParameters(
+        currentMatchedRoute.fullPath,
+        matchResult.params
+      );
 
-      const renderedComponent =
-        outlet.__keepAliveCache?.get(path)?.nodes ?? matchedComponent();
+      outlet.dataset.path = fullPath;
+      let renderedComponent = undefined;
+      let snapshot = outlet.__keepAliveCache?.get(path);
+      if (snapshot) {
+        console.log('Reusing nodes', snapshot, path);
+        renderedComponent = snapshot.nodes;
+      } else {
+        renderedComponent = matchedComponent();
+      }
 
-      const oldPath = this.currentPath.value?.fullPath;
-      if (this.currentPath.value?.fullPath !== currentMatchedRoute.fullPath) {
+      matchedComponent.__routeLevelFunction = true;
+      let renders = matchedComponent.__routeRenders;
+      if (!renders) {
+        renders = [];
+        matchedComponent.__routeRenders = renders;
+      }
+      renders.push({ outlet, path });
+
+      // if the component performs a redirect internally, it would change the route
+      // stored in the outlet's dataset, so we need to check before replacing.
+      if (outlet.dataset.path !== fullPath) {
+        return false;
+      }
+
+      const oldPath = this.currentPath.value.fullPath;
+      if (this.currentPath.value.fullPath !== fullPath) {
         this.currentPath.value = {
           name: currentMatchedRoute.name,
-          fullPath: substituteParameters(
-            currentMatchedRoute.fullPath,
-            matchResult.params
-          ),
+          fullPath,
           params: matchResult.params,
           query: matchResult.searchQueryParams,
         };
       }
 
-      // if the component performs a redirect, it would change the route
-      // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.dataset.path !== currentMatchedRoute.fullPath) {
-        return false;
-      }
-
-      const animationDirection = this.chooseNavigationDirection(
-        currentMatchedRoute.fullPath
-      );
+      const animationDirection = this.chooseNavigationDirection(fullPath);
 
       // if the outlet is keep alive, we need to cache the current nodes
       if (outlet.__keepAlive && oldPath) {
         const nodes = Array.from(outlet.childNodes);
+        console.log('caching current nodes', oldPath, nodes);
         recordScrollPositions(nodes);
         outlet.__keepAliveCache?.set(oldPath, {
           nodes,
@@ -918,7 +941,7 @@ export class Router {
     }
 
     for (const spareOutlet of Array.from(outlets).slice(outletIndex)) {
-      spareOutlet.removeAttribute('data-route-name');
+      spareOutlet.removeAttribute('path');
       spareOutlet.replaceChildren();
     }
 

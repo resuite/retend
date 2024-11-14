@@ -276,15 +276,6 @@ export function setAttribute(element, key, value) {
     return;
   }
 
-  if (!createdByJsx) {
-    if (isSomewhatFalsy(value)) {
-      element.removeAttribute(key);
-    } else {
-      element.setAttribute(key, value);
-    }
-    return;
-  }
-
   if (key === 'children') {
     return;
   }
