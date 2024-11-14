@@ -149,6 +149,8 @@ const PARAM_REGEX = /:(\w+)/g;
  *  __duration?: number;
  *  __easing?: string;
  *  __vacuum?: HTMLElement;
+ *  __startRect?: DOMRect;
+ *  __endDimensions?: DOMRect;
  *  __pausedAnimations?: RelayAnimation[];
  * }} RouterRelay
  */
@@ -1026,10 +1028,6 @@ export class Router {
      * positioning.
      */
     let topLayer;
-    /** @type {DOMRect} */
-    let relayStartRect;
-    /** @type {{ width: number, height: number }} */
-    let relayEndDim;
     /** @type {RouterRelay[]} */
     const exitRelayNodes = Array.from(
       outlet.querySelectorAll('[data-x-relay]')
@@ -1098,8 +1096,15 @@ export class Router {
           /** @type {RelayAnimation} */ (animation).__pausedByRelay = true;
         }
 
-        relayStartRect = correspondingExit.getBoundingClientRect();
-        relayEndDim = getFinalRect(correspondingExit);
+        const relayStartRect = correspondingExit.getBoundingClientRect();
+        const relayEndDim = getFinalRect(correspondingExit);
+
+        correspondingExit.__startRect = relayStartRect;
+        correspondingExit.__endDimensions = relayEndDim;
+
+        enterRelay.__startRect = relayStartRect;
+        enterRelay.__endDimensions = relayEndDim;
+
         if (!topLayer && this.window && correspondingExit.__animated) {
           topLayer = this.window.document.createElement('div');
           topLayer.style.position = 'fixed';
@@ -1113,6 +1118,7 @@ export class Router {
 
         if (topLayer && this.window) {
           const exitRelayVacuum = this.window.document.createElement('div');
+          exitRelayVacuum.toggleAttribute('data-x-relay', true);
 
           exitRelayVacuum.style.height = `${relayStartRect.height}px`;
           exitRelayVacuum.style.width = `${relayStartRect.width}px`;
@@ -1124,6 +1130,7 @@ export class Router {
 
           enterRelayVacuum.style.height = `${relayEndDim.height}px`;
           enterRelayVacuum.style.width = `${relayEndDim.width}px`;
+          enterRelayVacuum.toggleAttribute('data-x-relay', true);
 
           enterRelay.replaceWith(enterRelayVacuum);
           enterRelay.__vacuum = enterRelayVacuum;
@@ -1163,15 +1170,23 @@ export class Router {
     const relayExecutorFinish = async () => {
       await Promise.all([
         Promise.all(
-          [...exitRelayNodeMap].map(async ([_, exitRelay]) => {
-            exitRelay.removeAttribute('data-x-relay-matched');
-            await transitionRelay(exitRelay, relayStartRect, relayEndDim);
+          [...exitRelayNodeMap].map(async ([_, relay]) => {
+            relay.removeAttribute('data-x-relay-matched');
+            await transitionRelay(relay);
+            relay.removeAttribute('style');
+            relay.__vacuum = undefined;
+            relay.__startRect = undefined;
+            relay.__endDimensions = undefined;
           })
         ),
         Promise.all(
-          enterRelayNodes.map(async (enterRelay) => {
-            enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
-            await transitionRelay(enterRelay, relayStartRect, relayEndDim);
+          enterRelayNodes.map(async (relay) => {
+            relay.__onNodesReceived?.(Array.from(relay.childNodes));
+            await transitionRelay(relay);
+            relay.removeAttribute('style');
+            relay.__vacuum = undefined;
+            relay.__startRect = undefined;
+            relay.__endDimensions = undefined;
           })
         ),
       ]);
@@ -1182,13 +1197,50 @@ export class Router {
     // ---------------
     // Exiting previous nodes.
     // ---------------
-    const exitAnimationExecutor = async () => {
+    /** @type {HTMLDivElement | undefined} */
+    let transientLayer;
+    const prepareForExit = async () => {
       const oldNodes = Array.from(outlet.childNodes);
       //@ts-ignore
-      const { name, duration, easing } = {
+      const options = {
         ...animationOptions,
         ...(await animationOptions.onBeforeExit?.(oldNodes)),
       };
+      if (!this.window || !outlet.__animationOptions) return options;
+
+      // To allow exit and entry to run in parallel,
+      // we need to move the old nodes out of the outlet
+      // into a transient layer, so that they are visible
+      // while animating, but do not interfere with the
+      // entry animation.
+
+      const outletRect = outlet.getBoundingClientRect();
+      transientLayer = /** @type {HTMLDivElement} */ (outlet.cloneNode());
+      transientLayer.removeAttribute('data-router-id');
+      transientLayer.removeAttribute('data-path');
+      transientLayer.style.position = 'fixed';
+      transientLayer.style.top = `${outletRect.top}px`;
+      transientLayer.style.left = `${outletRect.left}px`;
+      transientLayer.style.width = `${outletRect.width}px`;
+      transientLayer.style.height = `${outletRect.height}px`;
+      transientLayer.style.pointerEvents = 'none';
+
+      transientLayer.append(...Array.from(outlet.childNodes));
+
+      if (topLayer) {
+        topLayer.before(transientLayer);
+      } else {
+        this.window?.document.body.append(transientLayer);
+      }
+      return options;
+    };
+    /**
+     * @param {Partial<AnimationOptions>} options
+     */
+    const exitAnimationExecutor = async (options) => {
+      const { name, duration, easing } = options;
+      const oldNodes = Array.from(transientLayer?.childNodes ?? []);
+
       await Promise.all(
         oldNodes.map(async (node) => {
           if (!name || !('style' in node || 'getAnimations' in node)) return;
@@ -1216,6 +1268,8 @@ export class Router {
         if (element.dataset?.xRelayMatched) return;
         element.style.removeProperty('animation');
       }
+
+      transientLayer?.remove();
     };
 
     // Entering new nodes.
@@ -1271,8 +1325,12 @@ export class Router {
     };
 
     await relayExecutorStart();
-    await exitAnimationExecutor();
-    await enterAnimationExecutor(); // the relay executor finish runs inside.
+    const exitOptions = await prepareForExit();
+
+    await Promise.all([
+      exitAnimationExecutor(exitOptions),
+      enterAnimationExecutor(), // the relay executor finish runs inside.
+    ]);
 
     return true;
   };
@@ -1537,11 +1595,14 @@ function getFinalRect(element) {
 /**
  *
  * @param {RouterRelay} relay
- * @param {DOMRect} initialRect
- * @param {{width: number, height: number}} endDimensions
  */
-async function transitionRelay(relay, initialRect, endDimensions) {
+async function transitionRelay(relay) {
   if (!relay.__vacuum) return;
+
+  const initialRect = relay.__startRect;
+  const endDimensions = relay.__endDimensions;
+
+  if (!initialRect || !endDimensions) return;
 
   const vacuumRect = getFinalRect(relay.__vacuum);
 
@@ -1578,9 +1639,6 @@ async function transitionRelay(relay, initialRect, endDimensions) {
   await Promise.all(
     relay.getAnimations?.().map((animation) => animation.finished)
   );
-
-  relay.removeAttribute('style');
-  relay.__vacuum = undefined;
 }
 
 /**
