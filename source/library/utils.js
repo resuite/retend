@@ -1,5 +1,8 @@
 import { Cell } from '@adbl/cells';
 
+/** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
+export const isDevMode = import.meta.env?.DEV;
+
 /**
  * Observes when an element is connected to the DOM and executes a callback
  * @param {Element} element - The element to observe
@@ -196,6 +199,7 @@ export function generateChildNodes(children) {
 
   if (children instanceof Promise) {
     const placeholder = globalThis.window.document.createComment('-------');
+    Reflect.set(placeholder, '__promise', children);
     children.then((template) => {
       placeholder.replaceWith(...generateChildNodes(template));
     });

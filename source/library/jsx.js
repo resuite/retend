@@ -1,5 +1,6 @@
 import { Cell, SourceCell } from '@adbl/cells';
-import { convertObjectToCssStylesheet } from './utils.js';
+import { convertObjectToCssStylesheet, generateChildNodes } from './utils.js';
+import { linkNodesToComponent } from '../render/index.js';
 
 const camelCasedAttributes = new Set([
   // SVG attributes
@@ -94,7 +95,7 @@ const camelCasedAttributes = new Set([
  * @template {Record<PropertyKey, any>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
- * @returns {Node} A new  DOM element.
+ * @returns {Node | Node[]} New DOM nodes.
  */
 export function h(tagname, props) {
   const children = props.children;
@@ -107,23 +108,11 @@ export function h(tagname, props) {
   }
 
   if (typeof tagname === 'function') {
-    const component = tagname(
-      {
-        children,
-        ...props,
-      },
-      { createdByJsx: true }
-    );
-
-    if (component instanceof Promise) {
-      const placeholder = globalThis.window.document.createComment('---');
-      component.then((component) => {
-        placeholder.replaceWith(component);
-      });
-      return placeholder;
-    }
-
-    return component;
+    const completeProps = { ...props };
+    const component = tagname(completeProps, { createdByJsx: true });
+    const nodes = generateChildNodes(component);
+    linkNodesToComponent(nodes, tagname, completeProps);
+    return nodes;
   }
 
   const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
@@ -284,15 +273,6 @@ export function setAttribute(element, key, value) {
       return;
     }
 
-    return;
-  }
-
-  if (!createdByJsx) {
-    if (isSomewhatFalsy(value)) {
-      element.removeAttribute(key);
-    } else {
-      element.setAttribute(key, value);
-    }
     return;
   }
 

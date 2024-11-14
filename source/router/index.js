@@ -8,6 +8,7 @@ import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
+import { linkNodesToComponent } from '../render/index.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -20,7 +21,7 @@ const PARAM_REGEX = /:(\w+)/g;
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 /**
- * @typedef {LazyRoute | (() => JSX.Template)} ComponentOrComponentLoader
+ * @typedef {LazyRoute | ((() => JSX.Template) & { __routeLevelFunction?: boolean, __routeRenders?: RouteRender[] })} ComponentOrComponentLoader
  */
 
 /**
@@ -34,6 +35,16 @@ const PARAM_REGEX = /:(\w+)/g;
 
 /**
  * @typedef {RouteRecords[number]} RouteRecord
+ */
+
+/**
+ * @typedef RouteRender
+ *
+ * @property {RouterOutlet} outlet
+ * Router outlet where the function is rendered.
+ *
+ * @property {string} path
+ * The path of the route where the function is rendered.
  */
 
 /**
@@ -138,6 +149,8 @@ const PARAM_REGEX = /:(\w+)/g;
  *  __duration?: number;
  *  __easing?: string;
  *  __vacuum?: HTMLElement;
+ *  __startRect?: DOMRect;
+ *  __endDimensions?: DOMRect;
  *  __pausedAnimations?: RelayAnimation[];
  * }} RouterRelay
  */
@@ -369,26 +382,32 @@ export class Router {
    * @example
    * ```tsx
    * // Base component
-   * function Photo({ photo }) {
-   *   return <img src={photo.url} alt={photo.alt} />;
+   * function Photo() {
+   *  return (
+   *    <img
+   *      src="example.com/image.png"
+   *      alt="An example photo for describing how relays work"
+   *    />
+   *  );
    * }
    *
-   * // in `/list` route
-   * <router.Relay
-   *   id="card-photo"
-   *   source={Photo}
-   *   sourceProps={{ photo }}
-   * />
+   * // Relay component
+   * function PhotoRelay() {
+   *  const router = useRouter();
+   *  return (
+   *    <router.Relay id="continuous-photo" source={Photo} />
+   *  );
+   * }
    *
-   * // in `/detail` route
-   * <router.Relay
-   *   id="card-photo"
-   *   source={Photo}
-   *   sourceProps={{ photo }}
-   * />
+   * // You can add the PhotoRelay in different routes and they will all share the same state,
+   * // transitioning from one page to the other. For example:
+   *
+   * // home/index.tsx
+   * <PhotoRelay />
+   *
+   * // detail/index.tsx
+   * <PhotoRelay />
    * ```
-   *
-   * As you move between routes, the elements will transition from one state to the next.
    */
   Relay;
 
@@ -552,6 +571,8 @@ export class Router {
           if (!this.isLoading) {
             // @ts-ignore: The render type is generic.
             const nodes = generateChildNodes(relay.__render?.(relay.__props));
+            linkNodesToComponent(nodes, relay.__render, relay.__props);
+
             // @ts-ignore: The relay is not of the type JsxElement.
             appendChild(relay, relay.tagName.toLowerCase(), nodes);
             relay.__onNodesReceived?.(nodes);
@@ -567,6 +588,10 @@ export class Router {
     };
   }
 
+  /**
+   * @private
+   * Attaches the relay styles to the document.
+   */
   attachRelayStyles() {
     if (this.relaySheetAttached) return;
 
@@ -574,7 +599,6 @@ export class Router {
     styleSheet.replaceSync(
       `[data-x-relay] {
         display: inline-block;
-        overflow: hidden;
       }`
     );
     this.window?.document.adoptedStyleSheets?.push(styleSheet);
@@ -848,33 +872,45 @@ export class Router {
         matchedComponent = matchedComponentOrLazyLoader;
       }
 
-      outlet.dataset.path = currentMatchedRoute.fullPath;
+      const fullPath = substituteParameters(
+        currentMatchedRoute.fullPath,
+        matchResult.params
+      );
 
-      const renderedComponent =
-        outlet.__keepAliveCache?.get(path)?.nodes ?? matchedComponent();
+      outlet.dataset.path = fullPath;
+      let renderedComponent = undefined;
+      let snapshot = outlet.__keepAliveCache?.get(path);
+      if (snapshot) {
+        renderedComponent = snapshot.nodes;
+      } else {
+        renderedComponent = matchedComponent();
+      }
 
-      const oldPath = this.currentPath.value?.fullPath;
-      if (this.currentPath.value?.fullPath !== currentMatchedRoute.fullPath) {
+      matchedComponent.__routeLevelFunction = true;
+      let renders = matchedComponent.__routeRenders;
+      if (!renders) {
+        renders = [];
+        matchedComponent.__routeRenders = renders;
+      }
+      renders.push({ outlet, path });
+
+      // if the component performs a redirect internally, it would change the route
+      // stored in the outlet's dataset, so we need to check before replacing.
+      if (outlet.dataset.path !== fullPath) {
+        return false;
+      }
+
+      const oldPath = this.currentPath.value.fullPath;
+      if (this.currentPath.value.fullPath !== fullPath) {
         this.currentPath.value = {
           name: currentMatchedRoute.name,
-          fullPath: substituteParameters(
-            currentMatchedRoute.fullPath,
-            matchResult.params
-          ),
+          fullPath,
           params: matchResult.params,
           query: matchResult.searchQueryParams,
         };
       }
 
-      // if the component performs a redirect, it would change the route
-      // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.dataset.path !== currentMatchedRoute.fullPath) {
-        return false;
-      }
-
-      const animationDirection = this.chooseNavigationDirection(
-        currentMatchedRoute.fullPath
-      );
+      const animationDirection = this.chooseNavigationDirection(fullPath);
 
       // if the outlet is keep alive, we need to cache the current nodes
       if (outlet.__keepAlive && oldPath) {
@@ -888,6 +924,9 @@ export class Router {
       }
 
       const newNodes = generateChildNodes(renderedComponent);
+      linkNodesToComponent(newNodes, matchedComponent, undefined, {
+        maxInstanceCount: 1,
+      });
 
       const replaced = await this.handleAnimations(
         outlet,
@@ -912,7 +951,7 @@ export class Router {
     }
 
     for (const spareOutlet of Array.from(outlets).slice(outletIndex)) {
-      spareOutlet.removeAttribute('data-route-name');
+      spareOutlet.removeAttribute('path');
       spareOutlet.replaceChildren();
     }
 
@@ -995,10 +1034,6 @@ export class Router {
      * positioning.
      */
     let topLayer;
-    /** @type {DOMRect} */
-    let relayStartRect;
-    /** @type {{ width: number, height: number }} */
-    let relayEndDim;
     /** @type {RouterRelay[]} */
     const exitRelayNodes = Array.from(
       outlet.querySelectorAll('[data-x-relay]')
@@ -1030,9 +1065,13 @@ export class Router {
           // cached and is being reused. We can skip the render step.
           if (enterRelay.childNodes.length === 0 || !outlet.__keepAlive) {
             const props = enterRelay.__props ?? {};
-            const relayContents = generateChildNodes(
-              enterRelay.__render?.(props)
-            );
+            /** @type {Node[]} */
+            let relayContents = [];
+            if (enterRelay.__render) {
+              relayContents = generateChildNodes(enterRelay.__render(props));
+              linkNodesToComponent(relayContents, enterRelay.__render, props);
+            }
+
             enterRelay.replaceChildren(...relayContents);
             enterRelay.__onNodesReceived?.(relayContents);
           } else {
@@ -1063,8 +1102,15 @@ export class Router {
           /** @type {RelayAnimation} */ (animation).__pausedByRelay = true;
         }
 
-        relayStartRect = correspondingExit.getBoundingClientRect();
-        relayEndDim = getFinalRect(correspondingExit);
+        const relayStartRect = correspondingExit.getBoundingClientRect();
+        const relayEndDim = getFinalRect(correspondingExit);
+
+        correspondingExit.__startRect = relayStartRect;
+        correspondingExit.__endDimensions = relayEndDim;
+
+        enterRelay.__startRect = relayStartRect;
+        enterRelay.__endDimensions = relayEndDim;
+
         if (!topLayer && this.window && correspondingExit.__animated) {
           topLayer = this.window.document.createElement('div');
           topLayer.style.position = 'fixed';
@@ -1078,6 +1124,7 @@ export class Router {
 
         if (topLayer && this.window) {
           const exitRelayVacuum = this.window.document.createElement('div');
+          exitRelayVacuum.toggleAttribute('data-x-relay', true);
 
           exitRelayVacuum.style.height = `${relayStartRect.height}px`;
           exitRelayVacuum.style.width = `${relayStartRect.width}px`;
@@ -1089,6 +1136,7 @@ export class Router {
 
           enterRelayVacuum.style.height = `${relayEndDim.height}px`;
           enterRelayVacuum.style.width = `${relayEndDim.width}px`;
+          enterRelayVacuum.toggleAttribute('data-x-relay', true);
 
           enterRelay.replaceWith(enterRelayVacuum);
           enterRelay.__vacuum = enterRelayVacuum;
@@ -1128,15 +1176,23 @@ export class Router {
     const relayExecutorFinish = async () => {
       await Promise.all([
         Promise.all(
-          [...exitRelayNodeMap].map(async ([_, exitRelay]) => {
-            exitRelay.removeAttribute('data-x-relay-matched');
-            await transitionRelay(exitRelay, relayStartRect, relayEndDim);
+          [...exitRelayNodeMap].map(async ([_, relay]) => {
+            relay.removeAttribute('data-x-relay-matched');
+            await transitionRelay(relay);
+            relay.removeAttribute('style');
+            relay.__vacuum = undefined;
+            relay.__startRect = undefined;
+            relay.__endDimensions = undefined;
           })
         ),
         Promise.all(
-          enterRelayNodes.map(async (enterRelay) => {
-            enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
-            await transitionRelay(enterRelay, relayStartRect, relayEndDim);
+          enterRelayNodes.map(async (relay) => {
+            relay.__onNodesReceived?.(Array.from(relay.childNodes));
+            await transitionRelay(relay);
+            relay.removeAttribute('style');
+            relay.__vacuum = undefined;
+            relay.__startRect = undefined;
+            relay.__endDimensions = undefined;
           })
         ),
       ]);
@@ -1147,13 +1203,50 @@ export class Router {
     // ---------------
     // Exiting previous nodes.
     // ---------------
-    const exitAnimationExecutor = async () => {
+    /** @type {HTMLDivElement | undefined} */
+    let transientLayer;
+    const prepareForExit = async () => {
       const oldNodes = Array.from(outlet.childNodes);
       //@ts-ignore
-      const { name, duration, easing } = {
+      const options = {
         ...animationOptions,
         ...(await animationOptions.onBeforeExit?.(oldNodes)),
       };
+      if (!this.window || !outlet.__animationOptions) return options;
+
+      // To allow exit and entry to run in parallel,
+      // we need to move the old nodes out of the outlet
+      // into a transient layer, so that they are visible
+      // while animating, but do not interfere with the
+      // entry animation.
+
+      const outletRect = outlet.getBoundingClientRect();
+      transientLayer = /** @type {HTMLDivElement} */ (outlet.cloneNode());
+      transientLayer.removeAttribute('data-router-id');
+      transientLayer.removeAttribute('data-path');
+      transientLayer.style.position = 'fixed';
+      transientLayer.style.top = `${outletRect.top}px`;
+      transientLayer.style.left = `${outletRect.left}px`;
+      transientLayer.style.width = `${outletRect.width}px`;
+      transientLayer.style.height = `${outletRect.height}px`;
+      transientLayer.style.pointerEvents = 'none';
+
+      transientLayer.append(...Array.from(outlet.childNodes));
+
+      if (topLayer) {
+        topLayer.before(transientLayer);
+      } else {
+        this.window?.document.body.append(transientLayer);
+      }
+      return options;
+    };
+    /**
+     * @param {Partial<AnimationOptions>} options
+     */
+    const exitAnimationExecutor = async (options) => {
+      const { name, duration, easing } = options;
+      const oldNodes = Array.from(transientLayer?.childNodes ?? []);
+
       await Promise.all(
         oldNodes.map(async (node) => {
           if (!name || !('style' in node || 'getAnimations' in node)) return;
@@ -1181,6 +1274,8 @@ export class Router {
         if (element.dataset?.xRelayMatched) return;
         element.style.removeProperty('animation');
       }
+
+      transientLayer?.remove();
     };
 
     // Entering new nodes.
@@ -1236,8 +1331,12 @@ export class Router {
     };
 
     await relayExecutorStart();
-    await exitAnimationExecutor();
-    await enterAnimationExecutor(); // the relay executor finish runs inside.
+    const exitOptions = await prepareForExit();
+
+    await Promise.all([
+      exitAnimationExecutor(exitOptions),
+      enterAnimationExecutor(), // the relay executor finish runs inside.
+    ]);
 
     return true;
   };
@@ -1502,11 +1601,14 @@ function getFinalRect(element) {
 /**
  *
  * @param {RouterRelay} relay
- * @param {DOMRect} initialRect
- * @param {{width: number, height: number}} endDimensions
  */
-async function transitionRelay(relay, initialRect, endDimensions) {
+async function transitionRelay(relay) {
   if (!relay.__vacuum) return;
+
+  const initialRect = relay.__startRect;
+  const endDimensions = relay.__endDimensions;
+
+  if (!initialRect || !endDimensions) return;
 
   const vacuumRect = getFinalRect(relay.__vacuum);
 
@@ -1543,9 +1645,6 @@ async function transitionRelay(relay, initialRect, endDimensions) {
   await Promise.all(
     relay.getAnimations?.().map((animation) => animation.finished)
   );
-
-  relay.removeAttribute('style');
-  relay.__vacuum = undefined;
 }
 
 /**
