@@ -202,7 +202,7 @@ export const hotReloadModule = async (newModule, url) => {
  */
 export const hmrPlugin = () => {
   return {
-    name: 'vite-dom-jsx',
+    name: 'vite-unfinished-hmr',
 
     /**
      * Transforms the given module code by injecting HMR handling for `.jsx` and
