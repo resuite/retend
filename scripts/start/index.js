@@ -15,7 +15,7 @@ const CONFIG = {
   minNodeVersion: '14.0.0',
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
-    '@adbl/dom': 'latest',
+    '@adbl/unfinished': 'latest',
   },
   devDependencies: {
     vite: '^5.4.8',
@@ -269,7 +269,7 @@ async function createViteConfig(projectDir, answers) {
 import { defineConfig } from 'vite';
 import path from 'node:path';
 
-import { hmrPlugin } from '@adbl/dom/render';
+import { hmrPlugin } from '@adbl/unfinished/render';
 
 export default defineConfig({
   resolve: {
@@ -399,7 +399,7 @@ async function createMainFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   let content = `
 /// <reference types="vite/client" />
-import { render } from '@adbl/dom/render';
+import { render } from '@adbl/unfinished/render';
 `;
 
   if (answers.useRouter) {
@@ -444,7 +444,7 @@ async function createRouterFile(projectDir, answers) {
 
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
-import { createWebRouter } from '@adbl/dom/router';
+import { createWebRouter } from '@adbl/unfinished/router';
 import { homeRoutes } from './pages/home/routes';
 
 export function createRouter() {
@@ -559,7 +559,7 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
         <p class=${subTextClasses}>
           Check out the{' '}
           <a
-            href="https://github.com/adebola-io/dom"
+            href="https://github.com/adebola-io/unfinished"
             target="_blank" rel="noopener noreferrer"
             class=${linkClasses}
           >
@@ -631,7 +631,7 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
 
   if (isView) {
     const routesContent = `
-import { defineRoutes, lazy } from '@adbl/dom/router';
+import { defineRoutes, lazy } from '@adbl/unfinished/router';
 
 export const ${componentName}Routes = defineRoutes([
   {
@@ -712,7 +712,7 @@ async function createConfigFile(projectDir, answers) {
       noUnusedParameters: true,
       noFallthroughCasesInSwitch: true,
       jsx: 'react-jsx',
-      jsxImportSource: '@adbl/dom',
+      jsxImportSource: '@adbl/unfinished',
       baseUrl: '.',
       paths: {
         '@/*': ['./source/*'],

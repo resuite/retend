@@ -196,7 +196,7 @@ export const hotReloadModule = async (newModule, url) => {
  * in the Vite build environment. This plugin specifically targets files with
  * `.jsx` or `.tsx` extensions, excluding files in the `node_modules` directory.
  * It injects code to handle HMR by calling a custom hot reload handler function
- * from the '@adbl/dom/render' package.
+ * from the '@adbl/unfinished/render' package.
  *
  * @returns A Vite plugin object with a `name` property and `transform` hook.
  */
@@ -224,7 +224,7 @@ export const hmrPlugin = () => {
       if (!isJsx) return null;
 
       const injectedCode = `
-import { hotReloadModule as __HMR__ } from '@adbl/dom/render';
+import { hotReloadModule as __HMR__ } from '@adbl/unfinished/render';
 
 ${code}
 

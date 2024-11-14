@@ -1,12 +1,12 @@
-# JSX DOM elements
+# unfinished
 
 A lightweight library for converting JSX expressions into DOM elements (and it has a router too!)
 
-[![downloads (@adbl/dom)](https://img.shields.io/npm/dm/@adbl/dom?label=downloads)](https://www.npmjs.com/package/@adbl/dom)
+[![downloads (@adbl/unfinished)](https://img.shields.io/npm/dm/@adbl/unfinished?label=downloads)](https://www.npmjs.com/package/@adbl/unfinished)
 
 ## Table of Contents
 
-- [JSX DOM elements](#jsx-dom-elements)
+- [unfinished](#unfinished)
   - [Table of Contents](#table-of-contents)
   - [Key Features](#key-features)
   - [Installation](#installation)
@@ -43,13 +43,14 @@ A lightweight library for converting JSX expressions into DOM elements (and it h
 - **JSX Support**: Familiar syntax for React developers
 - **Reactive**: Built-in reactivity with the [`@adbl/cells`](https://github.com/adebola-io/cells) library.
 - **Routing**: Built-in routing system for single-page applications
+- **Hot Module Replacement**: Supports hot module replacement for a seamless development experience
 
 ## Installation
 
 To create a new project with this library, run the following command:
 
 ```bash
-npx @adbl/scaffold
+npx @adbl/unfinished-start
 ```
 
 Follow the prompts to configure your project, then:
@@ -98,7 +99,7 @@ The example above will make a simple counter component that will increment the c
 The `For` function can be used to efficiently render lists:
 
 ```jsx
-import { For } from '@adbl/dom';
+import { For } from '@adbl/unfinished';
 import { Cell } from '@adbl/cells';
 
 const listItems = Cell.source([
@@ -131,7 +132,7 @@ listItems.value.push('Celebrate success');
 > Here's an example to illustrate why this is important:
 >
 > ```tsx
-> import { For } from '@adbl/dom';
+> import { For } from '@adbl/unfinished';
 > import { Cell } from '@adbl/cells';
 >
 > let renderCount = 0;
@@ -201,7 +202,7 @@ listItems.value.push('Celebrate success');
 Use the `If` function for conditional rendering:
 
 ```jsx
-import { If } from '@adbl/dom';
+import { If } from '@adbl/unfinished';
 import { Cell } from '@adbl/cells';
 
 const isLoggedIn = Cell.source(false);
@@ -272,7 +273,7 @@ The library includes a routing system for single-page applications.
 ### Setting Up the Router
 
 ```jsx
-import { createWebRouter, type RouteRecords } from '@adbl/dom/router';
+import { createWebRouter, type RouteRecords } from '@adbl/unfinished/router';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -299,7 +300,7 @@ document.body.appendChild(<router.Outlet />);
 Use the `useRouter` hook to access routing functionality from inside a component:
 
 ```jsx
-import { useRouter } from '@adbl/dom/router';
+import { useRouter } from '@adbl/unfinished/router';
 
 const App = () => {
   const router = useRouter();
