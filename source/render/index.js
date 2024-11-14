@@ -14,10 +14,12 @@ import { routeToComponent } from '../router/routeTree.js';
  * Nodes returned from the component instance.
  */
 
-/** @type {WeakMap<Function, Instance[]>} */
-export const jsxFunctionInstances = new WeakMap();
-
-/** @typedef {Node & { __linked?: boolean, __promise?: Promise<Node[]> }} LinkableNode */
+/**
+ * @typedef {Node & {
+ *  __linked?: boolean,
+ *  __promise?: Promise<Node[]>
+ * }} LinkableNode
+ */
 
 /**
  * @typedef {Object} HMRFunctionOptions
@@ -30,21 +32,22 @@ export const jsxFunctionInstances = new WeakMap();
  * Links a set of DOM nodes to (ideally) its parent
  * factory function.
  *
- * It only works in development mode.
+ * It only works in development mode and is a noop in environments
+ * that don't support `import.meta.hot`.
+ *
  * @param {LinkableNode[]} nodes The nodes to link.
- * @param {Function & {__hmrSymbol?: symbol}} factory The factory function of the component.
+ * @param {Function} factory The factory function of the component.
  * @param {any} [props] Props that were used to create the component.
  * @param {HMRFunctionOptions} [options]
  */
 export function linkNodesToComponent(nodes, factory, props, options) {
   if (!isDevMode) return;
 
-  let jsxFunctions = jsxFunctionInstances;
-  // @ts-ignore: The Vite types are not installed.
-  if (import.meta.hot) {
-    // @ts-ignore: The Vite types are not installed.
-    jsxFunctions = import.meta.hot.data.jsxFunctionInstances ?? new WeakMap();
-  }
+  /// @ts-ignore: The Vite types are not installed.
+  if (!import.meta.hot) return;
+
+  /** @type {WeakMap<Function, Instance[]>} */ // @ts-ignore: The Vite types are not installed.
+  let jsxFunctions = import.meta.hot.data.jsxFunctionInstances ?? new WeakMap();
   const instanceList = jsxFunctions.get(factory) ?? [];
 
   /** @type {Instance} */
@@ -75,11 +78,8 @@ export function linkNodesToComponent(nodes, factory, props, options) {
   instanceList.push(newInstance);
   jsxFunctions.set(factory, instanceList);
 
-  // @ts-ignore: The Vite types are not installed.
-  if (import.meta.hot) {
-    // @ts-ignore: The Vite types are not installed.
-    import.meta.hot.data.jsxFunctionInstances = jsxFunctions;
-  }
+  /// @ts-ignore: The Vite types are not installed.
+  import.meta.hot.data.jsxFunctionInstances = jsxFunctions;
 }
 
 /**
@@ -99,20 +99,15 @@ export const hotReloadModule = async (newModule, url) => {
   // Dynamically import the old module using its URL.
   const oldModule = await import(/* @vite-ignore */ url);
 
-  // Convert new module properties into an iterable array.
-  const moduleData = Object.entries(newModule);
-  if (moduleData.length === 0) {
-    // globalThis.window?.location?.reload?.();
+  const newModuleData = Object.entries(newModule);
+  if (newModuleData.length === 0) {
+    globalThis.window?.location?.reload?.();
     return;
   }
 
-  for (const [key, newInstance] of moduleData) {
+  for (const [key, newInstance] of newModuleData) {
     const oldInstance = oldModule[key];
-    if (!oldInstance) {
-      continue;
-    }
-
-    // Ensure both old and new instances are functions before proceeding.
+    if (!oldInstance) continue;
     if (typeof oldInstance !== 'function') continue;
     if (typeof newInstance !== 'function') continue;
 
@@ -135,27 +130,29 @@ export const hotReloadModule = async (newModule, url) => {
     if (oldInstance.__routeLevelFunction) {
       /** @type {Array<import('../router/index.js').RouteRender>} */
       const routeRenders = oldInstance.__routeRenders;
-      if (routeRenders)
-        for (const routeRender of routeRenders) {
-          routeRender.outlet.__keepAliveCache?.delete(routeRender.path);
-        }
+      for (const routeRender of routeRenders) {
+        routeRender.outlet.__keepAliveCache?.delete(routeRender.path);
+      }
       newInstance.__routeLevelFunction = true;
       newInstance.__routeRenders = oldInstance.__routeRenders;
     }
 
-    /** @type {WeakMap<Function, Instance[]>} */
+    /** @type {WeakMap<Function, Instance[]> | undefined} */
     const jsxFunctionInstances =
       // @ts-ignore: Ignore TypeScript errors due to missing Vite types.
-      import.meta.hot?.data?.jsxFunctionInstances ?? new WeakMap();
-    const componentInstances = jsxFunctionInstances?.get?.(oldInstance);
+      import.meta.hot?.data?.jsxFunctionInstances;
 
-    // Skip functions with no active JSX instances to re-render.
-    if (!componentInstances) {
+    if (!jsxFunctionInstances) {
       globalThis.window?.location?.reload?.();
       return;
     }
+    const componentInstances = jsxFunctionInstances.get?.(oldInstance);
 
-    // Invalidate the old instance by removing it from the map.
+    // Skip functions with no active JSX instances to re-render.
+    if (!componentInstances) {
+      return;
+    }
+
     jsxFunctionInstances.delete(oldInstance);
 
     for (const instance of componentInstances) {
@@ -172,24 +169,23 @@ export const hotReloadModule = async (newModule, url) => {
         const fragment = document.createDocumentFragment();
         fragment.append(...newNodes);
 
-        // Handle DOM replacement to update the component's rendered nodes.
+        // only the first node rendered is important.
+        // ideally components should only render one
+        // top level node.
         const anchorNode = instance.nodes[0];
         for (const node of instance.nodes) {
-          if (node === anchorNode) {
-            continue;
-          }
+          if (node === anchorNode) continue;
           node.parentElement?.removeChild(node);
         }
 
         // Replace the old anchor node with the new DOM fragment.
         anchorNode.parentNode?.replaceChild(fragment, anchorNode);
 
-        // Re-link the new nodes to the component instance, preserving props.
         linkNodesToComponent(newNodes, newInstance, instance.props);
       } catch (error) {
         console.error(error);
-        // Fallback to old instance if new instance fails to render.
-        linkNodesToComponent(instance.nodes, oldInstance, instance.props);
+        // Fallback to old nodes if new nodes fail to render.
+        linkNodesToComponent(instance.nodes, newInstance, instance.props);
       }
     }
   }
@@ -225,9 +221,7 @@ export const hmrPlugin = () => {
 
       const isJsx = id.endsWith('.jsx') || id.endsWith('.tsx');
 
-      if (!isJsx) {
-        return null;
-      }
+      if (!isJsx) return null;
 
       const injectedCode = `
 import { hotReloadModule as __HMR__ } from '@adbl/dom/render';

@@ -580,6 +580,10 @@ export class Router {
     };
   }
 
+  /**
+   * @private
+   * Attaches the relay styles to the document.
+   */
   attachRelayStyles() {
     if (this.relaySheetAttached) return;
 
@@ -869,7 +873,6 @@ export class Router {
       let renderedComponent = undefined;
       let snapshot = outlet.__keepAliveCache?.get(path);
       if (snapshot) {
-        console.log('Reusing nodes', snapshot, path);
         renderedComponent = snapshot.nodes;
       } else {
         renderedComponent = matchedComponent();
@@ -904,7 +907,6 @@ export class Router {
       // if the outlet is keep alive, we need to cache the current nodes
       if (outlet.__keepAlive && oldPath) {
         const nodes = Array.from(outlet.childNodes);
-        console.log('caching current nodes', oldPath, nodes);
         recordScrollPositions(nodes);
         outlet.__keepAliveCache?.set(oldPath, {
           nodes,
