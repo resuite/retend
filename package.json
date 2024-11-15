@@ -53,7 +53,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.5.2"
+    "typescript": "^5.6.3"
   },
   "dependencies": {
     "@adbl/cells": "latest",

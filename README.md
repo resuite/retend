@@ -43,9 +43,7 @@
       - [Advanced Animation Control](#advanced-animation-control)
     - [Router Relays](#router-relays)
       - [Basic Usage](#basic-usage)
-      - [Animation Options](#animation-options)
-      - [Lifecycle Callbacks](#lifecycle-callbacks)
-      - [How It Works](#how-it-works)
+      - [Lifecycle Behavior](#lifecycle-behavior)
   - [Why This Library?](#why-this-library)
   - [License](#license)
 
@@ -574,16 +572,16 @@ The animation system supports:
 - Complex multi-stage animations through hooks
 - Full control over timing and synchronization
 
-When combined with Router Relays, you can create sophisticated transitions where some elements animate with the outlet while others maintain continuity across routes.
-
 ### Router Relays
 
-Router Relays enable smooth transitions of DOM elements between different routes. They maintain element continuity across route changes by preserving and transferring nodes between matching relay instances.
+Router Relays maintain continuity of DOM elements between routes. This is useful when certain elements should persist state across route changes, ensuring the same DOM node is used rather than recreating it.
 
 #### Basic Usage
 
+Relays allow components to be carried over between routes without unmounting or remounting. This is particularly useful for shared elements like images, avatars, or other reusable components.
+
 ```tsx
-// Define a component that will be shared between routes
+// Define a component that will persist between routes
 function Photo({ src, alt }) {
   return <img src={src} alt={alt} />;
 }
@@ -614,49 +612,17 @@ function DetailRoute() {
 }
 ```
 
-#### Animation Options
+In the example above, the relay ensures that the `Photo` component with the same `id` (`photo-relay`) is the same across both routes, even as the routes change.
 
-Relays support customizable transitions between routes:
+#### Lifecycle Behavior
 
-```tsx
-<router.Relay
-  id="photo-relay" // The id is used to match relay instances in different routes
-  source={Photo} // The component to be rendered
-  sourceProps={photoProps} // Props to be passed to the component
-  animated={true} // Enable/disable animations
-  duration={500} // Animation duration in milliseconds
-  easing="ease-in-out" // CSS easing function
-/>
-```
+Relays work by matching `id` attributes between instances in the current and next route. When the route changes:
 
-#### Lifecycle Callbacks
+- If a relay with the same `id` exists in both the current and next route, its DOM node and state are preserved.
+- If no matching relay is found in the next route, the current relay is unmounted.
+- New relays in the next route are created and mounted as usual.
 
-Monitor and control relay transitions using callbacks:
-
-```tsx
-<router.Relay
-  id="photo-relay"
-  source={Photo}
-  sourceProps={photoProps}
-  onNodesReceived={(nodes) => {
-    // Called when nodes are received from another route
-    console.log('Nodes received:', nodes);
-  }}
-  onNodesSent={(nodes) => {
-    // Called when nodes are sent to another route
-    console.log('Nodes sent:', nodes);
-  }}
-/>
-```
-
-#### How It Works
-
-1. When navigating between routes, the router looks for relays with matching IDs
-2. If a match is found, the DOM nodes are transferred from the source to the destination relay
-3. The router maintains element positioning and applies smooth transitions
-4. If no match is found, the relay renders its source component
-
-> **NOTE**: Relays can make your app more smooth and seamless, but they can also be a performance foot-gun. Be sure to use them judiciously and only when necessary. Consider forgoing them for performance-critical sections.
+> **NOTE**: Relays do not handle animations or transitions. Developers can implement view transitions on their own if needed, using techniques like the native `ViewTransition` API or CSS animations in combination with relays.
 
 ## Why This Library?
 
@@ -665,7 +631,3 @@ This library provides a lightweight alternative to larger frameworks, offering a
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-```
-
-```
