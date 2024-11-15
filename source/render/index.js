@@ -46,8 +46,10 @@ export function linkNodesToComponent(nodes, factory, props, options) {
   /// @ts-ignore: The Vite types are not installed.
   if (!import.meta.hot) return;
 
-  /** @type {WeakMap<Function, Instance[]>} */ // @ts-ignore: The Vite types are not installed.
-  let jsxFunctions = import.meta.hot.data.jsxFunctionInstances ?? new WeakMap();
+  /** @type {WeakMap<Function, Instance[]>} */
+  const jsxFunctions =
+    // @ts-ignore: The Vite types are not installed.
+    import.meta.hot.data.jsxFunctionInstances ?? new WeakMap();
   const instanceList = jsxFunctions.get(factory) ?? [];
 
   /** @type {Instance} */

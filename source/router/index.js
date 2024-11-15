@@ -782,7 +782,7 @@ export class Router {
     let outletIndex = 0;
     /** @type {RouterOutlet[]} */
     const outlets = Array.from(
-      this.window?.document.querySelectorAll(`div[data-x-outlet]`) ?? []
+      this.window?.document.querySelectorAll('div[data-x-outlet]') ?? []
     );
 
     while (currentMatchedRoute) {
@@ -852,7 +852,7 @@ export class Router {
 
       outlet.dataset.path = fullPath;
       let renderedComponent = undefined;
-      let snapshot = outlet.__keepAliveCache?.get(path);
+      const snapshot = outlet.__keepAliveCache?.get(path);
       if (snapshot) {
         renderedComponent = snapshot.nodes;
       } else {
@@ -1170,7 +1170,7 @@ export class Router {
 
     /** @type {Partial<AnimationOptions>} */
     await relayExecutor();
-    let exitOptions = await prepareForExit();
+    const exitOptions = await prepareForExit();
     await Promise.all([
       exitAnimationExecutor(exitOptions),
       enterAnimationExecutor(),
