@@ -24,6 +24,7 @@
   - [Installation](#installation)
   - [Usage](#usage)
     - [Quick Start](#quick-start)
+    - [Understanding Cells.](#understanding-cells)
     - [Rendering Lists](#rendering-lists)
     - [Conditional Rendering](#conditional-rendering)
   - [Routing](#routing)
@@ -85,16 +86,14 @@ import { Cell } from '@adbl/cells';
 const Counter = () => {
   const count = Cell.source(0);
 
+  const increaseCount = () => {
+    count.value++;
+  };
+
   return (
     <div>
       <output>{count}</output>
-      <button
-        onClick={() => {
-          count.value++;
-        }}
-      >
-        Increment
-      </button>
+      <button onClick={increaseCount}>Increment</button>
     </div>
   );
 };
@@ -103,6 +102,30 @@ document.body.append(<Counter />);
 ```
 
 The example above will make a simple counter component that will increment the count when the button is clicked.
+
+### Understanding Cells.
+
+Cells are a reactive data structure that can be used to store and update data in a reactive way. They are similar to Reactive Variables in other reactive programming libraries.
+
+The `Cell.source` function is used to create a new cell with an initial value. The `value` property of the cell can be accessed to get or set the current value of the cell.
+
+```jsx
+import { Cell } from '@adbl/cells';
+
+const count = Cell.source(0);
+
+count.value++; // Increments the value of the cell by 1
+```
+
+In the example above, the `count` cell is initialized with a value of 0. The `value` property of the cell is then incremented by 1.
+
+Crucially, within JSX templates, you use the cell object directly (without .value) to maintain reactivity:
+
+```jsx
+<div> Count: {count} </div>
+```
+
+Whenever `count.value` is modified, the UI will automatically update to reflect the new value. This reactive behavior is the foundation of how `unfinished` handles dynamic updates.
 
 ### Rendering Lists
 
@@ -187,22 +210,19 @@ listItems.value.push('Celebrate success');
 > To avoid this issue, use the reactive index provided by `For`:
 >
 > ```tsx
-> const List = createElement({
->   tag: 'user-list',
->   render: () => {
->     return (
->       <ul>
->         {For(items, (item, index) => {
->           return (
->             <li>
->               {item.name} (Index: {index})
->             </li>
->           );
->         })}
->       </ul>
->     );
->   },
-> });
+> const List = () => {
+>   return (
+>     <ul>
+>       {For(items, (item, index) => {
+>         return (
+>           <li>
+>             {item.name} (Index: {index})
+>           </li>
+>         );
+>       })}
+>     </ul>
+>   );
+> };
 > ```
 >
 > This approach ensures correct behavior regardless of how the array is modified, as the index is always up-to-date.
@@ -257,8 +277,6 @@ function LoginPage() {
   );
 }
 
-// Component to render login status using the If function
-// The If function takes three arguments: a condition, a component to render if the condition is true, and a component to render if the condition is false
 function LoginStatus() {
   return <div>
     {If(
@@ -307,10 +325,10 @@ document.body.appendChild(<router.Outlet />);
 
 ### Implementing the Router
 
-Use the `useRouter` hook to access routing functionality from inside a component:
+Use the `useRouter` hook to access routing functionality from inside a component. This will prevents circular dependencies and import issues.
 
 ```jsx
-import { useRouter } from '@adbl/unfinished/router';
+import { useRouter } from '@adbl/unfinished/router';|
 
 const App = () => {
   const router = useRouter();
@@ -348,6 +366,10 @@ const routes: RouteRecords = [
     ],
   },
 ];
+```
+
+```jsx
+import { useRouter } from '@adbl/unfinished/router';
 
 const Dashboard = () => {
   const { Link, Outlet } = useRouter();
@@ -355,8 +377,8 @@ const Dashboard = () => {
     <div>
       <h1>Dashboard</h1>
       <nav>
-        <Link to="/dashboard/overview">Overview</Link>
-        <Link to="/dashboard/stats">Stats</Link>
+        <Link href="/dashboard/overview">Overview</Link>
+        <Link href="/dashboard/stats">Stats</Link>
       </nav>
       <Outlet />
     </div>

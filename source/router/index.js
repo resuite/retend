@@ -1109,9 +1109,7 @@ export class Router {
             animationDirection === 'reverse' ? `${name}-enter` : `${name}-exit`;
           // duration | easing-function | delay | iteration-count | direction | fill-mode | name
           element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName}`;
-          await Promise.all(
-            element.getAnimations({ subtree: true }).map((a) => a.finished)
-          );
+          await Promise.all(element.getAnimations().map((a) => a.finished));
         })
       );
       await animationOptions.onAfterExit?.(oldNodes);
