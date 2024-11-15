@@ -1,5 +1,5 @@
 import { parseHTML } from 'linkedom';
-import { renderToString } from '@adbl/dom/render';
+import { renderToString } from '@adbl/unfinished/render';
 import { build, createServer, type UserConfig } from 'vite';
 import { resolve } from 'node:path';
 import process from 'node:process';

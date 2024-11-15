@@ -1,7 +1,7 @@
 {
-  "name": "@adbl/dom",
-  "version": "0.0.3",
-  "description": "JSX Dom Elements.",
+  "name": "@adbl/unfinished",
+  "version": "0.0.0",
+  "description": "JSX -> Dom Elements.",
   "private": false,
   "type": "module",
   "scripts": {
@@ -10,7 +10,8 @@
   },
   "keywords": [
     "web",
-    "javascript"
+    "javascript",
+    "pwa"
   ],
   "engines": {
     "node": ">=14.0.0"
@@ -41,18 +42,18 @@
       "types": "./dist/render/index.d.ts"
     }
   },
-  "homepage": "https://github.com/adebola-io/dom#readme",
+  "homepage": "https://github.com/adebola-io/unfinished#readme",
   "bugs": {
-    "url": "https://github.com/adebola-io/dom/issues"
+    "url": "https://github.com/adebola-io/unfinished/issues"
   },
   "author": "Adebola Akomolafe",
   "repository": {
-    "directory": "github.com/adebola-io/dom",
+    "directory": "github.com/adebola-io/unfinished",
     "type": "git"
   },
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.5.2"
+    "typescript": "^5.6.3"
   },
   "dependencies": {
     "@adbl/cells": "latest",

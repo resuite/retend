@@ -1,9 +1,9 @@
 {
-  "name": "@adbl/scaffold",
-  "version": "0.0.2",
+  "name": "@adbl/unfinished-start",
+  "version": "0.0.0",
   "private": false,
   "type": "module",
-  "description": "Scaffold a new Vanilla Javascript App with JSX.",
+  "description": "Scaffold a new project with @adbl/unfinished",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adebola-io/dom.git"
+    "url": "git+https://github.com/adebola-io/unfinished.git"
   },
   "keywords": [
     "web",
@@ -24,9 +24,9 @@
   "author": "Adebola Akomolafe",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/adebola-io/dom/issues"
+    "url": "https://github.com/adebola-io/unfinished/issues"
   },
-  "homepage": "https://github.com/adebola-io/dom#readme",
+  "homepage": "https://github.com/adebola-io/unfinished#readme",
   "dependencies": {
     "@types/node": "^22.7.5",
     "chalk": "^5.3.0",
