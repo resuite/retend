@@ -217,6 +217,9 @@ export function appendChild(element, tagname, child) {
  */
 export function setAttributeFromProps(element, key, value) {
   if (Cell.isCell(value)) {
+    if (!element.__attributeCells) {
+      element.__attributeCells = new Set();
+    }
     if (key === 'ref') {
       element.__attributeCells.add(value);
       if (value instanceof SourceCell) {
@@ -244,7 +247,7 @@ export function setAttributeFromProps(element, key, value) {
  * @param {any} value - The value of the attribute.
  */
 export function setAttribute(element, key, value) {
-  const createdByJsx = element.__createdByJsx;
+  const createdByJsx = true;
   // store element event listeners.
   if (
     key.startsWith('on') &&
@@ -464,6 +467,9 @@ export function normalizeClassValue(val, element) {
     };
 
     val.listen(callback, { weak: true });
+    if (!element.__attributeCells) {
+      element.__attributeCells = new Set();
+    }
     element.__attributeCells.add(val);
     element.__attributeCells.add(callback);
     return currentClassToken;
@@ -487,6 +493,9 @@ export function normalizeClassValue(val, element) {
         };
 
         value.listen(callback, { weak: true });
+        if (!element.__attributeCells) {
+          element.__attributeCells = new Set();
+        }
         element.__attributeCells.add(value);
         element.__attributeCells.add(callback);
         if (value.value) {

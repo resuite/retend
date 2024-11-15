@@ -1,9 +1,5 @@
 import { Cell, SourceCell } from '@adbl/cells';
-import {
-  setAttribute,
-  setAttributeFromProps,
-  appendChild,
-} from '../library/jsx.js';
+import { setAttributeFromProps, appendChild } from '../library/jsx.js';
 import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
@@ -337,6 +333,10 @@ export class Router {
     };
     this.routerHistory = [];
     this.relaySheetAttached = false;
+    this.Link = this.Link.bind(this);
+    this.Outlet = this.Outlet.bind(this);
+    this.Relay = this.Relay.bind(this);
+    this.getCurrentRoute = this.getCurrentRoute.bind(this);
   }
 
   /**
@@ -357,7 +357,7 @@ export class Router {
    * </router.Link>
    * ```
    */
-  Link = (props) => {
+  Link(props) {
     if (!this.window) {
       throw new Error('Cannot create Link in undefined window.');
     }
@@ -380,7 +380,7 @@ export class Router {
       const { children, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         // @ts-expect-error: a is not of type JsxElement.
-        setAttribute(a, key, value);
+        setAttributeFromProps(a, key, value);
       }
 
       // @ts-expect-error: The outlet is not of the type JsxElement.
@@ -407,7 +407,7 @@ export class Router {
     a.addEventListener('click', handleNavigate);
 
     return a;
-  };
+  }
 
   /**
    * Defines an element that serves as the router outlet, rendering the component
@@ -433,7 +433,7 @@ export class Router {
    * />
    * ```
    */
-  Outlet = (props) => {
+  Outlet(props) {
     if (!this.window) {
       throw new Error('Cannot create Outlet in undefined window.');
     }
@@ -472,7 +472,7 @@ export class Router {
     }
 
     return outlet;
-  };
+  }
 
   /**
    * A component that enables smooth transitions of DOM nodes between routes.
@@ -515,7 +515,7 @@ export class Router {
    * <PhotoRelay />
    * ```
    */
-  Relay = (props) => {
+  Relay(props) {
     if (!this.window) {
       throw new Error('Cannot create Relay in undefined window.');
     }
@@ -569,7 +569,7 @@ export class Router {
     }
 
     return relay;
-  };
+  }
 
   /**
    * @private
@@ -582,6 +582,7 @@ export class Router {
     styleSheet.replaceSync(
       `[data-x-relay] {
         display: inline-block;
+        transform-style: preserve-3d;
       }`
     );
     this.window?.document.adoptedStyleSheets?.push(styleSheet);
@@ -858,6 +859,17 @@ export class Router {
         matchResult.params
       );
 
+      // The current path must react before the page loads.
+      const oldPath = this.currentPath.value.fullPath;
+      if (this.currentPath.value.fullPath !== fullPath) {
+        this.currentPath.value = {
+          name: currentMatchedRoute.name,
+          fullPath,
+          params: matchResult.params,
+          query: matchResult.searchQueryParams,
+        };
+      }
+
       outlet.dataset.path = fullPath;
       let renderedComponent = undefined;
       let snapshot = outlet.__keepAliveCache?.get(path);
@@ -879,16 +891,6 @@ export class Router {
       // stored in the outlet's dataset, so we need to check before replacing.
       if (outlet.dataset.path !== fullPath) {
         return false;
-      }
-
-      const oldPath = this.currentPath.value.fullPath;
-      if (this.currentPath.value.fullPath !== fullPath) {
-        this.currentPath.value = {
-          name: currentMatchedRoute.name,
-          fullPath,
-          params: matchResult.params,
-          query: matchResult.searchQueryParams,
-        };
       }
 
       const animationDirection = this.chooseNavigationDirection(fullPath);
@@ -1104,20 +1106,25 @@ export class Router {
         }
 
         if (topLayer && this.window) {
-          const exitRelayVacuum = this.window.document.createElement('div');
-          exitRelayVacuum.toggleAttribute('data-x-relay', true);
-
-          exitRelayVacuum.style.height = `${relayStartRect.height}px`;
+          const exitRelayVacuum = /** @type {HTMLElement} */ (
+            correspondingExit.cloneNode()
+          );
+          // Un-sets match attribute copied from exit node.
+          exitRelayVacuum.dataset.xRelayMatched = undefined;
+          // I cannot explain why removing 5 pixels from the rect
+          // makes it stop shifting the layout.
+          exitRelayVacuum.style.height = `${relayStartRect.height - 5}px`;
           exitRelayVacuum.style.width = `${relayStartRect.width}px`;
 
           correspondingExit.replaceWith(exitRelayVacuum);
           correspondingExit.__vacuum = exitRelayVacuum;
 
-          const enterRelayVacuum = this.window.document.createElement('div');
-
-          enterRelayVacuum.style.height = `${relayEndDim.height}px`;
+          const enterRelayVacuum = /** @type {HTMLElement} */ (
+            enterRelay.cloneNode()
+          );
+          // As earlier said, a complete mystery.
+          enterRelayVacuum.style.height = `${relayEndDim.height - 5}px`;
           enterRelayVacuum.style.width = `${relayEndDim.width}px`;
-          enterRelayVacuum.toggleAttribute('data-x-relay', true);
 
           enterRelay.replaceWith(enterRelayVacuum);
           enterRelay.__vacuum = enterRelayVacuum;
@@ -1595,6 +1602,23 @@ async function transitionRelay(relay) {
     },
   ];
 
+  console.log(
+    relay.__name,
+    'Keyframes:',
+    keyframes,
+    'InitialRect: ',
+    initialRect,
+    'vACUUMrECT',
+    vacuumRect,
+    'EndDimensions',
+    endDimensions,
+    'final',
+    {
+      top: vacuumRect.top + 0.2,
+      left: vacuumRect.left + 0.2,
+    }
+  );
+
   if (relay.__pausedAnimations) {
     for (const animation of relay.__pausedAnimations) {
       animation.play();
@@ -1610,7 +1634,8 @@ async function transitionRelay(relay) {
   ]);
   relay.__pausedAnimations = undefined;
 
-  relay.__vacuum?.replaceWith(relay);
+  relay.__vacuum.replaceWith(relay);
+  // await new Promise((_resolve) => {});
   relay.style.cssText = `transition-duration: ${relay.__duration}ms`;
 
   await Promise.all(
