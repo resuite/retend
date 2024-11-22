@@ -491,16 +491,16 @@ async function createComponentStructure(
   const subTextClasses = tailwind ? '"text-gray-600"' : '{styles.readTheDocs}';
 
   const textContent = isView
-    ? `You\'re viewing the ${capitalize(componentName)} page`
+    ? `You're viewing the ${capitalize(componentName)} page`
     : "You're all set to start building amazing things!";
 
   const linkClasses = tailwind ? '"text-blue-600"' : '{styles.link}';
   const linkSuffix = isView ? 'to learn more.' : 'to get started.';
   const cssImport = tailwind
     ? ''
-    : `import styles from \'./${
+    : `import styles from './${
         isView ? 'styles' : componentName
-      }.module.${styleExtension}\';\n`;
+      }.module.${styleExtension}';\n`;
 
   const content = `
 ${cssImport}

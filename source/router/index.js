@@ -13,7 +13,7 @@ export * from './middleware.js';
 const HISTORY_STORAGE_KEY = 'rhistory';
 const PARAM_REGEX = /:(\w+)/g;
 const RELAY_ID_REGEX =
-  /^[a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?/;
+  /^([a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?)/;
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
@@ -851,7 +851,7 @@ export class Router {
       }
 
       outlet.dataset.path = fullPath;
-      let renderedComponent = undefined;
+      let renderedComponent;
       const snapshot = outlet.__keepAliveCache?.get(path);
       if (snapshot) {
         renderedComponent = snapshot.nodes;
@@ -1210,9 +1210,11 @@ export class Router {
         // triggered by going back.
         const window = this.window;
         this.window = undefined;
-        while (window && newRouterHistoryLength < i) {
-          window.history.back();
-          i--;
+        if (window) {
+          while (newRouterHistoryLength < i) {
+            window.history.back();
+            i--;
+          }
         }
         this.window = window;
         return;
