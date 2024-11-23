@@ -101,7 +101,7 @@ export function h(tagname, props) {
   const children = props.children;
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
     const fragment = globalThis.window.document.createDocumentFragment();
-    for (const child of children) {
+    for (const child of children ?? []) {
       fragment.appendChild(normalizeJsxChild(child, fragment));
     }
     return fragment;
@@ -525,4 +525,5 @@ export function defineJsxGlobals() {
 
 export const jsx = h;
 export const jsxFragment = DocumentFragmentPlaceholder;
+export const Fragment = DocumentFragmentPlaceholder;
 export default h;
