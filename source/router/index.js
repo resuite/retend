@@ -154,26 +154,9 @@ let ROUTER_INSTANCE = null;
  * @property {boolean} [stackMode]
  * If set to `true`, the router will treat the routes as a stack, and will automatically
  * go back or forward based on the route history.
- */
-
-/**
- * @typedef RouterRelayOptions
  *
- * @property {number} [relayLayerIndex]
- * The z-index to set on the element that will handle relay transitions.
- * It defaults to 9999.
- *
- * @property {boolean} [animated]
- * Whether to animate the relay transitions.
- * It defaults to true.
- *
- * @property {number} [duration]
- * The default duration of relay transitions in milliseconds.
- * It defaults to 300.
- *
- * @property {string} [easing]
- * The default easing function for relay transitions.
- * It defaults to 'ease'.
+ * @property {boolean} [useViewTransitions]
+ * If set to true, all route transitions will be wrapped in a view transition callback.
  */
 
 /**
@@ -280,6 +263,9 @@ export class Router {
   /** @private @type {string[]} */
   routerHistory;
 
+  /** @private @type {boolean} */
+  useViewTransitions;
+
   /** @private @type {CSSStyleSheet | undefined} */
   sheet;
 
@@ -307,6 +293,7 @@ export class Router {
     this.Outlet = this.Outlet.bind(this);
     this.Relay = this.Relay.bind(this);
     this.getCurrentRoute = this.getCurrentRoute.bind(this);
+    this.useViewTransitions = routeOptions.useViewTransitions ?? false;
   }
 
   /**
@@ -636,12 +623,23 @@ export class Router {
    * @return {Promise<void>} A promise that resolves when the navigation is complete.
    */
   navigate = async (path) => {
-    this.isLoading = true;
-    if (path === '#') {
-      return;
+    if (path === '#') return;
+    if (
+      this.useViewTransitions &&
+      this.window &&
+      this.window.document &&
+      'startViewTransition' in this.window.document
+    ) {
+      this.window.document.startViewTransition(async () => {
+        this.isLoading = true;
+        await this.loadPath(path, true);
+        this.isLoading = false;
+      });
+    } else {
+      this.isLoading = true;
+      await this.loadPath(path, true);
+      this.isLoading = false;
     }
-    await this.loadPath(path, true);
-    this.isLoading = false;
   };
 
   /**
