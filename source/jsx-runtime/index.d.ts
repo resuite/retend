@@ -2930,7 +2930,7 @@ export namespace JSX {
     /** Specifies the vertical corner radius of the rectangle */
     ry?: number | string;
     /** Specifies the transformation to apply to the element. */
-    transform: string;
+    transform?: string;
   }
 
   interface JsxSVGStopElement
@@ -3102,7 +3102,12 @@ export namespace JSX {
     extends JsxCustomElementAttributesInner {}
 
   type Node = globalThis.Node | PropertyKey | Promise<globalThis.Node | string>;
-  export type Template = Node | Node[] | undefined | null;
+  export type Template =
+    | Node
+    | Node[]
+    | undefined
+    | null
+    | Promise<Node | Node[] | undefined | null>;
 
   export type Element = Template;
 }
