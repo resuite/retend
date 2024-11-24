@@ -1,6 +1,10 @@
 import { Cell, SourceCell } from '@adbl/cells';
 import { setAttributeFromProps, appendChild } from '../library/jsx.js';
-import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
+import {
+  generateChildNodes,
+  FixedSizeMap,
+  onConnected,
+} from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
@@ -13,7 +17,7 @@ export * from './middleware.js';
 const HISTORY_STORAGE_KEY = 'rhistory';
 const PARAM_REGEX = /:(\w+)/g;
 const RELAY_ID_REGEX =
-  /^[a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?/;
+  /^([a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?)/;
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
@@ -154,26 +158,9 @@ let ROUTER_INSTANCE = null;
  * @property {boolean} [stackMode]
  * If set to `true`, the router will treat the routes as a stack, and will automatically
  * go back or forward based on the route history.
- */
-
-/**
- * @typedef RouterRelayOptions
  *
- * @property {number} [relayLayerIndex]
- * The z-index to set on the element that will handle relay transitions.
- * It defaults to 9999.
- *
- * @property {boolean} [animated]
- * Whether to animate the relay transitions.
- * It defaults to true.
- *
- * @property {number} [duration]
- * The default duration of relay transitions in milliseconds.
- * It defaults to 300.
- *
- * @property {string} [easing]
- * The default easing function for relay transitions.
- * It defaults to 'ease'.
+ * @property {boolean} [useViewTransitions]
+ * If set to true, all route transitions will be wrapped in a view transition callback.
  */
 
 /**
@@ -280,6 +267,9 @@ export class Router {
   /** @private @type {string[]} */
   routerHistory;
 
+  /** @private @type {boolean} */
+  useViewTransitions;
+
   /** @private @type {CSSStyleSheet | undefined} */
   sheet;
 
@@ -307,6 +297,10 @@ export class Router {
     this.Outlet = this.Outlet.bind(this);
     this.Relay = this.Relay.bind(this);
     this.getCurrentRoute = this.getCurrentRoute.bind(this);
+    this.replace = this.replace.bind(this);
+    this.back = this.back.bind(this);
+    this.navigate = this.navigate.bind(this);
+    this.useViewTransitions = routeOptions.useViewTransitions ?? false;
   }
 
   /**
@@ -440,6 +434,16 @@ export class Router {
         outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
       }
     }
+
+    onConnected(outlet, () => {
+      this.loadPath(
+        this.currentPath.value.fullPath,
+        false,
+        undefined,
+        false,
+        true
+      );
+    });
 
     return outlet;
   }
@@ -636,12 +640,73 @@ export class Router {
    * @return {Promise<void>} A promise that resolves when the navigation is complete.
    */
   navigate = async (path) => {
-    this.isLoading = true;
-    if (path === '#') {
-      return;
+    if (path === '#') return;
+    if (
+      this.useViewTransitions &&
+      this.window &&
+      this.window.document &&
+      'startViewTransition' in this.window.document
+    ) {
+      this.window.document.startViewTransition(async () => {
+        this.isLoading = true;
+        await this.loadPath(path, true);
+        this.isLoading = false;
+      });
+    } else {
+      this.isLoading = true;
+      await this.loadPath(path, true);
+      this.isLoading = false;
     }
-    await this.loadPath(path, true);
-    this.isLoading = false;
+  };
+
+  /**
+   * Replaces the current browser history with a new path, triggering a navigation.
+   *
+   * This method behaves similarly to `navigate`, but instead of pushing a new entry
+   * to the browser history, it replaces the current entry. This means the user
+   * won't be able to navigate back to the previous path using the browser's back
+   * button.
+   *
+   * The navigation process is the same as in `navigate`:
+   * 1. Updates the URL without page reload
+   * 2. Matches the new path to a route
+   * 3. Runs configured middleware
+   * 4. Handles route transitions and animations
+   * 5. Updates the browser history
+   *
+   * @example
+   *
+   * // Basic usage
+   * router.replace('/new-path')
+   *
+   * // Replace with query parameters
+   * router.replace('/search?query=test')
+   *
+   * // Replace with dynamic route
+   * router.replace(`/user/${userId}`)
+   *
+   *
+   * @param {string} path - The path to navigate to
+   * @return {Promise<void>} A promise that resolves when the navigation is complete.
+   */
+  replace = async (path) => {
+    if (path === '#') return;
+    if (
+      this.useViewTransitions &&
+      this.window &&
+      this.window.document &&
+      'startViewTransition' in this.window.document
+    ) {
+      this.window.document.startViewTransition(async () => {
+        this.isLoading = true;
+        await this.loadPath(path, true, undefined, true);
+        this.isLoading = false;
+      });
+    } else {
+      this.isLoading = true;
+      await this.loadPath(path, true);
+      this.isLoading = false;
+    }
   };
 
   /**
@@ -765,9 +830,7 @@ export class Router {
 
     if (matchResult.subTree === null) {
       console.warn(`No route matches path: ${path}`);
-      const outlet = this.window?.document.querySelector(
-        'div[data-grenade-outlet]'
-      );
+      const outlet = this.window?.document.querySelector('div[data-x-outlet]');
       outlet?.removeAttribute('data-path');
       if (this.window) {
         outlet?.replaceChildren(emptyRoute(path, this.window));
@@ -851,7 +914,7 @@ export class Router {
       }
 
       outlet.dataset.path = fullPath;
-      let renderedComponent = undefined;
+      let renderedComponent;
       const snapshot = outlet.__keepAliveCache?.get(path);
       if (snapshot) {
         renderedComponent = snapshot.nodes;
@@ -1184,14 +1247,16 @@ export class Router {
    * @param {boolean} [navigate]
    * @param {Event} [_event]
    * Event that triggered the navigation.
+   * @param {boolean} [replace]
+   * @param {boolean} [forceLoad]
    */
-  loadPath = async (rawPath, navigate, _event) => {
+  loadPath = async (rawPath, navigate, _event, replace, forceLoad) => {
     const [pathRoot, pathQuery] = rawPath.split('?');
     // Ensures that .html is removed from the path.
     const path =
       (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
       (pathQuery ?? '');
-    if (this.currentPath.value?.fullPath === path) {
+    if (this.currentPath.value?.fullPath === path && !forceLoad) {
       return;
     }
 
@@ -1210,9 +1275,11 @@ export class Router {
         // triggered by going back.
         const window = this.window;
         this.window = undefined;
-        while (window && newRouterHistoryLength < i) {
-          window.history.back();
-          i--;
+        if (window) {
+          while (newRouterHistoryLength < i) {
+            window.history.back();
+            i--;
+          }
         }
         this.window = window;
         return;
@@ -1231,12 +1298,20 @@ export class Router {
       // storing the new title with the old route,
       // which leads to a confusing experience.
       if (this.window) {
+        const isSamePath =
+          this.window.location?.pathname === this.currentPath.value.fullPath;
+        if (isSamePath) return;
+
         const newTitle = this.window.document?.title;
         if (oldTitle && newTitle !== oldTitle) {
           this.window.document.title = oldTitle;
         }
 
-        this.window.history?.pushState(null, '', path);
+        const nextPath = this.currentPath.value.fullPath;
+
+        if (replace) {
+          this.window.history?.replaceState(null, '', nextPath);
+        } else this.window.history?.pushState(null, '', nextPath);
 
         if (newTitle) {
           this.window.document.title = newTitle;
@@ -1363,9 +1438,19 @@ export function useRouter() {
  * Wrapper function for defining route records.
  *
  * @param {RouteRecords} routes
+ * @returns {RouteRecords}
  */
 export function defineRoutes(routes) {
   return routes;
+}
+
+/**
+ * Wrapper function for defining a single route.
+ * @param {RouteRecord} route
+ * @returns {RouteRecord}
+ */
+export function defineRoute(route) {
+  return route;
 }
 
 /**

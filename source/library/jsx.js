@@ -101,7 +101,7 @@ export function h(tagname, props) {
   const children = props.children;
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
     const fragment = globalThis.window.document.createDocumentFragment();
-    for (const child of children) {
+    for (const child of children ?? []) {
       fragment.appendChild(normalizeJsxChild(child, fragment));
     }
     return fragment;
@@ -117,28 +117,26 @@ export function h(tagname, props) {
 
   const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
 
+  let namespace;
+  if (tagname === 'svg') {
+    namespace = 'http://www.w3.org/2000/svg';
+  } else if (tagname === 'math') {
+    namespace = 'http://www.w3.org/1998/Math/MathML';
+  } else {
+    namespace = defaultNamespace;
+  }
   /** @type {JsxElement} */ //@ts-ignore: coercion.
-  const element =
-    tagname === 'svg'
-      ? globalThis.window.document.createElementNS(
-          'http://www.w3.org/2000/svg',
-          tagname
-        )
-      : tagname === 'math'
-      ? globalThis.window.document.createElementNS(
-          'http://www.w3.org/1998/Math/MathML',
-          tagname
-        )
-      : globalThis.window.document.createElementNS(defaultNamespace, tagname);
-
+  const element = globalThis.window.document.createElementNS(
+    namespace,
+    tagname
+  );
   element.__eventListenerList = new Map();
   element.__attributeCells = new Set();
   element.__createdByJsx = true;
 
-  if (props !== null)
-    for (const [key, value] of Object.entries(props)) {
-      setAttributeFromProps(element, key, value);
-    }
+  for (const [key, value] of Object.entries(props)) {
+    setAttributeFromProps(element, key, value);
+  }
 
   appendChild(element, tagname, children);
 
@@ -430,7 +428,7 @@ export function normalizeJsxChild(child, _parent) {
  *
  * Handles various input types for class values, including strings, arrays, objects, and cells.
  *
- * @param {string | string[] | Record<string, boolean > | Cell<string>} val - The class value to normalize.
+ * @param {string | string[] | Record<string, boolean > | Cell<string> | undefined} val - The class value to normalize.
  * @param {JsxElement} element The target element with the class.
  * @returns {string} The normalized class value as a string.
  */
@@ -446,7 +444,7 @@ export function normalizeClassValue(val, element) {
       if (normalized) {
         result += normalized;
       }
-      if (index !== value.length - 1) {
+      if (index !== val.length - 1) {
         result += ' ';
       }
     }
@@ -527,4 +525,5 @@ export function defineJsxGlobals() {
 
 export const jsx = h;
 export const jsxFragment = DocumentFragmentPlaceholder;
+export const Fragment = DocumentFragmentPlaceholder;
 export default h;

@@ -383,7 +383,7 @@ export default {
  */
 async function createMainFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
-  let content = `
+  const content = `
 /// <reference types="vite/client" />
 import { render } from '@adbl/unfinished/render';
 import { createRouter } from './router';
@@ -413,7 +413,7 @@ async function createRouterFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
 import { createWebRouter } from '@adbl/unfinished/router';
-import { startRoutes } from './views/start/routes';
+import { startRoute } from './views/start/routes';
 
 export function createRouter() {
   const routes = [
@@ -421,9 +421,7 @@ export function createRouter() {
       name: 'App',
       path: '/',
       redirect: '/start',
-      children: [
-        ...startRoutes,
-      ],
+      children: [startRoute],
     },
   ];
   return createWebRouter({ routes });
@@ -491,16 +489,16 @@ async function createComponentStructure(
   const subTextClasses = tailwind ? '"text-gray-600"' : '{styles.readTheDocs}';
 
   const textContent = isView
-    ? `You\'re viewing the ${capitalize(componentName)} page`
+    ? `You're viewing the ${capitalize(componentName)} page`
     : "You're all set to start building amazing things!";
 
   const linkClasses = tailwind ? '"text-blue-600"' : '{styles.link}';
   const linkSuffix = isView ? 'to learn more.' : 'to get started.';
   const cssImport = tailwind
     ? ''
-    : `import styles from \'./${
+    : `import styles from './${
         isView ? 'styles' : componentName
-      }.module.${styleExtension}\';\n`;
+      }.module.${styleExtension}';\n`;
 
   const content = `
 ${cssImport}
@@ -583,15 +581,13 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
 
   if (isView) {
     const routesContent = `
-import { defineRoutes, lazy } from '@adbl/unfinished/router';
+import { defineRoute, lazy } from '@adbl/unfinished/router';
 
-export const ${componentName}Routes = defineRoutes([
-  {
-    name: '${capitalize(componentName)} View',
-    path: '/${componentName}',
-    component: lazy(() => import('./index')),
-  },
-]);
+export const ${componentName}Route = defineRoute({
+  name: '${capitalize(componentName)} View',
+  path: '${componentName}',
+  component: lazy(() => import('./index')),
+});
   `.trim();
 
     const extensionBase = answers.language === 'TypeScript' ? 'ts' : 'js';
