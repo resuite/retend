@@ -66,7 +66,7 @@ export function linkNodesToComponent(nodes, factory, props, options) {
     if (node.__promise) {
       const promise = node.__promise;
       promise.then((nodes) => {
-        newInstance.nodes.push(...nodes);
+        newInstance.nodes.push(...generateChildNodes(nodes));
       });
       continue;
     }

@@ -267,7 +267,7 @@ export class Router {
   /** @private @type {string[]} */
   routerHistory;
 
-  /** @private @type {boolean} */
+  /** @type {boolean} */
   useViewTransitions;
 
   /** @private @type {CSSStyleSheet | undefined} */
@@ -436,13 +436,15 @@ export class Router {
     }
 
     onConnected(outlet, () => {
-      this.loadPath(
-        this.currentPath.value.fullPath,
-        false,
-        undefined,
-        false,
-        true
-      );
+      if (this.currentPath.value.fullPath) {
+        this.loadPath(
+          this.currentPath.value.fullPath,
+          false,
+          undefined,
+          false,
+          true
+        );
+      }
     });
 
     return outlet;
@@ -505,7 +507,6 @@ export class Router {
       /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ (
         this.window.document.createElement('div')
       );
-    this.createStylesheet();
     relay.toggleAttribute('data-x-relay', true);
 
     if (!props) {
@@ -549,7 +550,6 @@ export class Router {
   }
 
   /**
-   * @private
    * Creates a stylesheet and adds it to the adopted stylesheets of the current document.
    * @returns {CSSStyleSheet | undefined} The created stylesheet.
    */
@@ -558,17 +558,17 @@ export class Router {
       return this.sheet;
     }
 
-    if (!this.window?.document.adoptedStyleSheets) return;
+    if (!this.window?.document?.adoptedStyleSheets) return;
 
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
       `
-[data-x-relay] {
-  width: fit-content;
+[data-x-relay], [data-x-outlet] {
+  display: contents;
 }
 `
     );
-    this.window?.document.adoptedStyleSheets?.push(this.sheet);
+    this.window.document.adoptedStyleSheets.push(this.sheet);
 
     return this.sheet;
   }
@@ -641,22 +641,9 @@ export class Router {
    */
   navigate = async (path) => {
     if (path === '#') return;
-    if (
-      this.useViewTransitions &&
-      this.window &&
-      this.window.document &&
-      'startViewTransition' in this.window.document
-    ) {
-      this.window.document.startViewTransition(async () => {
-        this.isLoading = true;
-        await this.loadPath(path, true);
-        this.isLoading = false;
-      });
-    } else {
-      this.isLoading = true;
-      await this.loadPath(path, true);
-      this.isLoading = false;
-    }
+    this.isLoading = true;
+    await this.loadPath(path, true);
+    this.isLoading = false;
   };
 
   /**
@@ -691,22 +678,9 @@ export class Router {
    */
   replace = async (path) => {
     if (path === '#') return;
-    if (
-      this.useViewTransitions &&
-      this.window &&
-      this.window.document &&
-      'startViewTransition' in this.window.document
-    ) {
-      this.window.document.startViewTransition(async () => {
-        this.isLoading = true;
-        await this.loadPath(path, true, undefined, true);
-        this.isLoading = false;
-      });
-    } else {
-      this.isLoading = true;
-      await this.loadPath(path, true);
-      this.isLoading = false;
-    }
+    this.isLoading = true;
+    await this.loadPath(path, true);
+    this.isLoading = false;
   };
 
   /**
@@ -1251,72 +1225,86 @@ export class Router {
    * @param {boolean} [forceLoad]
    */
   loadPath = async (rawPath, navigate, _event, replace, forceLoad) => {
-    const [pathRoot, pathQuery] = rawPath.split('?');
-    // Ensures that .html is removed from the path.
-    const path =
-      (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
-      (pathQuery ?? '');
-    if (this.currentPath.value?.fullPath === path && !forceLoad) {
-      return;
-    }
+    const callback = async () => {
+      const [pathRoot, pathQuery] = rawPath.split('?');
+      // Ensures that .html is removed from the path.
+      const path =
+        (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
+        (pathQuery ?? '');
+      if (this.currentPath.value?.fullPath === path && !forceLoad) {
+        return;
+      }
 
-    const oldRouterHistoryLength = this.routerHistory.length;
-    const oldTitle = this.window?.document.title;
-    const wasLoaded = await this.updateDOMWithMatchingPath(path);
-    const newRouterHistoryLength = this.routerHistory.length;
+      const oldRouterHistoryLength = this.routerHistory.length;
+      const oldTitle = this.window?.document.title;
+      const wasLoaded = await this.updateDOMWithMatchingPath(path);
+      const newRouterHistoryLength = this.routerHistory.length;
 
-    if (navigate && wasLoaded) {
-      // If the new history length is less than the old history length
-      // in stack mode, it means that the user navigated backwards in the history.
-      // We keep popping the browser history till they are equal in length.
-      if (this.stackMode && newRouterHistoryLength < oldRouterHistoryLength) {
-        let i = oldRouterHistoryLength;
-        // Detaching the window prevents the router from reacting to any events
-        // triggered by going back.
-        const window = this.window;
-        this.window = undefined;
-        if (window) {
-          while (newRouterHistoryLength < i) {
-            window.history.back();
-            i--;
+      if (navigate && wasLoaded) {
+        // If the new history length is less than the old history length
+        // in stack mode, it means that the user navigated backwards in the history.
+        // We keep popping the browser history till they are equal in length.
+        if (this.stackMode && newRouterHistoryLength < oldRouterHistoryLength) {
+          let i = oldRouterHistoryLength;
+          // Detaching the window prevents the router from reacting to any events
+          // triggered by going back.
+          const window = this.window;
+          this.window = undefined;
+          if (window) {
+            while (newRouterHistoryLength < i) {
+              window.history.back();
+              i--;
+            }
+          }
+          this.window = window;
+          return;
+        }
+
+        // If the new history length is equal to the old history length,
+        // in stack mode, it means no navigation occurred:
+        if (
+          this.stackMode &&
+          newRouterHistoryLength === oldRouterHistoryLength
+        ) {
+          return;
+        }
+
+        // otherwise, we can assume that the user navigated forward in the history.
+        //
+        // Title management becomes difficult here, because if the title
+        // changed during navigation, the browser would end up
+        // storing the new title with the old route,
+        // which leads to a confusing experience.
+        if (this.window) {
+          const isSamePath =
+            this.window.location?.pathname === this.currentPath.value.fullPath;
+          if (isSamePath) return;
+
+          const newTitle = this.window.document?.title;
+          if (oldTitle && newTitle !== oldTitle) {
+            this.window.document.title = oldTitle;
+          }
+
+          const nextPath = this.currentPath.value.fullPath;
+
+          if (replace) {
+            this.window.history?.replaceState(null, '', nextPath);
+          } else this.window.history?.pushState(null, '', nextPath);
+
+          if (newTitle) {
+            this.window.document.title = newTitle;
           }
         }
-        this.window = window;
-        return;
       }
-
-      // If the new history length is equal to the old history length,
-      // in stack mode, it means no navigation occurred:
-      if (this.stackMode && newRouterHistoryLength === oldRouterHistoryLength) {
-        return;
-      }
-
-      // otherwise, we can assume that the user navigated forward in the history.
-      //
-      // Title management becomes difficult here, because if the title
-      // changed during navigation, the browser would end up
-      // storing the new title with the old route,
-      // which leads to a confusing experience.
-      if (this.window) {
-        const isSamePath =
-          this.window.location?.pathname === this.currentPath.value.fullPath;
-        if (isSamePath) return;
-
-        const newTitle = this.window.document?.title;
-        if (oldTitle && newTitle !== oldTitle) {
-          this.window.document.title = oldTitle;
-        }
-
-        const nextPath = this.currentPath.value.fullPath;
-
-        if (replace) {
-          this.window.history?.replaceState(null, '', nextPath);
-        } else this.window.history?.pushState(null, '', nextPath);
-
-        if (newTitle) {
-          this.window.document.title = newTitle;
-        }
-      }
+    };
+    if (
+      this.useViewTransitions &&
+      this.window?.document &&
+      'startViewTransition' in this.window.document
+    ) {
+      await this.window.document.startViewTransition(callback).finished;
+    } else {
+      await callback();
     }
   };
 
@@ -1361,6 +1349,8 @@ export class Router {
     if ('scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
     }
+
+    this.createStylesheet();
 
     this.window?.addEventListener('popstate', async (event) => {
       if (!this.isLoading && this.window) {
