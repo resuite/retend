@@ -5,11 +5,21 @@ import { generateChildNodes } from './utils.js';
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 /**
+ * @template T
+ * @typedef {Record<'true', (value: T) => JSX.Template>
+ * | Record<'false', () => JSX.Template>
+ * | {
+ *   true: (value: T) =>JSX.Template,
+ *   false: () => JSX.Template
+ * }} ConditionObject
+ */
+
+/**
  * Conditionally renders nodes based on the truthiness of a value.
  *
  * @template T
  * @param {T | Cell<T>} value
- * @param {(value: NonNullable<T>) => JSX.Template} fn
+ * @param {((value: NonNullable<T>) => JSX.Template) | ConditionObject<T>} fnOrObject
  * @param {() => JSX.Template} [elseFn] - Optional callback for falsy values
  * @returns {JSX.Template}
  *
@@ -39,19 +49,36 @@ import { generateChildNodes } from './utils.js';
  * isLoggedIn.value = true;
  * // The welcome message will now be displayed
  */
-export function If(value, fn, elseFn) {
+export function If(value, fnOrObject, elseFn) {
   /** @type {Node[]} */
   let nodes = [];
 
   if (!Cell.isCell(value)) {
-    if (value) {
-      return fn(value);
+    if (typeof fnOrObject === 'function') {
+      if (value) {
+        return fnOrObject(value);
+      }
+
+      if (elseFn) {
+        return elseFn();
+      }
+
+      return;
     }
 
-    if (elseFn) {
-      return elseFn();
+    if (typeof fnOrObject === 'object') {
+      if (value && 'true' in fnOrObject) {
+        return fnOrObject.true(value);
+      }
+
+      if (!value && 'false' in fnOrObject) {
+        return fnOrObject.false();
+      }
     }
 
+    console.error(
+      'If expects a callback or condition object as the second argument.'
+    );
     return;
   }
 
@@ -66,13 +93,27 @@ export function If(value, fn, elseFn) {
       nextNode = rangeStart.nextSibling;
     }
 
-    if (value) {
-      nodes = generateChildNodes(fn(value));
-    } else if (elseFn) {
-      nodes = generateChildNodes(elseFn());
-    } else {
-      nodes = [];
-    }
+    if (typeof fnOrObject === 'function') {
+      if (value) {
+        nodes = generateChildNodes(fnOrObject(value));
+      } else if (elseFn) {
+        nodes = generateChildNodes(elseFn());
+      } else {
+        nodes = [];
+      }
+    } else if (typeof fnOrObject === 'object') {
+      if (value && 'true' in fnOrObject) {
+        nodes = generateChildNodes(fnOrObject.true(value));
+      } else if (!value && 'false' in fnOrObject) {
+        nodes = generateChildNodes(fnOrObject.false());
+      } else {
+        nodes = [];
+      }
+    } else
+      console.error(
+        'If expects a callback or condition object as the second argument.'
+      );
+
     rangeStart.after(...nodes);
   };
 
