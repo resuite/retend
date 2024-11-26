@@ -328,16 +328,18 @@ export class Router {
     const a = this.window?.document.createElement('a');
     if (!props || !('href' in props)) {
       console.error('missing to attribute for link component.');
+    } else {
+      // @ts-expect-error: a is not of type JsxElement.
+      setAttributeFromProps(a, 'href', props.href);
     }
     if (props && 'active' in props) {
       console.error('active attribute is reserved for router.');
     }
     const currentRoute = this.getCurrentRoute();
-    currentRoute.listen(({ fullPath }) => {
-      a.toggleAttribute(
-        'active',
-        Boolean(fullPath && a.dataset.href?.startsWith(fullPath))
-      );
+    currentRoute.runAndListen(({ fullPath }) => {
+      const href = a.getAttribute('href');
+      const isActive = Boolean(fullPath && href && href.startsWith(fullPath));
+      a.toggleAttribute('active', isActive);
     });
 
     if (props) {
@@ -679,7 +681,7 @@ export class Router {
   replace = async (path) => {
     if (path === '#') return;
     this.isLoading = true;
-    await this.loadPath(path, true);
+    await this.loadPath(path, true, undefined, true);
     this.isLoading = false;
   };
 
