@@ -260,6 +260,9 @@ export function setAttribute(element, key, value) {
     );
     // remove stale listeners
     element.removeEventListener(eventName, value);
+    if (!element.__eventListenerList) {
+      element.__eventListenerList = new Map();
+    }
     const oldValue = element.__eventListenerList.get(eventName)?.at(0);
     if (oldValue !== undefined && oldValue !== value) {
       element.removeEventListener(eventName, oldValue);
