@@ -1,6 +1,6 @@
 {
   "name": "@adbl/unfinished",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "JSX -> Dom Elements.",
   "private": false,
   "type": "module",
@@ -56,7 +56,7 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@adbl/cells": "latest",
+    "@adbl/cells": "^0.0.10",
     "csstype": "^3.1.3"
   }
 }
