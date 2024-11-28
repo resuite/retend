@@ -14,6 +14,9 @@
  * The component to render when the route is matched.
  * @property {RouteRecord<T>[]} children
  * An array of child routes.
+ * @property {string} [transitionType]
+ * The active view transition type for the route. This will be set on the document
+ * whenever the route is being transitioned to.
  */
 
 /**
@@ -35,6 +38,10 @@
  *
  * @property {T} component
  * The component to render when the route is matched.
+ *
+ * @property {string} [transitionType]
+ * The active view transition type for the route. This will be set on the document
+ * whenever the route is being transitioned to.
  */
 
 /**
@@ -54,6 +61,7 @@ export class Route {
   /** @type {string} */ fullPath = '';
   /** @type {string | null} */ redirect = null;
   /** @type {T | null} */ component = null;
+  /** @type {string | null} */ transitionType = null;
   /** @type {boolean} */ isActive = false;
   /** @type {boolean} */ isDynamic = false;
   /** @type {boolean} */ isWildcard = false;
@@ -80,6 +88,7 @@ export class MatchedRoute {
   /** @type {boolean} */ isDynamic;
   /** @type {boolean} */ isTransient;
   /** @type {MatchedRoute<T> | null} */ child;
+  /** @type {string | null} */ transitionType;
 
   /**
    * @param {Route<T>} route
@@ -93,6 +102,7 @@ export class MatchedRoute {
     this.isTransient = route.isTransient;
     this.child = null;
     this.title = route.title;
+    this.transitionType = route.transitionType;
   }
 }
 
@@ -406,6 +416,7 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     }
     current.redirect = routeRecord.redirect ?? null;
     current.title = routeRecord.title ?? null;
+    current.transitionType = routeRecord.transitionType ?? null;
 
     const fullPath = `${parentFullPath}/${routeRecord.path}`;
     current.fullPath = fullPath.replace(/\/+/g, '/');

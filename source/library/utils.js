@@ -7,15 +7,18 @@ export const isDevMode = import.meta.env?.DEV;
  * Observes when an element is connected to the DOM and executes a callback
  * @param {Element} element - The element to observe
  * @param {() => void} callback - Function to execute when element is connected
+ * @param {boolean} [persist] Keeps checking the element for DOM connections.
  * @returns {{ disconnect: () => void }} Object with method to stop observing
  */
-export function onConnected(element, callback) {
+export function onConnected(element, callback, persist) {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === 'childList') {
         if (document.contains(element)) {
           callback();
-          observer.disconnect();
+          if (!persist) {
+            observer.disconnect();
+          }
           break;
         }
       }

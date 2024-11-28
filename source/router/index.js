@@ -51,15 +51,23 @@ const RELAY_ID_REGEX =
 
 /**
  * @typedef {Object} ExtraLinkData
+ *
+ * @property {boolean} [replace]
+ * Whether to replace the current history entry with the new path.
+ *
+ * @property {JSX.ValueOrCell<(this: HTMLAnchorElement, event: RouterNavigationEvent) => void>} [onBeforeNavigate]
+ * A callback function that is called before the navigation starts.
+ * It receives a custom `RouterNavigationEvent` object as an argument.
+ *
+ * @property {JSX.ValueOrCell<(this: HTMLAnchorElement, event: RouterNavigationEvent) => void>} [onAfterNavigate]
+ * A callback function that is called after the navigation ends.
+ * It receives a custom `RouterNavigationEvent` object as an argument.
  */
 
 /** @typedef {HTMLElement | SVGAElement | MathMLElement} DomElement */
 
 /**
  * @typedef {Object} ExtraOutletData
- * @property {AnimationOptions} [animationOptions]
- * These define the animation properties to be applied to the children
- * of the outlet when the path changes.
  *
  * @property {boolean} [keepAlive]
  * As the outlet's children change, the outlet keeps track
@@ -119,8 +127,14 @@ const RELAY_ID_REGEX =
  */
 
 /**
+ * @typedef {Object} NavigationOptions
+ *
+ * @property {boolean} [replace]
+ * Whether to replace the current history entry with the new path.
+ */
+
+/**
  * @typedef {HTMLDivElement & {
- *  __animationOptions?: AnimationOptions;
  *  __keepAlive?: boolean;
  *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  * }} RouterOutlet
@@ -160,7 +174,8 @@ let ROUTER_INSTANCE = null;
  * go back or forward based on the route history.
  *
  * @property {boolean} [useViewTransitions]
- * If set to true, all route transitions will be wrapped in a view transition callback.
+ * If set to `true`, the router will use browser view transitions when navigating between routes.
+ *
  */
 
 /**
@@ -169,51 +184,15 @@ let ROUTER_INSTANCE = null;
  */
 
 /**
- * @typedef {'onBeforeEnter' | 'onBeforeExit' | 'onAfterEnter' | 'onAfterExit'} AnimationCallbackKey
- */
-
-/** @typedef {(nodes: Node[]) => PromiseOrNot<void | Omit<AnimationOptions, AnimationCallbackKey>>} PreAnimationCallback */
-
-/** @typedef {(nodes: Node[]) => PromiseOrNot<void>} PostAnimationCallback */
-
-/**
- * @typedef AnimationOptions
- *
- * @property {string} [name]
- * The base name to apply to the animation elements.
- * When the animation is triggered, the keyframe name will be used to look for `{name}-enter` and `{name}-leave` CSS animation.
- * These keyframes can be combined in different ways to create complex transition effects.
- *
- * @property {number} [duration]
- * The duration of the animation in milliseconds.
- *
- * @property {string} [easing]
- * The easing function for the animation.
- *
- * @property {PreAnimationCallback} [onBeforeEnter]
- * A function that is called before the animation starts.
- * It receives an array of nodes that are about to be animated in.
- * The function can return an object with different `name` and `duration` properties to customize the animation.
- *
- * @property {PreAnimationCallback} [onBeforeExit]
- * A function that is called before the animation ends.
- * It receives an array of nodes that are about to be animated out.
- * The function can return an object with `className` and `duration` properties to customize the animation.
- *
- * @property {PostAnimationCallback} [onAfterEnter]
- * A function that is called after the entering animation ends.
- *
- * @property {PostAnimationCallback} [onAfterExit]
- * A function that is called after the exit animation ends.
+ * @typedef {'forwards' | 'backwards'} NavigationDirection
  */
 
 /**
- * @typedef {'normal' | 'reverse'} NavigationDirection
+ * @typedef {NavigationOptions & { href: string }} RouterNavigationEventDetail
  */
 
-/**
- * @typedef {CSSTransition & { __pausedByRelay: boolean }} RelayAnimation
- */
+/** @extends {CustomEvent<RouterNavigationEventDetail>} */
+export class RouterNavigationEvent extends CustomEvent {}
 
 /**
  * A client-side router for building dynamic web applications.
@@ -239,7 +218,7 @@ let ROUTER_INSTANCE = null;
  * <router.Link href="/about">About</router.Link>
  * ```
  *
- * The router provides additional features like animations, caching, and
+ * The router provides additional features like caching and
  * advanced navigation patterns that can be added as your needs grow.
  */
 export class Router {
@@ -291,6 +270,7 @@ export class Router {
     this.redirectStackCount = 0;
     this.params = new Map();
     this.stackMode = routeOptions.stackMode ?? false;
+    this.useViewTransitions = routeOptions.useViewTransitions ?? false;
     this.routerHistory = [];
     this.sheet = undefined;
     this.Link = this.Link.bind(this);
@@ -300,7 +280,6 @@ export class Router {
     this.replace = this.replace.bind(this);
     this.back = this.back.bind(this);
     this.navigate = this.navigate.bind(this);
-    this.useViewTransitions = routeOptions.useViewTransitions ?? false;
   }
 
   /**
@@ -343,7 +322,7 @@ export class Router {
     });
 
     if (props) {
-      const { children, ...rest } = props;
+      const { children, replace, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         // @ts-expect-error: a is not of type JsxElement.
         setAttributeFromProps(a, key, value);
@@ -356,7 +335,7 @@ export class Router {
     /**
      * @param {Event} event
      */
-    const handleNavigate = (event) => {
+    const handleNavigate = async (event) => {
       if (this.isLoading) {
         event.preventDefault();
         return;
@@ -365,8 +344,21 @@ export class Router {
       // For valid URLs, the browser will handle the navigation.
       const href = a.getAttribute('href');
       if (href && !URL.canParse(href)) {
+        const replace = props?.replace;
         event.preventDefault();
-        this.navigate(href);
+        const beforeEvent = new RouterNavigationEvent('beforenavigate', {
+          detail: { href, replace },
+          cancelable: true,
+        });
+        a.dispatchEvent(beforeEvent);
+        if (beforeEvent.defaultPrevented) return;
+
+        await this.navigate(href, { replace });
+
+        const afterEvent = new RouterNavigationEvent('afternavigate', {
+          detail: { href, replace },
+        });
+        a.dispatchEvent(afterEvent);
       }
     };
 
@@ -389,14 +381,6 @@ export class Router {
    * ```tsx
    * // Basic usage
    * <router.Outlet />
-   *
-   * // With animations
-   * <router.Outlet
-   *   animationOptions={{
-   *     name: 'fade',
-   *     duration: 300,
-   *   }}
-   * />
    * ```
    */
   Outlet(props) {
@@ -408,13 +392,7 @@ export class Router {
     const outlet = this.window.document.createElement('div');
 
     if (props) {
-      const {
-        keepAlive,
-        maxKeepAliveCount,
-        animationOptions,
-        children,
-        ...rest
-      } = props;
+      const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         // @ts-expect-error: The outlet is not of the type JsxElement.
         setAttributeFromProps(outlet, key, value);
@@ -427,9 +405,6 @@ export class Router {
     outlet.toggleAttribute('data-x-outlet', true);
 
     if (props) {
-      if (props.animationOptions) {
-        outlet.__animationOptions = props.animationOptions;
-      }
       if (props.keepAlive) {
         outlet.__keepAlive = props.keepAlive;
         const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
@@ -457,7 +432,7 @@ export class Router {
    *
    * The Relay component ensures that shared state and DOM elements remain consistent
    * across route changes by linking relay instances using unique identifiers.
-   * Animations and transitions are not supported.
+   * Animations and transitions are not supported, but they can be added using the View Transitions API.
    *
    * @type {<Props, SourceFn extends (props: Props) => JSX.Template>(props: RouterRelayProps<Props, SourceFn>) => HTMLDivElement}
    * @returns {HTMLDivElement} A container element for managing and persisting state across routes.
@@ -635,16 +610,16 @@ export class Router {
    * 1. Updates the URL without page reload
    * 2. Matches the new path to a route
    * 3. Runs configured middleware
-   * 4. Handles route transitions and animations
-   * 5. Updates the browser history
+   * 4. Updates the browser history
    *
    * @param {string} path - The path to navigate to
+   * @param {NavigationOptions} [options]
    * @return {Promise<void>} A promise that resolves when the navigation is complete.
    */
-  navigate = async (path) => {
+  navigate = async (path, options) => {
     if (path === '#') return;
     this.isLoading = true;
-    await this.loadPath(path, true);
+    await this.loadPath(path, true, undefined, options?.replace, false);
     this.isLoading = false;
   };
 
@@ -660,8 +635,7 @@ export class Router {
    * 1. Updates the URL without page reload
    * 2. Matches the new path to a route
    * 3. Runs configured middleware
-   * 4. Handles route transitions and animations
-   * 5. Updates the browser history
+   * 4. Updates the browser history
    *
    * @example
    *
@@ -687,9 +661,6 @@ export class Router {
 
   /**
    * Navigates back in the browser's history.
-   *
-   * When called, triggers a history.back() which the router will detect and handle,
-   * running any configured exit animations in reverse.
    *
    * @example
    * ```tsx
@@ -772,18 +743,24 @@ export class Router {
   }
 
   /**
+   * @private
    * Loads the route component corresponding to the specified path into the router outlet.
    *
    * @param {string} path
+   * @param {boolean | undefined} replace
+   * @param {string[]} viewTransitionTypesArray
    * @returns {Promise<boolean>} A promise that resolves to `true` if the route was loaded successfully, `false` otherwise.
    */
-  updateDOMWithMatchingPath = async (path) => {
+  updateDOMWithMatchingPath = async (
+    path,
+    replace,
+    viewTransitionTypesArray
+  ) => {
     if (path === '#') {
       return false;
     }
 
     const matchResult = this.routeTree.match(path);
-
     matchResult.flattenTransientRoutes();
     this.params = matchResult.params;
 
@@ -798,7 +775,7 @@ export class Router {
       );
       if (finalPath !== path) {
         if (finalPath !== undefined) {
-          await this.navigate(finalPath);
+          await this.navigate(finalPath, { replace });
         }
         return false;
       }
@@ -818,20 +795,20 @@ export class Router {
     let lastMatchedRoute = matchResult.subTree;
     /** @type {MatchedRoute<ComponentOrComponentLoader> | null} */
     let currentMatchedRoute = matchResult.subTree;
-    let outletIndex = 0;
-    /** @type {RouterOutlet[]} */
-    const outlets = Array.from(
-      this.window?.document.querySelectorAll('div[data-x-outlet]') ?? []
-    );
+    /** @type {RouterOutlet} */ //@ts-ignore
+    let outlet = this.window?.document.querySelector('div[data-x-outlet]');
+
+    if (!outlet) return false;
 
     while (currentMatchedRoute) {
-      const outlet = outlets[outletIndex];
-      if (outlet === undefined) break;
+      if (!outlet) break;
 
       if (outlet.dataset.path === currentMatchedRoute.fullPath) {
-        outletIndex++;
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
+        outlet = /** @type {RouterOutlet} */ (
+          outlet?.querySelector('div[data-x-outlet]')
+        );
         continue;
       }
 
@@ -844,13 +821,12 @@ export class Router {
         matchedComponentOrLazyLoader === null ||
         matchedComponentOrLazyLoader === undefined
       ) {
-        const outlet = outlets[outletIndex];
         if (currentMatchedRoute.child) {
           currentMatchedRoute = currentMatchedRoute.child;
           continue;
         }
         if (currentMatchedRoute.redirect) {
-          await this.navigate(currentMatchedRoute.redirect);
+          await this.navigate(currentMatchedRoute.redirect, { replace });
           return false;
         }
 
@@ -895,7 +871,7 @@ export class Router {
       if (snapshot) {
         renderedComponent = snapshot.nodes;
       } else {
-        renderedComponent = matchedComponent();
+        renderedComponent = await matchedComponent();
       }
 
       matchedComponent.__routeLevelFunction = true;
@@ -912,7 +888,17 @@ export class Router {
         return false;
       }
 
-      const animationDirection = this.chooseNavigationDirection(fullPath);
+      // There is no feasible way to determine the final navigation direction
+      // for view transitions, without already triggering a view transition.
+      // Mind bending nonsense.
+      const navigationDirection = this.chooseNavigationDirection(
+        fullPath,
+        replace
+      );
+      viewTransitionTypesArray[0] = navigationDirection;
+      if (currentMatchedRoute.transitionType) {
+        viewTransitionTypesArray[1] = currentMatchedRoute.transitionType;
+      }
 
       // if the outlet is keep alive, we need to cache the current nodes
       if (outlet.__keepAlive && oldPath) {
@@ -930,39 +916,30 @@ export class Router {
         maxInstanceCount: 1,
       });
 
-      const replaced = await this.handleAnimationsAndRelays(
-        outlet,
-        newNodes,
-        animationDirection
-      );
-      if (!replaced) {
-        renderRouteIntoOutlet(outlet, newNodes, this.window);
+      const newNodesRelayed = await this.handleRelays(outlet, newNodes);
+      if (newNodesRelayed) {
+        const nodes = Array.from(newNodesRelayed.childNodes);
+        renderRouteIntoOutlet(outlet, nodes, this.window);
       }
 
-      if (
-        this.window &&
-        (currentMatchedRoute.title || lastMatchedRoute.title)
-      ) {
-        const title = currentMatchedRoute.title || lastMatchedRoute.title || '';
-        this.window.document.title = title;
-      }
-
-      outletIndex++;
       lastMatchedRoute = currentMatchedRoute;
       currentMatchedRoute = currentMatchedRoute.child;
-    }
-
-    for (const spareOutlet of Array.from(outlets).slice(outletIndex)) {
-      spareOutlet.removeAttribute('path');
-      spareOutlet.replaceChildren();
+      outlet = /** @type {RouterOutlet} */ (
+        outlet?.querySelector('div[data-x-outlet]')
+      );
     }
 
     if (lastMatchedRoute.redirect && lastMatchedRoute.redirect !== path) {
-      await this.navigate(lastMatchedRoute.redirect);
+      await this.navigate(lastMatchedRoute.redirect, { replace });
     }
 
     if (this.redirectStackCount > 0) {
       this.redirectStackCount--;
+    }
+
+    if (this.window && (currentMatchedRoute?.title || lastMatchedRoute.title)) {
+      const title = currentMatchedRoute?.title || lastMatchedRoute.title || '';
+      this.window.document.title = title;
     }
 
     return true;
@@ -975,21 +952,28 @@ export class Router {
   /**
    * @private
    * @param {string} targetPath
+   * @param {boolean} [replace]
    * @returns {NavigationDirection}
    */
-  chooseNavigationDirection = (targetPath) => {
+  chooseNavigationDirection = (targetPath, replace) => {
     /** @type {NavigationDirection} */
-    let animationDirection = 'normal';
+    let navigationDirection = 'forwards';
     const currentPath = this.routerHistory.at(-1);
     if (!this.stackMode || currentPath === targetPath) {
-      return animationDirection;
+      return navigationDirection;
+    }
+
+    if (replace) {
+      this.routerHistory.pop();
+      this.routerHistory.push(targetPath);
+      return navigationDirection;
     }
 
     const previousIndex = this.routerHistory.findLastIndex(
       (path) => path === targetPath
     );
     if (previousIndex !== -1) {
-      animationDirection = 'reverse';
+      navigationDirection = 'backwards';
       while (this.routerHistory.length > previousIndex + 1) {
         this.popHistory();
       }
@@ -998,7 +982,7 @@ export class Router {
       this.pushHistory(targetPath);
     }
 
-    return animationDirection;
+    return navigationDirection;
   };
 
   /**
@@ -1006,34 +990,26 @@ export class Router {
    */
   getCurrentRoute() {
     return Cell.derived(() => {
-      return {
-        ...this.currentPath.value,
-      };
+      return { ...this.currentPath.value };
     });
   }
 
   /**
    * @private
-   * Handles animations and relaying for DOM elements during route changes.
+   * Handles relaying for DOM elements during route changes.
    * @param {RouterOutlet} outlet - The DOM element that will contain the new route content.
    * @param {Node[]} newNodes - The DOM elements that will be added to the outlet.
-   * @param {NavigationDirection} animationDirection - The direction of the animation, either 'enter' or 'exit'.
-   *
-   * @returns {Promise<void | boolean>}
-   * A Promise that resolves when the animations are complete. It will return true if the nodes were replaced
-   * during animation.
+   * @returns {Promise<DocumentFragment | undefined>}
    */
-  handleAnimationsAndRelays = async (outlet, newNodes, animationDirection) => {
-    const animationOptions = outlet.__animationOptions ?? {};
+  handleRelays = async (outlet, newNodes) => {
     if (!this.window) return;
 
     // ---------------
     // Handling relays
     // ---------------
-    /** @type {RouterRelay[]} */
-    const exitRelayNodes = Array.from(
-      outlet.querySelectorAll('[data-x-relay]')
-    );
+    /** @type {NodeListOf<RouterRelay>} */
+    const exitRelayNodeList = outlet.querySelectorAll('[data-x-relay]');
+    const exitRelayNodes = Array.from(exitRelayNodeList);
     /** @type {Map<string, RouterRelay>} */
     const exitRelayNodeMap = new Map();
     for (const relayNode of exitRelayNodes) {
@@ -1049,175 +1025,49 @@ export class Router {
       holder.querySelectorAll('[data-x-relay]')
     );
 
-    const relayExecutor = async () => {
-      for (const enterRelay of enterRelayNodes) {
-        const name = enterRelay.dataset.xRelayName;
-        const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
-        if (!correspondingExit) {
-          // No corresponding exit relay found.
-          // if the relay already has contents, it is most likely a relay that was
-          // cached and is being reused. We can skip the render step.
-          if (enterRelay.childNodes.length === 0 || !outlet.__keepAlive) {
-            const props = enterRelay.__props ?? {};
-            /** @type {Node[]} */
-            let relayContents = [];
-            if (enterRelay.__render) {
-              relayContents = generateChildNodes(enterRelay.__render(props));
-              linkNodesToComponent(relayContents, enterRelay.__render, props);
-            }
-            enterRelay.replaceChildren(...relayContents);
-            enterRelay.__onNodesReceived?.(relayContents);
-          } else {
-            enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
+    for (const enterRelay of enterRelayNodes) {
+      const name = enterRelay.dataset.xRelayName;
+      const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
+      if (!correspondingExit) {
+        // No corresponding exit relay found.
+        // if the relay already has contents, it is most likely a relay that was
+        // cached and is being reused. We can skip the render step.
+        if (enterRelay.childNodes.length === 0 || !outlet.__keepAlive) {
+          const props = enterRelay.__props ?? {};
+          /** @type {Node[]} */
+          let relayContents = [];
+          if (enterRelay.__render) {
+            relayContents = generateChildNodes(enterRelay.__render(props));
+            linkNodesToComponent(relayContents, enterRelay.__render, props);
           }
-          continue;
+          enterRelay.replaceChildren(...relayContents);
+          enterRelay.__onNodesReceived?.(relayContents);
+        } else {
+          enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
         }
-
-        // There are interesting instances where, due to keep-alive, the same relay
-        // node is used for both enter and exit relays. In this case there is
-        // really nothing to do.
-        if (correspondingExit === enterRelay) {
-          continue;
-        }
-
-        // A corresponding exit relay was found.
-        const exitRelayContents = Array.from(correspondingExit.childNodes);
-        correspondingExit.__onNodesSent?.(exitRelayContents);
-
-        enterRelay.replaceChildren(...exitRelayContents);
-        enterRelay.__onNodesReceived?.(exitRelayContents);
-      }
-    };
-
-    const getExitOptions = async () => {
-      const oldNodes = Array.from(outlet.childNodes);
-      //@ts-ignore
-      const options = {
-        ...animationOptions,
-        ...(await animationOptions.onBeforeExit?.(oldNodes)),
-      };
-      return options;
-    };
-
-    // ---------------
-    // Exiting previous nodes.
-    // ---------------
-    /** @type {HTMLDivElement | undefined} */
-    let transientLayer;
-    const prepareForExit = async () => {
-      const options = await getExitOptions();
-      if (!this.window || !outlet.__animationOptions) return options;
-
-      // To allow exit and entry to run in parallel,
-      // we need to move the old nodes out of the outlet
-      // into a transient layer, so that they are visible
-      // while animating, but do not interfere with the
-      // entry animation.
-      const outletRect = outlet.getBoundingClientRect();
-      transientLayer = /** @type {HTMLDivElement} */ (outlet.cloneNode());
-      transientLayer.removeAttribute('data-router-id');
-      transientLayer.removeAttribute('data-path');
-      transientLayer.removeAttribute('data-x-outlet');
-      transientLayer.style.position = 'fixed';
-      transientLayer.style.top = `${outletRect.top}px`;
-      transientLayer.style.left = `${outletRect.left}px`;
-      transientLayer.style.width = `${outletRect.width}px`;
-      transientLayer.style.height = `${outletRect.height}px`;
-      transientLayer.style.pointerEvents = 'none';
-
-      transientLayer.append(...Array.from(outlet.childNodes));
-
-      this.window?.document.body.append(transientLayer);
-
-      return options;
-    };
-    /**
-     * @param {Partial<AnimationOptions>} options
-     */
-    const exitAnimationExecutor = async (options) => {
-      const { name, duration, easing } = options;
-      const oldNodes = Array.from(transientLayer?.childNodes ?? []);
-
-      await Promise.all(
-        oldNodes.map(async (node) => {
-          if (!name || !('style' in node || 'getAnimations' in node)) return;
-          const element = /** @type {DomElement} */ (node);
-          const finalDuration = `${duration ?? 0}ms`;
-          const finalEasing = easing ?? 'ease-in';
-          const finalName =
-            animationDirection === 'reverse' ? `${name}-enter` : `${name}-exit`;
-          // duration | easing-function | delay | iteration-count | direction | fill-mode | name
-          element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName}`;
-          await Promise.all(element.getAnimations().map((a) => a.finished));
-        })
-      );
-      await animationOptions.onAfterExit?.(oldNodes);
-      // // The animations are removed after the hook runs so that they don't glitch
-      // // back to their original state if there is a delay.
-      for (const node of oldNodes) {
-        if (!('style' in node)) continue;
-        const element = /** @type {DomElement} */ (node);
-        element.style.removeProperty('animation');
+        continue;
       }
 
-      transientLayer?.remove();
-    };
-
-    // Entering new nodes.
-    const enterAnimationExecutor = async () => {
-      const newNodes = Array.from(holder.childNodes);
-      const { name, duration, easing } = {
-        ...animationOptions,
-        ...(await animationOptions.onBeforeEnter?.(newNodes)),
-      };
-      if (!name) {
-        renderRouteIntoOutlet(outlet, newNodes, this.window);
-        await animationOptions.onAfterEnter?.(newNodes);
-        return;
+      // There are interesting instances where, due to keep-alive, the same relay
+      // node is used for both enter and exit relays. In this case there is
+      // really nothing to do.
+      if (correspondingExit === enterRelay) {
+        continue;
       }
 
-      for (const node of newNodes) {
-        // Skip non-HTML elements, and elements created in non-browser environments.
-        if (!('style' in node || 'getAnimations' in node)) continue;
-        const element = /** @type {DomElement} */ (node);
+      // A corresponding exit relay was found.
+      const exitRelayContents = Array.from(correspondingExit.childNodes);
+      correspondingExit.__onNodesSent?.(exitRelayContents);
 
-        const finalDuration = `${duration ?? 0}ms`;
-        const finalEasing = easing ?? 'ease-in';
-        const finalName =
-          animationDirection === 'reverse' ? `${name}-exit` : `${name}-enter`;
+      enterRelay.replaceChildren(...exitRelayContents);
+      enterRelay.__onNodesReceived?.(exitRelayContents);
+    }
 
-        // duration | easing-function | delay | iteration-count | direction | fill-mode | name
-        element.style.animation = `${finalDuration} ${finalEasing} 0s 1 ${animationDirection} both ${finalName} `;
-      }
-
-      // The new nodes need to be added to the DOM before the animation starts.
-      renderRouteIntoOutlet(outlet, newNodes, this.window);
-
-      const finishes = Promise.all(
-        newNodes.map(async (node) => {
-          // Skip non-HTML elements, and elements created in non-browser environments.
-          if (!('style' in node || 'getAnimations' in node)) return;
-
-          const element = /** @type {DomElement} */ (node);
-          await Promise.all(element.getAnimations().map((a) => a.finished));
-          element.style.removeProperty('animation');
-        })
-      ).then(() => animationOptions.onAfterEnter?.(newNodes));
-
-      await finishes;
-    };
-
-    /** @type {Partial<AnimationOptions>} */
-    await relayExecutor();
-    const exitOptions = await prepareForExit();
-    await Promise.all([
-      exitAnimationExecutor(exitOptions),
-      enterAnimationExecutor(),
-    ]);
-    return true;
+    return holder;
   };
 
   /**
+   * @private
    * Loads the matching routes for a path.
    * @param {string} rawPath
    * @param {boolean} [navigate]
@@ -1227,19 +1077,26 @@ export class Router {
    * @param {boolean} [forceLoad]
    */
   loadPath = async (rawPath, navigate, _event, replace, forceLoad) => {
-    const callback = async () => {
-      const [pathRoot, pathQuery] = rawPath.split('?');
-      // Ensures that .html is removed from the path.
-      const path =
-        (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
-        (pathQuery ?? '');
-      if (this.currentPath.value?.fullPath === path && !forceLoad) {
-        return;
-      }
+    const [pathRoot, pathQuery] = rawPath.split('?');
+    // Ensures that .html is removed from the path.
+    const path =
+      (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
+      (pathQuery ?? '');
+    if (this.currentPath.value?.fullPath === path && !forceLoad) {
+      return;
+    }
 
-      const oldRouterHistoryLength = this.routerHistory.length;
-      const oldTitle = this.window?.document.title;
-      const wasLoaded = await this.updateDOMWithMatchingPath(path);
+    const oldRouterHistoryLength = this.routerHistory.length;
+    const oldTitle = this.window?.document.title;
+    /** @type {string[]} */
+    const viewTransitionTypes = [];
+
+    const callback = async () => {
+      const wasLoaded = await this.updateDOMWithMatchingPath(
+        path,
+        replace,
+        viewTransitionTypes
+      );
       const newRouterHistoryLength = this.routerHistory.length;
 
       if (navigate && wasLoaded) {
@@ -1247,27 +1104,8 @@ export class Router {
         // in stack mode, it means that the user navigated backwards in the history.
         // We keep popping the browser history till they are equal in length.
         if (this.stackMode && newRouterHistoryLength < oldRouterHistoryLength) {
-          let i = oldRouterHistoryLength;
-          // Detaching the window prevents the router from reacting to any events
-          // triggered by going back.
-          const window = this.window;
-          this.window = undefined;
-          if (window) {
-            while (newRouterHistoryLength < i) {
-              window.history.back();
-              i--;
-            }
-          }
-          this.window = window;
-          return;
-        }
-
-        // If the new history length is equal to the old history length,
-        // in stack mode, it means no navigation occurred:
-        if (
-          this.stackMode &&
-          newRouterHistoryLength === oldRouterHistoryLength
-        ) {
+          const negativeDiff = newRouterHistoryLength - oldRouterHistoryLength;
+          this.window?.history.go(negativeDiff);
           return;
         }
 
@@ -1289,7 +1127,7 @@ export class Router {
 
           const nextPath = this.currentPath.value.fullPath;
 
-          if (replace) {
+          if (replace || newRouterHistoryLength === oldRouterHistoryLength) {
             this.window.history?.replaceState(null, '', nextPath);
           } else this.window.history?.pushState(null, '', nextPath);
 
@@ -1299,12 +1137,20 @@ export class Router {
         }
       }
     };
-    if (
-      this.useViewTransitions &&
-      this.window?.document &&
-      'startViewTransition' in this.window.document
-    ) {
-      await this.window.document.startViewTransition(callback).finished;
+
+    if (this.useViewTransitions && this.window?.document.startViewTransition) {
+      const transition = this.window.document.startViewTransition(callback);
+      // It's weird.
+      // The navigation direction cannot be determined until the router has finished updating the DOM.
+      // But since its required for accurate view transitions, we need to wait for the update to finish.
+      // Better men would have written better code.
+      transition.updateCallbackDone.then(() => {
+        for (const type of viewTransitionTypes) {
+          // @ts-ignore: The types property is not available yet in Typescript.
+          /** @type {Set<string>} */ transition.types?.add(type);
+        }
+      });
+      await transition.finished;
     } else {
       await callback();
     }
