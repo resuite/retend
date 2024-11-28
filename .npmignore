@@ -5,6 +5,7 @@ deno.lock
 .github
 .gitignore
 .vscode
+vault
 examples
 .gitpod.yml
 scripts
