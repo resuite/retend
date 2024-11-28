@@ -2,6 +2,7 @@ tsconfig.json
 bun.lockb
 deno.json
 deno.lock
+.github
 .gitignore
 .vscode
 examples
