@@ -1,10 +1,6 @@
 import { Cell, SourceCell } from '@adbl/cells';
 import { setAttributeFromProps, appendChild } from '../library/jsx.js';
-import {
-  generateChildNodes,
-  FixedSizeMap,
-  onConnected,
-} from '../library/utils.js';
+import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
@@ -411,18 +407,6 @@ export class Router {
         outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
       }
     }
-
-    onConnected(outlet, () => {
-      if (this.currentPath.value.fullPath) {
-        this.loadPath(
-          this.currentPath.value.fullPath,
-          false,
-          undefined,
-          false,
-          true
-        );
-      }
-    });
 
     return outlet;
   }
