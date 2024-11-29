@@ -176,7 +176,7 @@ export function appendChild(element, tagname, child) {
       'div'
     );
     temp.innerHTML = childNode.outerHTML;
-    element.append(...Array.from(temp.children));
+    element.append(...temp.children);
     return;
   }
 

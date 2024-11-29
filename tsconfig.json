@@ -4,7 +4,7 @@
     "noUnusedParameters": true,
     "noImplicitAny": true,
     "allowUnreachableCode": false,
-    "lib": ["DOM", "ESNext"],
+    "lib": ["DOM", "ESNext", "DOM.Iterable"],
     "target": "ESNext",
 
     "strictFunctionTypes": true,

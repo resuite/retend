@@ -108,7 +108,7 @@ const RELAY_ID_REGEX =
 /**
  * @typedef RouteSnapShot
  *
- * @property {Node[]} nodes
+ * @property {DocumentFragment} fragment
  * The nodes that were in the outlet when the snapshot was taken.
  *
  * @property {[number, number]} outletScroll
@@ -850,10 +850,11 @@ export class Router {
       }
 
       outlet.dataset.path = fullPath;
+      /** @type {JSX.Template} */
       let renderedComponent;
       const snapshot = outlet.__keepAliveCache?.get(path);
       if (snapshot) {
-        renderedComponent = snapshot.nodes;
+        renderedComponent = [...snapshot.fragment.childNodes];
       } else {
         renderedComponent = await matchedComponent();
       }
@@ -885,11 +886,15 @@ export class Router {
       }
 
       // if the outlet is keep alive, we need to cache the current nodes
-      if (outlet.__keepAlive && oldPath) {
-        const nodes = Array.from(outlet.childNodes);
-        recordScrollPositions(nodes);
+      if (outlet.__keepAlive && oldPath && this.window) {
+        // Caching as a fragment instead of an array of nodes
+        // makes it possible for the cached nodes to still be reactive
+        // in a For, Switch or If block, since they are still in a DOM tree.
+        const fragment = this.window.document.createDocumentFragment();
+        fragment.append(...outlet.childNodes);
+        recordScrollPositions(fragment);
         outlet.__keepAliveCache?.set(oldPath, {
-          nodes,
+          fragment,
           outletScroll: [outlet.scrollLeft, outlet.scrollTop],
           windowScroll: [this.window?.scrollX ?? 0, this.window?.scrollY ?? 0],
         });
@@ -900,10 +905,9 @@ export class Router {
         maxInstanceCount: 1,
       });
 
-      const newNodesRelayed = await this.handleRelays(outlet, newNodes);
-      if (newNodesRelayed) {
-        const nodes = Array.from(newNodesRelayed.childNodes);
-        renderRouteIntoOutlet(outlet, nodes, this.window);
+      const newNodesFragment = await this.handleRelays(outlet, newNodes);
+      if (newNodesFragment) {
+        renderRouteIntoOutlet(outlet, newNodesFragment, this.window);
       }
 
       lastMatchedRoute = currentMatchedRoute;
@@ -981,19 +985,18 @@ export class Router {
   /**
    * @private
    * Handles relaying for DOM elements during route changes.
-   * @param {RouterOutlet} outlet - The DOM element that will contain the new route content.
-   * @param {Node[]} newNodes - The DOM elements that will be added to the outlet.
+   * @param {RouterOutlet} oldNodesFragment - The DOM fragment containing the old route content.
+   * @param {Node[]} newNodesArray - The DOM elements that will be added to the outlet.
    * @returns {Promise<DocumentFragment | undefined>}
    */
-  handleRelays = async (outlet, newNodes) => {
+  handleRelays = async (oldNodesFragment, newNodesArray) => {
     if (!this.window) return;
 
     // ---------------
     // Handling relays
     // ---------------
     /** @type {NodeListOf<RouterRelay>} */
-    const exitRelayNodeList = outlet.querySelectorAll('[data-x-relay]');
-    const exitRelayNodes = Array.from(exitRelayNodeList);
+    const exitRelayNodes = oldNodesFragment.querySelectorAll('[data-x-relay]');
     /** @type {Map<string, RouterRelay>} */
     const exitRelayNodeMap = new Map();
     for (const relayNode of exitRelayNodes) {
@@ -1003,12 +1006,9 @@ export class Router {
     }
     // Creating a fragment allows query selector to work on the new nodes.
     const holder = this.window.document.createDocumentFragment();
-    holder.append(...newNodes);
-    /** @type {RouterRelay[]} */
-    const enterRelayNodes = Array.from(
-      holder.querySelectorAll('[data-x-relay]')
-    );
-
+    holder.append(...newNodesArray);
+    /** @type {NodeListOf<RouterRelay>} */
+    const enterRelayNodes = holder.querySelectorAll('[data-x-relay]');
     for (const enterRelay of enterRelayNodes) {
       const name = enterRelay.dataset.xRelayName;
       const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
@@ -1016,7 +1016,10 @@ export class Router {
         // No corresponding exit relay found.
         // if the relay already has contents, it is most likely a relay that was
         // cached and is being reused. We can skip the render step.
-        if (enterRelay.childNodes.length === 0 || !outlet.__keepAlive) {
+        if (
+          enterRelay.childNodes.length === 0 ||
+          !oldNodesFragment.__keepAlive
+        ) {
           const props = enterRelay.__props ?? {};
           /** @type {Node[]} */
           let relayContents = [];
@@ -1312,10 +1315,10 @@ function substituteParameters(path, params) {
 
 /**
  * Traverses through a set of DOM nodes to record their scroll positions.
- * @param {Node[]} nodes
+ * @param {DocumentFragment} fragment
  */
-function recordScrollPositions(nodes) {
-  for (const node of nodes) {
+function recordScrollPositions(fragment) {
+  for (const node of fragment.childNodes) {
     if (!('scrollTop' in node)) continue;
 
     const element = /** @type {RecordedElement} */ (node);
@@ -1327,13 +1330,13 @@ function recordScrollPositions(nodes) {
 /**
  *
  * @param {RouterOutlet} outlet
- * @param {Node[]} newNodes
+ * @param {DocumentFragment} fragment
  * @param {Window} [window]
  */
-function renderRouteIntoOutlet(outlet, newNodes, window) {
-  outlet.replaceChildren(...newNodes);
+function renderRouteIntoOutlet(outlet, fragment, window) {
+  outlet.replaceChildren(...fragment.childNodes);
   if (outlet.__keepAlive) {
-    for (const node of newNodes) {
+    for (const node of outlet.childNodes) {
       if ('__recordedScrollTop' in node) {
         const element = /** @type {RecordedElement} */ (node);
         element.scrollTop = element.__recordedScrollTop;

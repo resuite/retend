@@ -278,7 +278,7 @@ export async function renderToString(template, window) {
 
   if (template instanceof window.DocumentFragment) {
     let textContent = '';
-    for (const child of Array.from(template.childNodes)) {
+    for (const child of template.childNodes) {
       textContent += await renderToString(child, window);
     }
     return textContent;
@@ -301,13 +301,13 @@ export async function renderToString(template, window) {
     if (template instanceof window.Element) {
       let text = `<${template.tagName.toLowerCase()}`;
 
-      for (const attribute of Array.from(template.attributes)) {
+      for (const attribute of template.attributes) {
         text += ` ${attribute.name}="${attribute.value}"`;
       }
 
       text += '>';
 
-      for (const child of Array.from(template.childNodes)) {
+      for (const child of template.childNodes) {
         text += await renderToString(child, window);
       }
 

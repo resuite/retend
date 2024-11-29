@@ -92,16 +92,11 @@ export function For(list, fn) {
       const cachedResult = nodeStore.get(itemKey);
       if (cachedResult === undefined) {
         const i = Cell.source(index);
-        const newNodes = generateChildNodes(fn(item, i, _list));
-        newNodeStore.set(itemKey, {
-          nodes: newNodes,
-          index: i,
-        });
-        newSnapShot.push(...newNodes);
+        const nodes = generateChildNodes(fn(item, i, _list));
+        newNodeStore.set(itemKey, { nodes, index: i });
+        newSnapShot.push(...nodes);
       } else {
-        /**
-         * @type {import('@adbl/cells').SourceCell<number>}
-         */
+        /** @type {import('@adbl/cells').SourceCell<number>} */
         (cachedResult.index).value = index;
         newNodeStore.set(itemKey, cachedResult);
         newSnapShot.push(...cachedResult.nodes);
