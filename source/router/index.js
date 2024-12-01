@@ -19,7 +19,17 @@ const RELAY_ID_REGEX =
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 /**
- * @typedef {LazyRoute | ((() => JSX.Template) & { __routeLevelFunction?: boolean, __routeRenders?: RouteRender[] })} ComponentOrComponentLoader
+ * @typedef {LazyRoute | ((() => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader
+ */
+
+/**
+ * @typedef RouteLevelFunctionData
+ *
+ * @property {boolean} [__routeLevelFunction]
+ *
+ * @property {WeakRef<RouterOutlet>} [__renderedOutlet]
+ *
+ * @property {string} [__renderedPath]
  */
 
 /**
@@ -33,16 +43,6 @@ const RELAY_ID_REGEX =
 
 /**
  * @typedef {RouteRecords[number]} RouteRecord
- */
-
-/**
- * @typedef RouteRender
- *
- * @property {RouterOutlet} outlet
- * Router outlet where the function is rendered.
- *
- * @property {string} path
- * The path of the route where the function is rendered.
  */
 
 /**
@@ -304,7 +304,6 @@ export class Router {
     if (!props || !('href' in props)) {
       console.error('missing to attribute for link component.');
     } else {
-      // @ts-expect-error: a is not of type JsxElement.
       setAttributeFromProps(a, 'href', props.href);
     }
     if (props && 'active' in props) {
@@ -320,11 +319,8 @@ export class Router {
     if (props) {
       const { children, replace, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
-        // @ts-expect-error: a is not of type JsxElement.
         setAttributeFromProps(a, key, value);
       }
-
-      // @ts-expect-error: The outlet is not of the type JsxElement.
       appendChild(a, a.tagName.toLowerCase(), props.children);
     }
 
@@ -390,11 +386,8 @@ export class Router {
     if (props) {
       const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
-        // @ts-expect-error: The outlet is not of the type JsxElement.
         setAttributeFromProps(outlet, key, value);
       }
-
-      // @ts-expect-error: The outlet is not of the type JsxElement.
       appendChild(outlet, outlet.tagName.toLowerCase(), props.children);
     }
 
@@ -496,8 +489,6 @@ export class Router {
         // @ts-ignore: The render type is generic.
         const nodes = generateChildNodes(relay.__render?.(relay.__props));
         linkNodesToComponent(nodes, relay.__render, relay.__props);
-
-        // @ts-ignore: The relay is not of the type JsxElement.
         appendChild(relay, relay.tagName.toLowerCase(), nodes);
         relay.__onNodesReceived?.(nodes);
       }
@@ -860,12 +851,8 @@ export class Router {
       }
 
       matchedComponent.__routeLevelFunction = true;
-      let renders = matchedComponent.__routeRenders;
-      if (!renders) {
-        renders = [];
-        matchedComponent.__routeRenders = renders;
-      }
-      renders.push({ outlet, path });
+      matchedComponent.__renderedOutlet = new WeakRef(outlet);
+      matchedComponent.__renderedPath = fullPath;
 
       // if the component performs a redirect internally, it would change the route
       // stored in the outlet's dataset, so we need to check before replacing.

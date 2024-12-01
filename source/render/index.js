@@ -130,13 +130,11 @@ export const hotReloadModule = async (newModule, url) => {
     // keep-alive cache needs to be invalidated, or it will override the new HMR render
     // when the route is visited again.
     if (oldInstance.__routeLevelFunction) {
-      /** @type {Array<import('../router/index.js').RouteRender>} */
-      const routeRenders = oldInstance.__routeRenders;
-      for (const routeRender of routeRenders) {
-        routeRender.outlet.__keepAliveCache?.delete(routeRender.path);
-      }
+      const path = oldInstance.__renderedPath;
+      oldInstance.__renderedOutlet?.deref()?.__keepAliveCache?.delete(path);
       newInstance.__routeLevelFunction = true;
       newInstance.__routeRenders = oldInstance.__routeRenders;
+      newInstance.__renderedPath = oldInstance.__renderedPath;
     }
 
     /** @type {WeakMap<Function, Instance[]> | undefined} */
