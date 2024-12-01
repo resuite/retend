@@ -10,7 +10,7 @@ import { routeToComponent } from '../router/routeTree.js';
  * @property {Record<string, unknown>} [props]
  * Props passed to the component instance.
  *
- * @property {Node[]} nodes
+ * @property {WeakRef<Node>[]} nodes
  * Nodes returned from the component instance.
  */
 
@@ -66,11 +66,13 @@ export function linkNodesToComponent(nodes, factory, props, options) {
     if (node.__promise) {
       const promise = node.__promise;
       promise.then((nodes) => {
-        newInstance.nodes.push(...generateChildNodes(nodes));
+        newInstance.nodes.push(
+          ...generateChildNodes(nodes).map((node) => new WeakRef(node))
+        );
       });
       continue;
     }
-    newInstance.nodes.push(node);
+    newInstance.nodes.push(new WeakRef(node));
   }
 
   if (options?.maxInstanceCount) {
@@ -157,8 +159,11 @@ export const hotReloadModule = async (newModule, url) => {
 
     for (const instance of componentInstances) {
       // if the node is not in the DOM, skip re-rendering.
-      if (!instance.nodes[0]?.isConnected) {
-        linkNodesToComponent(instance.nodes, newInstance, instance.props);
+      if (!instance.nodes[0]?.deref()?.isConnected) {
+        const liveNodes = instance.nodes
+          .map((node) => node.deref())
+          .filter((node) => node !== undefined);
+        linkNodesToComponent(liveNodes, newInstance, instance.props);
         continue;
       }
 
@@ -172,20 +177,29 @@ export const hotReloadModule = async (newModule, url) => {
         // only the first node rendered is important.
         // ideally components should only render one
         // top level node.
-        const anchorNode = instance.nodes[0];
-        for (const node of instance.nodes) {
+        const anchorNodeRef = instance.nodes[0];
+        const anchorNode = anchorNodeRef.deref();
+        for (const nodeRef of instance.nodes) {
+          const node = nodeRef.deref();
           if (node === anchorNode) continue;
-          node.parentElement?.removeChild(node);
+          if (node) {
+            node.parentElement?.removeChild(node);
+          }
         }
 
-        // Replace the old anchor node with the new DOM fragment.
-        anchorNode.parentNode?.replaceChild(fragment, anchorNode);
+        if (anchorNode) {
+          // Replace the old anchor node with the new DOM fragment.
+          anchorNode.parentNode?.replaceChild(fragment, anchorNode);
+        }
 
         linkNodesToComponent(newNodes, newInstance, instance.props);
       } catch (error) {
         console.error(error);
         // Fallback to old nodes if new nodes fail to render.
-        linkNodesToComponent(instance.nodes, newInstance, instance.props);
+        const liveNodes = instance.nodes
+          .map((node) => node.deref())
+          .filter((node) => node !== undefined);
+        linkNodesToComponent(liveNodes, newInstance, instance.props);
       }
     }
   }
