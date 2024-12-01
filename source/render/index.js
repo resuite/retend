@@ -10,7 +10,7 @@ import { routeToComponent } from '../router/routeTree.js';
  * @property {Record<string, unknown>} [props]
  * Props passed to the component instance.
  *
- * @property {WeakRef<Node>[]} nodes
+ * @property {Node[]} nodes
  * Nodes returned from the component instance.
  */
 
@@ -23,10 +23,14 @@ import { routeToComponent } from '../router/routeTree.js';
 
 /**
  * @typedef {Object} HMRFunctionOptions
- *
- * @property {number} [maxInstanceCount]
- * The maximum number of instances of the component that can be linked to the render function.
  */
+
+/**
+ * @type {MutationObserver | undefined}
+ * Responsible for observing DOM mutations and dropping component instances
+ * that are no longer in the DOM.
+ */
+let hmrObserver;
 
 /**
  * Links a set of DOM nodes to (ideally) its parent
@@ -38,19 +42,44 @@ import { routeToComponent } from '../router/routeTree.js';
  * @param {LinkableNode[]} nodes The nodes to link.
  * @param {Function} factory The factory function of the component.
  * @param {any} [props] Props that were used to create the component.
- * @param {HMRFunctionOptions} [options]
  */
-export function linkNodesToComponent(nodes, factory, props, options) {
+export function linkNodesToComponent(nodes, factory, props) {
   if (!isDevMode) return;
+  if (!hmrObserver) {
+    hmrObserver = new MutationObserver(() => {
+      /** @type {Map<Function, Set<Instance>>} */
+      const jsxFunctions =
+        // @ts-ignore: The Vite types are not installed.
+        import.meta.hot.data.jsxFunctionInstances ?? new Map();
+
+      for (const [func, instanceList] of jsxFunctions) {
+        for (const instance of instanceList) {
+          // This may not be true in all cases, but for now
+          // a component instance is considered connected
+          // if its first node is connected to the DOM.
+          if (!instance.nodes[0]?.isConnected) {
+            instanceList.delete(instance);
+          }
+        }
+        if (instanceList.size === 0) {
+          jsxFunctions.delete(func);
+        }
+      }
+    });
+    hmrObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
 
   /// @ts-ignore: The Vite types are not installed.
   if (!import.meta.hot) return;
 
-  /** @type {WeakMap<Function, Instance[]>} */
+  /** @type {Map<Function, Set<Instance>>} */
   const jsxFunctions =
     // @ts-ignore: The Vite types are not installed.
-    import.meta.hot.data.jsxFunctionInstances ?? new WeakMap();
-  const instanceList = jsxFunctions.get(factory) ?? [];
+    import.meta.hot.data.jsxFunctionInstances ?? new Map();
+  const instanceList = jsxFunctions.get(factory) ?? new Set();
 
   /** @type {Instance} */
   const newInstance = {
@@ -66,20 +95,14 @@ export function linkNodesToComponent(nodes, factory, props, options) {
     if (node.__promise) {
       const promise = node.__promise;
       promise.then((nodes) => {
-        newInstance.nodes.push(
-          ...generateChildNodes(nodes).map((node) => new WeakRef(node))
-        );
+        newInstance.nodes.push(...generateChildNodes(nodes));
       });
       continue;
     }
-    newInstance.nodes.push(new WeakRef(node));
+    newInstance.nodes.push(node);
   }
 
-  if (options?.maxInstanceCount) {
-    instanceList.length = options.maxInstanceCount - 1;
-  }
-
-  instanceList.push(newInstance);
+  instanceList.add(newInstance);
   jsxFunctions.set(factory, instanceList);
 
   /// @ts-ignore: The Vite types are not installed.
@@ -139,7 +162,7 @@ export const hotReloadModule = async (newModule, url) => {
       newInstance.__renderedPath = oldInstance.__renderedPath;
     }
 
-    /** @type {WeakMap<Function, Instance[]> | undefined} */
+    /** @type {Map<Function, Set<Instance>> | undefined} */
     const jsxFunctionInstances =
       // @ts-ignore: Ignore TypeScript errors due to missing Vite types.
       import.meta.hot?.data?.jsxFunctionInstances;
@@ -159,10 +182,8 @@ export const hotReloadModule = async (newModule, url) => {
 
     for (const instance of componentInstances) {
       // if the node is not in the DOM, skip re-rendering.
-      if (!instance.nodes[0]?.deref()?.isConnected) {
-        const liveNodes = instance.nodes
-          .map((node) => node.deref())
-          .filter((node) => node !== undefined);
+      if (!instance.nodes[0]?.isConnected) {
+        const liveNodes = instance.nodes;
         linkNodesToComponent(liveNodes, newInstance, instance.props);
         continue;
       }
@@ -177,14 +198,10 @@ export const hotReloadModule = async (newModule, url) => {
         // only the first node rendered is important.
         // ideally components should only render one
         // top level node.
-        const anchorNodeRef = instance.nodes[0];
-        const anchorNode = anchorNodeRef.deref();
-        for (const nodeRef of instance.nodes) {
-          const node = nodeRef.deref();
+        const anchorNode = instance.nodes[0];
+        for (const node of instance.nodes) {
           if (node === anchorNode) continue;
-          if (node) {
-            node.parentElement?.removeChild(node);
-          }
+          node.parentElement?.removeChild(node);
         }
 
         if (anchorNode) {
@@ -196,9 +213,7 @@ export const hotReloadModule = async (newModule, url) => {
       } catch (error) {
         console.error(error);
         // Fallback to old nodes if new nodes fail to render.
-        const liveNodes = instance.nodes
-          .map((node) => node.deref())
-          .filter((node) => node !== undefined);
+        const liveNodes = instance.nodes;
         linkNodesToComponent(liveNodes, newInstance, instance.props);
       }
     }

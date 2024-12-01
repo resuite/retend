@@ -893,9 +893,7 @@ export class Router {
       }
 
       const newNodes = generateChildNodes(renderedComponent);
-      linkNodesToComponent(newNodes, matchedComponent, undefined, {
-        maxInstanceCount: 1,
-      });
+      linkNodesToComponent(newNodes, matchedComponent, undefined);
 
       const newNodesFragment = await this.handleRelays(outlet, newNodes);
       if (newNodesFragment) {
