@@ -310,11 +310,16 @@ export class Router {
       console.error('active attribute is reserved for router.');
     }
     const currentRoute = this.getCurrentRoute();
-    currentRoute.runAndListen(({ fullPath }) => {
+    /** @type {(route: ReturnType<typeof this.getCurrentRoute>['value']) => void} */
+    const callback = ({ fullPath }) => {
       const href = a.getAttribute('href');
       const isActive = Boolean(fullPath && href && href.startsWith(fullPath));
       a.toggleAttribute('active', isActive);
-    });
+    };
+    currentRoute.runAndListen(callback, { weak: true });
+    // Store the callback in the anchor element to prevent it from being garbage collected.
+    // @ts-ignore
+    a.__routeChangedCallback = callback;
 
     if (props) {
       const { children, replace, ...rest } = props;
