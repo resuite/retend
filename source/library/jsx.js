@@ -144,7 +144,7 @@ export function h(tagname, props) {
 }
 
 /**
- *  @param {JsxElement} element
+ *  @param {Element} element
  * @param {string} tagname
  *  @param {any} child
  */
@@ -205,7 +205,7 @@ export function appendChild(element, tagname, child) {
 /**
  * Sets an attribute on an element based on the provided props.
  *
- * @param {JsxElement} element - The DOM element to set the attribute on.
+ * @param {Element} el - The DOM element to set the attribute on.
  * @param {string} key - The name of the attribute to set.
  * @param {any} value - The value to set for the attribute. Can be a primitive value or an object with a `runAndListen` method.
  *
@@ -213,7 +213,8 @@ export function appendChild(element, tagname, child) {
  * If the value is an object with a `runAndListen` method, it sets up a reactive attribute.
  * Otherwise, it directly sets the attribute on the element.
  */
-export function setAttributeFromProps(element, key, value) {
+export function setAttributeFromProps(el, key, value) {
+  const element = /** @type {JsxElement} */ (el);
   if (Cell.isCell(value)) {
     if (!element.__attributeCells) {
       element.__attributeCells = new Set();
