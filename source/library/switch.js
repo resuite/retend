@@ -1,5 +1,6 @@
 import { Cell } from '@adbl/cells';
 import { generateChildNodes } from './utils.js';
+import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
@@ -49,12 +50,15 @@ export function Switch(value, cases, defaultCase) {
 
   if (!Cell.isCell(value)) {
     if (value in cases) {
-      const nodes = generateChildNodes(cases[value]());
+      const fn = cases[value];
+      const nodes = generateChildNodes(fn());
+      linkNodesToComponent(nodes, fn);
       return nodes;
     }
 
     if (defaultCase) {
       const nodes = generateChildNodes(defaultCase(value));
+      linkNodesToComponent(nodes, defaultCase, value);
       return nodes;
     }
 
@@ -72,12 +76,14 @@ export function Switch(value, cases, defaultCase) {
     const caseCaller = cases[value];
     if (caseCaller) {
       nodes = generateChildNodes(caseCaller());
+      linkNodesToComponent(nodes, caseCaller);
       rangeStart.after(...nodes);
       return;
     }
 
     if (defaultCase) {
       nodes = generateChildNodes(defaultCase(value));
+      linkNodesToComponent(nodes, defaultCase, value);
       rangeStart.after(...nodes);
       return;
     }

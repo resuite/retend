@@ -1,4 +1,8 @@
-import { generateChildNodes, isDevMode } from '../library/utils.js';
+import {
+  ArgumentList,
+  generateChildNodes,
+  isDevMode,
+} from '../library/utils.js';
 import { routeToComponent } from '../router/routeTree.js';
 
 // @ts-ignore: Deno has issues with @import tags.
@@ -190,7 +194,11 @@ export const hotReloadModule = async (newModule, url) => {
 
       try {
         // Generate new child nodes for the updated component instance.
-        const newNodes = generateChildNodes(newInstance(instance.props));
+        const newComponentCall =
+          instance.props && instance.props instanceof ArgumentList
+            ? newInstance(...instance.props.data)
+            : newInstance(instance.props);
+        const newNodes = generateChildNodes(newComponentCall);
 
         const fragment = document.createDocumentFragment();
         fragment.append(...newNodes);

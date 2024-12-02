@@ -1,5 +1,6 @@
 import { Cell } from '@adbl/cells';
-import { generateChildNodes } from './utils.js';
+import { ArgumentList, generateChildNodes } from './utils.js';
+import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
@@ -41,7 +42,11 @@ export function For(list, fn) {
   if (!Cell.isCell(list)) {
     let index = 0;
     for (const item of list) {
-      snapshot.push(...generateChildNodes(fn(item, Cell.source(index), list)));
+      /** @type {[any, Cell<number>, typeof list]} */
+      const parameters = [item, Cell.source(index), list];
+      const nodes = generateChildNodes(fn(...parameters));
+      linkNodesToComponent(nodes, fn, new ArgumentList(parameters));
+      snapshot.push(...nodes);
       index += 1;
     }
     return snapshot;
@@ -92,7 +97,10 @@ export function For(list, fn) {
       const cachedResult = nodeStore.get(itemKey);
       if (cachedResult === undefined) {
         const i = Cell.source(index);
-        const nodes = generateChildNodes(fn(item, i, _list));
+        /** @type {[any, Cell<number>, typeof _list]} */
+        const parameters = [item, i, _list];
+        const nodes = generateChildNodes(fn(...parameters));
+        linkNodesToComponent(nodes, fn, new ArgumentList(parameters));
         newNodeStore.set(itemKey, { nodes, index: i });
         newSnapShot.push(...nodes);
       } else {

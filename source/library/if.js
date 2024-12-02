@@ -1,5 +1,6 @@
 import { Cell } from '@adbl/cells';
 import { generateChildNodes } from './utils.js';
+import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
@@ -96,16 +97,20 @@ export function If(value, fnOrObject, elseFn) {
     if (typeof fnOrObject === 'function') {
       if (value) {
         nodes = generateChildNodes(fnOrObject(value));
+        linkNodesToComponent(nodes, fnOrObject, value);
       } else if (elseFn) {
         nodes = generateChildNodes(elseFn());
+        linkNodesToComponent(nodes, elseFn);
       } else {
         nodes = [];
       }
     } else if (typeof fnOrObject === 'object') {
       if (value && 'true' in fnOrObject) {
         nodes = generateChildNodes(fnOrObject.true(value));
+        linkNodesToComponent(nodes, fnOrObject.true, value);
       } else if (!value && 'false' in fnOrObject) {
         nodes = generateChildNodes(fnOrObject.false());
+        linkNodesToComponent(nodes, fnOrObject.false);
       } else {
         nodes = [];
       }

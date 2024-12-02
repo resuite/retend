@@ -4,6 +4,18 @@ import { Cell } from '@adbl/cells';
 export const isDevMode = import.meta.env?.DEV;
 
 /**
+ * @template T
+ * A list of parameters that are passed to a component as props.
+ * It is differentiated from an array of values or a single object.
+ */
+export class ArgumentList {
+  /** @param {T} data */
+  constructor(data) {
+    this.data = data;
+  }
+}
+
+/**
  * Observes when an element is connected to the DOM and executes a callback
  * @param {Element} element - The element to observe
  * @param {() => void} callback - Function to execute when element is connected
