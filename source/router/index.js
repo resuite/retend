@@ -314,7 +314,7 @@ export class Router extends EventTarget {
     /** @type {(route: ReturnType<typeof this.getCurrentRoute>['value']) => void} */
     const callback = ({ fullPath }) => {
       const href = a.getAttribute('href');
-      const isActive = Boolean(fullPath && href && href.startsWith(fullPath));
+      const isActive = Boolean(fullPath && href && fullPath.startsWith(href));
       a.toggleAttribute('active', isActive);
     };
     currentRoute.runAndListen(callback, { weak: true });
@@ -790,6 +790,32 @@ export class Router extends EventTarget {
         outlet = /** @type {RouterOutlet} */ (
           outlet?.querySelector('div[data-x-outlet]')
         );
+
+        // If only the search params changed, then the last outlet
+        // should trigger a route change.
+        if (!outlet || !currentMatchedRoute) {
+          const fullPath = constructURL(lastMatchedRoute.fullPath, matchResult);
+          if (this.currentPath.value.fullPath !== fullPath) {
+            this.currentPath.value = {
+              name: lastMatchedRoute.name,
+              fullPath,
+              params: matchResult.params,
+              query: matchResult.searchQueryParams,
+            };
+          }
+
+          // There is no feasible way to determine the final navigation direction
+          // for view transitions, without already triggering a view transition.
+          // Mind bending nonsense.
+          const navigationDirection = this.chooseNavigationDirection(
+            fullPath,
+            replace
+          );
+          viewTransitionTypesArray[0] = navigationDirection;
+          if (lastMatchedRoute.transitionType) {
+            viewTransitionTypesArray[1] = lastMatchedRoute.transitionType;
+          }
+        }
         continue;
       }
 
@@ -830,10 +856,7 @@ export class Router extends EventTarget {
         matchedComponent = matchedComponentOrLazyLoader;
       }
 
-      const fullPath = substituteParameters(
-        currentMatchedRoute.fullPath,
-        matchResult.params
-      );
+      const fullPath = constructURL(currentMatchedRoute.fullPath, matchResult);
 
       // The current path must react before the page loads.
       const oldPath = this.currentPath.value.fullPath;
@@ -914,13 +937,6 @@ export class Router extends EventTarget {
 
     if (this.redirectStackCount > 0) {
       this.redirectStackCount--;
-    }
-
-    /** @type {NodeListOf<RouterOutlet>} */
-    const subOutlets = outlet.querySelectorAll('div[data-x-outlet]');
-    for (const subOutlet of subOutlets) {
-      subOutlet.replaceChildren();
-      subOutlet.__keepAliveCache?.clear();
     }
 
     if (this.window && (currentMatchedRoute?.title || lastMatchedRoute.title)) {
@@ -1308,17 +1324,22 @@ function emptyRoute(path, window) {
 }
 
 /**
- * Substitutes named parameters in a path string with their corresponding values.
- *
- * @param {string} path - The path string containing named parameters.
- * @param {Map<string, string>} params - An object containing the values for the named parameters.
- * @returns {string} The path with the named parameters substituted.
+ * Constructs a URL path by replacing any matched parameters in the given path with their corresponding values from the `matchResult.params` object. If a parameter is not found, the original match is returned. Additionally, any search query parameters from `matchResult.searchQueryParams` are appended to the final path.
+ * @param {string} path - The original path to be constructed.
+ * @param {MatchResult<any>} matchResult - An object containing the matched parameters and search query parameters.
+ * @returns {string} The final constructed URL path.
  */
-function substituteParameters(path, params) {
+function constructURL(path, matchResult) {
   // Replace each matched parameter with its corresponding value from the params object.
-  return path.replace(PARAM_REGEX, (match, paramName) => {
-    return params.get(paramName) || match; // If the parameter is not found, return the original match.
+  let finalPath = path.replace(PARAM_REGEX, (match, paramName) => {
+    return matchResult.params.get(paramName) || match; // If the parameter is not found, return the original match.
   });
+
+  if (matchResult.searchQueryParams.size > 0) {
+    finalPath += `?${matchResult.searchQueryParams.toString()}`;
+  }
+
+  return finalPath;
 }
 
 /**
