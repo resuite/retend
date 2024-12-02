@@ -217,7 +217,7 @@ export class RouterNavigationEvent extends CustomEvent {}
  * The router provides additional features like caching and
  * advanced navigation patterns that can be added as your needs grow.
  */
-export class Router {
+export class Router extends EventTarget {
   /** @type {Map<string, string>} */
   params;
 
@@ -256,6 +256,7 @@ export class Router {
 
   /** @param {RouterOptions} routeOptions */
   constructor(routeOptions) {
+    super();
     this.routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
     this.middlewares = routeOptions.middlewares ?? [];
     this.maxRedirects = routeOptions.maxRedirects ?? 50;
@@ -913,6 +914,13 @@ export class Router {
 
     if (this.redirectStackCount > 0) {
       this.redirectStackCount--;
+    }
+
+    /** @type {NodeListOf<RouterOutlet>} */
+    const subOutlets = outlet.querySelectorAll('div[data-x-outlet]');
+    for (const subOutlet of subOutlets) {
+      subOutlet.replaceChildren();
+      subOutlet.__keepAliveCache?.clear();
     }
 
     if (this.window && (currentMatchedRoute?.title || lastMatchedRoute.title)) {
