@@ -1063,10 +1063,12 @@ export class Router extends EventTarget {
    */
   loadPath = async (rawPath, navigate, _event, replace, forceLoad) => {
     const [pathRoot, pathQuery] = rawPath.split('?');
+    let path = pathRoot;
     // Ensures that .html is removed from the path.
-    const path =
-      (pathRoot.endsWith('.html') ? pathRoot.slice(0, -5) : pathRoot) +
-      (pathQuery ?? '');
+    if (pathRoot.endsWith('.html')) {
+      path = pathRoot.slice(0, -5);
+    }
+    path += pathQuery ? `?${pathQuery}` : '';
     if (this.currentPath.value?.fullPath === path && !forceLoad) {
       return;
     }
@@ -1188,7 +1190,8 @@ export class Router extends EventTarget {
     this.window?.addEventListener('popstate', async (event) => {
       if (!this.isLoading && this.window) {
         this.isLoading = true;
-        await this.loadPath(this.window.location.pathname, false, event);
+        const path = getFullPath(this.window);
+        await this.loadPath(path, false, event);
         this.isLoading = false;
       }
     });
@@ -1196,7 +1199,8 @@ export class Router extends EventTarget {
     this.window?.addEventListener('hashchange', async (event) => {
       if (!this.isLoading && this.window) {
         this.isLoading = true;
-        await this.loadPath(this.window.location.pathname, false, event);
+        const path = getFullPath(this.window);
+        await this.loadPath(path, false, event);
         this.isLoading = false;
       }
     });
@@ -1204,7 +1208,8 @@ export class Router extends EventTarget {
     this.window?.addEventListener('load', async (event) => {
       if (!this.isLoading && this.window) {
         this.isLoading = true;
-        await this.loadPath(this.window.location.pathname, false, event);
+        const path = getFullPath(this.window);
+        await this.loadPath(path, false, event);
         this.isLoading = false;
       }
     });
@@ -1212,7 +1217,8 @@ export class Router extends EventTarget {
     this.window?.addEventListener('DOMContentLoaded', async (event) => {
       if (!this.isLoading && this.window) {
         this.isLoading = true;
-        await this.loadPath(this.window.location.pathname, false, event);
+        const path = getFullPath(this.window);
+        await this.loadPath(path, false, event);
         this.isLoading = false;
       }
     });
@@ -1274,6 +1280,17 @@ export function defineRoutes(routes) {
  */
 export function defineRoute(route) {
   return route;
+}
+
+/**
+ * Constructs a path with its hash and search parameters.
+ * @param {Window} window
+ * @returns {string}
+ */
+function getFullPath(window) {
+  return (
+    window.location.pathname + window.location.search + window.location.hash
+  );
 }
 
 /**
