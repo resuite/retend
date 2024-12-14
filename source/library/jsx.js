@@ -283,7 +283,7 @@ export function setAttribute(element, key, value) {
     if (!element.__eventListenerList) {
       element.__eventListenerList = new Map();
     }
-    if (element.__modifiedListenerList) {
+    if (!element.__modifiedListenerList) {
       element.__modifiedListenerList = new Map();
     }
 
