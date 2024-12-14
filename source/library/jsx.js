@@ -101,7 +101,12 @@ export function h(tagname, props) {
   const children = props.children;
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
     const fragment = globalThis.window.document.createDocumentFragment();
-    for (const child of children ?? []) {
+    const childList = children
+      ? Array.isArray(children)
+        ? children
+        : [children]
+      : [];
+    for (const child of childList) {
       fragment.appendChild(normalizeJsxChild(child, fragment));
     }
     return fragment;
