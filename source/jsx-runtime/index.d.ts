@@ -3128,8 +3128,8 @@ export namespace JSX {
   };
 
   type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
-  type AddModifierPrefix<T> = `${T}:${Modifiers}`;
-  type RemoveModifierPrefix<U> = U extends `${infer T}:${Modifiers}`
+  type AddModifierPrefix<T> = `${T}--${Modifiers}`;
+  type RemoveModifierPrefix<U> = U extends `${infer T}--${Modifiers}`
     ? T
     : never;
 

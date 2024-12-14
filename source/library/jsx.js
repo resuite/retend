@@ -273,7 +273,7 @@ export function setAttribute(element, key, value) {
     const rawEventName = /** @type {keyof ElementEventMap} */ (
       key.slice(2).toLowerCase()
     );
-    const [eventName, ...modifiers] = rawEventName.split(':');
+    const [eventName, ...modifiers] = rawEventName.split('--');
     for (const modifier of modifiers) {
       if (!listenerModifiers.includes(modifier)) {
         console.warn(`Unknown event listener modifier: ${modifier}`);
