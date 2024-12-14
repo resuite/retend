@@ -812,9 +812,6 @@ export class Router extends EventTarget {
             replace
           );
           viewTransitionTypesArray[0] = navigationDirection;
-          if (lastMatchedRoute.transitionType) {
-            viewTransitionTypesArray[1] = lastMatchedRoute.transitionType;
-          }
         }
         continue;
       }
