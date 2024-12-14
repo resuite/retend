@@ -3086,8 +3086,7 @@ export namespace JSX {
 
   type Container<ElementAttributes extends object> = {
     [attribute in keyof ElementAttributes]: ValueOrCell<
-      ElementAttributes[attribute] &
-        ElementEventListenerModifiers<ElementAttributes[attribute]>
+      ElementAttributes[attribute]
     >;
   };
 
@@ -3125,7 +3124,7 @@ export namespace JSX {
   > = {
     [key in F extends `on${CapitalLetter}${string}`
       ? AddModifierPrefix<F>
-      : never]: E[RemoveModifierPrefix<key>];
+      : never]?: E[RemoveModifierPrefix<key>];
   };
 
   type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
@@ -3140,7 +3139,10 @@ export namespace JSX {
 
   type IntrinsicElementsBase = JsxHtmlElementMap & JsxSvgElementMap;
   type IntrinsicElementsInner = {
-    [key in keyof IntrinsicElementsBase]: Container<IntrinsicElementsBase[key]>;
+    [key in keyof IntrinsicElementsBase]: Container<
+      IntrinsicElementsBase[key] &
+        ElementEventListenerModifiers<IntrinsicElementsBase[key]>
+    >;
   };
   export interface IntrinsicElements extends IntrinsicElementsInner {}
 
