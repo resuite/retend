@@ -3086,8 +3086,56 @@ export namespace JSX {
 
   type Container<ElementAttributes extends object> = {
     [attribute in keyof ElementAttributes]: ValueOrCell<
-      ElementAttributes[attribute]
+      ElementAttributes[attribute] &
+        ElementEventListenerModifiers<ElementAttributes[attribute]>
     >;
+  };
+
+  type CapitalLetter =
+    | 'A'
+    | 'B'
+    | 'C'
+    | 'D'
+    | 'E'
+    | 'F'
+    | 'G'
+    | 'H'
+    | 'I'
+    | 'J'
+    | 'K'
+    | 'L'
+    | 'M'
+    | 'N'
+    | 'O'
+    | 'P'
+    | 'Q'
+    | 'R'
+    | 'S'
+    | 'T'
+    | 'U'
+    | 'V'
+    | 'W'
+    | 'X'
+    | 'Y'
+    | 'Z';
+
+  type ElementEventListenerModifiers<
+    E extends JsxHtmlElement,
+    F extends keyof E = keyof E
+  > = {
+    [key in F extends `on${CapitalLetter}${string}`
+      ? AddModifierPrefix<F>
+      : never]: E[RemoveModifierPrefix<key>];
+  };
+
+  type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
+  type AddModifierPrefix<T> = `${T}:${Modifiers}`;
+  type RemoveModifierPrefix<U> = U extends `${infer T}:${Modifiers}`
+    ? T
+    : never;
+
+  type GetElementModifiedListeners<Element> = {
+    [key in keyof T]: {};
   };
 
   type IntrinsicElementsBase = JsxHtmlElementMap & JsxSvgElementMap;
@@ -3095,11 +3143,6 @@ export namespace JSX {
     [key in keyof IntrinsicElementsBase]: Container<IntrinsicElementsBase[key]>;
   };
   export interface IntrinsicElements extends IntrinsicElementsInner {}
-  type JsxCustomElementAttributesInner = Container<{
-    [K in keyof JsxHtmlElement as `attr:${K}`]: JsxHtmlElement[K];
-  }>;
-  export interface JsxCustomElementAttributes
-    extends JsxCustomElementAttributesInner {}
 
   type Node = globalThis.Node | PropertyKey | Promise<globalThis.Node | string>;
   export type Template =

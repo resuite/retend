@@ -89,6 +89,14 @@ const camelCasedAttributes = new Set([
   // but including this comment for completeness)
 ]);
 
+const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
+
+/**
+ * @typedef {((this: Node, event: Event) => void) & {
+ *  __getInnerFunction?: () => (WrapperFn | (() => void) | undefined)
+ *  }} WrapperFn
+ */
+
 /**
  * Creates a new DOM element with the specified tag name, props, and children.
  *
@@ -190,8 +198,9 @@ export function appendChild(element, tagname, child) {
 
 /**
  * @typedef HiddenElementProperties
- * @property {Map<string, (() => void)[]>} __eventListenerList
+ * @property {Map<string, (event: Event) => void>} __eventListenerList
  * List of event listeners set as attributes on the element.
+ * @property {Map<string, WrapperFn>} __modifiedListenerList
  * @property {Set<object | ((value: any) => void)>} __attributeCells
  * List of cell callbacks set as attributes on the element.
  * @property {boolean} __createdByJsx
@@ -261,26 +270,102 @@ export function setAttribute(element, key, value) {
     if (createdByJsx && key[2].toLowerCase() === key[2]) {
       return;
     }
-    const eventName = /** @type {keyof ElementEventMap} */ (
+    const rawEventName = /** @type {keyof ElementEventMap} */ (
       key.slice(2).toLowerCase()
     );
-    // remove stale listeners
-    element.removeEventListener(eventName, value);
+    const [eventName, ...modifiers] = rawEventName.split(':');
+    for (const modifier of modifiers) {
+      if (!listenerModifiers.includes(modifier)) {
+        console.warn(`Unknown event listener modifier: ${modifier}`);
+      }
+    }
+
     if (!element.__eventListenerList) {
       element.__eventListenerList = new Map();
     }
-    const oldValue = element.__eventListenerList.get(eventName)?.at(0);
-    if (oldValue !== undefined && oldValue !== value) {
-      element.removeEventListener(eventName, oldValue);
-      element.__eventListenerList.delete(eventName);
+    if (element.__modifiedListenerList) {
+      element.__modifiedListenerList = new Map();
     }
 
-    if (typeof value === 'function') {
-      setTimeout(() => {
-        element.addEventListener(eventName, value);
-        element.__eventListenerList.set(eventName, value);
-      }, 0);
-      return;
+    // remove stale listeners
+    if (!modifiers.length) {
+      element.removeEventListener(eventName, value);
+      const oldValue = element.__eventListenerList.get(eventName);
+      if (oldValue !== undefined && oldValue !== value) {
+        element.removeEventListener(eventName, oldValue);
+        element.__eventListenerList.delete(eventName);
+      }
+
+      if (typeof value === 'function') {
+        setTimeout(() => {
+          element.addEventListener(eventName, value);
+          element.__eventListenerList.set(eventName, value);
+        }, 0);
+        return;
+      }
+    } else {
+      const oldValue = element.__modifiedListenerList.get(rawEventName);
+      const oldUserFunction = oldValue?.__getInnerFunction?.();
+      if (
+        oldValue !== undefined &&
+        oldUserFunction &&
+        oldUserFunction !== value
+      ) {
+        element.removeEventListener(eventName, oldUserFunction);
+        element.__modifiedListenerList.delete(rawEventName);
+      }
+
+      if (typeof value === 'function') {
+        /** @type {WrapperFn | undefined} */
+        let wrapper = function () {
+          return value.bind(this)();
+        };
+        wrapper.__getInnerFunction = function () {
+          return value;
+        };
+
+        /** @type {Record<string, unknown>} */
+        let options = {};
+        for (const modifier of modifiers) {
+          const oldWrapper = wrapper;
+          if (modifier === 'self') {
+            wrapper = function (event) {
+              if (event.target !== element) return;
+              oldWrapper.bind(this)(event);
+            };
+          } else if (modifier === 'prevent') {
+            wrapper = function (event) {
+              event.preventDefault();
+              oldWrapper.bind(this)(event);
+            };
+          } else if (modifier === 'once') {
+            options.once = true;
+            wrapper = function (event) {
+              oldWrapper.bind(this)(event);
+              element.__modifiedListenerList.delete(rawEventName);
+            };
+          } else if (modifier === 'stop') {
+            wrapper = function (event) {
+              event.stopPropagation();
+              oldWrapper.bind(this)(event);
+              element.__modifiedListenerList.delete(rawEventName);
+            };
+          } else if (modifier === 'passive') {
+            options.passive = true;
+          }
+
+          wrapper.__getInnerFunction = function () {
+            return oldWrapper?.__getInnerFunction?.();
+          };
+        }
+
+        setTimeout(() => {
+          element.addEventListener(eventName, wrapper, options);
+          element.__modifiedListenerList.set(rawEventName, wrapper);
+        }, 0);
+
+        return;
+      }
     }
 
     return;
