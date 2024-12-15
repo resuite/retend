@@ -51,19 +51,14 @@ import { linkNodesToComponent } from '../render/index.js';
  * // The welcome message will now be displayed
  */
 export function If(value, fnOrObject, elseFn) {
-  /** @type {Node[]} */
-  let nodes = [];
-
   if (!Cell.isCell(value)) {
     if (typeof fnOrObject === 'function') {
       if (value) {
         return fnOrObject(value);
       }
-
       if (elseFn) {
         return elseFn();
       }
-
       return;
     }
 
@@ -71,7 +66,6 @@ export function If(value, fnOrObject, elseFn) {
       if (value && 'true' in fnOrObject) {
         return fnOrObject.true(value);
       }
-
       if (!value && 'false' in fnOrObject) {
         return fnOrObject.false();
       }
@@ -88,6 +82,8 @@ export function If(value, fnOrObject, elseFn) {
 
   /** @param {T} value */
   const callback = (value) => {
+    /** @type {Node[]} */
+    let nodes = [];
     let nextNode = rangeStart.nextSibling;
     while (nextNode && nextNode !== rangeEnd) {
       nextNode.remove();
@@ -120,10 +116,13 @@ export function If(value, fnOrObject, elseFn) {
       );
 
     rangeStart.after(...nodes);
+    return nodes;
   };
 
   Reflect.set(rangeStart, '__persisted', callback); // prevents garbage collection.
 
-  value.runAndListen(callback, { weak: true });
-  return [rangeStart, ...nodes, rangeEnd];
+  // see comment in switch.js
+  const firstRun = callback(value.value);
+  value.listen(callback, { weak: true });
+  return [rangeStart, ...firstRun, rangeEnd];
 }

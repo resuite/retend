@@ -45,8 +45,6 @@ import { linkNodesToComponent } from '../render/index.js';
 export function Switch(value, cases, defaultCase) {
   const rangeStart = globalThis.window.document.createComment('----');
   const rangeEnd = globalThis.window.document.createComment('----');
-  /** @type {Node[]} */
-  let nodes = [];
 
   if (!Cell.isCell(value)) {
     if (value in cases) {
@@ -65,8 +63,10 @@ export function Switch(value, cases, defaultCase) {
     return null;
   }
 
-  /** @param {T} value*/
+  /** @param {T} value */
   const callback = (value) => {
+    /** @type {Node[]} */
+    let nodes = [];
     let nextNode = rangeStart.nextSibling;
     while (nextNode && nextNode !== rangeEnd) {
       nextNode.remove();
@@ -78,19 +78,24 @@ export function Switch(value, cases, defaultCase) {
       nodes = generateChildNodes(caseCaller());
       linkNodesToComponent(nodes, caseCaller);
       rangeStart.after(...nodes);
-      return;
+      return nodes;
     }
 
     if (defaultCase) {
       nodes = generateChildNodes(defaultCase(value));
       linkNodesToComponent(nodes, defaultCase, value);
       rangeStart.after(...nodes);
-      return;
+      return nodes;
     }
+
+    return nodes;
   };
 
   Reflect.set(rangeStart, '__persisted', callback); // prevents garbage collection.
 
-  value.runAndListen(callback, { weak: true });
-  return [rangeStart, ...nodes, rangeEnd];
+  // Don't use runAndListen with an outer array to store nodes.
+  // It leads to a memory leak.
+  const firstRun = callback(value.value);
+  value.listen(callback, { weak: true });
+  return [rangeStart, ...firstRun, rangeEnd];
 }
