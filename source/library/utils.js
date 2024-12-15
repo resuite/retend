@@ -157,7 +157,7 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
             ? key
             : toKebabCase(key);
 
-          if (innerValue) {
+          if (!isSomewhatFalsy(innerValue)) {
             element.style.setProperty(stylePropertyKey, innerValue);
           } else {
             element.style.removeProperty(stylePropertyKey);
@@ -172,7 +172,7 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
 
         value.listen(callback, { weak: true });
       }
-      if (!value) return '';
+      if (isSomewhatFalsy(value)) return '';
       return `${
         key.startsWith('--') ? key : toKebabCase(key)
       }: ${value.valueOf()}`;
@@ -259,4 +259,14 @@ export async function isPromisePending(promise) {
   return Promise.race([promise, Promise.resolve(pending)]).then(
     (value) => value === pending
   );
+}
+
+/**
+ * @template T
+ * Checks if a value is somewhat falsy.
+ * @param {T} value
+ * @returns {value is undefined | null | false}
+ */
+export function isSomewhatFalsy(value) {
+  return value === undefined || value === null || value === false;
 }

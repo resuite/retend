@@ -1,5 +1,9 @@
 import { Cell, SourceCell } from '@adbl/cells';
-import { convertObjectToCssStylesheet, generateChildNodes } from './utils.js';
+import {
+  convertObjectToCssStylesheet,
+  generateChildNodes,
+  isSomewhatFalsy,
+} from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 
 const camelCasedAttributes = new Set([
@@ -457,16 +461,6 @@ export function setAttribute(element, key, value) {
   } else {
     element.setAttribute(attributeName, value);
   }
-}
-
-/**
- * @template T
- * Checks if a value is somewhat falsy.
- * @param {T} value
- * @returns {value is undefined | null | false}
- */
-function isSomewhatFalsy(value) {
-  return value === undefined || value === null || value === false;
 }
 
 /**
