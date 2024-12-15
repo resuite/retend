@@ -321,11 +321,12 @@ export function setAttribute(element, key, value) {
           return value.bind(this)();
         };
         wrapper.__getInnerFunction = function () {
+          this; // only here to silence biome.
           return value;
         };
 
         /** @type {Record<string, unknown>} */
-        let options = {};
+        const options = {};
         for (const modifier of modifiers) {
           const oldWrapper = wrapper;
           if (modifier === 'self') {
@@ -355,6 +356,7 @@ export function setAttribute(element, key, value) {
           }
 
           wrapper.__getInnerFunction = function () {
+            this; // only here to silence biome.
             return oldWrapper?.__getInnerFunction?.();
           };
         }

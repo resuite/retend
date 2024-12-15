@@ -3090,39 +3090,39 @@ export namespace JSX {
     >;
   };
 
-  type CapitalLetter =
-    | 'A'
-    | 'B'
-    | 'C'
-    | 'D'
-    | 'E'
-    | 'F'
-    | 'G'
-    | 'H'
-    | 'I'
-    | 'J'
-    | 'K'
-    | 'L'
-    | 'M'
-    | 'N'
-    | 'O'
-    | 'P'
-    | 'Q'
-    | 'R'
-    | 'S'
-    | 'T'
-    | 'U'
-    | 'V'
-    | 'W'
-    | 'X'
-    | 'Y'
-    | 'Z';
+  // type CapitalLetter =
+  //   | 'A'
+  //   | 'B'
+  //   | 'C'
+  //   | 'D'
+  //   | 'E'
+  //   | 'F'
+  //   | 'G'
+  //   | 'H'
+  //   | 'I'
+  //   | 'J'
+  //   | 'K'
+  //   | 'L'
+  //   | 'M'
+  //   | 'N'
+  //   | 'O'
+  //   | 'P'
+  //   | 'Q'
+  //   | 'R'
+  //   | 'S'
+  //   | 'T'
+  //   | 'U'
+  //   | 'V'
+  //   | 'W'
+  //   | 'X'
+  //   | 'Y'
+  //   | 'Z';
 
   type ElementEventListenerModifiers<
     E extends JsxHtmlElement,
     F extends keyof E = keyof E
   > = {
-    [key in F extends `on${CapitalLetter}${string}`
+    [key in F extends `on${string}`
       ? AddModifierPrefix<F>
       : never]?: E[RemoveModifierPrefix<key>];
   };
@@ -3133,10 +3133,6 @@ export namespace JSX {
     ? T
     : never;
 
-  type GetElementModifiedListeners<Element> = {
-    [key in keyof T]: {};
-  };
-
   type IntrinsicElementsBase = JsxHtmlElementMap & JsxSvgElementMap;
   type IntrinsicElementsInner = {
     [key in keyof IntrinsicElementsBase]: Container<
@@ -3146,7 +3142,10 @@ export namespace JSX {
   };
   export interface IntrinsicElements extends IntrinsicElementsInner {}
 
-  type Node = globalThis.Node | PropertyKey | Promise<globalThis.Node | string>;
+  type Node =
+    | globalThis.Node
+    | PropertyKey
+    | Promise<globalThis.Node | PropertyKey | string | null | undefined>;
   export type Template =
     | Node
     | Node[]
