@@ -1116,8 +1116,9 @@ export class Router extends EventTarget {
         // storing the new title with the old route,
         // which leads to a confusing experience.
         if (this.window) {
+          const currentWindowPath = getFullPath(this.window);
           const isSamePath =
-            this.window.location?.pathname === this.currentPath.value.fullPath;
+            currentWindowPath === this.currentPath.value.fullPath;
           if (isSamePath) return;
 
           const newTitle = this.window.document?.title;
