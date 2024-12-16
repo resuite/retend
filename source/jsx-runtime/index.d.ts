@@ -3145,14 +3145,21 @@ export namespace JSX {
   type Node =
     | globalThis.Node
     | PropertyKey
-    | Promise<globalThis.Node | PropertyKey | null | undefined | void>;
+    | Promise<
+        | globalThis.Node
+        | globalThis.Node[]
+        | PropertyKey
+        | null
+        | undefined
+        | void
+      >;
   export type Template =
     | Node
     | Node[]
     | undefined
     | void
     | null
-    | Promise<Node | Node[] | undefined | null>;
+    | Promise<Node | Node[] | void | undefined | null>;
 
   export type Element = Template;
 }
