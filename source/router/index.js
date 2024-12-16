@@ -968,7 +968,7 @@ export class Router extends EventTarget {
       return navigationDirection;
     }
 
-    const previousIndex = this.routerHistory.findLastIndex(
+    const previousIndex = this.routerHistory.findIndex(
       (path) => path === targetPath
     );
     if (previousIndex !== -1) {
