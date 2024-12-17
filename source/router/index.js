@@ -536,14 +536,14 @@ unfinished-router-outlet, unfinished-router-relay {
     if (!this.window.customElements.get('unfinished-router-outlet')) {
       this.window.customElements.define(
         'unfinished-router-outlet',
-        class extends HTMLDivElement {}
+        class extends HTMLElement {}
       );
     }
 
     if (!this.window.customElements.get('unfinished-router-relay')) {
       this.window.customElements.define(
         'unfinished-router-relay',
-        class extends HTMLDivElement {}
+        class extends HTMLElement {}
       );
     }
 
