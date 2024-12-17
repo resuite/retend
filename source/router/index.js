@@ -399,8 +399,6 @@ export class Router extends EventTarget {
       appendChild(outlet, outlet.tagName.toLowerCase(), props.children);
     }
 
-    outlet.toggleAttribute('data-x-outlet', true);
-
     if (props) {
       if (props.keepAlive) {
         outlet.__keepAlive = props.keepAlive;
@@ -469,7 +467,6 @@ export class Router extends EventTarget {
       /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ (
         this.window.document.createElement('unfinished-router-relay')
       );
-    relay.toggleAttribute('data-x-relay', true);
 
     if (!props) {
       return relay;
@@ -1030,7 +1027,9 @@ unfinished-router-outlet, unfinished-router-relay {
     // Handling relays
     // ---------------
     /** @type {NodeListOf<RouterRelay>} */
-    const exitRelayNodes = oldNodesFragment.querySelectorAll('[data-x-relay]');
+    const exitRelayNodes = oldNodesFragment.querySelectorAll(
+      'unfinished-router-relay'
+    );
     /** @type {Map<string, RouterRelay>} */
     const exitRelayNodeMap = new Map();
     for (const relayNode of exitRelayNodes) {
@@ -1042,7 +1041,7 @@ unfinished-router-outlet, unfinished-router-relay {
     const holder = this.window.document.createDocumentFragment();
     holder.append(...newNodesArray);
     /** @type {NodeListOf<RouterRelay>} */
-    const enterRelayNodes = holder.querySelectorAll('[data-x-relay]');
+    const enterRelayNodes = holder.querySelectorAll('unfinished-router-relay');
     for (const enterRelay of enterRelayNodes) {
       const name = enterRelay.dataset.xRelayName;
       const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
