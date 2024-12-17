@@ -335,7 +335,7 @@ export function setAttribute(element, key, value) {
           const oldWrapper = wrapper;
           if (modifier === 'self') {
             wrapper = function (event) {
-              if (event.target !== element) return;
+              if (event.target !== event.currentTarget) return;
               oldWrapper.bind(this)(event);
             };
           } else if (modifier === 'prevent') {
@@ -347,12 +347,14 @@ export function setAttribute(element, key, value) {
             options.once = true;
             wrapper = function (event) {
               oldWrapper.bind(this)(event);
-              element.__modifiedListenerList.delete(rawEventName);
+              const element = /** @type {JsxElement} */ (event.currentTarget);
+              element?.__modifiedListenerList.delete(rawEventName);
             };
           } else if (modifier === 'stop') {
             wrapper = function (event) {
               event.stopPropagation();
               oldWrapper.bind(this)(event);
+              const element = /** @type {JsxElement} */ (event.currentTarget);
               element.__modifiedListenerList.delete(rawEventName);
             };
           } else if (modifier === 'passive') {

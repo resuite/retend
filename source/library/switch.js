@@ -91,7 +91,11 @@ export function Switch(value, cases, defaultCase) {
     return nodes;
   };
 
-  Reflect.set(rangeStart, '__persisted', callback); // prevents garbage collection.
+  // Prevents premature garbage collection.
+  const persistedSet = new Set();
+  persistedSet.add(value);
+  persistedSet.add(callback);
+  Reflect.set(rangeStart, '__attributeCells', persistedSet);
 
   // Don't use runAndListen with an outer array to store nodes.
   // It leads to a memory leak.

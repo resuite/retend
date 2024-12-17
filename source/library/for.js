@@ -183,7 +183,11 @@ export function For(list, fn) {
     snapshot = newSnapShot;
   };
 
-  Reflect.set(rangeStart, '__persisted', callback);
+  // Prevents premature garbage collection.
+  const persistedSet = new Set();
+  persistedSet.add(list);
+  persistedSet.add(callback);
+  Reflect.set(rangeStart, '__attributeCells', persistedSet);
 
   list.runAndListen(callback, { weak: true });
   return [rangeStart, ...snapshot, rangeEnd];

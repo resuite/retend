@@ -119,7 +119,11 @@ export function If(value, fnOrObject, elseFn) {
     return nodes;
   };
 
-  Reflect.set(rangeStart, '__persisted', callback); // prevents garbage collection.
+  // Prevents premature garbage collection.
+  const persistedSet = new Set();
+  persistedSet.add(value);
+  persistedSet.add(callback);
+  Reflect.set(rangeStart, '__attributeCells', persistedSet);
 
   // see comment in switch.js
   const firstRun = callback(value.value);

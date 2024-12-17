@@ -873,20 +873,23 @@ unfinished-router-outlet, unfinished-router-relay {
         matchedComponent = matchedComponentOrLazyLoader;
       }
 
-      const fullPath = constructURL(currentMatchedRoute.fullPath, matchResult);
+      const fullPathWithSearchAndHash = constructURL(
+        currentMatchedRoute.fullPath,
+        matchResult
+      );
 
       // The current path must react before the page loads.
       const oldPath = this.currentPath.value.fullPath;
-      if (this.currentPath.value.fullPath !== fullPath) {
+      if (this.currentPath.value.fullPath !== fullPathWithSearchAndHash) {
         this.currentPath.value = {
           name: currentMatchedRoute.name,
-          fullPath,
+          fullPath: fullPathWithSearchAndHash,
           params: matchResult.params,
           query: matchResult.searchQueryParams,
         };
       }
 
-      outlet.dataset.path = fullPath;
+      outlet.dataset.path = currentMatchedRoute.fullPath;
       /** @type {JSX.Template} */
       let renderedComponent;
       const snapshot = outlet.__keepAliveCache?.get(path);
@@ -898,11 +901,11 @@ unfinished-router-outlet, unfinished-router-relay {
 
       matchedComponent.__routeLevelFunction = true;
       matchedComponent.__renderedOutlet = new WeakRef(outlet);
-      matchedComponent.__renderedPath = fullPath;
+      matchedComponent.__renderedPath = fullPathWithSearchAndHash;
 
       // if the component performs a redirect internally, it would change the route
       // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.dataset.path !== fullPath) {
+      if (outlet.dataset.path != currentMatchedRoute.fullPath) {
         return false;
       }
 
@@ -910,7 +913,7 @@ unfinished-router-outlet, unfinished-router-relay {
       // for view transitions, without already triggering a view transition.
       // Mind bending nonsense.
       const navigationDirection = this.chooseNavigationDirection(
-        fullPath,
+        fullPathWithSearchAndHash,
         replace
       );
       viewTransitionTypesArray[0] = navigationDirection;
@@ -943,9 +946,10 @@ unfinished-router-outlet, unfinished-router-relay {
 
       lastMatchedRoute = currentMatchedRoute;
       currentMatchedRoute = currentMatchedRoute.child;
-      outlet = /** @type {RouterOutlet} */ (
+      const nextOutlet = /** @type {RouterOutlet} */ (
         outlet?.querySelector('unfinished-router-outlet')
       );
+      outlet = nextOutlet;
     }
 
     if (lastMatchedRoute.redirect && lastMatchedRoute.redirect !== path) {
