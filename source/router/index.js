@@ -130,7 +130,7 @@ const RELAY_ID_REGEX =
  */
 
 /**
- * @typedef {HTMLDivElement & {
+ * @typedef {HTMLElement & {
  *  __keepAlive?: boolean;
  *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  * }} RouterOutlet
@@ -139,7 +139,7 @@ const RELAY_ID_REGEX =
 /**
  * @template [SourceProps=object]
  * @template {(props: SourceProps) => JSX.Template} [SourceFn=(props: SourceProps) => JSX.Template]
- * @typedef {HTMLDivElement & {
+ * @typedef {HTMLElement & {
  *  __name?: string;
  *  __props: SourceProps;
  *  __render?: SourceFn;
@@ -371,9 +371,9 @@ export class Router extends EventTarget {
    *
    * This component is used internally by the {@link Router} class to handle route changes and
    * render the appropriate component.
-   * @type {(props?: RouterOutletProps) => HTMLDivElement}
+   * @type {(props?: RouterOutletProps) => HTMLElement}
    * @param {RouterOutletProps} [props]
-   * @returns {HTMLDivElement} The rendered div element that serves as the router outlet.
+   * @returns {HTMLElement} The rendered custom element that serves as the router outlet.
    *
    * @example
    * ```tsx
@@ -387,7 +387,9 @@ export class Router extends EventTarget {
     }
 
     /** @type {RouterOutlet } */
-    const outlet = this.window.document.createElement('div');
+    const outlet = this.window.document.createElement(
+      'unfinished-router-outlet'
+    );
 
     if (props) {
       const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
@@ -417,8 +419,8 @@ export class Router extends EventTarget {
    * across route changes by linking relay instances using unique identifiers.
    * Animations and transitions are not supported, but they can be added using the View Transitions API.
    *
-   * @type {<Props, SourceFn extends (props: Props) => JSX.Template>(props: RouterRelayProps<Props, SourceFn>) => HTMLDivElement}
-   * @returns {HTMLDivElement} A container element for managing and persisting state across routes.
+   * @type {<Props, SourceFn extends (props: Props) => JSX.Template>(props: RouterRelayProps<Props, SourceFn>) => HTMLElement}
+   * @returns {HTMLElement} A container element for managing and persisting state across routes.
    *
    * @example
    * ```tsx
@@ -465,7 +467,7 @@ export class Router extends EventTarget {
 
     const relay =
       /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ (
-        this.window.document.createElement('div')
+        this.window.document.createElement('unfinished-router-relay')
       );
     relay.toggleAttribute('data-x-relay', true);
 
@@ -508,10 +510,13 @@ export class Router extends EventTarget {
   }
 
   /**
-   * Creates a stylesheet and adds it to the adopted stylesheets of the current document.
-   * @returns {CSSStyleSheet | undefined} The created stylesheet.
+   * @private
+   * Defines the web components used by the router.
+   * This method creates and registers the 'unfinished-router-outlet' and 'unfinished-router-relay' custom elements,
+   * and applies a CSS style sheet to set their display property to 'contents'.
+   * The method returns the created CSS style sheet.
    */
-  createStylesheet() {
+  defineWebComponents() {
     if (this.sheet) {
       return this.sheet;
     }
@@ -521,12 +526,26 @@ export class Router extends EventTarget {
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
       `
-[data-x-relay], [data-x-outlet] {
+unfinished-router-outlet, unfinished-router-relay {
   display: contents;
 }
 `
     );
     this.window.document.adoptedStyleSheets.push(this.sheet);
+
+    if (!this.window.customElements.get('unfinished-router-outlet')) {
+      this.window.customElements.define(
+        'unfinished-router-outlet',
+        class extends HTMLDivElement {}
+      );
+    }
+
+    if (!this.window.customElements.get('unfinished-router-relay')) {
+      this.window.customElements.define(
+        'unfinished-router-relay',
+        class extends HTMLDivElement {}
+      );
+    }
 
     return this.sheet;
   }
@@ -764,7 +783,9 @@ export class Router extends EventTarget {
 
     if (matchResult.subTree === null) {
       console.warn(`No route matches path: ${path}`);
-      const outlet = this.window?.document.querySelector('div[data-x-outlet]');
+      const outlet = this.window?.document.querySelector(
+        'unfinished-router-outlet'
+      );
       outlet?.removeAttribute('data-path');
       if (this.window) {
         outlet?.replaceChildren(emptyRoute(path, this.window));
@@ -777,7 +798,9 @@ export class Router extends EventTarget {
     /** @type {MatchedRoute<ComponentOrComponentLoader> | null} */
     let currentMatchedRoute = matchResult.subTree;
     /** @type {RouterOutlet} */ //@ts-ignore
-    let outlet = this.window?.document.querySelector('div[data-x-outlet]');
+    let outlet = this.window?.document.querySelector(
+      'unfinished-router-outlet'
+    );
 
     if (!outlet) return false;
 
@@ -788,7 +811,7 @@ export class Router extends EventTarget {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
         outlet = /** @type {RouterOutlet} */ (
-          outlet?.querySelector('div[data-x-outlet]')
+          outlet?.querySelector('unfinished-router-outlet')
         );
 
         // If only the search params changed, then the last outlet
@@ -924,7 +947,7 @@ export class Router extends EventTarget {
       lastMatchedRoute = currentMatchedRoute;
       currentMatchedRoute = currentMatchedRoute.child;
       outlet = /** @type {RouterOutlet} */ (
-        outlet?.querySelector('div[data-x-outlet]')
+        outlet?.querySelector('unfinished-router-outlet')
       );
     }
 
@@ -1199,7 +1222,7 @@ export class Router extends EventTarget {
       window.history.scrollRestoration = 'manual';
     }
 
-    this.createStylesheet();
+    this.defineWebComponents();
 
     this.window?.addEventListener('popstate', async (event) => {
       if (!this.isLoading && this.window) {
