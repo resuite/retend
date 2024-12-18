@@ -129,11 +129,12 @@ export function h(tagname, props) {
     const completeProps = { ...props };
     // In Dev mode and using HMR, the function may have been overwritten.
     // In this case we need the latest version of the function.
-    const component = getMostCurrentFunction(tagname)(completeProps, {
+    const current = getMostCurrentFunction(tagname);
+    const component = current(completeProps, {
       createdByJsx: true,
     });
     const nodes = generateChildNodes(component);
-    linkNodesToComponent(nodes, tagname, completeProps);
+    linkNodesToComponent(nodes, current, completeProps);
     return nodes;
   }
 
