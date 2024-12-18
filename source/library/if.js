@@ -1,17 +1,19 @@
 import { Cell } from '@adbl/cells';
-import { generateChildNodes } from './utils.js';
+import { generateChildNodes, getMostCurrentFunction } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { UpdatableFn } from '../render/index.js' */
 
 /**
  * @template T
- * @typedef {Record<'true', (value: T) => JSX.Template>
- * | Record<'false', () => JSX.Template>
+ * @typedef {Record<'true', ((value: T) => JSX.Template)>
+ * | Record<'false',  (() => JSX.Template)>
  * | {
- *   true: (value: T) =>JSX.Template,
- *   false: () => JSX.Template
+ *   true:  ((value: T) => JSX.Template),
+ *   false:  (() => JSX.Template)
  * }} ConditionObject
  */
 
@@ -20,8 +22,8 @@ import { linkNodesToComponent } from '../render/index.js';
  *
  * @template T
  * @param {T | Cell<T>} value
- * @param {((value: NonNullable<T>) => JSX.Template) | ConditionObject<T>} fnOrObject
- * @param {() => JSX.Template} [elseFn] - Optional callback for falsy values
+ * @param {( ((value: NonNullable<T>) => JSX.Template)) | ConditionObject<T>} fnOrObject
+ * @param { (() => JSX.Template)} [elseFn] - Optional callback for falsy values
  * @returns {JSX.Template}
  *
  * @example
@@ -53,21 +55,24 @@ import { linkNodesToComponent } from '../render/index.js';
 export function If(value, fnOrObject, elseFn) {
   if (!Cell.isCell(value)) {
     if (typeof fnOrObject === 'function') {
+      let func = getMostCurrentFunction(fnOrObject);
       if (value) {
-        return fnOrObject(value);
+        return func(value);
       }
       if (elseFn) {
-        return elseFn();
+        let elseFunc = getMostCurrentFunction(elseFn);
+        return elseFunc();
       }
       return;
     }
 
     if (typeof fnOrObject === 'object') {
       if (value && 'true' in fnOrObject) {
-        return fnOrObject.true(value);
+        return getMostCurrentFunction(fnOrObject.true)(value);
       }
+
       if (!value && 'false' in fnOrObject) {
-        return fnOrObject.false();
+        return getMostCurrentFunction(fnOrObject.false)();
       }
     }
 
@@ -92,21 +97,25 @@ export function If(value, fnOrObject, elseFn) {
 
     if (typeof fnOrObject === 'function') {
       if (value) {
-        nodes = generateChildNodes(fnOrObject(value));
-        linkNodesToComponent(nodes, fnOrObject, value);
+        let func = getMostCurrentFunction(fnOrObject);
+        nodes = generateChildNodes(func(value));
+        linkNodesToComponent(nodes, func, value);
       } else if (elseFn) {
-        nodes = generateChildNodes(elseFn());
-        linkNodesToComponent(nodes, elseFn);
+        let elseFunc = getMostCurrentFunction(elseFn);
+        nodes = generateChildNodes(elseFunc());
+        linkNodesToComponent(nodes, elseFunc);
       } else {
         nodes = [];
       }
     } else if (typeof fnOrObject === 'object') {
       if (value && 'true' in fnOrObject) {
-        nodes = generateChildNodes(fnOrObject.true(value));
-        linkNodesToComponent(nodes, fnOrObject.true, value);
+        let trueFunc = getMostCurrentFunction(fnOrObject.true);
+        nodes = generateChildNodes(trueFunc(value));
+        linkNodesToComponent(nodes, trueFunc, value);
       } else if (!value && 'false' in fnOrObject) {
-        nodes = generateChildNodes(fnOrObject.false());
-        linkNodesToComponent(nodes, fnOrObject.false);
+        let falseFunc = getMostCurrentFunction(fnOrObject.false);
+        nodes = generateChildNodes(falseFunc());
+        linkNodesToComponent(nodes, falseFunc);
       } else {
         nodes = [];
       }

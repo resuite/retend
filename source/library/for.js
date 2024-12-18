@@ -1,5 +1,9 @@
 import { Cell } from '@adbl/cells';
-import { ArgumentList, generateChildNodes } from './utils.js';
+import {
+  ArgumentList,
+  generateChildNodes,
+  getMostCurrentFunction,
+} from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
@@ -10,7 +14,7 @@ import { linkNodesToComponent } from '../render/index.js';
  *
  * @template {Iterable<any>} U
  * @param {Cell<U> | U} list - The iterable or Cell containing an iterable to map over
- * @param {(item: U extends Iterable<infer V> ? V : never, index: Cell<number>, iter: U) => JSX.Template} fn - Function to create a Template for each item
+ * @param {((item: U extends Iterable<infer V> ? V : never, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
  * @returns {JSX.Template} - A Template representing the mapped items
  *
  * @example
@@ -44,8 +48,9 @@ export function For(list, fn) {
     for (const item of list) {
       /** @type {[any, Cell<number>, typeof list]} */
       const parameters = [item, Cell.source(index), list];
-      const nodes = generateChildNodes(fn(...parameters));
-      linkNodesToComponent(nodes, fn, new ArgumentList(parameters));
+      let func = getMostCurrentFunction(fn);
+      const nodes = generateChildNodes(func(...parameters));
+      linkNodesToComponent(nodes, func, new ArgumentList(parameters));
       snapshot.push(...nodes);
       index += 1;
     }
@@ -99,8 +104,9 @@ export function For(list, fn) {
         const i = Cell.source(index);
         /** @type {[any, Cell<number>, typeof _list]} */
         const parameters = [item, i, _list];
-        const nodes = generateChildNodes(fn(...parameters));
-        linkNodesToComponent(nodes, fn, new ArgumentList(parameters));
+        let func = getMostCurrentFunction(fn);
+        const nodes = generateChildNodes(func(...parameters));
+        linkNodesToComponent(nodes, func, new ArgumentList(parameters));
         newNodeStore.set(itemKey, { nodes, index: i });
         newSnapShot.push(...nodes);
       } else {

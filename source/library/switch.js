@@ -1,5 +1,5 @@
 import { Cell } from '@adbl/cells';
-import { generateChildNodes } from './utils.js';
+import { generateChildNodes, getMostCurrentFunction } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
@@ -48,15 +48,16 @@ export function Switch(value, cases, defaultCase) {
 
   if (!Cell.isCell(value)) {
     if (value in cases) {
-      const fn = cases[value];
+      const fn = getMostCurrentFunction(cases[value]);
       const nodes = generateChildNodes(fn());
       linkNodesToComponent(nodes, fn);
       return nodes;
     }
 
     if (defaultCase) {
-      const nodes = generateChildNodes(defaultCase(value));
-      linkNodesToComponent(nodes, defaultCase, value);
+      let defaultCaseFunc = getMostCurrentFunction(defaultCase);
+      const nodes = generateChildNodes(defaultCaseFunc(value));
+      linkNodesToComponent(nodes, defaultCaseFunc, value);
       return nodes;
     }
 
@@ -75,15 +76,17 @@ export function Switch(value, cases, defaultCase) {
 
     const caseCaller = cases[value];
     if (caseCaller) {
-      nodes = generateChildNodes(caseCaller());
-      linkNodesToComponent(nodes, caseCaller);
+      let caseCallerFunc = getMostCurrentFunction(caseCaller);
+      nodes = generateChildNodes(caseCallerFunc(value));
+      linkNodesToComponent(nodes, caseCallerFunc, value);
       rangeStart.after(...nodes);
       return nodes;
     }
 
     if (defaultCase) {
-      nodes = generateChildNodes(defaultCase(value));
-      linkNodesToComponent(nodes, defaultCase, value);
+      let defaultCaseFunc = getMostCurrentFunction(defaultCase);
+      nodes = generateChildNodes(defaultCaseFunc(value));
+      linkNodesToComponent(nodes, defaultCaseFunc, value);
       rangeStart.after(...nodes);
       return nodes;
     }

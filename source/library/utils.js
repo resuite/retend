@@ -270,3 +270,18 @@ export async function isPromisePending(promise) {
 export function isSomewhatFalsy(value) {
   return value === undefined || value === null || value === false;
 }
+
+/**
+ * Gets the most current instance of the given function.
+ *
+ * @param {Function & import('../render/index.js').UpdatableFn} fn
+ * @returns {(...args: any[]) => any}
+ */
+export function getMostCurrentFunction(fn) {
+  let currentFn = fn;
+  while (currentFn.__nextInstance) {
+    currentFn = currentFn.__nextInstance;
+  }
+  // @ts-ignore
+  return currentFn;
+}

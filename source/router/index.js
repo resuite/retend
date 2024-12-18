@@ -1,6 +1,10 @@
 import { Cell, SourceCell } from '@adbl/cells';
 import { setAttributeFromProps, appendChild } from '../library/jsx.js';
-import { generateChildNodes, FixedSizeMap } from '../library/utils.js';
+import {
+  generateChildNodes,
+  FixedSizeMap,
+  getMostCurrentFunction,
+} from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
@@ -491,6 +495,9 @@ export class Router extends EventTarget {
 
       if (!this.isLoading) {
         // @ts-ignore: The render type is generic.
+        if (relay.__render) {
+          relay.__render = getMostCurrentFunction(relay.__render);
+        }
         const nodes = generateChildNodes(relay.__render?.(relay.__props));
         linkNodesToComponent(nodes, relay.__render, relay.__props);
         appendChild(relay, relay.tagName.toLowerCase(), nodes);
@@ -904,7 +911,7 @@ unfinished-router-outlet, unfinished-router-relay {
 
       // if the component performs a redirect internally, it would change the route
       // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.dataset.path != currentMatchedRoute.fullPath) {
+      if (outlet.dataset.path !== currentMatchedRoute.fullPath) {
         return false;
       }
 

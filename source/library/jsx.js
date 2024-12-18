@@ -2,6 +2,7 @@ import { Cell, SourceCell } from '@adbl/cells';
 import {
   convertObjectToCssStylesheet,
   generateChildNodes,
+  getMostCurrentFunction,
   isSomewhatFalsy,
 } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
@@ -126,7 +127,11 @@ export function h(tagname, props) {
 
   if (typeof tagname === 'function') {
     const completeProps = { ...props };
-    const component = tagname(completeProps, { createdByJsx: true });
+    // In Dev mode and using HMR, the function may have been overwritten.
+    // In this case we need the latest version of the function.
+    const component = getMostCurrentFunction(tagname)(completeProps, {
+      createdByJsx: true,
+    });
     const nodes = generateChildNodes(component);
     linkNodesToComponent(nodes, tagname, completeProps);
     return nodes;

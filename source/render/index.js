@@ -8,6 +8,8 @@ import { routeToComponent } from '../router/routeTree.js';
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
+/** @typedef {{ __nextInstance?: (...args: any[]) => JSX.Template }} UpdatableFn */
+
 /**
  * @typedef Instance
  *
@@ -183,6 +185,7 @@ export const hotReloadModule = async (newModule, url) => {
     }
 
     jsxFunctionInstances.delete(oldInstance);
+    oldInstance.__nextInstance = newInstance;
 
     for (const instance of componentInstances) {
       // if the node is not in the DOM, skip re-rendering.
