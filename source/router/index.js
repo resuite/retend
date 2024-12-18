@@ -310,15 +310,14 @@ export class Router extends EventTarget {
     if (props && 'active' in props) {
       console.error('active attribute is reserved for router.');
     }
-    const currentRoute = this.getCurrentRoute();
     /** @type {(route: ReturnType<typeof this.getCurrentRoute>['value']) => void} */
     const callback = ({ fullPath }) => {
       const href = a.getAttribute('href');
       const isActive = Boolean(fullPath && href && fullPath.startsWith(href));
       a.toggleAttribute('active', isActive);
     };
-    currentRoute.runAndListen(callback, { weak: true });
-    // Store the callback in the anchor element to prevent it from being garbage collected.
+    this.currentPath.runAndListen(callback, { weak: true });
+    // Store the callback to prevent it from being garbage collected.
     // @ts-ignore
     a.__routeChangedCallback = callback;
 
