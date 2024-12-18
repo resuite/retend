@@ -1,5 +1,9 @@
 import { Cell } from '@adbl/cells';
-import { generateChildNodes, getMostCurrentFunction } from './utils.js';
+import {
+  createCommentPair,
+  generateChildNodes,
+  getMostCurrentFunction,
+} from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
@@ -43,8 +47,7 @@ import { linkNodesToComponent } from '../render/index.js';
  * // Resulting JSX output will dynamically update for reactiveCell based on its value.
  */
 export function Switch(value, cases, defaultCase) {
-  const rangeStart = globalThis.window.document.createComment('----');
-  const rangeEnd = globalThis.window.document.createComment('----');
+  const [rangeStart, rangeEnd] = createCommentPair();
 
   if (!Cell.isCell(value)) {
     if (value in cases) {

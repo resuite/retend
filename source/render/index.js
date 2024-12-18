@@ -9,6 +9,7 @@ import { routeToComponent } from '../router/routeTree.js';
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 /** @typedef {{ __nextInstance?: (...args: any[]) => JSX.Template }} UpdatableFn */
+/** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
 
 /**
  * @typedef Instance
@@ -16,7 +17,7 @@ import { routeToComponent } from '../router/routeTree.js';
  * @property {Record<string, unknown>} [props]
  * Props passed to the component instance.
  *
- * @property {Node[]} nodes
+ * @property {RangedNode[]} nodes
  * Nodes returned from the component instance.
  */
 
@@ -209,15 +210,35 @@ export const hotReloadModule = async (newModule, url) => {
         // only the first node rendered is important.
         // ideally components should only render one
         // top level node.
-        const anchorNode = instance.nodes[0];
+        const anchor = instance.nodes[0];
         for (const node of instance.nodes) {
-          if (node === anchorNode) continue;
+          if (node === anchor) continue;
+          // If the node is a connect comment, all the nodes
+          // between it and the next comment with the same id
+          // will be removed. This is used in cleaning up
+          // Switch, For and If components.
+          if (node.__commentRangeSymbol) {
+            const id = node.__commentRangeSymbol;
+            while (true) {
+              const nextNode = /** @type {RangedNode} */ (node.nextSibling);
+              if (!nextNode || nextNode.__commentRangeSymbol === id) break;
+              nextNode.parentElement?.removeChild(nextNode);
+            }
+          }
           node.parentElement?.removeChild(node);
         }
 
-        if (anchorNode) {
+        if (anchor) {
           // Replace the old anchor node with the new DOM fragment.
-          anchorNode.parentNode?.replaceChild(fragment, anchorNode);
+          anchor.parentNode?.replaceChild(fragment, anchor);
+          if (anchor.__commentRangeSymbol) {
+            const id = anchor.__commentRangeSymbol;
+            while (true) {
+              const nextNode = /** @type {RangedNode} */ (anchor.nextSibling);
+              if (!nextNode || nextNode.__commentRangeSymbol === id) break;
+              nextNode.parentElement?.removeChild(nextNode);
+            }
+          }
         }
 
         linkNodesToComponent(newNodes, newInstance, instance.props);

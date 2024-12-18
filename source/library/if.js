@@ -1,5 +1,9 @@
 import { Cell } from '@adbl/cells';
-import { generateChildNodes, getMostCurrentFunction } from './utils.js';
+import {
+  createCommentPair,
+  generateChildNodes,
+  getMostCurrentFunction,
+} from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
@@ -82,8 +86,7 @@ export function If(value, fnOrObject, elseFn) {
     return;
   }
 
-  const rangeStart = globalThis.window.document.createComment('----');
-  const rangeEnd = globalThis.window.document.createComment('----');
+  const [rangeStart, rangeEnd] = createCommentPair();
 
   /** @param {T} value */
   const callback = (value) => {

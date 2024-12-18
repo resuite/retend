@@ -285,3 +285,17 @@ export function getMostCurrentFunction(fn) {
   // @ts-ignore
   return currentFn;
 }
+
+/**
+ * Creates a pair of connected comment nodes that can be used to represent a range.
+ * @returns {[Comment, Comment]} A pair of connected comment nodes with a shared symbol.
+ */
+export function createCommentPair() {
+  const symbol = Symbol();
+  const rangeStart = globalThis.window.document.createComment('----');
+  const rangeEnd = globalThis.window.document.createComment('----');
+  Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
+  Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
+
+  return [rangeStart, rangeEnd];
+}

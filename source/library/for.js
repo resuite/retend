@@ -1,6 +1,7 @@
 import { Cell } from '@adbl/cells';
 import {
   ArgumentList,
+  createCommentPair,
   generateChildNodes,
   getMostCurrentFunction,
 } from './utils.js';
@@ -57,8 +58,7 @@ export function For(list, fn) {
     return snapshot;
   }
 
-  const rangeStart = globalThis.window.document.createComment('----');
-  const rangeEnd = globalThis.window.document.createComment('----');
+  const [rangeStart, rangeEnd] = createCommentPair();
   const uniqueSymbolMarker = Symbol();
   /**
    * @type {Map<any, {
