@@ -783,7 +783,7 @@ unfinished-router-outlet, unfinished-router-relay {
           searchQueryParams: this.currentPath.value.query,
         })
       : undefined;
-    const nextPath = this.window ? getFullPath(this.window) : path;
+    const nextPath = path;
     const event = new CustomEvent('routechange', {
       cancelable: true,
       bubbles: false,
