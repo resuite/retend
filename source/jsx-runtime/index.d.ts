@@ -3128,18 +3128,22 @@ export namespace JSX {
   };
 
   type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
-  type AddModifierPrefix<T> = `${T}--${Modifiers}`;
+  type AddModifierPrefix<
+    T extends string | number | bigint | boolean | null | undefined
+  > = `${T}--${Modifiers}`;
   type RemoveModifierPrefix<U> = U extends `${infer T}--${Modifiers}`
     ? T
     : never;
-
+  type ElementTypes<T extends keyof IntrinsicElementsBase> = Container<
+    IntrinsicElementsBase[T] &
+      // @ts-ignore: Clashing html and svg <a> tags.
+      ElementEventListenerModifiers<IntrinsicElementsBase[T]>
+  >;
   type IntrinsicElementsBase = JsxHtmlElementMap & JsxSvgElementMap;
   type IntrinsicElementsInner = {
-    [key in keyof IntrinsicElementsBase]: Container<
-      IntrinsicElementsBase[key] &
-        ElementEventListenerModifiers<IntrinsicElementsBase[key]>
-    >;
-  };
+    [key in keyof IntrinsicElementsBase]: ElementTypes<key>;
+  } & Record<`${string}-${string}`, ElementTypes<'div'>>;
+
   export interface IntrinsicElements extends IntrinsicElementsInner {}
 
   type Node =
