@@ -27,6 +27,20 @@ const RELAY_ID_REGEX =
  */
 
 /**
+ * @typedef {'routechange'} RouterEventTypes
+ */
+
+/**
+ * @typedef {CustomEvent<{ from: string, to: string }>} RouteChangeEvent
+ */
+
+/**
+ * @typedef {{
+ *  'routechange': (this: Router, event: RouteChangeEvent) => void;
+ * }} RouterEventHandlerMap
+ */
+
+/**
  * @typedef RouteLevelFunctionData
  *
  * @property {boolean} [__routeLevelFunction]
@@ -702,6 +716,7 @@ unfinished-router-outlet, unfinished-router-relay {
           name: currentPath.name,
           params: currentPath.params,
           query: currentPath.query,
+          path: currentPath.path,
           fullPath: currentPath.fullPath,
         }
       : null;
@@ -709,7 +724,8 @@ unfinished-router-outlet, unfinished-router-relay {
       name: targetMatch.name,
       params: matchResult.params,
       query: matchResult.searchQueryParams,
-      fullPath: targetMatch.fullPath,
+      path: targetMatch.path,
+      fullPath: path,
     };
     const middlewareArgs = {
       from: sourcePath,
@@ -759,9 +775,22 @@ unfinished-router-outlet, unfinished-router-relay {
     replace,
     viewTransitionTypesArray
   ) => {
-    if (path === '#') {
-      return false;
-    }
+    if (path === '#') return false;
+
+    const currentPath = this.currentPath.value.path
+      ? constructURL(this.currentPath.value.path, {
+          params: this.currentPath.value.params,
+          searchQueryParams: this.currentPath.value.query,
+        })
+      : undefined;
+    const nextPath = this.window ? getFullPath(this.window) : path;
+    const event = new CustomEvent('routechange', {
+      cancelable: true,
+      bubbles: false,
+      detail: { from: currentPath, to: nextPath },
+    });
+    this.dispatchEvent(event);
+    if (event.defaultPrevented) return false;
 
     const matchResult = this.routeTree.match(path);
     matchResult.flattenTransientRoutes();
@@ -810,7 +839,7 @@ unfinished-router-outlet, unfinished-router-relay {
     while (currentMatchedRoute) {
       if (!outlet) break;
 
-      if (outlet.dataset.path === currentMatchedRoute.fullPath) {
+      if (outlet.dataset.path === currentMatchedRoute.path) {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
         outlet = /** @type {RouterOutlet} */ (
@@ -820,13 +849,14 @@ unfinished-router-outlet, unfinished-router-relay {
         // If only the search params changed, then the last outlet
         // should trigger a route change.
         if (!outlet || !currentMatchedRoute) {
-          const fullPath = constructURL(lastMatchedRoute.fullPath, matchResult);
+          const fullPath = constructURL(lastMatchedRoute.path, matchResult);
           if (this.currentPath.value.fullPath !== fullPath) {
             this.currentPath.value = {
               name: lastMatchedRoute.name,
-              fullPath,
+              path: lastMatchedRoute.path,
               params: matchResult.params,
               query: matchResult.searchQueryParams,
+              fullPath,
             };
           }
 
@@ -880,7 +910,7 @@ unfinished-router-outlet, unfinished-router-relay {
       }
 
       const fullPathWithSearchAndHash = constructURL(
-        currentMatchedRoute.fullPath,
+        currentMatchedRoute.path,
         matchResult
       );
 
@@ -889,13 +919,14 @@ unfinished-router-outlet, unfinished-router-relay {
       if (this.currentPath.value.fullPath !== fullPathWithSearchAndHash) {
         this.currentPath.value = {
           name: currentMatchedRoute.name,
-          fullPath: fullPathWithSearchAndHash,
+          path: currentMatchedRoute.path,
           params: matchResult.params,
           query: matchResult.searchQueryParams,
+          fullPath: fullPathWithSearchAndHash,
         };
       }
 
-      outlet.dataset.path = currentMatchedRoute.fullPath;
+      outlet.dataset.path = currentMatchedRoute.path;
       /** @type {JSX.Template} */
       let renderedComponent;
       const snapshot = outlet.__keepAliveCache?.get(path);
@@ -911,7 +942,7 @@ unfinished-router-outlet, unfinished-router-relay {
 
       // if the component performs a redirect internally, it would change the route
       // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.dataset.path !== currentMatchedRoute.fullPath) {
+      if (outlet.dataset.path !== currentMatchedRoute.path) {
         return false;
       }
 
@@ -973,6 +1004,28 @@ unfinished-router-outlet, unfinished-router-relay {
 
     return true;
   };
+
+  /**
+   * @template {RouterEventTypes} EventType
+   * @param {EventType} type
+   * @param {RouterEventHandlerMap[EventType] | null} listener
+   * @param {EventListenerOptions} [options]
+   */
+  //@ts-ignore: Typescript event listener types are inadequate.
+  addEventListener(type, listener, options) {
+    super.addEventListener(type, /**@type {any} */ (listener), options);
+  }
+
+  /**
+   * @template {RouterEventTypes} EventType
+   * @param {EventType} type
+   * @param {RouterEventHandlerMap[EventType]} listener
+   * @param {EventListenerOptions} [options]
+   */
+  //@ts-ignore: Typescript event listener types are inadequate.
+  removeEventListener(type, listener, options) {
+    super.removeEventListener(type, /**@type {any} */ (listener), options);
+  }
 
   getRouterPathHistory() {
     return [...this.routerHistory];
@@ -1356,7 +1409,7 @@ function emptyRoute(path, window) {
 /**
  * Constructs a URL path by replacing any matched parameters in the given path with their corresponding values from the `matchResult.params` object. If a parameter is not found, the original match is returned. Additionally, any search query parameters from `matchResult.searchQueryParams` are appended to the final path.
  * @param {string} path - The original path to be constructed.
- * @param {MatchResult<any>} matchResult - An object containing the matched parameters and search query parameters.
+ * @param {{ params: Map<string, string>, searchQueryParams: URLSearchParams }} matchResult - An object containing the matched parameters and search query parameters.
  * @returns {string} The final constructed URL path.
  */
 function constructURL(path, matchResult) {

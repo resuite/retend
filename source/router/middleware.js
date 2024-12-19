@@ -11,6 +11,7 @@
  * @property {string | null} name - The name of the route.
  * @property {Map<string, string>} params - The parameters of the route.
  * @property {URLSearchParams} query - The query parameters of the route.
+ * @property {string} path - The path of the route.
  * @property {string} fullPath - The full path of the route.
  */
 

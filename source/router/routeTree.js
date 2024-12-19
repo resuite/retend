@@ -58,7 +58,7 @@
 export class Route {
   /** @type {string | null} */ name = null;
   /** @type {string | null} */ title = null;
-  /** @type {string} */ fullPath = '';
+  /** @type {string} */ path = '';
   /** @type {string | null} */ redirect = null;
   /** @type {T | null} */ component = null;
   /** @type {string | null} */ transitionType = null;
@@ -74,14 +74,14 @@ export class Route {
    * @param {string} fullPath - The path to assign to the route.
    */
   constructor(fullPath) {
-    this.fullPath = fullPath;
+    this.path = fullPath;
   }
 }
 
 /** @template T */
 export class MatchedRoute {
   /** @type {string | null} */ name;
-  /** @type {string} */ fullPath;
+  /** @type {string} */ path;
   /** @type {string | null} */ redirect;
   /** @type {string | null} */ title;
   /** @type {T | null} */ component;
@@ -94,7 +94,7 @@ export class MatchedRoute {
    * @param {Route<T>} route
    */
   constructor(route) {
-    this.fullPath = route.fullPath;
+    this.path = route.path;
     this.name = route.name;
     this.component = route.component;
     this.isDynamic = route.isDynamic;
@@ -213,7 +213,7 @@ export class RouteTree {
    * @returns {boolean} - `true` if the path matches the root route or one of its children, `false` otherwise.
    */
   selectActiveRoutes(path, root) {
-    let rootFullPath = root.fullPath;
+    let rootFullPath = root.path;
 
     for (const [key, value] of this.parameterMap) {
       if (value) {
@@ -245,7 +245,7 @@ export class RouteTree {
         // match any fallthrough routes
         for (const child of root.children) {
           if (
-            root.fullPath === child.fullPath &&
+            root.path === child.path &&
             this.selectActiveRoutes(path, child)
           ) {
             break;
@@ -314,7 +314,7 @@ export class RouteTree {
       }
     }
 
-    if (root.isWildcard && root.fullPath.endsWith('*') && !root.isTransient) {
+    if (root.isWildcard && root.path.endsWith('*') && !root.isTransient) {
       root.isActive = true;
       return true;
     }
@@ -376,7 +376,7 @@ export const routeToComponent = new WeakMap();
  */
 RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
   const tree = new RouteTree();
-  const parentFullPath = parent ? parent.fullPath : '/';
+  const parentFullPath = parent ? parent.path : '/';
 
   for (const routeRecord of routeRecords) {
     const path = routeRecord.path.replace(/\/+/g, '/');
@@ -419,7 +419,7 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     current.transitionType = routeRecord.transitionType ?? null;
 
     const fullPath = `${parentFullPath}/${routeRecord.path}`;
-    current.fullPath = fullPath.replace(/\/+/g, '/');
+    current.path = fullPath.replace(/\/+/g, '/');
 
     if (pathSegments.length <= 1) {
       current.isDynamic = routeRecord.path.startsWith(':');
