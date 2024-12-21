@@ -52,32 +52,6 @@ let hmrObserver;
  */
 export function linkNodesToComponent(nodes, factory, props) {
   if (!isDevMode) return;
-  if (!hmrObserver) {
-    hmrObserver = new MutationObserver(() => {
-      /** @type {Map<Function, Set<Instance>>} */
-      const jsxFunctions =
-        // @ts-ignore: The Vite types are not installed.
-        import.meta.hot.data.jsxFunctionInstances ?? new Map();
-
-      for (const [func, instanceList] of jsxFunctions) {
-        for (const instance of instanceList) {
-          // This may not be true in all cases, but for now
-          // a component instance is considered connected
-          // if its first node is connected to the DOM.
-          if (!instance.nodes[0]?.isConnected) {
-            instanceList.delete(instance);
-          }
-        }
-        if (instanceList.size === 0) {
-          jsxFunctions.delete(func);
-        }
-      }
-    });
-    hmrObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
-  }
 
   /// @ts-ignore: The Vite types are not installed.
   if (!import.meta.hot) return;
@@ -126,9 +100,34 @@ export function linkNodesToComponent(nodes, factory, props) {
  * @param {string} url - The module's URL, used to dynamically import and compare the old module.
  */
 export const hotReloadModule = async (newModule, url) => {
-  if (!newModule) {
-    return;
+  if (!hmrObserver) {
+    hmrObserver = new MutationObserver(() => {
+      /** @type {Map<Function, Set<Instance>>} */
+      const jsxFunctions =
+        // @ts-ignore: The Vite types are not installed.
+        import.meta.hot.data.jsxFunctionInstances ?? new Map();
+
+      for (const [func, instanceList] of jsxFunctions) {
+        for (const instance of instanceList) {
+          // This may not be true in all cases, but for now
+          // a component instance is considered connected
+          // if its first node is connected to the DOM.
+          if (!instance.nodes[0]?.isConnected) {
+            instanceList.delete(instance);
+          }
+        }
+        if (instanceList.size === 0) {
+          jsxFunctions.delete(func);
+        }
+      }
+    });
+    hmrObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
   }
+
+  if (!newModule) return;
 
   // Dynamically import the old module using its URL.
   const oldModule = await import(/* @vite-ignore */ url);
