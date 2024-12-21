@@ -16,66 +16,6 @@ export class ArgumentList {
 }
 
 /**
- * Observes when an element is connected to the DOM and executes a callback
- * @param {Element} element - The element to observe
- * @param {() => void} callback - Function to execute when element is connected
- * @param {boolean} [persist] Keeps checking the element for DOM connections.
- * @returns {{ disconnect: () => void }} Object with method to stop observing
- */
-export function onConnected(element, callback, persist) {
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.type === 'childList') {
-        if (document.contains(element)) {
-          callback();
-          if (!persist) {
-            observer.disconnect();
-          }
-          break;
-        }
-      }
-    }
-  });
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
-
-  // Handle case where element is already in DOM
-  if (document.contains(element)) {
-    callback();
-    observer.disconnect();
-  }
-
-  return {
-    disconnect: () => observer.disconnect(),
-  };
-}
-
-/**
- * Observes when an element enters the viewport and executes a callback
- * @param {Element} element - The element to observe
- * @param {() => void} callback - Function to execute when element enters viewport
- * @returns {{ disconnect: () => void }} Object with method to stop observing
- */
-export function onViewportEnter(element, callback) {
-  const observer = new IntersectionObserver((entries) => {
-    const [entry] = entries;
-    if (entry.isIntersecting) {
-      callback();
-      observer.disconnect();
-    }
-  });
-
-  observer.observe(element);
-
-  return {
-    disconnect: () => observer.disconnect(),
-  };
-}
-
-/**
  * A {@link Map} implementation that automatically removes the oldest entry when the maximum size is reached.
  * @template K, V
  * @extends {Map<K, V>}
@@ -245,19 +185,6 @@ export function generateChildNodes(children) {
 export function isNotObject(value) {
   return (
     !value.toString || !/function|object/.test(typeof value) || value === null
-  );
-}
-
-/**
- * Checks if the given promise is currently pending.
- *
- * @param {Promise<any>} promise - The promise to check.
- * @returns {Promise<boolean>} `true` if the promise is currently pending, `false` otherwise.
- */
-export async function isPromisePending(promise) {
-  const pending = Symbol('pending');
-  return Promise.race([promise, Promise.resolve(pending)]).then(
-    (value) => value === pending
   );
 }
 
