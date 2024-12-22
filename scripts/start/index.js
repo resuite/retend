@@ -254,14 +254,11 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-
 import { hmrPlugin } from '@adbl/unfinished/render';
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './source'),
-    }
+    alias: { '@': path.resolve(__dirname, './source') }
   },
   plugins: [hmrPlugin()],
 ${
@@ -473,30 +470,30 @@ async function createComponentStructure(
 
   const containerClasses = tailwind
     ? `"min-h-screen flex items-center justify-center bg-gradient-to-r from-[${generateLightColor()}] to-[${generateLightColor()}]"`
-    : `{styles.${containerClass}}`;
+    : `{classes.${containerClass}}`;
 
   const mainElementClasses = tailwind
     ? '"max-w-7xl mx-auto p-8 text-center"'
-    : '{styles.content}';
+    : '{classes.content}';
 
   const headingClasses = tailwind
     ? '"text-5xl font-bold mb-4"'
-    : '{styles.heading}';
+    : '{classes.heading}';
 
-  const textClass = tailwind ? '"inline-block"' : '{styles.headingText}';
+  const textClass = tailwind ? '"inline-block"' : '{classes.headingText}';
 
-  const paragraphClasses = tailwind ? '"mb-8"' : '{styles.paragraph}';
-  const subTextClasses = tailwind ? '"text-gray-600"' : '{styles.readTheDocs}';
+  const paragraphClasses = tailwind ? '"mb-8"' : '{classes.paragraph}';
+  const subTextClasses = tailwind ? '"text-gray-600"' : '{classes.readTheDocs}';
 
   const textContent = isView
     ? `You're viewing the ${capitalize(componentName)} page`
     : "You're all set to start building amazing things!";
 
-  const linkClasses = tailwind ? '"text-blue-600"' : '{styles.link}';
+  const linkClasses = tailwind ? '"text-blue-600"' : '{classes.link}';
   const linkSuffix = isView ? 'to learn more.' : 'to get started.';
   const cssImport = tailwind
     ? ''
-    : `import styles from './${
+    : `import classes from './${
         isView ? 'styles' : componentName
       }.module.${styleExtension}';\n`;
 

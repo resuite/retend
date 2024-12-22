@@ -1,6 +1,6 @@
 {
   "name": "@adbl/unfinished-start",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": false,
   "type": "module",
   "description": "Scaffold a new project with @adbl/unfinished",
