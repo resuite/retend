@@ -4,7 +4,7 @@
 
 /**
  * @template {Node} T
- * @typedef {((node: T) => CleanupFn) | ((node: T) => void | Promise<void>) } MountFn
+ * @typedef {((node: T) => CleanupFn) | ((node: T) => Promise<CleanupFn>) | ((node: T) => void | Promise<void>) } MountFn
  */
 
 /**
