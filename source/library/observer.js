@@ -4,7 +4,7 @@
 
 /**
  * @template {Node} T
- * @typedef {((node: T) => CleanupFn) | ((node: T) => void)} MountFn
+ * @typedef {((node: T) => CleanupFn) | ((node: T) => void | Promise<void>) } MountFn
  */
 
 /**
@@ -27,8 +27,8 @@ class DocumentObserver {
    * @param {MountFn<T>} callback - The callback to execute when mounted
    * @private
    */
-  mount(node, callback) {
-    const cleanup = callback(node);
+  async mount(node, callback) {
+    const cleanup = await callback(node);
     if (cleanup) {
       const cleanups = this.mountedNodes.get(node);
       if (cleanups) {
@@ -72,7 +72,10 @@ class DocumentObserver {
 
       for (const [node, cleanups] of this.mountedNodes.entries()) {
         if (node.isConnected) continue;
-        for (const cleanup of cleanups) cleanup();
+        for (const cleanup of cleanups) {
+          console.log('Cleaning up:', cleanup);
+          cleanup();
+        }
         this.mountedNodes.delete(node);
       }
     });
