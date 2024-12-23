@@ -31,8 +31,30 @@ const RELAY_ID_REGEX =
  */
 
 /**
- * @typedef {CustomEvent<{ from: string, to: string }>} RouteChangeEvent
+ * @typedef RouteChangeEventDetail
+ *
+ * @property {string | undefined} from
+ * The path of the route that was leaving.
+ *
+ * @property {string} to
+ * The path of the route that was entering.
  */
+
+/**
+ * @extends {CustomEvent<RouteChangeEventDetail>}
+ */
+export class RouteChangeEvent extends CustomEvent {
+  /**
+   * @param {RouteChangeEventDetail} eventInitDict
+   */
+  constructor(eventInitDict) {
+    super('routechange', {
+      cancelable: true,
+      bubbles: false,
+      detail: eventInitDict,
+    });
+  }
+}
 
 /**
  * @typedef {{
@@ -258,7 +280,7 @@ export class Router extends EventTarget {
   stackMode;
 
   /** @private @type {string[]} */
-  routerHistory;
+  history;
 
   /** @type {boolean} */
   useViewTransitions;
@@ -286,7 +308,7 @@ export class Router extends EventTarget {
     this.params = new Map();
     this.stackMode = routeOptions.stackMode ?? false;
     this.useViewTransitions = routeOptions.useViewTransitions ?? false;
-    this.routerHistory = [];
+    this.history = [];
     this.sheet = undefined;
     this.Link = this.Link.bind(this);
     this.Outlet = this.Outlet.bind(this);
@@ -581,7 +603,7 @@ unfinished-router-outlet, unfinished-router-relay {
    * @param {string} path - The path to push.
    */
   pushHistory(path) {
-    this.routerHistory.push(path);
+    this.history.push(path);
     this.persistHistory();
   }
 
@@ -590,7 +612,7 @@ unfinished-router-outlet, unfinished-router-relay {
    * Removes the most recent path from the router's history and persists the updated history.
    */
   popHistory() {
-    this.routerHistory.pop();
+    this.history.pop();
     this.persistHistory();
   }
 
@@ -603,7 +625,7 @@ unfinished-router-outlet, unfinished-router-relay {
     if (this.window?.sessionStorage) {
       this.window.sessionStorage.setItem(
         HISTORY_STORAGE_KEY,
-        JSON.stringify(this.routerHistory)
+        JSON.stringify(this.history)
       );
     }
   }
@@ -784,11 +806,7 @@ unfinished-router-outlet, unfinished-router-relay {
         })
       : undefined;
     const nextPath = path;
-    const event = new CustomEvent('routechange', {
-      cancelable: true,
-      bubbles: false,
-      detail: { from: currentPath, to: nextPath },
-    });
+    const event = new RouteChangeEvent({ to: nextPath, from: currentPath });
     this.dispatchEvent(event);
     if (event.defaultPrevented) return false;
 
@@ -1028,7 +1046,7 @@ unfinished-router-outlet, unfinished-router-relay {
   }
 
   getRouterPathHistory() {
-    return [...this.routerHistory];
+    return [...this.history];
   }
 
   /**
@@ -1040,23 +1058,23 @@ unfinished-router-outlet, unfinished-router-relay {
   chooseNavigationDirection = (targetPath, replace) => {
     /** @type {NavigationDirection} */
     let navigationDirection = 'forwards';
-    const currentPath = this.routerHistory.at(-1);
+    const currentPath = this.history.at(-1);
     if (!this.stackMode || currentPath === targetPath) {
       return navigationDirection;
     }
 
     if (replace) {
-      this.routerHistory.pop();
-      this.routerHistory.push(targetPath);
+      this.history.pop();
+      this.history.push(targetPath);
       return navigationDirection;
     }
 
-    const previousIndex = this.routerHistory.findLastIndex(
+    const previousIndex = this.history.findLastIndex(
       (path) => path === targetPath
     );
     if (previousIndex !== -1) {
       navigationDirection = 'backwards';
-      while (this.routerHistory.length > previousIndex + 1) {
+      while (this.history.length > previousIndex + 1) {
         this.popHistory();
       }
     } else {
@@ -1171,7 +1189,7 @@ unfinished-router-outlet, unfinished-router-relay {
       return;
     }
 
-    const oldRouterHistoryLength = this.routerHistory.length;
+    const oldRouterHistoryLength = this.history.length;
     const oldTitle = this.window?.document.title;
     /** @type {string[]} */
     const viewTransitionTypes = [];
@@ -1182,7 +1200,7 @@ unfinished-router-outlet, unfinished-router-relay {
         replace,
         viewTransitionTypes
       );
-      const newRouterHistoryLength = this.routerHistory.length;
+      const newRouterHistoryLength = this.history.length;
 
       if (navigate && wasLoaded) {
         // If the new history length is less than the old history length
@@ -1269,11 +1287,11 @@ unfinished-router-outlet, unfinished-router-relay {
           // dedupe last entry
           if (
             savedHistoryArray.length > 0 &&
-            savedHistoryArray.at(-1) === this.routerHistory[0]
+            savedHistoryArray.at(-1) === this.history[0]
           ) {
             savedHistoryArray.pop();
           }
-          this.routerHistory = savedHistoryArray.concat(this.routerHistory);
+          this.history = savedHistoryArray.concat(this.history);
         }
       } catch (error) {
         console.error('Error parsing session history:', error);
