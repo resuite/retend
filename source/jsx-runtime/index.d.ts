@@ -2803,7 +2803,10 @@ export namespace JSX {
 
   interface JsxSVGGElement
     extends SVGCoreAttributes<SVGGElement>,
-      SVGPresentationAttributes {}
+      SVGPresentationAttributes {
+    /** Defines a mask to be applied to the element. */
+    mask?: string;
+  }
 
   interface JsxSVGImageElement
     extends SVGCoreAttributes<SVGImageElement>,
@@ -2866,7 +2869,9 @@ export namespace JSX {
     refY?: number | string;
   }
 
-  interface JsxSVGMaskElement extends SVGCoreAttributes<SVGMaskElement> {
+  interface JsxSVGMaskElement
+    extends SVGCoreAttributes<SVGMaskElement>,
+      SVGPresentationAttributes {
     /** Specifies the x coordinate of the mask */
     x?: number | string;
     /** Specifies the y coordinate of the mask */
