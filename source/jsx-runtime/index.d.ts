@@ -2436,6 +2436,8 @@ export namespace JSX {
     strokeWidth?: number | string;
     /** Specifies the opacity of the painting operation used to stroke the element */
     strokeOpacity?: number | string;
+    /** Defines a mask to be applied to the element. */
+    mask?: string;
   }
 
   /** Interface for SVG core attributes */
@@ -3140,6 +3142,7 @@ export namespace JSX {
         | PropertyKey
         | null
         | undefined
+        // biome-ignore lint/suspicious/noConfusingVoidType:
         | void
       >;
   export type Template =
@@ -3148,6 +3151,7 @@ export namespace JSX {
     | undefined
     | void
     | null
+    // biome-ignore lint/suspicious/noConfusingVoidType:
     | Promise<Node | Node[] | void | undefined | null>;
 
   export type Element = Template;
