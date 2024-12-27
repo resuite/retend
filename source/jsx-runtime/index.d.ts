@@ -53,7 +53,7 @@ export namespace JSX {
     | 'url'
     | 'week';
 
-  interface JsxGlobalEventHandlersEventMap {
+  interface GlobalEvents {
     /**
      * Fired when a resource load is aborted, such as by a user canceling the load.
      */
@@ -561,6 +561,20 @@ export namespace JSX {
     onWheel: WheelEvent;
   }
 
+  type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
+  type AddModifierSuffix<
+    T extends string | number | bigint | boolean | null | undefined
+  > = `${T}--${Modifiers}`;
+  type RemoveModifierSuffix<U> = U extends `${infer T}--${Modifiers}`
+    ? T
+    : never;
+
+  type GlobalEventModifiers = {
+    [modifier in AddModifierSuffix<
+      keyof GlobalEvents
+    >]?: GlobalEvents[RemoveModifierSuffix<modifier>];
+  };
+
   interface JsxAriaAttributes {
     /**
      * Identifies the element that is currently active within a group.
@@ -1049,9 +1063,11 @@ export namespace JSX {
   }
 
   type JsxGlobalEventHandlers<E> = {
-    [K in keyof JsxGlobalEventHandlersEventMap]?: (
+    [K in keyof GlobalEvents]?: (this: E, event: GlobalEvents[K]) => void;
+  } & {
+    [K in keyof GlobalEventModifiers]?: (
       this: E,
-      event: JsxGlobalEventHandlersEventMap[K]
+      event: GlobalEventModifiers[K]
     ) => void;
   };
 
@@ -1218,14 +1234,29 @@ export namespace JSX {
 
   interface JsxBodyElement extends JsxHtmlElement<HTMLBodyElement> {
     /**
-     * Fires when the page's content has finished loading.
-     */
-    onLoad?: (event: Event) => void;
-
-    /**
      * Fires when the user is about to leave the page.
      */
     onBeforeUnload?: (event: BeforeUnloadEvent) => void;
+    'onBeforeUnload--self'?: (
+      this: HTMLBodyElement,
+      event: BeforeUnloadEvent
+    ) => void;
+    'onBeforeUnload--prevent'?: (
+      this: HTMLBodyElement,
+      event: BeforeUnloadEvent
+    ) => void;
+    'onBeforeUnload--stop'?: (
+      this: HTMLBodyElement,
+      event: BeforeUnloadEvent
+    ) => void;
+    'onBeforeUnload--once'?: (
+      this: HTMLBodyElement,
+      event: BeforeUnloadEvent
+    ) => void;
+    'onBeforeUnload--passive'?: (
+      this: HTMLBodyElement,
+      event: BeforeUnloadEvent
+    ) => void;
   }
 
   interface JsxHtmlButtonElement extends JsxHtmlElement<HTMLButtonElement> {
@@ -3090,54 +3121,8 @@ export namespace JSX {
     >;
   };
 
-  // type CapitalLetter =
-  //   | 'A'
-  //   | 'B'
-  //   | 'C'
-  //   | 'D'
-  //   | 'E'
-  //   | 'F'
-  //   | 'G'
-  //   | 'H'
-  //   | 'I'
-  //   | 'J'
-  //   | 'K'
-  //   | 'L'
-  //   | 'M'
-  //   | 'N'
-  //   | 'O'
-  //   | 'P'
-  //   | 'Q'
-  //   | 'R'
-  //   | 'S'
-  //   | 'T'
-  //   | 'U'
-  //   | 'V'
-  //   | 'W'
-  //   | 'X'
-  //   | 'Y'
-  //   | 'Z';
-
-  type ElementEventListenerModifiers<
-    E extends JsxHtmlElement,
-    F extends keyof E = keyof E
-  > = {
-    [key in F extends `on${string}`
-      ? AddModifierPrefix<F>
-      : never]?: E[RemoveModifierPrefix<key>];
-  };
-
-  type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
-  type AddModifierPrefix<
-    T extends string | number | bigint | boolean | null | undefined
-  > = `${T}--${Modifiers}`;
-  type RemoveModifierPrefix<U> = U extends `${infer T}--${Modifiers}`
-    ? T
-    : never;
   type ElementTypes<T extends keyof IntrinsicElementsBase> = Container<
-    IntrinsicElementsBase[T] &
-      // @ts-ignore: Clashing html and svg <a> tags.
-      ElementEventListenerModifiers<IntrinsicElementsBase[T]>
+    IntrinsicElementsBase[T]
   >;
   type IntrinsicElementsBase = JsxHtmlElementMap & JsxSvgElementMap;
   type IntrinsicElementsInner = {
