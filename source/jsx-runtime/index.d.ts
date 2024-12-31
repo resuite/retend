@@ -572,7 +572,7 @@ export namespace JSX {
   type GlobalEventModifiers = {
     [modifier in AddModifierSuffix<
       keyof GlobalEvents
-    >]?: GlobalEvents[RemoveModifierSuffix<modifier>];
+    >]: GlobalEvents[RemoveModifierSuffix<modifier>];
   };
 
   interface JsxAriaAttributes {
