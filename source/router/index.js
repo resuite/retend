@@ -565,7 +565,7 @@ export class Router extends EventTarget {
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
       `
-unfinished-router-outlet, unfinished-router-relay {
+unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
   display: contents;
 }
 `

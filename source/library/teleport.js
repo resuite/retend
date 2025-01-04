@@ -13,7 +13,7 @@ import { generateChildNodes } from './utils.js';
  * @property {string | Element} to
  *
  * Data to be passed to the component.
- * @property {JSX.Template} children
+ * @property {JSX.Template} [children]
  */
 
 /**
@@ -38,7 +38,7 @@ import { generateChildNodes } from './utils.js';
  * ```
  */
 export function Teleport(props) {
-  const { to: target } = props;
+  const { to: target, ...rest } = props;
   const teleportId = crypto.randomUUID();
   const observer = useObserver();
   const document = globalThis.window.document;
@@ -61,7 +61,7 @@ export function Teleport(props) {
     const newInstance = document.createElement('unfinished-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
 
-    for (const [key, value] of Object.entries(props)) {
+    for (const [key, value] of Object.entries(rest)) {
       if (key === 'children') continue;
       setAttributeFromProps(newInstance, key, value);
     }
