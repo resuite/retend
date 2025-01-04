@@ -73,7 +73,6 @@ class DocumentObserver {
       for (const [node, cleanups] of this.mountedNodes.entries()) {
         if (node.isConnected) continue;
         for (const cleanup of cleanups) {
-          console.log('Cleaning up:', cleanup);
           cleanup();
         }
         this.mountedNodes.delete(node);
