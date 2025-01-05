@@ -327,8 +327,8 @@ export function setAttribute(element, key, value) {
 
       if (typeof value === 'function') {
         /** @type {WrapperFn | undefined} */
-        let wrapper = function () {
-          return value.bind(this)();
+        let wrapper = function (event) {
+          return value.bind(this)(event);
         };
         wrapper.__getInnerFunction = function () {
           this; // only here to silence biome.
