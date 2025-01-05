@@ -49,7 +49,7 @@ export function For(list, fn) {
     for (const item of list) {
       /** @type {[any, Cell<number>, typeof list]} */
       const parameters = [item, Cell.source(index), list];
-      let func = getMostCurrentFunction(fn);
+      const func = getMostCurrentFunction(fn);
       const nodes = generateChildNodes(func(...parameters));
       linkNodesToComponent(nodes, func, new ArgumentList(parameters));
       snapshot.push(...nodes);
@@ -104,7 +104,7 @@ export function For(list, fn) {
         const i = Cell.source(index);
         /** @type {[any, Cell<number>, typeof _list]} */
         const parameters = [item, i, _list];
-        let func = getMostCurrentFunction(fn);
+        const func = getMostCurrentFunction(fn);
         const nodes = generateChildNodes(func(...parameters));
         linkNodesToComponent(nodes, func, new ArgumentList(parameters));
         newNodeStore.set(itemKey, { nodes, index: i });
