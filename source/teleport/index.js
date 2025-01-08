@@ -1,10 +1,10 @@
 import { Cell } from '@adbl/cells';
-import { useObserver } from './observer.js';
-import { appendChild, setAttributeFromProps } from './jsx.js';
-import { generateChildNodes } from './utils.js';
+import { useObserver } from '../library/observer.js';
+import { appendChild, setAttributeFromProps } from '../library/jsx.js';
+import { generateChildNodes } from '../library/utils.js';
 
 // @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/index.js' */
 
 /**
  * @typedef TeleportOnlyProps

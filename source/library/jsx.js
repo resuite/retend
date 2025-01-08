@@ -167,26 +167,26 @@ export function h(tagname, props) {
 }
 
 /**
- *  @param {Element} element
+ *  @param {ParentNode} parentNode
  * @param {string} tagname
  *  @param {any} child
  */
-export function appendChild(element, tagname, child) {
+export function appendChild(parentNode, tagname, child) {
   if (Array.isArray(child)) {
     for (const childNode of child) {
-      appendChild(element, tagname, childNode);
+      appendChild(parentNode, tagname, childNode);
     }
     return;
   }
 
   if (!child) return;
 
-  const childNode = normalizeJsxChild(child, element);
+  const childNode = normalizeJsxChild(child, parentNode);
   if (
     childNode instanceof globalThis.window.HTMLElement &&
     globalThis.window.customElements.get(childNode.tagName.toLowerCase())
   ) {
-    element.appendChild(childNode);
+    parentNode.appendChild(childNode);
     return;
   }
 
@@ -194,16 +194,21 @@ export function appendChild(element, tagname, child) {
     (tagname === 'svg' || tagname === 'math') &&
     childNode instanceof globalThis.window.HTMLElement
   ) {
+    const elementNamespace = /** @type {string} */ (
+      'namespaceURI' in parentNode
+        ? parentNode.namespaceURI
+        : 'http://www.w3.org/1999/xhtml'
+    );
     const temp = globalThis.window.document.createElementNS(
-      element.namespaceURI ?? '',
+      elementNamespace,
       'div'
     );
     temp.innerHTML = childNode.outerHTML;
-    element.append(...temp.children);
+    parentNode.append(...temp.children);
     return;
   }
 
-  element.appendChild(childNode);
+  parentNode.appendChild(childNode);
 }
 
 /**

@@ -26,6 +26,14 @@
       "import": "./dist/router/index.js",
       "types": "./dist/router/index.d.ts"
     },
+    "./teleport": {
+      "import": "./dist/teleport/index.js",
+      "types": "./dist/teleport/index.d.ts"
+    },
+    "./shadowroot": {
+      "import": "./dist/shadowroot/index.js",
+      "types": "./dist/shadowroot/index.d.ts"
+    },
     "./jsx-runtime": {
       "import": "./dist/jsx-runtime/index.js",
       "types": "./dist/jsx-runtime/index.d.ts"
