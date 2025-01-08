@@ -13,17 +13,8 @@ import { appendChild } from '../library/jsx.js';
  * The children to render in the shadow root.
  */
 
-class ShadowRootContainer extends DocumentFragment {
-  /** @param {ShadowRootMode} mode  */
-  constructor(mode) {
-    super();
-    this.__mode = mode;
-  }
-
-  get isShadowRootContainer() {
-    return true;
-  }
-}
+/** @type {unknown} */
+let ShadowRootContainer = undefined;
 
 /**
  * Provides an interface to append nodes to the shadow root of a parent component.
@@ -33,22 +24,41 @@ class ShadowRootContainer extends DocumentFragment {
  *
  * @example
  * // Usage in JSX
- * <some-component>
+ * <some-web-component>
  *   <ShadowRoot>
  *     <div>Content inside shadow DOM</div>
  *   </ShadowRoot>
- * </some-component>
+ * </some-web-component>
  *
  * @example
  * // Creating a closed shadow root
- * <some-component>
+ * <some-web-component>
  *   <ShadowRoot mode="closed">
  *     <div>Content inside shadow DOM</div>
  *   </ShadowRoot>
- * </some-component>
+ * </some-web-component>
+ *
+ * @note
+ * The behavior of the element might seem counterintuitive when dealing with
+ * multiple `ShadowRoot` components on the same parent. Ideally a parent node should
+ * have at most one `ShadowRoot` child.
  */
 export function ShadowRoot(props) {
   const { mode, children } = props;
+  if (ShadowRootContainer === undefined) {
+    ShadowRootContainer = class extends globalThis.window.HTMLElement {
+      /** @param {ShadowRootMode} mode  */
+      constructor(mode) {
+        super();
+        this.__mode = mode;
+      }
+
+      get __isShadowRootContainer() {
+        return true;
+      }
+    };
+  }
+  // @ts-expect-error: hard to type.
   const shadowRoot = new ShadowRootContainer(mode ?? 'open');
   appendChild(shadowRoot, 'shadow-root', children);
   return shadowRoot;

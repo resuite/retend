@@ -182,6 +182,31 @@ export function appendChild(parentNode, tagname, child) {
   if (!child) return;
 
   const childNode = normalizeJsxChild(child, parentNode);
+
+  if (
+    childNode instanceof globalThis.window.HTMLElement &&
+    '__isShadowRootContainer' in childNode &&
+    typeof childNode.__isShadowRootContainer === 'function' &&
+    childNode.__isShadowRootContainer()
+  ) {
+    if (!(parentNode instanceof globalThis.window.HTMLElement)) {
+      console.error('ShadowRoot can only be children of HTML Elements.');
+      return;
+    }
+    // @ts-expect-error
+    const mode = childNode.__mode;
+    const shadowRoot =
+      parentNode.shadowRoot ?? parentNode.attachShadow({ mode });
+    if (shadowRoot.mode !== mode) {
+      console.error(
+        'Shadowroot mode mismatch: Parent already has a shadowroot of a different type'
+      );
+      return;
+    }
+    appendChild(shadowRoot, tagname, childNode.children);
+    return;
+  }
+
   if (
     childNode instanceof globalThis.window.HTMLElement &&
     globalThis.window.customElements.get(childNode.tagName.toLowerCase())
