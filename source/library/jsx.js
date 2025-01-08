@@ -186,8 +186,7 @@ export function appendChild(parentNode, tagname, child) {
   if (
     childNode instanceof globalThis.window.HTMLElement &&
     '__isShadowRootContainer' in childNode &&
-    typeof childNode.__isShadowRootContainer === 'function' &&
-    childNode.__isShadowRootContainer()
+    childNode.__isShadowRootContainer
   ) {
     if (!(parentNode instanceof globalThis.window.HTMLElement)) {
       console.error('ShadowRoot can only be children of HTML Elements.');
@@ -203,7 +202,7 @@ export function appendChild(parentNode, tagname, child) {
       );
       return;
     }
-    appendChild(shadowRoot, tagname, childNode.children);
+    appendChild(shadowRoot, tagname, [...childNode.childNodes]);
     return;
   }
 

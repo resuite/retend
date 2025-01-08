@@ -13,8 +13,14 @@ import { appendChild } from '../library/jsx.js';
  * The children to render in the shadow root.
  */
 
-/** @type {unknown} */
-let ShadowRootContainer = undefined;
+/**
+ * @typedef ShadowRootContainerData
+ *
+ * @property {ShadowRootMode} [__mode]
+ * @property {boolean} [__isShadowRootContainer]
+ */
+
+/** @typedef {ShadowRootContainerData & HTMLDivElement} ShadowRootContainer */
 
 /**
  * Provides an interface to append nodes to the shadow root of a parent component.
@@ -45,21 +51,12 @@ let ShadowRootContainer = undefined;
  */
 export function ShadowRoot(props) {
   const { mode, children } = props;
-  if (ShadowRootContainer === undefined) {
-    ShadowRootContainer = class extends globalThis.window.HTMLElement {
-      /** @param {ShadowRootMode} mode  */
-      constructor(mode) {
-        super();
-        this.__mode = mode;
-      }
+  const shadowRoot = /** @type {ShadowRootContainer} */ (
+    globalThis.window.document.createElement('div')
+  );
 
-      get __isShadowRootContainer() {
-        return true;
-      }
-    };
-  }
-  // @ts-expect-error: hard to type.
-  const shadowRoot = new ShadowRootContainer(mode ?? 'open');
+  shadowRoot.__mode = mode ?? 'open';
+  shadowRoot.__isShadowRootContainer = true;
   appendChild(shadowRoot, 'shadow-root', children);
   return shadowRoot;
 }
