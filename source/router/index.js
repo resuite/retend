@@ -301,7 +301,13 @@ export class Router extends EventTarget {
     this.middlewares = routeOptions.middlewares ?? [];
     this.maxRedirects = routeOptions.maxRedirects ?? 50;
     this.currentPath = Cell.source(
-      /** @type {import('./middleware.js').RouteData} */ ({})
+      /** @type {import('./middleware.js').RouteData} */ ({
+        name: null,
+        path: '',
+        query: new URLSearchParams(),
+        fullPath: '',
+        params: new Map(),
+      })
     );
 
     this.redirectStackCount = 0;
