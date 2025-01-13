@@ -917,6 +917,12 @@ export namespace JSX {
     lang?: string;
 
     /**
+     * Defines a part of the element that can be styled from
+     * outside the shadow DOM.
+     */
+    part?: string;
+
+    /**
      * A hint for the type of text expected in an input field.
      */
     placeholder?: string;
@@ -1071,10 +1077,17 @@ export namespace JSX {
     ) => void;
   };
 
+  export type Children =
+    | Template
+    | Node
+    | string
+    | TemplateStringsArray
+    | Node[];
+
   interface JsxNativeProps {
     key?: string | number;
     ref?: import('@adbl/cells').Cell<unknown>;
-    children?: Node | string | TemplateStringsArray | Node[];
+    children?: Children;
     dangerouslySetInnerHTML?: {
       __html: string;
     };
@@ -2080,7 +2093,10 @@ export namespace JSX {
   }
 
   interface JsxTemplateElement extends JsxHtmlElement<HTMLTemplateElement> {
-    // Template element typically doesn't have any specific attributes
+    /**
+     * Specifies the mode to use when creating a shadow root for the parent element.
+     */
+    shadowrootmode?: 'open' | 'closed';
   }
 
   interface JsxTextAreaElement extends JsxHtmlElement<HTMLTextAreaElement> {
