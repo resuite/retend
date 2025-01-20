@@ -578,3 +578,189 @@ const setAdminStatus = () => {
 In this example, the `UserGreeting` component checks the value of `userStatus`. If the user is an admin, it renders the `AdminGreeting` component. If the user is a regular user, it renders the `UserGreeting` component. If the user is a guest, it renders the `GuestGreeting` component.
 
 You can also toggle the user status using the `toggleUserStatus` function, which switches between 'guest' and 'user', or set the user status to 'admin' using the `setAdminStatus` function.
+
+## Rendering Lists with `For`
+
+In many web applications, you'll need to display lists of items. Think of a to-do list, a list of products, or a list of user comments. `unfinished` provides a special function called `For` to handle these scenarios efficiently. It lets you create these lists dynamically, updating the webpage whenever the data changes.
+
+If you are already familiar with JavaScript `for` loops or array's `map` method, `For` does something similar, but it does it in a way that is integrated directly with the structure of your web page, updating it automatically.
+
+The `For` function takes two key pieces of information:
+
+- **The list itself:** This is the collection of data you want to display. It can be a regular JavaScript array or a special reactive container called a `Cell` that we explained earlier.
+- **A "template" function:** This is a function that determines how each item in the list should be displayed on the page. It receives each individual item in your list and its index, and tells `unfinished` what HTML structure should be created for it.
+
+Here's a breakdown of each of these aspects, along with examples to help you understand them:
+
+### 1. The List of Items
+
+The `For` function can handle two kinds of list: regular JavaScript arrays and special `Cell` objects that are made available through the `@adbl/cells` library.
+
+- **Regular JavaScript Arrays**: If your list is static (doesn't change) then you can use a normal array like this:
+
+  ```javascript
+  const items = ['Apple', 'Banana', 'Orange'];
+  ```
+
+- **`Cell` Objects (for Dynamic Lists)**: If the list you need to display can change over time, perhaps because of user interaction or incoming data, it needs to be wrapped in a `Cell` object, using the `Cell.source()` method:
+
+  ```javascript
+  import { Cell } from '@adbl/cells';
+  const items = Cell.source([
+    'Learn the library',
+    'Build a web app',
+    'Deploy to production',
+  ]);
+  ```
+
+  The `@adbl/cells` library will notify `For` anytime the items in your list changes, and `For` will automatically make the same changes to your user interface without you having to tell it to.
+
+### 2. The Template Function
+
+The "template" function you give to `For` is a regular JavaScript function that returns JSX elements. Think of it as a blueprint for how each item in the list should be displayed. It takes the following:
+
+- `item`: This is each individual value from your list. E.g., the string "Apple", a user object, etc.
+- `index`: A special `Cell` object, that contains the current index (starting from 0) of the element you're currently processing. For example:
+  - If "Apple" is the first item in the array, the `index` cell's value will be 0.
+  - If "Orange" is the third element in your array, then the `index` cell will have a value of 2.
+
+This is what a template function looks like:
+
+```javascript
+(item, index) => {
+  return (
+    <li>
+      {item}, at index: {index.value}
+    </li>
+  );
+};
+```
+
+### Putting It Together: Basic List Rendering
+
+Here’s how you might display a list of strings using `For`:
+
+```jsx
+import { For } from '@adbl/unfinished';
+
+const items = ['Apple', 'Banana', 'Orange'];
+
+const FruitList = () => {
+  return (
+    <ul>
+      {For(items, (item) => (
+        <li>{item}</li>
+      ))}
+    </ul>
+  );
+};
+
+document.body.append(<FruitList />);
+```
+
+This code does the following:
+
+1. It defines a regular JavaScript array named `items`.
+2. It uses `For(items, ...)` to go through each element in the array.
+3. For each element, it uses a small `(item) => <li>{item}</li>` function to make the html that displays it as a list item inside a `<ul>` element.
+4. It appends the created html element to the document body.
+
+The result in your web browser is a basic unordered list displaying "Apple", "Banana", and "Orange" as list items.
+
+### Reactive List Rendering
+
+If you want your list to update dynamically, then you can use a `Cell`:
+
+```jsx
+import { For } from '@adbl/unfinished';
+import { Cell } from '@adbl/cells';
+
+const items = Cell.source([
+  'Learn the library',
+  'Build a web app',
+  'Deploy to production',
+]);
+
+const TodoList = () => {
+  return (
+    <ul>
+      {For(items, (item) => (
+        <li>{item}</li>
+      ))}
+    </ul>
+  );
+};
+
+document.body.append(<TodoList />);
+
+// Later, when the listItems cell updates, the DOM will be updated automatically
+items.value.push('Celebrate success');
+```
+
+With this code, the webpage now keeps the to-do list up-to-date by responding to changes in the `items` cell and re-rendering the list as needed.
+
+### Using the Index
+
+The `For` function provides a second argument to your template function, a cell containing the _index_ of the current item:
+
+```jsx
+import { For } from '@adbl/unfinished';
+
+const items = ['First', 'Second', 'Third'];
+
+const NumberedList = () => {
+  return (
+    <ul>
+      {For(items, (item, index) => (
+        <li>
+          {item} (Index: {index})
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+document.body.append(<NumberedList />);
+```
+
+With the `index`, you can add extra information (e.g., the item number) next to your item in the page. Note how the index is used without `.value` to preserve reactivity.
+
+### Working with Lists of Objects
+
+`For` can also be used to display information from objects:
+
+```jsx
+import { For } from '@adbl/unfinished';
+import { Cell } from '@adbl/cells';
+
+const users = Cell.source([
+  { id: 1, name: 'Alice', age: 30 },
+  { id: 2, name: 'Bob', age: 25 },
+  { id: 3, name: 'Charlie', age: 35 },
+]);
+
+const UserList = () => {
+  return (
+    <ul>
+      {For(users, (user) => (
+        <li>
+          {user.name} is {user.age} years old.
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+document.body.append(<UserList />);
+```
+
+With this code, you're extracting information (name and age) from user objects and displaying them inside your web page.
+
+### How `For` Updates
+
+When you change something in a list wrapped by `For`, instead of tearing down and recreating the list from scratch, it tries to do updates efficiently:
+
+- **Auto-Memoization:** When it encounters the same data in a list for a second time, `For` automatically recognizes it, and instead of re-rendering the entire associated DOM nodes from scratch, it reuses the previous DOM nodes and only changes its index.
+- **Pure template Functions** The function that determines how each item should be rendered should not change based on things outside the function's input. In fact, your callback function might not even run if the item was memoized from a previous call.
+
+The `For` function provides a smart, performant and reactive method for displaying and handling lists. By focusing on its use of the template function, how to handle different list types and how to interpret reactivity, you can render lists effectively in `unfinished`.
