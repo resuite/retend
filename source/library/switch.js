@@ -12,10 +12,10 @@ import { linkNodesToComponent } from '../render/index.js';
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
  *
- * @template {string | number | symbol} S
- * @template {((value: S) => JSX.Template) | never | undefined} D
- * @param {Cell<S> | S} value - A reactive `Cell` or a static value to determine the active case.
- * @param {D extends ((value: S) => JSX.Template) ? Partial<Record<S, D>> : Record<S, D>} cases - An object mapping possible values to JSX.Template-generating functions.
+ * @template {string | number | symbol} T
+ * @template {((value: T) => JSX.Template)| undefined} [D=undefined]
+ * @param {Cell<T> | T} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {D extends undefined ? Record<T, () => JSX.Template> : Partial<Record<T, () => JSX.Template>>} cases - An object mapping possible values to template-generating functions.
  * @param {D} [defaultCase] - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  *
@@ -68,7 +68,7 @@ export function Switch(value, cases, defaultCase) {
     return null;
   }
 
-  /** @param {S} value */
+  /** @param {T} value */
   const callback = (value) => {
     /** @type {Node[]} */
     let nodes = [];
