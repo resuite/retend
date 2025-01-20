@@ -12,10 +12,11 @@ import { linkNodesToComponent } from '../render/index.js';
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
  *
- * @template {string | number | symbol} T
- * @param {Cell<T> | T} value - A reactive `Cell` or a static value to determine the active case.
- * @param {Record<T, () => JSX.Template>} cases - An object mapping possible values to JSX.Template-generating functions.
- * @param {(value: T) => JSX.Template} [defaultCase] - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
+ * @template {string | number | symbol} S
+ * @template {((value: S) => JSX.Template) | never | undefined} D
+ * @param {Cell<S> | S} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {D extends ((value: S) => JSX.Template) ? Partial<Record<S, D>> : Record<S, D>} cases - An object mapping possible values to JSX.Template-generating functions.
+ * @param {D} [defaultCase] - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  *
  * @example
@@ -50,7 +51,7 @@ export function Switch(value, cases, defaultCase) {
   const [rangeStart, rangeEnd] = createCommentPair();
 
   if (!Cell.isCell(value)) {
-    if (value in cases) {
+    if (value in cases && cases[value]) {
       const fn = getMostCurrentFunction(cases[value]);
       const nodes = generateChildNodes(fn());
       linkNodesToComponent(nodes, fn);
@@ -58,7 +59,7 @@ export function Switch(value, cases, defaultCase) {
     }
 
     if (defaultCase) {
-      let defaultCaseFunc = getMostCurrentFunction(defaultCase);
+      const defaultCaseFunc = getMostCurrentFunction(defaultCase);
       const nodes = generateChildNodes(defaultCaseFunc(value));
       linkNodesToComponent(nodes, defaultCaseFunc, value);
       return nodes;
@@ -67,7 +68,7 @@ export function Switch(value, cases, defaultCase) {
     return null;
   }
 
-  /** @param {T} value */
+  /** @param {S} value */
   const callback = (value) => {
     /** @type {Node[]} */
     let nodes = [];
@@ -79,7 +80,7 @@ export function Switch(value, cases, defaultCase) {
 
     const caseCaller = cases[value];
     if (caseCaller) {
-      let caseCallerFunc = getMostCurrentFunction(caseCaller);
+      const caseCallerFunc = getMostCurrentFunction(caseCaller);
       nodes = generateChildNodes(caseCallerFunc(value));
       linkNodesToComponent(nodes, caseCallerFunc, value);
       rangeStart.after(...nodes);
@@ -87,7 +88,7 @@ export function Switch(value, cases, defaultCase) {
     }
 
     if (defaultCase) {
-      let defaultCaseFunc = getMostCurrentFunction(defaultCase);
+      const defaultCaseFunc = getMostCurrentFunction(defaultCase);
       nodes = generateChildNodes(defaultCaseFunc(value));
       linkNodesToComponent(nodes, defaultCaseFunc, value);
       rangeStart.after(...nodes);
