@@ -764,3 +764,199 @@ When you change something in a list wrapped by `For`, instead of tearing down an
 - **Pure template Functions** The function that determines how each item should be rendered should not change based on things outside the function's input. In fact, your callback function might not even run if the item was memoized from a previous call.
 
 The `For` function provides a smart, performant and reactive method for displaying and handling lists. By focusing on its use of the template function, how to handle different list types and how to interpret reactivity, you can render lists effectively in `unfinished`.
+
+## Conditional Rendering with `Switch`
+
+Sometimes, you need to show different content based on the value of a variable. Think of a user interface that changes based on whether a user is logged in, a section of your app that behaves differently depending on a user's selected option, or perhaps you need to choose different UI based on what a user has previously configured in settings. `unfinished` provides the `Switch` function to handle such scenarios cleanly and efficiently.
+
+The `Switch` function is designed to make handling conditional rendering in your application easier. It allows you to choose between a number of possible UI options based on a given value.
+
+Here's how `Switch` works:
+
+1. **The Value to Check:** You provide a value (which can be static or dynamic in the form of a `Cell`) to `Switch`. This is the variable that will determine which content is shown.
+2. **The Cases:** You define an object where the keys represent potential values for the switch condition, and their corresponding values are the functions that output the relevant parts of your UI.
+3. **The Default Case (Optional):** You can also include a function to render a default UI when the value doesn't match any of the specified cases. This works like the `default` case in a JavaScript `switch` statement.
+
+### Basic `Switch` Usage
+
+Let's explore how to make use of switch with a few examples:
+
+```jsx
+import { Switch } from '@adbl/unfinished';
+
+const userType = 'premium';
+
+const UserTypeDisplay = () => {
+  return (
+    <div>
+      {Switch(userType, {
+        free: () => <p>Free user, features are limited.</p>,
+        basic: () => <p>Basic User</p>,
+        premium: () => <p>Premium user with more features.</p>,
+        enterprise: () => <p>Enterprise user, please contact admin.</p>,
+      })}
+    </div>
+  );
+};
+
+document.body.append(<UserTypeDisplay />);
+```
+
+In this example, `Switch` looks at the `userType` variable, and depending on its value, it shows the corresponding html on screen. This illustrates a way of rendering content conditionally by using a static JavaScript variable. This allows you to build your applications with different kinds of user accounts easily.
+
+### Dynamic `Switch` Using Cells
+
+If the value you want to switch on can change over time, you can make use of the reactivity system with the help of `Cells`.
+
+Here is an example showing a navigation system that has some basic routing built into it:
+
+```jsx
+import { Switch } from '@adbl/unfinished';
+import { Cell } from '@adbl/cells';
+
+const currentView = Cell.source('home');
+
+const goHome = () => {
+  currentView.value = 'home';
+};
+
+const goSettings = () => {
+  currentView.value = 'settings';
+};
+
+const goProfile = () => {
+  currentView.value = 'profile';
+};
+
+const NavigationView = () => {
+  return (
+    <div>
+      <nav>
+        <button onClick={goHome}>Home</button>
+        <button onClick={goSettings}>Settings</button>
+        <button onClick={goProfile}>Profile</button>
+      </nav>
+      <main>
+        {Switch(currentView, {
+          home: () => (
+            <section>
+              <h1>Welcome to the Home Screen!</h1>
+            </section>
+          ),
+          profile: () => (
+            <section>
+              <h1>Here is your profile.</h1>
+            </section>
+          ),
+          settings: () => (
+            <section>
+              <h1>Settings for your Account</h1>
+            </section>
+          ),
+        })}
+      </main>
+    </div>
+  );
+};
+
+document.body.append(<NavigationView />);
+```
+
+In this code snippet, when each button is clicked, the corresponding section is shown on screen by modifying the value of the `currentView` Cell, the changes are automatically propagated to the browser to create a dynamic web application.
+
+### Handling Complex Cases with Multiple Conditions
+
+`Switch` also shines in situations where you need to consider more complex conditions, for example if you need to apply multiple states to a component at the same time:
+
+```jsx
+import { Switch } from '@adbl/unfinished';
+import { Cell } from '@adbl/cells';
+
+const isLoggedIn = Cell.source(false);
+const isAdmin = Cell.source(false);
+
+const UserDashboard = () => {
+  const logUserOut = () => {
+    isLoggedIn.value = false;
+    isAdmin.value = false;
+  };
+
+  const logUserIn = () => {
+    isLoggedIn.value = true;
+    isAdmin.value = false;
+  };
+
+  const logAdminIn = () => {
+    isLoggedIn.value = true;
+    isAdmin.value = true;
+  };
+
+  const getUserType = () => {
+    if (!isLoggedIn.value) return 'guest';
+    return isAdmin.value ? 'admin' : 'user';
+  };
+  return (
+    <div>
+      <button onClick={logUserIn}>Log in</button>
+      <button onClick={logAdminIn}>Log in as Admin</button>
+      <button onClick={logUserOut}>Log out</button>
+
+      {Switch(Cell.derived(getUserType), {
+        guest: () => <h1>Please log in.</h1>,
+        admin: () => <h1>Welcome back, Administrator!</h1>,
+        user: () => <h1>Welcome back!</h1>,
+      })}
+    </div>
+  );
+};
+
+document.body.append(<UserDashboard />);
+```
+
+In this example, `Switch` helps you render an entirely new user interface depending on multiple factors at the same time, whether the user is logged in and whether the user is also an admin, each different case displays a different output and keeps things modular and tidy. Note how the logic was extracted into a separate helper function.
+
+### Using a Default Case
+
+If you want to handle cases where the input value doesn't match any specified cases, use the optional "default" argument of `Switch`. The third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
+
+```jsx
+import { Switch } from '@adbl/unfinished';
+import { Cell } from '@adbl/cells';
+
+const userRole = Cell.source('editor');
+
+const UserDashboard = () => {
+  const setRole = (role) => {
+    userRole.value = role;
+  };
+  return (
+    <div>
+      <button onClick={() => setRole('editor')}>Set Editor</button>
+      <button onClick={() => setRole('admin')}>Set Admin</button>
+      <button onClick={() => setRole('guest')}>Set Guest</button>
+      {Switch(
+        userRole,
+        {
+          admin: () => <h1>Admin Dashboard</h1>,
+          editor: () => <h2>Editor Tools</h2>,
+        },
+        (role) => (
+          <p>Unrecognized Role: {role}</p>
+        )
+      )}
+    </div>
+  );
+};
+
+document.body.append(<UserDashboard />);
+```
+
+Here we demonstrated a switch component using named "roles". This illustrates a use-case where, sometimes, the content may be unexpected, for instance, because a user may change their saved settings. This fallback allows a "catch-all" solution.
+
+### Why Use `Switch`?
+
+`Switch` offers a number of benefits:
+
+- **Clear Conditional Logic:** Instead of writing long and potentially confusing `if/else` blocks, `Switch` allows you to make clear statements about UI based on an associated variable, or state in the form of a Cell.
+- **Readability:** It makes it easier to understand the different states and UI combinations your code can display by following a more semantic structure.
+- **Automatic Updates:** When combined with Cells it makes sure that whenever there is a change, your UI also reflects it.
