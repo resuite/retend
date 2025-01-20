@@ -6,15 +6,74 @@
 
 [![downloads (@adbl/unfinished)](https://img.shields.io/npm/dm/@adbl/unfinished?label=downloads)](https://www.npmjs.com/package/@adbl/unfinished)
 
-`unfinished` is a purely client-side library for building modern web applications. Like React, it allows you to use a familiar HTML-like syntax with JavaScript (JSX) to create dynamic user interfaces.
+`unfinished` is a client-side library for building modern web applications. Like React, it allows you to use a familiar HTML-like syntax with JavaScript (JSX) to create dynamic user interfaces.
 
 If you've worked with HTML, CSS, and JavaScript, `unfinished` should be easy to pick up, and it's designed to help you build applications quickly and efficiently.
+
+- [unfinished](#unfinished)
+  - [Key Features](#key-features)
+  - [Installation](#installation)
+  - [Core Concepts](#core-concepts)
+    - [Understanding JSX](#understanding-jsx)
+      - [Expressions](#expressions)
+      - [Attributes](#attributes)
+    - [Components](#components)
+      - [Basic Component Structure](#basic-component-structure)
+      - [Using Components in the DOM](#using-components-in-the-dom)
+      - [Composing Components](#composing-components)
+      - [Props in Components](#props-in-components)
+    - [Fragments](#fragments)
+    - [Reactivity with Cells](#reactivity-with-cells)
+      - [Creating Cells](#creating-cells)
+      - [Accessing and Updating Cells](#accessing-and-updating-cells)
+      - [Derived Cells](#derived-cells)
+      - [Effects](#effects)
+      - [Usage in JSX](#usage-in-jsx)
+  - [Conditional Rendering](#conditional-rendering)
+    - [Conditional Rendering using Cells](#conditional-rendering-using-cells)
+    - [Conditional Rendering with an Object](#conditional-rendering-with-an-object)
+    - [Conditional Rendering without an `else`](#conditional-rendering-without-an-else)
+    - [Nested Conditional Rendering](#nested-conditional-rendering)
+  - [List Rendering](#list-rendering)
+    - [The List of Items](#the-list-of-items)
+    - [The Template Function](#the-template-function)
+    - [Putting It Together: Basic List Rendering](#putting-it-together-basic-list-rendering)
+    - [Reactive List Rendering](#reactive-list-rendering)
+    - [Using the Index](#using-the-index)
+    - [Working with Lists of Objects](#working-with-lists-of-objects)
+    - [How `For` Updates](#how-for-updates)
+  - [Conditional Rendering with `Switch`](#conditional-rendering-with-switch)
+    - [Dynamic `Switch` Using Cells](#dynamic-switch-using-cells)
+    - [Handling Complex Cases with Multiple Conditions](#handling-complex-cases-with-multiple-conditions)
+    - [Using a Default Case](#using-a-default-case)
+  - [Element References](#element-references)
+    - [Why not `document.querySelector()`?](#why-not-documentqueryselector)
+  - [Life Cycles](#life-cycles)
+    - [Understanding Connection and Disconnection](#understanding-connection-and-disconnection)
+    - [Executing Code on Connection](#executing-code-on-connection)
+    - [Executing Code on Disconnection](#executing-code-on-disconnection)
+    - [Differences From Other Frameworks](#differences-from-other-frameworks)
+  - [Routing](#routing)
+    - [Setting Up the Router](#setting-up-the-router)
+    - [Implementing the Router](#implementing-the-router)
+    - [Nested Routing](#nested-routing)
+    - [Lazy Loading Routes](#lazy-loading-routes)
+    - [Programmatic Navigation](#programmatic-navigation)
+    - [Dynamic Route Parameters](#dynamic-route-parameters)
+    - [Wildcard Routes](#wildcard-routes)
+    - [Stack Mode Navigation](#stack-mode-navigation)
+      - [Enabling Stack Mode](#enabling-stack-mode)
+      - [Example Stack Mode Flow](#example-stack-mode-flow)
+    - [Keep Alive Routes](#keep-alive-routes)
+    - [Router Relays](#router-relays)
+      - [Basic Usage](#basic-usage)
+      - [Lifecycle Behavior](#lifecycle-behavior)
 
 ## Key Features
 
 Here's a breakdown of the core functionalities:
 
-- **Lightweight and Performant:** `unfinished` has a small footprint, which means it loads quickly and doesn't bog down your application with extra overhead.
+- **Lightweight:** `unfinished` has a small footprint, which means it loads quickly and doesn't bog down your application with extra overhead.
 
 - **JSX Support:** You can use JSX syntax, which might already be familiar if you've worked with React, to define your user interfaces. This allows you to embed HTML-like structures directly in your JavaScript code.
 
@@ -167,11 +226,11 @@ This will render a div with a red background color and a font size of 20 pixels.
 
 ---
 
-#### Components
+### Components
 
 In `unfinished`, components are the building blocks of your application, allowing you to encapsulate and reuse pieces of your UI.
 
-### Basic Component Structure
+#### Basic Component Structure
 
 A component in `unfinished` is a function that returns JSX, which is then converted into DOM nodes. Here's a simple example:
 
@@ -191,7 +250,7 @@ function MyComponent() {
 }
 ```
 
-### Using Components in the DOM
+#### Using Components in the DOM
 
 Because the JSX returned by a component is a DOM node, you can append it to any other element in the DOM. For example:
 
@@ -205,7 +264,7 @@ This is equivalent to:
 document.body.appendChild(MyComponent());
 ```
 
-### Composing Components
+#### Composing Components
 
 Your UI is composed by combining multiple components together. For example, you can create a component that renders a heading and a paragraph:
 
@@ -256,7 +315,7 @@ function MyComponent() {
 }
 ```
 
-### Props in Components
+#### Props in Components
 
 Components can accept arguments, known as "props", which allow you to pass data into them. This makes components more flexible and reusable. Here's an example:
 
@@ -292,11 +351,11 @@ function App() {
 }
 ```
 
-#### Fragments
+### Fragments
 
-In JSX, components must return a single root element. This can sometimes be inconvenient when you want to return multiple adjacent elements without adding an extra DOM node. This is where fragments come in.
+In JSX, components must return a single root element. This can sometimes be inconvenient if you want to return multiple adjacent elements without a container. This is where fragments come in.
 
-Fragments let you group multiple JSX elements without adding an extra node to the DOM. They are written using empty JSX tags: `<></>`.
+Fragments let you group multiple JSX elements without an extra node to the DOM. They are written using empty JSX tags: `<></>`.
 
 For example, if you wanted to return two paragraphs from a component, you might be tempted to do this:
 
@@ -465,18 +524,16 @@ const Counter = () => {
 
 To learn more about how the cell system works, check out the [Cells documentation](https://github.com/adebola-io/cells).
 
-## Conditional Rendering with `If`
+## Conditional Rendering
 
-The `If` function in `unfinished` lets you render or hide parts of your user interface based on a true or false condition. This is very useful for creating things like loading indicators, showing different content based on whether a user is logged in, or displaying error messages.
+The `If` function in `unfinished` lets you show or remove parts of your user interface based on a true or false condition. This is very useful for creating things like loading indicators, showing different content based on whether a user is logged in, or displaying error messages.
 
-The `If` function takes up to three arguments:
+It takes up to three arguments:
 
-1. **A condition:** a value that will be evaluated as true or false.
+1. **A condition** that will be evaluated as true or false.
    This value can also be a Cell object, and the `If` component will automatically update if the value changes.
-2. **A render function for truthy values**: a function that will be called if the condition is evaluated to be true.
-3. **An optional render function for falsy values**: a function that will be called if the condition is evaluated to be false.
-
-Here are a few examples of how you could use the `If` function in `unfinished`:
+2. **A template function for truthy values**, which will be called if the condition is evaluated to be true.
+3. **An optional template function for falsy values** that will be called if the condition is evaluated to be false.
 
 - **Basic Conditional Rendering:**
 
@@ -493,11 +550,13 @@ const AuthenticatedGreeting = () => {
 
   return <div>{If(loggedIn, LoggedInGreeting, NotLoggedInPrompt)}</div>;
 };
+
+document.body.append(<AuthenticatedGreeting />);
 ```
 
 If the `isLoggedIn` value is `true`, a `<h1>Welcome back!</h1>` element will be displayed on the page. If the value was `false`, a `<p>Please log in.</p>` element would be displayed.
 
-### Conditional Rendering using a Cell
+### Conditional Rendering using Cells
 
 When you want to respond to changes dynamically, you can use `Cell` objects to control the `If` component.
 
@@ -524,7 +583,7 @@ const AuthenticatedGreeting = () => {
 };
 ```
 
-In the example above, we've added a button to change the state of the UI. The `AuthenticatedGreeting` component starts by displaying that a user is not logged in. When the `button` is clicked, the value of the `isLoggedIn` will change, and the `If` component will automatically update.
+In the example above, we've added a button to change the state of the UI. The `AuthenticatedGreeting` component starts by displaying that a user is not logged in. When the `button` is clicked, `isLoggedIn` will change, and the `If` component will automatically update.
 
 ### Conditional Rendering with an Object
 
@@ -625,7 +684,7 @@ In this example, the `UserGreeting` component checks the value of `userStatus`. 
 
 You can also toggle the user status using the `toggleUserStatus` function, which switches between 'guest' and 'user', or set the user status to 'admin' using the `setAdminStatus` function.
 
-## Rendering Lists with `For`
+## List Rendering
 
 In many web applications, you'll need to display lists of items. Think of a to-do list, a list of products, or a list of user comments. `unfinished` provides a special function called `For` to handle these scenarios efficiently. It lets you create these lists dynamically, updating the webpage whenever the data changes.
 
@@ -638,7 +697,7 @@ The `For` function takes two key pieces of information:
 
 Here's a breakdown of each of these aspects, along with examples to help you understand them:
 
-### 1. The List of Items
+### The List of Items
 
 The `For` function can handle two kinds of list: regular JavaScript arrays and special `Cell` objects that are made available through the `@adbl/cells` library.
 
@@ -661,7 +720,7 @@ The `For` function can handle two kinds of list: regular JavaScript arrays and s
 
   The `@adbl/cells` library will notify `For` anytime the items in your list changes, and `For` will automatically make the same changes to your user interface without you having to tell it to.
 
-### 2. The Template Function
+### The Template Function
 
 The "template" function you give to `For` is a regular JavaScript function that returns JSX elements. Think of it as a blueprint for how each item in the list should be displayed. It takes the following:
 
@@ -703,13 +762,6 @@ const FruitList = () => {
 
 document.body.append(<FruitList />);
 ```
-
-This code does the following:
-
-1. It defines a regular JavaScript array named `items`.
-2. It uses `For(items, ...)` to go through each element in the array.
-3. For each element, it uses a small `(item) => <li>{item}</li>` function to make the html that displays it as a list item inside a `<ul>` element.
-4. It appends the created html element to the document body.
 
 The result in your web browser is a basic unordered list displaying "Apple", "Banana", and "Orange" as list items.
 
@@ -813,19 +865,7 @@ The `For` function provides a smart, performant and reactive method for displayi
 
 ## Conditional Rendering with `Switch`
 
-Sometimes, you need to show different content based on the value of a variable. Think of a user interface that changes based on whether a user is logged in, a section of your app that behaves differently depending on a user's selected option, or perhaps you need to choose different UI based on what a user has previously configured in settings. `unfinished` provides the `Switch` function to handle such scenarios cleanly and efficiently.
-
-The `Switch` function is designed to make handling conditional rendering in your application easier. It allows you to choose between a number of possible UI options based on a given value.
-
-Here's how `Switch` works:
-
-1. **The Value to Check:** You provide a value (which can be static or dynamic in the form of a `Cell`) to `Switch`. This is the variable that will determine which content is shown.
-2. **The Cases:** You define an object where the keys represent potential values for the switch condition, and their corresponding values are the functions that output the relevant parts of your UI.
-3. **The Default Case (Optional):** You can also include a function to render a default UI when the value doesn't match any of the specified cases. This works like the `default` case in a JavaScript `switch` statement.
-
-### Basic `Switch` Usage
-
-Let's explore how to make use of switch with a few examples:
+The `Switch` function allows you to choose between a number of possible UI options based on a given value.
 
 ```jsx
 import { Switch } from '@adbl/unfinished';
@@ -848,7 +888,7 @@ const UserTypeDisplay = () => {
 document.body.append(<UserTypeDisplay />);
 ```
 
-In this example, `Switch` looks at the `userType` variable, and depending on its value, it shows the corresponding html on screen. This illustrates a way of rendering content conditionally by using a static JavaScript variable. This allows you to build your applications with different kinds of user accounts easily.
+In this example, `Switch` looks at the `userType` variable, and depending on its value, it shows the corresponding html on screen. This illustrates a way of rendering content conditionally by using a static JavaScript variable.
 
 ### Dynamic `Switch` Using Cells
 
@@ -959,11 +999,9 @@ const UserDashboard = () => {
 document.body.append(<UserDashboard />);
 ```
 
-In this example, `Switch` helps you render an entirely new user interface depending on multiple factors at the same time, whether the user is logged in and whether the user is also an admin, each different case displays a different output and keeps things modular and tidy. Note how the logic was extracted into a separate helper function.
-
 ### Using a Default Case
 
-If you want to handle cases where the input value doesn't match any specified cases, use the optional "default" argument of `Switch`. The third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
+The optional third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
 
 ```jsx
 import { Switch } from '@adbl/unfinished';
@@ -999,19 +1037,7 @@ document.body.append(<UserDashboard />);
 
 Here we demonstrated a switch component using named "roles". This illustrates a use-case where, sometimes, the content may be unexpected, for instance, because a user may change their saved settings. This fallback allows a "catch-all" solution.
 
-### Why Use `Switch`?
-
-`Switch` offers a number of benefits:
-
-- **Clear Conditional Logic:** Instead of writing long and potentially confusing `if/else` blocks, `Switch` allows you to make clear statements about UI based on an associated variable, or state in the form of a Cell.
-- **Readability:** It makes it easier to understand the different states and UI combinations your code can display by following a more semantic structure.
-- **Automatic Updates:** When combined with Cells it makes sure that whenever there is a change, your UI also reflects it.
-
-## Working with Element References
-
-As we start building interactive apps, we soon realize that we need a way for JavaScript code to communicate directly with the elements on the page. Sometimes we want to focus a particular element, measure dimensions, or make more low-level changes, and for that we need to be able to reference those elements directly. This is where "refs," or "references," come into play, and where the integration between `Cells`, JSX and underlying HTML elements become more clear.
-
-### What Exactly Are Refs?
+## Element References
 
 A "ref" is fundamentally a pointer to a specific element that was created using JSX. It is basically an identifier or a named bookmark for an element that exists on the page. With a ref you create a JavaScript variable that actually holds your HTML element and allows you to interact with it.
 
@@ -1047,7 +1073,7 @@ const div = <div ref={elementRef}>Hello world!</div>;
 elementRef.value === div; // elementRef.value is now the div element
 ```
 
-### Why Use Refs Instead of `document.querySelector()`?
+### Why not `document.querySelector()`?
 
 While you could use `document.querySelector()` to get an HTML element directly, refs offer a more straightforward and reliable way of handling your UI interactions, specially in a reactive web app where the webpage may update and change a lot, unlike traditional apps that change less often:
 
@@ -1055,4 +1081,344 @@ While you could use `document.querySelector()` to get an HTML element directly, 
 - **Reacts to Node Changes**: The `Cell` object of refs are reactive, so when used in conjunction with `useObserver` or other related patterns, can be used to react whenever a related Node disappears or becomes available again.
 - **Better Code Structure**: Using refs often keeps the logic local to your component code instead of relying on a global selector-based lookup, making your code easier to read and maintain.
 
-Now that you have a solid understanding of what refs are and how they work, let's move on to understanding how `useObserver()` leverages them to manage the lifecycle of your HTML elements.
+## Life Cycles
+
+The only lifecycle mechanism in `unfinished` is the `useObserver()` function, which provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes. It lets you directly respond when an element (represented by a ref) becomes available in the live Document Object Model (DOM), and again when that same node is removed.
+
+### Understanding Connection and Disconnection
+
+- **Connection:** A node is "connected" when it becomes part of the browser's live DOM tree. This means the node has been inserted into the document. Importantly, this is _not_ about visibility, or appearance in the viewport, but about being included in the document's structure, even if it's hidden by CSS.
+
+- **Disconnection:** A node is "disconnected" when it is removed from the DOM tree. This happens when you remove or replace the element directly from Javascript, or when a parent of that node gets removed from the DOM.
+
+The `useObserver()` function returns a `DocumentObserver` object, which is a wrapper around the browser's `MutationObserver` API. Its main method, `onConnected`, allows you to run a callback function when a node is connected to the DOM.
+
+### Executing Code on Connection
+
+Here's how to use `useObserver` to run a setup action as a reaction to html:
+
+```jsx
+import { Cell } from '@adbl/cells';
+import { useObserver } from '@adbl/unfinished';
+
+const MyComponent = () => {
+  const divRef = Cell.source(null);
+  const observer = useObserver();
+
+  observer.onConnected(divRef, (element) => {
+    console.log('This HTML element has connected:', element);
+    element.setAttribute('data-connected', 'true');
+  });
+
+  return <div ref={divRef}>Hello World</div>;
+};
+
+document.body.append(<MyComponent />);
+```
+
+In this code:
+
+1. We've created a ref using `const divRef = Cell.source(null)`.
+2. When the `div` appears in the DOM, the callback function is automatically run.It logs a message to the console and adds a `data-connected` attribute to the element.
+
+### Executing Code on Disconnection
+
+The `onConnected` method also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
+
+```jsx
+import { Cell } from '@adbl/cells';
+import { useObserver } from '@adbl/unfinished';
+
+const MyComponent = () => {
+  const divRef = Cell.source(null);
+  const observer = useObserver();
+
+  observer.onConnected(divRef, (element) => {
+    element.setAttribute('data-connected', 'true');
+
+    // here we return a cleanup function that runs automatically on disconnection
+    return () => {
+      console.log('This element has disconnected!', element);
+      // Do some other stuff like clear timers.
+    };
+  });
+
+  return <div ref={divRef}>Hello World</div>;
+};
+
+document.body.append(<MyComponent />);
+```
+
+In this example, the `onConnected` hook now:
+
+1. Takes an action that runs immediately as soon as the element is present: Setting a `data-connected` attribute.
+2. It returns a function. That function is stored and **only called** whenever the element gets removed.
+   This makes it useful for clean up actions and prevents unexpected behavior.
+
+### Differences From Other Frameworks
+
+- **Node-Centric**: `useObserver` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
+- **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
+
+## Routing
+
+The library includes a routing system for single-page applications.
+
+### Setting Up the Router
+
+```jsx
+import { createWebRouter, type RouteRecords } from '@adbl/unfinished/router';
+
+const Home = () => {
+  return <h1>Welcome to the Home Page</h1>;
+};
+const About = () => {
+  return <h1>About Us</h1>;
+};
+const NotFound = () => {
+  return <h1>404 - Page Not Found</h1>;
+};
+
+const routes: RouteRecords = [
+  { name: 'home', path: '/', component: Home },
+  { name: 'about', path: '/about', component: About },
+  { name: 'not-found', path: '*', component: NotFound },
+];
+
+const router = createWebRouter({ routes });
+document.body.appendChild(<router.Outlet />);
+```
+
+### Implementing the Router
+
+Use the `useRouter` hook to access routing functionality from inside a component. This will prevents circular dependencies and import issues.
+
+```jsx
+import { useRouter } from '@adbl/unfinished/router';|
+
+const App = () => {
+  const router = useRouter();
+  const { Link, Outlet } = router;
+
+  return (
+    <div class="app">
+      <nav>
+        <Link href="/">Home</Link>
+        <Link href="/about">About</Link>
+      </nav>
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+};
+
+export default App;
+```
+
+### Nested Routing
+
+The library supports nested routing for more complex application structures:
+
+```jsx
+const routes: RouteRecords = [
+  {
+    name: 'dashboard',
+    path: '/dashboard',
+    component: Dashboard,
+    children: [
+      { name: 'overview', path: 'overview', component: Overview },
+      { name: 'stats', path: 'stats', component: Stats },
+    ],
+  },
+];
+```
+
+```jsx
+import { useRouter } from '@adbl/unfinished/router';
+
+const Dashboard = () => {
+  const { Link, Outlet } = useRouter();
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <nav>
+        <Link href="/dashboard/overview">Overview</Link>
+        <Link href="/dashboard/stats">Stats</Link>
+      </nav>
+      <Outlet />
+    </div>
+  );
+};
+```
+
+### Lazy Loading Routes
+
+Implement code splitting with lazy-loaded routes:
+
+```javascript
+const Settings = lazy(() => import('./Settings'));
+```
+
+### Programmatic Navigation
+
+Navigate programmatically using the `navigate` method:
+
+```jsx
+const ProfileButton = () => {
+  const { navigate } = useRouter();
+  const goToProfile = () => {
+    navigate('/profile/123');
+  };
+
+  return <button onClick={goToProfile}>View Profile</button>;
+};
+```
+
+### Dynamic Route Parameters
+
+Define and access dynamic route parameters:
+
+```javascript
+{
+  name: 'profile',
+  path: 'profile/:id',
+  component: lazy(() => import('./Profile')),
+}
+
+const Profile = () => {
+  const router = useRouter();
+  const id = router.params.get('id');
+
+  return <h1>Profile ID: {id}</h1>;
+};
+```
+
+### Wildcard Routes
+
+Handle 404 pages and other catch-all scenarios:
+
+```javascript
+{
+  name: 'not-found',
+  path: '*',
+  component: lazy(() => import('./NotFound')),
+}
+```
+
+### Stack Mode Navigation
+
+**Stack Mode** turns the router into a stack-based navigation system. This lets routes act like a stack, where each route is a unique entry that can be navigated to and from.
+
+#### Enabling Stack Mode
+
+To enable Stack Mode, set `stackMode: true` in your router configuration:
+
+```tsx
+const router = createWebRouter({
+  routes: [...],
+  stackMode: true
+});
+```
+
+#### Example Stack Mode Flow
+
+```tsx
+// Starting at /home
+router.navigate('/photos'); // Adds /photos to the stack
+router.navigate('/photos/1'); // Adds /photos/1 to the stack
+
+// Stack is now: ['/home', '/photos', '/photos/1']
+
+router.back(); // Pops back to /photos
+// Stack is now: ['/home', '/photos']
+
+router.navigate('/settings'); // Adds /settings to the stack
+// Stack is now: ['/home', '/photos', '/settings']
+
+router.navigate('/home'); // Pops back to /home
+// Stack is now: ['/home']
+```
+
+### Keep Alive Routes
+
+Keep Alive preserves the DOM nodes of route components when navigating away, maintaining them for when users return. This is particularly useful for preserving form inputs, scroll positions, or complex component states across navigation.
+
+```tsx
+// Basic keep alive outlet
+<Outlet keepAlive />
+
+// With custom cache size, defaults to 10
+<Outlet
+  keepAlive
+  maxKeepAliveCount={20}
+/>
+```
+
+When enabled, the router will:
+
+- Cache the DOM nodes of routes when navigating away
+- Restore the exact state when returning to the route
+- Preserve scroll positions for both the outlet and window
+- Maintain form inputs and other interactive elements
+
+This is especially valuable for scenarios like:
+
+- Multi-step forms where users navigate between steps
+- Long scrollable lists that users frequently return to
+- Complex interactive components that are expensive to reinitialize
+- Search results pages that users navigate back and forth from
+
+> **NOTE**: While useful, keep alive does consume more memory as it maintains DOM nodes in memory. Consider the `maxKeepAliveCount` parameter to limit cache size based on your application's needs.
+
+### Router Relays
+
+Router Relays maintain continuity of DOM elements between routes. This is useful when certain elements should persist state across route changes, ensuring the same DOM node is used rather than recreating it.
+
+#### Basic Usage
+
+Relays allow components to be carried over between routes without unmounting or remounting. This is particularly useful for shared elements like images, avatars, or other reusable components.
+
+```tsx
+// Define a component that will persist between routes
+function Photo({ src, alt }) {
+  return <img src={src} alt={alt} />;
+}
+
+// Define a relay wrapper for the component
+function PhotoRelay({ src, alt }) {
+  const { Relay } = useRouter();
+  return <Relay id="photo-relay" source={Photo} sourceProps={{ src, alt }} />;
+}
+
+// Create relay instances in different routes
+function HomeRoute() {
+  return (
+    <div>
+      <h1>Home</h1>
+      <PhotoRelay src="photo.jpg" alt="Shared photo" />
+    </div>
+  );
+}
+
+function DetailRoute() {
+  return (
+    <div>
+      <h1>Detail</h1>
+      <PhotoRelay src="photo.jpg" alt="Shared photo" />
+    </div>
+  );
+}
+```
+
+In the example above, the relay ensures that the `Photo` component with the same `id` (`photo-relay`) is the same across both routes, even as the routes change.
+
+#### Lifecycle Behavior
+
+Relays work by matching `id` attributes between instances in the current and next route. When the route changes:
+
+- If a relay with the same `id` exists in both the current and next route, its DOM node and state are preserved.
+- If no matching relay is found in the next route, the current relay is unmounted.
+- New relays in the next route are created and mounted as usual.
+
+> **NOTE**: Relays do not handle animations or transitions. Developers can implement view transitions on their own if needed, using techniques like the native `ViewTransition` API or CSS animations in combination with relays.
