@@ -148,16 +148,16 @@ _However_, in `unfinished`, there are some slight differences to HTML attributes
 
 - The `style` attribute can accept text, like in HTML, _however_ it can also accepts a JavaScript object, which would contain the CSS properties (in camelCase) and their values. For example:
 
-```jsx
-<div
-  style={{
-    backgroundColor: 'red',
-    fontSize: '20px',
-  }}
->
-  Hello, world!
-</div>
-```
+  ```jsx
+  <div
+    style={{
+      backgroundColor: 'red',
+      fontSize: '20px',
+    }}
+  >
+    Hello, world!
+  </div>
+  ```
 
 This will render a div with a red background color and a font size of 20 pixels. It is the exact same as:
 
@@ -169,15 +169,21 @@ This will render a div with a red background color and a font size of 20 pixels.
 
 #### Components
 
-In `unfinished`, components are simply functions that return DOM nodes.
+In `unfinished`, components are the building blocks of your application, allowing you to encapsulate and reuse pieces of your UI.
+
+### Basic Component Structure
+
+A component in `unfinished` is a function that returns JSX, which is then converted into DOM nodes. Here's a simple example:
 
 ```jsx
 function MyComponent() {
   return <h1>This is my component!</h1>;
 }
+```
 
-// is the exact same as:
+This function returns a JSX element, which is then rendered as a DOM node. The equivalent vanilla JavaScript would be:
 
+```javascript
 function MyComponent() {
   const h1 = document.createElement('h1');
   h1.textContent = 'This is my component!';
@@ -185,15 +191,21 @@ function MyComponent() {
 }
 ```
 
-Because the JSX returned by a component is a DOM node, you can append it to any other element in the DOM.
+### Using Components in the DOM
+
+Because the JSX returned by a component is a DOM node, you can append it to any other element in the DOM. For example:
 
 ```jsx
 document.body.append(<MyComponent />);
+```
 
-// is the same as:
+This is equivalent to:
 
+```javascript
 document.body.appendChild(MyComponent());
 ```
+
+### Composing Components
 
 Your UI is composed by combining multiple components together. For example, you can create a component that renders a heading and a paragraph:
 
@@ -217,8 +229,6 @@ function MyComponent() {
 }
 ```
 
-> You can note from the above, that functions that return JSX start with a capital letter. This is because JSX is case-sensitive: HTML tags are all lowercase, and component tags need to start with a capital letter.
-
 In this example, `Heading` and `Paragraph` are combined into `MyComponent`, creating a larger, reusable component. The equivalent vanilla JavaScript would be:
 
 ```javascript
@@ -228,7 +238,7 @@ function Heading() {
   return h1;
 }
 
-function Paragraph(props) {
+function Paragraph() {
   const p = document.createElement('p');
   p.textContent = 'This is a paragraph.';
   p.setAttribute('id', 'my-paragraph');
@@ -242,6 +252,42 @@ function MyComponent() {
   const span = document.createElement('span');
   span.textContent = 'This is a span.';
   div.appendChild(span);
+  return div;
+}
+```
+
+### Props in Components
+
+Components can accept arguments, known as "props", which allow you to pass data into them. This makes components more flexible and reusable. Here's an example:
+
+```jsx
+function Greeting(props) {
+  return <h1>Hello, {props.name}!</h1>;
+}
+
+function App() {
+  return (
+    <div>
+      <Greeting name="Alice" />
+      <Greeting name="Bob" />
+    </div>
+  );
+}
+```
+
+In this example, the `Greeting` component accepts a `name` prop and uses it to display a personalized greeting. The equivalent vanilla JavaScript would be:
+
+```javascript
+function Greeting(props) {
+  const h1 = document.createElement('h1');
+  h1.textContent = `Hello, ${props.name}!`;
+  return h1;
+}
+
+function App() {
+  const div = document.createElement('div');
+  div.appendChild(Greeting({ name: 'Alice' }));
+  div.appendChild(Greeting({ name: 'Bob' }));
   return div;
 }
 ```
@@ -960,3 +1006,53 @@ Here we demonstrated a switch component using named "roles". This illustrates a 
 - **Clear Conditional Logic:** Instead of writing long and potentially confusing `if/else` blocks, `Switch` allows you to make clear statements about UI based on an associated variable, or state in the form of a Cell.
 - **Readability:** It makes it easier to understand the different states and UI combinations your code can display by following a more semantic structure.
 - **Automatic Updates:** When combined with Cells it makes sure that whenever there is a change, your UI also reflects it.
+
+## Working with Element References
+
+As we start building interactive apps, we soon realize that we need a way for JavaScript code to communicate directly with the elements on the page. Sometimes we want to focus a particular element, measure dimensions, or make more low-level changes, and for that we need to be able to reference those elements directly. This is where "refs," or "references," come into play, and where the integration between `Cells`, JSX and underlying HTML elements become more clear.
+
+### What Exactly Are Refs?
+
+A "ref" is fundamentally a pointer to a specific element that was created using JSX. It is basically an identifier or a named bookmark for an element that exists on the page. With a ref you create a JavaScript variable that actually holds your HTML element and allows you to interact with it.
+
+It allows other code, usually within the functions that render your view, to communicate, observe, and directly modify actual existing parts of the page, without needing to rely on indirect methods of finding or re-constructing elements manually.
+
+In `unfinished`, using refs involves these key parts:
+
+- **Creating a Reactive `Cell`:** First, you need to create a `Cell` where the reference will be stored at a later time.
+
+```javascript
+import { Cell } from '@adbl/cells';
+
+const elementRef = Cell.source(null);
+```
+
+Here, `elementRef` will hold the references to the node we're trying to access later on. Initially, it starts with a value of `null`, which means that there's no associated element at the beginning, but that will change.
+
+- **Linking with the `ref` Attribute:** In your JSX, you use the special `ref` attribute on the HTML element you want to access. You set the `Cell` variable as the attribute's value.
+
+```jsx
+<div ref={elementRef}>Hello world!</div>
+```
+
+Now when the `div` element is created, it will be assigned to the `elementRef` cell.
+
+- **Accessing the Element:**
+
+```jsx
+import { Cell } from '@adbl/cells';
+
+const elementRef = Cell.source(null); // elementRef.value is null
+const div = <div ref={elementRef}>Hello world!</div>;
+elementRef.value === div; // elementRef.value is now the div element
+```
+
+### Why Use Refs Instead of `document.querySelector()`?
+
+While you could use `document.querySelector()` to get an HTML element directly, refs offer a more straightforward and reliable way of handling your UI interactions, specially in a reactive web app where the webpage may update and change a lot, unlike traditional apps that change less often:
+
+- **Direct Connection:** With refs, you're creating a direct link to your HTML element in your JSX code, so it is much more reliable and predictable than having to query for it by id or classes, for instance, where those attributes may change over time with edits.
+- **Reacts to Node Changes**: The `Cell` object of refs are reactive, so when used in conjunction with `useObserver` or other related patterns, can be used to react whenever a related Node disappears or becomes available again.
+- **Better Code Structure**: Using refs often keeps the logic local to your component code instead of relying on a global selector-based lookup, making your code easier to read and maintain.
+
+Now that you have a solid understanding of what refs are and how they work, let's move on to understanding how `useObserver()` leverages them to manage the lifecycle of your HTML elements.
