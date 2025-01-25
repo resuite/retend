@@ -1077,12 +1077,7 @@ export namespace JSX {
     ) => void;
   };
 
-  export type Children =
-    | Template
-    | Node
-    | string
-    | TemplateStringsArray
-    | Node[];
+  export type Children = unknown;
 
   interface JsxNativeProps {
     key?: string | number;
