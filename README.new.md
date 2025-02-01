@@ -6,11 +6,14 @@
 
 [![downloads (@adbl/unfinished)](https://img.shields.io/npm/dm/@adbl/unfinished?label=downloads)](https://www.npmjs.com/package/@adbl/unfinished)
 
-`unfinished` is a client-side library for building modern web applications. Like React, it allows you to use a familiar HTML-like syntax with JavaScript (JSX) to create dynamic user interfaces.
+`unfinished` is a client-side library for building web apps. Like React, it allows you to use JSX to create dynamic user interfaces.
 
-If you've worked with HTML, CSS, and JavaScript, `unfinished` should be easy to pick up, and it's designed to help you build applications quickly and efficiently.
+If you've worked with HTML, CSS, and JavaScript, `unfinished` should be easy to pick up. It is designed to help you build applications quickly and efficiently.
+
+## Table of Contents
 
 - [unfinished](#unfinished)
+  - [Table of Contents](#table-of-contents)
   - [Key Features](#key-features)
   - [Installation](#installation)
   - [Core Concepts](#core-concepts)
@@ -73,17 +76,17 @@ If you've worked with HTML, CSS, and JavaScript, `unfinished` should be easy to 
 
 Here's a breakdown of the core functionalities:
 
-- **Lightweight:** `unfinished` has a small footprint, which means it loads quickly and doesn't bog down your application with extra overhead.
+- **Lightweight:** `unfinished` has a small footprint, which means it loads quickly without extra overhead.
 
-- **JSX Support:** You can use JSX syntax, which might already be familiar if you've worked with React, to define your user interfaces. This allows you to embed HTML-like structures directly in your JavaScript code.
+- **JSX Support:** You can use JSX to define your user interfaces. This allows you embed HTML-like structures directly into JavaScript.
 
-- **Built-in Reactivity (`@adbl/cells`):** The library utilizes `@adbl/cells` for its reactivity system. This means that when your data changes, the parts of your UI that depend on that data will automatically update, so you do not have to manually trigger these changes.
+- **Built-in Reactivity:** `@adbl/cells` is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
 
-- **Components are DOM Elements:** Components in `unfinished` are standard DOM elements that you can manipulate just like any other HTML element. This gives you a high level of control and interoperability with existing DOM APIs.
+- **Components are DOM Elements:** Components in `unfinished` are just standard DOM nodes. There is no extra layer. This gives you a high level of control and interoperability with existing DOM APIs.
 
-- **Built-in Router:** The library includes its own router, which makes it easier to build single-page applications (SPAs). The router handles navigation between different parts of your app without full page reloads.
+- **Built-in Router:** The library includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
 
-- **Hot Module Replacement (HMR) Support:** During development, HMR allows you to see your changes almost instantly without refreshing the page. This speeds up your development process by letting you focus more on your application.
+- **(Experimental) Hot Module Reload Support:** `unfinished` supports hot module reloads, which allow you to see changes instantly without refreshing the page. This speeds up development by letting you focus more on your application.
 
 ## Installation
 
@@ -135,9 +138,7 @@ This will set up the basic project structure for you. Then, you'll need to insta
 
 > If you are already familiar with JSX, you can skip this section and go straight to the [next one](#reactivity-with-cells).
 
-`unfinished`, like React, Solid, and many other frameworks, allows you to write UI _components_ in a syntax called JSX. JSX is a syntax extension for JavaScript that allows you to write HTML-like code within your JavaScript files.
-
-JSX looks similar to HTML, but it is embedded directly in your JavaScript code. This means that you can use JSX to define your UI components, and then render them on the page as regular DOM nodes. e.g.
+`unfinished`, like React, Solid, and many others, allows you to write UI _components_ in a syntax called JSX. JSX is a syntax extension for JavaScript that allows you to write HTML-like code within your JavaScript files. e.g.
 
 ```jsx
 const greeting = <div>Hello, world!</div>;
@@ -150,8 +151,6 @@ const greeting = document.createElement('div');
 greeting.textContent = 'Hello, world!';
 ```
 
-The JSX syntax is designed to be familiar to HTML developers, so you can use it to define your UI in a familiar way.
-
 #### Expressions
 
 Possibly the most important reason JSX exists is to allow you to embed JavaScript expressions within your markup. This means you can dynamically generate content based on your application's state or props. For example:
@@ -161,7 +160,7 @@ const name = 'John';
 const greeting = <h1>Hello, {name}!</h1>;
 ```
 
-In this example, the value of the `name` variable is embedded within the JSX using curly braces `{}`. This allows the `greeting` element to dynamically display "Hello, John!".
+In this example, the value of `name` is embedded within the JSX using curly braces `{}`. This allows the `greeting` element to dynamically display "Hello, John!".
 
 You can also use JavaScript expressions to conditionally render elements. For example:
 
@@ -386,7 +385,7 @@ This will render the two paragraphs as siblings in the DOM, without adding an ex
 
 ### Reactivity with Cells
 
-In `unfinished`, data that changes over time is managed using a data structure called a "cell". A `Cell` is basically a container that holds data and automatically updates your UI when that data changes. If you know about reactive signals or refs in other frameworks, cells work similarly.
+In `unfinished`, data that changes over time is managed using a "cell". A `Cell` is a container that holds data and automatically triggers updates when that data changes. If you know about reactive signals or `refs` in other frameworks, cells work similarly.
 
 Cells are provided by the [`@adbl/cells`](https://github.com/adebola-io/cells) library, which means they can be used outside `unfinished`.
 
@@ -421,7 +420,7 @@ message.value = 'Goodbye!'; // Changes the value of the message cell
 
 #### Derived Cells
 
-It is also possible to have cells that depend on the value of other cells. These readonly, "derived" cells can be seen as transformations or reflections of the original "source" cell, and they will automatically change when the cell they depend on changes.
+It is also possible to have cells that depend on the value of other cells. These readonly, "derived" cells are transformations or reflections of their "source" cells, so they will automatically change when the cells they depend on change.
 
 ```javascript
 // Cell with value 3.
