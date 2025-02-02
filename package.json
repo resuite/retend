@@ -49,6 +49,10 @@
     "./render": {
       "import": "./dist/render/index.js",
       "types": "./dist/render/index.d.ts"
+    },
+    "./include": {
+      "import": "./dist/include/index.js",
+      "types": "./dist/include/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/unfinished#readme",

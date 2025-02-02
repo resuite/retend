@@ -71,6 +71,10 @@ If you've worked with HTML, CSS, and JavaScript, `unfinished` should be easy to 
     - [Router Relays](#router-relays)
       - [Basic Usage](#basic-usage)
       - [Lifecycle Behavior](#lifecycle-behavior)
+  - [Advanced Components](#advanced-components)
+    - [Teleport](#teleport)
+    - [ShadowRoot](#shadowroot)
+      - [Include](#include)
 
 ## Key Features
 
@@ -1421,3 +1425,363 @@ Relays work by matching `id` attributes between instances in the current and nex
 - New relays in the next route are created and mounted as usual.
 
 > **NOTE**: Relays do not handle animations or transitions. Developers can implement view transitions on their own if needed, using techniques like the native `ViewTransition` API or CSS animations in combination with relays.
+
+## Advanced Components
+
+`unfinished` provides several advanced components that can help you build complex UIs. Here's a breakdown of the most useful ones:
+
+### Teleport
+
+The `Teleport` component allows you to move a part of your component's content to a different location in the DOM, outside of its natural parent. This is extremely useful for creating modals, tooltips, or elements that should appear at a specific place in the document, regardless of the component's position in your application's structure.
+
+Let's imagine a simple use case: a navigation bar that is rendered at the top of the page, and a modal that needs to be rendered outside of the navigation bar, directly as a child of the `body` element.
+
+- **Basic Example**:
+
+```jsx
+import { Teleport } from '@adbl/unfinished/teleport';
+
+function NavBar() {
+  return (
+    <nav>
+      <h1>My Application</h1>
+      <Teleport to={document.body}>
+        <div style={{ backgroundColor: 'lightgray', padding: '20px' }}>
+          This content is outside the nav bar.
+        </div>
+      </Teleport>
+    </nav>
+  );
+}
+
+document.body.append(<NavBar />);
+```
+
+In the example above, the `div` will be rendered as a child of the `body` element, even though it is defined inside the `NavBar` component.
+
+- **More complex example**:
+
+```jsx
+import { Teleport } from '@adbl/unfinished/teleport';
+import { Cell } from '@adbl/cells';
+
+function Modal({ content, onClose }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        backgroundColor: 'white',
+        padding: '20px',
+        border: '1px solid black',
+      }}
+    >
+      <button onClick={onClose}>close</button>
+      {content}
+    </div>
+  );
+}
+
+function NavBar() {
+  const showModal = Cell.source(false);
+
+  return (
+    <nav>
+      <h1>My Application</h1>
+      <button onClick={() => (showModal.value = true)}>Open Modal</button>
+
+      {If(showModal, () => (
+        <Teleport to={document.body}>
+          <Modal
+            content={<p>This is a modal outside the nav bar.</p>}
+            onClose={() => (showModal.value = false)}
+          />
+        </Teleport>
+      ))}
+    </nav>
+  );
+}
+
+document.body.append(<NavBar />);
+```
+
+In this example, `Teleport` is used to render the `Modal` component directly under the `body` tag. This simplifies modal positioning without needing complex CSS workarounds for the nav bar structure.
+
+- **Using a CSS selector**:
+
+```jsx
+import { Teleport } from '@adbl/unfinished/teleport';
+
+function MyComponent() {
+  return (
+    <div>
+      <Teleport to="#portal-target">
+        <div>This is rendered into the #portal-target div</div>
+      </Teleport>
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+Here, `Teleport` moves the `div` into a specific element that's identified by its ID (`#portal-target`). This means you can move components to specific locations using existing structures.
+
+### ShadowRoot
+
+The `ShadowRoot` component allows you to encapsulate your component's styling and structure by creating a shadow DOM. The shadow DOM provides a way to build complex components while avoiding conflicts with global CSS or other parts of the DOM, which is especially useful for reusable custom components.
+
+```jsx
+import { ShadowRoot } from '@adbl/unfinished/shadowroot';
+
+function MyComponent() {
+  return (
+    <div>
+      <ShadowRoot>
+        <style>
+          {`
+          div {
+            background-color: lightgreen;
+            padding: 10px;
+          }
+        `}
+        </style>
+        <div>
+          <h1>Content in Shadow DOM</h1>
+          <p>This content is encapsulated.</p>
+        </div>
+      </ShadowRoot>
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+Here, the styling inside `ShadowRoot` (the green background) will not leak out and will not be affected by any external CSS styles that target the `div` tag.
+
+- **Open vs Closed Shadow DOM**:
+
+```jsx
+import { ShadowRoot } from '@adbl/unfinished/shadowroot';
+
+function MyComponent() {
+  return (
+    <>
+      <div style={{ border: '2px solid blue', padding: '10px' }}>
+        <ShadowRoot mode="open">
+          <div>Open Shadow DOM content</div>
+        </ShadowRoot>
+      </div>
+      <div style={{ border: '2px solid blue', padding: '10px' }}>
+        <ShadowRoot mode="closed">
+          <div>Closed Shadow DOM content</div>
+        </ShadowRoot>
+      </div>
+    </>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+By default, shadow DOMs are `open`, meaning you can access their nodes using the `.shadowRoot` property from JavaScript. Setting `mode="closed"` makes the shadow root inaccessible from the outside, providing extra encapsulation (but not security.)
+
+- **Using Components inside the Shadow Root**:
+
+```jsx
+import { ShadowRoot } from '@adbl/unfinished/shadowroot';
+
+function StyledButton({ children, backgroundColor }) {
+  return (
+    <button
+      style={{
+        backgroundColor,
+        color: 'white',
+        padding: '10px',
+        border: 'none',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MyComponent() {
+  return (
+    <div style={{ border: '2px solid blue', padding: '10px' }}>
+      <ShadowRoot>
+        <div>
+          <StyledButton backgroundColor="red">Click Me</StyledButton>
+        </div>
+      </ShadowRoot>
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+As you can see, you can add components to shadow DOM just like any other component and they will inherit the encapsulation behavior of `ShadowRoot`.
+
+- **Multiple Shadow Roots**:
+
+```jsx
+import { ShadowRoot } from '@adbl/unfinished/shadowroot';
+
+function MyComponent() {
+  return (
+    <div>
+      <ShadowRoot>
+        <div>First shadow root.</div>
+      </ShadowRoot>
+      <ShadowRoot>
+        <div>Second shadow root.</div>
+      </ShadowRoot>
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+It is possible to add multiple `ShadowRoot` components on a single parent component, but it may not lead to the most predictable behavior. Ideally, it's best to only have one `ShadowRoot` per parent, but these can be nested in different parents to get fine-grained control over the shadow DOMs.
+
+#### Include
+
+The `Include` component allows you to include a pre-existing element from the DOM into your component. It's like creating a portal, but in reverse. Instead of moving content, you're bringing an existing DOM element into your component's structure. This can be helpful when working with existing HTML structures that you cannot easily modify, or to "inject" shared components from one part of the app to another.
+
+- **Basic inclusion**:
+
+```jsx
+import { Include } from '@adbl/unfinished/include';
+
+// Assume there is this element on the page:
+// <div id="external-component">
+//   <h1>I am from outside</h1>
+// </div>
+
+function MyComponent() {
+  return (
+    <div>
+      <h1>My Component</h1>
+      <Include from="#external-component" />
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+The above code will insert the content of the `#external-component` node inside your `MyComponent`.
+
+- **Including and modifying properties**:
+
+```jsx
+import { Include } from '@adbl/unfinished/include';
+
+// Assume there is this element on the page:
+// <div id="external-component" style="color: red;">
+//   <p>I am from outside</p>
+// </div>
+
+function MyComponent() {
+  return (
+    <div>
+      <h1>My Component</h1>
+      <Include from="#external-component" style={{ color: 'green' }} />
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+In this example, `Include` is used to pull in the external element, and then it changes the `style` property of the element. The existing external element will be modified in place.
+
+- **Adding event listeners and attributes**:
+
+```jsx
+import { Include } from '@adbl/unfinished/include';
+
+// Assume there is this element on the page:
+// <button id="external-button">Click Me</button>
+
+function MyComponent() {
+  const handleClick = () => {
+    alert('Button clicked!');
+  };
+
+  return (
+    <div>
+      <h1>My Component</h1>
+      <Include from="#external-button" onClick={handleClick} disabled={true} />
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+Here, `Include` is not just importing the button, but it is also adding a click listener and a `disabled` attribute to it.
+
+- **Overwriting children**:
+
+```jsx
+import { Include } from '@adbl/unfinished/include';
+
+// Assume there is this element on the page:
+// <div id="external-component">
+//   <p>I am from outside</p>
+// </div>
+
+function MyComponent() {
+  return (
+    <div>
+      <h1>My Component</h1>
+      <Include from="#external-component">
+        <p>I am from inside!</p>
+      </Include>
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+In this case, the child element of `#external-component` (`<p>I am from outside</p>`) will be replaced by the `p` element being passed as a `children` prop to the include component.
+
+- **Using a component reference as a target**:
+
+```jsx
+import { Include } from '@adbl/unfinished/include';
+import { Cell } from '@adbl/cells';
+
+function ExternalComponent() {
+  const divRef = Cell.source(null);
+  return (
+    <div id="external-component" ref={divRef}>
+      I am from outside
+    </div>
+  );
+}
+
+function MyComponent() {
+  const divRef = Cell.source(null);
+  return (
+    <div ref={divRef}>
+      <ExternalComponent />
+      <h1>My Component</h1>
+      <Include from={divRef} style={{ color: 'green' }} />
+    </div>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+In this example, instead of using a css selector, the `from` attribute takes a Cell, and its value is used as the target to inject into.
+
+These advanced components provide unique ways to manage DOM interactions, encapsulation, and component structures.
