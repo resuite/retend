@@ -11,3 +11,5 @@ examples
 scripts
 source
 *.tgz
+docs/README.md
+CONTRIBUTING.md
