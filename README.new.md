@@ -49,6 +49,7 @@ If you've worked with HTML, CSS, and JavaScript, `unfinished` should be easy to 
     - [Dynamic `Switch` Using Cells](#dynamic-switch-using-cells)
     - [Handling Complex Cases with Multiple Conditions](#handling-complex-cases-with-multiple-conditions)
     - [Using a Default Case](#using-a-default-case)
+  - [Event Modifiers](#event-modifiers)
   - [Element References](#element-references)
     - [Why not `document.querySelector()`?](#why-not-documentqueryselector)
   - [Life Cycles](#life-cycles)
@@ -64,13 +65,13 @@ If you've worked with HTML, CSS, and JavaScript, `unfinished` should be easy to 
     - [Programmatic Navigation](#programmatic-navigation)
     - [Dynamic Route Parameters](#dynamic-route-parameters)
     - [Wildcard Routes](#wildcard-routes)
+    - [Accessing the Current Route](#accessing-the-current-route)
     - [Stack Mode Navigation](#stack-mode-navigation)
       - [Enabling Stack Mode](#enabling-stack-mode)
       - [Example Stack Mode Flow](#example-stack-mode-flow)
     - [Keep Alive Routes](#keep-alive-routes)
     - [Router Relays](#router-relays)
       - [Basic Usage](#basic-usage)
-      - [Lifecycle Behavior](#lifecycle-behavior)
   - [Advanced Components](#advanced-components)
     - [Teleport](#teleport)
     - [ShadowRoot](#shadowroot)
@@ -444,7 +445,7 @@ console.log(doubledCount.value); // has automatically changed to 10 * 2 = 20.
 You can have derived cells that depend on more than one source cell:
 
 ```javascript
-count a = Cell.source(1);
+const a = Cell.source(1);
 const b = Cell.source(2);
 
 // Cell with value 1 + 2 = 3
@@ -545,13 +546,13 @@ In this example, we'll have a boolean variable to control whether or not to disp
 ```jsx
 import { If } from '@adbl/unfinished';
 
-const loggedIn = true;
+const isLoggedIn = true;
 
 const AuthenticatedGreeting = () => {
   const LoggedInGreeting = () => <h1>Welcome Back!</h1>;
   const NotLoggedInPrompt = () => <p>Please Log in.</p>;
 
-  return <div>{If(loggedIn, LoggedInGreeting, NotLoggedInPrompt)}</div>;
+  return <div>{If(isLoggedIn, LoggedInGreeting, NotLoggedInPrompt)}</div>;
 };
 
 document.body.append(<AuthenticatedGreeting />);
@@ -567,7 +568,7 @@ When you want to respond to changes dynamically, you can use `Cell` objects to c
 import { Cell } from '@adbl/cells';
 import { If } from '@adbl/unfinished';
 
-const loggedIn = Cell.source(false); // Initialized to false.
+const isLoggedIn = Cell.source(false); // Initialized to false.
 
 const AuthenticatedGreeting = () => {
   const LoggedInGreeting = () => <h1>Welcome Back!</h1>;
@@ -689,7 +690,7 @@ You can also toggle the user status using the `toggleUserStatus` function, which
 
 ## List Rendering
 
-In many web applications, you'll need to display lists of items. Think of a to-do list, a list of products, or a list of user comments. `unfinished` provides a special function called `For` to handle these scenarios efficiently. It lets you create these lists dynamically, updating the webpage whenever the data changes.
+In many web applications, you'll need to display lists, whether it's a to-do list, a list of products, or a list of user comments. `unfinished` provides a special function called `For` to handle these scenarios efficiently.
 
 If you are already familiar with JavaScript `for` loops or array's `map` method, `For` does something similar, but it does it in a way that is integrated directly with the structure of your web page, updating it automatically.
 
@@ -1040,9 +1041,141 @@ document.body.append(<UserDashboard />);
 
 Here we demonstrated a switch component using named "roles". This illustrates a use-case where, sometimes, the content may be unexpected, for instance, because a user may change their saved settings. This fallback allows a "catch-all" solution.
 
+## Event Modifiers
+
+`unfinished` allows you to add modifiers to event listeners directly in your JSX to control how events are handled. These modifiers are inspired by similar features in other frameworks and can simplify common event-handling patterns.
+
+Modifiers are appended to the event name using a double hyphen (`--`). For example, `onClick--prevent` will prevent the default action of a click event. You can combine multiple modifiers for complex behavior (e.g., `onSubmit--prevent--stop`).
+
+Here are the available modifiers:
+
+- **`self`**: Only triggers the listener if the event originates from the element itself (not from a child element).
+
+- **`prevent`**: Calls `preventDefault()` on the event, preventing the default browser action (e.g., form submission, link navigation).
+
+- **`once`**: The listener will only be triggered once. After the first time, it will be automatically removed.
+
+- **`passive`**: Indicates that the listener will never call `preventDefault()`. This allows the browser to optimize scrolling performance. This is most useful for `scroll`, `touch` and `wheel` events.
+
+- **`stop`**: Calls `stopPropagation()` on the event. This prevents the event from bubbling up to parent elements.
+
+**Examples:**
+
+- **Preventing Form Submission:**
+
+```jsx
+function MyForm() {
+  const handleSubmit = () => {
+    alert('Form submitted, but default prevented!');
+  };
+  return (
+    <form onSubmit--prevent={handleSubmit}>
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+document.body.append(<MyForm />);
+```
+
+Here, the `prevent` modifier will call `event.preventDefault()` before `handleSubmit` is called, ensuring that the browser does not perform a full-page reload when the button is clicked.
+
+- **Stopping Event Bubbling:**
+
+```jsx
+function ParentComponent() {
+  const handleParentClick = () => {
+    alert('Parent clicked');
+  };
+  return (
+    <div onClick={handleParentClick}>
+      <ChildComponent />
+    </div>
+  );
+}
+
+function ChildComponent() {
+  const handleChildClick = () => {
+    alert('Child clicked');
+  };
+
+  return <button onClick--stop={handleChildClick}>Click Child</button>;
+}
+
+document.body.append(<ParentComponent />);
+```
+
+In this example, clicking the button will only trigger the `handleChildClick`, because `onClick--stop` prevents the event from propagating to the `ParentComponent`.
+
+- **`self` modifier**:
+
+```jsx
+function MyComponent() {
+  const handleDivClick = (event) => {
+    alert('Div click triggered');
+  };
+
+  const handleChildClick = (event) => {
+    alert('Child click triggered');
+  };
+
+  return (
+    <div onClick--self={handleDivClick}>
+      <button onClick={handleChildClick}>Click me!</button>
+    </div>
+  );
+}
+document.body.append(<MyComponent />);
+```
+
+In this example, clicking on the button will trigger the alert on the button's click handler, but it will not trigger the parent's click handler. Only clicking directly on the div itself will trigger the div's click handler.
+
+- **`once` modifier**:
+
+```jsx
+import { Cell } from '@adbl/cells';
+
+function MyComponent() {
+  const clickCount = Cell.source(0);
+  const handleClick = () => {
+    clickCount.value++;
+  };
+  return (
+    <div>
+      <button onClick--once={handleClick}>Click me once!</button>
+      <p>Clicks: {clickCount}</p>
+    </div>
+  );
+}
+document.body.append(<MyComponent />);
+```
+
+In this example, only the first click on the button will increase the counter, and subsequent clicks will do nothing.
+
+- **Combining Modifiers:**
+
+```jsx
+function MyComponent() {
+  const handleClick = (event) => {
+    alert('Button clicked');
+  };
+
+  return (
+    <form onSubmit--prevent>
+      <button type="submit" onClick--stop--once={handleClick}>
+        Click and submit
+      </button>
+    </form>
+  );
+}
+
+document.body.append(<MyComponent />);
+```
+
+Using event modifiers helps streamline your event handling logic and reduces the amount of boilerplate code required to handle events.
+
 ## Element References
 
-A "ref" is fundamentally a pointer to a specific element that was created using JSX. It is basically an identifier or a named bookmark for an element that exists on the page. With a ref you create a JavaScript variable that actually holds your HTML element and allows you to interact with it.
+A `ref` is a "pointer" to any element that was created using JSX. It is basically an identifier or a named bookmark for an element that exists on the page. With a ref you create a JavaScript variable that actually holds your HTML element and allows you to interact with it.
 
 It allows other code, usually within the functions that render your view, to communicate, observe, and directly modify actual existing parts of the page, without needing to rely on indirect methods of finding or re-constructing elements manually.
 
@@ -1163,6 +1296,8 @@ In this example, the `onConnected` hook now:
 - **Node-Centric**: `useObserver` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
 - **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
 
+Okay, here's a section explaining event modifiers in `unfinished`, designed to be clear, concise, and easy to understand, suitable for your `README.new.md`:
+
 ## Routing
 
 The library includes a routing system for single-page applications.
@@ -1197,7 +1332,7 @@ document.body.appendChild(<router.Outlet />);
 Use the `useRouter` hook to access routing functionality from inside a component. This will prevents circular dependencies and import issues.
 
 ```jsx
-import { useRouter } from '@adbl/unfinished/router';|
+import { useRouter } from '@adbl/unfinished/router';
 
 const App = () => {
   const router = useRouter();
@@ -1309,6 +1444,41 @@ Handle 404 pages and other catch-all scenarios:
 }
 ```
 
+### Accessing the Current Route
+
+The `getCurrentRoute()` method on the router returns a `Cell` object that contains information about the current route. It can be used to:
+
+- Displaying the active route's name or path
+- Implementing dynamic UI based on the current route (e.g. showing breadcrumbs)
+- Adjusting styles or behaviors based on the current route parameters.
+
+**Basic Usage:**
+
+```jsx
+import { useRouter } from '@adbl/unfinished/router';
+import { Cell } from '@adbl/cells';
+
+function CurrentRouteDisplay() {
+  const router = useRouter();
+  const currentRoute = router.getCurrentRoute();
+
+  return (
+    <div>
+      <h1>Current Route Details</h1>
+      <p>Name: {Cell.derived(() => currentRoute.value.name)}</p>
+      <p>Path: {Cell.derived(() => currentRoute.value.fullPath)}</p>
+      <p>
+        Parameters:{' '}
+        {Cell.derived(() =>
+          JSON.stringify(Object.fromEntries(currentRoute.value.params))
+        )}
+      </p>
+      <p>Query: {Cell.derived(() => currentRoute.value.query.toString())}</p>
+    </div>
+  );
+}
+```
+
 ### Stack Mode Navigation
 
 **Stack Mode** turns the router into a stack-based navigation system. This lets routes act like a stack, where each route is a unique entry that can be navigated to and from.
@@ -1416,15 +1586,8 @@ function DetailRoute() {
 
 In the example above, the relay ensures that the `Photo` component with the same `id` (`photo-relay`) is the same across both routes, even as the routes change.
 
-#### Lifecycle Behavior
-
-Relays work by matching `id` attributes between instances in the current and next route. When the route changes:
-
-- If a relay with the same `id` exists in both the current and next route, its DOM node and state are preserved.
-- If no matching relay is found in the next route, the current relay is unmounted.
-- New relays in the next route are created and mounted as usual.
-
 > **NOTE**: Relays do not handle animations or transitions. Developers can implement view transitions on their own if needed, using techniques like the native `ViewTransition` API or CSS animations in combination with relays.
+> View transitions can be turned on by setting the `useViewTransitions` property of the router to `true`.
 
 ## Advanced Components
 
