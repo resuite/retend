@@ -11,11 +11,21 @@ import { linkNodesToComponent } from '../render/index.js';
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 /**
+ * @template T
+ * @typedef ForOptions
+ * @property {T extends object ? keyof T : never} [key]
+ * When iterating over objects with a predefined shape, this represents the property to use
+ * as a caching index. By default a unique symbol will be used.
+ */
+
+/**
  * Creates a dynamic mapping of an iterable to DOM nodes, efficiently updating when the iterable changes.
  *
  * @template {Iterable<any>} U
+ * @template [V=U extends Iterable<infer V> ? V : never]
  * @param {Cell<U> | U} list - The iterable or Cell containing an iterable to map over
- * @param {((item: U extends Iterable<infer V> ? V : never, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
+ * @param {((item: V, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
+ * @param {ForOptions<V>} [options]
  * @returns {JSX.Template} - A Template representing the mapped items
  *
  * @example
@@ -38,7 +48,7 @@ import { linkNodesToComponent } from '../render/index.js';
  * names.value.push('David');
  * // The list will automatically update to include the new name
  */
-export function For(list, fn) {
+export function For(list, fn, options) {
   /**
    * @type {Node[]}
    */
@@ -59,7 +69,7 @@ export function For(list, fn) {
   }
 
   const [rangeStart, rangeEnd] = createCommentPair();
-  const uniqueSymbolMarker = Symbol();
+  const uniqueSymbolMarker = options?.key ?? Symbol();
   /**
    * @type {Map<any, {
    *  index: Cell<number>,
