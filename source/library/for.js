@@ -49,9 +49,7 @@ import { linkNodesToComponent } from '../render/index.js';
  * // The list will automatically update to include the new name
  */
 export function For(list, fn, options) {
-  /**
-   * @type {Node[]}
-   */
+  /*** @type {Node[]} */
   let snapshot = [];
 
   if (!Cell.isCell(list)) {
@@ -71,10 +69,7 @@ export function For(list, fn, options) {
   const [rangeStart, rangeEnd] = createCommentPair();
   const uniqueSymbolMarker = options?.key ?? Symbol();
   /**
-   * @type {Map<any, {
-   *  index: Cell<number>,
-   *  nodes: Node[]
-   * }>}
+   * @type {Map<any, { index: Cell<number>,  nodes: Node[] }>}
    */
   let nodeStore = new Map();
 

@@ -3,3 +3,4 @@ export * from './for.js';
 export * from './if.js';
 export * from './switch.js';
 export * from './observer.js';
+export * from './efficient-for.js';
