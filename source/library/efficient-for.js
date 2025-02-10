@@ -15,11 +15,11 @@ import { linkNodesToComponent } from '../render/index.js';
 /**
  * Creates a dynamic mapping of an iterable to DOM nodes, efficiently updating when the iterable changes.
  *
- * @template {Iterable<any>} U
- * @template [V=U extends Iterable<infer V> ? V : never]
+ * @template T
+ * @template {Iterable<T>} U
  * @param {Cell<U> | U} list - The iterable or Cell containing an iterable to map over
- * @param {((item: V, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
- * @param {ForOptions<V>} [options]
+ * @param {((item: T, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
+ * @param {ForOptions<T>} [options]
  * @returns {JSX.Template} - A Template representing the mapped items
  *
  * @example
@@ -28,9 +28,7 @@ import { linkNodesToComponent } from '../render/index.js';
  *
  * // Use For to create a dynamic list of <li> elements
  * const listItems = For(names, (name, index) => {
- *   const li = document.createElement('li');
- *   li.textContent = `${index.value + 1}. ${name}`;
- *   return li;
+ *  return <li>{name} at index {index}</li>;
  * });
  *
  * // Append the list items to a <ul> element
@@ -45,7 +43,7 @@ import { linkNodesToComponent } from '../render/index.js';
 // TODO: Make object mutation safe or optional.
 export function EfficientFor(list, fn, options) {
   /*** @type {Node[]} */
-  let initialSnapshot = [];
+  const initialSnapshot = [];
   const func = getMostCurrentFunction(fn);
 
   // -----------------------------------------------
@@ -54,7 +52,6 @@ export function EfficientFor(list, fn, options) {
   if (!Cell.isCell(list)) {
     let i = 0;
     for (const item of list) {
-      /** @type {[any, Cell<number>, typeof list]} */
       const parameters = [item, Cell.source(i), list];
       const nodes = generateChildNodes(func(...parameters));
       linkNodesToComponent(nodes, func, new ArgumentList(parameters));
@@ -81,6 +78,7 @@ export function EfficientFor(list, fn, options) {
     const isObject = item && /^(object|function|symbol)$/.test(typeof item);
     if (isObject) itemKey = item[uniqueItemMarker];
     else itemKey = item?.toString ? `${item.toString()}.${i}` : i;
+
     if (itemKey === undefined) {
       itemKey = Symbol();
       item[uniqueItemMarker] = itemKey;
@@ -103,19 +101,18 @@ export function EfficientFor(list, fn, options) {
     i++;
   }
 
-  /** @param {U} _list */
-  const reactToListChanges = (_list) => {
+  /** @param {U} newList */
+  const reactToListChanges = (newList) => {
     const newCache = new Map();
     const func = getMostCurrentFunction(fn);
 
     let index = 0;
-    for (const item of _list) {
-      let itemKey = retrieveOrSetItemKey(item, index);
+    for (const item of newList) {
+      const itemKey = retrieveOrSetItemKey(item, index);
       const cachedResult = cacheFromLastRun.get(itemKey);
       if (cachedResult === undefined) {
         const i = Cell.source(index);
-        /** @type {[any, Cell<number>, typeof _list]} */
-        const parameters = [item, i, _list];
+        const parameters = [item, i, list];
         const newTemplate = func(...parameters);
         const nodes = /** @type {ChildNode[]} */ (
           generateChildNodes(newTemplate)
@@ -164,12 +161,13 @@ export function EfficientFor(list, fn, options) {
     // This pass ensures nodes are in the correct order and new nodes are inserted.
     // It compares each node's current position with the expected position after lastInserted,
     // moving nodes only when necessary to maintain the correct sequence.
-    for (const item of _list) {
-      /** @type {ChildNode[]} */
-      let nodes = newCache.get(retrieveOrSetItemKey(item, index))?.nodes;
-
+    let i = 0;
+    for (const item of newList) {
+      /** @type {ChildNode[]} */ // Invariant: nodes is always defined.
+      const nodes = newCache.get(retrieveOrSetItemKey(item, i))?.nodes;
       if (lastInserted.nextSibling !== nodes[0]) lastInserted.after(...nodes);
       lastInserted = nodes[nodes.length - 1] ?? lastInserted;
+      i++;
     }
 
     cacheFromLastRun = newCache;
