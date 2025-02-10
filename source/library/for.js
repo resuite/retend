@@ -15,17 +15,17 @@ import { linkNodesToComponent } from '../render/index.js';
  * @typedef ForOptions
  * @property {T extends object ? keyof T : never} [key]
  * When iterating over objects with a predefined shape, this represents the property to use
- * as a caching index. By default a unique symbol will be used.
+ * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
  */
 
 /**
  * Creates a dynamic mapping of an iterable to DOM nodes, efficiently updating when the iterable changes.
  *
- * @template {Iterable<any>} U
- * @template [V=U extends Iterable<infer V> ? V : never]
+ * @template T
+ * @template {Iterable<T>} U
  * @param {Cell<U> | U} list - The iterable or Cell containing an iterable to map over
- * @param {((item: V, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
- * @param {ForOptions<V>} [options]
+ * @param {((item: T, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
+ * @param {ForOptions<T>} [options]
  * @returns {JSX.Template} - A Template representing the mapped items
  *
  * @example
@@ -34,9 +34,7 @@ import { linkNodesToComponent } from '../render/index.js';
  *
  * // Use For to create a dynamic list of <li> elements
  * const listItems = For(names, (name, index) => {
- *   const li = document.createElement('li');
- *   li.textContent = `${index.value + 1}. ${name}`;
- *   return li;
+ *  return <li>{name} at index {index}</li>;
  * });
  *
  * // Append the list items to a <ul> element
@@ -48,26 +46,34 @@ import { linkNodesToComponent } from '../render/index.js';
  * names.value.push('David');
  * // The list will automatically update to include the new name
  */
+// TODO: Make object mutation safe or optional.
 export function For(list, fn, options) {
   /*** @type {Node[]} */
-  let snapshot = [];
+  const initialSnapshot = [];
+  const func = getMostCurrentFunction(fn);
 
+  // -----------------------------------------------
+  // STATIC LISTS
+  // -----------------------------------------------
   if (!Cell.isCell(list)) {
-    let index = 0;
+    let i = 0;
     for (const item of list) {
-      /** @type {[any, Cell<number>, typeof list]} */
-      const parameters = [item, Cell.source(index), list];
-      const func = getMostCurrentFunction(fn);
+      const parameters = [item, Cell.source(i), list];
       const nodes = generateChildNodes(func(...parameters));
       linkNodesToComponent(nodes, func, new ArgumentList(parameters));
-      snapshot.push(...nodes);
-      index += 1;
+      initialSnapshot.push(...nodes);
+      i++;
     }
-    return snapshot;
+    return initialSnapshot;
   }
 
-  const [rangeStart, rangeEnd] = createCommentPair();
+  // -----------------------------------------------
+  // REACTIVE LISTS
+  // -----------------------------------------------
+  /** @type {Map<any, { index: Cell<number>,  nodes: ChildNode[] }>} */
+  let cacheFromLastRun = new Map();
   const uniqueItemMarker = options?.key ?? Symbol();
+  const [listStart, listEnd] = createCommentPair();
 
   /**
    * @param {any} item
@@ -86,120 +92,116 @@ export function For(list, fn, options) {
     return itemKey;
   };
 
-  /**
-   * @type {Map<any, { index: Cell<number>,  nodes: Node[] }>}
-   */
-  let nodeStore = new Map();
+  // First run, prior to any changes.
+  let i = 0;
+  for (const item of list.value) {
+    const index = Cell.source(i);
+    const parameters = [item, index, list];
+    const template = func(...parameters);
+    const nodes = /** @type {ChildNode[]} */ (generateChildNodes(template));
+    linkNodesToComponent(nodes, func, new ArgumentList(parameters));
+    initialSnapshot.push(...nodes);
 
-  /**
-   * @param {U} _list
-   */
-  const callback = (_list) => {
-    /**
-     * @type Node[]
-     */
-    const newSnapShot = [];
-    const newNodeStore = new Map();
+    const itemKey = retrieveOrSetItemKey(item, i);
+    cacheFromLastRun.set(itemKey, { index, nodes });
+    i++;
+  }
+
+  /** @param {U} newList */
+  const reactToListChanges = (newList) => {
+    const newCache = new Map();
+    const func = getMostCurrentFunction(fn);
 
     let index = 0;
-    for (const item of _list) {
+    for (const item of newList) {
       const itemKey = retrieveOrSetItemKey(item, index);
-      const cachedResult = nodeStore.get(itemKey);
+      const cachedResult = cacheFromLastRun.get(itemKey);
       if (cachedResult === undefined) {
         const i = Cell.source(index);
-        /** @type {[any, Cell<number>, typeof list]} */
         const parameters = [item, i, list];
-        const func = getMostCurrentFunction(fn);
-        const nodes = generateChildNodes(func(...parameters));
+        const newTemplate = func(...parameters);
+        const nodes = /** @type {ChildNode[]} */ (
+          generateChildNodes(newTemplate)
+        );
         linkNodesToComponent(nodes, func, new ArgumentList(parameters));
-        newNodeStore.set(itemKey, { nodes, index: i });
-        newSnapShot.push(...nodes);
+        newCache.set(itemKey, { nodes, index: i });
       } else {
         /** @type {import('@adbl/cells').SourceCell<number>} */
         (cachedResult.index).value = index;
-        newNodeStore.set(itemKey, cachedResult);
-        newSnapShot.push(...cachedResult.nodes);
+        newCache.set(itemKey, cachedResult);
       }
       index++;
     }
 
-    nodeStore = newNodeStore;
-
-    /** @type {ChildNode} */
-    let currentNode = rangeStart;
-    let oldIndex = 0;
-    let newIndex = 0;
-
-    while (
-      newIndex < newSnapShot.length ||
-      (currentNode.nextSibling && currentNode.nextSibling !== rangeEnd)
-    ) {
-      const newNode = /** @type {ChildNode} */ (newSnapShot[newIndex]);
-      let oldNode = currentNode.nextSibling;
-
-      if (!oldNode || oldNode === rangeEnd) {
-        // Append remaining new nodes
-        currentNode.after(...newSnapShot.slice(newIndex));
-        break;
-      }
-
-      if (newIndex >= newSnapShot.length) {
-        // Remove remaining old nodes
-        while (oldNode && oldNode !== rangeEnd) {
-          /** @type {ChildNode | null} */
-          const nextOldNode = oldNode.nextSibling;
-          oldNode.remove();
-          oldNode = nextOldNode;
-        }
-        break;
-      }
-
-      if (oldNode === newNode) {
-        // Node hasn't changed, move to next
-        currentNode = oldNode;
-        newIndex++;
-        oldIndex++;
-      } else {
-        // Check if the new node exists later in the old list
-        let futureOldNode = oldNode.nextSibling;
-        let foundMatch = false;
-        while (futureOldNode && futureOldNode !== rangeEnd) {
-          if (futureOldNode === newNode) {
-            // Remove skipped old nodes
-            while (oldNode && oldNode !== futureOldNode) {
-              const nextOldNode = /** @type {ChildNode} */ (
-                oldNode.nextSibling
-              );
-              oldNode?.remove();
-              oldNode = nextOldNode;
-            }
-            currentNode = futureOldNode;
-            newIndex++;
-            oldIndex = newIndex;
-            foundMatch = true;
-            break;
-          }
-          futureOldNode = futureOldNode.nextSibling;
-        }
-
-        if (!foundMatch) {
-          // Insert new node
-          oldNode.before(newNode);
-          currentNode = newNode;
-          newIndex++;
-        }
-      }
+    // Removing Deleted Nodes:
+    //
+    // This pass is necessary to remove nodes in one go,
+    // rather than bubbling them to the end of the list.
+    //
+    // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
+    // The ideal solution is just a removeChild(A), but without this pass, what would have
+    // happened is:
+    //  [A, B, C, D, E] -> [B, A, C, D, E]
+    //  [B, A, C, D, E] -> [B, C, A, D, E]
+    //  [B, C, A, D, E] -> [B, C, D, A, E]
+    //  [B, C, D, A, E] -> [B, C, D, E, A]
+    // before removing A, result in a removal and reinsertion of several unchanged nodes.
+    /** @type {ChildNode[]} Nodes from removed items that follow each other. */
+    for (const [key, value] of cacheFromLastRun) {
+      if (newCache.has(key)) continue;
+      // There was a previous optimization to try and remove contiguous nodes
+      // at once with range.deleteContents(), but it was not worth it.
+      for (const node of value.nodes) node.remove();
     }
 
-    snapshot = newSnapShot;
+    /** @type {ChildNode} */
+    let lastInserted = listStart;
+
+    // Reordering and Inserting New Nodes:
+    //
+    // This pass ensures nodes are in the correct order and new nodes are inserted.
+    // It compares each node's current position with the expected position after lastInserted,
+    // moving nodes only when necessary to maintain the correct sequence.
+    let i = 0;
+    const batchInsert = globalThis.window.document.createDocumentFragment();
+    for (const item of newList) {
+      /** @type {ChildNode[]} */ // Invariant: nodes is always defined.
+      const nodes = newCache.get(retrieveOrSetItemKey(item, i))?.nodes;
+      const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+      if (isAlreadyInPosition) {
+        if (batchInsert.childNodes.length > 0) lastInserted.after(batchInsert);
+        lastInserted = nodes[nodes.length - 1];
+        i++;
+        continue;
+      }
+
+      const isNewItemInstance = !nodes[0]?.parentNode;
+      if (isNewItemInstance) {
+        batchInsert.append(...nodes);
+        i++;
+        continue;
+      }
+
+      if (batchInsert.childNodes.length === 0) lastInserted.after(...nodes);
+      else {
+        const newPtr = /** @type {ChildNode} */ (batchInsert.lastChild);
+        lastInserted.after(batchInsert);
+        newPtr.after(...nodes);
+      }
+      lastInserted = nodes[nodes.length - 1] ?? lastInserted;
+      i++;
+    }
+    if (batchInsert.childNodes.length) lastInserted.after(batchInsert);
+    cacheFromLastRun = newCache;
   };
+
+  // Track next changes
+  list.listen(reactToListChanges, { weak: true });
 
   // Prevents premature garbage collection.
   const persistedSet = new Set();
   persistedSet.add(list);
-  persistedSet.add(callback);
-  Reflect.set(rangeStart, '__attributeCells', persistedSet);
-
-  list.runAndListen(callback, { weak: true });
-  return [rangeStart, ...snapshot, rangeEnd];
+  persistedSet.add(reactToListChanges);
+  Reflect.set(listStart, '__attributeCells', persistedSet);
+  return [listStart, ...initialSnapshot, listEnd];
 }
