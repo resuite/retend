@@ -67,7 +67,25 @@ export function For(list, fn, options) {
   }
 
   const [rangeStart, rangeEnd] = createCommentPair();
-  const uniqueSymbolMarker = options?.key ?? Symbol();
+  const uniqueItemMarker = options?.key ?? Symbol();
+
+  /**
+   * @param {any} item
+   * @param {number} i
+   */
+  const retrieveOrSetItemKey = (item, i) => {
+    let itemKey;
+    const isObject = item && /^(object|function|symbol)$/.test(typeof item);
+    if (isObject) itemKey = item[uniqueItemMarker];
+    else itemKey = item?.toString ? `${item.toString()}.${i}` : i;
+
+    if (itemKey === undefined) {
+      itemKey = Symbol();
+      item[uniqueItemMarker] = itemKey;
+    }
+    return itemKey;
+  };
+
   /**
    * @type {Map<any, { index: Cell<number>,  nodes: Node[] }>}
    */
@@ -85,30 +103,12 @@ export function For(list, fn, options) {
 
     let index = 0;
     for (const item of _list) {
-      let itemKey;
-      /**
-       * @type {any}
-       */
-      const itemAsAny = item;
-      const itemIsObjectLike =
-        itemAsAny && /^(object|function|symbol)$/.test(typeof itemAsAny);
-
-      if (itemIsObjectLike) {
-        itemKey = itemAsAny[uniqueSymbolMarker];
-      } else {
-        itemKey = item?.toString ? `${item.toString()}.${index}` : index;
-      }
-
-      if (itemKey === undefined) {
-        itemKey = Symbol();
-        itemAsAny[uniqueSymbolMarker] = itemKey;
-      }
-
+      const itemKey = retrieveOrSetItemKey(item, index);
       const cachedResult = nodeStore.get(itemKey);
       if (cachedResult === undefined) {
         const i = Cell.source(index);
-        /** @type {[any, Cell<number>, typeof _list]} */
-        const parameters = [item, i, _list];
+        /** @type {[any, Cell<number>, typeof list]} */
+        const parameters = [item, i, list];
         const func = getMostCurrentFunction(fn);
         const nodes = generateChildNodes(func(...parameters));
         linkNodesToComponent(nodes, func, new ArgumentList(parameters));

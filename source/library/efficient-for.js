@@ -140,17 +140,12 @@ export function EfficientFor(list, fn, options) {
     //  [B, C, A, D, E] -> [B, C, D, A, E]
     //  [B, C, D, A, E] -> [B, C, D, E, A]
     // before removing A, result in a removal and reinsertion of several unchanged nodes.
+    /** @type {ChildNode[]} Nodes from removed items that follow each other. */
     for (const [key, value] of cacheFromLastRun) {
-      if (!newCache.has(key)) {
-        if (value.nodes.length === 0) continue;
-        if (value.nodes.length === 1) value.nodes[0].remove();
-        else {
-          const range = globalThis.window.document.createRange();
-          range.setStartBefore(value.nodes[0]);
-          range.setEndAfter(value.nodes[value.nodes.length - 1]);
-          range.deleteContents();
-        }
-      }
+      if (newCache.has(key)) continue;
+      // There was a previous optimization to try and remove contiguous nodes
+      // at once with range.deleteContents(), but it was not worth it.
+      for (const node of value.nodes) node.remove();
     }
 
     /** @type {ChildNode} */
@@ -162,14 +157,35 @@ export function EfficientFor(list, fn, options) {
     // It compares each node's current position with the expected position after lastInserted,
     // moving nodes only when necessary to maintain the correct sequence.
     let i = 0;
+    const batchInsert = globalThis.window.document.createDocumentFragment();
     for (const item of newList) {
       /** @type {ChildNode[]} */ // Invariant: nodes is always defined.
       const nodes = newCache.get(retrieveOrSetItemKey(item, i))?.nodes;
-      if (lastInserted.nextSibling !== nodes[0]) lastInserted.after(...nodes);
+      const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+      if (isAlreadyInPosition) {
+        if (batchInsert.childNodes.length > 0) lastInserted.after(batchInsert);
+        lastInserted = nodes[nodes.length - 1];
+        i++;
+        continue;
+      }
+
+      const isNewItemInstance = !nodes[0]?.parentNode;
+      if (isNewItemInstance) {
+        batchInsert.append(...nodes);
+        i++;
+        continue;
+      }
+
+      if (batchInsert.childNodes.length === 0) lastInserted.after(...nodes);
+      else {
+        const newPtr = /** @type {ChildNode} */ (batchInsert.lastChild);
+        lastInserted.after(batchInsert);
+        newPtr.after(...nodes);
+      }
       lastInserted = nodes[nodes.length - 1] ?? lastInserted;
       i++;
     }
-
+    if (batchInsert.childNodes.length) lastInserted.after(batchInsert);
     cacheFromLastRun = newCache;
   };
 
