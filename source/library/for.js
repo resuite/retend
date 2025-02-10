@@ -21,11 +21,11 @@ import { linkNodesToComponent } from '../render/index.js';
 /**
  * Creates a dynamic mapping of an iterable to DOM nodes, efficiently updating when the iterable changes.
  *
- * @template T
- * @template {Iterable<T>} U
- * @param {Cell<U> | U} list - The iterable or Cell containing an iterable to map over
- * @param {((item: T, index: Cell<number>, iter: U) => JSX.Template)} fn - Function to create a Template for each item
- * @param {ForOptions<T>} [options]
+ * @template V
+ * @template {V extends Cell<infer S> ? S extends Iterable<infer T> ? T: never: V extends Iterable<infer U>? U: never} W
+ * @param {V} list - The iterable or Cell containing an iterable to map over
+ * @param {((item: W, index: Cell<number>, iter: V) => JSX.Template)} fn - Function to create a Template for each item
+ * @param {ForOptions<V extends Cell<infer S> ? S extends Iterable<infer T> ? T: never: V extends Iterable<infer U>? U: never>} [options]
  * @returns {JSX.Template} - A Template representing the mapped items
  *
  * @example
@@ -57,6 +57,7 @@ export function For(list, fn, options) {
   // -----------------------------------------------
   if (!Cell.isCell(list)) {
     let i = 0;
+    // @ts-ignore: The list as a whole is very hard to type properly.
     for (const item of list) {
       const parameters = [item, Cell.source(i), list];
       const nodes = generateChildNodes(func(...parameters));
@@ -107,7 +108,7 @@ export function For(list, fn, options) {
     i++;
   }
 
-  /** @param {U} newList */
+  /** @param {any} newList */
   const reactToListChanges = (newList) => {
     const newCache = new Map();
     const func = getMostCurrentFunction(fn);
