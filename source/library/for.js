@@ -16,6 +16,9 @@ import { linkNodesToComponent } from '../render/index.js';
  * @property {T extends object ? keyof T : never} [key]
  * When iterating over objects with a predefined shape, this represents the property to use
  * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
+ * @property {(node: ChildNode[]) => void} [onBeforeNodesMove]
+ * Provides access to a node just before it is moved to a new position in the DOM by any of the
+ * items in the list. It may be useful for recording animation or playback states.
  */
 
 /**
@@ -51,6 +54,7 @@ export function For(list, fn, options) {
   /*** @type {Node[]} */
   const initialSnapshot = [];
   const func = getMostCurrentFunction(fn);
+  const { onBeforeNodesMove, key } = options ?? {};
 
   // -----------------------------------------------
   // STATIC LISTS
@@ -73,7 +77,7 @@ export function For(list, fn, options) {
   // -----------------------------------------------
   /** @type {Map<any, { index: Cell<number>,  nodes: ChildNode[] }>} */
   let cacheFromLastRun = new Map();
-  const uniqueItemMarker = options?.key ?? Symbol();
+  const uniqueItemMarker = key ?? Symbol();
   const [listStart, listEnd] = createCommentPair();
 
   /**
@@ -166,8 +170,8 @@ export function For(list, fn, options) {
     let i = 0;
     const batchInsert = globalThis.window.document.createDocumentFragment();
     for (const item of newList) {
-      /** @type {ChildNode[]} */ // Invariant: nodes is always defined.
-      const nodes = newCache.get(retrieveOrSetItemKey(item, i))?.nodes;
+      /** @type {{ nodes: ChildNode[] }} */ // Invariant: nodes is always defined.
+      const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
       const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
       if (isAlreadyInPosition) {
         if (batchInsert.childNodes.length > 0) lastInserted.after(batchInsert);
@@ -183,10 +187,13 @@ export function For(list, fn, options) {
         continue;
       }
 
-      if (batchInsert.childNodes.length === 0) lastInserted.after(...nodes);
-      else {
+      if (batchInsert.childNodes.length === 0) {
+        onBeforeNodesMove?.(nodes);
+        lastInserted.after(...nodes);
+      } else {
         const newPtr = /** @type {ChildNode} */ (batchInsert.lastChild);
         lastInserted.after(batchInsert);
+        onBeforeNodesMove?.(nodes);
         newPtr.after(...nodes);
       }
       lastInserted = nodes[nodes.length - 1] ?? lastInserted;
