@@ -2,6 +2,8 @@
  * @typedef {() => void} CleanupFn
  */
 
+import { SourceCell } from '@adbl/cells';
+
 /**
  * @template {Node} T
  * @typedef {((node: T) => CleanupFn | undefined) | ((node: T) => Promise<CleanupFn>) | ((node: T) => void | Promise<void>) } MountFn
@@ -50,7 +52,11 @@ class DocumentObserver {
    */
   onConnected(ref, callback) {
     if (ref.value?.isConnected) {
-      this.mount(ref.value, callback);
+      if (ref instanceof SourceCell) {
+        this.mount(ref.deproxy(), callback);
+      } else {
+        this.mount(ref.value, callback);
+      }
       return;
     }
     const connectedCallbacks = this.callbackSets.get(ref) || [];
@@ -66,7 +72,13 @@ class DocumentObserver {
     const observer = new MutationObserver(() => {
       for (const [key, callbacks] of this.callbackSets.entries()) {
         if (!key.value?.isConnected) continue;
-        for (const callback of callbacks) this.mount(key.value, callback);
+        for (const callback of callbacks) {
+          if (key instanceof SourceCell) {
+            this.mount(key.deproxy(), callback);
+          } else {
+            this.mount(key.value, callback);
+          }
+        }
         this.callbackSets.delete(key);
       }
 
