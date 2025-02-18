@@ -16,9 +16,12 @@ import { linkNodesToComponent } from '../render/index.js';
  * @property {T extends object ? keyof T : never} [key]
  * When iterating over objects with a predefined shape, this represents the property to use
  * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
- * @property {(node: ChildNode[]) => void} [onBeforeNodesMove]
+ * @property {(node: ChildNode[]) => Promise<void>} [onBeforeNodesMove]
  * Provides access to a node just before it is moved to a new position in the DOM by any of the
  * items in the list. It may be useful for recording animation or playback states.
+ * @property {(node: ChildNode) => Promise<void>} [onBeforeNodeRemove]
+ * Provides access to a node just before it is removed from the DOM by any of the
+ * items in the list. It may be useful for playing removal animations.
  */
 
 /**
@@ -54,7 +57,7 @@ export function For(list, fn, options) {
   /*** @type {Node[]} */
   const initialSnapshot = [];
   const func = getMostCurrentFunction(fn);
-  const { onBeforeNodesMove, key } = options ?? {};
+  const { onBeforeNodesMove, onBeforeNodeRemove, key } = options ?? {};
 
   // -----------------------------------------------
   // STATIC LISTS
@@ -113,7 +116,7 @@ export function For(list, fn, options) {
   }
 
   /** @param {any} newList */
-  const reactToListChanges = (newList) => {
+  const reactToListChanges = async (newList) => {
     const newCache = new Map();
     const func = getMostCurrentFunction(fn);
 
@@ -151,16 +154,23 @@ export function For(list, fn, options) {
     //  [B, C, A, D, E] -> [B, C, D, A, E]
     //  [B, C, D, A, E] -> [B, C, D, E, A]
     // before removing A, result in a removal and reinsertion of several unchanged nodes.
-    /** @type {ChildNode[]} Nodes from removed items that follow each other. */
+    const removePromises = [];
     for (const [key, value] of cacheFromLastRun) {
       if (newCache.has(key)) continue;
       // There was a previous optimization to try and remove contiguous nodes
       // at once with range.deleteContents(), but it was not worth it.
-      for (const node of value.nodes) node.remove();
+      for (const node of value.nodes) {
+        if (onBeforeNodeRemove) {
+          const promise = onBeforeNodeRemove(node).then?.(() => node.remove());
+          removePromises.push(promise);
+        } else node.remove();
+      }
     }
+    await Promise.allSettled(removePromises);
 
     /** @type {ChildNode} */
     let lastInserted = listStart;
+    const movePromises = [];
 
     // Reordering and Inserting New Nodes:
     //
@@ -188,17 +198,20 @@ export function For(list, fn, options) {
       }
 
       if (batchInsert.childNodes.length === 0) {
-        onBeforeNodesMove?.(nodes);
+        if (onBeforeNodesMove) movePromises.push(onBeforeNodesMove(nodes));
         lastInserted.after(...nodes);
       } else {
         const newPtr = /** @type {ChildNode} */ (batchInsert.lastChild);
         lastInserted.after(batchInsert);
-        onBeforeNodesMove?.(nodes);
+        if (onBeforeNodesMove) movePromises.push(onBeforeNodesMove(nodes));
         newPtr.after(...nodes);
       }
       lastInserted = nodes[nodes.length - 1] ?? lastInserted;
       i++;
     }
+
+    await Promise.allSettled(movePromises);
+
     if (batchInsert.childNodes.length) lastInserted.after(batchInsert);
     cacheFromLastRun = newCache;
   };
