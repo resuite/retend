@@ -16,10 +16,10 @@ import { linkNodesToComponent } from '../render/index.js';
  * @property {T extends object ? keyof T : never} [key]
  * When iterating over objects with a predefined shape, this represents the property to use
  * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
- * @property {(node: ChildNode[]) => Promise<void>} [onBeforeNodesMove]
+ * @property {(node: ChildNode[]) => void} [onBeforeNodesMove]
  * Provides access to a node just before it is moved to a new position in the DOM by any of the
  * items in the list. It may be useful for recording animation or playback states.
- * @property {(node: ChildNode) => Promise<void>} [onBeforeNodeRemove]
+ * @property {(node: ChildNode) => void} [onBeforeNodeRemove]
  * Provides access to a node just before it is removed from the DOM by any of the
  * items in the list. It may be useful for playing removal animations.
  */
@@ -118,12 +118,17 @@ export function For(list, fn, options) {
   /** @param {any} newList */
   const reactToListChanges = async (newList) => {
     const newCache = new Map();
+    /** @type {Map<ChildNode, { itemKey: any, lastItemLastNode: ChildNode | null }>} */
+    const nodeLookAhead = new Map();
     const func = getMostCurrentFunction(fn);
 
     let index = 0;
+    let lastItemLastNode = null;
     for (const item of newList) {
       const itemKey = retrieveOrSetItemKey(item, index);
       const cachedResult = cacheFromLastRun.get(itemKey);
+      let firstNode = null;
+      let lastNode = null;
       if (cachedResult === undefined) {
         const i = Cell.source(index);
         const parameters = [item, i, list];
@@ -133,11 +138,19 @@ export function For(list, fn, options) {
         );
         linkNodesToComponent(nodes, func, new ArgumentList(parameters));
         newCache.set(itemKey, { nodes, index: i });
+        firstNode = nodes[0];
+        lastNode = nodes[nodes.length - 1];
       } else {
         /** @type {import('@adbl/cells').SourceCell<number>} */
         (cachedResult.index).value = index;
         newCache.set(itemKey, cachedResult);
+        const nodes = cachedResult.nodes;
+        firstNode = nodes[0];
+        lastNode = nodes[nodes.length - 1];
       }
+      if (firstNode)
+        nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
+      lastItemLastNode = lastNode;
       index++;
     }
 
@@ -147,30 +160,24 @@ export function For(list, fn, options) {
     // rather than bubbling them to the end of the list.
     //
     // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
-    // The ideal solution is just a removeChild(A), but without this pass, what would have
-    // happened is:
+    // Ideal solution is a removeChild(A), but without this pass, what would happen is:
     //  [A, B, C, D, E] -> [B, A, C, D, E]
     //  [B, A, C, D, E] -> [B, C, A, D, E]
     //  [B, C, A, D, E] -> [B, C, D, A, E]
     //  [B, C, D, A, E] -> [B, C, D, E, A]
     // before removing A, result in a removal and reinsertion of several unchanged nodes.
-    const removePromises = [];
     for (const [key, value] of cacheFromLastRun) {
       if (newCache.has(key)) continue;
       // There was a previous optimization to try and remove contiguous nodes
       // at once with range.deleteContents(), but it was not worth it.
       for (const node of value.nodes) {
-        if (onBeforeNodeRemove) {
-          const promise = onBeforeNodeRemove(node).then?.(() => node.remove());
-          removePromises.push(promise);
-        } else node.remove();
+        onBeforeNodeRemove?.(node);
+        node.remove();
       }
     }
-    await Promise.allSettled(removePromises);
 
     /** @type {ChildNode} */
     let lastInserted = listStart;
-    const movePromises = [];
 
     // Reordering and Inserting New Nodes:
     //
@@ -178,41 +185,77 @@ export function For(list, fn, options) {
     // It compares each node's current position with the expected position after lastInserted,
     // moving nodes only when necessary to maintain the correct sequence.
     let i = 0;
-    const batchInsert = globalThis.window.document.createDocumentFragment();
+    const batchAdd = globalThis.window.document.createDocumentFragment();
     for (const item of newList) {
       /** @type {{ nodes: ChildNode[] }} */ // Invariant: nodes is always defined.
       const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
       const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
       if (isAlreadyInPosition) {
-        if (batchInsert.childNodes.length > 0) lastInserted.after(batchInsert);
+        if (batchAdd.childNodes.length > 0) lastInserted.after(batchAdd);
         lastInserted = nodes[nodes.length - 1];
         i++;
         continue;
       }
 
+      // This branch takes care of the case where one item moves
+      // forward in the list, but until its correct position is reached, its nodes
+      // block other nodes from being correctly positioned, leading to cascading moves.
+      //
+      // Example: A list goes from [A, B, C, D, E] to [B, C, D, E, A], the simplest
+      // operation is to move A to the end of the list, but without this branch,
+      // the loop would have to:
+      // move B back, making [B, A, C, D, E]
+      // move C back, making [B, C, A, D, E]
+      // move D back, making [B, C, D, A, E]
+      // move E back, making [B, C, D, E, A]
+      const followingNode = lastInserted.nextSibling;
+      if (followingNode) {
+        const data = nodeLookAhead.get(followingNode);
+        if (data) {
+          const { itemKey, lastItemLastNode } = data;
+          const hasViableMoveAnchor =
+            lastItemLastNode?.parentNode &&
+            lastItemLastNode.parentNode !== batchAdd &&
+            lastItemLastNode.nextSibling !== followingNode &&
+            lastItemLastNode !== nodes[0];
+          if (hasViableMoveAnchor) {
+            const fullNodeSet = newCache.get(itemKey).nodes;
+            onBeforeNodesMove?.(nodes);
+            lastItemLastNode.after(...fullNodeSet);
+
+            // recheck sequential correctness.
+            const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+            if (isAlreadyInPosition) {
+              if (batchAdd.childNodes.length) lastInserted.after(batchAdd);
+              lastInserted = nodes[nodes.length - 1];
+              i++;
+              continue;
+            }
+          }
+        }
+      }
+
       const isNewItemInstance = !nodes[0]?.parentNode;
       if (isNewItemInstance) {
-        batchInsert.append(...nodes);
+        batchAdd.append(...nodes);
         i++;
         continue;
       }
 
-      if (batchInsert.childNodes.length === 0) {
-        if (onBeforeNodesMove) movePromises.push(onBeforeNodesMove(nodes));
+      if (batchAdd.childNodes.length === 0) {
+        onBeforeNodesMove?.(nodes);
         lastInserted.after(...nodes);
       } else {
-        const newPtr = /** @type {ChildNode} */ (batchInsert.lastChild);
-        lastInserted.after(batchInsert);
-        if (onBeforeNodesMove) movePromises.push(onBeforeNodesMove(nodes));
+        const newPtr = /** @type {ChildNode} */ (batchAdd.lastChild);
+        lastInserted.after(batchAdd);
+        onBeforeNodesMove?.(nodes);
         newPtr.after(...nodes);
       }
       lastInserted = nodes[nodes.length - 1] ?? lastInserted;
       i++;
     }
 
-    await Promise.allSettled(movePromises);
-
-    if (batchInsert.childNodes.length) lastInserted.after(batchInsert);
+    if (batchAdd.childNodes.length) lastInserted.after(batchAdd);
     cacheFromLastRun = newCache;
   };
 
