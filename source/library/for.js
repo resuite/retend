@@ -18,14 +18,15 @@ import { linkNodesToComponent } from '../render/index.js';
  * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
  * @property {(node: ChildNode[]) => void} [onBeforeNodesMove]
  * Provides access to a node just before it is moved to a new position in the DOM by any of the
- * items in the list. It may be useful for recording animation or playback states.
- * @property {(node: ChildNode) => void} [onBeforeNodeRemove]
+ * items in the list.
+ * @property {(node: ChildNode, fromIndex: number) => void} [onBeforeNodeRemove]
  * Provides access to a node just before it is removed from the DOM by any of the
- * items in the list. It may be useful for playing removal animations.
+ * items in the list.
  */
 
 /**
- * Creates a dynamic mapping of an iterable to DOM nodes, efficiently updating when the iterable changes.
+ * Creates a dynamic, efficient mapping of an iterable to DOM nodes that automatically updates when the iterable changes.
+ * Supports both static and reactive lists, with optimized DOM operations for minimal reflows.
  *
  * @template V
  * @template {V extends Cell<infer S> ? S extends Iterable<infer T> ? T: never: V extends Iterable<infer U>? U: never} W
@@ -171,7 +172,7 @@ export function For(list, fn, options) {
       // There was a previous optimization to try and remove contiguous nodes
       // at once with range.deleteContents(), but it was not worth it.
       for (const node of value.nodes) {
-        onBeforeNodeRemove?.(node);
+        onBeforeNodeRemove?.(node, value.index.value);
         node.remove();
       }
     }
@@ -260,7 +261,7 @@ export function For(list, fn, options) {
   };
 
   // Track next changes
-  list.listen(reactToListChanges, { weak: true });
+  list.listen(reactToListChanges, { weak: true, priority: 0 });
 
   // Prevents premature garbage collection.
   const persistedSet = new Set();
