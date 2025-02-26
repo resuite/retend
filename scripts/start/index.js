@@ -28,6 +28,9 @@ const CONFIG = {
   },
 };
 
+const isBun =
+  typeof process !== 'undefined' && process.versions && process.versions.bun;
+
 const args = process.argv.slice(2);
 
 /** @type {any} */
@@ -259,6 +262,10 @@ import { hmrPlugin } from '@adbl/unfinished/render';
 export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './source') }
+  },
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: '@adbl/unfinished',
   },
   plugins: [hmrPlugin()],
 ${
@@ -616,6 +623,8 @@ async function createPackageJson(projectDir, answers) {
 
   if (answers.language === 'TypeScript') {
     content.devDependencies.typescript = CONFIG.devDependencies.typescript;
+    // Add the appropriate types based on runtime
+    content.devDependencies[isBun ? '@types/bun' : '@types/node'] = 'latest';
   }
 
   if (answers.useTailwind) {
@@ -713,16 +722,16 @@ function displayCompletionMessage(projectName) {
   console.log(chalk.cyan('1. Navigate to your project folder:'));
   console.log(chalk.white(`   cd ${projectName}`));
   console.log(chalk.cyan('2. Install project dependencies:'));
-  console.log(chalk.white('   npm install'));
+  console.log(chalk.white(`   ${isBun ? 'bun install' : 'npm install'}`));
   console.log(chalk.cyan('3. Start the development server:'));
-  console.log(chalk.white('   npm run dev'));
+  console.log(chalk.white(`   ${isBun ? 'bun run dev' : 'npm run dev'}`));
   console.log(chalk.cyan('4. Open your browser and visit:'));
   console.log(chalk.white('   http://localhost:5173'));
   console.log(
     chalk.cyan(`5. Begin editing your project files in the 'source' directory`)
   );
   console.log(chalk.cyan('6. To build for production, run:'));
-  console.log(chalk.white('   npm run build'));
+  console.log(chalk.white(`${isBun ? 'bun run build' : 'npm run build'}`));
   console.log(chalk.blue('\nHappy coding! 🚀'));
 }
 
