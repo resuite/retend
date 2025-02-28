@@ -1,19 +1,19 @@
 // @ts-ignore: Deno has issues with import comments
-/** @import * as Static from '../static/v-dom.js' */
+/** @import * as VDom from '../v-dom/index.js' */
 
 /**
  * Defines the possible render contexts for the application.
- * @type {{Static: 1, Interactive: 2}}
+ * @type {{VDom: 1, Interactive: 2}}
  */
 export const Modes = {
-  Static: 1,
+  VDom: 1,
   Interactive: 2,
 };
 
 /**
  * @typedef {{
  *    mode: 1,
- *    window: Static.VWindow
+ *    window: VDom.VWindow
  *  } | {
  *    mode: 2
  *    window: Window & typeof globalThis
@@ -23,7 +23,7 @@ export const Modes = {
 /** @typedef {Environments['mode']} RenderMode */
 /** @typedef {Environments['window']} WindowLike */
 /** @typedef {InstanceType<Environments['window']['HTMLElement']>} HTMLElementLike */
-/** @typedef {Node & Static.VNode} AsNode */
+/** @typedef {Node & VDom.VNode} AsNode */
 
 /** @type {Environments} */
 const globalContext = {
@@ -49,7 +49,7 @@ export function matchContext(window, mode) {
 
 /**
  * @param {InstanceType<WindowLike['Node']>} node
- * @returns {node is Static.VNode}
+ * @returns {node is VDom.VNode}
  */
 export function isVNode(node) {
   // @ts-ignore

@@ -9,7 +9,7 @@ import { linkNodesToComponent } from '../render/index.js';
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as Static from '../static/v-dom.js' */
+/** @import * as VDom from '../v-dom/index.js' */
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -22,7 +22,7 @@ import { linkNodesToComponent } from '../render/index.js';
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  *
  * @example
- * // Static usage
+ * // VDom usage
  * const staticResult = Switch('caseA', {
  *   caseA: () => <div>Case A</div>,
  *   caseB: () => <span>Case B</span>
@@ -72,7 +72,7 @@ export function Switch(value, cases, defaultCase) {
 
   /** @param {T} value */
   const callback = (value) => {
-    /** @type {(Node | Static.VNode)[]} */
+    /** @type {(Node | VDom.VNode)[]} */
     let nodes = [];
     let nextNode = rangeStart.nextSibling;
     while (nextNode && nextNode !== rangeEnd) {

@@ -71,7 +71,7 @@ class DocumentObserver {
    */
   init() {
     const { window } = getGlobalContext();
-    if (matchContext(window, Modes.Static)) return;
+    if (matchContext(window, Modes.VDom)) return;
 
     const observer = new MutationObserver(() => {
       for (const [key, callbacks] of this.callbackSets.entries()) {

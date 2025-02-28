@@ -225,7 +225,7 @@ export class VElement extends VNode {
   }
 
   get attributes() {
-    return this.#attributes.entries().map(([key, value]) => ({
+    return [...this.#attributes.entries()].map(([key, value]) => ({
       name: key,
       value,
     }));

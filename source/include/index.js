@@ -24,7 +24,7 @@ import { appendChild, setAttributeFromProps } from '../library/jsx.js';
  */
 export function Include(props) {
   const { window } = getGlobalContext();
-  if (matchContext(window, Modes.Static)) return null;
+  if (matchContext(window, Modes.VDom)) return null;
 
   if (!props.from) {
     console.error('Include component requires a "from" prop.');

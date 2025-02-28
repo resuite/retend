@@ -44,7 +44,7 @@ export function Teleport(props) {
   const observer = useObserver();
   const { window } = getGlobalContext();
 
-  if (matchContext(window, Modes.Static)) {
+  if (matchContext(window, Modes.VDom)) {
     const anchorNode = window.document.createComment('teleport-anchor');
     return anchorNode;
   }

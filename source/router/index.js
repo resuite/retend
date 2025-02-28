@@ -23,7 +23,7 @@ const RELAY_ID_REGEX =
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as Static from '../static/v-dom.js' */
+/** @import * as VDom from '../v-dom/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as Context from '../library/context.js' */
 
@@ -153,7 +153,7 @@ export class RouteChangeEvent extends CustomEvent {
 /**
  * @typedef RouteSnapShot
  *
- * @property {Static.VDocumentFragment | DocumentFragment} fragment
+ * @property {VDom.VDocumentFragment | DocumentFragment} fragment
  * The nodes that were in the outlet when the snapshot was taken.
  *
  * @property {[number, number]} outletScroll
@@ -572,7 +572,7 @@ export class Router extends EventTarget {
     }
 
     if (!this.window) return;
-    if (matchContext(this.window, Modes.Static)) return;
+    if (matchContext(this.window, Modes.VDom)) return;
     if (!this.window.document.adoptedStyleSheets) return;
 
     this.sheet = new CSSStyleSheet();
@@ -1105,8 +1105,8 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
    * @private
    * Handles relaying for DOM elements during route changes.
    * @param {RouterOutlet} oldNodesFragment - The DOM fragment containing the old route content.
-   * @param {(Node | Static.VNode)[]} newNodesArray - The DOM elements that will be added to the outlet.
-   * @returns {Promise<Static.VDocumentFragment | DocumentFragment | undefined>}
+   * @param {(Node | VDom.VNode)[]} newNodesArray - The DOM elements that will be added to the outlet.
+   * @returns {Promise<VDom.VDocumentFragment | DocumentFragment | undefined>}
    */
   handleRelays = async (oldNodesFragment, newNodesArray) => {
     if (!this.window) return;
@@ -1142,7 +1142,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
           !oldNodesFragment.__keepAlive
         ) {
           const props = enterRelay.__props ?? {};
-          /** @type {(Static.VNode | Node)[]} */
+          /** @type {(VDom.VNode | Node)[]} */
           let relayContents = [];
           if (enterRelay.__render) {
             relayContents = generateChildNodes(enterRelay.__render(props));
@@ -1426,14 +1426,14 @@ function getFullPath(window) {
  *
  * @param {string} path - The route path that was not found.
  * @param {Context.WindowLike} window - The window object.
- * @returns {DocumentFragment & Static.VDocumentFragment} A DocumentFragment node containing a text node with the "Route not found" message.
+ * @returns {DocumentFragment & VDom.VDocumentFragment} A DocumentFragment node containing a text node with the "Route not found" message.
  */
 function emptyRoute(path, window) {
   console.warn(`Route not found: ${path}`);
   const node = window.document.createDocumentFragment();
   const text = window.document.createTextNode(`Route not found: ${path}`);
   node.appendChild(/** @type {*} */ (text));
-  return /** @type {DocumentFragment & Static.VDocumentFragment} */ (node);
+  return /** @type {DocumentFragment & VDom.VDocumentFragment} */ (node);
 }
 
 /**
@@ -1464,7 +1464,7 @@ function constructURL(path, matchResult) {
 
 /**
  * Traverses through a set of DOM nodes to record their scroll positions.
- * @param {Static.VDocumentFragment | DocumentFragment} fragment
+ * @param {VDom.VDocumentFragment | DocumentFragment} fragment
  */
 function recordScrollPositions(fragment) {
   for (const node of fragment.childNodes) {
@@ -1477,7 +1477,7 @@ function recordScrollPositions(fragment) {
 }
 
 /**
- * @param {Static.VNode | ParentNode | null | undefined} root
+ * @param {VDom.VNode | ParentNode | null | undefined} root
  * @returns {RouterOutlet | null}
  */
 function findOutletNode(root) {
@@ -1495,7 +1495,7 @@ function findOutletNode(root) {
 }
 
 /**
- * @param {Static.VNode | ParentNode | null | undefined} root
+ * @param {VDom.VNode | ParentNode | null | undefined} root
  * @returns {RouterRelay[]}
  */
 function findRelayNodes(root) {
@@ -1515,7 +1515,7 @@ function findRelayNodes(root) {
 /**
  *
  * @param {RouterOutlet} outlet
- * @param {DocumentFragment | Static.VDocumentFragment} fragment
+ * @param {DocumentFragment | VDom.VDocumentFragment} fragment
  * @param {Context.WindowLike} [window]
  */
 function renderRouteIntoOutlet(outlet, fragment, window) {

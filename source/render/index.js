@@ -9,7 +9,7 @@ import { routeToComponent } from '../router/routeTree.js';
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as Static from '../static/v-dom.js' */
+/** @import * as VDom from '../v-dom/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as Context from '../library/context.js' */
 
@@ -27,7 +27,7 @@ import { routeToComponent } from '../router/routeTree.js';
  */
 
 /**
- * @typedef {(Node | Static.VNode) & {
+ * @typedef {(Node | VDom.VNode) & {
  *  __linked?: boolean,
  *  __promise?: Promise<Node[]>
  * }} LinkableNodeLike
@@ -66,7 +66,7 @@ export function linkNodesToComponent(resultNodes, factory, props) {
   if (!isDevMode) return;
   const nodes = /** @type {LinkableNode[]} */ (resultNodes);
   const { window } = getGlobalContext();
-  if (matchContext(window, Modes.Static)) return;
+  if (matchContext(window, Modes.VDom)) return;
 
   /// @ts-ignore: The Vite types are not installed.
   if (!import.meta.hot) return;
@@ -490,7 +490,7 @@ export async function renderToString(template, window) {
  */
 export async function render(app, clientContent) {
   const { window } = getGlobalContext();
-  if (matchContext(window, Modes.Static)) return;
+  if (matchContext(window, Modes.VDom)) return;
 
   const nodes = /** @type {Node[]} */ (generateChildNodes(clientContent));
   if (!app.firstChild) {
@@ -503,15 +503,15 @@ export async function render(app, clientContent) {
   fragment.append(...nodes);
 
   /*** @type {ChildNode | null} */
-  let currentStaticNode = app.firstChild;
+  let currentVDomNode = app.firstChild;
   let currentAppNode = fragment.firstChild;
 
   const finalFragment = window.document.createDocumentFragment();
-  while (currentStaticNode || currentAppNode) {
-    await mergeNodes(currentStaticNode, currentAppNode, finalFragment, window);
+  while (currentVDomNode || currentAppNode) {
+    await mergeNodes(currentVDomNode, currentAppNode, finalFragment, window);
 
     currentAppNode = currentAppNode?.nextSibling ?? null;
-    currentStaticNode = currentStaticNode?.nextSibling ?? null;
+    currentVDomNode = currentVDomNode?.nextSibling ?? null;
   }
 
   app.replaceChildren(finalFragment);

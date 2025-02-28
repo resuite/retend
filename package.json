@@ -54,9 +54,9 @@
       "import": "./dist/include/index.js",
       "types": "./dist/include/index.d.ts"
     },
-    "./static": {
-      "import": "./dist/static/index.js",
-      "types": "./dist/static/index.d.ts"
+    "./v-dom": {
+      "import": "./dist/v-dom/index.js",
+      "types": "./dist/v-dom/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/unfinished#readme",

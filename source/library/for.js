@@ -11,9 +11,9 @@ import { getGlobalContext } from './context.js';
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as Static from '../static/v-dom.js' */
+/** @import * as VDom from '../v-dom/index.js' */
 
-/** @typedef {Static.VNode | ChildNode} ChildNodeLike */
+/** @typedef {VDom.VNode | ChildNode} ChildNodeLike */
 
 /**
  * @template T
@@ -60,7 +60,7 @@ import { getGlobalContext } from './context.js';
  */
 // TODO: Make object mutation safe or optional.
 export function For(list, fn, options) {
-  /*** @type {(Node | Static.VNode)[]} */
+  /*** @type {(Node | VDom.VNode)[]} */
   const initialSnapshot = [];
   const func = getMostCurrentFunction(fn);
   const { window } = getGlobalContext();
@@ -183,7 +183,7 @@ export function For(list, fn, options) {
       }
     }
 
-    /** @type {ChildNodeLike | Static.VComment} */
+    /** @type {ChildNodeLike | VDom.VComment} */
     let lastInserted = listStart;
 
     // Reordering and Inserting New Nodes:
