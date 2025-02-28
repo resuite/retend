@@ -1772,7 +1772,7 @@ export namespace JSX {
     /**
      * Specifies the character encoding for the HTML document.
      */
-    charSet?: string;
+    charset?: string;
 
     /**
      * Specifies the value associated with the http-equiv or name attribute.
