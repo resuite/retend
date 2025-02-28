@@ -38,7 +38,7 @@ export async function InlineSvg(props) {
       svgMap.set(props.href, svg);
     }
 
-    /** @type {Element | null | import('../ssr/v-dom.js').MarkupContainerNode} */
+    /** @type {Element | null | import('../static/v-dom.js').MarkupContainerNode} */
     let element;
     if (matchContext(window, Modes.Interactive)) {
       const range = window.document.createRange();

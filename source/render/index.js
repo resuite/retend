@@ -9,7 +9,7 @@ import { routeToComponent } from '../router/routeTree.js';
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as SSR from '../ssr/v-dom.js' */
+/** @import * as Static from '../static/v-dom.js' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as Context from '../library/context.js' */
 
@@ -27,7 +27,7 @@ import { routeToComponent } from '../router/routeTree.js';
  */
 
 /**
- * @typedef {(Node | SSR.VNode) & {
+ * @typedef {(Node | Static.VNode) & {
  *  __linked?: boolean,
  *  __promise?: Promise<Node[]>
  * }} LinkableNodeLike

@@ -53,6 +53,10 @@
     "./include": {
       "import": "./dist/include/index.js",
       "types": "./dist/include/index.d.ts"
+    },
+    "./static": {
+      "import": "./dist/static/index.js",
+      "types": "./dist/static/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/unfinished#readme",

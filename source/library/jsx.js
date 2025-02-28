@@ -9,7 +9,7 @@ import { linkNodesToComponent } from '../render/index.js';
 import { getGlobalContext, matchContext, Modes } from './context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as SSR from '../ssr/v-dom.js' */
+/** @import * as Static from '../static/v-dom.js' */
 
 const camelCasedAttributes = new Set([
   // SVG attributes
@@ -112,7 +112,7 @@ const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
  * @template {Record<PropertyKey, any>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
- * @returns {Node | SSR.VNode | (Node | SSR.VNode)[]} New DOM nodes.
+ * @returns {Node | Static.VNode | (Node | Static.VNode)[]} New DOM nodes.
  */
 export function h(tagname, props) {
   const { window } = getGlobalContext();
@@ -176,7 +176,7 @@ export function h(tagname, props) {
 /**
  * Appends a child node or an array of child nodes to a parent node.
  *
- * @param {Element | SSR.VElement | ShadowRoot | SSR.VShadowRoot} parentNode - The parent node to which the child will be appended.
+ * @param {Element | Static.VElement | ShadowRoot | Static.VShadowRoot} parentNode - The parent node to which the child will be appended.
  * @param {string} tagname - The tag name of the parent node.
  * @param {unknown} child - The child node, array of child nodes, or string to append.
  */
@@ -274,14 +274,14 @@ export function appendChild(parentNode, tagname, child) {
  */
 
 /**
- * @typedef {(Element | SSR.VElement) & HiddenElementProperties} JsxElement
+ * @typedef {(Element | Static.VElement) & HiddenElementProperties} JsxElement
  *
  */
 
 /**
  * Sets an attribute on an element based on the provided props.
  *
- * @param {Element | SSR.VElement} el - The DOM element to set the attribute on.
+ * @param {Element | Static.VElement} el - The DOM element to set the attribute on.
  * @param {string} key - The name of the attribute to set.
  * @param {any} value - The value to set for the attribute. Can be a primitive value or an object with a `runAndListen` method.
  *
@@ -527,8 +527,8 @@ export function setAttribute(element, key, value) {
 /**
  * Normalizes a child jsx element for use in the DOM.
  * @param {JsxElement | Array<any> | string | number | boolean | object | undefined | null} child - The child element to normalize.
- * @param {ParentNode | SSR.VNode} [_parent] - The parent node of the child.
- * @returns {Node | SSR.VNode} The normalized child element.
+ * @param {ParentNode | Static.VNode} [_parent] - The parent node of the child.
+ * @returns {Node | Static.VNode} The normalized child element.
  */
 export function normalizeJsxChild(child, _parent) {
   const { window } = getGlobalContext();

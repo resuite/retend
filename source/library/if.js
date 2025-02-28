@@ -11,7 +11,7 @@ import { linkNodesToComponent } from '../render/index.js';
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { UpdatableFn } from '../render/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as SSR from '../ssr/v-dom.js' */
+/** @import * as Static from '../static/v-dom.js' */
 
 /**
  * @template T
@@ -92,7 +92,7 @@ export function If(value, fnOrObject, elseFn) {
 
   /** @param {T} value */
   const callback = (value) => {
-    /** @type {(Node | SSR.VNode)[]} */
+    /** @type {(Node | Static.VNode)[]} */
     let nodes = [];
     let nextNode = rangeStart.nextSibling;
     while (nextNode && nextNode !== rangeEnd) {

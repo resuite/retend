@@ -9,7 +9,7 @@ import { linkNodesToComponent } from '../render/index.js';
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as SSR from '../ssr/v-dom.js' */
+/** @import * as Static from '../static/v-dom.js' */
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -72,7 +72,7 @@ export function Switch(value, cases, defaultCase) {
 
   /** @param {T} value */
   const callback = (value) => {
-    /** @type {(Node | SSR.VNode)[]} */
+    /** @type {(Node | Static.VNode)[]} */
     let nodes = [];
     let nextNode = rangeStart.nextSibling;
     while (nextNode && nextNode !== rangeEnd) {

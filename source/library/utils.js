@@ -2,7 +2,7 @@ import { Cell } from '@adbl/cells';
 import { getGlobalContext } from './context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
-/** @import * as SSR from '../ssr/v-dom.js' */
+/** @import * as Static from '../static/v-dom.js' */
 
 /** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
 export const isDevMode = import.meta.env?.DEV;
@@ -142,7 +142,7 @@ export function toKebabCase(str) {
 /**
  * Generates an array of DOM nodes from a given input.
  * @param {JSX.Template | TemplateStringsArray} children - The input to generate DOM nodes from.
- * @returns {(Node | SSR.VNode)[]}
+ * @returns {(Node | Static.VNode)[]}
  */
 export function generateChildNodes(children) {
   const { window } = getGlobalContext();
@@ -224,7 +224,7 @@ export function getMostCurrentFunction(fn) {
 
 /**
  * Creates a pair of connected comment nodes that can be used to represent a range.
- * @returns {[Comment | SSR.VComment, Comment | SSR.VComment]} A pair of connected comment nodes with a shared symbol.
+ * @returns {[Comment | Static.VComment, Comment | Static.VComment]} A pair of connected comment nodes with a shared symbol.
  */
 export function createCommentPair() {
   const { window } = getGlobalContext();

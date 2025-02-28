@@ -1,5 +1,5 @@
 // @ts-ignore: Deno has issues with import comments
-/** @import * as SSR from '../ssr/v-dom.js' */
+/** @import * as Static from '../static/v-dom.js' */
 
 /**
  * Defines the possible render contexts for the application.
@@ -13,7 +13,7 @@ export const Modes = {
 /**
  * @typedef {{
  *    mode: 1,
- *    window: SSR.VWindow
+ *    window: Static.VWindow
  *  } | {
  *    mode: 2
  *    window: Window & typeof globalThis
@@ -23,7 +23,7 @@ export const Modes = {
 /** @typedef {Environments['mode']} RenderMode */
 /** @typedef {Environments['window']} WindowLike */
 /** @typedef {InstanceType<Environments['window']['HTMLElement']>} HTMLElementLike */
-/** @typedef {Node & SSR.VNode} AsNode */
+/** @typedef {Node & Static.VNode} AsNode */
 
 /** @type {Environments} */
 const globalContext = {
@@ -49,7 +49,7 @@ export function matchContext(window, mode) {
 
 /**
  * @param {InstanceType<WindowLike['Node']>} node
- * @returns {node is SSR.VNode}
+ * @returns {node is Static.VNode}
  */
 export function isVNode(node) {
   // @ts-ignore
