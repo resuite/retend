@@ -1,3 +1,5 @@
+import { Modes, setGlobalContext } from '../library/context.js';
+
 export class VNode extends EventTarget {
   constructor() {
     super();
@@ -548,4 +550,17 @@ export class VLocation {
   #updateHref() {
     this.#href = `${this.#pathname}${this.#search}${this.#hash}`;
   }
+}
+
+/**
+ * @param {Node} node
+ * @param {VNode} outlet
+ * @param {string} path
+ */
+export async function hydrate(node, outlet, path) {
+  setGlobalContext({ mode: Modes.VDom, window: new VWindow() });
+
+  console.log('hydrate', node, 'from', outlet, 'at', path);
+
+  setGlobalContext({ mode: Modes.Interactive, window: globalThis.window });
 }
