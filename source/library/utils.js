@@ -1,4 +1,8 @@
 import { Cell } from '@adbl/cells';
+import { getGlobalContext } from './context.js';
+
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as SSR from '../ssr/v-dom.js' */
 
 /** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
 export const isDevMode = import.meta.env?.DEV;
@@ -138,9 +142,10 @@ export function toKebabCase(str) {
 /**
  * Generates an array of DOM nodes from a given input.
  * @param {JSX.Template | TemplateStringsArray} children - The input to generate DOM nodes from.
- * @returns {Node[]}
+ * @returns {(Node | SSR.VNode)[]}
  */
 export function generateChildNodes(children) {
+  const { window } = getGlobalContext();
   /** @type {Node[]} */
   const nodes = [];
 
@@ -149,23 +154,27 @@ export function generateChildNodes(children) {
     typeof children === 'number' ||
     typeof children === 'boolean'
   ) {
-    return [globalThis.window.document.createTextNode(String(children))];
+    return [window.document.createTextNode(String(children))];
   }
 
   if (children instanceof Promise) {
-    const placeholder = globalThis.window.document.createComment('-------');
+    const placeholder = window.document.createComment('-------');
     Reflect.set(placeholder, '__promise', children);
     children.then((template) => {
-      placeholder.replaceWith(...generateChildNodes(template));
+      if (placeholder.parentNode) {
+        placeholder.replaceWith(
+          .../** @type {*} */ (generateChildNodes(template))
+        );
+      }
     });
     return [placeholder];
   }
 
-  if (children instanceof globalThis.window.DocumentFragment) {
-    return Array.from(children.childNodes);
+  if (children instanceof window.DocumentFragment) {
+    return Array.from(/** @type {*} */ (children).childNodes);
   }
 
-  if (children instanceof globalThis.window.Node) {
+  if (children instanceof window.Node) {
     return [children];
   }
 
@@ -215,12 +224,13 @@ export function getMostCurrentFunction(fn) {
 
 /**
  * Creates a pair of connected comment nodes that can be used to represent a range.
- * @returns {[Comment, Comment]} A pair of connected comment nodes with a shared symbol.
+ * @returns {[Comment | SSR.VComment, Comment | SSR.VComment]} A pair of connected comment nodes with a shared symbol.
  */
 export function createCommentPair() {
+  const { window } = getGlobalContext();
   const symbol = Symbol();
-  const rangeStart = globalThis.window.document.createComment('----');
-  const rangeEnd = globalThis.window.document.createComment('----');
+  const rangeStart = window.document.createComment('----');
+  const rangeEnd = window.document.createComment('----');
   Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
   Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 

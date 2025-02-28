@@ -1,3 +1,4 @@
+import { getGlobalContext, matchContext, Modes } from '../library/context.js';
 import {
   ArgumentList,
   generateChildNodes,
@@ -7,6 +8,10 @@ import { routeToComponent } from '../router/routeTree.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as SSR from '../ssr/v-dom.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as Context from '../library/context.js' */
 
 /** @typedef {{ __nextInstance?: (...args: any[]) => JSX.Template }} UpdatableFn */
 /** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
@@ -19,6 +24,13 @@ import { routeToComponent } from '../router/routeTree.js';
  *
  * @property {RangedNode[]} nodes
  * Nodes returned from the component instance.
+ */
+
+/**
+ * @typedef {(Node | SSR.VNode) & {
+ *  __linked?: boolean,
+ *  __promise?: Promise<Node[]>
+ * }} LinkableNodeLike
  */
 
 /**
@@ -46,12 +58,15 @@ let hmrObserver;
  * It only works in development mode and is a noop in environments
  * that don't support `import.meta.hot`.
  *
- * @param {LinkableNode[]} nodes The nodes to link.
+ * @param {LinkableNodeLike[]} resultNodes The nodes to link.
  * @param {Function} factory The factory function of the component.
  * @param {any} [props] Props that were used to create the component.
  */
-export function linkNodesToComponent(nodes, factory, props) {
+export function linkNodesToComponent(resultNodes, factory, props) {
   if (!isDevMode) return;
+  const nodes = /** @type {LinkableNode[]} */ (resultNodes);
+  const { window } = getGlobalContext();
+  if (matchContext(window, Modes.Static)) return;
 
   /// @ts-ignore: The Vite types are not installed.
   if (!import.meta.hot) return;
@@ -69,14 +84,16 @@ export function linkNodesToComponent(nodes, factory, props) {
   };
 
   for (const node of nodes) {
-    if (!(node instanceof globalThis.window.Node)) continue;
+    if (!(node instanceof window.Node)) continue;
     // A node can only be linked to at most one parent function.
     if (node.__linked) continue;
     // In case of a promise, we need to link to the resolved nodes.
     if (node.__promise) {
       const promise = node.__promise;
       promise.then((nodes) => {
-        newInstance.nodes.push(...generateChildNodes(nodes));
+        newInstance.nodes.push(
+          .../** @type {Node[]} **/ (generateChildNodes(nodes))
+        );
       });
       continue;
     }
@@ -201,7 +218,9 @@ export const hotReloadModule = async (newModule, url) => {
           instance.props && instance.props instanceof ArgumentList
             ? newInstance(...instance.props.data)
             : newInstance(instance.props);
-        const newNodes = generateChildNodes(newComponentCall);
+        const newNodes = /** @type {Node[]} */ (
+          generateChildNodes(newComponentCall)
+        );
 
         const fragment = document.createDocumentFragment();
         fragment.append(...newNodes);
@@ -303,12 +322,29 @@ if (import.meta.hot) {
   };
 };
 
+const voidElements = new Set([
+  'AREA',
+  'BASE',
+  'BR',
+  'COL',
+  'EMBED',
+  'HR',
+  'IMG',
+  'INPUT',
+  'LINK',
+  'META',
+  'PARAM',
+  'SOURCE',
+  'TRACK',
+  'WBR',
+]);
+
 /**
  * Renders a JSX template to a string.
  *
  *
  * @param {JSX.Template} template - The JSX template to render.
- * @param {Window & typeof globalThis} window - The window object.
+ * @param {Context.WindowLike} window - The window object.
  * @returns {Promise<string>} A promise that resolves to the rendered string.
  *
  * @description
@@ -342,6 +378,21 @@ export async function renderToString(template, window) {
     return textContent;
   }
 
+  if (
+    'MarkupContainerNode' in window &&
+    template instanceof window.MarkupContainerNode
+  ) {
+    return template.html;
+  }
+
+  if (
+    template instanceof window.Comment &&
+    '__promise' in template &&
+    template.__promise instanceof Promise
+  ) {
+    return await renderToString(await template.__promise, window);
+  }
+
   if (template instanceof window.Node) {
     /*
      * TODO: There is a bug in happy-dom where
@@ -357,19 +408,26 @@ export async function renderToString(template, window) {
     }
 
     if (template instanceof window.Element) {
-      let text = `<${template.tagName.toLowerCase()}`;
+      const tagName = template.tagName.toLowerCase();
+
+      let text = `<${tagName}`;
 
       for (const attribute of template.attributes) {
         text += ` ${attribute.name}="${attribute.value}"`;
       }
 
-      text += '>';
+      const isVoid = voidElements.has(template.tagName);
+      if (!isVoid || template.childNodes.length > 0) {
+        text += '>';
 
-      for (const child of template.childNodes) {
-        text += await renderToString(child, window);
+        for (const child of template.childNodes) {
+          text += await renderToString(child, window);
+        }
+
+        text += `</${tagName}>`;
+      } else {
+        text += '/>';
       }
-
-      text += `</${template.tagName.toLowerCase()}>`;
 
       return text;
     }
@@ -397,42 +455,44 @@ export async function renderToString(template, window) {
  * @property {string} title - The title of the rendered page.
  */
 
-/**
- * Renders a route to a string representation.
- *
- * @param {import('../router/index.js').Router} router - The router instance.
- * @param {string} path - The path to navigate to.
- * @param {Window & typeof globalThis} window - The window object.
- * @returns {Promise<RouteRenderResult>} The rendered HTML string.
- */
-export async function renderRoute(router, path, window) {
-  router.window = window;
-  const outlet = router.Outlet();
+// /**
+//  * Renders a route to a string representation.
+//  *
+//  * @param {import('../router/index.js').Router} router - The router instance.
+//  * @param {string} path - The path to navigate to.
+//  * @param {Window & typeof globalThis} window - The window object.
+//  * @returns {Promise<RouteRenderResult>} The rendered HTML string.
+//  */
+// export async function renderRoute(router, path, window) {
+//   router.window = window;
+//   const outlet = router.Outlet();
 
-  const app = document.createElement('div');
-  app.id = 'app';
-  document.body.prepend(app);
+//   const app = document.createElement('div');
+//   app.id = 'app';
+//   document.body.prepend(app);
 
-  app.appendChild(outlet);
-  router.attachWindowListeners();
+//   app.appendChild(outlet);
+//   router.attachWindowListeners();
 
-  await router.navigate(path);
+//   await router.navigate(path);
 
-  return {
-    content: await renderToString(app, window),
-    title: window.document.title,
-    path: window.location.pathname,
-  };
-}
+//   return {
+//     content: await renderToString(app, window),
+//     title: window.document.title,
+//     path: window.location.pathname,
+//   };
+// }
 
 /**
  *
  * @param {Element} app
  * @param {JSX.Template} clientContent
- * @param {Window & typeof globalThis} window
  */
-export async function render(app, clientContent, window) {
-  const nodes = generateChildNodes(clientContent);
+export async function render(app, clientContent) {
+  const { window } = getGlobalContext();
+  if (matchContext(window, Modes.Static)) return;
+
+  const nodes = /** @type {Node[]} */ (generateChildNodes(clientContent));
   if (!app.firstChild) {
     // If there is no prior content, it simply appends and moves on.
     app.append(...nodes);

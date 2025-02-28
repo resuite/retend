@@ -3,6 +3,7 @@
  */
 
 import { SourceCell } from '@adbl/cells';
+import { getGlobalContext, matchContext, Modes } from './context.js';
 
 /**
  * @template {Node} T
@@ -69,6 +70,9 @@ class DocumentObserver {
    * @private
    */
   init() {
+    const { window } = getGlobalContext();
+    if (matchContext(window, Modes.Static)) return;
+
     const observer = new MutationObserver(() => {
       for (const [key, callbacks] of this.callbackSets.entries()) {
         if (!key.value?.isConnected) continue;

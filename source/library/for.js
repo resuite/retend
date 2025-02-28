@@ -6,9 +6,14 @@ import {
   getMostCurrentFunction,
 } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
+import { getGlobalContext } from './context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as SSR from '../ssr/v-dom.js' */
+
+/** @typedef {SSR.VNode | ChildNode} ChildNodeLike */
 
 /**
  * @template T
@@ -16,10 +21,10 @@ import { linkNodesToComponent } from '../render/index.js';
  * @property {T extends object ? keyof T : never} [key]
  * When iterating over objects with a predefined shape, this represents the property to use
  * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
- * @property {(node: ChildNode[]) => void} [onBeforeNodesMove]
+ * @property {(node: ChildNodeLike[]) => void} [onBeforeNodesMove]
  * Provides access to a node just before it is moved to a new position in the DOM by any of the
  * items in the list.
- * @property {(node: ChildNode, fromIndex: number) => void} [onBeforeNodeRemove]
+ * @property {(node: ChildNodeLike, fromIndex: number) => void} [onBeforeNodeRemove]
  * Provides access to a node just before it is removed from the DOM by any of the
  * items in the list.
  */
@@ -55,9 +60,10 @@ import { linkNodesToComponent } from '../render/index.js';
  */
 // TODO: Make object mutation safe or optional.
 export function For(list, fn, options) {
-  /*** @type {Node[]} */
+  /*** @type {(Node | SSR.VNode)[]} */
   const initialSnapshot = [];
   const func = getMostCurrentFunction(fn);
+  const { window } = getGlobalContext();
   const { onBeforeNodesMove, onBeforeNodeRemove, key } = options ?? {};
 
   // -----------------------------------------------
@@ -79,7 +85,7 @@ export function For(list, fn, options) {
   // -----------------------------------------------
   // REACTIVE LISTS
   // -----------------------------------------------
-  /** @type {Map<any, { index: Cell<number>,  nodes: ChildNode[] }>} */
+  /** @type {Map<any, { index: Cell<number>,  nodes: ChildNodeLike[] }>} */
   let cacheFromLastRun = new Map();
   const uniqueItemMarker = key ?? Symbol();
   const [listStart, listEnd] = createCommentPair();
@@ -107,7 +113,7 @@ export function For(list, fn, options) {
     const index = Cell.source(i);
     const parameters = [item, index, list];
     const template = func(...parameters);
-    const nodes = /** @type {ChildNode[]} */ (generateChildNodes(template));
+    const nodes = /** @type {ChildNodeLike[]} */ (generateChildNodes(template));
     linkNodesToComponent(nodes, func, new ArgumentList(parameters));
     initialSnapshot.push(...nodes);
 
@@ -119,7 +125,7 @@ export function For(list, fn, options) {
   /** @param {any} newList */
   const reactToListChanges = async (newList) => {
     const newCache = new Map();
-    /** @type {Map<ChildNode, { itemKey: any, lastItemLastNode: ChildNode | null }>} */
+    /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
     const nodeLookAhead = new Map();
     const func = getMostCurrentFunction(fn);
 
@@ -134,7 +140,7 @@ export function For(list, fn, options) {
         const i = Cell.source(index);
         const parameters = [item, i, list];
         const newTemplate = func(...parameters);
-        const nodes = /** @type {ChildNode[]} */ (
+        const nodes = /** @type {ChildNodeLike[]} */ (
           generateChildNodes(newTemplate)
         );
         linkNodesToComponent(nodes, func, new ArgumentList(parameters));
@@ -177,7 +183,7 @@ export function For(list, fn, options) {
       }
     }
 
-    /** @type {ChildNode} */
+    /** @type {ChildNodeLike | SSR.VComment} */
     let lastInserted = listStart;
 
     // Reordering and Inserting New Nodes:
@@ -186,13 +192,14 @@ export function For(list, fn, options) {
     // It compares each node's current position with the expected position after lastInserted,
     // moving nodes only when necessary to maintain the correct sequence.
     let i = 0;
-    const batchAdd = globalThis.window.document.createDocumentFragment();
+    const batchAdd = window.document.createDocumentFragment();
+    const batchAddLike = /** @type {*} */ (batchAdd);
     for (const item of newList) {
-      /** @type {{ nodes: ChildNode[] }} */ // Invariant: nodes is always defined.
+      /** @type {{ nodes: ChildNodeLike[] }} */ // Invariant: nodes is always defined.
       const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
       const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
       if (isAlreadyInPosition) {
-        if (batchAdd.childNodes.length > 0) lastInserted.after(batchAdd);
+        if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
         lastInserted = nodes[nodes.length - 1];
         i++;
         continue;
@@ -227,7 +234,7 @@ export function For(list, fn, options) {
             // recheck sequential correctness.
             const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
             if (isAlreadyInPosition) {
-              if (batchAdd.childNodes.length) lastInserted.after(batchAdd);
+              if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
               lastInserted = nodes[nodes.length - 1];
               i++;
               continue;
@@ -238,25 +245,25 @@ export function For(list, fn, options) {
 
       const isNewItemInstance = !nodes[0]?.parentNode;
       if (isNewItemInstance) {
-        batchAdd.append(...nodes);
+        batchAddLike.append(...nodes);
         i++;
         continue;
       }
 
       if (batchAdd.childNodes.length === 0) {
         onBeforeNodesMove?.(nodes);
-        lastInserted.after(...nodes);
+        lastInserted.after(.../** @type {*} */ (nodes));
       } else {
-        const newPtr = /** @type {ChildNode} */ (batchAdd.lastChild);
-        lastInserted.after(batchAdd);
+        const newPtr = /** @type {ChildNodeLike} */ (batchAdd.lastChild);
+        lastInserted.after(batchAddLike);
         onBeforeNodesMove?.(nodes);
-        newPtr.after(...nodes);
+        newPtr.after(.../** @type {*} */ (nodes));
       }
       lastInserted = nodes[nodes.length - 1] ?? lastInserted;
       i++;
     }
 
-    if (batchAdd.childNodes.length) lastInserted.after(batchAdd);
+    if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
     cacheFromLastRun = newCache;
   };
 

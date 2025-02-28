@@ -3149,12 +3149,14 @@ export namespace JSX {
 
   export interface IntrinsicElements extends IntrinsicElementsInner {}
 
+  type NodeLike = globalThis.Node | import('../ssr/v-dom.js').VNode;
+
   type Node =
-    | globalThis.Node
+    | NodeLike
     | PropertyKey
     | Promise<
-        | globalThis.Node
-        | globalThis.Node[]
+        | NodeLike
+        | NodeLike[]
         | PropertyKey
         | null
         | undefined

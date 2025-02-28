@@ -8,6 +8,8 @@ import { linkNodesToComponent } from '../render/index.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as SSR from '../ssr/v-dom.js' */
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -70,7 +72,7 @@ export function Switch(value, cases, defaultCase) {
 
   /** @param {T} value */
   const callback = (value) => {
-    /** @type {Node[]} */
+    /** @type {(Node | SSR.VNode)[]} */
     let nodes = [];
     let nextNode = rangeStart.nextSibling;
     while (nextNode && nextNode !== rangeEnd) {
@@ -83,7 +85,7 @@ export function Switch(value, cases, defaultCase) {
       const caseCallerFunc = getMostCurrentFunction(caseCaller);
       nodes = generateChildNodes(caseCallerFunc(value));
       linkNodesToComponent(nodes, caseCallerFunc, value);
-      rangeStart.after(...nodes);
+      rangeStart.after(.../** @type {*} */ (nodes));
       return nodes;
     }
 
@@ -91,7 +93,7 @@ export function Switch(value, cases, defaultCase) {
       const defaultCaseFunc = getMostCurrentFunction(defaultCase);
       nodes = generateChildNodes(defaultCaseFunc(value));
       linkNodesToComponent(nodes, defaultCaseFunc, value);
-      rangeStart.after(...nodes);
+      rangeStart.after(.../** @type {*} */ (nodes));
       return nodes;
     }
 

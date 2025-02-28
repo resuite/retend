@@ -2,6 +2,7 @@ import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
 import { appendChild, setAttributeFromProps } from '../library/jsx.js';
 import { generateChildNodes } from '../library/utils.js';
+import { getGlobalContext, matchContext, Modes } from '../library/context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.js' */
@@ -41,9 +42,14 @@ export function Teleport(props) {
   const { to: target, ...rest } = props;
   const teleportId = crypto.randomUUID();
   const observer = useObserver();
-  const document = globalThis.window.document;
-  const anchorNode = document.createComment('teleport-anchor');
+  const { window } = getGlobalContext();
 
+  if (matchContext(window, Modes.Static)) {
+    const anchorNode = window.document.createComment('teleport-anchor');
+    return anchorNode;
+  }
+
+  const anchorNode = window.document.createComment('teleport-anchor');
   observer.onConnected(Cell.source(anchorNode), () => {
     const parent =
       target instanceof Element ? target : document.querySelector(target);

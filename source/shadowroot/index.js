@@ -1,6 +1,7 @@
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
+import { getGlobalContext } from '../library/context.js';
 import { appendChild } from '../library/jsx.js';
 
 /**
@@ -51,8 +52,10 @@ import { appendChild } from '../library/jsx.js';
  */
 export function ShadowRoot(props) {
   const { mode, children } = props;
+  const { window } = getGlobalContext();
+
   const shadowRoot = /** @type {ShadowRootContainer} */ (
-    globalThis.window.document.createElement('div')
+    window.document.createElement('div')
   );
 
   shadowRoot.__mode = mode ?? 'open';

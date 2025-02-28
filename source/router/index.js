@@ -9,6 +9,7 @@ import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
 import { linkNodesToComponent } from '../render/index.js';
+import { matchContext, Modes, isVNode } from '../library/context.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -21,6 +22,10 @@ const RELAY_ID_REGEX =
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as SSR from '../ssr/v-dom.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as Context from '../library/context.js' */
 
 /**
  * @typedef {LazyRoute | ((() => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader
@@ -114,7 +119,7 @@ export class RouteChangeEvent extends CustomEvent {
  * It defaults to 10.
  */
 
-/** @typedef {(nodes: Node[]) => PromiseOrNot<void>} RelayCallback */
+/** @typedef {(nodes: JSX.Template) => PromiseOrNot<void>} RelayCallback */
 
 /**
  * @template SourceProps
@@ -148,7 +153,7 @@ export class RouteChangeEvent extends CustomEvent {
 /**
  * @typedef RouteSnapShot
  *
- * @property {DocumentFragment} fragment
+ * @property {SSR.VDocumentFragment | DocumentFragment} fragment
  * The nodes that were in the outlet when the snapshot was taken.
  *
  * @property {[number, number]} outletScroll
@@ -170,7 +175,7 @@ export class RouteChangeEvent extends CustomEvent {
  */
 
 /**
- * @typedef {HTMLElement & {
+ * @typedef {Context.HTMLElementLike & {
  *  __keepAlive?: boolean;
  *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  * }} RouterOutlet
@@ -179,12 +184,12 @@ export class RouteChangeEvent extends CustomEvent {
 /**
  * @template [SourceProps=object]
  * @template {(props: SourceProps) => JSX.Template} [SourceFn=(props: SourceProps) => JSX.Template]
- * @typedef {HTMLElement & {
+ * @typedef {Context.HTMLElementLike & {
  *  __name?: string;
  *  __props: SourceProps;
  *  __render?: SourceFn;
- *  __onNodesReceived?: (nodes: Node[]) => void;
- *  __onNodesSent?: (nodes: Node[]) => void;
+ *  __onNodesReceived?: (nodes: JSX.Template) => void;
+ *  __onNodesSent?: (nodes: JSX.Template) => void;
  * }} RouterRelay
  */
 
@@ -290,7 +295,7 @@ export class Router extends EventTarget {
 
   /**
    * The global `window` object, which provides access to the browser's JavaScript API.
-   * @type {Window | undefined}
+   * @type {Context.WindowLike | undefined}
    */
   window;
 
@@ -328,9 +333,9 @@ export class Router extends EventTarget {
   /**
    * Defines an anchor element and handles click events to navigate to the specified route.
    *
-   * @type {(props?: RouterLinkProps) => HTMLAnchorElement}
+   * @type {(props?: RouterLinkProps) => JSX.Template}
    * @param {RouterLinkProps} [props] - The component props.
-   * @returns {HTMLAnchorElement} The rendered anchor element.
+   * @returns {JSX.Template} The rendered anchor element.
    *
    * @example
    * ```tsx
@@ -416,9 +421,9 @@ export class Router extends EventTarget {
    *
    * This component is used internally by the {@link Router} class to handle route changes and
    * render the appropriate component.
-   * @type {(props?: RouterOutletProps) => HTMLElement}
+   * @type {(props?: RouterOutletProps) => JSX.Template}
    * @param {RouterOutletProps} [props]
-   * @returns {HTMLElement} The rendered custom element that serves as the router outlet.
+   * @returns {JSX.Template} The rendered custom element that serves as the router outlet.
    *
    * @example
    * ```tsx
@@ -462,8 +467,8 @@ export class Router extends EventTarget {
    * across route changes by linking relay instances using unique identifiers.
    * Animations and transitions are not supported, but they can be added using the View Transitions API.
    *
-   * @type {<Props, SourceFn extends (props: Props) => JSX.Template>(props: RouterRelayProps<Props, SourceFn>) => HTMLElement}
-   * @returns {HTMLElement} A container element for managing and persisting state across routes.
+   * @type {<Props, SourceFn extends (props: Props) => JSX.Template>(props: RouterRelayProps<Props, SourceFn>) => JSX.Template}
+   * @returns {JSX.Template} A container element for managing and persisting state across routes.
    *
    * @example
    * ```tsx
@@ -518,7 +523,7 @@ export class Router extends EventTarget {
     }
 
     if (props.id && RELAY_ID_REGEX.test(props.id)) {
-      relay.dataset.xRelayName = props.id;
+      relay.setAttribute('data-x-relay-name', props.id);
       relay.__name = props.id;
     } else {
       console.warn('Invalid relay id.');
@@ -566,7 +571,9 @@ export class Router extends EventTarget {
       return this.sheet;
     }
 
-    if (!this.window?.document?.adoptedStyleSheets) return;
+    if (!this.window) return;
+    if (matchContext(this.window, Modes.Static)) return;
+    if (!this.window.document.adoptedStyleSheets) return;
 
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
@@ -597,7 +604,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
 
   /**
    * Sets the window object for the router.
-   * @param {Window} window - The window object to set.
+   * @param {Context.WindowLike} window - The window object to set.
    */
   setWindow(window) {
     this.window = window;
@@ -628,7 +635,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
    * This allows the history to be restored across page reloads or browser sessions.
    */
   persistHistory() {
-    if (this.window?.sessionStorage) {
+    if (this.window && 'sessionStorage' in this.window) {
       this.window.sessionStorage.setItem(
         HISTORY_STORAGE_KEY,
         JSON.stringify(this.history)
@@ -839,9 +846,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
 
     if (matchResult.subTree === null) {
       console.warn(`No route matches path: ${path}`);
-      const outlet = this.window?.document.querySelector(
-        'unfinished-router-outlet'
-      );
+      const outlet = findOutletNode(this.window?.document);
       outlet?.removeAttribute('data-path');
       if (this.window) {
         outlet?.replaceChildren(emptyRoute(path, this.window));
@@ -853,22 +858,18 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
     let lastMatchedRoute = matchResult.subTree;
     /** @type {MatchedRoute<ComponentOrComponentLoader> | null} */
     let currentMatchedRoute = matchResult.subTree;
-    /** @type {RouterOutlet} */ //@ts-ignore
-    let outlet = this.window?.document.querySelector(
-      'unfinished-router-outlet'
-    );
+    /** @type {RouterOutlet | null} */ //@ts-ignore
+    let outlet = findOutletNode(this.window?.document);
 
     if (!outlet) return false;
 
     while (currentMatchedRoute) {
       if (!outlet) break;
 
-      if (outlet.dataset.path === currentMatchedRoute.path) {
+      if (outlet.getAttribute('data-path') === currentMatchedRoute.path) {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
-        outlet = /** @type {RouterOutlet} */ (
-          outlet?.querySelector('unfinished-router-outlet')
-        );
+        outlet = findOutletNode(outlet);
 
         // If only the search params changed, then the last outlet
         // should trigger a route change.
@@ -950,7 +951,8 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
         };
       }
 
-      outlet.dataset.path = currentMatchedRoute.path;
+      outlet.setAttribute('data-path', currentMatchedRoute.path);
+
       /** @type {JSX.Template} */
       let renderedComponent;
       const snapshot = outlet.__keepAliveCache?.get(path);
@@ -966,7 +968,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
 
       // if the component performs a redirect internally, it would change the route
       // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.dataset.path !== currentMatchedRoute.path) {
+      if (outlet.getAttribute('data-path') !== currentMatchedRoute.path) {
         return false;
       }
 
@@ -988,7 +990,8 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
         // makes it possible for the cached nodes to still be reactive
         // in a For, Switch or If block, since they are still in a DOM tree.
         const fragment = this.window.document.createDocumentFragment();
-        fragment.append(...outlet.childNodes);
+        const contents = /** @type {Context.AsNode[]} */ (outlet.childNodes);
+        fragment.append(...contents);
         recordScrollPositions(fragment);
         outlet.__keepAliveCache?.set(oldPath, {
           fragment,
@@ -1007,9 +1010,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
 
       lastMatchedRoute = currentMatchedRoute;
       currentMatchedRoute = currentMatchedRoute.child;
-      const nextOutlet = /** @type {RouterOutlet} */ (
-        outlet?.querySelector('unfinished-router-outlet')
-      );
+      const nextOutlet = /** @type {RouterOutlet} */ (findOutletNode(outlet));
       outlet = nextOutlet;
     }
 
@@ -1104,8 +1105,8 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
    * @private
    * Handles relaying for DOM elements during route changes.
    * @param {RouterOutlet} oldNodesFragment - The DOM fragment containing the old route content.
-   * @param {Node[]} newNodesArray - The DOM elements that will be added to the outlet.
-   * @returns {Promise<DocumentFragment | undefined>}
+   * @param {(Node | SSR.VNode)[]} newNodesArray - The DOM elements that will be added to the outlet.
+   * @returns {Promise<SSR.VDocumentFragment | DocumentFragment | undefined>}
    */
   handleRelays = async (oldNodesFragment, newNodesArray) => {
     if (!this.window) return;
@@ -1113,24 +1114,24 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
     // ---------------
     // Handling relays
     // ---------------
-    /** @type {NodeListOf<RouterRelay>} */
-    const exitRelayNodes = oldNodesFragment.querySelectorAll(
-      'unfinished-router-relay'
-    );
+    const exitRelayNodes = findRelayNodes(oldNodesFragment);
     /** @type {Map<string, RouterRelay>} */
     const exitRelayNodeMap = new Map();
     for (const relayNode of exitRelayNodes) {
-      const name = relayNode.dataset.xRelayName;
+      const name = relayNode.getAttribute('data-x-relay-name');
       if (!name) continue;
       exitRelayNodeMap.set(name, relayNode);
     }
     // Creating a fragment allows query selector to work on the new nodes.
     const holder = this.window.document.createDocumentFragment();
-    holder.append(...newNodesArray);
-    /** @type {NodeListOf<RouterRelay>} */
-    const enterRelayNodes = holder.querySelectorAll('unfinished-router-relay');
+
+    const newNodesArr = /** @type {Context.AsNode[]} */ (newNodesArray);
+    holder.append(...newNodesArr);
+
+    const enterRelayNodes = findRelayNodes(holder);
+
     for (const enterRelay of enterRelayNodes) {
-      const name = enterRelay.dataset.xRelayName;
+      const name = enterRelay.getAttribute('data-x-relay-name');
       const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
       if (!correspondingExit) {
         // No corresponding exit relay found.
@@ -1141,16 +1142,17 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
           !oldNodesFragment.__keepAlive
         ) {
           const props = enterRelay.__props ?? {};
-          /** @type {Node[]} */
+          /** @type {(SSR.VNode | Node)[]} */
           let relayContents = [];
           if (enterRelay.__render) {
             relayContents = generateChildNodes(enterRelay.__render(props));
             linkNodesToComponent(relayContents, enterRelay.__render, props);
           }
-          enterRelay.replaceChildren(...relayContents);
+          const contents = /** @type {Context.AsNode[]} */ (relayContents);
+          enterRelay.replaceChildren(...contents);
           enterRelay.__onNodesReceived?.(relayContents);
         } else {
-          enterRelay.__onNodesReceived?.(Array.from(enterRelay.childNodes));
+          enterRelay.__onNodesReceived?.(...enterRelay.childNodes);
         }
         continue;
       }
@@ -1158,15 +1160,14 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
       // There are interesting instances where, due to keep-alive, the same relay
       // node is used for both enter and exit relays. In this case there is
       // really nothing to do.
-      if (correspondingExit === enterRelay) {
-        continue;
-      }
+      if (correspondingExit === enterRelay) continue;
 
       // A corresponding exit relay was found.
-      const exitRelayContents = Array.from(correspondingExit.childNodes);
+      const exitRelayContents = [...correspondingExit.childNodes];
       correspondingExit.__onNodesSent?.(exitRelayContents);
 
-      enterRelay.replaceChildren(...exitRelayContents);
+      const contents = /** @type {Context.AsNode[]} */ (exitRelayContents);
+      enterRelay.replaceChildren(...contents);
       enterRelay.__onNodesReceived?.(exitRelayContents);
     }
 
@@ -1248,7 +1249,11 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
       }
     };
 
-    if (this.useViewTransitions && this.window?.document.startViewTransition) {
+    if (
+      this.useViewTransitions &&
+      this.window?.document &&
+      'startViewTransition' in this.window.document
+    ) {
       const transition = this.window.document.startViewTransition(callback);
       // It's weird.
       // The navigation direction cannot be determined until the router has finished updating the DOM.
@@ -1407,7 +1412,7 @@ export function defineRoute(route) {
 
 /**
  * Constructs a path with its hash and search parameters.
- * @param {Window} window
+ * @param {Context.WindowLike} window
  * @returns {string}
  */
 function getFullPath(window) {
@@ -1420,14 +1425,15 @@ function getFullPath(window) {
  * Generates a DocumentFragment node with a text node indicating that the specified route path was not found.
  *
  * @param {string} path - The route path that was not found.
- * @param {Window} window - The window object.
- * @returns {DocumentFragment} A DocumentFragment node containing a text node with the "Route not found" message.
+ * @param {Context.WindowLike} window - The window object.
+ * @returns {DocumentFragment & SSR.VDocumentFragment} A DocumentFragment node containing a text node with the "Route not found" message.
  */
 function emptyRoute(path, window) {
   console.warn(`Route not found: ${path}`);
   const node = window.document.createDocumentFragment();
-  node.appendChild(window.document.createTextNode(`Route not found: ${path}`));
-  return node;
+  const text = window.document.createTextNode(`Route not found: ${path}`);
+  node.appendChild(/** @type {*} */ (text));
+  return /** @type {DocumentFragment & SSR.VDocumentFragment} */ (node);
 }
 
 /**
@@ -1458,7 +1464,7 @@ function constructURL(path, matchResult) {
 
 /**
  * Traverses through a set of DOM nodes to record their scroll positions.
- * @param {DocumentFragment} fragment
+ * @param {SSR.VDocumentFragment | DocumentFragment} fragment
  */
 function recordScrollPositions(fragment) {
   for (const node of fragment.childNodes) {
@@ -1471,13 +1477,51 @@ function recordScrollPositions(fragment) {
 }
 
 /**
+ * @param {SSR.VNode | ParentNode | null | undefined} root
+ * @returns {RouterOutlet | null}
+ */
+function findOutletNode(root) {
+  if (!root) return null;
+
+  if (isVNode(root)) {
+    return /** @type {RouterOutlet} */ (
+      root.findNode((node) => node.tagName === 'UNFINISHED-ROUTER-OUTLET')
+    );
+  }
+
+  return /** @type {RouterOutlet} */ (
+    root.querySelector('unfinished-router-outlet')
+  );
+}
+
+/**
+ * @param {SSR.VNode | ParentNode | null | undefined} root
+ * @returns {RouterRelay[]}
+ */
+function findRelayNodes(root) {
+  if (!root) return [];
+
+  if (isVNode(root)) {
+    return /** @type {RouterRelay[]} */ (
+      root.findNodes((node) => node.tagName === 'UNFINISHED-ROUTER-RELAY')
+    );
+  }
+
+  return /** @type {RouterRelay[]} */ ([
+    ...root.querySelectorAll('unfinished-router-relay'),
+  ]);
+}
+
+/**
  *
  * @param {RouterOutlet} outlet
- * @param {DocumentFragment} fragment
- * @param {Window} [window]
+ * @param {DocumentFragment | SSR.VDocumentFragment} fragment
+ * @param {Context.WindowLike} [window]
  */
 function renderRouteIntoOutlet(outlet, fragment, window) {
-  outlet.replaceChildren(...fragment.childNodes);
+  const contents = /** @type {Context.AsNode[]} */ (fragment.childNodes);
+  outlet.replaceChildren(...contents);
+
   if (outlet.__keepAlive) {
     for (const node of outlet.childNodes) {
       if ('__recordedScrollTop' in node) {
@@ -1486,7 +1530,7 @@ function renderRouteIntoOutlet(outlet, fragment, window) {
         element.scrollLeft = element.__recordedScrollLeft;
       }
 
-      const path = outlet.dataset.path;
+      const path = outlet.getAttribute('data-path');
       if (!path) return;
 
       const cache = outlet.__keepAliveCache?.get(path);

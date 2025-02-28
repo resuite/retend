@@ -6,6 +6,10 @@ import {
   isSomewhatFalsy,
 } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
+import { getGlobalContext, matchContext, Modes } from './context.js';
+
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as SSR from '../ssr/v-dom.js' */
 
 const camelCasedAttributes = new Set([
   // SVG attributes
@@ -108,19 +112,23 @@ const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
  * @template {Record<PropertyKey, any>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
- * @returns {Node | Node[]} New DOM nodes.
+ * @returns {Node | SSR.VNode | (Node | SSR.VNode)[]} New DOM nodes.
  */
 export function h(tagname, props) {
+  const { window } = getGlobalContext();
   const children = props.children;
+
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
-    const fragment = globalThis.window.document.createDocumentFragment();
+    const fragment = window.document.createDocumentFragment();
     const childList = children
       ? Array.isArray(children)
         ? children
         : [children]
       : [];
     for (const child of childList) {
-      fragment.appendChild(normalizeJsxChild(child, fragment));
+      fragment.appendChild(
+        /** @type {*} */ (normalizeJsxChild(child, fragment))
+      );
     }
     return fragment;
   }
@@ -140,18 +148,17 @@ export function h(tagname, props) {
 
   const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
 
-  let namespace;
+  let ns;
   if (tagname === 'svg') {
-    namespace = 'http://www.w3.org/2000/svg';
+    ns = 'http://www.w3.org/2000/svg';
   } else if (tagname === 'math') {
-    namespace = 'http://www.w3.org/1998/Math/MathML';
+    ns = 'http://www.w3.org/1998/Math/MathML';
   } else {
-    namespace = defaultNamespace;
+    ns = defaultNamespace;
   }
-  /** @type {JsxElement} */ //@ts-ignore: coercion.
-  const element = globalThis.window.document.createElementNS(
-    namespace,
-    tagname
+
+  const element = /** @type {JsxElement} */ (
+    window.document.createElementNS(ns, tagname)
   );
   element.__eventListenerList = new Map();
   element.__attributeCells = new Set();
@@ -167,11 +174,15 @@ export function h(tagname, props) {
 }
 
 /**
- *  @param {ParentNode} parentNode
- * @param {string} tagname
- *  @param {any} child
+ * Appends a child node or an array of child nodes to a parent node.
+ *
+ * @param {Element | SSR.VElement | ShadowRoot | SSR.VShadowRoot} parentNode - The parent node to which the child will be appended.
+ * @param {string} tagname - The tag name of the parent node.
+ * @param {unknown} child - The child node, array of child nodes, or string to append.
  */
 export function appendChild(parentNode, tagname, child) {
+  const { window } = getGlobalContext();
+
   if (Array.isArray(child)) {
     for (const childNode of child) {
       appendChild(parentNode, tagname, childNode);
@@ -184,11 +195,11 @@ export function appendChild(parentNode, tagname, child) {
   const childNode = normalizeJsxChild(child, parentNode);
 
   if (
-    childNode instanceof globalThis.window.HTMLElement &&
+    childNode instanceof window.HTMLElement &&
     '__isShadowRootContainer' in childNode &&
     childNode.__isShadowRootContainer
   ) {
-    if (!(parentNode instanceof globalThis.window.HTMLElement)) {
+    if (!(parentNode instanceof window.HTMLElement)) {
       console.error('ShadowRoot can only be children of HTML Elements.');
       return;
     }
@@ -207,32 +218,42 @@ export function appendChild(parentNode, tagname, child) {
   }
 
   if (
-    childNode instanceof globalThis.window.HTMLElement &&
-    globalThis.window.customElements.get(childNode.tagName.toLowerCase())
+    childNode instanceof window.HTMLElement &&
+    (matchContext(window, Modes.Static) ||
+      window.customElements.get(childNode.tagName.toLowerCase()))
   ) {
-    parentNode.appendChild(childNode);
+    parentNode.appendChild(/** @type {*} */ (childNode));
     return;
   }
 
+  // Client-side bailout for SVG and MathML elements.
+  //
+  // By default, elements are created using
+  // Document.createElement(), which will only yield HTML-namespaced elements.
+  //
+  // This means that we end up with SVG and MathML specific elements
+  // that look correct, but are not actually SVG or MathML elements.
+  // To fix this, we need to serialize the badly formed elements
+  // and recreate them using the namespace of the nearest svg or math parent.
+  //
+  // This will lead to a loss of interactivity, but idk, you win and you lose.
   if (
+    matchContext(window, Modes.Interactive) &&
     (tagname === 'svg' || tagname === 'math') &&
-    childNode instanceof globalThis.window.HTMLElement
+    childNode instanceof window.HTMLElement
   ) {
     const elementNamespace = /** @type {string} */ (
       'namespaceURI' in parentNode
         ? parentNode.namespaceURI
         : 'http://www.w3.org/1999/xhtml'
     );
-    const temp = globalThis.window.document.createElementNS(
-      elementNamespace,
-      'div'
-    );
-    temp.innerHTML = childNode.outerHTML;
-    parentNode.append(...temp.children);
+    const temp = window.document.createElementNS(elementNamespace, 'div');
+    temp.innerHTML = /** @type {HTMLElement} */ (childNode).outerHTML;
+    /** @type {ParentNode} */ (parentNode).append(...temp.children);
     return;
   }
 
-  parentNode.appendChild(childNode);
+  parentNode.appendChild(/** @type {*} */ (childNode));
 }
 
 /**
@@ -246,19 +267,21 @@ export function appendChild(parentNode, tagname, child) {
  * Whether or not the element was created using JSX syntax.
  * @property {string | boolean | number | undefined} __key
  * Unique key for the element.
+ * @property {Cell<unknown> | undefined} __ref
+ * Cellular reference pointing to the element.
  * @property {object} __finalProps
  * Props passed to the element.
  */
 
 /**
- * @typedef {Element & HiddenElementProperties} JsxElement
+ * @typedef {(Element | SSR.VElement) & HiddenElementProperties} JsxElement
  *
  */
 
 /**
  * Sets an attribute on an element based on the provided props.
  *
- * @param {Element} el - The DOM element to set the attribute on.
+ * @param {Element | SSR.VElement} el - The DOM element to set the attribute on.
  * @param {string} key - The name of the attribute to set.
  * @param {any} value - The value to set for the attribute. Can be a primitive value or an object with a `runAndListen` method.
  *
@@ -276,6 +299,7 @@ export function setAttributeFromProps(el, key, value) {
       element.__attributeCells.add(value);
       if (value instanceof SourceCell) {
         value.value = element;
+        element.__ref = value;
       }
       return;
     }
@@ -502,32 +526,33 @@ export function setAttribute(element, key, value) {
 
 /**
  * Normalizes a child jsx element for use in the DOM.
- * @param {Node | Array<any> | string | number | boolean | object | undefined | null} child - The child element to normalize.
- * @param {Node} [_parent] - The parent node of the child.
- * @returns {Node} The normalized child element.
+ * @param {JsxElement | Array<any> | string | number | boolean | object | undefined | null} child - The child element to normalize.
+ * @param {ParentNode | SSR.VNode} [_parent] - The parent node of the child.
+ * @returns {Node | SSR.VNode} The normalized child element.
  */
 export function normalizeJsxChild(child, _parent) {
-  if (child instanceof globalThis.window.Node) {
-    return child;
-  }
+  const { window } = getGlobalContext();
+
+  if (child instanceof window.Node) return child;
 
   if (Array.isArray(child)) {
-    const fragment = globalThis.window.document.createDocumentFragment();
+    const fragment = window.document.createDocumentFragment();
 
     for (const element of child) {
-      fragment.appendChild(normalizeJsxChild(element, fragment));
+      const childNodes = normalizeJsxChild(element, fragment);
+      fragment.appendChild(/** @type {*} */ (childNodes));
     }
 
     return fragment;
   }
 
   if (child === null || child === undefined) {
-    return document.createTextNode('');
+    return window.document.createTextNode('');
   }
 
   // @ts-ignore: There is an error with the @adbl/cells library. Booleans should be allowed here.
   if (Cell.isCell(child)) {
-    const textNode = globalThis.window.document.createTextNode('');
+    const textNode = window.document.createTextNode('');
     /** @param {any} value */
     const callback = (value) => {
       textNode.textContent = value;
@@ -547,7 +572,7 @@ export function normalizeJsxChild(child, _parent) {
     return textNode;
   }
 
-  return globalThis.window.document.createTextNode(child?.toString() ?? '');
+  return window.document.createTextNode(child?.toString() ?? '');
 }
 
 /**

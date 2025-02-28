@@ -1,3 +1,4 @@
+import { getGlobalContext, matchContext, Modes } from '../library/context.js';
 import { setAttributeFromProps } from '../library/jsx.js';
 
 /**
@@ -21,10 +22,14 @@ const svgMap = new Map();
 
 /**
  * Asynchronously fetches and inlines an SVG icon using its URL.
+ *
+ * @clientOnly
  * @param {SvgProps} props
- * @returns {Promise<Element>} The SVG element created, or an empty template if the request fails.
+ * @returns {Promise<JSX.Template>} The SVG element created, or an empty template if the request fails.
  */
 export async function InlineSvg(props) {
+  const { window } = getGlobalContext();
+
   try {
     let svg = svgMap.get(props.href);
     if (!svg) {
@@ -32,8 +37,15 @@ export async function InlineSvg(props) {
       svg = await response.text();
       svgMap.set(props.href, svg);
     }
-    const range = globalThis.window.document.createRange();
-    const element = range.createContextualFragment(svg).querySelector('svg');
+
+    /** @type {Element | null | import('../ssr/v-dom.js').MarkupContainerNode} */
+    let element;
+    if (matchContext(window, Modes.Interactive)) {
+      const range = window.document.createRange();
+      element = range.createContextualFragment(svg).querySelector('svg');
+    } else {
+      element = window.document.createMarkupNode(svg);
+    }
 
     if (element) {
       Reflect.set(element, '__attributeCells', new Set());
@@ -43,9 +55,9 @@ export async function InlineSvg(props) {
         setAttributeFromProps(/** @type {any} */ (element), attribute, value);
       }
     }
-    return element ?? globalThis.window.document.createElement('template');
+    return element ?? window.document.createElement('template');
   } catch (error) {
     console.error('Error fetching SVG:', error);
-    return globalThis.window.document.createElement('template');
+    return window.document.createElement('template');
   }
 }

@@ -10,6 +10,8 @@ import { linkNodesToComponent } from '../render/index.js';
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { UpdatableFn } from '../render/index.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as SSR from '../ssr/v-dom.js' */
 
 /**
  * @template T
@@ -59,12 +61,12 @@ import { linkNodesToComponent } from '../render/index.js';
 export function If(value, fnOrObject, elseFn) {
   if (!Cell.isCell(value)) {
     if (typeof fnOrObject === 'function') {
-      let func = getMostCurrentFunction(fnOrObject);
+      const func = getMostCurrentFunction(fnOrObject);
       if (value) {
         return func(value);
       }
       if (elseFn) {
-        let elseFunc = getMostCurrentFunction(elseFn);
+        const elseFunc = getMostCurrentFunction(elseFn);
         return elseFunc();
       }
       return;
@@ -90,7 +92,7 @@ export function If(value, fnOrObject, elseFn) {
 
   /** @param {T} value */
   const callback = (value) => {
-    /** @type {Node[]} */
+    /** @type {(Node | SSR.VNode)[]} */
     let nodes = [];
     let nextNode = rangeStart.nextSibling;
     while (nextNode && nextNode !== rangeEnd) {
@@ -100,11 +102,11 @@ export function If(value, fnOrObject, elseFn) {
 
     if (typeof fnOrObject === 'function') {
       if (value) {
-        let func = getMostCurrentFunction(fnOrObject);
+        const func = getMostCurrentFunction(fnOrObject);
         nodes = generateChildNodes(func(value));
         linkNodesToComponent(nodes, func, value);
       } else if (elseFn) {
-        let elseFunc = getMostCurrentFunction(elseFn);
+        const elseFunc = getMostCurrentFunction(elseFn);
         nodes = generateChildNodes(elseFunc());
         linkNodesToComponent(nodes, elseFunc);
       } else {
@@ -112,11 +114,11 @@ export function If(value, fnOrObject, elseFn) {
       }
     } else if (typeof fnOrObject === 'object') {
       if (value && 'true' in fnOrObject) {
-        let trueFunc = getMostCurrentFunction(fnOrObject.true);
+        const trueFunc = getMostCurrentFunction(fnOrObject.true);
         nodes = generateChildNodes(trueFunc(value));
         linkNodesToComponent(nodes, trueFunc, value);
       } else if (!value && 'false' in fnOrObject) {
-        let falseFunc = getMostCurrentFunction(fnOrObject.false);
+        const falseFunc = getMostCurrentFunction(fnOrObject.false);
         nodes = generateChildNodes(falseFunc());
         linkNodesToComponent(nodes, falseFunc);
       } else {
@@ -127,7 +129,7 @@ export function If(value, fnOrObject, elseFn) {
         'If expects a callback or condition object as the second argument.'
       );
 
-    rangeStart.after(...nodes);
+    rangeStart.after(.../** @type {*} */ (nodes));
     return nodes;
   };
 

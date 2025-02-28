@@ -1,6 +1,7 @@
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
+import { getGlobalContext, matchContext, Modes } from '../library/context.js';
 import { appendChild, setAttributeFromProps } from '../library/jsx.js';
 
 /**
@@ -16,21 +17,22 @@ import { appendChild, setAttributeFromProps } from '../library/jsx.js';
 
 /**
  * Includes a component from the DOM based on a selector.
+ *
+ * @clientOnly
  * @param {IncludeProps} props - The props for the Include component.
  * @returns {JSX.Template} The included component, or null if it could not be found.
  */
 export function Include(props) {
-  if (!globalThis.window) {
-    return null;
-  }
+  const { window } = getGlobalContext();
+  if (matchContext(window, Modes.Static)) return null;
+
   if (!props.from) {
     console.error('Include component requires a "from" prop.');
     return null;
   }
 
-  const component = /** @type {import('../library/jsx.js').JsxElement} */ (
-    globalThis.window.document.querySelector(props.from)
-  );
+  const component = window.document.querySelector(props.from);
+
   if (!component) {
     console.error(
       `Include component could not find component with selector "${props.from}".`

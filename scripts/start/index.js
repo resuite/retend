@@ -398,7 +398,7 @@ router.attachWindowListeners();
 
 const root = window.document.getElementById('app');
 if (root !== null) {
-  render(root, router.Outlet(), window)
+  render(root, router.Outlet())
 }
 `;
 
