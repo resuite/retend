@@ -181,6 +181,10 @@ export class VText extends VNode {
     return this.#textContent;
   }
 
+  set textContent(value) {
+    this.#textContent = value;
+  }
+
   get nodeType() {
     return 3;
   }
