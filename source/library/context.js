@@ -62,7 +62,11 @@ export function isVNode(node) {
  */
 export function setGlobalContext(context) {
   Object.assign(globalContext, context);
-  Reflect.set(document, '__appRenderMode', globalContext.mode);
+  Reflect.set(
+    globalContext.window.document,
+    '__appRenderMode',
+    globalContext.mode
+  );
 }
 
 /**

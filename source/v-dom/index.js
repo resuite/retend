@@ -5,6 +5,7 @@ export class VNode extends EventTarget {
     this.childNodes = [];
     /** @type {VNode | null} */
     this.parentNode = null;
+    this.__isVNode = true;
   }
 
   static ELEMENT_NODE = 1;
@@ -34,8 +35,7 @@ export class VNode extends EventTarget {
 
   /** @returns {string | null} */
   get tagName() {
-    const subClass = this.constructor.name;
-    throw new Error(`tagName() is not implemented for ${subClass}`);
+    return null;
   }
 
   /** @returns {string | null} */
@@ -168,10 +168,15 @@ export class VNode extends EventTarget {
 }
 
 export class VText extends VNode {
+  #textContent;
   /** @param {string} text */
   constructor(text) {
     super();
-    this.textContent = text;
+    this.#textContent = text;
+  }
+
+  get textContent() {
+    return this.#textContent;
   }
 
   get nodeType() {
@@ -358,9 +363,10 @@ export class VDocument extends VNode {
 
   /**
    * @param {string} tagName
-   * @param {string} _ns
+   * @param {string} ns
    */
-  createElementNS(tagName, _ns) {
+  createElementNS(ns, tagName) {
+    ns;
     return new VElement(tagName);
   }
 
