@@ -324,117 +324,14 @@ export function setAttributeFromProps(el, key, value) {
  */
 export function setAttribute(element, key, value) {
   const createdByJsx = true;
+
   // store element event listeners.
   if (
     key.startsWith('on') &&
     key.length > 2 &&
     (!createdByJsx || (createdByJsx && typeof value !== 'string'))
   ) {
-    if (createdByJsx && key[2].toLowerCase() === key[2]) {
-      return;
-    }
-    const rawEventName = /** @type {keyof ElementEventMap} */ (
-      key.slice(2).toLowerCase()
-    );
-    const [eventName, ...modifiers] = rawEventName.split('--');
-    for (const modifier of modifiers) {
-      if (!listenerModifiers.includes(modifier)) {
-        console.warn(`Unknown event listener modifier: ${modifier}`);
-      }
-    }
-
-    if (!element.__eventListenerList) {
-      element.__eventListenerList = new Map();
-    }
-    if (!element.__modifiedListenerList) {
-      element.__modifiedListenerList = new Map();
-    }
-
-    // remove stale listeners
-    if (!modifiers.length) {
-      element.removeEventListener(eventName, value);
-      const oldValue = element.__eventListenerList.get(eventName);
-      if (oldValue !== undefined && oldValue !== value) {
-        element.removeEventListener(eventName, oldValue);
-        element.__eventListenerList.delete(eventName);
-      }
-
-      if (typeof value === 'function') {
-        setTimeout(() => {
-          element.addEventListener(eventName, value);
-          element.__eventListenerList.set(eventName, value);
-        }, 0);
-        return;
-      }
-    } else {
-      const oldValue = element.__modifiedListenerList.get(rawEventName);
-      const oldUserFunction = oldValue?.__getInnerFunction?.();
-      if (
-        oldValue !== undefined &&
-        oldUserFunction &&
-        oldUserFunction !== value
-      ) {
-        element.removeEventListener(eventName, oldUserFunction);
-        element.__modifiedListenerList.delete(rawEventName);
-      }
-
-      if (typeof value === 'function') {
-        /** @type {WrapperFn | undefined} */
-        let wrapper = function (event) {
-          return value.bind(this)(event);
-        };
-        wrapper.__getInnerFunction = function () {
-          this; // only here to silence biome.
-          return value;
-        };
-
-        /** @type {Record<string, unknown>} */
-        const options = {};
-        for (const modifier of modifiers) {
-          const oldWrapper = wrapper;
-          if (modifier === 'self') {
-            wrapper = function (event) {
-              if (event.target !== event.currentTarget) return;
-              oldWrapper.bind(this)(event);
-            };
-          } else if (modifier === 'prevent') {
-            wrapper = function (event) {
-              event.preventDefault();
-              oldWrapper.bind(this)(event);
-            };
-          } else if (modifier === 'once') {
-            options.once = true;
-            wrapper = function (event) {
-              oldWrapper.bind(this)(event);
-              const element = /** @type {JsxElement} */ (event.currentTarget);
-              element?.__modifiedListenerList.delete(rawEventName);
-            };
-          } else if (modifier === 'stop') {
-            wrapper = function (event) {
-              event.stopPropagation();
-              oldWrapper.bind(this)(event);
-              const element = /** @type {JsxElement} */ (event.currentTarget);
-              element.__modifiedListenerList.delete(rawEventName);
-            };
-          } else if (modifier === 'passive') {
-            options.passive = true;
-          }
-
-          wrapper.__getInnerFunction = function () {
-            this; // only here to silence biome.
-            return oldWrapper?.__getInnerFunction?.();
-          };
-        }
-
-        setTimeout(() => {
-          element.addEventListener(eventName, wrapper, options);
-          element.__modifiedListenerList.set(rawEventName, wrapper);
-        }, 0);
-
-        return;
-      }
-    }
-
+    setEventListener(element, key, value);
     return;
   }
 
@@ -521,6 +418,119 @@ export function setAttribute(element, key, value) {
     element.removeAttribute(key);
   } else {
     element.setAttribute(attributeName, value);
+  }
+}
+
+/**
+ * Sets an event Listener on an element.
+ * @param {JsxElement} element - The element to set the attribute on.
+ * @param {string} key - The name of the attribute.
+ * @param {any} value - The value of the attribute.
+ */
+export function setEventListener(element, key, value) {
+  const createdByJsx = true;
+
+  if (createdByJsx && key[2].toLowerCase() === key[2]) {
+    return;
+  }
+  const rawEventName = /** @type {keyof ElementEventMap} */ (
+    key.slice(2).toLowerCase()
+  );
+  const [eventName, ...modifiers] = rawEventName.split('--');
+  for (const modifier of modifiers) {
+    if (!listenerModifiers.includes(modifier)) {
+      console.warn(`Unknown event listener modifier: ${modifier}`);
+    }
+  }
+
+  if (!element.__eventListenerList) {
+    element.__eventListenerList = new Map();
+  }
+  if (!element.__modifiedListenerList) {
+    element.__modifiedListenerList = new Map();
+  }
+
+  // remove stale listeners
+  if (!modifiers.length) {
+    element.removeEventListener(eventName, value);
+    const oldValue = element.__eventListenerList.get(eventName);
+    if (oldValue !== undefined && oldValue !== value) {
+      element.removeEventListener(eventName, oldValue);
+      element.__eventListenerList.delete(eventName);
+    }
+
+    if (typeof value === 'function') {
+      setTimeout(() => {
+        element.addEventListener(eventName, value);
+        element.__eventListenerList.set(eventName, value);
+      }, 0);
+      return;
+    }
+  } else {
+    const oldValue = element.__modifiedListenerList.get(rawEventName);
+    const oldUserFunction = oldValue?.__getInnerFunction?.();
+    if (
+      oldValue !== undefined &&
+      oldUserFunction &&
+      oldUserFunction !== value
+    ) {
+      element.removeEventListener(eventName, oldUserFunction);
+      element.__modifiedListenerList.delete(rawEventName);
+    }
+
+    if (typeof value === 'function') {
+      /** @type {WrapperFn | undefined} */
+      let wrapper = function (event) {
+        return value.bind(this)(event);
+      };
+      wrapper.__getInnerFunction = function () {
+        this; // only here to silence biome.
+        return value;
+      };
+
+      /** @type {Record<string, unknown>} */
+      const options = {};
+      for (const modifier of modifiers) {
+        const oldWrapper = wrapper;
+        if (modifier === 'self') {
+          wrapper = function (event) {
+            if (event.target !== event.currentTarget) return;
+            oldWrapper.bind(this)(event);
+          };
+        } else if (modifier === 'prevent') {
+          wrapper = function (event) {
+            event.preventDefault();
+            oldWrapper.bind(this)(event);
+          };
+        } else if (modifier === 'once') {
+          options.once = true;
+          wrapper = function (event) {
+            oldWrapper.bind(this)(event);
+            const element = /** @type {JsxElement} */ (event.currentTarget);
+            element?.__modifiedListenerList.delete(rawEventName);
+          };
+        } else if (modifier === 'stop') {
+          wrapper = function (event) {
+            event.stopPropagation();
+            oldWrapper.bind(this)(event);
+            const element = /** @type {JsxElement} */ (event.currentTarget);
+            element.__modifiedListenerList.delete(rawEventName);
+          };
+        } else if (modifier === 'passive') {
+          options.passive = true;
+        }
+
+        wrapper.__getInnerFunction = function () {
+          this; // only here to silence biome.
+          return oldWrapper?.__getInnerFunction?.();
+        };
+      }
+
+      setTimeout(() => {
+        element.addEventListener(eventName, wrapper, options);
+        element.__modifiedListenerList.set(rawEventName, wrapper);
+      }, 0);
+    }
   }
 }
 
