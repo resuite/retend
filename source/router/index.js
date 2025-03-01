@@ -1314,8 +1314,8 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
       }
     }
 
-    if ('scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
+    if (this.window && 'scrollRestoration' in this.window.history) {
+      this.window.history.scrollRestoration = 'manual';
     }
 
     this.defineWebComponents();
