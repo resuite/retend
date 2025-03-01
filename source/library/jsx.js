@@ -307,22 +307,23 @@ export function setAttributeFromProps(el, key, value) {
       return;
     }
 
-    addCellListener(element, value, function (value) {
+    addCellListener(el, value, function (value) {
       setAttribute(this, key, value);
     });
   } else {
-    setAttribute(element, key, value);
+    setAttribute(el, key, value);
   }
 }
 
 /**
  * Sets an attribute on an element.
- * @param {JsxElement} element - The element to set the attribute on.
+ * @param {Element | VDom.VElement} el - The element to set the attribute on.
  * @param {string} key - The name of the attribute.
  * @param {any} value - The value of the attribute.
  */
-export function setAttribute(element, key, value) {
+export function setAttribute(el, key, value) {
   const createdByJsx = true;
+  const element = /** @type {JsxElement} */ (el);
 
   // store element event listeners.
   if (
@@ -330,7 +331,7 @@ export function setAttribute(element, key, value) {
     key.length > 2 &&
     (!createdByJsx || (createdByJsx && typeof value !== 'string'))
   ) {
-    setEventListener(element, key, value);
+    setEventListener(el, key, value);
     return;
   }
 
@@ -422,12 +423,13 @@ export function setAttribute(element, key, value) {
 
 /**
  * Sets an event Listener on an element.
- * @param {JsxElement} element - The element to set the attribute on.
+ * @param {Element | VDom.VElement} el - The element to set the attribute on.
  * @param {string} key - The name of the attribute.
  * @param {any} value - The value of the attribute.
  */
-export function setEventListener(element, key, value) {
+export function setEventListener(el, key, value) {
   const createdByJsx = true;
+  const element = /** @type {JsxElement} */ (el);
 
   if (isVNode(element)) {
     // Event listeners are not useful in the VDom,

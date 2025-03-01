@@ -1,5 +1,9 @@
 import { Cell, SourceCell } from '@adbl/cells';
-import { setAttributeFromProps, appendChild } from '../library/jsx.js';
+import {
+  setAttributeFromProps,
+  appendChild,
+  setEventListener,
+} from '../library/jsx.js';
 import {
   generateChildNodes,
   FixedSizeMap,
@@ -381,16 +385,18 @@ export class Router extends EventTarget {
     }
 
     /**
+     * @this {HTMLAnchorElement | VDom.VElement}
      * @param {Event} event
      */
-    const handleNavigate = async (event) => {
-      if (this.isLoading) {
+    const handleNavigate = async function (event) {
+      const router = useRouter();
+      if (router.isLoading) {
         event.preventDefault();
         return;
       }
       // Only navigate if the href is not a valid URL.
       // For valid URLs, the browser will handle the navigation.
-      const href = a.getAttribute('href');
+      const href = this.getAttribute('href');
       if (href && !URL.canParse(href)) {
         const replace = props?.replace;
         event.preventDefault();
@@ -398,19 +404,19 @@ export class Router extends EventTarget {
           detail: { href, replace },
           cancelable: true,
         });
-        a.dispatchEvent(beforeEvent);
+        this.dispatchEvent(beforeEvent);
         if (beforeEvent.defaultPrevented) return;
 
-        await this.navigate(href, { replace });
+        await router.navigate(href, { replace });
 
         const afterEvent = new RouterNavigationEvent('afternavigate', {
           detail: { href, replace },
         });
-        a.dispatchEvent(afterEvent);
+        this.dispatchEvent(afterEvent);
       }
     };
 
-    a.addEventListener('click', handleNavigate);
+    setEventListener(a, 'onClick', handleNavigate);
 
     return a;
   }
@@ -560,7 +566,6 @@ export class Router extends EventTarget {
   }
 
   /**
-   * @private
    * Defines the web components used by the router.
    * This method creates and registers the 'unfinished-router-outlet' and 'unfinished-router-relay' custom elements,
    * and applies a CSS style sheet to set their display property to 'contents'.
