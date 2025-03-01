@@ -292,21 +292,6 @@ export class VElement extends VNode {
   }
 
   /**
-   * @param {string} name
-   * @returns {unknown}
-   */
-  getHiddenAttribute(name) {
-    return this.#hiddenAttributes.get(name);
-  }
-
-  /**
-   * @param {string} name
-   */
-  removeHiddenAttribute(name) {
-    this.#hiddenAttributes.delete(name);
-  }
-
-  /**
    * @param {string} qualifiedName
    * @param {boolean} [force]
    */
@@ -436,6 +421,7 @@ export class VWindow extends EventTarget {
     this.DocumentFragment = VDocumentFragment;
     this.Comment = VComment;
     this.Document = VDocument;
+    this.ShadowRoot = VShadowRoot;
     this.Node = VNode;
     this.MarkupContainerNode = MarkupContainerNode;
     this.sessionStorage = new VSessionStorage();
