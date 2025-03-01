@@ -420,8 +420,18 @@ export async function renderToString(template, window) {
       if (!isVoid || template.childNodes.length > 0) {
         text += '>';
 
+        let precededByTextNode = false;
         for (const child of template.childNodes) {
-          text += await renderToString(child, window);
+          // Insert marker between consecutive text nodes to preserve whitespace
+          // This prevents text node merging during HTML parsing
+          const shouldSplit =
+            precededByTextNode && child.nodeType === window.Node.TEXT_NODE;
+          if (shouldSplit) {
+            text += `<!--@@-->${await renderToString(child, window)}`;
+          } else {
+            text += await renderToString(child, window);
+          }
+          precededByTextNode = child.nodeType === window.Node.TEXT_NODE;
         }
 
         text += `</${tagName}>`;
@@ -447,118 +457,3 @@ export async function renderToString(template, window) {
 
   return '';
 }
-
-/**
- * @typedef RouteRenderResult
- * @property {string} content - The rendered HTML content.
- * @property {string} path - The path rendered.
- * @property {string} title - The title of the rendered page.
- */
-
-// /**
-//  * Renders a route to a string representation.
-//  *
-//  * @param {import('../router/index.js').Router} router - The router instance.
-//  * @param {string} path - The path to navigate to.
-//  * @param {Window & typeof globalThis} window - The window object.
-//  * @returns {Promise<RouteRenderResult>} The rendered HTML string.
-//  */
-// export async function renderRoute(router, path, window) {
-//   router.window = window;
-//   const outlet = router.Outlet();
-
-//   const app = document.createElement('div');
-//   app.id = 'app';
-//   document.body.prepend(app);
-
-//   app.appendChild(outlet);
-//   router.attachWindowListeners();
-
-//   await router.navigate(path);
-
-//   return {
-//     content: await renderToString(app, window),
-//     title: window.document.title,
-//     path: window.location.pathname,
-//   };
-// }
-
-/**
- *
- * @param {Element} app
- * @param {JSX.Template} clientContent
- */
-export async function render(app, clientContent) {
-  const { window } = getGlobalContext();
-  if (matchContext(window, Modes.VDom)) return;
-
-  const nodes = /** @type {Node[]} */ (generateChildNodes(clientContent));
-  if (!app.firstChild) {
-    // If there is no prior content, it simply appends and moves on.
-    app.append(...nodes);
-    return app;
-  }
-
-  const fragment = window.document.createDocumentFragment();
-  fragment.append(...nodes);
-
-  /*** @type {ChildNode | null} */
-  let currentVDomNode = app.firstChild;
-  let currentAppNode = fragment.firstChild;
-
-  const finalFragment = window.document.createDocumentFragment();
-  while (currentVDomNode || currentAppNode) {
-    await mergeNodes(currentVDomNode, currentAppNode, finalFragment, window);
-
-    currentAppNode = currentAppNode?.nextSibling ?? null;
-    currentVDomNode = currentVDomNode?.nextSibling ?? null;
-  }
-
-  app.replaceChildren(finalFragment);
-  return app;
-}
-
-/**
- * @param {Node | null} staticNode
- * @param {Node | null} appNode
- * @param {DocumentFragment} resultFragment;
- * @param {Window & typeof globalThis} window
- */
-async function mergeNodes(staticNode, appNode, resultFragment, window) {
-  if (!staticNode && appNode) {
-    showHydrationWarning({
-      expected: await renderToString(appNode, window),
-      got: null,
-    });
-    resultFragment.appendChild(appNode);
-    return;
-  }
-
-  if (!appNode && staticNode) {
-    showHydrationWarning({
-      expected: null,
-      got: await renderToString(staticNode, window),
-    });
-    resultFragment.appendChild(staticNode);
-    return;
-  }
-
-  if (!appNode || !staticNode) {
-    return;
-  }
-
-  if (appNode.nodeType !== staticNode.nodeType) {
-    showHydrationWarning({
-      expected: await renderToString(appNode, window),
-      got: null,
-    });
-  }
-
-  resultFragment.appendChild(appNode);
-}
-
-/**
- *
- * @param {{expected: string | null, got: string | null}} _options
- */
-function showHydrationWarning(_options) {}
