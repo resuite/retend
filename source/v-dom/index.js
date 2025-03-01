@@ -107,7 +107,7 @@ export class VNode extends EventTarget {
   }
 
   /**
-   * @template [R=VNode]
+   * @template R
    * @param {(node: VNode) => boolean} predicate
    * @returns {R | null}
    */
@@ -125,7 +125,7 @@ export class VNode extends EventTarget {
   }
 
   /**
-   * @template [R=VNode]
+   * @template R
    * @param {(node: VNode) => boolean} predicate
    * @returns {R[]}
    */
@@ -352,6 +352,20 @@ export class VDocument extends VNode {
   /** @param {string} tagName */
   createElement(tagName) {
     return new VElement(tagName);
+  }
+
+  /**
+   * @param {(node: VNode) => boolean} predicate
+   */
+  findNode(predicate) {
+    return this.documentElement.findNode(predicate);
+  }
+
+  /**
+   * @param {(node: VNode) => boolean} predicate
+   */
+  findNodes(predicate) {
+    return this.documentElement.findNodes(predicate);
   }
 
   /**
