@@ -1,5 +1,3 @@
-import { Modes, setGlobalContext } from '../library/context.js';
-
 //@ts-ignore: Deno has issues with import comments
 /** @import { CellSet } from '../library/utils.js' */
 
@@ -595,14 +593,17 @@ export class VLocation {
 }
 
 /**
- * @param {Node} node
- * @param {VNode} outlet
- * @param {string} path
+ * @typedef {Object} HydrationUpgradeEventDetail
+ * @property {Node} newInstance
  */
-export async function hydrate(node, outlet, path) {
-  setGlobalContext({ mode: Modes.VDom, window: new VWindow() });
 
-  console.log('hydrate', node, 'from', outlet, 'at', path);
-
-  setGlobalContext({ mode: Modes.Interactive, window: globalThis.window });
+/**
+ * An event that can be dispatched when a virtual node is upgraded to a real DOM node.
+ * @extends {CustomEvent<HydrationUpgradeEventDetail>}
+ */
+export class HydrationUpgradeEvent extends CustomEvent {
+  /** @param {Node} newInstance */
+  constructor(newInstance) {
+    super('hydrationupgrade', { detail: { newInstance } });
+  }
 }

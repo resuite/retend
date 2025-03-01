@@ -1,17 +1,20 @@
 import { Cell } from '@adbl/cells';
 import {
+  addCellListener,
   ArgumentList,
   createCommentPair,
   generateChildNodes,
   getMostCurrentFunction,
 } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
-import { getGlobalContext } from './context.js';
+import { getGlobalContext, matchContext, Modes } from './context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import {ReactiveCellFunction} from './utils.js' */
 
 /** @typedef {VDom.VNode | ChildNode} ChildNodeLike */
 
@@ -107,23 +110,46 @@ export function For(list, fn, options) {
     return itemKey;
   };
 
+  let isRunningInVDom = matchContext(window, Modes.VDom);
+  /** @param {any[]} nodes */
+  const addHydrationUpgradeListeners = (nodes) => {
+    if (!isRunningInVDom) return;
+    // Allows the hydration process to hook into the caching behavior of
+    // the For function and update the nodes directly in the cached array.
+    /** @param {VDom.HydrationUpgradeEvent} event */
+    const hydrationUpgradeCallback = (event) => {
+      const target = /** @type {VDom.VNode} */ (event.target);
+      const domNode = event.detail.newInstance;
+      nodes.splice(nodes.indexOf(target), 1, domNode);
+    };
+
+    for (const node of nodes) {
+      node.addEventListener('hydrationupgrade', hydrationUpgradeCallback, {
+        once: true,
+      });
+    }
+  };
+
   // First run, prior to any changes.
   let i = 0;
+
   for (const item of list.value) {
     const index = Cell.source(i);
     const parameters = [item, index, list];
     const template = func(...parameters);
     const nodes = /** @type {ChildNodeLike[]} */ (generateChildNodes(template));
     linkNodesToComponent(nodes, func, new ArgumentList(parameters));
+    addHydrationUpgradeListeners(nodes);
     initialSnapshot.push(...nodes);
-
     const itemKey = retrieveOrSetItemKey(item, i);
     cacheFromLastRun.set(itemKey, { index, nodes });
     i++;
   }
 
-  /** @param {any} newList */
-  const reactToListChanges = async (newList) => {
+  /** @type {ReactiveCellFunction<any, ChildNodeLike | VDom.VComment>} */
+  const reactToListChanges = function (newList) {
+    const { window } = getGlobalContext();
+    isRunningInVDom = matchContext(window, Modes.VDom);
     const newCache = new Map();
     /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
     const nodeLookAhead = new Map();
@@ -143,6 +169,7 @@ export function For(list, fn, options) {
         const nodes = /** @type {ChildNodeLike[]} */ (
           generateChildNodes(newTemplate)
         );
+        addHydrationUpgradeListeners(nodes);
         linkNodesToComponent(nodes, func, new ArgumentList(parameters));
         newCache.set(itemKey, { nodes, index: i });
         firstNode = nodes[0];
@@ -184,7 +211,7 @@ export function For(list, fn, options) {
     }
 
     /** @type {ChildNodeLike | VDom.VComment} */
-    let lastInserted = listStart;
+    let lastInserted = this;
 
     // Reordering and Inserting New Nodes:
     //
@@ -267,13 +294,6 @@ export function For(list, fn, options) {
     cacheFromLastRun = newCache;
   };
 
-  // Track next changes
-  list.listen(reactToListChanges, { weak: true, priority: 0 });
-
-  // Prevents premature garbage collection.
-  const persistedSet = new Set();
-  persistedSet.add(list);
-  persistedSet.add(reactToListChanges);
-  Reflect.set(listStart, '__attributeCells', persistedSet);
+  addCellListener(listStart, list, reactToListChanges, false);
   return [listStart, ...initialSnapshot, listEnd];
 }
