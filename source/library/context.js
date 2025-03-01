@@ -49,8 +49,9 @@ export function matchContext(window, mode) {
 }
 
 /**
- * @param {InstanceType<WindowLike['Node']>} node
- * @returns {node is VDom.VNode}
+ * @template [M=VDom.VNode]
+ * @param {M} node
+ * @returns {node is M extends VDom.VNode ? M : never}
  */
 export function isVNode(node) {
   // @ts-ignore
