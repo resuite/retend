@@ -87,7 +87,10 @@ export class FixedSizeMap extends Map {
  * @template T
  * @template {Node | VDom.VNode} [This=Node]
  * @template [R=void]
- * @typedef {((this: This, argument: T) => R) & { relatedCell?: Cell<T> }} ReactiveCellFunction
+ * @typedef {((this: This, argument: T) => R) & {
+ *    relatedCell?: Cell<T>,
+ *    originalFunction?: ReactiveCellFunction<T, This>
+ * }} ReactiveCellFunction
  */
 
 /**
@@ -112,6 +115,11 @@ export function addCellListener(
   /** @type {ReactiveCellFunction<T, This>} */
   const boundCallback = callback.bind(element);
   Reflect.set(boundCallback, 'relatedCell', cell);
+  // The original function has to be stored because (and I just found this out)
+  // Calling .bind() on a function that is already bound leads to unintuitive
+  // behavior. Functions that are already bound to VNodes cannot be rebound to
+  // DOM elements.
+  Reflect.set(boundCallback, 'originalFunction', callback);
 
   if (runImmediately) {
     cell.runAndListen(boundCallback, { weak: true });
