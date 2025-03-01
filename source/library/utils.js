@@ -114,9 +114,9 @@ export function addCellListener(
   Reflect.set(boundCallback, 'relatedCell', cell);
 
   if (runImmediately) {
-    cell.runAndListen(callback, { weak: true });
+    cell.runAndListen(boundCallback, { weak: true });
   } else {
-    cell.listen(callback, { weak: true });
+    cell.listen(boundCallback, { weak: true });
   }
 
   if (!('__attributeCells' in element)) {
