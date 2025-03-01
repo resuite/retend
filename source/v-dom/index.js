@@ -1,7 +1,7 @@
 import { Modes, setGlobalContext } from '../library/context.js';
 
 //@ts-ignore: Deno has issues with import comments
-import { CellSet } from '../library/utils.js';
+/** @import { CellSet } from '../library/utils.js' */
 
 export class VNode extends EventTarget {
   constructor() {
