@@ -129,9 +129,7 @@ export function h(tagname, props) {
         : [children]
       : [];
     for (const child of childList) {
-      fragment.appendChild(
-        /** @type {*} */ (normalizeJsxChild(child, fragment))
-      );
+      fragment.append(/** @type {*} */ (normalizeJsxChild(child, fragment)));
     }
     return fragment;
   }
@@ -225,7 +223,7 @@ export function appendChild(parentNode, tagname, child) {
     (matchContext(window, Modes.VDom) ||
       window.customElements.get(childNode.tagName.toLowerCase()))
   ) {
-    parentNode.appendChild(/** @type {*} */ (childNode));
+    parentNode.append(/** @type {*} */ (childNode));
     return;
   }
 
@@ -256,7 +254,7 @@ export function appendChild(parentNode, tagname, child) {
     return;
   }
 
-  parentNode.appendChild(/** @type {*} */ (childNode));
+  parentNode.append(/** @type {*} */ (childNode));
 }
 
 /**
@@ -559,7 +557,7 @@ export function normalizeJsxChild(child, _parent) {
 
     for (const element of child) {
       const childNodes = normalizeJsxChild(element, fragment);
-      fragment.appendChild(/** @type {*} */ (childNodes));
+      fragment.append(/** @type {*} */ (childNodes));
     }
 
     return fragment;

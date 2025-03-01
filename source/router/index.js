@@ -1437,7 +1437,7 @@ function emptyRoute(path, window) {
   console.warn(`Route not found: ${path}`);
   const node = window.document.createDocumentFragment();
   const text = window.document.createTextNode(`Route not found: ${path}`);
-  node.appendChild(/** @type {*} */ (text));
+  node.append(/** @type {*} */ (text));
   return /** @type {DocumentFragment & VDom.VDocumentFragment} */ (node);
 }
 

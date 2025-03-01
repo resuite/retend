@@ -74,5 +74,5 @@ export function setGlobalContext(context) {
  * @returns {Environments}
  */
 export function getGlobalContext() {
-  return { ...globalContext };
+  return globalContext;
 }

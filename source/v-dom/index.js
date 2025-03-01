@@ -28,14 +28,6 @@ export class VNode extends EventTarget {
     return 1;
   }
 
-  get lastChild() {
-    return this.childNodes[this.childNodes.length - 1] ?? null;
-  }
-
-  get firstChild() {
-    return this.childNodes[0] ?? null;
-  }
-
   /** @returns {string | null} */
   get tagName() {
     return null;
@@ -54,30 +46,6 @@ export class VNode extends EventTarget {
         this.parentNode.childNodes.indexOf(this) + 1
       ] ?? null
     );
-  }
-
-  /** @returns {VNode | null} */
-  get previousSibling() {
-    return (
-      this.parentNode?.childNodes[
-        this.parentNode.childNodes.indexOf(this) - 1
-      ] ?? null
-    );
-  }
-
-  /** @param {(string | VNode)[]} nodes */
-  before(...nodes) {
-    if (!this.parentNode) return;
-
-    const newNodes = nodes.map((n) => (n instanceof VNode ? n : new VText(n)));
-    this.parentNode.childNodes.splice(
-      this.parentNode.childNodes.indexOf(this),
-      0,
-      ...newNodes
-    );
-    for (const node of newNodes) {
-      node.parentNode = this.parentNode;
-    }
   }
 
   /** @param {(string | VNode)[]} nodes */
@@ -124,29 +92,32 @@ export class VNode extends EventTarget {
     }
   }
 
-  /** @param {VNode} child */
-  appendChild(child) {
-    child.parentNode = this;
-    this.childNodes.push(child);
-  }
-
   /** @param {(string | VNode)[]} children */
   append(...children) {
     for (const child of children) {
-      if (child instanceof VNode) this.appendChild(child);
-      else this.appendChild(new VText(child));
+      if (child instanceof VNode) {
+        child.parentNode = this;
+        this.childNodes.push(child);
+      } else {
+        const text = new VText(child);
+        text.parentNode = this;
+        this.childNodes.push(text);
+      }
     }
   }
 
   /**
+   * @template [R=VNode]
    * @param {(node: VNode) => boolean} predicate
-   * @returns {VNode | null}
+   * @returns {R | null}
    */
   findNode(predicate) {
+    // @ts-ignore: The predicate function is generic.
     if (predicate(this)) return this;
 
     for (const child of this.childNodes) {
       const found = child.findNode(predicate);
+      // @ts-ignore: The predicate function is generic.
       if (found) return found;
     }
 
@@ -154,8 +125,9 @@ export class VNode extends EventTarget {
   }
 
   /**
+   * @template [R=VNode]
    * @param {(node: VNode) => boolean} predicate
-   * @returns {VNode[]}
+   * @returns {R[]}
    */
   findNodes(predicate) {
     const nodes = [];
@@ -166,6 +138,7 @@ export class VNode extends EventTarget {
       nodes.push(...found);
     }
 
+    // @ts-ignore: The predicate function is generic.
     return nodes;
   }
 
@@ -278,11 +251,6 @@ export class VElement extends VNode {
     this.#attributes.delete(name);
   }
 
-  /** @param {string} name */
-  hasAttribute(name) {
-    return this.#attributes.has(name);
-  }
-
   /**
    * @param {string} name
    * @param {unknown} value
@@ -297,7 +265,8 @@ export class VElement extends VNode {
    */
   toggleAttribute(qualifiedName, force) {
     const shouldSetAttribute =
-      (force !== undefined && force) || !this.hasAttribute(qualifiedName);
+      (force !== undefined && force) ||
+      this.getAttribute(qualifiedName) === null;
     if (shouldSetAttribute) {
       this.setAttribute(qualifiedName, '');
     } else {
@@ -372,10 +341,7 @@ export class VDocument extends VNode {
     this.documentElement = new VElement('html');
     this.head = new VElement('head');
     this.body = new VElement('body');
-    this.documentElement.appendChild(this.head);
-    this.documentElement.appendChild(this.body);
-    this.appendChild(this.head);
-    this.appendChild(this.body);
+    this.documentElement.append(this.head, this.body);
   }
 
   /** @param {string} text */
@@ -390,10 +356,9 @@ export class VDocument extends VNode {
 
   /**
    * @param {string} tagName
-   * @param {string} ns
+   * @param {string} _ns
    */
-  createElementNS(ns, tagName) {
-    ns;
+  createElementNS(_ns, tagName) {
     return new VElement(tagName);
   }
 

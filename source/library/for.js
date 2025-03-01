@@ -281,7 +281,9 @@ export function For(list, fn, options) {
         onBeforeNodesMove?.(nodes);
         lastInserted.after(.../** @type {*} */ (nodes));
       } else {
-        const newPtr = /** @type {ChildNodeLike} */ (batchAdd.lastChild);
+        const newPtr = /** @type {ChildNodeLike} */ (
+          batchAdd.childNodes[batchAdd.childNodes.length - 1]
+        );
         lastInserted.after(batchAddLike);
         onBeforeNodesMove?.(nodes);
         newPtr.after(.../** @type {*} */ (nodes));
