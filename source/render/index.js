@@ -342,11 +342,18 @@ const voidElements = new Set([
 const SPLIT_TEXT_MARKER = '<!--@@-->';
 
 /**
+ * @typedef {Object} RenderToStringOptions
+ * @property {boolean} [markStaticNodes]
+ * Whether to mark static elements with the [data-x-static] attribute.
+ */
+
+/**
  * Renders a JSX template to a string.
  *
  *
  * @param {JSX.Template} template - The JSX template to render.
  * @param {Context.WindowLike} window - The window object.
+ * @param {RenderToStringOptions} [options] - Options for rendering the template.
  * @returns {Promise<string>} A promise that resolves to the rendered string.
  *
  * @description
@@ -359,12 +366,8 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  * const renderedString = await renderToString(jsxTemplate);
  * console.log(renderedString); // Outputs: <div>Hello, world!</div>
  */
-export async function renderToString(template, window) {
-  if (
-    typeof template === 'string' ||
-    typeof template === 'number' ||
-    typeof template === 'boolean'
-  ) {
+export async function renderToString(template, window, options = {}) {
+  if (/string|number|boolean/.test(typeof template)) {
     return String(template);
   }
 
@@ -427,6 +430,10 @@ export async function renderToString(template, window) {
         text += ` ${attribute.name}="${attribute.value}"`;
       }
 
+      if (options.markStaticNodes && nodeIsStatic(template, window)) {
+        text += ' data-x-static';
+      }
+
       const isVoid = voidElements.has(template.tagName);
       if (!isVoid || template.childNodes.length > 0 || template.shadowRoot) {
         text += '>';
@@ -474,4 +481,34 @@ export async function renderToString(template, window) {
   }
 
   return '';
+}
+
+/**
+ * Checks if a node has no reactivity attached so it can be marked as static.
+ * Static node can be safely skipped during hydration.
+ * @param {Context.NodeLike & {
+ *  __isHydrationUpgradable?: boolean,
+ *  __ref?: any,
+ *  __attributeCells?: Map<string, any>,
+ *  hiddenAttributes?: Map<string, any>
+ *  __commentRangeSymbol?: any
+ * }} node
+ * @param {Context.WindowLike} window
+ */
+function nodeIsStatic(node, window) {
+  if (
+    node instanceof window.Element &&
+    node.getAttribute('data-x-static') !== null
+  ) {
+    return true;
+  }
+
+  if (node.__ref) return false;
+  if (node.hiddenAttributes?.size) return false;
+  for (const child of node.childNodes) {
+    if (!nodeIsStatic(child, window)) return false;
+  }
+  if (node.__commentRangeSymbol) return false;
+  if (node.__attributeCells?.size) return false;
+  return true;
 }

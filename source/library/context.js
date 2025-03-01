@@ -24,6 +24,7 @@ export const Modes = {
 /** @typedef {Environments['window']} WindowLike */
 /** @typedef {InstanceType<Environments['window']['HTMLElement']>} HTMLElementLike */
 /** @typedef {Node & VDom.VNode} AsNode */
+/** @typedef {Node | VDom.VNode} NodeLike */
 
 /** @type {Environments} */
 const globalContext = {
