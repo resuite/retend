@@ -84,6 +84,54 @@ export class FixedSizeMap extends Map {
 }
 
 /**
+ * @template T
+ * @template {Node | VDom.VNode} [This=Node]
+ * @template [R=void]
+ * @typedef {((this: This, argument: T) => R) & { relatedCell?: Cell<T> }} ReactiveCellFunction
+ */
+
+/**
+ * @template {Node | VDom.VNode} [This=Node]
+ * @typedef {Set<Cell<*> | ReactiveCellFunction<*, This>>} CellSet
+ */
+
+/**
+ * @template T
+ * @template {Node | VDom.VNode} [This=Node]
+ * @param {This} element
+ * @param {Cell<T>} cell
+ * @param {ReactiveCellFunction<T, This>} callback
+ * @param {boolean} [runImmediately]
+ */
+export function addCellListener(
+  element,
+  cell,
+  callback,
+  runImmediately = true
+) {
+  /** @type {ReactiveCellFunction<T, This>} */
+  const boundCallback = callback.bind(element);
+  Reflect.set(boundCallback, 'relatedCell', cell);
+
+  if (runImmediately) {
+    cell.runAndListen(callback, { weak: true });
+  } else {
+    cell.listen(callback, { weak: true });
+  }
+
+  if (!('__attributeCells' in element)) {
+    Reflect.set(element, '__attributeCells', new Set());
+  }
+
+  const storage = /** @type {CellSet<This>} */ (
+    Reflect.get(element, '__attributeCells')
+  );
+  // Persist to prevent garbage collection.
+  storage.add(boundCallback);
+  storage.add(cell);
+}
+
+/**
  * Converts an object of styles to a CSS stylesheet string.
  *
  * @param {Partial<CSSStyleDeclaration>} styles - An object where the keys are CSS property names and the values are CSS property values.
@@ -95,33 +143,32 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
   return `${useHost ? ':host{' : ''}${Object.entries(styles)
     .map(([key, value]) => {
       if (Cell.isCell(/** @type any */ (value)) && element) {
-        /** @param {any} innerValue */
-        const callback = (innerValue) => {
-          const stylePropertyKey = key.startsWith('--')
-            ? key
-            : toKebabCase(key);
-
-          if (!isSomewhatFalsy(innerValue)) {
-            element.style.setProperty(stylePropertyKey, innerValue);
-          } else {
-            element.style.removeProperty(stylePropertyKey);
-          }
-        };
-
-        if (!Reflect.has(element, '__attributeCells')) {
-          Reflect.set(element, '__attributeCells', new Set());
-        }
-        element.__attributeCells.add(callback);
-        element.__attributeCells.add(value);
-
-        value.listen(callback, { weak: true });
+        addCellListener(
+          element,
+          value,
+          function (newValue) {
+            const styleKey = normalizeStyleKey(key);
+            if (!isSomewhatFalsy(newValue)) {
+              this.style.setProperty(styleKey, newValue);
+            } else {
+              this.style.removeProperty(styleKey);
+            }
+          },
+          false
+        );
       }
       if (isSomewhatFalsy(value)) return '';
-      return `${
-        key.startsWith('--') ? key : toKebabCase(key)
-      }: ${value.valueOf()}`;
+      return `${normalizeStyleKey(key)}: ${value.valueOf()}`;
     })
     .join('; ')}${useHost ? '}' : ''}`;
+}
+
+/**
+ * @param {string} key
+ * @returns {string}
+ */
+function normalizeStyleKey(key) {
+  return key.startsWith('--') ? key : toKebabCase(key);
 }
 
 /**
@@ -222,9 +269,11 @@ export function getMostCurrentFunction(fn) {
   return currentFn;
 }
 
+/** @typedef {(VDom.VComment | Comment) & { __commentRangeSymbol?: symbol }} ConnectedComment */
+
 /**
  * Creates a pair of connected comment nodes that can be used to represent a range.
- * @returns {[Comment | VDom.VComment, Comment | VDom.VComment]} A pair of connected comment nodes with a shared symbol.
+ * @returns {[ConnectedComment, ConnectedComment]} A pair of connected comment nodes with a shared symbol.
  */
 export function createCommentPair() {
   const { window } = getGlobalContext();

@@ -1,5 +1,6 @@
 import { Cell } from '@adbl/cells';
 import {
+  addCellListener,
   createCommentPair,
   generateChildNodes,
   getMostCurrentFunction,
@@ -12,6 +13,8 @@ import { linkNodesToComponent } from '../render/index.js';
 /** @import { UpdatableFn } from '../render/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import {ReactiveCellFunction} from './utils.js' */
 
 /**
  * @template T
@@ -90,14 +93,20 @@ export function If(value, fnOrObject, elseFn) {
 
   const [rangeStart, rangeEnd] = createCommentPair();
 
-  /** @param {T} value */
-  const callback = (value) => {
+  /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
+  const callback = function (value) {
     /** @type {(Node | VDom.VNode)[]} */
     let nodes = [];
-    let nextNode = rangeStart.nextSibling;
-    while (nextNode && nextNode !== rangeEnd) {
+    let nextNode = this.nextSibling;
+    while (
+      nextNode &&
+      !(
+        '__commentRangeSymbol' in nextNode &&
+        nextNode.__commentRangeSymbol === this.__commentRangeSymbol
+      )
+    ) {
       nextNode.remove();
-      nextNode = rangeStart.nextSibling;
+      nextNode = this.nextSibling;
     }
 
     if (typeof fnOrObject === 'function') {
@@ -129,18 +138,12 @@ export function If(value, fnOrObject, elseFn) {
         'If expects a callback or condition object as the second argument.'
       );
 
-    rangeStart.after(.../** @type {*} */ (nodes));
+    this.after(.../** @type {*} */ (nodes));
     return nodes;
   };
 
-  // Prevents premature garbage collection.
-  const persistedSet = new Set();
-  persistedSet.add(value);
-  persistedSet.add(callback);
-  Reflect.set(rangeStart, '__attributeCells', persistedSet);
-
   // see comment in switch.js
-  const firstRun = callback(value.value);
-  value.listen(callback, { weak: true });
+  const firstRun = callback.bind(rangeStart)(value.value);
+  addCellListener(rangeStart, value, callback, false);
   return [rangeStart, ...firstRun, rangeEnd];
 }

@@ -4,6 +4,7 @@ import {
   generateChildNodes,
   FixedSizeMap,
   getMostCurrentFunction,
+  addCellListener,
 } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
@@ -26,6 +27,8 @@ const RELAY_ID_REGEX =
 /** @import * as VDom from '../v-dom/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as Context from '../library/context.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import {ReactiveCellFunction} from '../library/utils.js' */
 
 /**
  * @typedef {LazyRoute | ((() => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader
@@ -361,16 +364,13 @@ export class Router extends EventTarget {
     if (props && 'active' in props) {
       console.error('active attribute is reserved for router.');
     }
-    /** @type {(route: ReturnType<typeof this.getCurrentRoute>['value']) => void} */
-    const callback = ({ fullPath }) => {
-      const href = a.getAttribute('href');
+    /** @type {ReactiveCellFunction<typeof this.currentPath['value'], HTMLElement | VDom.VElement>} */
+    const callback = function ({ fullPath }) {
+      const href = this.getAttribute('href');
       const isActive = Boolean(fullPath && href && fullPath.startsWith(href));
-      a.toggleAttribute('active', isActive);
+      this.toggleAttribute('active', isActive);
     };
-    this.currentPath.runAndListen(callback, { weak: true });
-    // Store the callback to prevent it from being garbage collected.
-    // @ts-ignore
-    a.__routeChangedCallback = callback;
+    addCellListener(a, this.currentPath, callback);
 
     if (props) {
       const { children, replace, ...rest } = props;

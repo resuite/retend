@@ -1,5 +1,8 @@
 import { Modes, setGlobalContext } from '../library/context.js';
 
+//@ts-ignore: Deno has issues with import comments
+import { CellSet } from '../library/utils.js';
+
 export class VNode extends EventTarget {
   constructor() {
     super();
@@ -166,6 +169,11 @@ export class VNode extends EventTarget {
     }
 
     return nodes;
+  }
+
+  getRelatedCellData() {
+    const set = Reflect.get(this, '__attributeCells');
+    return /** @type {CellSet | undefined} */ (set);
   }
 }
 

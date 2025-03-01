@@ -1,5 +1,6 @@
 import { Cell, SourceCell } from '@adbl/cells';
 import {
+  addCellListener,
   convertObjectToCssStylesheet,
   generateChildNodes,
   getMostCurrentFunction,
@@ -10,6 +11,8 @@ import { getGlobalContext, isVNode, matchContext, Modes } from './context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { CellSet } from './utils.js' */
 
 const camelCasedAttributes = new Set([
   // SVG attributes
@@ -261,8 +264,8 @@ export function appendChild(parentNode, tagname, child) {
  * @property {Map<string, (event: Event) => void>} __eventListenerList
  * List of event listeners set as attributes on the element.
  * @property {Map<string, WrapperFn>} __modifiedListenerList
- * @property {Set<object | ((value: any) => void)>} __attributeCells
- * List of cell callbacks set as attributes on the element.
+ * @property {CellSet} __attributeCells
+ * List of cell callbacks sets on the element.
  * @property {boolean} __createdByJsx
  * Whether or not the element was created using JSX syntax.
  * @property {string | boolean | number | undefined} __key
@@ -304,13 +307,9 @@ export function setAttributeFromProps(el, key, value) {
       return;
     }
 
-    /** @param {any} value */
-    const callback = (value) => {
-      setAttribute(element, key, value);
-    };
-    value.runAndListen(callback, { weak: true });
-    element.__attributeCells.add(callback);
-    element.__attributeCells.add(value);
+    addCellListener(element, value, function (value) {
+      setAttribute(this, key, value);
+    });
   } else {
     setAttribute(element, key, value);
   }
@@ -571,22 +570,10 @@ export function normalizeJsxChild(child, _parent) {
   // @ts-ignore: There is an error with the @adbl/cells library. Booleans should be allowed here.
   if (Cell.isCell(child)) {
     const textNode = window.document.createTextNode('');
-    /** @param {any} value */
-    const callback = (value) => {
-      textNode.textContent = value;
-    };
-    child.runAndListen(callback, { weak: true });
+    addCellListener(textNode, child, function (value) {
+      this.textContent = String(value);
+    });
 
-    // Persists the references to the value and the callback so they don't get garbage collected.
-    if (!Reflect.has(textNode, '__attributeCells')) {
-      Reflect.set(textNode, '__attributeCells', new Set());
-    }
-    const cells = Reflect.get(textNode, '__attributeCells');
-
-    if (cells) {
-      cells.add(callback);
-      cells.add(child);
-    }
     return textNode;
   }
 
@@ -623,58 +610,44 @@ export function normalizeClassValue(val, element) {
 
   if (Cell.isCell(val)) {
     let currentClassToken = val.value;
-    /** @type {(newValue: string) => void} */
-    const callback = (newValue) => {
-      try {
-        element.classList.remove(...currentClassToken.split(' '));
-      } catch {}
-      try {
-        element.classList.add(...newValue.split(' '));
-      } catch {}
-      currentClassToken = newValue;
-    };
-
-    val.listen(callback, { weak: true });
-    if (!element.__attributeCells) {
-      element.__attributeCells = new Set();
-    }
-    element.__attributeCells.add(val);
-    element.__attributeCells.add(callback);
+    addCellListener(
+      element,
+      val,
+      function (newValue) {
+        try {
+          this.classList.remove(...currentClassToken.split(' '));
+          this.classList.add(...newValue.split(' '));
+        } catch {}
+        currentClassToken = newValue;
+      },
+      false
+    );
     return currentClassToken;
   }
 
   if (typeof val === 'object' && val !== null) {
     let result = '';
     for (const [key, value] of Object.entries(val)) {
-      if (Cell.isCell(value)) {
-        /** @type {(newValue: boolean) => void} */
-        const callback = (newValue) => {
-          if (newValue) {
-            try {
-              element.classList.add(...key.split(' '));
-            } catch {}
-          } else {
-            try {
-              element.classList.remove(...key.split(' '));
-            } catch {}
-          }
-        };
-
-        value.listen(callback, { weak: true });
-        if (!element.__attributeCells) {
-          element.__attributeCells = new Set();
-        }
-        element.__attributeCells.add(value);
-        element.__attributeCells.add(callback);
-        if (value.value) {
-          result += ` ${key}`;
-        }
+      if (!Cell.isCell(value)) {
+        if (value) result += ` ${key}`;
         continue;
       }
 
-      if (!value) {
-        result += ` ${key}`;
-      }
+      addCellListener(
+        element,
+        value,
+        function (newValue) {
+          try {
+            if (newValue) {
+              this.classList.add(...key.split(' '));
+            } else {
+              this.classList.remove(...key.split(' '));
+            }
+          } catch {}
+        },
+        false
+      );
+      if (value.value) result += ` ${key}`;
     }
     return result;
   }
