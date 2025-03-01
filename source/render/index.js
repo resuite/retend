@@ -339,6 +339,8 @@ const voidElements = new Set([
   'WBR',
 ]);
 
+const SPLIT_TEXT_MARKER = '<!--@@-->';
+
 /**
  * Renders a JSX template to a string.
  *
@@ -427,7 +429,10 @@ export async function renderToString(template, window) {
           const shouldSplit =
             precededByTextNode && child.nodeType === window.Node.TEXT_NODE;
           if (shouldSplit) {
-            text += `<!--@@-->${await renderToString(child, window)}`;
+            text += `${SPLIT_TEXT_MARKER}${await renderToString(
+              child,
+              window
+            )}`;
           } else {
             text += await renderToString(child, window);
           }
