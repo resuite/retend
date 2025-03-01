@@ -217,6 +217,8 @@ export class VDomTokenList {
 export class VElement extends VNode {
   /** @type {Map<string, string>} */
   #attributes;
+  /** @type {Map<string, any>} */
+  #hiddenAttributes;
 
   /** @param {string} tagName */
   constructor(tagName) {
@@ -226,6 +228,7 @@ export class VElement extends VNode {
     this.shadowRoot = null;
     this.tag = tagName;
     this.#attributes = new Map();
+    this.#hiddenAttributes = new Map();
     this.classList = new VDomTokenList(this);
     this.scrollLeft = 0;
     this.scrollTop = 0;
@@ -240,6 +243,10 @@ export class VElement extends VNode {
       name: key,
       value,
     }));
+  }
+
+  get hiddenAttributes() {
+    return this.#hiddenAttributes;
   }
 
   /** @param {string} html */
@@ -268,6 +275,29 @@ export class VElement extends VNode {
   /** @param {string} name */
   hasAttribute(name) {
     return this.#attributes.has(name);
+  }
+
+  /**
+   * @param {string} name
+   * @param {unknown} value
+   */
+  setHiddenAttribute(name, value) {
+    this.#hiddenAttributes.set(name, value);
+  }
+
+  /**
+   * @param {string} name
+   * @returns {unknown}
+   */
+  getHiddenAttribute(name) {
+    return this.#hiddenAttributes.get(name);
+  }
+
+  /**
+   * @param {string} name
+   */
+  removeHiddenAttribute(name) {
+    this.#hiddenAttributes.delete(name);
   }
 
   /**

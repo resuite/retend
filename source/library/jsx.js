@@ -6,7 +6,7 @@ import {
   isSomewhatFalsy,
 } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
-import { getGlobalContext, matchContext, Modes } from './context.js';
+import { getGlobalContext, isVNode, matchContext, Modes } from './context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
@@ -429,6 +429,14 @@ export function setAttribute(element, key, value) {
  */
 export function setEventListener(element, key, value) {
   const createdByJsx = true;
+
+  if (isVNode(element)) {
+    // Event listeners are not useful in the VDom,
+    // but they need to be stored so they can be propagated to the
+    // static DOM representation in the browser.
+    element.setHiddenAttribute(key, value);
+    return;
+  }
 
   if (createdByJsx && key[2].toLowerCase() === key[2]) {
     return;
