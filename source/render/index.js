@@ -409,6 +409,15 @@ export async function renderToString(template, window) {
       return `<!--${template.textContent}-->`;
     }
 
+    if (template instanceof window.ShadowRoot) {
+      let text = `<template shadowrootmode="${template.mode}">`;
+      for (const child of template.childNodes) {
+        text += await renderToString(child, window);
+      }
+      text += '</template>';
+      return text;
+    }
+
     if (template instanceof window.Element) {
       const tagName = template.tagName.toLowerCase();
 
@@ -419,8 +428,12 @@ export async function renderToString(template, window) {
       }
 
       const isVoid = voidElements.has(template.tagName);
-      if (!isVoid || template.childNodes.length > 0) {
+      if (!isVoid || template.childNodes.length > 0 || template.shadowRoot) {
         text += '>';
+
+        if (template.shadowRoot) {
+          text += await renderToString(template.shadowRoot, window);
+        }
 
         let precededByTextNode = false;
         for (const child of template.childNodes) {
