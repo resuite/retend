@@ -2,19 +2,34 @@ import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
 import { appendChild, setAttributeFromProps } from '../library/jsx.js';
 import { generateChildNodes } from '../library/utils.js';
-import { getGlobalContext, matchContext, Modes } from '../library/context.js';
+import {
+  getGlobalContext,
+  isVNode,
+  matchContext,
+  Modes,
+} from '../library/context.js';
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import * as VDom from '../v-dom/index.js' */
 
 /**
  * @typedef TeleportOnlyProps
  *
- * The parent element to teleport to, or a selector for the parent element.
- * @property {string | Element} to
+ * @property {string | Element | VDom.VElement} to
+ * The parent element to teleport to, or a string for matching the target element.
+ * ## Note about selector matching.
  *
- * Data to be passed to the component.
+ * Teleportation only works with two types of CSS selectors:
+ * - `#id` for matching an element by its ID.
+ * - `tag` for matching an element by its tag name.
+ *
+ * Other selectors, such as `.class` or `[attribute=value]`, will lead to an unmatched
+ * target.
+ *
  * @property {JSX.Template} [children]
+ * Data to be passed to the component.
  */
 
 /**
@@ -44,27 +59,19 @@ export function Teleport(props) {
   const observer = useObserver();
   const { window } = getGlobalContext();
 
-  if (matchContext(window, Modes.VDom)) {
-    const anchorNode = window.document.createComment('teleport-anchor');
-    return anchorNode;
-  }
-
-  const anchorNode = window.document.createComment('teleport-anchor');
-  observer.onConnected(Cell.source(anchorNode), () => {
-    const parent =
-      target instanceof Element ? target : document.querySelector(target);
+  const mountTeleportedNodes = () => {
+    const { window } = getGlobalContext();
+    const parent = findDomTarget(target, window.document);
     if (!parent) {
       console.error(
-        'Could not find teleport target for bottom drawer. ',
+        'Could not find teleport target',
         target,
-        'is not a matched selector in the DOM.'
+        ' is not a matched id or tagname in the DOM.'
       );
       return;
     }
-    const staleInstance = parent.querySelector(
-      `unfinished-teleport[data-teleport-id='${teleportId}']`
-    );
-    const newInstance = document.createElement('unfinished-teleport');
+    const staleInstance = findStaleTeleport(parent, teleportId);
+    const newInstance = window.document.createElement('unfinished-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
 
     for (const [key, value] of Object.entries(rest)) {
@@ -76,11 +83,88 @@ export function Teleport(props) {
       appendChild(newInstance, newInstance.tagName.toLowerCase(), child);
     }
 
-    if (staleInstance) staleInstance.replaceWith(newInstance);
-    else parent.append(newInstance);
+    if (staleInstance)
+      staleInstance.replaceWith(/** @type {*} */ (newInstance));
+    else parent.append(/** @type {*} */ (newInstance));
 
     return () => newInstance.remove();
-  });
+  };
+
+  if (matchContext(window, Modes.VDom)) {
+    const anchorNode = window.document.createComment('teleport-anchor');
+    window.document.addEventListener('teleportallowed', mountTeleportedNodes, {
+      once: true,
+    });
+    return anchorNode;
+  }
+
+  const anchorNode = window.document.createComment('teleport-anchor');
+  observer.onConnected(Cell.source(anchorNode), mountTeleportedNodes);
 
   return anchorNode;
+}
+
+/**
+ * Finds the target element for teleportation.
+ * @param {string | Element | VDom.VElement} target
+ * @param {Document | VDom.VDocument} document
+ * @returns {Element | VDom.VElement | null | undefined}
+ */
+function findDomTarget(target, document) {
+  if (typeof target !== 'string') {
+    return target;
+  }
+
+  const isIdSelector = target.startsWith('#');
+
+  if (isVNode(document)) {
+    if (isIdSelector) {
+      const id = target.slice(1);
+      return document.findNode((node) => {
+        if (node.nodeType !== 1) return false;
+        const element = /** @type {VDom.VElement} */ (node);
+        return element.getAttribute('id') === id;
+      });
+    }
+
+    return document.findNode((node) => {
+      if (node.nodeType !== 1) return false;
+      const element = /** @type {VDom.VElement} */ (node);
+      return element.tagName.toLowerCase() === target.toLowerCase();
+    });
+  }
+
+  if (typeof target === 'string') {
+    if (isIdSelector) {
+      const id = target.slice(1);
+      return document.getElementById(id);
+    }
+
+    return document.getElementsByTagName(target)[0];
+  }
+
+  return target;
+}
+
+/**
+ * Finds the last rendered teleport instance with a matching teleportId.
+ * @param {Element | VDom.VElement} parent
+ * @param {string} teleportId
+ * @returns {Element | VDom.VElement | null | undefined}
+ */
+function findStaleTeleport(parent, teleportId) {
+  if (!isVNode(parent)) {
+    return parent.querySelector(
+      `unfinished-teleport[data-teleport-id='${teleportId}']`
+    );
+  }
+
+  return parent.findNode((node) => {
+    if (node.nodeType !== 1) return false;
+    const element = /** @type {VDom.VElement} */ (node);
+    return (
+      element.tagName === 'UNFINISHED-TELEPORT' &&
+      element.getAttribute('data-teleport-id') === teleportId
+    );
+  });
 }
