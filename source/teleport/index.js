@@ -62,6 +62,7 @@ export function Teleport(props) {
   const { to: target, ...rest } = props;
   const observer = useObserver();
   const { window } = getGlobalContext();
+  const key = `teleport/target/${idCounter++}`;
 
   /** @param {NodeLike} anchorNode */
   const mountTeleportedNodes = async (anchorNode) => {
@@ -82,7 +83,6 @@ export function Teleport(props) {
       return;
     }
 
-    const key = `teleport/target/${idCounter++}`;
     const teleportId = await useConsistent(key, () => crypto.randomUUID());
     const staleInstance = findStaleTeleport(parent, teleportId);
     const newInstance = window.document.createElement('unfinished-teleport');
