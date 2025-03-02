@@ -13,6 +13,8 @@ import {
 /** @import { JSX } from '../jsx-runtime/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
+// @ts-ignore: Deno has issues with @import tags.
+/** @import { NodeLike } from '../library/context.js' */
 
 /**
  * @typedef TeleportOnlyProps
@@ -59,7 +61,12 @@ export function Teleport(props) {
   const observer = useObserver();
   const { window } = getGlobalContext();
 
-  const mountTeleportedNodes = () => {
+  /** @param {NodeLike} anchorNode */
+  const mountTeleportedNodes = (anchorNode) => {
+    if (!anchorNode.isConnected) {
+      return;
+    }
+
     const { window } = getGlobalContext();
     const parent = findDomTarget(target, window.document);
     if (!parent) {
@@ -92,14 +99,20 @@ export function Teleport(props) {
 
   if (matchContext(window, Modes.VDom)) {
     const anchorNode = window.document.createComment('teleport-anchor');
-    window.document.addEventListener('teleportallowed', mountTeleportedNodes, {
-      once: true,
-    });
+    window.document.addEventListener(
+      'teleportallowed',
+      () => mountTeleportedNodes(anchorNode),
+      {
+        once: true,
+      }
+    );
     return anchorNode;
   }
 
   const anchorNode = window.document.createComment('teleport-anchor');
-  observer.onConnected(Cell.source(anchorNode), mountTeleportedNodes);
+  observer.onConnected(Cell.source(anchorNode), () =>
+    mountTeleportedNodes(anchorNode)
+  );
 
   return anchorNode;
 }

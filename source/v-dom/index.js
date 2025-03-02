@@ -146,6 +146,15 @@ export class VNode extends EventTarget {
     const set = Reflect.get(this, '__attributeCells');
     return /** @type {CellSet | undefined} */ (set);
   }
+
+  get isConnected() {
+    let parent = this.parentNode;
+    while (parent) {
+      if (parent instanceof VDocument) return true;
+      parent = parent.parentNode;
+    }
+    return false;
+  }
 }
 
 export class VText extends VNode {
