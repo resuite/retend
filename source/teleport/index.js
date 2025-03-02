@@ -1,6 +1,6 @@
 import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
-import { appendChild, jsx, setAttributeFromProps } from '../library/jsx.js';
+import { appendChild, setAttributeFromProps } from '../library/jsx.js';
 import { generateChildNodes } from '../library/utils.js';
 import {
   getGlobalContext,
@@ -86,7 +86,7 @@ export function Teleport(props) {
     }
 
     const key = `teleport/target/${idCounter++}`;
-    const teleportId = await useConsistent(key, crypto.randomUUID);
+    const teleportId = await useConsistent(key, () => crypto.randomUUID());
     const staleInstance = findStaleTeleport(parent, teleportId);
     const newInstance = window.document.createElement('unfinished-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
