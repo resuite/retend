@@ -640,12 +640,11 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
    * This allows the history to be restored across page reloads or browser sessions.
    */
   persistHistory() {
-    if (this.window && 'sessionStorage' in this.window) {
-      this.window.sessionStorage.setItem(
-        HISTORY_STORAGE_KEY,
-        JSON.stringify(this.history)
-      );
-    }
+    if (!this.stackMode) return;
+    this.window?.sessionStorage?.setItem(
+      HISTORY_STORAGE_KEY,
+      JSON.stringify(this.history)
+    );
   }
 
   /**
@@ -1071,12 +1070,18 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
     /** @type {NavigationDirection} */
     let navigationDirection = 'forwards';
     const currentPath = this.history.at(-1);
-    if (!this.stackMode || currentPath === targetPath) {
+    if (currentPath === targetPath) {
       return navigationDirection;
     }
 
     if (replace) {
       this.history.pop();
+      this.history.push(targetPath);
+      this.persistHistory();
+      return navigationDirection;
+    }
+
+    if (!this.stackMode) {
       this.history.push(targetPath);
       return navigationDirection;
     }
