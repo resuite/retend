@@ -447,7 +447,10 @@ export async function renderToString(template, window, options = {}) {
           // Insert marker between consecutive text nodes to preserve whitespace
           // This prevents text node merging during HTML parsing
           const shouldSplit =
-            precededByTextNode && child.nodeType === window.Node.TEXT_NODE;
+            precededByTextNode &&
+            child.nodeType === window.Node.TEXT_NODE &&
+            Boolean(child.textContent?.trim());
+
           if (shouldSplit) {
             text += `${SPLIT_TEXT_MARKER}${await renderToString(
               child,
@@ -456,7 +459,9 @@ export async function renderToString(template, window, options = {}) {
           } else {
             text += await renderToString(child, window);
           }
-          precededByTextNode = child.nodeType === window.Node.TEXT_NODE;
+          precededByTextNode =
+            child.nodeType === window.Node.TEXT_NODE &&
+            Boolean(child.textContent?.trim());
         }
 
         text += `</${tagName}>`;
