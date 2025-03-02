@@ -75,11 +75,8 @@ export function Teleport(props) {
         : window.document.querySelector(target);
 
     if (!parent) {
-      console.error(
-        'Could not find teleport target',
-        target,
-        ' is not a matched id or tagname in the DOM.'
-      );
+      const message = `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`;
+      console.error(message);
       return;
     }
 
