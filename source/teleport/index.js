@@ -11,13 +11,6 @@ import {
 import { useConsistent } from '../library/consistent.js';
 
 let idCounter = 0;
-const pendingTeleports = Cell.source(0);
-pendingTeleports.listen((value) => {
-  if (value !== 0) return;
-  getGlobalContext().window.document.dispatchEvent(
-    new Event('teleportscompleted')
-  );
-});
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.js' */
@@ -110,21 +103,12 @@ export function Teleport(props) {
       staleInstance.replaceWith(/** @type {*} */ (newInstance));
     else parent.append(/** @type {*} */ (newInstance));
 
-    if (matchContext(window, Modes.VDom)) pendingTeleports.value--;
-
     return () => newInstance.remove();
   };
 
   if (matchContext(window, Modes.VDom)) {
     const anchorNode = window.document.createComment('teleport-anchor');
-    pendingTeleports.value++;
-    window.document.addEventListener(
-      'teleportallowed',
-      () => mountTeleportedNodes(anchorNode),
-      {
-        once: true,
-      }
-    );
+    window.document.teleportMounts.push(() => mountTeleportedNodes(anchorNode));
     return anchorNode;
   }
 

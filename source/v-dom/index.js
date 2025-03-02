@@ -416,6 +416,8 @@ export class VDocument extends VNode {
     this.head = new VElement('head');
     this.body = new VElement('body');
     this.documentElement.append(this.head, this.body);
+    /** @type {Array<() => Promise<*>>} */
+    this.teleportMounts = [];
   }
 
   /** @param {string} text */
@@ -478,6 +480,11 @@ export class VDocument extends VNode {
 
   get tagName() {
     return '#document';
+  }
+
+  async mountAllTeleports() {
+    await Promise.all(this.teleportMounts.map((mount) => mount()));
+    this.teleportMounts = [];
   }
 }
 
