@@ -22,8 +22,8 @@ let idCounter = 0;
 /**
  * @typedef TeleportOnlyProps
  *
- * @property {string | Element | VDom.VElement} to
- * The parent element to teleport to, or a string for matching the target element.
+ * @property {string} to
+ * The tag name, or an id prefixed with `#`, of the element to teleport to.
  * ## Note about selector matching.
  *
  * Teleportation only works with two types of CSS selectors:
@@ -62,6 +62,8 @@ export function Teleport(props) {
   const { to: target, ...rest } = props;
   const observer = useObserver();
   const { window } = getGlobalContext();
+  /** @type {string | undefined} */
+  let teleportId;
   const key = `teleport/target/${idCounter++}`;
 
   /** @param {NodeLike} anchorNode */
@@ -69,10 +71,7 @@ export function Teleport(props) {
     if (!anchorNode.isConnected) return;
 
     const { window } = getGlobalContext();
-    const parent =
-      typeof target !== 'string'
-        ? target
-        : window.document.querySelector(target);
+    const parent = window.document.querySelector(target);
 
     if (!parent) {
       const message = `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`;
@@ -80,7 +79,7 @@ export function Teleport(props) {
       return;
     }
 
-    const teleportId = await useConsistent(key, () => crypto.randomUUID());
+    teleportId = await useConsistent(key, () => crypto.randomUUID());
     const staleInstance = findStaleTeleport(parent, teleportId);
     const newInstance = window.document.createElement('unfinished-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
@@ -90,9 +89,8 @@ export function Teleport(props) {
       setAttributeFromProps(newInstance, key, value);
     }
 
-    for (const child of generateChildNodes(
-      /** @type {JSX.Template} */ (props.children)
-    )) {
+    const children = generateChildNodes(/** @type {*} */ (props.children));
+    for (const child of children) {
       appendChild(newInstance, newInstance.tagName.toLowerCase(), child);
     }
 
@@ -103,18 +101,36 @@ export function Teleport(props) {
     return () => newInstance.remove();
   };
 
-  if (matchContext(window, Modes.VDom)) {
+  if (matchContext(window, Modes.Interactive)) {
     const anchorNode = window.document.createComment('teleport-anchor');
-    window.document.teleportMounts.push(() => mountTeleportedNodes(anchorNode));
+    Reflect.set(anchorNode, '__isTeleportAnchor', true);
+    observer.onConnected(Cell.source(anchorNode), () =>
+      mountTeleportedNodes(anchorNode)
+    );
+
     return anchorNode;
   }
 
+  // VDom mode:
   const anchorNode = window.document.createComment('teleport-anchor');
-  Reflect.set(anchorNode, '__isTeleportAnchor', true);
-  observer.onConnected(Cell.source(anchorNode), () =>
-    mountTeleportedNodes(anchorNode)
-  );
-
+  window.document.teleportMounts.push(() => mountTeleportedNodes(anchorNode));
+  //@ts-expect-error: Observers are not supported in VDom, they work only in Interactive mode,
+  // but a callback still needs to be registered so the teleport can be unmounted as soon
+  // as the anchor node is disconnected.
+  observer.onConnected(Cell.source(anchorNode), () => {
+    return () => {
+      const { window } = getGlobalContext();
+      const parent = window.document.querySelector(target);
+      if (!parent) {
+        const message = `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`;
+        console.error(message);
+        return;
+      }
+      if (!teleportId) return;
+      const instance = findStaleTeleport(parent, teleportId);
+      if (instance) instance.remove();
+    };
+  });
   return anchorNode;
 }
 
