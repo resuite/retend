@@ -14,7 +14,7 @@ import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
 import { linkNodesToComponent } from '../render/index.js';
-import { matchContext, Modes, isVNode } from '../library/context.js';
+import { matchContext, Modes } from '../library/context.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -850,7 +850,9 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
 
     if (matchResult.subTree === null) {
       console.warn(`No route matches path: ${path}`);
-      const outlet = findOutletNode(this.window?.document);
+      const outlet = this.window?.document.querySelector(
+        'unfinished-router-outlet'
+      );
       outlet?.removeAttribute('data-path');
       if (this.window) {
         outlet?.replaceChildren(emptyRoute(path, this.window));
@@ -862,8 +864,10 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
     let lastMatchedRoute = matchResult.subTree;
     /** @type {MatchedRoute<ComponentOrComponentLoader> | null} */
     let currentMatchedRoute = matchResult.subTree;
-    /** @type {RouterOutlet | null} */ //@ts-ignore
-    let outlet = findOutletNode(this.window?.document);
+
+    let outlet = /** @type {RouterOutlet | null | undefined} */ (
+      this.window?.document.querySelector('unfinished-router-outlet')
+    );
 
     if (!outlet) return false;
 
@@ -873,7 +877,9 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
       if (outlet.getAttribute('data-path') === currentMatchedRoute.path) {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
-        outlet = findOutletNode(outlet);
+        outlet = /** @type {RouterOutlet} */ (
+          outlet.querySelector('unfinished-router-outlet')
+        );
 
         // If only the search params changed, then the last outlet
         // should trigger a route change.
@@ -1014,7 +1020,9 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
 
       lastMatchedRoute = currentMatchedRoute;
       currentMatchedRoute = currentMatchedRoute.child;
-      const nextOutlet = /** @type {RouterOutlet} */ (findOutletNode(outlet));
+      const nextOutlet = /** @type {RouterOutlet} */ (
+        outlet.querySelector('unfinished-router-outlet')
+      );
       outlet = nextOutlet;
     }
 
@@ -1124,7 +1132,9 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
     // ---------------
     // Handling relays
     // ---------------
-    const exitRelayNodes = findRelayNodes(oldNodesFragment);
+    const exitRelayNodes = /** @type {RouterRelay[]} */ (
+      oldNodesFragment.querySelectorAll('unfinished-router-relay')
+    );
     /** @type {Map<string, RouterRelay>} */
     const exitRelayNodeMap = new Map();
     for (const relayNode of exitRelayNodes) {
@@ -1138,7 +1148,9 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
     const newNodesArr = /** @type {Context.AsNode[]} */ (newNodesArray);
     holder.append(...newNodesArr);
 
-    const enterRelayNodes = findRelayNodes(holder);
+    const enterRelayNodes = /** @type {RouterRelay[]} */ (
+      holder.querySelectorAll('unfinished-router-relay')
+    );
 
     for (const enterRelay of enterRelayNodes) {
       const name = enterRelay.getAttribute('data-x-relay-name');
@@ -1484,42 +1496,6 @@ function recordScrollPositions(fragment) {
     element.__recordedScrollTop = element.scrollTop;
     element.__recordedScrollLeft = element.scrollLeft;
   }
-}
-
-/**
- * @param {VDom.VNode | ParentNode | null | undefined} root
- * @returns {RouterOutlet | null}
- */
-function findOutletNode(root) {
-  if (!root) return null;
-
-  if (isVNode(root)) {
-    return /** @type {RouterOutlet} */ (
-      root.findNode((node) => node.tagName === 'UNFINISHED-ROUTER-OUTLET')
-    );
-  }
-
-  return /** @type {RouterOutlet} */ (
-    root.querySelector('unfinished-router-outlet')
-  );
-}
-
-/**
- * @param {VDom.VNode | ParentNode | null | undefined} root
- * @returns {RouterRelay[]}
- */
-function findRelayNodes(root) {
-  if (!root) return [];
-
-  if (isVNode(root)) {
-    return /** @type {RouterRelay[]} */ (
-      root.findNodes((node) => node.tagName === 'UNFINISHED-ROUTER-RELAY')
-    );
-  }
-
-  return /** @type {RouterRelay[]} */ ([
-    ...root.querySelectorAll('unfinished-router-relay'),
-  ]);
 }
 
 /**

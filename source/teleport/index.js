@@ -75,7 +75,11 @@ export function Teleport(props) {
     if (!anchorNode.isConnected) return;
 
     const { window } = getGlobalContext();
-    const parent = findDomTarget(target, window.document);
+    const parent =
+      typeof target !== 'string'
+        ? target
+        : window.document.querySelector(target);
+
     if (!parent) {
       console.error(
         'Could not find teleport target',
@@ -131,48 +135,6 @@ export function Teleport(props) {
   );
 
   return anchorNode;
-}
-
-/**
- * Finds the target element for teleportation.
- * @param {string | Element | VDom.VElement} target
- * @param {Document | VDom.VDocument} document
- * @returns {Element | VDom.VElement | null | undefined}
- */
-function findDomTarget(target, document) {
-  if (typeof target !== 'string') {
-    return target;
-  }
-
-  const isIdSelector = target.startsWith('#');
-
-  if (isVNode(document)) {
-    if (isIdSelector) {
-      const id = target.slice(1);
-      return document.findNode((node) => {
-        if (node.nodeType !== 1) return false;
-        const element = /** @type {VDom.VElement} */ (node);
-        return element.getAttribute('id') === id;
-      });
-    }
-
-    return document.findNode((node) => {
-      if (node.nodeType !== 1) return false;
-      const element = /** @type {VDom.VElement} */ (node);
-      return element.tagName.toLowerCase() === target.toLowerCase();
-    });
-  }
-
-  if (typeof target === 'string') {
-    if (isIdSelector) {
-      const id = target.slice(1);
-      return document.getElementById(id);
-    }
-
-    return document.getElementsByTagName(target)[0];
-  }
-
-  return target;
 }
 
 /**

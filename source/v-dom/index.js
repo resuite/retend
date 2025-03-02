@@ -144,6 +144,44 @@ export class VNode extends EventTarget {
     return nodes;
   }
 
+  // NOTE: only supports id and tag selectors.
+  /**
+   * @param {string} selector
+   * @returns {VElement | null}
+   */
+  querySelector(selector) {
+    if (selector.startsWith('#')) {
+      return this.findNode(
+        (node) =>
+          node instanceof VElement &&
+          node.getAttribute('id') === selector.slice(1)
+      );
+    }
+    const selectorLower = selector.toLowerCase();
+    return this.findNode(
+      (node) => node.tagName?.toLowerCase() === selectorLower
+    );
+  }
+
+  // NOTE: only supports id and tag selectors.
+  /**
+   * @param {string} selector
+   * @returns {VElement[]}
+   */
+  querySelectorAll(selector) {
+    if (typeof selector !== 'string') return [];
+    if (selector.startsWith('#')) {
+      return this.findNodes(
+        (node) =>
+          node instanceof VElement &&
+          node.getAttribute('id') === selector.slice(1)
+      );
+    }
+    return this.findNodes(
+      (node) => node.tagName?.toLowerCase() === selector.toLowerCase()
+    );
+  }
+
   getRelatedCellData() {
     const set = Reflect.get(this, '__attributeCells');
     return /** @type {CellSet | undefined} */ (set);
@@ -402,6 +440,18 @@ export class VDocument extends VNode {
    */
   findNodes(predicate) {
     return this.documentElement.findNodes(predicate);
+  }
+
+  // NOTE: only supports id and tag selectors.
+  /** @param {string} selector */
+  querySelector(selector) {
+    return this.documentElement.querySelector(selector);
+  }
+
+  // NOTE: only supports id and tag selectors.
+  /** @param {string} selector */
+  querySelectorAll(selector) {
+    return this.documentElement.querySelectorAll(selector);
   }
 
   /**
