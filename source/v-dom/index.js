@@ -1,6 +1,8 @@
 //@ts-ignore: Deno has issues with import comments
 /** @import { CellSet } from '../library/utils.js' */
 
+import { getGlobalContext } from '../library/context.js';
+
 export class VNode extends EventTarget {
   constructor() {
     super();
@@ -148,9 +150,12 @@ export class VNode extends EventTarget {
   }
 
   get isConnected() {
+    const {
+      window: { document },
+    } = getGlobalContext();
     let parent = this.parentNode;
     while (parent) {
-      if (parent instanceof VDocument) return true;
+      if (parent === document.documentElement) return true;
       parent = parent.parentNode;
     }
     return false;
@@ -171,6 +176,10 @@ export class VText extends VNode {
 
   set textContent(value) {
     this.#textContent = value;
+  }
+
+  get tagName() {
+    return '#text';
   }
 
   get nodeType() {
@@ -207,6 +216,8 @@ export class VElement extends VNode {
   #attributes;
   /** @type {Map<string, any>} */
   #hiddenAttributes;
+  /** @type {string} */
+  #tag;
 
   /** @param {string} tagName */
   constructor(tagName) {
@@ -214,7 +225,7 @@ export class VElement extends VNode {
 
     /** @type {VShadowRoot | null} */
     this.shadowRoot = null;
-    this.tag = tagName;
+    this.#tag = tagName;
     this.#attributes = new Map();
     this.#hiddenAttributes = new Map();
     this.classList = new VDomTokenList(this);
@@ -284,7 +295,7 @@ export class VElement extends VNode {
   }
 
   get tagName() {
-    return this.tag.toUpperCase();
+    return this.#tag.toUpperCase();
   }
 
   /** @param {{ mode: string }} options */
@@ -305,6 +316,10 @@ export class VShadowRoot extends VNode {
     super();
     this.mode = mode;
   }
+
+  get tagName() {
+    return '#shadow-root';
+  }
 }
 
 export class VComment extends VNode {
@@ -321,6 +336,10 @@ export class VComment extends VNode {
   get textContent() {
     return this.text;
   }
+
+  get tagName() {
+    return '#comment';
+  }
 }
 
 export class VDocumentFragment extends VNode {
@@ -333,6 +352,10 @@ export class VDocumentFragment extends VNode {
   get nodeType() {
     return 11;
   }
+
+  get tagName() {
+    return '#document-fragment';
+  }
 }
 
 export class MarkupContainerNode extends VNode {
@@ -340,6 +363,10 @@ export class MarkupContainerNode extends VNode {
   constructor(html) {
     super();
     this.html = html;
+  }
+
+  get tagName() {
+    return '#markup-container';
   }
 }
 
@@ -397,6 +424,10 @@ export class VDocument extends VNode {
 
   createDocumentFragment() {
     return new VDocumentFragment([]);
+  }
+
+  get tagName() {
+    return '#document';
   }
 }
 
