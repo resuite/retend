@@ -344,7 +344,7 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
 /**
  * @typedef {Object} RenderToStringOptions
  * @property {boolean} [markStaticNodes]
- * Whether to mark static elements with the [data-x-static] attribute.
+ * Whether to mark static elements with the [data-static] attribute.
  */
 
 /**
@@ -372,13 +372,13 @@ export async function renderToString(template, window, options = {}) {
   }
 
   if (template instanceof Promise) {
-    return await renderToString(await template, window);
+    return await renderToString(await template, window, options);
   }
 
   if (template instanceof window.DocumentFragment) {
     let textContent = '';
     for (const child of template.childNodes) {
-      textContent += await renderToString(child, window);
+      textContent += await renderToString(child, window, options);
     }
     return textContent;
   }
@@ -395,7 +395,7 @@ export async function renderToString(template, window, options = {}) {
     '__promise' in template &&
     template.__promise instanceof Promise
   ) {
-    return await renderToString(await template.__promise, window);
+    return await renderToString(await template.__promise, window, options);
   }
 
   if (template instanceof window.Node) {
@@ -415,7 +415,7 @@ export async function renderToString(template, window, options = {}) {
     if (template instanceof window.ShadowRoot) {
       let text = `<template shadowrootmode="${template.mode}">`;
       for (const child of template.childNodes) {
-        text += await renderToString(child, window);
+        text += await renderToString(child, window, options);
       }
       text += '</template>';
       return text;
@@ -430,8 +430,16 @@ export async function renderToString(template, window, options = {}) {
         text += ` ${attribute.name}="${attribute.value}"`;
       }
 
-      if (options.markStaticNodes && nodeIsStatic(template, window)) {
-        text += ' data-x-static';
+      if (options.markStaticNodes) {
+        const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
+        if (isStatic) {
+          // @ts-ignore
+          template.__isStatic = true;
+          // @ts-ignore
+          if (!template.parentNode?.__isStatic) {
+            text += ' data-static';
+          }
+        }
       }
 
       const isVoid = voidElements.has(template.tagName);
@@ -439,7 +447,7 @@ export async function renderToString(template, window, options = {}) {
         text += '>';
 
         if (template.shadowRoot) {
-          text += await renderToString(template.shadowRoot, window);
+          text += await renderToString(template.shadowRoot, window, options);
         }
 
         let precededByTextNode = false;
@@ -454,10 +462,11 @@ export async function renderToString(template, window, options = {}) {
           if (shouldSplit) {
             text += `${SPLIT_TEXT_MARKER}${await renderToString(
               child,
-              window
+              window,
+              options
             )}`;
           } else {
-            text += await renderToString(child, window);
+            text += await renderToString(child, window, options);
           }
           precededByTextNode =
             child.nodeType === window.Node.TEXT_NODE &&
@@ -473,14 +482,14 @@ export async function renderToString(template, window, options = {}) {
     }
 
     if (template instanceof window.Document) {
-      return await renderToString(template.documentElement, window);
+      return await renderToString(template.documentElement, window, options);
     }
   }
 
   if (Array.isArray(template)) {
     let textContent = '';
     for (const child of template) {
-      textContent += await renderToString(child, window);
+      textContent += await renderToString(child, window, options);
     }
     return textContent;
   }
@@ -495,25 +504,26 @@ export async function renderToString(template, window, options = {}) {
  *  __isHydrationUpgradable?: boolean,
  *  __ref?: any,
  *  __attributeCells?: Map<string, any>,
- *  hiddenAttributes?: Map<string, any>
+ *  hiddenAttributes?: Map<string, any>,
+ *  getAttribute: (name: string) => string | null,
+ *  childNodes: any[],
  *  __commentRangeSymbol?: any
  * }} node
  * @param {Context.WindowLike} window
  */
 function nodeIsStatic(node, window) {
-  if (
-    node instanceof window.Element &&
-    node.getAttribute('data-x-static') !== null
-  ) {
-    return true;
-  }
-
-  if (node.__ref) return false;
-  if (node.hiddenAttributes?.size) return false;
-  for (const child of node.childNodes) {
-    if (!nodeIsStatic(child, window)) return false;
-  }
   if (node.__commentRangeSymbol) return false;
   if (node.__attributeCells?.size) return false;
+
+  if (node.nodeType === window.Node.ELEMENT_NODE) {
+    if (node.getAttribute('data-static') !== null) return true;
+    if (node.__ref) return false;
+    if (node.hiddenAttributes?.size) return false;
+
+    for (const child of node.childNodes) {
+      if (!nodeIsStatic(child, window)) return false;
+    }
+  }
+
   return true;
 }
