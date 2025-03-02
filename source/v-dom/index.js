@@ -88,6 +88,9 @@ export class VNode extends EventTarget {
   /** @param {(string | VNode)[]} nodes */
   replaceChildren(...nodes) {
     const newNodes = nodes.map((n) => (n instanceof VNode ? n : new VText(n)));
+    for (const node of this.childNodes) {
+      node.parentNode = null;
+    }
     this.childNodes.splice(0, this.childNodes.length, ...newNodes);
     for (const node of newNodes) {
       node.parentNode = this;
@@ -288,6 +291,9 @@ export class VElement extends VNode {
 
   /** @param {string} html */
   set innerHTML(html) {
+    for (const node of this.childNodes) {
+      node.parentNode = null;
+    }
     this.childNodes = [new MarkupContainerNode(html)];
   }
 
