@@ -8,6 +8,16 @@ import {
   matchContext,
   Modes,
 } from '../library/context.js';
+import { useConsistent } from '../library/consistent.js';
+
+let idCounter = 0;
+const pendingTeleports = Cell.source(0);
+pendingTeleports.listen((value) => {
+  if (value !== 0) return;
+  getGlobalContext().window.document.dispatchEvent(
+    new Event('teleportscompleted')
+  );
+});
 
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.js' */
@@ -57,12 +67,11 @@ import {
  */
 export function Teleport(props) {
   const { to: target, ...rest } = props;
-  const teleportId = crypto.randomUUID();
   const observer = useObserver();
   const { window } = getGlobalContext();
 
   /** @param {NodeLike} anchorNode */
-  const mountTeleportedNodes = (anchorNode) => {
+  const mountTeleportedNodes = async (anchorNode) => {
     if (!anchorNode.isConnected) return;
 
     const { window } = getGlobalContext();
@@ -75,6 +84,9 @@ export function Teleport(props) {
       );
       return;
     }
+
+    const key = `teleport/target/${idCounter++}`;
+    const teleportId = await useConsistent(key, crypto.randomUUID);
     const staleInstance = findStaleTeleport(parent, teleportId);
     const newInstance = window.document.createElement('unfinished-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
@@ -92,11 +104,14 @@ export function Teleport(props) {
       staleInstance.replaceWith(/** @type {*} */ (newInstance));
     else parent.append(/** @type {*} */ (newInstance));
 
+    if (matchContext(window, Modes.VDom)) pendingTeleports.value--;
+
     return () => newInstance.remove();
   };
 
   if (matchContext(window, Modes.VDom)) {
     const anchorNode = window.document.createComment('teleport-anchor');
+    pendingTeleports.value++;
     window.document.addEventListener(
       'teleportallowed',
       () => mountTeleportedNodes(anchorNode),
