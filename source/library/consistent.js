@@ -1,5 +1,6 @@
 /**
- * Storage for values that need to remain consistent across multiple renders and environments.
+ * Storage for one-time computed values that need to persist across environment transitions.
+ * Values are removed after first read to prevent memory leaks.
  * @type {Map<string, unknown>}
  */
 let consistentValues = new Map();
@@ -26,35 +27,41 @@ export function getConsistentValues() {
 }
 
 /**
- * Creates or retrieves a  value that remains consistent across renders and environments.
- * Perfect for timestamps, random IDs, or any value that should stay stable.
+ * Creates or retrieves a one-off value that must be identical between environments.
+ * Perfect for random IDs, timestamps, and initial data fetches that should
+ * match exactly during server/client transitions.
  *
  * @template T
  * @param {string} key - Unique identifier for this value. Keys should be:
  *                     - Descriptive and namespaced to avoid collisions
- *                     - Consistent between renders
- *                     - Never reused for different types of values
- * @param {() => T | Promise<T>} generator - Function to generate the initial value.
+ *                     - Used for values that must match exactly
+ * @param {() => T | Promise<T>} generator - Function to generate the value.
  *                                          Must return JSON-serializable data.
  * @returns {Promise<T>} The consistent value
  *
  * @example
- * // Generate stable IDs
- * const id = await useConsistent('user-list/new-item-id', crypto.randomUUID);
+ * // Generate IDs that match during hydration
+ * const id = await useConsistent('todo/new-item', crypto.randomUUID);
  *
- * // Keep timestamps consistent
- * const created = await useConsistent('post/created-at', () => Date.now());
+ * // Keep creation timestamps identical
+ * const created = await useConsistent('post/timestamp', Date.now);
  *
- * // Cache expensive computations
- * const data = await useConsistent('settings/computed', async () => {
- *   const response = await fetch('/api/settings');
- *   return response.json();
- * });
+ * // Ensure initial data matches
+ * const posts = await useConsistent('blog/initial-posts', () =>
+ *   fetch('/api/posts').then(r => r.json())
+ * );
+ *
+ * @notes
+ * As earlier stated, consistent values can only be stored and retrieved once,
+ * The main purpose of this limitation is to prevent memory leaks that could
+ * occur if values are not removed after being read.
  */
 export async function useConsistent(key, generator) {
   if (consistentValues.has(key)) {
-    //@ts-ignore: The key is guaranteed to exist in the map as the correct type.
-    return consistentValues.get(key);
+    const value = consistentValues.get(key);
+    consistentValues.delete(key);
+    // @ts-expect-error
+    return value;
   }
   const value = await generator();
   consistentValues.set(key, value);
