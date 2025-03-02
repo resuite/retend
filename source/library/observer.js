@@ -7,7 +7,7 @@ import { getGlobalContext, matchContext, Modes } from './context.js';
 
 /**
  * @template {Node} T
- * @typedef {((node: T) => CleanupFn | undefined) | ((node: T) => Promise<CleanupFn>) | ((node: T) => void | Promise<void>) } MountFn
+ * @typedef {((node: T) => CleanupFn | undefined) | ((node: T) => Promise<CleanupFn | undefined>) | ((node: T) => void | Promise<void>) } MountFn
  */
 
 /**
