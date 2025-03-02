@@ -28,16 +28,21 @@ class DocumentObserver {
    * @template {Node} T
    * @param {T} node - The DOM node to mount the callback to
    * @param {MountFn<T>} callback - The callback to execute when mounted
+   * @private
    */
   async mount(node, callback) {
-    const cleanup = await callback(node);
-    if (cleanup) {
-      const cleanups = this.mountedNodes.get(node);
-      if (cleanups) {
-        cleanups.push(cleanup);
-      } else {
-        this.mountedNodes.set(node, [cleanup]);
+    try {
+      const cleanup = await callback(node);
+      if (cleanup) {
+        const cleanups = this.mountedNodes.get(node);
+        if (cleanups) {
+          cleanups.push(cleanup);
+        } else {
+          this.mountedNodes.set(node, [cleanup]);
+        }
       }
+    } catch (error) {
+      console.error('Error mounting node:', error);
     }
   }
 
@@ -72,28 +77,36 @@ class DocumentObserver {
     const { window } = getGlobalContext();
     if (matchContext(window, Modes.VDom)) return;
 
-    const observer = new MutationObserver(() => {
-      for (const [key, callbacks] of this.callbackSets.entries()) {
-        if (!key.value?.isConnected) continue;
-        for (const callback of callbacks) {
-          if (key instanceof SourceCell) {
-            this.mount(key.deproxy(), callback);
-          } else {
-            this.mount(key.value, callback);
-          }
-        }
-        this.callbackSets.delete(key);
-      }
-
-      for (const [node, cleanups] of this.mountedNodes.entries()) {
-        if (node.isConnected) continue;
-        for (const cleanup of cleanups) {
-          cleanup();
-        }
-        this.mountedNodes.delete(node);
-      }
-    });
+    const observer = new MutationObserver(this.processMountedNodes);
     observer.observe(document.body, { subtree: true, childList: true });
+  }
+
+  /**
+   * Processes the mounted nodes and their associated callbacks.
+   * This function is called by the mutation observer when DOM changes occur.
+   * It iterates through the `callbackSets` to mount callbacks for newly connected nodes
+   * and iterates through the `mountedNodes` to execute cleanup functions for disconnected nodes.
+   */
+  processMountedNodes() {
+    for (const [key, callbacks] of this.callbackSets.entries()) {
+      if (!key.value?.isConnected) continue;
+      for (const callback of callbacks) {
+        if (key instanceof SourceCell) {
+          this.mount(key.deproxy(), callback);
+        } else {
+          this.mount(key.value, callback);
+        }
+      }
+      this.callbackSets.delete(key);
+    }
+
+    for (const [node, cleanups] of this.mountedNodes.entries()) {
+      if (node.isConnected) continue;
+      for (const cleanup of cleanups) {
+        cleanup();
+      }
+      this.mountedNodes.delete(node);
+    }
   }
 }
 
