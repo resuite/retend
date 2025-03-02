@@ -63,9 +63,7 @@ export function Teleport(props) {
 
   /** @param {NodeLike} anchorNode */
   const mountTeleportedNodes = (anchorNode) => {
-    if (!anchorNode.isConnected) {
-      return;
-    }
+    if (!anchorNode.isConnected) return;
 
     const { window } = getGlobalContext();
     const parent = findDomTarget(target, window.document);
@@ -110,6 +108,7 @@ export function Teleport(props) {
   }
 
   const anchorNode = window.document.createComment('teleport-anchor');
+  Reflect.set(anchorNode, '__isTeleportAnchor', true);
   observer.onConnected(Cell.source(anchorNode), () =>
     mountTeleportedNodes(anchorNode)
   );

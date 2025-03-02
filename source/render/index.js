@@ -504,6 +504,7 @@ export async function renderToString(template, window, options = {}) {
  *  __isHydrationUpgradable?: boolean,
  *  __ref?: any,
  *  __attributeCells?: Map<string, any>,
+ *  __isTeleportAnchor?: boolean;
  *  hiddenAttributes?: Map<string, any>,
  *  getAttribute: (name: string) => string | null,
  *  childNodes: any[],
@@ -513,6 +514,7 @@ export async function renderToString(template, window, options = {}) {
  */
 function nodeIsStatic(node, window) {
   if (node.__commentRangeSymbol) return false;
+  if (node.__isTeleportAnchor) return false;
   if (node.__attributeCells?.size) return false;
 
   if (node.nodeType === window.Node.ELEMENT_NODE) {
