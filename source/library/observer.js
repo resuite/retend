@@ -15,14 +15,15 @@ import { getGlobalContext, matchContext, Modes } from './context.js';
  * @description Observes DOM nodes and manages their lifecycle through callbacks
  */
 class DocumentObserver {
-  #initialized = false;
-  /** @type {Map<Node, Array<CleanupFn>>} */
-  #mountedNodes = new Map();
-  /** @type {Map<import('@adbl/cells').Cell<Node | null>, Array<MountFn<Node>>>} */
-  #callbackSets = new Map();
+  /** @private @type {boolean} */
+  initialized = false;
+  /** @private @type {Map<Node, Array<CleanupFn>>} */
+  mountedNodes = new Map();
+  /** @private @type {Map<import('@adbl/cells').Cell<Node | null>, Array<MountFn<Node>>>} */
+  callbackSets = new Map();
 
   constructor() {
-    this.#init();
+    this.init();
   }
 
   /**
@@ -30,16 +31,17 @@ class DocumentObserver {
    * @template {Node} T
    * @param {T} node - The DOM node to mount the callback to
    * @param {MountFn<T>} callback - The callback to execute when mounted
+   * @private
    */
-  async #mount(node, callback) {
+  async mount(node, callback) {
     try {
       const cleanup = await callback(node);
       if (cleanup) {
-        const cleanups = this.#mountedNodes.get(node);
+        const cleanups = this.mountedNodes.get(node);
         if (cleanups) {
           cleanups.push(cleanup);
         } else {
-          this.#mountedNodes.set(node, [cleanup]);
+          this.mountedNodes.set(node, [cleanup]);
         }
       }
     } catch (error) {
@@ -59,25 +61,26 @@ class DocumentObserver {
   onConnected(ref, callback) {
     if (ref.value?.isConnected) {
       if (ref instanceof SourceCell) {
-        this.#mount(ref.deproxy(), callback);
+        this.mount(ref.deproxy(), callback);
       } else {
-        this.#mount(ref.value, callback);
+        this.mount(ref.value, callback);
       }
       return;
     }
-    const connectedCallbacks = this.#callbackSets.get(ref) || [];
+    const connectedCallbacks = this.callbackSets.get(ref) || [];
     connectedCallbacks.push(/** @type {MountFn<Node>} */ (callback));
-    this.#callbackSets.set(ref, connectedCallbacks);
+    this.callbackSets.set(ref, connectedCallbacks);
   }
 
   /**
    * Initializes the mutation observer to watch for DOM changes
+   * @private
    */
-  #init() {
+  init() {
     const { window } = getGlobalContext();
     if (matchContext(window, Modes.VDom)) return;
 
-    this.#initialized = true;
+    this.initialized = true;
     const observer = new MutationObserver(this.processMountedNodes);
     observer.observe(document.body, { subtree: true, childList: true });
   }
@@ -89,26 +92,26 @@ class DocumentObserver {
    * and iterates through the `mountedNodes` to execute cleanup functions for disconnected nodes.
    */
   processMountedNodes() {
-    if (!this.#initialized) this.#init();
+    if (!this.initialized) this.init();
 
-    for (const [key, callbacks] of this.#callbackSets.entries()) {
+    for (const [key, callbacks] of this.callbackSets.entries()) {
       if (!key.value?.isConnected) continue;
       for (const callback of callbacks) {
         if (key instanceof SourceCell) {
-          this.#mount(key.deproxy(), callback);
+          this.mount(key.deproxy(), callback);
         } else {
-          this.#mount(key.value, callback);
+          this.mount(key.value, callback);
         }
       }
-      this.#callbackSets.delete(key);
+      this.callbackSets.delete(key);
     }
 
-    for (const [node, cleanups] of this.#mountedNodes.entries()) {
+    for (const [node, cleanups] of this.mountedNodes.entries()) {
       if (node.isConnected) continue;
       for (const cleanup of cleanups) {
         cleanup();
       }
-      this.#mountedNodes.delete(node);
+      this.mountedNodes.delete(node);
     }
   }
 }
