@@ -1,6 +1,6 @@
 import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
-import { appendChild, setAttributeFromProps } from '../library/jsx.js';
+import { appendChild, jsx, setAttributeFromProps } from '../library/jsx.js';
 import { generateChildNodes } from '../library/utils.js';
 import {
   getGlobalContext,
@@ -40,7 +40,7 @@ pendingTeleports.listen((value) => {
  * Other selectors, such as `.class` or `[attribute=value]`, will lead to an unmatched
  * target.
  *
- * @property {JSX.Template} [children]
+ * @property {JSX.Children} [children]
  * Data to be passed to the component.
  */
 
@@ -96,7 +96,9 @@ export function Teleport(props) {
       setAttributeFromProps(newInstance, key, value);
     }
 
-    for (const child of generateChildNodes(props.children)) {
+    for (const child of generateChildNodes(
+      /** @type {JSX.Template} */ (props.children)
+    )) {
       appendChild(newInstance, newInstance.tagName.toLowerCase(), child);
     }
 
