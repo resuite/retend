@@ -11,6 +11,9 @@ export const Modes = {
 };
 
 /**
+ * Environment configuration that pairs a mode with its corresponding window implementation.
+ * Each environment provides its own window interface optimized for that context.
+ *
  * @typedef {{
  *    mode: 1,
  *    window: VDom.VWindow
@@ -26,7 +29,12 @@ export const Modes = {
 /** @typedef {Node & VDom.VNode} AsNode */
 /** @typedef {Node | VDom.VNode} NodeLike */
 
-/** @type {Environments} */
+/**
+ * Global context that tracks the current environment configuration.
+ * The mode determines how rendering and DOM operations are handled.
+ *
+ * @type {Environments}
+ */
 const globalContext = {
   mode: Modes.Interactive,
   window: globalThis.window,
@@ -38,10 +46,12 @@ const globalContext = {
  */
 
 /**
- * @template {RenderMode} M
- * @param {WindowLike} window
- * @param {M} mode
+ * Validates if a window instance matches the expected render mode.
+ * Used to ensure operations are performed in the correct environment.
  *
+ * @template {RenderMode} M
+ * @param {WindowLike} window - Window instance to check
+ * @param {M} mode - Expected render mode
  * @returns {window is ExtractWindowFromEnvironmentMode<M>}
  */
 export function matchContext(window, mode) {
@@ -49,8 +59,11 @@ export function matchContext(window, mode) {
 }
 
 /**
+ * Identifies virtual nodes in any environment.
+ * Useful for conditional logic that needs to handle both real and virtual DOM nodes.
+ *
  * @template [M=VDom.VNode]
- * @param {M} node
+ * @param {M} node - Node to check
  * @returns {node is M extends VDom.VNode ? M : never}
  */
 export function isVNode(node) {
@@ -59,8 +72,10 @@ export function isVNode(node) {
 }
 
 /**
- * Sets the global render context for the application.
- * @param {Environments} context
+ * Updates the global render context for unfinished.
+ * The default context is the interactive, web DOM environment.
+ *
+ * @param {Environments} context - New environment configuration
  */
 export function setGlobalContext(context) {
   Object.assign(globalContext, context);
@@ -72,7 +87,9 @@ export function setGlobalContext(context) {
 }
 
 /**
- * Gets the global render context for the application.
+ * Retrieves the current render context.
+ * Use this to check the active environment and access its window implementation.
+ *
  * @returns {Environments}
  */
 export function getGlobalContext() {
