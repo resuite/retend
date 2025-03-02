@@ -28,7 +28,6 @@ class DocumentObserver {
    * @template {Node} T
    * @param {T} node - The DOM node to mount the callback to
    * @param {MountFn<T>} callback - The callback to execute when mounted
-   * @private
    */
   async mount(node, callback) {
     const cleanup = await callback(node);
