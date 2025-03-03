@@ -382,8 +382,9 @@ export class VElement extends VNode {
   /** @param {{ mode: string }} options */
   attachShadow({ mode }) {
     if (!this.ownerDocument) {
-      console.trace('attachShadow: ownerDocument is null');
-      return;
+      throw new Error(
+        'Cannot attach shadow to a node without an ownerDocument'
+      );
     }
     this.shadowRoot = new VShadowRoot(mode, this.ownerDocument);
     return this.shadowRoot;
