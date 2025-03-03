@@ -190,7 +190,7 @@ export class VNode extends EventTarget {
     }
     const selectorLower = selector.toLowerCase();
     return this.findNode(
-      (node) => node.tagName?.toLowerCase() === selectorLower
+      (node) => node !== this && node.tagName?.toLowerCase() === selectorLower
     );
   }
 
@@ -210,7 +210,8 @@ export class VNode extends EventTarget {
       );
     }
     return this.findNodes(
-      (node) => node.tagName?.toLowerCase() === selector.toLowerCase()
+      (node) =>
+        node !== this && node.tagName?.toLowerCase() === selector.toLowerCase()
     );
   }
 
