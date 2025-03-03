@@ -1,16 +1,16 @@
 //@ts-ignore: Deno has issues with import comments
 /** @import { CellSet } from '../library/utils.js' */
 
-import { getGlobalContext } from '../library/context.js';
-
 export class VNode extends EventTarget {
-  constructor() {
+  /** @param {VDocument | null} document */
+  constructor(document) {
     super();
     /** @type {VNode[]} */
     this.childNodes = [];
     /** @type {VNode | null} */
     this.parentNode = null;
     this.__isVNode = true;
+    this.ownerDocument = document;
   }
 
   static ELEMENT_NODE = 1;
@@ -52,11 +52,20 @@ export class VNode extends EventTarget {
 
   /** @param {(string | VNode)[]} nodes */
   after(...nodes) {
-    if (!this.parentNode) return;
+    if (!this.parentNode || !this.ownerDocument) return;
 
-    const newNodes = nodes.map((n) => (n instanceof VNode ? n : new VText(n)));
-    this.parentNode.childNodes.splice(
-      this.parentNode.childNodes.indexOf(this) + 1,
+    const { ownerDocument, parentNode } = this;
+
+    const newNodes = [];
+    for (const node of nodes) {
+      if (node instanceof VNode) {
+        newNodes.push(node);
+      } else {
+        newNodes.push(ownerDocument.createTextNode(node));
+      }
+    }
+    parentNode.childNodes.splice(
+      parentNode.childNodes.indexOf(this) + 1,
       0,
       ...newNodes
     );
@@ -74,11 +83,20 @@ export class VNode extends EventTarget {
 
   /** @param {(string | VNode)[]} nodes */
   replaceWith(...nodes) {
-    if (!this.parentNode) return;
+    if (!this.parentNode || !this.ownerDocument) return;
 
-    const newNodes = nodes.map((n) => (n instanceof VNode ? n : new VText(n)));
-    const index = this.parentNode.childNodes.indexOf(this);
-    this.parentNode.childNodes.splice(1, index, ...newNodes);
+    const { ownerDocument, parentNode } = this;
+    const newNodes = [];
+    for (const node of nodes) {
+      if (node instanceof VNode) {
+        newNodes.push(node);
+      } else {
+        newNodes.push(ownerDocument.createTextNode(node));
+      }
+    }
+
+    const index = parentNode.childNodes.indexOf(this);
+    parentNode.childNodes.splice(1, index, ...newNodes);
     for (const node of newNodes) {
       node.parentNode = this.parentNode;
     }
@@ -87,7 +105,12 @@ export class VNode extends EventTarget {
 
   /** @param {(string | VNode)[]} nodes */
   replaceChildren(...nodes) {
-    const newNodes = nodes.map((n) => (n instanceof VNode ? n : new VText(n)));
+    if (!this.ownerDocument) return;
+
+    const { ownerDocument } = this;
+    const newNodes = nodes.map((n) =>
+      n instanceof VNode ? n : ownerDocument.createTextNode(n)
+    );
     for (const node of this.childNodes) {
       node.parentNode = null;
     }
@@ -99,12 +122,14 @@ export class VNode extends EventTarget {
 
   /** @param {(string | VNode)[]} children */
   append(...children) {
+    if (!this.ownerDocument) return;
+
     for (const child of children) {
       if (child instanceof VNode) {
         child.parentNode = this;
         this.childNodes.push(child);
       } else {
-        const text = new VText(child);
+        const text = this.ownerDocument.createTextNode(child);
         text.parentNode = this;
         this.childNodes.push(text);
       }
@@ -191,12 +216,12 @@ export class VNode extends EventTarget {
   }
 
   get isConnected() {
-    const {
-      window: { document },
-    } = getGlobalContext();
+    if (!this.ownerDocument) return false;
+
+    const { ownerDocument } = this;
     let parent = this.parentNode;
     while (parent) {
-      if (parent === document.documentElement) return true;
+      if (parent === ownerDocument.documentElement) return true;
       parent = parent.parentNode;
     }
     return false;
@@ -205,9 +230,12 @@ export class VNode extends EventTarget {
 
 export class VText extends VNode {
   #textContent;
-  /** @param {string} text */
-  constructor(text) {
-    super();
+  /**
+   * @param {string} text
+   * @param {VDocument} document
+   */
+  constructor(text, document) {
+    super(document);
     this.#textContent = text;
   }
 
@@ -260,9 +288,12 @@ export class VElement extends VNode {
   /** @type {string} */
   #tag;
 
-  /** @param {string} tagName */
-  constructor(tagName) {
-    super();
+  /**
+   * @param {string} tagName
+   * @param {VDocument} document
+   */
+  constructor(tagName, document) {
+    super(document);
 
     /** @type {VShadowRoot | null} */
     this.shadowRoot = null;
@@ -294,7 +325,13 @@ export class VElement extends VNode {
     for (const node of this.childNodes) {
       node.parentNode = null;
     }
-    this.childNodes = [new MarkupContainerNode(html)];
+    if (!this.ownerDocument) {
+      console.trace(
+        'Tried to set innerHTML on a node without an ownerDocument'
+      );
+      return;
+    }
+    this.childNodes = [new MarkupContainerNode(html, this.ownerDocument)];
   }
 
   /** @param {string} name */
@@ -344,7 +381,11 @@ export class VElement extends VNode {
 
   /** @param {{ mode: string }} options */
   attachShadow({ mode }) {
-    this.shadowRoot = new VShadowRoot(mode);
+    if (!this.ownerDocument) {
+      console.trace('attachShadow: ownerDocument is null');
+      return;
+    }
+    this.shadowRoot = new VShadowRoot(mode, this.ownerDocument);
     return this.shadowRoot;
   }
 
@@ -355,9 +396,12 @@ export class VElement extends VNode {
 }
 
 export class VShadowRoot extends VNode {
-  /** @param {string} mode */
-  constructor(mode) {
-    super();
+  /**
+   * @param {string} mode
+   * @param {VDocument} document
+   */
+  constructor(mode, document) {
+    super(document);
     this.mode = mode;
   }
 
@@ -367,9 +411,12 @@ export class VShadowRoot extends VNode {
 }
 
 export class VComment extends VNode {
-  /** @param {string} text */
-  constructor(text) {
-    super();
+  /**
+   * @param {string} text
+   * @param {VDocument} document
+   */
+  constructor(text, document) {
+    super(document);
     this.text = text;
   }
 
@@ -387,9 +434,12 @@ export class VComment extends VNode {
 }
 
 export class VDocumentFragment extends VNode {
-  /** @param {VNode[]} children */
-  constructor(children) {
-    super();
+  /**
+   * @param {VNode[]} children
+   * @param {VDocument} document
+   */
+  constructor(children, document) {
+    super(document);
     this.childNodes = children;
   }
 
@@ -403,9 +453,12 @@ export class VDocumentFragment extends VNode {
 }
 
 export class MarkupContainerNode extends VNode {
-  /** @param {string} html */
-  constructor(html) {
-    super();
+  /**
+   * @param {string} html
+   * @param {VDocument} document
+   */
+  constructor(html, document) {
+    super(document);
     this.html = html;
   }
 
@@ -416,11 +469,11 @@ export class MarkupContainerNode extends VNode {
 
 export class VDocument extends VNode {
   constructor() {
-    super();
+    super(null);
     this.title = '';
-    this.documentElement = new VElement('html');
-    this.head = new VElement('head');
-    this.body = new VElement('body');
+    this.documentElement = this.createElement('html');
+    this.head = this.createElement('head');
+    this.body = this.createElement('body');
     this.documentElement.append(this.head, this.body);
     /** @type {Array<() => Promise<*>>} */
     this.teleportMounts = [];
@@ -428,12 +481,12 @@ export class VDocument extends VNode {
 
   /** @param {string} text */
   createComment(text) {
-    return new VComment(text);
+    return new VComment(text, this);
   }
 
   /** @param {string} tagName */
   createElement(tagName) {
-    return new VElement(tagName);
+    return new VElement(tagName, this);
   }
 
   /**
@@ -467,21 +520,21 @@ export class VDocument extends VNode {
    * @param {string} _ns
    */
   createElementNS(_ns, tagName) {
-    return new VElement(tagName);
+    return new VElement(tagName, this);
   }
 
   /** @param {string} text */
   createTextNode(text) {
-    return new VText(text);
+    return new VText(text, this);
   }
 
   /** @param {string} html */
   createMarkupNode(html) {
-    return new MarkupContainerNode(html);
+    return new MarkupContainerNode(html, this);
   }
 
   createDocumentFragment() {
-    return new VDocumentFragment([]);
+    return new VDocumentFragment([], this);
   }
 
   get tagName() {
@@ -489,6 +542,7 @@ export class VDocument extends VNode {
   }
 
   async mountAllTeleports() {
+    console.log('Mounting all teleports...', this.teleportMounts);
     await Promise.all(this.teleportMounts.map((mount) => mount()));
     this.teleportMounts = [];
   }
