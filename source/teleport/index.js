@@ -103,10 +103,8 @@ export function Teleport(props) {
 
   if (matchContext(window, Modes.Interactive)) {
     const anchorNode = window.document.createComment('teleport-anchor');
-    Reflect.set(anchorNode, '__isTeleportAnchor', true);
-    observer.onConnected(Cell.source(anchorNode), () =>
-      mountTeleportedNodes(anchorNode)
-    );
+    const ref = Cell.source(anchorNode);
+    observer.onConnected(ref, () => mountTeleportedNodes(anchorNode));
 
     return anchorNode;
   }
@@ -117,7 +115,10 @@ export function Teleport(props) {
   //@ts-expect-error: Observers are not supported in VDom, they work only in Interactive mode,
   // but a callback still needs to be registered so the teleport can be unmounted as soon
   // as the anchor node is disconnected.
-  observer.onConnected(Cell.source(anchorNode), () => {
+  const ref = /** @type {Cell<Node>} */ (Cell.source(anchorNode));
+  Reflect.set(anchorNode, '__isTeleportAnchor', true);
+  Reflect.set(anchorNode, '__ref', ref);
+  observer.onConnected(ref, () => {
     return () => {
       const { window } = getGlobalContext();
       const parent = window.document.querySelector(target);
