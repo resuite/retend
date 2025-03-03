@@ -35,7 +35,7 @@ export const Modes = {
  *
  * @type {Environments}
  */
-const globalContext = {
+let globalContext = {
   mode: Modes.Interactive,
   window: globalThis.window,
 };
@@ -78,7 +78,7 @@ export function isVNode(node) {
  * @param {Environments} context - New environment configuration
  */
 export function setGlobalContext(context) {
-  Object.assign(globalContext, context);
+  globalContext = context;
   Reflect.set(
     globalContext.window.document,
     '__appRenderMode',
