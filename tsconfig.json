@@ -22,8 +22,8 @@
 
     "checkJs": true,
     "strict": true,
-    "types": ["./source/jsx-runtime"]
+    "types": ["./packages/unfinished/source/jsx-runtime"]
   },
-  "include": ["source"],
+  "include": ["packages/unfinished/source"],
   "exclude": ["node_modules/**/*"]
 }

@@ -192,7 +192,7 @@ export function toKebabCase(str) {
 }
 
 // @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/index' */
 
 /**
  * Generates an array of DOM nodes from a given input.

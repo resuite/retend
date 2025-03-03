@@ -26,7 +26,7 @@ const RELAY_ID_REGEX =
   /^([a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?)/;
 
 // @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/index' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
 // @ts-ignore: Deno has issues with @import tags.

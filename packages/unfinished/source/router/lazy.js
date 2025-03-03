@@ -1,5 +1,5 @@
 // @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/index' */
 
 /**
  * @typedef {() => (Promise<{

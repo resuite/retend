@@ -7,7 +7,7 @@ import {
 import { routeToComponent } from '../router/routeTree.js';
 
 // @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/index' */
 // @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
