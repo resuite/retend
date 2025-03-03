@@ -1,9 +1,4 @@
-/**
- * Storage for one-time computed values that need to persist across environment transitions.
- * Values are removed after first read to prevent memory leaks.
- * @type {Map<string, unknown>}
- */
-let consistentValues = new Map();
+import { getGlobalContext } from './context.js';
 
 /**
  * Initializes the consistent value store with a predefined set of values.
@@ -13,7 +8,11 @@ let consistentValues = new Map();
  *                                       All values must be JSON-serializable.
  */
 export function setConsistentValues(values) {
-  consistentValues = new Map(values);
+  const { consistentValues } = getGlobalContext();
+  consistentValues.clear();
+  for (const [key, value] of values) {
+    consistentValues.set(key, value);
+  }
 }
 
 /**
@@ -23,6 +22,7 @@ export function setConsistentValues(values) {
  * @returns {Map<string, unknown>} Map containing all stored consistent values
  */
 export function getConsistentValues() {
+  const { consistentValues } = getGlobalContext();
   return new Map(consistentValues);
 }
 
@@ -57,6 +57,7 @@ export function getConsistentValues() {
  * occur if values are not removed after being read.
  */
 export async function useConsistent(key, generator) {
+  const { consistentValues } = getGlobalContext();
   if (consistentValues.has(key)) {
     const value = consistentValues.get(key);
     consistentValues.delete(key);

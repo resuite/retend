@@ -10,8 +10,6 @@ import {
 } from '../library/context.js';
 import { useConsistent } from '../library/consistent.js';
 
-let idCounter = 0;
-
 // @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.js' */
 // @ts-ignore: Deno has issues with @import tags.
@@ -61,10 +59,10 @@ let idCounter = 0;
 export function Teleport(props) {
   const { to: target, ...rest } = props;
   const observer = useObserver();
-  const { window } = getGlobalContext();
+  const { window, teleportIdCounter } = getGlobalContext();
   /** @type {string | undefined} */
   let teleportId;
-  const key = `teleport/target/${idCounter++}`;
+  const key = `teleport/target/${teleportIdCounter.value++}`;
 
   /** @param {NodeLike} anchorNode */
   const mountTeleportedNodes = async (anchorNode) => {

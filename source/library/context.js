@@ -14,13 +14,16 @@ export const Modes = {
  * Environment configuration that pairs a mode with its corresponding window implementation.
  * Each environment provides its own window interface optimized for that context.
  *
- * @typedef {{
+ * @typedef {({
  *    mode: 1,
  *    window: VDom.VWindow
  *  } | {
  *    mode: 2
  *    window: Window & typeof globalThis
- *  }} Environments
+ *  }) & {
+ *    consistentValues: Map<string, unknown>,
+ *    teleportIdCounter: { value: number }
+ * }} Environments
  */
 
 /** @typedef {Environments['mode']} RenderMode */
@@ -38,6 +41,8 @@ export const Modes = {
 let globalContext = {
   mode: Modes.Interactive,
   window: globalThis.window,
+  consistentValues: new Map(),
+  teleportIdCounter: { value: 0 },
 };
 
 /**
