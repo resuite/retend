@@ -147,6 +147,7 @@ function findStaleTeleport(parent, teleportId) {
   }
 
   return parent.findNode((node) => {
+    if (node === parent) return false;
     if (node.nodeType !== 1) return false;
     const element = /** @type {VDom.VElement} */ (node);
     return (

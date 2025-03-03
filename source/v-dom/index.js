@@ -183,6 +183,7 @@ export class VNode extends EventTarget {
     if (selector.startsWith('#')) {
       return this.findNode(
         (node) =>
+          node !== this &&
           node instanceof VElement &&
           node.getAttribute('id') === selector.slice(1)
       );
@@ -203,6 +204,7 @@ export class VNode extends EventTarget {
     if (selector.startsWith('#')) {
       return this.findNodes(
         (node) =>
+          node !== this &&
           node instanceof VElement &&
           node.getAttribute('id') === selector.slice(1)
       );
