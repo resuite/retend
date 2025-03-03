@@ -181,11 +181,12 @@ export class VNode extends EventTarget {
    */
   querySelector(selector) {
     if (selector.startsWith('#')) {
+      const id = selector.slice(1);
       return this.findNode(
         (node) =>
           node !== this &&
           node instanceof VElement &&
-          node.getAttribute('id') === selector.slice(1)
+          node.getAttribute('id') === id
       );
     }
     const selectorLower = selector.toLowerCase();
@@ -202,16 +203,17 @@ export class VNode extends EventTarget {
   querySelectorAll(selector) {
     if (typeof selector !== 'string') return [];
     if (selector.startsWith('#')) {
+      const id = selector.slice(1);
       return this.findNodes(
         (node) =>
           node !== this &&
           node instanceof VElement &&
-          node.getAttribute('id') === selector.slice(1)
+          node.getAttribute('id') === id
       );
     }
+    const selectorLower = selector.toLowerCase();
     return this.findNodes(
-      (node) =>
-        node !== this && node.tagName?.toLowerCase() === selector.toLowerCase()
+      (node) => node !== this && node.tagName?.toLowerCase() === selectorLower
     );
   }
 
