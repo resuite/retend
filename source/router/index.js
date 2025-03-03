@@ -945,20 +945,21 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
         currentMatchedRoute.path,
         matchResult
       );
+      const simplePath = fullPathWithSearchAndHash.split('?')[0];
 
       // The current path must react before the page loads.
       const oldPath = this.currentPath.value.fullPath;
       if (this.currentPath.value.fullPath !== fullPathWithSearchAndHash) {
         this.currentPath.value = {
           name: currentMatchedRoute.name,
-          path: currentMatchedRoute.path,
+          path: simplePath,
           params: matchResult.params,
           query: matchResult.searchQueryParams,
           fullPath: fullPathWithSearchAndHash,
         };
       }
 
-      outlet.setAttribute('data-path', currentMatchedRoute.path);
+      outlet.setAttribute('data-path', simplePath);
 
       /** @type {JSX.Template} */
       let renderedComponent;
@@ -975,9 +976,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
 
       // if the component performs a redirect internally, it would change the route
       // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.getAttribute('data-path') !== currentMatchedRoute.path) {
-        return false;
-      }
+      if (outlet.getAttribute('data-path') !== simplePath) return false;
 
       // There is no feasible way to determine the final navigation direction
       // for view transitions, without already triggering a view transition.
