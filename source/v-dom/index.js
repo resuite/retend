@@ -543,7 +543,6 @@ export class VDocument extends VNode {
   }
 
   async mountAllTeleports() {
-    console.log('Mounting all teleports...', this.teleportMounts);
     await Promise.all(this.teleportMounts.map((mount) => mount()));
     this.teleportMounts = [];
   }
