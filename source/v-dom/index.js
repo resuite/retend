@@ -1,5 +1,7 @@
 //@ts-ignore: Deno has issues with import comments
 /** @import { CellSet } from '../library/utils.js' */
+//@ts-ignore: Deno has issues with import comments
+/** @import { Router } from '../router/index.js'; **/
 
 export class VNode extends EventTarget {
   /** @param {VDocument | null} document */
@@ -27,7 +29,7 @@ export class VNode extends EventTarget {
   static NOTATION_NODE = 12;
 
   get nodeType() {
-    return 1;
+    return 0;
   }
 
   /** @returns {string | null} */
@@ -478,6 +480,8 @@ export class VDocument extends VNode {
     this.documentElement.append(this.head, this.body);
     /** @type {Array<() => Promise<*>>} */
     this.teleportMounts = [];
+    /** @type {Router | null} */
+    this.__appRouterInstance = null;
   }
 
   /** @param {string} text */

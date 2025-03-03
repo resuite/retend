@@ -14,7 +14,7 @@ import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { MatchResult, RouteTree } from './routeTree.js';
 import { linkNodesToComponent } from '../render/index.js';
-import { matchContext, Modes } from '../library/context.js';
+import { matchContext, Modes, getGlobalContext } from '../library/context.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -201,9 +201,6 @@ export class RouteChangeEvent extends CustomEvent {
  */
 
 /** @typedef {JSX.IntrinsicElements['div'] & ExtraOutletData} RouterOutletProps */
-
-/** @type {Router | null } */
-let ROUTER_INSTANCE = null;
 
 /**
  * @typedef RouterOptions
@@ -1386,9 +1383,15 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
  * @returns {Router} The created router instance.
  */
 export function createWebRouter(routerOptions) {
+  const { window } = getGlobalContext();
+  const previousInstance = Reflect.get(window.document, '__appRouterInstance');
   const router = new Router(routerOptions);
-  ROUTER_INSTANCE = router;
-
+  Reflect.set(window.document, '__appRouterInstance', router);
+  if (previousInstance) {
+    throw new Error(
+      'Cannot create multiple web routers in the same document context.'
+    );
+  }
   return router;
 }
 
@@ -1407,10 +1410,14 @@ export function createWebRouter(routerOptions) {
  * router.navigate('/about');
  */
 export function useRouter() {
-  if (!ROUTER_INSTANCE) {
-    throw new Error('Router not initialized');
+  const { window } = getGlobalContext();
+  const instance = Reflect.get(window.document, '__appRouterInstance');
+  if (!instance) {
+    const message =
+      'useRouter() failed: A router has not been created in this document context.';
+    throw new Error(message);
   }
-  return ROUTER_INSTANCE;
+  return instance;
 }
 
 /**
