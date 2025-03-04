@@ -1,4 +1,4 @@
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/types.ts' */
 
 /**
  * @typedef {() => (Promise<{

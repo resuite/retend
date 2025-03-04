@@ -1,4 +1,4 @@
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/types.ts' */
 
 import { getGlobalContext } from '../library/context.js';
 import { appendChild } from '../library/jsx.js';

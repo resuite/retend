@@ -6,7 +6,7 @@ import {
 } from '../library/utils.js';
 import { routeToComponent } from '../router/routeTree.js';
 
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import * as Context from '../library/context.js' */
 

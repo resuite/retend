@@ -1,4 +1,4 @@
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/types.ts' */
 
 import { getGlobalContext, matchContext, Modes } from '../library/context.js';
 import { appendChild, setAttributeFromProps } from '../library/jsx.js';
@@ -39,7 +39,7 @@ export function Include(props) {
     return null;
   }
 
-  const { from: _from, children, ...rest } = props;
+  const { from: _, children, ...rest } = props;
 
   if (children) {
     appendChild(component, component.tagName.toLowerCase(), children);

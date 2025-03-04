@@ -2,7 +2,7 @@ import { Cell } from '@adbl/cells';
 import { getGlobalContext } from './context.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { UpdatableFn } from '../render/index.js' */
 
 /** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.

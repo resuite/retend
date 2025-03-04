@@ -27,7 +27,7 @@ const RELAY_ID_REGEX =
 
 /** @import { MatchResult } from './routeTree.js' */
 /** @import { SourceCell } from '@adbl/cells' */
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import * as Context from '../library/context.js' */
 /** @import { ReactiveCellFunction } from '../library/utils.js' */

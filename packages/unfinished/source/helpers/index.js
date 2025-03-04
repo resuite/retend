@@ -1,7 +1,7 @@
 import { getGlobalContext, matchContext, Modes } from '../library/context.js';
 import { setAttributeFromProps } from '../library/jsx.js';
 
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { MarkupContainerNode } from '../v-dom/index.js' */
 
 /**
