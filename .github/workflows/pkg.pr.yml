@@ -15,5 +15,5 @@ jobs:
         uses: actions/setup-node@v4
 
       - run: npm install
-      - run: npm run build
-      - run: npx pkg-pr-new publish
+      - run: npm run build-core
+      - run: npm run publish-core-preview
