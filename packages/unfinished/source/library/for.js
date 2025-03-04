@@ -207,7 +207,7 @@ export function For(list, fn, options) {
       }
     }
 
-    /** @type {ChildNodeLike | VDom.VComment} */
+    // deno-lint-ignore no-this-alias
     let lastInserted = this;
 
     // Reordering and Inserting New Nodes:

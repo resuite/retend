@@ -25,5 +25,5 @@
     "types": ["./packages/unfinished/source/jsx-runtime"]
   },
   "include": ["packages/unfinished/source"],
-  "exclude": ["node_modules/**/*"]
+  "exclude": ["node_modules/**/*", "dist"]
 }

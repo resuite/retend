@@ -61,7 +61,6 @@ export async function useConsistent(key, generator) {
   if (consistentValues.has(key)) {
     const value = consistentValues.get(key);
     consistentValues.delete(key);
-    // @ts-expect-error
     return value;
   }
   const value = await generator();

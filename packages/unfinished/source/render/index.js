@@ -430,10 +430,12 @@ export async function renderToString(template, window, options = {}) {
       if (options.markStaticNodes) {
         const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
         if (isStatic) {
-          // @ts-ignore
-          template.__isStatic = true;
-          // @ts-ignore
-          if (!template.parentNode?.__isStatic) {
+          Reflect.set(template, '__isStatic', true);
+          const parentIsStatic =
+            template.parentNode &&
+            Reflect.get(template.parentNode, '__isStatic');
+
+          if (!parentIsStatic) {
             text += ' data-static';
           }
         }

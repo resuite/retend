@@ -20,7 +20,7 @@ export const Modes = {
  *    mode: 2
  *    window: Window & typeof globalThis
  *  }) & {
- *    consistentValues: Map<string, unknown>,
+ *    consistentValues: Map<string, any>,
  *    teleportIdCounter: { value: number }
  * }} Environments
  */
@@ -66,13 +66,12 @@ export function matchContext(window, mode) {
  * Identifies virtual nodes in any environment.
  * Useful for conditional logic that needs to handle both real and virtual DOM nodes.
  *
- * @template [M=VDom.VNode]
+ * @template {object} [M=VDom.VNode]
  * @param {M} node - Node to check
  * @returns {node is M extends VDom.VNode ? M : never}
  */
 export function isVNode(node) {
-  // @ts-ignore
-  return '__isVNode' in node && node.__isVNode;
+  return '__isVNode' in node && Boolean(node.__isVNode);
 }
 
 /**

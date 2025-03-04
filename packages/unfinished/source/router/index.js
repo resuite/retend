@@ -372,11 +372,11 @@ export class Router extends EventTarget {
     addCellListener(a, this.currentPath, callback);
 
     if (props) {
-      const { children, replace, ...rest } = props;
+      const { children, replace: _, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         setAttributeFromProps(a, key, value);
       }
-      appendChild(a, a.tagName.toLowerCase(), props.children);
+      appendChild(a, a.tagName.toLowerCase(), children);
     }
 
     /**
@@ -443,11 +443,11 @@ export class Router extends EventTarget {
     );
 
     if (props) {
-      const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
+      const { keepAlive: _, maxKeepAliveCount: __, children, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         setAttributeFromProps(outlet, key, value);
       }
-      appendChild(outlet, outlet.tagName.toLowerCase(), props.children);
+      appendChild(outlet, outlet.tagName.toLowerCase(), children);
     }
 
     if (props) {
@@ -1007,7 +1007,7 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
       const newNodes = generateChildNodes(renderedComponent);
       linkNodesToComponent(newNodes, matchedComponent, undefined);
 
-      const newNodesFragment = await this.handleRelays(outlet, newNodes);
+      const newNodesFragment = this.handleRelays(outlet, newNodes);
       if (newNodesFragment) {
         renderRouteIntoOutlet(outlet, newNodesFragment, this.window);
       }
@@ -1118,9 +1118,9 @@ unfinished-router-outlet, unfinished-router-relay, unfinished-teleport {
    * Handles relaying for DOM elements during route changes.
    * @param {RouterOutlet} oldNodesFragment - The DOM fragment containing the old route content.
    * @param {(Node | VDom.VNode)[]} newNodesArray - The DOM elements that will be added to the outlet.
-   * @returns {Promise<VDom.VDocumentFragment | DocumentFragment | undefined>}
+   * @returns {VDom.VDocumentFragment | DocumentFragment | undefined}
    */
-  handleRelays = async (oldNodesFragment, newNodesArray) => {
+  handleRelays = (oldNodesFragment, newNodesArray) => {
     if (!this.window) return;
 
     // ---------------

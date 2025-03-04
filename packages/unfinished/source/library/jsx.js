@@ -196,14 +196,15 @@ export function appendChild(parentNode, tagname, child) {
   if (
     childNode instanceof window.HTMLElement &&
     '__isShadowRootContainer' in childNode &&
-    childNode.__isShadowRootContainer
+    childNode.__isShadowRootContainer &&
+    '__mode' in childNode
   ) {
     if (!(parentNode instanceof window.HTMLElement)) {
       console.error('ShadowRoot can only be children of HTML Elements.');
       return;
     }
-    // @ts-expect-error
-    const mode = childNode.__mode;
+
+    const mode = /** @type {ShadowRootMode} */ (childNode.__mode);
     const shadowRoot =
       parentNode.shadowRoot ?? parentNode.attachShadow({ mode });
     if (shadowRoot.mode !== mode) {
@@ -615,7 +616,9 @@ export function normalizeClassValue(val, element) {
         try {
           this.classList.remove(...currentClassToken.split(' '));
           this.classList.add(...newValue.split(' '));
-        } catch {}
+        } catch {
+          //
+        }
         currentClassToken = newValue;
       },
       false
@@ -641,7 +644,9 @@ export function normalizeClassValue(val, element) {
             } else {
               this.classList.remove(...key.split(' '));
             }
-          } catch {}
+          } catch {
+            //
+          }
         },
         false
       );

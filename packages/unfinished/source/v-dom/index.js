@@ -244,18 +244,22 @@ export class VText extends VNode {
     this.#textContent = text;
   }
 
+  /** @override */
   get textContent() {
     return this.#textContent;
   }
 
+  /** @override */
   set textContent(value) {
     this.#textContent = value;
   }
 
+  /** @override */
   get tagName() {
     return '#text';
   }
 
+  /** @override */
   get nodeType() {
     return 3;
   }
@@ -310,6 +314,7 @@ export class VElement extends VNode {
     this.scrollTop = 0;
   }
 
+  /** @override */
   get nodeType() {
     return 1;
   }
@@ -380,6 +385,7 @@ export class VElement extends VNode {
     }
   }
 
+  /** @override */
   get tagName() {
     return this.#tag.toUpperCase();
   }
@@ -411,6 +417,7 @@ export class VShadowRoot extends VNode {
     this.mode = mode;
   }
 
+  /** @override */
   get tagName() {
     return '#shadow-root';
   }
@@ -426,14 +433,17 @@ export class VComment extends VNode {
     this.text = text;
   }
 
+  /** @override */
   get nodeType() {
     return 8;
   }
 
+  /** @override */
   get textContent() {
     return this.text;
   }
 
+  /** @override */
   get tagName() {
     return '#comment';
   }
@@ -449,10 +459,12 @@ export class VDocumentFragment extends VNode {
     this.childNodes = children;
   }
 
+  /** @override */
   get nodeType() {
     return 11;
   }
 
+  /** @override */
   get tagName() {
     return '#document-fragment';
   }
@@ -468,6 +480,7 @@ export class MarkupContainerNode extends VNode {
     this.html = html;
   }
 
+  /** @override */
   get tagName() {
     return '#markup-container';
   }
@@ -498,6 +511,7 @@ export class VDocument extends VNode {
   }
 
   /**
+   * @override
    * @param {(node: VNode) => boolean} predicate
    */
   findNode(predicate) {
@@ -505,6 +519,7 @@ export class VDocument extends VNode {
   }
 
   /**
+   * @override
    * @param {(node: VNode) => boolean} predicate
    */
   findNodes(predicate) {
@@ -512,13 +527,19 @@ export class VDocument extends VNode {
   }
 
   // NOTE: only supports id and tag selectors.
-  /** @param {string} selector */
+  /**
+   * @override
+   * @param {string} selector
+   */
   querySelector(selector) {
     return this.documentElement.querySelector(selector);
   }
 
   // NOTE: only supports id and tag selectors.
-  /** @param {string} selector */
+  /**
+   * @override
+   * @param {string} selector
+   */
   querySelectorAll(selector) {
     return this.documentElement.querySelectorAll(selector);
   }
@@ -545,6 +566,7 @@ export class VDocument extends VNode {
     return new VDocumentFragment([], this);
   }
 
+  /** @override */
   get tagName() {
     return '#document';
   }
