@@ -1,7 +1,7 @@
 {
   "scripts": {
     "build-core": "cd packages/unfinished && npm run build",
-    "publish-core-preview": "cd packages/unfinished && npx pkg-pr-new publish"
+    "publish-core-preview": "cp README.md packages/unfinished/README.md && cd packages/unfinished && npx pkg-pr-new publish"
   },
   "workspaces": [
     "packages/unfinished",
