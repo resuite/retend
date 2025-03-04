@@ -6,11 +6,8 @@ import {
 } from '../library/utils.js';
 import { routeToComponent } from '../router/routeTree.js';
 
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index' */
-// @ts-ignore: Deno has issues with @import tags.
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
 /** @import * as VDom from '../v-dom/index.js' */
-// @ts-ignore: Deno has issues with @import tags.
 /** @import * as Context from '../library/context.js' */
 
 /** @typedef {{ __nextInstance?: (...args: any[]) => JSX.Template }} UpdatableFn */

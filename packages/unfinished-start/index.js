@@ -3,20 +3,21 @@
 
 import { execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
+import process from 'node:process';
 import path from 'node:path';
+
 import chalk from 'chalk';
 import ora from 'ora';
 import semver from 'semver';
 import { createPromptModule } from 'inquirer';
-import process from 'node:process';
 
 // Configuration
 const CONFIG = {
   minNodeVersion: '14.0.0',
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
-    '@adbl/unfinished': 'latest',
-    '@adbl/cells': 'latest',
+    '@adbl/unfinished': '^0.0.14',
+    '@adbl/cells': '^0.0.11',
   },
   devDependencies: {
     vite: '^5.4.8',
@@ -40,12 +41,14 @@ const questions = [
     name: 'projectName',
     message: chalk.magenta('What is the name of your project?'),
     default: 'my-app',
-    validate: (input) =>
+    validate: (/** @type {string} */ input) =>
       /^[a-z0-9-]+$/.test(input) ||
       chalk.red(
         'Project name can only contain lowercase letters, numbers, and hyphens'
       ),
-    when: () => args.length === 0 || args.every((arg) => arg.startsWith('-')), // Only ask if not provided as an argument
+    when: () =>
+      args.length === 0 ||
+      args.every((/** @type {string} */ arg) => arg.startsWith('-')), // Only ask if not provided as an argument
   },
   {
     type: 'confirm',
@@ -78,7 +81,9 @@ async function main() {
     checkNodeVersion();
 
     // Get project name from command line argument or prompt
-    const projectName = args.find((arg) => !arg.startsWith('-'));
+    const projectName = args.find(
+      (/** @type {string} */ arg) => !arg.startsWith('-')
+    );
 
     /** @type {Record<string, any>} */
     const answers = {};
@@ -113,7 +118,8 @@ async function main() {
     );
 
     displayCompletionMessage(answers.projectName);
-  } catch (error) {
+    process.exit(0);
+  } catch (/** @type {any} */ error) {
     if (error.isTtyError) {
       console.error(
         chalk.red("Prompt couldn't be rendered in the current environment")
@@ -190,6 +196,7 @@ async function initializeGit(projectDir) {
       'node_modules\ndist\n.DS_Store'
     );
   } catch (error) {
+    console.error(error);
     console.warn(
       chalk.yellow(
         'Failed to initialize git repository. You can do it manually later.'
@@ -602,6 +609,10 @@ export const ${componentName}Route = defineRoute({
   }
 }
 
+/**
+ * @param {string} projectDir
+ * @param {Record<string, unknown>} answers
+ */
 async function createPackageJson(projectDir, answers) {
   const content = {
     name: answers.projectName,
@@ -616,6 +627,7 @@ async function createPackageJson(projectDir, answers) {
     dependencies: {
       ...CONFIG.dependencies,
     },
+    /** @type {Record<string, string>} */
     devDependencies: {
       vite: CONFIG.devDependencies.vite,
     },
@@ -643,10 +655,15 @@ async function createPackageJson(projectDir, answers) {
   );
 }
 
+/**
+ * @param {string} projectDir
+ * @param {Record<string, unknown>} answers
+ */
 async function createConfigFile(projectDir, answers) {
   const isTypeScript = answers.language === 'TypeScript';
   const fileName = isTypeScript ? 'tsconfig.json' : 'jsconfig.json';
   const content = {
+    /** @type {Record<string, unknown>} */
     compilerOptions: {
       target: 'ESNext',
       useDefineForClassFields: true,
@@ -716,6 +733,9 @@ async function createVSCodeFolder(projectDir, answers) {
   );
 }
 
+/**
+ * @param {string} projectName
+ */
 function displayCompletionMessage(projectName) {
   console.log(chalk.green('\n✨ Your project is ready! ✨'));
   console.log(chalk.yellow('\nNext steps:'));
@@ -735,6 +755,9 @@ function displayCompletionMessage(projectName) {
   console.log(chalk.blue('\nHappy coding! 🚀'));
 }
 
+/**
+ * @param {string} string
+ */
 function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }

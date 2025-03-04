@@ -1,6 +1,4 @@
-//@ts-ignore: Deno has issues with import comments
 /** @import { CellSet } from '../library/utils.js' */
-//@ts-ignore: Deno has issues with import comments
 /** @import { Router } from '../router/index.js'; **/
 
 export class VNode extends EventTarget {

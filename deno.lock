@@ -1,0 +1,67 @@
+{
+  "version": "4",
+  "specifiers": {
+    "npm:@adbl/cells@0.0.11": "0.0.11",
+    "npm:@types/node@*": "22.12.0",
+    "npm:csstype@^3.1.3": "3.1.3"
+  },
+  "npm": {
+    "@adbl/cells@0.0.11": {
+      "integrity": "sha512-TtqqWDHMCOxX/EYJz11zxMOyOlg/WHcy6lXwxqE8PJh6mUC08CpoyXswGn3QyRn7/kafwhZ4JjU73Z0kQ48rYA=="
+    },
+    "@types/node@22.12.0": {
+      "integrity": "sha512-Fll2FZ1riMjNmlmJOdAyY5pUbkftXslB5DgEzlIuNaiWhXd00FhWxVC/r4yV/4wBb9JfImTu+jiSvXTkJ7F/gA==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "csstype@3.1.3": {
+      "integrity": "sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw=="
+    },
+    "undici-types@6.20.0": {
+      "integrity": "sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:@adbl/cells@0.0.11",
+      "npm:@types/node@20.8.10",
+      "npm:chalk@5.3.0",
+      "npm:inquirer@12.0.0",
+      "npm:ora@8.1.0",
+      "npm:semver@7.6.3"
+    ],
+    "members": {
+      "packages/unfinished": {
+        "dependencies": [
+          "npm:@adbl/cells@0.0.11"
+        ],
+        "packageJson": {
+          "dependencies": [
+            "npm:@adbl/cells@^0.0.11",
+            "npm:csstype@^3.1.3",
+            "npm:typescript@^5.7.2"
+          ]
+        }
+      },
+      "packages/unfinished-start": {
+        "dependencies": [
+          "npm:@types/node@20.8.10",
+          "npm:chalk@5.3.0",
+          "npm:inquirer@12.0.0",
+          "npm:ora@8.1.0",
+          "npm:semver@7.6.3"
+        ],
+        "packageJson": {
+          "dependencies": [
+            "npm:@types/node@^22.7.5",
+            "npm:chalk@^5.3.0",
+            "npm:inquirer@12",
+            "npm:ora@^8.1.0",
+            "npm:semver@^7.6.3"
+          ]
+        }
+      }
+    }
+  }
+}

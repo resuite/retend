@@ -1,4 +1,4 @@
-import { Cell, SourceCell } from '@adbl/cells';
+import { Cell } from '@adbl/cells';
 import {
   setAttributeFromProps,
   appendChild,
@@ -12,7 +12,7 @@ import {
 } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
-import { MatchResult, RouteTree } from './routeTree.js';
+import { RouteTree } from './routeTree.js';
 import { linkNodesToComponent } from '../render/index.js';
 import { matchContext, Modes, getGlobalContext } from '../library/context.js';
 
@@ -25,14 +25,12 @@ const PARAM_REGEX = /:(\w+)/g;
 const RELAY_ID_REGEX =
   /^([a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?)/;
 
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index' */
-// @ts-ignore: Deno has issues with @import tags.
+/** @import { MatchResult } from './routeTree.js' */
+/** @import { SourceCell } from '@adbl/cells' */
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
 /** @import * as VDom from '../v-dom/index.js' */
-// @ts-ignore: Deno has issues with @import tags.
 /** @import * as Context from '../library/context.js' */
-// @ts-ignore: Deno has issues with @import tags.
-/** @import {ReactiveCellFunction} from '../library/utils.js' */
+/** @import { ReactiveCellFunction } from '../library/utils.js' */
 
 /**
  * @typedef {LazyRoute | ((() => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader

@@ -1,3 +1,7 @@
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import * as VDom from '../v-dom/index.js' */
+/** @import { NodeLike } from '../library/context.js' */
+
 import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
 import { appendChild, setAttributeFromProps } from '../library/jsx.js';
@@ -9,13 +13,6 @@ import {
   Modes,
 } from '../library/context.js';
 import { useConsistent } from '../library/consistent.js';
-
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.js' */
-// @ts-ignore: Deno has issues with @import tags.
-/** @import * as VDom from '../v-dom/index.js' */
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { NodeLike } from '../library/context.js' */
 
 /**
  * @typedef TeleportOnlyProps

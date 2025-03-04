@@ -1,4 +1,3 @@
-// @ts-ignore: Deno has issues with import comments
 /** @import * as VDom from '../v-dom/index.js' */
 
 /**

@@ -1,23 +1,20 @@
 import { getGlobalContext, matchContext, Modes } from '../library/context.js';
 import { setAttributeFromProps } from '../library/jsx.js';
 
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { MarkupContainerNode } from '../v-dom/index.js' */
+
 /**
  * @typedef InlineSvgProps
- * @property {string} href address of the svg icon to inline.
+ * @property {string} href Address of the svg icon to inline.
  */
-
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 /**
  * @typedef {InlineSvgProps & JSX.IntrinsicElements['svg']} SvgProps
  */
 
 /** @type {RequestInit} */
-const svgFetchOptions = {
-  cache: 'force-cache',
-};
-
+const svgFetchOptions = { cache: 'force-cache' };
 const svgMap = new Map();
 
 /**
@@ -38,7 +35,7 @@ export async function InlineSvg(props) {
       svgMap.set(props.href, svg);
     }
 
-    /** @type {Element | null | import('../v-dom/index.js').MarkupContainerNode} */
+    /** @type {Element | null | MarkupContainerNode} */
     let element;
     if (matchContext(window, Modes.Interactive)) {
       const range = window.document.createRange();

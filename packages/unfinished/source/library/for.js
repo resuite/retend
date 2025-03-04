@@ -1,3 +1,7 @@
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import * as VDom from '../v-dom/index.js' */
+/** @import { ReactiveCellFunction } from './utils.js' */
+
 import { Cell } from '@adbl/cells';
 import {
   addCellListener,
@@ -8,13 +12,6 @@ import {
 } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 import { getGlobalContext, matchContext, Modes } from './context.js';
-
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index.d.ts' */
-// @ts-ignore: Deno has issues with @import tags.
-/** @import * as VDom from '../v-dom/index.js' */
-// @ts-ignore: Deno has issues with @import tags.
-/** @import {ReactiveCellFunction} from './utils.js' */
 
 /** @typedef {VDom.VNode | ChildNode} ChildNodeLike */
 

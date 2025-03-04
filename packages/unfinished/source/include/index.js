@@ -1,4 +1,3 @@
-// @ts-ignore: Deno has issues with @import tags.
 /** @import { JSX } from '../jsx-runtime/index.d.ts' */
 
 import { getGlobalContext, matchContext, Modes } from '../library/context.js';
@@ -40,7 +39,7 @@ export function Include(props) {
     return null;
   }
 
-  const { from, children, ...rest } = props;
+  const { from: _from, children, ...rest } = props;
 
   if (children) {
     appendChild(component, component.tagName.toLowerCase(), children);

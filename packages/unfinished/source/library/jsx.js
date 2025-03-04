@@ -1,3 +1,6 @@
+/** @import * as VDom from '../v-dom/index.js' */
+/** @import { CellSet } from './utils.js' */
+
 import { Cell, SourceCell } from '@adbl/cells';
 import {
   addCellListener,
@@ -8,11 +11,6 @@ import {
 } from './utils.js';
 import { linkNodesToComponent } from '../render/index.js';
 import { getGlobalContext, isVNode, matchContext, Modes } from './context.js';
-
-// @ts-ignore: Deno has issues with @import tags.
-/** @import * as VDom from '../v-dom/index.js' */
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { CellSet } from './utils.js' */
 
 const camelCasedAttributes = new Set([
   // SVG attributes

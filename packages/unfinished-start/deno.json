@@ -1,0 +1,24 @@
+{
+  "name": "@adbl/unfinished-start",
+  "tasks": {
+    "start": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net index.js"
+  },
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
+    "allowUnreachableCode": false,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true
+  },
+  "imports": {
+    "chalk": "npm:chalk@5.3.0",
+    "inquirer": "npm:inquirer@12.0.0",
+    "ora": "npm:ora@8.1.0",
+    "semver": "npm:semver@7.6.3",
+    "@types/node": "npm:@types/node@20.8.10"
+  }
+}

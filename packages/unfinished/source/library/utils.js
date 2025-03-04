@@ -1,8 +1,9 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext } from './context.js';
 
-// @ts-ignore: Deno has issues with @import tags.
 /** @import * as VDom from '../v-dom/index.js' */
+/** @import { JSX } from '../jsx-runtime/index.d.ts' */
+/** @import { UpdatableFn } from '../render/index.js' */
 
 /** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
 export const isDevMode = import.meta.env?.DEV;
@@ -41,6 +42,7 @@ export class FixedSizeMap extends Map {
 
   /**
    * Sets a new key-value pair, removing oldest entry if map is full
+   * @override
    * @param {K} key - The key to set
    * @param {V} value - The value to set
    * @returns {this} The map object
@@ -63,6 +65,7 @@ export class FixedSizeMap extends Map {
 
   /**
    * Deletes an entry from the map
+   * @override
    * @param {K} key - The key to delete
    * @returns {boolean} True if the element was removed
    */
@@ -75,6 +78,7 @@ export class FixedSizeMap extends Map {
   }
 
   /**
+   * @override
    * Removes all entries from the map
    */
   clear() {
@@ -191,9 +195,6 @@ export function toKebabCase(str) {
     .toLowerCase();
 }
 
-// @ts-ignore: Deno has issues with @import tags.
-/** @import { JSX } from '../jsx-runtime/index' */
-
 /**
  * Generates an array of DOM nodes from a given input.
  * @param {JSX.Template | TemplateStringsArray} children - The input to generate DOM nodes from.
@@ -265,7 +266,7 @@ export function isSomewhatFalsy(value) {
 /**
  * Gets the most current instance of the given function.
  *
- * @param {Function & import('../render/index.js').UpdatableFn} fn
+ * @param {Function & UpdatableFn} fn
  * @returns {(...args: any[]) => any}
  */
 export function getMostCurrentFunction(fn) {
@@ -273,7 +274,7 @@ export function getMostCurrentFunction(fn) {
   while (currentFn.__nextInstance) {
     currentFn = currentFn.__nextInstance;
   }
-  // @ts-ignore
+  // @ts-ignore: The currentFn is guaranteed to be an "updatable" function object.
   return currentFn;
 }
 
