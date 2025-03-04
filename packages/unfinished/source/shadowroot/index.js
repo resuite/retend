@@ -57,6 +57,15 @@ export function ShadowRoot(props) {
     window.document.createElement('div')
   );
 
+  // @ts-ignore: The import.meta.env types are available in Vite.
+  if (import.meta.env.SSR) {
+    if (mode === 'closed') {
+      const message =
+        'Closed shadow roots cannot by hydrated on the client. This code will end up static in the browser.';
+      console.trace(message);
+    }
+  }
+
   shadowRoot.__mode = mode ?? 'open';
   shadowRoot.__isShadowRootContainer = true;
   appendChild(shadowRoot, 'shadow-root', children);
