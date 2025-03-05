@@ -9,7 +9,7 @@ import {
   generateChildNodes,
   getMostCurrentFunction,
 } from './utils.js';
-import { linkNodesToComponent } from '../render/index.js';
+import { linkNodesToComponent } from '../plugin/index.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.

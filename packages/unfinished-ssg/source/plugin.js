@@ -17,7 +17,7 @@ import { buildPaths, writeArtifactsToDisk } from './server.js';
  * @param {PluginOptions} options - Configuration options for the plugin.
  * @returns {Plugin} A Vite plugin object.
  */
-export default function unfinishedSSG(options) {
+export function unfinishedSSG(options) {
   const {
     paths,
     routerModulePath: createRouterModule,
@@ -40,7 +40,7 @@ export default function unfinishedSSG(options) {
   let viteConfig;
 
   return {
-    name: 'vite-unfinished-ssg',
+    name: 'vite-plugin-unfinished-ssg',
     apply: 'build',
 
     configResolved(resolvedConfig) {
@@ -66,3 +66,5 @@ export default function unfinishedSSG(options) {
     },
   };
 }
+
+export default unfinishedSSG;

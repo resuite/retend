@@ -9,7 +9,7 @@ import {
   getMostCurrentFunction,
   isSomewhatFalsy,
 } from './utils.js';
-import { linkNodesToComponent } from '../render/index.js';
+import { linkNodesToComponent } from '../plugin/index.js';
 import { getGlobalContext, isVNode, matchContext, Modes } from './context.js';
 
 const camelCasedAttributes = new Set([
