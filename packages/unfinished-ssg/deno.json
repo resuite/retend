@@ -1,12 +1,16 @@
 {
+  "name": "@adbl/unfinished-ssg",
+  "version": "0.0.1",
+  "description": "Static site generator plugin for the @adbl/unfinished library.",
   "tasks": {
-    "start": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net index.js"
+    "dev": "deno run --watch main.ts"
   },
   "compilerOptions": {
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitAny": true,
     "allowUnreachableCode": false,
+    "lib": ["DOM", "ESNext", "DOM.Iterable"],
     "strictFunctionTypes": true,
     "noImplicitReturns": true,
     "allowJs": true,

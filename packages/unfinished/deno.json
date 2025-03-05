@@ -16,9 +16,6 @@
     "checkJs": true,
     "strict": true
   },
-  "imports": {
-    "@adbl/cells": "npm:@adbl/cells@0.0.11"
-  },
   "publish": {
     "exclude": ["!dist"]
   },

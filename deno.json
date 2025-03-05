@@ -1,13 +1,21 @@
 {
-  "workspace": ["./packages/unfinished", "./packages/unfinished-start"],
+  "workspace": [
+    "./packages/unfinished",
+    "./packages/unfinished-start",
+    "./packages/unfinished-ssg"
+  ],
   "imports": {
     "chalk": "npm:chalk@5.3.0",
     "inquirer": "npm:inquirer@12.0.0",
     "ora": "npm:ora@8.1.0",
+    "vite": "npm:vite@5.4.14",
     "semver": "npm:semver@7.6.3",
     "@types/node": "npm:@types/node@20.8.10",
-    "@adbl/cells": "npm:@adbl/cells@0.0.11"
+    "@adbl/cells": "npm:@adbl/cells@0.0.11",
+    "domhandler": "npm:domhandler@5.0.3",
+    "htmlparser2": "npm:htmlparser2@10.0.0"
   },
+  "nodeModulesDir": "auto",
   "compilerOptions": {
     "noUnusedLocals": true,
     "noUnusedParameters": true,
