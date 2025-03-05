@@ -273,7 +273,7 @@ export const hotReloadModule = async (newModule, url) => {
  *
  * @returns A Vite plugin object with a `name` property and `transform` hook.
  */
-export const plugin = () => {
+export const unfinished = () => {
   return {
     name: 'vite-plugin-unfinished',
 
@@ -293,13 +293,13 @@ export const plugin = () => {
       if (!isJsx) return null;
 
       const injectedCode = `
-import { hotReloadModule as __HMR__ } from '@adbl/unfinished/render';
+import { hotReloadModule as __HMR____ } from '@adbl/unfinished/render';
 
 ${code}
 
 if (import.meta.hot) {
   import.meta.hot.accept((newModule) => {
-    __HMR__(newModule, import.meta.url);
+    __HMR____(newModule, import.meta.url);
   });
 }
       `;

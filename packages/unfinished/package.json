@@ -57,6 +57,10 @@
     "./v-dom": {
       "import": "./dist/v-dom/index.js",
       "types": "./dist/v-dom/index.d.ts"
+    },
+    "./plugin": {
+      "import": "./dist/plugin/index.js",
+      "types": "./dist/plugin/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/unfinished#readme",

@@ -264,17 +264,13 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { hmrPlugin } from '@adbl/unfinished/render';
+import { unfinished } from '@adbl/unfinished/plugin';
 
 export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './source') }
   },
-  esbuild: {
-    jsx: 'automatic',
-    jsxImportSource: '@adbl/unfinished',
-  },
-  plugins: [hmrPlugin()],
+  plugins: [unfinished()],
 ${
   answers.cssPreprocessor === 'SCSS'
     ? `
