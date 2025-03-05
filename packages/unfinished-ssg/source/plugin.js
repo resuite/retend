@@ -1,9 +1,7 @@
 /** @import { Plugin, UserConfig } from 'vite' */
 /** @import { BuildOptions, OutputArtifact } from './types.js' */
 
-import fs from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { buildPaths, writeArtifactsToDisk } from './server.js';
+import { buildPaths } from './server.js';
 
 /**
  * @typedef {object} PluginOptions
@@ -40,30 +38,33 @@ export function unfinishedSSG(options) {
   return {
     name: 'vite-plugin-unfinished-ssg',
     apply: 'build',
+    enforce: 'post',
 
     config(config) {
       viteConfig = config;
       return config;
     },
 
-    async buildEnd() {
-      const outDir = viteConfig.build?.outDir || 'dist';
-      const dist = resolve(outDir);
-
-      const htmlShell = await fs.readFile(`${dist}/index.html`, 'utf-8');
+    async transformIndexHtml(html) {
       /** @type {BuildOptions} */
       const buildOptions = {
         rootSelector,
         createRouterModule,
-        htmlShell,
+        htmlShell: html,
         viteConfig,
       };
       outputs.push(...(await buildPaths(pages, buildOptions)));
+      return html;
     },
 
-    async writeBundle() {
-      const outDir = viteConfig.build?.outDir || 'dist';
-      await writeArtifactsToDisk(outputs, { outDir });
+    generateBundle() {
+      for (const output of outputs) {
+        this.emitFile({
+          type: 'asset',
+          fileName: output.name,
+          source: output.contents,
+        });
+      }
     },
   };
 }

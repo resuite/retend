@@ -205,7 +205,7 @@ async function renderPath(options) {
     );
 
     const finalPath = currentRoute.value.fullPath;
-    const name = `.${finalPath}.html`;
+    const name = `${finalPath.replace(/^\//, '')}.html`;
     const options = { markStaticNodes: true };
     const htmlContents = await renderToString(document, window, options);
     const contents = `<!DOCTYPE html>${htmlContents}`;
@@ -219,10 +219,10 @@ async function renderPath(options) {
 
     if (path === '/' || path.endsWith('/')) {
       const normalizedPath = path === '/' ? '' : path.slice(1, -1);
-      redirectFileName = `.${normalizedPath}/index.html`;
-      if (normalizedPath === '') redirectFileName = './index.html';
+      redirectFileName = `${normalizedPath}/index.html`;
+      if (normalizedPath === '') redirectFileName = 'index.html';
     } else {
-      redirectFileName = `.${path}.html`;
+      redirectFileName = `${path}.html`;
     }
 
     outputs.push({ name: redirectFileName, contents: redirectContent });
