@@ -47,7 +47,7 @@ export function unfinishedSSG(options) {
       viteConfig = /** @type {*} */ (resolvedConfig);
     },
 
-    async writeBundle() {
+    async buildEnd() {
       const outDir = viteConfig.build?.outDir || 'dist';
       const dist = resolve(outDir);
 
