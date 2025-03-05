@@ -5,6 +5,9 @@
   "tasks": {
     "dev": "deno run --watch main.ts"
   },
+  "exports": {
+    "./plugin": "./dist/plugin.js"
+  },
   "compilerOptions": {
     "noUnusedLocals": true,
     "noUnusedParameters": true,

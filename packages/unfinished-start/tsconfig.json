@@ -22,9 +22,8 @@
     "declarationMap": true,
 
     "checkJs": true,
-    "strict": true,
-    "types": ["./packages/unfinished/source/jsx-runtime"]
+    "strict": true
   },
-  "include": ["packages/unfinished/source"],
+  "include": ["index.js"],
   "exclude": ["node_modules/**/*", "dist"]
 }

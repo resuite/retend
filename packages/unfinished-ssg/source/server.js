@@ -1,3 +1,18 @@
+/** @import { Router } from '@adbl/unfinished/router' */
+/** @import { VNode } from '@adbl/unfinished/v-dom' */
+/** @import { UserConfig } from 'vite' */
+/** @import {
+ *    BuildOptions,
+ *    OutputArtifact,
+ *    ViteBuildResult,
+ *    ServerContext,
+ *    AsyncStorage,
+ *    RenderOptions,
+ *    WriteArtifactsOptions
+ * } from './types.js'
+ */
+/** @import { ChildNode } from 'domhandler' */
+
 import {
   getConsistentValues,
   Modes,
@@ -5,33 +20,23 @@ import {
   setGlobalContext,
 } from '@adbl/unfinished';
 import { renderToString } from '@adbl/unfinished/render';
-import { VElement, type VNode, VWindow } from '@adbl/unfinished/v-dom';
-import type { Router } from '@adbl/unfinished/router';
-import { build, createServer, type UserConfig } from 'vite';
+import { VElement, VWindow } from '@adbl/unfinished/v-dom';
+import { build, createServer } from 'vite';
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { basename, dirname, resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 
 import { parseDocument } from 'htmlparser2';
-import { Comment, Text, type ChildNode, Element } from 'domhandler';
-import type {
-  BuildOptions,
-  OutputArtifact,
-  ViteBuildResult,
-  ServerContext,
-  AsyncStorage,
-  WriteArtifactsOptions,
-  RenderOptions,
-} from './types.ts';
+import { Comment, Text, Element } from 'domhandler';
 
 /**
  * Given the path to a client-side router, this function serializes the given paths to
  * HTML files and related assets.
  *
- * @param paths The paths to serialize.
- * @param options Options for building.
- * @returns A promise that resolves to an array of output artifacts.
+ * @param {string[]} paths The paths to serialize.
+ * @param {BuildOptions} [options] Options for building.
+ * @returns {Promise<OutputArtifact[]>} A promise that resolves to an array of output artifacts.
  *
  * @example
  * // Build a single path
@@ -40,8 +45,9 @@ import type {
  * // Build multiple paths
  * await buildPaths(['/home', '/about', '/contact'], { routerPath: './router.ts' });
  */
-export async function buildPaths(paths: string[], options: BuildOptions = {}) {
-  const outputs: Array<OutputArtifact> = [];
+export async function buildPaths(paths, options = {}) {
+  /** @type {OutputArtifact[]} */
+  const outputs = [];
   const {
     viteConfig = {},
     htmlEntry = './index.html',
@@ -49,7 +55,8 @@ export async function buildPaths(paths: string[], options: BuildOptions = {}) {
     createRouterModule: routerPath = './router',
   } = options;
 
-  const buildConfig: UserConfig = {
+  /** @type {UserConfig} */
+  const buildConfig = {
     ...viteConfig,
     build: {
       ...viteConfig.build,
@@ -59,7 +66,9 @@ export async function buildPaths(paths: string[], options: BuildOptions = {}) {
       cssMinify: 'esbuild',
     },
   };
-  const buildResult = (await build(buildConfig)) as unknown as ViteBuildResult;
+  const buildResult = /** @type {ViteBuildResult} */ (
+    /** @type {unknown} */ (await build(buildConfig))
+  );
   const { output: viteOutputs } = buildResult;
   let htmlShell = viteOutputs.find((o) => o.fileName === basename(htmlEntry));
   if (htmlShell) viteOutputs.splice(viteOutputs.indexOf(htmlShell), 1);
@@ -71,18 +80,21 @@ export async function buildPaths(paths: string[], options: BuildOptions = {}) {
     outputs.push({ name, contents });
   }
 
-  const serverConfig: UserConfig = {
+  /** @type {UserConfig} */
+  const serverConfig = {
     ...viteConfig,
     server: { ...viteConfig.server, middlewareMode: true },
     appType: 'custom',
   };
   const server = await createServer(serverConfig);
-  const asyncLocalStorage = new AsyncLocalStorage<AsyncStorage>();
+  /** @type {AsyncLocalStorage<AsyncStorage>} */
+  const asyncLocalStorage = new AsyncLocalStorage();
   const promises = [];
 
   for (const path of paths) {
     const htmlShellSource = htmlShell.source;
-    const renderOptions: RenderOptions = {
+    /** @type {RenderOptions} */
+    const renderOptions = {
       path,
       routerPath,
       asyncLocalStorage,
@@ -99,7 +111,11 @@ export async function buildPaths(paths: string[], options: BuildOptions = {}) {
   return outputs;
 }
 
-async function renderPath(options: RenderOptions) {
+/**
+ * @param {RenderOptions} options
+ * @returns {Promise<OutputArtifact[]>}
+ */
+async function renderPath(options) {
   const {
     path,
     routerPath,
@@ -112,7 +128,8 @@ async function renderPath(options: RenderOptions) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const store = { window, path, teleportIdCounter, consistentValues };
-  const outputs: OutputArtifact[] = [];
+  /** @type {OutputArtifact[]} */
+  const outputs = [];
 
   await asyncLocalStorage.run(store, async () => {
     const context = {
@@ -144,7 +161,8 @@ async function renderPath(options: RenderOptions) {
     location.href = path;
 
     const routerModule = await server.ssrLoadModule(resolve(routerPath));
-    const router: Router = routerModule.createRouter();
+    /** @type {Router} */
+    const router = routerModule.createRouter();
     const currentRoute = router.getCurrentRoute();
     router.setWindow(window);
     router.attachWindowListeners();
@@ -154,7 +172,7 @@ async function renderPath(options: RenderOptions) {
       console.warn('appElement not found while rendering', path);
       return;
     }
-    appElement.replaceChildren(router.Outlet() as VNode);
+    appElement.replaceChildren(/** @type {VNode} */ (router.Outlet()));
 
     await router.navigate(path);
 
@@ -176,7 +194,8 @@ async function renderPath(options: RenderOptions) {
     // The server context can restore useful information about
     // the app for a client-side hydration.
     const consistentValues = Object.fromEntries(getConsistentValues());
-    const ctx: ServerContext = {
+    /** @type {ServerContext} */
+    const ctx = {
       path,
       rootSelector,
       shell,
@@ -199,7 +218,8 @@ async function renderPath(options: RenderOptions) {
     if (path === finalPath) return;
 
     const redirectContent = generateRedirectHtmlContent(finalPath);
-    let redirectFileName: string;
+    /** @type {string} */
+    let redirectFileName;
 
     if (path === '/' || path.endsWith('/')) {
       const normalizedPath = path === '/' ? '' : path.slice(1, -1);
@@ -218,12 +238,11 @@ async function renderPath(options: RenderOptions) {
 
 /**
  * Writes the provided output artifacts to a directory on disk.
- * @returns A Promise that resolves when all artifacts have been written to disk.
+ * @param {OutputArtifact[]} artifacts
+ * @param {WriteArtifactsOptions} [options={}]
+ * @returns {Promise<void>}
  */
-export async function writeArtifactsToDisk(
-  artifacts: Array<OutputArtifact>,
-  options: WriteArtifactsOptions = {}
-) {
+export async function writeArtifactsToDisk(artifacts, options = {}) {
   const { outDir = 'dist', clean = false } = options;
   if (clean) await fs.rm(outDir, { recursive: true, force: true });
 
@@ -236,7 +255,11 @@ export async function writeArtifactsToDisk(
   }
 }
 
-function buildWindowFromHtmlText(htmlText: string) {
+/**
+ * @param {string} htmlText
+ * @returns {VWindow}
+ */
+function buildWindowFromHtmlText(htmlText) {
   const parsedHtml = parseDocument(htmlText, {});
   const window = new VWindow();
 
@@ -254,10 +277,12 @@ function buildWindowFromHtmlText(htmlText: string) {
   return window;
 }
 
-function createVNodeFromParsedNode(
-  node: ChildNode,
-  window: VWindow
-): VNode | null {
+/**
+ * @param {ChildNode} node
+ * @param {VWindow} window
+ * @returns {VNode | null}
+ */
+function createVNodeFromParsedNode(node, window) {
   const { document } = window;
   if (node instanceof Element) {
     const vElement = document.createElement(node.tagName.toLowerCase());
@@ -279,8 +304,13 @@ function createVNodeFromParsedNode(
   return window.document.createMarkupNode(String(node));
 }
 
-function vNodeToObject(node: VNode) {
-  const object: Record<string, unknown> = { type: node.nodeType };
+/**
+ * @param {VNode} node
+ * @returns {Record<string, unknown>}
+ */
+function vNodeToObject(node) {
+  /** @type {Record<string, unknown>} */
+  const object = { type: node.nodeType };
   if (node instanceof VElement) {
     object.tag = node.tagName;
     const attrs = node.attributes;
@@ -288,7 +318,7 @@ function vNodeToObject(node: VNode) {
       ? attrs.reduce((acc, attr) => {
           acc[attr.name] = attr.value;
           return acc;
-        }, {} as Record<string, string>)
+        }, /** @type {Record<string, string>} */ ({}))
       : undefined;
     if (node.childNodes.length) {
       object.nodes = node.childNodes.map(vNodeToObject);
@@ -297,7 +327,11 @@ function vNodeToObject(node: VNode) {
   return object;
 }
 
-function generateRedirectHtmlContent(finalPath: string) {
+/**
+ * @param {string} finalPath
+ * @returns {string}
+ */
+function generateRedirectHtmlContent(finalPath) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
