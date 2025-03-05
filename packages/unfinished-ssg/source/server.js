@@ -80,6 +80,7 @@ export async function buildPaths(paths, options = {}) {
   const serverConfig = {
     ...viteConfig,
     server: { ...viteConfig.server, middlewareMode: true },
+    ssr: { target: 'node' },
     appType: 'custom',
   };
   const server = await createServer(serverConfig);

@@ -1,5 +1,5 @@
 /** @import { Plugin, UserConfig } from 'vite' */
-/** @import { BuildOptions } from './types.js' */
+/** @import { BuildOptions, OutputArtifact } from './types.js' */
 
 import fs from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -7,7 +7,7 @@ import { buildPaths, writeArtifactsToDisk } from './server.js';
 
 /**
  * @typedef {object} PluginOptions
- * @property {string[]} paths - An array of routes to generate static HTML files for (e.g., ['/', '/about']).
+ * @property {string[]} pages - An array of routes to generate static HTML files for (e.g., ['/', '/about']).
  * @property {string} routerModulePath - The path to the module exporting the `createRouter` function.
  * @property {string} [rootSelector] - The CSS selector for the root element.
  */
@@ -19,32 +19,31 @@ import { buildPaths, writeArtifactsToDisk } from './server.js';
  */
 export function unfinishedSSG(options) {
   const {
-    paths,
+    pages,
     routerModulePath: createRouterModule,
     rootSelector = '#app',
   } = options;
 
-  if (!paths || !Array.isArray(paths) || paths.length === 0) {
-    throw new Error(
-      'vite-unfinished-ssg: The `paths` option must be a non-empty array of strings.'
-    );
+  if (!pages || !Array.isArray(pages) || pages.length === 0) {
+    throw new Error('The `paths` option must be a non-empty array of strings.');
   }
 
   if (!createRouterModule || typeof createRouterModule !== 'string') {
-    throw new Error(
-      'vite-unfinished-ssg: The `routerPath` option must be a string.'
-    );
+    throw new Error('The `routerPath` option must be a string.');
   }
 
   /** @type {UserConfig} */
   let viteConfig;
+  /** @type {OutputArtifact[]} */
+  const outputs = [];
 
   return {
     name: 'vite-plugin-unfinished-ssg',
     apply: 'build',
 
-    configResolved(resolvedConfig) {
-      viteConfig = /** @type {*} */ (resolvedConfig);
+    config(config) {
+      viteConfig = config;
+      return config;
     },
 
     async buildEnd() {
@@ -59,10 +58,12 @@ export function unfinishedSSG(options) {
         htmlShell,
         viteConfig,
       };
-      const outputs = await buildPaths(paths, buildOptions);
-      await writeArtifactsToDisk(outputs, { outDir });
+      outputs.push(...(await buildPaths(pages, buildOptions)));
+    },
 
-      console.log('vite-unfinished-ssg: SSG build complete.');
+    async writeBundle() {
+      const outDir = viteConfig.build?.outDir || 'dist';
+      await writeArtifactsToDisk(outputs, { outDir });
     },
   };
 }

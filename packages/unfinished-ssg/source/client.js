@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 /** @import { JsxElement } from '@adbl/unfinished' */
 /** @import { VNode } from '@adbl/unfinished/v-dom' */
 /** @import { Router } from '@adbl/unfinished/router' */
@@ -42,17 +44,6 @@ import { SourceCell } from '@adbl/cells';
  *   .catch((error) => {
  *     console.error('Hydration failed:', error);
  *   });
- *
- * @remarks
- *  **Important:** For `hydrate` to work correctly, your server-side rendering must
- *  include a `<script>` tag with the `data-server-context` attribute. This script
- *  tag contains the server-rendered context as a JSON object.  This script is automatically
- *  injected if you use the matching build and render utilities from `@adbl/unfinished-ssg`.
- *  Without this context, hydration cannot occur.
- *
- *  The `hydrate` function will automatically remove the `<script data-server-context>`
- *  tag after successfully restoring the context.
- *
  * @remarks
  * After hydration, the global `window` object will have a `hydrationcompleted` event dispatched.
  * This event can be listened to to confirm that hydration has completed successfully.
@@ -61,11 +52,19 @@ import { SourceCell } from '@adbl/cells';
  *    console.log('Hydration complete!');
  *  });
  * ```
- *
- * @throws {Error} If the server context JSON script cannot be found in the DOM.
- * In this case, hydration will fail and a console error will be logged.
  */
 export async function hydrate(routerFn) {
+  if (import.meta.env.DEV) {
+    // Default to SPA mode in development.
+    const router = routerFn();
+    router.setWindow(window);
+    router.attachWindowListeners();
+    const root = document.querySelector('#app');
+    root?.append(/** @type {Node} */ (router.Outlet()));
+    globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
+    return router;
+  }
+
   const contextScript = document.querySelector('script[data-server-context]');
   if (!contextScript) {
     throw new Error(
