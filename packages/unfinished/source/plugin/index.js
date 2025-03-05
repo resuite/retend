@@ -293,7 +293,7 @@ export const unfinished = () => {
       if (!isJsx) return null;
 
       const injectedCode = `
-import { hotReloadModule as __HMR____ } from '@adbl/unfinished/render';
+import { hotReloadModule as __HMR____ } from '@adbl/unfinished/plugin';
 
 ${code}
 
@@ -312,7 +312,7 @@ if (import.meta.hot) {
     config() {
       return {
         esbuild: {
-          jsx: 'automatic',
+          jsx: /** @type {'automatic' | 'preserve'} */ ('automatic'),
           jsxImportSource: '@adbl/unfinished',
         },
       };
