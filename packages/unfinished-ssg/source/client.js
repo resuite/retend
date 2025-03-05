@@ -56,25 +56,31 @@ import { SourceCell } from '@adbl/cells';
 export async function hydrate(routerFn) {
   if (import.meta.env.DEV) {
     // Default to SPA mode in development.
-    const router = routerFn();
-    router.setWindow(window);
-    router.attachWindowListeners();
-    const root = document.querySelector('#app');
-    root?.append(/** @type {Node} */ (router.Outlet()));
-    globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
-    return router;
+    return defaultToSpaMode(routerFn);
   }
 
   const contextScript = document.querySelector('script[data-server-context]');
   if (!contextScript) {
-    throw new Error(
-      'hydration failed because the server context JSON script could not be found.'
+    console.warn(
+      '[unfinished-ssg] No server-side context found. Falling back to SPA mode.'
     );
+    return defaultToSpaMode(routerFn);
   }
 
   const context = JSON.parse(contextScript.textContent ?? '{}');
   const router = await restoreContext(context, routerFn);
   contextScript.remove();
+  return router;
+}
+
+/** @param {() => Router} routerFn  */
+function defaultToSpaMode(routerFn) {
+  const router = routerFn();
+  router.setWindow(window);
+  router.attachWindowListeners();
+  const root = document.querySelector('#app');
+  root?.append(/** @type {Node} */ (router.Outlet()));
+  globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
   return router;
 }
 
