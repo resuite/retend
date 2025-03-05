@@ -22,8 +22,7 @@
     "declarationMap": true,
 
     "checkJs": true,
-    "strict": true,
-    "types": ["source/jsx-runtime"]
+    "strict": true
   },
   "include": ["source"],
   "exclude": ["node_modules/**/*", "dist"]
