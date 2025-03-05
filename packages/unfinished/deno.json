@@ -29,6 +29,7 @@
     "./helpers": "./dist/helpers/index.js",
     "./render": "./dist/render/index.js",
     "./include": "./dist/include/index.js",
-    "./v-dom": "./dist/v-dom/index.js"
+    "./v-dom": "./dist/v-dom/index.js",
+    "./plugin": "./dist/plugin/index.js"
   }
 }
