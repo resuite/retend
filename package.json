@@ -5,7 +5,7 @@
     "build-ssg": "cd packages/unfinished-ssg && npm run build",
     "publish-preview": "npm run publish-core-preview && npm run publish-ssg-preview",
     "publish-core-preview": "cp README.md packages/unfinished/README.md && cd packages/unfinished && npx pkg-pr-new publish",
-    "publish-ssg-preview": "cd packages/unfinished-ssg && npx pkg-gr-new publish"
+    "publish-ssg-preview": "cd packages/unfinished-ssg && npx pkg-pr-new publish"
   },
   "workspaces": [
     "packages/unfinished",
