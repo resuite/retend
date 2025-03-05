@@ -29,7 +29,7 @@
 /**
  * @typedef {Object} BuildOptions
  * @property {UserConfig} [viteConfig]
- * @property {string} [htmlEntry]
+ * @property {string} [htmlShell]
  * @property {string} [rootSelector]
  * @property {string} [createRouterModule]
  */
@@ -58,7 +58,7 @@
  * @property {string} path
  * @property {string} routerPath
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
- * @property {string} htmlShellSource
+ * @property {string} htmlShell
  * @property {ViteDevServer} server
  * @property {string} rootSelector
  */

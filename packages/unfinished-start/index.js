@@ -396,7 +396,6 @@ async function createMainFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
 /// <reference types="vite/client" />
-import { render } from '@adbl/unfinished/render';
 import { createRouter } from './router';
 
 const router = createRouter();
@@ -404,9 +403,11 @@ router.window = window;
 router.attachWindowListeners();
 
 const root = window.document.getElementById('app');
-if (root !== null) {
-  render(root, router.Outlet())
-}
+root.append(${
+    extension === 'ts'
+      ? 'router.Outlet() as Node'
+      : '/** @type {Node} */ (router.Outlet())'
+  });
 `;
 
   await fs.writeFile(

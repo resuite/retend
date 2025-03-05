@@ -33,9 +33,9 @@ import { SourceCell } from '@adbl/cells';
  * @example
  * // In your main client-side entry point (e.g., index.js or app.js):
  * import { hydrate } from '@adbl/unfinished-ssg/client';
- * import * as routerModule from './router';
+ * import { createRouter } from './router';
  *
- * hydrate(routerModule)
+ * hydrate(createRouter)
  *   .then(() => {
  *     console.log('Application successfully hydrated!');
  *   })

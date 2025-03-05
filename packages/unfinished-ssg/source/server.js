@@ -4,7 +4,6 @@
 /** @import {
  *    BuildOptions,
  *    OutputArtifact,
- *    ViteBuildResult,
  *    ServerContext,
  *    AsyncStorage,
  *    RenderOptions,
@@ -21,19 +20,16 @@ import {
 } from '@adbl/unfinished';
 import { renderToString } from '@adbl/unfinished/render';
 import { VElement, VWindow } from '@adbl/unfinished/v-dom';
-import { build, createServer } from 'vite';
+import { createServer } from 'vite';
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { basename, dirname, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 
 /**
- * Given the path to a client-side router, this function serializes the given paths to
- * HTML files and related assets.
- *
  * @param {string[]} paths The paths to serialize.
  * @param {BuildOptions} [options] Options for building.
  * @returns {Promise<OutputArtifact[]>} A promise that resolves to an array of output artifacts.
@@ -46,39 +42,39 @@ import { Comment, Text, Element } from 'domhandler';
  * await buildPaths(['/home', '/about', '/contact'], { routerPath: './router.ts' });
  */
 export async function buildPaths(paths, options = {}) {
-  /** @type {OutputArtifact[]} */
-  const outputs = [];
   const {
     viteConfig = {},
-    htmlEntry = './index.html',
+    htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
     createRouterModule: routerPath = './router',
   } = options;
 
-  /** @type {UserConfig} */
-  const buildConfig = {
-    ...viteConfig,
-    build: {
-      ...viteConfig.build,
-      write: false,
-      rollupOptions: { input: ['./index.html'] },
-      minify: 'esbuild',
-      cssMinify: 'esbuild',
-    },
-  };
-  const buildResult = /** @type {ViteBuildResult} */ (
-    /** @type {unknown} */ (await build(buildConfig))
-  );
-  const { output: viteOutputs } = buildResult;
-  let htmlShell = viteOutputs.find((o) => o.fileName === basename(htmlEntry));
-  if (htmlShell) viteOutputs.splice(viteOutputs.indexOf(htmlShell), 1);
-  else htmlShell = { fileName: '', source: '', code: '' };
+  // /** @type {OutputArtifact[]} */
+  // const outputs = [];
+  // /** @type {UserConfig} */
+  // const buildConfig = {
+  //   ...viteConfig,
+  //   build: {
+  //     ...viteConfig.build,
+  //     write: false,
+  //     rollupOptions: { input: ['./index.html'] },
+  //     minify: 'esbuild',
+  //     cssMinify: 'esbuild',
+  //   },
+  // };
+  // const buildResult = /** @type {ViteBuildResult} */ (
+  //   /** @type {unknown} */ (await build(buildConfig))
+  // );
+  // const { output: viteOutputs } = buildResult;
+  // let htmlShell = viteOutputs.find((o) => o.fileName === basename(htmlEntry));
+  // if (htmlShell) viteOutputs.splice(viteOutputs.indexOf(htmlShell), 1);
+  // else htmlShell = { fileName: '', source: '', code: '' };
 
-  for (const resource of viteOutputs) {
-    const name = resource.fileName;
-    const contents = resource.source ?? resource.code;
-    outputs.push({ name, contents });
-  }
+  // for (const resource of viteOutputs) {
+  //   const name = resource.fileName;
+  //   const contents = resource.source ?? resource.code;
+  //   outputs.push({ name, contents });
+  // }
 
   /** @type {UserConfig} */
   const serverConfig = {
@@ -92,13 +88,12 @@ export async function buildPaths(paths, options = {}) {
   const promises = [];
 
   for (const path of paths) {
-    const htmlShellSource = htmlShell.source;
     /** @type {RenderOptions} */
     const renderOptions = {
       path,
       routerPath,
       asyncLocalStorage,
-      htmlShellSource,
+      htmlShell,
       server,
       rootSelector,
     };
@@ -106,7 +101,7 @@ export async function buildPaths(paths, options = {}) {
     promises.push(promise);
   }
 
-  await Promise.all(promises);
+  const outputs = (await Promise.all(promises)).flat(1);
   await server.close();
   return outputs;
 }
@@ -120,11 +115,11 @@ async function renderPath(options) {
     path,
     routerPath,
     asyncLocalStorage,
-    htmlShellSource,
+    htmlShell,
     server,
     rootSelector,
   } = options;
-  const window = buildWindowFromHtmlText(htmlShellSource);
+  const window = buildWindowFromHtmlText(htmlShell);
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const store = { window, path, teleportIdCounter, consistentValues };
