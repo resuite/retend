@@ -91,7 +91,7 @@ export function setGlobalContext(context) {
 
 // Default context is the interactive, web DOM environment, so that
 // older SPA applications can continue to work seamlessly.
-if (globalThis.window.document) {
+if (globalThis.window?.document) {
   setGlobalContext({
     mode: Modes.Interactive,
     window: globalThis.window,
