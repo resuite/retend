@@ -1,6 +1,6 @@
 {
   "name": "@adbl/unfinished",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Reactive Javascript UI library for dynamic web apps.",
   "tasks": {
     "try-publish": "npm run build && deno publish --dry-run"

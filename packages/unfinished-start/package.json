@@ -1,6 +1,6 @@
 {
   "name": "@adbl/unfinished-start",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": false,
   "type": "module",
   "description": "Scaffold a new project with @adbl/unfinished",
@@ -33,5 +33,8 @@
     "inquirer": "^12.0.0",
     "ora": "^8.1.0",
     "semver": "^7.6.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
