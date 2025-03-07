@@ -3,11 +3,7 @@
 
 name: Create Pkg.pr Preview
 
-on:
-  push:
-    branches: ['main']
-  pull_request:
-    branches: ['main']
+on: [push]
 
 jobs:
   build:
@@ -20,4 +16,4 @@ jobs:
 
       - run: npm install
       - run: npm run build
-      - run: npx pkg-pr-new publish
+      - run: npm run previews

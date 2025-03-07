@@ -1,0 +1,35 @@
+{
+  "name": "@adbl/unfinished",
+  "version": "0.0.14",
+  "description": "Reactive Javascript UI library for dynamic web apps.",
+  "tasks": {
+    "try-publish": "npm run build && deno publish --dry-run"
+  },
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
+    "allowUnreachableCode": false,
+    "lib": ["DOM", "ESNext", "dom.iterable"],
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "checkJs": true,
+    "strict": true
+  },
+  "publish": {
+    "exclude": ["!dist"]
+  },
+  "exports": {
+    ".": "./dist/library/index.js",
+    "./router": "./dist/router/index.js",
+    "./teleport": "./dist/teleport/index.js",
+    "./shadowroot": "./dist/shadowroot/index.js",
+    "./jsx-runtime": "./dist/jsx-runtime/index.js",
+    "./jsx-dev-runtime": "./dist/jsx-runtime/index.js",
+    "./helpers": "./dist/helpers/index.js",
+    "./render": "./dist/render/index.js",
+    "./include": "./dist/include/index.js",
+    "./v-dom": "./dist/v-dom/index.js",
+    "./plugin": "./dist/plugin/index.js"
+  }
+}
