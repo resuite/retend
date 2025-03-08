@@ -470,7 +470,7 @@ import { createRouter } from './router';
 
 hydrate(createRouter)
   .then(() => {
-    console.log('[unfinished-ssg] app successfully hydrated!');
+    console.log('[unfinished-ssg] app successfully hydrated.');
   });
 `
     : `

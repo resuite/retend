@@ -205,7 +205,7 @@ async function renderPath(options) {
     );
 
     const finalPath = currentRoute.value.fullPath;
-    const name = `${finalPath.replace(/^\//, '')}.html`;
+    const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
     const options = { markStaticNodes: true };
     const htmlContents = await renderToString(document, window, options);
     const contents = `<!DOCTYPE html>${htmlContents}`;
