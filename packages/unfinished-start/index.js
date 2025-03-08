@@ -552,6 +552,10 @@ async function createComponentStructure(
     ? `You're viewing the ${capitalize(componentName)} page`
     : "You're all set to start building amazing things!";
 
+  const buttonClasses = tailwind
+    ? '"font-[inherit] bg-white border-2 border-gray-300 rounded-[7px] px-[15px] py-[10px]"'
+    : '{classes.button}';
+
   const linkClasses = tailwind ? '"text-blue-600"' : '{classes.link}';
   const linkSuffix = isView ? 'to learn more.' : 'to get started.';
   const cssImport = tailwind
@@ -560,9 +564,14 @@ async function createComponentStructure(
         isView ? 'styles' : componentName
       }.module.${styleExtension}';\n`;
 
-  const content = `
-${cssImport}
+  const content = `import { Cell } from '@adbl/cells';${
+    cssImport ? `\n${cssImport}` : ''
+  }
+
 export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
+  const count = Cell.source(0);
+  const incrementCount = () => count.value++;
+
   return (
     <div class=${containerClasses}>
       <main class=${mainElementClasses}>
@@ -580,6 +589,9 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
             documentation
           </a> ${linkSuffix}
         </p>
+        <button class=${buttonClasses} type="button" onClick={incrementCount}>
+          Counter Value: {count}
+        </button>
       </main>
     </div>
   )
@@ -627,6 +639,14 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
 .link {
   color: #646cff;
   text-decoration: inherit;
+}
+
+.button {
+  font: inherit;
+  background-color: white;
+  border-radius: 7px;
+  padding: 10px 15px;
+  border: 2px solid gray;
 }
 `;
 
