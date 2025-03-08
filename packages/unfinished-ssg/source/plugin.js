@@ -54,6 +54,11 @@ export function unfinishedSSG(options) {
         viteConfig,
       };
       outputs.push(...(await buildPaths(pages, buildOptions)));
+      const transformed = outputs.find((o) => o.name === 'index.html');
+      if (transformed) {
+        outputs.splice(outputs.indexOf(transformed), 1);
+        return transformed.contents;
+      }
       return html;
     },
 
