@@ -39,6 +39,7 @@ const args = process.argv.slice(2);
  * @returns {Record<string, any>}
  */
 function parseArgs() {
+  /** @type {Record<string, any>} */
   const options = {};
   for (const arg of args) {
     if (arg.startsWith('--')) {
@@ -78,6 +79,7 @@ const questions = [
     choices: ['SCSS', 'CSS'],
     default: 'SCSS',
     argKey: 'scss',
+    /** @param {string} value */
     processArg: (value) => (value ? 'SCSS' : 'CSS'),
   },
   {
@@ -87,6 +89,7 @@ const questions = [
     choices: ['TypeScript', 'JavaScript'],
     default: 'TypeScript',
     argKey: 'javascript',
+    /** @param {string} value */
     processArg: (value) => (value ? 'JavaScript' : 'TypeScript'),
   },
 ];
@@ -103,28 +106,52 @@ async function main() {
     /** @type {Record<string, any>} */
     const answers = {};
 
-    // Get answers from CLI options first
-    let questionsToAsk = questions.filter((q) => {
-      if (q.argKey && q.argKey in cliOptions) {
-        const value = cliOptions[q.argKey];
-        answers[q.name] = q.processArg ? q.processArg(value) : value;
-        return false;
+    // Handle default flag
+    if (cliOptions.default) {
+      // Get answers from CLI options first for explicitly set options
+      for (const q of questions) {
+        if (q.argKey && q.argKey in cliOptions) {
+          const value = cliOptions[q.argKey];
+          answers[q.name] = q.processArg ? q.processArg(value) : value;
+        } else {
+          // Use default values for unspecified options
+          answers[q.name] = q.default;
+        }
       }
-      return true;
-    });
 
-    // Get project name from positional argument if provided
-    const projectName = args.find((arg) => !arg.startsWith('-'));
-    if (projectName) {
-      answers.projectName = projectName;
-      questionsToAsk = questionsToAsk.filter((q) => q.name !== 'projectName');
-    }
+      // Handle project name separately
+      const projectName = args.find((arg) => !arg.startsWith('-'));
+      answers.projectName = projectName || 'my-app';
+    } else {
+      // Original logic for non-default mode
+      let questionsToAsk = questions.filter(
+        (
+          /** @type {{ argKey: string; name: string | number; processArg: (arg0: any) => any; }} */ q
+        ) => {
+          if (q.argKey && q.argKey in cliOptions) {
+            const value = cliOptions[q.argKey];
+            answers[q.name] = q.processArg ? q.processArg(value) : value;
+            return false;
+          }
+          return true;
+        }
+      );
 
-    // Only prompt for remaining questions if any
-    if (questionsToAsk.length > 0) {
-      const prompt = createPromptModule({ output: process.stdout });
-      const promptAnswers = await prompt(questionsToAsk);
-      Object.assign(answers, promptAnswers);
+      // Get project name from positional argument if provided
+      const projectName = args.find((arg) => !arg.startsWith('-'));
+      if (projectName) {
+        answers.projectName = projectName;
+        questionsToAsk = questionsToAsk.filter(
+          (/** @type {{ name: string; }} */ q) => q.name !== 'projectName'
+        );
+      }
+
+      // Only prompt for remaining questions if any
+      if (questionsToAsk.length > 0) {
+        const prompt = createPromptModule({ output: process.stdout });
+        const promptAnswers = await prompt(questionsToAsk);
+        Object.assign(answers, promptAnswers);
+      }
     }
 
     projectDir = path.join(process.cwd(), answers.projectName);
