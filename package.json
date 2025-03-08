@@ -3,7 +3,7 @@
     "build": "npm run build-core && npm run build-ssg",
     "build-core": "cd packages/unfinished && npm run build",
     "build-ssg": "cd packages/unfinished-ssg && npm run build",
-    "previews": "cp README.md packages/unfinished/README.md && npx pkg-pr-new publish './packages/unfinished' './packages/unfinished-ssg'"
+    "previews": "cp README.md packages/unfinished/README.md && npx pkg-pr-new publish './packages/unfinished' './packages/unfinished-ssg' './packages/unfinished-start'"
   },
   "workspaces": [
     "packages/unfinished",
