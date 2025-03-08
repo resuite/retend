@@ -451,7 +451,7 @@ router.window = window;
 router.attachWindowListeners();
 
 const root = window.document.getElementById('app');
-root.append(${
+root?.append(${
     extension === 'ts'
       ? 'router.Outlet() as Node'
       : '/** @type {Node} */ (router.Outlet())'
