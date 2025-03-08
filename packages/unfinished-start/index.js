@@ -16,9 +16,9 @@ const CONFIG = {
   minNodeVersion: '14.0.0',
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
-    '@adbl/unfinished': '^0.0.15',
+    '@adbl/unfinished': '^0.0.16',
     '@adbl/cells': '^0.0.11',
-    '@adbl/unfinished-ssg': '^0.0.1',
+    '@adbl/unfinished-ssg': '^0.0.2',
   },
   devDependencies: {
     vite: '^5.4.8',

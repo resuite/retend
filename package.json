@@ -3,6 +3,10 @@
     "build": "npm run build-core && npm run build-ssg",
     "build-core": "cd packages/unfinished && npm run build",
     "build-ssg": "cd packages/unfinished-ssg && npm run build",
+    "publish-core": "cd packages/unfinished && npm run build && npm run publish",
+    "publish-ssg": "cd packages/unfinished-ssg && npm run build && npm publish",
+    "publish-start": "cd packages/unfinished-start && npm publish",
+    "publish-all": "npm run publish-core && npm run publish-ssg && npm run publish-start",
     "previews": "cp README.md packages/unfinished/README.md && npx pkg-pr-new publish './packages/unfinished' './packages/unfinished-ssg' './packages/unfinished-start'"
   },
   "workspaces": [

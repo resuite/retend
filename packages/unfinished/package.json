@@ -1,12 +1,13 @@
 {
   "name": "@adbl/unfinished",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Reactive Javascript UI library for dynamic web apps.",
   "private": false,
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "publish": "cp ../../README.md . && npm publish"
   },
   "keywords": [
     "web",
