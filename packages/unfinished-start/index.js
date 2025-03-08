@@ -34,6 +34,22 @@ const isBun =
 
 const args = process.argv.slice(2);
 
+/**
+ * Parse command line arguments into options
+ * @returns {Record<string, any>}
+ */
+function parseArgs() {
+  const options = {};
+  for (const arg of args) {
+    if (arg.startsWith('--')) {
+      const [key, value] = arg.slice(2).split('=');
+      options[key] = value || true;
+    }
+  }
+  return options;
+}
+
+// Update questions array to include property for matching command line args
 /** @type {any} */
 const questions = [
   {
@@ -41,20 +57,19 @@ const questions = [
     name: 'projectName',
     message: chalk.magenta('What is the name of your project?'),
     default: 'my-app',
+    argKey: 'name',
     validate: (/** @type {string} */ input) =>
       /^[a-z0-9-]+$/.test(input) ||
       chalk.red(
         'Project name can only contain lowercase letters, numbers, and hyphens'
       ),
-    when: () =>
-      args.length === 0 ||
-      args.every((/** @type {string} */ arg) => arg.startsWith('-')), // Only ask if not provided as an argument
   },
   {
     type: 'confirm',
     name: 'useTailwind',
     message: chalk.magenta('Do you want to use Tailwind CSS?'),
     default: true,
+    argKey: 'tailwind',
   },
   {
     type: 'list',
@@ -62,6 +77,8 @@ const questions = [
     message: chalk.magenta('Which styling language would you like to use?'),
     choices: ['SCSS', 'CSS'],
     default: 'SCSS',
+    argKey: 'scss',
+    processArg: (value) => (value ? 'SCSS' : 'CSS'),
   },
   {
     type: 'list',
@@ -69,6 +86,8 @@ const questions = [
     message: chalk.magenta('Which language would you like to use?'),
     choices: ['TypeScript', 'JavaScript'],
     default: 'TypeScript',
+    argKey: 'javascript',
+    processArg: (value) => (value ? 'JavaScript' : 'TypeScript'),
   },
 ];
 
@@ -80,26 +99,32 @@ async function main() {
   try {
     checkNodeVersion();
 
-    // Get project name from command line argument or prompt
-    const projectName = args.find(
-      (/** @type {string} */ arg) => !arg.startsWith('-')
-    );
-
+    const cliOptions = parseArgs();
     /** @type {Record<string, any>} */
     const answers = {};
-    const questionsToAsk = questions;
 
+    // Get answers from CLI options first
+    let questionsToAsk = questions.filter((q) => {
+      if (q.argKey && q.argKey in cliOptions) {
+        const value = cliOptions[q.argKey];
+        answers[q.name] = q.processArg ? q.processArg(value) : value;
+        return false;
+      }
+      return true;
+    });
+
+    // Get project name from positional argument if provided
+    const projectName = args.find((arg) => !arg.startsWith('-'));
     if (projectName) {
-      // If project name is provided as an argument, skip the project name question
-      console.log(chalk.cyan(`Using project name: ${projectName}`));
       answers.projectName = projectName;
+      questionsToAsk = questionsToAsk.filter((q) => q.name !== 'projectName');
     }
 
-    // Create a custom prompt module that suppresses output
-    const prompt = createPromptModule({ output: process.stdout });
-    // Use the custom prompt for all questions
-    for (const [key, value] of Object.entries(await prompt(questionsToAsk))) {
-      answers[key] = value;
+    // Only prompt for remaining questions if any
+    if (questionsToAsk.length > 0) {
+      const prompt = createPromptModule({ output: process.stdout });
+      const promptAnswers = await prompt(questionsToAsk);
+      Object.assign(answers, promptAnswers);
     }
 
     projectDir = path.join(process.cwd(), answers.projectName);
