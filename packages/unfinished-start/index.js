@@ -69,7 +69,7 @@ const questions = [
     type: 'confirm',
     name: 'useTailwind',
     message: chalk.magenta('Do you want to use Tailwind CSS?'),
-    default: true,
+    default: false,
     argKey: 'tailwind',
   },
   {
@@ -77,7 +77,7 @@ const questions = [
     name: 'cssPreprocessor',
     message: chalk.magenta('Which styling language would you like to use?'),
     choices: ['SCSS', 'CSS'],
-    default: 'SCSS',
+    default: 'CSS',
     argKey: 'scss',
     /** @param {string} value */
     processArg: (value) => (value ? 'SCSS' : 'CSS'),
@@ -87,7 +87,7 @@ const questions = [
     name: 'language',
     message: chalk.magenta('Which language would you like to use?'),
     choices: ['TypeScript', 'JavaScript'],
-    default: 'TypeScript',
+    default: 'JavaScript',
     argKey: 'javascript',
     /** @param {string} value */
     processArg: (value) => (value ? 'JavaScript' : 'TypeScript'),
