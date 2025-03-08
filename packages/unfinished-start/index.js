@@ -511,7 +511,6 @@ export function createRouter() {
     {
       name: 'App',
       path: '/',
-      redirect: '/start',
       children: [startRoute],
     },
   ];
@@ -691,12 +690,13 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
 
   if (isView) {
     const routesContent = `
-import { defineRoute, lazy } from '@adbl/unfinished/router';
+import { defineRoute } from '@adbl/unfinished/router';
+import ${capitalize(componentName)} from '.';
 
 export const ${componentName}Route = defineRoute({
   name: '${capitalize(componentName)} View',
-  path: '${componentName}',
-  component: lazy(() => import('./index')),
+  path: '/',
+  component: ${capitalize(componentName)},
 });
   `.trim();
 
