@@ -579,9 +579,7 @@ async function createComponentStructure(
   const paragraphClasses = tailwind ? '"mb-4"' : '{classes.paragraph}';
   const subTextClasses = tailwind ? '"text-gray-600"' : '{classes.readTheDocs}';
 
-  const textContent = isView
-    ? `You're viewing the ${capitalize(componentName)} page`
-    : "You're all set to start building amazing things!";
+  const textContent = "You're all set to start building amazing things!";
 
   const buttonClasses = tailwind
     ? '"font-[inherit] bg-white border-2 mt-4 border-gray-300 rounded-[7px] px-[15px] py-[10px]"'
