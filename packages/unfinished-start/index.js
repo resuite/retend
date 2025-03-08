@@ -18,10 +18,10 @@ const CONFIG = {
   dependencies: {
     '@adbl/unfinished': '^0.0.16',
     '@adbl/cells': '^0.0.11',
-    '@adbl/unfinished-ssg': '^0.0.2',
+    '@adbl/unfinished-ssg': '^0.0.4',
   },
   devDependencies: {
-    vite: '^5.4.8',
+    vite: '^6.2.1',
     typescript: '^5.5.2',
     tailwindcss: '^3.4.10',
     autoprefixer: '^10.4.20',
@@ -99,6 +99,7 @@ const questions = [
     message: chalk.magenta('Do you want to use Static Site Generation (SSG)?'),
     default: false,
     argKey: 'ssg',
+    /** @param {string} value */
   },
 ];
 
