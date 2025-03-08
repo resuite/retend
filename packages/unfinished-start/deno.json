@@ -1,6 +1,6 @@
 {
   "name": "@adbl/unfinished-start",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "tasks": {
     "start": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net index.js"
   },
