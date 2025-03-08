@@ -576,7 +576,7 @@ async function createComponentStructure(
 
   const textClass = tailwind ? '"inline-block"' : '{classes.headingText}';
 
-  const paragraphClasses = tailwind ? '"mb-8"' : '{classes.paragraph}';
+  const paragraphClasses = tailwind ? '"mb-4"' : '{classes.paragraph}';
   const subTextClasses = tailwind ? '"text-gray-600"' : '{classes.readTheDocs}';
 
   const textContent = isView
@@ -584,7 +584,7 @@ async function createComponentStructure(
     : "You're all set to start building amazing things!";
 
   const buttonClasses = tailwind
-    ? '"font-[inherit] bg-white border-2 border-gray-300 rounded-[7px] px-[15px] py-[10px]"'
+    ? '"font-[inherit] bg-white border-2 mt-4 border-gray-300 rounded-[7px] px-[15px] py-[10px]"'
     : '{classes.button}';
 
   const linkClasses = tailwind ? '"text-blue-600"' : '{classes.link}';
@@ -678,6 +678,7 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
   border-radius: 7px;
   padding: 10px 15px;
   border: 2px solid gray;
+  margin-top: 4px;
 }
 `;
 
