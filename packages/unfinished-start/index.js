@@ -18,6 +18,7 @@ const CONFIG = {
   dependencies: {
     '@adbl/unfinished': '^0.0.15',
     '@adbl/cells': '^0.0.11',
+    '@adbl/unfinished-ssg': '^0.0.1',
   },
   devDependencies: {
     vite: '^5.4.8',
@@ -91,6 +92,13 @@ const questions = [
     argKey: 'javascript',
     /** @param {string} value */
     processArg: (value) => (value ? 'JavaScript' : 'TypeScript'),
+  },
+  {
+    type: 'confirm',
+    name: 'useSSG',
+    message: chalk.magenta('Do you want to use Static Site Generation (SSG)?'),
+    default: false,
+    argKey: 'ssg',
   },
 ];
 
@@ -316,13 +324,27 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { unfinished } from '@adbl/unfinished/plugin';
+import { unfinished } from '@adbl/unfinished/plugin';${
+    answers.useSSG
+      ? "\nimport { unfinishedSSG } from '@adbl/unfinished-ssg/plugin';"
+      : ''
+  }
 
 export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './source') }
   },
-  plugins: [unfinished()],
+  plugins: [
+    unfinished(),
+    ${
+      answers.useSSG
+        ? `unfinishedSSG({
+      pages: ['/'],
+      routerModulePath: './source/router.${extension}'
+    }),`
+        : ''
+    }
+  ],
 ${
   answers.cssPreprocessor === 'SCSS'
     ? `
@@ -332,16 +354,14 @@ ${
          api: 'modern-compiler',
       },
     }
-  },
-`
+  },`
     : ''
 }
-});
-  `.trim();
+});`.trim();
 
   await fs.writeFile(
     path.join(projectDir, `vite.config.${extension}`),
-    content.trim()
+    content
   );
 }
 
@@ -442,7 +462,18 @@ export default {
  */
 async function createMainFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
-  const content = `
+  const content = answers.useSSG
+    ? `
+/// <reference types="vite/client" />
+import { hydrate } from '@adbl/unfinished-ssg/client';
+import { createRouter } from './router';
+
+hydrate(createRouter)
+  .then(() => {
+    console.log('[unfinished-ssg] app successfully hydrated!');
+  });
+`
+    : `
 /// <reference types="vite/client" />
 import { createRouter } from './router';
 
@@ -452,10 +483,10 @@ router.attachWindowListeners();
 
 const root = window.document.getElementById('app');
 root?.append(${
-    extension === 'ts'
-      ? 'router.Outlet() as Node'
-      : '/** @type {Node} */ (router.Outlet())'
-  });
+        extension === 'ts'
+          ? 'router.Outlet() as Node'
+          : '/** @type {Node} */ (router.Outlet())'
+      });
 `;
 
   await fs.writeFile(
@@ -683,6 +714,10 @@ export const ${componentName}Route = defineRoute({
  * @param {Record<string, unknown>} answers
  */
 async function createPackageJson(projectDir, answers) {
+  if (!answers.useSSG) {
+    Reflect.deleteProperty(CONFIG.dependencies, '@adbl/unfinished-ssg');
+  }
+
   const content = {
     name: answers.projectName,
     private: true,
