@@ -795,7 +795,7 @@ function displayCompletionMessage(projectName) {
   console.log(chalk.cyan('3. Start the development server:'));
   console.log(chalk.white(`   ${isBun ? 'bun run dev' : 'npm run dev'}`));
   console.log(chalk.cyan('4. Open your browser and visit:'));
-  console.log(chalk.white('   http://localhost:5173'));
+  console.log(chalk.white('   http://localhost:5529'));
   console.log(
     chalk.cyan(`5. Begin editing your project files in the 'source' directory`)
   );
