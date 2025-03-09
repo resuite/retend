@@ -9,6 +9,7 @@ import {
   FixedSizeMap,
   getMostCurrentFunction,
   addCellListener,
+  CustomEvent,
 } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';

@@ -1,6 +1,8 @@
 /** @import { CellSet } from '../library/utils.js' */
 /** @import { Router } from '../router/index.js'; **/
 
+import { CustomEvent } from '../library/utils.js';
+
 export class VNode extends EventTarget {
   /** @param {VDocument | null} document */
   constructor(document) {
