@@ -299,15 +299,18 @@ export function createCommentPair() {
 export const CustomEvent =
   globalThis.CustomEvent ??
   class CustomEvent extends Event {
+    /** @type {any} */
+    #detail;
     /**
      * @param {string} type
      * @param {CustomEventInit} eventInitDict
      */
     constructor(type, eventInitDict) {
-      super(type);
-      this.bubbles = eventInitDict.bubbles ?? false;
-      this.cancelable = eventInitDict.cancelable ?? false;
-      this.composed = eventInitDict.composed ?? false;
-      this.detail = eventInitDict.detail;
+      super(type, eventInitDict);
+      this.#detail = eventInitDict?.detail ?? null;
+    }
+
+    get detail() {
+      return this.#detail;
     }
   };
