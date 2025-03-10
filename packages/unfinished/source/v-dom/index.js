@@ -379,7 +379,7 @@ export class VElement extends VNode {
   toggleAttribute(qualifiedName, force) {
     const shouldSetAttribute =
       (force !== undefined && force) ||
-      this.getAttribute(qualifiedName) === null;
+      (force === undefined && this.getAttribute(qualifiedName) === null);
     if (shouldSetAttribute) {
       this.setAttribute(qualifiedName, '');
     } else {
