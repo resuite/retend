@@ -1,4 +1,13 @@
 /**
+ * A set of key-value pairs that will become attributes on the meta tag.
+ * @typedef {Record<string, string>} Metadata
+ */
+
+/**
+ * @typedef {Map<string, string>} MetadataMap
+ */
+
+/**
  * @template T
  * @typedef RouteRecordWithChildren
  * @property {string} name
@@ -10,6 +19,8 @@
  * @property {string} [title]
  * The title to give the document when the route is matched.
  * if there are nested routes with a title set, the title will be overwritten.
+ * @property {Metadata} [metadata]
+ * Metadata to be associated with the route.
  * @property {T} [component]
  * The component to render when the route is matched.
  * @property {RouteRecord<T>[]} children
@@ -35,6 +46,9 @@
  * @property {string} [title]
  * The title to give the document when the route is matched.
  * if there are nested routes with a title set, the title will be overwritten.
+ *
+ * @property {Metadata} [metadata]
+ * Metadata to be associated with the route.
  *
  * @property {T} component
  * The component to render when the route is matched.
@@ -67,6 +81,7 @@ export class Route {
   /** @type {boolean} */ isWildcard = false;
   /** @type {boolean} */ isTransient = false;
   /** @type {Route<T>[]} */ children = [];
+  /** @type {Metadata | null} */ metadata = {};
 
   /**
    * Creates a new Route instance with the specified path.
@@ -89,6 +104,7 @@ export class MatchedRoute {
   /** @type {boolean} */ isTransient;
   /** @type {MatchedRoute<T> | null} */ child;
   /** @type {string | null} */ transitionType;
+  /** @type {Metadata | null} */ metadata;
 
   /**
    * @param {Route<T>} route
@@ -103,6 +119,7 @@ export class MatchedRoute {
     this.child = null;
     this.title = route.title;
     this.transitionType = route.transitionType;
+    this.metadata = route.metadata;
   }
 }
 
@@ -114,6 +131,7 @@ export class MatchResult {
   /** @type {URLSearchParams} */ searchQueryParams;
   /** @type {Map<string, string>} */ params;
   /** @type {MatchedRoute<T> | null} */ subTree;
+  /** @type {MetadataMap} */ metadata;
 
   /**
    * @param {Map<string, string>} params
@@ -126,6 +144,26 @@ export class MatchResult {
     this.subTree = subTree;
     this.path = path;
     this.searchQueryParams = searchQueryParams;
+    this.metadata = this.collectMetadata();
+  }
+
+  /**
+   * @private
+   * Collects metadata from matched routes in hierarchical order.
+   * @returns {MetadataMap}
+   */
+  collectMetadata() {
+    const map = new Map();
+    let current = this.subTree;
+    while (current) {
+      if (current.metadata) {
+        for (const [key, value] of Object.entries(current.metadata)) {
+          map.set(key, value);
+        }
+      }
+      current = current.child;
+    }
+    return map;
   }
 
   /**
@@ -417,6 +455,7 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     current.redirect = routeRecord.redirect ?? null;
     current.title = routeRecord.title ?? null;
     current.transitionType = routeRecord.transitionType ?? null;
+    current.metadata = routeRecord.metadata ?? null;
 
     const fullPath = `${parentFullPath}/${routeRecord.path}`;
     current.path = fullPath.replace(/\/+/g, '/');

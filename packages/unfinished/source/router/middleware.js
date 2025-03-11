@@ -1,3 +1,5 @@
+/** @import { MetadataMap } from './routeTree.js' */
+
 /**
  * @typedef {(pathDetails: PathDetails) => Promise<void | RouterMiddlewareResponse> | void | RouterMiddlewareResponse} MiddlewareCallback
  */
@@ -13,6 +15,7 @@
  * @property {URLSearchParams} query - The query parameters of the route.
  * @property {string} path - The path of the route.
  * @property {string} fullPath - The full path of the route.
+ * @property {MetadataMap} metadata - Aggregated metadata for the route.
  */
 
 /**

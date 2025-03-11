@@ -12,6 +12,7 @@
   "workspaces": [
     "packages/unfinished",
     "packages/unfinished-ssg",
-    "packages/unfinished-start"
+    "packages/unfinished-start",
+    "tests"
   ]
 }

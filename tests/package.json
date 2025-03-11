@@ -1,0 +1,16 @@
+{
+  "name": "unfinished-test-suite",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@types/bun": "^1.2.4",
+    "vitest": "^3.0.8"
+  },
+  "peerDependencies": {
+    "@adbl/unfinished": "*"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^17.4.3"
+  }
+}

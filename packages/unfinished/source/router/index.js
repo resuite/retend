@@ -742,6 +742,7 @@ export class Router extends EventTarget {
     mode = 'navigate'
   ) {
     const currentPath = workingPath ?? this.currentPath.value;
+    /** @type {typeof currentPath | null} */
     const sourcePath = currentPath
       ? {
           name: currentPath.name,
@@ -749,14 +750,18 @@ export class Router extends EventTarget {
           query: currentPath.query,
           path: currentPath.path,
           fullPath: currentPath.fullPath,
+          metadata: currentPath.metadata,
         }
       : null;
+
+    /** @type {typeof this.currentPath.value} */
     const targetPath = {
       name: targetMatch.name,
       params: matchResult.params,
       query: matchResult.searchQueryParams,
       path: targetMatch.path,
       fullPath: path,
+      metadata: matchResult.metadata,
     };
     const middlewareArgs = {
       from: sourcePath,
@@ -884,6 +889,7 @@ export class Router extends EventTarget {
               params: matchResult.params,
               query: matchResult.searchQueryParams,
               fullPath,
+              metadata: matchResult.metadata,
             };
           }
 
@@ -951,6 +957,7 @@ export class Router extends EventTarget {
           params: matchResult.params,
           query: matchResult.searchQueryParams,
           fullPath: fullPathWithSearchAndHash,
+          metadata: matchResult.metadata,
         };
       }
 
