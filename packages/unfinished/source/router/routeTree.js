@@ -16,7 +16,8 @@
  */
 
 /**
- * @typedef {(() => JSX.Template) & { metadata?: Metadata }} RouteComponent
+ * @template {Metadata} [M=Metadata]
+ * @typedef {(() => JSX.Template) & { metadata?: M }} RouteComponent
  */
 
 /**
