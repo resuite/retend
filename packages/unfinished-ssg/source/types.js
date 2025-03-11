@@ -24,6 +24,8 @@
  * @typedef {Object} OutputArtifact
  * @property {string} name
  * @property {string} contents
+ * @property {boolean} [append]
+ * If true, content should be appended to existing file rather than replacing it
  */
 
 /**

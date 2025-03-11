@@ -216,7 +216,17 @@ async function renderPath(options) {
 
     if (path === finalPath) return;
 
+    // Add redirect to both HTML and _redirects file
     const redirectContent = generateRedirectHtmlContent(finalPath);
+
+    // Create redirect entry for _redirects file
+    const redirectEntry = `${path} ${finalPath} 301`;
+    outputs.push({
+      name: '_redirects',
+      contents: `${redirectEntry}\n`,
+      append: true,
+    });
+
     /** @type {string} */
     let redirectFileName;
 

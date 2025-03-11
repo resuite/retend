@@ -63,11 +63,23 @@ export function unfinishedSSG(options) {
     },
 
     generateBundle() {
+      const fileContents = new Map();
+
       for (const output of outputs) {
+        const existing = fileContents.get(output.name) || '';
+        fileContents.set(
+          output.name,
+          output.append ? existing + output.contents : output.contents
+        );
+      }
+
+      const files = Object.fromEntries(fileContents);
+
+      for (const [name, contents] of Object.entries(files)) {
         this.emitFile({
           type: 'asset',
-          fileName: output.name,
-          source: output.contents,
+          fileName: name,
+          source: contents,
         });
       }
     },
