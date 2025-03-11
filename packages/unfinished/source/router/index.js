@@ -315,6 +315,7 @@ export class Router extends EventTarget {
         query: new URLSearchParams(),
         fullPath: '',
         params: new Map(),
+        hash: null,
       })
     );
 
@@ -751,6 +752,7 @@ export class Router extends EventTarget {
           path: currentPath.path,
           fullPath: currentPath.fullPath,
           metadata: currentPath.metadata,
+          hash: currentPath.hash,
         }
       : null;
 
@@ -762,6 +764,7 @@ export class Router extends EventTarget {
       path: targetMatch.path,
       fullPath: path,
       metadata: matchResult.metadata,
+      hash: matchResult.hash,
     };
     const middlewareArgs = {
       from: sourcePath,
@@ -817,6 +820,7 @@ export class Router extends EventTarget {
       ? constructURL(this.currentPath.value.path, {
           params: this.currentPath.value.params,
           searchQueryParams: this.currentPath.value.query,
+          hash: this.currentPath.value.hash,
         })
       : undefined;
     const nextPath = path;
@@ -890,6 +894,7 @@ export class Router extends EventTarget {
               query: matchResult.searchQueryParams,
               fullPath,
               metadata: matchResult.metadata,
+              hash: matchResult.hash,
             };
           }
 
@@ -958,6 +963,7 @@ export class Router extends EventTarget {
           query: matchResult.searchQueryParams,
           fullPath: fullPathWithSearchAndHash,
           metadata: matchResult.metadata,
+          hash: matchResult.hash,
         };
       }
 
@@ -1469,7 +1475,7 @@ function emptyRoute(path, window) {
 /**
  * Constructs a URL path by replacing any matched parameters in the given path with their corresponding values from the `matchResult.params` object. If a parameter is not found, the original match is returned. Additionally, any search query parameters from `matchResult.searchQueryParams` are appended to the final path.
  * @param {string} path - The original path to be constructed.
- * @param {{ params: Map<string, string>, searchQueryParams: URLSearchParams }} matchResult - An object containing the matched parameters and search query parameters.
+ * @param {{ params: Map<string, string>, searchQueryParams: URLSearchParams, hash: string | null }} matchResult - An object containing the matched parameters and search query parameters.
  * @returns {string} The final constructed URL path.
  */
 function constructURL(path, matchResult) {
@@ -1480,6 +1486,10 @@ function constructURL(path, matchResult) {
 
   if (matchResult.searchQueryParams.size > 0) {
     finalPath += `?${matchResult.searchQueryParams.toString()}`;
+  }
+
+  if (matchResult.hash) {
+    finalPath += `#${matchResult.hash}`;
   }
 
   return finalPath;

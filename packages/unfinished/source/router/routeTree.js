@@ -1,10 +1,16 @@
 /**
- * A set of key-value pairs that will become attributes on the meta tag.
- * @typedef {Record<string, string>} Metadata
+ * @typedef MetadataOptions
+ * @property {Map<string, string>} params
+ * @property {URLSearchParams} query
  */
 
 /**
- * @typedef {Map<string, string>} MetadataMap
+ * A set of key-value pairs that will become attributes on the meta tag.
+ * @typedef {Record<string, any> | ((metadataOptions: MetadataOptions) => Record<string, any>)} Metadata
+ */
+
+/**
+ * @typedef {Map<string, any>} MetadataMap
  */
 
 /**
@@ -138,11 +144,13 @@ export class MatchResult {
    * @param {MatchedRoute<T> | null} subTree
    * @param {string} path
    * @param {URLSearchParams} searchQueryParams
+   * @param {string | null} hash
    */
-  constructor(params, subTree, path, searchQueryParams) {
+  constructor(params, subTree, path, searchQueryParams, hash) {
     this.params = params;
     this.subTree = subTree;
     this.path = path;
+    this.hash = hash;
     this.searchQueryParams = searchQueryParams;
     this.metadata = this.collectMetadata();
   }
@@ -156,11 +164,23 @@ export class MatchResult {
     const map = new Map();
     let current = this.subTree;
     while (current) {
-      if (current.metadata) {
-        for (const [key, value] of Object.entries(current.metadata)) {
-          map.set(key, value);
-        }
+      if (!current.metadata) {
+        current = current.child;
+        continue;
       }
+
+      const metadataObject =
+        typeof current.metadata === 'function'
+          ? current.metadata({
+              params: this.params,
+              query: this.searchQueryParams,
+            })
+          : current.metadata;
+
+      for (const [key, value] of Object.entries(metadataObject)) {
+        map.set(key, value);
+      }
+
       current = current.child;
     }
     return map;
@@ -205,190 +225,128 @@ export class RouteTree {
   roots = [];
 
   /**
-   * @private
-   * @type {Map<string, string>}
-   */
-  parameterMap = new Map();
-
-  /**
    *
    * @param {string} path
    * @returns {MatchResult<T>}
    */
   match(path) {
     let searchQueryParams = new URLSearchParams();
+    let hash = null;
     let pathname = path;
     try {
       const url = new URL(`http://localhost:8080${path}`);
       searchQueryParams = url.searchParams;
       pathname = url.pathname;
+      hash = url.hash.slice(1);
     } catch (error) {
       console.warn(`Invalid path: ${path}`);
       console.error(error);
-      return new MatchResult(new Map(), null, path, searchQueryParams);
+      return new MatchResult(new Map(), null, path, searchQueryParams, null);
     }
 
     for (const root of this.roots) {
-      if (this.selectActiveRoutes(pathname, root)) {
-        break;
+      const params = new Map();
+      const subtree = this.checkRoot(pathname, root, params);
+      if (subtree) {
+        return new MatchResult(params, subtree, path, searchQueryParams, hash);
       }
     }
 
-    const subTree = this.retrieveActiveSubtree(this.roots);
-    const params = this.parameterMap;
-    this.parameterMap = new Map();
-    for (const root of this.roots) {
-      this.deactivateRoute(root);
-    }
-    return new MatchResult(params, subTree, path, searchQueryParams);
+    return new MatchResult(new Map(), null, path, searchQueryParams, hash);
   }
 
   /**
-   * Recursively selects the active routes based on the given path and root route.
+   * Checks if the given pathname matches the specified root node.
+   * If it matches, returns the subtree under that root, otherwise returns null.
    *
-   * @param {string} path - The path to match against the routes.
-   * @param {Route<T>} root - The root route to start the selection from.
-   * @returns {boolean} - `true` if the path matches the root route or one of its children, `false` otherwise.
+   * @param {string} pathname - The pathname to match against
+   * @param {Route<T>} root - The root node to check
+   * @param {Map<string, string>} params - Map to store path parameters
+   * @returns { MatchedRoute<T> |null} - The matching subtree or null if no match
    */
-  selectActiveRoutes(path, root) {
-    let rootFullPath = root.path;
+  checkRoot(pathname, root, params, index = 0) {
+    const pathSegments = pathname.split('/').filter(Boolean);
+    const rootSegments = root.path.split('/').filter(Boolean);
 
-    for (const [key, value] of this.parameterMap) {
-      if (value) {
-        rootFullPath = rootFullPath.replace(`:${key}`, value);
+    let matchedIndex = index;
+    let encounteredCatchAllWildcardAtParameter = '';
+    while (matchedIndex < rootSegments.length) {
+      const rootSegment = rootSegments[matchedIndex];
+      const pathSegment = pathSegments[matchedIndex];
+
+      // The target path is exhausted, but the root path is not.
+      if (!pathSegment) {
+        return null;
       }
-    }
 
-    // Temporary variables used to store the
-    // rewritten parameter name and value during the dynamic route matching process,
-    // in case the dynamic route ends up failing.
-    let rewrittenParamName;
-    let rewrittenParamValue;
-
-    const rootSegments = rootFullPath.split('/');
-    const targetPathSegments = path.split('/');
-    for (const [index, segment] of rootSegments
-      .slice(0, targetPathSegments.length)
-      .entries()) {
-      if (segment === '*') {
-        rootSegments[index] = targetPathSegments[index];
+      if (rootSegment === '*') {
+        rootSegments[matchedIndex] = pathSegment;
+        matchedIndex++;
+        continue;
       }
-    }
-    rootFullPath = rootSegments.join('/');
 
-    if (path.startsWith(rootFullPath)) {
-      const subPath = path.slice(rootFullPath.length);
-      if (subPath.length === 0 && !root.isTransient) {
-        root.isActive = true;
-        // match any fallthrough routes
-        for (const child of root.children) {
-          if (
-            root.path === child.path &&
-            this.selectActiveRoutes(path, child)
-          ) {
-            break;
-          }
+      if (rootSegment.startsWith(':')) {
+        let paramName = rootSegment.slice(1);
+
+        if (paramName.endsWith('*')) {
+          paramName = paramName.slice(0, -1);
+          encounteredCatchAllWildcardAtParameter = paramName;
         }
-        return true;
+
+        // Will prioritize previous parameter matches.
+        const paramValue = params.get(paramName) ?? pathSegment;
+
+        if (paramValue !== pathSegment) {
+          return null;
+        }
+
+        params.set(paramName, paramValue);
+        rootSegments[matchedIndex] = paramValue;
+        matchedIndex++;
+        continue;
       }
 
+      // Mismatch in pathname: bail.
+      if (rootSegment !== pathSegment) {
+        return null;
+      }
+
+      matchedIndex++;
+    }
+
+    const matchedRoute = new MatchedRoute(root);
+
+    // If the path is not exhausted, begin matching the remaining path segments
+    // using the children of the current route.
+    if (matchedIndex < pathSegments.length) {
       for (const child of root.children) {
-        if (this.selectActiveRoutes(path, child)) {
-          root.isActive = true;
-          return true;
+        const childMatchedRoute = this.checkRoot(
+          pathname,
+          child,
+          params,
+          matchedIndex
+        );
+        if (childMatchedRoute) {
+          matchedRoute.child = childMatchedRoute;
+          break;
         }
       }
-    } else if (root.isDynamic) {
-      const rootPathSegments = rootFullPath.split('/').filter(Boolean);
-      const targetPathSegments = path.split('/').filter(Boolean);
 
-      const previousRootSegments = rootPathSegments.slice(0, -1);
-      const previousTargetSegments = targetPathSegments.slice(
-        0,
-        previousRootSegments.length - 2
-      );
+      if (matchedRoute.child === null) {
+        if (root.children.length || !root.path.endsWith('*')) {
+          return null;
+        }
 
-      const dynamicPathMatched = previousTargetSegments
-        .join('/')
-        .startsWith(previousRootSegments.join('/'));
-
-      if (!dynamicPathMatched) {
-        this.deactivateRoute(root);
-        return false;
-      }
-
-      const targetIndex = rootPathSegments.length - 1;
-      rewrittenParamName = rootPathSegments[targetIndex].slice(1);
-      rewrittenParamValue = this.parameterMap.get(rewrittenParamName);
-      this.parameterMap.set(
-        rewrittenParamName,
-        targetPathSegments[targetIndex]
-      );
-
-      if (
-        previousTargetSegments.length === previousRootSegments.length &&
-        !root.isTransient
-      ) {
-        root.isActive = true;
-        return true;
-      }
-
-      for (const child of root.children) {
-        if (this.selectActiveRoutes(path, child)) {
-          root.isActive = true;
-          return true;
+        if (encounteredCatchAllWildcardAtParameter) {
+          params.set(
+            encounteredCatchAllWildcardAtParameter,
+            pathSegments.slice(matchedIndex - 1).join('/')
+          );
         }
       }
-    } else if (root.isWildcard) {
-      root.isActive = true;
-      return true;
     }
 
-    if (rewrittenParamName) {
-      if (rewrittenParamValue) {
-        this.parameterMap.set(rewrittenParamName, rewrittenParamValue);
-      } else {
-        this.parameterMap.delete(rewrittenParamName);
-      }
-    }
-
-    if (root.isWildcard && root.path.endsWith('*') && !root.isTransient) {
-      root.isActive = true;
-      return true;
-    }
-
-    this.deactivateRoute(root);
-    return false;
-  }
-
-  /**
-   * Retrieves the active root route from the route tree.
-   * @param {Route<T>[]} roots
-   * @returns { MatchedRoute<T> | null} The active root route, or null if no root route is active.
-   */
-  retrieveActiveSubtree(roots) {
-    for (const root of roots) {
-      if (root.isActive) {
-        const activeRoot = new MatchedRoute(root);
-        const activeChildRoots = this.retrieveActiveSubtree(root.children);
-        activeRoot.child = activeChildRoots;
-
-        return activeRoot;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Deactivates the specified route and all of its child routes.
-   *
-   * @param {Route<T>} route - The route to deactivate.
-   */
-  deactivateRoute(route) {
-    route.isActive = false;
-    for (const child of route.children) {
-      this.deactivateRoute(child);
-    }
+    return matchedRoute;
   }
 
   toString() {
@@ -422,23 +380,23 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
     const subPath = `${parentFullPath}/${pathSegments[0] ?? '/'}`;
     const root = new Route(subPath.replace(/\/+/g, '/'));
 
-    let current = root;
+    const current = root;
 
-    if (pathSegments.length > 1) {
-      for (const [index, pathSegment] of pathSegments.slice(1).entries()) {
-        const subPath = `${parentFullPath}/${pathSegments
-          .slice(1, index)
-          .join('/')}/${pathSegment}`;
-        const child = new Route(subPath.replace(/\/+/g, '/'));
+    // if (pathSegments.length > 1) {
+    //   for (const [index, pathSegment] of pathSegments.slice(1).entries()) {
+    //     const subPath = `${parentFullPath}/${pathSegments
+    //       .slice(1, index)
+    //       .join('/')}/${pathSegment}`;
+    //     const child = new Route(subPath.replace(/\/+/g, '/'));
 
-        child.isDynamic = pathSegment.startsWith(':');
-        child.isWildcard = pathSegment.startsWith('*');
-        current.isTransient = true;
+    //     child.isDynamic = pathSegment.startsWith(':');
+    //     child.isWildcard = pathSegment.startsWith('*');
+    //     current.isTransient = true;
 
-        current.children.push(child);
-        current = child;
-      }
-    }
+    //     current.children.push(child);
+    //     current = child;
+    //   }
+    // }
 
     current.name = routeRecord.name ?? null;
     const component = routeRecord.component;

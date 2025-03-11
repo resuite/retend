@@ -16,6 +16,7 @@
  * @property {string} path - The path of the route.
  * @property {string} fullPath - The full path of the route.
  * @property {MetadataMap} metadata - Aggregated metadata for the route.
+ * @property {string | null} hash - The hash fragment of the route.
  */
 
 /**

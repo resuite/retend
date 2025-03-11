@@ -44,9 +44,7 @@ describe('Router Metadata', () => {
 
     const router = createWebRouter({ routes });
     const currentRoute = router.getCurrentRoute();
-    const metadata = Cell.derived(() => {
-      return currentRoute.value.metadata;
-    });
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
 
     router.setWindow(window);
     router.attachWindowListeners();
@@ -129,6 +127,106 @@ describe('Router Metadata', () => {
       requiresAuth: true,
       title: 'System Settings',
       permission: 'manage_settings',
+    });
+  });
+
+  it('should handle dynamic metadata based on route params', async () => {
+    const { window } = getGlobalContext();
+    const routes = defineRoutes([
+      {
+        name: 'product-page',
+        path: '/products/:id',
+        component: () => 'Product Details',
+        metadata: (data) => ({
+          title: `Product ${data.params.get('id')}`,
+          type: 'product-page',
+        }),
+      },
+    ]);
+
+    const router = createWebRouter({ routes });
+    const currentRoute = router.getCurrentRoute();
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/products/123');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Product 123',
+      type: 'product-page',
+    });
+
+    await router.navigate('/products/456');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Product 456',
+      type: 'product-page',
+    });
+  });
+
+  it('should update metadata when route params change', async () => {
+    const { window } = getGlobalContext();
+    const routes = defineRoutes([
+      {
+        name: 'post-details',
+        path: '/users/:userId/posts/:postId',
+        component: () => 'Post Details',
+        metadata: (data) => {
+          const postId = data.params.get('postId');
+          const userId = data.params.get('userId');
+          return {
+            title: `Post ${postId} by User ${userId}`,
+            section: 'blog',
+          };
+        },
+      },
+    ]);
+
+    const router = createWebRouter({ routes });
+    const currentRoute = router.getCurrentRoute();
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/users/1/posts/100');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Post 100 by User 1',
+      section: 'blog',
+    });
+
+    await router.navigate('/users/2/posts/200');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Post 200 by User 2',
+      section: 'blog',
+    });
+  });
+
+  it('should handle metadata with query parameters', async () => {
+    const { window } = getGlobalContext();
+    const routes = defineRoutes([
+      {
+        name: 'post-details',
+        path: '/search',
+        component: () => 'Search Results',
+        metadata: (data) => ({
+          title: `Search Results for: ${data.query.get('q')}`,
+          type: 'search-page',
+        }),
+      },
+    ]);
+
+    const router = createWebRouter({ routes });
+    const currentRoute = router.getCurrentRoute();
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/search?q=javascript');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Search Results for: javascript',
+      type: 'search-page',
     });
   });
 });
