@@ -8,12 +8,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v1
         with:
-          node-version: 18
-          cache: 'npm'
+          bun-version: latest
 
-      - run: npm install
-      - run: npm run build
-      - run: npm test
+      - run: bun install
+      - run: bun run build
+      - run: bun test
