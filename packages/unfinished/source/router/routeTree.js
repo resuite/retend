@@ -382,22 +382,6 @@ RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
 
     const current = root;
 
-    // if (pathSegments.length > 1) {
-    //   for (const [index, pathSegment] of pathSegments.slice(1).entries()) {
-    //     const subPath = `${parentFullPath}/${pathSegments
-    //       .slice(1, index)
-    //       .join('/')}/${pathSegment}`;
-    //     const child = new Route(subPath.replace(/\/+/g, '/'));
-
-    //     child.isDynamic = pathSegment.startsWith(':');
-    //     child.isWildcard = pathSegment.startsWith('*');
-    //     current.isTransient = true;
-
-    //     current.children.push(child);
-    //     current = child;
-    //   }
-    // }
-
     current.name = routeRecord.name ?? null;
     const component = routeRecord.component;
     current.component = component;

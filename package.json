@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "test": "cd tests && npx vitest run",
     "build": "npm run build-core && npm run build-ssg",
     "build-core": "cd packages/unfinished && npm run build",
     "build-ssg": "cd packages/unfinished-ssg && npm run build",

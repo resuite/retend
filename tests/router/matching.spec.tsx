@@ -39,6 +39,38 @@ describe('Router Matching', () => {
     expect(route.value.name).toBe('home');
   });
 
+  it('should prioritize closest match', async () => {
+    const { window } = getGlobalContext();
+    const router = createWebRouter({
+      routes: defineRoutes([
+        { path: '/home', name: 'home', component: () => 'Home' },
+        {
+          path: '/home',
+          name: 'home-alt',
+          component: () => {
+            const { Outlet } = useRouter();
+            return (
+              <>
+                Home
+                <Outlet />
+              </>
+            );
+          },
+          children: [
+            { path: '/about', name: 'about-alt', component: () => 'About' },
+          ],
+        },
+        { path: '/about', name: 'about', component: () => 'About' },
+      ]),
+    });
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/home/about');
+    const route = router.getCurrentRoute();
+    expect(route.value.name).toBe('about-alt');
+  });
+
   it('should match path parameters', async () => {
     const { window } = getGlobalContext();
     const callback = vi.fn();

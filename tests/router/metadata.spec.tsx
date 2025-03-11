@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { setGlobalContext, getGlobalContext, Modes } from '@adbl/unfinished';
 import { VWindow } from '@adbl/unfinished/v-dom';
-import { createWebRouter, defineRoutes } from '@adbl/unfinished/router';
+import {
+  createWebRouter,
+  defineRoutes,
+  useRouter,
+} from '@adbl/unfinished/router';
 import { Cell } from '@adbl/cells';
 
 describe('Router Metadata', () => {
@@ -71,12 +75,15 @@ describe('Router Metadata', () => {
       {
         name: 'dashboard',
         path: 'dashboard',
-        component: () => (
-          <div>
-            dashboard
-            <unfinished-router-outlet />
-          </div>
-        ),
+        component: () => {
+          const { Outlet } = useRouter();
+          return (
+            <>
+              dashboard
+              <Outlet />
+            </>
+          );
+        },
         metadata: {
           section: 'Admin',
           requiresAuth: true,
