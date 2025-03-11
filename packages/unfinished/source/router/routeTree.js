@@ -1,3 +1,5 @@
+/** @import { JSX } from '../jsx-runtime/types.ts' */
+
 /**
  * @typedef MetadataOptions
  * @property {Map<string, string>} params
@@ -11,6 +13,10 @@
 
 /**
  * @typedef {Map<string, any>} MetadataMap
+ */
+
+/**
+ * @typedef {(() => JSX.Template) & { metadata?: Metadata }} RouteComponent
  */
 
 /**

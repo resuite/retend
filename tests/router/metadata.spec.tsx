@@ -4,6 +4,8 @@ import {
   createWebRouter,
   defineRoutes,
   useRouter,
+  type RouteComponent,
+  lazy,
 } from '@adbl/unfinished/router';
 import { Cell } from '@adbl/cells';
 import { routerSetup } from './setup.ts';
@@ -222,6 +224,148 @@ describe('Router Metadata', () => {
     expect(Object.fromEntries(metadata.value.entries())).toEqual({
       title: 'Search Results for: javascript',
       type: 'search-page',
+    });
+  });
+
+  it('should read metadata from the component function object', async () => {
+    const { window } = getGlobalContext();
+    const Home: RouteComponent = () => {
+      return <div>This is the home page</div>;
+    };
+
+    Home.metadata = {
+      title: 'Home Page',
+      description: 'Welcome to the home page',
+    };
+
+    const About: RouteComponent = () => {
+      return <div>This is the about page</div>;
+    };
+
+    About.metadata = {
+      title: 'About Page',
+      description: 'Learn more about our company',
+    };
+
+    const router = createWebRouter({
+      routes: [
+        {
+          name: 'home page',
+          path: '/home',
+          component: Home,
+        },
+        {
+          name: 'about page',
+          path: '/about',
+          component: lazy(() => Promise.resolve({ default: About })),
+        },
+      ],
+    });
+    const route = router.getCurrentRoute();
+    const metadata = Cell.derived(() => route.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/home');
+    expect(window.location.pathname).toBe('/home');
+
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Home Page',
+      description: 'Welcome to the home page',
+    });
+
+    await router.navigate('/about');
+    expect(window.location.pathname).toBe('/about');
+
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'About Page',
+      description: 'Learn more about our company',
+    });
+  });
+
+  it('should inherit metadata from parent components', async () => {
+    const { window } = getGlobalContext();
+
+    const About: RouteComponent = () => {
+      return <div>This is the about page</div>;
+    };
+
+    About.metadata = {
+      title: 'About Page',
+      description: 'Learn more about our company',
+    };
+
+    const Home: RouteComponent = () => {
+      const { Outlet } = useRouter();
+      return (
+        <>
+          <div>This is the home page</div>
+          <Outlet />
+        </>
+      );
+    };
+
+    Home.metadata = {
+      title: 'Home Page',
+      description: 'Welcome to the home page',
+    };
+
+    const Tabs: RouteComponent = () => {
+      return <div>This is the tabs page</div>;
+    };
+    Tabs.metadata = { tabPage: true };
+
+    const router = createWebRouter({
+      routes: [
+        {
+          name: 'home page',
+          path: '/home',
+          component: Home,
+          children: [
+            {
+              name: 'tabs page',
+              path: 'tabs',
+              component: Tabs,
+            },
+          ],
+        },
+        {
+          name: 'about page',
+          path: '/about',
+          component: About,
+        },
+      ],
+    });
+    const route = router.getCurrentRoute();
+    const metadata = Cell.derived(() => route.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/home');
+    expect(window.location.pathname).toBe('/home');
+
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Home Page',
+      description: 'Welcome to the home page',
+    });
+
+    await router.navigate('/about');
+    expect(window.location.pathname).toBe('/about');
+
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'About Page',
+      description: 'Learn more about our company',
+    });
+
+    await router.navigate('/home/tabs');
+    expect(window.location.pathname).toBe('/home/tabs');
+
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Home Page',
+      description: 'Welcome to the home page',
+      tabPage: true,
     });
   });
 });

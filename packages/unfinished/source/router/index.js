@@ -26,7 +26,7 @@ const PARAM_REGEX = /:(\w+)/g;
 const RELAY_ID_REGEX =
   /^([a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?)/;
 
-/** @import { MatchResult } from './routeTree.js' */
+/** @import { MatchResult, Metadata } from './routeTree.js' */
 /** @import { SourceCell } from '@adbl/cells' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import * as VDom from '../v-dom/index.js' */
@@ -81,6 +81,8 @@ export class RouteChangeEvent extends CustomEvent {
  * @property {WeakRef<RouterOutlet>} [__renderedOutlet]
  *
  * @property {string} [__renderedPath]
+ *
+ * @property {Metadata} [metadata]
  */
 
 /**
@@ -945,6 +947,12 @@ export class Router extends EventTarget {
         }
       } else {
         matchedComponent = matchedComponentOrLazyLoader;
+      }
+
+      if (matchedComponent.metadata) {
+        for (const [key, value] of Object.entries(matchedComponent.metadata)) {
+          matchResult.metadata.set(key, value);
+        }
       }
 
       const fullPathWithSearchAndHash = constructURL(
