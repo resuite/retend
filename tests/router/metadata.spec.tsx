@@ -389,4 +389,94 @@ describe('Router Metadata', () => {
       immersivePage: true,
     });
   });
+
+  it('should handle embedded metadata functions', async () => {
+    const { window } = getGlobalContext();
+
+    const ProductPage: RouteComponent = () => {
+      return <div>This is the product page</div>;
+    };
+
+    ProductPage.metadata = (data) => ({
+      title: `Product ${data.params.get('id')}`,
+      type: 'product-page',
+    });
+
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          name: 'product-page',
+          path: '/products/:id',
+          component: ProductPage,
+        },
+      ]),
+    });
+    const currentRoute = router.getCurrentRoute();
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/products/123');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Product 123',
+      type: 'product-page',
+    });
+  });
+
+  it('should handle embedded metadata functions with nested routes', async () => {
+    const { window } = getGlobalContext();
+
+    const ProductPage: RouteComponent = () => {
+      const { Outlet } = useRouter();
+      return (
+        <div>
+          This is the product page
+          <Outlet />
+        </div>
+      );
+    };
+
+    ProductPage.metadata = (data) => ({
+      title: `Product ${data.params.get('id')}`,
+      type: 'product-page',
+    });
+
+    const ProductDetails: RouteComponent = () => {
+      return <div>This is the product details page</div>;
+    };
+
+    ProductDetails.metadata = (data) => ({
+      summary: `Summary: Product ${data.params.get('sku')}`,
+    });
+
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          name: 'product-page',
+          path: '/products/:id',
+          component: ProductPage,
+          children: [
+            {
+              name: 'product-details',
+              path: ':sku',
+              component: ProductDetails,
+            },
+          ],
+        },
+      ]),
+    });
+    const currentRoute = router.getCurrentRoute();
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/products/123/456');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Product 123',
+      type: 'product-page',
+      summary: 'Summary: Product 456',
+    });
+  });
 });
