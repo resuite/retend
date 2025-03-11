@@ -10,6 +10,8 @@
     "inquirer": "npm:inquirer@12.0.0",
     "ora": "npm:ora@8.1.0",
     "vite": "npm:vite@5.4.14",
+    "vitest": "npm:vitest@^3.0.8",
+    "@happy-dom/global-registrator": "npm:@happy-dom/global-registrator@^17.4.3",
     "semver": "npm:semver@7.6.3",
     "@types/node": "npm:@types/node@20.8.10",
     "@adbl/cells": "npm:@adbl/cells@0.0.11",

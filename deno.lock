@@ -26,6 +26,7 @@
     "npm:typescript@^5.8.2": "5.8.2",
     "npm:vite@5.4.14": "5.4.14_@types+node@20.8.10",
     "npm:vite@^5.4.14": "5.4.14_@types+node@20.8.10",
+    "npm:vitest@3.0.8": "3.0.8_@types+node@20.8.10_vite@5.4.14__@types+node@20.8.10",
     "npm:vitest@^3.0.8": "3.0.8_@types+node@20.8.10_vite@5.4.14__@types+node@20.8.10"
   },
   "npm": {
@@ -886,6 +887,7 @@
   "workspace": {
     "dependencies": [
       "npm:@adbl/cells@0.0.11",
+      "npm:@happy-dom/global-registrator@^17.4.3",
       "npm:@types/node@20.8.10",
       "npm:chalk@5.3.0",
       "npm:domhandler@5.0.3",
@@ -893,7 +895,8 @@
       "npm:inquirer@12.0.0",
       "npm:ora@8.1.0",
       "npm:semver@7.6.3",
-      "npm:vite@5.4.14"
+      "npm:vite@5.4.14",
+      "npm:vitest@^3.0.8"
     ],
     "members": {
       "packages/unfinished": {
