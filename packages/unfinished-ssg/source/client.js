@@ -7,6 +7,10 @@
 /** @import { RouteData } from '@adbl/unfinished/router' */
 /** @import { Cell } from '@adbl/cells' */
 
+/**
+ * @typedef {import('./meta.js').PageMeta} PageMeta
+ */
+
 import {
   Modes,
   setAttributeFromProps,

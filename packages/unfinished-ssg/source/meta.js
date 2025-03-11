@@ -4,61 +4,61 @@ import { getGlobalContext, isVNode } from '@adbl/unfinished';
  * @typedef {Object} PageMeta
  *
  * @property {string} [author]
- * The author of the page
+ * The name or identifier of the individual or entity who created the page's content.
  *
  * @property {string} [description]
- * The description of the page
+ * A brief summary or overview of the page's content, typically used in meta tags for SEO or previews.
  *
  * @property {string} [lang]
- * The language of the page
+ * The primary language of the page, specified using a standard language code (e.g., "en" for English).
  *
  * @property {string} [charset]
- * The character set of the page
+ * The character encoding standard used for the page, such as "UTF-8" or "ISO-8859-1".
  *
  * @property {string} [themeColor]
- * The theme color of the page
+ * A color value (e.g., "#ffffff") defining the suggested theme or accent color for the page, often for browser UI.
  *
  * @property {string} [keywords]
- * The keywords of the page
+ * A comma-separated list of words or phrases relevant to the page's content, used for search engine indexing.
  *
  * @property {string} [ogTitle]
- * The Open Graph title of the page
+ * The title of the page as defined for Open Graph protocol, used when sharing on social platforms like Facebook.
  *
  * @property {string} [ogDescription]
- * The Open Graph description of the page
+ * A concise description of the page for Open Graph, displayed in social media previews.
  *
  * @property {string} [ogImage]
- * The Open Graph image of the page
+ * The URL of an image representing the page in Open Graph, shown in social media shares.
  *
  * @property {string} [ogUrl]
- * The Open Graph URL of the page
+ * The canonical URL of the page for Open Graph, linking to the page in social media contexts.
  *
  * @property {string} [ogType]
- * The Open Graph type of the page
+ * The type of content (e.g., "article", "website") as defined by Open Graph for social media categorization.
  *
  * @property {string} [ogLocale]
- * The Open Graph locale of the page
+ * The locale of the page for Open Graph, in the format "language_TERRITORY" (e.g., "en_US").
  *
  * @property {string} [ogSiteName]
- * The Open Graph site name of the page
+ * The name of the website hosting the page, used in Open Graph for branding in social shares.
  *
  * @property {string} [twitterCard]
- * The Twitter Card of the page
+ * The Twitter Card type (e.g., "summary", "summary_large_image"), controlling how the page appears when shared on Twitter.
  *
  * @property {string} [twitterTitle]
- * The Twitter title of the page
+ * The title of the page optimized for Twitter sharing, displayed in Twitter Card previews.
  *
  * @property {string} [twitterDescription]
- * The Twitter description of the page
+ * A short description of the page for Twitter Cards, shown in Twitter share previews.
  *
  * @property {string} [twitterImage]
- * The Twitter image of the page
+ * The URL of an image for Twitter Cards, representing the page in Twitter shares.
  *
  * @property {string} [title]
- * The title of the page
+ * The main title of the page, typically displayed in the browser tab or as the primary heading.
  *
  * @property {string} [viewport]
- * The viewport of the page
+ * The viewport settings for the page (e.g., "width=device-width, initial-scale=1"), controlling display on different devices.
  */
 
 /** @type {Record<keyof PageMeta, string>} */
