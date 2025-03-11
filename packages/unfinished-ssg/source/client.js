@@ -4,6 +4,8 @@
 /** @import { VNode } from '@adbl/unfinished/v-dom' */
 /** @import { Router } from '@adbl/unfinished/router' */
 /** @import { ServerContext } from './types.js' */
+/** @import { RouteData } from '@adbl/unfinished/router' */
+/** @import { Cell } from '@adbl/cells' */
 
 import {
   Modes,
@@ -18,6 +20,7 @@ import {
   VWindow,
 } from '@adbl/unfinished/v-dom';
 import { SourceCell } from '@adbl/cells';
+import { updatePageMeta } from './meta.js';
 
 /**
  * Re-enables the interactive features of a server-side rendered application.
@@ -70,6 +73,7 @@ export async function hydrate(routerFn) {
   const context = JSON.parse(contextScript.textContent ?? '{}');
   const router = await restoreContext(context, routerFn);
   contextScript.remove();
+  addMetaListener(router);
   return router;
 }
 
@@ -81,6 +85,7 @@ function defaultToSpaMode(routerFn) {
   const root = document.querySelector('#app');
   root?.append(/** @type {Node} */ (router.Outlet()));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
+  addMetaListener(router);
   return router;
 }
 
@@ -297,4 +302,21 @@ function recreateVWindow(obj, window) {
   if (obj.type === 8)
     return document.createComment(/** @type {string} */ (obj.text));
   return document.createTextNode(/** @type {string} */ (obj.text));
+}
+
+/**
+ * Adds a listener to the window object to update the page meta data
+ * @param {Router} router - The router instance
+ * @returns {void}
+ */
+function addMetaListener(router) {
+  /** @type {Cell<RouteData>} */
+  const currentPath = Reflect.get(router, 'currentPath');
+  currentPath.listen((data) => {
+    const { metadata } = data;
+    if (metadata) {
+      const entries = Object.fromEntries(metadata.entries());
+      updatePageMeta(entries);
+    }
+  });
 }
