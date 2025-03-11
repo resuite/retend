@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { setGlobalContext, Modes, getGlobalContext } from '@adbl/unfinished';
-import { VWindow } from '@adbl/unfinished/v-dom';
+import { getGlobalContext } from '@adbl/unfinished';
+import { routerSetup } from './setup.ts';
 import {
   createWebRouter,
   defineRoutes,
@@ -8,19 +8,7 @@ import {
 } from '@adbl/unfinished/router';
 
 describe('Router Matching', () => {
-  beforeEach(() => {
-    const window = new VWindow();
-    window.document.body.append(
-      window.document.createElement('unfinished-router-outlet')
-    );
-
-    setGlobalContext({
-      mode: Modes.VDom,
-      window,
-      consistentValues: new Map(),
-      teleportIdCounter: { value: 0 },
-    });
-  });
+  beforeEach(routerSetup);
 
   it('should match exact path', async () => {
     const { window } = getGlobalContext();

@@ -2,6 +2,7 @@
   "name": "@adbl/unfinished-test-suite",
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
+
     "jsx": "react-jsx",
     "jsxImportSource": "@adbl/unfinished",
 
@@ -12,5 +13,8 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "unstable": ["sloppy-imports"]
+
+  "imports": {
+    "@adbl/unfinished/jsx-runtime": "../packages/unfinished/dist/jsx-runtime/index.d.ts"
+  }
 }

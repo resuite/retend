@@ -1,27 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { setGlobalContext, getGlobalContext, Modes } from '@adbl/unfinished';
-import { VWindow } from '@adbl/unfinished/v-dom';
+import { getGlobalContext } from '@adbl/unfinished';
 import {
   createWebRouter,
   defineRoutes,
   useRouter,
 } from '@adbl/unfinished/router';
 import { Cell } from '@adbl/cells';
+import { routerSetup } from './setup.ts';
 
 describe('Router Metadata', () => {
-  beforeEach(() => {
-    const window = new VWindow();
-    window.document.body.append(
-      window.document.createElement('unfinished-router-outlet')
-    );
-
-    setGlobalContext({
-      mode: Modes.VDom,
-      window,
-      consistentValues: new Map(),
-      teleportIdCounter: { value: 0 },
-    });
-  });
+  beforeEach(routerSetup);
 
   it('should contain correct metadata for current route', async () => {
     const { window } = getGlobalContext();
@@ -69,7 +57,7 @@ describe('Router Metadata', () => {
   });
 
   it('should aggregate metadata from nested routes', async () => {
-    const { window } = getGlobalContext() as { window: VWindow };
+    const { window } = getGlobalContext();
 
     const routes = defineRoutes([
       {
