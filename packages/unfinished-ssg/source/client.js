@@ -312,7 +312,7 @@ function recreateVWindow(obj, window) {
 function addMetaListener(router) {
   /** @type {Cell<RouteData>} */
   const currentPath = Reflect.get(router, 'currentPath');
-  currentPath.listen((data) => {
+  currentPath.runAndListen((data) => {
     const { metadata } = data;
     if (metadata) {
       const entries = Object.fromEntries(metadata.entries());
