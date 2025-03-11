@@ -316,6 +316,14 @@ describe('Router Metadata', () => {
     };
     Tabs.metadata = { tabPage: true };
 
+    const Immersive: RouteComponent = () => {
+      return <div>This is the immersive page</div>;
+    };
+    Immersive.metadata = {
+      title: 'Immersive Page',
+      immersivePage: true,
+    };
+
     const router = createWebRouter({
       routes: [
         {
@@ -327,6 +335,11 @@ describe('Router Metadata', () => {
               name: 'tabs page',
               path: 'tabs',
               component: Tabs,
+            },
+            {
+              name: 'immersive page',
+              path: 'immersive',
+              component: Immersive,
             },
           ],
         },
@@ -366,6 +379,14 @@ describe('Router Metadata', () => {
       title: 'Home Page',
       description: 'Welcome to the home page',
       tabPage: true,
+    });
+
+    await router.navigate('/home/immersive');
+    expect(window.location.pathname).toBe('/home/immersive');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Immersive Page',
+      description: 'Welcome to the home page',
+      immersivePage: true,
     });
   });
 });

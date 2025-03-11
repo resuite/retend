@@ -171,21 +171,48 @@ export class MatchResult {
     const map = new Map();
     let current = this.subTree;
     while (current) {
-      if (!current.metadata) {
+      if (
+        !(
+          current.metadata ||
+          (current.component &&
+            typeof current.component === 'function' &&
+            'metadata' in current.component)
+        )
+      ) {
         current = current.child;
         continue;
       }
 
-      const metadataObject =
-        typeof current.metadata === 'function'
+      const metadataObject = current.metadata
+        ? typeof current.metadata === 'function'
           ? current.metadata({
               params: this.params,
               query: this.searchQueryParams,
             })
-          : current.metadata;
+          : current.metadata
+        : null;
 
-      for (const [key, value] of Object.entries(metadataObject)) {
-        map.set(key, value);
+      const embeddedMetadata =
+        typeof current.component === 'function' &&
+        'metadata' in current.component
+          ? typeof current.component.metadata === 'function'
+            ? current.component.metadata({
+                params: this.params,
+                query: this.searchQueryParams,
+              })
+            : current.component.metadata
+          : null;
+
+      if (metadataObject) {
+        for (const [key, value] of Object.entries(metadataObject)) {
+          map.set(key, value);
+        }
+      }
+
+      if (embeddedMetadata) {
+        for (const [key, value] of Object.entries(embeddedMetadata)) {
+          map.set(key, value);
+        }
       }
 
       current = current.child;
