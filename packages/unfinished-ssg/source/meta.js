@@ -1,64 +1,68 @@
+/** @import { RouteData } from '@adbl/unfinished/router' */
+/** @import { Cell } from '@adbl/cells' */
+
 import { getGlobalContext, isVNode } from '@adbl/unfinished';
+import { Router } from '@adbl/unfinished/router';
 
 /**
  * @typedef {Object} PageMeta
  *
  * @property {string} [author]
- * The name or identifier of the individual or entity who created the page's content.
+ * The author of the page
  *
  * @property {string} [description]
- * A brief summary or overview of the page's content, typically used in meta tags for SEO or previews.
+ * The description of the page
  *
  * @property {string} [lang]
- * The primary language of the page, specified using a standard language code (e.g., "en" for English).
+ * The language of the page
  *
  * @property {string} [charset]
- * The character encoding standard used for the page, such as "UTF-8" or "ISO-8859-1".
+ * The character set of the page
  *
  * @property {string} [themeColor]
- * A color value (e.g., "#ffffff") defining the suggested theme or accent color for the page, often for browser UI.
+ * The theme color of the page
  *
  * @property {string} [keywords]
- * A comma-separated list of words or phrases relevant to the page's content, used for search engine indexing.
+ * The keywords of the page
  *
  * @property {string} [ogTitle]
- * The title of the page as defined for Open Graph protocol, used when sharing on social platforms like Facebook.
+ * The Open Graph title of the page
  *
  * @property {string} [ogDescription]
- * A concise description of the page for Open Graph, displayed in social media previews.
+ * The Open Graph description of the page
  *
  * @property {string} [ogImage]
- * The URL of an image representing the page in Open Graph, shown in social media shares.
+ * The Open Graph image of the page
  *
  * @property {string} [ogUrl]
- * The canonical URL of the page for Open Graph, linking to the page in social media contexts.
+ * The Open Graph URL of the page
  *
  * @property {string} [ogType]
- * The type of content (e.g., "article", "website") as defined by Open Graph for social media categorization.
+ * The Open Graph type of the page
  *
  * @property {string} [ogLocale]
- * The locale of the page for Open Graph, in the format "language_TERRITORY" (e.g., "en_US").
+ * The Open Graph locale of the page
  *
  * @property {string} [ogSiteName]
- * The name of the website hosting the page, used in Open Graph for branding in social shares.
+ * The Open Graph site name of the page
  *
  * @property {string} [twitterCard]
- * The Twitter Card type (e.g., "summary", "summary_large_image"), controlling how the page appears when shared on Twitter.
+ * The Twitter Card of the page
  *
  * @property {string} [twitterTitle]
- * The title of the page optimized for Twitter sharing, displayed in Twitter Card previews.
+ * The Twitter title of the page
  *
  * @property {string} [twitterDescription]
- * A short description of the page for Twitter Cards, shown in Twitter share previews.
+ * The Twitter description of the page
  *
  * @property {string} [twitterImage]
- * The URL of an image for Twitter Cards, representing the page in Twitter shares.
+ * The Twitter image of the page
  *
  * @property {string} [title]
- * The main title of the page, typically displayed in the browser tab or as the primary heading.
+ * The title of the page
  *
  * @property {string} [viewport]
- * The viewport settings for the page (e.g., "width=device-width, initial-scale=1"), controlling display on different devices.
+ * The viewport of the page
  */
 
 /** @type {Record<keyof PageMeta, string>} */
@@ -171,4 +175,21 @@ export function updatePageMeta(newMeta) {
       metaTag.remove();
     }
   }
+}
+
+/**
+ * Adds a listener to the window object to update the page meta data
+ * @param {Router} router - The router instance
+ * @returns {void}
+ */
+export function addMetaListener(router) {
+  /** @type {Cell<RouteData>} */
+  const currentPath = Reflect.get(router, 'currentPath');
+  currentPath.runAndListen((data) => {
+    const { metadata } = data;
+    if (metadata) {
+      const entries = Object.fromEntries(metadata.entries());
+      updatePageMeta(entries);
+    }
+  });
 }

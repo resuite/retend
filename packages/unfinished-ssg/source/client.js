@@ -4,12 +4,6 @@
 /** @import { VNode } from '@adbl/unfinished/v-dom' */
 /** @import { Router } from '@adbl/unfinished/router' */
 /** @import { ServerContext } from './types.js' */
-/** @import { RouteData } from '@adbl/unfinished/router' */
-/** @import { Cell } from '@adbl/cells' */
-
-/**
- * @typedef {import('./meta.js').PageMeta} PageMeta
- */
 
 import {
   Modes,
@@ -24,7 +18,7 @@ import {
   VWindow,
 } from '@adbl/unfinished/v-dom';
 import { SourceCell } from '@adbl/cells';
-import { updatePageMeta } from './meta.js';
+import { addMetaListener } from './meta.js';
 
 /**
  * Re-enables the interactive features of a server-side rendered application.
@@ -306,21 +300,4 @@ function recreateVWindow(obj, window) {
   if (obj.type === 8)
     return document.createComment(/** @type {string} */ (obj.text));
   return document.createTextNode(/** @type {string} */ (obj.text));
-}
-
-/**
- * Adds a listener to the window object to update the page meta data
- * @param {Router} router - The router instance
- * @returns {void}
- */
-function addMetaListener(router) {
-  /** @type {Cell<RouteData>} */
-  const currentPath = Reflect.get(router, 'currentPath');
-  currentPath.runAndListen((data) => {
-    const { metadata } = data;
-    if (metadata) {
-      const entries = Object.fromEntries(metadata.entries());
-      updatePageMeta(entries);
-    }
-  });
 }

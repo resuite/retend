@@ -28,6 +28,7 @@ import { promises as fs } from 'node:fs';
 
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
+import { addMetaListener } from './meta.js';
 
 /**
  * @param {string[]} paths The paths to serialize.
@@ -162,6 +163,8 @@ async function renderPath(options) {
     const currentRoute = router.getCurrentRoute();
     router.setWindow(window);
     router.attachWindowListeners();
+
+    addMetaListener(router);
 
     const appElement = document.querySelector(rootSelector);
     if (!appElement) {
