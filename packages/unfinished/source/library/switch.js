@@ -14,15 +14,7 @@ import { linkNodesToComponent } from '../plugin/index.js';
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
  *
- * @template {string | number | symbol} T
- * @template {((value: T) => JSX.Template)| undefined} [D=undefined]
- * @param {Cell<T> | T} value - A reactive `Cell` or a static value to determine the active case.
- * @param {D extends undefined ? Record<T, () => JSX.Template> : Partial<Record<T, () => JSX.Template>>} cases - An object mapping possible values to template-generating functions.
- * @param {D} [defaultCase] - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
- * @returns {JSX.Template} A list of nodes that represent the selected case's template.
- *
  * @example
- * // VDom usage
  * const staticResult = Switch('caseA', {
  *   caseA: () => <div>Case A</div>,
  *   caseB: () => <span>Case B</span>
@@ -47,7 +39,54 @@ import { linkNodesToComponent } from '../plugin/index.js';
  *   caseB: () => <span>Case B</span>
  * }, (value) => <p>Unknown case: {value}</p>);
  *
- * // Resulting JSX output will dynamically update for reactiveCell based on its value.
+ * @template {string | number | symbol | null | undefined} Discriminant
+ * @overload
+ * @param {Cell<Discriminant> | Discriminant} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {Partial<Record<Discriminant, () => JSX.Template>>} cases - An object mapping possible values to template-generating functions.
+ * @param {(value: Discriminant) => JSX.Template} defaultCase - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
+ * @returns {JSX.Template} A list of nodes that represent the selected case's template.
+ *
+ */
+
+/**
+ * Renders a dynamic switch-case construct using a reactive value or static value.
+ *
+ * @example
+ * const staticResult = Switch('caseA', {
+ *   caseA: () => <div>Case A</div>,
+ *   caseB: () => <span>Case B</span>
+ * });
+ *
+ * // Reactive usage
+ * const reactiveCell = Cell.source('caseA');
+ * const reactiveResult = Switch(reactiveCell, {
+ *   caseA: () => <div>Case A</div>,
+ *   caseB: () => <span>Case B</span>
+ * });
+ *
+ * // With a default case
+ * const staticWithDefault = Switch('caseC', {
+ *   caseA: () => <div>Case A</div>,
+ *   caseB: () => <span>Case B</span>
+ * }, (value) => <p>Unknown case: {value}</p>);
+ *
+ * // Reactive with default
+ * const reactiveWithDefault = Switch(reactiveCell, {
+ *   caseA: () => <div>Case A</div>,
+ *   caseB: () => <span>Case B</span>
+ * }, (value) => <p>Unknown case: {value}</p>);
+ *
+ * @template {string | number | symbol | null | undefined} Discriminant
+ * @overload
+ * @param {Cell<Discriminant> | Discriminant} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {Record<Discriminant, () => JSX.Template>} cases - An object mapping possible values to template-generating functions.
+ * @returns {JSX.Template} A list of nodes that represent the selected case's template.
+ */
+
+/**
+ * @param {*} value
+ * @param {*} cases
+ * @param {*} [defaultCase]
  */
 export function Switch(value, cases, defaultCase) {
   const [rangeStart, rangeEnd] = createCommentPair();
@@ -57,20 +96,24 @@ export function Switch(value, cases, defaultCase) {
       const fn = getMostCurrentFunction(cases[value]);
       const nodes = generateChildNodes(fn());
       linkNodesToComponent(nodes, fn);
-      return nodes;
+      // Allows compatibility with the For and If functions,
+      // where one root node is produced if the template is a single node.
+      return nodes.length === 1 ? nodes[0] : nodes;
     }
 
     if (defaultCase) {
       const defaultCaseFunc = getMostCurrentFunction(defaultCase);
       const nodes = generateChildNodes(defaultCaseFunc(value));
       linkNodesToComponent(nodes, defaultCaseFunc, value);
-      return nodes;
+      // Allows compatibility with the For and If functions,
+      // where one root node is produced if the template is a single node.
+      return nodes.length === 1 ? nodes[0] : nodes;
     }
 
-    return null;
+    return undefined;
   }
 
-  /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
+  /** @type {ReactiveCellFunction<typeof value.value, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (value) {
     /** @type {(Node | VDom.VNode)[]} */
     let nodes = [];
