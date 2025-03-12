@@ -22,11 +22,11 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
 
 /**
  * Escapes HTML special characters to prevent XSS and maintain correct rendering
- * @param {string} str
+ * @param {*} str
  * @returns {string}
  */
 function escapeHTML(str) {
-  return str
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -61,7 +61,7 @@ function escapeHTML(str) {
  */
 export async function renderToString(template, window, options = {}) {
   if (/string|number|boolean/.test(typeof template)) {
-    return escapeHTML(String(template));
+    return escapeHTML(template);
   }
 
   if (template instanceof Promise) {
