@@ -8,7 +8,7 @@ import {
   lazy,
 } from '@adbl/unfinished/router';
 import { Cell } from '@adbl/cells';
-import { routerSetup } from './setup.ts';
+import { routerSetup } from '../setup.ts';
 
 describe('Router Metadata', () => {
   beforeEach(routerSetup);

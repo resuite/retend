@@ -1,34 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { Cell } from '@adbl/cells';
-import {
-  If,
-  Modes, // @ts-types="../packages/unfinished/dist/library/index.js"
-  resetGlobalContext,
-  setGlobalContext,
-} from '@adbl/unfinished';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
+import { If, type NodeLike, getGlobalContext } from '@adbl/unfinished';
+import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
+import type { VNode } from '@adbl/unfinished/v-dom';
 
-describe('If function', () => {
-  beforeAll(() => {
-    GlobalRegistrator.register();
-    setGlobalContext({
-      window,
-      consistentValues: new Map(),
-      mode: Modes.Interactive,
-      teleportIdCounter: { value: 0 },
-    });
-  });
-
-  afterAll(() => {
-    GlobalRegistrator.unregister();
-    resetGlobalContext();
-  });
-
+const runTests = () => {
   it('should render truthy branch when condition is true', () => {
-    const result = If(true, () => <div>True</div>);
-    expect(result instanceof HTMLDivElement).toBe(true);
-
-    expect((result as HTMLDivElement).textContent).toBe('True');
+    const result = If(true, () => <div>True</div>) as NodeLike;
+    expect(result.childNodes[0].textContent).toBe('True');
   });
 
   it('should render falsy branch when condition is false', () => {
@@ -36,9 +15,8 @@ describe('If function', () => {
       false,
       () => <div>True</div>,
       () => <div>False</div>
-    ) as HTMLDivElement;
-    expect(result instanceof HTMLDivElement).toBe(true);
-    expect(result.textContent).toBe('False');
+    ) as NodeLike;
+    expect(getTextContent(result)).toBe('False');
   });
 
   it('should render nothing when condition is false and no falsy branch provided', () => {
@@ -47,6 +25,7 @@ describe('If function', () => {
   });
 
   it('should work with Cell conditions', () => {
+    const { window } = getGlobalContext();
     const condition = Cell.source(true);
     const result = (
       <div id="test-node">
@@ -60,30 +39,32 @@ describe('If function', () => {
           )
         )}
       </div>
-    ) as HTMLElement;
+    ) as NodeLike;
 
-    document.body.appendChild(result);
+    window.document.body.append(result as Node & VNode);
 
-    expect(result instanceof HTMLDivElement).toBe(true);
-    expect(result.firstChild instanceof Comment).toBe(true);
-    expect(result.childNodes[1].textContent).toBe('True');
-    expect(result.childNodes[2] instanceof Comment).toBe(true);
+    expect(result instanceof window.HTMLElement).toBe(true);
+    expect(result.childNodes[0] instanceof window.Comment).toBe(true);
+    expect(getTextContent(result)).toBe('True');
+    expect(result.childNodes[2] instanceof window.Comment).toBe(true);
 
     condition.value = false;
     // // The DOM should automatically update due to cell reactivity
-    expect(result.childNodes[1].textContent).toBe('False');
+    expect(getTextContent(result)).toBe('False');
   });
 
   it('should accept an object with true/false branches', () => {
+    const { window } = getGlobalContext();
     const result = If(true, {
       true: () => <div>True</div>,
       false: () => <div>False</div>,
-    }) as HTMLElement;
-    expect(result instanceof HTMLDivElement).toBe(true);
-    expect((result as HTMLElement)?.textContent).toBe('True');
+    }) as NodeLike;
+    expect(result instanceof window.HTMLElement).toBe(true);
+    expect(result.childNodes[0].textContent).toBe('True');
   });
 
   it('should handle nested If statements', () => {
+    const { window } = getGlobalContext();
     const outer = Cell.source(true);
     const inner = Cell.source(false);
 
@@ -99,11 +80,11 @@ describe('If function', () => {
       </div>
     ) as HTMLElement;
 
-    expect(result instanceof HTMLDivElement).toBe(true);
-    expect(result.textContent).toBe('Outer True, Inner False');
+    expect(result instanceof window.HTMLElement).toBe(true);
+    expect(getTextContent(result)).toBe('Outer True, Inner False');
 
     inner.value = true;
-    expect(result.textContent).toBe('Both True');
+    expect(getTextContent(result)).toBe('Both True');
   });
 
   it('should handle falsy values properly', () => {
@@ -113,8 +94,8 @@ describe('If function', () => {
         value as boolean | null | undefined,
         () => <div>True</div>,
         () => <div>False</div>
-      ) as HTMLElement | null;
-      expect(result?.textContent).toBe('False');
+      ) as NodeLike;
+      expect(getTextContent(result)).toBe('False');
     }
   });
 
@@ -133,8 +114,20 @@ describe('If function', () => {
             )
           )}
         </div>
-      ) as HTMLElement;
-      expect(result.textContent).toBe('True');
+      ) as NodeLike;
+      expect(getTextContent(result)).toBe('True');
     }
+  });
+};
+
+describe('If', () => {
+  describe('Browser', () => {
+    browserSetup();
+    runTests();
+  });
+
+  describe('VDom', () => {
+    vDomSetup();
+    runTests();
   });
 });

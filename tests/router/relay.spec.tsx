@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
-import { routerSetup } from './setup.ts';
+import { routerSetup } from '../setup.ts';
 import {
   createWebRouter,
   defineRoutes,

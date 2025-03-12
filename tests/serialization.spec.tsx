@@ -1,16 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import {
-  getGlobalContext,
-  Modes,
-  resetGlobalContext,
-  setGlobalContext,
-  For,
-  If,
-} from '@adbl/unfinished';
+import { describe, it, expect } from 'vitest';
+import { getGlobalContext, For, If } from '@adbl/unfinished';
 import { renderToString } from '@adbl/unfinished/render';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
 import { Cell } from '@adbl/cells';
-import { VWindow } from '@adbl/unfinished/v-dom';
+import { browserSetup, vDomSetup } from './setup.ts';
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {
@@ -288,42 +280,13 @@ const runTests = () => {
 };
 
 describe('JSX Serialization', () => {
-  describe('Happy DOM window', () => {
-    beforeAll(() => {
-      GlobalRegistrator.register();
-    });
-
-    beforeEach(() => {
-      setGlobalContext({
-        window,
-        mode: Modes.Interactive,
-        teleportIdCounter: { value: 0 },
-        consistentValues: new Map(),
-      });
-    });
-
+  describe('Browser', () => {
+    browserSetup();
     runTests();
-
-    afterAll(() => {
-      GlobalRegistrator.unregister();
-      resetGlobalContext();
-    });
   });
 
   describe('VDom', () => {
-    beforeEach(() => {
-      setGlobalContext({
-        window: new VWindow(),
-        consistentValues: new Map(),
-        mode: Modes.VDom,
-        teleportIdCounter: { value: 0 },
-      });
-    });
-
+    vDomSetup();
     runTests();
-
-    afterAll(() => {
-      resetGlobalContext();
-    });
   });
 });
