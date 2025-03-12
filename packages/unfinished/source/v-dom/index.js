@@ -98,7 +98,7 @@ export class VNode extends EventTarget {
     }
 
     const index = parentNode.childNodes.indexOf(this);
-    parentNode.childNodes.splice(1, index, ...newNodes);
+    parentNode.childNodes.splice(index, 1, ...newNodes);
     for (const node of newNodes) {
       node.parentNode = this.parentNode;
     }

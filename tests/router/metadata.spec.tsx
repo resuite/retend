@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { getGlobalContext } from '@adbl/unfinished';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
 import {
   createWebRouter,
   defineRoutes,
@@ -12,6 +12,10 @@ import { routerSetup } from './setup.ts';
 
 describe('Router Metadata', () => {
   beforeEach(routerSetup);
+
+  afterAll(() => {
+    resetGlobalContext();
+  });
 
   it('should contain correct metadata for current route', async () => {
     const { window } = getGlobalContext();

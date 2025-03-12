@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Cell } from '@adbl/cells';
-import { If, Modes, setGlobalContext } from '@adbl/unfinished';
+import {
+  If,
+  Modes, // @ts-types="../packages/unfinished/dist/library/index.js"
+  resetGlobalContext,
+  setGlobalContext,
+} from '@adbl/unfinished';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 describe('If function', () => {
   beforeAll(() => {
-    if (GlobalRegistrator.isRegistered) {
-      GlobalRegistrator.unregister();
-    }
     GlobalRegistrator.register();
     setGlobalContext({
       window,
@@ -15,6 +17,11 @@ describe('If function', () => {
       mode: Modes.Interactive,
       teleportIdCounter: { value: 0 },
     });
+  });
+
+  afterAll(() => {
+    GlobalRegistrator.unregister();
+    resetGlobalContext();
   });
 
   it('should render truthy branch when condition is true', () => {

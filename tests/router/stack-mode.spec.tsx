@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
 import { routerSetup } from './setup.ts';
-import { getGlobalContext } from '@adbl/unfinished';
+import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
 import { createWebRouter, type Router } from '@adbl/unfinished/router';
 
 describe('Router Stack Mode', () => {
@@ -31,6 +31,19 @@ describe('Router Stack Mode', () => {
     });
     router.setWindow(window);
     router.attachWindowListeners();
+  });
+
+  afterAll(() => {
+    resetGlobalContext();
+  });
+
+  test('navigates to the same route', async () => {
+    await router.navigate('/about');
+    const route = router.getCurrentRoute();
+    expect(route.value.path).toBe('/about');
+
+    await router.navigate('/about');
+    expect(route.value.path).toBe('/about');
   });
 
   test('maintains history stack when navigating', async () => {

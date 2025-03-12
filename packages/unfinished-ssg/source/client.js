@@ -11,6 +11,7 @@ import {
   setGlobalContext,
   useObserver,
 } from '@adbl/unfinished';
+import { upgradeAnchorTag } from '@adbl/unfinished/router';
 import {
   HydrationUpgradeEvent,
   VComment,
@@ -65,13 +66,16 @@ export async function hydrate(routerFn) {
     console.warn(
       '[unfinished-ssg] No server-side context found. Falling back to SPA mode.'
     );
-    return defaultToSpaMode(routerFn);
+    const router = defaultToSpaMode(routerFn);
+    activateLinks(router);
+    return router;
   }
 
   const context = JSON.parse(contextScript.textContent ?? '{}');
   const router = await restoreContext(context, routerFn);
   contextScript.remove();
   addMetaListener(router);
+  activateLinks(router);
   return router;
 }
 
@@ -300,4 +304,17 @@ function recreateVWindow(obj, window) {
   if (obj.type === 8)
     return document.createComment(/** @type {string} */ (obj.text));
   return document.createTextNode(/** @type {string} */ (obj.text));
+}
+
+/**
+ * Reactivates the router linking behavior that was disabled
+ * during SSG.
+ * @param {Router} router
+ */
+function activateLinks(router) {
+  /** @type {NodeListOf<HTMLAnchorElement>} */
+  const links = document.querySelectorAll('a[data-router-link]');
+  for (const link of links) {
+    upgradeAnchorTag(link, router);
+  }
 }

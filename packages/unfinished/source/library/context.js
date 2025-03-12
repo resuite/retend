@@ -62,6 +62,11 @@ export function matchContext(window, mode) {
   return Reflect.get(window.document, '__appRenderMode') === mode;
 }
 
+export function resetGlobalContext() {
+  //@ts-expect-error: hand waving.
+  globalContext = {};
+}
+
 /**
  * Identifies virtual nodes in any environment.
  * Useful for conditional logic that needs to handle both real and virtual DOM nodes.

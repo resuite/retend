@@ -32,6 +32,7 @@ const RELAY_ID_REGEX =
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import * as Context from '../library/context.js' */
 /** @import { ReactiveCellFunction } from '../library/utils.js' */
+/** @import { RouteData } from './middleware.js' */
 
 /**
  * @typedef {LazyRoute | ((() => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader
@@ -367,55 +368,23 @@ export class Router extends EventTarget {
     if (props && 'active' in props) {
       console.error('active attribute is reserved for router.');
     }
-    /** @type {ReactiveCellFunction<typeof this.currentPath['value'], HTMLElement | VDom.VElement>} */
-    const callback = function ({ fullPath }) {
-      const href = this.getAttribute('href');
-      const isActive = Boolean(fullPath && href && fullPath.startsWith(href));
-      this.toggleAttribute('active', isActive);
-    };
-    addCellListener(a, this.currentPath, callback);
+
+    if (matchContext(window, Modes.Interactive)) {
+      addCellListener(a, this.currentPath, setActiveLinkAttribute);
+      setEventListener(a, 'onClick', routerLinkNavigationHandler);
+    } else {
+      // Runs only once to determine whether the active attribute is present initially.
+      setActiveLinkAttribute.bind(a)(this.currentPath.value);
+      a.setAttribute('data-router-link', '');
+    }
 
     if (props) {
-      const { children, replace: _, ...rest } = props;
+      const { children, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         setAttributeFromProps(a, key, value);
       }
       appendChild(a, a.tagName.toLowerCase(), children);
     }
-
-    /**
-     * @this {HTMLAnchorElement | VDom.VElement}
-     * @param {Event} event
-     */
-    const handleNavigate = async function (event) {
-      const router = useRouter();
-      if (router.isLoading) {
-        event.preventDefault();
-        return;
-      }
-      // Only navigate if the href is not a valid URL.
-      // For valid URLs, the browser will handle the navigation.
-      const href = this.getAttribute('href');
-      if (href && !URL.canParse(href)) {
-        const replace = props?.replace;
-        event.preventDefault();
-        const beforeEvent = new RouterNavigationEvent('beforenavigate', {
-          detail: { href, replace },
-          cancelable: true,
-        });
-        this.dispatchEvent(beforeEvent);
-        if (beforeEvent.defaultPrevented) return;
-
-        await router.navigate(href, { replace });
-
-        const afterEvent = new RouterNavigationEvent('afternavigate', {
-          detail: { href, replace },
-        });
-        this.dispatchEvent(afterEvent);
-      }
-    };
-
-    setEventListener(a, 'onClick', handleNavigate);
 
     return a;
   }
@@ -1561,4 +1530,56 @@ function renderRouteIntoOutlet(outlet, fragment, window) {
       }
     }
   }
+}
+
+// We try to keep the "reactivity" of links as minimal as possible in the VDom
+// so that they can be marked as data-static when rendered to a string, giving them
+// a chance to skip hydration.
+/** @type {ReactiveCellFunction<RouteData, HTMLElement | VDom.VElement>} */
+const setActiveLinkAttribute = function ({ fullPath }) {
+  const href = this.getAttribute('href');
+  const isActive = Boolean(fullPath && href && fullPath.startsWith(href));
+  this.toggleAttribute('active', isActive);
+};
+
+/**
+ * @this {HTMLAnchorElement | VDom.VElement}
+ * @param {Event} event
+ */
+const routerLinkNavigationHandler = async function (event) {
+  const router = useRouter();
+  if (router.isLoading) {
+    event.preventDefault();
+    return;
+  }
+  // Only navigate if the href is not a valid URL.
+  // For valid URLs, the browser will handle the navigation.
+  const href = this.getAttribute('href');
+  if (href && !URL.canParse(href)) {
+    const replace = this.getAttribute('replace') !== null;
+    event.preventDefault();
+    const beforeEvent = new RouterNavigationEvent('beforenavigate', {
+      detail: { href, replace },
+      cancelable: true,
+    });
+    this.dispatchEvent(beforeEvent);
+    if (beforeEvent.defaultPrevented) return;
+
+    await router.navigate(href, { replace });
+
+    const afterEvent = new RouterNavigationEvent('afternavigate', {
+      detail: { href, replace },
+    });
+    this.dispatchEvent(afterEvent);
+  }
+};
+
+/**
+ * Takes a static anchor element and converts it to a router link.
+ * @param {HTMLAnchorElement} a
+ * @param {Router} router
+ */
+export function upgradeAnchorTag(a, router) {
+  addCellListener(a, router.getCurrentRoute(), setActiveLinkAttribute);
+  setEventListener(a, 'onClick', routerLinkNavigationHandler);
 }

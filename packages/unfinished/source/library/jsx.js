@@ -466,10 +466,8 @@ export function setEventListener(el, key, value) {
     }
 
     if (typeof value === 'function') {
-      setTimeout(() => {
-        element.addEventListener(eventName, value);
-        element.__eventListenerList.set(eventName, value);
-      }, 0);
+      element.addEventListener(eventName, value);
+      element.__eventListenerList.set(eventName, value);
       return;
     }
   } else {
@@ -532,10 +530,8 @@ export function setEventListener(el, key, value) {
         };
       }
 
-      setTimeout(() => {
-        element.addEventListener(eventName, wrapper, options);
-        element.__modifiedListenerList.set(rawEventName, wrapper);
-      }, 0);
+      element.addEventListener(eventName, wrapper, options);
+      element.__modifiedListenerList.set(rawEventName, wrapper);
     }
   }
 }
@@ -564,6 +560,15 @@ export function normalizeJsxChild(child, _parent) {
 
   if (child === null || child === undefined) {
     return window.document.createTextNode('');
+  }
+
+  if (child instanceof Promise) {
+    const placeholder = window.document.createComment('----');
+    Reflect.set(placeholder, '__promise', child);
+    child.then((value) => {
+      placeholder.replaceWith(/** @type {*} */ (normalizeJsxChild(value)));
+    });
+    return placeholder;
   }
 
   // @ts-ignore: There is an error with the @adbl/cells library. Booleans should be allowed here.

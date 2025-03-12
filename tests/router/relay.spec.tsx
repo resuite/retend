@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { getGlobalContext } from '@adbl/unfinished';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
 import { routerSetup } from './setup.ts';
 import {
   createWebRouter,
@@ -9,6 +9,10 @@ import {
 
 describe('Router Relay', () => {
   beforeEach(routerSetup);
+
+  afterAll(() => {
+    resetGlobalContext();
+  });
 
   it('should maintain element identity across route changes', async () => {
     const { window } = getGlobalContext();

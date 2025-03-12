@@ -21,6 +21,20 @@ const voidElements = new Set([
 const SPLIT_TEXT_MARKER = '<!--@@-->';
 
 /**
+ * Escapes HTML special characters to prevent XSS and maintain correct rendering
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHTML(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+/**
  * @typedef {Object} RenderToStringOptions
  * @property {boolean} [markStaticNodes]
  * Whether to mark static elements with the [data-static] attribute.
@@ -47,7 +61,7 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  */
 export async function renderToString(template, window, options = {}) {
   if (/string|number|boolean/.test(typeof template)) {
-    return String(template);
+    return escapeHTML(String(template));
   }
 
   if (template instanceof Promise) {
@@ -74,7 +88,8 @@ export async function renderToString(template, window, options = {}) {
     '__promise' in template &&
     template.__promise instanceof Promise
   ) {
-    return await renderToString(await template.__promise, window, options);
+    const value = await template.__promise;
+    return await renderToString(value, window, options);
   }
 
   if (template instanceof window.Node) {
@@ -84,11 +99,11 @@ export async function renderToString(template, window, options = {}) {
      * even when the nodeType is Node.TEXT_NODE
      */
     if (template.nodeType === window.Node.TEXT_NODE) {
-      return template.textContent ?? '';
+      return escapeHTML(template.textContent ?? '');
     }
 
     if (template.nodeType === window.Node.COMMENT_NODE) {
-      return `<!--${template.textContent}-->`;
+      return `<!--${escapeHTML(template.textContent ?? '')}-->`;
     }
 
     if (template instanceof window.ShadowRoot) {
@@ -106,7 +121,7 @@ export async function renderToString(template, window, options = {}) {
       let text = `<${tagName}`;
 
       for (const attribute of template.attributes) {
-        text += ` ${attribute.name}="${attribute.value}"`;
+        text += ` ${attribute.name}="${escapeHTML(attribute.value)}"`;
       }
 
       if (options.markStaticNodes) {
@@ -186,6 +201,7 @@ export async function renderToString(template, window, options = {}) {
  *  __ref?: any,
  *  __attributeCells?: Map<string, any>,
  *  __isTeleportAnchor?: boolean;
+ *  __eventListenerList?: Map<string, any>;
  *  hiddenAttributes?: Map<string, any>,
  *  getAttribute: (name: string) => string | null,
  *  childNodes: any[],
@@ -197,6 +213,7 @@ function nodeIsStatic(node, window) {
   if (node.__commentRangeSymbol) return false;
   if (node.__isTeleportAnchor) return false;
   if (node.__attributeCells?.size) return false;
+  if (node.__eventListenerList?.size) return false;
 
   if (node.nodeType === window.Node.ELEMENT_NODE) {
     if (node.getAttribute('data-static') !== null) return true;

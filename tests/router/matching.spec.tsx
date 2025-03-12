@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getGlobalContext } from '@adbl/unfinished';
+import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
+import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
 import { routerSetup } from './setup.ts';
 import {
   createWebRouter,
@@ -9,6 +9,10 @@ import {
 
 describe('Router Matching', () => {
   beforeEach(routerSetup);
+
+  afterAll(() => {
+    resetGlobalContext();
+  });
 
   it('should match exact path', async () => {
     const { window } = getGlobalContext();
