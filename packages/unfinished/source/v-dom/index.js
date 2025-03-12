@@ -55,12 +55,13 @@ export class VNode extends EventTarget {
   /** @param {(string | VNode)[]} nodes */
   after(...nodes) {
     if (!this.parentNode || !this.ownerDocument) return;
-
     const { ownerDocument, parentNode } = this;
 
     const newNodes = [];
     for (const node of nodes) {
-      if (node instanceof VNode) {
+      if (node instanceof VDocumentFragment) {
+        newNodes.push(...node.childNodes);
+      } else if (node instanceof VNode) {
         newNodes.push(node);
       } else {
         newNodes.push(ownerDocument.createTextNode(node));
@@ -72,6 +73,7 @@ export class VNode extends EventTarget {
       ...newNodes
     );
     for (const node of newNodes) {
+      node.remove();
       node.parentNode = this.parentNode;
     }
   }
@@ -90,7 +92,9 @@ export class VNode extends EventTarget {
     const { ownerDocument, parentNode } = this;
     const newNodes = [];
     for (const node of nodes) {
-      if (node instanceof VNode) {
+      if (node instanceof VDocumentFragment) {
+        newNodes.push(...node.childNodes);
+      } else if (node instanceof VNode) {
         newNodes.push(node);
       } else {
         newNodes.push(ownerDocument.createTextNode(node));
@@ -110,9 +114,15 @@ export class VNode extends EventTarget {
     if (!this.ownerDocument) return;
 
     const { ownerDocument } = this;
-    const newNodes = nodes.map((n) =>
-      n instanceof VNode ? n : ownerDocument.createTextNode(n)
-    );
+    const newNodes = nodes
+      .map((n) =>
+        n instanceof VDocumentFragment
+          ? n.childNodes
+          : n instanceof VNode
+          ? n
+          : ownerDocument.createTextNode(n)
+      )
+      .flat();
     for (const node of this.childNodes) {
       node.parentNode = null;
     }
@@ -127,7 +137,9 @@ export class VNode extends EventTarget {
     if (!this.ownerDocument) return;
 
     for (const child of children) {
-      if (child instanceof VNode) {
+      if (child instanceof VDocumentFragment) {
+        this.childNodes.push(...child.childNodes);
+      } else if (child instanceof VNode) {
         child.parentNode = this;
         this.childNodes.push(child);
       } else {
@@ -212,9 +224,13 @@ export class VNode extends EventTarget {
       );
     }
     const selectorLower = selector.toLowerCase();
-    return this.findNodes(
-      (node) => node !== this && node.tagName?.toLowerCase() === selectorLower
-    );
+    return this.findNodes((node) => {
+      return (
+        node !== this &&
+        node instanceof VElement &&
+        node.tagName?.toLowerCase() === selectorLower
+      );
+    });
   }
 
   getRelatedCellData() {
