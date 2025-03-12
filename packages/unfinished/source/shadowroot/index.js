@@ -48,6 +48,12 @@ import { appendChild } from '../library/jsx.js';
  * The behavior of the element might seem counterintuitive when dealing with
  * multiple `ShadowRoot` components on the same parent. Ideally a parent node should
  * have at most one `ShadowRoot` child.
+ *
+ * @note
+ * When using static site generation, the shadow root _will not be rendered_ if
+ * `mode` is set to "closed". This is because it becomes inaccessible in JavaScript
+ * and can neither be serialized nor hydrated on the client. Use `closed` shadow-roots
+ * only in client-side projects.
  */
 export function ShadowRoot(props) {
   const { mode, children } = props;

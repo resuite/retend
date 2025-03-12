@@ -312,6 +312,8 @@ export class VElement extends VNode {
   #hiddenAttributes;
   /** @type {string} */
   #tag;
+  /** @type {VShadowRoot | null} */
+  #shadowRoot;
 
   /**
    * @param {string} tagName
@@ -320,8 +322,7 @@ export class VElement extends VNode {
   constructor(tagName, document) {
     super(document);
 
-    /** @type {VShadowRoot | null} */
-    this.shadowRoot = null;
+    this.#shadowRoot = null;
     this.#tag = tagName;
     this.#attributes = new Map();
     this.#hiddenAttributes = new Map();
@@ -413,13 +414,20 @@ export class VElement extends VNode {
         'Cannot attach shadow to a node without an ownerDocument'
       );
     }
-    this.shadowRoot = new VShadowRoot(mode, this.ownerDocument);
+    this.#shadowRoot = new VShadowRoot(mode, this.ownerDocument);
     return this.shadowRoot;
   }
 
   /** @param {ScrollToOptions} options  */
   scrollTo(options) {
     options;
+  }
+
+  get shadowRoot() {
+    if (!this.#shadowRoot) return null;
+
+    if (this.#shadowRoot.mode === 'closed') return null;
+    return this.#shadowRoot;
   }
 }
 
