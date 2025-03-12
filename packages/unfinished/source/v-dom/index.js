@@ -407,7 +407,7 @@ export class VElement extends VNode {
     return this.#tag.toUpperCase();
   }
 
-  /** @param {{ mode: string }} options */
+  /** @param {{ mode: ShadowRootMode}} options */
   attachShadow({ mode }) {
     if (!this.ownerDocument) {
       throw new Error(
@@ -415,7 +415,7 @@ export class VElement extends VNode {
       );
     }
     this.#shadowRoot = new VShadowRoot(mode, this.ownerDocument);
-    return this.shadowRoot;
+    return this.#shadowRoot;
   }
 
   /** @param {ScrollToOptions} options  */
