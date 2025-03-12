@@ -114,15 +114,13 @@ export class VNode extends EventTarget {
     if (!this.ownerDocument) return;
 
     const { ownerDocument } = this;
-    const newNodes = nodes
-      .map((n) =>
-        n instanceof VDocumentFragment
-          ? n.childNodes
-          : n instanceof VNode
-          ? n
-          : ownerDocument.createTextNode(n)
-      )
-      .flat();
+    const newNodes = nodes.flatMap((n) =>
+      n instanceof VDocumentFragment
+        ? n.childNodes
+        : n instanceof VNode
+        ? n
+        : ownerDocument.createTextNode(n)
+    );
     for (const node of this.childNodes) {
       node.parentNode = null;
     }
