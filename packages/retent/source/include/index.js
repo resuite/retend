@@ -18,8 +18,6 @@ import { appendChild, setAttributeFromProps } from '../library/jsx.js';
 
 /**
  * Includes a component from the DOM based on a selector.
- *
- * @clientOnly
  * @param {IncludeProps} props - The props for the Include component.
  * @returns {JSX.Template} The included component, or null if it could not be found.
  */
