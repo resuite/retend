@@ -1,7 +1,7 @@
 /** @import { Router } from 'retend/router' */
 /** @import { VWindow } from 'retend/v-dom' */
 /** @import { AsyncLocalStorage } from 'node:async_hooks' */
-/** @import { UserConfig, ViteDevServer } from 'vite' */
+/** @import { ViteDevServer } from 'vite' */
 
 /**
  * @typedef RouterModule
@@ -30,10 +30,10 @@
 
 /**
  * @typedef {Object} BuildOptions
- * @property {UserConfig} [viteConfig]
  * @property {string} [htmlShell]
  * @property {string} [rootSelector]
  * @property {string} [createRouterModule]
+ * @property {ViteDevServer} server
  */
 
 /**

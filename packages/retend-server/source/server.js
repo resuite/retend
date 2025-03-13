@@ -1,6 +1,5 @@
 /** @import { Router } from 'retend/router' */
 /** @import { VNode } from 'retend/v-dom' */
-/** @import { UserConfig } from 'vite' */
 /** @import {
  *    BuildOptions,
  *    OutputArtifact,
@@ -16,7 +15,6 @@ import { getConsistentValues, setConsistentValues } from 'retend';
 import { Modes, setGlobalContext } from 'retend/context';
 import { renderToString } from 'retend/render';
 import { VElement, VWindow } from 'retend/v-dom';
-import { createServer } from 'vite';
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { dirname, resolve } from 'node:path';
@@ -28,7 +26,7 @@ import { addMetaListener } from './meta.js';
 
 /**
  * @param {string[]} paths The paths to serialize.
- * @param {BuildOptions} [options] Options for building.
+ * @param {BuildOptions} options Options for building.
  * @returns {Promise<OutputArtifact[]>} A promise that resolves to an array of output artifacts.
  *
  * @example
@@ -38,9 +36,9 @@ import { addMetaListener } from './meta.js';
  * // Build multiple paths
  * await buildPaths(['/home', '/about', '/contact'], { routerPath: './router.ts' });
  */
-export async function buildPaths(paths, options = {}) {
+export async function buildPaths(paths, options) {
   const {
-    viteConfig = {},
+    server,
     htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
     createRouterModule: routerPath = './router',
@@ -73,14 +71,6 @@ export async function buildPaths(paths, options = {}) {
   //   outputs.push({ name, contents });
   // }
 
-  /** @type {UserConfig} */
-  const serverConfig = {
-    ...viteConfig,
-    server: { ...viteConfig.server, middlewareMode: true },
-    ssr: { target: 'node' },
-    appType: 'custom',
-  };
-  const server = await createServer(serverConfig);
   /** @type {AsyncLocalStorage<AsyncStorage>} */
   const asyncLocalStorage = new AsyncLocalStorage();
   const promises = [];
@@ -100,7 +90,6 @@ export async function buildPaths(paths, options = {}) {
   }
 
   const outputs = (await Promise.all(promises)).flat(1);
-  await server.close();
   return outputs;
 }
 

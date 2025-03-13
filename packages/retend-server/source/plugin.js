@@ -1,7 +1,8 @@
-/** @import { Plugin, UserConfig } from 'vite' */
+/** @import { Plugin, UserConfig, ViteDevServer } from 'vite' */
 /** @import { BuildOptions, OutputArtifact } from './types.js' */
 
 import { buildPaths } from './server.js';
+import { createServer } from 'vite';
 
 /**
  * @typedef {object} PluginOptions
@@ -34,6 +35,8 @@ export function retendSSG(options) {
   let viteConfig;
   /** @type {OutputArtifact[]} */
   const outputs = [];
+  /** @type {ViteDevServer} */
+  let server;
 
   return {
     name: 'vite-plugin-retend-server',
@@ -46,13 +49,24 @@ export function retendSSG(options) {
     },
 
     async transformIndexHtml(html) {
+      /** @type {UserConfig} */
+      const serverConfig = {
+        ...viteConfig,
+        server: { ...viteConfig.server, middlewareMode: true },
+        ssr: { target: 'node' },
+        appType: 'custom',
+      };
+
+      server = await createServer(serverConfig);
+
       /** @type {BuildOptions} */
       const buildOptions = {
         rootSelector,
         createRouterModule,
         htmlShell: html,
-        viteConfig,
+        server,
       };
+
       outputs.push(...(await buildPaths(pages, buildOptions)));
       const transformed = outputs.find((o) => o.name === 'index.html');
       if (transformed) {
@@ -81,6 +95,12 @@ export function retendSSG(options) {
           fileName: name,
           source: contents,
         });
+      }
+    },
+
+    closeBundle() {
+      if (server) {
+        server.close();
       }
     },
   };
