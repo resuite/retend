@@ -108,6 +108,14 @@ export async function renderToString(template, window, options = {}) {
 
     if (template instanceof window.ShadowRoot) {
       let text = `<template shadowrootmode="${template.mode}">`;
+
+      if (options.markStaticNodes) {
+        const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
+        if (isStatic) {
+          Reflect.set(template, '__isStatic', true);
+        }
+      }
+
       for (const child of template.childNodes) {
         text += await renderToString(child, window, options);
       }
@@ -206,6 +214,10 @@ export async function renderToString(template, window, options = {}) {
  *  getAttribute: (name: string) => string | null,
  *  childNodes: any[],
  *  __commentRangeSymbol?: any
+ * shadowRoot?: {
+ *  mode: string,
+ *  childNodes: any[]
+ * }
  * }} node
  * @param {Context.WindowLike} window
  */
@@ -221,6 +233,13 @@ function nodeIsStatic(node, window) {
     if (node.hiddenAttributes?.size) return false;
 
     for (const child of node.childNodes) {
+      if (!nodeIsStatic(child, window)) return false;
+    }
+  }
+
+  if (node.shadowRoot) {
+    if (node.shadowRoot.mode === 'closed') return true; // might as well be static
+    for (const child of node.shadowRoot.childNodes) {
       if (!nodeIsStatic(child, window)) return false;
     }
   }
