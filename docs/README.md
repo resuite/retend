@@ -1765,7 +1765,7 @@ function MyComponent() {
 document.body.append(<MyComponent />);
 ```
 
-In this case, the child element of `#external-component` (`<p>I am from outside</p>`) will be replaced by the `p` element being passed as a `children` prop to the include component.
+In this case, the child element of `#external-component` (`<p>I am from outside</p>`) will be appended with the `p` element being passed as a `children` prop to the include component.
 
 - **Using a component reference as a target**:
 
