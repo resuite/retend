@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { routerSetup } from '../setup.ts';
+import { getTextContent, routerSetup } from '../setup.ts';
 import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
 
 describe('Router Matching', () => {
@@ -403,5 +403,54 @@ describe('Router Matching', () => {
     expect(route.value.name).toBe('not-found');
     expect(route.value.params.get('pathMatch')).toBe('very');
     expect(route.value.params.get('pathMatch2')).toBe('nested/path');
+  });
+
+  it('should properly flush out nested child outlets', async () => {
+    const { window } = getGlobalContext();
+    const routes = defineRoutes([
+      {
+        name: 'home',
+        path: '/home',
+        component: () => {
+          const { Outlet } = useRouter();
+          return (
+            <>
+              This is the home page. Content: <Outlet />
+            </>
+          );
+        },
+        children: [
+          {
+            name: 'info',
+            path: 'info',
+            component: () => {
+              return <>This is the info page.</>;
+            },
+          },
+        ],
+      },
+    ]);
+    const router = createWebRouter({ routes });
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/home');
+    const route = router.getCurrentRoute();
+    expect(route.value.name).toBe('home');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the home page. Content: '
+    );
+
+    await router.navigate('/home/info');
+    expect(route.value.name).toBe('info');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the home page. Content: This is the info page.'
+    );
+
+    await router.navigate('/home');
+    expect(route.value.name).toBe('home');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the home page. Content: '
+    );
   });
 });

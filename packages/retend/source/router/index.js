@@ -1005,6 +1005,14 @@ export class Router extends EventTarget {
       outlet = nextOutlet;
     }
 
+    // If the route tree traversal is exhausted, but there is still a nested
+    // outlet looking for a match, we can assume that the outlet is a child
+    // that is not being used and should be flushed out.
+    if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
+      outlet.removeAttribute('data-path');
+      outlet.replaceChildren();
+    }
+
     if (lastMatchedRoute.redirect && lastMatchedRoute.redirect !== path) {
       await this.navigate(lastMatchedRoute.redirect, { replace });
     }
