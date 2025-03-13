@@ -426,8 +426,7 @@ If the `isLoggedIn` value is `true`, a `<h1>Welcome back!</h1>` element will be 
 When you want to respond to changes dynamically, you can use `Cell` objects to control the `If` component.
 
 ```jsx
-import { Cell } from 'retent';
-import { If } from 'retent';
+import { Cell, If } from 'retent';
 
 const isLoggedIn = Cell.source(false); // Initialized to false.
 
@@ -455,8 +454,7 @@ In the example above, we've added a button to change the state of the UI. The `A
 You can also pass an object as the second argument to the `If` component. This object is expected to have `true` property and `false` properties which are both functions. This can often be more ergonomic than passing two functions directly as the second and third parameters, especially when there is a need to nest the conditions.
 
 ```jsx
-import { Cell } from 'retent';
-import { If } from 'retent';
+import { Cell, If } from 'retent';
 
 const isLoggedIn = Cell.source(false);
 
@@ -509,8 +507,7 @@ In Retent, you can nest `If` components to create more complex conditional rende
 Here's an example of how to implement nested conditional rendering:
 
 ```jsx
-import { Cell } from 'retent';
-import { If } from 'retent';
+import { Cell, If } from 'retent';
 
 const userStatus = Cell.source('guest'); // Initialized to 'guest'.
 const userIsAdmin = Cell.derived(() => userStatus.value === 'admin');
@@ -635,8 +632,7 @@ The result in your web browser is a basic unordered list displaying "Apple", "Ba
 If you want your list to update dynamically, then you can use a `Cell`:
 
 ```jsx
-import { For } from 'retent';
-import { Cell } from 'retent';
+import { For, Cell } from 'retent';
 
 const items = Cell.source([
   'Learn the library',
@@ -693,8 +689,7 @@ With the `index`, you can add extra information (e.g., the item number) next to 
 `For` can also be used to display information from objects:
 
 ```jsx
-import { For } from 'retent';
-import { Cell } from 'retent';
+import { For, Cell } from 'retent';
 
 const users = Cell.source([
   { id: 1, name: 'Alice', age: 30 },
@@ -762,8 +757,7 @@ If the value you want to switch on can change over time, you can make use of the
 Here is an example showing a navigation system that has some basic routing built into it:
 
 ```jsx
-import { Switch } from 'retent';
-import { Cell } from 'retent';
+import { Switch, Cell } from 'retent';
 
 const currentView = Cell.source('home');
 
@@ -820,8 +814,7 @@ In this code snippet, when each button is clicked, the corresponding section is 
 `Switch` also shines in situations where you need to consider more complex conditions, for example if you need to apply multiple states to a component at the same time:
 
 ```jsx
-import { Switch } from 'retent';
-import { Cell } from 'retent';
+import { Switch, Cell } from 'retent';
 
 const isLoggedIn = Cell.source(false);
 const isAdmin = Cell.source(false);
@@ -869,8 +862,7 @@ document.body.append(<UserDashboard />);
 The optional third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
 
 ```jsx
-import { Switch } from 'retent';
-import { Cell } from 'retent';
+import { Switch, Cell } from 'retent';
 
 const userRole = Cell.source('editor');
 
@@ -1095,8 +1087,7 @@ The `useObserver()` function returns a `DocumentObserver` object, which is a wra
 Here's how to use `useObserver` to run a setup action as a reaction to html:
 
 ```jsx
-import { Cell } from 'retent';
-import { useObserver } from 'retent';
+import { Cell, useObserver } from 'retent';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
@@ -1123,8 +1114,7 @@ In this code:
 The `onConnected` method also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
 
 ```jsx
-import { Cell } from 'retent';
-import { useObserver } from 'retent';
+import { Cell, useObserver } from 'retent';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
@@ -1486,8 +1476,8 @@ In the example above, the `div` will be rendered as a child of the `body` elemen
 - **More complex example**:
 
 ```jsx
+import { If, Cell } from 'retent';
 import { Teleport } from 'retent/teleport';
-import { Cell } from 'retent';
 
 function Modal({ content, onClose }) {
   return (
@@ -1783,8 +1773,9 @@ In this case, the child element of `#external-component` (`<p>I am from outside<
 import { Include } from 'retent/include';
 import { Cell } from 'retent';
 
+const divRef = Cell.source(null);
+
 function ExternalComponent() {
-  const divRef = Cell.source(null);
   return (
     <div id="external-component" ref={divRef}>
       I am from outside
@@ -1793,9 +1784,8 @@ function ExternalComponent() {
 }
 
 function MyComponent() {
-  const divRef = Cell.source(null);
   return (
-    <div ref={divRef}>
+    <div>
       <ExternalComponent />
       <h1>My Component</h1>
       <Include from={divRef} style={{ color: 'green' }} />
