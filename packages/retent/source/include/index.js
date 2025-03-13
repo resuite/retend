@@ -1,13 +1,15 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
+/** @import { Cell } from '@adbl/cells' */
+/** @import * as VDom from '../v-dom/index.js' */
 
-import { getGlobalContext, matchContext, Modes } from '../context/index.js';
+import { getGlobalContext } from '../context/index.js';
 import { appendChild, setAttributeFromProps } from '../library/jsx.js';
 
 /**
  * @typedef IncludeComponentProps
  *
- * @property {string} from
- * The selector of the component to include.
+ * @property {string | Cell<Element | VDom.VElement | null>} from
+ * The selector or Cell reference of the component to include.
  */
 
 /**
@@ -23,23 +25,32 @@ import { appendChild, setAttributeFromProps } from '../library/jsx.js';
  */
 export function Include(props) {
   const { window } = getGlobalContext();
-  if (matchContext(window, Modes.VDom)) return null;
+  const { from, children, ...rest } = props;
 
-  if (!props.from) {
+  if (!from) {
     console.error('Include component requires a "from" prop.');
     return null;
   }
 
-  const component = window.document.querySelector(props.from);
+  const component =
+    typeof from === 'string' ? window.document.querySelector(from) : from.value;
+
+  console.log('Found include', component);
 
   if (!component) {
-    console.error(
-      `Include component could not find component with selector "${props.from}".`
-    );
+    if (typeof from === 'string') {
+      console.error(
+        `Include component could not find component with selector "${from}".`
+      );
+    } else {
+      console.error(
+        `Include component could not find component with Cell reference.`
+      );
+    }
     return null;
   }
 
-  const { from: _, children, ...rest } = props;
+  component.remove();
 
   if (children) {
     appendChild(component, component.tagName.toLowerCase(), children);
