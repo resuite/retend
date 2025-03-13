@@ -8,7 +8,7 @@
     "publish-ssg": "cd packages/retend-server && npm run build && npm publish",
     "publish-start": "cd packages/retend-start && npm publish",
     "publish-all": "npm run publish-core && npm run publish-ssg && npm run publish-start",
-    "pack-all": "cd packages/retend && npm run pack && cd ../retend-server && npm run pack && cd ../retend-start && npm run pack && cd ../.. && rm -rf previews && mkdir previews",
+    "pack-all": "chmod +x ./scripts/pack.sh && ./scripts/pack.sh",
     "previews": "cp README.md packages/retend/README.md && npx pkg-pr-new publish './packages/retend' './packages/retend-server' './packages/retend-start'"
   },
   "workspaces": [
