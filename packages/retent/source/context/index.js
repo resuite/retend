@@ -1,4 +1,5 @@
 /** @import * as VDom from '../v-dom/index.js' */
+/** @import { DocumentObserver } from '../library/observer.js' */
 
 /**
  * Defines the possible render contexts for the application.
@@ -22,6 +23,7 @@ export const Modes = {
  *  }) & {
  *    consistentValues: Map<string, any>,
  *    teleportIdCounter: { value: number }
+ *    observer?: DocumentObserver
  * }} Environments
  */
 

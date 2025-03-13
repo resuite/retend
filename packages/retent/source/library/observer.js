@@ -14,7 +14,7 @@ import { getGlobalContext, matchContext, Modes } from '../context/index.js';
  * @class
  * @description Observes DOM nodes and manages their lifecycle through callbacks
  */
-class DocumentObserver {
+export class DocumentObserver {
   #initialized = false;
   /** @type {Map<Node, Array<CleanupFn>>} */
   #mountedNodes = new Map();
@@ -57,6 +57,8 @@ class DocumentObserver {
    * @param {MountFn<T>} callback - A function that will be called when the node is connected
    */
   onConnected(ref, callback) {
+    if (!this.#initialized) this.#init();
+
     if (ref.value?.isConnected) {
       if (ref instanceof SourceCell) {
         this.#mount(ref.deproxy(), callback);
@@ -78,8 +80,10 @@ class DocumentObserver {
     if (matchContext(window, Modes.VDom)) return;
 
     this.#initialized = true;
-    const observer = new MutationObserver(this.processMountedNodes.bind(this));
-    observer.observe(document.body, { subtree: true, childList: true });
+    const observer = new window.MutationObserver(
+      this.processMountedNodes.bind(this)
+    );
+    observer.observe(window.document.body, { subtree: true, childList: true });
   }
 
   /**
@@ -89,6 +93,7 @@ class DocumentObserver {
    * and iterates through the `mountedNodes` to execute cleanup functions for disconnected nodes.
    */
   processMountedNodes() {
+    console.log('PROCESSING MOUNTED NODES');
     if (!this.#initialized) this.#init();
 
     for (const [key, callbacks] of this.#callbackSets.entries()) {
@@ -113,9 +118,6 @@ class DocumentObserver {
   }
 }
 
-/** @type {DocumentObserver | undefined} */
-let observer = undefined;
-
 /**
  * Returns the singleton instance of the `DocumentObserver` class,
  * which is responsible for observing the DOM and managing the lifecycle of mounted nodes.
@@ -133,6 +135,7 @@ let observer = undefined;
  * @returns {DocumentObserver} The singleton instance of the `DocumentObserver` class
  */
 export function useObserver() {
-  if (!observer) observer = new DocumentObserver();
-  return observer;
+  const context = getGlobalContext();
+  if (!context.observer) context.observer = new DocumentObserver();
+  return context.observer;
 }
