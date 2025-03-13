@@ -67,7 +67,7 @@ export function ShadowRoot(props) {
   if (import.meta.env.SSR) {
     if (mode === 'closed') {
       const message =
-        'Closed shadow roots cannot by hydrated on the client. This code will end up static in the browser.';
+        'Closed shadow roots cannot by hydrated on the client. This code will NOT be generated.';
       console.trace(message);
     }
   }
