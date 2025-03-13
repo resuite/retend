@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from 'retent/context';
+import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { routerSetup } from '../setup.ts';
-import { createWebRouter, defineRoutes, useRouter } from 'retent/router';
+import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
 
 describe('Router Matching', () => {
   beforeEach(routerSetup);
@@ -185,12 +185,12 @@ describe('Router Matching', () => {
     router.setWindow(window);
     router.attachWindowListeners();
 
-    await router.navigate('/org/github/repo/retent');
+    await router.navigate('/org/github/repo/retend');
     const route = router.getCurrentRoute();
     const params = route.value.params;
     expect(Object.fromEntries(params.entries())).toEqual({
       orgId: 'github',
-      repoId: 'retent',
+      repoId: 'retend',
     });
     expect(route.value.name).toBe('repo');
   });

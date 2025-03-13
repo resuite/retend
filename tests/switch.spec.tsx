@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from 'retent';
-import { Switch, If } from 'retent';
-import { type NodeLike, getGlobalContext } from 'retent/context';
+import { Cell } from 'retend';
+import { Switch, If } from 'retend';
+import { type NodeLike, getGlobalContext } from 'retend/context';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
-import type { VElement, VNode } from 'retent/v-dom';
+import type { VElement, VNode } from 'retend/v-dom';
 
 const runTests = () => {
   it('should render matching case', () => {

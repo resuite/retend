@@ -4,7 +4,7 @@
 
 > If you are already familiar with JSX, you can skip this section and go straight to the [next one](#reactivity-with-cells).
 
-Retent, like React, Solid, and many others, allows you to write UI _components_ in a syntax called JSX. JSX is a syntax extension for JavaScript that allows you to write HTML-like code within your JavaScript files. e.g.
+Retend, like React, Solid, and many others, allows you to write UI _components_ in a syntax called JSX. JSX is a syntax extension for JavaScript that allows you to write HTML-like code within your JavaScript files. e.g.
 
 ```jsx
 const greeting = <div>Hello, world!</div>;
@@ -51,7 +51,7 @@ Like in HTML, you can add attributes to JSX elements. For example, you can add a
 <button type="submit" id="submit-btn">
 ```
 
-_However_, in Retent, there are some slight differences to HTML attributes to better support the use of JavaScript expressions.
+_However_, in Retend, there are some slight differences to HTML attributes to better support the use of JavaScript expressions.
 
 - For listener attributes, e.g. `onclick`, `oninput`, `onmouseover` etc., the jsx equivalent is named in camelCase, e.g. `onClick`, `onInput`, `onMouseOver` etc.
   Let's say you want to add a click event listener to a button. In HTML, you would write:
@@ -93,11 +93,11 @@ This will render a div with a red background color and a font size of 20 pixels.
 
 ### Components
 
-In Retent, components are the building blocks of your application, allowing you to encapsulate and reuse pieces of your UI.
+In Retend, components are the building blocks of your application, allowing you to encapsulate and reuse pieces of your UI.
 
 #### Basic Component Structure
 
-A component in Retent is a function that returns JSX, which is then converted into DOM nodes. Here's a simple example:
+A component in Retend is a function that returns JSX, which is then converted into DOM nodes. Here's a simple example:
 
 ```jsx
 function MyComponent() {
@@ -251,16 +251,16 @@ This will render the two paragraphs as siblings in the DOM, without adding an ex
 
 ### Reactivity with Cells
 
-In Retent, data that changes over time is managed using a "cell". A `Cell` is a container that holds data and automatically triggers updates when that data changes. If you know about reactive signals or `refs` in other frameworks, cells work similarly.
+In Retend, data that changes over time is managed using a "cell". A `Cell` is a container that holds data and automatically triggers updates when that data changes. If you know about reactive signals or `refs` in other frameworks, cells work similarly.
 
-Cells are provided by the [`@adbl/cells`](https://github.com/adebola-io/cells) library, which means they can be used outside Retent.
+Cells are provided by the [`@adbl/cells`](https://github.com/adebola-io/cells) library, which means they can be used outside Retend.
 
 #### Creating Cells
 
 Cells are created using the `Cell.source(...)` method. For example:
 
 ```javascript
-import { Cell } from 'retent';
+import { Cell } from 'retend';
 
 // Cell with value 0
 const number = Cell.source(0);
@@ -277,7 +277,7 @@ const user = Cell.source({ id: 0, name: 'John Doe' });
 
 #### Accessing and Updating Cells
 
-To get the value of a Cell, or to update it, you interact with its `value` property. Whenever the `value` property is changed, Retent will automatically update the parts of your UI that use that cell.
+To get the value of a Cell, or to update it, you interact with its `value` property. Whenever the `value` property is changed, Retend will automatically update the parts of your UI that use that cell.
 
 ```javascript
 number.value++; // Increments the value of the count cell
@@ -391,7 +391,7 @@ To learn more about how the cell system works, check out the [Cells documentatio
 
 ## Conditional Rendering
 
-The `If` function in Retent lets you show or remove parts of your user interface based on a true or false condition. This is very useful for creating things like loading indicators, showing different content based on whether a user is logged in, or displaying error messages.
+The `If` function in Retend lets you show or remove parts of your user interface based on a true or false condition. This is very useful for creating things like loading indicators, showing different content based on whether a user is logged in, or displaying error messages.
 
 It takes up to three arguments:
 
@@ -405,7 +405,7 @@ It takes up to three arguments:
 In this example, we'll have a boolean variable to control whether or not to display a welcome message.
 
 ```jsx
-import { If } from 'retent';
+import { If } from 'retend';
 
 const isLoggedIn = true;
 
@@ -426,7 +426,7 @@ If the `isLoggedIn` value is `true`, a `<h1>Welcome back!</h1>` element will be 
 When you want to respond to changes dynamically, you can use `Cell` objects to control the `If` component.
 
 ```jsx
-import { Cell, If } from 'retent';
+import { Cell, If } from 'retend';
 
 const isLoggedIn = Cell.source(false); // Initialized to false.
 
@@ -454,7 +454,7 @@ In the example above, we've added a button to change the state of the UI. The `A
 You can also pass an object as the second argument to the `If` component. This object is expected to have `true` property and `false` properties which are both functions. This can often be more ergonomic than passing two functions directly as the second and third parameters, especially when there is a need to nest the conditions.
 
 ```jsx
-import { Cell, If } from 'retent';
+import { Cell, If } from 'retend';
 
 const isLoggedIn = Cell.source(false);
 
@@ -483,7 +483,7 @@ const AuthenticatedGreeting = () => {
 If you don't need to render anything when the condition is false, simply omit the `second` function.
 
 ```jsx
-import { If } from 'retent';
+import { If } from 'retend';
 
 const isLoading = true;
 
@@ -502,12 +502,12 @@ In the example above, the `LoadingMessage` component will show "Loading..." when
 
 ### Nested Conditional Rendering
 
-In Retent, you can nest `If` components to create more complex conditional rendering logic. This is useful when you have multiple conditions to check and want to render different components based on those conditions.
+In Retend, you can nest `If` components to create more complex conditional rendering logic. This is useful when you have multiple conditions to check and want to render different components based on those conditions.
 
 Here's an example of how to implement nested conditional rendering:
 
 ```jsx
-import { Cell, If } from 'retent';
+import { Cell, If } from 'retend';
 
 const userStatus = Cell.source('guest'); // Initialized to 'guest'.
 const userIsAdmin = Cell.derived(() => userStatus.value === 'admin');
@@ -548,14 +548,14 @@ You can also toggle the user status using the `toggleUserStatus` function, which
 
 ## List Rendering
 
-In many web applications, you'll need to display lists, whether it's a to-do list, a list of products, or a list of user comments. Retent provides a special function called `For` to handle these scenarios efficiently.
+In many web applications, you'll need to display lists, whether it's a to-do list, a list of products, or a list of user comments. Retend provides a special function called `For` to handle these scenarios efficiently.
 
 If you are already familiar with JavaScript `for` loops or array's `map` method, `For` does something similar, but it does it in a way that is integrated directly with the structure of your web page, updating it automatically.
 
 The `For` function takes two key pieces of information:
 
 - **The list itself:** This is the collection of data you want to display. It can be a regular JavaScript array or a special reactive container called a `Cell` that we explained earlier.
-- **A "template" function:** This is a function that determines how each item in the list should be displayed on the page. It receives each individual item in your list and its index, and tells Retent what HTML structure should be created for it.
+- **A "template" function:** This is a function that determines how each item in the list should be displayed on the page. It receives each individual item in your list and its index, and tells Retend what HTML structure should be created for it.
 
 Here's a breakdown of each of these aspects, along with examples to help you understand them:
 
@@ -572,7 +572,7 @@ The `For` function can handle two kinds of list: regular JavaScript arrays and s
 - **`Cell` Objects (for Dynamic Lists)**: If the list you need to display can change over time, perhaps because of user interaction or incoming data, it needs to be wrapped in a `Cell` object, using the `Cell.source()` method:
 
   ```javascript
-  import { Cell } from 'retent';
+  import { Cell } from 'retend';
   const items = Cell.source([
     'Learn the library',
     'Build a web app',
@@ -608,7 +608,7 @@ This is what a template function looks like:
 Here’s how you might display a list of strings using `For`:
 
 ```jsx
-import { For } from 'retent';
+import { For } from 'retend';
 
 const items = ['Apple', 'Banana', 'Orange'];
 
@@ -632,7 +632,7 @@ The result in your web browser is a basic unordered list displaying "Apple", "Ba
 If you want your list to update dynamically, then you can use a `Cell`:
 
 ```jsx
-import { For, Cell } from 'retent';
+import { For, Cell } from 'retend';
 
 const items = Cell.source([
   'Learn the library',
@@ -663,7 +663,7 @@ With this code, the webpage now keeps the to-do list up-to-date by responding to
 The `For` function provides a second argument to your template function, a cell containing the _index_ of the current item:
 
 ```jsx
-import { For } from 'retent';
+import { For } from 'retend';
 
 const items = ['First', 'Second', 'Third'];
 
@@ -689,7 +689,7 @@ With the `index`, you can add extra information (e.g., the item number) next to 
 `For` can also be used to display information from objects:
 
 ```jsx
-import { For, Cell } from 'retent';
+import { For, Cell } from 'retend';
 
 const users = Cell.source([
   { id: 1, name: 'Alice', age: 30 },
@@ -721,14 +721,14 @@ When you change something in a list wrapped by `For`, instead of tearing down an
 - **Auto-Memoization:** When it encounters the same data in a list for a second time, `For` automatically recognizes it, and instead of re-rendering the entire associated DOM nodes from scratch, it reuses the previous DOM nodes and only changes its index.
 - **Pure template Functions** The function that determines how each item should be rendered should not change based on things outside the function's input. In fact, your callback function might not even run if the item was memoized from a previous call.
 
-The `For` function provides a smart, performant and reactive method for displaying and handling lists. By focusing on its use of the template function, how to handle different list types and how to interpret reactivity, you can render lists effectively in Retent.
+The `For` function provides a smart, performant and reactive method for displaying and handling lists. By focusing on its use of the template function, how to handle different list types and how to interpret reactivity, you can render lists effectively in Retend.
 
 ## Conditional Rendering with `Switch`
 
 The `Switch` function allows you to choose between a number of possible UI options based on a given value.
 
 ```jsx
-import { Switch } from 'retent';
+import { Switch } from 'retend';
 
 const userType = 'premium';
 
@@ -757,7 +757,7 @@ If the value you want to switch on can change over time, you can make use of the
 Here is an example showing a navigation system that has some basic routing built into it:
 
 ```jsx
-import { Switch, Cell } from 'retent';
+import { Switch, Cell } from 'retend';
 
 const currentView = Cell.source('home');
 
@@ -814,7 +814,7 @@ In this code snippet, when each button is clicked, the corresponding section is 
 `Switch` also shines in situations where you need to consider more complex conditions, for example if you need to apply multiple states to a component at the same time:
 
 ```jsx
-import { Switch, Cell } from 'retent';
+import { Switch, Cell } from 'retend';
 
 const isLoggedIn = Cell.source(false);
 const isAdmin = Cell.source(false);
@@ -862,7 +862,7 @@ document.body.append(<UserDashboard />);
 The optional third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
 
 ```jsx
-import { Switch, Cell } from 'retent';
+import { Switch, Cell } from 'retend';
 
 const userRole = Cell.source('editor');
 
@@ -896,7 +896,7 @@ Here we demonstrated a switch component using named "roles". This illustrates a 
 
 ## Event Modifiers
 
-Retent allows you to add modifiers to event listeners directly in your JSX to control how events are handled. These modifiers are inspired by similar features in other frameworks and can simplify common event-handling patterns.
+Retend allows you to add modifiers to event listeners directly in your JSX to control how events are handled. These modifiers are inspired by similar features in other frameworks and can simplify common event-handling patterns.
 
 Modifiers are appended to the event name using a double hyphen (`--`). For example, `onClick--prevent` will prevent the default action of a click event. You can combine multiple modifiers for complex behavior (e.g., `onSubmit--prevent--stop`).
 
@@ -985,7 +985,7 @@ In this example, clicking on the button will trigger the alert on the button's c
 - **`once` modifier**:
 
 ```jsx
-import { Cell } from 'retent';
+import { Cell } from 'retend';
 
 function MyComponent() {
   const clickCount = Cell.source(0);
@@ -1032,12 +1032,12 @@ A `ref` is a "pointer" to any element that was created using JSX. It is basicall
 
 It allows other code, usually within the functions that render your view, to communicate, observe, and directly modify actual existing parts of the page, without needing to rely on indirect methods of finding or re-constructing elements manually.
 
-In Retent, using refs involves these key parts:
+In Retend, using refs involves these key parts:
 
 - **Creating a Reactive `Cell`:** First, you need to create a `Cell` where the reference will be stored at a later time.
 
 ```javascript
-import { Cell } from 'retent';
+import { Cell } from 'retend';
 
 const elementRef = Cell.source(null);
 ```
@@ -1055,7 +1055,7 @@ Now when the `div` element is created, it will be assigned to the `elementRef` c
 - **Accessing the Element:**
 
 ```jsx
-import { Cell } from 'retent';
+import { Cell } from 'retend';
 
 const elementRef = Cell.source(null); // elementRef.value is null
 const div = <div ref={elementRef}>Hello world!</div>;
@@ -1072,7 +1072,7 @@ While you could use `document.querySelector()` to get an HTML element directly, 
 
 ## Life Cycles
 
-The only lifecycle mechanism in Retent is the `useObserver()` function. It provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes.
+The only lifecycle mechanism in Retend is the `useObserver()` function. It provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes.
 
 ### Understanding Connection and Disconnection
 
@@ -1087,7 +1087,7 @@ The `useObserver()` function returns a `DocumentObserver` object, which is a wra
 Here's how to use `useObserver` to run a setup action as a reaction to html:
 
 ```jsx
-import { Cell, useObserver } from 'retent';
+import { Cell, useObserver } from 'retend';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
@@ -1114,7 +1114,7 @@ In this code:
 The `onConnected` method also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
 
 ```jsx
-import { Cell, useObserver } from 'retent';
+import { Cell, useObserver } from 'retend';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
@@ -1147,7 +1147,7 @@ In this example, the `onConnected` hook now:
 - **Node-Centric**: `useObserver` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
 - **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
 
-Okay, here's a section explaining event modifiers in Retent, designed to be clear, concise, and easy to understand, suitable for your `README.new.md`:
+Okay, here's a section explaining event modifiers in Retend, designed to be clear, concise, and easy to understand, suitable for your `README.new.md`:
 
 ## Routing
 
@@ -1156,7 +1156,7 @@ The library includes a routing system for single-page applications.
 ### Setting Up the Router
 
 ```jsx
-import { createWebRouter, type RouteRecords } from 'retent/router';
+import { createWebRouter, type RouteRecords } from 'retend/router';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -1183,7 +1183,7 @@ document.body.appendChild(<router.Outlet />);
 Use the `useRouter` hook to access routing functionality from inside a component. This will prevents circular dependencies and import issues.
 
 ```jsx
-import { useRouter } from 'retent/router';
+import { useRouter } from 'retend/router';
 
 const App = () => {
   const router = useRouter();
@@ -1224,7 +1224,7 @@ const routes: RouteRecords = [
 ```
 
 ```jsx
-import { useRouter } from 'retent/router';
+import { useRouter } from 'retend/router';
 
 const Dashboard = () => {
   const { Link, Outlet } = useRouter();
@@ -1306,8 +1306,8 @@ The `getCurrentRoute()` method on the router returns a `Cell` object that contai
 **Basic Usage:**
 
 ```jsx
-import { useRouter } from 'retent/router';
-import { Cell } from 'retent';
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
 
 function CurrentRouteDisplay() {
   const router = useRouter();
@@ -1442,7 +1442,7 @@ In the example above, the relay ensures that the `Photo` component with the same
 
 ## Advanced Components
 
-Retent provides several advanced components that can help you build complex UIs. Here's a breakdown of the most useful ones:
+Retend provides several advanced components that can help you build complex UIs. Here's a breakdown of the most useful ones:
 
 ### Teleport
 
@@ -1453,7 +1453,7 @@ Let's imagine a simple use case: a navigation bar that is rendered at the top of
 - **Basic Example**:
 
 ```jsx
-import { Teleport } from 'retent/teleport';
+import { Teleport } from 'retend/teleport';
 
 function NavBar() {
   return (
@@ -1476,8 +1476,8 @@ In the example above, the `div` will be rendered as a child of the `body` elemen
 - **More complex example**:
 
 ```jsx
-import { If, Cell } from 'retent';
-import { Teleport } from 'retent/teleport';
+import { If, Cell } from 'retend';
+import { Teleport } from 'retend/teleport';
 
 function Modal({ content, onClose }) {
   return (
@@ -1526,7 +1526,7 @@ In this example, `Teleport` is used to render the `Modal` component directly und
 - **Using a CSS selector**:
 
 ```jsx
-import { Teleport } from 'retent/teleport';
+import { Teleport } from 'retend/teleport';
 
 function MyComponent() {
   return (
@@ -1548,7 +1548,7 @@ Here, `Teleport` moves the `div` into a specific element that's identified by it
 The `ShadowRoot` component allows you to encapsulate your component's styling and structure by creating a shadow DOM. The shadow DOM provides a way to build complex components while avoiding conflicts with global CSS or other parts of the DOM, which is especially useful for reusable custom components.
 
 ```jsx
-import { ShadowRoot } from 'retent/shadowroot';
+import { ShadowRoot } from 'retend/shadowroot';
 
 function MyComponent() {
   return (
@@ -1579,7 +1579,7 @@ Here, the styling inside `ShadowRoot` (the green background) will not leak out a
 - **Open vs Closed Shadow DOM**:
 
 ```jsx
-import { ShadowRoot } from 'retent/shadowroot';
+import { ShadowRoot } from 'retend/shadowroot';
 
 function MyComponent() {
   return (
@@ -1606,7 +1606,7 @@ By default, shadow DOMs are `open`, meaning you can access their nodes using the
 - **Using Components inside the Shadow Root**:
 
 ```jsx
-import { ShadowRoot } from 'retent/shadowroot';
+import { ShadowRoot } from 'retend/shadowroot';
 
 function StyledButton({ children, backgroundColor }) {
   return (
@@ -1643,7 +1643,7 @@ As you can see, you can add components to shadow DOM just like any other compone
 - **Multiple Shadow Roots**:
 
 ```jsx
-import { ShadowRoot } from 'retent/shadowroot';
+import { ShadowRoot } from 'retend/shadowroot';
 
 function MyComponent() {
   return (
@@ -1670,7 +1670,7 @@ The `Include` component allows you to include a pre-existing element from the DO
 - **Basic inclusion**:
 
 ```jsx
-import { Include } from 'retent/include';
+import { Include } from 'retend/include';
 
 // Assume there is this element on the page:
 // <div id="external-component">
@@ -1694,7 +1694,7 @@ The above code will insert the content of the `#external-component` node inside 
 - **Including and modifying properties**:
 
 ```jsx
-import { Include } from 'retent/include';
+import { Include } from 'retend/include';
 
 // Assume there is this element on the page:
 // <div id="external-component" style="color: red;">
@@ -1718,7 +1718,7 @@ In this example, `Include` is used to pull in the external element, and then it 
 - **Adding event listeners and attributes**:
 
 ```jsx
-import { Include } from 'retent/include';
+import { Include } from 'retend/include';
 
 // Assume there is this element on the page:
 // <button id="external-button">Click Me</button>
@@ -1744,7 +1744,7 @@ Here, `Include` is not just importing the button, but it is also adding a click 
 - **Overwriting children**:
 
 ```jsx
-import { Include } from 'retent/include';
+import { Include } from 'retend/include';
 
 // Assume there is this element on the page:
 // <div id="external-component">
@@ -1770,8 +1770,8 @@ In this case, the child element of `#external-component` (`<p>I am from outside<
 - **Using a component reference as a target**:
 
 ```jsx
-import { Include } from 'retent/include';
-import { Cell } from 'retent';
+import { Include } from 'retend/include';
+import { Cell } from 'retend';
 
 const divRef = Cell.source(null);
 

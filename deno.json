@@ -1,8 +1,8 @@
 {
   "workspace": [
-    "./packages/retent",
-    "./packages/retent-start",
-    "./packages/retent-server",
+    "./packages/retend",
+    "./packages/retend-start",
+    "./packages/retend-server",
     "tests"
   ],
   "imports": {

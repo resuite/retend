@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from 'retent';
+import { Cell } from 'retend';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
-import { ShadowRoot } from 'retent/shadowroot';
-import { getGlobalContext } from 'retent/context';
-import type { VNode, VElement } from 'retent/v-dom';
+import { ShadowRoot } from 'retend/shadowroot';
+import { getGlobalContext } from 'retend/context';
+import type { VNode, VElement } from 'retend/v-dom';
 import assert from 'node:assert';
 
 const runTests = () => {

@@ -273,9 +273,9 @@ export const hotReloadModule = async (newModule, url) => {
  *
  * @returns A Vite plugin object with a `name` property and `transform` hook.
  */
-export const retent = () => {
+export const retend = () => {
   return {
-    name: 'vite-plugin-retent',
+    name: 'vite-plugin-retend',
 
     /**
      * @param {string} code - The source code of the module being transformed.
@@ -293,7 +293,7 @@ export const retent = () => {
       if (!isJsx) return null;
 
       const injectedCode = `
-import { hotReloadModule as __HMR____ } from 'retent/plugin';
+import { hotReloadModule as __HMR____ } from 'retend/plugin';
 
 ${code}
 
@@ -313,7 +313,7 @@ if (import.meta.hot) {
       return {
         esbuild: {
           jsx: /** @type {'automatic' | 'preserve'} */ ('automatic'),
-          jsxImportSource: 'retent',
+          jsxImportSource: 'retend',
         },
       };
     },

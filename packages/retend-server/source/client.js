@@ -1,20 +1,20 @@
 /// <reference types="vite/client" />
 
-/** @import { JsxElement } from 'retent' */
-/** @import { VNode } from 'retent/v-dom' */
-/** @import { Router } from 'retent/router' */
+/** @import { JsxElement } from 'retend' */
+/** @import { VNode } from 'retend/v-dom' */
+/** @import { Router } from 'retend/router' */
 /** @import { ServerContext } from './types.js' */
 
-import { setAttributeFromProps, useObserver } from 'retent';
-import { setGlobalContext, Modes } from 'retent/context';
-import { upgradeAnchorTag } from 'retent/router';
+import { setAttributeFromProps, useObserver } from 'retend';
+import { setGlobalContext, Modes } from 'retend/context';
+import { upgradeAnchorTag } from 'retend/router';
 import {
   HydrationUpgradeEvent,
   VComment,
   VElement,
   VWindow,
-} from 'retent/v-dom';
-import { SourceCell } from 'retent';
+} from 'retend/v-dom';
+import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
 
 /**
@@ -32,7 +32,7 @@ import { addMetaListener } from './meta.js';
  *
  * @example
  * // In your main client-side entry point (e.g., index.js or app.js):
- * import { hydrate } from 'retent-server/client';
+ * import { hydrate } from 'retend-server/client';
  * import { createRouter } from './router';
  *
  * hydrate(createRouter)
@@ -60,7 +60,7 @@ export async function hydrate(routerFn) {
   const contextScript = document.querySelector('script[data-server-context]');
   if (!contextScript) {
     console.warn(
-      '[retent-server] No server-side context found. Falling back to SPA mode.'
+      '[retend-server] No server-side context found. Falling back to SPA mode.'
     );
     const router = defaultToSpaMode(routerFn);
     activateLinks(router);

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { For, If } from 'retent';
-import { getGlobalContext } from 'retent/context';
-import { renderToString } from 'retent/render';
-import { Cell } from 'retent';
+import { For, If } from 'retend';
+import { getGlobalContext } from 'retend/context';
+import { renderToString } from 'retend/render';
+import { Cell } from 'retend';
 import { browserSetup, vDomSetup } from './setup.ts';
-import { ShadowRoot } from 'retent/shadowroot';
+import { ShadowRoot } from 'retend/shadowroot';
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {

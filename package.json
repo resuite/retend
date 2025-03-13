@@ -2,18 +2,19 @@
   "scripts": {
     "test": "cd tests && npx vitest run",
     "build": "npm run build-core && npm run build-ssg",
-    "build-core": "cd packages/retent && npm run build",
-    "build-ssg": "cd packages/retent-server && npm run build",
-    "publish-core": "cd packages/retent && npm run build && npm run publish",
-    "publish-ssg": "cd packages/retent-server && npm run build && npm publish",
-    "publish-start": "cd packages/retent-start && npm publish",
+    "build-core": "cd packages/retend && npm run build",
+    "build-ssg": "cd packages/retend-server && npm run build",
+    "publish-core": "cd packages/retend && npm run build && npm run publish",
+    "publish-ssg": "cd packages/retend-server && npm run build && npm publish",
+    "publish-start": "cd packages/retend-start && npm publish",
     "publish-all": "npm run publish-core && npm run publish-ssg && npm run publish-start",
-    "previews": "cp README.md packages/retent/README.md && npx pkg-pr-new publish './packages/retent' './packages/retent-server' './packages/retent-start'"
+    "pack-all": "cd packages/retend && npm run pack && cd ../retend-server && npm run pack && cd ../retend-start && npm run pack && cd ../.. && rm -rf previews && mkdir previews",
+    "previews": "cp README.md packages/retend/README.md && npx pkg-pr-new publish './packages/retend' './packages/retend-server' './packages/retend-start'"
   },
   "workspaces": [
-    "packages/retent",
-    "packages/retent-server",
-    "packages/retent-start",
+    "packages/retend",
+    "packages/retend-server",
+    "packages/retend-start",
     "tests"
   ]
 }

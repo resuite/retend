@@ -16,8 +16,8 @@ const CONFIG = {
   minNodeVersion: '14.0.0',
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
-    retent: '^0.0.1',
-    'retent-server': '^0.0.4',
+    retend: '^0.0.1',
+    'retend-server': '^0.0.4',
   },
   devDependencies: {
     vite: '^6.2.1',
@@ -324,8 +324,8 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { retent } from 'retent/plugin';${
-    answers.useSSG ? "\nimport { retentSSG } from 'retent-server/plugin';" : ''
+import { retend } from 'retend/plugin';${
+    answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ''
   }
 
 export default defineConfig({
@@ -333,10 +333,10 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './source') }
   },
   plugins: [
-    retent(),
+    retend(),
     ${
       answers.useSSG
-        ? `retentSSG({
+        ? `retendSSG({
       pages: ['/'],
       routerModulePath: './source/router.${extension}'
     }),`
@@ -463,12 +463,12 @@ async function createMainFile(projectDir, answers) {
   const content = answers.useSSG
     ? `
 /// <reference types="vite/client" />
-import { hydrate } from 'retent-server/client';
+import { hydrate } from 'retend-server/client';
 import { createRouter } from './router';
 
 hydrate(createRouter)
   .then(() => {
-    console.log('[retent-server] app successfully hydrated.');
+    console.log('[retend-server] app successfully hydrated.');
   });
 `
     : `
@@ -501,7 +501,7 @@ root?.append(${
 async function createRouterFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
-import { createWebRouter } from 'retent/router';
+import { createWebRouter } from 'retend/router';
 import { startRoute } from './views/start/routes';
 
 export function createRouter() {
@@ -590,7 +590,7 @@ async function createComponentStructure(
         isView ? 'styles' : componentName
       }.module.${styleExtension}';\n`;
 
-  const content = `import { Cell } from 'retent';${
+  const content = `import { Cell } from 'retend';${
     cssImport ? `\n${cssImport}` : ''
   }
 
@@ -608,7 +608,7 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
         <p class=${subTextClasses}>
           Check out the{' '}
           <a
-            href="https://github.com/adebola-io/retent"
+            href="https://github.com/adebola-io/retend"
             target="_blank" rel="noopener noreferrer"
             class=${linkClasses}
           >
@@ -688,7 +688,7 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
 
   if (isView) {
     const routesContent = `
-import { defineRoute } from 'retent/router';
+import { defineRoute } from 'retend/router';
 import ${capitalize(componentName)} from '.';
 
 export const ${componentName}Route = defineRoute({
@@ -712,7 +712,7 @@ export const ${componentName}Route = defineRoute({
  */
 async function createPackageJson(projectDir, answers) {
   if (!answers.useSSG) {
-    Reflect.deleteProperty(CONFIG.dependencies, 'retent-server');
+    Reflect.deleteProperty(CONFIG.dependencies, 'retend-server');
   }
 
   const content = {
@@ -780,7 +780,7 @@ async function createConfigFile(projectDir, answers) {
       noUnusedParameters: true,
       noFallthroughCasesInSwitch: true,
       jsx: 'react-jsx',
-      jsxImportSource: 'retent',
+      jsxImportSource: 'retend',
       baseUrl: '.',
       paths: {
         '@/*': ['./source/*'],

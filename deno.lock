@@ -886,7 +886,7 @@
       "npm:vitest@^3.0.8"
     ],
     "members": {
-      "packages/retent": {
+      "packages/retend": {
         "packageJson": {
           "dependencies": [
             "npm:@adbl/cells@^0.0.11",
@@ -895,7 +895,7 @@
           ]
         }
       },
-      "packages/retent-server": {
+      "packages/retend-server": {
         "packageJson": {
           "dependencies": [
             "npm:domhandler@^5.0.3",
@@ -905,7 +905,7 @@
           ]
         }
       },
-      "packages/retent-start": {
+      "packages/retend-start": {
         "packageJson": {
           "dependencies": [
             "npm:@types/node@^22.7.5",

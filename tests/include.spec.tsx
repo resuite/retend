@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Include } from 'retent/include';
-import { getGlobalContext, type AsNode } from 'retent/context';
+import { Include } from 'retend/include';
+import { getGlobalContext, type AsNode } from 'retend/context';
 import { browserSetup, vDomSetup, getTextContent } from './setup.ts';
-import { Cell, type JsxElement } from 'retent';
-import type { VElement } from 'retent/v-dom';
+import { Cell, type JsxElement } from 'retend';
+import type { VElement } from 'retend/v-dom';
 
 const runTests = () => {
   it('should include an external element using selector', () => {

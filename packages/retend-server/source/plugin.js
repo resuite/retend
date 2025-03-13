@@ -11,11 +11,11 @@ import { buildPaths } from './server.js';
  */
 
 /**
- * A Vite plugin that generates static HTML files for `retent` applications after the Vite build.
+ * A Vite plugin that generates static HTML files for `retend` applications after the Vite build.
  * @param {PluginOptions} options - Configuration options for the plugin.
  * @returns {Plugin} A Vite plugin object.
  */
-export function retentSSG(options) {
+export function retendSSG(options) {
   const {
     pages,
     routerModulePath: createRouterModule,
@@ -36,7 +36,7 @@ export function retentSSG(options) {
   const outputs = [];
 
   return {
-    name: 'vite-plugin-retent-server',
+    name: 'vite-plugin-retend-server',
     apply: 'build',
     enforce: 'post',
 
@@ -86,4 +86,4 @@ export function retentSSG(options) {
   };
 }
 
-export default retentSSG;
+export default retendSSG;

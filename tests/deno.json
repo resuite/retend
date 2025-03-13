@@ -1,10 +1,10 @@
 {
-  "name": "retent-test-suite",
+  "name": "retend-test-suite",
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
 
     "jsx": "react-jsx",
-    "jsxImportSource": "retent",
+    "jsxImportSource": "retend",
 
     "verbatimModuleSyntax": true,
     "strict": true,
@@ -15,6 +15,6 @@
   },
 
   "imports": {
-    "retent/jsx-runtime": "../packages/retent/dist/jsx-runtime/index.d.ts"
+    "retend/jsx-runtime": "../packages/retend/dist/jsx-runtime/index.d.ts"
   }
 }

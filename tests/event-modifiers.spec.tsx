@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Cell } from 'retent';
-import { getGlobalContext } from 'retent/context';
+import { Cell } from 'retend';
+import { getGlobalContext } from 'retend/context';
 import { browserSetup } from './setup.ts';
-import type { VNode } from 'retent/v-dom';
+import type { VNode } from 'retend/v-dom';
 
 describe('Event Modifiers', () => {
   // Only run in browser since VDom doesn't support events

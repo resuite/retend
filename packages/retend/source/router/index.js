@@ -411,7 +411,7 @@ export class Router extends EventTarget {
     }
 
     /** @type {RouterOutlet } */
-    const outlet = this.window.document.createElement('retent-router-outlet');
+    const outlet = this.window.document.createElement('retend-router-outlet');
 
     if (props) {
       const { keepAlive: _, maxKeepAliveCount: __, children, ...rest } = props;
@@ -487,7 +487,7 @@ export class Router extends EventTarget {
 
     const relay =
       /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ (
-        this.window.document.createElement('retent-router-relay')
+        this.window.document.createElement('retend-router-relay')
       );
 
     if (!props) {
@@ -533,7 +533,7 @@ export class Router extends EventTarget {
 
   /**
    * Defines the web components used by the router.
-   * This method creates and registers the 'retent-router-outlet' and 'retent-router-relay' custom elements,
+   * This method creates and registers the 'retend-router-outlet' and 'retend-router-relay' custom elements,
    * and applies a CSS style sheet to set their display property to 'contents'.
    * The method returns the created CSS style sheet.
    */
@@ -548,20 +548,20 @@ export class Router extends EventTarget {
 
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
-      'retent-router-outlet, retent-router-relay, retent-teleport {display: contents;}'
+      'retend-router-outlet, retend-router-relay, retend-teleport {display: contents;}'
     );
     this.window.document.adoptedStyleSheets.push(this.sheet);
 
-    if (!this.window.customElements.get('retent-router-outlet')) {
+    if (!this.window.customElements.get('retend-router-outlet')) {
       this.window.customElements.define(
-        'retent-router-outlet',
+        'retend-router-outlet',
         class extends HTMLElement {}
       );
     }
 
-    if (!this.window.customElements.get('retent-router-relay')) {
+    if (!this.window.customElements.get('retend-router-relay')) {
       this.window.customElements.define(
-        'retent-router-relay',
+        'retend-router-relay',
         class extends HTMLElement {}
       );
     }
@@ -821,7 +821,7 @@ export class Router extends EventTarget {
     if (matchResult.subTree === null) {
       console.warn(`No route matches path: ${path}`);
       const outlet = this.window?.document.querySelector(
-        'retent-router-outlet'
+        'retend-router-outlet'
       );
       outlet?.removeAttribute('data-path');
       if (this.window) {
@@ -836,7 +836,7 @@ export class Router extends EventTarget {
     let currentMatchedRoute = matchResult.subTree;
 
     let outlet = /** @type {RouterOutlet | null | undefined} */ (
-      this.window?.document.querySelector('retent-router-outlet')
+      this.window?.document.querySelector('retend-router-outlet')
     );
 
     if (!outlet) return false;
@@ -848,7 +848,7 @@ export class Router extends EventTarget {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
         outlet = /** @type {RouterOutlet} */ (
-          outlet.querySelector('retent-router-outlet')
+          outlet.querySelector('retend-router-outlet')
         );
 
         // If only the search params changed, then the last outlet
@@ -1000,7 +1000,7 @@ export class Router extends EventTarget {
       lastMatchedRoute = currentMatchedRoute;
       currentMatchedRoute = currentMatchedRoute.child;
       const nextOutlet = /** @type {RouterOutlet} */ (
-        outlet.querySelector('retent-router-outlet')
+        outlet.querySelector('retend-router-outlet')
       );
       outlet = nextOutlet;
     }
@@ -1112,7 +1112,7 @@ export class Router extends EventTarget {
     // Handling relays
     // ---------------
     const exitRelayNodes = /** @type {RouterRelay[]} */ (
-      oldNodesFragment.querySelectorAll('retent-router-relay')
+      oldNodesFragment.querySelectorAll('retend-router-relay')
     );
     /** @type {Map<string, RouterRelay>} */
     const exitRelayNodeMap = new Map();
@@ -1128,7 +1128,7 @@ export class Router extends EventTarget {
     holder.append(...newNodesArr);
 
     const enterRelayNodes = /** @type {RouterRelay[]} */ (
-      holder.querySelectorAll('retent-router-relay')
+      holder.querySelectorAll('retend-router-relay')
     );
 
     for (const enterRelay of enterRelayNodes) {

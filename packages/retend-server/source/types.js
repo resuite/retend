@@ -1,5 +1,5 @@
-/** @import { Router } from 'retent/router' */
-/** @import { VWindow } from 'retent/v-dom' */
+/** @import { Router } from 'retend/router' */
+/** @import { VWindow } from 'retend/v-dom' */
 /** @import { AsyncLocalStorage } from 'node:async_hooks' */
 /** @import { UserConfig, ViteDevServer } from 'vite' */
 

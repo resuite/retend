@@ -76,7 +76,7 @@ export function Teleport(props) {
 
     teleportId = await useConsistent(key, () => crypto.randomUUID());
     const staleInstance = findStaleTeleport(parent, teleportId);
-    const newInstance = window.document.createElement('retent-teleport');
+    const newInstance = window.document.createElement('retend-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
 
     for (const [key, value] of Object.entries(rest)) {
@@ -139,7 +139,7 @@ export function Teleport(props) {
 function findStaleTeleport(parent, teleportId) {
   if (!isVNode(parent)) {
     return parent.querySelector(
-      `retent-teleport[data-teleport-id='${teleportId}']`
+      `retend-teleport[data-teleport-id='${teleportId}']`
     );
   }
 
@@ -148,7 +148,7 @@ function findStaleTeleport(parent, teleportId) {
     if (node.nodeType !== 1) return false;
     const element = /** @type {VDom.VElement} */ (node);
     return (
-      element.tagName === 'retent-TELEPORT' &&
+      element.tagName === 'retend-TELEPORT' &&
       element.getAttribute('data-teleport-id') === teleportId
     );
   });

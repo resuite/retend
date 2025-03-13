@@ -1,7 +1,7 @@
-/** @import { RouteData, Router } from 'retent/router' */
-/** @import { Cell } from 'retent' */
+/** @import { RouteData, Router } from 'retend/router' */
+/** @import { Cell } from 'retend' */
 
-import { getGlobalContext, isVNode } from 'retent/context';
+import { getGlobalContext, isVNode } from 'retend/context';
 
 /**
  * @typedef {Object} PageMeta

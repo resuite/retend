@@ -2,8 +2,8 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {},
-    "packages/retent": {
-      "name": "retent",
+    "packages/retend": {
+      "name": "retend",
       "version": "0.0.1",
       "dependencies": {
         "@adbl/cells": "^0.0.11",
@@ -13,8 +13,8 @@
         "typescript": "^5.8.2"
       }
     },
-    "packages/retent-server": {
-      "name": "retent-server",
+    "packages/retend-server": {
+      "name": "retend-server",
       "version": "0.0.4",
       "dependencies": {
         "domhandler": "^5.0.3",
@@ -25,11 +25,11 @@
         "vite": "^5.4.14"
       },
       "peerDependencies": {
-        "retent": "0.0.1"
+        "retend": "0.0.1"
       }
     },
-    "packages/retent-start": {
-      "name": "retent-start",
+    "packages/retend-start": {
+      "name": "retend-start",
       "version": "0.0.8",
       "bin": {
         "scaffold": "index.js"
@@ -43,7 +43,7 @@
       }
     },
     "tests": {
-      "name": "retent-test-suite",
+      "name": "retend-test-suite",
       "dependencies": {
         "@types/bun": "^1.2.4",
         "vitest": "^3.0.8"
@@ -52,7 +52,7 @@
         "@happy-dom/global-registrator": "^17.4.3"
       },
       "peerDependencies": {
-        "retent": "*"
+        "retend": "*"
       }
     }
   },
@@ -1155,13 +1155,13 @@
       "sha512-oMA2dcrw6u0YfxJQXm342bFKX/E4sG9rbTzO9ptUcR/e8A33cHuvStiYOwH7fszkZlZ1z/ta9AAoPk2F4qIOHA=="
     ],
 
-    "retent": ["retent@workspace:packages/retent"],
+    "retend": ["retend@workspace:packages/retend"],
 
-    "retent-server": ["retent-server@workspace:packages/retent-server"],
+    "retend-server": ["retend-server@workspace:packages/retend-server"],
 
-    "retent-start": ["retent-start@workspace:packages/retent-start"],
+    "retend-start": ["retend-start@workspace:packages/retend-start"],
 
-    "retent-test-suite": ["retent-test-suite@workspace:tests"],
+    "retend-test-suite": ["retend-test-suite@workspace:tests"],
 
     "rollup": [
       "rollup@4.35.0",

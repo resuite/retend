@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from 'retent';
-import { For } from 'retent';
-import { type NodeLike, getGlobalContext } from 'retent/context';
+import { Cell } from 'retend';
+import { For } from 'retend';
+import { type NodeLike, getGlobalContext } from 'retend/context';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
-import type { VNode, VElement } from 'retent/v-dom';
+import type { VNode, VElement } from 'retend/v-dom';
 
 const runTests = () => {
   it('should render a list of elements', () => {

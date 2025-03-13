@@ -19,7 +19,7 @@
     "noFallthroughCasesInSwitch": true,
 
     "jsx": "react-jsx",
-    "jsxImportSource": "retent",
+    "jsxImportSource": "retend",
 
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,

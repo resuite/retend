@@ -1,6 +1,6 @@
-# retent-server (experimental)
+# retend-server (experimental)
 
-`retent-server` is a Vite plugin that enables **static site generation (SSG)** for applications built with the `retent` library. It generates static HTML files for specified routes during the Vite build process, making your application suitable for static hosting while preserving reactivity and routing capabilities.
+`retend-server` is a Vite plugin that enables **static site generation (SSG)** for applications built with the `retend` library. It generates static HTML files for specified routes during the Vite build process, making your application suitable for static hosting while preserving reactivity and routing capabilities.
 
 This plugin is ideal for projects requiring fast initial load times, SEO optimization, and deployment to static hosting services like Netlify, Vercel, or GitHub Pages.
 
@@ -9,23 +9,23 @@ This plugin is ideal for projects requiring fast initial load times, SEO optimiz
 
 ## Installation
 
-To get started with `retent-server`, install it as a development dependency in your Vite project:
+To get started with `retend-server`, install it as a development dependency in your Vite project:
 
 ```bash
-npm install --save-dev retent-server
+npm install --save-dev retend-server
 ```
 
 ## Configuring the Plugin in Vite
 
-Add the `retent-server` plugin to your Vite configuration file (`vite.config.js` or `vite.config.ts`) to enable static site generation. Below is a basic example:
+Add the `retend-server` plugin to your Vite configuration file (`vite.config.js` or `vite.config.ts`) to enable static site generation. Below is a basic example:
 
 ```javascript
 import { defineConfig } from 'vite';
-import { retentSSG } from 'retent-server';
+import { retendSSG } from 'retend-server';
 
 export default defineConfig({
   plugins: [
-    retentSSG({
+    retendSSG({
       pages: ['/', '/about', '/contact'],
       routerModulePath: './src/router.js',
     }),
@@ -49,12 +49,12 @@ export default defineConfig({
 
 ### Updating the Application Entry Point
 
-To make your static HTML interactive, update your application’s entry point (e.g., `src/main.js`) to use the `hydrate` function from `retent-server/client`. This step ensures your application becomes fully functional on the client side after the static content is loaded.
+To make your static HTML interactive, update your application’s entry point (e.g., `src/main.js`) to use the `hydrate` function from `retend-server/client`. This step ensures your application becomes fully functional on the client side after the static content is loaded.
 
 ### Example: Application Entry Point (`src/main.js`)
 
 ```javascript
-import { hydrate } from 'retent-server/client';
+import { hydrate } from 'retend-server/client';
 import { createRouter } from './router';
 
 hydrate(createRouter)
@@ -87,7 +87,7 @@ Here’s a complete example to tie it all together.
 ### Router Definition (`src/router.js`)
 
 ```javascript
-import { createWebRouter } from 'retent/router';
+import { createWebRouter } from 'retend/router';
 import Home from './Home';
 import About from './About';
 import Contact from './Contact';
@@ -107,11 +107,11 @@ export function createRouter() {
 
 ```javascript
 import { defineConfig } from 'vite';
-import { retentSSG } from 'retent-server';
+import { retendSSG } from 'retend-server';
 
 export default defineConfig({
   plugins: [
-    retentSSG({
+    retendSSG({
       pages: ['/', '/about', '/contact'],
       routerModulePath: './src/router.js',
     }),
@@ -147,22 +147,22 @@ For static routes, no additional server setup is needed. For dynamic routes (e.g
 ## Prerequisites
 
 - **Vite**: Required as the build tool.
-- **`retent`**: The core library for your application.
-- **Router**: Must use `retent/router`, exported from the module specified in `routerModulePath`.
+- **`retend`**: The core library for your application.
+- **Router**: Must use `retend/router`, exported from the module specified in `routerModulePath`.
 
 ## Notes
 
 - Generated HTML files include scripts and styles as configured in your Vite build.
-- The plugin assumes your app uses `retent` for routing and reactivity.
+- The plugin assumes your app uses `retend` for routing and reactivity.
 
 ## Documentation
 
-For more on `retent`, see the [main documentation](https://github.com/adebola-io/retent/blob/main/docs/README.md).
+For more on `retend`, see the [main documentation](https://github.com/adebola-io/retend/blob/main/docs/README.md).
 
 ## License
 
-Licensed under the MIT License. See the [LICENSE](https://github.com/adebola-io/retent/blob/main/LICENSE) file.
+Licensed under the MIT License. See the [LICENSE](https://github.com/adebola-io/retend/blob/main/LICENSE) file.
 
 ## Contributing
 
-Contributions are welcome! Check the [contributing guidelines](https://github.com/adebola-io/retent/blob/main/CONTRIBUTING.md) for details.
+Contributions are welcome! Check the [contributing guidelines](https://github.com/adebola-io/retend/blob/main/CONTRIBUTING.md) for details.

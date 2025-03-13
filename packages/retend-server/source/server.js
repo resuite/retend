@@ -1,5 +1,5 @@
-/** @import { Router } from 'retent/router' */
-/** @import { VNode } from 'retent/v-dom' */
+/** @import { Router } from 'retend/router' */
+/** @import { VNode } from 'retend/v-dom' */
 /** @import { UserConfig } from 'vite' */
 /** @import {
  *    BuildOptions,
@@ -12,10 +12,10 @@
  */
 /** @import { ChildNode } from 'domhandler' */
 
-import { getConsistentValues, setConsistentValues } from 'retent';
-import { Modes, setGlobalContext } from 'retent/context';
-import { renderToString } from 'retent/render';
-import { VElement, VWindow } from 'retent/v-dom';
+import { getConsistentValues, setConsistentValues } from 'retend';
+import { Modes, setGlobalContext } from 'retend/context';
+import { renderToString } from 'retend/render';
+import { VElement, VWindow } from 'retend/v-dom';
 import { createServer } from 'vite';
 
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -180,7 +180,7 @@ async function renderPath(options) {
 
     document.head.append(
       document.createMarkupNode(
-        '<style>retent-router-outlet,retent-router-relay,retent-teleport{display: contents;}</style>'
+        '<style>retend-router-outlet,retend-router-relay,retend-teleport{display: contents;}</style>'
       )
     );
 
@@ -356,7 +356,7 @@ function generateRedirectHtmlContent(finalPath) {
 //   plugins: [hmrPlugin()],
 //   esbuild: {
 //     jsx: 'automatic',
-//     jsxImportSource: 'retent',
+//     jsxImportSource: 'retend',
 //   },
 //   css: { preprocessorOptions: { scss: { api: 'modern-compiler' } } },
 // };

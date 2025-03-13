@@ -82,7 +82,7 @@ export function isVNode(node) {
 }
 
 /**
- * Updates the global render context for retent.
+ * Updates the global render context for retend.
  * The default context is the interactive, web DOM environment.
  *
  * @param {Environments} context - New environment configuration

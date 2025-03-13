@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from 'retent/context';
+import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import {
   createWebRouter,
   defineRoutes,
   useRouter,
   type RouteComponent,
   lazy,
-} from 'retent/router';
-import { Cell } from 'retent';
+} from 'retend/router';
+import { Cell } from 'retend';
 import { routerSetup } from '../setup.ts';
 
 describe('Router Metadata', () => {

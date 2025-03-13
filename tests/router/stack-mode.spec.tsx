@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterAll } from 'vitest';
 import { routerSetup } from '../setup.ts';
-import { getGlobalContext, resetGlobalContext } from 'retent/context';
-import { createWebRouter, type Router } from 'retent/router';
+import { getGlobalContext, resetGlobalContext } from 'retend/context';
+import { createWebRouter, type Router } from 'retend/router';
 
 describe('Router Stack Mode', () => {
   let router: Router;

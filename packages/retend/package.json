@@ -1,5 +1,5 @@
 {
-  "name": "retent",
+  "name": "retend",
   "version": "0.0.1",
   "description": "A modern reactive framework for fluid, dynamic web apps.",
   "private": false,
@@ -65,13 +65,13 @@
       "types": "./dist/context/index.d.ts"
     }
   },
-  "homepage": "https://github.com/adebola-io/retent#readme",
+  "homepage": "https://github.com/adebola-io/retend#readme",
   "bugs": {
-    "url": "https://github.com/adebola-io/retent/issues"
+    "url": "https://github.com/adebola-io/retend/issues"
   },
   "author": "Adebola Akomolafe",
   "repository": {
-    "directory": "github.com/adebola-io/retent",
+    "directory": "github.com/adebola-io/retend",
     "type": "git"
   },
   "license": "MIT",
