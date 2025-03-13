@@ -147,7 +147,8 @@ export function h(tagname, props) {
     });
     const nodes = generateChildNodes(component);
     linkNodesToComponent(nodes, current, completeProps);
-    return nodes;
+    // Tries to make the API more consistent and predictable.
+    return nodes.length === 1 ? nodes[0] : nodes;
   }
 
   const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
