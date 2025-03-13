@@ -1,6 +1,6 @@
 {
   "name": "retend-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Static site generation for the retend UI framework.",
   "private": false,
   "type": "module",
@@ -34,7 +34,7 @@
     "vite": "^5.4.14"
   },
   "peerDependencies": {
-    "retend": "0.0.1"
+    "retend": "0.0.2"
   },
   "publishConfig": {
     "access": "public"

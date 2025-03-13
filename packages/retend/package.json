@@ -1,13 +1,12 @@
 {
   "name": "retend",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A modern reactive framework for fluid, dynamic web apps.",
   "private": false,
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node scripts/build.js",
-    "publish": "cp ../../README.md . && npm publish"
+    "build": "node scripts/build.js"
   },
   "keywords": [
     "web",
