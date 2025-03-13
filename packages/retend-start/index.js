@@ -505,14 +505,7 @@ import { createWebRouter } from 'retend/router';
 import { startRoute } from './views/start/routes';
 
 export function createRouter() {
-  const routes = [
-    {
-      name: 'App',
-      path: '/',
-      children: [startRoute],
-    },
-  ];
-  return createWebRouter({ routes });
+  return createWebRouter({ routes: [startRoute] });
 }
   `.trim();
 
