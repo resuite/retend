@@ -16,8 +16,8 @@ const CONFIG = {
   minNodeVersion: '14.0.0',
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
-    retend: '^0.0.1',
-    'retend-server': '^0.0.4',
+    retend: '^0.0.2',
+    'retend-server': '^0.0.2',
   },
   devDependencies: {
     vite: '^6.2.1',
@@ -590,11 +590,11 @@ async function createComponentStructure(
         isView ? 'styles' : componentName
       }.module.${styleExtension}';\n`;
 
-  const content = `import { Cell } from 'retend';${
+  const content = `import { Cell } from 'retend'${
     cssImport ? `\n${cssImport}` : ''
   }
 
-export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
+const ${capitalize(componentName)} = () => {
   const count = Cell.source(0);
   const incrementCount = () => count.value++;
 
@@ -621,7 +621,9 @@ export ${isView ? 'default' : ''} function ${capitalize(componentName)}() {
       </main>
     </div>
   )
-}
+};
+
+export default ${capitalize(componentName)};
   `;
 
   await fs.writeFile(
