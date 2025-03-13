@@ -85,5 +85,3 @@ export function retendSSG(options) {
     },
   };
 }
-
-export default retendSSG;
