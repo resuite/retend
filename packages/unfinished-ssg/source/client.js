@@ -226,7 +226,21 @@ function hydrateDomNode(node, vNode) {
       }
     }
 
-    // Todo: Hydrate Shadow roots.
+    // Hydrate Shadow roots
+    if (node instanceof Element) {
+      // If shadowRoot exists, hydrate it
+      if (node.shadowRoot && vNode instanceof VElement && vNode.shadowRoot) {
+        hydrateDomNode(node.shadowRoot, vNode.shadowRoot).catch((error) => {
+          console.error('Shadow root hydration error:', error);
+        });
+      }
+
+      // Cleanup templates for browsers without DSD support
+      const templates = node.querySelectorAll('template[shadowrootmode]');
+      for (const template of templates) {
+        template.remove();
+      }
+    }
 
     // Hydrate Children.
     let offset = 0;
