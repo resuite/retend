@@ -1,13 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Cell } from '@adbl/cells';
-import {
-  // @ts-types="../packages/unfinished/dist/library/index.js"
-  Modes,
-  type NodeLike,
-  getGlobalContext, // @ts-types="../packages/unfinished/dist/library/index.js" // @ts-types="../packages/unfinished/dist/library/index.js"
-  isVNode,
-  matchContext,
-} from '@adbl/unfinished';
+import { getGlobalContext } from '@adbl/unfinished';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
 import { ShadowRoot } from '@adbl/unfinished/shadowroot';
 import type { VNode, VElement } from '@adbl/unfinished/v-dom';
