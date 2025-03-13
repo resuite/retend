@@ -14,7 +14,7 @@ Here's a breakdown of the core functionalities:
 
 - **JSX Support:** You can use JSX to define your user interfaces. This allows you embed HTML-like structures directly into JavaScript.
 
-- **Built-in Reactivity:** `@adbl/cells` is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
+- **Built-in Reactivity:** [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
 
 - **Components are DOM Elements:** Components in Retent are just functions that return DOM nodes. There is no extra layer. This gives you a high level of control and interoperability with existing DOM APIs.
 
