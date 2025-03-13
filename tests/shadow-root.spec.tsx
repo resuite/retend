@@ -1,10 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, assert } from 'vitest';
 import { Cell } from 'retent';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
 import { ShadowRoot } from 'retent/shadowroot';
 import { getGlobalContext } from 'retent/context';
 import type { VNode, VElement } from 'retent/v-dom';
-import assert from 'node:assert';
 
 const runTests = () => {
   it('should create a shadow root with default mode "open"', () => {
