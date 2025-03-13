@@ -93,7 +93,6 @@ export class DocumentObserver {
    * and iterates through the `mountedNodes` to execute cleanup functions for disconnected nodes.
    */
   processMountedNodes() {
-    console.log('PROCESSING MOUNTED NODES');
     if (!this.#initialized) this.#init();
 
     for (const [key, callbacks] of this.#callbackSets.entries()) {
