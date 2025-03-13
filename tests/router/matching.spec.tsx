@@ -84,7 +84,7 @@ describe('Router Matching', () => {
     expect(route2.value.name).toBeNull(); // No resolvable component.
 
     await router.navigate('/app/nested');
-    expect(route2.value.name).toBe('nested'); // No resolvable component.
+    expect(route2.value.name).toBe('nested');
   });
 
   it('should match exact path', async () => {
