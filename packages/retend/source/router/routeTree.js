@@ -302,6 +302,21 @@ export class RouteTree {
     const pathSegments = pathname.split('/').filter(Boolean);
     const rootSegments = root.path.split('/').filter(Boolean);
 
+    // Matches fallthrough to children if the root path is empty
+    if (rootSegments.length === 0) {
+      const matchedRoute = new MatchedRoute(root);
+      for (const child of root.children) {
+        const childMatchedRoute = this.checkRoot(pathname, child, params);
+        if (childMatchedRoute) {
+          matchedRoute.child = childMatchedRoute;
+          break;
+        }
+      }
+      if (matchedRoute.child !== null) {
+        return matchedRoute;
+      }
+    }
+
     let matchedIndex = index;
     let encounteredCatchAllWildcardAtParameter = '';
     while (matchedIndex < rootSegments.length) {
