@@ -33,8 +33,6 @@ export function Include(props) {
   const component =
     typeof from === 'string' ? window.document.querySelector(from) : from.value;
 
-  console.log('Found include', component);
-
   if (!component) {
     if (typeof from === 'string') {
       console.error(
