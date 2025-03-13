@@ -3,6 +3,7 @@ import { getGlobalContext, For, If } from '@adbl/unfinished';
 import { renderToString } from '@adbl/unfinished/render';
 import { Cell } from '@adbl/cells';
 import { browserSetup, vDomSetup } from './setup.ts';
+import { ShadowRoot } from '@adbl/unfinished/shadowroot';
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {
@@ -276,6 +277,183 @@ const runTests = () => {
     );
     const result = await renderToString(element, window);
     expect(result).toBe('<div><span>Conditional content</span></div>');
+  });
+
+  it('should mark static nodes inside shadow root when enabled', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div>Static content</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window, {
+      markStaticNodes: true,
+    });
+    expect(result).toBe(
+      '<div data-static><template shadowrootmode="open"><div>Static content</div></template></div>'
+    );
+  });
+
+  it('should hoist shadow roots to the start of the parent node', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <div>Normal content</div>
+        <ShadowRoot>
+          <div>Shadow content</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toBe(
+      '<div><template shadowrootmode="open"><div>Shadow content</div></template><div>Normal content</div></div>'
+    );
+  });
+
+  it('should handle static marking in nested shadow roots', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div data-outer>
+            <ShadowRoot>
+              <div>Static inner</div>
+            </ShadowRoot>
+            <span>Static outer</span>
+          </div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window, {
+      markStaticNodes: true,
+    });
+    expect(result).toBe(
+      '<div data-static><template shadowrootmode="open"><div data-outer="true"><template shadowrootmode="open"><div>Static inner</div></template><span>Static outer</span></div></template></div>'
+    );
+  });
+
+  it('should not mark nodes with event listeners as static in shadow root', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <ShadowRoot>
+          <button type="button" onClick={() => {}}>
+            Click me
+          </button>
+          <div>Static content</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window, {
+      markStaticNodes: true,
+    });
+    expect(result).toBe(
+      '<div><template shadowrootmode="open"><button type="button">Click me</button><div>Static content</div></template></div>'
+    );
+  });
+
+  it('should serialize shadow root content', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div>Shadow content</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toBe(
+      '<div><template shadowrootmode="open"><div>Shadow content</div></template></div>'
+    );
+  });
+
+  it('should serialize shadow root with styles', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <ShadowRoot>
+          <style>{'.test { color: red; }'}</style>
+          <div class="test">Styled content</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toBe(
+      '<div><template shadowrootmode="open"><style>.test { color: red; }</style><div class="test">Styled content</div></template></div>'
+    );
+  });
+
+  it('should serialize nested shadow roots', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div>
+            Outer content
+            <ShadowRoot>
+              <div>Inner content</div>
+            </ShadowRoot>
+          </div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toBe(
+      '<div><template shadowrootmode="open"><div><template shadowrootmode="open"><div>Inner content</div></template>Outer content</div></template></div>'
+    );
+  });
+
+  it('should serialize shadow roots with reactive content', async () => {
+    const { window } = getGlobalContext();
+    const content = Cell.source('Dynamic content');
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div>{content}</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toBe(
+      '<div><template shadowrootmode="open"><div>Dynamic content</div></template></div>'
+    );
+  });
+
+  it('should not mark shadowroot parent as static if it has reactive children', async () => {
+    const { window } = getGlobalContext();
+    const content = Cell.source('Dynamic content');
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div>{content}</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window, {
+      markStaticNodes: true,
+    });
+    expect(result).toBe(
+      '<div><template shadowrootmode="open"><div>Dynamic content</div></template></div>'
+    );
+  });
+
+  it('should mark shadowroot parent as static if it has static children', async () => {
+    const { window } = getGlobalContext();
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div>Static content</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window, {
+      markStaticNodes: true,
+    });
+    expect(result).toBe(
+      '<div data-static><template shadowrootmode="open"><div>Static content</div></template></div>'
+    );
   });
 };
 
