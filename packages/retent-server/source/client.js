@@ -14,7 +14,7 @@ import {
   VElement,
   VWindow,
 } from 'retent/v-dom';
-import { SourceCell } from '@adbl/cells';
+import { SourceCell } from 'retent';
 import { addMetaListener } from './meta.js';
 
 /**

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { For, If } from 'retent';
 import { getGlobalContext } from 'retent/context';
 import { renderToString } from 'retent/render';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { browserSetup, vDomSetup } from './setup.ts';
 import { ShadowRoot } from 'retent/shadowroot';
 

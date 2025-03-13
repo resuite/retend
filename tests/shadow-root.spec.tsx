@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
 import { ShadowRoot } from 'retent/shadowroot';
 import { getGlobalContext } from 'retent/context';

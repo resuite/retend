@@ -260,7 +260,7 @@ Cells are provided by the [`@adbl/cells`](https://github.com/adebola-io/cells) l
 Cells are created using the `Cell.source(...)` method. For example:
 
 ```javascript
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 // Cell with value 0
 const number = Cell.source(0);
@@ -426,7 +426,7 @@ If the `isLoggedIn` value is `true`, a `<h1>Welcome back!</h1>` element will be 
 When you want to respond to changes dynamically, you can use `Cell` objects to control the `If` component.
 
 ```jsx
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { If } from 'retent';
 
 const isLoggedIn = Cell.source(false); // Initialized to false.
@@ -455,7 +455,7 @@ In the example above, we've added a button to change the state of the UI. The `A
 You can also pass an object as the second argument to the `If` component. This object is expected to have `true` property and `false` properties which are both functions. This can often be more ergonomic than passing two functions directly as the second and third parameters, especially when there is a need to nest the conditions.
 
 ```jsx
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { If } from 'retent';
 
 const isLoggedIn = Cell.source(false);
@@ -509,7 +509,7 @@ In Retent, you can nest `If` components to create more complex conditional rende
 Here's an example of how to implement nested conditional rendering:
 
 ```jsx
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { If } from 'retent';
 
 const userStatus = Cell.source('guest'); // Initialized to 'guest'.
@@ -575,7 +575,7 @@ The `For` function can handle two kinds of list: regular JavaScript arrays and s
 - **`Cell` Objects (for Dynamic Lists)**: If the list you need to display can change over time, perhaps because of user interaction or incoming data, it needs to be wrapped in a `Cell` object, using the `Cell.source()` method:
 
   ```javascript
-  import { Cell } from '@adbl/cells';
+  import { Cell } from 'retent';
   const items = Cell.source([
     'Learn the library',
     'Build a web app',
@@ -636,7 +636,7 @@ If you want your list to update dynamically, then you can use a `Cell`:
 
 ```jsx
 import { For } from 'retent';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 const items = Cell.source([
   'Learn the library',
@@ -694,7 +694,7 @@ With the `index`, you can add extra information (e.g., the item number) next to 
 
 ```jsx
 import { For } from 'retent';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 const users = Cell.source([
   { id: 1, name: 'Alice', age: 30 },
@@ -763,7 +763,7 @@ Here is an example showing a navigation system that has some basic routing built
 
 ```jsx
 import { Switch } from 'retent';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 const currentView = Cell.source('home');
 
@@ -821,7 +821,7 @@ In this code snippet, when each button is clicked, the corresponding section is 
 
 ```jsx
 import { Switch } from 'retent';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 const isLoggedIn = Cell.source(false);
 const isAdmin = Cell.source(false);
@@ -870,7 +870,7 @@ The optional third argument of `Switch` takes a function that receives the curre
 
 ```jsx
 import { Switch } from 'retent';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 const userRole = Cell.source('editor');
 
@@ -993,7 +993,7 @@ In this example, clicking on the button will trigger the alert on the button's c
 - **`once` modifier**:
 
 ```jsx
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 function MyComponent() {
   const clickCount = Cell.source(0);
@@ -1045,7 +1045,7 @@ In Retent, using refs involves these key parts:
 - **Creating a Reactive `Cell`:** First, you need to create a `Cell` where the reference will be stored at a later time.
 
 ```javascript
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 const elementRef = Cell.source(null);
 ```
@@ -1063,7 +1063,7 @@ Now when the `div` element is created, it will be assigned to the `elementRef` c
 - **Accessing the Element:**
 
 ```jsx
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 const elementRef = Cell.source(null); // elementRef.value is null
 const div = <div ref={elementRef}>Hello world!</div>;
@@ -1095,7 +1095,7 @@ The `useObserver()` function returns a `DocumentObserver` object, which is a wra
 Here's how to use `useObserver` to run a setup action as a reaction to html:
 
 ```jsx
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { useObserver } from 'retent';
 
 const MyComponent = () => {
@@ -1123,7 +1123,7 @@ In this code:
 The `onConnected` method also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
 
 ```jsx
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { useObserver } from 'retent';
 
 const MyComponent = () => {
@@ -1317,7 +1317,7 @@ The `getCurrentRoute()` method on the router returns a `Cell` object that contai
 
 ```jsx
 import { useRouter } from 'retent/router';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 function CurrentRouteDisplay() {
   const router = useRouter();
@@ -1487,7 +1487,7 @@ In the example above, the `div` will be rendered as a child of the `body` elemen
 
 ```jsx
 import { Teleport } from 'retent/teleport';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 function Modal({ content, onClose }) {
   return (
@@ -1781,7 +1781,7 @@ In this case, the child element of `#external-component` (`<p>I am from outside<
 
 ```jsx
 import { Include } from 'retent/include';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 
 function ExternalComponent() {
   const divRef = Cell.source(null);

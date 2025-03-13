@@ -17,7 +17,6 @@ const CONFIG = {
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
     retent: '^0.0.1',
-    '@adbl/cells': '^0.0.11',
     'retent-server': '^0.0.4',
   },
   devDependencies: {
@@ -591,7 +590,7 @@ async function createComponentStructure(
         isView ? 'styles' : componentName
       }.module.${styleExtension}';\n`;
 
-  const content = `import { Cell } from '@adbl/cells';${
+  const content = `import { Cell } from 'retent';${
     cssImport ? `\n${cssImport}` : ''
   }
 

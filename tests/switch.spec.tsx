@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { Switch, If } from 'retent';
 import { type NodeLike, getGlobalContext } from 'retent/context';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';

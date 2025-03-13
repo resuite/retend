@@ -7,7 +7,7 @@ import {
   type RouteComponent,
   lazy,
 } from 'retent/router';
-import { Cell } from '@adbl/cells';
+import { Cell } from 'retent';
 import { routerSetup } from '../setup.ts';
 
 describe('Router Metadata', () => {

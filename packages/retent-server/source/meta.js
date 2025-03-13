@@ -1,5 +1,5 @@
 /** @import { RouteData, Router } from 'retent/router' */
-/** @import { Cell } from '@adbl/cells' */
+/** @import { Cell } from 'retent' */
 
 import { getGlobalContext, isVNode } from 'retent/context';
 
