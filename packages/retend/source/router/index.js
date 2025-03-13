@@ -369,7 +369,7 @@ export class Router extends EventTarget {
       console.error('active attribute is reserved for router.');
     }
 
-    if (matchContext(window, Modes.Interactive)) {
+    if (matchContext(this.window, Modes.Interactive)) {
       addCellListener(a, this.currentPath, setActiveLinkAttribute);
       setEventListener(a, 'onClick', routerLinkNavigationHandler);
     } else {
