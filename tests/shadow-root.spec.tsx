@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from '@adbl/cells';
-import { getGlobalContext } from '@adbl/unfinished';
+import { Cell } from 'retend';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
-import { ShadowRoot } from '@adbl/unfinished/shadowroot';
-import type { VNode, VElement } from '@adbl/unfinished/v-dom';
+import { ShadowRoot } from 'retend/shadowroot';
+import { getGlobalContext } from 'retend/context';
+import type { VNode, VElement } from 'retend/v-dom';
 import assert from 'node:assert';
 
 const runTests = () => {
@@ -78,7 +78,6 @@ const runTests = () => {
   });
 
   it('should handle nested shadow roots', () => {
-    const { window } = getGlobalContext();
     const result = (
       <div>
         <ShadowRoot>

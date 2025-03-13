@@ -6,14 +6,14 @@ import {
   getGlobalContext,
   type NodeLike,
   isVNode,
-} from '@adbl/unfinished';
-import { VWindow } from '@adbl/unfinished/v-dom';
+} from 'retend/context';
+import { VWindow } from 'retend/v-dom';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 export const routerSetup = () => {
   const window = new VWindow();
   window.document.body.append(
-    window.document.createElement('unfinished-router-outlet')
+    window.document.createElement('retend-router-outlet')
   );
 
   setGlobalContext({

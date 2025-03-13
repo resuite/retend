@@ -1,17 +1,90 @@
 import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
+import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { routerSetup } from '../setup.ts';
-import {
-  createWebRouter,
-  defineRoutes,
-  useRouter,
-} from '@adbl/unfinished/router';
+import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
 
 describe('Router Matching', () => {
   beforeEach(routerSetup);
 
   afterAll(() => {
     resetGlobalContext();
+  });
+
+  it('should match simple empty path', async () => {
+    const { window } = getGlobalContext();
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          path: '/',
+          name: 'home',
+          children: [{ path: '', name: 'home-child', component: () => 'Home' }],
+        },
+      ]),
+    });
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/');
+    const route2 = router.getCurrentRoute();
+    expect(route2.value.name).toBe('home-child');
+  });
+
+  it('should match empty path with nested fallthroughs', async () => {
+    const { window } = getGlobalContext();
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          path: '/',
+          name: 'home',
+          children: [
+            {
+              path: '',
+              name: 'home-child',
+              children: [
+                { path: '', name: 'home-child-child', component: () => 'Home' },
+              ],
+            },
+            { path: 'about', name: 'about', component: () => 'About' },
+          ],
+        },
+      ]),
+    });
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/');
+    const route2 = router.getCurrentRoute();
+    expect(route2.value.name).toBe('home-child-child');
+  });
+
+  it('should match empty path in between nested fallthroughs', async () => {
+    const { window } = getGlobalContext();
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          path: '/app',
+          name: 'home',
+          children: [
+            {
+              path: '',
+              name: 'home-child',
+              children: [
+                { path: '/nested', name: 'nested', component: () => 'Nested' },
+              ],
+            },
+          ],
+        },
+      ]),
+    });
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/app');
+    const route2 = router.getCurrentRoute();
+    expect(route2.value.name).toBeNull(); // No resolvable component.
+
+    await router.navigate('/app/nested');
+    expect(route2.value.name).toBe('nested');
   });
 
   it('should match exact path', async () => {
@@ -189,12 +262,12 @@ describe('Router Matching', () => {
     router.setWindow(window);
     router.attachWindowListeners();
 
-    await router.navigate('/org/github/repo/unfinished');
+    await router.navigate('/org/github/repo/retend');
     const route = router.getCurrentRoute();
     const params = route.value.params;
     expect(Object.fromEntries(params.entries())).toEqual({
       orgId: 'github',
-      repoId: 'unfinished',
+      repoId: 'retend',
     });
     expect(route.value.name).toBe('repo');
   });

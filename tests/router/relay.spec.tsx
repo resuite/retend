@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
+import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { routerSetup } from '../setup.ts';
-import {
-  createWebRouter,
-  defineRoutes,
-  useRouter,
-} from '@adbl/unfinished/router';
+import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
 
 describe('Router Relay', () => {
   beforeEach(routerSetup);

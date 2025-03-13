@@ -1,0 +1,42 @@
+{
+  "name": "retend-server",
+  "version": "0.0.2",
+  "description": "Static site generation for the retend UI framework.",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "dependencies": {
+    "domhandler": "^5.0.3",
+    "htmlparser2": "^10.0.0"
+  },
+  "exports": {
+    "./server": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    },
+    "./client": {
+      "import": "./dist/client.js",
+      "types": "./dist/client.d.ts"
+    },
+    "./plugin": {
+      "import": "./dist/plugin.js",
+      "types": "./dist/plugin.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^5.4.14"
+  },
+  "peerDependencies": {
+    "retend": "0.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,10 +1,10 @@
 {
-  "name": "@adbl/unfinished-test-suite",
+  "name": "retend-test-suite",
   "compilerOptions": {
     "lib": ["ESNext", "DOM"],
 
     "jsx": "react-jsx",
-    "jsxImportSource": "@adbl/unfinished",
+    "jsxImportSource": "retend",
 
     "verbatimModuleSyntax": true,
     "strict": true,
@@ -15,6 +15,6 @@
   },
 
   "imports": {
-    "@adbl/unfinished/jsx-runtime": "../packages/unfinished/dist/jsx-runtime/index.d.ts"
+    "retend/jsx-runtime": "../packages/retend/dist/jsx-runtime/index.d.ts"
   }
 }

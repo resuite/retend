@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from '@adbl/cells';
-import { If, type NodeLike, getGlobalContext } from '@adbl/unfinished';
+import { Cell } from 'retend';
+import { If } from 'retend';
+import { type NodeLike, getGlobalContext } from 'retend/context';
 import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
-import type { VNode } from '@adbl/unfinished/v-dom';
+import type { VNode } from 'retend/v-dom';
 
 const runTests = () => {
   it('should render truthy branch when condition is true', () => {

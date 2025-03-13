@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext, For, If } from '@adbl/unfinished';
-import { renderToString } from '@adbl/unfinished/render';
-import { Cell } from '@adbl/cells';
+import { For, If } from 'retend';
+import { getGlobalContext } from 'retend/context';
+import { renderToString } from 'retend/render';
+import { Cell } from 'retend';
 import { browserSetup, vDomSetup } from './setup.ts';
-import { ShadowRoot } from '@adbl/unfinished/shadowroot';
+import { ShadowRoot } from 'retend/shadowroot';
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {

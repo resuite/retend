@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from '@adbl/unfinished';
+import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { routerSetup } from '../setup.ts';
 import {
   createWebRouter,
   defineRouterMiddleware,
   defineRoutes,
   redirect,
-} from '@adbl/unfinished/router';
-import type { RouterMiddleware } from '@adbl/unfinished/router';
+} from 'retend/router';
+import type { RouterMiddleware } from 'retend/router';
 
 describe('Router Middlewares', () => {
   beforeEach(routerSetup);

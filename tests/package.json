@@ -1,5 +1,5 @@
 {
-  "name": "unfinished-test-suite",
+  "name": "retend-test-suite",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -8,7 +8,7 @@
     "vitest": "^3.0.8"
   },
   "peerDependencies": {
-    "@adbl/unfinished": "*"
+    "retend": "*"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^17.4.3"

@@ -3,12 +3,11 @@
   "specifiers": {
     "npm:@adbl/cells@0.0.11": "0.0.11",
     "npm:@adbl/cells@^0.0.11": "0.0.11",
-    "npm:@adbl/unfinished@0.0.14": "0.0.14",
     "npm:@happy-dom/global-registrator@^17.4.3": "17.4.3",
     "npm:@types/bun@^1.2.4": "1.2.4",
     "npm:@types/node@*": "22.12.0",
     "npm:@types/node@20.8.10": "20.8.10",
-    "npm:@types/node@^22.7.5": "22.12.0",
+    "npm:@types/node@^22.7.5": "22.13.9",
     "npm:chalk@5.3.0": "5.3.0",
     "npm:chalk@^5.3.0": "5.3.0",
     "npm:csstype@^3.1.3": "3.1.3",
@@ -16,7 +15,6 @@
     "npm:domhandler@^5.0.3": "5.0.3",
     "npm:htmlparser2@10": "10.0.0",
     "npm:htmlparser2@10.0.0": "10.0.0",
-    "npm:htmlparser2@9.0.0": "9.0.0",
     "npm:inquirer@12": "12.0.0_@types+node@20.8.10",
     "npm:inquirer@12.0.0": "12.0.0_@types+node@20.8.10",
     "npm:ora@8.1.0": "8.1.0",
@@ -26,19 +24,11 @@
     "npm:typescript@^5.8.2": "5.8.2",
     "npm:vite@5.4.14": "5.4.14_@types+node@20.8.10",
     "npm:vite@^5.4.14": "5.4.14_@types+node@20.8.10",
-    "npm:vitest@3.0.8": "3.0.8_@types+node@20.8.10_vite@5.4.14__@types+node@20.8.10",
     "npm:vitest@^3.0.8": "3.0.8_@types+node@20.8.10_vite@5.4.14__@types+node@20.8.10"
   },
   "npm": {
     "@adbl/cells@0.0.11": {
       "integrity": "sha512-TtqqWDHMCOxX/EYJz11zxMOyOlg/WHcy6lXwxqE8PJh6mUC08CpoyXswGn3QyRn7/kafwhZ4JjU73Z0kQ48rYA=="
-    },
-    "@adbl/unfinished@0.0.14": {
-      "integrity": "sha512-of+qjVgBRPVJoVr6QsvjBuPZ+Iia2/XbEI0cgSRYqbkpSvAK4RQSRPuKgEQ322OdRn4NHr4ukwZfr2PhpPy5+g==",
-      "dependencies": [
-        "@adbl/cells",
-        "csstype"
-      ]
     },
     "@esbuild/aix-ppc64@0.21.5": {
       "integrity": "sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ=="
@@ -327,6 +317,12 @@
         "undici-types@6.20.0"
       ]
     },
+    "@types/node@22.13.9": {
+      "integrity": "sha512-acBjXdRJ3A6Pb3tqnw9HZmyR3Fiol3aGxRCK1x3d+6CDAMjl7I649wpSd+yNURCjbOUGu9tqtLKnTGxmK6CyGw==",
+      "dependencies": [
+        "undici-types@6.20.0"
+      ]
+    },
     "@types/ws@8.5.14": {
       "integrity": "sha512-bd/YFLW+URhBzMXurx7lWByOu+xzU9+kb3RboOteXYDfW+tr+JZa99OyNmPINEGB/ahzKrEuc8rcv4gnpJmxTw==",
       "dependencies": [
@@ -574,15 +570,6 @@
         "domhandler",
         "domutils",
         "entities@6.0.0"
-      ]
-    },
-    "htmlparser2@9.0.0": {
-      "integrity": "sha512-uxbSI98wmFT/G4P2zXx4OVx04qWUmyFPrD2/CNepa2Zo3GPNaCaaxElDgwUrwYWkK1nr9fft0Ya8dws8coDLLQ==",
-      "dependencies": [
-        "domelementtype",
-        "domhandler",
-        "domutils",
-        "entities@4.5.0"
       ]
     },
     "iconv-lite@0.4.24": {
@@ -899,7 +886,7 @@
       "npm:vitest@^3.0.8"
     ],
     "members": {
-      "packages/unfinished": {
+      "packages/retend": {
         "packageJson": {
           "dependencies": [
             "npm:@adbl/cells@^0.0.11",
@@ -908,7 +895,7 @@
           ]
         }
       },
-      "packages/unfinished-ssg": {
+      "packages/retend-server": {
         "packageJson": {
           "dependencies": [
             "npm:domhandler@^5.0.3",
@@ -918,7 +905,7 @@
           ]
         }
       },
-      "packages/unfinished-start": {
+      "packages/retend-start": {
         "packageJson": {
           "dependencies": [
             "npm:@types/node@^22.7.5",
