@@ -1,0 +1,19 @@
+{
+  "scripts": {
+    "test": "cd tests && npx vitest run",
+    "build": "npm run build-core && npm run build-ssg",
+    "build-core": "cd packages/retent && npm run build",
+    "build-ssg": "cd packages/retent-server && npm run build",
+    "publish-core": "cd packages/retent && npm run build && npm run publish",
+    "publish-ssg": "cd packages/retent-server && npm run build && npm publish",
+    "publish-start": "cd packages/retent-start && npm publish",
+    "publish-all": "npm run publish-core && npm run publish-ssg && npm run publish-start",
+    "previews": "cp README.md packages/retent/README.md && npx pkg-pr-new publish './packages/retent' './packages/retent-server' './packages/retent-start'"
+  },
+  "workspaces": [
+    "packages/retent",
+    "packages/retent-server",
+    "packages/retent-start",
+    "tests"
+  ]
+}
