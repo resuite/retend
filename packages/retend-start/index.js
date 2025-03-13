@@ -16,8 +16,8 @@ const CONFIG = {
   minNodeVersion: '14.0.0',
   directories: ['public', 'public/icons', 'source', 'source/styles'],
   dependencies: {
-    retend: '^0.0.2',
-    'retend-server': '^0.0.2',
+    retend: '^0.0.3',
+    'retend-server': '^0.0.3',
   },
   devDependencies: {
     vite: '^6.2.1',
