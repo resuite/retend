@@ -1,68 +1,8 @@
 /** @import { RouteData, Router } from 'retend/router' */
 /** @import { Cell } from 'retend' */
+/** @import { PageMeta } from './client.js' */
 
 import { getGlobalContext, isVNode } from 'retend/context';
-
-/**
- * @typedef {Object} PageMeta
- *
- * @property {string} [author]
- * The author of the page
- *
- * @property {string} [description]
- * The description of the page
- *
- * @property {string} [lang]
- * The language of the page
- *
- * @property {string} [charset]
- * The character set of the page
- *
- * @property {string} [themeColor]
- * The theme color of the page
- *
- * @property {string} [keywords]
- * The keywords of the page
- *
- * @property {string} [ogTitle]
- * The Open Graph title of the page
- *
- * @property {string} [ogDescription]
- * The Open Graph description of the page
- *
- * @property {string} [ogImage]
- * The Open Graph image of the page
- *
- * @property {string} [ogUrl]
- * The Open Graph URL of the page
- *
- * @property {string} [ogType]
- * The Open Graph type of the page
- *
- * @property {string} [ogLocale]
- * The Open Graph locale of the page
- *
- * @property {string} [ogSiteName]
- * The Open Graph site name of the page
- *
- * @property {string} [twitterCard]
- * The Twitter Card of the page
- *
- * @property {string} [twitterTitle]
- * The Twitter title of the page
- *
- * @property {string} [twitterDescription]
- * The Twitter description of the page
- *
- * @property {string} [twitterImage]
- * The Twitter image of the page
- *
- * @property {string} [title]
- * The title of the page
- *
- * @property {string} [viewport]
- * The viewport of the page
- */
 
 /** @type {Record<keyof PageMeta, string>} */
 const metaNameMap = {
