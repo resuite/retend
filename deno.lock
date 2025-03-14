@@ -6,6 +6,7 @@
     "npm:@happy-dom/global-registrator@^17.4.3": "17.4.3",
     "npm:@semantic-release/changelog@^6.0.3": "6.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2",
     "npm:@semantic-release/git@^10.0.1": "10.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2",
+    "npm:@semantic-release/github@^11.0.1": "11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.2",
     "npm:@semantic-release/npm@^12.0.1": "12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2",
     "npm:@types/bun@^1.2.4": "1.2.4",
     "npm:@types/node@*": "22.12.0",
@@ -612,7 +613,7 @@
         "aggregate-error@3.1.0",
         "fs-extra",
         "lodash",
-        "semantic-release"
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
       ]
     },
     "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2": {
@@ -626,7 +627,21 @@
         "import-from-esm",
         "lodash-es",
         "micromatch",
-        "semantic-release"
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+      ]
+    },
+    "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4": {
+      "integrity": "sha512-wdnBPHKkr9HhNhXOhZD5a2LNl91+hs8CC2vsAVYxtZH3y0dV3wKn+uZSN61rdJQZ8EGxzWB3inWocBHV9+u/CQ==",
+      "dependencies": [
+        "conventional-changelog-angular",
+        "conventional-changelog-writer",
+        "conventional-commits-filter",
+        "conventional-commits-parser",
+        "debug",
+        "import-from-esm",
+        "lodash-es",
+        "micromatch",
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4"
       ]
     },
     "@semantic-release/error@3.0.0": {
@@ -646,7 +661,29 @@
         "lodash",
         "micromatch",
         "p-reduce@2.1.0",
-        "semantic-release"
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+      ]
+    },
+    "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.2": {
+      "integrity": "sha512-Z9cr0LgU/zgucbT9cksH0/pX9zmVda9hkDPcgIE0uvjMQ8w/mElDivGjx1w1pEQ+MuQJ5CBq3VCF16S6G4VH3A==",
+      "dependencies": [
+        "@octokit/core",
+        "@octokit/plugin-paginate-rest",
+        "@octokit/plugin-retry",
+        "@octokit/plugin-throttling",
+        "@semantic-release/error@4.0.0",
+        "aggregate-error@5.0.0",
+        "debug",
+        "dir-glob",
+        "globby",
+        "http-proxy-agent",
+        "https-proxy-agent",
+        "issue-parser",
+        "lodash-es",
+        "mime",
+        "p-filter",
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4",
+        "url-join"
       ]
     },
     "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4": {
@@ -667,7 +704,7 @@
         "lodash-es",
         "mime",
         "p-filter",
-        "semantic-release",
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2",
         "url-join"
       ]
     },
@@ -685,7 +722,7 @@
         "rc",
         "read-pkg",
         "registry-auth-token",
-        "semantic-release",
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2",
         "semver",
         "tempy"
       ]
@@ -704,7 +741,26 @@
         "rc",
         "read-pkg",
         "registry-auth-token",
-        "semantic-release",
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2",
+        "semver",
+        "tempy"
+      ]
+    },
+    "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4": {
+      "integrity": "sha512-/6nntGSUGK2aTOI0rHPwY3ZjgY9FkXmEHbW9Kr+62NVOsyqpKKeP0lrCH+tphv+EsNdJNmqqwijTEnVWUMQ2Nw==",
+      "dependencies": [
+        "@semantic-release/error@4.0.0",
+        "aggregate-error@5.0.0",
+        "execa@9.5.2",
+        "fs-extra",
+        "lodash-es",
+        "nerf-dart",
+        "normalize-url",
+        "npm",
+        "rc",
+        "read-pkg",
+        "registry-auth-token",
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4",
         "semver",
         "tempy"
       ]
@@ -722,7 +778,23 @@
         "into-stream",
         "lodash-es",
         "read-package-up",
-        "semantic-release"
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+      ]
+    },
+    "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4": {
+      "integrity": "sha512-XxAZRPWGwO5JwJtS83bRdoIhCiYIx8Vhr+u231pQAsdFIAbm19rSVJLdnBN+Avvk7CKvNQE/nJ4y7uqKH6WTiw==",
+      "dependencies": [
+        "conventional-changelog-angular",
+        "conventional-changelog-writer",
+        "conventional-commits-filter",
+        "conventional-commits-parser",
+        "debug",
+        "get-stream@7.0.1",
+        "import-from-esm",
+        "into-stream",
+        "lodash-es",
+        "read-package-up",
+        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4"
       ]
     },
     "@sigstore/bundle@3.1.0": {
@@ -2838,11 +2910,45 @@
     "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2": {
       "integrity": "sha512-KRhQG9cUazPavJiJEFIJ3XAMjgfd0fcK3B+T26qOl8L0UG5aZUjeRfREO0KM5InGtYwxqiiytkJrbcYoLDEv0A==",
       "dependencies": [
-        "@semantic-release/commit-analyzer",
+        "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2",
         "@semantic-release/error@4.0.0",
-        "@semantic-release/github",
+        "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4",
         "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2",
-        "@semantic-release/release-notes-generator",
+        "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2",
+        "aggregate-error@5.0.0",
+        "cosmiconfig",
+        "debug",
+        "env-ci",
+        "execa@9.5.2",
+        "figures@6.1.0",
+        "find-versions",
+        "get-stream@6.0.1",
+        "git-log-parser",
+        "hook-std",
+        "hosted-git-info@8.0.2",
+        "import-from-esm",
+        "lodash-es",
+        "marked",
+        "marked-terminal",
+        "micromatch",
+        "p-each-series",
+        "p-reduce@3.0.0",
+        "read-package-up",
+        "resolve-from@5.0.0",
+        "semver",
+        "semver-diff",
+        "signale",
+        "yargs@17.7.2"
+      ]
+    },
+    "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4": {
+      "integrity": "sha512-KRhQG9cUazPavJiJEFIJ3XAMjgfd0fcK3B+T26qOl8L0UG5aZUjeRfREO0KM5InGtYwxqiiytkJrbcYoLDEv0A==",
+      "dependencies": [
+        "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4",
+        "@semantic-release/error@4.0.0",
+        "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.2",
+        "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4",
+        "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4",
         "aggregate-error@5.0.0",
         "cosmiconfig",
         "debug",
@@ -3455,6 +3561,7 @@
       "dependencies": [
         "npm:@semantic-release/changelog@^6.0.3",
         "npm:@semantic-release/git@^10.0.1",
+        "npm:@semantic-release/github@^11.0.1",
         "npm:@semantic-release/npm@^12.0.1",
         "npm:semantic-release@^24.2.3"
       ]
