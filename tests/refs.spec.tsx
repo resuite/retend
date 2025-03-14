@@ -9,7 +9,7 @@ const runTests = () => {
     const elementRef = Cell.source<HTMLElement | null>(null);
     const element = <div ref={elementRef}>Hello, world!</div>;
 
-    expect(elementRef.value).toEqual(element);
+    expect(elementRef.deproxy()).toBe(element);
   });
 
   it('should work with functional components', () => {
@@ -23,13 +23,13 @@ const runTests = () => {
 
     const element = (<MyComponent />) as unknown as HTMLElement & VNode;
 
-    expect(elementRef.value).toEqual(element);
-    expect(elementRef.value).toBeInstanceOf(window.HTMLElement);
+    expect(elementRef.deproxy()).toBe(element);
+    expect(elementRef.deproxy()).toBeInstanceOf(window.HTMLElement);
 
     elementRef.listen(callback);
     const newInstance = <MyComponent />;
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(elementRef.value).toEqual(newInstance);
+    expect(elementRef.deproxy()).toBe(newInstance);
   });
 };
 
