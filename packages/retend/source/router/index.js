@@ -844,7 +844,8 @@ export class Router extends EventTarget {
     while (currentMatchedRoute) {
       if (!outlet) break;
 
-      if (outlet.getAttribute('data-path') === currentMatchedRoute.path) {
+      const previousOutletPath = outlet.getAttribute('data-path');
+      if (previousOutletPath === currentMatchedRoute.path) {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
         outlet = /** @type {RouterOutlet} */ (
@@ -929,7 +930,7 @@ export class Router extends EventTarget {
       const simplePath = fullPathWithSearchAndHash.split('?')[0];
 
       // The current path must react before the page loads.
-      const oldPath = this.currentPath.value.fullPath;
+      const oldOutletPath = outlet.getAttribute('data-path');
       if (this.currentPath.value.fullPath !== fullPathWithSearchAndHash) {
         this.currentPath.value = {
           name: currentMatchedRoute.name,
@@ -974,19 +975,8 @@ export class Router extends EventTarget {
       }
 
       // if the outlet is keep alive, we need to cache the current nodes
-      if (outlet.__keepAlive && oldPath && this.window) {
-        // Caching as a fragment instead of an array of nodes
-        // makes it possible for the cached nodes to still be reactive
-        // in a For, Switch or If block, since they are still in a DOM tree.
-        const fragment = this.window.document.createDocumentFragment();
-        const contents = /** @type {Context.AsNode[]} */ (outlet.childNodes);
-        fragment.append(...contents);
-        recordScrollPositions(fragment);
-        outlet.__keepAliveCache?.set(oldPath, {
-          fragment,
-          outletScroll: [outlet.scrollLeft, outlet.scrollTop],
-          windowScroll: [this.window?.scrollX ?? 0, this.window?.scrollY ?? 0],
-        });
+      if (oldOutletPath) {
+        this.#preserveCurrentOutletState(oldOutletPath, outlet);
       }
 
       const newNodes = generateChildNodes(renderedComponent);
@@ -1009,6 +999,8 @@ export class Router extends EventTarget {
     // outlet looking for a match, we can assume that the outlet is a child
     // that is not being used and should be flushed out.
     if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
+      const oldPath = outlet.getAttribute('data-path');
+      if (oldPath) this.#preserveCurrentOutletState(oldPath, outlet);
       outlet.removeAttribute('data-path');
       outlet.replaceChildren();
     }
@@ -1028,6 +1020,28 @@ export class Router extends EventTarget {
 
     return true;
   };
+
+  /**
+   * Saves the state of the outlet if keepAlive is turned on.
+   * @param {string} oldPath
+   * @param {RouterOutlet} outlet
+   */
+  #preserveCurrentOutletState(oldPath, outlet) {
+    if (outlet.__keepAlive && oldPath && this.window) {
+      // Caching as a fragment instead of an array of nodes
+      // makes it possible for the cached nodes to still be reactive
+      // in a For, Switch or If block, since they are still in a DOM tree.
+      const fragment = this.window.document.createDocumentFragment();
+      const contents = /** @type {Context.AsNode[]} */ (outlet.childNodes);
+      fragment.append(...contents);
+      recordScrollPositions(fragment);
+      outlet.__keepAliveCache?.set(oldPath, {
+        fragment,
+        outletScroll: [outlet.scrollLeft, outlet.scrollTop],
+        windowScroll: [this.window?.scrollX ?? 0, this.window?.scrollY ?? 0],
+      });
+    }
+  }
 
   /**
    * @template {RouterEventTypes} EventType
