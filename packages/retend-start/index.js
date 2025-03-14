@@ -10,24 +10,8 @@ import chalk from 'chalk';
 import ora from 'ora';
 import semver from 'semver';
 import { createPromptModule } from 'inquirer';
+import CONFIG from './config.json' with { type: 'json' };
 
-// Configuration
-const CONFIG = {
-  minNodeVersion: '14.0.0',
-  directories: ['public', 'public/icons', 'source', 'source/styles'],
-  dependencies: {
-    retend: '^0.0.3',
-    'retend-server': '^0.0.3',
-  },
-  devDependencies: {
-    vite: '^6.2.1',
-    typescript: '^5.5.2',
-    tailwindcss: '^3.4.10',
-    autoprefixer: '^10.4.20',
-    postcss: '^8.4.4',
-    sass: '^1.72.0',
-  },
-};
 
 const isBun =
   typeof process !== 'undefined' && process.versions && process.versions.bun;

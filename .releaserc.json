@@ -1,0 +1,24 @@
+{
+  "branches": ["main"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    "@semantic-release/npm",
+    "@semantic-release/git"
+  ],
+  "packages": [
+    {
+      "path": "./packages/retend",
+      "npmPublish": true
+    },
+    {
+      "path": "./packages/retend-server",
+      "npmPublish": true
+    },
+    {
+      "path": "./packages/retend-start",
+      "npmPublish": true
+    }
+  ]
+}
