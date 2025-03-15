@@ -1,10 +1,10 @@
-@title modifiers
-@description Demonstrates the usage of event modifiers in Retend JSX.
+@Title modifiers
+@Description Demonstrates the usage of event modifiers in Retend JSX.
 
 ---
 
-@example 1
-@input Prevent default form submission.
+@Example 1
+@Input Prevent default form submission.
 function PreventSubmitForm() {
   const handleSubmit = (event) => {
     alert('Form submit prevented!');
@@ -18,8 +18,8 @@ function PreventSubmitForm() {
 
 ---
 
-@example 2
-@input Stop event bubbling from child button to parent div.
+@Example 2
+@Input Stop event bubbling from child button to parent div.
 function StopBubbling() {
   const handleParentClick = () => {
     alert('Parent div clicked');
@@ -36,8 +36,8 @@ function StopBubbling() {
 
 ---
 
-@example 3
-@input Use `self` modifier to only trigger handler on the div itself, not child clicks.
+@Example 3
+@Input Use `self` modifier to only trigger handler on the div itself, not child clicks.
 function SelfModifierDiv() {
   const handleDivClick = () => {
     alert('Div clicked directly');
@@ -54,8 +54,8 @@ function SelfModifierDiv() {
 
 ---
 
-@example 4
-@input Use `once` modifier to trigger a click handler only once.
+@Example 4
+@Input Use `once` modifier to trigger a click handler only once.
 import { Cell } from 'retend';
 
 function OnceClickButton() {
@@ -74,8 +74,8 @@ function OnceClickButton() {
 
 ---
 
-@example 5
-@input Use `passive` modifier for a scroll event to improve performance.
+@Example 5
+@Input Use `passive` modifier for a scroll event to improve performance.
 function PassiveScrollDiv() {
   const handleScroll = (event) => {
     console.log('Passive scroll event', event);
@@ -89,8 +89,8 @@ function PassiveScrollDiv() {
 
 ---
 
-@example 6
-@input Combine `prevent` and `stop` modifiers on form submit.
+@Example 6
+@Input Combine `prevent` and `stop` modifiers on form submit.
 function PreventAndStopSubmitForm() {
   const handleSubmit = (event) => {
     alert('Form submit prevented and bubbling stopped!');
@@ -104,8 +104,8 @@ function PreventAndStopSubmitForm() {
 
 ---
 
-@example 7
-@input Combine `once` and `prevent` modifiers on a link.
+@Example 7
+@Input Combine `once` and `prevent` modifiers on a link.
 function OncePreventLink() {
   const handleClickOncePrevent = (event) => {
     alert('Link clicked once, default prevented!');
@@ -117,8 +117,8 @@ function OncePreventLink() {
 
 ---
 
-@example 8
-@input Use `self` and `stop` to handle clicks only on the element and stop propagation.
+@Example 8
+@Input Use `self` and `stop` to handle clicks only on the element and stop propagation.
 function SelfAndStopDiv() {
   const handleDivClickSelfStop = () => {
     alert('Div clicked directly, propagation stopped');
@@ -137,8 +137,8 @@ function SelfAndStopDiv() {
 
 ---
 
-@example 9
-@input `passive` modifier on `wheel` event for smoother scrolling.
+@Example 9
+@Input `passive` modifier on `wheel` event for smoother scrolling.
 function PassiveWheelDiv() {
   const handleWheel = (event) => {
     console.log('Passive wheel event', event);
@@ -152,8 +152,8 @@ function PassiveWheelDiv() {
 
 ---
 
-@example 10
-@input `once` modifier on mouseover event.
+@Example 10
+@Input `once` modifier on mouseover event.
 import { Cell } from 'retend';
 
 function OnceMouseoverDiv() {
@@ -174,8 +174,8 @@ function OnceMouseoverDiv() {
 
 ---
 
-@example 11
-@input Prevent context menu (right-click) using `prevent` modifier.
+@Example 11
+@Input Prevent context menu (right-click) using `prevent` modifier.
 function PreventContextMenu() {
   const handleContextMenu = (event) => {
     alert('Context menu prevented!');
@@ -189,8 +189,8 @@ function PreventContextMenu() {
 
 ---
 
-@example 12
-@input Stop keydown event propagation.
+@Example 12
+@Input Stop keydown event propagation.
 function StopKeydownPropagation() {
   const handleParentKeydown = () => {
     alert('Parent keydown handler (should not trigger)');
@@ -207,8 +207,8 @@ function StopKeydownPropagation() {
 
 ---
 
-@example 13
-@input Use `self` modifier on a button inside a form to only handle button clicks, not form clicks.
+@Example 13
+@Input Use `self` modifier on a button inside a form to only handle button clicks, not form clicks.
 function SelfButtonInForm() {
   const handleFormClick = () => {
     alert('Form clicked (should not trigger when button is clicked)');
@@ -225,8 +225,8 @@ function SelfButtonInForm() {
 
 ---
 
-@example 14
-@input `once` modifier on input focus event.
+@Example 14
+@Input `once` modifier on input focus event.
 import { Cell } from 'retend';
 
 function OnceFocusInput() {
@@ -245,8 +245,8 @@ function OnceFocusInput() {
 
 ---
 
-@example 15
-@input Combine `passive` and `prevent` - `passive` will take precedence and prevent `preventDefault` from working.
+@Example 15
+@Input Combine `passive` and `prevent` - `passive` will take precedence and prevent `preventDefault` from working.
 function PassivePreventScrollDiv() {
   const handleScroll = (event) => {
     event.preventDefault(); // This will be ignored because of passive
@@ -258,12 +258,12 @@ function PassivePreventScrollDiv() {
     </div>
   );
 }
-@note When combining `passive` with `prevent`, `passive` will take precedence, and `preventDefault` will not be called.
+@Note When combining `passive` with `prevent`, `passive` will take precedence, and `preventDefault` will not be called.
 
 ---
 
-@example 16
-@input Using `once` with a component.
+@Example 16
+@Input Using `once` with a component.
 import { Cell } from 'retend';
 
 function ClickCounterComponent() {
@@ -281,8 +281,8 @@ function ClickCounterComponent() {
 
 ---
 
-@example 17
-@input `prevent` modifier on a link inside a component.
+@Example 17
+@Input `prevent` modifier on a link inside a component.
 function LinkComponent() {
   const handleLinkClick = () => {
     alert('Link click prevented!');
@@ -296,8 +296,8 @@ function LinkComponent() {
 
 ---
 
-@example 18
-@input `stop` modifier on a button inside a component to stop event propagation to parent.
+@Example 18
+@Input `stop` modifier on a button inside a component to stop event propagation to parent.
 function ChildButtonComponent() {
   const handleButtonClick = () => {
     alert('Button in child component clicked, propagation stopped');
@@ -320,8 +320,8 @@ function ParentDivComponent() {
 
 ---
 
-@example 19
-@input `self` modifier on a div component.
+@Example 19
+@Input `self` modifier on a div component.
 function SelfDivComponent() {
   const handleDivClickSelf = () => {
     alert('Div component clicked directly');
@@ -335,8 +335,8 @@ function SelfDivComponent() {
 
 ---
 
-@example 20
-@input `passive` modifier on a scrollable component.
+@Example 20
+@Input `passive` modifier on a scrollable component.
 function ScrollableComponent() {
   const handleScrollPassive = (event) => {
     console.log('Passive scroll event in component', event);

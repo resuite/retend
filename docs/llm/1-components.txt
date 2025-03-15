@@ -1,67 +1,67 @@
-@title components
-@description Defines the component syntax for the Retend web framework.
+@Title components
+@Description Defines the component syntax for the Retend web framework.
 
 ---
 
-@example 1
-@input Basic component returning a div.
+@Example 1
+@Input Basic component returning a div.
 function MyComponent() {
   return <div />;
 }
-@note Component names must be PascalCase.
+@Note Component names must be PascalCase.
 
 ---
 
-@example 2
-@input Component with text content.
+@Example 2
+@Input Component with text content.
 function Greeting() {
   return <div>Hello</div>;
 }
 
 ---
 
-@example 3
-@input Component returning a button.
+@Example 3
+@Input Component returning a button.
 function ActionButton() {
   return <button type="button" />;
 }
 
 ---
 
-@example 4
-@input Component with a text prop.
+@Example 4
+@Input Component with a text prop.
 function Message(props) {
   const { text } = props;
   return <div>{text}</div>;
 }
-@note If props are defined, they must be destructured at the start of the component.
+@Note If props are defined, they must be destructured at the start of the component.
 
 ---
 
-@example 5
-@input Using the Message component.
+@Example 5
+@Input Using the Message component.
 <Message text="Welcome!" />
 
 ---
 
-@example 6
-@input Component with two props.
+@Example 6
+@Input Component with two props.
 function UserCard(props) {
   const { name, age } = props;
   return <div><p>Name: {name}</p><p>Age: {age}</p></div>;
 }
-@note If props are defined, they must be destructured at the start of the component.
+@Note If props are defined, they must be destructured at the start of the component.
 
 ---
 
-@example 7
-@input Using the UserCard component.
+@Example 7
+@Input Using the UserCard component.
 <UserCard name="Alice" age={30} />
 
 ---
 
-@example 8
-@input Component with style prop.
+@Example 8
+@Input Component with style prop.
 function StyledDiv(props) {
   const { style } = props;
   return <div style={style} />;
@@ -69,46 +69,46 @@ function StyledDiv(props) {
 
 ---
 
-@example 9
-@input Using the StyledDiv component.
+@Example 9
+@Input Using the StyledDiv component.
 <StyledDiv style={{ color: 'blue' }} />
 
 ---
 
-@example 10
-@input Component with class prop.
+@Example 10
+@Input Component with class prop.
 function ClassedSpan(props) {
   const { class: className } = props;
   return <span class={className} />;
 }
-@note Always use `class: className` to destructure reserved word 'class'.
+@Note Always use `class: className` to destructure reserved word 'class'.
 
 ---
 
-@example 11
-@input Using the ClassedSpan component.
+@Example 11
+@Input Using the ClassedSpan component.
 <ClassedSpan class="highlight" />
 
 ---
 
-@example 12
-@input Component with children prop (implicit).
+@Example 12
+@Input Component with children prop (implicit).
 function Card(props) {
   const { children } = props;
   return <div class="card">{children}</div>;
 }
-@note Access children directly by destructuring `props.children`.
+@Note Access children directly by destructuring `props.children`.
 
 ---
 
-@example 13
-@input Using the Card component with children.
+@Example 13
+@Input Using the Card component with children.
 <Card>This is card content.</Card>
 
 ---
 
-@example 14
-@input Component with boolean prop.
+@Example 14
+@Input Component with boolean prop.
 function Checkbox(props) {
   const { checked } = props;
   return <input type="checkbox" checked={checked} />;
@@ -116,21 +116,21 @@ function Checkbox(props) {
 
 ---
 
-@example 15
-@input Using the Checkbox component, checked.
+@Example 15
+@Input Using the Checkbox component, checked.
 <Checkbox checked />
-@note Boolean props on components can omit `=true`.
+@Note Boolean props on components can omit `=true`.
 
 ---
 
-@example 16
-@input Using Checkbox component, unchecked.
+@Example 16
+@Input Using Checkbox component, unchecked.
 <Checkbox />
 
 ---
 
-@example 17
-@input Component with prop for list items.
+@Example 17
+@Input Component with prop for list items.
 function DynamicList(props) {
   const { items } = props;
   return (
@@ -139,19 +139,19 @@ function DynamicList(props) {
     </ul>
   );
 }
-@note Do not use Array.map to loop over items in Retend JSX.
+@Note Do not use Array.map to loop over items in Retend JSX.
 
 ---
 
-@example 18
-@input Using DynamicList component.
+@Example 18
+@Input Using DynamicList component.
 <DynamicList items={[<li>Item A</li>, <li>Item B</li>]} />
-@note Items are passed directly as JSX array.
+@Note Items are passed directly as JSX array.
 
 ---
 
-@example 19
-@input Component with 'for' prop for label.
+@Example 19
+@Input Component with 'for' prop for label.
 function LabeledInput(props) {
   const { labelText, inputId } = props;
   return (
@@ -161,18 +161,18 @@ function LabeledInput(props) {
     </label>
   );
 }
-@note Retend uses 'for' attribute for labels, not 'htmlFor'.
+@Note Retend uses 'for' attribute for labels, not 'htmlFor'.
 
 ---
 
-@example 20
-@input Using the LabeledInput component.
+@Example 20
+@Input Using the LabeledInput component.
 <LabeledInput labelText="Email:" inputId="email-input" />
 
 ---
 
-@example 21
-@input Component for a self-closing image.
+@Example 21
+@Input Component for a self-closing image.
 function IconImage(props) {
   const { src, alt } = props;
   return <img src={src} alt={alt} />;
@@ -180,14 +180,14 @@ function IconImage(props) {
 
 ---
 
-@example 22
-@input Using the IconImage component.
+@Example 22
+@Input Using the IconImage component.
 <IconImage src="/images/icon.png" alt="App Icon" />
 
 ---
 
-@example 23
-@input Component for a link with href and text.
+@Example 23
+@Input Component for a link with href and text.
 function SimpleLink(props) {
   const { href, text } = props;
   return <a href={href}>{text}</a>;
@@ -195,18 +195,18 @@ function SimpleLink(props) {
 
 ---
 
-@example 24
-@input Using the SimpleLink component.
+@Example 24
+@Input Using the SimpleLink component.
 <SimpleLink href="https://example.com" text="Example Link" />
 
 ---
 
-@example 25
-@input Component accepting props object directly (not destructured - for passing down).
+@Example 25
+@Input Component accepting props object directly (not destructured - for passing down).
 function ForwardPropsButton(props) {
   const { children, ...rest } = props;
   return <button type="button" {...rest}>{children}</button>;
 }
-@note Prop object can be spread when passing down to other elements/components.
+@Note Prop object can be spread when passing down to other elements/components.
 
 ---

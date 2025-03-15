@@ -1,170 +1,171 @@
-@title classes
-@description Demonstrates the usage of the `class` attribute in Retend JSX.
+@Title classes
+@Description Demonstrates the usage of the `class` attribute in Retend JSX.
+@Note Do not use string interpolation for class names. Do not use template literals or string concatenation for class names. Use the standard class syntax supported by Retend.
 
 ---
 
-@example 1
-@input Div with a single class name.
+@Example 1
+@Input Div with a single class name.
 <div class="container" />
 
 ---
 
-@example 2
-@input Div with multiple classes (string).
+@Example 2
+@Input Div with multiple classes (string).
 <div class="container main-content" />
-@note Multiple classes can be specified as a space-separated string.
+@Note Multiple classes can be specified as a space-separated string.
 
 ---
 
-@example 3
-@input Div with class as an array of strings.
+@Example 3
+@Input Div with class as an array of strings.
 <div class={['container', 'main-content']} />
-@note Class can be an array of strings.
-@note Do not use string interpolation for class names. Use a class array.
+@Note Class can be an array of strings.
+@Note Do not use string interpolation for class names. Use a class array.
 
 ---
 
-@example 4
-@input Div with class as an object (truthy).
+@Example 4
+@Input Div with class as an object (truthy).
 <div class={{ container: true }} />
-@note Class can be an object where keys are class names and values are booleans.
+@Note Class can be an object where keys are class names and values are booleans.
 
 ---
 
-@example 5
-@input Div with class object (falsy).
+@Example 5
+@Input Div with class object (falsy).
 <div class={{ container: false }} />
-@note Falsy values in class object exclude the class.
+@Note Falsy values in class object exclude the class.
 
 ---
 
-@example 6
-@input Div with reactive name
+@Example 6
+@Input Div with reactive name
 const className = Cell.source('container');
 <div class={container} />
-@note Reactive values in class object are converted to strings.
+@Note Reactive values in class object are converted to strings.
 
 ---
 
-@example 7
-@input Element with nested reactive class array
+@Example 7
+@Input Element with nested reactive class array
 const className = Cell.source('container');
 const activityClass = Cell.derived(() => className.value === 'container' ? 'active' : 'inactive');
 <div class={[className, activityClass, 'main-content', {hidden: false}]} />
 
 ---
 
-@example 8
-@input Div class array with falsy values.
+@Example 8
+@Input Div class array with falsy values.
 <div class={['container', false, 'main-content', null, undefined, 'extra-style']} />
-@note Falsy values in class arrays are ignored.
+@Note Falsy values in class arrays are ignored.
 
 ---
 
-@example 9
-@input Reactive class object with falsy values.
+@Example 9
+@Input Reactive class object with falsy values.
 const isContainer = Cell.source(true);
 const isCard = Cell.source(false);
 <div class={[{ isCard }, { container: isContainer, hidden: false, 'another-false': null, 'yet-another': undefined }]} />
-@note Falsy values in class objects are ignored.
+@Note Falsy values in class objects are ignored.
 
 ---
 
-@example 10
-@input Div with no class attribute.
+@Example 10
+@Input Div with no class attribute.
 <div />
 
 ---
 
-@example 11
-@input Div with empty class attribute (string).
+@Example 11
+@Input Div with empty class attribute (string).
 <div class="" />
-@note Empty string in class attribute has no effect.
+@Note Empty string in class attribute has no effect.
 
 ---
 
-@example 12
-@input Div with class array, nested array (flattened).
+@Example 12
+@Input Div with class array, nested array (flattened).
 <div class={['container', ['nested', 'array']]} />
-@note Nested arrays within class arrays are treated as single level.
+@Note Nested arrays within class arrays are treated as single level.
 
 ---
 
-@example 13
-@input Div with class object, number keys (invalid class).
+@Example 13
+@Input Div with class object, number keys (invalid class).
 <div class={{ 123: true, container: true }} />
-@note Number keys are not valid class names.
+@Note Number keys are not valid class names.
 
 ---
 
-@example 14
-@input Div with class string and special chars (allowed).
+@Example 14
+@Input Div with class string and special chars (allowed).
 <div class="class-with-!@#$%^&*_chars" />
-@note Class names can contain special characters.
+@Note Class names can contain special characters.
 
 ---
 
-@example 15
-@input Div with class as mixed array/object.
+@Example 15
+@Input Div with class as mixed array/object.
 <div class={['container', { 'main-content': true }, 'extra-class']} />
-@note Class can be a mix of arrays and objects.
+@Note Class can be a mix of arrays and objects.
 
 ---
 
-@example 16
-@input  Span with a different class.
+@Example 16
+@Input  Span with a different class.
 <span class="text-primary" />
 
 ---
 
-@example 17
-@input  Span with two classes for styling.
+@Example 17
+@Input  Span with two classes for styling.
 <span class="text-primary bold" />
 
 ---
 
-@example 18
-@input  Span with class array, two names.
+@Example 18
+@Input  Span with class array, two names.
 <span class={['text-secondary', 'italic']} />
 
 ---
 
-@example 19
-@input  Span with class object, primary true.
+@Example 19
+@Input  Span with class object, primary true.
 <span class={{ 'text-primary': true }} />
 
 ---
 
-@example 20
-@input  Span with class object, secondary false.
+@Example 20
+@Input  Span with class object, secondary false.
 <span class={{ 'text-secondary': false }} />
 
 ---
 
-@example 21
-@input  Span with class object, primary and bold.
+@Example 21
+@Input  Span with class object, primary and bold.
 <span class={{ 'text-primary': true, bold: true }} />
 
 ---
 
-@example 22
-@input  Span with class object, secondary true, italic false.
+@Example 22
+@Input  Span with class object, secondary true, italic false.
 <span class={{ 'text-secondary': true, italic: false }} />
 
 ---
 
-@example 23
-@input  Span class array and single string.
+@Example 23
+@Input  Span class array and single string.
 <span class={['text-primary', 'bold']} />
 
 ---
 
-@example 24
-@input  Span class object with many styles.
+@Example 24
+@Input  Span class object with many styles.
 <span class={{ 'text-primary': true, bold: true, italic: true }} />
 
 ---
 
-@example 25
-@input  Span class array, falsy and strings.
+@Example 25
+@Input  Span class array, falsy and strings.
 <span class={['text-primary', null, 'bold', undefined, false]} />

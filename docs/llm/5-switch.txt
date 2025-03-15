@@ -1,10 +1,10 @@
-@title switch
-@description Demonstrates 20 key examples of the `Switch` function in Retend JSX for conditional branch rendering based on a non-boolean value.
+@Title switch
+@Description Demonstrates 20 key examples of the `Switch` function in Retend JSX for conditional branch rendering based on a non-boolean value.
 
 ---
 
-@example 1
-@input Static string value switch with two cases.
+@Example 1
+@Input Static string value switch with two cases.
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -22,8 +22,8 @@ const Component = () => {
 
 ---
 
-@example 2
-@input Static string value switch with default case.
+@Example 2
+@Input Static string value switch with default case.
 import { Switch } from 'retend';
 
 const caseValue = 'caseD';
@@ -38,12 +38,12 @@ const Component = () => {
     </div>
   );
 };
-@note A default case is provided to handle values that do not match any defined cases.
+@Note A default case is provided to handle values that do not match any defined cases.
 
 ---
 
-@example 3
-@input Reactive cell string value switch and button to change case.
+@Example 3
+@Input Reactive cell string value switch and button to change case.
 import { Switch, Cell } from 'retend';
 
 const caseCell = Cell.source('caseA');
@@ -65,8 +65,8 @@ const Component = () => {
 
 ---
 
-@example 4
-@input Static number value switch.
+@Example 4
+@Input Static number value switch.
 import { Switch } from 'retend';
 
 const numberCase = 1;
@@ -84,8 +84,8 @@ const Component = () => {
 
 ---
 
-@example 5
-@input Reactive cell number value switch and button to increment.
+@Example 5
+@Input Reactive cell number value switch and button to increment.
 import { Switch, Cell } from 'retend';
 
 const numberCell = Cell.source(1);
@@ -107,8 +107,8 @@ const Component = () => {
 
 ---
 
-@example 6
-@input Static symbol value switch (requires Symbol definition).
+@Example 6
+@Input Static symbol value switch (requires Symbol definition).
 import { Switch } from 'retend';
 
 const CASE_SYMBOL_A = Symbol('caseA');
@@ -128,8 +128,8 @@ const Component = () => {
 
 ---
 
-@example 7
-@input Static null value switch.
+@Example 7
+@Input Static null value switch.
 import { Switch } from 'retend';
 
 const caseValue = null;
@@ -147,8 +147,8 @@ const Component = () => {
 
 ---
 
-@example 8
-@input Static undefined value switch.
+@Example 8
+@Input Static undefined value switch.
 import { Switch } from 'retend';
 
 let caseValue;
@@ -166,8 +166,8 @@ const Component = () => {
 
 ---
 
-@example 9
-@input Switch with JSX fragments in cases.
+@Example 9
+@Input Switch with JSX fragments in cases.
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -195,8 +195,8 @@ const Component = () => {
 
 ---
 
-@example 10
-@input Switch with nested components in cases.
+@Example 10
+@Input Switch with nested components in cases.
 import { Switch } from 'retend';
 
 const caseValue = 'caseB';
@@ -217,8 +217,8 @@ const Component = () => {
 
 ---
 
-@example 11
-@input Nested Switch components.
+@Example 11
+@Input Nested Switch components.
 import { Switch, Cell } from 'retend';
 
 const outerCase = Cell.source('caseA');
@@ -240,8 +240,8 @@ const Component = () => {
 
 ---
 
-@example 12
-@input Switch with different element types in cases (div, span, p).
+@Example 12
+@Input Switch with different element types in cases (div, span, p).
 import { Switch } from 'retend';
 
 const caseValue = 'caseB';
@@ -260,8 +260,8 @@ const Component = () => {
 
 ---
 
-@example 13
-@input Switch with style attributes in cases.
+@Example 13
+@Input Switch with style attributes in cases.
 import { Switch } from 'retend';
 
 const caseValue = 'caseB';
@@ -279,8 +279,8 @@ const Component = () => {
 
 ---
 
-@example 14
-@input Switch with event handlers (onClick) in cases.
+@Example 14
+@Input Switch with event handlers (onClick) in cases.
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -301,8 +301,8 @@ const Component = () => {
 
 ---
 
-@example 15
-@input Switch with no matching case and no default case.
+@Example 15
+@Input Switch with no matching case and no default case.
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';
@@ -317,12 +317,12 @@ const Component = () => {
     </div>
   );
 };
-@note When no case matches and no default is provided, nothing is rendered for the Switch.
+@Note When no case matches and no default is provided, nothing is rendered for the Switch.
 
 ---
 
-@example 16
-@input Switch inside a list rendered by For.
+@Example 16
+@Input Switch inside a list rendered by For.
 import { Switch, For } from 'retend';
 
 const items = ['caseA', 'caseB', 'caseA'];
@@ -344,8 +344,8 @@ const Component = () => {
 
 ---
 
-@example 17
-@input Switch with default case using component as default.
+@Example 17
+@Input Switch with default case using component as default.
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';
@@ -365,8 +365,8 @@ const Component = () => {
 
 ---
 
-@example 18
-@input Switch with default case receiving the value as argument.
+@Example 18
+@Input Switch with default case receiving the value as argument.
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';
@@ -381,12 +381,12 @@ const Component = () => {
     </div>
   );
 };
-@note The default case function receives the switch value as its first argument.
+@Note The default case function receives the switch value as its first argument.
 
 ---
 
-@example 19
-@input Switch with cases as functions.
+@Example 19
+@Input Switch with cases as functions.
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -404,12 +404,12 @@ const Component = () => {
     </div>
   );
 };
-@note Cases can directly be functions that return JSX templates.
+@Note Cases can directly be functions that return JSX templates.
 
 ---
 
-@example 20
-@input Switch with default case as arrow function.
+@Example 20
+@Input Switch with default case as arrow function.
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';
@@ -426,4 +426,4 @@ const Component = () => {
     </div>
   );
 };
-@note Default case can also use arrow function syntax.
+@Note Default case can also use arrow function syntax.

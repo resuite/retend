@@ -1,11 +1,11 @@
-@title observer
-@description Demonstrates the usage of the `useObserver` function in Retend for DOM connection and disconnection lifecycle management.
-@note `useObserver` is the only lifecycle hook in Retend.
+@Title observer
+@Description Demonstrates the usage of the `useObserver` function in Retend for DOM connection and disconnection lifecycle management.
+@Note `useObserver` is the only lifecycle hook in Retend.
 
 ---
 
-@example 1
-@input Basic div with connection observer logging a message.
+@Example 1
+@Input Basic div with connection observer logging a message.
 import { Cell, useObserver } from 'retend';
 
 const ObserverDiv = () => {
@@ -18,11 +18,11 @@ const ObserverDiv = () => {
 
   return <div ref={divRef}>Observer Div</div>;
 };
-@note in Typescript, the cell call should be typed as `Cell.source<HTMLDivElement | null>(null)`.
+@Note in Typescript, the cell call should be typed as `Cell.source<HTMLDivElement | null>(null)`.
 ---
 
-@example 2
-@input Paragraph element with observer setting an attribute on connect.
+@Example 2
+@Input Paragraph element with observer setting an attribute on connect.
 import { Cell, useObserver } from 'retend';
 
 const ObserverParagraph = () => {
@@ -35,12 +35,12 @@ const ObserverParagraph = () => {
 
   return <p ref={pRef}>Observed Paragraph</p>;
 };
-@note in Typescript, the cell call should be typed as `Cell.source<HTMLParagraphElement | null>(null)`.
+@Note in Typescript, the cell call should be typed as `Cell.source<HTMLParagraphElement | null>(null)`.
 
 ---
 
-@example 3
-@input Button element with observer setting style on connect and cleaning up on disconnect.
+@Example 3
+@Input Button element with observer setting style on connect and cleaning up on disconnect.
 import { Cell, useObserver } from 'retend';
 
 const ObserverButton = () => {
@@ -59,8 +59,8 @@ const ObserverButton = () => {
 
 ---
 
-@example 4
-@input Link element with observer setting href on connect.
+@Example 4
+@Input Link element with observer setting href on connect.
 import { Cell, useObserver } from 'retend';
 
 const ObserverLink = () => {
@@ -76,8 +76,8 @@ const ObserverLink = () => {
 
 ---
 
-@example 5
-@input Image element with observer setting src on connect.
+@Example 5
+@Input Image element with observer setting src on connect.
 import { Cell, useObserver } from 'retend';
 
 const ObserverImage = () => {
@@ -93,8 +93,8 @@ const ObserverImage = () => {
 
 ---
 
-@example 6
-@input Observer on a div that creates a timer on connect and clears it on disconnect.
+@Example 6
+@Input Observer on a div that creates a timer on connect and clears it on disconnect.
 import { Cell, useObserver } from 'retend';
 
 const TimerDiv = () => {
@@ -117,8 +117,8 @@ const TimerDiv = () => {
 
 ---
 
-@example 7
-@input Observer on a list item that adds a class on connect.
+@Example 7
+@Input Observer on a list item that adds a class on connect.
 import { Cell, useObserver } from 'retend';
 
 const ObserverListItem = () => {
@@ -137,8 +137,8 @@ const ObserverListItem = () => {
 
 ---
 
-@example 8
-@input Observer on an input that focuses on connect and removes focus on disconnect.
+@Example 8
+@Input Observer on an input that focuses on connect and removes focus on disconnect.
 import { Cell, useObserver } from 'retend';
 
 const ObserverInput = () => {
@@ -157,8 +157,8 @@ const ObserverInput = () => {
 
 ---
 
-@example 9
-@input Rendering different observers based on the result of If.
+@Example 9
+@Input Rendering different observers based on the result of If.
 import { Cell, useObserver, If } from 'retend';
 
 const ConditionalObserver = () => {
@@ -188,5 +188,5 @@ const ConditionalObserver = () => {
     </>
   );
 };
-@note handlers and event listeners should be declared before observer.onConnected is called.
-@note Prefer creating handlers and event listeners outside JSX, if possible.
+@Note handlers and event listeners should be declared before observer.onConnected is called.
+@Note Prefer creating handlers and event listeners outside JSX, if possible.
