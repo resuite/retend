@@ -262,34 +262,45 @@
 ---
 
 @example 35
-@input Number input with step.
+@input SVG element.
 @output
-<input type="number" step="2" />
-
+<svg xlmns="http://www.w3.org/2000/svg" width="200" height="100">
+    <rect xlmns="http://www.w3.org/2000/svg" width="100" height="50" fill="red" />
+    <circle xlmns="http://www.w3.org/2000/svg" cx="50" cy="50" r="40" fill="blue" />
+</svg>
+@note SVG elements and all their children must have the `xmlns` attribute.
 ---
 
 @example 36
-@input Select dropdown.
+@input Basic SVG circle.
 @output
-<select />
-@note Retend requires self-closing tags for elements with no children.
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+    <circle xmlns="http://www.w3.org/2000/svg" cx="50" cy="50" r="40" fill="green" />
+</svg>
+@note SVG elements and all their children must have the `xmlns` attribute.
 
 ---
 
 @example 37
-@input Select with one option.
+@input SVG rectangle with stroke.
 @output
-<select><option value="option1">Option 1</option></select>
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="100">
+    <rect xmlns="http://www.w3.org/2000/svg" x="10" y="10" width="130" height="80" fill="yellow" stroke="black" stroke-width="2" />
+</svg>
+@note SVG elements and all their children must have the `xmlns` attribute.
 
 ---
 
 @example 38
-@input Select with two options.
+@input SVG line and polygon.
 @output
-<select><option value="option1">Option 1</option><option value="option2">Option 2</option></select>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
+    <line xmlns="http://www.w3.org/2000/svg" x1="10" y1="10" x2="190" y2="90" stroke="red" stroke-width="3" />
+    <polygon xmlns="http://www.w3.org/2000/svg" points="50,10 90,90 10,90" fill="purple" />
+</svg>
+@note SVG elements and all their children must have the `xmlns` attribute.
 
 ---
-
 @example 39
 @input Select option, selected.
 @output
