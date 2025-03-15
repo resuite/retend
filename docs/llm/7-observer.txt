@@ -20,7 +20,7 @@ const ObserverDiv = () => {
 
   return <div ref={divRef}>Observer Div</div>;
 };
-
+@note in Typescript, the cell call should be typed as `Cell.source<HTMLDivElement | null>(null)`.
 ---
 
 @example 2
@@ -38,6 +38,7 @@ const ObserverParagraph = () => {
 
   return <p ref={pRef}>Observed Paragraph</p>;
 };
+@note in Typescript, the cell call should be typed as `Cell.source<HTMLParagraphElement | null>(null)`.
 
 ---
 
