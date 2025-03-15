@@ -1,14 +1,10 @@
---- START OF FILE switch.ref.txt ---
-
-@title switch-usage
+@title switch
 @description Demonstrates 20 key examples of the `Switch` function in Retend JSX for conditional branch rendering based on a non-boolean value.
-@preamble Examples showcase core `Switch` functionalities including static and reactive values, default cases, JSX fragments, and nested switches. All examples adhere to Retend JSX rules. `Switch` is used for non-boolean conditional rendering and does not accept boolean values or cells directly.
 
 ---
 
 @example 1
 @input Static string value switch with two cases.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -28,7 +24,6 @@ const Component = () => {
 
 @example 2
 @input Static string value switch with default case.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseD';
@@ -49,7 +44,6 @@ const Component = () => {
 
 @example 3
 @input Reactive cell string value switch and button to change case.
-@output
 import { Switch, Cell } from 'retend';
 
 const caseCell = Cell.source('caseA');
@@ -73,7 +67,6 @@ const Component = () => {
 
 @example 4
 @input Static number value switch.
-@output
 import { Switch } from 'retend';
 
 const numberCase = 1;
@@ -93,7 +86,6 @@ const Component = () => {
 
 @example 5
 @input Reactive cell number value switch and button to increment.
-@output
 import { Switch, Cell } from 'retend';
 
 const numberCell = Cell.source(1);
@@ -117,7 +109,6 @@ const Component = () => {
 
 @example 6
 @input Static symbol value switch (requires Symbol definition).
-@output
 import { Switch } from 'retend';
 
 const CASE_SYMBOL_A = Symbol('caseA');
@@ -139,7 +130,6 @@ const Component = () => {
 
 @example 7
 @input Static null value switch.
-@output
 import { Switch } from 'retend';
 
 const caseValue = null;
@@ -159,7 +149,6 @@ const Component = () => {
 
 @example 8
 @input Static undefined value switch.
-@output
 import { Switch } from 'retend';
 
 let caseValue;
@@ -179,7 +168,6 @@ const Component = () => {
 
 @example 9
 @input Switch with JSX fragments in cases.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -209,7 +197,6 @@ const Component = () => {
 
 @example 10
 @input Switch with nested components in cases.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseB';
@@ -232,7 +219,6 @@ const Component = () => {
 
 @example 11
 @input Nested Switch components.
-@output
 import { Switch, Cell } from 'retend';
 
 const outerCase = Cell.source('caseA');
@@ -256,7 +242,6 @@ const Component = () => {
 
 @example 12
 @input Switch with different element types in cases (div, span, p).
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseB';
@@ -277,7 +262,6 @@ const Component = () => {
 
 @example 13
 @input Switch with style attributes in cases.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseB';
@@ -297,7 +281,6 @@ const Component = () => {
 
 @example 14
 @input Switch with event handlers (onClick) in cases.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -320,7 +303,6 @@ const Component = () => {
 
 @example 15
 @input Switch with no matching case and no default case.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';
@@ -341,7 +323,6 @@ const Component = () => {
 
 @example 16
 @input Switch inside a list rendered by For.
-@output
 import { Switch, For } from 'retend';
 
 const items = ['caseA', 'caseB', 'caseA'];
@@ -365,7 +346,6 @@ const Component = () => {
 
 @example 17
 @input Switch with default case using component as default.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';
@@ -387,7 +367,6 @@ const Component = () => {
 
 @example 18
 @input Switch with default case receiving the value as argument.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';
@@ -408,7 +387,6 @@ const Component = () => {
 
 @example 19
 @input Switch with cases as functions.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseA';
@@ -432,7 +410,6 @@ const Component = () => {
 
 @example 20
 @input Switch with default case as arrow function.
-@output
 import { Switch } from 'retend';
 
 const caseValue = 'caseC';

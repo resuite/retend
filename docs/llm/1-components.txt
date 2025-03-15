@@ -1,12 +1,10 @@
-@title retend-components
+@title components
 @description Defines the component syntax for the Retend web framework.
-@preamble Retend components are functions that return JSX. Component names are PascalCase. Props are passed as the first argument and must be destructured at the start of the function body.
 
 ---
 
 @example 1
 @input Basic component returning a div.
-@output
 function MyComponent() {
   return <div />;
 }
@@ -16,7 +14,6 @@ function MyComponent() {
 
 @example 2
 @input Component with text content.
-@output
 function Greeting() {
   return <div>Hello</div>;
 }
@@ -25,7 +22,6 @@ function Greeting() {
 
 @example 3
 @input Component returning a button.
-@output
 function ActionButton() {
   return <button type="button" />;
 }
@@ -34,7 +30,6 @@ function ActionButton() {
 
 @example 4
 @input Component with a text prop.
-@output
 function Message(props) {
   const { text } = props;
   return <div>{text}</div>;
@@ -45,14 +40,12 @@ function Message(props) {
 
 @example 5
 @input Using the Message component.
-@output
 <Message text="Welcome!" />
 
 ---
 
 @example 6
 @input Component with two props.
-@output
 function UserCard(props) {
   const { name, age } = props;
   return <div><p>Name: {name}</p><p>Age: {age}</p></div>;
@@ -63,14 +56,12 @@ function UserCard(props) {
 
 @example 7
 @input Using the UserCard component.
-@output
 <UserCard name="Alice" age={30} />
 
 ---
 
 @example 8
 @input Component with style prop.
-@output
 function StyledDiv(props) {
   const { style } = props;
   return <div style={style} />;
@@ -80,14 +71,12 @@ function StyledDiv(props) {
 
 @example 9
 @input Using the StyledDiv component.
-@output
 <StyledDiv style={{ color: 'blue' }} />
 
 ---
 
 @example 10
 @input Component with class prop.
-@output
 function ClassedSpan(props) {
   const { class: className } = props;
   return <span class={className} />;
@@ -98,14 +87,12 @@ function ClassedSpan(props) {
 
 @example 11
 @input Using the ClassedSpan component.
-@output
 <ClassedSpan class="highlight" />
 
 ---
 
 @example 12
 @input Component with children prop (implicit).
-@output
 function Card(props) {
   const { children } = props;
   return <div class="card">{children}</div>;
@@ -116,14 +103,12 @@ function Card(props) {
 
 @example 13
 @input Using the Card component with children.
-@output
 <Card>This is card content.</Card>
 
 ---
 
 @example 14
 @input Component with boolean prop.
-@output
 function Checkbox(props) {
   const { checked } = props;
   return <input type="checkbox" checked={checked} />;
@@ -133,7 +118,6 @@ function Checkbox(props) {
 
 @example 15
 @input Using the Checkbox component, checked.
-@output
 <Checkbox checked />
 @note Boolean props on components can omit `=true`.
 
@@ -141,14 +125,12 @@ function Checkbox(props) {
 
 @example 16
 @input Using Checkbox component, unchecked.
-@output
 <Checkbox />
 
 ---
 
 @example 17
 @input Component with prop for list items.
-@output
 function DynamicList(props) {
   const { items } = props;
   return (
@@ -163,7 +145,6 @@ function DynamicList(props) {
 
 @example 18
 @input Using DynamicList component.
-@output
 <DynamicList items={[<li>Item A</li>, <li>Item B</li>]} />
 @note Items are passed directly as JSX array.
 
@@ -171,7 +152,6 @@ function DynamicList(props) {
 
 @example 19
 @input Component with 'for' prop for label.
-@output
 function LabeledInput(props) {
   const { labelText, inputId } = props;
   return (
@@ -181,20 +161,18 @@ function LabeledInput(props) {
     </label>
   );
 }
-@note Retend uses 'for', not 'htmlFor'.
+@note Retend uses 'for' attribute for labels, not 'htmlFor'.
 
 ---
 
 @example 20
 @input Using the LabeledInput component.
-@output
 <LabeledInput labelText="Email:" inputId="email-input" />
 
 ---
 
 @example 21
 @input Component for a self-closing image.
-@output
 function IconImage(props) {
   const { src, alt } = props;
   return <img src={src} alt={alt} />;
@@ -204,14 +182,12 @@ function IconImage(props) {
 
 @example 22
 @input Using the IconImage component.
-@output
 <IconImage src="/images/icon.png" alt="App Icon" />
 
 ---
 
 @example 23
 @input Component for a link with href and text.
-@output
 function SimpleLink(props) {
   const { href, text } = props;
   return <a href={href}>{text}</a>;
@@ -221,14 +197,12 @@ function SimpleLink(props) {
 
 @example 24
 @input Using the SimpleLink component.
-@output
 <SimpleLink href="https://example.com" text="Example Link" />
 
 ---
 
 @example 25
 @input Component accepting props object directly (not destructured - for passing down).
-@output
 function ForwardPropsButton(props) {
   const { children, ...rest } = props;
   return <button type="button" {...rest}>{children}</button>;

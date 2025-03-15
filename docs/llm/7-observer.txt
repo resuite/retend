@@ -1,13 +1,11 @@
-@title observer.ref.txt
+@title observer
 @description Demonstrates the usage of the `useObserver` function in Retend for DOM connection and disconnection lifecycle management.
-@preamble Examples showcase connecting/disconnecting observers to different elements, performing setup and teardown actions, and interacting with other Retend features. Obey all rules and notes.
 @note `useObserver` is the only lifecycle hook in Retend.
 
 ---
 
 @example 1
 @input Basic div with connection observer logging a message.
-@output
 import { Cell, useObserver } from 'retend';
 
 const ObserverDiv = () => {
@@ -25,7 +23,6 @@ const ObserverDiv = () => {
 
 @example 2
 @input Paragraph element with observer setting an attribute on connect.
-@output
 import { Cell, useObserver } from 'retend';
 
 const ObserverParagraph = () => {
@@ -44,7 +41,6 @@ const ObserverParagraph = () => {
 
 @example 3
 @input Button element with observer setting style on connect and cleaning up on disconnect.
-@output
 import { Cell, useObserver } from 'retend';
 
 const ObserverButton = () => {
@@ -65,7 +61,6 @@ const ObserverButton = () => {
 
 @example 4
 @input Link element with observer setting href on connect.
-@output
 import { Cell, useObserver } from 'retend';
 
 const ObserverLink = () => {
@@ -83,7 +78,6 @@ const ObserverLink = () => {
 
 @example 5
 @input Image element with observer setting src on connect.
-@output
 import { Cell, useObserver } from 'retend';
 
 const ObserverImage = () => {
@@ -101,7 +95,6 @@ const ObserverImage = () => {
 
 @example 6
 @input Observer on a div that creates a timer on connect and clears it on disconnect.
-@output
 import { Cell, useObserver } from 'retend';
 
 const TimerDiv = () => {
@@ -126,7 +119,6 @@ const TimerDiv = () => {
 
 @example 7
 @input Observer on a list item that adds a class on connect.
-@output
 import { Cell, useObserver } from 'retend';
 
 const ObserverListItem = () => {
@@ -147,7 +139,6 @@ const ObserverListItem = () => {
 
 @example 8
 @input Observer on an input that focuses on connect and removes focus on disconnect.
-@output
 import { Cell, useObserver } from 'retend';
 
 const ObserverInput = () => {
@@ -168,7 +159,6 @@ const ObserverInput = () => {
 
 @example 9
 @input Rendering different observers based on the result of If.
-@output
 import { Cell, useObserver, If } from 'retend';
 
 const ConditionalObserver = () => {

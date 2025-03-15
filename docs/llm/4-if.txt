@@ -1,12 +1,10 @@
 @title if
 @description Demonstrates 30 key examples of the `If` function in Retend JSX for conditional rendering.
-@preamble Examples showcase static values, reactive cells, function and object syntax, nesting, and essential combinations with other Retend features. All adhere to Retend JSX rules.  When both true and false conditions are handled, the object syntax for `If` is preferred for clarity. For simple true-condition rendering, function syntax remains concise and effective.
 
 ---
 
 @example 1
 @input Render a div if a static boolean is true.
-@output
 const show = true;
 
 const Component = () => {
@@ -17,7 +15,6 @@ const Component = () => {
 
 @example 2
 @input Render different content based on a static boolean with an else case.
-@output
 const isLoggedIn = false;
 
 const Component = () => {
@@ -28,7 +25,6 @@ const Component = () => {
 
 @example 3
 @input Use an object with true and false cases for a static boolean.
-@output
 const isActive = true;
 
 const Component = () => {
@@ -39,7 +35,6 @@ const Component = () => {
 
 @example 4
 @input Toggle visibility with a reactive boolean cell.
-@output
 import { Cell, If } from 'retend';
 
 const show = Cell.source(true);
@@ -58,7 +53,6 @@ const Component = () => {
 
 @example 5
 @input Toggle between two elements with a reactive cell and else case.
-@output
 import { Cell, If } from 'retend';
 
 const isDay = Cell.source(true);
@@ -74,7 +68,6 @@ const Component = () => {
 
 @example 6
 @input Use multiple argument syntax with a reactive cell.
-@output
 import { Cell, If } from 'retend';
 
 const isOnline = Cell.source(false);
@@ -93,7 +86,6 @@ const Component = () => {
 
 @example 7
 @input Show a loading spinner only when loading with a reactive cell.
-@output
 import { Cell, If } from 'retend';
 
 const isLoading = Cell.source(true);
@@ -112,7 +104,6 @@ const Component = () => {
 
 @example 8
 @input Render alternative content if a static string is empty (falsy).
-@output
 const name = '';
 
 const Component = () => {
@@ -123,7 +114,6 @@ const Component = () => {
 
 @example 9
 @input Render based on a static number comparison.
-@output
 const age = 18;
 
 const Component = () => {
@@ -134,7 +124,6 @@ const Component = () => {
 
 @example 10
 @input Toggle between positive and negative with a reactive number cell.
-@output
 import { Cell, If } from 'retend';
 
 const number = Cell.source(5);
@@ -153,7 +142,6 @@ const Component = () => {
 
 @example 11
 @input Reactively show message based on array length with a cell.
-@output
 import { Cell, If } from 'retend';
 
 const items = Cell.source([]);
@@ -173,7 +161,6 @@ const Component = () => {
 
 @example 12
 @input Nested If statements with static booleans.
-@output
 const isLoggedIn = true;
 const isAdmin = false;
 
@@ -192,7 +179,6 @@ const Component = () => {
 
 @example 13
 @input Reactive nested conditions with cells.
-@output
 import { Cell, If } from 'retend';
 
 const isLoggedIn = Cell.source(false);
@@ -217,7 +203,6 @@ const Component = () => {
 
 @example 14
 @input Reactive nested If with object syntax and cell value.
-@output
 import { Cell, If } from 'retend';
 
 const status = Cell.source('loading');
@@ -239,7 +224,6 @@ const Component = () => {
 
 @example 15
 @input Show user name if user object exists with a reactive cell.
-@output
 import { Cell, If } from 'retend';
 
 const user = Cell.source({ name: 'Alice' });
@@ -258,7 +242,6 @@ const Component = () => {
 
 @example 16
 @input Reactive cart with add and clear functionality.
-@output
 import { Cell, If } from 'retend';
 
 const cart = Cell.source(['item1']);
@@ -280,7 +263,6 @@ const Component = () => {
 
 @example 17
 @input Toggle rendering of a component reactively.
-@output
 import { Cell, If } from 'retend';
 
 function Welcome() {
@@ -303,7 +285,6 @@ const Component = () => {
 
 @example 18
 @input Reactively toggle multiple elements.
-@output
 import { Cell, If } from 'retend';
 
 const showDetails = Cell.source(false);
@@ -327,7 +308,6 @@ const Component = () => {
 
 @example 19
 @input Conditionally render different spans with classes.
-@output
 import { Cell, If } from 'retend';
 
 const isActive = Cell.source(true);
@@ -343,7 +323,6 @@ const Component = () => {
 
 @example 20
 @input Conditionally render an editable or disabled input.
-@output
 import { Cell, If } from 'retend';
 
 const isEditable = Cell.source(true);
@@ -362,7 +341,6 @@ const Component = () => {
 
 @example 21
 @input Conditionally render links with different hrefs.
-@output
 import { Cell, If } from 'retend';
 
 const isExternal = Cell.source(true);
@@ -380,7 +358,6 @@ const Component = () => {
 
 @example 22
 @input Conditionally render different images.
-@output
 import { Cell, If } from 'retend';
 
 const showLogo = Cell.source(true);
@@ -399,7 +376,6 @@ const Component = () => {
 
 @example 23
 @input Conditionally render a list with For.
-@output
 import { Cell, If, For } from 'retend';
 
 const showList = Cell.source(true);
@@ -419,7 +395,6 @@ const Component = () => {
 
 @example 24
 @input If inside For to filter even numbers.
-@output
 import { For, If } from 'retend';
 
 const numbers = [1, 2, 3, 4, 5];
@@ -438,7 +413,6 @@ const Component = () => {
 
 @example 25
 @input Reactive filter inside For.
-@output
 import { Cell, For, If } from 'retend';
 
 const numbers = Cell.source([1, 2, 3, 4, 5]);
@@ -466,7 +440,6 @@ const Component = () => {
 
 @example 26
 @input Conditionally render different headers.
-@output
 const isImportant = true;
 
 const Component = () => {
@@ -477,7 +450,6 @@ const Component = () => {
 
 @example 27
 @input Reactive header toggle.
-@output
 import { Cell, If } from 'retend';
 
 const isImportant = Cell.source(false);
@@ -496,7 +468,6 @@ const Component = () => {
 
 @example 28
 @input Conditionally render enabled/disabled button.
-@output
 const canSubmit = true;
 
 const Component = () => {
@@ -507,7 +478,6 @@ const Component = () => {
 
 @example 29
 @input Reactive button state toggle.
-@output
 import { Cell, If } from 'retend';
 
 const canSubmit = Cell.source(false);
@@ -525,7 +495,6 @@ const Component = () => {
 
 @example 30
 @input Button that toggles visibility of a div.
-@output
 import { Cell, If } from 'retend';
 
 const ToggleVisibility = () => {

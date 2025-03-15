@@ -1,12 +1,10 @@
-@title cell.ref.txt
+@title cells
 @description Demonstrates the usage of cells in Retend JSX for reactive state management.
-@preamble Examples showcasing how to use Cell.source, Cell.derived, and effects in Retend JSX. Cells are imported from 'retend'. Reactivity is maintained by using the cell object directly in JSX, not .value.
 
 ---
 
 @example 1
 @input Simple div with a cell for text content.
-@output
 import { Cell } from 'retend';
 
 const SimpleDiv = () => {
@@ -19,7 +17,6 @@ const SimpleDiv = () => {
 
 @example 2
 @input Paragraph with a cell for text.
-@output
 import { Cell } from 'retend';
 
 const Paragraph = () => {
@@ -31,7 +28,6 @@ const Paragraph = () => {
 
 @example 3
 @input Span with a cell for inline text.
-@output
 import { Cell } from 'retend';
 
 const InlineText = () => {
@@ -43,7 +39,6 @@ const InlineText = () => {
 
 @example 4
 @input Heading with a cell for title.
-@output
 import { Cell } from 'retend';
 
 const Heading = () => {
@@ -55,7 +50,6 @@ const Heading = () => {
 
 @example 5
 @input Button with a cell for label.
-@output
 import { Cell } from 'retend';
 
 const ButtonLabel = () => {
@@ -67,7 +61,6 @@ const ButtonLabel = () => {
 
 @example 6
 @input Anchor with a cell for href.
-@output
 import { Cell } from 'retend';
 
 const DynamicLink = () => {
@@ -80,7 +73,6 @@ const DynamicLink = () => {
 
 @example 7
 @input Image with a cell for src.
-@output
 import { Cell } from 'retend';
 
 const DynamicImage = () => {
@@ -92,7 +84,6 @@ const DynamicImage = () => {
 
 @example 8
 @input Input with a cell for placeholder.
-@output
 import { Cell } from 'retend';
 
 const PlaceholderInput = () => {
@@ -104,7 +95,6 @@ const PlaceholderInput = () => {
 
 @example 9
 @input Button with a cell for disabled state.
-@output
 import { Cell } from 'retend';
 
 const DisableButton = () => {
@@ -117,7 +107,6 @@ const DisableButton = () => {
 
 @example 10
 @input Checkbox with a cell for checked state.
-@output
 import { Cell } from 'retend';
 
 const CheckBox = () => {
@@ -129,7 +118,6 @@ const CheckBox = () => {
 
 @example 11
 @input Div with a cell for background color.
-@output
 import { Cell } from 'retend';
 
 const ColoredDiv = () => {
@@ -142,7 +130,6 @@ const ColoredDiv = () => {
 
 @example 12
 @input Span with a cell for font size.
-@output
 import { Cell } from 'retend';
 
 const FontSizeSpan = () => {
@@ -154,7 +141,6 @@ const FontSizeSpan = () => {
 
 @example 13
 @input Button with a cell for width.
-@output
 import { Cell } from 'retend';
 
 const WidthButton = () => {
@@ -166,7 +152,6 @@ const WidthButton = () => {
 
 @example 14
 @input Div with a class based on a derived cell.
-@output
 import { Cell } from 'retend';
 
 const ConditionalClass = () => {
@@ -180,7 +165,6 @@ const ConditionalClass = () => {
 
 @example 15
 @input Button that changes text based on a derived cell.
-@output
 import { Cell } from 'retend';
 
 const ToggleButton = () => {
@@ -193,7 +177,6 @@ const ToggleButton = () => {
 
 @example 16
 @input Unordered list from an array cell.
-@output
 import { Cell, For } from 'retend';
 
 const FruitList = () => {
@@ -207,7 +190,6 @@ const FruitList = () => {
 
 @example 17
 @input Ordered list from an array cell.
-@output
 import { Cell, For } from 'retend';
 
 const NumberList = () => {
@@ -221,7 +203,6 @@ const NumberList = () => {
 
 @example 18
 @input Display user name from an object cell.
-@output
 import { Cell } from 'retend';
 
 const UserName = () => {
@@ -235,7 +216,6 @@ const UserName = () => {
 
 @example 19
 @input Display user age from an object cell.
-@output
 import { Cell } from 'retend';
 
 const UserAge = () => {
@@ -248,7 +228,6 @@ const UserAge = () => {
 
 @example 20
 @input Input bound to a cell with change handler.
-@output
 import { Cell } from 'retend';
 
 const TextInput = () => {
@@ -264,7 +243,6 @@ const TextInput = () => {
 
 @example 21
 @input Checkbox bound to a cell with change handler.
-@output
 import { Cell } from 'retend';
 
 const CheckBoxInput = () => {
@@ -279,7 +257,6 @@ const CheckBoxInput = () => {
 
 @example 22
 @input Div with dynamic class based on multiple conditions.
-@output
 import { Cell } from 'retend';
 
 const DynamicClassDiv = () => {
@@ -298,7 +275,6 @@ const DynamicClassDiv = () => {
 
 @example 23
 @input Image with alt text from a cell.
-@output
 import { Cell } from 'retend';
 
 const AltImage = () => {
@@ -310,7 +286,6 @@ const AltImage = () => {
 
 @example 24
 @input Link with target attribute from a cell.
-@output
 import { Cell } from 'retend';
 
 const TargetLink = () => {
@@ -322,7 +297,6 @@ const TargetLink = () => {
 
 @example 25
 @input Div with inline style object from a cell.
-@output
 import { Cell } from 'retend';
 
 const StyledDiv = () => {
@@ -334,7 +308,6 @@ const StyledDiv = () => {
 
 @example 26
 @input Button with dynamic type.
-@output
 import { Cell } from 'retend';
 
 const DynamicTypeButton = () => {
@@ -346,7 +319,6 @@ const DynamicTypeButton = () => {
 
 @example 27
 @input Input with dynamic type.
-@output
 import { Cell } from 'retend';
 
 const DynamicInput = () => {
@@ -358,7 +330,6 @@ const DynamicInput = () => {
 
 @example 28
 @input Textarea with rows from a cell.
-@output
 import { Cell } from 'retend';
 
 const RowsTextArea = () => {
@@ -370,7 +341,6 @@ const RowsTextArea = () => {
 
 @example 29
 @input Select with options from an array cell.
-@output
 import { Cell, For } from 'retend';
 
 const SelectOptions = () => {
@@ -384,7 +354,6 @@ const SelectOptions = () => {
 
 @example 30
 @input Div with aria-label from a cell.
-@output
 import { Cell } from 'retend';
 
 const AriaLabelDiv = () => {
@@ -396,7 +365,6 @@ const AriaLabelDiv = () => {
 
 @example 31
 @input Time element with datetime from a cell.
-@output
 import { Cell } from 'retend';
 
 const DynamicTime = () => {
@@ -408,7 +376,6 @@ const DynamicTime = () => {
 
 @example 32
 @input Abbr with title from a cell.
-@output
 import { Cell } from 'retend';
 
 const DynamicAbbr = () => {
@@ -420,7 +387,6 @@ const DynamicAbbr = () => {
 
 @example 33
 @input Code element with content from a cell.
-@output
 import { Cell } from 'retend';
 
 const CodeSnippet = () => {
@@ -432,7 +398,6 @@ const CodeSnippet = () => {
 
 @example 34
 @input Pre with code block from a cell.
-@output
 import { Cell } from 'retend';
 
 const CodeBlock = () => {
@@ -444,7 +409,6 @@ const CodeBlock = () => {
 
 @example 35
 @input Blockquote with cite from a cell.
-@output
 import { Cell } from 'retend';
 
 const Quote = () => {
@@ -456,7 +420,6 @@ const Quote = () => {
 
 @example 36
 @input Mark element with text from a cell.
-@output
 import { Cell } from 'retend';
 
 const Highlight = () => {
@@ -468,7 +431,6 @@ const Highlight = () => {
 
 @example 37
 @input Small element with text from a cell.
-@output
 import { Cell } from 'retend';
 
 const SmallText = () => {
@@ -480,7 +442,6 @@ const SmallText = () => {
 
 @example 38
 @input Subscript with number from a cell.
-@output
 import { Cell } from 'retend';
 
 const SubScript = () => {
@@ -492,7 +453,6 @@ const SubScript = () => {
 
 @example 39
 @input Superscript with exponent from a cell.
-@output
 import { Cell } from 'retend';
 
 const SuperScript = () => {
@@ -504,7 +464,6 @@ const SuperScript = () => {
 
 @example 40
 @input Div showing sum of two cells.
-@output
 import { Cell } from 'retend';
 
 const SumDisplay = () => {
@@ -518,7 +477,6 @@ const SumDisplay = () => {
 
 @example 41
 @input Paragraph showing if a number is even or odd.
-@output
 import { Cell } from 'retend';
 
 const EvenOdd = () => {
@@ -531,7 +489,6 @@ const EvenOdd = () => {
 
 @example 42
 @input Button that toggles a boolean cell.
-@output
 import { Cell } from 'retend';
 
 const ToggleButton = () => {
@@ -547,7 +504,6 @@ const ToggleButton = () => {
 
 @example 43
 @input Input that updates a cell on change.
-@output
 import { Cell } from 'retend';
 
 const NameInput = () => {
@@ -567,7 +523,6 @@ const NameInput = () => {
 
 @example 44
 @input Select with value bound to a cell.
-@output
 import { Cell } from 'retend';
 
 const SelectInput = () => {
@@ -587,7 +542,6 @@ const SelectInput = () => {
 
 @example 45
 @input Radio buttons bound to a cell.
-@output
 import { Cell } from 'retend';
 
 const RadioGroup = () => {
@@ -626,7 +580,6 @@ const RadioGroup = () => {
 
 @example 46
 @input Div with background color based on a cell.
-@output
 import { Cell } from 'retend';
 
 const BackgroundColorDiv = () => {
@@ -638,7 +591,6 @@ const BackgroundColorDiv = () => {
 
 @example 47
 @input Span with font family from a cell.
-@output
 import { Cell } from 'retend';
 
 const FontFamilySpan = () => {
@@ -650,7 +602,6 @@ const FontFamilySpan = () => {
 
 @example 48
 @input Image with width from a cell.
-@output
 import { Cell } from 'retend';
 
 const WidthImage = () => {
@@ -662,7 +613,6 @@ const WidthImage = () => {
 
 @example 49
 @input Link with dynamic text and href.
-@output
 import { Cell } from 'retend';
 
 const DynamicLink = () => {
@@ -675,7 +625,6 @@ const DynamicLink = () => {
 
 @example 50
 @input Div with multiple classes from cells.
-@output
 import { Cell } from 'retend';
 
 const MultiClassDiv = () => {
@@ -689,7 +638,6 @@ const MultiClassDiv = () => {
 
 @example 51
 @input Button with dynamic aria-label.
-@output
 import { Cell } from 'retend';
 
 const AriaButton = () => {
@@ -701,7 +649,6 @@ const AriaButton = () => {
 
 @example 52
 @input Input with max length from a cell.
-@output
 import { Cell } from 'retend';
 
 const MaxLengthInput = () => {
@@ -713,7 +660,6 @@ const MaxLengthInput = () => {
 
 @example 53
 @input Textarea with cols from a cell.
-@output
 import { Cell } from 'retend';
 
 const ColsTextArea = () => {
@@ -725,7 +671,6 @@ const ColsTextArea = () => {
 
 @example 54
 @input Div with data attribute from a cell.
-@output
 import { Cell } from 'retend';
 
 const DataDiv = () => {
@@ -737,7 +682,6 @@ const DataDiv = () => {
 
 @example 55
 @input Link with rel attribute from a cell.
-@output
 import { Cell } from 'retend';
 
 const RelLink = () => {
@@ -749,7 +693,6 @@ const RelLink = () => {
 
 @example 56
 @input Image with loading attribute from a cell.
-@output
 import { Cell } from 'retend';
 
 const LoadingImage = () => {
@@ -761,7 +704,6 @@ const LoadingImage = () => {
 
 @example 57
 @input Button with form attribute from a cell.
-@output
 import { Cell } from 'retend';
 
 const FormButton = () => {
@@ -773,7 +715,6 @@ const FormButton = () => {
 
 @example 58
 @input Input with pattern from a cell.
-@output
 import { Cell } from 'retend';
 
 const PatternInput = () => {
@@ -785,7 +726,6 @@ const PatternInput = () => {
 
 @example 59
 @input Div with tabindex from a cell.
-@output
 import { Cell } from 'retend';
 
 const TabIndexDiv = () => {
@@ -797,7 +737,6 @@ const TabIndexDiv = () => {
 
 @example 60
 @input List of users with names and ages.
-@output
 import { Cell, For } from 'retend';
 
 const UserList = () => {
@@ -821,7 +760,6 @@ const UserList = () => {
 
 @example 61
 @input Nested divs with dynamic classes.
-@output
 import { Cell } from 'retend';
 
 const NestedDivs = () => {
@@ -838,7 +776,6 @@ const NestedDivs = () => {
 
 @example 62
 @input Form with multiple inputs bound to cells.
-@output
 import { Cell } from 'retend';
 
 const UserForm = () => {
@@ -869,7 +806,6 @@ const UserForm = () => {
 
 @example 63
 @input Div with dynamic id.
-@output
 import { Cell } from 'retend';
 
 const DynamicIdDiv = () => {
@@ -881,7 +817,6 @@ const DynamicIdDiv = () => {
 
 @example 64
 @input Span with dynamic title attribute.
-@output
 import { Cell } from 'retend';
 
 const TitleSpan = () => {
@@ -893,7 +828,6 @@ const TitleSpan = () => {
 
 @example 65
 @input Image with dynamic alt and src.
-@output
 import { Cell } from 'retend';
 
 const DynamicImage = () => {
@@ -906,7 +840,6 @@ const DynamicImage = () => {
 
 @example 66
 @input Button that increments a counter.
-@output
 import { Cell } from 'retend';
 
 const CounterButton = () => {
@@ -926,7 +859,6 @@ const CounterButton = () => {
 
 @example 67
 @input Input that updates a cell on keyup.
-@output
 import { Cell } from 'retend';
 
 const KeyUpInput = () => {
@@ -941,7 +873,6 @@ const KeyUpInput = () => {
 
 @example 68
 @input Div with dynamic height and width.
-@output
 import { Cell } from 'retend';
 
 const SizeDiv = () => {
@@ -954,7 +885,6 @@ const SizeDiv = () => {
 
 @example 69
 @input Span with dynamic color and background.
-@output
 import { Cell } from 'retend';
 
 const ColorSpan = () => {
@@ -967,7 +897,6 @@ const ColorSpan = () => {
 
 @example 70
 @input Link with dynamic target and rel.
-@output
 import { Cell } from 'retend';
 
 const SecureLink = () => {
@@ -980,7 +909,6 @@ const SecureLink = () => {
 
 @example 71
 @input Input with dynamic min and max.
-@output
 import { Cell } from 'retend';
 
 const RangeInput = () => {
@@ -993,7 +921,6 @@ const RangeInput = () => {
 
 @example 72
 @input Textarea with dynamic placeholder.
-@output
 import { Cell } from 'retend';
 
 const PlaceholderTextArea = () => {
@@ -1005,7 +932,6 @@ const PlaceholderTextArea = () => {
 
 @example 73
 @input Button with dynamic formaction.
-@output
 import { Cell } from 'retend';
 
 const FormActionButton = () => {
@@ -1017,7 +943,6 @@ const FormActionButton = () => {
 
 @example 74
 @input Div with dynamic role.
-@output
 import { Cell } from 'retend';
 
 const RoleDiv = () => {
@@ -1029,7 +954,6 @@ const RoleDiv = () => {
 
 @example 75
 @input Image with dynamic sizes attribute.
-@output
 import { Cell } from 'retend';
 
 const SizesImage = () => {
@@ -1041,7 +965,6 @@ const SizesImage = () => {
 
 @example 76
 @input Link with dynamic download attribute.
-@output
 import { Cell } from 'retend';
 
 const DownloadLink = () => {
@@ -1053,7 +976,6 @@ const DownloadLink = () => {
 
 @example 77
 @input Input with dynamic step.
-@output
 import { Cell } from 'retend';
 
 const StepInput = () => {
@@ -1065,7 +987,6 @@ const StepInput = () => {
 
 @example 78
 @input Div with dynamic lang attribute.
-@output
 import { Cell } from 'retend';
 
 const LangDiv = () => {
@@ -1077,7 +998,6 @@ const LangDiv = () => {
 
 @example 79
 @input Span with dynamic dir attribute.
-@output
 import { Cell } from 'retend';
 
 const DirSpan = () => {
@@ -1089,7 +1009,6 @@ const DirSpan = () => {
 
 @example 80
 @input Div that logs when a cell changes.
-@output
 import { Cell } from 'retend';
 
 const LoggingDiv = () => {
@@ -1104,7 +1023,6 @@ const LoggingDiv = () => {
 
 @example 81
 @input Button that updates a cell and logs.
-@output
 import { Cell } from 'retend';
 
 const UpdateAndLog = () => {
@@ -1122,7 +1040,6 @@ const UpdateAndLog = () => {
 
 @example 82
 @input Input that updates a cell and shows the value.
-@output
 import { Cell } from 'retend';
 
 const InputWithDisplay = () => {
@@ -1142,7 +1059,6 @@ const InputWithDisplay = () => {
 
 @example 83
 @input Div that shows the length of a string cell.
-@output
 import { Cell } from 'retend';
 
 const LengthDisplay = () => {
@@ -1155,7 +1071,6 @@ const LengthDisplay = () => {
 
 @example 84
 @input Paragraph that shows if a number cell is positive.
-@output
 import { Cell, If } from 'retend';
 
 const PositiveCheck = () => {
@@ -1170,7 +1085,6 @@ const PositiveCheck = () => {
 
 @example 85
 @input Button that toggles visibility of a div.
-@output
 import { Cell, If } from 'retend';
 
 const ToggleVisibility = () => {
@@ -1192,7 +1106,6 @@ const ToggleVisibility = () => {
 
 @example 86
 @input List that filters items based on a cell.
-@output
 import { Cell, For } from 'retend';
 
 const FilteredList = () => {
@@ -1221,7 +1134,6 @@ const FilteredList = () => {
 
 @example 87
 @input Div with dynamic border style.
-@output
 import { Cell } from 'retend';
 
 const BorderDiv = () => {
@@ -1233,7 +1145,6 @@ const BorderDiv = () => {
 
 @example 88
 @input Span with dynamic font weight.
-@output
 import { Cell } from 'retend';
 
 const FontWeightSpan = () => {
@@ -1245,7 +1156,6 @@ const FontWeightSpan = () => {
 
 @example 89
 @input Image with dynamic height.
-@output
 import { Cell } from 'retend';
 
 const HeightImage = () => {
@@ -1257,7 +1167,6 @@ const HeightImage = () => {
 
 @example 90
 @input Link with dynamic class and href.
-@output
 import { Cell } from 'retend';
 
 const ClassLink = () => {
@@ -1270,7 +1179,6 @@ const ClassLink = () => {
 
 @example 91
 @input Button with dynamic disabled state and label.
-@output
 import { Cell } from 'retend';
 
 const DisableButton = () => {
@@ -1283,7 +1191,6 @@ const DisableButton = () => {
 
 @example 92
 @input Input with dynamic value and placeholder.
-@output
 import { Cell } from 'retend';
 
 const ValueInput = () => {
@@ -1305,7 +1212,6 @@ const ValueInput = () => {
 
 @example 93
 @input Div with dynamic margin and padding.
-@output
 import { Cell } from 'retend';
 
 const SpacingDiv = () => {
@@ -1318,7 +1224,6 @@ const SpacingDiv = () => {
 
 @example 94
 @input Span with dynamic text decoration.
-@output
 import { Cell } from 'retend';
 
 const DecorationSpan = () => {
@@ -1330,7 +1235,6 @@ const DecorationSpan = () => {
 
 @example 95
 @input Image with dynamic object fit.
-@output
 import { Cell } from 'retend';
 
 const FitImage = () => {
@@ -1342,7 +1246,6 @@ const FitImage = () => {
 
 @example 96
 @input Link with dynamic tabindex.
-@output
 import { Cell } from 'retend';
 
 const TabIndexLink = () => {
@@ -1354,7 +1257,6 @@ const TabIndexLink = () => {
 
 @example 97
 @input Button with dynamic formmethod.
-@output
 import { Cell } from 'retend';
 
 const MethodButton = () => {
@@ -1366,7 +1268,6 @@ const MethodButton = () => {
 
 @example 98
 @input Input with dynamic autocomplete.
-@output
 import { Cell } from 'retend';
 
 const AutoCompleteInput = () => {
@@ -1378,7 +1279,6 @@ const AutoCompleteInput = () => {
 
 @example 99
 @input Div with dynamic content editable.
-@output
 import { Cell } from 'retend';
 
 const EditableDiv = () => {
@@ -1390,7 +1290,6 @@ const EditableDiv = () => {
 
 @example 100
 @input Counter component with reactive display.
-@output
 import { Cell } from 'retend';
 
 const Counter = () => {

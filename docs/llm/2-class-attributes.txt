@@ -1,19 +1,16 @@
-@title class-attribute
+@title classes
 @description Demonstrates the usage of the `class` attribute in Retend JSX.
-@preamble Retend JSX allows for string, array, object and reactive values for the `class` attribute to dynamically control element classes.
 
 ---
 
 @example 1
 @input Div with a single class name.
-@output
 <div class="container" />
 
 ---
 
 @example 2
 @input Div with multiple classes (string).
-@output
 <div class="container main-content" />
 @note Multiple classes can be specified as a space-separated string.
 
@@ -21,15 +18,14 @@
 
 @example 3
 @input Div with class as an array of strings.
-@output
 <div class={['container', 'main-content']} />
 @note Class can be an array of strings.
+@note Do not use string interpolation for class names. Use a class array.
 
 ---
 
 @example 4
 @input Div with class as an object (truthy).
-@output
 <div class={{ container: true }} />
 @note Class can be an object where keys are class names and values are booleans.
 
@@ -37,7 +33,6 @@
 
 @example 5
 @input Div with class object (falsy).
-@output
 <div class={{ container: false }} />
 @note Falsy values in class object exclude the class.
 
@@ -45,7 +40,6 @@
 
 @example 6
 @input Div with reactive name
-@output
 const className = Cell.source('container');
 <div class={container} />
 @note Reactive values in class object are converted to strings.
@@ -54,7 +48,6 @@ const className = Cell.source('container');
 
 @example 7
 @input Element with nested reactive class array
-@output
 const className = Cell.source('container');
 const activityClass = Cell.derived(() => className.value === 'container' ? 'active' : 'inactive');
 <div class={[className, activityClass, 'main-content', {hidden: false}]} />
@@ -63,7 +56,6 @@ const activityClass = Cell.derived(() => className.value === 'container' ? 'acti
 
 @example 8
 @input Div class array with falsy values.
-@output
 <div class={['container', false, 'main-content', null, undefined, 'extra-style']} />
 @note Falsy values in class arrays are ignored.
 
@@ -71,7 +63,6 @@ const activityClass = Cell.derived(() => className.value === 'container' ? 'acti
 
 @example 9
 @input Reactive class object with falsy values.
-@output
 const isContainer = Cell.source(true);
 const isCard = Cell.source(false);
 <div class={[{ isCard }, { container: isContainer, hidden: false, 'another-false': null, 'yet-another': undefined }]} />
@@ -81,14 +72,12 @@ const isCard = Cell.source(false);
 
 @example 10
 @input Div with no class attribute.
-@output
 <div />
 
 ---
 
 @example 11
 @input Div with empty class attribute (string).
-@output
 <div class="" />
 @note Empty string in class attribute has no effect.
 
@@ -96,7 +85,6 @@ const isCard = Cell.source(false);
 
 @example 12
 @input Div with class array, nested array (flattened).
-@output
 <div class={['container', ['nested', 'array']]} />
 @note Nested arrays within class arrays are treated as single level.
 
@@ -104,7 +92,6 @@ const isCard = Cell.source(false);
 
 @example 13
 @input Div with class object, number keys (invalid class).
-@output
 <div class={{ 123: true, container: true }} />
 @note Number keys are not valid class names.
 
@@ -112,7 +99,6 @@ const isCard = Cell.source(false);
 
 @example 14
 @input Div with class string and special chars (allowed).
-@output
 <div class="class-with-!@#$%^&*_chars" />
 @note Class names can contain special characters.
 
@@ -120,7 +106,6 @@ const isCard = Cell.source(false);
 
 @example 15
 @input Div with class as mixed array/object.
-@output
 <div class={['container', { 'main-content': true }, 'extra-class']} />
 @note Class can be a mix of arrays and objects.
 
@@ -128,68 +113,58 @@ const isCard = Cell.source(false);
 
 @example 16
 @input  Span with a different class.
-@output
 <span class="text-primary" />
 
 ---
 
 @example 17
 @input  Span with two classes for styling.
-@output
 <span class="text-primary bold" />
 
 ---
 
 @example 18
 @input  Span with class array, two names.
-@output
 <span class={['text-secondary', 'italic']} />
 
 ---
 
 @example 19
 @input  Span with class object, primary true.
-@output
 <span class={{ 'text-primary': true }} />
 
 ---
 
 @example 20
 @input  Span with class object, secondary false.
-@output
 <span class={{ 'text-secondary': false }} />
 
 ---
 
 @example 21
 @input  Span with class object, primary and bold.
-@output
 <span class={{ 'text-primary': true, bold: true }} />
 
 ---
 
 @example 22
 @input  Span with class object, secondary true, italic false.
-@output
 <span class={{ 'text-secondary': true, italic: false }} />
 
 ---
 
 @example 23
 @input  Span class array and single string.
-@output
 <span class={['text-primary', 'bold']} />
 
 ---
 
 @example 24
 @input  Span class object with many styles.
-@output
 <span class={{ 'text-primary': true, bold: true, italic: true }} />
 
 ---
 
 @example 25
 @input  Span class array, falsy and strings.
-@output
 <span class={['text-primary', null, 'bold', undefined, false]} />

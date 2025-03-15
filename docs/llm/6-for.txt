@@ -1,14 +1,10 @@
---- START OF FILE 6-for.txt ---
-
-@title for-usage
+@title for
 @description Demonstrates 30 examples of the `For` function in Retend JSX for rendering lists from iterables. (Shortened version)
-@preamble Examples showcase static arrays, reactive cells, usage with indices, conditional rendering, and basic element types. All adhere to Retend JSX rules. `For` is imported from 'retend'. Unlike React, Retend does not use `key` attributes; it handles memoization internally. Do not use `.map` or other array methods for looping in JSX; use `For` exclusively.
 
 ---
 
 @example 1
 @input Render a static array of strings as an unordered list.
-@output
 import { For } from 'retend';
 
 const FruitList = () => {
@@ -21,7 +17,6 @@ const FruitList = () => {
 
 @example 2
 @input Render a static array of numbers as an ordered list.
-@output
 import { For } from 'retend';
 
 const NumberList = () => {
@@ -33,7 +28,6 @@ const NumberList = () => {
 
 @example 3
 @input Render a static array of strings as divs.
-@output
 import { For } from 'retend';
 
 const Items = () => {
@@ -45,7 +39,6 @@ const Items = () => {
 
 @example 4
 @input Render a static array of objects with name property.
-@output
 import { For } from 'retend';
 
 const UserNames = () => {
@@ -56,7 +49,6 @@ const UserNames = () => {
 
 @example 5
 @input Render a static array with index displayed.
-@output
 import { For } from 'retend';
 
 const IndexedList = () => {
@@ -69,7 +61,6 @@ const IndexedList = () => {
 
 @example 6
 @input Render a reactive array of strings with Cell.
-@output
 import { Cell, For } from 'retend';
 
 const DynamicList = () => {
@@ -82,7 +73,6 @@ const DynamicList = () => {
 
 @example 7
 @input Render a reactive array with a button to add items.
-@output
 import { Cell, For } from 'retend';
 
 const GrowingList = () => {
@@ -102,7 +92,6 @@ const GrowingList = () => {
 
 @example 8
 @input Render a reactive array with index.
-@output
 import { Cell, For } from 'retend';
 
 const IndexedDynamicList = () => {
@@ -113,7 +102,6 @@ const IndexedDynamicList = () => {
 
 @example 9
 @input Render a reactive array of objects with multiple properties.
-@output
 import { Cell, For } from 'retend';
 
 const UserList = () => {
@@ -127,7 +115,6 @@ const UserList = () => {
 
 @example 10
 @input Render a static array of nested spans.
-@output
 import { For } from 'retend';
 
 const NestedItems = () => {
@@ -138,7 +125,6 @@ const NestedItems = () => {
 
 @example 11
 @input Render a static array of buttons.
-@output
 import { For } from 'retend';
 
 const ButtonList = () => {
@@ -149,7 +135,6 @@ const ButtonList = () => {
 
 @example 12
 @input Render a reactive array with a button to remove the last item.
-@output
 import { Cell, For } from 'retend';
 
 const ShrinkingList = () => {
@@ -169,7 +154,6 @@ const ShrinkingList = () => {
 
 @example 13
 @input Render a static array of links.
-@output
 import { For } from 'retend';
 
 const LinkList = () => {
@@ -183,7 +167,6 @@ const LinkList = () => {
 
 @example 14
 @input Render a reactive array with a clear button.
-@output
 import { Cell, For } from 'retend';
 
 const ClearableList = () => {
@@ -203,7 +186,6 @@ const ClearableList = () => {
 
 @example 15
 @input Render a static array with conditional rendering using If.
-@output
 import { For, If } from 'retend';
 
 const EvenNumbers = () => {
@@ -222,7 +204,6 @@ const EvenNumbers = () => {
 
 @example 16
 @input Render a reactive array with conditional rendering.
-@output
 import { Cell, For, If } from 'retend';
 
 const FilterList = () => {
@@ -247,7 +228,6 @@ const FilterList = () => {
 
 @example 17
 @input Render a static array of images.
-@output
 import { For } from 'retend';
 
 const ImageGallery = () => {
@@ -258,7 +238,6 @@ const ImageGallery = () => {
 
 @example 18
 @input Render a reactive array of images with add button.
-@output
 import { Cell, For } from 'retend';
 
 const DynamicGallery = () => {
@@ -278,7 +257,6 @@ const DynamicGallery = () => {
 
 @example 19
 @input Render a static array with Switch for conditional content.
-@output
 import { For, Switch } from 'retend';
 
 const TypeList = () => {
@@ -300,7 +278,6 @@ const TypeList = () => {
 
 @example 20
 @input Render a reactive array with Switch and update button.
-@output
 import { Cell, For, Switch } from 'retend';
 
 const DynamicTypeList = () => {
@@ -326,7 +303,6 @@ const DynamicTypeList = () => {
 
 @example 21
 @input Render a static array of paragraphs with styles.
-@output
 import { For } from 'retend';
 
 const StyledParagraphs = () => {
@@ -342,7 +318,6 @@ const StyledParagraphs = () => {
 
 @example 22
 @input Render a reactive array with dynamic styles.
-@output
 import { Cell, For } from 'retend';
 
 const DynamicStyledList = () => {
@@ -365,7 +340,6 @@ const DynamicStyledList = () => {
 
 @example 23
 @input Render a static array of inputs.
-@output
 import { For } from 'retend';
 
 const InputList = () => {
@@ -381,7 +355,6 @@ const InputList = () => {
 
 @example 24
 @input Render a reactive array of inputs with add button.
-@output
 import { Cell, For } from 'retend';
 
 const DynamicInputs = () => {
@@ -401,7 +374,6 @@ const DynamicInputs = () => {
 
 @example 25
 @input Render a static array of list items with classes.
-@output
 import { For } from 'retend';
 
 const ClassedList = () => {
@@ -413,7 +385,6 @@ const ClassedList = () => {
 
 @example 26
 @input Render a reactive array with dynamic classes.
-@output
 import { Cell, For } from 'retend';
 
 const DynamicClassList = () => {
@@ -435,7 +406,6 @@ const DynamicClassList = () => {
 
 @example 27
 @input Render a static array of divs with event handlers.
-@output
 import { For } from 'retend';
 
 const ClickableItems = () => {
@@ -452,7 +422,6 @@ const ClickableItems = () => {
 
 @example 28
 @input Render a reactive array with click handlers.
-@output
 import { Cell, For } from 'retend';
 
 const DynamicClickableList = () => {
@@ -475,7 +444,6 @@ const DynamicClickableList = () => {
 
 @example 29
 @input Render a static array of table rows.
-@output
 import { For } from 'retend';
 
 const TableRows = () => {
@@ -501,7 +469,6 @@ const TableRows = () => {
 
 @example 30
 @input Render a reactive array of table rows with add button.
-@output
 import { Cell, For } from 'retend';
 
 const DynamicTable = () => {
