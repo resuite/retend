@@ -1147,8 +1147,6 @@ In this example, the `onConnected` hook now:
 - **Node-Centric**: `useObserver` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
 - **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
 
-Okay, here's a section explaining event modifiers in Retend, designed to be clear, concise, and easy to understand, suitable for your `README.new.md`:
-
 ## Routing
 
 The library includes a routing system for single-page applications.
