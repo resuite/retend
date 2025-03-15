@@ -45,7 +45,7 @@
 @Example 7
 @Input Create a button.
 <button type="button" />
-@Note All buttons must have a type attribute in Retend.
+@Note All buttons must have a type attribute in Retend. Retend requires self-closing tags for elements with no children.
 
 ---
 
@@ -108,554 +108,156 @@
 ---
 
 @Example 17
-@Input Label element.
-<label />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 18
 @Input Label with text and for.
 <label for="inputId">Label Text</label>
 @Note Retend uses 'for' attribute, not 'htmlFor'.
 
 ---
 
-@Example 19
-@Input  Create a simple list (ul).
-<ul />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 20
+@Example 18
 @Input Unordered list with one item.
 <ul><li>Item</li></ul>
 
 ---
 
-@Example 21
-@Input Ordered list (ol).
-<ol />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 22
+@Example 19
 @Input Ordered list with two items.
 <ol><li>First</li><li>Second</li></ol>
 
 ---
 
-@Example 23
+@Example 20
 @Input Div with a class.
 <div class="container" />
 @Note Retend requires self-closing tags for elements with no children.
 
 ---
 
-@Example 24
+@Example 21
 @Input Div with two classes.
 <div class="container main" />
 @Note Retend requires self-closing tags for elements with no children.
 
 ---
 
-@Example 25
+@Example 22
 @Input Span with inline style.
 <span style={{ color: 'red' }} />
 @Note Retend requires self-closing tags for elements with no children.
 
 ---
 
-@Example 26
+@Example 23
 @Input Span with background style.
 <span style={{ backgroundColor: 'blue' }} />
 @Note Retend requires self-closing tags for elements with no children.
 
 ---
 
-@Example 27
+@Example 24
 @Input Div with id.
 <div id="uniqueId" />
 @Note Retend requires self-closing tags for elements with no children.
 
 ---
 
-@Example 28
+@Example 25
 @Input Input with placeholder attribute.
 <input type="text" placeholder="Enter text here" />
 
 ---
 
-@Example 29
+@Example 26
 @Input Input with value attribute.
 <input type="text" value="Initial Value" />
 
 ---
 
-@Example 30
+@Example 27
 @Input Checkbox input, checked.
 <input type="checkbox" checked />
 @Note Boolean attributes can omit '=true'.
 
 ---
 
-@Example 31
+@Example 28
 @Input Checkbox input, not checked.
 <input type="checkbox" />
 
 ---
 
-@Example 32
+@Example 29
 @Input Disabled button.
 <button type="button" disabled />
 @Note Retend requires self-closing tags for elements with no children.
 
 ---
 
-@Example 33
+@Example 30
 @Input Readonly text input.
 <input type="text" readOnly />
 
 ---
 
-@Example 34
+@Example 31
 @Input Number input with min/max.
 <input type="number" min="0" max="10" />
 
 ---
 
-@Example 35
+@Example 32
 @Input SVG element.
 <svg xlmns="http://www.w3.org/2000/svg" width="200" height="100">
     <rect xlmns="http://www.w3.org/2000/svg" width="100" height="50" fill="red" />
     <circle xlmns="http://www.w3.org/2000/svg" cx="50" cy="50" r="40" fill="blue" />
 </svg>
 @Note SVG elements and all their children must have the `xmlns` attribute.
----
-
-@Example 36
-@Input Basic SVG circle.
-<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
-    <circle xmlns="http://www.w3.org/2000/svg" cx="50" cy="50" r="40" fill="green" />
-</svg>
-@Note SVG elements and all their children must have the `xmlns` attribute.
 
 ---
 
-@Example 37
-@Input SVG rectangle with stroke.
-<svg xmlns="http://www.w3.org/2000/svg" width="150" height="100">
-    <rect xmlns="http://www.w3.org/2000/svg" x="10" y="10" width="130" height="80" fill="yellow" stroke="black" stroke-width="2" />
-</svg>
-@Note SVG elements and all their children must have the `xmlns` attribute.
-
----
-
-@Example 38
-@Input SVG line and polygon.
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
-    <line xmlns="http://www.w3.org/2000/svg" x1="10" y1="10" x2="190" y2="90" stroke="red" stroke-width="3" />
-    <polygon xmlns="http://www.w3.org/2000/svg" points="50,10 90,90 10,90" fill="purple" />
-</svg>
-@Note SVG elements and all their children must have the `xmlns` attribute.
-
----
-@Example 39
+@Example 33
 @Input Select option, selected.
 <select><option value="option1" selected>Option 1</option></select>
 
 ---
 
-@Example 40
+@Example 34
 @Input Div with nested span.
 <div><span>Nested span</span></div>
 
 ---
 
-@Example 41
+@Example 35
 @Input Paragraph with strong tag.
 <p>This is <strong>important</strong> text.</p>
 
 ---
 
-@Example 42
+@Example 36
 @Input Link inside a paragraph.
 <p>Learn more <a href="#">here</a>.</p>
 
 ---
 
-@Example 43
+@Example 37
 @Input List item inside unordered list.
 <ul><li>List Item</li></ul>
 
 ---
 
-@Example 44
-@Input List item inside ordered list.
-<ol><li>Item in ordered list</li></ol>
-
----
-
-@Example 45
-@Input Heading level 1.
-<h1 />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 46
-@Input Heading level 2 with text.
-<h2>Section Title</h2>
-
----
-
-@Example 47
-@Input Heading level 3.
-<h3 />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 48
-@Input Heading level 4 with class.
-<h4 class="section-heading" />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 49
-@Input Heading level 5.
-<h5 />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 50
-@Input Heading level 6 with id.
-<h6 id="footer-heading" />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 51
-@Input Horizontal rule.
-<hr />
-@Note hr tag must be self-closing.
-
----
-
-@Example 52
-@Input Line break.
-<br />
-@Note br tag must be self-closing.
-
----
-
-@Example 53
+@Example 38
 @Input Div with multiple attributes.
 <div id="main" class="container" />
 @Note Retend requires self-closing tags for elements with no children.
 
 ---
 
-@Example 54
+@Example 39
 @Input Image with class and style.
 <img src="/icon.png" alt="Icon" class="icon" style={{ width: '24px' }} />
 
 ---
 
-@Example 55
+@Example 40
 @Input Link with target blank.
 <a href="https://example.com" target="_blank">External Link</a>
-
----
-
-@Example 56
-@Input Form element.
-<form />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 57
-@Input Form with input field.
-<form><input type="text" /></form>
-
----
-
-@Example 58
-@Input Form with label and input.
-<form><label for="name">Name:</label><input type="text" id="name" /></form>
-
----
-
-@Example 59
-@Input Form with submit button.
-<form><button type="submit">Submit</button></form>
-
----
-
-@Example 60
-@Input Fieldset element.
-<fieldset />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 61
-@Input Fieldset with legend.
-<fieldset><legend>Group Name</legend></fieldset>
-
----
-
-@Example 62
-@Input Fieldset with inputs.
-<fieldset><legend>Personal Info</legend><label for="fname">First name:</label><input type="text" id="fname" /></fieldset>
-
----
-
-@Example 63
-@Input Div with data attribute.
-<div data-item-id="123" />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 64
-@Input Div with aria-label.
-<div aria-label="Close Button" />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 65
-@Input Time element.
-<time />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 66
-@Input Time element with datetime.
-<time datetime="2024-01-01">January 1, 2024</time>
-
----
-
-@Example 67
-@Input Address element.
-<address />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 68
-@Input Address element with details.
-<address>123 Main St<br />City, State</address>
-
----
-
-@Example 69
-@Input Cite element.
-<cite />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 70
-@Input Cite element with text.
-<cite>Book Title</cite>
-
----
-
-@Example 71
-@Input Code element.
-<code />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 72
-@Input Code element with inline code.
-<code>inline code</code>
-
----
-
-@Example 73
-@Input Pre element.
-<pre />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 74
-@Input Pre element with code block.
-<pre><code>function hello() { console.log("Hello"); }</code></pre>
-
----
-
-@Example 75
-@Input Quote element (blockquote).
-<blockquote />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 76
-@Input Blockquote with citation.
-<blockquote cite="https://example.com"><p>Quote text.</p></blockquote>
-
----
-
-@Example 77
-@Input Abbreviation element (abbr).
-<abbr />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 78
-@Input Abbr with title attribute.
-<abbr title="Hypertext Markup Language">HTML</abbr>
-
----
-
-@Example 79
-@Input Definition element (dfn).
-<dfn />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 80
-@Input Definition with term.
-<dfn>Definition term</dfn>
-
----
-
-@Example 81
-@Input Mark element.
-<mark />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 82
-@Input Mark element with highlighted text.
-<mark>Highlighted text</mark>
-
----
-
-@Example 83
-@Input Small element.
-<small />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 84
-@Input Small element with text.
-<small>Small text</small>
-
----
-
-@Example 85
-@Input Subscript element (sub).
-<sub />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 86
-@Input Subscript example.
-<sub>2</sub>O
-
----
-
-@Example 87
-@Input Superscript element (sup).
-<sup />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 88
-@Input Superscript example.
-E=mc<sup>2</sup>
-
----
-
-@Example 89
-@Input Variable element (var).
-<var />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 90
-@Input Variable element in code.
-<code><var>variableName</var></code>
-
----
-
-@Example 91
-@Input Select with multiple attribute.
-<select multiple />
-@Note 'multiple' is a boolean attribute.
-
----
-
-@Example 92
-@Input Select multiple options example.
-<select multiple><option value="a">A</option><option value="b">B</option></select>
-
----
-
-@Example 93
-@Input Optgroup element.
-<optgroup label="Group" />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 94
-@Input Optgroup with options.
-<optgroup label="Group"><option value="1">One</option></optgroup>
-
----
-
-@Example 95
-@Input Button with custom style.
-<button type="button" style={{ color: 'white', backgroundColor: 'black' }}>Styled Button</button>
-
----
-
-@Example 96
-@Input Div with complex nested elements.
-<div><p><span>Nested</span> text</p><button type="button">Action</button></div>
-
----
-
-@Example 97
-@Input Div with style object and classes.
-<div class="container special" style={{ margin: '10px' }} />
-@Note Retend requires self-closing tags for elements with no children.
-
----
-
-@Example 98
-@Input Form with multiple input types.
-<form><input type="text" placeholder="Name" /><input type="email" placeholder="Email" /><button type="submit">Submit</button></form>
-
----
-
-@Example 99
-@Input Nested lists.
-<ul><li>Item 1<ul><li>Sub-item 1</li></ul></li></ul>
-
----
-
-@Example 100
-@Input Complex layout with divs and spans.
-<div class="layout"><div class="header"><span>Header</span></div><div class="content"><p>Content</p></div></div>
