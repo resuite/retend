@@ -1,5 +1,5 @@
 @title retend-components
-@description Defines the component syntax for the Retend web framework, building upon render-jsx.ref.txt.
+@description Defines the component syntax for the Retend web framework.
 @preamble Retend components are functions that return JSX. Component names are PascalCase. Props are passed as the first argument and must be destructured at the start of the function body.
 
 ---
@@ -24,23 +24,15 @@ function Greeting() {
 ---
 
 @example 3
-@input Component returning a span.
-@output
-function InlineText() {
-  return <span />;
-}
-
----
-
-@example 4
 @input Component returning a button.
 @output
 function ActionButton() {
   return <button type="button" />;
 }
+
 ---
 
-@example 5
+@example 4
 @input Component with a text prop.
 @output
 function Message(props) {
@@ -51,14 +43,14 @@ function Message(props) {
 
 ---
 
-@example 6
+@example 5
 @input Using the Message component.
 @output
 <Message text="Welcome!" />
 
 ---
 
-@example 7
+@example 6
 @input Component with two props.
 @output
 function UserCard(props) {
@@ -69,14 +61,14 @@ function UserCard(props) {
 
 ---
 
-@example 8
+@example 7
 @input Using the UserCard component.
 @output
 <UserCard name="Alice" age={30} />
 
 ---
 
-@example 9
+@example 8
 @input Component with style prop.
 @output
 function StyledDiv(props) {
@@ -86,14 +78,14 @@ function StyledDiv(props) {
 
 ---
 
-@example 10
+@example 9
 @input Using the StyledDiv component.
 @output
 <StyledDiv style={{ color: 'blue' }} />
 
 ---
 
-@example 11
+@example 10
 @input Component with class prop.
 @output
 function ClassedSpan(props) {
@@ -104,40 +96,14 @@ function ClassedSpan(props) {
 
 ---
 
-@example 12
+@example 11
 @input Using the ClassedSpan component.
 @output
 <ClassedSpan class="highlight" />
 
 ---
 
-@example 13
-@input Component composing another component.
-@output
-function Container() {
-  return <div><ActionButton /></div>;
-}
-
----
-
-@example 14
-@input Component passing props to child.
-@output
-function ParentComponent(props) {
-  const { message } = props;
-  return <div><Message text={message} /></div>;
-}
-
----
-
-@example 15
-@input Using the ParentComponent.
-@output
-<ParentComponent message="Hello from parent!" />
-
----
-
-@example 16
+@example 12
 @input Component with children prop (implicit).
 @output
 function Card(props) {
@@ -148,14 +114,14 @@ function Card(props) {
 
 ---
 
-@example 17
+@example 13
 @input Using the Card component with children.
 @output
 <Card>This is card content.</Card>
 
 ---
 
-@example 18
+@example 14
 @input Component with boolean prop.
 @output
 function Checkbox(props) {
@@ -165,7 +131,7 @@ function Checkbox(props) {
 
 ---
 
-@example 19
+@example 15
 @input Using the Checkbox component, checked.
 @output
 <Checkbox checked />
@@ -173,23 +139,14 @@ function Checkbox(props) {
 
 ---
 
-@example 20
+@example 16
 @input Using Checkbox component, unchecked.
 @output
 <Checkbox />
 
 ---
 
-@example 21
-@input Component returning a list (ul).
-@output
-function ItemList() {
-  return <ul><li>Item 1</li><li>Item 2</li></ul>;
-}
-
----
-
-@example 22
+@example 17
 @input Component with prop for list items.
 @output
 function DynamicList(props) {
@@ -204,7 +161,7 @@ function DynamicList(props) {
 
 ---
 
-@example 23
+@example 18
 @input Using DynamicList component.
 @output
 <DynamicList items={[<li>Item A</li>, <li>Item B</li>]} />
@@ -212,104 +169,7 @@ function DynamicList(props) {
 
 ---
 
-@example 24
-@input Component with complex nested JSX.
-@output
-function ComplexLayout() {
-  return (
-    <div>
-      <header><nav><a href="#">Home</a></nav></header>
-      <main><article><h1>Page Title</h1><p>Content.</p></article></main>
-      <footer><small>© 2024</small></footer>
-    </div>
-  );
-}
-
----
-
-@example 25
-@input Component with id prop.
-@output
-function IdentifiableDiv(props) {
-  const { id } = props;
-  return <div id={id} />;
-}
-
----
-
-@example 26
-@input Using the IdentifiableDiv component.
-@output
-<IdentifiableDiv id="main-container" />
-
----
-
-@example 27
-@input Component with placeholder prop for input.
-@output
-function InputField(props) {
-  const { placeholder } = props;
-  return <input type="text" placeholder={placeholder} />;
-}
-
----
-
-@example 28
-@input Using the InputField component.
-@output
-<InputField placeholder="Enter your name" />
-
----
-
-@example 29
-@input Component with button text prop.
-@output
-function TextButton(props) {
-  const { buttonText } = props;
-  return <button type="button">{buttonText}</button>;
-}
-
----
-
-@example 30
-@input Using the TextButton component.
-@output
-<TextButton buttonText="Submit" />
-
----
-
-@example 31
-@input Component with nested components.
-@output
-function PageSection() {
-  return (
-    <section>
-      <Heading text="Section Heading" />
-      <Paragraph text="Section content." />
-    </section>
-  );
-}
-
-function Heading(props) {
-  const { text } = props;
-  return <h2>{text}</h2>;
-}
-
-function Paragraph(props) {
-  const { text } = props;
-  return <p>{text}</p>;
-}
-
----
-
-@example 32
-@input Using the PageSection component.
-@output
-<PageSection />
-
----
-
-@example 33
+@example 19
 @input Component with 'for' prop for label.
 @output
 function LabeledInput(props) {
@@ -325,31 +185,14 @@ function LabeledInput(props) {
 
 ---
 
-@example 34
+@example 20
 @input Using the LabeledInput component.
 @output
 <LabeledInput labelText="Email:" inputId="email-input" />
 
 ---
 
-@example 35
-@input Component with multiple classes prop.
-@output
-function MultiClassDiv(props) {
-  const { classes } = props;
-  return <div class={classes} />;
-}
-
----
-
-@example 36
-@input Using the MultiClassDiv component.
-@output
-<MultiClassDiv classes="container main special" />
-
----
-
-@example 37
+@example 21
 @input Component for a self-closing image.
 @output
 function IconImage(props) {
@@ -359,14 +202,14 @@ function IconImage(props) {
 
 ---
 
-@example 38
+@example 22
 @input Using the IconImage component.
 @output
 <IconImage src="/images/icon.png" alt="App Icon" />
 
 ---
 
-@example 39
+@example 23
 @input Component for a link with href and text.
 @output
 function SimpleLink(props) {
@@ -376,442 +219,14 @@ function SimpleLink(props) {
 
 ---
 
-@example 40
+@example 24
 @input Using the SimpleLink component.
 @output
 <SimpleLink href="https://example.com" text="Example Link" />
 
 ---
 
-@example 41
-@input Component with textarea.
-@output
-function InputTextArea(props) {
-  const { placeholder } = props;
-  return <textarea placeholder={placeholder} />;
-}
-
----
-
-@example 42
-@input Using the InputTextArea component.
-@output
-<InputTextArea placeholder="Enter your message" />
-
----
-
-@example 43
-@input Component for select dropdown.
-@output
-function SelectDropdown(props) {
-  const { options } = props;
-  return (
-    <select>
-      {options}
-    </select>
-  );
-}
-
----
-
-@example 44
-@input Using SelectDropdown component.
-@output
-<SelectDropdown options={[<option value="option1">Option 1</option>, <option value="option2">Option 2</option>]} />
-
----
-
-@example 45
-@input Component with disabled button prop.
-@output
-function DisableableButton(props) {
-  const { disabled } = props;
-  return <button type="button" disabled={disabled} />;
-}
-
----
-
-@example 46
-@input Using DisableableButton component, disabled.
-@output
-<DisableableButton disabled />
-
----
-
-@example 47
-@input Using DisableableButton component, enabled.
-@output
-<DisableableButton />
-
----
-
-@example 48
-@input Component for heading levels.
-@output
-function LevelHeading(props) {
-  const { level, text } = props;
-  const HeadingTag = `h${level}`; // Constructing tag name (not ideal, but for example purposes)
-  return <HeadingTag>{text}</HeadingTag>; // JSX doesn't directly support dynamic tags
-}
-@note Dynamic tag names not directly supported, demonstrating concept.
-
----
-
-@example 49
-@input Using LevelHeading component (level 2).
-@output
-<LevelHeading level={2} text="Section Title" />
-
----
-
-@example 50
-@input Using LevelHeading component (level 4).
-@output
-<LevelHeading level={4} text="Sub-section" />
-
----
-
-@example 51
-@input Component for horizontal rule.
-@output
-function Divider() {
-  return <hr />;
-}
-
----
-
-@example 52
-@input Using the Divider component.
-@output
-<Divider />
-
----
-
-@example 53
-@input Component for line break.
-@output
-function LineBreak() {
-  return <br />;
-}
-
----
-
-@example 54
-@input Using the LineBreak component.
-@output
-<LineBreak />
-
----
-
-@example 55
-@input Component with data attribute.
-@output
-function DataDiv(props) {
-  const { itemId } = props;
-  return <div data-item-id={itemId} />;
-}
-
----
-
-@example 56
-@input Using the DataDiv component.
-@output
-<DataDiv itemId="12345" />
-
----
-
-@example 57
-@input Component with aria-label.
-@output
-function AccessibleButton(props) {
-  const { ariaLabel } = props;
-  return <button type="button" aria-label={ariaLabel} />;
-}
-
----
-
-@example 58
-@input Using the AccessibleButton component.
-@output
-<AccessibleButton ariaLabel="Close" />
-
----
-
-@example 59
-@input Component for time element.
-@output
-function TimeDisplay(props) {
-  const { dateTime, children } = props;
-  return <time dateTime={dateTime}>{children}</time>;
-}
-
----
-
-@example 60
-@input Using the TimeDisplay component.
-@output
-<TimeDisplay dateTime="2024-01-15">January 15, 2024</TimeDisplay>
-
----
-
-@example 61
-@input Component for address element.
-@output
-function ContactAddress(props) {
-  const { addressLines } = props;
-  return <address>{addressLines}</address>;
-}
-
----
-
-@example 62
-@input Using the ContactAddress component.
-@output
-<ContactAddress addressLines={[<div>123 Main St</div>, <div>City, State</div>]} />
-
----
-
-@example 63
-@input Component for code element.
-@output
-function CodeSnippet(props) {
-  const { code } = props;
-  return <code>{code}</code>;
-}
-
----
-
-@example 64
-@input Using the CodeSnippet component.
-@output
-<CodeSnippet code="const x = 5;" />
-
----
-
-@example 65
-@input Component for pre element with code.
-@output
-function CodeBlock(props) {
-  const { code } = props;
-  return <pre><code>{code}</code></pre>;
-}
-
----
-
-@example 66
-@input Using the CodeBlock component.
-@output
-<CodeBlock code="function hello() { console.log('Hello'); }" />
-
----
-
-@example 67
-@input Component for blockquote.
-@output
-function Quote(props) {
-  const { cite, children } = props;
-  return <blockquote cite={cite}>{children}</blockquote>;
-}
-
----
-
-@example 68
-@input Using the Quote component.
-@output
-<Quote cite="https://example.com">Quote text here.</Quote>
-
----
-
-@example 69
-@input Component for abbreviation.
-@output
-function Abbreviation(props) {
-  const { title, children } = props;
-  return <abbr title={title}>{children}</abbr>;
-}
-
----
-
-@example 70
-@input Using the Abbreviation component.
-@output
-<Abbreviation title="World Wide Web">WWW</Abbreviation>
-
----
-
-@example 71
-@input Component for mark element.
-@output
-function HighlightText(props) {
-  const { children } = props;
-  return <mark>{children}</mark>;
-}
-
----
-
-@example 72
-@input Using the HighlightText component.
-@output
-<HighlightText>Important section</HighlightText>
-
----
-
-@example 73
-@input Component for small text.
-@output
-function SmallText(props) {
-  const { children } = props;
-  return <small>{children}</small>;
-}
-
----
-
-@example 74
-@input Using the SmallText component.
-@output
-<SmallText>Terms and conditions apply.</SmallText>
-
----
-
-@example 75
-@input Component for subscript.
-@output
-function Subscript(props) {
-  const { children } = props;
-  return <sub>{children}</sub>;
-}
-
----
-
-@example 76
-@input Using the Subscript component.
-@output
-<Subscript>2</Subscript>
-
----
-
-@example 77
-@input Component for superscript.
-@output
-function Superscript(props) {
-  const { children } = props;
-  return <sup>{children}</sup>;
-}
-
----
-
-@example 78
-@input Using the Superscript component.
-@output
-<Superscript>2</Superscript>
-
----
-
-@example 79
-@input Component for variable element.
-@output
-function VariableName(props) {
-  const { name } = props;
-  return <var>{name}</var>;
-}
-
----
-
-@example 80
-@input Using the VariableName component.
-@output
-<VariableName name="count" />
-
----
-
-@example 81
-@input Component for select with multiple attribute.
-@output
-function MultiSelect(props) {
-  const { options } = props;
-  return (
-    <select multiple>
-      {options}
-    </select>
-  );
-}
-
----
-
-@example 82
-@input Using MultiSelect component.
-@output
-<MultiSelect options={[<option value="a">A</option>, <option value="b">B</option>]} />
-
----
-
-@example 83
-@input Component for optgroup.
-@output
-function OptionGroup(props) {
-  const { label, children } = props;
-  return <optgroup label={label}>{children}</optgroup>;
-}
-
----
-
-@example 84
-@input Using OptionGroup component.
-@output
-<OptionGroup label="Group 1" children={[<option value="1">One</option>, <option value="2">Two</option>]} />
-
----
-
-@example 85
-@input Component with inline style object prop.
-@output
-function InlineStyledButton(props) {
-  const { style, text } = props;
-  return <button type="button" style={style}>{text}</button>;
-}
-
----
-
-@example 86
-@input Using InlineStyledButton component.
-@output
-<InlineStyledButton style={{ color: 'white', backgroundColor: 'black' }} text="Styled Button" />
-
----
-
-@example 87
-@input Component with nested layout.
-@output
-function PageLayout() {
-  return (
-    <div class="layout">
-      <HeaderSection />
-      <ContentSection />
-      <FooterSection />
-    </div>
-  );
-}
-
-function HeaderSection() {
-  return <div class="header">Header Content</div>;
-}
-function ContentSection() {
-  return <div class="content">Main Content</div>;
-}
-function FooterSection() {
-  return <div class="footer">Footer</div>;
-}
-
----
-
-@example 88
-@input Using PageLayout component.
-@output
-<PageLayout />
-
----
-
-@example 89
+@example 25
 @input Component accepting props object directly (not destructured - for passing down).
 @output
 function ForwardPropsButton(props) {
@@ -821,134 +236,3 @@ function ForwardPropsButton(props) {
 @note Prop object can be spread when passing down to other elements/components.
 
 ---
-
-@example 90
-@input Using ForwardPropsButton component.
-@output
-const handleClick = () => {
-  alert('Clicked!');
-};
-<ForwardPropsButton class="primary" onClick={handleClick}>Clickable Button</ForwardPropsButton>
-@note Handlers should be defined outside of the JSX, if possible.
----
-
-@example 91
-@input Component with form and input elements.
-@output
-function SimpleForm() {
-  return (
-    <form>
-      <InputField placeholder="Enter text" />
-      <TextButton buttonText="Submit" />
-    </form>
-  );
-}
-
----
-
-@example 92
-@input Using SimpleForm component.
-@output
-<SimpleForm />
-
----
-
-@example 93
-@input Component with fieldset and legend.
-@output
-function FieldGroup(props) {
-  const { legendText, children } = props;
-  return (
-    <fieldset>
-      <legend>{legendText}</legend>
-      {children}
-    </fieldset>
-  );
-}
-
----
-
-@example 94
-@input Using FieldGroup component.
-@output
-<FieldGroup legendText="Personal Information"><InputField placeholder="Name" /></FieldGroup>
-
----
-
-@example 95
-@input Nested components example.
-@output
-function OuterComponent() {
-  return (
-    <div>
-      <InnerComponent text="Hello from Inner" />
-    </div>
-  );
-}
-
-function InnerComponent(props) {
-  const { text } = props;
-  return <span>{text}</span>;
-}
-
----
-
-@example 96
-@input Using OuterComponent.
-@output
-<OuterComponent />
-
----
-
-@example 97
-@input Component with default text prop (concept, but not strictly syntax focused, can be removed if needed).
-@output
-function DefaultTextComponent(props) {
-  const { text = "Default Text" } = props;
-  return <div>{text}</div>;
-}
-@note Default props syntax - might be beyond pure syntax focus.
-
----
-
-@example 98
-@input Using DefaultTextComponent with text provided.
-@output
-<DefaultTextComponent text="Custom Text" />
-
----
-
-@example 99
-@input Using DefaultTextComponent without text prop.
-@output
-<DefaultTextComponent />
-@note Renders with default text.
-
----
-
-@example 100
-@input Complex component structure with composition.
-@output
-function AppLayout() {
-  return (
-    <div>
-      <AppBar title="My App" />
-      <SideDrawer><MenuList /></SideDrawer>
-      <MainContentArea />
-    </div>
-  );
-}
-
-function AppBar(props) {
-  const { title } = props;
-  return <header><h1>{title}</h1></header>;
-}
-function SideDrawer(props) {
-  return <aside>{props.children}</aside>;
-}
-function MenuList() {
-  return <ul><li>Menu Item 1</li></ul>;
-}
-function MainContentArea() {
-  return <main>Content Area</main>;
-}
