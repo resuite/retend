@@ -53,7 +53,7 @@ const ObserverButton = () => {
   observer.onConnected(buttonRef, (element) => {
     element.style.backgroundColor = 'lightblue';
     return () => {
-      element.style.backgroundColor = '';
+      element.style.removeProperty('background-color');
     };
   });
 
