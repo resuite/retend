@@ -1,0 +1,263 @@
+@Title jsx
+@Description Defines the JSX syntax for the Retend web framework.
+
+---
+
+@Example 1
+@Input Create a simple div element.
+<div />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 2
+@Input Div with text content.
+<div>Hello</div>
+
+---
+
+@Example 3
+@Input Create a paragraph element.
+<p />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 4
+@Input Paragraph with text.
+<p>This is a paragraph.</p>
+
+---
+
+@Example 5
+@Input Create a span element.
+<span />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 6
+@Input Span with text.
+<span>Inline text</span>
+
+---
+
+@Example 7
+@Input Create a button.
+<button type="button" />
+@Note All buttons must have a type attribute in Retend. Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 8
+@Input Button with text.
+<button type="button">Click me</button>
+
+---
+
+@Example 9
+@Input Create an anchor link.
+<a />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 10
+@Input Link with text and href.
+<a href="#">Link Text</a>
+
+---
+
+@Example 11
+@Input Image element.
+<img src="" alt="" />
+@Note Images must be self-closing in Retend.
+
+---
+
+@Example 12
+@Input Image with src and alt.
+<img src="/image.png" alt="My Image" />
+
+---
+
+@Example 13
+@Input Input element, text type.
+<input type="text" />
+@Note Input tags must be self-closing in Retend.
+
+---
+
+@Example 14
+@Input Input, password type.
+<input type="password" />
+
+---
+
+@Example 15
+@Input Textarea element.
+<textarea />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 16
+@Input Textarea with placeholder.
+<textarea placeholder="Enter text"></textarea>
+
+---
+
+@Example 17
+@Input Label with text and for.
+<label for="inputId">Label Text</label>
+@Note Retend uses 'for' attribute, not 'htmlFor'.
+
+---
+
+@Example 18
+@Input Unordered list with one item.
+<ul><li>Item</li></ul>
+
+---
+
+@Example 19
+@Input Ordered list with two items.
+<ol><li>First</li><li>Second</li></ol>
+
+---
+
+@Example 20
+@Input Div with a class.
+<div class="container" />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 21
+@Input Div with two classes.
+<div class="container main" />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 22
+@Input Span with inline style.
+<span style={{ color: 'red' }} />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 23
+@Input Span with background style.
+<span style={{ backgroundColor: 'blue' }} />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 24
+@Input Div with id.
+<div id="uniqueId" />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 25
+@Input Input with placeholder attribute.
+<input type="text" placeholder="Enter text here" />
+
+---
+
+@Example 26
+@Input Input with value attribute.
+<input type="text" value="Initial Value" />
+
+---
+
+@Example 27
+@Input Checkbox input, checked.
+<input type="checkbox" checked />
+@Note Boolean attributes can omit '=true'.
+
+---
+
+@Example 28
+@Input Checkbox input, not checked.
+<input type="checkbox" />
+
+---
+
+@Example 29
+@Input Disabled button.
+<button type="button" disabled />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 30
+@Input Readonly text input.
+<input type="text" readOnly />
+
+---
+
+@Example 31
+@Input Number input with min/max.
+<input type="number" min="0" max="10" />
+
+---
+
+@Example 32
+@Input SVG element.
+<svg xlmns="http://www.w3.org/2000/svg" width="200" height="100">
+    <rect xlmns="http://www.w3.org/2000/svg" width="100" height="50" fill="red" />
+    <circle xlmns="http://www.w3.org/2000/svg" cx="50" cy="50" r="40" fill="blue" />
+</svg>
+@Note SVG elements and all their children must have the `xmlns` attribute.
+
+---
+
+@Example 33
+@Input Select option, selected.
+<select><option value="option1" selected>Option 1</option></select>
+
+---
+
+@Example 34
+@Input Div with nested span.
+<div><span>Nested span</span></div>
+
+---
+
+@Example 35
+@Input Paragraph with strong tag.
+<p>This is <strong>important</strong> text.</p>
+
+---
+
+@Example 36
+@Input Link inside a paragraph.
+<p>Learn more <a href="#">here</a>.</p>
+
+---
+
+@Example 37
+@Input List item inside unordered list.
+<ul><li>List Item</li></ul>
+
+---
+
+@Example 38
+@Input Div with multiple attributes.
+<div id="main" class="container" />
+@Note Retend requires self-closing tags for elements with no children.
+
+---
+
+@Example 39
+@Input Image with class and style.
+<img src="/icon.png" alt="Icon" class="icon" style={{ width: '24px' }} />
+
+---
+
+@Example 40
+@Input Link with target blank.
+<a href="https://example.com" target="_blank">External Link</a>

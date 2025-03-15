@@ -1,0 +1,497 @@
+@Title for
+@Description Demonstrates 30 examples of the `For` function in Retend JSX for rendering lists from iterables.
+
+---
+
+@Example 1
+@Input Render a static array of strings as an unordered list.
+import { For } from 'retend';
+
+const FruitList = () => {
+  const fruits = ['Apple', 'Banana', 'Cherry'];
+  return <ul>{For(fruits, (fruit) => <li>{fruit}</li>)}</ul>;
+};
+@Note Use `For` instead of `.map` for looping in Retend JSX.
+
+---
+
+@Example 2
+@Input Render a static array of numbers as an ordered list.
+import { For } from 'retend';
+
+const NumberList = () => {
+  const numbers = [1, 2, 3, 4];
+  return <ol>{For(numbers, (num) => <li>{num}</li>)}</ol>;
+};
+
+---
+
+@Example 3
+@Input Render a static array of strings as divs.
+import { For } from 'retend';
+
+const Items = () => {
+  const items = ['Item 1', 'Item 2', 'Item 3'];
+  return <div>{For(items, (item) => <div>{item}</div>)}</div>;
+};
+
+---
+
+@Example 4
+@Input Render a static array of objects with name property.
+import { For } from 'retend';
+
+const UserNames = () => {
+  const users = [{ name: 'Alice' }, { name: 'Bob' }, { name: 'Charlie' }];
+  return <ul>{For(users, (user) => <li>{user.name}</li>)}</ul>;
+
+---
+
+@Example 5
+@Input Render a static array with index displayed.
+import { For } from 'retend';
+
+const IndexedList = () => {
+  const items = ['First', 'Second', 'Third'];
+  return <ul>{For(items, (item, index) => <li>{index}: {item}</li>)}</ul>;
+};
+@Note The `index` is a `Cell<number>`; use it directly in JSX for reactivity.
+
+---
+
+@Example 6
+@Input Render a reactive array of strings with Cell.
+import { Cell, For } from 'retend';
+
+const DynamicList = () => {
+  const items = Cell.source(['Apple', 'Banana', 'Cherry']);
+  return <ul>{For(items, (item) => <li>{item}</li>)}</ul>;
+};
+@Note `Cell.source` makes the list reactive; updates to `items.value` will re-render the list.
+
+---
+
+@Example 7
+@Input Render a reactive array with a button to add items.
+import { Cell, For } from 'retend';
+
+const GrowingList = () => {
+  const items = Cell.source(['Task 1', 'Task 2']);
+  const addItem = () => {
+    items.value = [...items.value, `Task ${items.value.length + 1}`];
+  };
+  return (
+    <div>
+      <ul>{For(items, (item) => <li>{item}</li>)}</ul>
+      <button type="button" onClick={addItem}>Add Item</button>
+    </div>
+  );
+};
+
+---
+
+@Example 8
+@Input Render a reactive array with index.
+import { Cell, For } from 'retend';
+
+const IndexedDynamicList = () => {
+  const items = Cell.source(['A', 'B', 'C']);
+  return <ul>{For(items, (item, index) => <li>{index}: {item}</li>)}</ul>;
+
+---
+
+@Example 9
+@Input Render a reactive array of objects with multiple properties.
+import { Cell, For } from 'retend';
+
+const UserList = () => {
+  const users = Cell.source([
+    { name: 'Alice', age: 25 },
+    { name: 'Bob', age: 30 },
+  ]);
+  return <ul>{For(users, (user) => <li>{user.name}, {user.age}</li>)}</ul>;
+}
+---
+
+@Example 10
+@Input Render a static array of nested spans.
+import { For } from 'retend';
+
+const NestedItems = () => {
+  const items = ['One', 'Two', 'Three'];
+  return <div>{For(items, (item) => <span>{item}</span>)}</div>;
+}
+---
+
+@Example 11
+@Input Render a static array of buttons.
+import { For } from 'retend';
+
+const ButtonList = () => {
+  const labels = ['Save', 'Cancel', 'Delete'];
+  return <div>{For(labels, (label) => <button type="button">{label}</button>)}</div>;
+}
+---
+
+@Example 12
+@Input Render a reactive array with a button to remove the last item.
+import { Cell, For } from 'retend';
+
+const ShrinkingList = () => {
+  const items = Cell.source(['Item 1', 'Item 2', 'Item 3']);
+  const removeLast = () => {
+    items.value = items.value.slice(0, -1);
+  };
+  return (
+    <div>
+      <ul>{For(items, (item) => <li>{item}</li>)}</ul>
+      <button type="button" onClick={removeLast}>Remove Last</button>
+    </div>
+  );
+};
+
+---
+
+@Example 13
+@Input Render a static array of links.
+import { For } from 'retend';
+
+const LinkList = () => {
+  const links = [
+    { href: '#home', text: 'Home' },
+    { href: '#about', text: 'About' },
+  ];
+  return <nav>{For(links, (link) => <a href={link.href}>{link.text}</a>)}</nav>;
+}
+---
+
+@Example 14
+@Input Render a reactive array with a clear button.
+import { Cell, For } from 'retend';
+
+const ClearableList = () => {
+  const items = Cell.source(['Red', 'Green', 'Blue']);
+  const clear = () => {
+    items.value = [];
+  };
+  return (
+    <div>
+      <ul>{For(items, (item) => <li>{item}</li>)}</ul>
+      <button type="button" onClick={clear}>Clear</button>
+    </div>
+  );
+};
+
+---
+
+@Example 15
+@Input Render a static array with conditional rendering using If.
+import { For, If } from 'retend';
+
+const EvenNumbers = () => {
+  const numbers = [1, 2, 3, 4, 5];
+  return (
+    <ul>
+      {For(numbers, (num) => (
+        If(num % 2 === 0, () => <li>{num}</li>)
+      ))}
+    </ul>
+  );
+};
+@Note Use `If` inside `For` for conditional rendering, not ternaries.
+
+---
+
+@Example 16
+@Input Render a reactive array with conditional rendering.
+import { Cell, For, If } from 'retend';
+
+const FilterList = () => {
+  const items = Cell.source([1, 2, 3, 4]);
+  const showEven = Cell.source(true);
+  const toggleFilter = () => {
+    showEven.value = !showEven.value;
+  };
+  return (
+    <div>
+      <ul>
+        {For(items, (item) => (
+          If(showEven, () => If(item % 2 === 0, () => <li>{item}</li>))
+        ))}
+      </ul>
+      <button type="button" onClick={toggleFilter}>Toggle Even</button>
+    </div>
+  );
+};
+
+---
+
+@Example 17
+@Input Render a static array of images.
+import { For } from 'retend';
+
+const ImageGallery = () => {
+  const images = ['img1.png', 'img2.png', 'img3.png'];
+  return <div>{For(images, (src) => <img src={src} alt={src} />)}</div>;
+}
+---
+
+@Example 18
+@Input Render a reactive array of images with add button.
+import { Cell, For } from 'retend';
+
+const DynamicGallery = () => {
+  const images = Cell.source(['img1.png', 'img2.png']);
+  const addImage = () => {
+    images.value = [...images.value, `img${images.value.length + 1}.png`];
+  };
+  return (
+    <div>
+      {For(images, (src) => <img src={src} alt={src} />)}
+      <button type="button" onClick={addImage}>Add Image</button>
+    </div>
+  );
+};
+
+---
+
+@Example 19
+@Input Render a static array with Switch for conditional content.
+import { For, Switch } from 'retend';
+
+const TypeList = () => {
+  const items = ['text', 'button', 'link'];
+  return (
+    <div>
+      {For(items, (type) => (
+        Switch(type, {
+          text: () => <p>Text Item</p>,
+          button: () => <button type="button">Button Item</button>,
+          link: () => <a href="#">Link Item</a>,
+        })
+      ))}
+    </div>
+  );
+};
+
+---
+
+@Example 20
+@Input Render a reactive array with Switch and update button.
+import { Cell, For, Switch } from 'retend';
+
+const DynamicTypeList = () => {
+  const items = Cell.source(['text', 'button']);
+  const addLink = () => {
+    items.value = [...items.value, 'link'];
+  };
+  return (
+    <div>
+      {For(items, (type) => (
+        Switch(type, {
+          text: () => <p>Text Item</p>,
+          button: () => <button type="button">Button Item</button>,
+          link: () => <a href="#">Link Item</a>,
+        })
+      ))}
+      <button type="button" onClick={addLink}>Add Link</button>
+    </div>
+  );
+};
+
+---
+
+@Example 21
+@Input Render a static array of paragraphs with styles.
+import { For } from 'retend';
+
+const StyledParagraphs = () => {
+  const texts = ['First', 'Second', 'Third'];
+  return (
+    <div>
+      {For(texts, (text) => <p style={{ color: 'blue' }}>{text}</p>)}
+    </div>
+  );
+};
+
+---
+
+@Example 22
+@Input Render a reactive array with dynamic styles.
+import { Cell, For } from 'retend';
+
+const DynamicStyledList = () => {
+  const items = Cell.source(['A', 'B', 'C']);
+  const color = Cell.source('red');
+  const toggleColor = () => {
+    color.value = color.value === 'red' ? 'green' : 'red';
+  };
+  return (
+    <div>
+      <ul>
+        {For(items, (item) => <li style={{ color: color }}>{item}</li>)}
+      </ul>
+      <button type="button" onClick={toggleColor}>Toggle Color</button>
+    </div>
+  );
+};
+
+---
+
+@Example 23
+@Input Render a static array of inputs.
+import { For } from 'retend';
+
+const InputList = () => {
+  const placeholders = ['Name', 'Email', 'Phone'];
+  return (
+    <form>
+      {For(placeholders, (ph) => <input type="text" placeholder={ph} />)}
+    </form>
+  );
+};
+
+---
+
+@Example 24
+@Input Render a reactive array of inputs with add button.
+import { Cell, For } from 'retend';
+
+const DynamicInputs = () => {
+  const fields = Cell.source(['Field 1', 'Field 2']);
+  const addField = () => {
+    fields.value = [...fields.value, `Field ${fields.value.length + 1}`];
+  };
+  return (
+    <form>
+      {For(fields, (field) => <input type="text" placeholder={field} />)}
+      <button type="button" onClick={addField}>Add Field</button>
+    </form>
+  );
+};
+
+---
+
+@Example 25
+@Input Render a static array of list items with classes.
+import { For } from 'retend';
+
+const ClassedList = () => {
+  const items = ['Item 1', 'Item 2', 'Item 3'];
+  return <ul>{For(items, (item) => <li class="item">{item}</li>)}</ul>;
+}
+
+---
+
+@Example 26
+@Input Render a reactive array with dynamic classes.
+import { Cell, For } from 'retend';
+
+const DynamicClassList = () => {
+  const items = Cell.source(['A', 'B']);
+  const isActive = Cell.source(true);
+  const toggleActive = () => {
+    isActive.value = !isActive.value;
+  };
+  const className = Cell.derived(() => isActive.value ? 'active' : 'inactive');
+  return (
+    <div>
+      <ul>{For(items, (item) => <li class={className}>{item}</li>)}</ul>
+      <button type="button" onClick={toggleActive}>Toggle Active</button>
+    </div>
+  );
+};
+
+---
+
+@Example 27
+@Input Render a static array of divs with event handlers.
+import { For } from 'retend';
+
+const ClickableItems = () => {
+  const items = ['Click 1', 'Click 2', 'Click 3'];
+  const handleClick = (item) => () => alert(`Clicked: ${item}`);
+  return (
+    <div>
+      {For(items, (item) => <div onClick={handleClick(item)}>{item}</div>)}
+    </div>
+  );
+};
+
+---
+
+@Example 28
+@Input Render a reactive array with click handlers.
+import { Cell, For } from 'retend';
+
+const DynamicClickableList = () => {
+  const items = Cell.source(['A', 'B']);
+  const addItem = () => {
+    items.value = [...items.value, `Item ${items.value.length + 1}`];
+  };
+  const handleClick = (item) => () => alert(`Clicked: ${item}`);
+  return (
+    <div>
+      <ul>
+        {For(items, (item) => <li onClick={handleClick(item)}>{item}</li>)}
+      </ul>
+      <button type="button" onClick={addItem}>Add Item</button>
+    </div>
+  );
+};
+
+---
+
+@Example 29
+@Input Render a static array of table rows.
+import { For } from 'retend';
+
+const TableRows = () => {
+  const rows = [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' },
+  ];
+  return (
+    <table>
+      <tbody>
+        {For(rows, (row) => (
+          <tr>
+            <td>{row.id}</td>
+            <td>{row.name}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+---
+
+@Example 30
+@Input Render a reactive array of table rows with add button.
+import { Cell, For } from 'retend';
+
+const DynamicTable = () => {
+  const rows = Cell.source([
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' },
+  ]);
+  const addRow = () => {
+    rows.value = [...rows.value, { id: rows.value.length + 1, name: `User ${rows.value.length + 1}` }];
+  };
+  return (
+    <div>
+      <table>
+        <tbody>
+          {For(rows, (row) => (
+            <tr>
+              <td>{row.id}</td>
+              <td>{row.name}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button type="button" onClick={addRow}>Add Row</button>
+    </div>
+  );
+};

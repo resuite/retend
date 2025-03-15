@@ -1,0 +1,1306 @@
+@Title cells
+@Description Demonstrates the usage of cells in Retend JSX for reactive state management.
+
+---
+
+@Example 1
+@Input Simple div with a cell for text content.
+import { Cell } from 'retend';
+
+const SimpleDiv = () => {
+  const message = Cell.source('Hello, world!');
+  return <div>{message}</div>;
+};
+@Note The cell `message` is used directly in JSX to maintain reactivity.
+
+---
+
+@Example 2
+@Input Paragraph with a cell for text.
+import { Cell } from 'retend';
+
+const Paragraph = () => {
+  const text = Cell.source('This is a paragraph.');
+  return <p>{text}</p>;
+};
+
+---
+
+@Example 3
+@Input Span with a cell for inline text.
+import { Cell } from 'retend';
+
+const InlineText = () => {
+  const inline = Cell.source('Inline text');
+  return <span>{inline}</span>;
+};
+
+---
+
+@Example 4
+@Input Heading with a cell for title.
+import { Cell } from 'retend';
+
+const Heading = () => {
+  const title = Cell.source('Page Title');
+  return <h1>{title}</h1>;
+};
+
+---
+
+@Example 5
+@Input Button with a cell for label.
+import { Cell } from 'retend';
+
+const ButtonLabel = () => {
+  const label = Cell.source('Click me');
+  return <button type="button">{label}</button>;
+};
+
+---
+
+@Example 6
+@Input Anchor with a cell for href.
+import { Cell } from 'retend';
+
+const DynamicLink = () => {
+  const url = Cell.source('https://example.com');
+  return <a href={url}>Visit Example</a>;
+};
+@Note The cell `url` is used directly for the `href` attribute to ensure reactivity.
+
+---
+
+@Example 7
+@Input Image with a cell for src.
+import { Cell } from 'retend';
+
+const DynamicImage = () => {
+  const imageSrc = Cell.source('/image.png');
+  return <img src={imageSrc} alt="Dynamic Image" />;
+};
+
+---
+
+@Example 8
+@Input Input with a cell for placeholder.
+import { Cell } from 'retend';
+
+const PlaceholderInput = () => {
+  const placeholder = Cell.source('Enter text');
+  return <input type="text" placeholder={placeholder} />;
+};
+
+---
+
+@Example 9
+@Input Button with a cell for disabled state.
+import { Cell } from 'retend';
+
+const DisableButton = () => {
+  const isDisabled = Cell.source(false);
+  return <button type="button" disabled={isDisabled}>Action</button>;
+};
+@Note Boolean attributes like `disabled` use cells directly.
+
+---
+
+@Example 10
+@Input Checkbox with a cell for checked state.
+import { Cell } from 'retend';
+
+const CheckBox = () => {
+  const isChecked = Cell.source(false);
+  return <input type="checkbox" checked={isChecked} />;
+};
+
+---
+
+@Example 11
+@Input Div with a cell for background color.
+import { Cell } from 'retend';
+
+const ColoredDiv = () => {
+  const color = Cell.source('red');
+  return <div style={{ backgroundColor: color }} />;
+};
+@Note The cell `color` is used within the style object for reactivity.
+
+---
+
+@Example 12
+@Input Span with a cell for font size.
+import { Cell } from 'retend';
+
+const FontSizeSpan = () => {
+  const size = Cell.source('16px');
+  return <span style={{ fontSize: size }}>Text</span>;
+};
+
+---
+
+@Example 13
+@Input Button with a cell for width.
+import { Cell } from 'retend';
+
+const WidthButton = () => {
+  const width = Cell.source('100px');
+  return <button type="button" style={{ width: width }}>Click</button>;
+};
+
+---
+
+@Example 14
+@Input Div with a class based on a derived cell.
+import { Cell } from 'retend';
+
+const ConditionalClass = () => {
+  const isActive = Cell.source(true);
+  const className = Cell.derived(() => isActive.value ? 'active' : 'inactive');
+  return <div class={className} />;
+};
+@Note A derived cell computes the class name reactively.
+
+---
+
+@Example 15
+@Input Button that changes text based on a derived cell.
+import { Cell } from 'retend';
+
+const ToggleButton = () => {
+  const isOn = Cell.source(false);
+  const label = Cell.derived(() => isOn.value ? 'On' : 'Off');
+  return <button type="button">{label}</button>;
+};
+
+---
+
+@Example 16
+@Input Unordered list from an array cell.
+import { Cell, For } from 'retend';
+
+const FruitList = () => {
+  const fruits = Cell.source(['Apple', 'Banana', 'Cherry']);
+  return <ul>{For(fruits, (fruit) => <li>{fruit}</li>)}</ul>;
+};
+@Note `For` is used to render the list items reactively.
+@Note do not use .map to loop over items in Retend JSX.
+
+---
+
+@Example 17
+@Input Ordered list from an array cell.
+import { Cell, For } from 'retend';
+
+const NumberList = () => {
+  const numbers = Cell.source([1, 2, 3]);
+  return <ol>{For(numbers, (num) => <li>{num}</li>)}</ol>;
+};
+@Note `For` is used to render the list items reactively.
+@Note do not use .map to loop over items in Retend JSX.
+
+---
+
+@Example 18
+@Input Display user name from an object cell.
+import { Cell } from 'retend';
+
+const UserName = () => {
+  const user = Cell.source({ name: 'John Doe', age: 30 });
+  const name = Cell.derived(() => user.value.name);
+  return <div>{name}</div>;
+};
+@Note A derived cell accesses the `name` property reactively.
+
+---
+
+@Example 19
+@Input Display user age from an object cell.
+import { Cell } from 'retend';
+
+const UserAge = () => {
+  const user = Cell.source({ name: 'John Doe', age: 30 });
+  const age = Cell.derived(() => user.value.age);
+  return <div>Age: {age}</div>;
+};
+
+---
+
+@Example 20
+@Input Input bound to a cell with change handler.
+import { Cell } from 'retend';
+
+const TextInput = () => {
+  const text = Cell.source('');
+  const handleChange = (event) => {
+    text.value = event.target.value;
+  };
+  return <input type="text" onInput={handleChange} />;
+};
+@Note do not use `value` attribute for input elements.
+
+---
+
+@Example 21
+@Input Checkbox bound to a cell with change handler.
+import { Cell } from 'retend';
+
+const CheckBoxInput = () => {
+  const isChecked = Cell.source(false);
+  const handleChange = (event) => {
+    isChecked.value = event.target.checked;
+  };
+  return <input type="checkbox" checked={isChecked} onChange={handleChange} />;
+};
+
+---
+
+@Example 22
+@Input Div with dynamic class based on multiple conditions.
+import { Cell } from 'retend';
+
+const DynamicClassDiv = () => {
+  const isActive = Cell.source(true);
+  const isHighlighted = Cell.source(false);
+  const className = Cell.derived(() => {
+    const classes = [];
+    if (isActive.value) classes.push('active');
+    if (isHighlighted.value) classes.push('highlight');
+    return classes.join(' ');
+  });
+  return <div class={className} />;
+};
+
+---
+
+@Example 23
+@Input Image with alt text from a cell.
+import { Cell } from 'retend';
+
+const AltImage = () => {
+  const altText = Cell.source('An image');
+  return <img src="/image.png" alt={altText} />;
+};
+
+---
+
+@Example 24
+@Input Link with target attribute from a cell.
+import { Cell } from 'retend';
+
+const TargetLink = () => {
+  const target = Cell.source('_blank');
+  return <a href="https://example.com" target={target}>Link</a>;
+};
+
+---
+
+@Example 25
+@Input Div with inline style object from a cell.
+import { Cell } from 'retend';
+
+const StyledDiv = () => {
+  const style = Cell.source({ color: 'blue', fontSize: '20px' });
+  return <div style={style} />;
+};
+
+---
+
+@Example 26
+@Input Button with dynamic type.
+import { Cell } from 'retend';
+
+const DynamicTypeButton = () => {
+  const buttonType = Cell.source('button');
+  return <button type={buttonType}>Click</button>;
+};
+
+---
+
+@Example 27
+@Input Input with dynamic type.
+import { Cell } from 'retend';
+
+const DynamicInput = () => {
+  const inputType = Cell.source('text');
+  return <input type={inputType} />;
+};
+
+---
+
+@Example 28
+@Input Textarea with rows from a cell.
+import { Cell } from 'retend';
+
+const RowsTextArea = () => {
+  const rows = Cell.source(5);
+  return <textarea rows={rows} />;
+};
+
+---
+
+@Example 29
+@Input Select with options from an array cell.
+import { Cell, For } from 'retend';
+
+const SelectOptions = () => {
+  const options = Cell.source(['Option 1', 'Option 2', 'Option 3']);
+  return <select>{For(options, (opt) => <option value={opt}>{opt}</option>)}</select>;
+};
+@Note `For` is used to render the list items reactively.
+@Note do not use .map to loop over items in Retend JSX.
+
+---
+
+@Example 30
+@Input Div with aria-label from a cell.
+import { Cell } from 'retend';
+
+const AriaLabelDiv = () => {
+  const label = Cell.source('Close');
+  return <div aria-label={label} />;
+};
+
+---
+
+@Example 31
+@Input Time element with datetime from a cell.
+import { Cell } from 'retend';
+
+const DynamicTime = () => {
+  const dateTime = Cell.source('2024-01-01');
+  return <time dateTime={dateTime}>January 1, 2024</time>;
+};
+
+---
+
+@Example 32
+@Input Abbr with title from a cell.
+import { Cell } from 'retend';
+
+const DynamicAbbr = () => {
+  const title = Cell.source('Hypertext Markup Language');
+  return <abbr title={title}>HTML</abbr>;
+};
+
+---
+
+@Example 33
+@Input Code element with content from a cell.
+import { Cell } from 'retend';
+
+const CodeSnippet = () => {
+  const code = Cell.source('console.log("Hello");');
+  return <code>{code}</code>;
+};
+
+---
+
+@Example 34
+@Input Pre with code block from a cell.
+import { Cell } from 'retend';
+
+const CodeBlock = () => {
+  const code = Cell.source('function hello() { console.log("Hello"); }');
+  return <pre><code>{code}</code></pre>;
+};
+
+---
+
+@Example 35
+@Input Blockquote with cite from a cell.
+import { Cell } from 'retend';
+
+const Quote = () => {
+  const cite = Cell.source('https://example.com');
+  return <blockquote cite={cite}>Quote text.</blockquote>;
+};
+
+---
+
+@Example 36
+@Input Mark element with text from a cell.
+import { Cell } from 'retend';
+
+const Highlight = () => {
+  const text = Cell.source('Highlighted');
+  return <mark>{text}</mark>;
+};
+
+---
+
+@Example 37
+@Input Small element with text from a cell.
+import { Cell } from 'retend';
+
+const SmallText = () => {
+  const text = Cell.source('Small print');
+  return <small>{text}</small>;
+};
+
+---
+
+@Example 38
+@Input Subscript with number from a cell.
+import { Cell } from 'retend';
+
+const SubScript = () => {
+  const number = Cell.source(2);
+  return <sub>{number}</sub>;
+};
+
+---
+
+@Example 39
+@Input Superscript with exponent from a cell.
+import { Cell } from 'retend';
+
+const SuperScript = () => {
+  const exponent = Cell.source(2);
+  return <sup>{exponent}</sup>;
+};
+
+---
+
+@Example 40
+@Input Div showing sum of two cells.
+import { Cell } from 'retend';
+
+const SumDisplay = () => {
+  const a = Cell.source(1);
+  const b = Cell.source(2);
+  const sum = Cell.derived(() => a.value + b.value);
+  return <div>Sum: {sum}</div>;
+};
+
+---
+
+@Example 41
+@Input Paragraph showing if a number is even or odd.
+import { Cell } from 'retend';
+
+const EvenOdd = () => {
+  const number = Cell.source(4);
+  const status = Cell.derived(() => number.value % 2 === 0 ? 'Even' : 'Odd');
+  return <p>{status}</p>;
+};
+
+---
+
+@Example 42
+@Input Button that toggles a boolean cell.
+import { Cell } from 'retend';
+
+const ToggleButton = () => {
+  const isOn = Cell.source(false);
+  const toggle = () => {
+    isOn.value = !isOn.value;
+  };
+  const label = Cell.derived(() => isOn.value ? 'On' : 'Off');
+  return <button type="button" onClick={toggle}>{label}</button>;
+};
+
+---
+
+@Example 43
+@Input Input that updates a cell on change.
+import { Cell } from 'retend';
+
+const NameInput = () => {
+  const name = Cell.source('');
+  const handleChange = (event) => {
+    name.value = event.target.value;
+  };
+  return (
+    <div>
+      <input type="text" onInput={handleChange} />
+      <p>Hello, {name}!</p>
+    </div>
+  );
+};
+
+---
+
+@Example 44
+@Input Select with value bound to a cell.
+import { Cell } from 'retend';
+
+const SelectInput = () => {
+  const selected = Cell.source('option1');
+  const handleChange = (event) => {
+    selected.value = event.target.value;
+  };
+  return (
+    <select value={selected} onChange={handleChange}>
+      <option value="option1">Option 1</option>
+      <option value="option2">Option 2</option>
+    </select>
+  );
+};
+
+---
+
+@Example 45
+@Input Radio buttons bound to a cell.
+import { Cell } from 'retend';
+
+const RadioGroup = () => {
+  const choice = Cell.source('option1');
+  const handleChange = (event) => {
+    choice.value = event.target.value;
+  };
+  const isOption1 = Cell.derived(() => choice.value === 'option1');
+  const isOption2 = Cell.derived(() => choice.value === 'option2');
+  return (
+    <div>
+      <label>
+        <input
+          type="radio"
+          value="option1"
+          checked={choice.value === 'option1'}
+          onChange={handleChange}
+        />
+        Option 1
+      </label>
+      <label>
+        <input
+          type="radio"
+          value="option2"
+          checked={choice.value === 'option2'}
+          onChange={handleChange}
+        />
+        Option 2
+      </label>
+    </div>
+  );
+};
+@Note `.value` is used in JS only for initial comparison, not reactivity.
+
+---
+
+@Example 46
+@Input Div with background color based on a cell.
+import { Cell } from 'retend';
+
+const BackgroundColorDiv = () => {
+  const color = Cell.source('lightblue');
+  return <div style={{ backgroundColor: color }} />;
+};
+
+---
+
+@Example 47
+@Input Span with font family from a cell.
+import { Cell } from 'retend';
+
+const FontFamilySpan = () => {
+  const font = Cell.source('Arial');
+  return <span style={{ fontFamily: font }}>Text</span>;
+};
+
+---
+
+@Example 48
+@Input Image with width from a cell.
+import { Cell } from 'retend';
+
+const WidthImage = () => {
+  const width = Cell.source('200px');
+  return <img src="/image.png" style={{ width: width }} alt="Image" />;
+};
+
+---
+
+@Example 49
+@Input Link with dynamic text and href.
+import { Cell } from 'retend';
+
+const DynamicLink = () => {
+  const url = Cell.source('https://example.com');
+  const text = Cell.source('Visit Example');
+  return <a href={url}>{text}</a>;
+};
+
+---
+
+@Example 50
+@Input Div with multiple classes from cells.
+import { Cell } from 'retend';
+
+const MultiClassDiv = () => {
+  const class1 = Cell.source('container');
+  const class2 = Cell.source('main');
+  return <div class={[class1, class2]} />;
+};
+@Note Class can be an array of Cellular strings.
+
+---
+
+@Example 51
+@Input Button with dynamic aria-label.
+import { Cell } from 'retend';
+
+const AriaButton = () => {
+  const label = Cell.source('Submit form');
+  return <button type="button" aria-label={label}>Submit</button>;
+};
+
+---
+
+@Example 52
+@Input Input with max length from a cell.
+import { Cell } from 'retend';
+
+const MaxLengthInput = () => {
+  const maxLen = Cell.source(10);
+  return <input type="text" maxLength={maxLen} />;
+};
+
+---
+
+@Example 53
+@Input Textarea with cols from a cell.
+import { Cell } from 'retend';
+
+const ColsTextArea = () => {
+  const cols = Cell.source(50);
+  return <textarea cols={cols} />;
+};
+
+---
+
+@Example 54
+@Input Div with data attribute from a cell.
+import { Cell } from 'retend';
+
+const DataDiv = () => {
+  const itemId = Cell.source('123');
+  return <div data-item-id={itemId} />;
+};
+
+---
+
+@Example 55
+@Input Link with rel attribute from a cell.
+import { Cell } from 'retend';
+
+const RelLink = () => {
+  const rel = Cell.source('noopener');
+  return <a href="https://example.com" rel={rel}>Link</a>;
+};
+
+---
+
+@Example 56
+@Input Image with loading attribute from a cell.
+import { Cell } from 'retend';
+
+const LoadingImage = () => {
+  const loading = Cell.source('lazy');
+  return <img src="/image.png" loading={loading} alt="Image" />;
+};
+
+---
+
+@Example 57
+@Input Button with form attribute from a cell.
+import { Cell } from 'retend';
+
+const FormButton = () => {
+  const formId = Cell.source('myForm');
+  return <button type="submit" form={formId}>Submit</button>;
+};
+
+---
+
+@Example 58
+@Input Input with pattern from a cell.
+import { Cell } from 'retend';
+
+const PatternInput = () => {
+  const pattern = Cell.source('[A-Za-z]{3}');
+  return <input type="text" pattern={pattern} />;
+};
+
+---
+
+@Example 59
+@Input Div with tabindex from a cell.
+import { Cell } from 'retend';
+
+const TabIndexDiv = () => {
+  const tabIndex = Cell.source(0);
+  return <div tabIndex={tabIndex} />;
+};
+
+---
+
+@Example 60
+@Input List of users with names and ages.
+import { Cell, For } from 'retend';
+
+const UserList = () => {
+  const users = Cell.source([
+    { id: 1, name: 'Alice', age: 25 },
+    { id: 2, name: 'Bob', age: 30 },
+  ]);
+  return (
+    <ul>
+      {For(users, (user) => (
+        <li>
+          {user.name}, {user.age}
+        </li>
+      ))}
+    </ul>
+    );
+};
+@Note `For` is used to render the list items reactively.
+@Note do not use .map to loop over items in Retend JSX.
+---
+
+@Example 61
+@Input Nested divs with dynamic classes.
+import { Cell } from 'retend';
+
+const NestedDivs = () => {
+  const outerClass = Cell.source('outer');
+  const innerClass = Cell.source('inner');
+  return (
+    <div class={outerClass}>
+      <div class={innerClass} />
+    </div>
+  );
+};
+
+---
+
+@Example 62
+@Input Form with multiple inputs bound to cells.
+import { Cell } from 'retend';
+
+const UserForm = () => {
+  const name = Cell.source('');
+  const age = Cell.source(0);
+  const handleNameChange = (event) => {
+    name.value = event.target.value;
+  };
+  const handleAgeChange = (event) => {
+    age.value = parseInt(event.target.value, 10) || 0;
+  };
+  return (
+    <form>
+      <label>
+        Name:
+        <input type="text" onInput={handleNameChange} />
+      </label>
+      <label>
+        Age:
+        <input type="number" onInput={handleAgeChange} />
+      </label>
+    </form>
+  );
+};
+@Note do not use `value` attribute for input elements.
+
+---
+
+@Example 63
+@Input Div with dynamic id.
+import { Cell } from 'retend';
+
+const DynamicIdDiv = () => {
+  const id = Cell.source('uniqueId');
+  return <div id={id} />;
+};
+
+---
+
+@Example 64
+@Input Span with dynamic title attribute.
+import { Cell } from 'retend';
+
+const TitleSpan = () => {
+  const title = Cell.source('Tooltip text');
+  return <span title={title}>Hover me</span>;
+};
+
+---
+
+@Example 65
+@Input Image with dynamic alt and src.
+import { Cell } from 'retend';
+
+const DynamicImage = () => {
+  const src = Cell.source('/image.png');
+  const alt = Cell.source('Description');
+  return <img src={src} alt={alt} />;
+};
+
+---
+
+@Example 66
+@Input Button that increments a counter.
+import { Cell } from 'retend';
+
+const CounterButton = () => {
+  const count = Cell.source(0);
+  const increment = () => {
+    count.value++;
+  };
+  return (
+    <div>
+      <button type="button" onClick={increment}>Increment</button>
+      <p>Count: {count}</p>
+    </div>
+  );
+};
+
+---
+
+@Example 67
+@Input Input that updates a cell on keyup.
+import { Cell } from 'retend';
+
+const KeyUpInput = () => {
+  const text = Cell.source('');
+  const handleKeyUp = (event) => {
+    text.value = event.target.value;
+  };
+  return <input type="text" onKeyUp={handleKeyUp} />;
+};
+
+---
+
+@Example 68
+@Input Div with dynamic height and width.
+import { Cell } from 'retend';
+
+const SizeDiv = () => {
+  const height = Cell.source('100px');
+  const width = Cell.source('200px');
+  return <div style={{ height: height, width: width }} />;
+};
+
+---
+
+@Example 69
+@Input Span with dynamic color and background.
+import { Cell } from 'retend';
+
+const ColorSpan = () => {
+  const color = Cell.source('red');
+  const background = Cell.source('yellow');
+  return <span style={{ color: color, backgroundColor: background }}>Text</span>;
+};
+
+---
+
+@Example 70
+@Input Link with dynamic target and rel.
+import { Cell } from 'retend';
+
+const SecureLink = () => {
+  const target = Cell.source('_blank');
+  const rel = Cell.source('noopener noreferrer');
+  return <a href="https://example.com" target={target} rel={rel}>Link</a>;
+};
+
+---
+
+@Example 71
+@Input Input with dynamic min and max.
+import { Cell } from 'retend';
+
+const RangeInput = () => {
+  const min = Cell.source(0);
+  const max = Cell.source(100);
+  return <input type="number" min={min} max={max} />;
+};
+
+---
+
+@Example 72
+@Input Textarea with dynamic placeholder.
+import { Cell } from 'retend';
+
+const PlaceholderTextArea = () => {
+  const placeholder = Cell.source('Enter your message');
+  return <textarea placeholder={placeholder} />;
+};
+
+---
+
+@Example 73
+@Input Button with dynamic formaction.
+import { Cell } from 'retend';
+
+const FormActionButton = () => {
+  const action = Cell.source('/submit');
+  return <button type="submit" formAction={action}>Submit</button>;
+};
+
+---
+
+@Example 74
+@Input Div with dynamic role.
+import { Cell } from 'retend';
+
+const RoleDiv = () => {
+  const role = Cell.source('alert');
+  return <div role={role} />;
+};
+
+---
+
+@Example 75
+@Input Image with dynamic sizes attribute.
+import { Cell } from 'retend';
+
+const SizesImage = () => {
+  const sizes = Cell.source('100vw');
+  return <img src="/image.png" sizes={sizes} alt="Image" />;
+};
+
+---
+
+@Example 76
+@Input Link with dynamic download attribute.
+import { Cell } from 'retend';
+
+const DownloadLink = () => {
+  const filename = Cell.source('file.txt');
+  return <a href="/file.txt" download={filename}>Download</a>;
+};
+
+---
+
+@Example 77
+@Input Input with dynamic step.
+import { Cell } from 'retend';
+
+const StepInput = () => {
+  const step = Cell.source(0.1);
+  return <input type="number" step={step} />;
+};
+
+---
+
+@Example 78
+@Input Div with dynamic lang attribute.
+import { Cell } from 'retend';
+
+const LangDiv = () => {
+  const lang = Cell.source('en');
+  return <div lang={lang} />;
+};
+
+---
+
+@Example 79
+@Input Span with dynamic dir attribute.
+import { Cell } from 'retend';
+
+const DirSpan = () => {
+  const dir = Cell.source('ltr');
+  return <span dir={dir}>Text</span>;
+};
+
+---
+
+@Example 80
+@Input Div that logs when a cell changes.
+import { Cell } from 'retend';
+
+const LoggingDiv = () => {
+  const message = Cell.source('Initial');
+  message.listen((value) => {
+    console.log(`Message changed to: ${value}`);
+  });
+  return <div>{message}</div>;
+};
+
+---
+
+@Example 81
+@Input Button that updates a cell and logs.
+import { Cell } from 'retend';
+
+const UpdateAndLog = () => {
+  const count = Cell.source(0);
+  count.listen((value) => {
+    console.log(`Count is now: ${value}`);
+  });
+  const increment = () => {
+    count.value++;
+  };
+  return <button type="button" onClick={increment}>Increment</button>;
+};
+
+---
+
+@Example 82
+@Input Input that updates a cell and shows the value.
+import { Cell } from 'retend';
+
+const InputWithDisplay = () => {
+  const text = Cell.source('');
+  const handleChange = (event) => {
+    text.value = event.target.value;
+  };
+  return (
+    <div>
+      <input type="text" onInput={handleChange} />
+      <p>You typed: {text}</p>
+    </div>
+  );
+};
+
+---
+
+@Example 83
+@Input Div that shows the length of a string cell.
+import { Cell } from 'retend';
+
+const LengthDisplay = () => {
+  const text = Cell.source('Hello');
+  const length = Cell.derived(() => text.value.length);
+  return <div>Length: {length}</div>;
+};
+
+---
+
+@Example 84
+@Input Paragraph that shows if a number cell is positive.
+import { Cell, If } from 'retend';
+
+const PositiveCheck = () => {
+  const number = Cell.source(5);
+  const isPositive = Cell.derived(() => number.value > 0);
+  return <p>{If(isPositive, () => 'Positive')}</p>;
+};
+@Note `If` is used for conditional rendering.
+@Note do not use ternary operators for conditional rendering.
+
+---
+
+@Example 85
+@Input Button that toggles visibility of a div.
+import { Cell, If } from 'retend';
+
+const ToggleVisibility = () => {
+  const isVisible = Cell.source(true);
+  const toggle = () => {
+    isVisible.value = !isVisible.value;
+  };
+  return (
+    <div>
+      <button type="button" onClick={toggle}>Toggle</button>
+      {If(isVisible, () => <div>Visible Content</div>)}
+    </div>
+  );
+};
+@Note `If` is used for conditional rendering.
+@Note do not use ternary operators for conditional rendering.
+
+---
+
+@Example 86
+@Input List that filters items based on a cell.
+import { Cell, For } from 'retend';
+
+const FilteredList = () => {
+  const items = Cell.source(['apple', 'banana', 'cherry']);
+  const filter = Cell.source('a');
+  const filteredItems = Cell.derived(() =>
+    items.value.filter(item => item.includes(filter.value))
+  );
+  const handleInput = (event) => {
+    filter.value = event.target.value;
+  };
+  return (
+    <div>
+      <input type="text" onInput={handleInput} />
+      {For(filteredItems, (item) => (
+        <li>{item}</li>
+      ))}
+    </div>
+  );
+};
+@Note `For` is used to render the list items reactively.
+@Note do not use .map to loop over items in Retend JSX.
+@Note event handlers should be preferred outside of the JSX, if possible.
+
+---
+
+@Example 87
+@Input Div with dynamic border style.
+import { Cell } from 'retend';
+
+const BorderDiv = () => {
+  const border = Cell.source('1px solid black');
+  return <div style={{ border: border }} />;
+};
+
+---
+
+@Example 88
+@Input Span with dynamic font weight.
+import { Cell } from 'retend';
+
+const FontWeightSpan = () => {
+  const weight = Cell.source('bold');
+  return <span style={{ fontWeight: weight }}>Text</span>;
+};
+
+---
+
+@Example 89
+@Input Image with dynamic height.
+import { Cell } from 'retend';
+
+const HeightImage = () => {
+  const height = Cell.source('150px');
+  return <img src="/image.png" style={{ height: height }} alt="Image" />;
+};
+
+---
+
+@Example 90
+@Input Link with dynamic class and href.
+import { Cell } from 'retend';
+
+const ClassLink = () => {
+  const className = Cell.source('link-style');
+  const href = Cell.source('https://example.com');
+  return <a class={className} href={href}>Link</a>;
+};
+
+---
+
+@Example 91
+@Input Button with dynamic disabled state and label.
+import { Cell } from 'retend';
+
+const DisableButton = () => {
+  const isDisabled = Cell.source(false);
+  const label = Cell.source('Action');
+  return <button type="button" disabled={isDisabled}>{label}</button>;
+};
+
+---
+
+@Example 92
+@Input Input with dynamic value and placeholder.
+import { Cell } from 'retend';
+
+const ValueInput = () => {
+  const value = Cell.source('');
+  const placeholder = Cell.source('Type here');
+  const handleChange = (event) => {
+    value.value = event.target.value;
+  };
+  return (
+    <>
+      <input type="text" placeholder={placeholder} onInput={handleChange} />
+      <p>You typed: {value}</p>
+    </>
+  );
+};
+@Note Do not use `value` attribute for input elements.
+
+---
+
+@Example 93
+@Input Div with dynamic margin and padding.
+import { Cell } from 'retend';
+
+const SpacingDiv = () => {
+  const margin = Cell.source('10px');
+  const padding = Cell.source('20px');
+  return <div style={{ margin: margin, padding: padding }} />;
+};
+
+---
+
+@Example 94
+@Input Span with dynamic text decoration.
+import { Cell } from 'retend';
+
+const DecorationSpan = () => {
+  const decoration = Cell.source('underline');
+  return <span style={{ textDecoration: decoration }}>Text</span>;
+};
+
+---
+
+@Example 95
+@Input Image with dynamic object fit.
+import { Cell } from 'retend';
+
+const FitImage = () => {
+  const fit = Cell.source('cover');
+  return <img src="/image.png" style={{ objectFit: fit }} alt="Image" />;
+};
+
+---
+
+@Example 96
+@Input Link with dynamic tabindex.
+import { Cell } from 'retend';
+
+const TabIndexLink = () => {
+  const tabIndex = Cell.source(1);
+  return <a href="#" tabIndex={tabIndex}>Link</a>;
+};
+
+---
+
+@Example 97
+@Input Button with dynamic formmethod.
+import { Cell } from 'retend';
+
+const MethodButton = () => {
+  const method = Cell.source('post');
+  return <button type="submit" formMethod={method}>Submit</button>;
+};
+
+---
+
+@Example 98
+@Input Input with dynamic autocomplete.
+import { Cell } from 'retend';
+
+const AutoCompleteInput = () => {
+  const autoComplete = Cell.source('off');
+  return <input type="text" autoComplete={autoComplete} />;
+};
+
+---
+
+@Example 99
+@Input Div with dynamic content editable.
+import { Cell } from 'retend';
+
+const EditableDiv = () => {
+  const isEditable = Cell.source(true);
+  return <div contentEditable={isEditable} />;
+};
+
+---
+
+@Example 100
+@Input Counter component with reactive display.
+import { Cell } from 'retend';
+
+const Counter = () => {
+  const count = Cell.source(0);
+  const increaseCount = () => {
+    count.value++;
+  };
+  return (
+    <div>
+      <output>The count is: {count}</output>
+      <button type="button" onClick={increaseCount}>Increase Count</button>
+    </div>
+  );
+};

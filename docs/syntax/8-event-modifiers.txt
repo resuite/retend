@@ -1,0 +1,349 @@
+@Title modifiers
+@Description Demonstrates the usage of event modifiers in Retend JSX.
+
+---
+
+@Example 1
+@Input Prevent default form submission.
+function PreventSubmitForm() {
+  const handleSubmit = (event) => {
+    alert('Form submit prevented!');
+  };
+  return (
+    <form onSubmit--prevent={handleSubmit}>
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+
+---
+
+@Example 2
+@Input Stop event bubbling from child button to parent div.
+function StopBubbling() {
+  const handleParentClick = () => {
+    alert('Parent div clicked');
+  };
+  const handleChildClick = () => {
+    alert('Child button clicked, bubbling stopped');
+  };
+  return (
+    <div onClick={handleParentClick}>
+      <button onClick--stop={handleChildClick}>Click Child</button>
+    </div>
+  );
+}
+
+---
+
+@Example 3
+@Input Use `self` modifier to only trigger handler on the div itself, not child clicks.
+function SelfModifierDiv() {
+  const handleDivClick = () => {
+    alert('Div clicked directly');
+  };
+  const handleChildClick = () => {
+    alert('Child button clicked');
+  };
+  return (
+    <div onClick--self={handleDivClick}>
+      <button onClick={handleChildClick}>Click Child</button>
+    </div>
+  );
+}
+
+---
+
+@Example 4
+@Input Use `once` modifier to trigger a click handler only once.
+import { Cell } from 'retend';
+
+function OnceClickButton() {
+  const clickCount = Cell.source(0);
+  const handleClickOnce = () => {
+    clickCount.value++;
+    alert('Clicked once!');
+  };
+  return (
+    <div>
+      <button onClick--once={handleClickOnce}>Click Once</button>
+      <p>Clicks: {clickCount}</p>
+    </div>
+  );
+}
+
+---
+
+@Example 5
+@Input Use `passive` modifier for a scroll event to improve performance.
+function PassiveScrollDiv() {
+  const handleScroll = (event) => {
+    console.log('Passive scroll event', event);
+  };
+  return (
+    <div onScroll--passive={handleScroll} style={{ overflow: 'auto', height: '100px' }}>
+      <p style={{ height: '200px' }}>Scrollable content</p>
+    </div>
+  );
+}
+
+---
+
+@Example 6
+@Input Combine `prevent` and `stop` modifiers on form submit.
+function PreventAndStopSubmitForm() {
+  const handleSubmit = (event) => {
+    alert('Form submit prevented and bubbling stopped!');
+  };
+  return (
+    <form onSubmit--prevent--stop={handleSubmit}>
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+
+---
+
+@Example 7
+@Input Combine `once` and `prevent` modifiers on a link.
+function OncePreventLink() {
+  const handleClickOncePrevent = (event) => {
+    alert('Link clicked once, default prevented!');
+  };
+  return (
+    <a href="#" onClick--once--prevent={handleClickOncePrevent}>Click Once, Prevent Default</a>
+  );
+}
+
+---
+
+@Example 8
+@Input Use `self` and `stop` to handle clicks only on the element and stop propagation.
+function SelfAndStopDiv() {
+  const handleDivClickSelfStop = () => {
+    alert('Div clicked directly, propagation stopped');
+  };
+  const handleParentClick = () => {
+    alert('Parent div clicked (should not happen)');
+  };
+  return (
+    <div onClick={handleParentClick}>
+      <div onClick--self--stop={handleDivClickSelfStop} style={{ padding: '20px', backgroundColor: 'lightgray' }}>
+        Click here
+      </div>
+    </div>
+  );
+}
+
+---
+
+@Example 9
+@Input `passive` modifier on `wheel` event for smoother scrolling.
+function PassiveWheelDiv() {
+  const handleWheel = (event) => {
+    console.log('Passive wheel event', event);
+  };
+  return (
+    <div onWheel--passive={handleWheel} style={{ overflow: 'auto', height: '100px' }}>
+      <p style={{ height: '200px' }}>Scrollable content with wheel event</p>
+    </div>
+  );
+}
+
+---
+
+@Example 10
+@Input `once` modifier on mouseover event.
+import { Cell } from 'retend';
+
+function OnceMouseoverDiv() {
+  const hoverCount = Cell.source(0);
+  const handleMouseOverOnce = () => {
+    hoverCount.value++;
+    alert('Mouse over triggered once!');
+  };
+  return (
+    <div>
+      <div onMouseOver--once={handleMouseOverOnce} style={{ padding: '20px', backgroundColor: 'lightblue' }}>
+        Hover me once
+      </div>
+      <p>Hovers: {hoverCount}</p>
+    </div>
+  );
+}
+
+---
+
+@Example 11
+@Input Prevent context menu (right-click) using `prevent` modifier.
+function PreventContextMenu() {
+  const handleContextMenu = (event) => {
+    alert('Context menu prevented!');
+  };
+  return (
+    <div onContextMenu--prevent={handleContextMenu} style={{ padding: '20px', backgroundColor: 'lightyellow' }}>
+      Right-click here (context menu prevented)
+    </div>
+  );
+}
+
+---
+
+@Example 12
+@Input Stop keydown event propagation.
+function StopKeydownPropagation() {
+  const handleParentKeydown = () => {
+    alert('Parent keydown handler (should not trigger)');
+  };
+  const handleInputKeydownStop = () => {
+    alert('Input keydown handler, propagation stopped');
+  };
+  return (
+    <div onKeyDown={handleParentKeydown}>
+      <input type="text" onKeyDown--stop={handleInputKeydownStop} placeholder="Type here (keydown stopped)" />
+    </div>
+  );
+}
+
+---
+
+@Example 13
+@Input Use `self` modifier on a button inside a form to only handle button clicks, not form clicks.
+function SelfButtonInForm() {
+  const handleFormClick = () => {
+    alert('Form clicked (should not trigger when button is clicked)');
+  };
+  const handleButtonClickSelf = () => {
+    alert('Button clicked directly');
+  };
+  return (
+    <form onClick={handleFormClick}>
+      <button type="button" onClick--self={handleButtonClickSelf}>Click Button (self)</button>
+    </form>
+  );
+}
+
+---
+
+@Example 14
+@Input `once` modifier on input focus event.
+import { Cell } from 'retend';
+
+function OnceFocusInput() {
+  const focusCount = Cell.source(0);
+  const handleFocusOnce = () => {
+    focusCount.value++;
+    alert('Input focused once!');
+  };
+  return (
+    <div>
+      <input type="text" onFocus--once={handleFocusOnce} placeholder="Focus me once" />
+      <p>Focus Count: {focusCount}</p>
+    </div>
+  );
+}
+
+---
+
+@Example 15
+@Input Combine `passive` and `prevent` - `passive` will take precedence and prevent `preventDefault` from working.
+function PassivePreventScrollDiv() {
+  const handleScroll = (event) => {
+    event.preventDefault(); // This will be ignored because of passive
+    alert('Scroll event - preventDefault will not work due to passive');
+  };
+  return (
+    <div onScroll--passive--prevent={handleScroll} style={{ overflow: 'auto', height: '100px' }}>
+      <p style={{ height: '200px' }}>Scrollable content (passive and prevent)</p>
+    </div>
+  );
+}
+@Note When combining `passive` with `prevent`, `passive` will take precedence, and `preventDefault` will not be called.
+
+---
+
+@Example 16
+@Input Using `once` with a component.
+import { Cell } from 'retend';
+
+function ClickCounterComponent() {
+  const count = Cell.source(0);
+  const increment = () => {
+    count.value++;
+  };
+  return (
+    <div>
+      <button onClick--once={increment}>Click me once</button>
+      <p>Clicked: {count}</p>
+    </div>
+  );
+}
+
+---
+
+@Example 17
+@Input `prevent` modifier on a link inside a component.
+function LinkComponent() {
+  const handleLinkClick = () => {
+    alert('Link click prevented!');
+  };
+  return (
+    <div>
+      <a href="#" onClick--prevent={handleLinkClick}>Prevent Link Action</a>
+    </div>
+  );
+}
+
+---
+
+@Example 18
+@Input `stop` modifier on a button inside a component to stop event propagation to parent.
+function ChildButtonComponent() {
+  const handleButtonClick = () => {
+    alert('Button in child component clicked, propagation stopped');
+  };
+  return (
+    <button onClick--stop={handleButtonClick}>Click Child Button</button>
+  );
+}
+
+function ParentDivComponent() {
+  const handleDivClick = () => {
+    alert('Parent div should not be alerted');
+  };
+  return (
+    <div onClick={handleDivClick}>
+      <ChildButtonComponent />
+    </div>
+  );
+}
+
+---
+
+@Example 19
+@Input `self` modifier on a div component.
+function SelfDivComponent() {
+  const handleDivClickSelf = () => {
+    alert('Div component clicked directly');
+  };
+  return (
+    <div onClick--self={handleDivClickSelf} style={{ padding: '20px', backgroundColor: 'beige' }}>
+      Click Div Component (self)
+    </div>
+  );
+}
+
+---
+
+@Example 20
+@Input `passive` modifier on a scrollable component.
+function ScrollableComponent() {
+  const handleScrollPassive = (event) => {
+    console.log('Passive scroll event in component', event);
+  };
+  return (
+    <div onScroll--passive={handleScrollPassive} style={{ overflow: 'auto', height: '100px', border: '1px solid black' }}>
+      <p style={{ height: '200px' }}>Scrollable Component Content</p>
+    </div>
+  );
+}

@@ -1,0 +1,212 @@
+@Title components
+@Description Defines the component syntax for the Retend web framework.
+
+---
+
+@Example 1
+@Input Basic component returning a div.
+function MyComponent() {
+  return <div />;
+}
+@Note Component names must be PascalCase.
+
+---
+
+@Example 2
+@Input Component with text content.
+function Greeting() {
+  return <div>Hello</div>;
+}
+
+---
+
+@Example 3
+@Input Component returning a button.
+function ActionButton() {
+  return <button type="button" />;
+}
+
+---
+
+@Example 4
+@Input Component with a text prop.
+function Message(props) {
+  const { text } = props;
+  return <div>{text}</div>;
+}
+@Note If props are defined, they must be destructured at the start of the component.
+
+---
+
+@Example 5
+@Input Using the Message component.
+<Message text="Welcome!" />
+
+---
+
+@Example 6
+@Input Component with two props.
+function UserCard(props) {
+  const { name, age } = props;
+  return <div><p>Name: {name}</p><p>Age: {age}</p></div>;
+}
+@Note If props are defined, they must be destructured at the start of the component.
+
+---
+
+@Example 7
+@Input Using the UserCard component.
+<UserCard name="Alice" age={30} />
+
+---
+
+@Example 8
+@Input Component with style prop.
+function StyledDiv(props) {
+  const { style } = props;
+  return <div style={style} />;
+}
+
+---
+
+@Example 9
+@Input Using the StyledDiv component.
+<StyledDiv style={{ color: 'blue' }} />
+
+---
+
+@Example 10
+@Input Component with class prop.
+function ClassedSpan(props) {
+  const { class: className } = props;
+  return <span class={className} />;
+}
+@Note Always use `class: className` to destructure reserved word 'class'.
+
+---
+
+@Example 11
+@Input Using the ClassedSpan component.
+<ClassedSpan class="highlight" />
+
+---
+
+@Example 12
+@Input Component with children prop (implicit).
+function Card(props) {
+  const { children } = props;
+  return <div class="card">{children}</div>;
+}
+@Note Access children directly by destructuring `props.children`.
+
+---
+
+@Example 13
+@Input Using the Card component with children.
+<Card>This is card content.</Card>
+
+---
+
+@Example 14
+@Input Component with boolean prop.
+function Checkbox(props) {
+  const { checked } = props;
+  return <input type="checkbox" checked={checked} />;
+}
+
+---
+
+@Example 15
+@Input Using the Checkbox component, checked.
+<Checkbox checked />
+@Note Boolean props on components can omit `=true`.
+
+---
+
+@Example 16
+@Input Using Checkbox component, unchecked.
+<Checkbox />
+
+---
+
+@Example 17
+@Input Component with prop for list items.
+function DynamicList(props) {
+  const { items } = props;
+  return (
+    <ul>
+      {items}
+    </ul>
+  );
+}
+@Note Do not use Array.map to loop over items in Retend JSX.
+
+---
+
+@Example 18
+@Input Using DynamicList component.
+<DynamicList items={[<li>Item A</li>, <li>Item B</li>]} />
+@Note Items are passed directly as JSX array.
+
+---
+
+@Example 19
+@Input Component with 'for' prop for label.
+function LabeledInput(props) {
+  const { labelText, inputId } = props;
+  return (
+    <label for={inputId}>
+      {labelText}
+      <input type="text" id={inputId} />
+    </label>
+  );
+}
+@Note Retend uses 'for' attribute for labels, not 'htmlFor'.
+
+---
+
+@Example 20
+@Input Using the LabeledInput component.
+<LabeledInput labelText="Email:" inputId="email-input" />
+
+---
+
+@Example 21
+@Input Component for a self-closing image.
+function IconImage(props) {
+  const { src, alt } = props;
+  return <img src={src} alt={alt} />;
+}
+
+---
+
+@Example 22
+@Input Using the IconImage component.
+<IconImage src="/images/icon.png" alt="App Icon" />
+
+---
+
+@Example 23
+@Input Component for a link with href and text.
+function SimpleLink(props) {
+  const { href, text } = props;
+  return <a href={href}>{text}</a>;
+}
+
+---
+
+@Example 24
+@Input Using the SimpleLink component.
+<SimpleLink href="https://example.com" text="Example Link" />
+
+---
+
+@Example 25
+@Input Component accepting props object directly (not destructured - for passing down).
+function ForwardPropsButton(props) {
+  const { children, ...rest } = props;
+  return <button type="button" {...rest}>{children}</button>;
+}
+@Note Prop object can be spread when passing down to other elements/components.
+
+---

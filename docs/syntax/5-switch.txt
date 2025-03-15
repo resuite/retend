@@ -1,0 +1,429 @@
+@Title switch
+@Description Demonstrates 20 key examples of the `Switch` function in Retend JSX for conditional branch rendering based on a non-boolean value.
+
+---
+
+@Example 1
+@Input Static string value switch with two cases.
+import { Switch } from 'retend';
+
+const caseValue = 'caseA';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <p>Case A Content</p>,
+        caseB: () => <span>Case B Content</span>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 2
+@Input Static string value switch with default case.
+import { Switch } from 'retend';
+
+const caseValue = 'caseD';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <p>Case A Content</p>,
+        caseB: () => <span>Case B Content</span>,
+      }, (val) => <p>Default Case Content for: {val}</p>)}
+    </div>
+  );
+};
+@Note A default case is provided to handle values that do not match any defined cases.
+
+---
+
+@Example 3
+@Input Reactive cell string value switch and button to change case.
+import { Switch, Cell } from 'retend';
+
+const caseCell = Cell.source('caseA');
+
+const Component = () => {
+  const changeCase = () => {
+    caseCell.value = caseCell.value === 'caseA' ? 'caseB' : 'caseA';
+  };
+  return (
+    <div>
+      {Switch(caseCell, {
+        caseA: () => <p>Case A Content</p>,
+        caseB: () => <span>Case B Content</span>,
+      })}
+      <button onClick={changeCase}>Toggle Case</button>
+    </div>
+  );
+};
+
+---
+
+@Example 4
+@Input Static number value switch.
+import { Switch } from 'retend';
+
+const numberCase = 1;
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(numberCase, {
+        1: () => <p>Case One</p>,
+        2: () => <span>Case Two</span>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 5
+@Input Reactive cell number value switch and button to increment.
+import { Switch, Cell } from 'retend';
+
+const numberCell = Cell.source(1);
+
+const Component = () => {
+  const incrementCase = () => {
+    numberCell.value = numberCell.value === 1 ? 2 : 1;
+  };
+  return (
+    <div>
+      {Switch(numberCell, {
+        1: () => <p>Case One</p>,
+        2: () => <span>Case Two</span>,
+      })}
+      <button onClick={incrementCase}>Toggle Case</button>
+    </div>
+  );
+};
+
+---
+
+@Example 6
+@Input Static symbol value switch (requires Symbol definition).
+import { Switch } from 'retend';
+
+const CASE_SYMBOL_A = Symbol('caseA');
+const CASE_SYMBOL_B = Symbol('caseB');
+const caseValue = CASE_SYMBOL_A;
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        [CASE_SYMBOL_A]: () => <p>Case Symbol A</p>,
+        [CASE_SYMBOL_B]: () => <span>Case Symbol B</span>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 7
+@Input Static null value switch.
+import { Switch } from 'retend';
+
+const caseValue = null;
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        null: () => <p>Case Null</p>,
+        'caseB': () => <span>Case B Content</span>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 8
+@Input Static undefined value switch.
+import { Switch } from 'retend';
+
+let caseValue;
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        undefined: () => <p>Case Undefined</p>,
+        'caseB': () => <span>Case B Content</span>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 9
+@Input Switch with JSX fragments in cases.
+import { Switch } from 'retend';
+
+const caseValue = 'caseA';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => (
+          <>
+            <p>Fragment</p>
+            <p>Case A Content</p>
+          </>
+        ),
+        caseB: () => (
+          <>
+            <span>Fragment</span>
+            <span>Case B Content</span>
+          </>
+        ),
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 10
+@Input Switch with nested components in cases.
+import { Switch } from 'retend';
+
+const caseValue = 'caseB';
+
+const CaseAComponent = () => <p>Case A Component</p>;
+const CaseBComponent = () => <span>Case B Component</span>;
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: CaseAComponent,
+        caseB: CaseBComponent,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 11
+@Input Nested Switch components.
+import { Switch, Cell } from 'retend';
+
+const outerCase = Cell.source('caseA');
+const innerCase = Cell.source('caseX');
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(outerCase, {
+        caseA: () => Switch(innerCase, {
+          caseX: () => <p>Inner Case X</p>,
+          caseY: () => <span>Inner Case Y</span>,
+        }),
+        caseB: () => <span>Outer Case B</span>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 12
+@Input Switch with different element types in cases (div, span, p).
+import { Switch } from 'retend';
+
+const caseValue = 'caseB';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <div>Case A Div</div>,
+        caseB: () => <span>Case B Span</span>,
+        caseC: () => <p>Case C Paragraph</p>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 13
+@Input Switch with style attributes in cases.
+import { Switch } from 'retend';
+
+const caseValue = 'caseB';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <div style={{ color: 'red' }}>Case A Red Text</div>,
+        caseB: () => <span style={{ fontWeight: 'bold' }}>Case B Bold Text</span>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 14
+@Input Switch with event handlers (onClick) in cases.
+import { Switch } from 'retend';
+
+const caseValue = 'caseA';
+
+const Component = () => {
+  const handleCaseAClick = () => alert('Case A Clicked');
+  const handleCaseBClick = () => alert('Case B Clicked');
+
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <button onClick={handleCaseAClick}>Case A Button</button>,
+        caseB: () => <button onClick={handleCaseBClick}>Case B Button</button>,
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 15
+@Input Switch with no matching case and no default case.
+import { Switch } from 'retend';
+
+const caseValue = 'caseC';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <p>Case A Content</p>,
+        caseB: () => <span>Case B Content</span>,
+      })}
+    </div>
+  );
+};
+@Note When no case matches and no default is provided, nothing is rendered for the Switch.
+
+---
+
+@Example 16
+@Input Switch inside a list rendered by For.
+import { Switch, For } from 'retend';
+
+const items = ['caseA', 'caseB', 'caseA'];
+
+const Component = () => {
+  return (
+    <ul>
+      {For(items, (item) => (
+        <li>
+          {Switch(item, {
+            caseA: () => <p>Case A in List</p>,
+            caseB: () => <span>Case B in List</span>,
+          })}
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+---
+
+@Example 17
+@Input Switch with default case using component as default.
+import { Switch } from 'retend';
+
+const caseValue = 'caseC';
+
+const DefaultCaseComponent = ({ value }) => <p>Default Component for: {value}</p>;
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <p>Case A Content</p>,
+        caseB: () => <span>Case B Content</span>,
+      }, DefaultCaseComponent)}
+    </div>
+  );
+};
+
+---
+
+@Example 18
+@Input Switch with default case receiving the value as argument.
+import { Switch } from 'retend';
+
+const caseValue = 'caseC';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <p>Case A Content</p>,
+        caseB: () => <span>Case B Content</span>,
+      }, (value) => <p>Default Case Value: {value}</p>)}
+    </div>
+  );
+};
+@Note The default case function receives the switch value as its first argument.
+
+---
+
+@Example 19
+@Input Switch with cases as functions.
+import { Switch } from 'retend';
+
+const caseValue = 'caseA';
+
+const caseAContent = () => <p>Case A Function Content</p>;
+const caseBContent = () => <span>Case B Function Content</span>;
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: caseAContent,
+        caseB: caseBContent,
+      })}
+    </div>
+  );
+};
+@Note Cases can directly be functions that return JSX templates.
+
+---
+
+@Example 20
+@Input Switch with default case as arrow function.
+import { Switch } from 'retend';
+
+const caseValue = 'caseC';
+
+const Component = () => {
+  return (
+    <div>
+      {Switch(caseValue, {
+        caseA: () => <p>Case A Content</p>,
+        caseB: () => <span>Case B Content</span>,
+      }, (value) => (
+        <p>Default Arrow Function Case: {value}</p>
+      ))}
+    </div>
+  );
+};
+@Note Default case can also use arrow function syntax.

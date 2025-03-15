@@ -1,0 +1,516 @@
+@Title if
+@Description Demonstrates 30 key examples of the `If` function in Retend JSX for conditional rendering.
+@Note if supplants ternaries and short-circuiting operators for conditional rendering. Always use `If` for conditional rendering.
+
+---
+
+@Example 1
+@Input Render a div if a static boolean is true.
+const show = true;
+
+const Component = () => {
+  return <div>{If(show, () => <p>Shown</p>)}</div>;
+};
+
+---
+
+@Example 2
+@Input Render different content based on a static boolean with an else case.
+const isLoggedIn = false;
+
+const Component = () => {
+  return <div>{If(isLoggedIn, { true: () => <p>Welcome back!</p>, false: () => <p>Please log in.</p> })}</div>;
+};
+
+---
+
+@Example 3
+@Input Use an object with true and false cases for a static boolean.
+const isActive = true;
+
+const Component = () => {
+  return <div>{If(isActive, { true: () => <span>Active</span>, false: () => <span>Inactive</span> })}</div>;
+};
+
+---
+
+@Example 4
+@Input Toggle visibility with a reactive boolean cell.
+import { Cell, If } from 'retend';
+
+const show = Cell.source(true);
+
+const Component = () => {
+  const toggle = () => { show.value = !show.value; };
+  return (
+    <div>
+      {If(show, () => <p>Visible</p>)}
+      <button onClick={toggle}>Toggle</button>
+    </div>
+  );
+};
+
+---
+
+@Example 5
+@Input Toggle between two elements with a reactive cell and else case.
+import { Cell, If } from 'retend';
+
+const isDay = Cell.source(true);
+
+const Component = () => {
+  const toggleDayNight = () => { isDay.value = !isDay.value; };
+  return (
+    <div>
+      {If(isDay, { true: () => <p>Daytime</p>, false: () => <p>Nighttime</p> })}
+    </div>;
+  )
+};
+
+---
+
+@Example 6
+@Input Use multiple argument syntax with a reactive cell.
+import { Cell, If } from 'retend';
+
+const isOnline = Cell.source(false);
+
+const Component = () => {
+  const toggleOnline = () => { isOnline.value = !isOnline.value; };
+  return (
+    <div>
+      {If(isOnline, () => <span>Online</span>, () => <span>Offline</span>)}
+      <button onClick={toggleOnline}>Toggle Status</button>
+    </div>
+  );
+};
+
+---
+
+@Example 7
+@Input Show a loading spinner only when loading with a reactive cell.
+import { Cell, If } from 'retend';
+
+const isLoading = Cell.source(true);
+
+const Component = () => {
+  const stopLoading = () => { isLoading.value = false; };
+  return (
+    <div>
+      {If(isLoading, () => <p>Loading...</p>)}
+      <button onClick={stopLoading}>Stop Loading</button>
+    </div>
+  );
+};
+
+---
+
+@Example 8
+@Input Render alternative content if a static string is empty (falsy).
+const name = '';
+
+const Component = () => {
+  return <div>{If(name, { true: () => <p>Hello, {name}</p>, false: () => <p>No name provided</p> })}</div>;
+};
+
+---
+
+@Example 9
+@Input Render based on a static number comparison.
+const age = 18;
+
+const Component = () => {
+  return <div>{If(age >= 18, { true: () => <p>Adult</p>, false: () => <p>Minor</p> })}</div>;
+};
+
+---
+
+@Example 10
+@Input Toggle between positive and negative with a reactive number cell.
+import { Cell, If } from 'retend';
+
+const number = Cell.source(5);
+const isPositive = Cell.derived(() => number.value > 0);
+
+const Component = () => {
+  const toggleSign = () => { number.value = -number.value; };
+  return (
+    <div>
+      {If(isPositive, { true: () => <p>Positive</p>, false: () => <p>Negative or zero</p> })}
+    </div>;
+  )
+};
+
+---
+
+@Example 11
+@Input Reactively show message based on array length with a cell.
+import { Cell, If } from 'retend';
+
+const items = Cell.source([]);
+const hasItems = Cell.derived(() => items.value.length > 0);
+
+const Component = () => {
+  const addItem = () => { items.value = [...items.value, 'new item']; };
+  return (
+    <div>
+      {If(hasItems, () => <p>Has items</p>, () => <p>No items</p>)}
+      <button onClick={addItem}>Add Item</button>
+    </div>
+  );
+};
+
+---
+
+@Example 12
+@Input Nested If statements with static booleans.
+const isLoggedIn = true;
+const isAdmin = false;
+
+const Component = () => {
+  return (
+    <div>
+      {If(isLoggedIn, {
+        true: () => If(isAdmin, { true: () => <p>Admin Dashboard</p>, false: () => <p>User Dashboard</p> }),
+        false: () => <p>Please log in</p>
+      })}
+    </div>
+  );
+};
+
+---
+
+@Example 13
+@Input Reactive nested conditions with cells.
+import { Cell, If } from 'retend';
+
+const isLoggedIn = Cell.source(false);
+const isAdmin = Cell.source(false);
+
+const Component = () => {
+  const toggleLogin = () => { isLoggedIn.value = !isLoggedIn.value; };
+  const toggleAdmin = () => { isAdmin.value = !isAdmin.value; };
+  return (
+    <div>
+      {If(isLoggedIn, {
+        true: () => If(isAdmin, { true: () => <p>Admin Dashboard</p>, false: () => <p>User Dashboard</p> }),
+        false: () => <p>Please log in</p>
+      })}
+      <button onClick={toggleLogin}>Toggle Login</button>
+      <button onClick={toggleAdmin}>Toggle Admin</button>
+    </div>
+  );
+};
+
+---
+
+@Example 14
+@Input Reactive nested If with object syntax and cell value.
+import { Cell, If } from 'retend';
+
+const status = Cell.source('loading');
+
+const Component = () => {
+  const toggleStatus = () => { status.value = status.value === 'loading' ? 'loaded' : 'loading'; };
+  return (
+    <div>
+      {If(status, {
+        true: (currentStatus) => If(currentStatus === 'loading', { true: () => <p>Loading...</p>, false: () => <p>Loaded</p> }),
+        false: () => <p>Error</p>
+      })}
+      <button onClick={toggleStatus}>Toggle Status</button>
+    </div>
+  );
+};
+
+---
+
+@Example 15
+@Input Show user name if user object exists with a reactive cell.
+import { Cell, If } from 'retend';
+
+const user = Cell.source({ name: 'Alice' });
+
+const Component = () => {
+  const logout = () => { user.value = null; };
+  return (
+    <div>
+      {If(user, (currentUser) => <p>Welcome, {currentUser.name}</p>, () => <p>Please log in</p>)}
+      <button onClick={logout}>Logout</button>
+    </div>
+  );
+};
+
+---
+
+@Example 16
+@Input Reactive cart with add and clear functionality.
+import { Cell, If } from 'retend';
+
+const cart = Cell.source(['item1']);
+const hasItems = Cell.derived(() => cart.value.length > 0);
+
+const Component = () => {
+  const addItem = () => { cart.value = [...cart.value, 'new item']; };
+  const clearCart = () => { cart.value = []; };
+  return (
+    <div>
+      {If(hasItems, () => <p>Cart has items</p>, () => <p>Cart is empty</p>)}
+      <button onClick={addItem}>Add Item</button>
+      <button onClick={clearCart}>Clear Cart</button>
+    </div>
+  );
+};
+
+---
+
+@Example 17
+@Input Toggle rendering of a component reactively.
+import { Cell, If } from 'retend';
+
+function Welcome() {
+  return <p>Welcome!</p>;
+}
+
+const showWelcome = Cell.source(true);
+
+const Component = () => {
+  const toggle = () => { showWelcome.value = !showWelcome.value; };
+  return (
+    <div>
+      {If(showWelcome, () => <Welcome />)}
+      <button onClick={toggle}>Toggle Welcome</button>
+    </div>
+  );
+};
+
+---
+
+@Example 18
+@Input Reactively toggle multiple elements.
+import { Cell, If } from 'retend';
+
+const showDetails = Cell.source(false);
+
+const Component = () => {
+  const toggleDetails = () => { showDetails.value = !showDetails.value; };
+  return (
+    <div>
+      {If(showDetails, () => (
+        <>
+          <p>Detail 1</p>
+          <p>Detail 2</p>
+        </>
+      ))}
+      <button onClick={toggleDetails}>Toggle Details</button>
+    </div>
+  );
+};
+
+---
+
+@Example 19
+@Input Conditionally render different spans with classes.
+import { Cell, If } from 'retend';
+
+const isActive = Cell.source(true);
+
+const Component = () => {
+  const toggleActive = () => { isActive.value = !isActive.value; };
+  return (
+    <div>
+      {If(isActive, { true: () => <span class="active">Active</span>, false: () => <span class="inactive">Inactive</span> })}</div>;
+};
+
+---
+
+@Example 20
+@Input Conditionally render an editable or disabled input.
+import { Cell, If } from 'retend';
+
+const isEditable = Cell.source(true);
+
+const Component = () => {
+  const toggleEditable = () => { isEditable.value = !isEditable.value; };
+  return (
+    <div>
+      {If(isEditable, () => <input type="text" />, () => <input type="text" disabled />)}
+      <button onClick={toggleEditable}>Toggle Editable</button>
+    </div>
+  );
+};
+
+---
+
+@Example 21
+@Input Conditionally render links with different hrefs.
+import { Cell, If } from 'retend';
+
+const isExternal = Cell.source(true);
+
+const Component = () => {
+  const toggleLink = () => { isExternal.value = !isExternal.value; };
+  return (
+    <div>
+      {If(isExternal, { true: () => <a href="https://example.com">External</a>, false: () => <a href="/internal">Internal</a> })}
+    </div>;
+  )
+};
+
+---
+
+@Example 22
+@Input Conditionally render different images.
+import { Cell, If } from 'retend';
+
+const showLogo = Cell.source(true);
+
+const Component = () => {
+  const toggleImage = () => { showLogo.value = !showLogo.value; };
+  return (
+    <div>
+      {If(showLogo, () => <img src="/logo.png" alt="Logo" />, () => <img src="/placeholder.png" alt="Placeholder" />)}
+      <button onClick={toggleImage}>Toggle Image</button>
+    </div>
+  );
+};
+
+---
+
+@Example 23
+@Input Conditionally render a list with For.
+import { Cell, If, For } from 'retend';
+
+const showList = Cell.source(true);
+const items = ['a', 'b', 'c'];
+
+const Component = () => {
+  const toggleList = () => { showList.value = !showList.value; };
+  return (
+    <div>
+      {If(showList, () => <ul>{For(items, (item) => <li>{item}</li>)}</ul>)}
+      <button onClick={toggleList}>Toggle List</button>
+    </div>
+  );
+};
+
+---
+
+@Example 24
+@Input If inside For to filter even numbers.
+import { For, If } from 'retend';
+
+const numbers = [1, 2, 3, 4, 5];
+
+const Component = () => {
+  return (
+    <ul>
+      {For(numbers, (num) =>
+        If(num % 2 === 0, () => <li>{num} is even</li>)
+      )}
+    </ul>
+  );
+};
+
+---
+
+@Example 25
+@Input Reactive filter inside For.
+import { Cell, For, If } from 'retend';
+
+const numbers = Cell.source([1, 2, 3, 4, 5]);
+const showEven = Cell.source(true);
+
+const Component = () => {
+  const toggleFilter = () => { showEven.value = !showEven.value; };
+  return (
+    <div>
+      <ul>
+        {For(numbers, (num) =>
+          If(showEven, () =>
+            If(num % 2 === 0, () => <li>{num}</li>)
+          , () =>
+            If(num % 2 !== 0, () => <li>{num}</li>)
+          )
+        )}
+      </ul>
+      <button onClick={toggleFilter}>Toggle Filter</button>
+    </div>
+  );
+};
+
+---
+
+@Example 26
+@Input Conditionally render different headers.
+const isImportant = true;
+
+const Component = () => {
+  return <div>{If(isImportant, { true: () => <h1>Important</h1>, false: () => <h2>Normal</h2> })}</div>;
+};
+
+---
+
+@Example 27
+@Input Reactive header toggle.
+import { Cell, If } from 'retend';
+
+const isImportant = Cell.source(false);
+
+const Component = () => {
+  const toggleImportance = () => { isImportant.value = !isImportant.value; };
+  return (
+    <div>
+      {If(isImportant, () => <h1>Important</h1>, () => <h2>Normal</h2>)}
+      <button onClick={toggleImportance}>Toggle Importance</button>
+    </div>
+  );
+};
+
+---
+
+@Example 28
+@Input Conditionally render enabled/disabled button.
+const canSubmit = true;
+
+const Component = () => {
+  return <div>{If(canSubmit, { true: () => <button type="submit">Submit</button>, false: () => <button type="button" disabled>Submit</button> })}</div>;
+};
+
+---
+
+@Example 29
+@Input Reactive button state toggle.
+import { Cell, If } from 'retend';
+
+const canSubmit = Cell.source(false);
+
+const Component = () => {
+  const toggleSubmit = () => { canSubmit.value = !canSubmit.value; };
+  return (
+    <div>
+      {If(canSubmit, { true: () => <button type="submit">Submit</button>, false: () => <button type="button" disabled>Submit</button> })}
+    </div>;
+  )
+};
+
+---
+
+@Example 30
+@Input Button that toggles visibility of a div.
+import { Cell, If } from 'retend';
+
+const ToggleVisibility = () => {
+  const isVisible = Cell.source(true);
+  const toggle = () => {
+    isVisible.value = !isVisible.value;
+  };
+  return (
+    <div>
+      <button type="button" onClick={toggle}>Toggle</button>
+      {If(isVisible, () => <div>Visible Content</div>)}
+    </div>
+  );
+};
+@Note `If` is used for conditional rendering.
+@Note do not use ternary operators for conditional rendering.
