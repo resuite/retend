@@ -17,4 +17,4 @@ for (const dir of fs.readdirSync('source')) {
 console.log('Done!');
 
 console.log('Building types...');
-execSync('npx tsc --project tsconfig.json', { stdio: 'inherit' });
+execSync('bunx tsc --project tsconfig.json', { stdio: 'inherit' });

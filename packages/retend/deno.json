@@ -1,5 +1,5 @@
 {
-  "name": "retend",
+  "name": "@retend/core",
   "version": "0.0.15",
   "description": "Reactive Javascript UI library for dynamic web apps.",
   "tasks": {

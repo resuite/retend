@@ -5,7 +5,7 @@
   "private": false,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.js"
+    "build": "bun scripts/build.js"
   },
   "dependencies": {
     "domhandler": "^5.0.3",

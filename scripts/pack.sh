@@ -11,7 +11,7 @@ mkdir -p $PREVIEWS_DIR
 for package in "${PACKAGES[@]}"; do
     echo "Packing $package..."
     cd $package
-    pnpm pack
+    npm pack
     mv *.tgz ../../$PREVIEWS_DIR/
     cd ../../
 done
