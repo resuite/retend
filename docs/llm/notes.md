@@ -8,7 +8,10 @@
 - Do not make assumptions.
 - Document every function/component/etc with JSDoc.
 - Keep every component/function/etc small.
+- Keep every component/function/etc small.
 - A component should not be more than 100 lines of code.
+- When generating multiple files, annotate the top of each file with the path to the file.
+- When generating multiple files, annotate the top of each file with the path to the file.
 
 **docs/llm/0-jsx.txt**
 
