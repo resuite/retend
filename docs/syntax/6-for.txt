@@ -1,5 +1,5 @@
 @Title for
-@Description Demonstrates 30 examples of the `For` function in Retend JSX for rendering lists from iterables. (Shortened version)
+@Description Demonstrates 30 examples of the `For` function in Retend JSX for rendering lists from iterables.
 
 ---
 
@@ -110,7 +110,7 @@ const UserList = () => {
     { name: 'Bob', age: 30 },
   ]);
   return <ul>{For(users, (user) => <li>{user.name}, {user.age}</li>)}</ul>;
-
+}
 ---
 
 @Example 10
@@ -120,7 +120,7 @@ import { For } from 'retend';
 const NestedItems = () => {
   const items = ['One', 'Two', 'Three'];
   return <div>{For(items, (item) => <span>{item}</span>)}</div>;
-
+}
 ---
 
 @Example 11
@@ -130,7 +130,7 @@ import { For } from 'retend';
 const ButtonList = () => {
   const labels = ['Save', 'Cancel', 'Delete'];
   return <div>{For(labels, (label) => <button type="button">{label}</button>)}</div>;
-
+}
 ---
 
 @Example 12
@@ -162,7 +162,7 @@ const LinkList = () => {
     { href: '#about', text: 'About' },
   ];
   return <nav>{For(links, (link) => <a href={link.href}>{link.text}</a>)}</nav>;
-
+}
 ---
 
 @Example 14
@@ -233,7 +233,7 @@ import { For } from 'retend';
 const ImageGallery = () => {
   const images = ['img1.png', 'img2.png', 'img3.png'];
   return <div>{For(images, (src) => <img src={src} alt={src} />)}</div>;
-
+}
 ---
 
 @Example 18
