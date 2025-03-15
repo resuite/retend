@@ -1,6 +1,6 @@
 @title class-attribute
 @description Demonstrates the usage of the `class` attribute in Retend JSX.
-@preamble Retend JSX allows for string, array, and object values for the `class` attribute to dynamically control element classes.
+@preamble Retend JSX allows for string, array, object and reactive values for the `class` attribute to dynamically control element classes.
 
 ---
 
@@ -12,35 +12,6 @@
 ---
 
 @example 2
-@input Span with a different class.
-@output
-<span class="text-primary" />
-
----
-
-@example 3
-@input Button with class for styling.
-@output
-<button type="button" class="button-primary" />
-@note Class attribute is used for applying CSS classes.
-
----
-
-@example 4
-@input Paragraph with class for text styling.
-@output
-<p class="text-large" />
-
----
-
-@example 5
-@input Anchor link with class.
-@output
-<a href="#" class="link" />
-
----
-
-@example 6
 @input Div with multiple classes (string).
 @output
 <div class="container main-content" />
@@ -48,35 +19,7 @@
 
 ---
 
-@example 7
-@input Span with two classes for styling.
-@output
-<span class="text-primary bold" />
-
----
-
-@example 8
-@input Button with primary and large classes.
-@output
-<button type="button" class="button-primary button-large" />
-
----
-
-@example 9
-@input Paragraph with text and highlight classes.
-@output
-<p class="text-normal highlight" />
-
----
-
-@example 10
-@input Link with link and bold classes.
-@output
-<a href="#" class="link bold" />
-
----
-
-@example 11
+@example 3
 @input Div with class as an array of strings.
 @output
 <div class={['container', 'main-content']} />
@@ -84,35 +27,7 @@
 
 ---
 
-@example 12
-@input Span with class array, two names.
-@output
-<span class={['text-secondary', 'italic']} />
-
----
-
-@example 13
-@input Button with class array, primary and small.
-@output
-<button type="button" class={['button-primary', 'button-small']} />
-
----
-
-@example 14
-@input Paragraph with class array, large and bold.
-@output
-<p class={['text-large', 'bold-text']} />
-
----
-
-@example 15
-@input Link with class array, link and underline.
-@output
-<a href="#" class={['link', 'underline']} />
-
----
-
-@example 16
+@example 4
 @input Div with class as an object (truthy).
 @output
 <div class={{ container: true }} />
@@ -120,35 +35,7 @@
 
 ---
 
-@example 17
-@input Span with class object, primary true.
-@output
-<span class={{ 'text-primary': true }} />
-
----
-
-@example 18
-@input Button with class object, large true.
-@output
-<button type="button" class={{ 'button-large': true }} />
-
----
-
-@example 19
-@input Paragraph with class object, bold true.
-@output
-<p class={{ bold: true }} />
-
----
-
-@example 20
-@input Link with class object, underline true.
-@output
-<a href="#" class={{ underline: true }} />
-
----
-
-@example 21
+@example 5
 @input Div with class object (falsy).
 @output
 <div class={{ container: false }} />
@@ -156,175 +43,25 @@
 
 ---
 
-@example 22
-@input Span with class object, secondary false.
+@example 6
+@input Div with reactive name
 @output
-<span class={{ 'text-secondary': false }} />
+const className = Cell.source('container');
+<div class={container} />
+@note Reactive values in class object are converted to strings.
 
 ---
 
-@example 23
-@input Button with class object, disabled false.
+@example 7
+@input Element with nested reactive class array
 @output
-<button type="button" class={{ 'button-disabled': false }} />
+const className = Cell.source('container');
+const activityClass = Cell.derived(() => className.value === 'container' ? 'active' : 'inactive');
+<div class={[className, activityClass, 'main-content', {hidden: false}]} />
 
 ---
 
-@example 24
-@input Paragraph with class object, italic false.
-@output
-<p class={{ italic: false }} />
-
----
-
-@example 25
-@input Link with class object, active false.
-@output
-<a href="#" class={{ active: false }} />
-
----
-
-@example 26
-@input Div with class object, multiple classes.
-@output
-<div class={{ container: true, 'main-content': true }} />
-
----
-
-@example 27
-@input Span with class object, primary and bold.
-@output
-<span class={{ 'text-primary': true, bold: true }} />
-
----
-
-@example 28
-@input Button with class object, primary and large.
-@output
-<button type="button" class={{ 'button-primary': true, 'button-large': true }} />
-
----
-
-@example 29
-@input Paragraph with class object, large and highlight.
-@output
-<p class={{ 'text-large': true, highlight: true }} />
-
----
-
-@example 30
-@input Link with class object, link and bold.
-@output
-<a href="#" class={{ link: true, bold: true }} />
-
----
-
-@example 31
-@input Div with class object, mixed true/false.
-@output
-<div class={{ container: true, hidden: false }} />
-
----
-
-@example 32
-@input Span with class object, secondary true, italic false.
-@output
-<span class={{ 'text-secondary': true, italic: false }} />
-
----
-
-@example 33
-@input Button with class object, primary false, disabled true.
-@output
-<button type="button" class={{ 'button-primary': false, 'button-disabled': true }} />
-
----
-
-@example 34
-@input Paragraph with class object, bold false, highlight true.
-@output
-<p class={{ bold: false, highlight: true }} />
-
----
-
-@example 35
-@input Link with class object, link false, underline true.
-@output
-<a href="#" class={{ link: false, underline: true }} />
-
----
-
-@example 36
-@input Div with class array and string mixed.
-@output
-<div class={['container', 'extra-style', 'main-content']} />
-
----
-
-@example 37
-@input Span with class array and single string.
-@output
-<span class={['text-primary', 'bold']} />
-
----
-
-@example 38
-@input Button with class array and extra class.
-@output
-<button type="button" class={['button-primary', 'button-large', 'extra-class']} />
-
----
-
-@example 39
-@input Paragraph class array with more styles.
-@output
-<p class={['text-large', 'bold-text', 'another-style']} />
-
----
-
-@example 40
-@input Link class array, link and custom class.
-@output
-<a href="#" class={['link', 'underline', 'custom-link-style']} />
-
----
-
-@example 41
-@input Div with class object and more classes.
-@output
-<div class={{ container: true, 'main-content': true, 'another-class': true }} />
-
----
-
-@example 42
-@input Span class object with many styles.
-@output
-<span class={{ 'text-primary': true, bold: true, italic: true }} />
-
----
-
-@example 43
-@input Button class object, primary, large, active.
-@output
-<button type="button" class={{ 'button-primary': true, 'button-large': true, active: true }} />
-
----
-
-@example 44
-@input Paragraph class object, large, bold, highlight.
-@output
-<p class={{ 'text-large': true, bold: true, highlight: true }} />
-
----
-
-@example 45
-@input Link class object, link, bold, underline.
-@output
-<a href="#" class={{ link: true, bold: true, underline: true }} />
-
----
-
-@example 46
+@example 8
 @input Div class array with falsy values.
 @output
 <div class={['container', false, 'main-content', null, undefined, 'extra-style']} />
@@ -332,215 +69,24 @@
 
 ---
 
-@example 47
-@input Span class array, falsy and strings.
+@example 9
+@input Reactive class object with falsy values.
 @output
-<span class={['text-primary', null, 'bold', undefined, false]} />
-
----
-
-@example 48
-@input Button class array with mixed values.
-@output
-<button type="button" class={['button-primary', false, 'button-large', null]} />
-
----
-
-@example 49
-@input Paragraph class array, falsy middle values.
-@output
-<p class={['text-large', undefined, 'bold-text', null, false]} />
-
----
-
-@example 50
-@input Link class array with null and false.
-@output
-<a href="#" class={['link', null, 'underline', false]} />
-
----
-
-@example 51
-@input Div class object, falsy object values.
-@output
-<div class={{ container: true, hidden: false, 'another-false': null, 'yet-another': undefined }} />
+const isContainer = Cell.source(true);
+const isCard = Cell.source(false);
+<div class={[{ isCard }, { container: isContainer, hidden: false, 'another-false': null, 'yet-another': undefined }]} />
 @note Falsy values in class objects are ignored.
 
 ---
 
-@example 52
-@input Span class object, false object values.
-@output
-<span class={{ 'text-primary': true, italic: false, hidden: null }} />
-
----
-
-@example 53
-@input Button class object, mixed falsy object.
-@output
-<button type="button" class={{ 'button-primary': false, 'button-disabled': true, 'another-false': undefined }} />
-
----
-
-@example 54
-@input Paragraph class object with null.
-@output
-<p class={{ bold: false, highlight: true, muted: null }} />
-
----
-
-@example 55
-@input Link class object with undefined.
-@output
-<a href="#" class={{ link: false, underline: true, inactive: undefined }} />
-
----
-
-@example 56
-@input Div class string, very long class name.
-@output
-<div class="very-long-and-descriptive-class-name" />
-
----
-
-@example 57
-@input Span class string with dash.
-@output
-<span class="text-primary-variant" />
-
----
-
-@example 58
-@input Button class string, underscore class.
-@output
-<button type="button" class="button_style_primary" />
-
----
-
-@example 59
-@input Paragraph class string, camelCase class.
-@output
-<p class="textLarge" />
-@note Although camelCase works, kebab-case is recommended for CSS classes.
-
----
-
-@example 60
-@input Link class string, mixed case class.
-@output
-<a href="#" class="LinkStyleBold" />
-@note Although mixed case works, kebab-case is recommended for CSS classes.
-
----
-
-@example 61
-@input Div class array, empty strings in array.
-@output
-<div class={['container', '', 'main-content']} />
-@note Empty strings in class arrays are ignored.
-
----
-
-@example 62
-@input Span class array, multiple empty strings.
-@output
-<span class={['text-primary', '', '', 'bold']} />
-
----
-
-@example 63
-@input Button class array with empty strings.
-@output
-<button type="button" class={['button-primary', '', 'button-large', '']} />
-
----
-
-@example 64
-@input Paragraph class array, empty strings middle.
-@output
-<p class={['text-large', '', 'bold-text', '']} />
-
----
-
-@example 65
-@input Link class array with leading/trailing empty.
-@output
-<a href="#" class={['', 'link', 'underline', '']} />
-
----
-
-@example 66
-@input Div class object, empty string keys (invalid).
-@output
-<div class={{ '': true, container: true }} />
-@note Empty strings are not valid class names, though object keys should not be empty.
-
----
-
-@example 67
-@input Span class object, empty string key.
-@output
-<span class={{ '': true, 'text-primary': true }} />
-
----
-
-@example 68
-@input Button class object with empty key.
-@output
-<button type="button" class={{ '': true, 'button-large': true }} />
-
----
-
-@example 69
-@input Paragraph class object, empty key in object.
-@output
-<p class={{ '': true, bold: true }} />
-
----
-
-@example 70
-@input Link class object, object with empty key.
-@output
-<a href="#" class={{ '': true, underline: true }} />
-
----
-
-@example 71
+@example 10
 @input Div with no class attribute.
 @output
 <div />
 
 ---
 
-@example 72
-@input Span without class.
-@output
-<span />
-
----
-
-@example 73
-@input Button without class styling.
-@output
-<button type="button" />
-
----
-
-@example 74
-@input Paragraph with no class defined.
-@output
-<p />
-
----
-
-@example 75
-@input Anchor link, no class.
-@output
-<a href="#" />
-
----
-
-@example 76
+@example 11
 @input Div with empty class attribute (string).
 @output
 <div class="" />
@@ -548,35 +94,7 @@
 
 ---
 
-@example 77
-@input Span with empty class string.
-@output
-<span class="" />
-
----
-
-@example 78
-@input Button with empty class attribute string.
-@output
-<button type="button" class="" />
-
----
-
-@example 79
-@input Paragraph with class as empty string.
-@output
-<p class="" />
-
----
-
-@example 80
-@input Link with class as empty string.
-@output
-<a href="#" class="" />
-
----
-
-@example 81
+@example 12
 @input Div with class array, nested array (flattened).
 @output
 <div class={['container', ['nested', 'array']]} />
@@ -584,35 +102,7 @@
 
 ---
 
-@example 82
-@input Span class array, deeply nested array.
-@output
-<span class={['text-primary', [['deeply', ['nested']]]]} />
-
----
-
-@example 83
-@input Button class array, multi-level nested.
-@output
-<button type="button" class={['button-primary', [['level2', ['level3']]]]} />
-
----
-
-@example 84
-@input Paragraph class array, complex nesting.
-@output
-<p class={['text-large', ['bold-text', [['more', ['nesting']]]]]} />
-
----
-
-@example 85
-@input Link class array, very nested example.
-@output
-<a href="#" class={['link', [['underline', [['very', ['nested']]]]]]} />
-
----
-
-@example 86
+@example 13
 @input Div with class object, number keys (invalid class).
 @output
 <div class={{ 123: true, container: true }} />
@@ -620,35 +110,7 @@
 
 ---
 
-@example 87
-@input Span class object, number key.
-@output
-<span class={{ 456: true, 'text-primary': true }} />
-
----
-
-@example 88
-@input Button class object, number class key.
-@output
-<button type="button" class={{ 789: true, 'button-large': true }} />
-
----
-
-@example 89
-@input Paragraph class object, numeric key.
-@output
-<p class={{ 100: true, bold: true }} />
-
----
-
-@example 90
-@input Link class object, number as class.
-@output
-<a href="#" class={{ 0: true, underline: true }} />
-
----
-
-@example 91
+@example 14
 @input Div with class string and special chars (allowed).
 @output
 <div class="class-with-!@#$%^&*_chars" />
@@ -656,35 +118,7 @@
 
 ---
 
-@example 92
-@input Span class string, special chars in name.
-@output
-<span class="text-primary--variant__style" />
-
----
-
-@example 93
-@input Button class string with more specials.
-@output
-<button type="button" class="button--primary-!_style" />
-
----
-
-@example 94
-@input Paragraph class string, special symbols.
-@output
-<p class="text-large___+++style" />
-
----
-
-@example 95
-@input Link class string, mixed special chars.
-@output
-<a href="#" class="link---underline___+++style" />
-
----
-
-@example 96
+@example 15
 @input Div with class as mixed array/object.
 @output
 <div class={['container', { 'main-content': true }, 'extra-class']} />
@@ -692,28 +126,70 @@
 
 ---
 
-@example 97
-@input Span class with array and object mix.
+@example 16
+@input  Span with a different class.
 @output
-<span class={['text-primary', { bold: true }, 'italic']} />
+<span class="text-primary" />
 
 ---
 
-@example 98
-@input Button class, array object combo.
+@example 17
+@input  Span with two classes for styling.
 @output
-<button type="button" class={['button-primary', { 'button-large': true }, 'extra']} />
+<span class="text-primary bold" />
 
 ---
 
-@example 99
-@input Paragraph class mixed input types.
+@example 18
+@input  Span with class array, two names.
 @output
-<p class={['text-large', { highlight: true }, 'another-style']} />
+<span class={['text-secondary', 'italic']} />
 
 ---
 
-@example 100
-@input Link class with all types combined.
+@example 19
+@input  Span with class object, primary true.
 @output
-<a href="#" class={['link', { underline: true }, 'custom-style']} />
+<span class={{ 'text-primary': true }} />
+
+---
+
+@example 20
+@input  Span with class object, secondary false.
+@output
+<span class={{ 'text-secondary': false }} />
+
+---
+
+@example 21
+@input  Span with class object, primary and bold.
+@output
+<span class={{ 'text-primary': true, bold: true }} />
+
+---
+
+@example 22
+@input  Span with class object, secondary true, italic false.
+@output
+<span class={{ 'text-secondary': true, italic: false }} />
+
+---
+
+@example 23
+@input  Span class array and single string.
+@output
+<span class={['text-primary', 'bold']} />
+
+---
+
+@example 24
+@input  Span class object with many styles.
+@output
+<span class={{ 'text-primary': true, bold: true, italic: true }} />
+
+---
+
+@example 25
+@input  Span class array, falsy and strings.
+@output
+<span class={['text-primary', null, 'bold', undefined, false]} />
