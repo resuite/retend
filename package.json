@@ -1,5 +1,18 @@
 {
+  "name": "@retend/monorepo",
+  "version": "0.0.0",
   "private": true,
+  "description": "A modern reactive framework for fluid, dynamic web apps.",
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adebola-io/retend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adebola-io/retend/issues"
+  },
+  "homepage": "https://github.com/adebola-io/retend#readme",
   "scripts": {
     "test": "vitest run",
     "build": "npm run build-core && npm run build-ssg",
