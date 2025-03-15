@@ -825,8 +825,11 @@ function ForwardPropsButton(props) {
 @example 90
 @input Using ForwardPropsButton component.
 @output
-<ForwardPropsButton class="primary" onClick={() => alert('Clicked!')}>Clickable Button</ForwardPropsButton>
-
+const handleClick = () => {
+  alert('Clicked!');
+};
+<ForwardPropsButton class="primary" onClick={handleClick}>Clickable Button</ForwardPropsButton>
+@note Handlers should be defined outside of the JSX, if possible.
 ---
 
 @example 91
