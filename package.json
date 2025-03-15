@@ -1,4 +1,5 @@
 {
+  "private": true,
   "scripts": {
     "test": "vitest run",
     "build": "npm run build-core && npm run build-ssg",
