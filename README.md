@@ -16,7 +16,12 @@ Here's a breakdown of the core functionalities:
 
 - **Built-in Reactivity:** [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
 
-- **Components are DOM Elements:** Components in Retend are just functions that return DOM nodes. There is no extra layer. This gives you a high level of control and interoperability with existing DOM APIs.
+- **Components are DOM Elements:** Components in Retend are just functions that return elements.
+  - There is no extra layer.
+  - There is no Virtual DOM.
+  - There is no "re-render".
+    
+  This gives you a high level of control and interoperability with existing DOM APIs.
 
 - **Built-in Router:** The library includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
 
