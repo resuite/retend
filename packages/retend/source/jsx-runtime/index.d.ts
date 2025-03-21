@@ -2449,6 +2449,10 @@ export namespace JSX {
     strokeOpacity?: number | string;
     /** Defines a mask to be applied to the element. */
     mask?: string;
+    /** Defines a filter to be applied to the element. */
+    filter?: string;
+    /** Specifies the name result of transformation. */
+    result?: string;
   }
 
   /** Interface for SVG core attributes */
@@ -2569,6 +2573,8 @@ export namespace JSX {
     type?: 'matrix' | 'saturate' | 'hueRotate' | 'luminanceToAlpha';
     /** Specifies the values for the color matrix */
     values?: string;
+    /** Specifies the name of the color matrix result */
+    result?: string;
   }
 
   interface JsxSVGFEComponentTransferElement
