@@ -18,6 +18,7 @@ import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
 
 /**
+ * @template [M={}]
  * @typedef {Object} PageMeta
  *
  * @property {string} [author]
@@ -111,6 +112,9 @@ import { addMetaListener } from './meta.js';
  * The viewport configuration, specified using <meta name="viewport">.
  * Controls how the page is displayed on mobile devices.
  * Example: "width=device-width, initial-scale=1.0"
+ *
+ * @property {M} [misc]
+ * Represents other custom metadata that does not pertain to HTML.
  */
 
 /**

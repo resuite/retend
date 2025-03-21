@@ -25,6 +25,7 @@ const metaNameMap = {
   charset: '',
   lang: '',
   title: '',
+  misc: '',
 };
 
 /**
@@ -86,7 +87,13 @@ export function updatePageMeta(newMeta) {
 
   // Handle all other meta tags
   for (const key of Object.keys(metaNameMap)) {
-    if (key === 'lang' || key === 'charset' || key === 'title') continue;
+    if (
+      key === 'lang' ||
+      key === 'charset' ||
+      key === 'title' ||
+      key === 'misc'
+    )
+      continue;
 
     const metaName = metaNameMap[/** @type {keyof PageMeta} */ (key)];
     const newValue = newMeta[/** @type {keyof PageMeta} */ (key)];
@@ -108,7 +115,7 @@ export function updatePageMeta(newMeta) {
         head.append(/** @type {*} */ (metaTag));
       }
       if (metaTag.getAttribute('content') !== newValue) {
-        metaTag.setAttribute('content', newValue);
+        metaTag.setAttribute('content', /** @type {*} */ (newValue));
       }
     } else if (metaTag) {
       metaTag.remove();
