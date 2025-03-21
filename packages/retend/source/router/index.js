@@ -272,8 +272,8 @@ export class Router extends EventTarget {
   /** @type {Map<string, string>} */
   params;
 
-  /** @private @type {RouteTree<ComponentOrComponentLoader>} */
-  routeTree;
+  /** @type {RouteTree<ComponentOrComponentLoader>} */
+  #routeTree;
 
   /** @private @type {import('./middleware.js').RouterMiddleware[]} */
   middlewares;
@@ -290,14 +290,22 @@ export class Router extends EventTarget {
   /** @private @type {boolean} */
   stackMode;
 
-  /** @private @type {string[]} */
-  history;
+  /** @type {string[]} */
+  #history;
 
-  /** @type {boolean} */
+  /**
+   * Determines whether view transitions are enabled for route changes.
+   * If set to true, the router will wrap every route change in a call to
+   * `document.startViewTransition()`.
+   * @type {boolean}
+   */
   useViewTransitions;
 
   /** @private @type {CSSStyleSheet | undefined} */
   sheet;
+
+  /** @type {Promise<void> | null} */
+  #currentNavigation = null;
 
   /**
    * The global `window` object, which provides access to the browser's JavaScript API.
@@ -308,7 +316,7 @@ export class Router extends EventTarget {
   /** @param {RouterOptions} routeOptions */
   constructor(routeOptions) {
     super();
-    this.routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
+    this.#routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
     this.middlewares = routeOptions.middlewares ?? [];
     this.maxRedirects = routeOptions.maxRedirects ?? 50;
     this.currentPath = Cell.source(
@@ -326,7 +334,7 @@ export class Router extends EventTarget {
     this.params = new Map();
     this.stackMode = routeOptions.stackMode ?? false;
     this.useViewTransitions = routeOptions.useViewTransitions ?? false;
-    this.history = [];
+    this.#history = [];
     this.sheet = undefined;
     this.Link = this.Link.bind(this);
     this.Outlet = this.Outlet.bind(this);
@@ -583,7 +591,7 @@ export class Router extends EventTarget {
    * @param {string} path - The path to push.
    */
   pushHistory(path) {
-    this.history.push(path);
+    this.#history.push(path);
     this.persistHistory();
   }
 
@@ -592,7 +600,7 @@ export class Router extends EventTarget {
    * Removes the most recent path from the router's history and persists the updated history.
    */
   popHistory() {
-    this.history.pop();
+    this.#history.pop();
     this.persistHistory();
   }
 
@@ -605,7 +613,7 @@ export class Router extends EventTarget {
     if (!this.stackMode) return;
     this.window?.sessionStorage?.setItem(
       HISTORY_STORAGE_KEY,
-      JSON.stringify(this.history)
+      JSON.stringify(this.#history)
     );
   }
 
@@ -691,8 +699,10 @@ export class Router extends EventTarget {
    * </button>
    * ```
    */
-  back() {
-    this.window?.history?.back();
+  async back() {
+    if (!this.window) return;
+    this.window.history.back();
+    await this.#currentNavigation;
   }
 
   /**
@@ -797,7 +807,7 @@ export class Router extends EventTarget {
     this.dispatchEvent(event);
     if (event.defaultPrevented) return false;
 
-    const matchResult = this.routeTree.match(path);
+    const matchResult = await this.#routeTree.match(path);
     matchResult.flattenTransientRoutes();
     this.params = matchResult.params;
 
@@ -1066,7 +1076,7 @@ export class Router extends EventTarget {
   }
 
   getRouterPathHistory() {
-    return [...this.history];
+    return [...this.#history];
   }
 
   /**
@@ -1078,29 +1088,29 @@ export class Router extends EventTarget {
   chooseNavigationDirection = (targetPath, replace) => {
     /** @type {NavigationDirection} */
     let navigationDirection = 'forwards';
-    const currentPath = this.history.at(-1);
+    const currentPath = this.#history.at(-1);
     if (currentPath === targetPath) {
       return navigationDirection;
     }
 
     if (replace) {
-      this.history.pop();
-      this.history.push(targetPath);
+      this.#history.pop();
+      this.#history.push(targetPath);
       this.persistHistory();
       return navigationDirection;
     }
 
     if (!this.stackMode) {
-      this.history.push(targetPath);
+      this.#history.push(targetPath);
       return navigationDirection;
     }
 
-    const previousIndex = this.history.findLastIndex(
+    const previousIndex = this.#history.findLastIndex(
       (path) => path === targetPath
     );
     if (previousIndex !== -1) {
       navigationDirection = 'backwards';
-      while (this.history.length > previousIndex + 1) {
+      while (this.#history.length > previousIndex + 1) {
         this.popHistory();
       }
     } else {
@@ -1208,90 +1218,100 @@ export class Router extends EventTarget {
    * @param {boolean} [forceLoad]
    */
   loadPath = async (rawPath, navigate, _event, replace, forceLoad) => {
-    const [pathRoot, pathQuery] = rawPath.split('?');
-    let path = pathRoot;
-    // Ensures that .html is removed from the path.
-    if (pathRoot.endsWith('.html')) {
-      path = pathRoot.slice(0, -5);
-    }
-    path += pathQuery ? `?${pathQuery}` : '';
-    if (this.currentPath.value?.fullPath === path && !forceLoad) {
-      return;
-    }
+    const executor = async () => {
+      const [pathRoot, pathQuery] = rawPath.split('?');
+      let path = pathRoot;
+      // Ensures that .html is removed from the path.
+      if (pathRoot.endsWith('.html')) {
+        path = pathRoot.slice(0, -5);
+      }
+      path += pathQuery ? `?${pathQuery}` : '';
+      if (this.currentPath.value?.fullPath === path && !forceLoad) {
+        return;
+      }
 
-    const oldRouterHistoryLength = this.history.length;
-    const oldTitle = this.window?.document.title;
-    /** @type {string[]} */
-    const viewTransitionTypes = [];
+      const oldRouterHistoryLength = this.#history.length;
+      const oldTitle = this.window?.document.title;
+      /** @type {string[]} */
+      const viewTransitionTypes = [];
 
-    const callback = async () => {
-      const wasLoaded = await this.updateDOMWithMatchingPath(
-        path,
-        replace,
-        viewTransitionTypes
-      );
-      const newRouterHistoryLength = this.history.length;
+      const callback = async () => {
+        const wasLoaded = await this.updateDOMWithMatchingPath(
+          path,
+          replace,
+          viewTransitionTypes
+        );
+        const newRouterHistoryLength = this.#history.length;
 
-      if (navigate && wasLoaded) {
-        // If the new history length is less than the old history length
-        // in stack mode, it means that the user navigated backwards in the history.
-        // We keep popping the browser history till they are equal in length.
-        if (this.stackMode && newRouterHistoryLength < oldRouterHistoryLength) {
-          const negativeDiff = newRouterHistoryLength - oldRouterHistoryLength;
-          this.window?.history.go(negativeDiff);
-          return;
-        }
-
-        // otherwise, we can assume that the user navigated forward in the history.
-        //
-        // Title management becomes difficult here, because if the title
-        // changed during navigation, the browser would end up
-        // storing the new title with the old route,
-        // which leads to a confusing experience.
-        if (this.window) {
-          const currentWindowPath = getFullPath(this.window);
-          const isSamePath =
-            currentWindowPath === this.currentPath.value.fullPath;
-          if (isSamePath) return;
-
-          const newTitle = this.window.document?.title;
-          if (oldTitle && newTitle !== oldTitle) {
-            this.window.document.title = oldTitle;
+        if (navigate && wasLoaded) {
+          // If the new history length is less than the old history length
+          // in stack mode, it means that the user navigated backwards in the history.
+          // We keep popping the browser history till they are equal in length.
+          if (
+            this.stackMode &&
+            newRouterHistoryLength < oldRouterHistoryLength
+          ) {
+            const negativeDiff =
+              newRouterHistoryLength - oldRouterHistoryLength;
+            this.window?.history.go(negativeDiff);
+            return;
           }
 
-          const nextPath = this.currentPath.value.fullPath;
+          // otherwise, we can assume that the user navigated forward in the history.
+          //
+          // Title management becomes difficult here, because if the title
+          // changed during navigation, the browser would end up
+          // storing the new title with the old route,
+          // which leads to a confusing experience.
+          if (this.window) {
+            const currentWindowPath = getFullPath(this.window);
+            const isSamePath =
+              currentWindowPath === this.currentPath.value.fullPath;
+            if (isSamePath) return;
 
-          if (replace || newRouterHistoryLength === oldRouterHistoryLength) {
-            this.window.history?.replaceState(null, '', nextPath);
-          } else this.window.history?.pushState(null, '', nextPath);
+            const newTitle = this.window.document?.title;
+            if (oldTitle && newTitle !== oldTitle) {
+              this.window.document.title = oldTitle;
+            }
 
-          if (newTitle) {
-            this.window.document.title = newTitle;
+            const nextPath = this.currentPath.value.fullPath;
+
+            if (replace || newRouterHistoryLength === oldRouterHistoryLength) {
+              this.window.history?.replaceState(null, '', nextPath);
+            } else this.window.history?.pushState(null, '', nextPath);
+
+            if (newTitle) {
+              this.window.document.title = newTitle;
+            }
           }
         }
+      };
+
+      if (
+        this.useViewTransitions &&
+        this.window?.document &&
+        'startViewTransition' in this.window.document
+      ) {
+        const transition = this.window.document.startViewTransition(callback);
+        // It's weird.
+        // The navigation direction cannot be determined until the router has finished updating the DOM.
+        // But since its required for accurate view transitions, we need to wait for the update to finish.
+        // Better men would have written better code.
+        transition.updateCallbackDone.then(() => {
+          for (const type of viewTransitionTypes) {
+            // @ts-ignore: The types property is not available yet in Typescript.
+            /** @type {Set<string>} */ transition.types?.add(type);
+          }
+        });
+        await transition.finished;
+      } else {
+        await callback();
       }
     };
 
-    if (
-      this.useViewTransitions &&
-      this.window?.document &&
-      'startViewTransition' in this.window.document
-    ) {
-      const transition = this.window.document.startViewTransition(callback);
-      // It's weird.
-      // The navigation direction cannot be determined until the router has finished updating the DOM.
-      // But since its required for accurate view transitions, we need to wait for the update to finish.
-      // Better men would have written better code.
-      transition.updateCallbackDone.then(() => {
-        for (const type of viewTransitionTypes) {
-          // @ts-ignore: The types property is not available yet in Typescript.
-          /** @type {Set<string>} */ transition.types?.add(type);
-        }
-      });
-      await transition.finished;
-    } else {
-      await callback();
-    }
+    this.#currentNavigation = executor();
+    await this.#currentNavigation;
+    this.#currentNavigation = null;
   };
 
   /**
@@ -1321,11 +1341,11 @@ export class Router extends EventTarget {
           // dedupe last entry
           if (
             savedHistoryArray.length > 0 &&
-            savedHistoryArray.at(-1) === this.history[0]
+            savedHistoryArray.at(-1) === this.#history[0]
           ) {
             savedHistoryArray.pop();
           }
-          this.history = savedHistoryArray.concat(this.history);
+          this.#history = savedHistoryArray.concat(this.#history);
         }
       } catch (error) {
         console.error('Error parsing session history:', error);

@@ -8,7 +8,7 @@ import {
   lazy,
 } from 'retend/router';
 import { Cell } from 'retend';
-import { routerSetup } from '../setup.ts';
+import { getTextContent, routerSetup } from '../setup.ts';
 
 describe('Router Metadata', () => {
   beforeEach(routerSetup);
@@ -142,6 +142,43 @@ describe('Router Metadata', () => {
           title: `Product ${data.params.get('id')}`,
           type: 'product-page',
         }),
+      },
+    ]);
+
+    const router = createWebRouter({ routes });
+    const currentRoute = router.getCurrentRoute();
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/products/123');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Product 123',
+      type: 'product-page',
+    });
+
+    await router.navigate('/products/456');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      title: 'Product 456',
+      type: 'product-page',
+    });
+  });
+
+  it('should handle async dynamic metadata', async () => {
+    const { window } = getGlobalContext();
+    const routes = defineRoutes([
+      {
+        name: 'product-page',
+        path: '/products/:id',
+        component: () => 'Product Details',
+        metadata: async (data) => {
+          await new Promise((r) => setTimeout(r, 3));
+          return {
+            title: `Product ${data.params.get('id')}`,
+            type: 'product-page',
+          };
+        },
       },
     ]);
 
@@ -482,5 +519,80 @@ describe('Router Metadata', () => {
       type: 'product-page',
       summary: 'Summary: Product 456',
     });
+  });
+
+  it('should handle async embedded metadata functions', async () => {
+    const { window } = getGlobalContext();
+    const BlogPage: RouteComponent = () => {
+      return <div>Hello world!</div>;
+    };
+
+    BlogPage.metadata = async (data) => {
+      await new Promise((r) => setTimeout(r, 3));
+      return {
+        id: Number(data.query.get('pageId')),
+        title: 'Blog Title',
+        content: 'This is blog content',
+      };
+    };
+
+    const router = createWebRouter({
+      routes: defineRoutes([
+        { name: 'blog', path: '/blog', component: BlogPage },
+      ]),
+    });
+
+    const currentRoute = router.getCurrentRoute();
+    const metadata = Cell.derived(() => currentRoute.value.metadata);
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/blog?pageId=123');
+    expect(Object.fromEntries(metadata.value.entries())).toEqual({
+      id: 123,
+      title: 'Blog Title',
+      content: 'This is blog content',
+    });
+  });
+
+  it('should read async metadata inside the route component', async () => {
+    const { window } = getGlobalContext();
+
+    const BlogPage: RouteComponent = () => {
+      const router = useRouter();
+      const currentRoute = router.getCurrentRoute();
+      const metadata = currentRoute.value.metadata;
+      const id = metadata.get('id');
+      return <div>This is the blog for page {id}</div>;
+    };
+
+    BlogPage.metadata = async (data) => {
+      await new Promise((r) => setTimeout(r, 3));
+      return {
+        id: Number(data.params.get('id')),
+        title: 'Blog Title',
+        content: 'This is blog content',
+      };
+    };
+
+    const router = createWebRouter({
+      routes: defineRoutes([
+        { name: 'blog', path: '/blog/:id', component: BlogPage },
+      ]),
+    });
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+    const root = window.document.documentElement;
+
+    await router.navigate('/blog/123');
+    expect(getTextContent(root)).toBe('This is the blog for page 123');
+
+    await router.navigate('/blog/1030');
+    expect(getTextContent(root)).toBe('This is the blog for page 1030');
+
+    await router.back();
+    expect(getTextContent(root)).toBe('This is the blog for page 123');
   });
 });
