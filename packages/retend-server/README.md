@@ -129,6 +129,144 @@ If your router includes redirects (e.g., from `/old-path` to `/new-path`), the p
 
 This ensures redirects work seamlessly in a static hosting environment.
 
+## Route Metadata
+
+The `metadata` property allows you to define meta information for your routes that will be automatically managed in the document head. This is useful for SEO, social sharing, and other meta tag requirements.
+
+### Basic Usage
+
+```javascript
+export function createRouter() {
+  return createWebRouter({
+    routes: [
+      {
+        path: '/',
+        component: Home,
+        metadata: {
+          title: 'Home Page',
+          description: 'Welcome to our website',
+          charset: 'UTF-8',
+          lang: 'en',
+        },
+      },
+    ],
+  });
+}
+```
+
+### Dynamic Metadata
+
+You can make metadata dynamic by using a function that receives route data:
+
+```javascript
+{
+  path: '/products/:id',
+  component: ProductPage,
+  metadata: (data) => ({
+    title: `Product ${data.params.get('id')}`,
+    description: 'Product details page',
+    ogImage: `https://example.com/products/${data.params.get('id')}/image.jpg`
+  })
+}
+```
+
+### Async Metadata
+
+For metadata that requires asynchronous operations:
+
+```javascript
+{
+  path: '/blog/:id',
+  component: BlogPost,
+  metadata: async (data) => {
+    const response = await fetch(`/api/posts/${data.params.get('id')}`);
+    const post = await response.json();
+    return {
+      title: post.title,
+      description: post.excerpt,
+      ogImage: post.featuredImage
+    };
+  }
+}
+```
+
+### Component-Level Metadata
+
+You can also define metadata directly on your components:
+
+```javascript
+const BlogPost = () => {
+  return <div>Blog content</div>;
+};
+
+BlogPost.metadata = {
+  title: 'Blog Post',
+  description: 'An interesting blog post',
+};
+
+// Or dynamically:
+BlogPost.metadata = (data) => ({
+  title: `Post ${data.params.get('id')}`,
+  description: 'Dynamic blog post description',
+});
+```
+
+### Supported Metadata Properties
+
+- `title`: Sets the page title
+- `description`: Meta description for SEO
+- `charset`: Character encoding (e.g., 'UTF-8')
+- `lang`: Document language (e.g., 'en')
+- `keywords`: Meta keywords for SEO
+- `author`: Content author
+- `viewport`: Viewport configuration
+- `themeColor`: Theme color for mobile browsers
+
+#### Open Graph Properties
+
+- `ogTitle`: Open Graph title
+- `ogDescription`: Open Graph description
+- `ogImage`: Open Graph image URL
+- `ogUrl`: Canonical URL
+- `ogType`: Content type
+- `ogLocale`: Content locale
+- `ogSiteName`: Site name
+
+#### Twitter Card Properties
+
+- `twitterCard`: Twitter card type
+- `twitterTitle`: Twitter title
+- `twitterDescription`: Twitter description
+- `twitterImage`: Twitter card image
+- `misc`: Additional data that can be used by third-party services.
+
+### Metadata Inheritance
+
+When using nested routes, metadata is inherited and merged from parent to child routes. Child route metadata will override parent metadata for duplicate properties:
+
+```javascript
+{
+  path: '/dashboard',
+  component: Dashboard,
+  metadata: {
+    section: 'Admin',
+    requiresAuth: true
+  },
+  children: [
+    {
+      path: 'users',
+      component: Users,
+      metadata: {
+        title: 'User Management',
+        description: 'Manage system users'
+      }
+    }
+  ]
+}
+```
+
+In this example, the '/dashboard/users' route will have both the parent's metadata (`section` and `requiresAuth`) and its own metadata (`title` and `description`).
+
 ## Development vs. Production
 
 - **Development Mode**: When running `vite dev` (`import.meta.env.DEV` is `true`), the `hydrate` function switches to single-page application (SPA) mode, rendering the app client-side without server-side rendering for faster development.
