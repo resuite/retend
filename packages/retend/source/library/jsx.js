@@ -377,7 +377,7 @@ export function setAttribute(el, key, value) {
     '__html' in value &&
     typeof value.__html === 'string'
   ) {
-    element.innerHTML = value.html;
+    element.innerHTML = value.__html;
     return;
   }
 
