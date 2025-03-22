@@ -928,8 +928,20 @@ export class Router extends EventTarget {
       }
 
       if (matchedComponent.metadata) {
-        for (const [key, value] of Object.entries(matchedComponent.metadata)) {
-          matchResult.metadata.set(key, value);
+        if (typeof matchedComponent.metadata === 'function') {
+          const metadata = await matchedComponent.metadata({
+            params: matchResult.params,
+            query: matchResult.searchQueryParams,
+          });
+          for (const [key, value] of Object.entries(metadata)) {
+            matchResult.metadata.set(key, value);
+          }
+        } else {
+          for (const [key, value] of Object.entries(
+            matchedComponent.metadata
+          )) {
+            matchResult.metadata.set(key, value);
+          }
         }
       }
 

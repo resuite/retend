@@ -595,4 +595,48 @@ describe('Router Metadata', () => {
     await router.back();
     expect(getTextContent(root)).toBe('This is the blog for page 123');
   });
+
+  it('should read embedded async metadata from a lazy route component', async () => {
+    const { window } = getGlobalContext();
+
+    const BlogPage: RouteComponent = () => {
+      const router = useRouter();
+      const currentRoute = router.getCurrentRoute();
+      const metadata = currentRoute.value.metadata;
+      const id = metadata.get('id');
+      return <div>This is the blog for page {id}</div>;
+    };
+
+    BlogPage.metadata = async (data) => {
+      await new Promise((r) => setTimeout(r, 3));
+      return {
+        id: Number(data.params.get('id')),
+        title: 'Blog Title',
+        content: 'This is blog content',
+      };
+    };
+
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          name: 'blog',
+          path: '/blog/:id',
+          component: lazy(() => Promise.resolve({ default: BlogPage })),
+        },
+      ]),
+    });
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+    const root = window.document.documentElement;
+
+    await router.navigate('/blog/123');
+    expect(getTextContent(root)).toBe('This is the blog for page 123');
+
+    await router.navigate('/blog/1030');
+    expect(getTextContent(root)).toBe('This is the blog for page 1030');
+
+    await router.back();
+    expect(getTextContent(root)).toBe('This is the blog for page 123');
+  });
 });
