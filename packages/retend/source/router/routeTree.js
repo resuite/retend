@@ -17,7 +17,7 @@
 
 /**
  * @template {Metadata} [M=Metadata]
- * @typedef {(() => JSX.Template) & { metadata?: M | (() => Promise<M> | M) }} RouteComponent
+ * @typedef {(() => JSX.Template) & { metadata?: M | ((metadataOptions: MetadataOptions) => Promise<M> | M) }} RouteComponent
  */
 
 /**
