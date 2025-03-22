@@ -53,8 +53,12 @@ export function retendSSG(options) {
       const serverConfig = {
         ...viteConfig,
         server: { ...viteConfig.server, middlewareMode: true },
-        ssr: { target: 'node' },
+        ssr: { ...viteConfig.ssr, target: 'node' },
         appType: 'custom',
+        // It is expected that all the expected functionality, be it transformations or rewrites,
+        // would have been handled by the main build process and cached. Having the plugins run again leads
+        // to problems, as they would attempt to transform already transformed code.
+        plugins: [],
       };
 
       server = await createServer(serverConfig);
