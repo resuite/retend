@@ -220,7 +220,7 @@ async function renderPath(options) {
       redirectFileName = `${normalizedPath}/index.html`;
       if (normalizedPath === '') redirectFileName = 'index.html';
     } else {
-      redirectFileName = `${path}.html`;
+      redirectFileName = `${path.replace(/^\/+/, '')}.html`;
     }
 
     outputs.push({ name: redirectFileName, contents: redirectContent });
