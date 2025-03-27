@@ -1328,6 +1328,52 @@ function CurrentRouteDisplay() {
 }
 ```
 
+## `useRouteQuery` Hook
+
+The `useRouteQuery` hook provides a reactive way to access and manipulate the query parameters of the current route within your Retend application. It simplifies reading, updating, and responding to changes in the URL's query string.
+
+### Overview
+
+This hook returns an object containing several methods for interacting with the route's query parameters. Changes made through these methods automatically trigger route updates, ensuring your application stays in sync with the URL.
+
+### Usage
+
+```jsx
+import { useRouteQuery } from 'retend/router';
+
+function MyComponent() {
+  const query = useRouteQuery();
+
+  // Returns a Cell that checks if a 'search' parameter exists
+  const hasSearch = query.has('search');
+
+  // Returns a Cell containing the value of the 'search' parameter
+  const searchValue = query.get('search');
+
+  // Function to set the 'sort' parameter
+  const setSort = (value) => {
+    query.set('sort', value);
+  };
+
+  // Function to add a filter parameter
+  const addFilter = (filterValue) => {
+    query.append('filter', filterValue);
+  };
+
+  // Reactive display of the search value
+  return (
+    <div>
+      <p>Has search parameter: {hasSearch}</p>
+      <p>Search value: {searchValue}</p>
+      <button onClick={() => setSort('name')}>Sort by Name</button>
+      <button onClick={() => addFilter('category1')}>
+        Add Category 1 Filter
+      </button>
+    </div>
+  );
+}
+```
+
 ### Stack Mode Navigation
 
 **Stack Mode** turns the router into a stack-based navigation system. This lets routes act like a stack, where each route is a unique entry that can be navigated to and from.

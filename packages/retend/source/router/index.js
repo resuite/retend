@@ -19,6 +19,7 @@ import { matchContext, Modes, getGlobalContext } from '../context/index.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
+export * from './query.js';
 export * from './middleware.js';
 
 const HISTORY_STORAGE_KEY = 'rhistory';
