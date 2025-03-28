@@ -3,18 +3,25 @@ import { useRouter } from './index.js';
 
 /**
  * @typedef {Object} AsyncRouteQuery
- * @property {function(string): Cell<boolean>} has - Reactively checks if a query parameter exists.
- * @property {function(string): Cell<string|null>} get - Reactively gets the value of a query parameter.
- * @property {function(string, string): Promise<void>} set - Sets a query parameter, triggering a route update.
- * @property {function(string, string): Promise<void>} append - Appends a query parameter, triggering a route update.
- * @property {function(string): Cell<string[]>} getAll - Reactively gets all values of a query parameter.
- * @property {function(): Promise<void>} clear - Clears all query parameters, triggering a route update.
- * @property {function(string): Promise<void>} delete - Deletes a query parameter, triggering a route update.
- * @property {function(): string} toString - Returns the current query parameters as a string.
+ * @property {(key: string) => Cell<boolean>} has
+ * Reactively checks if a query parameter exists.
+ * @property {(key: string) => Cell<string|null>} get
+ * Returns a cell referencing the value of a query parameter.
+ * @property {(key: string, value: string) => Promise<void>} set
+ * Sets a query parameter, triggering a route update.
+ * @property {(key: string, value: string) => Promise<void>} append
+ * Appends a query parameter, triggering a route update.
+ * @property {(key: string) => Cell<string[]>} getAll
+ * Reactively gets all values of a query parameter.
+ * @property {() => Promise<void>} clear
+ * Clears all query parameters, triggering a route update.
+ * @property {(...keys: string[]) => Promise<void>} delete
+ * Deletes a query parameter, triggering a route update.
+ * @property {() => string} toString - Returns the current query parameters as a string.
  */
 
 /**
- * Reactively uses the query parameters of the current route.
+ * Returns a reactive wrapper for the query parameters of the current route.
  *
  * @returns {AsyncRouteQuery} - An object containing reactive query parameter accessors and mutators.
  *
@@ -37,8 +44,8 @@ import { useRouter } from './index.js';
  *   };
  *
  *   // Function to add a filter parameter
- *   const addFilter = (filterValue) => {
- *     query.append('filter', filterValue);
+ *   const addFilter = async (filterValue) => {
+ *     await query.append('filter', filterValue);
  *   };
  *
  *   // Reactive display of the search value
@@ -124,12 +131,14 @@ export function useRouteQuery() {
   };
 
   /**
-   * Deletes a query parameter, triggering a route update.
+   * Deletes a query parameter or multiple query parameters, triggering a route update.
    *
-   * @param {string} key - The query parameter key to delete
+   * @param {string[]} keys - The query parameter key to delete
    */
-  const del = async (key) => {
-    await updateQuery((searchParams) => searchParams.delete(key));
+  const del = async (...keys) => {
+    await updateQuery((searchParams) => {
+      for (const key of keys) searchParams.delete(key);
+    });
   };
 
   /**
