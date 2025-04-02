@@ -1,7 +1,4 @@
 {
-  "private": true,
-  "description": "A modern reactive framework for fluid, dynamic web apps.",
-  "license": "MIT",
   "author": "Adebola Akomolafe",
   "repository": {
     "type": "git",
@@ -10,7 +7,10 @@
   "bugs": {
     "url": "https://github.com/adebola-io/retend/issues"
   },
+  "description": "A modern reactive framework for fluid, dynamic web apps.",
   "homepage": "https://github.com/adebola-io/retend#readme",
+  "license": "MIT",
+  "private": true,
   "scripts": {
     "test": "vitest run",
     "build": "bun build-core && bun build-ssg",
@@ -28,13 +28,5 @@
     "packages/retend-server",
     "packages/retend-start",
     "tests"
-  ],
-  "dependencies": {
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^11.0.1",
-    "@semantic-release/npm": "^12.0.1",
-    "semantic-release": "^24.2.3",
-    "semantic-release-monorepo": "^8.0.2"
-  }
+  ]
 }
