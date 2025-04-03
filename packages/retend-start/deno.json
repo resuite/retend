@@ -1,6 +1,6 @@
 {
   "name": "retend-start",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "tasks": {
     "start": "deno run --allow-read --allow-write --allow-run --allow-env --allow-net index.js"
   },
