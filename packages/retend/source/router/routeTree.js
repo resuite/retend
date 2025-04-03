@@ -8,7 +8,7 @@
 
 /**
  * A set of key-value pairs that will become attributes on the meta tag.
- * @typedef {Record<string, any> | ((metadataOptions: MetadataOptions) => Record<string, any>)} Metadata
+ * @typedef {Record<string, any> | ((metadataOptions: MetadataOptions) => Promise<Record<string, any>> | Record<string, any>)} Metadata
  */
 
 /**
@@ -17,7 +17,7 @@
 
 /**
  * @template {Metadata} [M=Metadata]
- * @typedef {(() => JSX.Template) & { metadata?: M }} RouteComponent
+ * @typedef {(() => JSX.Template) & { metadata?: M | ((metadataOptions: MetadataOptions) => Promise<M> | M) }} RouteComponent
  */
 
 /**
@@ -159,16 +159,13 @@ export class MatchResult {
     this.path = path;
     this.hash = hash;
     this.searchQueryParams = searchQueryParams;
-    this.metadata = this.collectMetadata();
+    this.metadata = new Map();
   }
 
   /**
-   * @private
    * Collects metadata from matched routes in hierarchical order.
-   * @returns {MetadataMap}
    */
-  collectMetadata() {
-    const map = new Map();
+  async collectMetadata() {
     let current = this.subTree;
     while (current) {
       if (
@@ -185,7 +182,7 @@ export class MatchResult {
 
       const metadataObject = current.metadata
         ? typeof current.metadata === 'function'
-          ? current.metadata({
+          ? await current.metadata({
               params: this.params,
               query: this.searchQueryParams,
             })
@@ -196,7 +193,7 @@ export class MatchResult {
         typeof current.component === 'function' &&
         'metadata' in current.component
           ? typeof current.component.metadata === 'function'
-            ? current.component.metadata({
+            ? await current.component.metadata({
                 params: this.params,
                 query: this.searchQueryParams,
               })
@@ -205,19 +202,18 @@ export class MatchResult {
 
       if (metadataObject) {
         for (const [key, value] of Object.entries(metadataObject)) {
-          map.set(key, value);
+          this.metadata.set(key, value);
         }
       }
 
       if (embeddedMetadata) {
         for (const [key, value] of Object.entries(embeddedMetadata)) {
-          map.set(key, value);
+          this.metadata.set(key, value);
         }
       }
 
       current = current.child;
     }
-    return map;
   }
 
   /**
@@ -259,11 +255,11 @@ export class RouteTree {
   roots = [];
 
   /**
-   *
+   * Selects a section of the route tree that matches a given path.
    * @param {string} path
-   * @returns {MatchResult<T>}
+   * @returns {Promise<MatchResult<T>>}
    */
-  match(path) {
+  async match(path) {
     let searchQueryParams = new URLSearchParams();
     let hash = null;
     let pathname = path;
@@ -282,7 +278,15 @@ export class RouteTree {
       const params = new Map();
       const subtree = this.checkRoot(pathname, root, params);
       if (subtree) {
-        return new MatchResult(params, subtree, path, searchQueryParams, hash);
+        const matchResult = new MatchResult(
+          params,
+          subtree,
+          path,
+          searchQueryParams,
+          hash
+        );
+        await matchResult.collectMetadata();
+        return matchResult;
       }
     }
 

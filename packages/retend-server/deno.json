@@ -1,12 +1,15 @@
 {
   "name": "retend-server",
-  "version": "0.0.1",
+  "version": "0.0.7",
   "description": "Static site generator plugin for the retend library.",
   "tasks": {
     "dev": "deno run --watch main.ts"
   },
   "exports": {
-    "./plugin": "./dist/plugin.js"
+    "./plugin": "./dist/plugin.js",
+    "./types": "./dist/types.js",
+    "./client": "./dist/client.js",
+    "./server": "./dist/server.js"
   },
   "compilerOptions": {
     "noUnusedLocals": true,

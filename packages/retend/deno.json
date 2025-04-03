@@ -1,6 +1,6 @@
 {
   "name": "@retend/core",
-  "version": "0.0.15",
+  "version": "0.0.7",
   "description": "Reactive Javascript UI library for dynamic web apps.",
   "tasks": {
     "try-publish": "npm run build && deno publish --dry-run"
