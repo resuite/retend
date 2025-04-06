@@ -161,9 +161,10 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
           function (newValue) {
             const styleKey = normalizeStyleKey(key);
             if (!isSomewhatFalsy(newValue)) {
-              this.style.setProperty(styleKey, newValue);
+              // optional because the style property does not exist in the vDOM.
+              this.style?.setProperty(styleKey, newValue);
             } else {
-              this.style.removeProperty(styleKey);
+              this.style?.removeProperty(styleKey);
             }
           },
           false
