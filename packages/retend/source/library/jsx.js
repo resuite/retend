@@ -403,9 +403,9 @@ export function setAttribute(el, key, value) {
     return;
   }
 
-  const attributeName = key.replace(/([A-Z])/g, (match) => {
-    return `-${match.toLowerCase()}`;
-  });
+  const attributeName = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase();
 
   if (attributeName === 'class-name' || attributeName === 'class') {
     const normalizedClass = normalizeClassValue(value, element);
