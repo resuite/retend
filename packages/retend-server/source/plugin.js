@@ -81,7 +81,7 @@ export function retendSSG(options) {
       return html;
     },
 
-    generateBundle(_, bundle) {
+    async generateBundle(_, bundle) {
       const assetSourceToDistMap = new Map();
       for (const obj of Object.values(bundle)) {
         if ('originalFileNames' in obj) {
@@ -90,6 +90,7 @@ export function retendSSG(options) {
       }
 
       const redirectionLines = [];
+      const promises = [];
       for (const artifact of outputArtifacts) {
         if (artifact instanceof HtmlOutputArtifact) {
           const { name: fileName, contents, stringify } = artifact;
@@ -113,9 +114,11 @@ export function retendSSG(options) {
             return true;
           });
 
-          stringify().then((source) => {
-            this.emitFile({ type: 'asset', fileName, source });
-          });
+          promises.push(
+            stringify().then((source) => {
+              this.emitFile({ type: 'asset', fileName, source });
+            })
+          );
         } else {
           // artifact is a redirect.
           redirectionLines.push(artifact.contents);
@@ -129,6 +132,8 @@ export function retendSSG(options) {
           source: redirectionLines.join('\n'),
         });
       }
+
+      await Promise.all(promises);
     },
 
     closeBundle() {
