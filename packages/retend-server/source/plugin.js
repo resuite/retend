@@ -8,6 +8,7 @@ import {
   RedirectOutputArtifact,
 } from './server.js';
 import { createServer } from 'vite';
+import path from 'node:path';
 
 /**
  * @typedef {object} PluginOptions
@@ -80,31 +81,40 @@ export function retendSSG(options) {
       return html;
     },
 
-    async generateBundle(_, bundle) {
+    generateBundle(_, bundle) {
+      const assetSourceToDistMap = new Map();
+      for (const obj of Object.values(bundle)) {
+        if ('originalFileNames' in obj) {
+          assetSourceToDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
+        }
+      }
+
       const redirectionLines = [];
       for (const artifact of outputArtifacts) {
         if (artifact instanceof HtmlOutputArtifact) {
+          const { name: fileName, contents, stringify } = artifact;
           // Rewrite asset references
-          artifact.contents.document.findNodes((node) => {
+          contents.document.findNodes((node) => {
             if (!(node instanceof VElement)) return false;
 
             const tagName = node.tagName.toLowerCase();
-            if (/^script|style|link|img$/i.test(tagName)) return false;
+            if (!/^script|style|link|img$/i.test(tagName)) return false;
 
             const attrName = tagName === 'link' ? 'href' : 'src';
             const attrValue = node.getAttribute(attrName);
-            if (!attrValue) return false;
-            const rewrittenAsset = bundle[attrValue];
+            if (!attrValue || attrValue.includes('://')) return false;
+            const fullPath = path.resolve(
+              attrValue.startsWith('/') ? attrValue.slice(1) : attrValue
+            );
+            const rewrittenAsset = assetSourceToDistMap.get(fullPath);
             if (!rewrittenAsset) return false;
 
             node.setAttribute(attrName, rewrittenAsset.fileName);
             return true;
           });
 
-          this.emitFile({
-            type: 'asset',
-            fileName: artifact.name,
-            source: await artifact.stringify(),
+          stringify().then((source) => {
+            this.emitFile({ type: 'asset', fileName, source });
           });
         } else {
           // artifact is a redirect.
