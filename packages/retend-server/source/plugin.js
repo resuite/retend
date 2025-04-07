@@ -1,7 +1,12 @@
 /** @import { Plugin, UserConfig, ViteDevServer } from 'vite' */
-/** @import { BuildOptions, OutputArtifact } from './types.js' */
+/** @import { BuildOptions } from './types.js' */
 
-import { buildPaths } from './server.js';
+import { VElement } from '../../retend/dist/v-dom/index.js';
+import {
+  buildPaths,
+  HtmlOutputArtifact,
+  RedirectOutputArtifact,
+} from './server.js';
 import { createServer } from 'vite';
 
 /**
@@ -33,8 +38,8 @@ export function retendSSG(options) {
 
   /** @type {UserConfig} */
   let viteConfig;
-  /** @type {OutputArtifact[]} */
-  const outputs = [];
+  /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
+  const outputArtifacts = [];
   /** @type {ViteDevServer} */
   let server;
 
@@ -71,41 +76,53 @@ export function retendSSG(options) {
         server,
       };
 
-      outputs.push(...(await buildPaths(pages, buildOptions)));
-      const transformed = outputs.find((o) => o.name === 'index.html');
-      if (transformed) {
-        outputs.splice(outputs.indexOf(transformed), 1);
-        return transformed.contents;
-      }
+      outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
       return html;
     },
 
-    generateBundle() {
-      const fileContents = new Map();
+    async generateBundle(_, bundle) {
+      const redirectionLines = [];
+      for (const artifact of outputArtifacts) {
+        if (artifact instanceof HtmlOutputArtifact) {
+          // Rewrite asset references
+          artifact.contents.document.findNodes((node) => {
+            if (!(node instanceof VElement)) return false;
 
-      for (const output of outputs) {
-        const existing = fileContents.get(output.name) || '';
-        fileContents.set(
-          output.name,
-          output.append ? existing + output.contents : output.contents
-        );
+            const tagName = node.tagName.toLowerCase();
+            if (/^script|style|link|img$/i.test(tagName)) return false;
+
+            const attrName = tagName === 'link' ? 'href' : 'src';
+            const attrValue = node.getAttribute(attrName);
+            if (!attrValue) return false;
+            const rewrittenAsset = bundle[attrValue];
+            if (!rewrittenAsset) return false;
+
+            node.setAttribute(attrName, rewrittenAsset.fileName);
+            return true;
+          });
+
+          this.emitFile({
+            type: 'asset',
+            fileName: artifact.name,
+            source: await artifact.stringify(),
+          });
+        } else {
+          // artifact is a redirect.
+          redirectionLines.push(artifact.contents);
+        }
       }
 
-      const files = Object.fromEntries(fileContents);
-
-      for (const [name, contents] of Object.entries(files)) {
+      if (redirectionLines.length > 0) {
         this.emitFile({
           type: 'asset',
-          fileName: name,
-          source: contents,
+          fileName: '_redirects',
+          source: redirectionLines.join('\n'),
         });
       }
     },
 
     closeBundle() {
-      if (server) {
-        server.close();
-      }
+      server?.close();
     },
   };
 }

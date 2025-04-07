@@ -2,11 +2,9 @@
 /** @import { VNode } from 'retend/v-dom' */
 /** @import {
  *    BuildOptions,
- *    OutputArtifact,
  *    ServerContext,
  *    AsyncStorage,
  *    RenderOptions,
- *    WriteArtifactsOptions
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
@@ -17,17 +15,44 @@ import { renderToString } from 'retend/render';
 import { VElement, VWindow } from 'retend/v-dom';
 
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
 
+export class OutputArtifact {}
+export class HtmlOutputArtifact extends OutputArtifact {
+  /**
+   * @param {string} name
+   * @param {VWindow} contents
+   * @param {() => Promise<string>} stringify
+   */
+  constructor(name, contents, stringify) {
+    super();
+    this.name = name;
+    this.contents = contents;
+    this.stringify = stringify;
+  }
+}
+
+export class RedirectOutputArtifact extends OutputArtifact {
+  /**
+   * @param {string} name
+   * @param {string} contents
+   */
+  constructor(name, contents) {
+    super();
+    this.name = name;
+    this.contents = contents;
+  }
+}
+
 /**
  * @param {string[]} paths The paths to serialize.
  * @param {BuildOptions} options Options for building.
- * @returns {Promise<OutputArtifact[]>} A promise that resolves to an array of output artifacts.
+ * @returns {Promise<(HtmlOutputArtifact | RedirectOutputArtifact)[]>} A promise that resolves to an array of output artifacts.
  *
  * @example
  * // Build a single path
@@ -43,33 +68,6 @@ export async function buildPaths(paths, options) {
     rootSelector = '#app',
     createRouterModule: routerPath = './router',
   } = options;
-
-  // /** @type {OutputArtifact[]} */
-  // const outputs = [];
-  // /** @type {UserConfig} */
-  // const buildConfig = {
-  //   ...viteConfig,
-  //   build: {
-  //     ...viteConfig.build,
-  //     write: false,
-  //     rollupOptions: { input: ['./index.html'] },
-  //     minify: 'esbuild',
-  //     cssMinify: 'esbuild',
-  //   },
-  // };
-  // const buildResult = /** @type {ViteBuildResult} */ (
-  //   /** @type {unknown} */ (await build(buildConfig))
-  // );
-  // const { output: viteOutputs } = buildResult;
-  // let htmlShell = viteOutputs.find((o) => o.fileName === basename(htmlEntry));
-  // if (htmlShell) viteOutputs.splice(viteOutputs.indexOf(htmlShell), 1);
-  // else htmlShell = { fileName: '', source: '', code: '' };
-
-  // for (const resource of viteOutputs) {
-  //   const name = resource.fileName;
-  //   const contents = resource.source ?? resource.code;
-  //   outputs.push({ name, contents });
-  // }
 
   /** @type {AsyncLocalStorage<AsyncStorage>} */
   const asyncLocalStorage = new AsyncLocalStorage();
@@ -95,7 +93,7 @@ export async function buildPaths(paths, options) {
 
 /**
  * @param {RenderOptions} options
- * @returns {Promise<OutputArtifact[]>}
+ * @returns {Promise<(HtmlOutputArtifact | RedirectOutputArtifact)[]>}
  */
 async function renderPath(options) {
   const {
@@ -110,7 +108,7 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const store = { window, path, teleportIdCounter, consistentValues };
-  /** @type {OutputArtifact[]} */
+  /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
 
   await asyncLocalStorage.run(store, async () => {
@@ -194,23 +192,27 @@ async function renderPath(options) {
 
     const finalPath = currentRoute.value.fullPath;
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
-    const options = { markStaticNodes: true };
-    const htmlContents = await renderToString(document, window, options);
-    const contents = `<!DOCTYPE html>${htmlContents}`;
-    outputs.push({ name, contents });
+
+    const stringify = async () => {
+      const options = { markStaticNodes: true };
+      const htmlContents = await renderToString(document, window, options);
+      const contents = `<!DOCTYPE html>${htmlContents}`;
+      return contents;
+    };
+
+    outputs.push(new HtmlOutputArtifact(name, window, stringify));
 
     if (path === finalPath) return;
 
     // Add redirect to both HTML and _redirects file
     const redirectContent = generateRedirectHtmlContent(finalPath);
+    const redirectWindow = buildWindowFromHtmlText(redirectContent);
 
     // Create redirect entry for _redirects file
     const redirectEntry = `${path} ${finalPath} 301`;
-    outputs.push({
-      name: '_redirects',
-      contents: `${redirectEntry}\n`,
-      append: true,
-    });
+    outputs.push(
+      new RedirectOutputArtifact('_redirects', `${redirectEntry}\n`)
+    );
 
     /** @type {string} */
     let redirectFileName;
@@ -223,30 +225,15 @@ async function renderPath(options) {
       redirectFileName = `${path.replace(/^\/+/, '')}.html`;
     }
 
-    outputs.push({ name: redirectFileName, contents: redirectContent });
+    outputs.push(
+      new HtmlOutputArtifact(redirectFileName, redirectWindow, () =>
+        Promise.resolve(redirectContent)
+      )
+    );
     setConsistentValues(new Map());
   });
 
   return outputs;
-}
-
-/**
- * Writes the provided output artifacts to a directory on disk.
- * @param {OutputArtifact[]} artifacts
- * @param {WriteArtifactsOptions} [options={}]
- * @returns {Promise<void>}
- */
-export async function writeArtifactsToDisk(artifacts, options = {}) {
-  const { outDir = 'dist', clean = false } = options;
-  if (clean) await fs.rm(outDir, { recursive: true, force: true });
-
-  await fs.mkdir(outDir, { recursive: true });
-
-  for (const artifact of artifacts) {
-    const assetPath = resolve(outDir, artifact.name);
-    await fs.mkdir(dirname(assetPath), { recursive: true });
-    await fs.writeFile(assetPath, artifact.contents, 'utf8');
-  }
 }
 
 /**
@@ -337,15 +324,3 @@ function generateRedirectHtmlContent(finalPath) {
 </body>
 </html>`;
 }
-
-// const viteConfig: UserConfig = {
-//   resolve: {
-//     alias: { '@': resolve(process.cwd(), './') },
-//   },
-//   plugins: [hmrPlugin()],
-//   esbuild: {
-//     jsx: 'automatic',
-//     jsxImportSource: 'retend',
-//   },
-//   css: { preprocessorOptions: { scss: { api: 'modern-compiler' } } },
-// };
