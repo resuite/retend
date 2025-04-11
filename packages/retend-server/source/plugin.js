@@ -1,7 +1,7 @@
 /** @import { Plugin, UserConfig, ViteDevServer } from 'vite' */
 /** @import { BuildOptions } from './types.js' */
 
-import { VElement } from '../../retend/dist/v-dom/index.js';
+import { VElement } from 'retend/v-dom';
 import {
   buildPaths,
   HtmlOutputArtifact,
