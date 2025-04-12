@@ -1,0 +1,6 @@
+source
+scripts
+bun.lockb
+deno.json
+tsconfig.json
+!dist

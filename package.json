@@ -20,15 +20,17 @@
     "publish-core": "cd packages/retend && bun run build && bun publish",
     "publish-ssg": "cd packages/retend-server && bun run build && bun publish",
     "publish-start": "cd packages/retend-start && bun publish",
+    "publish-utils": "cd packages/retend-utils && bun run build && bun publish",
     "publish-all": "bun run publish-core && bun run publish-ssg && bun run publish-start",
     "pack-all": "chmod +x ./scripts/pack.sh && ./scripts/pack.sh",
-    "previews": "cp README.md packages/retend/README.md && bunx pkg-pr-new publish './packages/retend' './packages/retend-server' './packages/retend-start'"
+    "previews": "cp README.md packages/retend/README.md && bunx pkg-pr-new publish './packages/retend' './packages/retend-server' './packages/retend-start' './packages/retend-utils'"
   },
   "workspaces": [
     "packages/retend",
     "packages/retend-server",
     "packages/retend-start",
     "packages/retend-utils",
+    "examples/utils-testing",
     "tests"
   ]
 }

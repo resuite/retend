@@ -1,0 +1,156 @@
+# retend-utils
+
+This package provides a collection of utility hooks for [Retend](https://github.com/resuite/retend/tree/main/packages/retend) applications.
+
+- [retend-utils](#retend-utils)
+  - [Installation](#installation)
+  - [Hooks](#hooks)
+    - [`useElementBounding`](#useelementbounding)
+    - [`useLiveDate`](#uselivedate)
+    - [`useWindowSize`](#usewindowsize)
+    - [`useMatchMedia`](#usematchmedia)
+
+## Installation
+
+```bash
+npm install retend-utils
+# or
+yarn add retend-utils
+# or
+bun add retend-utils
+```
+
+## Hooks
+
+### `useElementBounding`
+
+Tracks the bounding rectangle (size and position) of an HTML element reactively.
+
+Provides a `BoundingRect` object where each property is a reactive `Cell`. These cells update automatically whenever the element's size or position changes.
+
+**Parameters:**
+
+- `elementRef`: A `Cell<HTMLElement | null>` containing a reference to the HTML element to track.
+- `options` (optional): An object with the following properties:
+  - `reset` (boolean, default: `true`): Reset the bounding rectangle when the element is removed from the DOM.
+  - `windowResize` (boolean, default: `true`): Update when the window is resized.
+  - `windowScroll` (boolean, default: `true`): Update when the window is scrolled.
+  - `updateTiming` ('sync' | 'next-frame', default: `'sync'`): Timing for updates.
+
+**Returns:**
+
+- `BoundingRect`: An object containing reactive cells for each dimension (`width`, `height`, `x`, `y`, `top`, `right`, `bottom`, `left`).
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { useElementBounding } from 'retend-utils/hooks';
+
+function PositionTracker() {
+  const trackedElement = Cell.source(null);
+  const bounds = useElementBounding(trackedElement);
+
+  return (
+    <>
+      <div
+        ref={trackedElement}
+        style="width: 100px; height: 50px; border: 1px solid black;"
+      >
+        Track me!
+      </div>
+      <p>
+        Position: X={bounds.x}, Y={bounds.y}
+      </p>
+      <p>
+        Size: Width={bounds.width}, Height={bounds.height}
+      </p>
+    </>
+  );
+}
+```
+
+### `useLiveDate`
+
+Tracks the current system date and time reactively.
+
+**Parameters:**
+
+- `interval` (optional, number, default: `1000`): How often to update the date and time, in milliseconds.
+
+**Returns:**
+
+- `Cell<Date>`: A Cell containing the current date and time.
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { useLiveDate } from 'retend-utils/hooks';
+
+function CurrentDateDisplay() {
+  // Update every 5 seconds
+  const currentDate = useLiveDate(5000);
+  const dateString = Cell.derived(() => currentDate.value.toDateString());
+
+  return <p>Today's date: {dateString}</p>;
+}
+```
+
+### `useWindowSize`
+
+Returns an object containing reactive cells that track the current window size.
+
+**Parameters:**
+
+- None
+
+**Returns:**
+
+- An object with two properties:
+  - `width`: A Cell containing the current window width.
+  - `height`: A Cell containing the current window height.
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { useWindowSize } from 'retend-utils/hooks';
+
+function AdaptiveLayout() {
+  const { width } = useWindowSize();
+  const isMobile = Cell.derived(() => width.value < 768);
+
+  return If(isMobile, {
+    true: () => <div>Mobile layout</div>,
+    false: () => <div>Desktop layout</div>,
+  });
+}
+```
+
+### `useMatchMedia`
+
+Creates a reactive cell that tracks the result of a media query.
+
+**Parameters:**
+
+- `query` (string): The media query to match (e.g., `(min-width: 768px)`).
+
+**Returns:**
+
+- `Cell<boolean>`: A cell that contains a boolean indicating whether the media query matches.
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { useMatchMedia } from 'retend-utils/hooks';
+
+function MyComponent() {
+  const isDarkMode = useMatchMedia('(prefers-color-scheme: dark)');
+  return If(isDarkMode, {
+    true: () => <div>Dark mode</div>,
+    false: () => <div>Light mode</div>,
+  });
+}
+```
