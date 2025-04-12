@@ -4,9 +4,10 @@
   "description": "A collection of utility functions for Retend.",
   "private": false,
   "type": "module",
+  "module": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "bun scripts/build.js"
+    "build": "bunx tsc --project tsconfig.json"
   },
   "keywords": [
     "web",
@@ -15,17 +16,9 @@
     "jsx"
   ],
   "exports": {
-    "./use-window-size": {
-      "import": "./dist/use-window-size.js",
-      "types": "./dist/use-window-size.d.ts"
-    },
-    "./use-element-bounding": {
-      "import": "./dist/use-element-bounding.js",
-      "types": "./dist/use-element-bounding.d.ts"
-    },
-    "./use-live-date": {
-      "import": "./dist/use-live-date.js",
-      "types": "./dist/use-live-date.d.ts"
+    "./hooks": {
+      "import": "./dist/hooks/index.js",
+      "types": "./dist/hooks/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/retend#readme",

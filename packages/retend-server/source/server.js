@@ -209,6 +209,7 @@ async function renderPath(options) {
       const options = { markStaticNodes: true };
       const htmlContents = await renderToString(document, window, options);
       const contents = `<!DOCTYPE html>${htmlContents}`;
+      window.close(); // destroys timeouts and intervals.
       return contents;
     };
 

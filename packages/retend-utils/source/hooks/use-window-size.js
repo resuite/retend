@@ -7,6 +7,8 @@ import { getGlobalContext } from 'retend/context';
  * @property {Cell<number>} height
  */
 
+const USE_WINDOW_SIZE_KEY = 'hooks:useWindowSize:windowSizeCache';
+
 /**
  * Returns an object containing cells that track the current window size.
  *
@@ -15,7 +17,7 @@ import { getGlobalContext } from 'retend/context';
  *   - height: A Cell containing the current window height
  *
  * @example
- * import { useWindowSize } from 'retend-utils/use-window-size';
+ * import { useWindowSize } from 'retend-utils/hooks';
  *
  * // Get the current window size
  * const { width, height } = useWindowSize();
@@ -33,25 +35,17 @@ export function useWindowSize() {
   const { window, globalData } = getGlobalContext();
 
   /** @type {{ width: import('retend').SourceCell<number>, height: import('retend').SourceCell<number> }} */
-  let windowSize;
-  const windowSizeListenerAdded = globalData.has('hooks:windowSizeInitialized');
-  if (globalData.has('hooks:windowSizeCache')) {
-    windowSize = globalData.get('hooks:windowSizeCache');
-  } else {
-    windowSize = { width: Cell.source(0), height: Cell.source(0) };
-    globalData.set('hooks:windowSizeCache', windowSize);
-  }
+  const windowSize = globalData.get(USE_WINDOW_SIZE_KEY) ?? {
+    width: Cell.source(window.innerWidth),
+    height: Cell.source(window.innerHeight),
+  };
+  globalData.set(USE_WINDOW_SIZE_KEY, windowSize);
 
-  if (!windowSizeListenerAdded) {
+  window.addEventListener('resize', () => {
     windowSize.width.value = window.innerWidth;
     windowSize.height.value = window.innerHeight;
+  });
 
-    window.addEventListener('resize', () => {
-      windowSize.width.value = window.innerWidth;
-      windowSize.height.value = window.innerHeight;
-    });
-    globalData.set('hooks:windowSizeInitialized', true);
-  }
   return {
     // Derived so that listens don't lead to memory leaks.
     width: Cell.derived(() => windowSize.width.value),

@@ -16,6 +16,11 @@ import { getGlobalContext } from 'retend/context';
  * @property {Cell<number>} left A `Cell` containing the element's left coordinate.
  */
 
+const RESIZE_LISTENER_KEY = 'hooks:useElementBounding:resizeListener';
+const SIZE_WATCHERS_KEY = 'hooks:useElementBounding:sizeWatchers';
+const SCROLL_LISTENER_KEY = 'hooks:useElementBounding:scrollListener';
+const SCROLL_WATCHERS_KEY = 'hooks:useElementBounding:scrollWatchers';
+
 /**
  * @typedef useElementBoundingOptions
  *
@@ -36,7 +41,6 @@ import { getGlobalContext } from 'retend/context';
  */
 
 /**
- * @template {HTMLElement} T
  *
  * Tracks the bounding rectangle of an HTML element reactively.
  *
@@ -45,14 +49,14 @@ import { getGlobalContext } from 'retend/context';
  * whenever the element's size or position changes, due to either resizing or
  * layout shifts.
  *
- * @param {Cell<T | null>} elementRef A `Cell` containing a reference to the HTML element to track.
+ * @param {Cell<HTMLElement | null>} elementRef A `Cell` containing a reference to the HTML element to track.
  * @param {useElementBoundingOptions} [options]
  * @returns {BoundingRect} A `BoundingRect` object containing reactive cells for each dimension.
  *
  * @example
  * ```tsx
  * import { Cell } from 'retend';
- * import { useElementBounding } from 'retend-utils/use-element-bounding';
+ * import { useElementBounding } from 'retend-utils/hooks';
  *
  * function MyComponent() {
  *   const elementRef = Cell.source(null);
@@ -74,31 +78,6 @@ export function useElementBounding(elementRef, options = {}) {
     windowScroll = true,
     updateTiming = 'sync',
   } = options;
-  const { globalData } = getGlobalContext();
-
-  /** @type {(() => void) | undefined} */
-  let windowResizeListener = globalData.get(
-    'hooks:useBoundingRect:windowResizeListener'
-  );
-
-  /** @type {Set<(() => void)>} */
-  let sizeWatchers = globalData.get('hooks:useBoundingRect:sizeWatchers');
-  if (sizeWatchers === undefined) {
-    sizeWatchers = new Set();
-    globalData.set('hooks:useBoundingRect:sizeWatchers', sizeWatchers);
-  }
-
-  /** @type {(() => void) | undefined} */
-  let windowScrollListener = globalData.get(
-    'hooks:useBoundingRect:windowScrollListener'
-  );
-
-  /** @type {Set<(() => void)>} */
-  let scrollWatchers = globalData.get('hooks:useBoundingRect:scrollWatchers');
-  if (scrollWatchers === undefined) {
-    scrollWatchers = new Set();
-    globalData.set('hooks:useBoundingRect:scrollWatchers', scrollWatchers);
-  }
 
   const width = Cell.source(0);
   const height = Cell.source(0);
@@ -116,31 +95,27 @@ export function useElementBounding(elementRef, options = {}) {
 
     if (!element) {
       if (reset) {
-        Cell.batch(() => {
-          width.value = 0;
-          height.value = 0;
-          x.value = 0;
-          y.value = 0;
-          top.value = 0;
-          right.value = 0;
-          bottom.value = 0;
-          left.value = 0;
-        });
+        width.value = 0;
+        height.value = 0;
+        x.value = 0;
+        y.value = 0;
+        top.value = 0;
+        right.value = 0;
+        bottom.value = 0;
+        left.value = 0;
       }
       return;
     }
 
     const rect = element.getBoundingClientRect();
-    Cell.batch(() => {
-      width.value = rect.width;
-      height.value = rect.height;
-      x.value = rect.x;
-      y.value = rect.y;
-      top.value = rect.top;
-      right.value = rect.right;
-      bottom.value = rect.bottom;
-      left.value = rect.left;
-    });
+    width.value = rect.width;
+    height.value = rect.height;
+    x.value = rect.x;
+    y.value = rect.y;
+    top.value = rect.top;
+    right.value = rect.right;
+    bottom.value = rect.bottom;
+    left.value = rect.left;
   };
 
   const update = () => {
@@ -156,25 +131,41 @@ export function useElementBounding(elementRef, options = {}) {
 
   observer.onConnected(elementRef, (element) => {
     const { globalData, window } = getGlobalContext();
+
+    /** @type {(() => void) | undefined} */
+    let resizeListener = globalData.get(RESIZE_LISTENER_KEY);
+    /** @type {(() => void) | undefined} */
+    let windowScrollListener = globalData.get(SCROLL_LISTENER_KEY);
+
+    /** @type {Set<(() => void)>} */
+    const sizeWatchers = globalData.get(SIZE_WATCHERS_KEY) ?? new Set();
+    globalData.set(SIZE_WATCHERS_KEY, sizeWatchers);
+
+    /** @type {Set<(() => void)>} */
+    const scrollWatchers = globalData.get(SCROLL_WATCHERS_KEY) ?? new Set();
+    globalData.set(SCROLL_WATCHERS_KEY, scrollWatchers);
+
+    // ---- Watch for element resizes ----
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(element);
 
+    // ----- Watch for style changes ----
     const mutationObserver = new MutationObserver(update);
     mutationObserver.observe(element, {
       attributes: true,
       attributeFilter: ['class', 'style'],
     });
 
+    // --- Watch for window resizes ---
     if (windowResize) {
-      if (windowResizeListener === undefined) {
-        windowResizeListener = () => {
-          for (const watcher of sizeWatchers) watcher();
+      if (resizeListener === undefined) {
+        resizeListener = () => {
+          Cell.batch(() => {
+            for (const watcher of sizeWatchers) watcher();
+          });
         };
-        globalData.set(
-          'hooks:useBoundingRect:windowResizeListener',
-          windowResizeListener
-        );
-        window.addEventListener('resize', windowResizeListener);
+        globalData.set(RESIZE_LISTENER_KEY, resizeListener);
+        window.addEventListener('resize', resizeListener);
       }
       sizeWatchers.add(update);
     }
@@ -182,12 +173,11 @@ export function useElementBounding(elementRef, options = {}) {
     if (windowScroll) {
       if (windowScrollListener === undefined) {
         windowScrollListener = () => {
-          for (const watcher of scrollWatchers) watcher();
+          Cell.batch(() => {
+            for (const watcher of scrollWatchers) watcher();
+          });
         };
-        globalData.set(
-          'hooks:useBoundingRect:windowScrollListener',
-          windowScrollListener
-        );
+        globalData.set(SCROLL_LISTENER_KEY, windowScrollListener);
         window.addEventListener('scroll', windowScrollListener);
       }
       scrollWatchers.add(update);
@@ -198,18 +188,18 @@ export function useElementBounding(elementRef, options = {}) {
     return () => {
       resizeObserver.disconnect();
       mutationObserver.disconnect();
-      if (windowResizeListener !== undefined) {
+      if (resizeListener !== undefined) {
         sizeWatchers.delete(update);
         if (sizeWatchers.size === 0) {
-          window.removeEventListener('resize', windowResizeListener);
-          globalData.delete('hooks:useBoundingRect:windowResizeListener');
+          window.removeEventListener('resize', resizeListener);
+          globalData.delete(RESIZE_LISTENER_KEY);
         }
       }
       if (windowScrollListener !== undefined) {
         scrollWatchers.delete(update);
         if (scrollWatchers.size === 0) {
           window.removeEventListener('scroll', windowScrollListener);
-          globalData.delete('hooks:useBoundingRect:windowScrollListener');
+          globalData.delete(SCROLL_LISTENER_KEY);
         }
       }
     };
