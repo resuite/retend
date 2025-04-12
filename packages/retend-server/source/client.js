@@ -203,7 +203,6 @@ async function restoreContext(context, routerCreateFn) {
   const { shell, path, rootSelector } = context;
   const vWindow = new VWindow();
   const webWindow = window;
-  const observer = useObserver();
 
   recreateVWindow(shell, vWindow);
   setGlobalContext({
@@ -214,6 +213,7 @@ async function restoreContext(context, routerCreateFn) {
     globalData: new Map(),
   });
 
+  const observer = useObserver();
   const router = routerCreateFn();
   router.setWindow(vWindow);
   router.attachWindowListeners();
@@ -271,104 +271,108 @@ async function restoreContext(context, routerCreateFn) {
  * -   Re-establishing event listeners
  * -   Setting ref values
  */
-function hydrateDomNode(node, vNode) {
-  return new Promise(() => {
-    // Static nodes have been verified to contain no reactivity.
-    // by the server, so we can skip hydration.
-    if (node instanceof Element && node.hasAttribute('data-static')) return;
+async function hydrateDomNode(node, vNode) {
+  const subPromises = [];
+  // Static nodes have been verified to contain no reactivity.
+  // by the server, so we can skip hydration.
+  if (node instanceof Element && node.hasAttribute('data-static')) return;
 
-    // Propagate reactivity connections.
-    const cellData = vNode.getRelatedCellData();
-    if (cellData?.size) {
-      const newSet = /** @type {typeof cellData} */ (new Set());
-      for (const data of cellData) {
-        if (!(data instanceof Function)) {
-          newSet.add(data);
-          continue;
-        }
-        if (!data.originalFunction || !data.relatedCell) continue;
-        const reboundFn = /** @type {typeof data} */ (
-          data.originalFunction.bind(node)
-        );
-        data.relatedCell.listen(reboundFn, { weak: true });
-        newSet.add(reboundFn);
+  // Propagate reactivity connections.
+  const cellData = vNode.getRelatedCellData();
+  if (cellData?.size) {
+    const newSet = /** @type {typeof cellData} */ (new Set());
+    for (const data of cellData) {
+      if (!(data instanceof Function)) {
+        newSet.add(data);
+        continue;
       }
-      Reflect.set(node, '__attributeCells', newSet);
+      if (!data.originalFunction || !data.relatedCell) continue;
+      const reboundFn = /** @type {typeof data} */ (
+        data.originalFunction.bind(node)
+      );
+      data.relatedCell.listen(reboundFn, { weak: true });
+      newSet.add(reboundFn);
+    }
+    Reflect.set(node, '__attributeCells', newSet);
+  }
+
+  if (node instanceof Element && vNode instanceof VElement) {
+    // Port hidden attributes: event listeners, etc.
+    for (const [name, value] of vNode.hiddenAttributes) {
+      setAttributeFromProps(/** @type {JsxElement} */ (node), name, value);
+    }
+    // Port ref values.
+    const ref = Reflect.get(vNode, '__ref');
+    if (ref instanceof SourceCell) {
+      Reflect.set(node, '__ref', ref);
+      ref.value = node;
+    }
+  }
+
+  // Port range symbols.
+  if (node instanceof Comment && vNode instanceof VComment) {
+    const commentRangeSymbol = Reflect.get(vNode, '__commentRangeSymbol');
+    if (commentRangeSymbol) {
+      Reflect.set(node, '__commentRangeSymbol', commentRangeSymbol);
     }
 
-    if (node instanceof Element && vNode instanceof VElement) {
-      // Port hidden attributes: event listeners, etc.
-      for (const [name, value] of vNode.hiddenAttributes) {
-        setAttributeFromProps(/** @type {JsxElement} */ (node), name, value);
-      }
-      // Port ref values.
-      const ref = Reflect.get(vNode, '__ref');
-      if (ref instanceof SourceCell) {
-        Reflect.set(node, '__ref', ref);
-        ref.value = node;
-      }
+    // Port ref values
+    const ref = Reflect.get(vNode, '__ref');
+    if (ref instanceof SourceCell) {
+      Reflect.set(node, '__ref', ref);
+      ref.value = node;
     }
+  }
 
-    // Port range symbols.
-    if (node instanceof Comment && vNode instanceof VComment) {
-      const commentRangeSymbol = Reflect.get(vNode, '__commentRangeSymbol');
-      if (commentRangeSymbol) {
-        Reflect.set(node, '__commentRangeSymbol', commentRangeSymbol);
-      }
-
-      // Port ref values
-      const ref = Reflect.get(vNode, '__ref');
-      if (ref instanceof SourceCell) {
-        Reflect.set(node, '__ref', ref);
-        ref.value = node;
-      }
-    }
-
-    // Hydrate Shadow roots
-    if (node instanceof Element) {
-      // If shadowRoot exists, hydrate it
-      if (node.shadowRoot && vNode instanceof VElement && vNode.shadowRoot) {
+  // Hydrate Shadow roots
+  if (node instanceof Element) {
+    // If shadowRoot exists, hydrate it
+    if (node.shadowRoot && vNode instanceof VElement && vNode.shadowRoot) {
+      subPromises.push(
         hydrateDomNode(node.shadowRoot, vNode.shadowRoot).catch((error) => {
           console.error('Shadow root hydration error:', error);
-        });
-      }
-
-      // Cleanup templates for browsers without DSD support
-      const templates = node.querySelectorAll('template[shadowrootmode]');
-      for (const template of templates) {
-        template.remove();
-      }
+        })
+      );
     }
 
-    // Hydrate Children.
-    let offset = 0;
-    const textSplitNodes = [];
-    for (let i = 0; i < node.childNodes.length; i++) {
-      const nodeChild = node.childNodes[i];
-      const mirrorChild = vNode.childNodes[i - offset];
-      if (!mirrorChild) continue;
+    // Cleanup templates for browsers without DSD support
+    const templates = node.querySelectorAll('template[shadowrootmode]');
+    for (const template of templates) {
+      template.remove();
+    }
+  }
 
-      const isTextSplittingComment =
-        nodeChild.nodeType === Node.COMMENT_NODE &&
-        nodeChild.textContent === '@@' &&
-        node.childNodes[i - 1]?.nodeType === Node.TEXT_NODE &&
-        node.childNodes[i + 1]?.nodeType === Node.TEXT_NODE;
+  // Hydrate Children.
+  let offset = 0;
+  const textSplitNodes = [];
+  for (let i = 0; i < node.childNodes.length; i++) {
+    const nodeChild = node.childNodes[i];
+    const mirrorChild = vNode.childNodes[i - offset];
+    if (!mirrorChild) continue;
 
-      if (isTextSplittingComment) {
-        textSplitNodes.push(nodeChild);
-        offset++;
-      } else
+    const isTextSplittingComment =
+      nodeChild.nodeType === Node.COMMENT_NODE &&
+      nodeChild.textContent === '@@' &&
+      node.childNodes[i - 1]?.nodeType === Node.TEXT_NODE &&
+      node.childNodes[i + 1]?.nodeType === Node.TEXT_NODE;
+
+    if (isTextSplittingComment) {
+      textSplitNodes.push(nodeChild);
+      offset++;
+    } else
+      subPromises.push(
         hydrateDomNode(nodeChild, mirrorChild).catch((error) => {
           console.error('Hydration error: ', error);
-        });
-    }
+        })
+      );
+  }
 
-    // Dispatch final hydration callbacks. This will update
-    // For loop caches and other listeners.
-    vNode.dispatchEvent(new HydrationUpgradeEvent(node));
+  // Dispatch final hydration callbacks. This will update
+  // For loop caches and other listeners.
+  vNode.dispatchEvent(new HydrationUpgradeEvent(node));
 
-    for (const textSplitNode of textSplitNodes) textSplitNode.remove();
-  });
+  for (const textSplitNode of textSplitNodes) textSplitNode.remove();
+  await Promise.all(subPromises);
 }
 
 /**
