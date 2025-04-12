@@ -56,4 +56,9 @@
  * @property {string} htmlShell
  * @property {ViteDevServer} server
  * @property {string} rootSelector
+ * @property {typeof import('retend/context')} retendContextModule
+ * @property {typeof import('retend')} retendModule
+ * @property {typeof import('retend/render')} retendRenderModule
+ * @property {typeof import('retend/v-dom')} retendVDomModule
+ * @property {typeof import('./meta.js').addMetaListener} addMetaListener
  */

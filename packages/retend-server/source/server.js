@@ -1,5 +1,5 @@
 /** @import { Router } from 'retend/router' */
-/** @import { VNode } from 'retend/v-dom' */
+/** @import { VElement, VNode, VWindow } from 'retend/v-dom' */
 /** @import {
  *    BuildOptions,
  *    ServerContext,
@@ -9,18 +9,11 @@
  */
 /** @import { ChildNode } from 'domhandler' */
 
-import { getConsistentValues, setConsistentValues } from 'retend';
-import { Modes, setGlobalContext } from 'retend/context';
-import { renderToString } from 'retend/render';
-import { VElement, VWindow } from 'retend/v-dom';
-
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
-
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
-import { addMetaListener } from './meta.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -73,6 +66,32 @@ export async function buildPaths(paths, options) {
   const asyncLocalStorage = new AsyncLocalStorage();
   const promises = [];
 
+  // NOTE: These modules are imported dynamically into the server context
+  // that was created for the SSR process, rather than statically as ESM imports.
+  //
+  // This is because Vite's SSR process loads the modules in an entirely different
+  // (but connected and internally consistent) way, meaning that the modules imported statically
+  // had entirely different dependencies, contexts, and behaviors.
+  //
+  // This is done to ensure consistency and coherence between the server modules,
+  // and to ensure we are not retrieving modules that are not available on the server.
+
+  const retendContextModule = /** @type {typeof import('retend/context')} */ (
+    await server.ssrLoadModule('retend/context')
+  );
+  const retendModule = /** @type {typeof import('retend')} */ (
+    await server.ssrLoadModule('retend')
+  );
+  const retendRenderModule = /** @type {typeof import('retend/render')} */ (
+    await server.ssrLoadModule('retend/render')
+  );
+  const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
+    await server.ssrLoadModule('retend/v-dom')
+  );
+  const { addMetaListener } = await server.ssrLoadModule(
+    import.meta.resolve('./meta.js')
+  );
+
   for (const path of paths) {
     /** @type {RenderOptions} */
     const renderOptions = {
@@ -82,6 +101,11 @@ export async function buildPaths(paths, options) {
       htmlShell,
       server,
       rootSelector,
+      retendContextModule,
+      retendModule,
+      retendRenderModule,
+      retendVDomModule,
+      addMetaListener,
     };
     const promise = renderPath(renderOptions);
     promises.push(promise);
@@ -103,8 +127,19 @@ async function renderPath(options) {
     htmlShell,
     server,
     rootSelector,
+    retendContextModule,
+    retendModule,
+    retendRenderModule,
+    retendVDomModule,
+    addMetaListener,
   } = options;
-  const window = buildWindowFromHtmlText(htmlShell);
+
+  const { Modes, setGlobalContext } = retendContextModule;
+  const { getConsistentValues } = retendModule;
+  const { renderToString } = retendRenderModule;
+  const { VElement, VWindow } = retendVDomModule;
+
+  const window = buildWindowFromHtmlText(htmlShell, VWindow);
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
@@ -147,12 +182,13 @@ async function renderPath(options) {
     if (!store) throw new Error('No store found');
 
     const { path, window } = store;
-    const shell = vNodeToObject(window.document.documentElement);
+    const shell = vNodeToObject(window.document.documentElement, VElement);
 
     const { document, location } = window;
     location.href = path;
 
     const routerModule = await server.ssrLoadModule(resolve(routerPath));
+
     /** @type {Router} */
     const router = routerModule.createRouter();
     const currentRoute = router.getCurrentRoute();
@@ -219,7 +255,7 @@ async function renderPath(options) {
 
     // Add redirect to both HTML and _redirects file
     const redirectContent = generateRedirectHtmlContent(finalPath);
-    const redirectWindow = buildWindowFromHtmlText(redirectContent);
+    const redirectWindow = buildWindowFromHtmlText(redirectContent, VWindow);
 
     // Create redirect entry for _redirects file
     const redirectEntry = `${path} ${finalPath} 301`;
@@ -243,7 +279,6 @@ async function renderPath(options) {
         Promise.resolve(redirectContent)
       )
     );
-    setConsistentValues(new Map());
   });
 
   return outputs;
@@ -251,15 +286,16 @@ async function renderPath(options) {
 
 /**
  * @param {string} htmlText
+ * @param {typeof VWindow} VWindowConstructor
  * @returns {VWindow}
  */
-function buildWindowFromHtmlText(htmlText) {
+function buildWindowFromHtmlText(htmlText, VWindowConstructor) {
   const parsedHtml = parseDocument(htmlText, {});
-  const window = new VWindow();
+  const window = new VWindowConstructor();
 
   for (const node of parsedHtml.childNodes) {
     const element = createVNodeFromParsedNode(node, window);
-    if (element instanceof VElement && element.tagName === 'HTML') {
+    if (element instanceof window.HTMLElement && element.tagName === 'HTML') {
       window.document.documentElement = element;
       const newHead = element.querySelector('head');
       const newBody = element.querySelector('body');
@@ -300,9 +336,10 @@ function createVNodeFromParsedNode(node, window) {
 
 /**
  * @param {VNode} node
+ * @param {typeof VElement} VElement
  * @returns {Record<string, unknown>}
  */
-function vNodeToObject(node) {
+function vNodeToObject(node, VElement) {
   /** @type {Record<string, unknown>} */
   const object = { type: node.nodeType };
   if (node instanceof VElement) {
@@ -315,7 +352,9 @@ function vNodeToObject(node) {
         }, /** @type {Record<string, string>} */ ({}))
       : undefined;
     if (node.childNodes.length) {
-      object.nodes = node.childNodes.map(vNodeToObject);
+      object.nodes = node.childNodes.map((node) =>
+        vNodeToObject(node, VElement)
+      );
     }
   } else object.text = node.textContent ?? '';
   return object;
