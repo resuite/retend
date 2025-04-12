@@ -13,9 +13,10 @@
   "private": true,
   "scripts": {
     "test": "vitest run",
-    "build": "bun build-core && bun build-ssg",
+    "build": "bun build-core && bun build-ssg && bun build-utils",
     "build-core": "cd packages/retend && bun run build",
     "build-ssg": "cd packages/retend-server && bun run build",
+    "build-utils": "cd packages/retend-utils && bun run build",
     "publish-core": "cd packages/retend && bun run build && bun publish",
     "publish-ssg": "cd packages/retend-server && bun run build && bun publish",
     "publish-start": "cd packages/retend-start && bun publish",
@@ -27,6 +28,7 @@
     "packages/retend",
     "packages/retend-server",
     "packages/retend-start",
+    "packages/retend-utils",
     "tests"
   ]
 }

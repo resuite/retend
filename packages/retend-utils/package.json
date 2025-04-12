@@ -1,0 +1,51 @@
+{
+  "name": "retend-utils",
+  "version": "0.0.1",
+  "description": "A collection of utility functions for Retend.",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "bun scripts/build.js"
+  },
+  "keywords": [
+    "web",
+    "javascript",
+    "pwa",
+    "jsx"
+  ],
+  "exports": {
+    "./use-window-size": {
+      "import": "./dist/use-window-size.js",
+      "types": "./dist/use-window-size.d.ts"
+    },
+    "./use-element-bounding": {
+      "import": "./dist/use-element-bounding.js",
+      "types": "./dist/use-element-bounding.d.ts"
+    },
+    "./use-live-date": {
+      "import": "./dist/use-live-date.js",
+      "types": "./dist/use-live-date.d.ts"
+    }
+  },
+  "homepage": "https://github.com/adebola-io/retend#readme",
+  "bugs": {
+    "url": "https://github.com/adebola-io/retend/issues"
+  },
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "directory": "github.com/adebola-io/retend",
+    "type": "git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^5.4.14"
+  },
+  "peerDependencies": {
+    "retend": "^0.0.7"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

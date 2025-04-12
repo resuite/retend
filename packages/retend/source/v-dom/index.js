@@ -618,6 +618,8 @@ export class VWindow extends EventTarget {
     this.location = new VLocation();
     this.scrollX = 0;
     this.scrollY = 0;
+    this.innerWidth = 0;
+    this.innerHeight = 0;
   }
 
   /** @param {ScrollToOptions} options  */

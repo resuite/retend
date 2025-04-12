@@ -3849,6 +3849,14 @@
           ]
         }
       },
+      "packages/retend-utils": {
+        "packageJson": {
+          "dependencies": [
+            "npm:typescript@^5.8.2",
+            "npm:vite@^5.4.14"
+          ]
+        }
+      },
       "tests": {
         "packageJson": {
           "dependencies": [
