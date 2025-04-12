@@ -178,7 +178,9 @@ export function useElementBounding(elementRef, options = {}) {
           });
         };
         globalData.set(SCROLL_LISTENER_KEY, windowScrollListener);
-        window.addEventListener('scroll', windowScrollListener);
+        window.addEventListener('scroll', windowScrollListener, {
+          passive: true,
+        });
       }
       scrollWatchers.add(update);
     }

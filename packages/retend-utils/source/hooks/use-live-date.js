@@ -1,5 +1,10 @@
+/** @import { SourceCell } from 'retend' */
+/** @import { GlobalContextChangeEvent } from 'retend/context' */
 import { Cell } from 'retend';
 import { getGlobalContext, matchContext, Modes } from 'retend/context';
+
+const RUNNING_TIMERS_KEY = 'hooks:useLiveDate:timers';
+const TRANSFER_SCHEDULED_KEY = 'hooks:useLiveDate:transferScheduled';
 
 /**
  *
@@ -25,22 +30,45 @@ import { getGlobalContext, matchContext, Modes } from 'retend/context';
  * }
  */
 export function useLiveDate(interval = 1000) {
-  const now = Cell.source(new Date());
-  const { window } = getGlobalContext();
+  const { window, globalData } = getGlobalContext();
 
-  // @ts-ignore: dependent on Vite.
-  if (import.meta.env.SSR) {
-    if (matchContext(window, Modes.VDom)) {
-      window.setInterval(() => {
-        now.value = new Date();
-      }, interval);
-    }
-    return now;
+  /** @type {Map<number, SourceCell<Date>>} */
+  let runningTimers = globalData.get(RUNNING_TIMERS_KEY);
+  if (!runningTimers) {
+    runningTimers = new Map();
+    globalData.set(RUNNING_TIMERS_KEY, runningTimers);
   }
 
-  setInterval(() => {
-    now.value = new Date();
-  }, interval);
+  let now = /** @type {SourceCell<Date>} */ (runningTimers.get(interval));
+  if (!now) {
+    now = Cell.source(new Date());
+    window.setInterval(() => {
+      now.value = new Date();
+    }, interval);
+    runningTimers.set(interval, now);
+
+    if (matchContext(window, Modes.VDom)) {
+      const transferScheduled = globalData.get(TRANSFER_SCHEDULED_KEY);
+      if (transferScheduled) return now;
+
+      /** @param {GlobalContextChangeEvent} event */
+      const transferTimers = (event) => {
+        const { newContext } = event.detail;
+        if (
+          newContext?.window &&
+          matchContext(newContext.window, Modes.Interactive)
+        ) {
+          newContext.globalData.set(RUNNING_TIMERS_KEY, runningTimers);
+          // @ts-ignore: Custom events are not properly typed in JS.
+          window.removeEventListener('globalcontextchange', transferTimers);
+        }
+      };
+
+      // @ts-ignore: Custom events are not properly typed in JS.
+      window.addEventListener('globalcontextchange', transferTimers);
+      globalData.set(TRANSFER_SCHEDULED_KEY, true);
+    }
+  }
 
   return now;
 }
