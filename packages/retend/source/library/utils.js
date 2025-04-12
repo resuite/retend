@@ -295,23 +295,3 @@ export function createCommentPair() {
 
   return [rangeStart, rangeEnd];
 }
-
-/** @type {typeof globalThis.CustomEvent} */
-export const CustomEvent =
-  globalThis.CustomEvent ??
-  class CustomEvent extends Event {
-    /** @type {any} */
-    #detail;
-    /**
-     * @param {string} type
-     * @param {CustomEventInit} eventInitDict
-     */
-    constructor(type, eventInitDict) {
-      super(type, eventInitDict);
-      this.#detail = eventInitDict?.detail ?? null;
-    }
-
-    get detail() {
-      return this.#detail;
-    }
-  };

@@ -9,13 +9,17 @@ import {
   FixedSizeMap,
   getMostCurrentFunction,
   addCellListener,
-  CustomEvent,
 } from '../library/utils.js';
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { RouteTree } from './routeTree.js';
 import { linkNodesToComponent } from '../plugin/index.js';
-import { matchContext, Modes, getGlobalContext } from '../context/index.js';
+import {
+  matchContext,
+  Modes,
+  getGlobalContext,
+  CustomEvent,
+} from '../context/index.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';

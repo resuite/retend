@@ -1,6 +1,26 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { DocumentObserver } from '../library/observer.js' */
 
+/** @type {typeof globalThis.CustomEvent} */
+export const CustomEvent =
+  globalThis.CustomEvent ??
+  class CustomEvent extends Event {
+    /** @type {any} */
+    #detail;
+    /**
+     * @param {string} type
+     * @param {CustomEventInit} eventInitDict
+     */
+    constructor(type, eventInitDict) {
+      super(type, eventInitDict);
+      this.#detail = eventInitDict?.detail ?? null;
+    }
+
+    get detail() {
+      return this.#detail;
+    }
+  };
+
 /**
  * Defines the possible render contexts for the application.
  * @type {{VDom: 1, Interactive: 2}}
@@ -9,6 +29,23 @@ export const Modes = {
   VDom: 1,
   Interactive: 2,
 };
+
+/**
+ * @typedef GlobalContextChangeDetail
+ * @property {Environments} [newContext]
+ * @property {Environments} [oldContext]
+ */
+
+/** @extends {CustomEvent<GlobalContextChangeDetail>} */
+export class GlobalContextChangeEvent extends CustomEvent {
+  /**
+   * @param {Environments} [oldContext]
+   * @param {Environments} [newContext]
+   */
+  constructor(oldContext, newContext) {
+    super('globalcontextchange', { detail: { oldContext, newContext } });
+  }
+}
 
 /**
  * Environment configuration that pairs a mode with its corresponding window implementation.
@@ -67,8 +104,12 @@ export function matchContext(window, mode) {
 }
 
 export function resetGlobalContext() {
+  const oldContext = globalContext;
   //@ts-expect-error: hand waving.
   globalContext = {};
+  oldContext.window?.dispatchEvent(
+    new GlobalContextChangeEvent(oldContext, undefined)
+  );
 }
 
 /**
@@ -87,15 +128,21 @@ export function isVNode(node) {
  * Updates the global render context for retend.
  * The default context is the interactive, web DOM environment.
  *
- * @param {Environments} context - New environment configuration
+ * @param {Environments} newContext - New environment configuration
  */
-export function setGlobalContext(context) {
-  globalContext = context;
+export function setGlobalContext(newContext) {
+  const oldContext = globalContext;
+  globalContext = newContext;
   Reflect.set(
     globalContext.window.document,
     '__appRenderMode',
     globalContext.mode
   );
+  if (oldContext !== newContext) {
+    oldContext.window?.dispatchEvent(
+      new GlobalContextChangeEvent(oldContext, newContext)
+    );
+  }
 }
 
 // Default context is the interactive, web DOM environment, so that
