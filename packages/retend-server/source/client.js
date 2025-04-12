@@ -1,18 +1,25 @@
 /// <reference types="vite/client" />
 
 /** @import { JsxElement } from 'retend' */
-/** @import { VNode } from 'retend/v-dom' */
+/** @import { VDocument } from 'retend/v-dom' */
 /** @import { Router } from 'retend/router' */
+/** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ServerContext } from './types.js' */
 
 import { setAttributeFromProps, useObserver } from 'retend';
-import { setGlobalContext, Modes } from 'retend/context';
+import {
+  setGlobalContext,
+  Modes,
+  getGlobalContext,
+  matchContext,
+} from 'retend/context';
 import { upgradeAnchorTag } from 'retend/router';
 import {
   HydrationUpgradeEvent,
   VComment,
   VElement,
   VWindow,
+  VNode,
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
@@ -346,9 +353,16 @@ async function hydrateDomNode(node, vNode) {
   let offset = 0;
   const textSplitNodes = [];
   for (let i = 0; i < node.childNodes.length; i++) {
-    const nodeChild = node.childNodes[i];
-    const mirrorChild = vNode.childNodes[i - offset];
+    let nodeChild = node.childNodes[i];
+    let mirrorChild = vNode.childNodes[i - offset];
     if (!mirrorChild) continue;
+
+    if (mirrorChild instanceof NoHydrateVNode) {
+      i += mirrorChild.targetNodeSpan;
+      nodeChild = node.childNodes[i];
+      mirrorChild = vNode.childNodes[i - offset];
+      if (!mirrorChild) continue;
+    }
 
     const isTextSplittingComment =
       nodeChild.nodeType === Node.COMMENT_NODE &&
@@ -433,4 +447,83 @@ function activateLinks(router) {
   for (const link of links) {
     upgradeAnchorTag(link, router);
   }
+}
+
+export class NoHydrateVNode extends VNode {
+  /**
+   * @param {VDocument} document
+   * @param {number} count
+   */
+  constructor(document, count) {
+    super(document);
+    this.targetNodeSpan = count;
+  }
+}
+
+/**
+ * Creates a static component that does not hydrate on the client.
+ * This is useful for components that don't need interactivity and can be safely skipped
+ * for a faster hydration process.
+ *
+ * While retend already has a mechanism for skipping hydration on the node level
+ * (via the `data-static` attribute), this function allows you to skip the first
+ * client-side initialization of a component altogether, improving performance.
+ *
+ * @param {() => JSX.Template} component - The original component to be potentially converted to a static node.
+ *                                        This component should return a JSX template.
+ * @param {number} [nodeCount=1] - The number of root nodes the component returns.
+ *                                 Must be specified correctly if your component returns multiple root nodes.
+ *                                 Defaults to 1 if not specified.
+ * @returns {() => JSX.Template} The original component in client-side rendering,
+ *                              or a non-hydrating virtual node in server-side rendering.
+ *
+ * @remarks
+ * - This function only affects the initial hydration. On subsequent client-side renders
+ *   (e.g., after navigation), the original component will be used.
+ * - This is different from the `data-static` attribute, which still performs some hydration work, but skips the final interactivity transfer step.
+ * - _Use this for truly static content that never needs to be interactive_. If you try to use
+ *   cells or other reactive features within the component, it will lead to unexpected behavior.
+ *
+ * @example
+ * // Basic usage with a simple header
+ * const StaticHeader = createStaticComponent(() => (
+ *   <header>Static Content</header>
+ * ));
+ *
+ * @example
+ * // Usage with a component that returns multiple root nodes
+ * const StaticFooterLinks = createStaticComponent(() => {
+ *   return (
+ *    <>
+ *     <router.Link href="/about">About</router.Link>
+ *     <router.Link href="/terms">Terms</router.Link>
+ *     <router.Link href="/contact">Contact</router.Link>
+ *    </>
+ *   );
+ * }, 3); // Specify the number of root nodes (3 links)
+ *
+ * @example
+ * // Usage in a larger component
+ * function App() {
+ *   return (
+ *     <div>
+ *       <StaticHeader />
+ *       <main>...</main>
+ *       <footer>
+ *         <StaticFooterLinks />
+ *       </footer>
+ *     </div>
+ *   );
+ * }
+ */
+export function createStaticComponent(component, nodeCount = 1) {
+  if (!import.meta.env.SSR) {
+    const { window } = getGlobalContext();
+    if (matchContext(window, Modes.VDom)) {
+      const { document } = window;
+      return () => new NoHydrateVNode(document, nodeCount);
+    }
+  }
+
+  return component;
 }
