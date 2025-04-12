@@ -45,6 +45,7 @@
  * @property {string} path
  * @property {{ value: number }} teleportIdCounter
  * @property {Map<string, unknown>} consistentValues
+ * @property {Map<string, any>} globalData
  */
 
 /**

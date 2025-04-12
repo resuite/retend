@@ -107,7 +107,14 @@ async function renderPath(options) {
   const window = buildWindowFromHtmlText(htmlShell);
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
-  const store = { window, path, teleportIdCounter, consistentValues };
+  const globalData = new Map();
+  const store = {
+    window,
+    path,
+    teleportIdCounter,
+    consistentValues,
+    globalData,
+  };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
 
@@ -128,6 +135,11 @@ async function renderPath(options) {
         const store = asyncLocalStorage.getStore();
         if (!store) throw new Error('No store found');
         return store.consistentValues;
+      },
+      get globalData() {
+        const store = asyncLocalStorage.getStore();
+        if (!store) throw new Error('No store found');
+        return store.globalData;
       },
     };
     setGlobalContext(context);

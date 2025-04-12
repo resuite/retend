@@ -211,6 +211,7 @@ async function restoreContext(context, routerCreateFn) {
     window: vWindow,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(Object.entries(context.consistentValues)),
+    globalData: new Map(),
   });
 
   const router = routerCreateFn();
@@ -241,6 +242,7 @@ async function restoreContext(context, routerCreateFn) {
     window,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(),
+    globalData: new Map(),
   });
 
   router.setWindow(window);

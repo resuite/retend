@@ -1,4 +1,4 @@
 {
-  "deno.enable": false,
+  "deno.enable": true,
   "cSpell.words": ["retend"]
 }

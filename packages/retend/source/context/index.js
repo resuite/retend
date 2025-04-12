@@ -24,6 +24,7 @@ export const Modes = {
  *    consistentValues: Map<string, any>,
  *    teleportIdCounter: { value: number }
  *    observer?: DocumentObserver
+ *    globalData: Map<string, any>
  * }} Environments
  */
 
@@ -43,6 +44,7 @@ let globalContext = {
   mode: Modes.Interactive,
   window: globalThis.window,
   consistentValues: new Map(),
+  globalData: new Map(),
   teleportIdCounter: { value: 0 },
 };
 
@@ -103,6 +105,7 @@ if (globalThis.window?.document) {
     mode: Modes.Interactive,
     window: globalThis.window,
     consistentValues: new Map(),
+    globalData: new Map(),
     teleportIdCounter: { value: 0 },
   });
 }
