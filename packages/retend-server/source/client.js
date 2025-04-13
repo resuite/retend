@@ -350,17 +350,22 @@ async function hydrateDomNode(node, vNode) {
   }
 
   // Hydrate Children.
-  let offset = 0;
+
   const textSplitNodes = [];
-  for (let i = 0; i < node.childNodes.length; i++) {
+  for (
+    let i = 0, j = 0;
+    i < node.childNodes.length && j < vNode.childNodes.length;
+    i++, j++
+  ) {
     let nodeChild = node.childNodes[i];
-    let mirrorChild = vNode.childNodes[i - offset];
+    let mirrorChild = vNode.childNodes[j];
     if (!mirrorChild) continue;
 
     if (mirrorChild instanceof NoHydrateVNode) {
       i += mirrorChild.targetNodeSpan;
+
       nodeChild = node.childNodes[i];
-      mirrorChild = vNode.childNodes[i - offset];
+      mirrorChild = vNode.childNodes[j];
       if (!mirrorChild) continue;
     }
 
@@ -372,7 +377,7 @@ async function hydrateDomNode(node, vNode) {
 
     if (isTextSplittingComment) {
       textSplitNodes.push(nodeChild);
-      offset++;
+      j--;
     } else
       subPromises.push(
         hydrateDomNode(nodeChild, mirrorChild).catch((error) => {
@@ -517,13 +522,14 @@ export class NoHydrateVNode extends VNode {
  * }
  */
 export function createStaticComponent(component, nodeCount = 1) {
-  if (!import.meta.env.SSR) {
-    const { window } = getGlobalContext();
-    if (matchContext(window, Modes.VDom)) {
-      const { document } = window;
-      return () => new NoHydrateVNode(document, nodeCount);
+  return () => {
+    if (!import.meta.env.SSR) {
+      const { window } = getGlobalContext();
+      if (matchContext(window, Modes.VDom)) {
+        const { document } = window;
+        return new NoHydrateVNode(document, nodeCount);
+      }
     }
-  }
-
-  return component;
+    return component();
+  };
 }
