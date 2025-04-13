@@ -1,0 +1,45 @@
+.startView {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: linear-gradient(60deg, #d9f6f8, #e8e4e2, white);
+}
+
+.content {
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.heading {
+  font-size: 3.2em;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+}
+
+.headingText {
+  display: inline-block;
+}
+
+.readTheDocs {
+  color: #888;
+}
+
+.paragraph {
+  margin-block-end: 1rem;
+}
+
+.link {
+  color: #646cff;
+  text-decoration: inherit;
+}
+
+.button {
+  font: inherit;
+  background-color: white;
+  border-radius: 7px;
+  padding: 10px 15px;
+  border: 2px solid gray;
+  margin-top: 4px;
+}

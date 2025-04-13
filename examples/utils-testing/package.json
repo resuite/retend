@@ -1,0 +1,21 @@
+{
+  "name": "utils-testing",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5243",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "retend": "*",
+    "retend-server": "*",
+    "retend-utils": "*"
+  },
+  "devDependencies": {
+    "vite": "^6.2.1",
+    "typescript": "^5.5.2",
+    "@types/node": "latest"
+  }
+}
