@@ -12,7 +12,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "test": "vitest run",
+    "test": "cd ./tests && bun test",
     "build": "bun build-core && bun build-ssg && bun build-utils",
     "build-core": "cd packages/retend && bun run build",
     "build-ssg": "cd packages/retend-server && bun run build",
