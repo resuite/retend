@@ -121,7 +121,12 @@ export function resetGlobalContext() {
  * @returns {node is M extends VDom.VNode ? M : never}
  */
 export function isVNode(node) {
-  return '__isVNode' in node && Boolean(node.__isVNode);
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    '__isVNode' in node &&
+    Boolean(node.__isVNode)
+  );
 }
 
 /**
