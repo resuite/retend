@@ -24,11 +24,11 @@ const USE_ONLINE_STATUS_KEY = 'hooks:useOnlineStatus:statusCache';
  * console.log(`Currently online: ${isOnline.value}`);
  */
 export const useOnlineStatus = createGlobalStateHook(
-  /** @type {CreateGlobalStateHookOptions<NetworkStatusState, Cell<boolean>>} */
+  /** @type {CreateGlobalStateHookOptions<[], NetworkStatusState, Cell<boolean>>} */
   ({
     cacheKey: USE_ONLINE_STATUS_KEY,
 
-    createSourceCells: () => ({
+    createSource: () => ({
       isOnlineSource: Cell.source(true),
     }),
 

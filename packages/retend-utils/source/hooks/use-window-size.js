@@ -41,11 +41,11 @@ const USE_WINDOW_SIZE_KEY = 'hooks:useWindowSize:windowSizeCache';
  * });
  */
 export const useWindowSize = createGlobalStateHook(
-  /** @type {CreateGlobalStateHookOptions<WindowSizeState, ReactiveWindowSize>} */
+  /** @type {CreateGlobalStateHookOptions<[], WindowSizeState, ReactiveWindowSize>} */
   ({
     cacheKey: USE_WINDOW_SIZE_KEY,
 
-    createSourceCells: () => ({
+    createSource: () => ({
       width: Cell.source(0),
       height: Cell.source(0),
     }),

@@ -2,34 +2,36 @@
 import { getGlobalContext, matchContext, Modes } from 'retend/context';
 
 /**
- * @template TState, TReturnValue
+ * @template {Array<any>} TParams, TState, [TReturnValue=TState]
  * @typedef {object} CreateGlobalStateHookOptions
  * @property {string} cacheKey - Unique key for caching state in globalData.
- * @property {() => TState} createSourceCells - Function to create the initial source cells.
- * @property {(window: Window, cells: TState) => void} setupListeners - Function to attach event listeners to update cells.
- * @property {(cells: TState) => TReturnValue} createReturnValue - Function to format the hook's return value from source cells.
- * @property {(window: Window, cells: TState) => void} [initializeState] - Optional function to set the initial state based on the window object.
+ * @property {(...params: TParams) => TState} createSource - Function to create the initial source cells.
+ * @property {(window: Window, cells: TState, ...params: TParams) => void} setupListeners - Function to attach event listeners to update cells.
+ * @property {(cells: TState, ...params: TParams) => TReturnValue} createReturnValue - Function to format the hook's return value from source cells.
+ * @property {(window: Window, cells: TState,...params: TParams) => void} [initializeState] - Optional function to set the initial state based on the window object.
  */
 
 /**
  * Factory function to create hooks that manage global state tied to the window object.
  * Handles context switching, caching, and listener setup.
  *
+ * @template {Array<any>} TParams The type of the parameters passed to the hook.
  * @template TState The type of the state object managed by the hook (e.g., { width: SourceCell<number>, height: SourceCell<number> } or { isOnlineSource: SourceCell<boolean> }).
  * @template TReturnValue The type of the value returned by the hook (e.g., { width: Cell<number>, height: Cell<number> } or Cell<boolean>).
- * @param {CreateGlobalStateHookOptions<TState, TReturnValue>} options - Configuration for the specific hook.
- * @returns {() => TReturnValue} The created hook function.
+ * @param {CreateGlobalStateHookOptions<TParams, TState, TReturnValue>} options - Configuration for the specific hook.
+ * @returns {(...params: TParams) => TReturnValue} The created hook function.
  */
 export function createGlobalStateHook(options) {
   const {
     cacheKey,
-    createSourceCells,
+    createSource: createSourceCells,
     setupListeners,
     createReturnValue,
     initializeState,
   } = options;
 
-  return function useGlobalStateHook() {
+  /** @param {TParams} params */
+  return function useGlobalStateHook(...params) {
     const initialContext = getGlobalContext();
     const { globalData, window } = initialContext;
 
@@ -37,10 +39,10 @@ export function createGlobalStateHook(options) {
     let stateCells;
     if (globalData.has(cacheKey)) {
       stateCells = globalData.get(cacheKey);
-      return createReturnValue(stateCells);
+      return createReturnValue(stateCells, ...params);
     }
 
-    stateCells = createSourceCells();
+    stateCells = createSourceCells(...params);
 
     if (matchContext(window, Modes.VDom)) {
       /** @param {GlobalContextChangeEvent} event */
@@ -50,7 +52,7 @@ export function createGlobalStateHook(options) {
           newContext?.window &&
           matchContext(newContext.window, Modes.Interactive)
         ) {
-          trackInContext(stateCells, newContext);
+          trackInContext(stateCells, newContext, params);
           // @ts-ignore: Custom events are not properly typed in JS.
           window.removeEventListener('globalcontextchange', changeContext);
         }
@@ -59,16 +61,17 @@ export function createGlobalStateHook(options) {
       window.addEventListener('globalcontextchange', changeContext);
     }
 
-    trackInContext(stateCells, initialContext);
-    return createReturnValue(stateCells);
+    trackInContext(stateCells, initialContext, params);
+    return createReturnValue(stateCells, ...params);
   };
 
   /**
    * Sets up tracking and listeners within a specific context.
    * @param {TState} stateCells
    * @param {Environments} context
+   * @param {TParams} params
    */
-  function trackInContext(stateCells, context) {
+  function trackInContext(stateCells, context, params) {
     const { globalData, window } = context;
 
     // Don't setup listeners or initialize state in VDom context
@@ -80,13 +83,13 @@ export function createGlobalStateHook(options) {
 
     // Initialize state if function provided
     if (initializeState) {
-      initializeState(window, stateCells);
+      initializeState(window, stateCells, ...params);
     }
 
     // Cache the state cells
     globalData.set(cacheKey, stateCells);
 
     // Setup event listeners
-    setupListeners(window, stateCells);
+    setupListeners(window, stateCells, ...params);
   }
 }
