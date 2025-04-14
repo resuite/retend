@@ -92,13 +92,17 @@ export function useWindowSize() {
  */
 function trackInContext(windowSize, context) {
   const { globalData, window } = context;
-  windowSize.width.value = window.innerWidth;
-  windowSize.height.value = window.innerHeight;
+  Cell.batch(() => {
+    windowSize.width.value = window.innerWidth;
+    windowSize.height.value = window.innerHeight;
+  });
 
   globalData.set(USE_WINDOW_SIZE_KEY, windowSize);
 
   window.addEventListener('resize', () => {
-    windowSize.width.value = window.innerWidth;
-    windowSize.height.value = window.innerHeight;
+    Cell.batch(() => {
+      windowSize.width.value = window.innerWidth;
+      windowSize.height.value = window.innerHeight;
+    });
   });
 }
