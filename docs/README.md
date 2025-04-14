@@ -1328,6 +1328,90 @@ function CurrentRouteDisplay() {
 }
 ```
 
+### Locking the Router
+
+In certain scenarios, you might want to prevent the user from navigating away from the current route, e.g. if they have unsaved changes in a form or if a critical operation is in progress. The router provides `lock()` and `unlock()` methods for this purpose.
+
+- **`router.lock()`**: Locks the router to the current path. Any subsequent attempts to navigate to a different path (either programmatically or via browser history) will be ignored.
+
+- **`router.unlock()`**: Releases the lock, allowing navigation to proceed normally.
+
+When navigation is attempted while the router is locked, the router will dispatch a `routelockprevented` event. You can listen for this event to react to blocked navigation attempts, for example, by showing a notification to the user.
+
+**Listening for the `routelockprevented` Event:**
+
+```javascript
+import { useRouter } from 'retend/router';
+
+const router = useRouter();
+
+router.addEventListener('routelockprevented', (event) => {
+  console.log(
+    `Navigation to ${event.detail.attemptedPath} was prevented by a lock.`
+  );
+  // Optionally show a message to the user
+  // alert('Cannot navigate away while changes are unsaved.');
+});
+```
+
+**Example:**
+
+```jsx
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+function UnsavedChangesForm() {
+  const router = useRouter();
+  const hasUnsavedChanges = Cell.source(false);
+  const saved = Cell.derived(() => !hasUnsavedChanges.value);
+
+  const handleInput = () => {
+    if (!hasUnsavedChanges.value) {
+      hasUnsavedChanges.value = true;
+      router.lock();
+      console.log('Router locked due to unsaved changes.');
+    }
+  };
+
+  const saveChanges = () => {
+    // ... save logic ...
+    hasUnsavedChanges.value = false;
+    router.unlock();
+    console.log('Changes saved, router unlocked.');
+    // Optionally navigate away after saving
+    // router.navigate('/some-other-page');
+  };
+
+  const discardChanges = () => {
+    // ... reset form logic ...
+    hasUnsavedChanges.value = false;
+    router.unlock(); // Unlock navigation after discarding
+    console.log('Changes discarded, router unlocked.');
+  };
+
+  return (
+    <form onSubmit--prevent={(e) => e.preventDefault()}>
+      <textarea
+        onInput={handleInput}
+        placeholder="Type something..."
+      ></textarea>
+      <button type="button" onClick={saveChanges} disabled={saved}>
+        Save
+      </button>
+      <button type="button" onClick={discardChanges}>
+        Discard
+      </button>
+      <p>
+        {If(hasUnsavedChanges, {
+          true: () => 'You have unsaved changes.',
+          false: () => 'No unsaved changes.',
+        })}
+      </p>
+    </form>
+  );
+}
+```
+
 ## `useRouteQuery` Hook
 
 The `useRouteQuery` hook provides a reactive way to access and manipulate the query parameters of the current route within your Retend application. It simplifies reading, updating, and responding to changes in the URL's query string.
