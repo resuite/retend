@@ -616,7 +616,8 @@ export class VWindow extends EventTarget {
     this.ShadowRoot = VShadowRoot;
     this.Node = VNode;
     this.MarkupContainerNode = MarkupContainerNode;
-    this.sessionStorage = new VSessionStorage();
+    this.sessionStorage = new VStorage();
+    this.localStorage = new VStorage();
     this.history = new VHistory(this);
     this.location = new VLocation();
     this.scrollX = 0;
@@ -685,7 +686,7 @@ export class VWindow extends EventTarget {
 }
 
 /** @implements {Storage} */
-export class VSessionStorage {
+export class VStorage {
   #values = new Map();
 
   get length() {
