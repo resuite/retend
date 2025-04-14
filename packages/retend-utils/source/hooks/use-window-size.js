@@ -1,19 +1,19 @@
-/** @import { GlobalContextChangeEvent, Environments } from 'retend/context' */
 /** @import { SourceCell } from 'retend' */
+/** @import { CreateGlobalStateHookOptions } from './_shared.js' */
 
 import { Cell } from 'retend';
-import { getGlobalContext, matchContext, Modes } from 'retend/context';
+import { createGlobalStateHook } from './_shared.js';
+
+/**
+ * @typedef {object} WindowSizeState
+ * @property {SourceCell<number>} width
+ * @property {SourceCell<number>} height
+ */
 
 /**
  * @typedef {object} ReactiveWindowSize
  * @property {Cell<number>} width
  * @property {Cell<number>} height
- */
-
-/**
- * @typedef {object} WindowSize
- * @property {SourceCell<number>} width
- * @property {SourceCell<number>} height
  */
 
 const USE_WINDOW_SIZE_KEY = 'hooks:useWindowSize:windowSizeCache';
@@ -40,69 +40,31 @@ const USE_WINDOW_SIZE_KEY = 'hooks:useWindowSize:windowSizeCache';
  *   console.log(`Window width changed to: ${newWidth}px`);
  * });
  */
-export function useWindowSize() {
-  const context = getGlobalContext();
-  const { globalData, window } = context;
+export const useWindowSize = createGlobalStateHook(
+  /** @type {CreateGlobalStateHookOptions<WindowSizeState, ReactiveWindowSize>} */
+  ({
+    cacheKey: USE_WINDOW_SIZE_KEY,
 
-  /** @type {WindowSize} */
-  let windowSize;
-  if (globalData.has(USE_WINDOW_SIZE_KEY)) {
-    windowSize = globalData.get(USE_WINDOW_SIZE_KEY);
-    return {
-      // Derived so that listens don't lead to memory leaks.
-      width: Cell.derived(() => windowSize.width.value),
-      height: Cell.derived(() => windowSize.height.value),
-    };
-  }
+    createSourceCells: () => ({
+      width: Cell.source(0),
+      height: Cell.source(0),
+    }),
 
-  if (matchContext(window, Modes.VDom)) {
-    /** @param {GlobalContextChangeEvent} event */
-    const changeContext = (event) => {
-      const { newContext } = event.detail;
-      if (
-        newContext?.window &&
-        matchContext(newContext.window, Modes.Interactive)
-      ) {
-        trackInContext(windowSize, newContext);
-        // @ts-ignore: Custom events are not properly typed in JS.
-        window.removeEventListener('globalcontextchange', changeContext);
-      }
-    };
+    initializeState: (window, cells) => {
+      cells.width.value = window.innerWidth;
+      cells.height.value = window.innerHeight;
+    },
 
-    // @ts-ignore: Custom events are not properly typed in JS.
-    window.addEventListener('globalcontextchange', changeContext);
-  }
+    setupListeners: (window, cells) => {
+      window.addEventListener('resize', () => {
+        cells.width.value = window.innerWidth;
+        cells.height.value = window.innerHeight;
+      });
+    },
 
-  windowSize = {
-    width: Cell.source(window.innerWidth),
-    height: Cell.source(window.innerHeight),
-  };
-  trackInContext(windowSize, context);
-  return {
-    // Derived so that listen() calls don't lead to memory leaks.
-    width: Cell.derived(() => windowSize.width.value),
-    height: Cell.derived(() => windowSize.height.value),
-  };
-}
-
-/**
- *
- * @param {WindowSize} windowSize
- * @param {Environments} context
- */
-function trackInContext(windowSize, context) {
-  const { globalData, window } = context;
-  Cell.batch(() => {
-    windowSize.width.value = window.innerWidth;
-    windowSize.height.value = window.innerHeight;
-  });
-
-  globalData.set(USE_WINDOW_SIZE_KEY, windowSize);
-
-  window.addEventListener('resize', () => {
-    Cell.batch(() => {
-      windowSize.width.value = window.innerWidth;
-      windowSize.height.value = window.innerHeight;
-    });
-  });
-}
+    createReturnValue: (cells) => ({
+      width: Cell.derived(() => cells.width.value),
+      height: Cell.derived(() => cells.height.value),
+    }),
+  })
+);

@@ -26,5 +26,10 @@ export const startRoute = defineRoute({
       path: 'live-date',
       component: lazy(() => import('./live-date')),
     },
+    {
+      name: 'Network Status',
+      path: 'network-status',
+      component: lazy(() => import('./network-status')),
+    },
   ],
 });

@@ -31,6 +31,9 @@ const Start = () => {
           <li>
             <router.Link href="/live-date">Live Date</router.Link>
           </li>
+          <li>
+            <router.Link href="/network-status">Network Status</router.Link>
+          </li>
         </ul>
       </nav>
       <main style={{ display: 'grid', placeItems: 'center' }}>
