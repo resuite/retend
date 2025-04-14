@@ -1,0 +1,101 @@
+@Title routing-setup
+@Description Basic setup of the Retend router using `createWebRouter` and `RouteRecords`.
+
+---
+
+@Example 1
+@Input Define a simple route record array with two routes.
+import { type RouteRecords } from 'retend/router';
+ 
+const Home = () => <div>Home</div>;
+const About = () => <div>About</div>;
+
+const routes: RouteRecords = [
+  { name: 'home', path: '/', component: Home },
+  { name: 'about', path: '/about', component: About },
+];
+@Note `RouteRecords` is an array of route objects.
+@Note Each route needs at least `path` and `component` (or `children`). `name` is recommended.
+
+---
+
+@Example 2
+@Input Initialize the router with defined routes.
+import { createWebRouter, type RouteRecords } from 'retend/router';
+
+const Home = () => <div>Home</div>;
+const About = () => <div>About</div>;
+const routes: RouteRecords = [ /* ... from Example 1 ... */ ];
+
+const router = createWebRouter({ routes });
+@Note Pass the route records array to `createWebRouter`.
+
+---
+
+@Example 3
+@Input Route record with a dynamic segment (parameter).
+import { type RouteRecords } from 'retend/router';
+
+const UserProfile = () => <div>User Profile</div>;
+
+const routes: RouteRecords = [
+  { name: 'user', path: '/users/:userId', component: UserProfile },
+];
+@Note Use colon prefix (e.g., `:userId`) to define URL parameters.
+
+---
+
+@Example 4
+@Input Route record with a wildcard segment.
+import { type RouteRecords } from 'retend/router';
+
+const NotFound = () => <div>404 Not Found</div>;
+
+const routes: RouteRecords = [
+  { name: 'not-found', path: '*', component: NotFound },
+];
+@Note Use asterisk (`*`) to match any path segment at that level. Often used for 404s.
+
+---
+
+@Example 5
+@Input Route record with nested children.
+import { type RouteRecords } from 'retend/router';
+
+const Dashboard = () => <div>Dashboard <Outlet /></div>;
+const Overview = () => <div>Overview</div>;
+
+const routes: RouteRecords = [
+  { name: 'dashboard', path: '/dashboard', component: Dashboard, children: [
+      { name: 'overview', path: 'overview', component: Overview }
+      // Note: Child paths are relative to the parent path. '/dashboard/overview'
+    ]
+  },
+];
+@Note Use the `children` array for nested routing structures. Requires an `<Outlet />` in the parent component.
+
+---
+
+@Example 6
+@Input Defining routes using the `defineRoutes` helper (optional but good practice).
+import { defineRoutes } from 'retend/router';
+
+const Home = () => <div>Home</div>;
+const routes = defineRoutes([
+  { name: 'home', path: '/', component: Home },
+]);
+@Note `defineRoutes` provides type checking for the route array structure.
+
+---
+
+@Example 7
+@Input Defining a single route using the `defineRoute` helper.
+import { defineRoute } from 'retend/router';
+
+const Settings = () => <div>Settings</div>;
+const settingsRoute = defineRoute({
+  name: 'settings',
+  path: '/settings',
+  component: Settings,
+});
+@Note `defineRoute` provides type checking for a single route object.

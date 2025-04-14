@@ -1,0 +1,144 @@
+@Title routing-query
+@Description Using the `useRouteQuery` hook for reactive access and manipulation of URL query parameters.
+
+---
+
+@Example 1
+@Input Reactively getting a query parameter's value.
+import { useRouteQuery } from 'retend/router';
+import { Cell } from 'retend'; // For Cell.derived
+
+function SearchDisplay() {
+  const query = useRouteQuery();
+  const searchTerm = query.get('q'); // Returns Cell<string | null>
+
+  return <p>Current search: {searchTerm}</p>;
+}
+// If URL is /search?q=retend, displays "Current search: retend"
+@Note `query.get('key')` returns a reactive Cell containing the parameter value or null.
+
+---
+
+@Example 2
+@Input Reactively checking if a query parameter exists.
+import { useRouteQuery } from 'retend/router';
+import { Cell, If } from 'retend';
+
+function FilterStatus() {
+  const query = useRouteQuery();
+  const hasFilter = query.has('filter'); // Returns Cell<boolean>
+
+  return If(hasFilter, () => <p>Filter is active.</p>);
+}
+@Note `query.has('key')` returns a reactive Cell<boolean>.
+
+---
+
+@Example 3
+@Input Setting a query parameter programmatically.
+import { useRouteQuery } from 'retend/router';
+
+function SortControl() {
+  const query = useRouteQuery();
+
+  const setSort = async (sortBy) => {
+    await query.set('sort', sortBy); // Triggers navigation
+  };
+
+  return (
+    <>
+      <button type="button" onClick={() => setSort('name')}>Sort by Name</button>
+      <button type="button" onClick={() => setSort('date')}>Sort by Date</button>
+    </>
+  );
+}
+@Note `query.set('key', 'value')` updates the URL and triggers route change. It's async.
+
+---
+
+@Example 4
+@Input Appending a value to a multi-value query parameter.
+import { useRouteQuery } from 'retend/router';
+
+function AddTagButton({ tag }) {
+  const query = useRouteQuery();
+  const addTag = async () => {
+    await query.append('tags', tag); // Appends value, allows multiple 'tags' params
+  };
+  return <button type="button" onClick={addTag}>Add Tag: {tag}</button>;
+}
+@Note `query.append('key', 'value')` adds a value, potentially creating multiple params with the same key. It's async.
+
+---
+
+@Example 5
+@Input Getting all values for a multi-value query parameter.
+import { useRouteQuery } from 'retend/router';
+import { Cell, For } from 'retend';
+
+function TagList() {
+  const query = useRouteQuery();
+  const tags = query.getAll('tags'); // Returns Cell<string[]>
+
+  return (
+    <ul>
+      {For(tags, (tag) => <li>{tag}</li>)}
+    </ul>
+  );
+}
+// If URL is /items?tags=red&tags=blue, renders "red", "blue"
+
+---
+
+@Example 6
+@Input Deleting a specific query parameter.
+import { useRouteQuery } from 'retend/router';
+
+function RemoveFilterButton({ filterKey }) {
+  const query = useRouteQuery();
+  const removeFilter = async () => {
+    await query.delete(filterKey); // Removes the specified key
+  };
+  return <button type="button" onClick={removeFilter}>Remove {filterKey}</button>;
+}
+@Note `query.delete('key')` removes the parameter. It's async.
+
+---
+
+@Example 7
+@Input Clearing all query parameters.
+import { useRouteQuery } from 'retend/router';
+
+function ClearAllQueriesButton() {
+  const query = useRouteQuery();
+  const clear = async () => {
+    await query.clear(); // Removes all query params
+  };
+  return <button type="button" onClick={clear}>Clear Queries</button>;
+}
+@Note `query.clear()` removes all parameters. It's async.
+
+---
+
+@Example 8
+@Input Combining query parameters in UI logic.
+import { useRouteQuery } from 'retend/router';
+import { Cell } from 'retend';
+
+function Pagination() {
+  const query = useRouteQuery();
+  const page = Cell.derived(() => parseInt(query.get('page')?.value ?? '1', 10));
+  const sort = query.get('sort'); // Cell<string | null>
+
+  const nextPage = async () => await query.set('page', String(page.value + 1));
+  const prevPage = async () => await query.set('page', String(Math.max(1, page.value - 1)));
+
+  return (
+    <div>
+      <button type="button" onClick={prevPage} disabled={Cell.derived(() => page.value <= 1)}>Prev</button>
+      <span> Page: {page} (Sorted by: {sort}) </span>
+      <button type="button" onClick={nextPage}>Next</button>
+    </div>
+  );
+}
+@Note Multiple query parameters can be used together reactively.

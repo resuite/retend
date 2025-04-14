@@ -1,0 +1,127 @@
+@Title routing-lock
+@Description Preventing navigation using `router.lock()`, `router.unlock()`, and the `routelockprevented` event.
+
+---
+
+@Example 1
+@Input Locking the router to prevent navigation.
+import { useRouter } from 'retend/router';
+
+function SaveForm() {
+  const router = useRouter();
+  const lockRouter = () => {
+    router.lock();
+    console.log('Router locked!');
+  };
+  return <button type="button" onClick={lockRouter}>Lock Navigation</button>;
+}
+@Note `router.lock()` prevents `router.navigate`, `router.replace`, and browser history navigation.
+
+---
+
+@Example 2
+@Input Unlocking the router to allow navigation again.
+import { useRouter } from 'retend/router';
+
+function UnsavedChangesIndicator({ hasChanges }) {
+  const router = useRouter();
+
+  // Lock when changes occur
+  const handleInput = () => {
+    if (hasChanges.value === false) {
+       hasChanges.value = true;
+       router.lock();
+    }
+  };
+
+  // Unlock when saved or discarded
+  const save = () => {
+    // ... save logic ...
+    hasChanges.value = false;
+    router.unlock();
+    console.log('Router unlocked!');
+  };
+
+  return <textarea onInput={handleInput}></textarea>;
+}
+@Note `router.unlock()` removes the navigation lock.
+
+---
+
+@Example 3
+@Input Listening for the `routelockprevented` event.
+import { useRouter } from 'retend/router';
+
+function LockNotifier() {
+  const router = useRouter();
+
+  // Setup listener (e.g., in component setup or useObserver)
+  const listener = (event) => {
+    alert(`Navigation to ${event.detail.attemptedPath} was blocked! Save changes first.`);
+  };
+  router.addEventListener('routelockprevented', listener);
+  // Remember to remove listener on cleanup: router.removeEventListener(...)
+
+  return <p>Navigation might be locked.</p>;
+}
+@Note The `routelockprevented` event fires on the router instance when navigation is blocked by `lock()`.
+@Note Event detail contains `{ attemptedPath: string }`.
+
+---
+
+@Example 4
+@Input Typical use case: Preventing navigation with unsaved changes.
+import { useRouter } from 'retend/router';
+import { Cell, If } from 'retend';
+
+function EditableForm() {
+  const router = useRouter();
+  const isDirty = Cell.source(false);
+
+  const handleChange = () => {
+    if (!isDirty.value) {
+      isDirty.value = true;
+      router.lock();
+    }
+  };
+
+  const handleSave = () => {
+    // ... save logic ...
+    isDirty.value = false;
+    router.unlock();
+  };
+
+  return (
+    <form onSubmit--prevent>
+      <textarea onInput={handleChange}></textarea>
+      {If(isDirty, () => <p>Unsaved changes! Navigation locked.</p>)}
+      <button type="button" onClick={handleSave} disabled={Cell.derived(()=>!isDirty.value)}>Save</button>
+    </form>
+  );
+}
+@Note Lock the router when the form becomes dirty, unlock when saved/discarded.
+
+---
+
+@Example 5
+@Input Attempting navigation while locked triggers the event.
+import { useRouter } from 'retend/router';
+
+function LockedNavigationAttempt() {
+  const router = useRouter();
+
+  const attemptNavigation = () => {
+    router.lock(); // Lock first
+    console.log('Router locked. Attempting navigation...');
+    router.navigate('/locked-destination'); // This will be blocked and trigger the event
+    router.unlock(); // Unlock afterwards if needed
+  };
+
+  // Listener setup (as in Example 3)
+  router.addEventListener('routelockprevented', (e) => {
+     console.log(`Blocked navigation to: ${e.detail.attemptedPath}`);
+  });
+
+  return <button type="button" onClick={attemptNavigation}>Test Locked Nav</button>;
+}
+@Note Even programmatic navigation calls (`navigate`, `replace`) are blocked and trigger the event when locked.

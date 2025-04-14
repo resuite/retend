@@ -1,0 +1,86 @@
+@Title routing-current-route
+@Description Accessing reactive information about the current route using `router.getCurrentRoute()`.
+
+---
+
+@Example 1
+@Input Displaying the current route's name reactively.
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+function CurrentRouteName() {
+  const router = useRouter();
+  const currentRoute = router.getCurrentRoute();
+  const routeName = Cell.derived(() => currentRoute.value.name);
+
+  return <p>Current Route Name: {routeName}</p>;
+}
+@Note `router.getCurrentRoute()` returns a `Cell` containing route data.
+@Note Use `Cell.derived()` to create reactive bindings to specific properties like `name`, `path`, `params`, etc.
+
+---
+
+@Example 2
+@Input Displaying the current full path reactively.
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+function CurrentPathDisplay() {
+  const router = useRouter();
+  const currentRoute = router.getCurrentRoute();
+  const fullPath = Cell.derived(() => currentRoute.value.fullPath);
+
+  return <span>Path: {fullPath}</span>;
+}
+@Note Access `fullPath` for the complete URL path including query and hash.
+
+---
+
+@Example 3
+@Input Displaying a specific route parameter reactively.
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+// Assume a route like /users/:userId
+function UserHeader() {
+  const router = useRouter();
+  const currentRoute = router.getCurrentRoute();
+  const userId = Cell.derived(() => currentRoute.value.params.get('userId'));
+
+  return <h1>User ID: {userId}</h1>;
+}
+@Note Access route parameters via `currentRoute.value.params`.
+
+---
+
+@Example 4
+@Input Conditionally styling an active link.
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+function NavLink({ href, children }) {
+  const router = useRouter();
+  const currentRoute = router.getCurrentRoute();
+  const isActive = Cell.derived(() => currentRoute.value.fullPath === href);
+  const linkClass = Cell.derived(() => isActive.value ? 'active-link' : '');
+
+  return <router.Link href={href} class={linkClass}>{children}</router.Link>;
+}
+@Note Compare `currentRoute.value.fullPath` to determine active links.
+
+---
+
+@Example 5
+@Input Displaying current query parameters reactively.
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+function QueryDisplay() {
+  const router = useRouter();
+  const currentRoute = router.getCurrentRoute();
+  // Convert URLSearchParams to string for display
+  const queryString = Cell.derived(() => currentRoute.value.query.toString());
+
+  return <pre>Query: {queryString}</pre>;
+}
+@Note Access query parameters via `currentRoute.value.query`.

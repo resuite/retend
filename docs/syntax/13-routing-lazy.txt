@@ -1,0 +1,79 @@
+@Title routing-lazy
+@Description Defining lazily loaded route components using `lazy()` for code splitting.
+
+---
+
+@Example 1
+@Input Basic lazy loading definition for a route component.
+import { defineRoute, lazy } from 'retend/router';
+
+// Assume './views/About.tsx' exports a default component
+const AboutLazy = lazy(() => import('./views/About'));
+
+const route = defineRoute({
+  name: 'about',
+  path: '/about',
+  component: AboutLazy,
+});
+@Note Use `lazy()` wrapping a dynamic `import()` statement.
+@Note The imported module must export a `default` component function.
+
+---
+
+@Example 2
+@Input Integrating lazy components into route records.
+import { defineRoutes, lazy } from 'retend/router';
+
+const Home = () => <div>Home</div>; // Eagerly loaded
+const SettingsLazy = lazy(() => import('./views/Settings')); // Lazily loaded
+
+const routes = defineRoutes([
+  { name: 'home', path: '/', component: Home },
+  { name: 'settings', path: '/settings', component: SettingsLazy },
+]);
+@Note Mix eager and lazy components within the same route configuration.
+
+---
+
+@Example 3
+@Input Lazy loading a nested route component.
+import { defineRoutes, lazy } from 'retend/router';
+import { useRouter } from 'retend/router';
+
+const DashboardLayout = () => <div>Dashboard <Outlet /></div>;
+const UserProfileLazy = lazy(() => import('./views/dashboard/UserProfile'));
+
+const routes = defineRoutes([
+  { name: 'dashboard', path: '/dashboard', component: DashboardLayout, children: [
+      { name: 'profile', path: 'profile', component: UserProfileLazy }
+    ]
+  },
+]);
+@Note Lazy loading works the same way for nested routes.
+
+---
+
+@Example 4
+@Input Lazy loading multiple routes.
+import { defineRoutes, lazy } from 'retend/router';
+
+const FaqLazy = lazy(() => import('./views/Faq'));
+const ContactLazy = lazy(() => import('./views/Contact'));
+
+const routes = defineRoutes([
+  { name: 'faq', path: '/faq', component: FaqLazy },
+  { name: 'contact', path: '/contact', component: ContactLazy },
+]);
+@Note Each `lazy()` call creates a separate chunk during build.
+
+---
+
+@Example 5
+@Input Structure of a lazily loaded component file (`./views/MyLazyComponent.tsx`).
+// ./views/MyLazyComponent.tsx
+const MyLazyComponent = () => {
+  return <div>This component was loaded lazily!</div>;
+};
+
+export default MyLazyComponent; // Must have a default export
+@Note The file being imported lazily must export the component as `default`.

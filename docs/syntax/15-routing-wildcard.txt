@@ -1,0 +1,89 @@
+@Title routing-wildcard
+@Description Using wildcard paths (`*` and `:param*`) for matching arbitrary or trailing segments.
+
+---
+
+@Example 1
+@Input Basic wildcard `*` for a 404 Not Found route.
+import { defineRoutes } from 'retend/router';
+
+const NotFound = () => <div>Page Not Found</div>;
+const Home = () => <div>Home</div>;
+
+const routes = defineRoutes([
+  { name: 'home', path: '/', component: Home },
+  { name: 'not-found', path: '*', component: NotFound }, // Matches any path not matched above
+]);
+@Note A single `*` matches any single path segment at its level. Placed last, it acts as a catch-all.
+
+---
+
+@Example 2
+@Input Catch-all wildcard `:param*` to capture multiple trailing segments.
+import { defineRoutes } from 'retend/router';
+import { useRouter } from 'retend/router';
+
+const CatchAll = () => {
+  const router = useRouter();
+  const matchedPath = router.params.get('remainingPath');
+  return <div>Matched Path: /{matchedPath}</div>;
+};
+
+const routes = defineRoutes([
+  // Matches /files/a/b/c -> params = { remainingPath: 'a/b/c' }
+  { name: 'files', path: '/files/:remainingPath*', component: CatchAll },
+]);
+@Note `:paramName*` captures all subsequent path segments into the `paramName` parameter.
+
+---
+
+@Example 3
+@Input Nested wildcard route.
+import { defineRoutes } from 'retend/router';
+import { useRouter } from 'retend/router';
+
+const DocsLayout = () => <div>Docs Section <Outlet/></div>;
+const DocPage = () => <div>Specific Doc Page</div>;
+
+const routes = defineRoutes([
+  { name: 'docs', path: '/docs', component: DocsLayout, children: [
+      { name: 'doc-page', path: '*', component: DocPage } // Matches /docs/anything, /docs/a/b etc.
+    ]
+  }
+]);
+@Note Wildcards work within nested route structures.
+
+---
+
+@Example 4
+@Input Combining parameters and wildcards.
+import { defineRoutes } from 'retend/router';
+import { useRouter } from 'retend/router';
+
+const UserFiles = () => {
+  const router = useRouter();
+  const userId = router.params.get('userId');
+  const filePath = router.params.get('filePath');
+  return <div>User: {userId}, File: {filePath}</div>;
+};
+
+const routes = defineRoutes([
+  // Matches /users/123/files/a/b.txt -> params = { userId: '123', filePath: 'a/b.txt' }
+  { name: 'user-files', path: '/users/:userId/files/:filePath*', component: UserFiles },
+]);
+@Note Can combine standard parameters with a final catch-all wildcard.
+
+---
+
+@Example 5
+@Input Wildcard ordering matters for specificity.
+import { defineRoutes } from 'retend/router';
+
+const SpecificPage = () => <div>Specific Page</div>;
+const GeneralCatch = () => <div>General Catch-All</div>;
+
+const routes = defineRoutes([
+  { name: 'specific', path: '/specific-page', component: SpecificPage },
+  { name: 'catch-all', path: '*', component: GeneralCatch }, // Should be last
+]);
+@Note Place more specific routes before wildcard routes to ensure they are matched first.
