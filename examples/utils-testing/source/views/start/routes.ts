@@ -1,3 +1,4 @@
+// examples/utils-testing/source/views/start/routes.ts
 import { defineRoute, lazy } from 'retend/router';
 import Start from '.';
 
@@ -6,6 +7,7 @@ export const startRoute = defineRoute({
   path: '/',
   component: Start,
   children: [
+    // ... other routes ...
     {
       name: 'Element Bounding',
       path: 'element-bounding',
@@ -30,6 +32,16 @@ export const startRoute = defineRoute({
       name: 'Network Status',
       path: 'network-status',
       component: lazy(() => import('./network-status')),
+    },
+    {
+      name: 'Local Storage Test',
+      path: 'local-storage',
+      component: lazy(() => import('./local-storage')),
+    },
+    {
+      name: 'Session Storage Test',
+      path: 'session-storage',
+      component: lazy(() => import('./session-storage')),
     },
   ],
 });

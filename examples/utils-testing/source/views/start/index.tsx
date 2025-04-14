@@ -19,6 +19,7 @@ const Start = () => {
       <Heading />
       <nav>
         <ul>
+          {/* ... other links ... */}
           <li>
             <router.Link href="/element-bounding">Element Bounding</router.Link>
           </li>
@@ -33,6 +34,12 @@ const Start = () => {
           </li>
           <li>
             <router.Link href="/network-status">Network Status</router.Link>
+          </li>
+          <li>
+            <router.Link href="/local-storage">Local Storage</router.Link>
+          </li>
+          <li>
+            <router.Link href="/session-storage">Session Storage</router.Link>
           </li>
         </ul>
       </nav>
