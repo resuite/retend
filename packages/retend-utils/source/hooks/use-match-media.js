@@ -3,6 +3,7 @@
 
 import { Cell } from 'retend';
 import { createGlobalStateHook } from './_shared.js';
+import { getGlobalContext, matchContext, Modes } from 'retend/context';
 
 const MATCH_MEDIA_CACHE_KEY = 'hooks:useMatchMedia:queriesCache';
 
@@ -12,26 +13,16 @@ const options = {
 
   createSource: () => new Map(),
 
-  initializeState: (window, savedQueries, query) => {
-    const mediaQueryList = window.matchMedia(query);
-    const sourceCell = Cell.source(mediaQueryList.matches);
-    // Store the mediaQueryList on the cell object to manage its lifecycle
-    Reflect.set(sourceCell, 'mediaQueryList', mediaQueryList);
-    savedQueries.set(query, sourceCell);
-  },
-
-  setupListeners: (_, savedQueries, query) => {
-    const sourceCell = savedQueries.get(query);
-    if (!sourceCell) {
-      throw new Error(`No query found for ${query}`);
+  setupListeners: (window, savedQueries) => {
+    for (const [query, sourceCell] of savedQueries) {
+      const mediaQueryList = window.matchMedia(query);
+      sourceCell.value = mediaQueryList.matches;
+      mediaQueryList.addEventListener('change', (event) => {
+        sourceCell.value = event.matches;
+      });
+      // Store the mediaQueryList on the cell object to manage its lifecycle
+      Reflect.set(sourceCell, '__mediaQueryList', mediaQueryList);
     }
-    const mediaQueryList = /** @type {MediaQueryList} */ (
-      Reflect.get(sourceCell, 'mediaQueryList')
-    );
-
-    mediaQueryList.addEventListener('change', (event) => {
-      sourceCell.value = event.matches;
-    });
   },
 
   /**
@@ -40,11 +31,24 @@ const options = {
    * @returns {Cell<boolean>}
    */
   createReturnValue: (savedQueries, query) => {
-    const queryCell = savedQueries.get(query);
-    if (!queryCell) {
-      throw new Error(`No query found for ${query}`);
+    const { window } = getGlobalContext();
+    let cell = /** @type {SourceCell<boolean>} */ (savedQueries.get(query));
+
+    if (!cell) {
+      cell = Cell.source(false);
+      savedQueries.set(query, cell);
+      if (matchContext(window, Modes.Interactive)) {
+        const mediaQueryList = window.matchMedia(query);
+        cell.value = mediaQueryList.matches;
+        mediaQueryList.addEventListener('change', (event) => {
+          cell.value = event.matches;
+        });
+        // Store the mediaQueryList on the cell object to manage its lifecycle
+        Reflect.set(cell, '__mediaQueryList', mediaQueryList);
+      }
     }
-    return Cell.derived(() => queryCell.value);
+
+    return Cell.derived(() => cell.value);
   },
 };
 
