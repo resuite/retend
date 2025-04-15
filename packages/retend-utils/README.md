@@ -8,6 +8,9 @@ This package provides a collection of utility hooks for [Retend](https://github.
     - [`useElementBounding`](#useelementbounding)
     - [`useLiveDate`](#uselivedate)
     - [`useWindowSize`](#usewindowsize)
+    - [`useOnlineStatus`](#useonlinestatus)
+    - [`useLocalStorage`](#uselocalstorage)
+    - [`useSessionStorage`](#usesessionstorage)
     - [`useMatchMedia`](#usematchmedia)
 
 ## Installation
@@ -125,6 +128,105 @@ function AdaptiveLayout() {
     true: () => <div>Mobile layout</div>,
     false: () => <div>Desktop layout</div>,
   });
+}
+```
+
+### `useOnlineStatus`
+
+Tracks the network connection status and provides a reactive cell indicating whether the user is currently online.
+
+**Parameters:**
+
+- None
+
+**Returns:**
+
+- `Cell<boolean>`: A cell that contains a boolean indicating whether the network connection is currently online.
+
+**Example:**
+
+```tsx
+import { useOnlineStatus, If } from 'retend-utils/hooks';
+
+function NetworkStatusDisplay() {
+  const isOnline = useOnlineStatus();
+
+  return (
+    <p>
+      {If(isOnline, {
+        true: () => 'Online',
+        false: () => 'Offline',
+      })}
+    </p>
+  );
+}
+```
+
+### `useLocalStorage`
+
+Creates a reactive cell synchronized with localStorage.
+
+**Parameters:**
+
+- `key` (string): The key to use for storing the value in localStorage.
+- `initialValue` (JSONSerializable): The initial value of the cell. Must be a JSON-serializable value.
+
+**Returns:**
+
+- `Cell<JSONSerializable>`: A cell that contains the current value stored in localStorage.
+
+**Example:**
+
+```tsx
+import { useLocalStorage } from 'retend-utils/hooks';
+
+function ThemeSwitcher() {
+  const theme = useLocalStorage('theme', 'light');
+
+  const toggleTheme = () => {
+    theme.value = theme.value === 'light' ? 'dark' : 'light';
+  };
+
+  return (
+    <>
+      <button onClick={toggleTheme}>Toggle Theme</button>
+      <p>Current theme: {theme}</p>
+    </>
+  );
+}
+```
+
+### `useSessionStorage`
+
+Creates a reactive cell synchronized with sessionStorage.
+
+**Parameters:**
+
+- `key` (string): The key to use for storing the value in sessionStorage.
+- `initialValue` (JSONSerializable): The initial value of the cell. Must be a JSON-serializable value.
+
+**Returns:**
+
+- `Cell<JSONSerializable>`: A cell that contains the current value stored in sessionStorage.
+
+**Example:**
+
+```tsx
+import { useSessionStorage } from 'retend-utils/hooks';
+
+function SessionCounter() {
+  const count = useSessionStorage('count', 0);
+
+  const increment = () => {
+    count.value = count.value + 1;
+  };
+
+  return (
+    <>
+      <button onClick={increment}>Increment</button>
+      <p>Count: {count}</p>
+    </>
+  );
 }
 ```
 
