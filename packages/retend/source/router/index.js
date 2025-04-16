@@ -44,7 +44,7 @@ const RELAY_ID_REGEX =
  */
 
 /**
- * @typedef {'routechange' | 'routelockprevented'} RouterEventTypes
+ * @typedef {'routechange' | 'routelockprevented' | 'routeerror'} RouterEventTypes
  */
 
 /**
@@ -100,8 +100,32 @@ export class RouteLockPreventedEvent extends CustomEvent {
  * @typedef {{
  *  'routechange': (this: Router, event: RouteChangeEvent) => void;
  *  'routelockprevented': (this: Router, event: RouteLockPreventedEvent) => void;
+ *  'routeerror': (this: Router, event: RouteErrorEvent) => void;
  * }} RouterEventHandlerMap
  */
+
+/**
+ * @typedef RouteErrorEventDetail
+ *
+ * @property {Error} error
+ * The error object.
+ */
+
+/**
+ * @extends {CustomEvent<RouteErrorEventDetail>}
+ */
+export class RouteErrorEvent extends CustomEvent {
+  /**
+   * @param {RouteErrorEventDetail} eventInitDict
+   */
+  constructor(eventInitDict) {
+    super('routeerror', {
+      cancelable: false,
+      bubbles: false,
+      detail: eventInitDict,
+    });
+  }
+}
 
 /**
  * @typedef RouteLevelFunctionData
@@ -879,6 +903,11 @@ export class Router extends EventTarget {
       if (this.#window) {
         outlet?.replaceChildren(emptyRoute(path, this.#window));
       }
+      this.dispatchEvent(
+        new RouteErrorEvent({
+          error: new Error(`No route matches path: ${path}`),
+        })
+      );
       return true;
     }
 
@@ -955,15 +984,25 @@ export class Router extends EventTarget {
         if (this.#window) {
           outlet?.replaceChildren(emptyRoute(path, this.#window));
         }
+        this.dispatchEvent(
+          new RouteErrorEvent({
+            error: new Error(`No route matches path: ${path}`),
+          })
+        );
         return true;
       }
 
       if (matchedComponentOrLazyLoader instanceof LazyRoute) {
-        const component = await matchedComponentOrLazyLoader.importer();
-        if ('default' in component) {
-          matchedComponent = component.default;
-        } else {
-          matchedComponent = component;
+        try {
+          const component = await matchedComponentOrLazyLoader.importer();
+          if ('default' in component) {
+            matchedComponent = component.default;
+          } else {
+            matchedComponent = component;
+          }
+        } catch (error) {
+          console.error(error);
+          return false;
         }
       } else {
         matchedComponent = matchedComponentOrLazyLoader;
@@ -1015,7 +1054,19 @@ export class Router extends EventTarget {
       if (snapshot) {
         renderedComponent = [...snapshot.fragment.childNodes];
       } else {
-        renderedComponent = await matchedComponent();
+        try {
+          renderedComponent = await matchedComponent();
+        } catch (error) {
+          if (oldOutletPath) {
+            outlet.setAttribute('data-path', oldOutletPath);
+          } else {
+            outlet.removeAttribute('data-path');
+          }
+          console.error(error);
+          if (error instanceof Error)
+            this.dispatchEvent(new RouteErrorEvent({ error }));
+          return false;
+        }
       }
 
       matchedComponent.__routeLevelFunction = true;
@@ -1111,9 +1162,12 @@ export class Router extends EventTarget {
   }
 
   /**
-   * @template {RouterEventTypes} EventType The type of event to listen for ('routechange', 'routelockprevented').
+   * @template {RouterEventTypes} EventType The type of event to listen for.
    * @param {EventType} type The name of the event to listen for.
-   * @param {RouterEventHandlerMap[EventType] | null} listener The function to execute when the event is triggered.
+   *   - `routechange`: Triggered after a successful route change.
+   *   - `routelockprevented`: Triggered when a navigation is prevented due to the router being locked.
+   *   - `routeerror`: Triggered when there is an error during route matching or component loading. The error object is passed as the `error` property of the event detail.
+   * @param {((event: RouterEventHandlerMap[EventType]) => void) | null} listener   The function to execute when the event is triggered.
    * @param {EventListenerOptions} [options] An object that specifies characteristics about the event listener.
    */
   //@ts-ignore: Typescript event listener types are inadequate.
@@ -1282,6 +1336,7 @@ export class Router extends EventTarget {
       );
       // Attempt to load the locked path itself (might be useful for hash changes on the locked page)
       await this.loadPath(this.#lock, navigate, _event, replace, forceLoad);
+      this.#window?.history.pushState({}, '', this.#lock);
       return;
     }
     const executor = async () => {
@@ -1462,12 +1517,24 @@ export class Router extends EventTarget {
   }
 
   /**
-   * Sets the router to a locked state, preventing any further
-   * navigation actions from being processed.
+   * Locks the router to the current route. Blocks navigation attempts handled *internally*
+   * (e.g., `router.navigate()`, `<Link>` clicks, internal `popstate` events).
+   *
+   * **Limitation:** Does NOT prevent the user from leaving the page via browser actions
+   * (external back/forward, close tab, new URL, refresh). Use `beforeunload` for those cases.
+   *
+   * The router will remain locked until `router.unlock()` is called. Attempts to navigate
+   * while locked can be intercepted by listening to the `routelockprevented` event on the router.
    *
    * @example
-   * const router = useRouter()
    * router.lock();
+   *
+   * // Intercept navigation attempts while locked
+   * router.addEventListener('routelockprevented', (event) => {
+   *   console.log('Navigation prevented:', event.detail.attemptedPath);
+   * });
+   *
+   * router.unlock();
    */
   lock() {
     if (!this.#window) {
