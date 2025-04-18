@@ -1,10 +1,11 @@
 # retend-utils
 
-This package provides a collection of utility hooks for [Retend](https://github.com/resuite/retend/tree/main/packages/retend) applications.
+This package provides a collection of utility hooks and components for [Retend](https://github.com/resuite/retend/tree/main/packages/retend) applications.
 
 ## Table of Contents
 
 - [retend-utils](#retend-utils)
+  - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
   - [Hooks](#hooks)
     - [`useElementBounding`](#useelementbounding)
@@ -17,6 +18,7 @@ This package provides a collection of utility hooks for [Retend](https://github.
     - [`useMatchMedia`](#usematchmedia)
   - [Components](#components)
     - [`Input`](#input)
+    - [`FluidList`](#fluidlist)
 
 ## Installation
 
@@ -315,6 +317,75 @@ function InputExample() {
       <Input type="text" model={textModel} placeholder="Enter text" />
       <p>Current value: {textModel}</p>
     </div>
+  );
+}
+```
+
+### `FluidList`
+
+Renders a list with dynamic sizing, staggered animations, and flexible layouts, handling transitions automatically.
+
+**Props:**
+
+- `items`: **Required**. Reactive cell containing the array of items to render.
+- `Template`: **Required**. Function returning JSX for each item. Receives `{ item, index, previousIndex, list }`.
+- `itemKey`: **Required** for object items. Unique key for each item.
+- `ref`: Optional. Cell for the `<ul>` element reference.
+- `style`: Optional. Custom styles for the `<ul>` container.
+- `direction`: Optional. Item flow direction (`'block'`=horizontal, `'inline'`=vertical). Default: `'block'`.
+- `staggeredDelay`: Optional. Staggered animation delay per item (e.g., `'50ms'`). Default: `'0ms'`.
+- `itemHeight`: Optional. Fixed item height (e.g., `'50px'`).
+- `itemWidth`: Optional. Fixed item width (e.g., `'100px'`).
+- `speed`: Optional. Transition duration (e.g., `'0.2s'`). Default: `'0.2s'`.
+- `easing`: Optional. Transition easing function (e.g., `'ease-in-out'`). Default: `'ease'`.
+- `gap`: Optional. Gap between items (e.g., `'10px'`). Default: `'0px'`.
+- `animateSizing`: Optional. Animate item size changes. Default: `false`.
+- `maxColumns`: Optional. Max columns before wrapping (for `direction: 'inline'`).
+- `maxRows`: Optional. Max rows before wrapping (for `direction: 'block'`).
+- `...rest`: Other standard `<ul>` attributes.
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { FluidList, type ListTemplateProps } from 'retend-utils/components';
+
+interface MyItem {
+  id: number;
+  name: string;
+}
+
+const myItems = Cell.source<MyItem[]>([
+  { id: 1, name: 'Item 1' },
+  { id: 2, name: 'Item 2' },
+  { id: 3, name: 'Item 3' },
+]);
+
+function MyItemTemplate({ item, index }: ListTemplateProps<MyItem>) {
+  // 'previousIndex' and 'list' are also available if needed
+  return (
+    <div style="border: 1px solid #ccc; padding: 10px;">
+      <h2>{item.name}</h2>
+      <p>Current Index: {index}</p>
+    </div>
+  );
+}
+
+function MyComponent() {
+  return (
+    <FluidList
+      items={myItems}
+      itemKey="id"
+      itemHeight="100px"
+      gap="10px"
+      direction="inline" // Items flow horizontally, wrap vertically
+      maxColumns={2} // Max 2 columns before wrapping
+      speed="0.3s"
+      easing="ease-in-out"
+      staggeredDelay="30ms"
+      Template={MyItemTemplate}
+      class="my-custom-list"
+    />
   );
 }
 ```

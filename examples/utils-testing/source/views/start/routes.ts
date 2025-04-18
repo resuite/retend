@@ -53,5 +53,10 @@ export const startRoute = defineRoute({
       path: 'input-test',
       component: lazy(() => import('./input-test')),
     },
+    {
+      name: 'Fluid List',
+      path: 'fluid-list',
+      component: lazy(() => import('./fluid-list')),
+    },
   ],
 });

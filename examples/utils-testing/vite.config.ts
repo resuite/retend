@@ -21,6 +21,7 @@ export default defineConfig({
         '/session-storage',
         '/router-lock',
         '/input-test',
+        '/fluid-list',
       ],
       routerModulePath: './source/router.ts',
     }),
