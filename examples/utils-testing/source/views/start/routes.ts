@@ -43,5 +43,10 @@ export const startRoute = defineRoute({
       path: 'session-storage',
       component: lazy(() => import('./session-storage')),
     },
+    {
+      name: 'Router Lock Test',
+      path: 'router-lock',
+      component: lazy(() => import('./router-lock')),
+    },
   ],
 });

@@ -16,7 +16,7 @@ export default defineConfig({
         '/window-size',
         '/match-media',
         '/live-date',
-        '/online-status',
+        '/network-status',
         '/local-storage',
         '/session-storage',
       ],

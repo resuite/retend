@@ -41,6 +41,9 @@ const Start = () => {
           <li>
             <router.Link href="/session-storage">Session Storage</router.Link>
           </li>
+          <li>
+            <router.Link href="/router-lock">Lock</router.Link>
+          </li>
         </ul>
       </nav>
       <main style={{ display: 'grid', placeItems: 'center' }}>
