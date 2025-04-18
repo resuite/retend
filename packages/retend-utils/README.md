@@ -2,6 +2,8 @@
 
 This package provides a collection of utility hooks for [Retend](https://github.com/resuite/retend/tree/main/packages/retend) applications.
 
+## Table of Contents
+
 - [retend-utils](#retend-utils)
   - [Installation](#installation)
   - [Hooks](#hooks)
@@ -11,7 +13,10 @@ This package provides a collection of utility hooks for [Retend](https://github.
     - [`useOnlineStatus`](#useonlinestatus)
     - [`useLocalStorage`](#uselocalstorage)
     - [`useSessionStorage`](#usesessionstorage)
+    - [`useDerivedValue`](#usederivedvalue)
     - [`useMatchMedia`](#usematchmedia)
+  - [Components](#components)
+    - [`Input`](#input)
 
 ## Installation
 
@@ -230,6 +235,32 @@ function SessionCounter() {
 }
 ```
 
+### `useDerivedValue`
+
+Creates a derived cell from either a static value or another cell. The returned cell will automatically update when the input cell changes, or remain constant if the input is a static value.
+
+**Parameters:**
+
+- `property` (Cell<T> | T): The input value or cell to derive from
+
+**Returns:**
+
+- `Cell<T>`: A derived cell that reflects the current value of the input
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { useDerivedValue } from 'retend-utils/hooks';
+
+function ExampleComponent(props) {
+  const { valueOrCell } = props;
+  const derivedValue = useDerivedValue(valueOrCell);
+
+  return <p>Current value: {derivedValue}</p>;
+}
+```
+
 ### `useMatchMedia`
 
 Creates a reactive cell that tracks the result of a media query.
@@ -254,5 +285,36 @@ function MyComponent() {
     true: () => <div>Dark mode</div>,
     false: () => <div>Light mode</div>,
   });
+}
+```
+
+## Components
+
+### `Input`
+
+A reactive input component with two-way data binding support for various HTML input types.
+
+**Props:**
+
+- `type` (string): The HTML input type (e.g., "text", "number", "password", "checkbox", "date").
+- `model` (Cell<string | number | boolean | Date | File[]>): A reactive cell for two-way data binding. The type of the cell should match the input type.
+- `ref` (Cell<HTMLInputElement | null>): Optional reference to the input element.
+- `...rest`: Other standard HTML input attributes.
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { Input } from 'retend-utils/components';
+
+function InputExample() {
+  const textModel = Cell.source('');
+
+  return (
+    <div>
+      <Input type="text" model={textModel} placeholder="Enter text" />
+      <p>Current value: {textModel}</p>
+    </div>
+  );
 }
 ```

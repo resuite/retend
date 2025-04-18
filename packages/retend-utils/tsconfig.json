@@ -20,6 +20,9 @@
     "outDir": "dist",
     "declarationMap": true,
 
+    "jsx": "react-jsx",
+    "jsxImportSource": "retend",
+
     "checkJs": true,
     "strict": true,
     "rootDir": "source"

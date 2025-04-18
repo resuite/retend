@@ -19,6 +19,10 @@
     "./hooks": {
       "import": "./dist/hooks/index.js",
       "types": "./dist/hooks/index.d.ts"
+    },
+    "./components": {
+      "import": "./dist/components/index.js",
+      "types": "./dist/components/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/retend#readme",

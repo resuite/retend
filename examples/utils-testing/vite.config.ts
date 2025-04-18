@@ -19,6 +19,8 @@ export default defineConfig({
         '/network-status',
         '/local-storage',
         '/session-storage',
+        '/router-lock',
+        '/input-test',
       ],
       routerModulePath: './source/router.ts',
     }),

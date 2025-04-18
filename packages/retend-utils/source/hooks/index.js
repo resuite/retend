@@ -4,3 +4,4 @@ export * from './use-live-date.js';
 export * from './use-window-size.js';
 export * from './use-online-status.js';
 export * from './use-storage.js';
+export * from './use-derived-value.js';

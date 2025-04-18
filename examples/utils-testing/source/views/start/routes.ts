@@ -48,5 +48,10 @@ export const startRoute = defineRoute({
       path: 'router-lock',
       component: lazy(() => import('./router-lock')),
     },
+    {
+      name: 'Input Test',
+      path: 'input-test',
+      component: lazy(() => import('./input-test')),
+    },
   ],
 });
