@@ -12,7 +12,7 @@
       },
       "devDependencies": {
         "@types/node": "latest",
-        "typescript": "^5.5.2",
+        "typescript": "^5.8.2",
         "vite": "^6.2.1",
       },
     },
@@ -20,7 +20,7 @@
       "name": "retend",
       "version": "0.0.7",
       "dependencies": {
-        "@adbl/cells": "^0.0.11",
+        "@adbl/cells": "^0.0.13",
         "csstype": "^3.1.3",
       },
       "devDependencies": {
@@ -83,7 +83,7 @@
     },
   },
   "packages": {
-    "@adbl/cells": ["@adbl/cells@0.0.11", "", {}, "sha512-TtqqWDHMCOxX/EYJz11zxMOyOlg/WHcy6lXwxqE8PJh6mUC08CpoyXswGn3QyRn7/kafwhZ4JjU73Z0kQ48rYA=="],
+    "@adbl/cells": ["@adbl/cells@0.0.13", "", {}, "sha512-N2FrGw93bmqoWCoHJM7gDLTW/X3bkk6xm9t/c48xepvN7bwnYiJl/gumq+QdjSk94Lmrkm7t2cajQI64DbYeVw=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.2", "", { "os": "aix", "cpu": "ppc64" }, "sha512-wCIboOL2yXZym2cgm6mlA742s9QeJ8DjGVaL39dLN4rRwrOgOyYSnOaFPhKZGLb2ngj4EyfAFjsNJwPXZvseag=="],
 
