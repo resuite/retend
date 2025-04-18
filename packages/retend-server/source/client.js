@@ -372,11 +372,15 @@ async function hydrateDomNode(node, vNode) {
     const isTextSplittingComment =
       nodeChild.nodeType === Node.COMMENT_NODE &&
       nodeChild.textContent === '@@' &&
-      node.childNodes[i - 1]?.nodeType === Node.TEXT_NODE &&
-      node.childNodes[i + 1]?.nodeType === Node.TEXT_NODE;
+      node.childNodes[i - 1]?.nodeType === Node.TEXT_NODE;
 
     if (isTextSplittingComment) {
       textSplitNodes.push(nodeChild);
+      // Handle text nodes that were supposed to be preserved
+      // but were removed by HTML parsing.
+      if (node.childNodes[i + 1]?.nodeType !== Node.TEXT_NODE) {
+        nodeChild.after(document.createTextNode(''));
+      }
       j--;
     } else
       subPromises.push(
