@@ -22,6 +22,7 @@ export default defineConfig({
         '/router-lock',
         '/input-test',
         '/fluid-list',
+        '/cursor-position',
       ],
       routerModulePath: './source/router.ts',
     }),

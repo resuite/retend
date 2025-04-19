@@ -50,6 +50,9 @@ const Start = () => {
           <li>
             <router.Link href="/fluid-list">Fluid List</router.Link>
           </li>
+          <li>
+            <router.Link href="/cursor-position">Cursor Position</router.Link>
+          </li>
         </ul>
       </nav>
       <main style={{ display: 'grid', placeItems: 'center' }}>

@@ -16,6 +16,7 @@ This package provides a collection of utility hooks and components for [Retend](
     - [`useSessionStorage`](#usesessionstorage)
     - [`useDerivedValue`](#usederivedvalue)
     - [`useMatchMedia`](#usematchmedia)
+    - [`useCursorPosition`](#usecursorposition)
   - [Components](#components)
     - [`Input`](#input)
     - [`FluidList`](#fluidlist)
@@ -287,6 +288,34 @@ function MyComponent() {
     true: () => <div>Dark mode</div>,
     false: () => <div>Light mode</div>,
   });
+}
+```
+
+### `useCursorPosition`
+
+Tracks the cursor position within the window.
+
+**Parameters:**
+
+- None
+
+**Returns:**
+
+- `CursorPosition`: An object containing reactive cells for the x and y coordinates of the cursor (`x`, `y`).
+
+**Example:**
+
+```tsx
+import { useCursorPosition } from 'retend-utils/hooks';
+
+function MyComponent() {
+  const { x, y } = useCursorPosition();
+
+  return (
+    <div>
+      Cursor Position: X: {x}, Y: {y}
+    </div>
+  );
 }
 ```
 

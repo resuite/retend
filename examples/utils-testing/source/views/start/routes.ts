@@ -58,5 +58,10 @@ export const startRoute = defineRoute({
       path: 'fluid-list',
       component: lazy(() => import('./fluid-list')),
     },
+    {
+      name: 'Cursor Position',
+      path: 'cursor-position',
+      component: lazy(() => import('./cursor-position')),
+    },
   ],
 });
