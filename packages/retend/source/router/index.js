@@ -1167,10 +1167,9 @@ export class Router extends EventTarget {
    *   - `routechange`: Triggered after a successful route change.
    *   - `routelockprevented`: Triggered when a navigation is prevented due to the router being locked.
    *   - `routeerror`: Triggered when there is an error during route matching or component loading. The error object is passed as the `error` property of the event detail.
-   * @param {((event: RouterEventHandlerMap[EventType]) => void) | null} listener   The function to execute when the event is triggered.
+   * @param {RouterEventHandlerMap[EventType] | null | EventListenerObject} listener   The function to execute when the event is triggered.
    * @param {EventListenerOptions} [options] An object that specifies characteristics about the event listener.
    */
-  //@ts-ignore: Typescript event listener types are inadequate.
   addEventListener(type, listener, options) {
     super.addEventListener(type, /**@type {any} */ (listener), options);
   }
@@ -1178,10 +1177,9 @@ export class Router extends EventTarget {
   /**
    * @template {RouterEventTypes} EventType The type of event to remove the listener for ('routechange', 'routelockprevented').
    * @param {EventType} type The name of the event to remove the listener for.
-   * @param {RouterEventHandlerMap[EventType]} listener The event listener function to remove.
+   * @param {RouterEventHandlerMap[EventType] | null | EventListenerObject} listener The event listener function to remove.
    * @param {EventListenerOptions} [options] An object that specifies characteristics about the event listener.
    */
-  //@ts-ignore: Typescript event listener types are inadequate.
   removeEventListener(type, listener, options) {
     super.removeEventListener(type, /**@type {any} */ (listener), options);
   }

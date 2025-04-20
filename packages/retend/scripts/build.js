@@ -1,5 +1,21 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { execSync } from 'node:child_process';
+
+// Function to recursively find all files with a specific extension
+function findFiles(dir, ext, fileList = []) {
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+      findFiles(filePath, ext, fileList);
+    } else if (path.extname(file) === ext) {
+      fileList.push(filePath);
+    }
+  }
+  return fileList;
+}
 
 if (fs.existsSync('dist')) {
   console.log('Removing dist directory...');
@@ -32,4 +48,22 @@ fs.writeFileSync(jsxRuntimeTargetDtsFile, jsxRuntimeDtsContent);
 
 const jsxRuntimeDtsMapFile = `${jsxRuntimeDir}/index.d.ts.map`;
 fs.unlinkSync(jsxRuntimeDtsMapFile);
+console.log('Done!');
+
+console.log('\nInjecting d.ts references...');
+const jsFiles = findFiles('dist', '.js');
+for (const jsFile of jsFiles) {
+  const dirName = path.dirname(jsFile);
+  const baseName = path.basename(jsFile, '.js');
+  const dtsFile = path.join(dirName, `${baseName}.d.ts`);
+
+  if (fs.existsSync(dtsFile)) {
+    const jsContent = fs.readFileSync(jsFile, 'utf-8');
+    const referenceComment = `/// <reference types="./${baseName}.d.ts" />\n`;
+    // Avoid adding multiple times if the script is run again without cleaning dist
+    if (!jsContent.startsWith(referenceComment)) {
+      fs.writeFileSync(jsFile, referenceComment + jsContent);
+    }
+  }
+}
 console.log('Done!');

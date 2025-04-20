@@ -1671,7 +1671,7 @@ export namespace JSX {
     /**
      * Specifies the type of input element to display.
      */
-    type?: Type;
+    type?: string;
 
     /**
      * Specifies the initial value of the input element.
@@ -1697,7 +1697,21 @@ export namespace JSX {
     range: number;
     date: Date;
     'datetime-local': Date;
-    [key: string]: string;
+    text: string;
+    password: string;
+    email: string;
+    tel: string;
+    url: string;
+    search: string;
+    button: string;
+    submit: string;
+    reset: string;
+    hidden: string;
+    image: string;
+    month: string;
+    week: string;
+    time: string;
+    color: string;
   }
 
   // export type InputTypeToValue<Type extends InputTypeHTMLAttribute> =

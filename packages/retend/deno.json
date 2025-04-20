@@ -13,11 +13,11 @@
     "lib": ["DOM", "ESNext", "dom.iterable"],
     "strictFunctionTypes": true,
     "noImplicitReturns": true,
-    "checkJs": true,
+    "checkJs": false,
     "strict": true
   },
   "publish": {
-    "exclude": ["!dist"]
+    "exclude": ["!dist", "source"]
   },
   "exports": {
     ".": "./dist/library/index.js",

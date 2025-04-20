@@ -3,11 +3,12 @@
   "specifiers": {
     "npm:@adbl/cells@0.0.11": "0.0.11",
     "npm:@adbl/cells@^0.0.11": "0.0.11",
+    "npm:@adbl/cells@^0.0.13": "0.0.13",
     "npm:@happy-dom/global-registrator@^17.4.3": "17.4.3",
-    "npm:@semantic-release/changelog@^6.0.3": "6.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2",
-    "npm:@semantic-release/git@^10.0.1": "10.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2",
-    "npm:@semantic-release/github@^11.0.1": "11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.2",
-    "npm:@semantic-release/npm@^12.0.1": "12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2",
+    "npm:@semantic-release/changelog@^6.0.3": "6.0.3_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3",
+    "npm:@semantic-release/git@^10.0.1": "10.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3",
+    "npm:@semantic-release/github@^11.0.1": "11.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.3",
+    "npm:@semantic-release/npm@^12.0.1": "12.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3",
     "npm:@types/bun@^1.2.4": "1.2.4",
     "npm:@types/node@*": "22.12.0",
     "npm:@types/node@20.8.10": "20.8.10",
@@ -24,12 +25,12 @@
     "npm:inquirer@12.0.0": "12.0.0_@types+node@20.8.10",
     "npm:ora@8.1.0": "8.1.0",
     "npm:ora@^8.1.0": "8.1.0",
-    "npm:semantic-release-monorepo@^8.0.2": "8.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2",
-    "npm:semantic-release@^24.2.3": "24.2.3_typescript@5.8.2_marked@12.0.2",
+    "npm:semantic-release-monorepo@^8.0.2": "8.0.2_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3",
+    "npm:semantic-release@^24.2.3": "24.2.3_typescript@5.8.3_marked@12.0.2",
     "npm:semver@7.6.3": "7.6.3",
     "npm:semver@^7.6.3": "7.6.3",
-    "npm:typescript@^5.5.2": "5.8.2",
-    "npm:typescript@^5.8.2": "5.8.2",
+    "npm:typescript@^5.5.2": "5.8.3",
+    "npm:typescript@^5.8.2": "5.8.3",
     "npm:vite@5.4.14": "5.4.14_@types+node@20.8.10",
     "npm:vite@^5.4.14": "5.4.14_@types+node@20.8.10",
     "npm:vite@^6.2.1": "6.2.3_@types+node@20.8.10",
@@ -38,6 +39,9 @@
   "npm": {
     "@adbl/cells@0.0.11": {
       "integrity": "sha512-TtqqWDHMCOxX/EYJz11zxMOyOlg/WHcy6lXwxqE8PJh6mUC08CpoyXswGn3QyRn7/kafwhZ4JjU73Z0kQ48rYA=="
+    },
+    "@adbl/cells@0.0.13": {
+      "integrity": "sha512-N2FrGw93bmqoWCoHJM7gDLTW/X3bkk6xm9t/c48xepvN7bwnYiJl/gumq+QdjSk94Lmrkm7t2cajQI64DbYeVw=="
     },
     "@babel/code-frame@7.26.2": {
       "integrity": "sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==",
@@ -685,17 +689,17 @@
     "@sec-ant/readable-stream@0.4.1": {
       "integrity": "sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg=="
     },
-    "@semantic-release/changelog@6.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2": {
+    "@semantic-release/changelog@6.0.3_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3": {
       "integrity": "sha512-dZuR5qByyfe3Y03TpmCvAxCyTnp7r5XwtHRf/8vD9EAn4ZWbavUX8adMtXYzE86EVh0gyLA7lm5yW4IV30XUag==",
       "dependencies": [
         "@semantic-release/error@3.0.0",
         "aggregate-error@3.1.0",
         "fs-extra@11.3.0",
         "lodash",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2"
       ]
     },
-    "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2": {
+    "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__@octokit+core@6.1.4__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-wdnBPHKkr9HhNhXOhZD5a2LNl91+hs8CC2vsAVYxtZH3y0dV3wKn+uZSN61rdJQZ8EGxzWB3inWocBHV9+u/CQ==",
       "dependencies": [
         "conventional-changelog-angular",
@@ -706,10 +710,10 @@
         "import-from-esm",
         "lodash-es",
         "micromatch",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+        "semantic-release@24.2.3_@octokit+core@6.1.4_typescript@5.8.3_marked@12.0.2"
       ]
     },
-    "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4": {
+    "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-wdnBPHKkr9HhNhXOhZD5a2LNl91+hs8CC2vsAVYxtZH3y0dV3wKn+uZSN61rdJQZ8EGxzWB3inWocBHV9+u/CQ==",
       "dependencies": [
         "conventional-changelog-angular",
@@ -720,7 +724,7 @@
         "import-from-esm",
         "lodash-es",
         "micromatch",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4"
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2"
       ]
     },
     "@semantic-release/error@3.0.0": {
@@ -729,7 +733,7 @@
     "@semantic-release/error@4.0.0": {
       "integrity": "sha512-mgdxrHTLOjOddRVYIYDo0fR3/v61GNN1YGkfbrjuIKg/uMgCd+Qzo3UAXJ+woLQQpos4pl5Esuw5A7AoNlzjUQ=="
     },
-    "@semantic-release/git@10.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2": {
+    "@semantic-release/git@10.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3": {
       "integrity": "sha512-eWrx5KguUcU2wUPaO6sfvZI0wPafUKAMNC18aXY4EnNcrZL86dEmpNVnC9uMpGZkmZJ9EfCVJBQx4pV4EMGT1w==",
       "dependencies": [
         "@semantic-release/error@3.0.0",
@@ -740,10 +744,10 @@
         "lodash",
         "micromatch",
         "p-reduce@2.1.0",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2"
       ]
     },
-    "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.2": {
+    "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.3": {
       "integrity": "sha512-Z9cr0LgU/zgucbT9cksH0/pX9zmVda9hkDPcgIE0uvjMQ8w/mElDivGjx1w1pEQ+MuQJ5CBq3VCF16S6G4VH3A==",
       "dependencies": [
         "@octokit/core",
@@ -761,11 +765,11 @@
         "lodash-es",
         "mime",
         "p-filter",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4",
+        "semantic-release@24.2.3_@octokit+core@6.1.4_typescript@5.8.3_marked@12.0.2",
         "url-join"
       ]
     },
-    "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4": {
+    "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2_@octokit+core@6.1.4": {
       "integrity": "sha512-Z9cr0LgU/zgucbT9cksH0/pX9zmVda9hkDPcgIE0uvjMQ8w/mElDivGjx1w1pEQ+MuQJ5CBq3VCF16S6G4VH3A==",
       "dependencies": [
         "@octokit/core",
@@ -783,11 +787,11 @@
         "lodash-es",
         "mime",
         "p-filter",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2",
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2",
         "url-join"
       ]
     },
-    "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2": {
+    "@semantic-release/npm@12.0.1_semantic-release@24.2.3__@octokit+core@6.1.4__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-/6nntGSUGK2aTOI0rHPwY3ZjgY9FkXmEHbW9Kr+62NVOsyqpKKeP0lrCH+tphv+EsNdJNmqqwijTEnVWUMQ2Nw==",
       "dependencies": [
         "@semantic-release/error@4.0.0",
@@ -801,12 +805,12 @@
         "rc",
         "read-pkg@9.0.1",
         "registry-auth-token",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2",
+        "semantic-release@24.2.3_@octokit+core@6.1.4_typescript@5.8.3_marked@12.0.2",
         "semver@7.6.3",
         "tempy@3.1.0"
       ]
     },
-    "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2": {
+    "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3": {
       "integrity": "sha512-/6nntGSUGK2aTOI0rHPwY3ZjgY9FkXmEHbW9Kr+62NVOsyqpKKeP0lrCH+tphv+EsNdJNmqqwijTEnVWUMQ2Nw==",
       "dependencies": [
         "@semantic-release/error@4.0.0",
@@ -820,12 +824,12 @@
         "rc",
         "read-pkg@9.0.1",
         "registry-auth-token",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2",
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2",
         "semver@7.6.3",
         "tempy@3.1.0"
       ]
     },
-    "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4": {
+    "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-/6nntGSUGK2aTOI0rHPwY3ZjgY9FkXmEHbW9Kr+62NVOsyqpKKeP0lrCH+tphv+EsNdJNmqqwijTEnVWUMQ2Nw==",
       "dependencies": [
         "@semantic-release/error@4.0.0",
@@ -839,12 +843,12 @@
         "rc",
         "read-pkg@9.0.1",
         "registry-auth-token",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4",
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2",
         "semver@7.6.3",
         "tempy@3.1.0"
       ]
     },
-    "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2": {
+    "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__@octokit+core@6.1.4__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-XxAZRPWGwO5JwJtS83bRdoIhCiYIx8Vhr+u231pQAsdFIAbm19rSVJLdnBN+Avvk7CKvNQE/nJ4y7uqKH6WTiw==",
       "dependencies": [
         "conventional-changelog-angular",
@@ -857,10 +861,10 @@
         "into-stream",
         "lodash-es",
         "read-package-up",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+        "semantic-release@24.2.3_@octokit+core@6.1.4_typescript@5.8.3_marked@12.0.2"
       ]
     },
-    "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4": {
+    "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-XxAZRPWGwO5JwJtS83bRdoIhCiYIx8Vhr+u231pQAsdFIAbm19rSVJLdnBN+Avvk7CKvNQE/nJ4y7uqKH6WTiw==",
       "dependencies": [
         "conventional-changelog-angular",
@@ -873,7 +877,7 @@
         "into-stream",
         "lodash-es",
         "read-package-up",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4"
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2"
       ]
     },
     "@sigstore/bundle@3.1.0": {
@@ -1364,7 +1368,7 @@
     "core-util-is@1.0.3": {
       "integrity": "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ=="
     },
-    "cosmiconfig@9.0.0_typescript@5.8.2": {
+    "cosmiconfig@9.0.0_typescript@5.8.3": {
       "integrity": "sha512-itvL5h8RETACmOTFc4UfIyB2RfEHi71Ax6E/PivVxq9NseKbOWpeyHEOIbmAw1rs8Ak0VursQNww7lf7YtUwzg==",
       "dependencies": [
         "env-paths",
@@ -2674,7 +2678,7 @@
         "abbrev",
         "archy",
         "cacache",
-        "chalk@5.4.1",
+        "chalk@5.3.0",
         "ci-info",
         "cli-columns",
         "fastest-levenshtein",
@@ -2923,7 +2927,7 @@
       "dependencies": [
         "@babel/code-frame",
         "index-to-position",
-        "type-fest@4.38.0"
+        "type-fest@4.40.0"
       ]
     },
     "parse-ms@4.0.0": {
@@ -3082,7 +3086,7 @@
       "dependencies": [
         "find-up-simple",
         "read-pkg@9.0.1",
-        "type-fest@4.38.0"
+        "type-fest@4.40.0"
       ]
     },
     "read-pkg@5.2.0": {
@@ -3100,7 +3104,7 @@
         "@types/normalize-package-data",
         "normalize-package-data@6.0.2",
         "parse-json@8.2.0",
-        "type-fest@4.38.0",
+        "type-fest@4.40.0",
         "unicorn-magic@0.1.0"
       ]
     },
@@ -3217,7 +3221,7 @@
     "safer-buffer@2.1.2": {
       "integrity": "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg=="
     },
-    "semantic-release-monorepo@8.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2": {
+    "semantic-release-monorepo@8.0.2_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3": {
       "integrity": "sha512-TQC6KKIA0ATjii1OT0ZmQqcVzBJoaetJaJBC8FmKkg1IbDR4wBsuX6gl6UHDdijRDl8YyXqahj2hkJNyV6m9Jg==",
       "dependencies": [
         "debug",
@@ -3231,25 +3235,25 @@
         "pkg-up",
         "ramda",
         "read-pkg@5.2.0",
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2",
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2",
         "semantic-release-plugin-decorators",
         "tempy@1.0.1"
       ]
     },
-    "semantic-release-plugin-decorators@4.0.0_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2": {
+    "semantic-release-plugin-decorators@4.0.0_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3": {
       "integrity": "sha512-5eqaITbgGJu7AWCqY/ZwDh3TCS84Q9i470AImwP9vw3YcFRyR8sEb499Zbnqa076bv02yFUn88GtloQMXQsBrg==",
       "dependencies": [
-        "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2"
+        "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2"
       ]
     },
-    "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2": {
+    "semantic-release@24.2.3_@octokit+core@6.1.4_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-KRhQG9cUazPavJiJEFIJ3XAMjgfd0fcK3B+T26qOl8L0UG5aZUjeRfREO0KM5InGtYwxqiiytkJrbcYoLDEv0A==",
       "dependencies": [
-        "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2",
+        "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__@octokit+core@6.1.4__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2",
         "@semantic-release/error@4.0.0",
-        "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4",
-        "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2",
-        "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2",
+        "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.3",
+        "@semantic-release/npm@12.0.1_semantic-release@24.2.3__@octokit+core@6.1.4__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2",
+        "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__@octokit+core@6.1.4__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2",
         "aggregate-error@5.0.0",
         "cosmiconfig",
         "debug",
@@ -3276,14 +3280,14 @@
         "yargs@17.7.2"
       ]
     },
-    "semantic-release@24.2.3_typescript@5.8.2_marked@12.0.2_@octokit+core@6.1.4": {
+    "semantic-release@24.2.3_typescript@5.8.3_marked@12.0.2": {
       "integrity": "sha512-KRhQG9cUazPavJiJEFIJ3XAMjgfd0fcK3B+T26qOl8L0UG5aZUjeRfREO0KM5InGtYwxqiiytkJrbcYoLDEv0A==",
       "dependencies": [
-        "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4",
+        "@semantic-release/commit-analyzer@13.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2",
         "@semantic-release/error@4.0.0",
-        "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_@octokit+core@6.1.4_typescript@5.8.2",
-        "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4",
-        "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2_typescript@5.8.2_marked@12.0.2_semantic-release@24.2.3__typescript@5.8.2__marked@12.0.2__@octokit+core@6.1.4",
+        "@semantic-release/github@11.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2_@octokit+core@6.1.4",
+        "@semantic-release/npm@12.0.1_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2",
+        "@semantic-release/release-notes-generator@14.0.3_semantic-release@24.2.3__typescript@5.8.3__marked@12.0.2_typescript@5.8.3_marked@12.0.2",
         "aggregate-error@5.0.0",
         "cosmiconfig",
         "debug",
@@ -3685,11 +3689,11 @@
     "type-fest@2.19.0": {
       "integrity": "sha512-RAH822pAdBgcNMAfWnCBU3CFZcfZ/i1eZjwFU/dsLKumyuuP3niueg2UAukXYF0E2AAoc82ZSSf9J0WQBinzHA=="
     },
-    "type-fest@4.38.0": {
-      "integrity": "sha512-2dBz5D5ycHIoliLYLi0Q2V7KRaDlH0uWIvmk7TYlAg5slqwiPv1ezJdZm1QEM0xgk29oYWMCbIG7E6gHpvChlg=="
+    "type-fest@4.40.0": {
+      "integrity": "sha512-ABHZ2/tS2JkvH1PEjxFDTUWC8dB5OsIGZP4IFLhR293GqT5Y5qB1WwL2kMPYhQW9DVgVD8Hd7I8gjwPIf5GFkw=="
     },
-    "typescript@5.8.2": {
-      "integrity": "sha512-aJn6wq13/afZp/jT9QZmwEjDqqvSGp1VT5GVg+f/t6/oVyrgXM6BY1h9BRh/O5p3PlUPAe+WuiEZOmb/49RqoQ=="
+    "typescript@5.8.3": {
+      "integrity": "sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ=="
     },
     "uglify-js@3.19.3": {
       "integrity": "sha512-v3Xu+yuwBXisp6QYTcH4UbH+xYJXqnq2m/LtQVWKWzYc1iehYnLixoQDN9FH6/j9/oybfd6W9Ghwkl8+UMKTKQ=="
@@ -3950,7 +3954,7 @@
             "npm:retend-server@*",
             "npm:retend-utils@*",
             "npm:retend@*",
-            "npm:typescript@^5.5.2",
+            "npm:typescript@^5.8.2",
             "npm:vite@^6.2.1"
           ]
         }
@@ -3958,7 +3962,7 @@
       "packages/retend": {
         "packageJson": {
           "dependencies": [
-            "npm:@adbl/cells@^0.0.11",
+            "npm:@adbl/cells@^0.0.13",
             "npm:csstype@^3.1.3",
             "npm:typescript@^5.8.2"
           ]
@@ -3970,7 +3974,7 @@
             "npm:domhandler@^5.0.3",
             "npm:htmlparser2@10",
             "npm:typescript@^5.8.2",
-            "npm:vite@^5.4.14"
+            "npm:vite@^6.2.1"
           ]
         }
       },

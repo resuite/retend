@@ -255,9 +255,8 @@ export function isNotObject(value) {
 }
 
 /**
- * @template T
  * Checks if a value is somewhat falsy.
- * @param {T} value
+ * @param {any} value
  * @returns {value is undefined | null | false}
  */
 export function isSomewhatFalsy(value) {
