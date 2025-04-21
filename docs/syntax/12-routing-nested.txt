@@ -1,0 +1,108 @@
+@Title routing-nested
+@Description Defining and rendering nested routes using `children` and nested `<router.Outlet>`.
+
+---
+
+@Example 1
+@Input Define nested routes in RouteRecords.
+import { defineRoutes } from 'retend/router';
+import { useRouter } from 'retend/router'; // Import hook
+
+const SettingsLayout = () => {
+  const { Outlet } = useRouter(); // Use hook to get Outlet
+  return <div><h1>Settings</h1><Outlet /></div>;
+};
+const ProfileSettings = () => <p>Profile Settings</p>;
+const AccountSettings = () => <p>Account Settings</p>;
+
+const routes = defineRoutes([
+  { name: 'settings', path: '/settings', component: SettingsLayout, children: [
+      { name: 'profile', path: 'profile', component: ProfileSettings }, // Path is relative: /settings/profile
+      { name: 'account', path: 'account', component: AccountSettings }  // Path is relative: /settings/account
+    ]
+  },
+]);
+@Note Use `children` array for nesting. Child paths are relative to the parent.
+@Note Parent component (`SettingsLayout`) needs an `<Outlet />` to render children.
+
+---
+
+@Example 2
+@Input Parent component rendering child routes via nested Outlet.
+import { useRouter } from 'retend/router';
+
+function SettingsLayout() {
+  const router = useRouter();
+  return (
+    <div>
+      <h1>User Settings</h1>
+      <nav>
+        <router.Link href="/settings/profile">Profile</router.Link> |
+        <router.Link href="/settings/account">Account</router.Link>
+      </nav>
+      <main>
+        <router.Outlet /> {/* Child routes (Profile/Account) render here */}
+      </main>
+    </div>
+  );
+}
+@Note The `<router.Outlet>` inside the parent component renders the matched child component.
+
+---
+
+@Example 3
+@Input Deeply nested routes (three levels).
+import { defineRoutes } from 'retend/router';
+import { useRouter } from 'retend/router'; // Import hook
+
+const AdminLayout = () => <div>Admin <Outlet /></div>; // L1
+const UsersLayout = () => <div>Users <Outlet /></div>; // L2
+const UserDetails = () => <p>User Details</p>;      // L3
+
+const routes = defineRoutes([
+  { name: 'admin', path: '/admin', component: AdminLayout, children: [
+      { name: 'users', path: 'users', component: UsersLayout, children: [
+          { name: 'details', path: ':userId', component: UserDetails } // /admin/users/:userId
+        ]
+      }
+    ]
+  },
+]);
+@Note Nesting can be multiple levels deep. Each parent needing an `<Outlet />`.
+
+---
+
+@Example 4
+@Input Index route within a nested structure (empty path child).
+import { defineRoutes } from 'retend/router';
+import { useRouter } from 'retend/router';
+
+const ProductsLayout = () => <div>Products <Outlet /></div>;
+const ProductList = () => <p>Product List</p>;
+const ProductDetails = () => <p>Product Details</p>;
+
+const routes = defineRoutes([
+  { name: 'products', path: '/products', component: ProductsLayout, children: [
+      { name: 'list', path: '', component: ProductList }, // Matches '/products'
+      { name: 'details', path: ':id', component: ProductDetails } // Matches '/products/:id'
+    ]
+  }
+]);
+@Note An empty `path: ''` child acts as the index route for the parent path.
+
+---
+
+@Example 5
+@Input Navigation links for nested routes.
+import { useRouter } from 'retend/router';
+
+function ProductNav() {
+  const router = useRouter();
+  return (
+    <nav>
+      <router.Link href="/products">Product List</router.Link> |
+      <router.Link href="/products/123">Product 123</router.Link>
+    </nav>
+  );
+}
+@Note Links use the full, absolute path for nested routes.

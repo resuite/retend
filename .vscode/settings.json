@@ -1,4 +1,4 @@
 {
-  "deno.enable": true,
-  "cSpell.words": ["retend"]
+  "deno.enable": false,
+  "cSpell.words": ["globalcontextchange", "retend"]
 }

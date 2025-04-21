@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "biomejs.biome",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-typescript-next",
+    "clinyong.vscode-css-modules",
+    "1yasa.css-better-sorting"
+  ]
+}

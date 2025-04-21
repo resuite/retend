@@ -1,0 +1,48 @@
+{
+  "name": "retend-utils",
+  "version": "0.0.8",
+  "description": "A collection of utility functions for Retend.",
+  "private": false,
+  "type": "module",
+  "module": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "bunx tsc --project tsconfig.json"
+  },
+  "keywords": [
+    "web",
+    "javascript",
+    "pwa",
+    "jsx"
+  ],
+  "exports": {
+    "./hooks": {
+      "import": "./dist/hooks/index.js",
+      "types": "./dist/hooks/index.d.ts"
+    },
+    "./components": {
+      "import": "./dist/components/index.js",
+      "types": "./dist/components/index.d.ts"
+    }
+  },
+  "homepage": "https://github.com/adebola-io/retend#readme",
+  "bugs": {
+    "url": "https://github.com/adebola-io/retend/issues"
+  },
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "directory": "github.com/adebola-io/retend",
+    "type": "git"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^5.4.14"
+  },
+  "peerDependencies": {
+    "retend": "^0.0.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

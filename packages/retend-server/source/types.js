@@ -21,14 +21,6 @@
  */
 
 /**
- * @typedef {Object} OutputArtifact
- * @property {string} name
- * @property {string} contents
- * @property {boolean} [append]
- * If true, content should be appended to existing file rather than replacing it
- */
-
-/**
  * @typedef {Object} BuildOptions
  * @property {string} [htmlShell]
  * @property {string} [rootSelector]
@@ -53,6 +45,7 @@
  * @property {string} path
  * @property {{ value: number }} teleportIdCounter
  * @property {Map<string, unknown>} consistentValues
+ * @property {Map<string, any>} globalData
  */
 
 /**
@@ -63,4 +56,9 @@
  * @property {string} htmlShell
  * @property {ViteDevServer} server
  * @property {string} rootSelector
+ * @property {typeof import('retend/context')} retendContextModule
+ * @property {typeof import('retend')} retendModule
+ * @property {typeof import('retend/render')} retendRenderModule
+ * @property {typeof import('retend/v-dom')} retendVDomModule
+ * @property {typeof import('./meta.js').addMetaListener} addMetaListener
  */

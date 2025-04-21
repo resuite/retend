@@ -1,18 +1,25 @@
 /// <reference types="vite/client" />
 
 /** @import { JsxElement } from 'retend' */
-/** @import { VNode } from 'retend/v-dom' */
+/** @import { VDocument } from 'retend/v-dom' */
 /** @import { Router } from 'retend/router' */
+/** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ServerContext } from './types.js' */
 
 import { setAttributeFromProps, useObserver } from 'retend';
-import { setGlobalContext, Modes } from 'retend/context';
+import {
+  setGlobalContext,
+  Modes,
+  getGlobalContext,
+  matchContext,
+} from 'retend/context';
 import { upgradeAnchorTag } from 'retend/router';
 import {
   HydrationUpgradeEvent,
   VComment,
   VElement,
   VWindow,
+  VNode,
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
@@ -203,7 +210,6 @@ async function restoreContext(context, routerCreateFn) {
   const { shell, path, rootSelector } = context;
   const vWindow = new VWindow();
   const webWindow = window;
-  const observer = useObserver();
 
   recreateVWindow(shell, vWindow);
   setGlobalContext({
@@ -211,8 +217,10 @@ async function restoreContext(context, routerCreateFn) {
     window: vWindow,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(Object.entries(context.consistentValues)),
+    globalData: new Map(),
   });
 
+  const observer = useObserver();
   const router = routerCreateFn();
   router.setWindow(vWindow);
   router.attachWindowListeners();
@@ -241,6 +249,7 @@ async function restoreContext(context, routerCreateFn) {
     window,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(),
+    globalData: new Map(),
   });
 
   router.setWindow(window);
@@ -269,104 +278,124 @@ async function restoreContext(context, routerCreateFn) {
  * -   Re-establishing event listeners
  * -   Setting ref values
  */
-function hydrateDomNode(node, vNode) {
-  return new Promise(() => {
-    // Static nodes have been verified to contain no reactivity.
-    // by the server, so we can skip hydration.
-    if (node instanceof Element && node.hasAttribute('data-static')) return;
+async function hydrateDomNode(node, vNode) {
+  const subPromises = [];
+  // Static nodes have been verified to contain no reactivity.
+  // by the server, so we can skip hydration.
+  if (node instanceof Element && node.hasAttribute('data-static')) return;
 
-    // Propagate reactivity connections.
-    const cellData = vNode.getRelatedCellData();
-    if (cellData?.size) {
-      const newSet = /** @type {typeof cellData} */ (new Set());
-      for (const data of cellData) {
-        if (!(data instanceof Function)) {
-          newSet.add(data);
-          continue;
-        }
-        if (!data.originalFunction || !data.relatedCell) continue;
-        const reboundFn = /** @type {typeof data} */ (
-          data.originalFunction.bind(node)
-        );
-        data.relatedCell.listen(reboundFn, { weak: true });
-        newSet.add(reboundFn);
+  // Propagate reactivity connections.
+  const cellData = vNode.getRelatedCellData();
+  if (cellData?.size) {
+    const newSet = /** @type {typeof cellData} */ (new Set());
+    for (const data of cellData) {
+      if (!(data instanceof Function)) {
+        newSet.add(data);
+        continue;
       }
-      Reflect.set(node, '__attributeCells', newSet);
+      if (!data.originalFunction || !data.relatedCell) continue;
+      const reboundFn = /** @type {typeof data} */ (
+        data.originalFunction.bind(node)
+      );
+      data.relatedCell.listen(reboundFn, { weak: true });
+      newSet.add(reboundFn);
+    }
+    Reflect.set(node, '__attributeCells', newSet);
+  }
+
+  if (node instanceof Element && vNode instanceof VElement) {
+    // Port hidden attributes: event listeners, etc.
+    for (const [name, value] of vNode.hiddenAttributes) {
+      setAttributeFromProps(/** @type {JsxElement} */ (node), name, value);
+    }
+    // Port ref values.
+    const ref = Reflect.get(vNode, '__ref');
+    if (ref instanceof SourceCell) {
+      Reflect.set(node, '__ref', ref);
+      ref.value = node;
+    }
+  }
+
+  // Port range symbols.
+  if (node instanceof Comment && vNode instanceof VComment) {
+    const commentRangeSymbol = Reflect.get(vNode, '__commentRangeSymbol');
+    if (commentRangeSymbol) {
+      Reflect.set(node, '__commentRangeSymbol', commentRangeSymbol);
     }
 
-    if (node instanceof Element && vNode instanceof VElement) {
-      // Port hidden attributes: event listeners, etc.
-      for (const [name, value] of vNode.hiddenAttributes) {
-        setAttributeFromProps(/** @type {JsxElement} */ (node), name, value);
-      }
-      // Port ref values.
-      const ref = Reflect.get(vNode, '__ref');
-      if (ref instanceof SourceCell) {
-        Reflect.set(node, '__ref', ref);
-        ref.value = node;
-      }
+    // Port ref values
+    const ref = Reflect.get(vNode, '__ref');
+    if (ref instanceof SourceCell) {
+      Reflect.set(node, '__ref', ref);
+      ref.value = node;
     }
+  }
 
-    // Port range symbols.
-    if (node instanceof Comment && vNode instanceof VComment) {
-      const commentRangeSymbol = Reflect.get(vNode, '__commentRangeSymbol');
-      if (commentRangeSymbol) {
-        Reflect.set(node, '__commentRangeSymbol', commentRangeSymbol);
-      }
-
-      // Port ref values
-      const ref = Reflect.get(vNode, '__ref');
-      if (ref instanceof SourceCell) {
-        Reflect.set(node, '__ref', ref);
-        ref.value = node;
-      }
-    }
-
-    // Hydrate Shadow roots
-    if (node instanceof Element) {
-      // If shadowRoot exists, hydrate it
-      if (node.shadowRoot && vNode instanceof VElement && vNode.shadowRoot) {
+  // Hydrate Shadow roots
+  if (node instanceof Element) {
+    // If shadowRoot exists, hydrate it
+    if (node.shadowRoot && vNode instanceof VElement && vNode.shadowRoot) {
+      subPromises.push(
         hydrateDomNode(node.shadowRoot, vNode.shadowRoot).catch((error) => {
           console.error('Shadow root hydration error:', error);
-        });
-      }
-
-      // Cleanup templates for browsers without DSD support
-      const templates = node.querySelectorAll('template[shadowrootmode]');
-      for (const template of templates) {
-        template.remove();
-      }
+        })
+      );
     }
 
-    // Hydrate Children.
-    let offset = 0;
-    const textSplitNodes = [];
-    for (let i = 0; i < node.childNodes.length; i++) {
-      const nodeChild = node.childNodes[i];
-      const mirrorChild = vNode.childNodes[i - offset];
+    // Cleanup templates for browsers without DSD support
+    const templates = node.querySelectorAll('template[shadowrootmode]');
+    for (const template of templates) {
+      template.remove();
+    }
+  }
+
+  // Hydrate Children.
+
+  const textSplitNodes = [];
+  for (
+    let i = 0, j = 0;
+    i < node.childNodes.length && j < vNode.childNodes.length;
+    i++, j++
+  ) {
+    let nodeChild = node.childNodes[i];
+    let mirrorChild = vNode.childNodes[j];
+    if (!mirrorChild) continue;
+
+    if (mirrorChild instanceof NoHydrateVNode) {
+      i += mirrorChild.targetNodeSpan;
+
+      nodeChild = node.childNodes[i];
+      mirrorChild = vNode.childNodes[j];
       if (!mirrorChild) continue;
+    }
 
-      const isTextSplittingComment =
-        nodeChild.nodeType === Node.COMMENT_NODE &&
-        nodeChild.textContent === '@@' &&
-        node.childNodes[i - 1]?.nodeType === Node.TEXT_NODE &&
-        node.childNodes[i + 1]?.nodeType === Node.TEXT_NODE;
+    const isTextSplittingComment =
+      nodeChild.nodeType === Node.COMMENT_NODE &&
+      nodeChild.textContent === '@@' &&
+      node.childNodes[i - 1]?.nodeType === Node.TEXT_NODE;
 
-      if (isTextSplittingComment) {
-        textSplitNodes.push(nodeChild);
-        offset++;
-      } else
+    if (isTextSplittingComment) {
+      textSplitNodes.push(nodeChild);
+      // Handle text nodes that were supposed to be preserved
+      // but were removed by HTML parsing.
+      if (node.childNodes[i + 1]?.nodeType !== Node.TEXT_NODE) {
+        nodeChild.after(document.createTextNode(''));
+      }
+      j--;
+    } else
+      subPromises.push(
         hydrateDomNode(nodeChild, mirrorChild).catch((error) => {
           console.error('Hydration error: ', error);
-        });
-    }
+        })
+      );
+  }
 
-    // Dispatch final hydration callbacks. This will update
-    // For loop caches and other listeners.
-    vNode.dispatchEvent(new HydrationUpgradeEvent(node));
+  // Dispatch final hydration callbacks. This will update
+  // For loop caches and other listeners.
+  vNode.dispatchEvent(new HydrationUpgradeEvent(node));
 
-    for (const textSplitNode of textSplitNodes) textSplitNode.remove();
-  });
+  for (const textSplitNode of textSplitNodes) textSplitNode.remove();
+  await Promise.all(subPromises);
 }
 
 /**
@@ -427,4 +456,84 @@ function activateLinks(router) {
   for (const link of links) {
     upgradeAnchorTag(link, router);
   }
+}
+
+export class NoHydrateVNode extends VNode {
+  /**
+   * @param {VDocument} document
+   * @param {number} count
+   */
+  constructor(document, count) {
+    super(document);
+    this.targetNodeSpan = count;
+  }
+}
+
+/**
+ * Creates a static component that does not hydrate on the client.
+ * This is useful for components that don't need interactivity and can be safely skipped
+ * for a faster hydration process.
+ *
+ * While retend already has a mechanism for skipping hydration on the node level
+ * (via the `data-static` attribute), this function allows you to skip the first
+ * client-side initialization of a component altogether, improving performance.
+ *
+ * @param {() => JSX.Template} component - The original component to be potentially converted to a static node.
+ *                                        This component should return a JSX template.
+ * @param {number} [nodeCount=1] - The number of root nodes the component returns.
+ *                                 Must be specified correctly if your component returns multiple root nodes.
+ *                                 Defaults to 1 if not specified.
+ * @returns {() => JSX.Template} The original component in client-side rendering,
+ *                              or a non-hydrating virtual node in server-side rendering.
+ *
+ * @remarks
+ * - This function only affects the initial hydration. On subsequent client-side renders
+ *   (e.g., after navigation), the original component will be used.
+ * - This is different from the `data-static` attribute, which still performs some hydration work, but skips the final interactivity transfer step.
+ * - _Use this for truly static content that never needs to be interactive_. If you try to use
+ *   cells or other reactive features within the component, it will lead to unexpected behavior.
+ *
+ * @example
+ * // Basic usage with a simple header
+ * const StaticHeader = createStaticComponent(() => (
+ *   <header>Static Content</header>
+ * ));
+ *
+ * @example
+ * // Usage with a component that returns multiple root nodes
+ * const StaticFooterLinks = createStaticComponent(() => {
+ *   return (
+ *    <>
+ *     <router.Link href="/about">About</router.Link>
+ *     <router.Link href="/terms">Terms</router.Link>
+ *     <router.Link href="/contact">Contact</router.Link>
+ *    </>
+ *   );
+ * }, 3); // Specify the number of root nodes (3 links)
+ *
+ * @example
+ * // Usage in a larger component
+ * function App() {
+ *   return (
+ *     <div>
+ *       <StaticHeader />
+ *       <main>...</main>
+ *       <footer>
+ *         <StaticFooterLinks />
+ *       </footer>
+ *     </div>
+ *   );
+ * }
+ */
+export function createStaticComponent(component, nodeCount = 1) {
+  return () => {
+    if (!import.meta.env.SSR) {
+      const { window } = getGlobalContext();
+      if (matchContext(window, Modes.VDom)) {
+        const { document } = window;
+        return new NoHydrateVNode(document, nodeCount);
+      }
+    }
+    return component();
+  };
 }

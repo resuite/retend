@@ -36,21 +36,13 @@ import { linkNodesToComponent } from '../plugin/index.js';
  * const isLoggedIn = Cell.source(false);
  *
  * // Use renderIf to conditionally render a welcome message
- * const welcomeMessage = If(
- *  isLoggedIn,
- *  () => {
- *    const div = document.createElement('div');
- *    div.textContent = 'Welcome, user!';
- *    return div;
- *  },
- * () => {
- *    const div = document.createElement('div');
- *    div.textContent = 'Please log in.';
- *    return div;
+ * const message = If(isLoggedIn, {
+ *   true: () => <div>Welcome, user!</div>,
+ *   false: () => <div>Please log in.</div>
  * });
  *
  * // Add the result to the DOM
- * document.body.append(...welcomeMessage);
+ * document.body.append(...message);
  *
  * // Later, when the user logs in, update the cell
  * isLoggedIn.value = true;

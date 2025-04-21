@@ -1,8 +1,14 @@
 /** @import { Plugin, UserConfig, ViteDevServer } from 'vite' */
-/** @import { BuildOptions, OutputArtifact } from './types.js' */
+/** @import { BuildOptions } from './types.js' */
 
-import { buildPaths } from './server.js';
+import { VElement } from 'retend/v-dom';
+import {
+  buildPaths,
+  HtmlOutputArtifact,
+  RedirectOutputArtifact,
+} from './server.js';
 import { createServer } from 'vite';
+import path from 'node:path';
 
 /**
  * @typedef {object} PluginOptions
@@ -33,8 +39,8 @@ export function retendSSG(options) {
 
   /** @type {UserConfig} */
   let viteConfig;
-  /** @type {OutputArtifact[]} */
-  const outputs = [];
+  /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
+  const outputArtifacts = [];
   /** @type {ViteDevServer} */
   let server;
 
@@ -71,41 +77,67 @@ export function retendSSG(options) {
         server,
       };
 
-      outputs.push(...(await buildPaths(pages, buildOptions)));
-      const transformed = outputs.find((o) => o.name === 'index.html');
-      if (transformed) {
-        outputs.splice(outputs.indexOf(transformed), 1);
-        return transformed.contents;
-      }
+      outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
       return html;
     },
 
-    generateBundle() {
-      const fileContents = new Map();
-
-      for (const output of outputs) {
-        const existing = fileContents.get(output.name) || '';
-        fileContents.set(
-          output.name,
-          output.append ? existing + output.contents : output.contents
-        );
+    async generateBundle(_, bundle) {
+      const assetSourceToDistMap = new Map();
+      for (const obj of Object.values(bundle)) {
+        if ('originalFileNames' in obj) {
+          assetSourceToDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
+        }
       }
 
-      const files = Object.fromEntries(fileContents);
+      const redirectionLines = [];
+      const promises = [];
+      for (const artifact of outputArtifacts) {
+        if (artifact instanceof HtmlOutputArtifact) {
+          const { name: fileName, contents, stringify } = artifact;
+          // Rewrite asset references
+          contents.document.findNodes((node) => {
+            if (!(node instanceof VElement)) return false;
 
-      for (const [name, contents] of Object.entries(files)) {
+            const tagName = node.tagName.toLowerCase();
+            if (!/^script|style|link|img$/i.test(tagName)) return false;
+
+            const attrName = tagName === 'link' ? 'href' : 'src';
+            const attrValue = node.getAttribute(attrName);
+            if (!attrValue || attrValue.includes('://')) return false;
+            const fullPath = path.resolve(
+              attrValue.startsWith('/') ? attrValue.slice(1) : attrValue
+            );
+            const rewrittenAsset = assetSourceToDistMap.get(fullPath);
+            if (!rewrittenAsset) return false;
+
+            node.setAttribute(attrName, rewrittenAsset.fileName);
+            return true;
+          });
+
+          promises.push(
+            stringify().then((source) => {
+              this.emitFile({ type: 'asset', fileName, source });
+            })
+          );
+        } else {
+          // artifact is a redirect.
+          redirectionLines.push(artifact.contents);
+        }
+      }
+
+      if (redirectionLines.length > 0) {
         this.emitFile({
           type: 'asset',
-          fileName: name,
-          source: contents,
+          fileName: '_redirects',
+          source: redirectionLines.join('\n'),
         });
       }
+
+      await Promise.all(promises);
     },
 
     closeBundle() {
-      if (server) {
-        server.close();
-      }
+      server?.close();
     },
   };
 }

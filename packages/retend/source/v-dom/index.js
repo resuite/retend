@@ -1,7 +1,7 @@
 /** @import { CellSet } from '../library/utils.js' */
 /** @import { Router } from '../router/index.js'; **/
 
-import { CustomEvent } from '../library/utils.js';
+import { CustomEvent } from '../context/index.js';
 
 export class VNode extends EventTarget {
   /** @param {VDocument | null} document */
@@ -602,6 +602,9 @@ export class VDocument extends VNode {
 }
 
 export class VWindow extends EventTarget {
+  #timeouts = new Set();
+  #intervals = new Set();
+
   constructor() {
     super();
     this.document = new VDocument();
@@ -613,21 +616,77 @@ export class VWindow extends EventTarget {
     this.ShadowRoot = VShadowRoot;
     this.Node = VNode;
     this.MarkupContainerNode = MarkupContainerNode;
-    this.sessionStorage = new VSessionStorage();
+    this.sessionStorage = new VStorage();
+    this.localStorage = new VStorage();
     this.history = new VHistory(this);
     this.location = new VLocation();
     this.scrollX = 0;
     this.scrollY = 0;
+    this.innerWidth = 0;
+    this.innerHeight = 0;
+  }
+
+  /**
+   *
+   * @param {() => void} callback
+   * @param {number} delay
+   * @param  {...any} args
+   * @returns {ReturnType<typeof setTimeout>}
+   */
+  setTimeout(callback, delay, ...args) {
+    const timeout = setTimeout(callback, delay, ...args);
+    this.#timeouts.add(timeout);
+    return timeout;
+  }
+
+  /**
+   *
+   * @param {() => void} callback
+   * @param {number} delay
+   * @param  {...any} args
+   * @returns {ReturnType<typeof setInterval>}
+   */
+  setInterval(callback, delay, ...args) {
+    const interval = setInterval(callback, delay, ...args);
+    this.#intervals.add(interval);
+    return interval;
+  }
+
+  /**
+   * @param {ReturnType<typeof setTimeout>} timeout
+   */
+  clearTimeout(timeout) {
+    this.#timeouts.delete(timeout);
+    clearTimeout(timeout);
+  }
+
+  /**
+   * @param {ReturnType<typeof setInterval>} interval
+   */
+  clearInterval(interval) {
+    this.#intervals.delete(interval);
+    clearInterval(interval);
   }
 
   /** @param {ScrollToOptions} options  */
   scrollTo(options) {
     options;
   }
+
+  close() {
+    for (const timeout of this.#timeouts) {
+      clearTimeout(timeout);
+    }
+    for (const interval of this.#intervals) {
+      clearInterval(interval);
+    }
+    this.#timeouts.clear();
+    this.#intervals.clear();
+  }
 }
 
 /** @implements {Storage} */
-export class VSessionStorage {
+export class VStorage {
   #values = new Map();
 
   get length() {

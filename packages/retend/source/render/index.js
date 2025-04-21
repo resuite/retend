@@ -161,7 +161,7 @@ export async function renderToString(template, window, options = {}) {
           const shouldSplit =
             precededByTextNode &&
             child.nodeType === window.Node.TEXT_NODE &&
-            Boolean(child.textContent?.trim());
+            (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
 
           if (shouldSplit) {
             text += `${SPLIT_TEXT_MARKER}${await renderToString(
@@ -174,7 +174,7 @@ export async function renderToString(template, window, options = {}) {
           }
           precededByTextNode =
             child.nodeType === window.Node.TEXT_NODE &&
-            Boolean(child.textContent?.trim());
+            (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
         }
 
         text += `</${tagName}>`;

@@ -39,9 +39,9 @@ import { linkNodesToComponent } from '../plugin/index.js';
  *   caseB: () => <span>Case B</span>
  * }, (value) => <p>Unknown case: {value}</p>);
  *
- * @template {string | number | symbol | null | undefined} Discriminant
+ * @template {string | number | symbol} Discriminant
  * @overload
- * @param {Cell<Discriminant> | Discriminant} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Partial<Record<Discriminant, () => JSX.Template>>} cases - An object mapping possible values to template-generating functions.
  * @param {(value: Discriminant) => JSX.Template} defaultCase - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
@@ -76,9 +76,9 @@ import { linkNodesToComponent } from '../plugin/index.js';
  *   caseB: () => <span>Case B</span>
  * }, (value) => <p>Unknown case: {value}</p>);
  *
- * @template {string | number | symbol | null | undefined} Discriminant
+ * @template {string | number | symbol} Discriminant
  * @overload
- * @param {Cell<Discriminant> | Discriminant} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Record<Discriminant, () => JSX.Template>} cases - An object mapping possible values to template-generating functions.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  */

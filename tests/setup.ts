@@ -20,6 +20,7 @@ export const routerSetup = () => {
     mode: Modes.VDom,
     window,
     consistentValues: new Map(),
+    globalData: new Map(),
     teleportIdCounter: { value: 0 },
   });
 };
@@ -35,6 +36,7 @@ export const browserSetup = () => {
       mode: Modes.Interactive,
       teleportIdCounter: { value: 0 },
       consistentValues: new Map(),
+      globalData: new Map(),
     });
   });
 
@@ -49,6 +51,7 @@ export const vDomSetup = () => {
     setGlobalContext({
       window: new VWindow(),
       consistentValues: new Map(),
+      globalData: new Map(),
       mode: Modes.VDom,
       teleportIdCounter: { value: 0 },
     });

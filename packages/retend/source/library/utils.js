@@ -161,9 +161,10 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
           function (newValue) {
             const styleKey = normalizeStyleKey(key);
             if (!isSomewhatFalsy(newValue)) {
-              this.style.setProperty(styleKey, newValue);
+              // optional because the style property does not exist in the vDOM.
+              this.style?.setProperty(styleKey, newValue);
             } else {
-              this.style.removeProperty(styleKey);
+              this.style?.removeProperty(styleKey);
             }
           },
           false
@@ -254,9 +255,8 @@ export function isNotObject(value) {
 }
 
 /**
- * @template T
  * Checks if a value is somewhat falsy.
- * @param {T} value
+ * @param {any} value
  * @returns {value is undefined | null | false}
  */
 export function isSomewhatFalsy(value) {
@@ -294,23 +294,3 @@ export function createCommentPair() {
 
   return [rangeStart, rangeEnd];
 }
-
-/** @type {typeof globalThis.CustomEvent} */
-export const CustomEvent =
-  globalThis.CustomEvent ??
-  class CustomEvent extends Event {
-    /** @type {any} */
-    #detail;
-    /**
-     * @param {string} type
-     * @param {CustomEventInit} eventInitDict
-     */
-    constructor(type, eventInitDict) {
-      super(type, eventInitDict);
-      this.#detail = eventInitDict?.detail ?? null;
-    }
-
-    get detail() {
-      return this.#detail;
-    }
-  };

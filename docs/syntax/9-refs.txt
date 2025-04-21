@@ -1,0 +1,62 @@
+@Title refs
+@Description Creating and using element references with `Cell.source(null)` and the `ref` attribute.
+
+---
+
+@Example 1
+@Input Basic ref on a div element.
+import { Cell } from 'retend';
+
+const divRef = Cell.source(null);
+const element = <div ref={divRef}>Target Div</div>;
+// Access after creation: console.log(divRef.value);
+@Note Declare ref with `Cell.source(null)`. 
+@Note Attach with `ref={cell}`.
+@Note Access element via `cell.value`.
+
+---
+
+@Example 2
+@Input Ref on an input element.
+import { Cell } from 'retend';
+
+const inputRef = Cell.source(null);
+const element = <input type="text" ref={inputRef} />;
+// Access after creation: inputRef.value?.focus();
+@Note Refs provide direct access to the underlying DOM element.
+
+---
+
+@Example 3
+@Input Ref on a custom component (references the returned element).
+import { Cell } from 'retend';
+
+function MyButton({ ref }) {
+  return <button ref={ref} type="button">Click</button>;
+}
+const buttonRef = Cell.source(null);
+const element = <MyButton ref={buttonRef} />;
+// buttonRef.value will be the <button> element.
+---
+
+@Example 4
+@Input Declaring and using a ref inside a component.
+import { Cell } from 'retend';
+
+function FocusableInput() {
+  const inputElementRef = Cell.source(null);
+  // Example usage (maybe with useObserver): inputElementRef.value?.focus();
+  return <input type="text" ref={inputElementRef} />;
+}
+@Note Refs are declared within the component that uses them.
+
+---
+
+@Example 5
+@Input Ref on an SVG element.
+import { Cell } from 'retend';
+
+const svgRef = Cell.source(null);
+const element = <svg ref={svgRef} xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" fill="red" xmlns="http://www.w3.org/2000/svg"/></svg>;
+// Access SVG specific properties: svgRef.value?.viewBox.baseVal;
+@Note Refs work on any valid JSX element, including SVG. Remember `xmlns`.

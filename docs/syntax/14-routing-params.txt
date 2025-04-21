@@ -1,0 +1,103 @@
+@Title routing-params
+@Description Defining and accessing dynamic URL parameters in routes.
+
+---
+
+@Example 1
+@Input Defining a route with a single parameter `:id`.
+import { defineRoute, useRouter } from 'retend/router';
+
+const UserProfile = () => {
+  const router = useRouter();
+  const userId = router.params.get('id'); // Access param value
+  return <div>User Profile for ID: {userId}</div>;
+};
+
+const route = defineRoute({
+  name: 'user-profile',
+  path: '/users/:id', // Parameter defined with colon prefix
+  component: UserProfile,
+});
+@Note Define parameters using `:paramName` in the `path`.
+@Note Access parameters using `useRouter().params.get('paramName')`.
+
+---
+
+@Example 2
+@Input Defining a route with multiple parameters.
+import { defineRoute, useRouter } from 'retend/router';
+
+const Post = () => {
+  const router = useRouter();
+  const category = router.params.get('category');
+  const postId = router.params.get('postId');
+  return <p>Viewing post {postId} in category {category}</p>;
+};
+
+const route = defineRoute({
+  name: 'post',
+  path: '/posts/:category/:postId',
+  component: Post,
+});
+// Matches URLs like /posts/tech/123
+
+---
+
+@Example 3
+@Input Accessing parameters in a nested route.
+import { defineRoute, useRouter } from 'retend/router';
+
+const ProductLayout = () => <div>Product Section <Outlet/></div>;
+const ProductDetails = () => {
+  const router = useRouter();
+  const productId = router.params.get('productId'); // Access param from parent path segment
+  const tab = router.params.get('tab');         // Access param from own path segment
+  return <p>Product: {productId}, Tab: {tab}</p>;
+};
+
+const routes = defineRoutes([
+  { name: 'product', path: '/product/:productId', component: ProductLayout, children: [
+      { name: 'tab', path: ':tab', component: ProductDetails } // Matches /product/xyz/reviews
+    ]
+  }
+]);
+@Note Child routes inherit parameters defined in parent paths.
+
+---
+
+@Example 4
+@Input Parameter values are always strings, may need parsing.
+import { defineRoute, useRouter } from 'retend/router';
+
+const ItemView = () => {
+  const router = useRouter();
+  const itemIdStr = router.params.get('itemId');
+  const itemId = parseInt(itemIdStr ?? '0', 10); // Parse string to number
+  return <div>Item ID (parsed): {itemId}</div>;
+};
+
+const route = defineRoute({
+  name: 'item',
+  path: '/items/:itemId',
+  component: ItemView,
+});
+@Note Remember that `router.params.get()` returns a string (or null). Parse if a different type is needed.
+
+---
+
+@Example 5
+@Input Route with optional parameters.
+import { defineRoute, useRouter } from 'retend/router';
+
+const Users = () => {
+  const router = useRouter();
+  const userId = router.params.get('userId');
+  return userId ? <div>User: {userId}</div> : <div>All Users</div>;
+};
+
+// Workaround: Define two routes
+const routes = defineRoutes([
+  { name: 'user-list', path: '/users', component: Users },
+  { name: 'user-detail', path: '/users/:userId', component: Users },
+]);
+@Note Retend doesn't support Express-style optional params (`:id?`). Define separate routes for optional segments. Query parameters are often a better alternative.

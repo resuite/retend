@@ -117,7 +117,7 @@ export function For(list, fn, options) {
     const hydrationUpgradeCallback = (event) => {
       const target = /** @type {VDom.VNode} */ (event.target);
       const domNode = event.detail.newInstance;
-      nodes.splice(nodes.indexOf(target), 1, domNode);
+      nodes[nodes.indexOf(target)] = domNode;
     };
 
     for (const node of nodes) {

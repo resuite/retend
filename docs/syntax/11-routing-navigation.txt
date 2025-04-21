@@ -1,0 +1,122 @@
+@Title routing-navigation
+@Description Using `<router.Link>`, `<router.Outlet>`, `useRouter`, and `router.navigate()` for navigation.
+
+---
+
+@Example 1
+@Input Basic navigation using `<router.Link>`.
+import { useRouter } from 'retend/router';
+
+function NavBar() {
+  const router = useRouter(); // Get router instance
+  return (
+    <nav>
+      <router.Link href="/">Home</router.Link>
+      <router.Link href="/about">About</router.Link>
+    </nav>
+  );
+}
+@Note Use `useRouter()` hook inside components to access router functionality.
+@Note `<router.Link href="...">` creates navigation links.
+
+---
+
+@Example 2
+@Input Rendering matched routes using `<router.Outlet>`.
+import { useRouter } from 'retend/router';
+
+function AppLayout() {
+  const router = useRouter();
+  return (
+    <div>
+      <NavBar /> {/* Assume NavBar is defined */}
+      <main>
+        <router.Outlet /> {/* Matched component renders here */}
+      </main>
+    </div>
+  );
+}
+@Note `<router.Outlet />` acts as a placeholder where the matched route's component is rendered.
+
+---
+
+@Example 3
+@Input Programmatic navigation using `router.navigate()`.
+import { useRouter } from 'retend/router';
+
+function LoginButton() {
+  const router = useRouter();
+  const handleLogin = () => {
+    // Perform login logic...
+    router.navigate('/dashboard'); // Navigate after login
+  };
+  return <button type="button" onClick={handleLogin}>Login</button>;
+}
+@Note `router.navigate('/path')` triggers navigation programmatically.
+
+---
+
+@Example 4
+@Input Using `Link` component with additional attributes.
+import { useRouter } from 'retend/router';
+
+function StyledLink() {
+  const router = useRouter();
+  return <router.Link href="/contact" class="button-style">Contact</router.Link>;
+}
+@Note `<router.Link>` accepts standard anchor attributes like `class`, `id`, `style`.
+
+---
+
+@Example 5
+@Input Integrating Link and Outlet in a main application component.
+import { useRouter } from 'retend/router';
+
+// Assume Home, About components and router setup exist
+
+function MainApp() {
+  const router = useRouter();
+  return (
+    <div>
+      <nav>
+        <router.Link href="/">Home</router.Link> |
+        <router.Link href="/about">About</router.Link>
+      </nav>
+      <hr />
+      <router.Outlet />
+    </div>
+  );
+}
+
+// Initial setup (usually in main.ts/js)
+// const router = createWebRouter({ routes: [...] });
+// router.setWindow(window);
+// root.append(<MainApp />); // Render the MainApp component
+@Note Combines `Link` for navigation structure and `Outlet` for content display.
+
+---
+
+@Example 6
+@Input Navigation with `replace` option (programmatic).
+import { useRouter } from 'retend/router';
+
+function RedirectButton() {
+  const router = useRouter();
+  const handleRedirect = () => {
+    router.navigate('/new-page', { replace: true });
+  };
+  return <button type="button" onClick={handleRedirect}>Go to New Page (Replace)</button>;
+}
+@Note `replace: true` replaces the current history entry instead of pushing a new one.
+
+---
+
+@Example 7
+@Input Navigation with `replace` option (declarative).
+import { useRouter } from 'retend/router';
+
+function ReplaceLink() {
+  const router = useRouter();
+  return <router.Link href="/login" replace>Login (Replace History)</router.Link>;
+}
+@Note The `replace` attribute on `<router.Link>` achieves the same as the programmatic option.

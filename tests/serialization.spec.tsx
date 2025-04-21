@@ -456,6 +456,15 @@ const runTests = () => {
       '<div data-static><template shadowrootmode="open"><div>Static content</div></template></div>'
     );
   });
+
+  it('should correctly serialize upper case attribute names', async () => {
+    const { window } = getGlobalContext();
+    //@ts-ignore: testing
+    const element = <div AttrName="test" Other="test" />;
+
+    const result = await renderToString(element, window);
+    expect(result).toBe('<div attr-name="test" other="test"></div>');
+  });
 };
 
 describe('JSX Serialization', () => {

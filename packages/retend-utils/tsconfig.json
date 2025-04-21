@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
+    "allowUnreachableCode": false,
+    "lib": ["DOM", "ESNext", "DOM.Iterable"],
+    "target": "ESNext",
+
+    "strictFunctionTypes": true,
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "skipLibCheck": true,
+
+    "noImplicitReturns": true,
+
+    "allowJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "outDir": "dist",
+    "declarationMap": true,
+
+    "jsx": "react-jsx",
+    "jsxImportSource": "retend",
+
+    "checkJs": true,
+    "strict": true,
+    "rootDir": "source"
+  },
+  "include": ["source"],
+  "exclude": ["node_modules/**/*", "dist"]
+}

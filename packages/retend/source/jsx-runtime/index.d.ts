@@ -29,7 +29,7 @@ export namespace JSX {
     | 'strict-origin-when-cross-origin'
     | 'unsafe-url';
 
-  type InputTypeHTMLAttribute =
+  export type InputTypeHTMLAttribute =
     | 'button'
     | 'checkbox'
     | 'color'
@@ -1065,7 +1065,7 @@ export namespace JSX {
     /**
      * Turns an element into a popover element; takes a popover state ("auto" or "manual") as its value.
      */
-    popover?: Booleanish | 'auto' | 'manual';
+    popover?: 'auto' | 'manual';
   }
 
   type JsxGlobalEventHandlers<E> = {
@@ -1671,12 +1671,12 @@ export namespace JSX {
     /**
      * Specifies the type of input element to display.
      */
-    type?: InputTypeHTMLAttribute;
+    type?: string;
 
     /**
-     * Specifies the value of the input element.
+     * Specifies the initial value of the input element.
      */
-    value?: string | ReadonlyArray<string> | number;
+    value?: string;
 
     /**
      * Adds a popover control to the button taking the ID of the popover element to control as its value.
@@ -1688,6 +1688,42 @@ export namespace JSX {
      */
     popoverTargetAction?: 'hide' | 'show' | 'toggle';
   }
+
+  export interface InputTypeToValueMap {
+    checkbox: boolean;
+    radio: boolean;
+    file: File[];
+    number: number;
+    range: number;
+    date: Date;
+    'datetime-local': Date;
+    text: string;
+    password: string;
+    email: string;
+    tel: string;
+    url: string;
+    search: string;
+    button: string;
+    submit: string;
+    reset: string;
+    hidden: string;
+    image: string;
+    month: string;
+    week: string;
+    time: string;
+    color: string;
+  }
+
+  // export type InputTypeToValue<Type extends InputTypeHTMLAttribute> =
+  //   Type extends 'checkbox' | 'radio'
+  //     ? boolean
+  //     : Type extends 'file'
+  //     ? File[]
+  //     : Type extends 'number' | 'range'
+  //     ? number
+  //     : Type extends 'date' | 'datetime-local'
+  //     ? Date
+  //     : string;
 
   interface JsxLabelElement extends JsxHtmlElement<HTMLLabelElement> {
     /**
