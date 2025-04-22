@@ -14,6 +14,7 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { isRunnableDevEnvironment } from 'vite';
+import { addMetaListener } from './meta.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -95,10 +96,6 @@ export async function buildPaths(paths, options) {
     );
   }
 
-  const { addMetaListener } = await runner.import(
-    import.meta.resolve('./meta.js')
-  );
-
   for (const path of paths) {
     /** @type {RenderOptions} */
     const renderOptions = {
@@ -110,7 +107,6 @@ export async function buildPaths(paths, options) {
       routerModule,
       retendRenderModule,
       retendVDomModule,
-      addMetaListener,
     };
     const promise = renderPath(renderOptions);
     promises.push(promise);
@@ -134,7 +130,6 @@ async function renderPath(options) {
     routerModule,
     retendRenderModule,
     retendVDomModule,
-    addMetaListener,
   } = options;
 
   const { Modes, setGlobalContext, isVNode } = routerModule.context;

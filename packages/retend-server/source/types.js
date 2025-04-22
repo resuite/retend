@@ -58,5 +58,4 @@
  * @property {{ createRouter: () => Router, context: typeof import('retend/context') }} routerModule
  * @property {typeof import('retend/render')} retendRenderModule
  * @property {typeof import('retend/v-dom')} retendVDomModule
- * @property {typeof import('./meta.js').addMetaListener} addMetaListener
  */
