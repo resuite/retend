@@ -488,6 +488,7 @@ async function createRouterFile(projectDir, answers) {
 import { createWebRouter } from 'retend/router';
 import { startRoute } from './views/start/routes';
 
+export * as context from 'retend/context';
 export function createRouter() {
   return createWebRouter({ routes: [startRoute] });
 }
