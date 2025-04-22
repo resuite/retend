@@ -31,6 +31,7 @@
     "./include": "./dist/include/index.js",
     "./v-dom": "./dist/v-dom/index.js",
     "./plugin": "./dist/plugin/index.js",
+    "./plugin/hmr": "./dist/plugin/hmr.js",
     "./context": "./dist/context/index.js"
   }
 }

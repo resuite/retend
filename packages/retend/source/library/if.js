@@ -9,7 +9,7 @@ import {
   generateChildNodes,
   getMostCurrentFunction,
 } from './utils.js';
-import { linkNodesToComponent } from '../plugin/index.js';
+import { linkNodesToComponent } from '../plugin/hmr.js';
 
 /**
  * @template T

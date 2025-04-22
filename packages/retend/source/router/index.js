@@ -13,7 +13,7 @@ import {
 import { LazyRoute } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { RouteTree } from './routeTree.js';
-import { linkNodesToComponent } from '../plugin/index.js';
+import { linkNodesToComponent } from '../plugin/hmr.js';
 import {
   matchContext,
   Modes,

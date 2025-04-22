@@ -51,13 +51,11 @@
 /**
  * @typedef {Object} RenderOptions
  * @property {string} path
- * @property {string} routerPath
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
  * @property {string} htmlShell
- * @property {ViteDevServer} server
  * @property {string} rootSelector
- * @property {typeof import('retend/context')} retendContextModule
  * @property {typeof import('retend')} retendModule
+ * @property {{ createRouter: () => Router, context: typeof import('retend/context') }} routerModule
  * @property {typeof import('retend/render')} retendRenderModule
  * @property {typeof import('retend/v-dom')} retendVDomModule
  * @property {typeof import('./meta.js').addMetaListener} addMetaListener

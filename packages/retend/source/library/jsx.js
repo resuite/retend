@@ -9,7 +9,7 @@ import {
   getMostCurrentFunction,
   isSomewhatFalsy,
 } from './utils.js';
-import { linkNodesToComponent } from '../plugin/index.js';
+import { linkNodesToComponent } from '../plugin/hmr.js';
 import {
   getGlobalContext,
   isVNode,

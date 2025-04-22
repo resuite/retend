@@ -1,8 +1,8 @@
 /** @import { RouteData, Router } from 'retend/router' */
+/** @import { isVNode } from 'retend/context' */
+/** @import { VDocument } from 'retend/v-dom' */
 /** @import { Cell } from 'retend' */
 /** @import { PageMeta } from './client.js' */
-
-import { getGlobalContext, isVNode } from 'retend/context';
 
 /** @type {Record<keyof PageMeta, string>} */
 const metaNameMap = {
@@ -31,11 +31,10 @@ const metaNameMap = {
 /**
  * Updates the page metadata including lang, charset, title and other meta tags
  * @param {PageMeta} newMeta - The new meta data to update the page with
+ * @param {Document | VDocument} document - The document object to update
+ * @param {typeof isVNode} isVNode - Whether the document is a virtual node
  */
-export function updatePageMeta(newMeta) {
-  const {
-    window: { document },
-  } = getGlobalContext();
+export function updatePageMeta(newMeta, document, isVNode) {
   const head = document.head;
   const html = document.documentElement;
 
@@ -126,16 +125,18 @@ export function updatePageMeta(newMeta) {
 /**
  * Adds a listener to the window object to update the page meta data
  * @param {Router} router - The router instance
+ * @param {Document | VDocument} document - The document object to update
+ * @param {typeof isVNode} isVNode - Whether the document is a virtual node
  * @returns {void}
  */
-export function addMetaListener(router) {
+export function addMetaListener(router, document, isVNode) {
   /** @type {Cell<RouteData>} */
   const currentPath = Reflect.get(router, 'currentPath');
   currentPath.runAndListen((data) => {
     const { metadata } = data;
     if (metadata) {
       const entries = Object.fromEntries(metadata.entries());
-      updatePageMeta(entries);
+      updatePageMeta(entries, document, isVNode);
     }
   });
 }

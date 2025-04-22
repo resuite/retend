@@ -1,7 +1,7 @@
 /** @import { Plugin, UserConfig, ViteDevServer } from 'vite' */
+/** @import { VElement } from 'retend/v-dom' */
 /** @import { BuildOptions } from './types.js' */
 
-import { VElement } from 'retend/v-dom';
 import {
   buildPaths,
   HtmlOutputArtifact,
@@ -96,13 +96,14 @@ export function retendSSG(options) {
           const { name: fileName, contents, stringify } = artifact;
           // Rewrite asset references
           contents.document.findNodes((node) => {
-            if (!(node instanceof VElement)) return false;
+            if (node.nodeType !== 1) return false;
+            const element = /** @type {VElement} */ (node);
 
-            const tagName = node.tagName.toLowerCase();
+            const tagName = element.tagName.toLowerCase();
             if (!/^script|style|link|img$/i.test(tagName)) return false;
 
             const attrName = tagName === 'link' ? 'href' : 'src';
-            const attrValue = node.getAttribute(attrName);
+            const attrValue = element.getAttribute(attrName);
             if (!attrValue || attrValue.includes('://')) return false;
             const fullPath = path.resolve(
               attrValue.startsWith('/') ? attrValue.slice(1) : attrValue
@@ -110,7 +111,7 @@ export function retendSSG(options) {
             const rewrittenAsset = assetSourceToDistMap.get(fullPath);
             if (!rewrittenAsset) return false;
 
-            node.setAttribute(attrName, rewrittenAsset.fileName);
+            element.setAttribute(attrName, rewrittenAsset.fileName);
             return true;
           });
 

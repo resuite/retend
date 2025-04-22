@@ -10,7 +10,7 @@ import {
   generateChildNodes,
   getMostCurrentFunction,
 } from './utils.js';
-import { linkNodesToComponent } from '../plugin/index.js';
+import { linkNodesToComponent } from '../plugin/hmr.js';
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 
 /** @typedef {VDom.VNode | ChildNode} ChildNodeLike */

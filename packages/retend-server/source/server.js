@@ -1,4 +1,3 @@
-/** @import { Router } from 'retend/router' */
 /** @import { VElement, VNode, VWindow } from 'retend/v-dom' */
 /** @import {
  *    BuildOptions,
@@ -14,6 +13,7 @@ import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
+import { isRunnableDevEnvironment } from 'vite';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -65,30 +65,37 @@ export async function buildPaths(paths, options) {
   /** @type {AsyncLocalStorage<AsyncStorage>} */
   const asyncLocalStorage = new AsyncLocalStorage();
   const promises = [];
+  const ssrEnvironment = server.environments.ssr;
 
-  // NOTE: These modules are imported dynamically into the server context
-  // that was created for the SSR process, rather than statically as ESM imports.
-  //
-  // This is because Vite's SSR process loads the modules in an entirely different
-  // (but connected and internally consistent) way, meaning that the modules imported statically
-  // had entirely different dependencies, contexts, and behaviors.
-  //
-  // This is done to ensure consistency and coherence between the server modules,
-  // and to ensure we are not retrieving modules that are not available on the server.
+  if (!isRunnableDevEnvironment(ssrEnvironment)) {
+    throw new Error('The SSR environment is not runnable.');
+  }
+  const runner = ssrEnvironment.runner;
 
-  const retendContextModule = /** @type {typeof import('retend/context')} */ (
-    await server.ssrLoadModule('retend/context')
-  );
   const retendModule = /** @type {typeof import('retend')} */ (
-    await server.ssrLoadModule('retend')
+    await runner.import('retend')
   );
   const retendRenderModule = /** @type {typeof import('retend/render')} */ (
-    await server.ssrLoadModule('retend/render')
+    await runner.import('retend/render')
   );
   const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
-    await server.ssrLoadModule('retend/v-dom')
+    await runner.import('retend/v-dom')
   );
-  const { addMetaListener } = await server.ssrLoadModule(
+  const routerModule = await runner.import(resolve(routerPath));
+
+  if (routerModule.context === undefined) {
+    throw new Error(
+      'The router module must export the retend/context module as a named export. Please add export * as context from "retend/context"; to your router module.'
+    );
+  }
+
+  if (routerModule.createRouter === undefined) {
+    throw new Error(
+      'The router module must export a createRouter function. Please add export function createRouter() { return createWebRouter({ ... }); } to your router module.'
+    );
+  }
+
+  const { addMetaListener } = await runner.import(
     import.meta.resolve('./meta.js')
   );
 
@@ -96,13 +103,11 @@ export async function buildPaths(paths, options) {
     /** @type {RenderOptions} */
     const renderOptions = {
       path,
-      routerPath,
       asyncLocalStorage,
       htmlShell,
-      server,
       rootSelector,
-      retendContextModule,
       retendModule,
+      routerModule,
       retendRenderModule,
       retendVDomModule,
       addMetaListener,
@@ -122,19 +127,17 @@ export async function buildPaths(paths, options) {
 async function renderPath(options) {
   const {
     path,
-    routerPath,
     asyncLocalStorage,
     htmlShell,
-    server,
     rootSelector,
-    retendContextModule,
     retendModule,
+    routerModule,
     retendRenderModule,
     retendVDomModule,
     addMetaListener,
   } = options;
 
-  const { Modes, setGlobalContext } = retendContextModule;
+  const { Modes, setGlobalContext, isVNode } = routerModule.context;
   const { getConsistentValues } = retendModule;
   const { renderToString } = retendRenderModule;
   const { VElement, VWindow } = retendVDomModule;
@@ -187,15 +190,12 @@ async function renderPath(options) {
     const { document, location } = window;
     location.href = path;
 
-    const routerModule = await server.ssrLoadModule(resolve(routerPath));
-
-    /** @type {Router} */
     const router = routerModule.createRouter();
     const currentRoute = router.getCurrentRoute();
     router.setWindow(window);
     router.attachWindowListeners();
 
-    addMetaListener(router);
+    addMetaListener(router, document, isVNode);
 
     const appElement = document.querySelector(rootSelector);
     if (!appElement) {

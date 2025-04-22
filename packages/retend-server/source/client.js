@@ -12,6 +12,7 @@ import {
   Modes,
   getGlobalContext,
   matchContext,
+  isVNode,
 } from 'retend/context';
 import { upgradeAnchorTag } from 'retend/router';
 import {
@@ -177,7 +178,7 @@ export async function hydrate(routerFn) {
   const context = JSON.parse(contextScript.textContent ?? '{}');
   const router = await restoreContext(context, routerFn);
   contextScript.remove();
-  addMetaListener(router);
+  addMetaListener(router, document, isVNode);
   activateLinks(router);
   return router;
 }
@@ -190,7 +191,7 @@ function defaultToSpaMode(routerFn) {
   const root = document.querySelector('#app');
   root?.append(/** @type {Node} */ (router.Outlet()));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
-  addMetaListener(router);
+  addMetaListener(router, document, isVNode);
   return router;
 }
 

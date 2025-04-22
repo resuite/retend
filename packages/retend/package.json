@@ -59,6 +59,10 @@
       "import": "./dist/plugin/index.js",
       "types": "./dist/plugin/index.d.ts"
     },
+    "./plugin/hmr": {
+      "import": "./dist/plugin/hmr.js",
+      "types": "./dist/plugin/hmr.d.ts"
+    },
     "./context": {
       "import": "./dist/context/index.js",
       "types": "./dist/context/index.d.ts"

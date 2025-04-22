@@ -3,7 +3,7 @@ import { getGlobalContext } from '../context/index.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { UpdatableFn } from '../plugin/index.js' */
+/** @import { UpdatableFn } from '../plugin/hmr.js' */
 
 /** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
 export const isDevMode = import.meta.env?.DEV;
