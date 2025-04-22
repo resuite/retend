@@ -44,7 +44,7 @@ export default defineConfig({
 - **`routerModulePath`** (Required)
 
   - Type: `string`
-  - Description: The file path to the module exporting your `createRouter` function, which defines your application's routing logic.
+  - Description: The file path to the module exporting your `createRouter` function and `context`, which defines your application's routing logic.
   - Example: `'./src/router.js'`
 
 ### Updating the Application Entry Point

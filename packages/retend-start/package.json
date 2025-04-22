@@ -1,6 +1,6 @@
 {
   "name": "retend-start",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "private": false,
   "type": "module",
   "description": "Scaffold a new project with retend",
@@ -29,10 +29,11 @@
   "homepage": "https://github.com/adebola-io/retend#readme",
   "dependencies": {
     "@types/node": "^22.7.5",
+    "@types/semver": "^7.7.0",
     "chalk": "^5.3.0",
     "inquirer": "^12.0.0",
     "ora": "^8.1.0",
-    "semver": "^7.6.3"
+    "semver": "^7.7.1"
   },
   "publishConfig": {
     "access": "public"

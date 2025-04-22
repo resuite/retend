@@ -7,6 +7,7 @@
     "lib": ["DOM", "ESNext", "DOM.Iterable"],
     "allowImportingTsExtensions": true,
     "target": "ESNext",
+    "resolveJsonModule": true,
 
     "strictFunctionTypes": true,
     "moduleResolution": "NodeNext",
