@@ -47,7 +47,9 @@ const FLUID_LIST_STYLES = `
     }
   }
 }
-`.trim();
+`
+  .trim()
+  .replace(/\n/g, '');
 
 /**
  * @typedef AnimatedListElementProps
