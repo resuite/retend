@@ -17,10 +17,11 @@ Here's a breakdown of the core functionalities:
 - **Built-in Reactivity:** [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
 
 - **Components are DOM Elements:** Components in Retend are just functions that return elements.
+
   - There is no extra layer.
   - There is no Virtual DOM.
   - There is no "re-render".
-    
+
   This gives you a high level of control and interoperability with existing DOM APIs.
 
 - **Built-in Router:** The library includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
@@ -43,7 +44,31 @@ This will set up the basic project structure for you. Then, you'll need to insta
   npx retend-start
   ```
 
-  This command will prompt you for some details about your project (such as the name, if you want to use Tailwind etc.) and will generate the necessary project files.
+  This command will prompt you for some details about your project and generate the necessary project files.
+
+  You can also use the following options to configure the project:
+
+  - `--name`: The name of the project (defaults to `my-app`).
+  - `--tailwind`: Whether to use Tailwind CSS (defaults to `false`).
+  - `--scss`: Whether to use SCSS (defaults to `CSS`). If set, SCSS will be used as the CSS preprocessor.
+  - `--javascript`: Whether to use JavaScript (defaults to `JavaScript`). If set, JavaScript will be used as the language. Otherwise, TypeScript will be used.
+  - `--ssg`: Whether to use Static Site Generation (SSG) (defaults to `false`).
+
+  For example:
+
+  ```bash
+  npx retend-start my-app --tailwind --scss --javascript --ssg
+  ```
+
+  This command will create a new project named `my-app` with Tailwind CSS, SCSS, JavaScript, and SSG enabled.
+
+  You can also use the `--default` flag to use the default options:
+
+  ```bash
+  npx retend-start --default
+  ```
+
+  This command will create a new project named `my-app` with the default options (no Tailwind CSS, CSS, JavaScript, and no SSG).
 
 - **Navigate to your project directory:**
 
