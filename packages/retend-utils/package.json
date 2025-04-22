@@ -1,6 +1,6 @@
 {
   "name": "retend-utils",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "A collection of utility functions for Retend.",
   "private": false,
   "type": "module",
@@ -40,7 +40,7 @@
     "vite": "^5.4.14"
   },
   "peerDependencies": {
-    "retend": "^0.0.9"
+    "retend": "^0.0.10"
   },
   "publishConfig": {
     "access": "public"
