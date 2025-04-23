@@ -26,6 +26,7 @@
  * @property {string} [rootSelector]
  * @property {string} [createRouterModule]
  * @property {ViteDevServer} server
+ * @property {boolean} [skipRedirects]
  */
 
 /**
@@ -58,4 +59,5 @@
  * @property {{ createRouter: () => Router, context: typeof import('retend/context') }} routerModule
  * @property {typeof import('retend/render')} retendRenderModule
  * @property {typeof import('retend/v-dom')} retendVDomModule
+ * @property {boolean} skipRedirects
  */

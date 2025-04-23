@@ -16,6 +16,9 @@ import { Comment, Text, Element } from 'domhandler';
 import { isRunnableDevEnvironment } from 'vite';
 import { addMetaListener } from './meta.js';
 
+/** @type {AsyncLocalStorage<AsyncStorage>} */
+const asyncLocalStorage = new AsyncLocalStorage(); // Create instance at module scope
+
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
   /**
@@ -45,7 +48,7 @@ export class RedirectOutputArtifact extends OutputArtifact {
 
 /**
  * @param {string[]} paths The paths to serialize.
- * @param {BuildOptions} options Options for building.
+ * @param {BuildOptions} options Options for building, including optional skipRedirects.
  * @returns {Promise<(HtmlOutputArtifact | RedirectOutputArtifact)[]>} A promise that resolves to an array of output artifacts.
  *
  * @example
@@ -61,28 +64,29 @@ export async function buildPaths(paths, options) {
     htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
     createRouterModule: routerPath = './router',
+    skipRedirects = false,
   } = options;
 
-  /** @type {AsyncLocalStorage<AsyncStorage>} */
-  const asyncLocalStorage = new AsyncLocalStorage();
+  // Use the module-scoped instance
+  // const asyncLocalStorage = new AsyncLocalStorage(); // Remove instantiation from here
   const promises = [];
   const ssrEnvironment = server.environments.ssr;
 
   if (!isRunnableDevEnvironment(ssrEnvironment)) {
     throw new Error('The SSR environment is not runnable.');
   }
-  const runner = ssrEnvironment.runner;
+  const moduleRunner = ssrEnvironment.runner;
 
   const retendModule = /** @type {typeof import('retend')} */ (
-    await runner.import('retend')
+    await moduleRunner.import('retend')
   );
   const retendRenderModule = /** @type {typeof import('retend/render')} */ (
-    await runner.import('retend/render')
+    await moduleRunner.import('retend/render')
   );
   const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
-    await runner.import('retend/v-dom')
+    await moduleRunner.import('retend/v-dom')
   );
-  const routerModule = await runner.import(resolve(routerPath));
+  const routerModule = await moduleRunner.import(resolve(routerPath));
 
   if (routerModule.context === undefined) {
     throw new Error(
@@ -103,10 +107,11 @@ export async function buildPaths(paths, options) {
       asyncLocalStorage,
       htmlShell,
       rootSelector,
-      retendModule,
       routerModule,
+      retendModule,
       retendRenderModule,
       retendVDomModule,
+      skipRedirects,
     };
     const promise = renderPath(renderOptions);
     promises.push(promise);
@@ -130,6 +135,7 @@ async function renderPath(options) {
     routerModule,
     retendRenderModule,
     retendVDomModule,
+    skipRedirects,
   } = options;
 
   const { Modes, setGlobalContext, isVNode } = routerModule.context;
@@ -245,8 +251,7 @@ async function renderPath(options) {
     };
 
     outputs.push(new HtmlOutputArtifact(name, window, stringify));
-
-    if (path === finalPath) return;
+    if (path === finalPath || skipRedirects) return;
 
     // Add redirect to both HTML and _redirects file
     const redirectContent = generateRedirectHtmlContent(finalPath);

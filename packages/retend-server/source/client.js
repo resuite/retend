@@ -160,11 +160,6 @@ import { addMetaListener } from './meta.js';
  * ```
  */
 export async function hydrate(routerFn) {
-  if (import.meta.env.DEV) {
-    // Default to SPA mode in development.
-    return defaultToSpaMode(routerFn);
-  }
-
   const contextScript = document.querySelector('script[data-server-context]');
   if (!contextScript) {
     console.warn(
