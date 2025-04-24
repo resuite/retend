@@ -17,7 +17,7 @@ import { isRunnableDevEnvironment } from 'vite';
 import { addMetaListener } from './meta.js';
 
 /** @type {AsyncLocalStorage<AsyncStorage>} */
-const asyncLocalStorage = new AsyncLocalStorage(); // Create instance at module scope
+const asyncLocalStorage = new AsyncLocalStorage();
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -65,6 +65,8 @@ export async function buildPaths(paths, options) {
     rootSelector = '#app',
     createRouterModule: routerPath = './router',
     skipRedirects = false,
+    serverModulesAddressMap,
+    staticImports,
   } = options;
 
   // Use the module-scoped instance
@@ -112,6 +114,8 @@ export async function buildPaths(paths, options) {
       retendRenderModule,
       retendVDomModule,
       skipRedirects,
+      serverModulesAddressMap,
+      staticImports,
     };
     const promise = renderPath(renderOptions);
     promises.push(promise);
@@ -136,6 +140,8 @@ async function renderPath(options) {
     retendRenderModule,
     retendVDomModule,
     skipRedirects,
+    serverModulesAddressMap,
+    staticImports,
   } = options;
 
   const { Modes, setGlobalContext, isVNode } = routerModule.context;
@@ -147,6 +153,8 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
+  globalData.set('server:serverModulesMap', serverModulesAddressMap);
+  globalData.set('server:staticImports', staticImports);
   const store = {
     window,
     path,

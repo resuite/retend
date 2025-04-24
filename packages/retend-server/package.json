@@ -8,8 +8,12 @@
     "build": "bun scripts/build.js"
   },
   "dependencies": {
+    "acorn": "^8.14.1",
     "domhandler": "^5.0.3",
-    "htmlparser2": "^10.0.0"
+    "estree-walker": "^3.0.3",
+    "htmlparser2": "^10.0.0",
+    "magic-string": "^0.30.17",
+    "oxc-walker": "^0.2.5"
   },
   "exports": {
     "./server": {

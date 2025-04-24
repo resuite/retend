@@ -1,6 +1,6 @@
 /** @import { Plugin, UserConfig, ViteDevServer } from 'vite' */
 /** @import { VElement } from 'retend/v-dom' */
-/** @import { BuildOptions } from './types.js' */
+/** @import { BuildOptions, StaticModule } from './types.js' */
 
 import {
   buildPaths,
@@ -9,8 +9,10 @@ import {
 } from './server.js';
 import { createServer } from 'vite';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-// import { readFile, readFileSync } from 'node:fs';
+import { parseAndWalk } from 'oxc-walker';
+import MagicString from 'magic-string';
 
 /**
  * @typedef {object} PluginOptions
@@ -36,7 +38,7 @@ import { readFileSync } from 'node:fs';
 /**
  * A Vite plugin that generates static HTML files for `retend` applications after the Vite build.
  * @param {PluginOptions} options - Configuration options for the plugin.
- * @returns {Plugin} A Vite plugin object.
+ * @returns {Plugin[]} A Vite plugin object.
  */
 export function retendSSG(options) {
   const {
@@ -60,180 +62,243 @@ export function retendSSG(options) {
   /** @type {ViteDevServer} */
   let server;
 
-  return {
-    name: 'vite-plugin-retend-server',
-    enforce: 'post', // Run after Vite core plugins
+  /** Maps from hashes to server module paths. */
+  const serverModulesAddressMap = new Map();
+  /** Maps from server module paths to hashes. */
+  const serverModulesAddressMapInvert = new Map();
+  /** @type {Record<string, StaticModule>} */
+  const staticImports = {};
 
-    config(config) {
-      viteConfig = config;
-      return config;
-    },
+  return [
+    {
+      name: 'vite-plugin-retend-server-snapshot',
+      enforce: 'pre',
 
-    // Handles SSR requests during development (`vite dev` or `vite serve`)
-    async configureServer(devServer) {
-      // Read the base HTML shell using the dev server's config
-      const htmlShellPath = path.resolve(devServer.config.root, 'index.html');
-      let htmlShell;
-      try {
-        htmlShell = readFileSync(htmlShellPath, 'utf-8');
-      } catch (error) {
-        console.error(
-          `[retend-server] Failed to read HTML shell at ${htmlShellPath}:`,
-          error
-        );
-        return;
-      }
+      async transform(source, id) {
+        const skipFile =
+          id.includes('node_modules') ||
+          id.includes('retend-server/dist/') ||
+          !id.match(/\.[jt]sx?$/);
+        if (skipFile) return null;
 
-      return () => {
-        devServer.middlewares.use(async (req, res, next) => {
-          // Use originalUrl to capture query params etc.
-          const url = req.originalUrl;
+        const magicString = new MagicString(source);
+        /** @type {Promise<void>[]} */
+        const serverModuleResolvers = [];
 
-          // Basic check to skip assets, HMR, API calls etc.
-          // Adjust this logic if necessary for your specific routing needs.
+        parseAndWalk(source, id, (node) => {
+          if (node.type !== 'CallExpression') return;
+          if (node.callee.type !== 'Identifier') return;
+          if (node.callee.name !== 'getServerSnapshot') return;
+          if (node.arguments.length !== 1) {
+            const message = `getServerSnapshot() expects a single argument, but received ${node.arguments.length}`;
+            throw new Error(message);
+          }
+
+          const argument = node.arguments[0];
+          if (argument.type !== 'ArrowFunctionExpression') {
+            const message = `getServerSnapshot() expects an arrow function as the argument, but received ${argument.type}`;
+            throw new Error(message);
+          }
+          if (argument.body.type !== 'ImportExpression') {
+            const message =
+              'getServerSnapshot() expects a module importer function as its argument';
+            throw new Error(message);
+          }
           if (
-            !url ||
-            url.includes('.') ||
-            url.startsWith('/@') ||
-            url.startsWith('/node_modules/') ||
-            req.method !== 'GET'
+            argument.body.source.type !== 'Literal' ||
+            typeof argument.body.source.value !== 'string'
           ) {
-            return next(); // Pass request to next middleware (likely Vite's default handlers)
+            const message =
+              'Cannot resolve server module. Import Functions should be statically analyzable.';
+            throw new Error(message);
           }
 
-          console.log(`[retend-server] Intercepting request for: ${url}`);
-
-          try {
-            // Prepare options for buildPaths, using the dev server
-            /** @type {BuildOptions} */
-            const buildOptions = {
-              rootSelector,
-              createRouterModule,
-              htmlShell, // Pass the read HTML shell content
-              server: devServer, // Pass the ViteDevServer instance for module loading etc.
-              skipRedirects: true, // Skip generating redirect artifacts in dev SSR
-            };
-
-            // Use buildPaths to render the requested URL, expecting only HTML artifacts
-            const outputArtifacts = await buildPaths([url], buildOptions);
-
-            // Assert that exactly one artifact is returned and it's not a redirect
-            if (!outputArtifacts || outputArtifacts.length !== 1) {
-              console.error(
-                `[retend-server] Expected exactly one artifact for ${url}, but got ${
-                  outputArtifacts?.length ?? 0
-                }.`
-              );
-              return next(); // Proceed to other middlewares or Vite's 404
+          const moduleImporter = argument.body.source.value;
+          const promise = this.resolve(moduleImporter, id).then(
+            (serverModule) => {
+              if (serverModule === null) {
+                throw new Error(`Server module ${moduleImporter} not found.`);
+              }
+              const { start, end } = node;
+              const hash =
+                serverModulesAddressMapInvert.get(serverModule.id) ??
+                createHash('sha256')
+                  .update(serverModule.id, 'utf8')
+                  .digest('hex');
+              const replacement = `getServerSnapshot("${hash}")`;
+              serverModulesAddressMap.set(hash, serverModule.id);
+              serverModulesAddressMapInvert.set(serverModule.id, hash);
+              magicString.overwrite(start, end, replacement);
             }
-
-            const artifact = outputArtifacts[0];
-
-            // Since skipRedirects is true, we should not receive RedirectOutputArtifact
-            if (artifact instanceof RedirectOutputArtifact) {
-              console.error(
-                `[retend-server] Received unexpected RedirectOutputArtifact for ${url} despite skipRedirects=true.`
-              );
-              return next();
-            }
-
-            // Expecting a single HTML artifact for a single URL request in dev SSR
-            if (!artifact || !(artifact instanceof HtmlOutputArtifact))
-              console.warn(
-                `[retend-server] No output artifact generated for URL: ${url}`
-              );
-            const renderedHtml = await stringifyArtifact(artifact);
-
-            // Send the final HTML response
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'text/html');
-            res.end(renderedHtml);
-            console.log(`[retend-server] SSR rendered ${url}`);
-          } catch (e) {
-            if (e instanceof Error) {
-              devServer.ssrFixStacktrace(e);
-            }
-            console.error(
-              `[retend-server] SSR Error processing ${url}:`,
-              e instanceof Error ? e.message : e
-            );
-            next(e);
-          }
+          );
+          serverModuleResolvers.push(promise);
         });
-      };
+
+        await Promise.all(serverModuleResolvers);
+
+        return { code: magicString.toString(), map: magicString.generateMap() };
+      },
     },
+    {
+      name: 'vite-plugin-retend-server',
+      enforce: 'post',
 
-    // --- Build-time hooks (SSG) ---
+      config(config) {
+        viteConfig = config;
+        return config;
+      },
 
-    // transformIndexHtml is used during build to prepare for SSG
-    async transformIndexHtml(html) {
-      /** @type {UserConfig} */
-      const serverConfig = {
-        ...viteConfig,
-        server: { ...viteConfig.server, middlewareMode: true },
-        ssr: { ...viteConfig.ssr, target: 'node' },
-        appType: 'custom',
-        // It is expected that all the expected functionality, be it transformations or rewrites,
-        // would have been handled by the main build process and cached. Having the plugins run again leads
-        // to problems, as they would attempt to transform already transformed code.
-        plugins: [],
-      };
-
-      server = await createServer(serverConfig);
-
-      /** @type {BuildOptions} */
-      const buildOptions = {
-        rootSelector,
-        createRouterModule,
-        htmlShell: html,
-        server,
-      };
-
-      outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
-      return html;
-    },
-
-    async generateBundle(_, bundle) {
-      const assetSourceToDistMap = new Map();
-      for (const obj of Object.values(bundle)) {
-        if ('originalFileNames' in obj) {
-          assetSourceToDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
+      // Handles SSR requests during development (`vite dev` or `vite serve`)
+      async configureServer(devServer) {
+        // Read the base HTML shell using the dev server's config
+        const htmlShellPath = path.resolve(devServer.config.root, 'index.html');
+        let htmlShell;
+        try {
+          htmlShell = readFileSync(htmlShellPath, 'utf-8');
+        } catch (error) {
+          console.error(
+            `[retend-server] Failed to read HTML shell at ${htmlShellPath}:`,
+            error
+          );
+          return;
         }
-      }
 
-      const redirectionLines = [];
-      const promises = [];
-      for (const artifact of outputArtifacts) {
-        if (artifact instanceof HtmlOutputArtifact) {
+        return () => {
+          devServer.middlewares.use(async (req, res, next) => {
+            const url = req.originalUrl;
+            const skipUrl =
+              !url ||
+              url.includes('.') ||
+              url.startsWith('/@') ||
+              url.startsWith('/node_modules/') ||
+              req.method !== 'GET';
+
+            if (skipUrl) return next();
+
+            try {
+              /** @type {BuildOptions} */
+              const buildOptions = {
+                rootSelector,
+                createRouterModule,
+                htmlShell,
+                server: devServer,
+                skipRedirects: true,
+                serverModulesAddressMap,
+                staticImports,
+              };
+
+              const outputArtifacts = await buildPaths([url], buildOptions);
+              if (!outputArtifacts || outputArtifacts.length !== 1) {
+                console.error(
+                  `[retend-server] Expected exactly one artifact for ${url}, but got ${
+                    outputArtifacts?.length ?? 0
+                  }.`
+                );
+                return next();
+              }
+
+              const artifact = outputArtifacts[0];
+              if (!artifact || !(artifact instanceof HtmlOutputArtifact)) {
+                return next();
+              }
+
+              const renderedHtml = await stringifyArtifact(
+                artifact,
+                staticImports
+              );
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'text/html');
+              res.end(renderedHtml);
+            } catch (e) {
+              if (e instanceof Error) devServer.ssrFixStacktrace(e);
+              console.error(
+                `[retend-server] SSR Error processing ${url}:`,
+                e instanceof Error ? e.message : e
+              );
+              next(e);
+            }
+          });
+        };
+      },
+
+      // --- Build-time hooks (SSG) ---
+      async transformIndexHtml(html) {
+        /** @type {UserConfig} */
+        const serverConfig = {
+          ...viteConfig,
+          server: { ...viteConfig.server, middlewareMode: true },
+          ssr: { ...viteConfig.ssr, target: 'node' },
+          appType: 'custom',
+          // It is expected that all the expected functionality, be it transformations or rewrites,
+          // would have been handled by the main build process and cached. Having the plugins run again leads
+          // to problems, as they would attempt to transform already transformed code.
+          plugins: [],
+        };
+
+        server = await createServer(serverConfig);
+
+        /** @type {BuildOptions} */
+        const buildOptions = {
+          rootSelector,
+          createRouterModule,
+          htmlShell: html,
+          server,
+          serverModulesAddressMap,
+          staticImports,
+        };
+
+        outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
+        return html;
+      },
+
+      async generateBundle(_, bundle) {
+        const assetSourceToDistMap = new Map();
+        for (const obj of Object.values(bundle)) {
+          if ('originalFileNames' in obj) {
+            assetSourceToDistMap.set(
+              path.resolve(obj.originalFileNames[0]),
+              obj
+            );
+          }
+        }
+
+        const redirectLines = [];
+        const promises = [];
+        for (const artifact of outputArtifacts) {
+          if (artifact instanceof RedirectOutputArtifact) {
+            redirectLines.push(artifact.contents);
+            continue;
+          }
+
           const { name: fileName } = artifact;
           promises.push(
-            stringifyArtifact(artifact, assetSourceToDistMap).then((source) => {
+            stringifyArtifact(
+              artifact,
+              staticImports,
+              assetSourceToDistMap
+            ).then((source) => {
               this.emitFile({ type: 'asset', fileName, source });
             })
           );
-        } else {
-          redirectionLines.push(artifact.contents);
         }
-      }
 
-      if (redirectionLines.length > 0) {
-        this.emitFile({
-          type: 'asset',
-          fileName: '_redirects',
-          source: redirectionLines.join('\n'),
-        });
-      }
+        if (redirectLines.length > 0) {
+          this.emitFile({
+            type: 'asset',
+            fileName: '_redirects',
+            source: redirectLines.join('\n'),
+          });
+        }
 
-      await Promise.all(promises);
+        await Promise.all(promises);
+      },
+
+      closeBundle() {
+        server?.close();
+      },
     },
-
-    closeBundle() {
-      server?.close();
-    },
-  };
+  ];
 }
-
-/**
 
 /**
  * Rewrites asset references in the given artifact's document and returns the stringified result.
@@ -244,13 +309,19 @@ export function retendSSG(options) {
  *
  * @async
  * @param {HtmlOutputArtifact} artifact - The artifact object containing the document and a stringify method.
+ * @param {Record<string, StaticModule>} staticImports
  * @param {Map<string, { fileName: string }>} [assetSourceToDistMap] - A map from source asset paths to their rewritten distribution info.
  * @returns {Promise<string>} The stringified artifact with rewritten asset references.
  */
-async function stringifyArtifact(artifact, assetSourceToDistMap) {
+async function stringifyArtifact(
+  artifact,
+  staticImports,
+  assetSourceToDistMap
+) {
   const { contents, stringify } = artifact;
+  const { document } = contents;
   // Rewrite asset references
-  contents.document.findNodes((node) => {
+  document.findNodes((node) => {
     if (node.nodeType !== 1) return false;
     const element = /** @type {VElement} */ (node);
 
@@ -269,6 +340,15 @@ async function stringifyArtifact(artifact, assetSourceToDistMap) {
     element.setAttribute(attrName, rewrittenAsset.fileName);
     return true;
   });
+
+  // Inject static imports
+  document.body.append(
+    document.createMarkupNode(
+      `<script data-static data-static-imports type="application/json">${JSON.stringify(
+        staticImports
+      )}</script>`
+    )
+  );
 
   const source = await stringify();
   return source;

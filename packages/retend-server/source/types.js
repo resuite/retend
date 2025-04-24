@@ -26,7 +26,9 @@
  * @property {string} [rootSelector]
  * @property {string} [createRouterModule]
  * @property {ViteDevServer} server
+ * @property {Map<string, string>} serverModulesAddressMap
  * @property {boolean} [skipRedirects]
+ * @property {Record<string, StaticModule>} staticImports
  */
 
 /**
@@ -60,4 +62,18 @@
  * @property {typeof import('retend/render')} retendRenderModule
  * @property {typeof import('retend/v-dom')} retendVDomModule
  * @property {boolean} skipRedirects
+ * @property {Map<string, string>} serverModulesAddressMap
+ * @property {Record<string, StaticModule>} staticImports
+ */
+
+/**
+ * @typedef {{ type: 'raw', value: any }} StaticPrimitiveImport
+ */
+
+/**
+ * @typedef {{ type: 'function', returnValue: any, isAsync: boolean }} StaticFunctionImport
+ */
+
+/**
+ * @typedef {Record<string, StaticPrimitiveImport | StaticFunctionImport>} StaticModule
  */

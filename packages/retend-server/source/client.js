@@ -4,7 +4,7 @@
 /** @import { VDocument } from 'retend/v-dom' */
 /** @import { Router } from 'retend/router' */
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import { ServerContext } from './types.js' */
+/** @import { ServerContext, StaticModule } from './types.js' */
 
 import { setAttributeFromProps, useObserver } from 'retend';
 import {
@@ -24,6 +24,8 @@ import {
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
+
+export { getServerSnapshot } from './get-server-snapshot.js';
 
 /**
  * @template [M={}]
@@ -161,6 +163,9 @@ import { addMetaListener } from './meta.js';
  */
 export async function hydrate(routerFn) {
   const contextScript = document.querySelector('script[data-server-context]');
+  const staticImportsScript = document.querySelector(
+    'script[data-static-imports]'
+  );
   if (!contextScript) {
     console.warn(
       '[retend-server] No server-side context found. Falling back to SPA mode.'
@@ -170,9 +175,18 @@ export async function hydrate(routerFn) {
     return router;
   }
 
+  if (!staticImportsScript) {
+    console.error(
+      '[retend-server] No static imports found. App will not function properly.'
+    );
+    const router = defaultToSpaMode(routerFn);
+    activateLinks(router);
+    return router;
+  }
+
   const context = JSON.parse(contextScript.textContent ?? '{}');
-  const router = await restoreContext(context, routerFn);
-  contextScript.remove();
+  const staticImports = JSON.parse(staticImportsScript.textContent ?? '{}');
+  const router = await restoreContext(context, staticImports, routerFn);
   addMetaListener(router, document, isVNode);
   activateLinks(router);
   return router;
@@ -199,21 +213,24 @@ function defaultToSpaMode(routerFn) {
  *
  * @param {ServerContext} context - The server-rendered context, containing data about the application
  *  state, root element, and other consistent values.
+ * @param {Record<string, StaticModule>} staticImports - The static imports object.
  * @param {() => Router} routerCreateFn - The `createRouter` function used
  *  to create the application's router.
  */
-async function restoreContext(context, routerCreateFn) {
+async function restoreContext(context, staticImports, routerCreateFn) {
   const { shell, path, rootSelector } = context;
   const vWindow = new VWindow();
   const webWindow = window;
 
   recreateVWindow(shell, vWindow);
+  const globalData = new Map();
+  globalData.set('server:staticImports', staticImports);
   setGlobalContext({
     mode: Modes.VDom,
     window: vWindow,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(Object.entries(context.consistentValues)),
-    globalData: new Map(),
+    globalData,
   });
 
   const observer = useObserver();
@@ -240,12 +257,14 @@ async function restoreContext(context, routerCreateFn) {
       console.error('Hydration error: ', error);
     });
 
+  const newGlobalData = new Map();
+  newGlobalData.set('server:staticImports', staticImports);
   setGlobalContext({
     mode: Modes.Interactive,
     window,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(),
-    globalData: new Map(),
+    globalData: newGlobalData,
   });
 
   router.setWindow(window);

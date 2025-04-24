@@ -63,5 +63,10 @@ export const startRoute = defineRoute({
       path: 'cursor-position',
       component: lazy(() => import('./cursor-position')),
     },
+    {
+      name: 'Get Server Snapshot',
+      path: 'get-server-snapshot',
+      component: lazy(() => import('./get-server-snapshot')),
+    },
   ],
 });
