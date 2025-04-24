@@ -302,6 +302,58 @@ For more on `retend`, see the [main documentation](https://github.com/adebola-io
 
 Licensed under the MIT License. See the [LICENSE](https://github.com/adebola-io/retend/blob/main/LICENSE) file.
 
+## getServerSnapshot
+
+The `getServerSnapshot` function allows you to access data generated during build or server-side rendering (SSR) from a specified module.
+
+Use this in client components to access results from server-only logic that was executed _once_ during the build/SSR phase. The results are embedded in the client bundle or SSR payload.
+
+Calling a function on the returned object provides the _pre-computed result_ captured during build/SSR; the original function is _not_ re-executed on the client.
+
+**Constraints:**
+
+- The target module is executed _only_ during build/SSR.
+- Only JSON-serializable data is transferred: raw values and the _resolved, serializable return values_ of functions executed during build/SSR. Functions themselves, unresolved Promises, Maps, Sets, etc., are not transferred.
+
+**Example:**
+
+```javascript
+// config.server.js (runs during build/SSR)
+export const buildTimestamp = new Date().toISOString();
+
+export async function getFeatureFlags() {
+  // In a real app, fetch this from a service or env vars
+  return {
+    newDashboard: true,
+    betaFeatureX: false,
+  };
+}
+
+// FeatureDisplay.jsx (runs on the client)
+import { getServerSnapshot } from 'retend-server';
+
+async function FeatureDisplay() {
+  const serverConfig = await getServerSnapshot(() =>
+    import('./config.server.js')
+  );
+  const { buildTimestamp, getFeatureFlags } = serverConfig;
+  const flags = await getFeatureFlags(); // Gets the pre-computed flags
+
+  return (
+    <div>
+      <p>Build Time: {buildTimestamp}</p>
+      <p>
+        New Dashboard Enabled:{' '}
+        {If(flags.newDashboardEnabled, {
+          true: () => 'Yes',
+          false: () => 'No',
+        })}
+      </p>
+    </div>
+  );
+}
+```
+
 ## Contributing
 
 Contributions are welcome! Check the [contributing guidelines](https://github.com/adebola-io/retend/blob/main/CONTRIBUTING.md) for details.

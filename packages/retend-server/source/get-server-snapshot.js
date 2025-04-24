@@ -71,31 +71,51 @@ import { getGlobalContext } from 'retend/context';
  */
 
 /**
- * A macro that allows you to accesses static async functions, generated at build time,
- * from a corresponding server or build-only module.
+ * Retrieves pre-computed data from a specified module, generated during build or server-side rendering (SSR).
  *
- * @template {Module} M The type definition of the module being imported.
- * @param {ModuleImporter<M>} m Function returning a dynamic `import()` to the server module
- *   (e.g., `() => import('./cards.server.ts')`).
+ * Use this in client components to access results from server-only logic that was executed *once*
+ * during the build/SSR phase. The results are embedded in the client bundle or SSR payload.
  *
- * @returns {SerializedModule<M>} A Promise resolving to an object containing statically retrieved data from the module.
- * The data imported would have been generated during build time and embedded into the document.
+ * Calling a function on the returned object provides the *pre-computed result* captured
+ * during build/SSR; the original function is *not* re-executed on the client.
+ *
+ * **Constraints:**
+ * - The target module (`m`) is executed *only* during build/SSR .
+ * - Only JSON-serializable data is transferred: raw values and the *resolved, serializable return values*
+ *   of functions executed during build/SSR. Functions themselves Promises, Maps, Sets, etc., are not transferred.
+ *
+ * @template {object} M - An object type representing the expected exports of the target module.
+ * @param {() => Promise<M>} m - A function returning a dynamic `import()` pointing to the
+ *   server/build-only module. This path is analyzed at build time.
+ * @returns {Promise<SerializedModule<M>>} - A Promise resolving to an object containing the
+ *   captured serializable data. Accessing properties yields captured values; calling
+ *   functions yields their single, pre-computed result (async if the original was async).
  *
  * @example
- * // In a server module (posts.ts):
- * export async function getPosts() {
- *   return [
- *     { id: 1, title: 'Hello World' },
- *     { id: 2, title: 'Goodbye World' },
- *   ]
- * }
+ * // server.js (runs during build/SSR)
+ * import { getHostname, getPlatform } from 'node:os';
  *
- * // In your client-side component:
- * export default function Posts() {
- *   const { getPosts } = await getServerSnapshot(() => import('./posts.ts'));
- *   const posts = await getPosts(); // Resolves at build-time.
+ * export const message = "Hello from the server!";
+ * export async function getSystemInfo() {
+ *   return {
+ *     hostname: await getHostname(),
+ *     platform: await getPlatform(),
+ *   };
+ * };
  *
- *   return <ul>{For(posts, (post) => <li>{post.title}</li>)}</ul>;
+ * // App.jsx (runs on the client)
+ * import { getServerSnapshot } from 'retend/server';
+ *
+ * function App() {
+ *   const data = await getServerSnapshot(() => import('./server.js'));
+ *   const { message, getSystemInfo } = data;
+ *   const systemInfo = await getSystemInfo();
+ *   return (
+ *   <div>
+ *     <h1>Server Message: {message}</h1>
+ *     <h2>System Info: {JSON.stringify(systemInfo)}</h2>
+ *   </div>
+ *   );
  * }
  */
 export async function getServerSnapshot(m) {
