@@ -88,7 +88,6 @@ export function retendSSG(options) {
         devServer.middlewares.use(async (req, res, next) => {
           // Use originalUrl to capture query params etc.
           const url = req.originalUrl;
-          console.log('Handling request for:', url);
 
           // Basic check to skip assets, HMR, API calls etc.
           // Adjust this logic if necessary for your specific routing needs.
