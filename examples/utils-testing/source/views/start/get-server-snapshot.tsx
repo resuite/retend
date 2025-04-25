@@ -1,10 +1,11 @@
+import { For } from 'retend';
 import { getServerSnapshot } from 'retend-server/client';
 
 export default async function GetServerSnapshotTest() {
   const snapshot = await getServerSnapshot(() => import('./data'));
   const environment = snapshot.buildEnvironment;
   const generationTime = snapshot.generatedAt;
-  const buildId = snapshot.getBuildId();
+  const listOfItems = snapshot.listOfItems;
 
   return (
     <div class="app-container">
@@ -12,10 +13,12 @@ export default async function GetServerSnapshotTest() {
       <p>
         Running in: <strong>{environment}</strong> mode.
       </p>
-      <p>
-        Build ID: <code>{buildId}</code>
-      </p>
       <p>Generated At: {generationTime.toLocaleString()}</p>
+      <ul>
+        {For(listOfItems, (item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
     </div>
   );
 }

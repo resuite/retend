@@ -308,12 +308,11 @@ The `getServerSnapshot` function allows you to access data generated during buil
 
 Use this in client components to access results from server-only logic that was executed _once_ during the build/SSR phase. The results are embedded in the client bundle or SSR payload.
 
-Calling a function on the returned object provides the _pre-computed result_ captured during build/SSR; the original function is _not_ re-executed on the client.
-
 **Constraints:**
 
 - The target module is executed _only_ during build/SSR.
-- Only JSON-serializable data is transferred: raw values and the _resolved, serializable return values_ of functions executed during build/SSR. Functions themselves, unresolved Promises, Maps, Sets, etc., are not transferred.
+- Only JSON-serializable data is transferred: raw values (strings, numbers, booleans, null, Dates, arrays/objects containing only serializable values).
+- Functions, Promises, Maps, Sets, etc., are _not_ transferred.
 
 **Example:**
 
@@ -321,30 +320,40 @@ Calling a function on the returned object provides the _pre-computed result_ cap
 // config.server.js (runs during build/SSR)
 export const buildTimestamp = new Date().toISOString();
 
-export async function getFeatureFlags() {
-  // In a real app, fetch this from a service or env vars
-  return {
+export const siteConfig = {
+  apiUrl: process.env.API_URL || 'https://api.example.com',
+  featureFlags: {
     newDashboard: true,
     betaFeatureX: false,
-  };
+  },
+};
+
+// This function will NOT be available via getServerSnapshot
+export function calculateSomething() {
+  return 42;
 }
 
 // FeatureDisplay.jsx (runs on the client)
 import { getServerSnapshot } from 'retend-server';
 
 async function FeatureDisplay() {
-  const serverConfig = await getServerSnapshot(() =>
+  // Note: The import path must be statically analyzable
+  const serverData = await getServerSnapshot(() =>
     import('./config.server.js')
   );
-  const { buildTimestamp, getFeatureFlags } = serverConfig;
-  const flags = await getFeatureFlags(); // Gets the pre-computed flags
+
+  // Access the pre-computed, serializable values
+  const timestamp = serverData.buildTimestamp;
+  const config = serverData.siteConfig;
+  // serverData.calculateSomething will be undefined
 
   return (
     <div>
-      <p>Build Time: {buildTimestamp}</p>
+      <p>Build Time: {new Date(timestamp).toLocaleString()}</p>
+      <p>API URL: {config.apiUrl}</p>
       <p>
         New Dashboard Enabled:{' '}
-        {If(flags.newDashboardEnabled, {
+        {If(config.featureFlags.newDashboard, {
           true: () => 'Yes',
           false: () => 'No',
         })}

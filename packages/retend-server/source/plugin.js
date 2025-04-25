@@ -1,4 +1,4 @@
-/** @import { Plugin, UserConfig, ViteDevServer } from 'vite' */
+/** @import { Plugin, ViteDevServer, UserConfig } from 'vite' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { BuildOptions, StaticModule } from './types.js' */
 
@@ -7,9 +7,8 @@ import {
   HtmlOutputArtifact,
   RedirectOutputArtifact,
 } from './server.js';
-import { createServer } from 'vite';
+import { createServer, isRunnableDevEnvironment } from 'vite';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { parseAndWalk } from 'oxc-walker';
 import MagicString from 'magic-string';
@@ -55,26 +54,87 @@ export function retendSSG(options) {
     throw new Error('The `routerPath` option must be a string.');
   }
 
-  /** @type {UserConfig} */
-  let viteConfig;
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputArtifacts = [];
   /** @type {ViteDevServer} */
   let server;
+  /** @type {UserConfig} */
+  let serverConfig;
 
-  /** Maps from hashes to server module paths. */
-  const serverModulesAddressMap = new Map();
-  /** Maps from server module paths to hashes. */
-  const serverModulesAddressMapInvert = new Map();
-  /** @type {Record<string, StaticModule>} */
-  const staticImports = {};
+  /** @param {string} path */
+  const loadServerModuleToJson = async (path) => {
+    const environment = server.environments.ssr;
+    if (!isRunnableDevEnvironment(environment)) {
+      const message =
+        'Cannot load server module because the server environment is not runnable.';
+      console.warn(message);
+      return '{}';
+    }
+    const { runner } = environment;
+
+    // --- Load and Serialize Module Exports ---
+    try {
+      const loadedModule = await runner.import(path);
+      /** @type {StaticModule} */
+      const moduleCache = {};
+      for (const [key, value] of Object.entries(loadedModule)) {
+        const skipNonSerializable =
+          typeof value === 'function' ||
+          typeof value === 'symbol' ||
+          typeof value === 'undefined';
+        if (skipNonSerializable) continue;
+
+        try {
+          const stringified = JSON.stringify(value);
+          const parsedValue = JSON.parse(stringified);
+          const type = value instanceof Date ? 'date' : 'raw';
+          moduleCache[key] = { type, value: parsedValue };
+        } catch (serializeError) {
+          const errorMsg =
+            serializeError instanceof Error
+              ? serializeError.message
+              : String(serializeError);
+          console.warn(
+            `[retend-server] Value for export "${key}" in module ${path} is not JSON serializable and will be ignored by getServerSnapshot. Error: ${errorMsg}`
+          );
+        }
+      }
+
+      return JSON.stringify(moduleCache);
+    } catch (importError) {
+      const errorMsg =
+        importError instanceof Error
+          ? importError.message
+          : String(importError);
+      console.error(
+        `[retend-server] Failed to import server module ${path} for serialization: ${errorMsg}`
+      );
+      if (importError instanceof Error) throw importError;
+      throw new Error(String(importError));
+    }
+  };
 
   return [
     {
       name: 'vite-plugin-retend-server-snapshot',
       enforce: 'pre',
 
+      async config(config) {
+        serverConfig = {
+          ...config,
+          server: { ...config.server, middlewareMode: true },
+          ssr: { ...config.ssr, target: 'node' },
+          appType: 'custom',
+          // It is expected that all the expected functionality, be it transformations or rewrites,
+          // would have been handled by the main build process and cached. Having the plugins run again leads
+          // to problems, as they would attempt to transform already transformed code.
+          plugins: [],
+        };
+      },
+
       async transform(source, id) {
+        if (!server) server = await createServer(serverConfig);
+
         const skipFile =
           id.includes('node_modules') ||
           id.includes('retend-server/dist/') ||
@@ -112,30 +172,26 @@ export function retendSSG(options) {
               'Cannot resolve server module. Import Functions should be statically analyzable.';
             throw new Error(message);
           }
-
           const moduleImporter = argument.body.source.value;
-          const promise = this.resolve(moduleImporter, id).then(
-            (serverModule) => {
-              if (serverModule === null) {
-                throw new Error(`Server module ${moduleImporter} not found.`);
-              }
-              const { start, end } = node;
-              const hash =
-                serverModulesAddressMapInvert.get(serverModule.id) ??
-                createHash('sha256')
-                  .update(serverModule.id, 'utf8')
-                  .digest('hex');
-              const replacement = `getServerSnapshot("${hash}")`;
-              serverModulesAddressMap.set(hash, serverModule.id);
-              serverModulesAddressMapInvert.set(serverModule.id, hash);
-              magicString.overwrite(start, end, replacement);
+
+          const executor = async () => {
+            const { start, end } = node;
+            const resolvedModulePath = await this.resolve(moduleImporter, id);
+            if (resolvedModulePath === null) {
+              const message = `[retend-server] Could not resolve server module: ${moduleImporter} referenced in ${id}`;
+              console.warn(message);
+              return;
             }
-          );
-          serverModuleResolvers.push(promise);
+            const path = resolvedModulePath.id;
+            const moduleJson = await loadServerModuleToJson(path);
+            const replacement = `getServerSnapshot(() => (${moduleJson}))`;
+            magicString.overwrite(start, end, replacement);
+          };
+
+          serverModuleResolvers.push(executor());
         });
 
         await Promise.all(serverModuleResolvers);
-
         return { code: magicString.toString(), map: magicString.generateMap() };
       },
     },
@@ -143,15 +199,11 @@ export function retendSSG(options) {
       name: 'vite-plugin-retend-server',
       enforce: 'post',
 
-      config(config) {
-        viteConfig = config;
-        return config;
-      },
-
       // Handles SSR requests during development (`vite dev` or `vite serve`)
       async configureServer(devServer) {
+        server = devServer;
         // Read the base HTML shell using the dev server's config
-        const htmlShellPath = path.resolve(devServer.config.root, 'index.html');
+        const htmlShellPath = path.resolve(server.config.root, 'index.html');
         let htmlShell;
         try {
           htmlShell = readFileSync(htmlShellPath, 'utf-8');
@@ -164,7 +216,7 @@ export function retendSSG(options) {
         }
 
         return () => {
-          devServer.middlewares.use(async (req, res, next) => {
+          server.middlewares.use(async (req, res, next) => {
             const url = req.originalUrl;
             const skipUrl =
               !url ||
@@ -181,10 +233,8 @@ export function retendSSG(options) {
                 rootSelector,
                 createRouterModule,
                 htmlShell,
-                server: devServer,
+                server: server,
                 skipRedirects: true,
-                serverModulesAddressMap,
-                staticImports,
               };
 
               const outputArtifacts = await buildPaths([url], buildOptions);
@@ -202,15 +252,12 @@ export function retendSSG(options) {
                 return next();
               }
 
-              const renderedHtml = await stringifyArtifact(
-                artifact,
-                staticImports
-              );
+              const renderedHtml = await stringifyArtifact(artifact);
               res.statusCode = 200;
               res.setHeader('Content-Type', 'text/html');
               res.end(renderedHtml);
             } catch (e) {
-              if (e instanceof Error) devServer.ssrFixStacktrace(e);
+              if (e instanceof Error) server.ssrFixStacktrace(e);
               console.error(
                 `[retend-server] SSR Error processing ${url}:`,
                 e instanceof Error ? e.message : e
@@ -223,28 +270,12 @@ export function retendSSG(options) {
 
       // --- Build-time hooks (SSG) ---
       async transformIndexHtml(html) {
-        /** @type {UserConfig} */
-        const serverConfig = {
-          ...viteConfig,
-          server: { ...viteConfig.server, middlewareMode: true },
-          ssr: { ...viteConfig.ssr, target: 'node' },
-          appType: 'custom',
-          // It is expected that all the expected functionality, be it transformations or rewrites,
-          // would have been handled by the main build process and cached. Having the plugins run again leads
-          // to problems, as they would attempt to transform already transformed code.
-          plugins: [],
-        };
-
-        server = await createServer(serverConfig);
-
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
           createRouterModule,
           htmlShell: html,
           server,
-          serverModulesAddressMap,
-          staticImports,
         };
 
         outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
@@ -272,11 +303,7 @@ export function retendSSG(options) {
 
           const { name: fileName } = artifact;
           promises.push(
-            stringifyArtifact(
-              artifact,
-              staticImports,
-              assetSourceToDistMap
-            ).then((source) => {
+            stringifyArtifact(artifact, assetSourceToDistMap).then((source) => {
               this.emitFile({ type: 'asset', fileName, source });
             })
           );
@@ -309,15 +336,10 @@ export function retendSSG(options) {
  *
  * @async
  * @param {HtmlOutputArtifact} artifact - The artifact object containing the document and a stringify method.
- * @param {Record<string, StaticModule>} staticImports
  * @param {Map<string, { fileName: string }>} [assetSourceToDistMap] - A map from source asset paths to their rewritten distribution info.
  * @returns {Promise<string>} The stringified artifact with rewritten asset references.
  */
-async function stringifyArtifact(
-  artifact,
-  staticImports,
-  assetSourceToDistMap
-) {
+async function stringifyArtifact(artifact, assetSourceToDistMap) {
   const { contents, stringify } = artifact;
   const { document } = contents;
   // Rewrite asset references
@@ -340,15 +362,6 @@ async function stringifyArtifact(
     element.setAttribute(attrName, rewrittenAsset.fileName);
     return true;
   });
-
-  // Inject static imports
-  document.body.append(
-    document.createMarkupNode(
-      `<script data-static data-static-imports type="application/json">${JSON.stringify(
-        staticImports
-      )}</script>`
-    )
-  );
 
   const source = await stringify();
   return source;
