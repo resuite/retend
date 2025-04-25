@@ -1,9 +1,7 @@
 /** @import { StaticModule } from './types.js' */
 import { getGlobalContext } from 'retend/context';
 
-/**
- * @typedef {(...args: unknown[]) => unknown} AnyFunction
- */
+/** @typedef {(...args: any[]) => any} AnyFunction */
 
 /**
  * Utility type that checks if a type is JSON serializable.
@@ -11,30 +9,20 @@ import { getGlobalContext } from 'retend/context';
  * @template T
  * @typedef {T extends null ? true :
  *   T extends string | number | boolean ? true :
- *   T extends Array<infer U> ? IsSerializable<U> :
+ *   T extends Array<infer U> ? IsSerializableValue<U> :
  *   T extends Date ? true :
  *   T extends object ?
  *     T extends AnyFunction ? false :
- *     T extends Promise<unknown> ? false :
- *     T extends Map<unknown, unknown> ? false :
- *     T extends Set<unknown> ? false :
+ *     T extends Promise<any> ? false :
+ *     T extends Map<any, any> ? false :
+ *     T extends Set<any> ? false :
  *     T extends Error ? false :
  *     T extends RegExp ? false :
  *     T extends symbol ? false :
  *     T extends WeakMap<any, any> ? false :
  *     T extends WeakSet<any> ? false :
- *     { [K in keyof T]: IsSerializable<T[K]> }[keyof T] extends true ? true : false
- *   : false} IsSerializable
- */
-
-/**
- * Filters keys in a type `T` whose values extend `ValueType`.
- *
- * @template T
- * @template ValueType
- * @typedef {T extends object ? {
- *   [K in keyof T]: T[K] extends ValueType ? K : never;
- * }[keyof T] : never} FilterKeysByValueType
+ *     { [K in keyof T]: IsSerializableValue<T[K]> }[keyof T] extends true ? true : false
+ *   : false} IsSerializableValue
  */
 
 /**
@@ -43,12 +31,10 @@ import { getGlobalContext } from 'retend/context';
  */
 
 /**
- * Helper type to check if a function returns a serializable type.
+ * Helper type to check if a function can be serialized.
  *
- * @template {AnyFunction} F
- * @typedef {F extends (...args: unknown[]) =>  infer R | Promise<infer R>
- *   ? IsSerializable<R> extends true ? true : false
- *   : false} ReturnsSerializablePromise
+ * @template F
+ * @typedef {F extends (() =>  infer R | Promise<infer R>) ? Parameters<F>['length'] extends 0 ? IsSerializableValue<R> extends true ? true : false : false : false} IsSerializableFunction
  */
 
 /**
@@ -57,13 +43,9 @@ import { getGlobalContext } from 'retend/context';
  * and objects with serializable values. Functions must return a Promise resolving to a serializable value.
  *
  * @template {object} M
- * @typedef {Promise<{
- *   [K in FilterKeysByValueType<M, AnyFunction> as
- *     ReturnsSerializablePromise<M[K] extends AnyFunction ? M[K] : never> extends true
- *       ? K : never]: M[K];
- * } & {
- *   [K in keyof M as M[K] extends AnyFunction ? never : IsSerializable<M[K]> extends true ? K : never]: M[K];
- * }>} SerializedModule
+ * @typedef {{
+ *   [K in keyof M as IsSerializableFunction<M[K]> extends true ? K : IsSerializableValue<M[K]> extends true ? K : never]: M[K];
+ * }} SerializedModule
  */
 
 /**
@@ -73,7 +55,7 @@ import { getGlobalContext } from 'retend/context';
 /**
  * Retrieves pre-computed data from a specified module, generated during build or server-side rendering (SSR).
  *
- * Use this in client components to access results from server-only logic that was executed *once*
+ * Use this in client components to access results from server-only logic that was executed
  * during the build/SSR phase. The results are embedded in the client bundle or SSR payload.
  *
  * Calling a function on the returned object provides the *pre-computed result* captured
@@ -81,10 +63,12 @@ import { getGlobalContext } from 'retend/context';
  *
  * **Constraints:**
  * - The target module (`m`) is executed *only* during build/SSR .
+ * - The function _must_ be called during build/SSR before it can be used in the client. If it is called conditionally, or for
+ *   a module that was not previously executed during build/SSR, the returned data will be `null`.
  * - Only JSON-serializable data is transferred: raw values and the *resolved, serializable return values*
  *   of functions executed during build/SSR. Functions themselves Promises, Maps, Sets, etc., are not transferred.
  *
- * @template {object} M - An object type representing the expected exports of the target module.
+ * @template {Module} M - An object type representing the expected exports of the target module.
  * @param {() => Promise<M>} m - A function returning a dynamic `import()` pointing to the
  *   server/build-only module. This path is analyzed at build time.
  * @returns {Promise<SerializedModule<M>>} - A Promise resolving to an object containing the
@@ -92,29 +76,61 @@ import { getGlobalContext } from 'retend/context';
  *   functions yields their single, pre-computed result (async if the original was async).
  *
  * @example
- * // server.js (runs during build/SSR)
- * import { getHostname, getPlatform } from 'node:os';
+ * // ===== config.server.js =====
+ * // Server-only imports
+ * import { randomUUID } from 'node:crypto';
+ * import { readFileSync } from 'node:fs';
+ * import { join } from 'node:path';
  *
- * export const message = "Hello from the server!";
- * export async function getSystemInfo() {
- *   return {
- *     hostname: await getHostname(),
- *     platform: await getPlatform(),
- *   };
- * };
+ * // Export a simple serializable value
+ * export const buildEnvironment = process.env.NODE_ENV || 'development';
  *
- * // App.jsx (runs on the client)
- * import { getServerSnapshot } from 'retend/server';
+ * // Export a Date (will be serialized/deserialized)
+ * export const generatedAt = new Date();
  *
- * function App() {
- *   const data = await getServerSnapshot(() => import('./server.js'));
- *   const { message, getSystemInfo } = data;
- *   const systemInfo = await getSystemInfo();
+ * // Export a synchronous function (must be called during build/SSR)
+ * export function getBuildId() {
+ *   console.log('[Build/SSR] Generating Build ID...');
+ *   return randomUUID();
+ * }
+ *
+ * export async function loadRemoteConfig() {
+ *   console.log('[Build/SSR] Loading remote config...');
+ *   await new Promise(resolve => setTimeout(resolve, 50));
+ *   try {
+ *      const configPath = join(process.cwd(), 'app.config.json');
+ *      const rawConfig = readFileSync(configPath, 'utf-8');
+ *      const configData = JSON.parse(rawConfig);
+ *      console.log('[Build/SSR] Remote config loaded.');
+ *      return { success: true, data: configData };
+ *   } catch (error) {
+ *      console.error('[Build/SSR] Failed to load remote config:', error.message);
+ *      return { success: false, error: error.message || 'Failed to load.' };
+ *   }
+ * }
+ *
+ * // This function takes arguments, so its result cannot be snapshotted by getServerSnapshot
+ * export function formatMessage(template) {
+ *   return template.replace('%TIME%', new Date().toLocaleTimeString());
+ * }
+ *
+ * // ===== App.jsx =====
+ * import { getServerSnapshot } from 'retend-server/client';
+ *
+ * export async function MyComponent() {
+ *   const snapshot = await getServerSnapshot(() => import('./config.server.js'));
+ *   const environment = snapshot.buildEnvironment;
+ *   const generationTime = snapshot.generatedAt;
+ *   const buildId = snapshot.getBuildId();
+ *   const remoteConfigResult = await snapshot.loadRemoteConfig();
+ *
  *   return (
- *   <div>
- *     <h1>Server Message: {message}</h1>
- *     <h2>System Info: {JSON.stringify(systemInfo)}</h2>
- *   </div>
+ *     <div className="app-container">
+ *       <h1>Application Status</h1>
+ *       <p>Running in: <strong>{environment}</strong> mode.</p>
+ *       <p>Build ID: <code>{buildId}</code></p>
+ *       <p>Generated At: {generationTime.toLocaleString()}</p>
+ *     </div>
  *   );
  * }
  */
@@ -147,7 +163,8 @@ export async function getServerSnapshot(m) {
         }
         try {
           const parsedValue = JSON.parse(JSON.stringify(value));
-          moduleCache[key] = { type: 'raw', value: parsedValue };
+          const type = value instanceof Date ? 'date' : 'raw';
+          moduleCache[key] = { type, value: parsedValue };
         } catch {}
       }
 
@@ -205,6 +222,10 @@ function retrieveStaticData(hash, prop) {
     return cachedData.value;
   }
 
+  if (cachedData?.type === 'date') {
+    return new Date(cachedData.value);
+  }
+
   if (cachedData?.type === 'function') {
     if (cachedData.isAsync) {
       return async () => {
@@ -216,6 +237,6 @@ function retrieveStaticData(hash, prop) {
     };
   }
 
-  console.warn(`${hash}.${prop} was not available at build time.`);
+  console.error(`(${hash}).${prop} was not available at build time.`);
   return null;
 }

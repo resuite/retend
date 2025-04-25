@@ -71,9 +71,13 @@
  */
 
 /**
+ * @typedef {{ type: 'date', value: any }} StaticDateImport
+ */
+
+/**
  * @typedef {{ type: 'function', returnValue: any, isAsync: boolean }} StaticFunctionImport
  */
 
 /**
- * @typedef {Record<string, StaticPrimitiveImport | StaticFunctionImport>} StaticModule
+ * @typedef {Record<string, StaticPrimitiveImport | StaticFunctionImport | StaticDateImport>} StaticModule
  */
