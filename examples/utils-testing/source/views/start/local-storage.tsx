@@ -8,11 +8,12 @@ export default function LocalStorageTest() {
   const inputRef = Cell.source<HTMLInputElement | null>(null);
 
   const handleInput = function (this: HTMLInputElement) {
-    localValue.value = this.value;
+    localValue.set(this.value);
   };
   localValue.listen((newValue) => {
-    if (!inputRef.value) return;
-    inputRef.value.value = newValue ?? '';
+    const input = inputRef.get();
+    if (!input) return;
+    input.value = newValue ?? '';
   });
 
   return (

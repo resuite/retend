@@ -15,7 +15,6 @@ const USE_ONLINE_STATUS_KEY = 'hooks:useOnlineStatus:statusCache';
  * Tracks the network connection status and provides a reactive cell.
  *
  * @returns {Cell<boolean>} A derived cell containing the online status (true if online, false if offline).
- *                                Use `.value` to access the current status.
  *
  * @example
  * import { useOnlineStatus } from 'retend-utils/hooks';

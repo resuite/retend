@@ -67,7 +67,7 @@ const DynamicList = () => {
   const items = Cell.source(['Apple', 'Banana', 'Cherry']);
   return <ul>{For(items, (item) => <li>{item}</li>)}</ul>;
 };
-@Note `Cell.source` makes the list reactive; updates to `items.value` will re-render the list.
+@Note `Cell.source` makes the list reactive; updates to `items.set(...)` will re-render the list.
 
 ---
 
@@ -78,7 +78,7 @@ import { Cell, For } from 'retend';
 const GrowingList = () => {
   const items = Cell.source(['Task 1', 'Task 2']);
   const addItem = () => {
-    items.value = [...items.value, `Task ${items.value.length + 1}`];
+    items.set([...items.get(), `Task ${items.get().length + 1}`]);
   };
   return (
     <div>
@@ -140,7 +140,7 @@ import { Cell, For } from 'retend';
 const ShrinkingList = () => {
   const items = Cell.source(['Item 1', 'Item 2', 'Item 3']);
   const removeLast = () => {
-    items.value = items.value.slice(0, -1);
+    items.set(items.get().slice(0, -1));
   };
   return (
     <div>
@@ -172,7 +172,7 @@ import { Cell, For } from 'retend';
 const ClearableList = () => {
   const items = Cell.source(['Red', 'Green', 'Blue']);
   const clear = () => {
-    items.value = [];
+    items.set([]);
   };
   return (
     <div>
@@ -210,7 +210,7 @@ const FilterList = () => {
   const items = Cell.source([1, 2, 3, 4]);
   const showEven = Cell.source(true);
   const toggleFilter = () => {
-    showEven.value = !showEven.value;
+    showEven.set(!showEven.get());
   };
   return (
     <div>
@@ -243,7 +243,7 @@ import { Cell, For } from 'retend';
 const DynamicGallery = () => {
   const images = Cell.source(['img1.png', 'img2.png']);
   const addImage = () => {
-    images.value = [...images.value, `img${images.value.length + 1}.png`];
+    images.set([...images.get(), `img${images.get().length + 1}.png`]);
   };
   return (
     <div>
@@ -283,7 +283,7 @@ import { Cell, For, Switch } from 'retend';
 const DynamicTypeList = () => {
   const items = Cell.source(['text', 'button']);
   const addLink = () => {
-    items.value = [...items.value, 'link'];
+    items.set([...items.get(), 'link']);
   };
   return (
     <div>
@@ -324,7 +324,7 @@ const DynamicStyledList = () => {
   const items = Cell.source(['A', 'B', 'C']);
   const color = Cell.source('red');
   const toggleColor = () => {
-    color.value = color.value === 'red' ? 'green' : 'red';
+    color.set(color.get() === 'red' ? 'green' : 'red');
   };
   return (
     <div>
@@ -360,7 +360,7 @@ import { Cell, For } from 'retend';
 const DynamicInputs = () => {
   const fields = Cell.source(['Field 1', 'Field 2']);
   const addField = () => {
-    fields.value = [...fields.value, `Field ${fields.value.length + 1}`];
+    fields.set([...fields.get(), `Field ${fields.get().length + 1}`]);
   };
   return (
     <form>
@@ -391,9 +391,9 @@ const DynamicClassList = () => {
   const items = Cell.source(['A', 'B']);
   const isActive = Cell.source(true);
   const toggleActive = () => {
-    isActive.value = !isActive.value;
+    isActive.set(!isActive.get());
   };
-  const className = Cell.derived(() => isActive.value ? 'active' : 'inactive');
+  const className = Cell.derived(() => (isActive.get() ? 'active' : 'inactive'));
   return (
     <div>
       <ul>{For(items, (item) => <li class={className}>{item}</li>)}</ul>
@@ -427,7 +427,7 @@ import { Cell, For } from 'retend';
 const DynamicClickableList = () => {
   const items = Cell.source(['A', 'B']);
   const addItem = () => {
-    items.value = [...items.value, `Item ${items.value.length + 1}`];
+    items.set([...items.get(), `Item ${items.get().length + 1}`]);
   };
   const handleClick = (item) => () => alert(`Clicked: ${item}`);
   return (
@@ -477,7 +477,7 @@ const DynamicTable = () => {
     { id: 2, name: 'Bob' },
   ]);
   const addRow = () => {
-    rows.value = [...rows.value, { id: rows.value.length + 1, name: `User ${rows.value.length + 1}` }];
+    rows.set([...rows.get(), { id: rows.get().length + 1, name: `User ${rows.get().length + 1}` }]);
   };
   return (
     <div>

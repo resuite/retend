@@ -9,10 +9,10 @@ import { Cell } from 'retend';
 
 const divRef = Cell.source(null);
 const element = <div ref={divRef}>Target Div</div>;
-// Access after creation: console.log(divRef.value);
+// Access after creation: console.log(divRef.get());
 @Note Declare ref with `Cell.source(null)`. 
 @Note Attach with `ref={cell}`.
-@Note Access element via `cell.value`.
+@Note Access element via `cell.get()`.
 
 ---
 
@@ -22,7 +22,7 @@ import { Cell } from 'retend';
 
 const inputRef = Cell.source(null);
 const element = <input type="text" ref={inputRef} />;
-// Access after creation: inputRef.value?.focus();
+// Access after creation: inputRef.get()?.focus();
 @Note Refs provide direct access to the underlying DOM element.
 
 ---
@@ -36,7 +36,7 @@ function MyButton({ ref }) {
 }
 const buttonRef = Cell.source(null);
 const element = <MyButton ref={buttonRef} />;
-// buttonRef.value will be the <button> element.
+// buttonRef will be the <button> element.
 ---
 
 @Example 4
@@ -45,7 +45,7 @@ import { Cell } from 'retend';
 
 function FocusableInput() {
   const inputElementRef = Cell.source(null);
-  // Example usage (maybe with useObserver): inputElementRef.value?.focus();
+  // Example usage (maybe with useObserver): inputElementRef.get()?.focus();
   return <input type="text" ref={inputElementRef} />;
 }
 @Note Refs are declared within the component that uses them.
@@ -58,5 +58,5 @@ import { Cell } from 'retend';
 
 const svgRef = Cell.source(null);
 const element = <svg ref={svgRef} xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" fill="red" xmlns="http://www.w3.org/2000/svg"/></svg>;
-// Access SVG specific properties: svgRef.value?.viewBox.baseVal;
+// Access SVG specific properties: svgRef.get()?.viewBox.baseVal;
 @Note Refs work on any valid JSX element, including SVG. Remember `xmlns`.

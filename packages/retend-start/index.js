@@ -574,7 +574,7 @@ async function createComponentStructure(
 
 const ${capitalize(componentName)} = () => {
   const count = Cell.source(0);
-  const incrementCount = () => count.value++;
+  const incrementCount = () => count.set(count.get() + 1);
 
   return (
     <div class=${containerClasses}>

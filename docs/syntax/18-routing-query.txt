@@ -127,15 +127,15 @@ import { Cell } from 'retend';
 
 function Pagination() {
   const query = useRouteQuery();
-  const page = Cell.derived(() => parseInt(query.get('page')?.value ?? '1', 10));
+  const page = Cell.derived(() => parseInt(query.get('page')?.get() ?? '1', 10));
   const sort = query.get('sort'); // Cell<string | null>
 
-  const nextPage = async () => await query.set('page', String(page.value + 1));
-  const prevPage = async () => await query.set('page', String(Math.max(1, page.value - 1)));
+  const nextPage = async () => await query.set('page', String(page.get() + 1));
+  const prevPage = async () => await query.set('page', String(Math.max(1, page.get() - 1)));
 
   return (
     <div>
-      <button type="button" onClick={prevPage} disabled={Cell.derived(() => page.value <= 1)}>Prev</button>
+      <button type="button" onClick={prevPage} disabled={Cell.derived(() => page.get() <= 1)}>Prev</button>
       <span> Page: {page} (Sorted by: {sort}) </span>
       <button type="button" onClick={nextPage}>Next</button>
     </div>

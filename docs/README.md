@@ -280,8 +280,8 @@ const user = Cell.source({ id: 0, name: 'John Doe' });
 To get the value of a Cell, or to update it, you interact with its `value` property. Whenever the `value` property is changed, Retend will automatically update the parts of your UI that use that cell.
 
 ```javascript
-number.value++; // Increments the value of the count cell
-message.value = 'Goodbye!'; // Changes the value of the message cell
+number.set(number.get() + 1); // Increments the value of the count cell
+message.set('Goodbye!'); // Changes the value of the message cell
 ```
 
 #### Derived Cells
@@ -293,14 +293,14 @@ It is also possible to have cells that depend on the value of other cells. These
 const count = Cell.source(3);
 
 // Cell with value 3 * 2 = 6, depends on count.
-const doubledCount = Cell.derived(() => count.value * 2);
+const doubledCount = Cell.derived(() => count.get() * 2);
 
 // When the value of count changes, the function passed in will rerun and automatically recompute the value of doubledCount.
-count.value = 5;
-console.log(doubledCount.value); // has automatically changed to 5 * 2 = 10.
+count.set(5);
+console.log(doubledCount.get()); // has automatically changed to 5 * 2 = 10.
 
-count.value = 10;
-console.log(doubledCount.value); // has automatically changed to 10 * 2 = 20.
+count.set(10);
+console.log(doubledCount.get()); // has automatically changed to 10 * 2 = 20.
 ```
 
 You can have derived cells that depend on more than one source cell:
@@ -310,14 +310,14 @@ const a = Cell.source(1);
 const b = Cell.source(2);
 
 // Cell with value 1 + 2 = 3
-const sum = Cell.derived(() => a.value + b.value);
+const sum = Cell.derived(() => a.get() + b.get());
 
-a.value = 5;
-console.log(sum.value);
+a.set(5);
+console.log(sum.get());
 // Because a has changed, sum will automatically change to 5 + 2 = 7.
 
-b.value = 3;
-console.log(b.value);
+b.set(3);
+console.log(sum.get());
 // Because b has also changed, sum will automatically change to 5 + 3 = 8.
 ```
 
@@ -326,18 +326,18 @@ And also derived cells that depend on other derived cells.
 ```javascript
 const age = Cell.source(20);
 
-const isAdult = Cell.derived(() => age.value > 18);
-const canDrive = Cell.derived(() => isAdult.value);
+const isAdult = Cell.derived(() => age.get() > 18);
+const canDrive = Cell.derived(() => isAdult.get());
 ```
 
 > `NOTE`: Derived cells are constant mirrors of their dependencies, so you cannot change their values directly. For example:
 >
 > ```javascript
 > const name = Cell.source('Adebola');
-> const greeting = Cell.derived(() => `Hello, ${name.value}!`);
+> const greeting = Cell.derived(() => `Hello, ${name.get()}!`);
 >
 > // The line below will lead to an error!
-> greeting.value = 'Hello, Uche!';
+> greeting.set('Hello, Uche!');
 > ```
 >
 > This is because the flow of data in cells in unidirectional (from sources -> derivations). This will become more important to remember as you build more complex user interfaces.
@@ -367,13 +367,13 @@ count.runAndListen((value) => {
 
 #### Usage in JSX
 
-To maintain reactivity, the cell object can be used within JSX expressions, (note: not the `.value` property). This triggers the automatic updates when the value is changed:
+To maintain reactivity, the cell object can be used within JSX expressions, (note: not the `.get()` property). This triggers the automatic updates when the value is changed:
 
 ```jsx
 const Counter = () => {
   const count = Cell.source(0);
   const increaseCount = () => {
-    count.value++;
+    count.set(count.get() + 1);
   };
 
   return (
@@ -419,7 +419,7 @@ const AuthenticatedGreeting = () => {
 document.body.append(<AuthenticatedGreeting />);
 ```
 
-If the `isLoggedIn` value is `true`, a `<h1>Welcome back!</h1>` element will be displayed on the page. If the value was `false`, a `<p>Please log in.</p>` element would be displayed.
+If `isLoggedIn` is `true`, a `<h1>Welcome back!</h1>` element will be displayed on the page. If the value was `false`, a `<p>Please log in.</p>` element would be displayed.
 
 ### Conditional Rendering using Cells
 
@@ -435,7 +435,7 @@ const AuthenticatedGreeting = () => {
   const NotLoggedInPrompt = () => <p>Please Log in.</p>;
 
   const toggleLoginState = () => {
-    isLoggedIn.value = !isLoggedIn.value;
+    isLoggedIn.set(!isLoggedIn.get());
   };
 
   return (
@@ -463,7 +463,7 @@ const AuthenticatedGreeting = () => {
   const NotLoggedInPrompt = () => <p>Please Log in.</p>;
 
   const toggleLoginState = () => {
-    isLoggedIn.value = !isLoggedIn.value;
+    isLoggedIn.set(!isLoggedIn.get());
   };
 
   return (
@@ -510,7 +510,7 @@ Here's an example of how to implement nested conditional rendering:
 import { Cell, If } from 'retend';
 
 const userStatus = Cell.source('guest'); // Initialized to 'guest'.
-const userIsAdmin = Cell.derived(() => userStatus.value === 'admin');
+const userIsAdmin = Cell.derived(() => userStatus.get() === 'admin');
 
 const UserGreeting = () => {
   const AdminGreeting = () => <h1>Welcome, Admin!</h1>;
@@ -533,16 +533,16 @@ const UserGreeting = () => {
 
 // Example of toggling user status
 const toggleUserStatus = () => {
-  userStatus.value = userStatus.value === 'guest' ? 'user' : 'guest';
+  userStatus.set(userStatus.get() === 'guest' ? 'user' : 'guest');
 };
 
 // Example of setting user status to admin
 const setAdminStatus = () => {
-  userStatus.value = 'admin';
+  userStatus.set('admin');
 };
 ```
 
-In this example, the `UserGreeting` component checks the value of `userStatus`. If the user is an admin, it renders the `AdminGreeting` component. If the user is a regular user, it renders the `UserGreeting` component. If the user is a guest, it renders the `GuestGreeting` component.
+In this example, the `UserGreeting` component checks `userStatus`. If the user is an admin, it renders the `AdminGreeting` component. If the user is a regular user, it renders the `UserGreeting` component. If the user is a guest, it renders the `GuestGreeting` component.
 
 You can also toggle the user status using the `toggleUserStatus` function, which switches between 'guest' and 'user', or set the user status to 'admin' using the `setAdminStatus` function.
 
@@ -588,8 +588,8 @@ The "template" function you give to `For` is a regular JavaScript function that 
 
 - `item`: This is each individual value from your list. E.g., the string "Apple", a user object, etc.
 - `index`: A special `Cell` object, that contains the current index (starting from 0) of the element you're currently processing. For example:
-  - If "Apple" is the first item in the array, the `index` cell's value will be 0.
-  - If "Orange" is the third element in your array, then the `index` cell will have a value of 2.
+  - If "Apple" is the first item in the array, the `index` cell' will be 0.
+  - If "Orange" is the third element in your array, then the `index` cell will be 2.
 
 This is what a template function looks like:
 
@@ -597,7 +597,7 @@ This is what a template function looks like:
 (item, index) => {
   return (
     <li>
-      {item}, at index: {index.value}
+      {item}, at index: {index}
     </li>
   );
 };
@@ -653,7 +653,7 @@ const TodoList = () => {
 document.body.append(<TodoList />);
 
 // Later, when the listItems cell updates, the DOM will be updated automatically
-items.value.push('Celebrate success');
+items.get().push('Celebrate success');
 ```
 
 With this code, the webpage now keeps the to-do list up-to-date by responding to changes in the `items` cell and re-rendering the list as needed.
@@ -682,7 +682,7 @@ const NumberedList = () => {
 document.body.append(<NumberedList />);
 ```
 
-With the `index`, you can add extra information (e.g., the item number) next to your item in the page. Note how the index is used without `.value` to preserve reactivity.
+With the `index`, you can add extra information (e.g., the item number) next to your item in the page. Note how the index is used without `.get()` to preserve reactivity.
 
 ### Working with Lists of Objects
 
@@ -762,15 +762,15 @@ import { Switch, Cell } from 'retend';
 const currentView = Cell.source('home');
 
 const goHome = () => {
-  currentView.value = 'home';
+  currentView.set('home');
 };
 
 const goSettings = () => {
-  currentView.value = 'settings';
+  currentView.set('settings');
 };
 
 const goProfile = () => {
-  currentView.value = 'profile';
+  currentView.set('profile');
 };
 
 const NavigationView = () => {
@@ -821,23 +821,23 @@ const isAdmin = Cell.source(false);
 
 const UserDashboard = () => {
   const logUserOut = () => {
-    isLoggedIn.value = false;
-    isAdmin.value = false;
+    isLoggedIn.set(false);
+    isAdmin.set(false);
   };
 
   const logUserIn = () => {
-    isLoggedIn.value = true;
-    isAdmin.value = false;
+    isLoggedIn.set(true);
+    isAdmin.set(false);
   };
 
   const logAdminIn = () => {
-    isLoggedIn.value = true;
-    isAdmin.value = true;
+    isLoggedIn.set(true);
+    isAdmin.set(true);
   };
 
   const getUserType = () => {
-    if (!isLoggedIn.value) return 'guest';
-    return isAdmin.value ? 'admin' : 'user';
+    if (!isLoggedIn.get()) return 'guest';
+    return isAdmin.get() ? 'admin' : 'user';
   };
   return (
     <div>
@@ -868,7 +868,7 @@ const userRole = Cell.source('editor');
 
 const UserDashboard = () => {
   const setRole = (role) => {
-    userRole.value = role;
+    userRole.set(role);
   };
   return (
     <div>
@@ -990,7 +990,7 @@ import { Cell } from 'retend';
 function MyComponent() {
   const clickCount = Cell.source(0);
   const handleClick = () => {
-    clickCount.value++;
+    clickCount.set(clickCount.get() + 1);
   };
   return (
     <div>
@@ -1057,9 +1057,9 @@ Now when the `div` element is created, it will be assigned to the `elementRef` c
 ```jsx
 import { Cell } from 'retend';
 
-const elementRef = Cell.source(null); // elementRef.value is null
+const elementRef = Cell.source(null); // elementRef is null
 const div = <div ref={elementRef}>Hello world!</div>;
-elementRef.value === div; // elementRef.value is now the div element
+elementRef.get() === div; // elementRef is now the div element
 ```
 
 ### Why not `document.querySelector()`?
@@ -1314,15 +1314,15 @@ function CurrentRouteDisplay() {
   return (
     <div>
       <h1>Current Route Details</h1>
-      <p>Name: {Cell.derived(() => currentRoute.value.name)}</p>
-      <p>Path: {Cell.derived(() => currentRoute.value.fullPath)}</p>
+      <p>Name: {Cell.derived(() => currentRoute.get().name)}</p>
+      <p>Path: {Cell.derived(() => currentRoute.get().fullPath)}</p>
       <p>
         Parameters:{' '}
         {Cell.derived(() =>
-          JSON.stringify(Object.fromEntries(currentRoute.value.params))
+          JSON.stringify(Object.fromEntries(currentRoute.get().params))
         )}
       </p>
-      <p>Query: {Cell.derived(() => currentRoute.value.query.toString())}</p>
+      <p>Query: {Cell.derived(() => currentRoute.get().query.toString())}</p>
     </div>
   );
 }
@@ -1363,11 +1363,11 @@ import { Cell } from 'retend';
 function UnsavedChangesForm() {
   const router = useRouter();
   const hasUnsavedChanges = Cell.source(false);
-  const saved = Cell.derived(() => !hasUnsavedChanges.value);
+  const saved = Cell.derived(() => !hasUnsavedChanges.get());
 
   const handleInput = () => {
-    if (!hasUnsavedChanges.value) {
-      hasUnsavedChanges.value = true;
+    if (!hasUnsavedChanges.get()) {
+      hasUnsavedChanges.set(true);
       router.lock();
       console.log('Router locked due to unsaved changes.');
     }
@@ -1375,7 +1375,7 @@ function UnsavedChangesForm() {
 
   const saveChanges = () => {
     // ... save logic ...
-    hasUnsavedChanges.value = false;
+    hasUnsavedChanges.set(false);
     router.unlock();
     console.log('Changes saved, router unlocked.');
     // Optionally navigate away after saving
@@ -1384,7 +1384,7 @@ function UnsavedChangesForm() {
 
   const discardChanges = () => {
     // ... reset form logic ...
-    hasUnsavedChanges.value = false;
+    hasUnsavedChanges.set(false);
     router.unlock(); // Unlock navigation after discarding
     console.log('Changes discarded, router unlocked.');
   };
@@ -1632,13 +1632,13 @@ function NavBar() {
   return (
     <nav>
       <h1>My Application</h1>
-      <button onClick={() => (showModal.value = true)}>Open Modal</button>
+      <button onClick={() => showModal.set(true)}>Open Modal</button>
 
       {If(showModal, () => (
         <Teleport to={document.body}>
           <Modal
             content={<p>This is a modal outside the nav bar.</p>}
-            onClose={() => (showModal.value = false)}
+            onClose={() => showModal.set(false)}
           />
         </Teleport>
       ))}

@@ -11,7 +11,7 @@ import { Cell } from 'retend';
 function CurrentRouteName() {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
-  const routeName = Cell.derived(() => currentRoute.value.name);
+  const routeName = Cell.derived(() => currentRoute.get().name);
 
   return <p>Current Route Name: {routeName}</p>;
 }
@@ -28,7 +28,7 @@ import { Cell } from 'retend';
 function CurrentPathDisplay() {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
-  const fullPath = Cell.derived(() => currentRoute.value.fullPath);
+  const fullPath = Cell.derived(() => currentRoute.get().fullPath);
 
   return <span>Path: {fullPath}</span>;
 }
@@ -45,11 +45,11 @@ import { Cell } from 'retend';
 function UserHeader() {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
-  const userId = Cell.derived(() => currentRoute.value.params.get('userId'));
+  const userId = Cell.derived(() => currentRoute.get().params.get('userId'));
 
   return <h1>User ID: {userId}</h1>;
 }
-@Note Access route parameters via `currentRoute.value.params`.
+@Note Access route parameters via `currentRoute.get().params`.
 
 ---
 
@@ -61,12 +61,12 @@ import { Cell } from 'retend';
 function NavLink({ href, children }) {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
-  const isActive = Cell.derived(() => currentRoute.value.fullPath === href);
-  const linkClass = Cell.derived(() => isActive.value ? 'active-link' : '');
+  const isActive = Cell.derived(() => currentRoute.get().fullPath === href);
+  const linkClass = Cell.derived(() => isActive.get() ? 'active-link' : '');
 
   return <router.Link href={href} class={linkClass}>{children}</router.Link>;
 }
-@Note Compare `currentRoute.value.fullPath` to determine active links.
+@Note Compare `currentRoute.get().fullPath` to determine active links.
 
 ---
 
@@ -79,8 +79,8 @@ function QueryDisplay() {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
   // Convert URLSearchParams to string for display
-  const queryString = Cell.derived(() => currentRoute.value.query.toString());
+  const queryString = Cell.derived(() => currentRoute.get().query.toString());
 
   return <pre>Query: {queryString}</pre>;
 }
-@Note Access query parameters via `currentRoute.value.query`.
+@Note Access query parameters via `currentRoute.get().query`.

@@ -8,20 +8,21 @@ const boxes = Cell.source([
 ]);
 
 const addBox = () => {
-  const newId = boxes.value.length + 1;
-  boxes.value = [
-    ...boxes.value,
-    { id: newId, color: `hsl(${(newId * 360) / 10}, 100%, 50%)` },
-  ];
+  const boxesArray = boxes.get();
+  const newId = boxesArray.length + 1;
+  boxesArray.push({
+    id: newId,
+    color: `hsl(${(newId * 360) / 10}, 100%, 50%)`,
+  });
 };
 
 const removeBox = (id: number) => {
-  boxes.value = boxes.value.filter((box) => box.id !== id);
+  boxes.set(boxes.get().filter((box) => box.id !== id));
 };
 
 const shuffleBoxes = () => {
-  const shuffledBoxes = [...boxes.value].sort(() => Math.random() - 0.5);
-  boxes.value = shuffledBoxes;
+  const shuffledBoxes = [...boxes.get()].sort(() => Math.random() - 0.5);
+  boxes.set(shuffledBoxes);
 };
 
 const FluidListExample = () => (

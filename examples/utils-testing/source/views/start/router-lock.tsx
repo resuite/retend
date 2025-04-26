@@ -8,12 +8,12 @@ export default function RouterLockView() {
 
   const lockRouter = () => {
     router.lock();
-    isLocked.value = true;
+    isLocked.set(true);
   };
 
   const unlockRouter = () => {
     router.unlock();
-    isLocked.value = false;
+    isLocked.set(false);
   };
 
   const navigateToHome = () => {
@@ -21,7 +21,7 @@ export default function RouterLockView() {
   };
 
   router.addEventListener('routelockprevented', () => {
-    navigationPrevented.value = true;
+    navigationPrevented.set(true);
   });
 
   return (

@@ -55,7 +55,7 @@ import { getGlobalContext, matchContext, Modes } from '../context/index.js';
  * document.body.appendChild(ul);
  *
  * // Later, update the names
- * names.value.push('David');
+ * names.get().push('David');
  * // The list will automatically update to include the new name
  */
 // TODO: Make object mutation safe or optional.

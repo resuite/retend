@@ -9,8 +9,8 @@ const InputTest = () => {
   const dateModel = Cell.source(new Date()); // Initialize as Date, per component source
 
   // Derived cells for reactive display formatting
-  const checkboxString = Cell.derived(() => String(checkboxModel.value));
-  const dateString = Cell.derived(() => dateModel.value?.toDateString() ?? '');
+  const checkboxString = Cell.derived(() => String(checkboxModel.get()));
+  const dateString = Cell.derived(() => dateModel.get()?.toDateString() ?? '');
 
   return (
     <div>
@@ -40,6 +40,7 @@ const InputTest = () => {
 
       <section style={{ marginBottom: '1rem' }}>
         <h3>Checkbox Input</h3>
+        {/* biome-ignore lint/a11y/noLabelWithoutControl: <explanation> */}
         <label>
           <Input type="checkbox" model={checkboxModel} />
           Toggle me

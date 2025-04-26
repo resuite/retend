@@ -168,7 +168,7 @@ const ConditionalObserver = () => {
   const observer = useObserver();
 
   const handleClick = () => {
-    shouldObserve.value = !shouldObserve.value;
+    shouldObserve.set(!shouldObserve.get());
   };
 
   observer.onConnected(ref1, (element) => {

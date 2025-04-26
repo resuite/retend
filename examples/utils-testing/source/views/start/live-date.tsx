@@ -3,7 +3,7 @@ import { useLiveDate } from 'retend-utils/hooks';
 
 export default function LiveDateTest() {
   const date = useLiveDate();
-  const localeTimeString = Cell.derived(() => date.value.toLocaleTimeString());
+  const localeTimeString = Cell.derived(() => date.get().toLocaleTimeString());
 
   return (
     <div
