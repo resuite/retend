@@ -162,6 +162,11 @@ export { getServerSnapshot } from './get-server-snapshot.js';
  * ```
  */
 export async function hydrate(routerFn) {
+  if (import.meta.env.DEV) {
+    // In dev mode, we default to an SPA.
+    return defaultToSpaMode(routerFn);
+  }
+
   const contextScript = document.querySelector('script[data-server-context]');
   if (!contextScript) {
     console.warn(
