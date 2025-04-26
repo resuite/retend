@@ -1,6 +1,7 @@
-/** @import { Plugin, ViteDevServer, UserConfig } from 'vite' */
+/** @import { Plugin } from 'vite' */
 /** @import { VElement } from 'retend/v-dom' */
-/** @import { BuildOptions, StaticModule } from './types.js' */
+/** @import { AsyncStorage, BuildOptions, StaticModule } from './types.js' */
+/** @import { ViteDevServer, UserConfig } from 'vite' */
 
 import {
   buildPaths,
@@ -8,10 +9,17 @@ import {
   RedirectOutputArtifact,
 } from './server.js';
 import { createServer, isRunnableDevEnvironment } from 'vite';
-import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import path, { resolve } from 'node:path';
 import { parseAndWalk } from 'oxc-walker';
 import MagicString from 'magic-string';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+/**
+ * @typedef {object} SharedData
+ * @property {ViteDevServer | null} server
+ * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
+ * @property {PluginOptions} options
+ */
 
 /**
  * @typedef {object} PluginOptions
@@ -40,39 +48,299 @@ import MagicString from 'magic-string';
  * @returns {Plugin[]} A Vite plugin object.
  */
 export function retendSSG(options) {
+  /** @type {SharedData} */
+  const sharedData = {
+    server: null,
+    asyncLocalStorage: new AsyncLocalStorage(),
+    options,
+  };
+
+  return [
+    ...staticBuildPlugins(sharedData),
+    serverSnapshotResolverPlugin(sharedData),
+  ];
+}
+
+/**
+ *
+ * @param {SharedData} sharedData
+ * @returns {Plugin[]}
+ */
+function staticBuildPlugins(sharedData) {
+  /** @type {string} */
+  let htmlShell;
+  /** @type {UserConfig} */
+  let staticBuildConfig;
+  /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
+  const outputArtifacts = [];
+
   const {
-    pages,
-    routerModulePath: createRouterModule,
-    rootSelector = '#app',
-  } = options;
+    options: { pages, routerModulePath },
+  } = sharedData;
 
   if (!pages || !Array.isArray(pages) || pages.length === 0) {
     throw new Error('The `paths` option must be a non-empty array of strings.');
   }
 
-  if (!createRouterModule || typeof createRouterModule !== 'string') {
+  if (!routerModulePath || typeof routerModulePath !== 'string') {
     throw new Error('The `routerPath` option must be a string.');
   }
 
-  /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
-  const outputArtifacts = [];
-  /** @type {ViteDevServer} */
-  let server;
-  /** @type {UserConfig} */
-  let serverConfig;
+  return [
+    {
+      name: 'vite-plugin-retend-server-pre-build',
+      apply: 'build',
+      enforce: 'pre',
 
-  /** @param {string} path */
-  const loadServerModuleToJson = async (path) => {
-    const environment = server.environments.ssr;
-    if (!isRunnableDevEnvironment(environment)) {
-      const message =
-        'Cannot load server module because the server environment is not runnable.';
-      console.warn(message);
-      return '{}';
-    }
-    const { runner } = environment;
+      async config(config) {
+        staticBuildConfig = {
+          ...config,
+          server: { ...config.server, middlewareMode: true },
+          ssr: { ...config.ssr, target: 'node' },
+          appType: 'custom',
+          // It is expected that all the expected functionality, be it transformations or rewrites,
+          // would be handled by the main build process and cached. Having the plugins run again leads
+          // to problems, as they would attempt to transform already transformed code.
+          plugins: [],
+        };
+        sharedData.server = await createServer(staticBuildConfig);
+      },
 
-    // --- Load and Serialize Module Exports ---
+      closeBundle() {
+        sharedData.server?.close();
+      },
+    },
+    {
+      name: 'vite-plugin-retend-server-post-build',
+      apply: 'build',
+      enforce: 'post',
+
+      async transformIndexHtml(html) {
+        htmlShell = html;
+        return html;
+      },
+
+      async generateBundle(_, bundle) {
+        if (!sharedData.server) {
+          console.warn(
+            'The server was not initialized during static pre-build.'
+          );
+          return;
+        }
+        const environment = sharedData.server.environments.ssr;
+        if (!isRunnableDevEnvironment(environment)) {
+          console.warn(
+            'The SSR environment is not runnable. Skipping SSG for this build.'
+          );
+          return;
+        }
+
+        const {
+          options: { routerModulePath, rootSelector },
+        } = sharedData;
+        const routerModule = await environment.runner.import(
+          resolve(routerModulePath)
+        );
+        defineSharedGlobalContext(routerModule, sharedData.asyncLocalStorage);
+        /** @type {BuildOptions} */
+        const buildOptions = {
+          rootSelector,
+          htmlShell,
+          asyncLocalStorage: sharedData.asyncLocalStorage,
+          routerModule,
+          moduleRunner: environment.runner,
+        };
+
+        outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
+
+        const assetSourceToDistMap = new Map();
+        for (const obj of Object.values(bundle)) {
+          if ('originalFileNames' in obj) {
+            assetSourceToDistMap.set(
+              path.resolve(obj.originalFileNames[0]),
+              obj
+            );
+          }
+        }
+
+        const redirectLines = [];
+        const promises = [];
+        for (const artifact of outputArtifacts) {
+          if (artifact instanceof RedirectOutputArtifact) {
+            redirectLines.push(artifact.contents);
+            continue;
+          }
+
+          const { name: fileName } = artifact;
+          promises.push(
+            stringifyArtifact(artifact, assetSourceToDistMap).then((source) => {
+              this.emitFile({ type: 'asset', fileName, source });
+            })
+          );
+        }
+
+        if (redirectLines.length > 0) {
+          this.emitFile({
+            type: 'asset',
+            fileName: '_redirects',
+            source: redirectLines.join('\n'),
+          });
+        }
+
+        await Promise.all(promises);
+      },
+    },
+  ];
+}
+
+/**
+ * @param {SharedData} sharedData
+ * @returns {Plugin}
+ */
+function serverSnapshotResolverPlugin(sharedData) {
+  return {
+    name: 'vite-plugin-retend-server-snapshot',
+    enforce: 'pre',
+
+    configureServer(server_) {
+      sharedData.server = server_;
+    },
+
+    async transform(source, id) {
+      const skipFile =
+        id.includes('node_modules') ||
+        id.includes('retend-server/dist/') ||
+        id.includes('retend/dist/') ||
+        !id.match(/\.[jt]sx?$/);
+      if (skipFile) return null;
+
+      const magicString = new MagicString(source);
+      /** @type {Promise<void>[]} */
+      const serverModuleResolvers = [];
+
+      parseAndWalk(source, id, (node) => {
+        if (node.type !== 'CallExpression') return;
+        if (node.callee.type !== 'Identifier') return;
+        if (node.callee.name !== 'getServerSnapshot') return;
+        if (node.arguments.length !== 1) {
+          const message = `getServerSnapshot() expects a single argument, but received ${node.arguments.length}`;
+          throw new Error(message);
+        }
+
+        const argument = node.arguments[0];
+        if (argument.type !== 'ArrowFunctionExpression') {
+          const message = `getServerSnapshot() expects an arrow function as the argument, but received ${argument.type}`;
+          throw new Error(message);
+        }
+        if (argument.body.type !== 'ImportExpression') {
+          const message =
+            'getServerSnapshot() expects a module importer function as its argument';
+          throw new Error(message);
+        }
+        if (
+          argument.body.source.type !== 'Literal' ||
+          typeof argument.body.source.value !== 'string'
+        ) {
+          const message =
+            'Cannot resolve server module. Import Functions should be statically analyzable.';
+          throw new Error(message);
+        }
+        const moduleImporter = argument.body.source.value;
+
+        const executor = async () => {
+          const { start, end } = node;
+          const resolvedModulePath = await this.resolve(moduleImporter, id);
+          if (resolvedModulePath === null) {
+            const message = `[retend-server] Could not resolve server module: ${moduleImporter} referenced in ${id}`;
+            console.warn(message);
+            return;
+          }
+          const path = resolvedModulePath.id;
+          const { server } = sharedData;
+          if (!server) {
+            const message =
+              '[retend-server] Server not initialized. Cannot resolve server module.';
+            console.warn(message);
+            return;
+          }
+          const moduleJson = await loadModuleToJson(path, sharedData);
+          const replacement = `getServerSnapshot(()=>(${moduleJson}))`;
+          magicString.overwrite(start, end, replacement);
+        };
+
+        serverModuleResolvers.push(executor());
+      });
+
+      await Promise.all(serverModuleResolvers);
+      return { code: magicString.toString(), map: magicString.generateMap() };
+    },
+  };
+}
+
+/**
+ * Rewrites asset references in the given artifact's document and returns the stringified result.
+ *
+ * This function scans for `<script>`, `<style>`, `<link>` and `<img>` elements
+ * and rewrites their 'src' or 'href' attributes based on the provided assetSourceToDistMap.
+ * Only local asset references (not containing '://') are considered for rewriting.
+ *
+ * @async
+ * @param {HtmlOutputArtifact} artifact - The artifact object containing the document and a stringify method.
+ * @param {Map<string, { fileName: string }>} [assetSourceToDistMap] - A map from source asset paths to their rewritten distribution info.
+ * @returns {Promise<string>} The stringified artifact with rewritten asset references.
+ */
+async function stringifyArtifact(artifact, assetSourceToDistMap) {
+  const { contents, stringify } = artifact;
+  const { document } = contents;
+  // Rewrite asset references
+  document.findNodes((node) => {
+    if (node.nodeType !== 1) return false;
+    const element = /** @type {VElement} */ (node);
+
+    const tagName = element.tagName.toLowerCase();
+    if (!/^script|style|link|img$/i.test(tagName)) return false;
+
+    const attrName = tagName === 'link' ? 'href' : 'src';
+    const attrValue = element.getAttribute(attrName);
+    if (!attrValue || attrValue.includes('://')) return false;
+    const fullPath = path.resolve(
+      attrValue.startsWith('/') ? attrValue.slice(1) : attrValue
+    );
+    const rewrittenAsset = assetSourceToDistMap?.get(fullPath);
+    if (!rewrittenAsset) return false;
+
+    element.setAttribute(attrName, rewrittenAsset.fileName);
+    return true;
+  });
+
+  const source = await stringify();
+  return source;
+}
+
+/**
+ * @param {string} path
+ * @param {SharedData} sharedData
+ */
+const loadModuleToJson = async (path, sharedData) => {
+  const {
+    server,
+    asyncLocalStorage,
+    options: { routerModulePath },
+  } = sharedData;
+  const environment = server?.environments.ssr;
+  if (!environment || !isRunnableDevEnvironment(environment)) {
+    const message =
+      'Serialization failed: Environment does not support server snapshots.';
+    console.warn(message);
+    return '{}';
+  }
+  const { runner } = environment;
+  const routerModule = await runner.import(resolve(routerModulePath));
+  defineSharedGlobalContext(routerModule, asyncLocalStorage);
+
+  // --- Load and Serialize Module Exports ---
+
+  const executor = async () => {
     try {
       const loadedModule = await runner.import(path);
       /** @type {StaticModule} */
@@ -114,255 +382,55 @@ export function retendSSG(options) {
     }
   };
 
-  return [
-    {
-      name: 'vite-plugin-retend-server-snapshot',
-      enforce: 'pre',
+  const { VWindow } = await runner.import('retend/v-dom');
 
-      async config(config) {
-        serverConfig = {
-          ...config,
-          server: { ...config.server, middlewareMode: true },
-          ssr: { ...config.ssr, target: 'node' },
-          appType: 'custom',
-          // It is expected that all the expected functionality, be it transformations or rewrites,
-          // would have been handled by the main build process and cached. Having the plugins run again leads
-          // to problems, as they would attempt to transform already transformed code.
-          plugins: [],
-        };
-      },
-
-      async transform(source, id) {
-        if (!server) server = await createServer(serverConfig);
-
-        const skipFile =
-          id.includes('node_modules') ||
-          id.includes('retend-server/dist/') ||
-          !id.match(/\.[jt]sx?$/);
-        if (skipFile) return null;
-
-        const magicString = new MagicString(source);
-        /** @type {Promise<void>[]} */
-        const serverModuleResolvers = [];
-
-        parseAndWalk(source, id, (node) => {
-          if (node.type !== 'CallExpression') return;
-          if (node.callee.type !== 'Identifier') return;
-          if (node.callee.name !== 'getServerSnapshot') return;
-          if (node.arguments.length !== 1) {
-            const message = `getServerSnapshot() expects a single argument, but received ${node.arguments.length}`;
-            throw new Error(message);
-          }
-
-          const argument = node.arguments[0];
-          if (argument.type !== 'ArrowFunctionExpression') {
-            const message = `getServerSnapshot() expects an arrow function as the argument, but received ${argument.type}`;
-            throw new Error(message);
-          }
-          if (argument.body.type !== 'ImportExpression') {
-            const message =
-              'getServerSnapshot() expects a module importer function as its argument';
-            throw new Error(message);
-          }
-          if (
-            argument.body.source.type !== 'Literal' ||
-            typeof argument.body.source.value !== 'string'
-          ) {
-            const message =
-              'Cannot resolve server module. Import Functions should be statically analyzable.';
-            throw new Error(message);
-          }
-          const moduleImporter = argument.body.source.value;
-
-          const executor = async () => {
-            const { start, end } = node;
-            const resolvedModulePath = await this.resolve(moduleImporter, id);
-            if (resolvedModulePath === null) {
-              const message = `[retend-server] Could not resolve server module: ${moduleImporter} referenced in ${id}`;
-              console.warn(message);
-              return;
-            }
-            const path = resolvedModulePath.id;
-            const moduleJson = await loadServerModuleToJson(path);
-            const replacement = `getServerSnapshot(() => (${moduleJson}))`;
-            magicString.overwrite(start, end, replacement);
-          };
-
-          serverModuleResolvers.push(executor());
-        });
-
-        await Promise.all(serverModuleResolvers);
-        return { code: magicString.toString(), map: magicString.generateMap() };
-      },
-    },
-    {
-      name: 'vite-plugin-retend-server',
-      enforce: 'post',
-
-      // Handles SSR requests during development (`vite dev` or `vite serve`)
-      async configureServer(devServer) {
-        server = devServer;
-        // Read the base HTML shell using the dev server's config
-        const htmlShellPath = path.resolve(server.config.root, 'index.html');
-        let htmlShell;
-        try {
-          htmlShell = readFileSync(htmlShellPath, 'utf-8');
-        } catch (error) {
-          console.error(
-            `[retend-server] Failed to read HTML shell at ${htmlShellPath}:`,
-            error
-          );
-          return;
-        }
-
-        return () => {
-          server.middlewares.use(async (req, res, next) => {
-            const url = req.originalUrl;
-            const skipUrl =
-              !url ||
-              url.includes('.') ||
-              url.startsWith('/@') ||
-              url.startsWith('/node_modules/') ||
-              req.method !== 'GET';
-
-            if (skipUrl) return next();
-
-            try {
-              /** @type {BuildOptions} */
-              const buildOptions = {
-                rootSelector,
-                createRouterModule,
-                htmlShell,
-                server: server,
-                skipRedirects: true,
-              };
-
-              const outputArtifacts = await buildPaths([url], buildOptions);
-              if (!outputArtifacts || outputArtifacts.length !== 1) {
-                console.error(
-                  `[retend-server] Expected exactly one artifact for ${url}, but got ${
-                    outputArtifacts?.length ?? 0
-                  }.`
-                );
-                return next();
-              }
-
-              const artifact = outputArtifacts[0];
-              if (!artifact || !(artifact instanceof HtmlOutputArtifact)) {
-                return next();
-              }
-
-              const renderedHtml = await stringifyArtifact(artifact);
-              res.statusCode = 200;
-              res.setHeader('Content-Type', 'text/html');
-              res.end(renderedHtml);
-            } catch (e) {
-              if (e instanceof Error) server.ssrFixStacktrace(e);
-              console.error(
-                `[retend-server] SSR Error processing ${url}:`,
-                e instanceof Error ? e.message : e
-              );
-              next(e);
-            }
-          });
-        };
-      },
-
-      // --- Build-time hooks (SSG) ---
-      async transformIndexHtml(html) {
-        /** @type {BuildOptions} */
-        const buildOptions = {
-          rootSelector,
-          createRouterModule,
-          htmlShell: html,
-          server,
-        };
-
-        outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
-        return html;
-      },
-
-      async generateBundle(_, bundle) {
-        const assetSourceToDistMap = new Map();
-        for (const obj of Object.values(bundle)) {
-          if ('originalFileNames' in obj) {
-            assetSourceToDistMap.set(
-              path.resolve(obj.originalFileNames[0]),
-              obj
-            );
-          }
-        }
-
-        const redirectLines = [];
-        const promises = [];
-        for (const artifact of outputArtifacts) {
-          if (artifact instanceof RedirectOutputArtifact) {
-            redirectLines.push(artifact.contents);
-            continue;
-          }
-
-          const { name: fileName } = artifact;
-          promises.push(
-            stringifyArtifact(artifact, assetSourceToDistMap).then((source) => {
-              this.emitFile({ type: 'asset', fileName, source });
-            })
-          );
-        }
-
-        if (redirectLines.length > 0) {
-          this.emitFile({
-            type: 'asset',
-            fileName: '_redirects',
-            source: redirectLines.join('\n'),
-          });
-        }
-
-        await Promise.all(promises);
-      },
-
-      closeBundle() {
-        server?.close();
-      },
-    },
-  ];
-}
-
-/**
- * Rewrites asset references in the given artifact's document and returns the stringified result.
- *
- * This function scans for `<script>`, `<style>`, `<link>` and `<img>` elements
- * and rewrites their 'src' or 'href' attributes based on the provided assetSourceToDistMap.
- * Only local asset references (not containing '://') are considered for rewriting.
- *
- * @async
- * @param {HtmlOutputArtifact} artifact - The artifact object containing the document and a stringify method.
- * @param {Map<string, { fileName: string }>} [assetSourceToDistMap] - A map from source asset paths to their rewritten distribution info.
- * @returns {Promise<string>} The stringified artifact with rewritten asset references.
- */
-async function stringifyArtifact(artifact, assetSourceToDistMap) {
-  const { contents, stringify } = artifact;
-  const { document } = contents;
-  // Rewrite asset references
-  document.findNodes((node) => {
-    if (node.nodeType !== 1) return false;
-    const element = /** @type {VElement} */ (node);
-
-    const tagName = element.tagName.toLowerCase();
-    if (!/^script|style|link|img$/i.test(tagName)) return false;
-
-    const attrName = tagName === 'link' ? 'href' : 'src';
-    const attrValue = element.getAttribute(attrName);
-    if (!attrValue || attrValue.includes('://')) return false;
-    const fullPath = path.resolve(
-      attrValue.startsWith('/') ? attrValue.slice(1) : attrValue
-    );
-    const rewrittenAsset = assetSourceToDistMap?.get(fullPath);
-    if (!rewrittenAsset) return false;
-
-    element.setAttribute(attrName, rewrittenAsset.fileName);
-    return true;
+  const globalContextStore = {
+    window: new VWindow(),
+    path: '/',
+    teleportIdCounter: { value: 0 },
+    consistentValues: new Map(),
+    globalData: new Map(),
+  };
+  return await asyncLocalStorage.run(globalContextStore, async () => {
+    return await executor();
   });
+};
 
-  const source = await stringify();
-  return source;
+let sharedContextDefined = false;
+/**
+ * Sets the global context retriever for the current build or
+ * SSR environment.
+ *
+ * @param {{ context: typeof import('retend/context') }} routerModule
+ * @param {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
+ */
+function defineSharedGlobalContext(routerModule, asyncLocalStorage) {
+  if (sharedContextDefined) return;
+  sharedContextDefined = true;
+
+  const { Modes, setGlobalContext } = routerModule.context;
+  const context = {
+    mode: Modes.VDom,
+    get window() {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      return store.window;
+    },
+    get teleportIdCounter() {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      return store.teleportIdCounter;
+    },
+    get consistentValues() {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      return store.consistentValues;
+    },
+    get globalData() {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      return store.globalData;
+    },
+  };
+  setGlobalContext(context);
 }

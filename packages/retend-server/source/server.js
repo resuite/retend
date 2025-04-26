@@ -2,22 +2,16 @@
 /** @import {
  *    BuildOptions,
  *    ServerContext,
- *    AsyncStorage,
  *    RenderOptions,
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
-import { isRunnableDevEnvironment } from 'vite';
 import { addMetaListener } from './meta.js';
-
-/** @type {AsyncLocalStorage<AsyncStorage>} */
-const asyncLocalStorage = new AsyncLocalStorage();
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -60,22 +54,17 @@ export class RedirectOutputArtifact extends OutputArtifact {
  */
 export async function buildPaths(paths, options) {
   const {
-    server,
+    moduleRunner,
     htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
-    createRouterModule: routerPath = './router',
     skipRedirects = false,
+    asyncLocalStorage,
+    routerModule,
   } = options;
 
   // Use the module-scoped instance
   // const asyncLocalStorage = new AsyncLocalStorage(); // Remove instantiation from here
   const promises = [];
-  const ssrEnvironment = server.environments.ssr;
-
-  if (!isRunnableDevEnvironment(ssrEnvironment)) {
-    throw new Error('The SSR environment is not runnable.');
-  }
-  const moduleRunner = ssrEnvironment.runner;
 
   const retendModule = /** @type {typeof import('retend')} */ (
     await moduleRunner.import('retend')
@@ -86,7 +75,6 @@ export async function buildPaths(paths, options) {
   const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
     await moduleRunner.import('retend/v-dom')
   );
-  const routerModule = await moduleRunner.import(resolve(routerPath));
 
   if (routerModule.context === undefined) {
     throw new Error(
@@ -138,7 +126,7 @@ async function renderPath(options) {
     skipRedirects,
   } = options;
 
-  const { Modes, setGlobalContext, isVNode } = routerModule.context;
+  const { isVNode } = routerModule.context;
   const { getConsistentValues } = retendModule;
   const { renderToString } = retendRenderModule;
   const { VElement, VWindow } = retendVDomModule;
@@ -147,7 +135,7 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
-  const store = {
+  const globalContextStore = {
     window,
     path,
     teleportIdCounter,
@@ -157,31 +145,7 @@ async function renderPath(options) {
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
 
-  await asyncLocalStorage.run(store, async () => {
-    const context = {
-      mode: Modes.VDom,
-      get window() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.window;
-      },
-      get teleportIdCounter() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.teleportIdCounter;
-      },
-      get consistentValues() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.consistentValues;
-      },
-      get globalData() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.globalData;
-      },
-    };
-    setGlobalContext(context);
+  await asyncLocalStorage.run(globalContextStore, async () => {
     const store = asyncLocalStorage.getStore();
     if (!store) throw new Error('No store found');
 
