@@ -30,7 +30,7 @@ const runTests = () => {
     window.document.body.append(result as Node & VNode);
     expect(getTextContent(result)).toBe('Case A');
 
-    value.value = 'B';
+    value.set('B');
     expect(getTextContent(result)).toBe('Case B');
   });
 
@@ -69,7 +69,7 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('One');
 
-    value.value = 2;
+    value.set(2);
     expect(getTextContent(result)).toBe('Two');
   });
 
@@ -92,10 +92,10 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('A1');
 
-    inner.value = 2;
+    inner.set(2);
     expect(getTextContent(result)).toBe('A2');
 
-    outer.value = 'B';
+    outer.set('B');
     expect(getTextContent(result)).toBe('B');
   });
 
@@ -140,11 +140,11 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('Loading...');
 
-    status.value = 'error';
-    error.value = new Error('Test error');
+    status.set('error');
+    error.set(new Error('Test error'));
     expect(getTextContent(result)).toBe('Error: Test error');
 
-    status.value = 'success';
+    status.set('success');
     expect(getTextContent(result)).toBe('Success!');
   });
 
@@ -163,7 +163,7 @@ const runTests = () => {
     window.document.body.append(result as Node & VNode);
     const firstSpan = result.querySelector('span');
 
-    value.value = 'B';
+    value.set('B');
     const secondSpan = result.querySelector('span');
 
     expect(firstSpan).not.toBe(secondSpan);

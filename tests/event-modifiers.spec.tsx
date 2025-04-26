@@ -15,7 +15,7 @@ describe('Event Modifiers', () => {
     const form = (
       <form
         onSubmit--prevent={() => {
-          prevented.value = true;
+          prevented.set(true);
         }}
       >
         <button type="submit">Submit</button>
@@ -25,7 +25,7 @@ describe('Event Modifiers', () => {
     window.document.body.append(form);
     form.querySelector('button')?.click();
 
-    expect(prevented.value).toBe(true);
+    expect(prevented.get()).toBe(true);
   });
 
   it('should handle stop modifier', () => {
@@ -36,18 +36,18 @@ describe('Event Modifiers', () => {
     const div = (
       <div
         onClick={() => {
-          parentClicked.value = true;
+          parentClicked.set(true);
         }}
         onKeyUp={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
-            parentClicked.value = true;
+            parentClicked.set(true);
           }
         }}
       >
         <button
           type="button"
           onClick--stop={() => {
-            childClicked.value = true;
+            childClicked.set(true);
           }}
         >
           Click me
@@ -58,8 +58,8 @@ describe('Event Modifiers', () => {
     window.document.body.append(div);
     div.querySelector('button')?.click();
 
-    expect(childClicked.value).toBe(true);
-    expect(parentClicked.value).toBe(false);
+    expect(childClicked.get()).toBe(true);
+    expect(parentClicked.get()).toBe(false);
   });
 
   it('should handle self modifier', () => {
@@ -69,7 +69,7 @@ describe('Event Modifiers', () => {
     const div = (
       <div
         onClick--self={() => {
-          clicked.value = true;
+          clicked.set(true);
         }}
       >
         <button type="button">Click me</button>
@@ -78,10 +78,10 @@ describe('Event Modifiers', () => {
 
     window.document.body.append(div);
     div.querySelector('button')?.click();
-    expect(clicked.value).toBe(false);
+    expect(clicked.get()).toBe(false);
 
     div.click();
-    expect(clicked.value).toBe(true);
+    expect(clicked.get()).toBe(true);
   });
 
   it('should handle once modifier', () => {
@@ -92,7 +92,7 @@ describe('Event Modifiers', () => {
       <button
         type="button"
         onClick--once={() => {
-          clickCount.value++;
+          clickCount.set(clickCount.get() + 1);
         }}
       >
         Click me
@@ -104,7 +104,7 @@ describe('Event Modifiers', () => {
     button.click();
     button.click();
 
-    expect(clickCount.value).toBe(1);
+    expect(clickCount.get()).toBe(1);
   });
 
   it('should handle passive modifier', () => {
@@ -138,18 +138,18 @@ describe('Event Modifiers', () => {
       <div
         style={{ padding: '10px' }}
         onClick={() => {
-          parentClicked.value = true;
+          parentClicked.set(true);
         }}
         onKeyUp={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
-            parentClicked.value = true;
+            parentClicked.set(true);
           }
         }}
       >
         <button
           type="button"
           onClick--stop--once={() => {
-            childClicked.value++;
+            childClicked.set(childClicked.get() + 1);
           }}
         >
           Click me
@@ -161,10 +161,10 @@ describe('Event Modifiers', () => {
     const button = div.querySelector('button');
     if (!button) throw new Error('Button not found');
     button.click();
-    expect(parentClicked.value).toBe(false);
+    expect(parentClicked.get()).toBe(false);
 
     button.click();
-    expect(childClicked.value).toBe(1);
+    expect(childClicked.get()).toBe(1);
   });
 
   it('should apply modifiers in correct order', () => {

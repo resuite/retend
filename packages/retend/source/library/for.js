@@ -130,7 +130,7 @@ export function For(list, fn, options) {
   // First run, prior to any changes.
   let i = 0;
 
-  for (const item of list.value) {
+  for (const item of list.get()) {
     const index = Cell.source(i);
     const parameters = [item, index, list];
     const template = func(...parameters);
@@ -173,7 +173,7 @@ export function For(list, fn, options) {
         lastNode = nodes[nodes.length - 1];
       } else {
         /** @type {import('@adbl/cells').SourceCell<number>} */
-        (cachedResult.index).value = index;
+        (cachedResult.index).set(index);
         newCache.set(itemKey, cachedResult);
         const nodes = cachedResult.nodes;
         firstNode = nodes[0];
@@ -202,7 +202,7 @@ export function For(list, fn, options) {
       // There was a previous optimization to try and remove contiguous nodes
       // at once with range.deleteContents(), but it was not worth it.
       for (const node of value.nodes) {
-        onBeforeNodeRemove?.(node, value.index.value);
+        onBeforeNodeRemove?.(node, value.index.get());
         node.remove();
       }
     }

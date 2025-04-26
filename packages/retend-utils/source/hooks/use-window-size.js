@@ -32,8 +32,8 @@ const USE_WINDOW_SIZE_KEY = 'hooks:useWindowSize:windowSizeCache';
  * const { width, height } = useWindowSize();
  *
  * // Access the current width and height values
- * console.log(`Window width: ${width.value}px`);
- * console.log(`Window height: ${height.value}px`);
+ * console.log(`Window width: ${width.get()}px`);
+ * console.log(`Window height: ${height.get()}px`);
  *
  * // React to changes in window size
  * width.listen(newWidth => {
@@ -51,20 +51,20 @@ export const useWindowSize = createGlobalStateHook(
     }),
 
     initializeState: (window, cells) => {
-      cells.width.value = window.innerWidth;
-      cells.height.value = window.innerHeight;
+      cells.width.set(window.innerWidth);
+      cells.height.set(window.innerHeight);
     },
 
     setupListeners: (window, cells) => {
       window.addEventListener('resize', () => {
-        cells.width.value = window.innerWidth;
-        cells.height.value = window.innerHeight;
+        cells.width.set(window.innerWidth);
+        cells.height.set(window.innerHeight);
       });
     },
 
     createReturnValue: (cells) => ({
-      width: Cell.derived(() => cells.width.value),
-      height: Cell.derived(() => cells.height.value),
+      width: Cell.derived(() => cells.width.get()),
+      height: Cell.derived(() => cells.height.get()),
     }),
   })
 );

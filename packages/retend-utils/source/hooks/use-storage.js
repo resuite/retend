@@ -44,8 +44,8 @@ const SESSION_STORAGE_CACHE_KEY = 'hooks:useSessionStorage:cache';
  *
  * const theme = useLocalStorage('theme', 'light');
  *
- * console.log(theme.value); // 'light' or stored value
- * theme.value = 'dark'; // Updates localStorage
+ * console.log(theme.get()); // 'light' or stored value
+ * theme.set('dark'); // Updates localStorage
  * ```
  */
 export const useLocalStorage = createGlobalStateHook(
@@ -67,9 +67,9 @@ export const useLocalStorage = createGlobalStateHook(
  *
  * const temporaryToken = useSessionStorage('sessionToken', null);
  *
- * if (!temporaryToken.value) {
+ * if (!temporaryToken.get()) {
  *   // Fetch and set token
- *   temporaryToken.value = await fetchToken();
+ *   temporaryToken.set(await fetchToken());
  * }
  * ```
  */
@@ -106,7 +106,7 @@ function storageOptions(cacheKey, storage) {
       for (const [key, coreCell] of map.entries()) {
         const value = window[storage].getItem(key);
         if (value) {
-          coreCell.value = safeParseJson(value);
+          coreCell.set(safeParseJson(value));
         }
       }
     },
@@ -118,10 +118,10 @@ function storageOptions(cacheKey, storage) {
 
         const cell = map.get(key);
         if (cell && newValue) {
-          cell.value = safeParseJson(newValue);
+          cell.set(safeParseJson(newValue));
         } else if (cell) {
           // @ts-ignore: Default to null.
-          cell.value = null;
+          cell.set(null);
         }
       });
     },
@@ -144,13 +144,13 @@ function storageOptions(cacheKey, storage) {
         });
       }
 
-      const returnCell = Cell.source(coreCell.value, { deep: true });
+      const returnCell = Cell.source(coreCell.get(), { deep: true });
       returnCell.listen((value) => {
-        coreCell.value = value;
+        coreCell.set(value);
       });
       /** @param {unknown} value */
       const update = (value) => {
-        returnCell.value = value;
+        returnCell.set(value);
       };
       coreCell.listen(update, { weak: true });
 

@@ -49,7 +49,7 @@ const runTests = () => {
     expect(getTextContent(result)).toBe('True');
     expect(result.childNodes[2] instanceof window.Comment).toBe(true);
 
-    condition.value = false;
+    condition.set(false);
     // // The DOM should automatically update due to cell reactivity
     expect(getTextContent(result)).toBe('False');
   });
@@ -84,7 +84,7 @@ const runTests = () => {
     expect(result instanceof window.HTMLElement).toBe(true);
     expect(getTextContent(result)).toBe('Outer True, Inner False');
 
-    inner.value = true;
+    inner.set(true);
     expect(getTextContent(result)).toBe('Both True');
   });
 

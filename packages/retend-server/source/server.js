@@ -203,7 +203,7 @@ async function renderPath(options) {
       )
     );
 
-    const finalPath = currentRoute.value.fullPath;
+    const finalPath = currentRoute.get().fullPath;
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
 
     const stringify = async () => {

@@ -229,63 +229,74 @@ export function FluidList(props) {
   const maxCols = useDerivedValue(maxColumnsProp);
   const maxRows = useDerivedValue(maxRowsProp);
 
-  const directionClass = Cell.derived(() => direction.value);
-  const len = Cell.derived(() => items.value.length);
-  let previousLength = len.value;
+  const directionClass = Cell.derived(() => direction.get());
+  const len = Cell.derived(() => items.get().length);
+  let previousLength = len.get();
 
-  const rows = Cell.derived(() =>
-    direction.value === 'inline'
-      ? maxCols.value
-        ? Math.max(Math.ceil(len.value / maxCols.value), 1)
-        : 1
-      : maxRows.value
-      ? Math.min(maxRows.value, len.value)
-      : Math.max(len.value, 1)
-  );
-  const previousRows = Cell.source(rows.value);
+  const rows = Cell.derived(() => {
+    if (direction.get() === 'inline') {
+      const maxColsValue = maxCols.get();
+      if (maxColsValue) {
+        return Math.max(Math.ceil(len.get() / maxColsValue), 1);
+      }
+      return 1;
+    }
+    const maxRowsValue = maxRows.get();
+    if (maxRowsValue) {
+      return Math.min(maxRowsValue, len.get());
+    }
+    return Math.max(len.get(), 1);
+  });
+  const previousRows = Cell.source(rows.get());
 
-  const cols = Cell.derived(() =>
-    direction.value === 'block'
-      ? maxRows.value
-        ? Math.max(Math.ceil(len.value / maxRows.value), 1)
-        : 1
-      : maxCols.value
-      ? Math.min(maxCols.value, len.value)
-      : Math.max(len.value, 1)
-  );
-  const previousCols = Cell.source(cols.value);
+  const cols = Cell.derived(() => {
+    if (direction.get() === 'block') {
+      const maxRowsValue = maxRows.get();
+      if (maxRowsValue) {
+        return Math.max(Math.ceil(len.get() / maxRowsValue), 1);
+      }
+      return 1;
+    }
+    const maxColsValue = maxCols.get();
+    if (maxColsValue) {
+      return Math.min(maxColsValue, len.get());
+    }
+    return Math.max(len.get(), 1);
+  });
 
-  const oldRows = Cell.derived(() => Math.max(rows.value, previousRows.value));
-  const oldCols = Cell.derived(() => Math.max(cols.value, previousCols.value));
+  const previousCols = Cell.source(cols.get());
+
+  const oldRows = Cell.derived(() => Math.max(rows.get(), previousRows.get()));
+  const oldCols = Cell.derived(() => Math.max(cols.get(), previousCols.get()));
 
   const gridTemplateColumns = Cell.derived(
-    () => `repeat(${cols.value}, ${itemWidth.value ?? 'min-content'})`
+    () => `repeat(${cols.get()}, ${itemWidth.get() ?? 'min-content'})`
   );
 
   const gridTemplateRows = Cell.derived(
-    () => `repeat(${rows.value}, ${itemHeight.value ?? 'min-content'})`
+    () => `repeat(${rows.get()}, ${itemHeight.get() ?? 'min-content'})`
   );
 
   const height = Cell.derived(() => {
-    if (!itemHeight.value) return '100%';
-    const itemsTotalHeight = `(${rows.value} * ${itemHeight.value})`;
-    const gaps = `(var(--gap) * ${rows.value - 1})`;
+    if (!itemHeight.get()) return '100%';
+    const itemsTotalHeight = `(${rows.get()} * ${itemHeight.get()})`;
+    const gaps = `(var(--gap) * ${rows.get() - 1})`;
     return `calc(${itemsTotalHeight} + ${gaps})`;
   });
 
   const width = Cell.derived(() => {
-    if (!itemWidth.value) return '100%';
-    const itemsTotalWidth = `${cols.value} * ${itemWidth.value}`;
-    const gaps = `(var(--gap) * ${cols.value - 1})`;
+    if (!itemWidth.get()) return '100%';
+    const itemsTotalWidth = `${cols.get()} * ${itemWidth.get()}`;
+    const gaps = `(var(--gap) * ${cols.get() - 1})`;
     return `calc(${itemsTotalWidth} + ${gaps})`;
   });
 
   const listTransitionProperty = Cell.derived(() =>
-    animateSizing.value ? 'width, height' : 'none'
+    animateSizing.get() ? 'width, height' : 'none'
   );
 
   const itemTransitionProperty = Cell.derived(() =>
-    animateSizing.value ? 'width, height, translate' : 'translate'
+    animateSizing.get() ? 'width, height, translate' : 'translate'
   );
 
   /** @type {JSX.StyleValue} */
@@ -317,31 +328,31 @@ export function FluidList(props) {
    * @param {Cell<number>} idx
    */
   const ItemRenderer = (item, idx) => {
-    const previousIdx = Cell.source(idx.value);
+    const previousIdx = Cell.source(idx.get());
     const nodeRef = Cell.source(null);
 
     const listItemPreviousCol = Cell.derived(() =>
-      direction.value === 'block'
-        ? Math.trunc(previousIdx.value / oldRows.value)
-        : previousIdx.value % oldCols.value
+      direction.get() === 'block'
+        ? Math.trunc(previousIdx.get() / oldRows.get())
+        : previousIdx.get() % oldCols.get()
     );
 
     const listItemPreviousRow = Cell.derived(() =>
-      direction.value === 'block'
-        ? previousIdx.value % oldRows.value
-        : Math.trunc(previousIdx.value / oldCols.value)
+      direction.get() === 'block'
+        ? previousIdx.get() % oldRows.get()
+        : Math.trunc(previousIdx.get() / oldCols.get())
     );
 
     const listItemCol = Cell.derived(() =>
-      direction.value === 'block'
-        ? Math.trunc(idx.value / rows.value)
-        : idx.value % cols.value
+      direction.get() === 'block'
+        ? Math.trunc(idx.get() / rows.get())
+        : idx.get() % cols.get()
     );
 
     const listItemRow = Cell.derived(() =>
-      direction.value === 'block'
-        ? idx.value % rows.value
-        : Math.trunc(idx.value / cols.value)
+      direction.get() === 'block'
+        ? idx.get() % rows.get()
+        : Math.trunc(idx.get() / cols.get())
     );
 
     /** @type {JSX.StyleValue} */
@@ -373,8 +384,9 @@ export function FluidList(props) {
   };
 
   const completeAnimationSequence = async () => {
-    if (!ref.value) return;
-    const ul = ref.deproxy();
+    if (!ref.get()) return;
+    const ul = ref.get();
+    if (!ul) return;
     const animations = ul.getAnimations();
     for (const child of ul.children) {
       animations.push(...child.getAnimations());
@@ -392,7 +404,7 @@ export function FluidList(props) {
           el._restoredAnimation = undefined;
           el._lastTiming = undefined;
           if (el._previousIndex && el._currentIndex) {
-            el._previousIndex.value = el._currentIndex.value;
+            el._previousIndex.set(el._currentIndex.get());
           }
         })
       )
@@ -426,9 +438,9 @@ export function FluidList(props) {
 
     const sessionId = manager.activeSessionId;
     requestAnimationFrame(async () => {
-      if (!ref.value) return;
+      const list = ref.get();
+      if (!list) return;
 
-      const list = ref.value;
       list.classList.add('from');
 
       /** @type {EffectTiming | undefined} */
@@ -450,13 +462,14 @@ export function FluidList(props) {
       }
 
       requestAnimationFrame(async () => {
-        if (!ref.value) return;
+        const element = ref.get();
+        if (!element) return;
 
         list.classList.add('to');
         await completeAnimationSequence();
         if (sessionId !== manager.activeSessionId) return;
 
-        ref.value.classList.remove('from', 'to');
+        element.classList.remove('from', 'to');
         manager.endCurrentSession();
         animationIsAlreadyRunning = false;
       });
@@ -464,11 +477,11 @@ export function FluidList(props) {
   };
 
   rows.listen(async (colCount) => {
-    if (await manager.currentSessionEnded) previousRows.value = colCount;
+    if (await manager.currentSessionEnded) previousRows.set(colCount);
   });
 
   cols.listen(async (colCount) => {
-    if (await manager.currentSessionEnded) previousCols.value = colCount;
+    if (await manager.currentSessionEnded) previousCols.set(colCount);
   });
 
   if (rest.style) Object.assign(style, rest.style);

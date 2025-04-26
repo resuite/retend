@@ -35,14 +35,14 @@ export const useCursorPosition = createGlobalStateHook({
      * @param {MouseEvent} event
      */
     const updatePosition = (event) => {
-      cells.x.value = event.clientX;
-      cells.y.value = event.clientY;
+      cells.x.set(event.clientX);
+      cells.y.set(event.clientY);
     };
     window.addEventListener('mousemove', updatePosition, { passive: true });
   },
   /** @returns {CursorPosition}*/
   createReturnValue: (cells) => ({
-    x: Cell.derived(() => cells.x.value),
-    y: Cell.derived(() => cells.y.value),
+    x: Cell.derived(() => cells.x.get()),
+    y: Cell.derived(() => cells.y.get()),
   }),
 });

@@ -16,9 +16,9 @@ const options = {
   setupListeners: (window, savedQueries) => {
     for (const [query, sourceCell] of savedQueries) {
       const mediaQueryList = window.matchMedia(query);
-      sourceCell.value = mediaQueryList.matches;
+      sourceCell.set(mediaQueryList.matches);
       mediaQueryList.addEventListener('change', (event) => {
-        sourceCell.value = event.matches;
+        sourceCell.set(event.matches);
       });
       // Store the mediaQueryList on the cell object to manage its lifecycle
       Reflect.set(sourceCell, '__mediaQueryList', mediaQueryList);
@@ -39,16 +39,16 @@ const options = {
       savedQueries.set(query, cell);
       if (matchContext(window, Modes.Interactive)) {
         const mediaQueryList = window.matchMedia(query);
-        cell.value = mediaQueryList.matches;
+        cell.set(mediaQueryList.matches);
         mediaQueryList.addEventListener('change', (event) => {
-          cell.value = event.matches;
+          cell.set(event.matches);
         });
         // Store the mediaQueryList on the cell object to manage its lifecycle
         Reflect.set(cell, '__mediaQueryList', mediaQueryList);
       }
     }
 
-    return Cell.derived(() => cell.value);
+    return Cell.derived(() => cell.get());
   },
 };
 

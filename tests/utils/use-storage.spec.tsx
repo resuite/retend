@@ -14,11 +14,11 @@ const runTests = () => {
     );
     const { window } = getGlobalContext();
 
-    expect(storageCell.value).toBe('initialValue');
+    expect(storageCell.get()).toBe('initialValue');
 
-    storageCell.value = 'newValue';
+    storageCell.set('newValue');
 
-    expect(storageCell.value).toBe('newValue');
+    expect(storageCell.get()).toBe('newValue');
     expect(window.localStorage.getItem(localStorageKey)).toBe('"newValue"');
   });
 
@@ -32,9 +32,9 @@ const runTests = () => {
 
     expect(window.localStorage.getItem(localStorageKey)).toBe('"initialValue"');
 
-    storageCell.value = null;
+    storageCell.set(null);
 
-    expect(storageCell.value).toBe(null);
+    expect(storageCell.get()).toBe(null);
     expect(window.localStorage.getItem(localStorageKey)).toBe('null'); // Note: localStorage stores null as "null" string
   });
 
@@ -45,11 +45,11 @@ const runTests = () => {
     );
     const { window } = getGlobalContext();
 
-    expect(storageCell.value).toBe('initialValue');
+    expect(storageCell.get()).toBe('initialValue');
 
-    storageCell.value = 'newValue';
+    storageCell.set('newValue');
 
-    expect(storageCell.value).toBe('newValue');
+    expect(storageCell.get()).toBe('newValue');
     expect(window.sessionStorage.getItem(sessionStorageKey)).toBe('"newValue"');
   });
 
@@ -65,9 +65,9 @@ const runTests = () => {
       '"initialValue"'
     );
 
-    storageCell.value = null;
+    storageCell.set(null);
 
-    expect(storageCell.value).toBe(null);
+    expect(storageCell.get()).toBe(null);
     expect(window.sessionStorage.getItem(sessionStorageKey)).toBe('null'); // Note: sessionStorage stores null as "null" string
   });
 };
@@ -81,7 +81,7 @@ describe('useStorage', () => {
       const storageCell = useLocalStorage(localStorageKey, 'initialValue');
       const { window } = getGlobalContext();
 
-      expect(storageCell.value).toBe(
+      expect(storageCell.get()).toBe(
         JSON.parse(window.localStorage.getItem(localStorageKey) as string)
       );
 
@@ -93,14 +93,14 @@ describe('useStorage', () => {
         })
       );
 
-      expect(storageCell.value).toBe('newValue');
+      expect(storageCell.get()).toBe('newValue');
     });
 
     it('should update when session storage changes from another window', () => {
       const storageCell = useSessionStorage(sessionStorageKey, 'initialValue');
       const { window } = getGlobalContext();
 
-      expect(storageCell.value).toBe(
+      expect(storageCell.get()).toBe(
         JSON.parse(window.sessionStorage.getItem(sessionStorageKey) as string)
       );
 
@@ -112,7 +112,7 @@ describe('useStorage', () => {
         })
       );
 
-      expect(storageCell.value).toBe('newValue');
+      expect(storageCell.get()).toBe('newValue');
     });
   });
 

@@ -315,7 +315,7 @@ async function hydrateDomNode(node, vNode) {
     const ref = Reflect.get(vNode, '__ref');
     if (ref instanceof SourceCell) {
       Reflect.set(node, '__ref', ref);
-      ref.value = node;
+      ref.set(node);
     }
   }
 
@@ -330,7 +330,7 @@ async function hydrateDomNode(node, vNode) {
     const ref = Reflect.get(vNode, '__ref');
     if (ref instanceof SourceCell) {
       Reflect.set(node, '__ref', ref);
-      ref.value = node;
+      ref.set(node);
     }
   }
 

@@ -44,10 +44,10 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('ABC');
 
-    items.value = ['A', 'B', 'C'];
+    items.set(['A', 'B', 'C']);
     expect(getTextContent(result)).toBe('ABC');
 
-    items.value = ['D', 'E', 'F'];
+    items.set(['D', 'E', 'F']);
     expect(getTextContent(result)).toBe('DEF');
   });
 
@@ -58,7 +58,7 @@ const runTests = () => {
     const result = (
       <div>
         {For(items, (item, index) => {
-          indices.push(index.value);
+          indices.push(index.get());
           return <span>{item}</span>;
         })}
       </div>
@@ -125,7 +125,7 @@ const runTests = () => {
     window.document.body.append(result as unknown as Node & VNode);
     const firstSpans = Array.from(result.querySelectorAll('span'));
 
-    items.value = [...items.value].reverse();
+    items.set([...items.get()].reverse());
     const secondSpans = Array.from(result.querySelectorAll('span'));
 
     // The DOM nodes should be the same but reordered
@@ -152,7 +152,7 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('FirstSecond');
 
-    items.value[0].text.value = 'Updated';
+    items.get()[0].text.set('Updated');
     expect(getTextContent(result)).toBe('UpdatedSecond');
   });
 

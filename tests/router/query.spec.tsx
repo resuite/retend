@@ -90,6 +90,7 @@ describe('useRouteQuery', () => {
     const CardPage = () => {
       query = useRouteQuery();
       const stage = query.get('stage');
+      console.log('stage', stage);
 
       cardPageWasRun();
 
@@ -253,7 +254,7 @@ describe('useRouteQuery', () => {
     const FilterPage = () => {
       query = useRouteQuery();
       const filters = query.getAll('filter');
-      const filtersAreEmpty = Cell.derived(() => filters.value.length === 0);
+      const filtersAreEmpty = Cell.derived(() => filters.get().length === 0);
 
       return (
         <div>

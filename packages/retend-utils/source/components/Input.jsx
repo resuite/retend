@@ -32,12 +32,12 @@ export function Input(props) {
   // source model, which could have led to memory
   // leaks.
   const derivedModel = Cell.derived(() => {
-    return model?.value;
+    return model?.get();
   });
 
   // From model to input.
   derivedModel.listen((value) => {
-    const input = ref.value;
+    const input = ref.get();
     if (!value || !input) return;
 
     const { type } = input;
@@ -56,10 +56,11 @@ export function Input(props) {
   observer.onConnected(ref, (input) => {
     // Propagate initial values.
     if (model) {
-      if (model.value) {
-        input.value = String(model.value);
+      const modelValue = model.get();
+      if (modelValue) {
+        input.value = String(modelValue);
       } else {
-        model.value = getValueFromInput(input);
+        model.set(getValueFromInput(input));
       }
     }
 
@@ -70,7 +71,7 @@ export function Input(props) {
         getValueFromInput(input)
       );
       if (model) {
-        model.value = value;
+        model.set(value);
       }
     };
 

@@ -21,7 +21,7 @@ const USE_ONLINE_STATUS_KEY = 'hooks:useOnlineStatus:statusCache';
  * import { useOnlineStatus } from 'retend-utils/hooks';
  *
  * const isOnline = useOnlineStatus();
- * console.log(`Currently online: ${isOnline.value}`);
+ * console.log(`Currently online: ${isOnline.get()}`);
  */
 export const useOnlineStatus = createGlobalStateHook(
   /** @type {CreateGlobalStateHookOptions<[], NetworkStatusState, Cell<boolean>>} */
@@ -33,19 +33,19 @@ export const useOnlineStatus = createGlobalStateHook(
     }),
 
     initializeState: (window, cells) => {
-      cells.isOnlineSource.value = window.navigator.onLine;
+      cells.isOnlineSource.set(window.navigator.onLine);
     },
 
     setupListeners: (window, cells) => {
       window.addEventListener('online', () => {
-        cells.isOnlineSource.value = true;
+        cells.isOnlineSource.set(true);
       });
       window.addEventListener('offline', () => {
-        cells.isOnlineSource.value = false;
+        cells.isOnlineSource.set(false);
       });
     },
 
     createReturnValue: (cells) =>
-      Cell.derived(() => cells.isOnlineSource.value),
+      Cell.derived(() => cells.isOnlineSource.get()),
   })
 );

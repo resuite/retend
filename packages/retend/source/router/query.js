@@ -72,11 +72,11 @@ export function useRouteQuery() {
 
   const updateQuery = async (updateSearchParams) => {
     const newSearchParams = new URLSearchParams(
-      currentRoute.value.query.toString()
+      currentRoute.get().query.toString()
     );
     updateSearchParams(newSearchParams);
     const nextRoute = `${
-      currentRoute.value.path
+      currentRoute.get().path
     }?${newSearchParams.toString()}`;
     await router.navigate(nextRoute);
   };
@@ -88,7 +88,7 @@ export function useRouteQuery() {
    * @returns {import('@adbl/cells').Cell<boolean>}
    */
   const has = (key) => {
-    return Cell.derived(() => currentRoute.value.query.has(key));
+    return Cell.derived(() => currentRoute.get().query.has(key));
   };
 
   /**
@@ -98,7 +98,7 @@ export function useRouteQuery() {
    * @returns {import('@adbl/cells').Cell<string|null>}
    */
   const get = (key) => {
-    return Cell.derived(() => currentRoute.value.query.get(key));
+    return Cell.derived(() => currentRoute.get().query.get(key));
   };
 
   /**
@@ -145,7 +145,7 @@ export function useRouteQuery() {
    * @param {string} key
    */
   const getAll = (key) => {
-    return Cell.derived(() => currentRoute.value.query.getAll(key));
+    return Cell.derived(() => currentRoute.get().query.getAll(key));
   };
 
   /**
@@ -154,7 +154,7 @@ export function useRouteQuery() {
    * @returns {string} The query string
    */
   const toStringFn = () => {
-    return currentRoute.value.query.toString();
+    return currentRoute.get().query.toString();
   };
 
   const routeQueryObject = {

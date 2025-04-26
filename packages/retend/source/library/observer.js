@@ -1,8 +1,6 @@
 /**
  * @typedef {() => void} CleanupFn
  */
-
-import { SourceCell } from '@adbl/cells';
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 
 /**
@@ -59,12 +57,9 @@ export class DocumentObserver {
   onConnected(ref, callback) {
     if (!this.#initialized) this.#init();
 
-    if (ref.value?.isConnected) {
-      if (ref instanceof SourceCell) {
-        this.#mount(ref.deproxy(), callback);
-      } else {
-        this.#mount(ref.value, callback);
-      }
+    const currentValue = ref.get();
+    if (currentValue?.isConnected) {
+      this.#mount(currentValue, callback);
       return;
     }
     const connectedCallbacks = this.#callbackSets.get(ref) || [];
@@ -96,13 +91,10 @@ export class DocumentObserver {
     if (!this.#initialized) this.#init();
 
     for (const [key, callbacks] of this.#callbackSets.entries()) {
-      if (!key.value?.isConnected) continue;
+      const currentValue = key.get();
+      if (!currentValue?.isConnected) continue;
       for (const callback of callbacks) {
-        if (key instanceof SourceCell) {
-          this.#mount(key.deproxy(), callback);
-        } else {
-          this.#mount(key.value, callback);
-        }
+        this.#mount(currentValue, callback);
       }
       this.#callbackSets.delete(key);
     }
