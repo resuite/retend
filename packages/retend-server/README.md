@@ -92,7 +92,6 @@ import Home from './Home';
 import About from './About';
 import Contact from './Contact';
 
-export * as context from 'retend/context';
 export function createRouter() {
   return createWebRouter({
     routes: [

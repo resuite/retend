@@ -28,12 +28,11 @@ import { Modes, setGlobalContext } from 'retend/context';
  * An array of routes to generate static HTML files for (e.g., ['/', '/about']).
  *
  * @property {string} routerModulePath
- * The path to the module exporting the `createRouter` function and `context` module.
+ * The path to the module exporting the `createRouter` function.
  * It should look like this:
  * ```js
  * import { createWebRouter } from 'retend/router';
  *
- * export * as context from 'retend/context';
  * export function createRouter() {
  *   return createWebRouter({ routes: [...] });
  * }
