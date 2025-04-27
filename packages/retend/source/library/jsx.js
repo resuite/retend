@@ -304,7 +304,7 @@ export function setAttributeFromProps(el, key, value) {
     if (key === 'ref') {
       element.__attributeCells.add(value);
       if (value instanceof SourceCell) {
-        value.value = element;
+        value.set(element);
         element.__ref = value;
       }
       return;
@@ -619,7 +619,7 @@ export function normalizeClassValue(val, element) {
   }
 
   if (Cell.isCell(val)) {
-    let currentClassToken = val.value;
+    let currentClassToken = val.get();
     addCellListener(
       element,
       val,
@@ -661,7 +661,7 @@ export function normalizeClassValue(val, element) {
         },
         false
       );
-      if (value.value) result += ` ${key}`;
+      if (value.get()) result += ` ${key}`;
     }
     return result;
   }

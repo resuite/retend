@@ -50,7 +50,7 @@ const className = Cell.source('container');
 @Example 7
 @Input Element with nested reactive class array
 const className = Cell.source('container');
-const activityClass = Cell.derived(() => className.value === 'container' ? 'active' : 'inactive');
+const activityClass = Cell.derived(() => className.get() === 'container' ? 'active' : 'inactive');
 <div class={[className, activityClass, 'main-content', {hidden: false}]} />
 
 ---

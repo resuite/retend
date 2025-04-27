@@ -8,11 +8,12 @@ export default function SessionStorageTest() {
   const inputRef = Cell.source<HTMLInputElement | null>(null);
 
   const handleInput = function (this: HTMLInputElement) {
-    localValue.value = this.value;
+    localValue.set(this.value);
   };
   localValue.listen((newValue) => {
-    if (!inputRef.value) return;
-    inputRef.value.value = newValue ?? '';
+    const inputElement = inputRef.get();
+    if (!inputElement) return;
+    inputElement.value = newValue ?? '';
   });
 
   return (

@@ -61,7 +61,7 @@ import { Cell } from 'retend';
 function OnceClickButton() {
   const clickCount = Cell.source(0);
   const handleClickOnce = () => {
-    clickCount.value++;
+    clickCount.set(clickCount.get() + 1);
     alert('Clicked once!');
   };
   return (
@@ -159,7 +159,7 @@ import { Cell } from 'retend';
 function OnceMouseoverDiv() {
   const hoverCount = Cell.source(0);
   const handleMouseOverOnce = () => {
-    hoverCount.value++;
+    hoverCount.set(hoverCount.get() + 1);
     alert('Mouse over triggered once!');
   };
   return (
@@ -232,7 +232,7 @@ import { Cell } from 'retend';
 function OnceFocusInput() {
   const focusCount = Cell.source(0);
   const handleFocusOnce = () => {
-    focusCount.value++;
+    focusCount.set(focusCount.get() + 1);
     alert('Input focused once!');
   };
   return (
@@ -269,7 +269,7 @@ import { Cell } from 'retend';
 function ClickCounterComponent() {
   const count = Cell.source(0);
   const increment = () => {
-    count.value++;
+    count.set(count.get() + 1);
   };
   return (
     <div>

@@ -102,7 +102,7 @@ import { useLiveDate } from 'retend-utils/hooks';
 function CurrentDateDisplay() {
   // Update every 5 seconds
   const currentDate = useLiveDate(5000);
-  const dateString = Cell.derived(() => currentDate.value.toDateString());
+  const dateString = Cell.derived(() => currentDate.get().toDateString());
 
   return <p>Today's date: {dateString}</p>;
 }
@@ -130,7 +130,7 @@ import { useWindowSize } from 'retend-utils/hooks';
 
 function AdaptiveLayout() {
   const { width } = useWindowSize();
-  const isMobile = Cell.derived(() => width.value < 768);
+  const isMobile = Cell.derived(() => width.get() < 768);
 
   return If(isMobile, {
     true: () => <div>Mobile layout</div>,
@@ -192,7 +192,7 @@ function ThemeSwitcher() {
   const theme = useLocalStorage('theme', 'light');
 
   const toggleTheme = () => {
-    theme.value = theme.value === 'light' ? 'dark' : 'light';
+    theme.set(theme.get() === 'light' ? 'dark' : 'light');
   };
 
   return (
@@ -226,7 +226,7 @@ function SessionCounter() {
   const count = useSessionStorage('count', 0);
 
   const increment = () => {
-    count.value = count.value + 1;
+    count.set(count.get() + 1);
   };
 
   return (

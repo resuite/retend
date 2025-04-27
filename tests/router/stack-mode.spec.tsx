@@ -40,10 +40,10 @@ describe('Router Stack Mode', () => {
   test('navigates to the same route', async () => {
     await router.navigate('/about');
     const route = router.getCurrentRoute();
-    expect(route.value.path).toBe('/about');
+    expect(route.get().path).toBe('/about');
 
     await router.navigate('/about');
-    expect(route.value.path).toBe('/about');
+    expect(route.get().path).toBe('/about');
   });
 
   test('maintains history stack when navigating', async () => {
@@ -62,7 +62,7 @@ describe('Router Stack Mode', () => {
     await router.back();
 
     const route = router.getCurrentRoute();
-    expect(route.value.path).toBe('/about');
+    expect(route.get().path).toBe('/about');
   });
 
   test('clears forward history on new navigation', async () => {
@@ -83,7 +83,7 @@ describe('Router Stack Mode', () => {
     await router.navigate('/contact');
     await router.back();
 
-    const { query } = router.getCurrentRoute().value;
+    const { query } = router.getCurrentRoute().get();
 
     expect(query.get('id')).toBe('123');
   });

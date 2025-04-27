@@ -45,7 +45,7 @@ import { linkNodesToComponent } from '../plugin/hmr.js';
  * document.body.append(...message);
  *
  * // Later, when the user logs in, update the cell
- * isLoggedIn.value = true;
+ * isLoggedIn.set(true);
  * // The welcome message will now be displayed
  */
 export function If(value, fnOrObject, elseFn) {
@@ -130,7 +130,7 @@ export function If(value, fnOrObject, elseFn) {
   };
 
   // see comment in switch.js
-  const firstRun = callback.bind(rangeStart)(value.value);
+  const firstRun = callback.bind(rangeStart)(value.get());
   addCellListener(rangeStart, value, callback, false);
   return [rangeStart, ...firstRun, rangeEnd];
 }

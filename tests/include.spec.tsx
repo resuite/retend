@@ -19,7 +19,7 @@ const runTests = () => {
   it('should include an external element using Cell reference', () => {
     const targetRef = Cell.source<JsxElement | null>(null);
     const target = (<div>Referenced content</div>) as JsxElement;
-    targetRef.value = target;
+    targetRef.set(target);
 
     const included = (<Include from={targetRef} />) as Element | VElement;
     expect(getTextContent(included)).toBe('Referenced content');

@@ -156,7 +156,7 @@ import { Cell } from 'retend';
 
 const ConditionalClass = () => {
   const isActive = Cell.source(true);
-  const className = Cell.derived(() => isActive.value ? 'active' : 'inactive');
+  const className = Cell.derived(() => isActive.get() ? 'active' : 'inactive');
   return <div class={className} />;
 };
 @Note A derived cell computes the class name reactively.
@@ -169,7 +169,7 @@ import { Cell } from 'retend';
 
 const ToggleButton = () => {
   const isOn = Cell.source(false);
-  const label = Cell.derived(() => isOn.value ? 'On' : 'Off');
+  const label = Cell.derived(() => isOn.get() ? 'On' : 'Off');
   return <button type="button">{label}</button>;
 };
 
@@ -207,7 +207,7 @@ import { Cell } from 'retend';
 
 const UserName = () => {
   const user = Cell.source({ name: 'John Doe', age: 30 });
-  const name = Cell.derived(() => user.value.name);
+  const name = Cell.derived(() => user.get().name);
   return <div>{name}</div>;
 };
 @Note A derived cell accesses the `name` property reactively.
@@ -220,7 +220,7 @@ import { Cell } from 'retend';
 
 const UserAge = () => {
   const user = Cell.source({ name: 'John Doe', age: 30 });
-  const age = Cell.derived(() => user.value.age);
+  const age = Cell.derived(() => user.get().age);
   return <div>Age: {age}</div>;
 };
 
@@ -233,7 +233,7 @@ import { Cell } from 'retend';
 const TextInput = () => {
   const text = Cell.source('');
   const handleChange = (event) => {
-    text.value = event.target.value;
+    text.set(event.target.value);
   };
   return <input type="text" onInput={handleChange} />;
 };
@@ -248,7 +248,7 @@ import { Cell } from 'retend';
 const CheckBoxInput = () => {
   const isChecked = Cell.source(false);
   const handleChange = (event) => {
-    isChecked.value = event.target.checked;
+    isChecked.set(event.target.checked);
   };
   return <input type="checkbox" checked={isChecked} onChange={handleChange} />;
 };
@@ -264,8 +264,8 @@ const DynamicClassDiv = () => {
   const isHighlighted = Cell.source(false);
   const className = Cell.derived(() => {
     const classes = [];
-    if (isActive.value) classes.push('active');
-    if (isHighlighted.value) classes.push('highlight');
+    if (isActive.get()) classes.push('active');
+    if (isHighlighted.get()) classes.push('highlight');
     return classes.join(' ');
   });
   return <div class={className} />;
@@ -469,7 +469,7 @@ import { Cell } from 'retend';
 const SumDisplay = () => {
   const a = Cell.source(1);
   const b = Cell.source(2);
-  const sum = Cell.derived(() => a.value + b.value);
+  const sum = Cell.derived(() => a.get() + b.get());
   return <div>Sum: {sum}</div>;
 };
 
@@ -481,7 +481,7 @@ import { Cell } from 'retend';
 
 const EvenOdd = () => {
   const number = Cell.source(4);
-  const status = Cell.derived(() => number.value % 2 === 0 ? 'Even' : 'Odd');
+  const status = Cell.derived(() => number.get() % 2 === 0 ? 'Even' : 'Odd');
   return <p>{status}</p>;
 };
 
@@ -494,9 +494,9 @@ import { Cell } from 'retend';
 const ToggleButton = () => {
   const isOn = Cell.source(false);
   const toggle = () => {
-    isOn.value = !isOn.value;
+    isOn.set(!isOn.get());
   };
-  const label = Cell.derived(() => isOn.value ? 'On' : 'Off');
+  const label = Cell.derived(() => isOn.get() ? 'On' : 'Off');
   return <button type="button" onClick={toggle}>{label}</button>;
 };
 
@@ -509,7 +509,7 @@ import { Cell } from 'retend';
 const NameInput = () => {
   const name = Cell.source('');
   const handleChange = (event) => {
-    name.value = event.target.value;
+    name.set(event.target.value);
   };
   return (
     <div>
@@ -528,7 +528,7 @@ import { Cell } from 'retend';
 const SelectInput = () => {
   const selected = Cell.source('option1');
   const handleChange = (event) => {
-    selected.value = event.target.value;
+    selected.set(event.target.value);
   };
   return (
     <select value={selected} onChange={handleChange}>
@@ -547,17 +547,17 @@ import { Cell } from 'retend';
 const RadioGroup = () => {
   const choice = Cell.source('option1');
   const handleChange = (event) => {
-    choice.value = event.target.value;
+    choice.set(event.target.value);
   };
-  const isOption1 = Cell.derived(() => choice.value === 'option1');
-  const isOption2 = Cell.derived(() => choice.value === 'option2');
+  const isOption1 = Cell.derived(() => choice.get() === 'option1');
+  const isOption2 = Cell.derived(() => choice.get() === 'option2');
   return (
     <div>
       <label>
         <input
           type="radio"
           value="option1"
-          checked={choice.value === 'option1'}
+          checked={choice.get() === 'option1'}
           onChange={handleChange}
         />
         Option 1
@@ -566,7 +566,7 @@ const RadioGroup = () => {
         <input
           type="radio"
           value="option2"
-          checked={choice.value === 'option2'}
+          checked={choice.get() === 'option2'}
           onChange={handleChange}
         />
         Option 2
@@ -574,7 +574,7 @@ const RadioGroup = () => {
     </div>
   );
 };
-@Note `.value` is used in JS only for initial comparison, not reactivity.
+@Note `.get()` is used in JS only for initial comparison, not reactivity.
 
 ---
 
@@ -782,10 +782,10 @@ const UserForm = () => {
   const name = Cell.source('');
   const age = Cell.source(0);
   const handleNameChange = (event) => {
-    name.value = event.target.value;
+    name.set(event.target.value);
   };
   const handleAgeChange = (event) => {
-    age.value = parseInt(event.target.value, 10) || 0;
+    age.set(parseInt(event.target.value, 10) || 0);
   };
   return (
     <form>
@@ -845,7 +845,7 @@ import { Cell } from 'retend';
 const CounterButton = () => {
   const count = Cell.source(0);
   const increment = () => {
-    count.value++;
+    count.set(count.get() + 1);
   };
   return (
     <div>
@@ -864,7 +864,7 @@ import { Cell } from 'retend';
 const KeyUpInput = () => {
   const text = Cell.source('');
   const handleKeyUp = (event) => {
-    text.value = event.target.value;
+    text.set(event.target.value);
   };
   return <input type="text" onKeyUp={handleKeyUp} />;
 };
@@ -1031,7 +1031,7 @@ const UpdateAndLog = () => {
     console.log(`Count is now: ${value}`);
   });
   const increment = () => {
-    count.value++;
+    count.set(count.get() + 1);
   };
   return <button type="button" onClick={increment}>Increment</button>;
 };
@@ -1045,7 +1045,7 @@ import { Cell } from 'retend';
 const InputWithDisplay = () => {
   const text = Cell.source('');
   const handleChange = (event) => {
-    text.value = event.target.value;
+    text.set(event.target.value);
   };
   return (
     <div>
@@ -1063,7 +1063,7 @@ import { Cell } from 'retend';
 
 const LengthDisplay = () => {
   const text = Cell.source('Hello');
-  const length = Cell.derived(() => text.value.length);
+  const length = Cell.derived(() => text.get().length);
   return <div>Length: {length}</div>;
 };
 
@@ -1075,7 +1075,7 @@ import { Cell, If } from 'retend';
 
 const PositiveCheck = () => {
   const number = Cell.source(5);
-  const isPositive = Cell.derived(() => number.value > 0);
+  const isPositive = Cell.derived(() => number.get() > 0);
   return <p>{If(isPositive, () => 'Positive')}</p>;
 };
 @Note `If` is used for conditional rendering.
@@ -1090,7 +1090,7 @@ import { Cell, If } from 'retend';
 const ToggleVisibility = () => {
   const isVisible = Cell.source(true);
   const toggle = () => {
-    isVisible.value = !isVisible.value;
+    isVisible.set(!isVisible.get());
   };
   return (
     <div>
@@ -1112,10 +1112,10 @@ const FilteredList = () => {
   const items = Cell.source(['apple', 'banana', 'cherry']);
   const filter = Cell.source('a');
   const filteredItems = Cell.derived(() =>
-    items.value.filter(item => item.includes(filter.value))
+    items.get().filter(item => item.includes(filter.get()))
   );
   const handleInput = (event) => {
-    filter.value = event.target.value;
+    filter.set(event.target.value);
   };
   return (
     <div>
@@ -1197,7 +1197,7 @@ const ValueInput = () => {
   const value = Cell.source('');
   const placeholder = Cell.source('Type here');
   const handleChange = (event) => {
-    value.value = event.target.value;
+    value.set(event.target.value);
   };
   return (
     <>
@@ -1295,7 +1295,7 @@ import { Cell } from 'retend';
 const Counter = () => {
   const count = Cell.source(0);
   const increaseCount = () => {
-    count.value++;
+    count.set(count.get() + 1);
   };
   return (
     <div>

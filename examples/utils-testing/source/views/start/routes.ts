@@ -1,6 +1,7 @@
 // examples/utils-testing/source/views/start/routes.ts
 import { defineRoute, lazy } from 'retend/router';
 import Start from '.';
+import GetServerSnapshotTest from './get-server-snapshot';
 
 export const startRoute = defineRoute({
   name: 'Start View',
@@ -62,6 +63,11 @@ export const startRoute = defineRoute({
       name: 'Cursor Position',
       path: 'cursor-position',
       component: lazy(() => import('./cursor-position')),
+    },
+    {
+      name: 'Get Server Snapshot',
+      path: 'get-server-snapshot',
+      component: GetServerSnapshotTest,
     },
   ],
 });

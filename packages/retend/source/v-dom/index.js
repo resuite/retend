@@ -1,7 +1,7 @@
 /** @import { CellSet } from '../library/utils.js' */
 /** @import { Router } from '../router/index.js'; **/
 
-import { CustomEvent } from '../context/index.js';
+import { CustomEvent, Modes } from '../context/index.js';
 
 export class VNode extends EventTarget {
   /** @param {VDocument | null} document */
@@ -604,6 +604,7 @@ export class VDocument extends VNode {
 export class VWindow extends EventTarget {
   #timeouts = new Set();
   #intervals = new Set();
+  __appRenderMode__ = Modes.VDom;
 
   constructor() {
     super();

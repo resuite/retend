@@ -73,7 +73,7 @@ const runTests = () => {
     assert(shadowRoot);
     expect(getTextContent(shadowRoot)).toBe('Initial');
 
-    content.value = 'Updated';
+    content.set('Updated');
     expect(getTextContent(shadowRoot)).toBe('Updated');
   });
 
@@ -111,7 +111,7 @@ describe('ShadowRoot', () => {
       const { window } = getGlobalContext();
       const clicked = Cell.source(false);
       const handleClick = () => {
-        clicked.value = true;
+        clicked.set(true);
       };
 
       const result = (
@@ -127,9 +127,9 @@ describe('ShadowRoot', () => {
       window.document.body.append(result as Node & VNode);
       const button = result.shadowRoot?.querySelector('button');
 
-      expect(clicked.value).toBe(false);
+      expect(clicked.get()).toBe(false);
       button?.click();
-      expect(clicked.value).toBe(true);
+      expect(clicked.get()).toBe(true);
     });
   });
 

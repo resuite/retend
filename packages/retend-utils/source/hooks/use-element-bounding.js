@@ -91,31 +91,31 @@ export function useElementBounding(elementRef, options = {}) {
   const observer = useObserver();
 
   const recalculate = () => {
-    const element = elementRef.value;
+    const element = elementRef.get();
 
     if (!element) {
       if (reset) {
-        width.value = 0;
-        height.value = 0;
-        x.value = 0;
-        y.value = 0;
-        top.value = 0;
-        right.value = 0;
-        bottom.value = 0;
-        left.value = 0;
+        width.set(0);
+        height.set(0);
+        x.set(0);
+        y.set(0);
+        top.set(0);
+        right.set(0);
+        bottom.set(0);
+        left.set(0);
       }
       return;
     }
 
     const rect = element.getBoundingClientRect();
-    width.value = rect.width;
-    height.value = rect.height;
-    x.value = rect.x;
-    y.value = rect.y;
-    top.value = rect.top;
-    right.value = rect.right;
-    bottom.value = rect.bottom;
-    left.value = rect.left;
+    width.set(rect.width);
+    height.set(rect.height);
+    x.set(rect.x);
+    y.set(rect.y);
+    top.set(rect.top);
+    right.set(rect.right);
+    bottom.set(rect.bottom);
+    left.set(rect.left);
   };
 
   const update = () => {

@@ -20,7 +20,7 @@ const TRANSFER_SCHEDULED_KEY = 'hooks:useLiveDate:transferScheduled';
  *
  * function MyClock() {
  *   const now = useLiveDate();
- *   const nowTimeStr = Cell.derived(() => now.value.toLocaleTimeString())
+ *   const nowTimeStr = Cell.derived(() => now.get().toLocaleTimeString())
  *
  *   return (
  *     <div>
@@ -43,7 +43,7 @@ export function useLiveDate(interval = 1000) {
   if (!now) {
     now = Cell.source(new Date());
     window.setInterval(() => {
-      now.value = new Date();
+      now.set(new Date());
     }, interval);
     runningTimers.set(interval, now);
 

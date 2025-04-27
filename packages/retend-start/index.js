@@ -488,7 +488,6 @@ async function createRouterFile(projectDir, answers) {
 import { createWebRouter } from 'retend/router';
 import { startRoute } from './views/start/routes';
 
-export * as context from 'retend/context';
 export function createRouter() {
   return createWebRouter({ routes: [startRoute] });
 }
@@ -574,7 +573,7 @@ async function createComponentStructure(
 
 const ${capitalize(componentName)} = () => {
   const count = Cell.source(0);
-  const incrementCount = () => count.value++;
+  const incrementCount = () => count.set(count.get() + 1);
 
   return (
     <div class=${containerClasses}>

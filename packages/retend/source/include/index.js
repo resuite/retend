@@ -31,7 +31,7 @@ export function Include(props) {
   }
 
   const component =
-    typeof from === 'string' ? window.document.querySelector(from) : from.value;
+    typeof from === 'string' ? window.document.querySelector(from) : from.get();
 
   if (!component) {
     if (typeof from === 'string') {
@@ -40,7 +40,7 @@ export function Include(props) {
       );
     } else {
       console.error(
-        `Include component could not find component with Cell reference.`
+        'Include component could not find component with Cell reference.'
       );
     }
     return null;

@@ -50,7 +50,7 @@ const caseCell = Cell.source('caseA');
 
 const Component = () => {
   const changeCase = () => {
-    caseCell.value = caseCell.value === 'caseA' ? 'caseB' : 'caseA';
+    caseCell.set(caseCell.get() === 'caseA' ? 'caseB' : 'caseA');
   };
   return (
     <div>
@@ -92,7 +92,7 @@ const numberCell = Cell.source(1);
 
 const Component = () => {
   const incrementCase = () => {
-    numberCell.value = numberCell.value === 1 ? 2 : 1;
+    numberCell.set(numberCell.get() === 1 ? 2 : 1);
   };
   return (
     <div>

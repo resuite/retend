@@ -113,7 +113,7 @@ export function Switch(value, cases, defaultCase) {
     return undefined;
   }
 
-  /** @type {ReactiveCellFunction<typeof value.value, typeof rangeStart, (Node | VDom.VNode)[]>} */
+  /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (value) {
     /** @type {(Node | VDom.VNode)[]} */
     let nodes = [];
@@ -151,7 +151,7 @@ export function Switch(value, cases, defaultCase) {
 
   // Don't use runAndListen with an outer array to store nodes.
   // It leads to a memory leak.
-  const firstRun = callback.bind(rangeStart)(value.value);
+  const firstRun = callback.bind(rangeStart)(value.get());
   addCellListener(rangeStart, value, callback, false);
   return [rangeStart, ...firstRun, rangeEnd];
 }

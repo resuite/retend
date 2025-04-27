@@ -1,7 +1,7 @@
 /** @import { Router } from 'retend/router' */
 /** @import { VWindow } from 'retend/v-dom' */
 /** @import { AsyncLocalStorage } from 'node:async_hooks' */
-/** @import { ViteDevServer } from 'vite' */
+/** @import { ModuleRunner } from 'vite/module-runner' */
 
 /**
  * @typedef RouterModule
@@ -24,8 +24,10 @@
  * @typedef {Object} BuildOptions
  * @property {string} [htmlShell]
  * @property {string} [rootSelector]
- * @property {string} [createRouterModule]
- * @property {ViteDevServer} server
+ * @property {ModuleRunner} moduleRunner
+ * @property {boolean} [skipRedirects]
+ * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
+ * @property {{ createRouter: () => Router }} routerModule
  */
 
 /**
@@ -55,7 +57,24 @@
  * @property {string} htmlShell
  * @property {string} rootSelector
  * @property {typeof import('retend')} retendModule
- * @property {{ createRouter: () => Router, context: typeof import('retend/context') }} routerModule
+ * @property {{ createRouter: () => Router }} routerModule
  * @property {typeof import('retend/render')} retendRenderModule
  * @property {typeof import('retend/v-dom')} retendVDomModule
+ * @property {boolean} skipRedirects
+ */
+
+/**
+ * @typedef {{ type: 'raw', value: any }} StaticPrimitiveImport
+ */
+
+/**
+ * @typedef {{ type: 'template', value: string }} StaticTemplateImport
+ */
+
+/**
+ * @typedef {{ type: 'date', value: any }} StaticDateImport
+ */
+
+/**
+ * @typedef {Record<string, StaticPrimitiveImport | StaticDateImport | StaticTemplateImport>} StaticModule
  */

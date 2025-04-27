@@ -67,10 +67,10 @@ describe('Router Middlewares', () => {
     router.attachWindowListeners();
 
     await router.navigate('/home');
-    expect(router.getCurrentRoute().value.path).toBe('/home');
+    expect(router.getCurrentRoute().get().path).toBe('/home');
 
     await router.navigate('/protected');
-    expect(router.getCurrentRoute().value.path).toBe('/home');
+    expect(router.getCurrentRoute().get().path).toBe('/home');
   });
 
   it('should chain multiple middlewares', async () => {
@@ -121,7 +121,7 @@ describe('Router Middlewares', () => {
 
     await router.navigate('/old-path');
     await router.navigate('/new-path');
-    expect(router.getCurrentRoute().value.path).toBe('/old-path');
+    expect(router.getCurrentRoute().get().path).toBe('/old-path');
   });
 
   it('should handle async middleware operations', async () => {
@@ -146,7 +146,7 @@ describe('Router Middlewares', () => {
     router.attachWindowListeners();
 
     await router.navigate('/home');
-    expect(router.getCurrentRoute().value.path).toBe('/home');
+    expect(router.getCurrentRoute().get().path).toBe('/home');
   });
 
   it('should provide route metadata to middleware', async () => {

@@ -25,6 +25,8 @@ import {
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
 
+export { getServerSnapshot } from './get-server-snapshot.js';
+
 /**
  * @template [M={}]
  * @typedef {Object} PageMeta
@@ -161,7 +163,7 @@ import { addMetaListener } from './meta.js';
  */
 export async function hydrate(routerFn) {
   if (import.meta.env.DEV) {
-    // Default to SPA mode in development.
+    // In dev mode, we default to an SPA.
     return defaultToSpaMode(routerFn);
   }
 
@@ -177,7 +179,6 @@ export async function hydrate(routerFn) {
 
   const context = JSON.parse(contextScript.textContent ?? '{}');
   const router = await restoreContext(context, routerFn);
-  contextScript.remove();
   addMetaListener(router, document, isVNode);
   activateLinks(router);
   return router;
@@ -245,12 +246,13 @@ async function restoreContext(context, routerCreateFn) {
       console.error('Hydration error: ', error);
     });
 
+  const newGlobalData = new Map();
   setGlobalContext({
     mode: Modes.Interactive,
     window,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(),
-    globalData: new Map(),
+    globalData: newGlobalData,
   });
 
   router.setWindow(window);
@@ -313,7 +315,7 @@ async function hydrateDomNode(node, vNode) {
     const ref = Reflect.get(vNode, '__ref');
     if (ref instanceof SourceCell) {
       Reflect.set(node, '__ref', ref);
-      ref.value = node;
+      ref.set(node);
     }
   }
 
@@ -328,7 +330,7 @@ async function hydrateDomNode(node, vNode) {
     const ref = Reflect.get(vNode, '__ref');
     if (ref instanceof SourceCell) {
       Reflect.set(node, '__ref', ref);
-      ref.value = node;
+      ref.set(node);
     }
   }
 

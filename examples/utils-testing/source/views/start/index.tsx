@@ -53,6 +53,11 @@ const Start = () => {
           <li>
             <router.Link href="/cursor-position">Cursor Position</router.Link>
           </li>
+          <li>
+            <router.Link href="/get-server-snapshot">
+              Get Server Snapshot
+            </router.Link>
+          </li>
         </ul>
       </nav>
       <main style={{ display: 'grid', placeItems: 'center' }}>

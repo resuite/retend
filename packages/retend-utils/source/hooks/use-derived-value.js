@@ -16,7 +16,7 @@ import { Cell } from 'retend';
 export function useDerivedValue(property) {
   return Cell.derived(() => {
     if (property instanceof Cell) {
-      return property.value;
+      return property.get();
     }
     return property;
   });

@@ -28,8 +28,8 @@ function UnsavedChangesIndicator({ hasChanges }) {
 
   // Lock when changes occur
   const handleInput = () => {
-    if (hasChanges.value === false) {
-       hasChanges.value = true;
+    if (hasChanges.get() === false) {
+       hasChanges.set(true);
        router.lock();
     }
   };
@@ -37,7 +37,7 @@ function UnsavedChangesIndicator({ hasChanges }) {
   // Unlock when saved or discarded
   const save = () => {
     // ... save logic ...
-    hasChanges.value = false;
+    hasChanges.set(false);
     router.unlock();
     console.log('Router unlocked!');
   };
@@ -79,15 +79,15 @@ function EditableForm() {
   const isDirty = Cell.source(false);
 
   const handleChange = () => {
-    if (!isDirty.value) {
-      isDirty.value = true;
+    if (!isDirty.get()) {
+      isDirty.set(true);
       router.lock();
     }
   };
 
   const handleSave = () => {
     // ... save logic ...
-    isDirty.value = false;
+    isDirty.set(false);
     router.unlock();
   };
 
@@ -95,7 +95,7 @@ function EditableForm() {
     <form onSubmit--prevent>
       <textarea onInput={handleChange}></textarea>
       {If(isDirty, () => <p>Unsaved changes! Navigation locked.</p>)}
-      <button type="button" onClick={handleSave} disabled={Cell.derived(()=>!isDirty.value)}>Save</button>
+      <button type="button" onClick={handleSave} disabled={Cell.derived(()=>!isDirty.get())}>Save</button>
     </form>
   );
 }

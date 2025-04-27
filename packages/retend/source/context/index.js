@@ -100,7 +100,11 @@ let globalContext = {
  * @returns {window is ExtractWindowFromEnvironmentMode<M>}
  */
 export function matchContext(window, mode) {
-  return Reflect.get(window.document, '__appRenderMode') === mode;
+  const windowRenderMode =
+    '__appRenderMode__' in window
+      ? window.__appRenderMode__
+      : Modes.Interactive;
+  return windowRenderMode === mode;
 }
 
 export function resetGlobalContext() {
@@ -138,11 +142,6 @@ export function isVNode(node) {
 export function setGlobalContext(newContext) {
   const oldContext = globalContext;
   globalContext = newContext;
-  Reflect.set(
-    globalContext.window.document,
-    '__appRenderMode',
-    globalContext.mode
-  );
   if (oldContext !== newContext) {
     oldContext.window?.dispatchEvent(
       new GlobalContextChangeEvent(oldContext, newContext)

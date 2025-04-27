@@ -2,19 +2,17 @@
 /** @import {
  *    BuildOptions,
  *    ServerContext,
- *    AsyncStorage,
  *    RenderOptions,
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
-import { isRunnableDevEnvironment } from 'vite';
 import { addMetaListener } from './meta.js';
+import { isVNode } from 'retend/context';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -45,7 +43,7 @@ export class RedirectOutputArtifact extends OutputArtifact {
 
 /**
  * @param {string[]} paths The paths to serialize.
- * @param {BuildOptions} options Options for building.
+ * @param {BuildOptions} options Options for building, including optional skipRedirects.
  * @returns {Promise<(HtmlOutputArtifact | RedirectOutputArtifact)[]>} A promise that resolves to an array of output artifacts.
  *
  * @example
@@ -57,38 +55,25 @@ export class RedirectOutputArtifact extends OutputArtifact {
  */
 export async function buildPaths(paths, options) {
   const {
-    server,
+    moduleRunner,
     htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
-    createRouterModule: routerPath = './router',
+    skipRedirects = false,
+    asyncLocalStorage,
+    routerModule,
   } = options;
 
-  /** @type {AsyncLocalStorage<AsyncStorage>} */
-  const asyncLocalStorage = new AsyncLocalStorage();
   const promises = [];
-  const ssrEnvironment = server.environments.ssr;
-
-  if (!isRunnableDevEnvironment(ssrEnvironment)) {
-    throw new Error('The SSR environment is not runnable.');
-  }
-  const runner = ssrEnvironment.runner;
 
   const retendModule = /** @type {typeof import('retend')} */ (
-    await runner.import('retend')
+    await moduleRunner.import('retend')
   );
   const retendRenderModule = /** @type {typeof import('retend/render')} */ (
-    await runner.import('retend/render')
+    await moduleRunner.import('retend/render')
   );
   const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
-    await runner.import('retend/v-dom')
+    await moduleRunner.import('retend/v-dom')
   );
-  const routerModule = await runner.import(resolve(routerPath));
-
-  if (routerModule.context === undefined) {
-    throw new Error(
-      'The router module must export the retend/context module as a named export. Please add export * as context from "retend/context"; to your router module.'
-    );
-  }
 
   if (routerModule.createRouter === undefined) {
     throw new Error(
@@ -103,10 +88,11 @@ export async function buildPaths(paths, options) {
       asyncLocalStorage,
       htmlShell,
       rootSelector,
-      retendModule,
       routerModule,
+      retendModule,
       retendRenderModule,
       retendVDomModule,
+      skipRedirects,
     };
     const promise = renderPath(renderOptions);
     promises.push(promise);
@@ -130,9 +116,9 @@ async function renderPath(options) {
     routerModule,
     retendRenderModule,
     retendVDomModule,
+    skipRedirects,
   } = options;
 
-  const { Modes, setGlobalContext, isVNode } = routerModule.context;
   const { getConsistentValues } = retendModule;
   const { renderToString } = retendRenderModule;
   const { VElement, VWindow } = retendVDomModule;
@@ -141,7 +127,7 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
-  const store = {
+  const globalContextStore = {
     window,
     path,
     teleportIdCounter,
@@ -151,31 +137,7 @@ async function renderPath(options) {
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
 
-  await asyncLocalStorage.run(store, async () => {
-    const context = {
-      mode: Modes.VDom,
-      get window() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.window;
-      },
-      get teleportIdCounter() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.teleportIdCounter;
-      },
-      get consistentValues() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.consistentValues;
-      },
-      get globalData() {
-        const store = asyncLocalStorage.getStore();
-        if (!store) throw new Error('No store found');
-        return store.globalData;
-      },
-    };
-    setGlobalContext(context);
+  await asyncLocalStorage.run(globalContextStore, async () => {
     const store = asyncLocalStorage.getStore();
     if (!store) throw new Error('No store found');
 
@@ -233,7 +195,7 @@ async function renderPath(options) {
       )
     );
 
-    const finalPath = currentRoute.value.fullPath;
+    const finalPath = currentRoute.get().fullPath;
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
 
     const stringify = async () => {
@@ -245,8 +207,7 @@ async function renderPath(options) {
     };
 
     outputs.push(new HtmlOutputArtifact(name, window, stringify));
-
-    if (path === finalPath) return;
+    if (path === finalPath || skipRedirects) return;
 
     // Add redirect to both HTML and _redirects file
     const redirectContent = generateRedirectHtmlContent(finalPath);

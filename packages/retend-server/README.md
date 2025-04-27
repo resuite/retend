@@ -92,7 +92,6 @@ import Home from './Home';
 import About from './About';
 import Contact from './Contact';
 
-export * as context from 'retend/context';
 export function createRouter() {
   return createWebRouter({
     routes: [
@@ -301,6 +300,67 @@ For more on `retend`, see the [main documentation](https://github.com/adebola-io
 ## License
 
 Licensed under the MIT License. See the [LICENSE](https://github.com/adebola-io/retend/blob/main/LICENSE) file.
+
+## getServerSnapshot
+
+The `getServerSnapshot` function allows you to access data generated during build or server-side rendering (SSR) from a specified module.
+
+Use this in client components to access results from server-only logic that was executed _once_ during the build/SSR phase. The results are embedded in the client bundle or SSR payload.
+
+**Constraints:**
+
+- The target module is executed _only_ during build/SSR.
+- Only JSON-serializable data is transferred: raw values (strings, numbers, booleans, null, Dates, arrays/objects containing only serializable values).
+- Functions, Promises, Maps, Sets, etc., are _not_ transferred.
+
+**Example:**
+
+```javascript
+// config.server.js (runs during build/SSR)
+export const buildTimestamp = new Date().toISOString();
+
+export const siteConfig = {
+  apiUrl: process.env.API_URL || 'https://api.example.com',
+  featureFlags: {
+    newDashboard: true,
+    betaFeatureX: false,
+  },
+};
+
+// This function will NOT be available via getServerSnapshot
+export function calculateSomething() {
+  return 42;
+}
+
+// FeatureDisplay.jsx (runs on the client)
+import { getServerSnapshot } from 'retend-server';
+
+async function FeatureDisplay() {
+  // Note: The import path must be statically analyzable
+  const serverData = await getServerSnapshot(() =>
+    import('./config.server.js')
+  );
+
+  // Access the pre-computed, serializable values
+  const timestamp = serverData.buildTimestamp;
+  const config = serverData.siteConfig;
+  // serverData.calculateSomething will be undefined
+
+  return (
+    <div>
+      <p>Build Time: {new Date(timestamp).toLocaleString()}</p>
+      <p>API URL: {config.apiUrl}</p>
+      <p>
+        New Dashboard Enabled:{' '}
+        {If(config.featureFlags.newDashboard, {
+          true: () => 'Yes',
+          false: () => 'No',
+        })}
+      </p>
+    </div>
+  );
+}
+```
 
 ## Contributing
 

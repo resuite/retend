@@ -438,7 +438,7 @@ export class Router extends EventTarget {
       setEventListener(a, 'onClick', routerLinkNavigationHandler);
     } else {
       // Runs only once to determine whether the active attribute is present initially.
-      setActiveLinkAttribute.bind(a)(this.currentPath.value);
+      setActiveLinkAttribute.bind(a)(this.currentPath.get());
       a.setAttribute('data-router-link', '');
     }
 
@@ -785,7 +785,7 @@ export class Router extends EventTarget {
     workingPath,
     mode = 'navigate'
   ) {
-    const currentPath = workingPath ?? this.currentPath.value;
+    const currentPath = workingPath ?? this.currentPath.get();
     /** @type {typeof currentPath | null} */
     const sourcePath = currentPath
       ? {
@@ -799,7 +799,7 @@ export class Router extends EventTarget {
         }
       : null;
 
-    /** @type {typeof this.currentPath.value} */
+    /** @type {ReturnType<typeof this.currentPath.peek>} */
     const targetPath = {
       name: targetMatch.name,
       params: matchResult.params,
@@ -861,15 +861,16 @@ export class Router extends EventTarget {
   ) => {
     if (path === '#') return false;
 
-    const currentPath = this.currentPath.value.path
-      ? constructURL(this.currentPath.value.path, {
-          params: this.currentPath.value.params,
-          searchQueryParams: this.currentPath.value.query,
-          hash: this.currentPath.value.hash,
+    const currentPath = this.currentPath.get();
+    const thisPath = currentPath.path
+      ? constructURL(currentPath.path, {
+          params: currentPath.params,
+          searchQueryParams: currentPath.query,
+          hash: currentPath.hash,
         })
       : undefined;
     const nextPath = path;
-    const event = new RouteChangeEvent({ to: nextPath, from: currentPath });
+    const event = new RouteChangeEvent({ to: nextPath, from: thisPath });
     this.dispatchEvent(event);
     if (event.defaultPrevented) return false;
 
@@ -883,7 +884,7 @@ export class Router extends EventTarget {
         path,
         matchResult,
         targetMatch,
-        this.currentPath.value,
+        currentPath,
         'navigate'
       );
       if (finalPath !== path) {
@@ -937,8 +938,8 @@ export class Router extends EventTarget {
         // should trigger a route change.
         if (!outlet || !currentMatchedRoute) {
           const fullPath = constructURL(lastMatchedRoute.path, matchResult);
-          if (this.currentPath.value.fullPath !== fullPath) {
-            this.currentPath.value = {
+          if (this.currentPath.get().fullPath !== fullPath) {
+            this.currentPath.set({
               name: lastMatchedRoute.name,
               path: lastMatchedRoute.path,
               params: matchResult.params,
@@ -946,7 +947,7 @@ export class Router extends EventTarget {
               fullPath,
               metadata: matchResult.metadata,
               hash: matchResult.hash,
-            };
+            });
           }
 
           // There is no feasible way to determine the final navigation direction
@@ -1034,8 +1035,8 @@ export class Router extends EventTarget {
 
       // The current path must react before the page loads.
       const oldOutletPath = outlet.getAttribute('data-path');
-      if (this.currentPath.value.fullPath !== fullPathWithSearchAndHash) {
-        this.currentPath.value = {
+      if (this.currentPath.get().fullPath !== fullPathWithSearchAndHash) {
+        this.currentPath.set({
           name: currentMatchedRoute.name,
           path: simplePath,
           params: matchResult.params,
@@ -1043,7 +1044,7 @@ export class Router extends EventTarget {
           fullPath: fullPathWithSearchAndHash,
           metadata: matchResult.metadata,
           hash: matchResult.hash,
-        };
+        });
       }
 
       outlet.setAttribute('data-path', simplePath);
@@ -1235,7 +1236,7 @@ export class Router extends EventTarget {
    */
   getCurrentRoute() {
     return Cell.derived(() => {
-      return { ...this.currentPath.value };
+      return { ...this.currentPath.get() };
     });
   }
 
@@ -1345,7 +1346,7 @@ export class Router extends EventTarget {
         path = pathRoot.slice(0, -5);
       }
       path += pathQuery ? `?${pathQuery}` : '';
-      if (this.currentPath.value?.fullPath === path && !forceLoad) {
+      if (this.currentPath.get()?.fullPath === path && !forceLoad) {
         return;
       }
 
@@ -1385,7 +1386,7 @@ export class Router extends EventTarget {
           if (this.#window) {
             const currentWindowPath = getFullPath(this.#window);
             const isSamePath =
-              currentWindowPath === this.currentPath.value.fullPath;
+              currentWindowPath === this.currentPath.get().fullPath;
             if (isSamePath) return;
 
             const newTitle = this.#window.document?.title;
@@ -1393,7 +1394,7 @@ export class Router extends EventTarget {
               this.#window.document.title = oldTitle;
             }
 
-            const nextPath = this.currentPath.value.fullPath;
+            const nextPath = this.currentPath.get().fullPath;
 
             if (replace || newRouterHistoryLength === oldRouterHistoryLength) {
               this.#window.history?.replaceState(null, '', nextPath);

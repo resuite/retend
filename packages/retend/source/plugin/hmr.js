@@ -113,6 +113,7 @@ export function linkNodesToComponent(resultNodes, factory, props) {
  * @param {string} url - The module's URL, used to dynamically import and compare the old module.
  */
 export const hotReloadModule = async (newModule, url) => {
+  if (import.meta.env.SSR) return; // Skip HMR on the server
   if (!hmrObserver) {
     hmrObserver = new MutationObserver(() => {
       /** @type {Map<Function, Set<Instance>>} */

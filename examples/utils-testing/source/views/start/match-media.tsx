@@ -1,6 +1,6 @@
 import { useMatchMedia } from 'retend-utils/hooks';
 
-export default function MatchMediaTest() {
+export default async function MatchMediaTest() {
   const isDarkMode = useMatchMedia('(prefers-color-scheme: dark)');
   const isPortrait = useMatchMedia('(orientation: portrait)');
   const isLargeScreen = useMatchMedia('(min-width: 1024px)');
