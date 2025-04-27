@@ -27,7 +27,7 @@
  * @property {ModuleRunner} moduleRunner
  * @property {boolean} [skipRedirects]
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
- * @property {{ createRouter: () => Router, context: typeof import('retend/context') }} routerModule
+ * @property {{ createRouter: () => Router }} routerModule
  */
 
 /**
@@ -57,7 +57,7 @@
  * @property {string} htmlShell
  * @property {string} rootSelector
  * @property {typeof import('retend')} retendModule
- * @property {{ createRouter: () => Router, context: typeof import('retend/context') }} routerModule
+ * @property {{ createRouter: () => Router }} routerModule
  * @property {typeof import('retend/render')} retendRenderModule
  * @property {typeof import('retend/v-dom')} retendVDomModule
  * @property {boolean} skipRedirects

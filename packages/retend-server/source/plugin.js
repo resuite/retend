@@ -13,6 +13,7 @@ import path, { resolve } from 'node:path';
 import { parseAndWalk } from 'oxc-walker';
 import MagicString from 'magic-string';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { Modes, setGlobalContext } from 'retend/context';
 
 /**
  * @typedef {object} SharedData
@@ -141,7 +142,7 @@ function staticBuildPlugins(sharedData) {
         const routerModule = await environment.runner.import(
           resolve(routerModulePath)
         );
-        defineSharedGlobalContext(routerModule, sharedData.asyncLocalStorage);
+        await defineSharedGlobalContext(sharedData.asyncLocalStorage);
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
@@ -322,11 +323,7 @@ async function stringifyArtifact(artifact, assetSourceToDistMap) {
  * @param {SharedData} sharedData
  */
 const loadModuleToJson = async (path, sharedData) => {
-  const {
-    server,
-    asyncLocalStorage,
-    options: { routerModulePath },
-  } = sharedData;
+  const { server, asyncLocalStorage } = sharedData;
   const environment = server?.environments.ssr;
   if (!environment || !isRunnableDevEnvironment(environment)) {
     const message =
@@ -335,8 +332,7 @@ const loadModuleToJson = async (path, sharedData) => {
     return '{}';
   }
   const { runner } = environment;
-  const routerModule = await runner.import(resolve(routerModulePath));
-  defineSharedGlobalContext(routerModule, asyncLocalStorage);
+  await defineSharedGlobalContext(asyncLocalStorage);
 
   // --- Load and Serialize Module Exports ---
 
@@ -400,15 +396,12 @@ let sharedContextDefined = false;
 /**
  * Sets the global context retriever for the current build or
  * SSR environment.
- *
- * @param {{ context: typeof import('retend/context') }} routerModule
  * @param {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
  */
-function defineSharedGlobalContext(routerModule, asyncLocalStorage) {
+async function defineSharedGlobalContext(asyncLocalStorage) {
   if (sharedContextDefined) return;
   sharedContextDefined = true;
 
-  const { Modes, setGlobalContext } = routerModule.context;
   const context = {
     mode: Modes.VDom,
     get window() {

@@ -6,6 +6,7 @@ export default async function GetServerSnapshotTest() {
   const environment = snapshot.buildEnvironment;
   const generationTime = snapshot.generatedAt;
   const listOfItems = snapshot.listOfItems;
+  console.log(snapshot.serializedDiv);
 
   return (
     <div class="app-container">

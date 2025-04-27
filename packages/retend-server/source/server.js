@@ -12,6 +12,7 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
+import { isVNode } from 'retend/context';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -62,8 +63,6 @@ export async function buildPaths(paths, options) {
     routerModule,
   } = options;
 
-  // Use the module-scoped instance
-  // const asyncLocalStorage = new AsyncLocalStorage(); // Remove instantiation from here
   const promises = [];
 
   const retendModule = /** @type {typeof import('retend')} */ (
@@ -75,12 +74,6 @@ export async function buildPaths(paths, options) {
   const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
     await moduleRunner.import('retend/v-dom')
   );
-
-  if (routerModule.context === undefined) {
-    throw new Error(
-      'The router module must export the retend/context module as a named export. Please add export * as context from "retend/context"; to your router module.'
-    );
-  }
 
   if (routerModule.createRouter === undefined) {
     throw new Error(
@@ -126,7 +119,6 @@ async function renderPath(options) {
     skipRedirects,
   } = options;
 
-  const { isVNode } = routerModule.context;
   const { getConsistentValues } = retendModule;
   const { renderToString } = retendRenderModule;
   const { VElement, VWindow } = retendVDomModule;
