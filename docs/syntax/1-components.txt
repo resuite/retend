@@ -50,7 +50,7 @@ function UserCard(props) {
   const { name, age } = props;
   return <div><p>Name: {name}</p><p>Age: {age}</p></div>;
 }
-@Note If props are defined, they must be destructured at the start of the component.
+@Note Props must be destructured at the start of the component.
 
 ---
 

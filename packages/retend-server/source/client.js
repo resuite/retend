@@ -473,6 +473,8 @@ export class NoHydrateVNode extends VNode {
 }
 
 /**
+ * @template {((props: any) => JSX.Template) | (() => JSX.Template)} TemplateFunction
+ *
  * Creates a static component that does not hydrate on the client.
  * This is useful for components that don't need interactivity and can be safely skipped
  * for a faster hydration process.
@@ -481,12 +483,12 @@ export class NoHydrateVNode extends VNode {
  * (via the `data-static` attribute), this function allows you to skip the first
  * client-side initialization of a component altogether, improving performance.
  *
- * @param {() => JSX.Template} component - The original component to be potentially converted to a static node.
+ * @param {TemplateFunction} component - The original component to be potentially converted to a static node.
  *                                        This component should return a JSX template.
  * @param {number} [nodeCount=1] - The number of root nodes the component returns.
  *                                 Must be specified correctly if your component returns multiple root nodes.
  *                                 Defaults to 1 if not specified.
- * @returns {() => JSX.Template} The original component in client-side rendering,
+ * @returns {TemplateFunction} The original component in client-side rendering,
  *                              or a non-hydrating virtual node in server-side rendering.
  *
  * @remarks
@@ -529,14 +531,16 @@ export class NoHydrateVNode extends VNode {
  * }
  */
 export function createStaticComponent(component, nodeCount = 1) {
-  return () => {
-    if (!import.meta.env.SSR) {
-      const { window } = getGlobalContext();
-      if (matchContext(window, Modes.VDom)) {
-        const { document } = window;
-        return new NoHydrateVNode(document, nodeCount);
+  return /** @type {TemplateFunction} */ (
+    (props) => {
+      if (!import.meta.env.SSR) {
+        const { window } = getGlobalContext();
+        if (matchContext(window, Modes.VDom)) {
+          const { document } = window;
+          return new NoHydrateVNode(document, nodeCount);
+        }
       }
+      return component(props);
     }
-    return component();
-  };
+  );
 }

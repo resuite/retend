@@ -6,7 +6,7 @@
 @Example 1
 @Input Create a simple div element.
 <div />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
@@ -19,7 +19,7 @@
 @Example 3
 @Input Create a paragraph element.
 <p />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
@@ -32,7 +32,7 @@
 @Example 5
 @Input Create a span element.
 <span />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
@@ -45,7 +45,7 @@
 @Example 7
 @Input Create a button.
 <button type="button" />
-@Note All buttons must have a type attribute in Retend. Retend requires self-closing tags for elements with no children.
+@Note All buttons must have a type attribute in Retend. Self-closing is required for elements without children.
 
 ---
 
@@ -58,7 +58,7 @@
 @Example 9
 @Input Create an anchor link.
 <a />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
@@ -97,7 +97,7 @@
 @Example 15
 @Input Textarea element.
 <textarea />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
@@ -129,35 +129,35 @@
 @Example 20
 @Input Div with a class.
 <div class="container" />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
 @Example 21
 @Input Div with two classes.
 <div class="container main" />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
 @Example 22
 @Input Span with inline style.
 <span style={{ color: 'red' }} />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
 @Example 23
 @Input Span with background style.
 <span style={{ backgroundColor: 'blue' }} />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
 @Example 24
 @Input Div with id.
 <div id="uniqueId" />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
@@ -189,7 +189,7 @@
 @Example 29
 @Input Disabled button.
 <button type="button" disabled />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 
@@ -248,7 +248,7 @@
 @Example 38
 @Input Div with multiple attributes.
 <div id="main" class="container" />
-@Note Retend requires self-closing tags for elements with no children.
+@Note Self-closing is required for elements without children.
 
 ---
 

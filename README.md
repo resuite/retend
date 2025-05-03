@@ -41,7 +41,7 @@ This will set up the basic project structure for you. Then, you'll need to insta
   Open your terminal in your documents directory, and run the following command:
 
   ```bash
-  npx retend-start
+  npx retend-start@latest
   ```
 
   This command will prompt you for some details about your project and generate the necessary project files.
