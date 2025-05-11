@@ -1,3 +1,5 @@
+// @ts-nocheck: globalThis is not typed.
+
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { DocumentObserver } from '../library/observer.js' */
 
@@ -72,20 +74,6 @@ export class GlobalContextChangeEvent extends CustomEvent {
 /** @typedef {Node | VDom.VNode} NodeLike */
 
 /**
- * Global context that tracks the current environment configuration.
- * The mode determines how rendering and DOM operations are handled.
- *
- * @type {Environments}
- */
-let globalContext = {
-  mode: Modes.Interactive,
-  window: globalThis.window,
-  consistentValues: new Map(),
-  globalData: new Map(),
-  teleportIdCounter: { value: 0 },
-};
-
-/**
  * @template {RenderMode} T
  * @typedef {Environments extends infer U ? U extends Environments ? T extends U['mode'] ? U['window']: never : never: never} ExtractWindowFromEnvironmentMode
  */
@@ -108,9 +96,8 @@ export function matchContext(window, mode) {
 }
 
 export function resetGlobalContext() {
-  const oldContext = globalContext;
-  //@ts-expect-error: hand waving.
-  globalContext = {};
+  const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
+  globalThis.__RETEND_GLOBAL_CONTEXT__ = {};
   oldContext.window?.dispatchEvent(
     new GlobalContextChangeEvent(oldContext, undefined)
   );
@@ -133,6 +120,28 @@ export function isVNode(node) {
   );
 }
 
+if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
+  globalThis.__RETEND_GLOBAL_CONTEXT__ = {
+    mode: Modes.Interactive,
+    window: globalThis.window,
+    consistentValues: new Map(),
+    globalData: new Map(),
+    teleportIdCounter: { value: 0 },
+  };
+}
+
+/**
+ * Determines if the current environment is a server-side rendering (SSR) context.
+ *
+ * @returns {boolean} True if the current context is a virtual DOM mode with SSR enabled, false otherwise.
+ */
+export function isSSREnvironment() {
+  const context = getGlobalContext();
+  return (
+    context.mode === Modes.VDom && context.globalData.get('env:ssr') === true
+  );
+}
+
 /**
  * Updates the global render context for retend.
  * The default context is the interactive, web DOM environment.
@@ -140,8 +149,8 @@ export function isVNode(node) {
  * @param {Environments} newContext - New environment configuration
  */
 export function setGlobalContext(newContext) {
-  const oldContext = globalContext;
-  globalContext = newContext;
+  const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
+  globalThis.__RETEND_GLOBAL_CONTEXT__ = newContext;
   if (oldContext !== newContext) {
     oldContext.window?.dispatchEvent(
       new GlobalContextChangeEvent(oldContext, newContext)
@@ -149,17 +158,6 @@ export function setGlobalContext(newContext) {
   }
 }
 
-// Default context is the interactive, web DOM environment, so that
-// older SPA applications can continue to work seamlessly.
-if (globalThis.window?.document) {
-  setGlobalContext({
-    mode: Modes.Interactive,
-    window: globalThis.window,
-    consistentValues: new Map(),
-    globalData: new Map(),
-    teleportIdCounter: { value: 0 },
-  });
-}
 /**
  * Retrieves the current render context.
  * Use this to check the active environment and access its window implementation.
@@ -167,5 +165,5 @@ if (globalThis.window?.document) {
  * @returns {Environments}
  */
 export function getGlobalContext() {
-  return globalContext;
+  return globalThis.__RETEND_GLOBAL_CONTEXT__;
 }

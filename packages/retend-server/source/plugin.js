@@ -137,13 +137,12 @@ function staticBuildPlugins(sharedData) {
           return;
         }
 
+        const { runner } = environment;
         const {
           options: { routerModulePath, rootSelector },
         } = sharedData;
-        const routerModule = await environment.runner.import(
-          resolve(routerModulePath)
-        );
-        await defineSharedGlobalContext(sharedData.asyncLocalStorage);
+        const routerModule = await runner.import(resolve(routerModulePath));
+        await defineSharedGlobalContext(sharedData);
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
@@ -341,7 +340,7 @@ const loadModuleToJson = async (path, sharedData) => {
     return '{}';
   }
   const { runner } = environment;
-  await defineSharedGlobalContext(asyncLocalStorage);
+  await defineSharedGlobalContext(sharedData);
 
   // --- Load and Serialize Module Exports ---
 
@@ -405,9 +404,10 @@ let sharedContextDefined = false;
 /**
  * Sets the global context retriever for the current build or
  * SSR environment.
- * @param {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
+ * @param {SharedData} sharedData
  */
-async function defineSharedGlobalContext(asyncLocalStorage) {
+async function defineSharedGlobalContext(sharedData) {
+  const { asyncLocalStorage } = sharedData;
   if (sharedContextDefined) return;
   sharedContextDefined = true;
 

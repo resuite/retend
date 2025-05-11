@@ -12,7 +12,6 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
-import { isVNode } from 'retend/context';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -127,6 +126,7 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
+  globalData.set('env:ssr', true);
   const globalContextStore = {
     window,
     path,
@@ -152,7 +152,7 @@ async function renderPath(options) {
     router.setWindow(window);
     router.attachWindowListeners();
 
-    addMetaListener(router, document, isVNode);
+    addMetaListener(router, document);
 
     const appElement = document.querySelector(rootSelector);
     if (!appElement) {

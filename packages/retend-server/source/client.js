@@ -12,7 +12,7 @@ import {
   Modes,
   getGlobalContext,
   matchContext,
-  isVNode,
+  isSSREnvironment,
 } from 'retend/context';
 import { upgradeAnchorTag } from 'retend/router';
 import {
@@ -179,7 +179,7 @@ export async function hydrate(routerFn) {
 
   const context = JSON.parse(contextScript.textContent ?? '{}');
   const router = await restoreContext(context, routerFn);
-  addMetaListener(router, document, isVNode);
+  addMetaListener(router, document);
   activateLinks(router);
   return router;
 }
@@ -192,7 +192,7 @@ function defaultToSpaMode(routerFn) {
   const root = document.querySelector('#app');
   root?.append(/** @type {Node} */ (router.Outlet()));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
-  addMetaListener(router, document, isVNode);
+  addMetaListener(router, document);
   return router;
 }
 
@@ -500,13 +500,13 @@ export class NoHydrateVNode extends VNode {
  *
  * @example
  * // Basic usage with a simple header
- * const StaticHeader = createStaticComponent(() => (
+ * const StaticHeader = noHydrate(() => (
  *   <header>Static Content</header>
  * ));
  *
  * @example
  * // Usage with a component that returns multiple root nodes
- * const StaticFooterLinks = createStaticComponent(() => {
+ * const StaticFooterLinks = noHydrate(() => {
  *   return (
  *    <>
  *     <router.Link href="/about">About</router.Link>
@@ -530,10 +530,10 @@ export class NoHydrateVNode extends VNode {
  *   );
  * }
  */
-export function createStaticComponent(component, nodeCount = 1) {
+export function noHydrate(component, nodeCount = 1) {
   return /** @type {TemplateFunction} */ (
     (props) => {
-      if (!import.meta.env.SSR) {
+      if (!isSSREnvironment()) {
         const { window } = getGlobalContext();
         if (matchContext(window, Modes.VDom)) {
           const { document } = window;
