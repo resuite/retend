@@ -56,8 +56,10 @@ export class DocumentObserver {
    */
   onConnected(ref, callback) {
     if (!this.#initialized) this.#init();
-
-    const currentValue = ref.get();
+    
+    ref.get(); // force ref initialization if it is lazy. 
+    // we can't use the above value because it is a proxy that can break DOM operations.
+    const currentValue = ref.peek();
     if (currentValue?.isConnected) {
       this.#mount(currentValue, callback);
       return;
@@ -91,7 +93,8 @@ export class DocumentObserver {
     if (!this.#initialized) this.#init();
 
     for (const [key, callbacks] of this.#callbackSets.entries()) {
-      const currentValue = key.get();
+      key.get()
+      const currentValue = key.peek();
       if (!currentValue?.isConnected) continue;
       for (const callback of callbacks) {
         this.#mount(currentValue, callback);
