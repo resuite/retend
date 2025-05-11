@@ -1,8 +1,8 @@
 import { useRouter } from 'retend/router';
 import classes from './styles.module.css';
-import { createStaticComponent } from 'retend-server/client';
+import { noHydrate } from 'retend-server/client';
 
-const Heading = createStaticComponent(() => {
+const Heading = noHydrate(() => {
   return (
     <>
       <h1 style={{ textAlign: 'center' }}>Retend Utils Testing</h1>

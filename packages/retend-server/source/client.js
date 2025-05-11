@@ -473,7 +473,10 @@ export class NoHydrateVNode extends VNode {
 }
 
 /**
- * @template {((props: any) => JSX.Template) | (() => JSX.Template)} TemplateFunction
+ * @typedef {((props: any) => JSX.Template) | (() => JSX.Template)} Component
+ */
+
+/**
  *
  * Creates a static component that does not hydrate on the client.
  * This is useful for components that don't need interactivity and can be safely skipped
@@ -483,6 +486,7 @@ export class NoHydrateVNode extends VNode {
  * (via the `data-static` attribute), this function allows you to skip the first
  * client-side initialization of a component altogether, improving performance.
  *
+ * @template {Component} TemplateFunction
  * @param {TemplateFunction} component - The original component to be potentially converted to a static node.
  *                                        This component should return a JSX template.
  * @param {number} [nodeCount=1] - The number of root nodes the component returns.
