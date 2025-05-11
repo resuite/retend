@@ -137,12 +137,12 @@ function staticBuildPlugins(sharedData) {
           return;
         }
 
+        await defineSharedGlobalContext(sharedData);
         const { runner } = environment;
         const {
           options: { routerModulePath, rootSelector },
         } = sharedData;
         const routerModule = await runner.import(resolve(routerModulePath));
-        await defineSharedGlobalContext(sharedData);
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
