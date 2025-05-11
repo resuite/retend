@@ -1,4 +1,5 @@
 /** @import { Plugin } from 'vite' */
+/** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { AsyncStorage, BuildOptions, StaticModule } from './types.js' */
 /** @import { ViteDevServer, UserConfig } from 'vite' */
@@ -67,12 +68,12 @@ export function retendSSG(options) {
  * @returns {Plugin[]}
  */
 function staticBuildPlugins(sharedData) {
-  /** @type {string} */
-  let htmlShell;
   /** @type {UserConfig} */
   let staticBuildConfig;
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputArtifacts = [];
+  /** @type {EmittedFile[]} */
+  const outputFileEmissions = [];
 
   const {
     options: { pages, routerModulePath },
@@ -115,12 +116,13 @@ function staticBuildPlugins(sharedData) {
       apply: 'build',
       enforce: 'post',
 
-      async transformIndexHtml(html) {
-        htmlShell = html;
-        return html;
-      },
+      async transformIndexHtml(html, ctx) {
+        let transformedHtml = html;
+        if (!ctx.bundle) {
+          console.error('Could not find output bundle context at build time.');
+          return transformedHtml;
+        }
 
-      async generateBundle(_, bundle) {
         if (!sharedData.server) {
           console.warn(
             'The server was not initialized during static pre-build.'
@@ -145,7 +147,7 @@ function staticBuildPlugins(sharedData) {
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
-          htmlShell,
+          htmlShell: html,
           asyncLocalStorage: sharedData.asyncLocalStorage,
           routerModule,
           moduleRunner: environment.runner,
@@ -153,13 +155,10 @@ function staticBuildPlugins(sharedData) {
 
         outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
 
-        const assetSourceToDistMap = new Map();
-        for (const obj of Object.values(bundle)) {
+        const sourceDistMap = new Map();
+        for (const obj of Object.values(ctx.bundle)) {
           if ('originalFileNames' in obj) {
-            assetSourceToDistMap.set(
-              path.resolve(obj.originalFileNames[0]),
-              obj
-            );
+            sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
           }
         }
 
@@ -173,14 +172,18 @@ function staticBuildPlugins(sharedData) {
 
           const { name: fileName } = artifact;
           promises.push(
-            stringifyArtifact(artifact, assetSourceToDistMap).then((source) => {
-              this.emitFile({ type: 'asset', fileName, source });
+            stringifyArtifact(artifact, sourceDistMap).then((source) => {
+              if (fileName === 'index.html') {
+                transformedHtml = source;
+              } else {
+                outputFileEmissions.push({ type: 'asset', fileName, source });
+              }
             })
           );
         }
 
         if (redirectLines.length > 0) {
-          this.emitFile({
+          outputFileEmissions.push({
             type: 'asset',
             fileName: '_redirects',
             source: redirectLines.join('\n'),
@@ -188,6 +191,13 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
+        return transformedHtml;
+      },
+
+      async generateBundle() {
+        for (const fileEmit of outputFileEmissions) {
+          this.emitFile(fileEmit);
+        }
       },
     },
   ];
