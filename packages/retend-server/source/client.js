@@ -237,7 +237,7 @@ async function restoreContext(context, routerCreateFn) {
   const htmlRoot = webWindow.document.documentElement;
   const vHtmlRoot = vWindow.document.documentElement;
 
-  hydrateDomNode(htmlRoot, vHtmlRoot)
+  await hydrateDomNode(htmlRoot, vHtmlRoot)
     .then(() => {
       globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
       observer.processMountedNodes();
@@ -372,6 +372,23 @@ async function hydrateDomNode(node, vNode) {
       if (!mirrorChild) continue;
     }
 
+    if (
+      mirrorChild.nodeType === Node.COMMENT_NODE &&
+      '__promise' in mirrorChild &&
+      mirrorChild.__promise instanceof Promise
+    ) {
+      try {
+        // Once the promise resolves, the node will automatically swap itself with
+        // the result in the virtual dom tree, so we just have to await.
+        await mirrorChild.__promise;
+        j--;
+        i--;
+      } catch (error) {
+        console.error('Hydration error: ', error);
+      }
+      continue;
+    }
+
     const isTextSplittingComment =
       nodeChild.nodeType === Node.COMMENT_NODE &&
       nodeChild.textContent === '@@' &&
@@ -398,7 +415,7 @@ async function hydrateDomNode(node, vNode) {
   vNode.dispatchEvent(new HydrationUpgradeEvent(node));
 
   for (const textSplitNode of textSplitNodes) textSplitNode.remove();
-  await Promise.all(subPromises);
+  await Promise.allSettled(subPromises);
 }
 
 /**
