@@ -362,7 +362,7 @@ async function hydrateDomNode(node, vNode) {
   ) {
     let nodeChild = node.childNodes[i];
     let mirrorChild = vNode.childNodes[j];
-    if (!mirrorChild) continue;
+    if (!mirrorChild || !nodeChild) continue;
 
     if (mirrorChild instanceof NoHydrateVNode) {
       i += mirrorChild.targetNodeSpan;
