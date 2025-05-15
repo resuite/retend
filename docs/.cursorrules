@@ -1,0 +1,230 @@
+# Retend Framework Cursor Rules
+
+This document provides guidelines and best practices for working with the Retend framework, emphasizing its unique features and advantages over similar frameworks.
+
+## Introduction to Retend
+
+Retend is a modern web framework designed for building dynamic user interfaces. It combines the familiarity of JSX with a powerful reactive state management system, making it easy to create interactive applications. Retend is also optimized for AI consumption, ensuring that code is straightforward and predictable.
+
+## JSX Syntax in Retend
+
+Retend uses JSX with specific conventions that enhance consistency:
+
+- **Self-closing Tags**: Elements without children must be self-closing (e.g., `<div />`), unlike React where `<div></div>` is also valid.
+- **Attributes**: Uses `for` instead of `htmlFor` for labels, aligning closer to HTML standards.
+- **SVG**: Requires the `xmlns` attribute for SVG elements, ensuring proper rendering.
+
+**Example:**
+
+```jsx
+<div />  // Correct
+<div></div>  // Incorrect in Retend
+
+<label for="inputId">Label</label>  // Use 'for', not 'htmlFor'
+
+<svg xmlns="http://www.w3.org/2000/svg">...</svg>  // Required for SVG
+```
+
+## Reactive State with Cells
+
+Retend’s reactivity is powered by the `Cell` class, offering a streamlined alternative to signals or Redux:
+
+- **Source Cells**: Mutable state holders (e.g., `Cell.source(initialValue)`).
+- **Derived Cells**: Reactive computations (e.g., `Cell.derived(() => computation)`).
+
+Cells automatically track dependencies, reducing boilerplate compared to other frameworks.
+
+**Example:**
+
+```jsx
+import { Cell } from 'retend';
+
+const count = Cell.source(0);
+const double = Cell.derived(() => count.get() * 2);
+
+function Counter() {
+  return (
+    <div>
+      Count: {count}, Double: {double}
+    </div>
+  );
+}
+```
+
+## Components in Retend
+
+Components are simple functions returning JSX, with a focus on clarity:
+
+- **Props**: Must be destructured at the start, enforcing a consistent pattern.
+- **Children**: Accessed via `props.children`, similar to React but with stricter rules.
+
+This reduces complexity compared to class-based or hook-heavy approaches.
+
+**Example:**
+
+```jsx
+function UserCard(props) {
+  const { name, age } = props;
+  return (
+    <div>
+      Name: {name}, Age: {age}
+    </div>
+  );
+}
+
+<UserCard name="Alice" age={30} />;
+```
+
+## Routing with Retend Router
+
+Retend’s built-in router is both powerful and lightweight:
+
+- **Nested Routes**: Easily define hierarchical structures.
+- **Lazy Loading**: Use `lazy()` for efficient code splitting.
+- **Parameters**: Reactive access to URL parameters.
+
+It offers more integrated features out-of-the-box than many minimalist frameworks.
+
+**Example:**
+
+```jsx
+import { defineRoutes, lazy } from 'retend/router';
+
+const routes = defineRoutes([
+  { name: 'home', path: '/', component: Home },
+  { name: 'about', path: '/about', component: lazy(() => import('./About')) },
+]);
+```
+
+## Event Handling
+
+Retend enhances event handling with declarative modifiers:
+
+- **prevent**: Prevents default actions.
+- **stop**: Stops event propagation.
+- **self**: Triggers only on the element itself.
+- **once**: Limits the handler to a single execution.
+- **passive**: Optimizes performance for certain events.
+
+These modifiers make code more readable than traditional event handling.
+
+**Example:**
+
+```jsx
+<button onClick--prevent--stop={handleClick}>Click me</button>
+```
+
+## Lifecycle Management with useObserver
+
+Retend uses `useObserver` as its sole lifecycle hook, simplifying management:
+
+- **onConnected**: Executes when an element connects to the DOM.
+- **onDisconnected**: Executes on disconnection.
+
+This focused approach contrasts with React’s multiple hooks (e.g., `useEffect`).
+
+**Example:**
+
+```jsx
+import { useObserver } from 'retend';
+
+function MyComponent() {
+  const observer = useObserver();
+  observer.onConnected(ref, (element) => {
+    console.log('Connected:', element);
+    return () => console.log('Disconnected');
+  });
+  return <div ref={ref}>Hello</div>;
+}
+```
+
+## Conditional Rendering with If and Switch
+
+Retend provides `If` and `Switch` for expressive conditionals:
+
+- **If**: Handles boolean conditions.
+- **Switch**: Matches values to cases.
+
+These are more declarative than ternary operators or switch statements.
+
+**Example:**
+
+```jsx
+import { If, Switch } from 'retend';
+
+{
+  If(condition, {
+    true: () => <div>Yes</div>,
+    false: () => <div>No</div>,
+  });
+}
+
+// or
+
+If(
+  condition,
+  () => <div>Yes</div>,
+  () => <div>No</div>
+);
+
+{
+  Switch(
+    value,
+    {
+      caseA: () => <div>A</div>,
+      caseB: () => <div>B</div>,
+    },
+    () => <div>Default</div>
+  );
+}
+```
+
+## List Rendering with For
+
+The `For` function renders lists efficiently:
+
+- **For**: Iterates over iterables with reactive support.
+
+It’s designed for performance and avoids the pitfalls of `map` in JSX.
+
+**Example:**
+
+```jsx
+import { For } from 'retend';
+
+<ul>
+  {For(items, (item) => (
+    <li>{item}</li>
+  ))}
+</ul>;
+```
+
+## Using Refs in Retend
+
+Refs integrate with the reactive system via cells:
+
+- **Declaration**: `const ref = Cell.source(null);`
+- **Attachment**: `<element ref={ref} />`
+- **Access**: `ref.get()`
+
+This is more cohesive than React’s `useRef`.
+
+**Example:**
+
+```jsx
+import { Cell } from 'retend';
+
+const inputRef = Cell.source(null);
+<input type="text" ref={inputRef} />;
+// Later: inputRef.get()?.focus();
+```
+
+## Designed for AI Consumption
+
+Retend’s design enhances AI-assisted development:
+
+- **Consistent Syntax**: Reduces ambiguity for parsing.
+- **Reactive State**: Cells clarify dependency tracking.
+- **Declarative Features**: Makes intent obvious.
+
+This makes Retend ideal for automated code generation and analysis, setting it apart from less AI-friendly frameworks.
