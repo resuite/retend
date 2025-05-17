@@ -132,7 +132,7 @@ export function h(tagname, props) {
         : [children]
       : [];
     for (const child of childList) {
-      fragment.append(/** @type {*} */ (normalizeJsxChild(child, fragment)));
+      fragment.append(/** @type {*} */ (normalizeJsxChild(child)));
     }
     return fragment;
   }
@@ -197,7 +197,7 @@ export function appendChild(parentNode, tagname, child) {
 
   if (!child) return;
 
-  const childNode = normalizeJsxChild(child, parentNode);
+  const childNode = normalizeJsxChild(child);
 
   if (
     childNode instanceof window.HTMLElement &&
@@ -545,10 +545,9 @@ export function setEventListener(el, key, value) {
 /**
  * Normalizes a child jsx element for use in the DOM.
  * @param {JsxElement | Array<any> | string | number | boolean | object | undefined | null} child - The child element to normalize.
- * @param {ParentNode | VDom.VNode} [_parent] - The parent node of the child.
  * @returns {Node | VDom.VNode} The normalized child element.
  */
-export function normalizeJsxChild(child, _parent) {
+export function normalizeJsxChild(child) {
   const { window } = getGlobalContext();
 
   if (child instanceof window.Node) return child;
@@ -557,7 +556,7 @@ export function normalizeJsxChild(child, _parent) {
     const fragment = window.document.createDocumentFragment();
 
     for (const element of child) {
-      const childNodes = normalizeJsxChild(element, fragment);
+      const childNodes = normalizeJsxChild(element);
       fragment.append(/** @type {*} */ (childNodes));
     }
 
