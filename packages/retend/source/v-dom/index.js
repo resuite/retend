@@ -136,6 +136,9 @@ export class VNode extends EventTarget {
 
     for (const child of children) {
       if (child instanceof VDocumentFragment) {
+        for (const childNode of child.childNodes) {
+          childNode.parentNode = this;
+        }
         this.childNodes.push(...child.childNodes);
       } else if (child instanceof VNode) {
         child.parentNode = this;

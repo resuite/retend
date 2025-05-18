@@ -181,17 +181,25 @@ export function h(tagname, props) {
 /**
  * Appends a child node or an array of child nodes to a parent node.
  *
- * @param {Element | VDom.VElement | ShadowRoot | VDom.VShadowRoot} parentNode - The parent node to which the child will be appended.
- * @param {string} tagname - The tag name of the parent node.
- * @param {unknown} child - The child node, array of child nodes, or string to append.
+ * @param {Element | VDom.VElement | ShadowRoot | VDom.VShadowRoot} parentNode
+ * The parent node to which the child will be appended.
+ * @param {string} tagname
+ * The tag name of the parent node.
+ * @param {unknown} child
+ * The child node, array of child nodes, or string to append.
+ * @param {DocumentFragment | VDom.VDocumentFragment} [fragment]
+ * The fragment to which the child will be appended.
  */
-export function appendChild(parentNode, tagname, child) {
+export function appendChild(parentNode, tagname, child, fragment) {
   const { window } = getGlobalContext();
 
   if (Array.isArray(child)) {
-    for (const childNode of child) {
-      appendChild(parentNode, tagname, childNode);
+    // Using a fragment reduces the number of DOM operations.
+    const fragment = window.document.createDocumentFragment();
+    for (const childNode of child.flat(1)) {
+      appendChild(parentNode, tagname, childNode, fragment);
     }
+    parentNode.append(/** @type {*} */ (fragment));
     return;
   }
 
@@ -228,7 +236,7 @@ export function appendChild(parentNode, tagname, child) {
     (matchContext(window, Modes.VDom) ||
       window.customElements.get(childNode.tagName.toLowerCase()))
   ) {
-    parentNode.append(/** @type {*} */ (childNode));
+    (fragment || parentNode).append(/** @type {*} */ (childNode));
     return;
   }
 
@@ -255,11 +263,11 @@ export function appendChild(parentNode, tagname, child) {
     );
     const temp = window.document.createElementNS(elementNamespace, 'div');
     temp.innerHTML = /** @type {HTMLElement} */ (childNode).outerHTML;
-    /** @type {ParentNode} */ (parentNode).append(...temp.children);
+    /** @type {ParentNode} */ (fragment || parentNode).append(...temp.children);
     return;
   }
 
-  parentNode.append(/** @type {*} */ (childNode));
+  (fragment || parentNode).append(/** @type {*} */ (childNode));
 }
 
 /**
