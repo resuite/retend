@@ -90,7 +90,6 @@ describe('useRouteQuery', () => {
     const CardPage = () => {
       query = useRouteQuery();
       const stage = query.get('stage');
-      console.log('stage', stage);
 
       cardPageWasRun();
 
