@@ -356,20 +356,19 @@ async function hydrateDomNode(node, vNode) {
 
   const textSplitNodes = [];
   for (
-    let i = 0, j = 0;
-    i < node.childNodes.length && j < vNode.childNodes.length;
-    i++, j++
+    let realNodeIndex = 0, vNodeIndex = 0;
+    realNodeIndex < node.childNodes.length &&
+    vNodeIndex < vNode.childNodes.length;
+    realNodeIndex++, vNodeIndex++
   ) {
-    let nodeChild = node.childNodes[i];
-    let mirrorChild = vNode.childNodes[j];
+    const nodeChild = node.childNodes[realNodeIndex];
+    const mirrorChild = vNode.childNodes[vNodeIndex];
     if (!mirrorChild || !nodeChild) continue;
 
     if (mirrorChild instanceof NoHydrateVNode) {
-      i += mirrorChild.targetNodeSpan;
-
-      nodeChild = node.childNodes[i];
-      mirrorChild = vNode.childNodes[j];
-      if (!mirrorChild) continue;
+      realNodeIndex += mirrorChild.targetNodeSpan - 1;
+      vNodeIndex += mirrorChild.targetNodeSpan - 1;
+      continue;
     }
 
     if (
@@ -381,8 +380,8 @@ async function hydrateDomNode(node, vNode) {
         // Once the promise resolves, the node will automatically swap itself with
         // the result in the virtual dom tree, so we just have to await.
         await mirrorChild.__promise;
-        j--;
-        i--;
+        vNodeIndex--;
+        realNodeIndex--;
       } catch (error) {
         console.error('Hydration error: ', error);
       }
@@ -392,16 +391,16 @@ async function hydrateDomNode(node, vNode) {
     const isTextSplittingComment =
       nodeChild.nodeType === Node.COMMENT_NODE &&
       nodeChild.textContent === '@@' &&
-      node.childNodes[i - 1]?.nodeType === Node.TEXT_NODE;
+      node.childNodes[realNodeIndex - 1]?.nodeType === Node.TEXT_NODE;
 
     if (isTextSplittingComment) {
       textSplitNodes.push(nodeChild);
       // Handle text nodes that were supposed to be preserved
       // but were removed by HTML parsing.
-      if (node.childNodes[i + 1]?.nodeType !== Node.TEXT_NODE) {
+      if (node.childNodes[realNodeIndex + 1]?.nodeType !== Node.TEXT_NODE) {
         nodeChild.after(document.createTextNode(''));
       }
-      j--;
+      vNodeIndex--;
     } else
       subPromises.push(
         hydrateDomNode(nodeChild, mirrorChild).catch((error) => {
