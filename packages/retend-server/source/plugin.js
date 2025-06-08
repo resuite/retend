@@ -156,7 +156,7 @@ function staticBuildPlugins(sharedData) {
 
         const sourceDistMap = new Map();
         for (const obj of Object.values(ctx.bundle)) {
-          if ('originalFileNames' in obj) {
+          if ('originalFileNames' in obj && obj.originalFileNames.length) {
             sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
           }
         }
