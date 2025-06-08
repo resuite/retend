@@ -40,7 +40,7 @@
     "vite": "^5.4.14"
   },
   "peerDependencies": {
-    "retend": "^0.0.13"
+    "retend": "*"
   },
   "publishConfig": {
     "access": "public"

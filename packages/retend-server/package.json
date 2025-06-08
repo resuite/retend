@@ -38,7 +38,7 @@
     "vite": "^6.2.1"
   },
   "peerDependencies": {
-    "retend": "^0.0.13"
+    "retend": "*"
   },
   "publishConfig": {
     "access": "public"
