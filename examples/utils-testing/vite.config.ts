@@ -23,7 +23,6 @@ export default defineConfig({
         '/input-test',
         '/fluid-list',
         '/cursor-position',
-        '/get-server-snapshot',
       ],
       routerModulePath: './source/router.ts',
     }),

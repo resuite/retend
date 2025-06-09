@@ -1,4 +1,5 @@
 /** @import { VElement, VNode, VWindow } from 'retend/v-dom' */
+/** @import { Router } from 'retend/router' */
 /** @import {
  *    BuildOptions,
  *    ServerContext,
@@ -12,6 +13,7 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
+import { createServer, isRunnableDevEnvironment } from 'vite';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -44,34 +46,36 @@ export class RedirectOutputArtifact extends OutputArtifact {
  * @param {string[]} paths The paths to serialize.
  * @param {BuildOptions} options Options for building, including optional skipRedirects.
  * @returns {Promise<(HtmlOutputArtifact | RedirectOutputArtifact)[]>} A promise that resolves to an array of output artifacts.
- *
- * @example
- * // Build a single path
- * await buildPaths(['/home'], { routerPath: './router.ts' });
- *
- * // Build multiple paths
- * await buildPaths(['/home', '/about', '/contact'], { routerPath: './router.ts' });
  */
 export async function buildPaths(paths, options) {
   const {
-    moduleRunner,
     htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
     skipRedirects = false,
     asyncLocalStorage,
-    routerModule,
+    config,
+    routerModulePath,
   } = options;
 
   const promises = [];
 
+  const server = await createServer(config);
+  const { ssr } = server.environments;
+  if (!ssr || !isRunnableDevEnvironment(ssr)) {
+    return [];
+  }
+  const { runner } = ssr;
   const retendModule = /** @type {typeof import('retend')} */ (
-    await moduleRunner.import('retend')
+    await runner.import('retend')
   );
   const retendRenderModule = /** @type {typeof import('retend/render')} */ (
-    await moduleRunner.import('retend/render')
+    await runner.import('retend/render')
   );
   const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
-    await moduleRunner.import('retend/v-dom')
+    await runner.import('retend/v-dom')
+  );
+  const routerModule = /** @type {{ createRouter: () => Router }} */ (
+    await runner.import(resolve(routerModulePath))
   );
 
   if (routerModule.createRouter === undefined) {
@@ -98,6 +102,7 @@ export async function buildPaths(paths, options) {
   }
 
   const outputs = (await Promise.all(promises)).flat(1);
+  await server.close();
   return outputs;
 }
 

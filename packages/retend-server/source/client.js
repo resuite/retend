@@ -25,8 +25,6 @@ import {
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
 
-export { getServerSnapshot } from './get-server-snapshot.js';
-
 /**
  * @template [M={}]
  * @typedef {Object} PageMeta
