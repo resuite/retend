@@ -2,7 +2,6 @@
 /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { AsyncStorage, BuildOptions } from './types.js' */
-/** @import { IndexHtmlTransformContext } from 'vite' */
 
 import {
   buildPaths,
@@ -69,10 +68,6 @@ function staticBuildPlugins(sharedData) {
   const outputArtifacts = [];
   /** @type {EmittedFile[]} */
   const outputFileEmissions = [];
-  /** @type {string | null} */
-  let htmlShell = null;
-  /** @type {IndexHtmlTransformContext | null} */
-  let bundleContext = null;
 
   const {
     options: { pages, routerModulePath },
@@ -122,21 +117,15 @@ function staticBuildPlugins(sharedData) {
       },
 
       async transformIndexHtml(htmlShell_, ctx) {
-        htmlShell = htmlShell_;
-        bundleContext = ctx;
-        return htmlShell_;
-      },
+        let transformedHtml = htmlShell_;
+        if (!ctx.bundle) {
+          console.error('Could not find output bundle context at build time.');
+          return transformedHtml;
+        }
 
-      async generateBundle() {
+        // Clear previous artifacts and emissions for this build
         outputArtifacts.length = 0;
         outputFileEmissions.length = 0;
-
-        if (!htmlShell || !bundleContext) {
-          console.error(
-            'Missing htmlShell or bundle context in generateBundle.'
-          );
-          return;
-        }
 
         await defineSharedGlobalContext(sharedData);
         const {
@@ -149,23 +138,24 @@ function staticBuildPlugins(sharedData) {
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
-          htmlShell,
+          htmlShell: htmlShell_,
           asyncLocalStorage,
           routerModulePath,
           inlineConfig: ssgEnvironmentConfig,
         };
 
+        // Generate artifacts using buildPaths
         outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
 
+        // Create source to dist map for asset rewriting
         const sourceDistMap = new Map();
-        if (bundleContext?.bundle) {
-          for (const obj of Object.values(bundleContext.bundle)) {
-            if ('originalFileNames' in obj && obj.originalFileNames.length) {
-              sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
-            }
+        for (const obj of Object.values(ctx.bundle)) {
+          if ('originalFileNames' in obj && obj.originalFileNames.length) {
+            sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
           }
         }
 
+        // Process artifacts and prepare file emissions
         const redirectLines = [];
         const promises = [];
         for (const artifact of outputArtifacts) {
@@ -177,7 +167,11 @@ function staticBuildPlugins(sharedData) {
           const { name: fileName } = artifact;
           promises.push(
             stringifyArtifact(artifact, sourceDistMap).then((source) => {
-              outputFileEmissions.push({ type: 'asset', fileName, source });
+              if (fileName === 'index.html') {
+                transformedHtml = source;
+              } else {
+                outputFileEmissions.push({ type: 'asset', fileName, source });
+              }
             })
           );
         }
@@ -191,7 +185,11 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
+        return transformedHtml;
+      },
 
+      async generateBundle() {
+        // Emit all files that were prepared in transformIndexHtml
         for (const fileEmit of outputFileEmissions) {
           this.emitFile(fileEmit);
         }
