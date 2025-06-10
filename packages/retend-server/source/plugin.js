@@ -2,7 +2,7 @@
 /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { AsyncStorage, BuildOptions } from './types.js' */
-/** @import { UserConfig } from 'vite' */
+/** @import { UserConfig, IndexHtmlTransformContext } from 'vite' */
 
 import {
   buildPaths,
@@ -69,6 +69,10 @@ function staticBuildPlugins(sharedData) {
   const outputArtifacts = [];
   /** @type {EmittedFile[]} */
   const outputFileEmissions = [];
+  /** @type {string | null} */
+  let htmlShell = null;
+  /** @type {IndexHtmlTransformContext | null} */
+  let bundleContext = null;
 
   const {
     options: { pages, routerModulePath },
@@ -106,11 +110,21 @@ function staticBuildPlugins(sharedData) {
       apply: 'build',
       enforce: 'post',
 
-      async transformIndexHtml(htmlShell, ctx) {
-        let transformedHtml = htmlShell;
-        if (!ctx.bundle) {
-          console.error('Could not find output bundle context at build time.');
-          return transformedHtml;
+      async transformIndexHtml(htmlShell_, ctx) {
+        htmlShell = htmlShell_;
+        bundleContext = ctx;
+        return htmlShell_;
+      },
+
+      async generateBundle() {
+        outputArtifacts.length = 0;
+        outputFileEmissions.length = 0;
+
+        if (!htmlShell || !bundleContext) {
+          console.error(
+            'Missing htmlShell or bundle context in generateBundle.'
+          );
+          return;
         }
 
         await defineSharedGlobalContext(sharedData);
@@ -119,6 +133,7 @@ function staticBuildPlugins(sharedData) {
           asyncLocalStorage,
           config,
         } = sharedData;
+
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
@@ -131,9 +146,11 @@ function staticBuildPlugins(sharedData) {
         outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
 
         const sourceDistMap = new Map();
-        for (const obj of Object.values(ctx.bundle)) {
-          if ('originalFileNames' in obj && obj.originalFileNames.length) {
-            sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
+        if (bundleContext?.bundle) {
+          for (const obj of Object.values(bundleContext.bundle)) {
+            if ('originalFileNames' in obj && obj.originalFileNames.length) {
+              sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
+            }
           }
         }
 
@@ -148,11 +165,7 @@ function staticBuildPlugins(sharedData) {
           const { name: fileName } = artifact;
           promises.push(
             stringifyArtifact(artifact, sourceDistMap).then((source) => {
-              if (fileName === 'index.html') {
-                transformedHtml = source;
-              } else {
-                outputFileEmissions.push({ type: 'asset', fileName, source });
-              }
+              outputFileEmissions.push({ type: 'asset', fileName, source });
             })
           );
         }
@@ -166,10 +179,7 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
-        return transformedHtml;
-      },
 
-      async generateBundle() {
         for (const fileEmit of outputFileEmissions) {
           this.emitFile(fileEmit);
         }
