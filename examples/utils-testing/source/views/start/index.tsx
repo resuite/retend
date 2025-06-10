@@ -9,7 +9,7 @@ const Heading = noHydrate(() => {
       <h2 style={{ textAlign: 'center' }}>Hooks</h2>
     </>
   );
-});
+}, 2);
 
 const Start = () => {
   const router = useRouter();
