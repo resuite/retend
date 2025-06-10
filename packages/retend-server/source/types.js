@@ -24,7 +24,7 @@
  * @typedef {Object} BuildOptions
  * @property {string} [htmlShell]
  * @property {string} [rootSelector]
- * @property {UserConfig} config
+ * @property {UserConfig} inlineConfig
  * @property {boolean} [skipRedirects]
  * @property {string} routerModulePath
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage

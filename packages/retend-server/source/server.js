@@ -7,13 +7,14 @@
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
+/** @import { RunnableDevEnvironmentContext } from 'vite' */
 
 import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
-import { createServer, isRunnableDevEnvironment } from 'vite';
+import { createRunnableDevEnvironment, resolveConfig } from 'vite';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -53,18 +54,27 @@ export async function buildPaths(paths, options) {
     rootSelector = '#app',
     skipRedirects = false,
     asyncLocalStorage,
-    config,
+    inlineConfig,
     routerModulePath,
   } = options;
 
   const promises = [];
 
-  const server = await createServer(config);
-  const { ssr } = server.environments;
-  if (!ssr || !isRunnableDevEnvironment(ssr)) {
-    return [];
-  }
-  const { runner } = ssr;
+  const config = await resolveConfig(inlineConfig, 'serve');
+  /** @type {RunnableDevEnvironmentContext} */
+  const envContext = {
+    hot: false,
+    runnerOptions: {
+      hmr: {
+        logger: false,
+      },
+    },
+  };
+  const ssg = createRunnableDevEnvironment('retend_ssg', config, envContext);
+  await ssg.init();
+  await ssg.pluginContainer.buildStart();
+
+  const { runner } = ssg;
   const retendModule = /** @type {typeof import('retend')} */ (
     await runner.import('retend')
   );
@@ -102,7 +112,7 @@ export async function buildPaths(paths, options) {
   }
 
   const outputs = (await Promise.all(promises)).flat(1);
-  await server.close();
+  await ssg.close();
   return outputs;
 }
 

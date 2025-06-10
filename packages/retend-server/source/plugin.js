@@ -1,8 +1,8 @@
-/** @import { Plugin } from 'vite' */
+/** @import { Plugin, UserConfig } from 'vite' */
 /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { AsyncStorage, BuildOptions } from './types.js' */
-/** @import { UserConfig, IndexHtmlTransformContext } from 'vite' */
+/** @import { IndexHtmlTransformContext } from 'vite' */
 
 import {
   buildPaths,
@@ -18,7 +18,7 @@ import { Modes, setGlobalContext } from 'retend/context';
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
  * @property {PluginOptions} options
  * @property {boolean} sharedContextDefined
- * @property {UserConfig} config
+ * @property {UserConfig | null} ssgEnvironmentConfig
 
  */
 
@@ -53,7 +53,7 @@ export function retendSSG(options) {
     asyncLocalStorage: new AsyncLocalStorage(),
     options,
     sharedContextDefined: false,
-    config: {},
+    ssgEnvironmentConfig: null,
   };
 
   return [...staticBuildPlugins(sharedData)];
@@ -88,27 +88,38 @@ function staticBuildPlugins(sharedData) {
 
   return [
     {
-      name: 'vite-plugin-retend-server-pre-build',
+      name: 'vite-plugin-retend-server-post-build',
       apply: 'build',
-      enforce: 'pre',
+      enforce: 'post',
+
+      applyToEnvironment(env) {
+        // Only apply in the client build.
+        return env.name === 'client';
+      },
 
       async config(config_) {
-        sharedData.config = {
+        sharedData.ssgEnvironmentConfig = {
           ...config_,
-          server: { ...config_.server, middlewareMode: true },
+          dev: {
+            ...config_.dev,
+            moduleRunnerTransform: true,
+          },
+          server: {
+            ...config_.server,
+            middlewareMode: true,
+            perEnvironmentStartEndDuringDev: true,
+          },
           ssr: { ...config_.ssr, target: 'node' },
           appType: 'custom',
+          optimizeDeps: {
+            exclude: ['retend'],
+          },
           // It is expected that all the expected functionality, be it transformations or rewrites,
           // would be handled by the main build process and cached. Having the plugins run again leads
           // to problems, as they would attempt to transform already transformed code.
           plugins: [],
         };
       },
-    },
-    {
-      name: 'vite-plugin-retend-server-post-build',
-      apply: 'build',
-      enforce: 'post',
 
       async transformIndexHtml(htmlShell_, ctx) {
         htmlShell = htmlShell_;
@@ -131,8 +142,9 @@ function staticBuildPlugins(sharedData) {
         const {
           options: { routerModulePath, rootSelector },
           asyncLocalStorage,
-          config,
+          ssgEnvironmentConfig,
         } = sharedData;
+        if (!ssgEnvironmentConfig) throw new Error('No resolved config found');
 
         /** @type {BuildOptions} */
         const buildOptions = {
@@ -140,7 +152,7 @@ function staticBuildPlugins(sharedData) {
           htmlShell,
           asyncLocalStorage,
           routerModulePath,
-          config,
+          inlineConfig: ssgEnvironmentConfig,
         };
 
         outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
