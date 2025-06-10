@@ -365,7 +365,6 @@ async function hydrateDomNode(node, vNode) {
 
     if (mirrorChild instanceof NoHydrateVNode) {
       realNodeIndex += mirrorChild.targetNodeSpan - 1;
-      vNodeIndex += mirrorChild.targetNodeSpan - 1;
       continue;
     }
 
