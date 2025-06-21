@@ -1660,7 +1660,13 @@ function constructURL(path, matchResult) {
     return matchResult.params.get(paramName) || match; // If the parameter is not found, return the original match.
   });
 
-  if (matchResult.searchQueryParams.size > 0) {
+  // URLSearchParams.size isn't supported in iOS 16.
+  let count = 0;
+  for (const _ of matchResult.searchQueryParams.keys()) {
+    count++;
+  }
+
+  if (count > 0) {
     finalPath += `?${matchResult.searchQueryParams.toString()}`;
   }
 
