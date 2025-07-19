@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Cell, type Scope } from "retend";
+import { Cell } from "retend";
 import { For, If, Switch } from "retend";
 import {
   createScope,
@@ -8,7 +8,7 @@ import {
   withScopeSnapshot,
   combineScopes,
 } from "retend";
-import { browserSetup, getTextContent, vDomSetup } from "./setup.ts";
+import { browserSetup, getTextContent, vDomSetup } from "../setup.ts";
 
 const runTests = () => {
   describe("createScope and useScopeContext", () => {
@@ -27,7 +27,7 @@ const runTests = () => {
       };
 
       const result = (
-        <UserScope value={userData} content={ChildComponent} />
+        <UserScope.Provider value={userData} content={ChildComponent} />
       ) as HTMLElement;
 
       expect(getTextContent(result)).toBe("User: Alice, Age: 30");
@@ -50,12 +50,12 @@ const runTests = () => {
       };
 
       const result = (
-        <ThemeScope
+        <ThemeScope.Provider
           value={"light"}
           content={() => (
             <div>
               <Component />
-              <ThemeScope value={"dark"} content={Component} />
+              <ThemeScope.Provider value={"dark"} content={Component} />
               <Component />
             </div>
           )}
@@ -82,9 +82,11 @@ const runTests = () => {
       };
 
       const result = (
-        <UserScope
+        <UserScope.Provider
           value={{ name: "Bob" }}
-          content={() => <ThemeScope value={"dark"} content={Component} />}
+          content={() => (
+            <ThemeScope.Provider value={"dark"} content={Component} />
+          )}
         />
       ) as HTMLElement;
 
@@ -102,7 +104,7 @@ const runTests = () => {
       };
       const ConfigScope = createScope<typeof config>();
       const App = () => {
-        return <ConfigScope value={config} content={Component} />;
+        return <ConfigScope.Provider value={config} content={Component} />;
       };
 
       const OverviewComponent = () => {
@@ -167,7 +169,7 @@ const runTests = () => {
         const nestedUser = Cell.source({ name: "John Doe", age: 30 });
         const isAlex = Cell.derived(() => user.get().name === "Alexander");
         return If(isAlex, () => (
-          <UserScope value={nestedUser} content={ChildComponent} />
+          <UserScope.Provider value={nestedUser} content={ChildComponent} />
         ));
       };
       const user = Cell.source({ name: "Alice", age: 25 });
@@ -175,7 +177,7 @@ const runTests = () => {
         const isNotAlex = Cell.derived(() => user.get().name !== "Alexander");
         return (
           <div>
-            <UserScope
+            <UserScope.Provider
               value={user}
               content={() => (
                 <>
@@ -228,10 +230,13 @@ const runTests = () => {
         );
       };
       const result = (
-        <UserScope
+        <UserScope.Provider
           value={userData}
           content={() => (
-            <ItemsScope value={itemsData} content={() => <ListComponent />} />
+            <ItemsScope.Provider
+              value={itemsData}
+              content={() => <ListComponent />}
+            />
           )}
         />
       ) as HTMLElement;
@@ -265,10 +270,13 @@ const runTests = () => {
         );
       };
       const result = (
-        <ConfigScope
+        <ConfigScope.Provider
           value={configData}
           content={() => (
-            <StateScope value={stateData} content={() => <Component />} />
+            <StateScope.Provider
+              value={stateData}
+              content={() => <Component />}
+            />
           )}
         />
       ) as HTMLElement;
@@ -286,12 +294,12 @@ const runTests = () => {
       let snapshot: ReturnType<typeof createScopeSnapshot>;
       let testResults: number[] = [];
       const result = (
-        <CounterScope
+        <CounterScope.Provider
           value={1}
           content={() => {
             snapshot = createScopeSnapshot();
             return (
-              <CounterScope
+              <CounterScope.Provider
                 value={2}
                 content={() => {
                   // Record the current value
@@ -340,13 +348,13 @@ const runTests = () => {
           </div>
         );
       };
-      const ScopeData = new Map<Scope, unknown>([
-        [UserScope, { name: "Alice" }],
-        [ThemeScope, "dark"],
-        [ConfigScope, { debug: true }],
-      ]);
+      const ScopeData = {
+        [UserScope.key]: { name: "Alice" },
+        [ThemeScope.key]: "dark",
+        [ConfigScope.key]: { debug: true },
+      };
       const result = (
-        <CombinedScope value={ScopeData} content={Component} />
+        <CombinedScope.Provider value={ScopeData} content={Component} />
       ) as HTMLElement;
       expect(getTextContent(result)).toBe(
         "User: Alice, Theme: dark, Debug: On",
@@ -366,12 +374,15 @@ const runTests = () => {
           </div>
         );
       };
-      const ScopeData = new Map([
-        [Scope1, "first"],
-        [Scope2, "second"],
-      ]);
+      const ScopeData = {
+        [Scope1.key]: "first",
+        [Scope2.key]: "second",
+      };
       const result = (
-        <CombinedScope value={ScopeData} content={() => <Component />} />
+        <CombinedScope.Provider
+          value={ScopeData}
+          content={() => <Component />}
+        />
       ) as HTMLElement;
       expect(getTextContent(result)).toBe("first-second");
     });
@@ -383,9 +394,12 @@ const runTests = () => {
         const user = useScopeContext(UserScope);
         return <div>{user.name}</div>;
       };
-      const ScopeData = new Map([[UserScope, { name: "Solo" }]]);
+      const ScopeData = { [UserScope.key]: { name: "Solo" } };
       const result = (
-        <CombinedScope value={ScopeData} content={() => <Component />} />
+        <CombinedScope.Provider
+          value={ScopeData}
+          content={() => <Component />}
+        />
       ) as HTMLElement;
       expect(getTextContent(result)).toBe("Solo");
     });
@@ -400,7 +414,7 @@ const runTests = () => {
       };
       // First render
       const result1 = (
-        <TestScope value={"test-value"} content={TestComponent} />
+        <TestScope.Provider value={"test-value"} content={TestComponent} />
       ) as HTMLElement;
       expect(getTextContent(result1)).toBe("test-value");
       // After unmount, scope should be cleaned up
@@ -418,17 +432,17 @@ const runTests = () => {
       };
       // First mount
       const result1 = (
-        <TestScope value={1} content={TestComponent} />
+        <TestScope.Provider value={1} content={TestComponent} />
       ) as HTMLElement;
       expect(getTextContent(result1)).toBe("1");
       // Second mount with different data
       const result2 = (
-        <TestScope value={2} content={TestComponent} />
+        <TestScope.Provider value={2} content={TestComponent} />
       ) as HTMLElement;
       expect(getTextContent(result2)).toBe("2");
       // Third mount
       const result3 = (
-        <TestScope value={3} content={TestComponent} />
+        <TestScope.Provider value={3} content={TestComponent} />
       ) as HTMLElement;
       expect(getTextContent(result3)).toBe("3");
     });
@@ -453,7 +467,7 @@ const runTests = () => {
         return <div>Component2: {value}</div>;
       };
       const result = (
-        <SharedScope
+        <SharedScope.Provider
           value={"shared-value"}
           content={() => (
             <div>
@@ -487,7 +501,7 @@ const runTests = () => {
         );
       };
       const result = (
-        <ComplexScope value={complexData} content={Component} />
+        <ComplexScope.Provider value={complexData} content={Component} />
       ) as HTMLElement;
       expect(getTextContent(result)).toBe(
         "User: Alice, Theme: dark, Items: 1, Has Metadata: Yes",
@@ -509,7 +523,7 @@ const runTests = () => {
         );
       };
       const result = (
-        <FunctionsScope value={functionsData} content={Component} />
+        <FunctionsScope.Provider value={functionsData} content={Component} />
       ) as HTMLElement;
       expect(getTextContent(result)).toBe("Hello, World! Result: 5");
     });
@@ -529,7 +543,7 @@ const runTests = () => {
         );
       };
       const result = (
-        <CellScope value={cellData} content={Component} />
+        <CellScope.Provider value={cellData} content={Component} />
       ) as HTMLElement;
       expect(getTextContent(result)).toBe("Counter: 0, Message: Hello");
       // Test reactivity
@@ -538,137 +552,6 @@ const runTests = () => {
       expect(getTextContent(result)).toBe("Counter: 5, Message: Updated");
     });
   });
-
-  // describe("scope with async components", () => {
-  //   const config = { environment: "production" };
-  //   const userData = { name: "John" };
-  //   const ConfigScope = createScope<typeof config>();
-  //   const UserScope = createScope<typeof userData>();
-
-  //   it("should work with async operations", async () => {
-  //     const AsyncComponent = async () => {
-  //       // Simulate async operation
-  //       const user = useScopeContext(UserScope);
-  //       const config = useScopeContext(ConfigScope);
-  //       await new Promise((resolve) => setTimeout(resolve, 10));
-  //       return (
-  //         <div>
-  //           User {user.name} in {config.environment}
-  //         </div>
-  //       );
-  //     };
-  //     const result = (
-  //       <div>
-  //         <ConfigScope
-  //           value= {config}
-  //           content={() => (
-  //             <UserScope value= {userData} content={AsyncComponent} />
-  //           )}
-  //         />
-  //       </div>
-  //     ) as HTMLElement;
-  //     // Wait for nested async components to resolve
-  //     await new Promise((resolve) => setTimeout(resolve, 50));
-  //     expect(getTextContent(result)).toBe("User John in production");
-  //   });
-
-  //   it("should work with parallel async components with same scope", async () => {
-  //     const Component1 = async () => {
-  //       await new Promise<void>((r) => setTimeout(r, 50));
-  //       const user = useScopeContext(UserScope);
-  //       return <div>Component 1 returned user {user.name}</div>;
-  //     };
-  //     const Component2 = async () => {
-  //       const user = useScopeContext(UserScope);
-  //       await new Promise((r) => setTimeout(r, 10));
-  //       return <div>Component 2 returned user {user.name}</div>;
-  //     };
-  //     const App = () => {
-  //       return (
-  //         <div>
-  //           <Component1 />
-  //           {"\n"}
-  //           <Component2 />
-  //         </div>
-  //       );
-  //     };
-  //     const result = (
-  //       <UserScope value= {{ name: "Ade" }} content={App} />
-  //     ) as HTMLElement;
-  //     await new Promise((resolve) => setTimeout(resolve, 200));
-  //     expect(getTextContent(result)).toBe(
-  //       "Component 1 returned user Ade\nComponent 2 returned user Ade",
-  //     );
-  //   });
-
-  //   it("should persist scope across async context switches", async () => {
-  //     const ThemeScope = createScope<string>();
-  //     const Component1 = async () => {
-  //       const snapshot = createScopeSnapshot();
-  //       const scope1 = useScopeContext(ThemeScope);
-  //       const handlers = createScopeSnapshotHandlers(snapshot);
-  //       await new Promise((r) => setTimeout(r, 10));
-  //       handlers.setSnapshot();
-  //       const scope2 = useScopeContext(ThemeScope);
-  //       await new Promise((r) => setTimeout(r, 10));
-  //       handlers.setSnapshot();
-  //       const scope3 = useScopeContext(ThemeScope);
-  //       expect(scope3).toBe(scope1);
-  //       expect(scope3).toBe(scope2);
-  //       handlers.unsetSnapshot();
-  //       return <div>Component 1 returned theme {scope1}</div>;
-  //     };
-  //     const App = () => {
-  //       return (
-  //         <div>
-  //           <ThemeScope value= "dark" content={Component1} />
-  //         </div>
-  //       );
-  //     };
-  //     const result = (<App />) as HTMLElement;
-  //     await new Promise((resolve) => setTimeout(resolve, 50));
-  //     expect(getTextContent(result)).toBe("Component 1 returned theme dark");
-  //   });
-
-  //   it("should work with parallel async components with different scopes", async () => {
-  //     const ThemeScope = createScope<string>();
-  //     const FirstAsync = async () => {
-  //       const scope = useScopeContext(ThemeScope);
-  //       console.log("1: Running Component 1 in sync", scope);
-  //       await new Promise((r) => setTimeout(r, 0));
-  //       console.log("1: Returned from first yield in FirstAsync");
-  //       const scope2 = useScopeContext(ThemeScope);
-  //       await new Promise((r) => setTimeout(r, 0));
-  //       console.log("1: Returned from second yield in FirstAsync");
-  //       expect(scope).toBe(scope2);
-  //       return <div>Component 1 returned theme {scope}</div>;
-  //     };
-  //     const SecondAsync = async () => {
-  //       const scope = useScopeContext(ThemeScope);
-  //       console.log("2: Running Component 2 in sync", scope);
-  //       await new Promise((r) => setTimeout(r, 0));
-  //       console.log("2: Returned from first yield in SecondAsync");
-  //       const scope2 = useScopeContext(ThemeScope);
-  //       await new Promise((r) => setTimeout(r, 0));
-  //       console.log("2: Returned from second yield in SecondAsync");
-  //       expect(scope).toBe(scope2);
-  //       return <div>Component 2 returned theme {scope}</div>;
-  //     };
-  //     const App = () => {
-  //       return (
-  //         <div>
-  //           <ThemeScope value= "light" content={FirstAsync} />
-  //           <ThemeScope value= "dark" content={SecondAsync} />
-  //         </div>
-  //       );
-  //     };
-  //     const result = (<App />) as HTMLElement;
-  //     await new Promise((resolve) => setTimeout(resolve, 50));
-  //     expect(getTextContent(result)).toBe(
-  //       "Component 1 returned theme light\nComponent 2 returned theme dark",
-  //     );
-  //   });
-  // });
 };
 
 describe("Scope Utilities", () => {

@@ -12,8 +12,12 @@ import h from "./jsx.js";
 
 /**
  * @template [T=any]
- * @typedef {(props: ScopeProps<T>) => JSX.Template} Scope
- *
+ * @typedef Scope
+ * @property {symbol} key
+ * @property {(props: ScopeProps<T>) => JSX.Template} Provider
+ */
+
+/**
  * @typedef {Map<Scope, unknown[]>} ScopeSnapshot
  */
 
@@ -24,6 +28,7 @@ const SNAPSHOT_KEY = Symbol("__ACTIVE_SCOPE_SNAPSHOT__");
  * This allows for passing data down through components without explicit prop drilling.
  *
  * @template [T=unknown]
+ * @param {string} [name] - The name of the scope.
  * @returns {Scope<T>} A Provider component.
  *
  * @example
@@ -32,7 +37,7 @@ const SNAPSHOT_KEY = Symbol("__ACTIVE_SCOPE_SNAPSHOT__");
  *
  * function App() {
  *    const userInfo = { name: 'Alice' };
- *    return <UserInfoScope value={userInfo} content={ChildComponent} />
+ *    return <UserInfoScope.Provider value={userInfo} content={ChildComponent} />
  * }
  *
  * function ChildComponent() {
@@ -41,17 +46,20 @@ const SNAPSHOT_KEY = Symbol("__ACTIVE_SCOPE_SNAPSHOT__");
  * }
  * ```
  */
-export function createScope() {
-  /** @param {ScopeProps} props */
-  const Scope = (props) => {
-    const activeScopeSnapshot = getScopeSnapshot();
-    const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
-    activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
-    try {
-      return h(props.content, {});
-    } finally {
-      activeScopeSnapshot.set(Scope, stackBefore);
-    }
+export function createScope(name) {
+  /** @type {Scope<T>} */
+  const Scope = {
+    key: Symbol(name ?? "Scope"),
+    Provider: (props) => {
+      const activeScopeSnapshot = getScopeSnapshot();
+      const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
+      activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
+      try {
+        return h(props.content, {});
+      } finally {
+        activeScopeSnapshot.set(Scope, stackBefore);
+      }
+    },
   };
 
   return Scope;
@@ -63,7 +71,7 @@ export function createScope() {
  *
  * @template [T=unknown] The expected type of the scope data.
  * @param {Scope<T>} Scope The scope provider component returned by `createScope`.
- * @param {ScopeSnapshot<T>} [snapshot] An optional snapshot of the current environment
+ * @param {ScopeSnapshot} [snapshot] An optional snapshot of the current environment
  * @returns {T} The data stored in the specified scope.
  * @throws {Error} If no parent scope is found for the given provider, indicating it was not used to provide the scope.
  */
@@ -187,7 +195,7 @@ export function withScopeSnapshot(snapshot, callback) {
  * in the argument list will be the outermost in the component tree.
  *
  * @param {...Scope<any>} providers A sequence of scope provider components to combine.
- * @returns {(props: { value: Map<Scope<any>, any>, content: () => JSX.Template }) => JSX.Template} A new provider component that wraps the content with all given providers.
+ * @returns {Scope<any>} A new provider component that wraps the content with all given providers.
  *
  * @example
  * ```js
@@ -195,42 +203,35 @@ export function withScopeSnapshot(snapshot, callback) {
  * const UserScope = createScope();
  *
  * // Instead of nesting providers like this:
- * <ThemeScope value='light' content={() =>
- *   <UserScope value={{ name: 'Anonymous' }} content={() => <App />} />
+ * <ThemeScope.Provider value='light' content={() =>
+ *   <UserScope.Provider value={{ name: 'Anonymous' }} content={() => <App />} />
  * } />
  *
- * // You can combine them:
- * const AppProviders = combineScopes(ThemeScope, UserScope);
- *
- * // And use it like a single provider with a Map for data:
- * const providerData = new Map([
- *   [ThemeScope, 'light'],
- *   [UserScope, { name: 'Anonymous' }]
- * ]);
- * <AppProviders value={providerData} content={() => <App />} />
+ * // You can combine them and use it like a single provider:
+ * const AppScope = combineScopes(ThemeScope, UserScope);
+ * const data = {
+ *   [ThemeScope.key]: 'light',
+ *   [UserScope.key]: { name: 'Anonymous' }
+ * };
+ * <AppScope.Provider value={data} content={App} />
  * ```
  */
 export function combineScopes(...providers) {
-  /**
-   * @param {{ value: Map<Scope<any>, any>, content: () => JSX.Template }} props
-   * @returns {JSX.Template}
-   */
-  const CombinedScope = (props) => {
-    const finalContent = [...providers].reverse().reduce(
-      (
-        /** @type {() => JSX.Template} */ innerContent,
-        /** @type {Scope<any>} */ ProviderComponent,
-      ) =>
-        () =>
-          ProviderComponent({
-            value: props.value.get(ProviderComponent),
+  /** @type {Scope<any>} */
+  const Scope = {
+    key: Symbol("CombinedScope"),
+    Provider(props) {
+      const finalContent = [...providers].reverse().reduce(
+        (innerContent, Scope) => () =>
+          Scope.Provider({
+            value: props.value[Scope.key],
             content: innerContent,
           }),
-      props.content,
-    );
-
-    return finalContent();
+        props.content,
+      );
+      return finalContent();
+    },
   };
 
-  return CombinedScope;
+  return Scope;
 }
