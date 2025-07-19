@@ -1,7 +1,7 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 
-import { getGlobalContext } from "../context/index.js";
-import h from "./jsx.js";
+import { getGlobalContext } from '../context/index.js';
+import h from './jsx.js';
 
 /**
  * @template [T=unknown]
@@ -21,7 +21,7 @@ import h from "./jsx.js";
  * @typedef {Map<Scope, unknown[]>} ScopeSnapshot
  */
 
-const SNAPSHOT_KEY = Symbol("__ACTIVE_SCOPE_SNAPSHOT__");
+const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
 
 /**
  * Creates a synchronous scope that can be provided and consumed within a component tree.
@@ -49,7 +49,7 @@ const SNAPSHOT_KEY = Symbol("__ACTIVE_SCOPE_SNAPSHOT__");
 export function createScope(name) {
   /** @type {Scope<T>} */
   const Scope = {
-    key: Symbol(name ?? "Scope"),
+    key: Symbol(name ?? 'Scope'),
     Provider: (props) => {
       const activeScopeSnapshot = getScopeSnapshot();
       const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
@@ -219,7 +219,7 @@ export function withScopeSnapshot(snapshot, callback) {
 export function combineScopes(...providers) {
   /** @type {Scope<any>} */
   const Scope = {
-    key: Symbol("CombinedScope"),
+    key: Symbol('CombinedScope'),
     Provider(props) {
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () =>
@@ -227,7 +227,7 @@ export function combineScopes(...providers) {
             value: props.value[Scope.key],
             content: innerContent,
           }),
-        props.content,
+        props.content
       );
       return finalContent();
     },
