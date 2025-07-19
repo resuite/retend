@@ -1,33 +1,33 @@
-import { Cell } from "@adbl/cells";
+import { Cell } from '@adbl/cells';
 import {
   setAttributeFromProps,
   appendChild,
   setEventListener,
-} from "../library/jsx.js";
+} from '../library/jsx.js';
 import {
   generateChildNodes,
   FixedSizeMap,
   getMostCurrentFunction,
   addCellListener,
-} from "../library/utils.js";
-import { LazyRoute } from "./lazy.js";
-import { RouterMiddlewareResponse } from "./middleware.js";
-import { RouteTree } from "./routeTree.js";
-import { linkNodesToComponent } from "../plugin/hmr.js";
+} from '../library/utils.js';
+import { LazyRoute } from './lazy.js';
+import { RouterMiddlewareResponse } from './middleware.js';
+import { RouteTree } from './routeTree.js';
+import { linkNodesToComponent } from '../plugin/hmr.js';
 import {
   matchContext,
   Modes,
   getGlobalContext,
   CustomEvent,
-} from "../context/index.js";
-import { createScopeSnapshot, withScopeSnapshot } from "../library/scope.js";
+} from '../context/index.js';
+import { createScopeSnapshot, withScopeSnapshot } from '../library/scope.js';
 
-export * from "./lazy.js";
-export * from "./routeTree.js";
-export * from "./query.js";
-export * from "./middleware.js";
+export * from './lazy.js';
+export * from './routeTree.js';
+export * from './query.js';
+export * from './middleware.js';
 
-const HISTORY_STORAGE_KEY = "rhistory";
+const HISTORY_STORAGE_KEY = 'rhistory';
 const PARAM_REGEX = /:(\w+)/g;
 const RELAY_ID_REGEX =
   /^([a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?)/;
@@ -67,7 +67,7 @@ export class RouteChangeEvent extends CustomEvent {
    * @param {RouteChangeEventDetail} eventInitDict
    */
   constructor(eventInitDict) {
-    super("routechange", {
+    super('routechange', {
       cancelable: true,
       bubbles: false,
       detail: eventInitDict,
@@ -90,7 +90,7 @@ export class RouteLockPreventedEvent extends CustomEvent {
    * @param {RouteLockPreventedEventDetail} eventInitDict
    */
   constructor(eventInitDict) {
-    super("routelockprevented", {
+    super('routelockprevented', {
       cancelable: false, // Lock prevention is not cancelable
       bubbles: false,
       detail: eventInitDict,
@@ -121,7 +121,7 @@ export class RouteErrorEvent extends CustomEvent {
    * @param {RouteErrorEventDetail} eventInitDict
    */
   constructor(eventInitDict) {
-    super("routeerror", {
+    super('routeerror', {
       cancelable: false,
       bubbles: false,
       detail: eventInitDict,
@@ -381,12 +381,12 @@ export class Router extends EventTarget {
     this.currentPath = Cell.source(
       /** @type {import('./middleware.js').RouteData} */ ({
         name: null,
-        path: "",
+        path: '',
         query: new URLSearchParams(),
-        fullPath: "",
+        fullPath: '',
         params: new Map(),
         hash: null,
-      }),
+      })
     );
 
     this.#redirectStackCount = 0;
@@ -424,25 +424,25 @@ export class Router extends EventTarget {
    */
   Link(props) {
     if (!this.#window) {
-      throw new Error("Cannot create Link in undefined window.");
+      throw new Error('Cannot create Link in undefined window.');
     }
-    const a = this.#window?.document.createElement("a");
-    if (!props || !("href" in props)) {
-      console.error("missing to attribute for link component.");
+    const a = this.#window?.document.createElement('a');
+    if (!props || !('href' in props)) {
+      console.error('missing to attribute for link component.');
     } else {
-      setAttributeFromProps(a, "href", props.href);
+      setAttributeFromProps(a, 'href', props.href);
     }
-    if (props && "active" in props) {
-      console.error("active attribute is reserved for router.");
+    if (props && 'active' in props) {
+      console.error('active attribute is reserved for router.');
     }
 
     if (matchContext(this.#window, Modes.Interactive)) {
       addCellListener(a, this.currentPath, setActiveLinkAttribute);
-      setEventListener(a, "onClick", routerLinkNavigationHandler);
+      setEventListener(a, 'onClick', routerLinkNavigationHandler);
     } else {
       // Runs only once to determine whether the active attribute is present initially.
       setActiveLinkAttribute.bind(a)(this.currentPath.get());
-      a.setAttribute("data-router-link", "");
+      a.setAttribute('data-router-link', '');
     }
 
     if (props) {
@@ -476,11 +476,11 @@ export class Router extends EventTarget {
     // A save of the snapshot from wherever the Outlet is created.
     const originScopeSnapshot = createScopeSnapshot();
     if (!this.#window) {
-      throw new Error("Cannot create Outlet in undefined window.");
+      throw new Error('Cannot create Outlet in undefined window.');
     }
 
     /** @type {RouterOutlet } */
-    const outlet = this.#window.document.createElement("retend-router-outlet");
+    const outlet = this.#window.document.createElement('retend-router-outlet');
     outlet.__originScopeSnapshot = originScopeSnapshot;
 
     if (props) {
@@ -549,12 +549,12 @@ export class Router extends EventTarget {
    */
   Relay(props) {
     if (!this.#window) {
-      throw new Error("Cannot create Relay in undefined window.");
+      throw new Error('Cannot create Relay in undefined window.');
     }
 
     const relay =
       /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ (
-        this.#window.document.createElement("retend-router-relay")
+        this.#window.document.createElement('retend-router-relay')
       );
 
     if (!props) {
@@ -562,10 +562,10 @@ export class Router extends EventTarget {
     }
 
     if (props.id && RELAY_ID_REGEX.test(props.id)) {
-      relay.setAttribute("data-x-relay-name", props.id);
+      relay.setAttribute('data-x-relay-name', props.id);
       relay.__name = props.id;
     } else {
-      console.warn("Invalid relay id.");
+      console.warn('Invalid relay id.');
     }
 
     if (props.onNodesReceived) {
@@ -615,21 +615,21 @@ export class Router extends EventTarget {
 
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
-      "retend-router-outlet, retend-router-relay, retend-teleport {display: contents;}",
+      'retend-router-outlet, retend-router-relay, retend-teleport {display: contents;}'
     );
     this.#window.document.adoptedStyleSheets.push(this.sheet);
 
-    if (!this.#window.customElements.get("retend-router-outlet")) {
+    if (!this.#window.customElements.get('retend-router-outlet')) {
       this.#window.customElements.define(
-        "retend-router-outlet",
-        class extends HTMLElement {},
+        'retend-router-outlet',
+        class extends HTMLElement {}
       );
     }
 
-    if (!this.#window.customElements.get("retend-router-relay")) {
+    if (!this.#window.customElements.get('retend-router-relay')) {
       this.#window.customElements.define(
-        "retend-router-relay",
-        class extends HTMLElement {},
+        'retend-router-relay',
+        class extends HTMLElement {}
       );
     }
 
@@ -672,7 +672,7 @@ export class Router extends EventTarget {
     if (!this.#stackMode) return;
     this.#window?.sessionStorage?.setItem(
       HISTORY_STORAGE_KEY,
-      JSON.stringify(this.#history),
+      JSON.stringify(this.#history)
     );
   }
 
@@ -706,7 +706,7 @@ export class Router extends EventTarget {
       this.dispatchEvent(new RouteLockPreventedEvent({ attemptedPath: path }));
       return;
     }
-    if (path === "#") return;
+    if (path === '#') return;
     this.isLoading = true;
     await this.loadPath(path, true, undefined, options?.replace, false);
     this.isLoading = false;
@@ -746,7 +746,7 @@ export class Router extends EventTarget {
       this.dispatchEvent(new RouteLockPreventedEvent({ attemptedPath: path }));
       return;
     }
-    if (path === "#") return;
+    if (path === '#') return;
     this.isLoading = true;
     await this.loadPath(path, true, undefined, true);
     this.isLoading = false;
@@ -786,7 +786,7 @@ export class Router extends EventTarget {
     matchResult,
     targetMatch,
     workingPath,
-    mode = "navigate",
+    mode = 'navigate'
   ) {
     const currentPath = workingPath ?? this.currentPath.get();
     /** @type {typeof currentPath | null} */
@@ -819,10 +819,10 @@ export class Router extends EventTarget {
     for (const middleware of this.middlewares) {
       const middlewareResponse = middleware.callback(middlewareArgs);
       if (middlewareResponse instanceof RouterMiddlewareResponse) {
-        if (middlewareResponse.type === "redirect") {
+        if (middlewareResponse.type === 'redirect') {
           // Block deep redirects
           if (this.#redirectStackCount > this.#maxRedirects) {
-            if (mode === "navigate") {
+            if (mode === 'navigate') {
               const message = `Your router redirected too many times (${
                 this.#maxRedirects
               }). This is probably due to a circular redirect in your route configuration.`;
@@ -840,7 +840,7 @@ export class Router extends EventTarget {
             matchResult,
             targetMatch,
             workingPath,
-            mode,
+            mode
           );
         }
       }
@@ -860,9 +860,9 @@ export class Router extends EventTarget {
   updateDOMWithMatchingPath = async (
     path,
     replace,
-    viewTransitionTypesArray,
+    viewTransitionTypesArray
   ) => {
-    if (path === "#") return false;
+    if (path === '#') return false;
 
     const currentPath = this.currentPath.get();
     const thisPath = currentPath.path
@@ -888,7 +888,7 @@ export class Router extends EventTarget {
         matchResult,
         targetMatch,
         currentPath,
-        "navigate",
+        'navigate'
       );
       if (finalPath !== path) {
         if (finalPath !== undefined) {
@@ -901,16 +901,16 @@ export class Router extends EventTarget {
     if (matchResult.subTree === null) {
       console.warn(`No route matches path: ${path}`);
       const outlet = this.#window?.document.querySelector(
-        "retend-router-outlet",
+        'retend-router-outlet'
       );
-      outlet?.removeAttribute("data-path");
+      outlet?.removeAttribute('data-path');
       if (this.#window) {
         outlet?.replaceChildren(emptyRoute(path, this.#window));
       }
       this.dispatchEvent(
         new RouteErrorEvent({
           error: new Error(`No route matches path: ${path}`),
-        }),
+        })
       );
       return true;
     }
@@ -921,7 +921,7 @@ export class Router extends EventTarget {
     let currentMatchedRoute = matchResult.subTree;
 
     let outlet = /** @type {RouterOutlet | null | undefined} */ (
-      this.#window?.document.querySelector("retend-router-outlet")
+      this.#window?.document.querySelector('retend-router-outlet')
     );
 
     if (!outlet) return false;
@@ -929,12 +929,12 @@ export class Router extends EventTarget {
     while (currentMatchedRoute) {
       if (!outlet) break;
 
-      const previousOutletPath = outlet.getAttribute("data-path");
+      const previousOutletPath = outlet.getAttribute('data-path');
       if (previousOutletPath === currentMatchedRoute.path) {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
         outlet = /** @type {RouterOutlet} */ (
-          outlet.querySelector("retend-router-outlet")
+          outlet.querySelector('retend-router-outlet')
         );
 
         // If only the search params changed, then the last outlet
@@ -958,7 +958,7 @@ export class Router extends EventTarget {
           // Mind bending nonsense.
           const navigationDirection = this.chooseNavigationDirection(
             fullPath,
-            replace,
+            replace
           );
           viewTransitionTypesArray[0] = navigationDirection;
         }
@@ -984,14 +984,14 @@ export class Router extends EventTarget {
         }
 
         console.warn(`No component from route: ${path}`);
-        outlet?.removeAttribute("data-path");
+        outlet?.removeAttribute('data-path');
         if (this.#window) {
           outlet?.replaceChildren(emptyRoute(path, this.#window));
         }
         this.dispatchEvent(
           new RouteErrorEvent({
             error: new Error(`No route matches path: ${path}`),
-          }),
+          })
         );
         return true;
       }
@@ -999,7 +999,7 @@ export class Router extends EventTarget {
       if (matchedComponentOrLazyLoader instanceof LazyRoute) {
         try {
           const component = await matchedComponentOrLazyLoader.importer();
-          if ("default" in component) {
+          if ('default' in component) {
             matchedComponent = component.default;
           } else {
             matchedComponent = component;
@@ -1013,7 +1013,7 @@ export class Router extends EventTarget {
       }
 
       if (matchedComponent.metadata) {
-        if (typeof matchedComponent.metadata === "function") {
+        if (typeof matchedComponent.metadata === 'function') {
           const metadata = await matchedComponent.metadata({
             params: matchResult.params,
             query: matchResult.searchQueryParams,
@@ -1023,7 +1023,7 @@ export class Router extends EventTarget {
           }
         } else {
           for (const [key, value] of Object.entries(
-            matchedComponent.metadata,
+            matchedComponent.metadata
           )) {
             matchResult.metadata.set(key, value);
           }
@@ -1032,12 +1032,12 @@ export class Router extends EventTarget {
 
       const fullPathWithSearchAndHash = constructURL(
         currentMatchedRoute.path,
-        matchResult,
+        matchResult
       );
-      const simplePath = fullPathWithSearchAndHash.split("?")[0];
+      const simplePath = fullPathWithSearchAndHash.split('?')[0];
 
       // The current path must react before the page loads.
-      const oldOutletPath = outlet.getAttribute("data-path");
+      const oldOutletPath = outlet.getAttribute('data-path');
       if (this.currentPath.get().fullPath !== fullPathWithSearchAndHash) {
         this.currentPath.set({
           name: currentMatchedRoute.name,
@@ -1050,7 +1050,7 @@ export class Router extends EventTarget {
         });
       }
 
-      outlet.setAttribute("data-path", simplePath);
+      outlet.setAttribute('data-path', simplePath);
 
       /** @type {JSX.Template} */
       let renderedComponent;
@@ -1064,14 +1064,14 @@ export class Router extends EventTarget {
           if (outletScopeSnapshot) {
             renderedComponent = await withScopeSnapshot(
               outletScopeSnapshot,
-              matchedComponent,
+              matchedComponent
             );
           } else renderedComponent = await matchedComponent();
         } catch (error) {
           if (oldOutletPath) {
-            outlet.setAttribute("data-path", oldOutletPath);
+            outlet.setAttribute('data-path', oldOutletPath);
           } else {
-            outlet.removeAttribute("data-path");
+            outlet.removeAttribute('data-path');
           }
           console.error(error);
           if (error instanceof Error)
@@ -1086,14 +1086,14 @@ export class Router extends EventTarget {
 
       // if the component performs a redirect internally, it would change the route
       // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.getAttribute("data-path") !== simplePath) return false;
+      if (outlet.getAttribute('data-path') !== simplePath) return false;
 
       // There is no feasible way to determine the final navigation direction
       // for view transitions, without already triggering a view transition.
       // Mind bending nonsense.
       const navigationDirection = this.chooseNavigationDirection(
         fullPathWithSearchAndHash,
-        replace,
+        replace
       );
       viewTransitionTypesArray[0] = navigationDirection;
       if (currentMatchedRoute.transitionType) {
@@ -1116,7 +1116,7 @@ export class Router extends EventTarget {
       lastMatchedRoute = currentMatchedRoute;
       currentMatchedRoute = currentMatchedRoute.child;
       const nextOutlet = /** @type {RouterOutlet} */ (
-        outlet.querySelector("retend-router-outlet")
+        outlet.querySelector('retend-router-outlet')
       );
       outlet = nextOutlet;
     }
@@ -1125,9 +1125,9 @@ export class Router extends EventTarget {
     // outlet looking for a match, we can assume that the outlet is a child
     // that is not being used and should be flushed out.
     if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
-      const oldPath = outlet.getAttribute("data-path");
+      const oldPath = outlet.getAttribute('data-path');
       if (oldPath) this.#preserveCurrentOutletState(oldPath, outlet);
-      outlet.removeAttribute("data-path");
+      outlet.removeAttribute('data-path');
       outlet.replaceChildren();
     }
 
@@ -1143,7 +1143,7 @@ export class Router extends EventTarget {
       this.#window &&
       (currentMatchedRoute?.title || lastMatchedRoute.title)
     ) {
-      const title = currentMatchedRoute?.title || lastMatchedRoute.title || "";
+      const title = currentMatchedRoute?.title || lastMatchedRoute.title || '';
       this.#window.document.title = title;
     }
 
@@ -1207,7 +1207,7 @@ export class Router extends EventTarget {
    */
   chooseNavigationDirection = (targetPath, replace) => {
     /** @type {NavigationDirection} */
-    let navigationDirection = "forwards";
+    let navigationDirection = 'forwards';
     const currentPath = this.#history.at(-1);
     if (currentPath === targetPath) {
       return navigationDirection;
@@ -1226,10 +1226,10 @@ export class Router extends EventTarget {
     }
 
     const previousIndex = this.#history.findLastIndex(
-      (path) => path === targetPath,
+      (path) => path === targetPath
     );
     if (previousIndex !== -1) {
-      navigationDirection = "backwards";
+      navigationDirection = 'backwards';
       while (this.#history.length > previousIndex + 1) {
         this.popHistory();
       }
@@ -1264,12 +1264,12 @@ export class Router extends EventTarget {
     // Handling relays
     // ---------------
     const exitRelayNodes = /** @type {RouterRelay[]} */ (
-      oldNodesFragment.querySelectorAll("retend-router-relay")
+      oldNodesFragment.querySelectorAll('retend-router-relay')
     );
     /** @type {Map<string, RouterRelay>} */
     const exitRelayNodeMap = new Map();
     for (const relayNode of exitRelayNodes) {
-      const name = relayNode.getAttribute("data-x-relay-name");
+      const name = relayNode.getAttribute('data-x-relay-name');
       if (!name) continue;
       exitRelayNodeMap.set(name, relayNode);
     }
@@ -1280,11 +1280,11 @@ export class Router extends EventTarget {
     holder.append(...newNodesArr);
 
     const enterRelayNodes = /** @type {RouterRelay[]} */ (
-      holder.querySelectorAll("retend-router-relay")
+      holder.querySelectorAll('retend-router-relay')
     );
 
     for (const enterRelay of enterRelayNodes) {
-      const name = enterRelay.getAttribute("data-x-relay-name");
+      const name = enterRelay.getAttribute('data-x-relay-name');
       const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
       if (!correspondingExit) {
         // No corresponding exit relay found.
@@ -1341,21 +1341,21 @@ export class Router extends EventTarget {
     if (this.#lock && rawPath !== this.#lock) {
       // Dispatch the lock prevented event before attempting to load the locked path
       this.dispatchEvent(
-        new RouteLockPreventedEvent({ attemptedPath: rawPath }),
+        new RouteLockPreventedEvent({ attemptedPath: rawPath })
       );
       // Attempt to load the locked path itself (might be useful for hash changes on the locked page)
       await this.loadPath(this.#lock, navigate, _event, replace, forceLoad);
-      this.#window?.history.pushState({}, "", this.#lock);
+      this.#window?.history.pushState({}, '', this.#lock);
       return;
     }
     const executor = async () => {
-      const [pathRoot, pathQuery] = rawPath.split("?");
+      const [pathRoot, pathQuery] = rawPath.split('?');
       let path = pathRoot;
       // Ensures that .html is removed from the path.
-      if (pathRoot.endsWith(".html")) {
+      if (pathRoot.endsWith('.html')) {
         path = pathRoot.slice(0, -5);
       }
-      path += pathQuery ? `?${pathQuery}` : "";
+      path += pathQuery ? `?${pathQuery}` : '';
       if (this.currentPath.get()?.fullPath === path && !forceLoad) {
         return;
       }
@@ -1369,7 +1369,7 @@ export class Router extends EventTarget {
         const wasLoaded = await this.updateDOMWithMatchingPath(
           path,
           replace,
-          viewTransitionTypes,
+          viewTransitionTypes
         );
         const newRouterHistoryLength = this.#history.length;
 
@@ -1407,8 +1407,8 @@ export class Router extends EventTarget {
             const nextPath = this.currentPath.get().fullPath;
 
             if (replace || newRouterHistoryLength === oldRouterHistoryLength) {
-              this.#window.history?.replaceState(null, "", nextPath);
-            } else this.#window.history?.pushState(null, "", nextPath);
+              this.#window.history?.replaceState(null, '', nextPath);
+            } else this.#window.history?.pushState(null, '', nextPath);
 
             if (newTitle) {
               this.#window.document.title = newTitle;
@@ -1420,7 +1420,7 @@ export class Router extends EventTarget {
       if (
         this.useViewTransitions &&
         this.#window?.document &&
-        "startViewTransition" in this.#window.document
+        'startViewTransition' in this.#window.document
       ) {
         const transition = this.#window.document.startViewTransition(callback);
         // It's weird.
@@ -1478,17 +1478,17 @@ export class Router extends EventTarget {
           this.#history = savedHistoryArray.concat(this.#history);
         }
       } catch (error) {
-        console.error("Error parsing session history:", error);
+        console.error('Error parsing session history:', error);
       }
     }
 
-    if (this.#window && "scrollRestoration" in this.#window.history) {
-      this.#window.history.scrollRestoration = "manual";
+    if (this.#window && 'scrollRestoration' in this.#window.history) {
+      this.#window.history.scrollRestoration = 'manual';
     }
 
     this.defineWebComponents();
 
-    this.#window?.addEventListener("popstate", async (event) => {
+    this.#window?.addEventListener('popstate', async (event) => {
       if (!this.isLoading && this.#window) {
         this.isLoading = true;
         const path = getFullPath(this.#window);
@@ -1497,7 +1497,7 @@ export class Router extends EventTarget {
       }
     });
 
-    this.#window?.addEventListener("hashchange", async (event) => {
+    this.#window?.addEventListener('hashchange', async (event) => {
       if (!this.isLoading && this.#window) {
         this.isLoading = true;
         const path = getFullPath(this.#window);
@@ -1506,7 +1506,7 @@ export class Router extends EventTarget {
       }
     });
 
-    this.#window?.addEventListener("load", async (event) => {
+    this.#window?.addEventListener('load', async (event) => {
       if (!this.isLoading && this.#window) {
         this.isLoading = true;
         const path = getFullPath(this.#window);
@@ -1515,7 +1515,7 @@ export class Router extends EventTarget {
       }
     });
 
-    this.#window?.addEventListener("DOMContentLoaded", async (event) => {
+    this.#window?.addEventListener('DOMContentLoaded', async (event) => {
       if (!this.isLoading && this.#window) {
         this.isLoading = true;
         const path = getFullPath(this.#window);
@@ -1547,7 +1547,7 @@ export class Router extends EventTarget {
    */
   lock() {
     if (!this.#window) {
-      throw new Error("Cannot lock router in undefined window.");
+      throw new Error('Cannot lock router in undefined window.');
     }
     this.#lock = getFullPath(this.#window);
   }
@@ -1577,12 +1577,12 @@ export class Router extends EventTarget {
  */
 export function createWebRouter(routerOptions) {
   const { window } = getGlobalContext();
-  const previousInstance = Reflect.get(window.document, "__appRouterInstance");
+  const previousInstance = Reflect.get(window.document, '__appRouterInstance');
   const router = new Router(routerOptions);
-  Reflect.set(window.document, "__appRouterInstance", router);
+  Reflect.set(window.document, '__appRouterInstance', router);
   if (previousInstance) {
     throw new Error(
-      "Cannot create multiple web routers in the same document context.",
+      'Cannot create multiple web routers in the same document context.'
     );
   }
   return router;
@@ -1604,10 +1604,10 @@ export function createWebRouter(routerOptions) {
  */
 export function useRouter() {
   const { window } = getGlobalContext();
-  const instance = Reflect.get(window.document, "__appRouterInstance");
+  const instance = Reflect.get(window.document, '__appRouterInstance');
   if (!instance) {
     const message =
-      "useRouter() failed: A router has not been created in this document context.";
+      'useRouter() failed: A router has not been created in this document context.';
     throw new Error(message);
   }
   return instance;
@@ -1700,7 +1700,7 @@ function constructURL(path, matchResult) {
  */
 function recordScrollPositions(fragment) {
   for (const node of fragment.childNodes) {
-    if (!("scrollTop" in node)) continue;
+    if (!('scrollTop' in node)) continue;
 
     const element = /** @type {RecordedElement} */ (node);
     element.__recordedScrollTop = element.scrollTop;
@@ -1720,13 +1720,13 @@ function renderRouteIntoOutlet(outlet, fragment, window) {
 
   if (outlet.__keepAlive) {
     for (const node of outlet.childNodes) {
-      if ("__recordedScrollTop" in node) {
+      if ('__recordedScrollTop' in node) {
         const element = /** @type {RecordedElement} */ (node);
         element.scrollTop = element.__recordedScrollTop;
         element.scrollLeft = element.__recordedScrollLeft;
       }
 
-      const path = outlet.getAttribute("data-path");
+      const path = outlet.getAttribute('data-path');
       if (!path) return;
 
       const cache = outlet.__keepAliveCache?.get(path);
@@ -1734,13 +1734,13 @@ function renderRouteIntoOutlet(outlet, fragment, window) {
         outlet.scrollTo({
           left: cache.outletScroll[0],
           top: cache.outletScroll[1],
-          behavior: "instant",
+          behavior: 'instant',
         });
 
         window?.scrollTo({
           left: cache.windowScroll[0],
           top: cache.windowScroll[1],
-          behavior: "instant",
+          behavior: 'instant',
         });
       }
     }
@@ -1752,9 +1752,9 @@ function renderRouteIntoOutlet(outlet, fragment, window) {
 // a chance to skip hydration.
 /** @type {ReactiveCellFunction<RouteData, HTMLElement | VDom.VElement>} */
 const setActiveLinkAttribute = function ({ fullPath }) {
-  const href = this.getAttribute("href");
+  const href = this.getAttribute('href');
   const isActive = Boolean(fullPath && href && fullPath.startsWith(href));
-  this.toggleAttribute("active", isActive);
+  this.toggleAttribute('active', isActive);
 };
 
 /**
@@ -1769,11 +1769,11 @@ const routerLinkNavigationHandler = async function (event) {
   }
   // Only navigate if the href is not a valid URL.
   // For valid URLs, the browser will handle the navigation.
-  const href = this.getAttribute("href");
+  const href = this.getAttribute('href');
   if (href && !URL.canParse(href)) {
-    const replace = this.getAttribute("replace") !== null;
+    const replace = this.getAttribute('replace') !== null;
     event.preventDefault();
-    const beforeEvent = new RouterNavigationEvent("beforenavigate", {
+    const beforeEvent = new RouterNavigationEvent('beforenavigate', {
       detail: { href, replace },
       cancelable: true,
     });
@@ -1782,7 +1782,7 @@ const routerLinkNavigationHandler = async function (event) {
 
     await router.navigate(href, { replace });
 
-    const afterEvent = new RouterNavigationEvent("afternavigate", {
+    const afterEvent = new RouterNavigationEvent('afternavigate', {
       detail: { href, replace },
     });
     this.dispatchEvent(afterEvent);
@@ -1796,5 +1796,5 @@ const routerLinkNavigationHandler = async function (event) {
  */
 export function upgradeAnchorTag(a, router) {
   addCellListener(a, router.getCurrentRoute(), setActiveLinkAttribute);
-  setEventListener(a, "onClick", routerLinkNavigationHandler);
+  setEventListener(a, 'onClick', routerLinkNavigationHandler);
 }
