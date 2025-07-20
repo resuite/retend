@@ -1224,7 +1224,7 @@ A scope is like a data tunnel. You can create one, "provide" a value to it at th
 There are three main parts to the Scope system:
 
 1.  `createScope()`: A function that creates a new, unique scope.
-2.  `Scope.Provider`: A special component that provides a value to all its children, which are passed via the `content` prop.
+2.  `Scope.Provider`: A special component that provides a value to all its children, which are passed via a function as its `children`.
 3.  `useScopeContext()`: A function that lets a component read a value from the nearest matching `Scope.Provider` above it in the tree.
 
 Let's refactor our theme example using Scopes and see the difference.
@@ -1252,13 +1252,12 @@ import AuthenticatedLayout from './AuthenticatedLayout.jsx';
 function App() {
   const theme = "dark";
 
-  // Any component inside the `content` function can now access the theme.
-  // The Provider component takes a `value` and a `content` prop.
+  // Any component inside the function passed as children can now access the theme.
+  // The Provider component takes a `value` and a function as its children.
   return (
-    <ThemeScope.Provider
-      value={theme}
-      content={() => <AuthenticatedLayout />}
-    />
+    <ThemeScope.Provider value={theme}>
+      {() => <AuthenticatedLayout />}
+    </ThemeScope.Provider>
   );
 }
 ```
@@ -1314,16 +1313,14 @@ function DocumentationPage() {
   return (
     <div class="side-by-side-preview">
       {/* First instance: Light Theme */}
-      <ThemeScope.Provider
-        value={lightTheme}
-        content={() => <MyThemedComponent />}
-      />
+      <ThemeScope.Provider value={lightTheme}>
+        {() => <MyThemedComponent />}
+      </ThemeScope.Provider>
 
       {/* Second instance: Dark Theme */}
-      <ThemeScope.Provider
-        value={darkTheme}
-        content={() => <MyThemedComponent />}
-      />
+      <ThemeScope.Provider value={darkTheme}>
+        {() => <MyThemedComponent />}
+      </ThemeScope.Provider>
     </div>
   );
 }
@@ -1363,16 +1360,15 @@ export function MultiStepForm() {
 
   // The formData state is only "alive" while MultiStepForm is on the screen.
   return (
-    <FormScope.Provider
-      value={formData}
-      content={() => (
+    <FormScope.Provider value={formData}>
+      {() => (
         <>
           <Step1 />
           <Step2 />
           {/* ... other steps ... */}
         </>
       )}
-    />
+    </FormScope.Provider>
   );
 }
 ```
@@ -1384,17 +1380,17 @@ When the `<MultiStepForm>` component is mounted, the `FormScope.Provider` is cre
 For applications with multiple scopes (e.g., theme, user authentication, language), you can end up nesting providers, sometimes called a "pyramid of doom."
 
 ```jsx
-<AuthScope.Provider
-  value={user}
-  content={() => (
-    <ThemeScope.Provider
-      value={theme}
-      content={() => (
-        <LanguageScope.Provider value={lang} content={() => <App />} />
+<AuthScope.Provider value={user}>
+  {() => (
+    <ThemeScope.Provider value={theme}>
+      {() => (
+        <LanguageScope.Provider value={lang}>
+          {() => <App />}
+        </LanguageScope.Provider>
       )}
-    />
+    </ThemeScope.Provider>
   )}
-/>
+</AuthScope.Provider>
 ```
 
 Retend provides a `combineScopes` utility to make this cleaner.
@@ -1412,7 +1408,11 @@ function Root() {
     [LanguageScope.key]: lang,
   };
 
-  return <AppScopes.Provider value={scopeValues} content={App} />;
+  return (
+    <AppScopes.Provider value={scopeValues}>
+      {() => <App />}
+    </AppScopes.Provider>
+  );
 }
 ```
 
