@@ -1104,7 +1104,7 @@ export class Router extends EventTarget {
       if (oldOutletPath) {
         this.#preserveCurrentOutletState(oldOutletPath, outlet);
       }
-      ``;
+
       const newNodes = generateChildNodes(renderedComponent);
       linkNodesToComponent(newNodes, matchedComponent, undefined);
 

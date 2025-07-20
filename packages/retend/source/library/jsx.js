@@ -1,110 +1,110 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { CellSet } from './utils.js' */
 
-import { Cell, SourceCell } from "@adbl/cells";
+import { Cell, SourceCell } from '@adbl/cells';
 import {
   addCellListener,
   convertObjectToCssStylesheet,
   generateChildNodes,
   getMostCurrentFunction,
   isSomewhatFalsy,
-} from "./utils.js";
-import { linkNodesToComponent } from "../plugin/hmr.js";
+} from './utils.js';
+import { linkNodesToComponent } from '../plugin/hmr.js';
 import {
   getGlobalContext,
   isVNode,
   matchContext,
   Modes,
-} from "../context/index.js";
+} from '../context/index.js';
 
 const camelCasedAttributes = new Set([
   // SVG attributes
-  "attributeName",
-  "attributeType",
-  "baseFrequency",
-  "baseProfile",
-  "calcMode",
-  "clipPathUnits",
-  "diffuseConstant",
-  "edgeMode",
-  "filterUnits",
-  "glyphRef",
-  "gradientTransform",
-  "gradientUnits",
-  "kernelMatrix",
-  "kernelUnitLength",
-  "keyPoints",
-  "keySplines",
-  "keyTimes",
-  "lengthAdjust",
-  "limitingConeAngle",
-  "markerHeight",
-  "markerUnits",
-  "markerWidth",
-  "maskContentUnits",
-  "maskUnits",
-  "numOctaves",
-  "pathLength",
-  "patternContentUnits",
-  "patternTransform",
-  "patternUnits",
-  "pointsAtX",
-  "pointsAtY",
-  "pointsAtZ",
-  "preserveAlpha",
-  "preserveAspectRatio",
-  "primitiveUnits",
-  "refX",
-  "refY",
-  "repeatCount",
-  "repeatDur",
-  "requiredExtensions",
-  "requiredFeatures",
-  "specularConstant",
-  "specularExponent",
-  "spreadMethod",
-  "startOffset",
-  "stdDeviation",
-  "stitchTiles",
-  "surfaceScale",
-  "systemLanguage",
-  "tableValues",
-  "targetX",
-  "targetY",
-  "textLength",
-  "viewBox",
-  "viewTarget",
-  "xChannelSelector",
-  "yChannelSelector",
-  "zoomAndPan",
+  'attributeName',
+  'attributeType',
+  'baseFrequency',
+  'baseProfile',
+  'calcMode',
+  'clipPathUnits',
+  'diffuseConstant',
+  'edgeMode',
+  'filterUnits',
+  'glyphRef',
+  'gradientTransform',
+  'gradientUnits',
+  'kernelMatrix',
+  'kernelUnitLength',
+  'keyPoints',
+  'keySplines',
+  'keyTimes',
+  'lengthAdjust',
+  'limitingConeAngle',
+  'markerHeight',
+  'markerUnits',
+  'markerWidth',
+  'maskContentUnits',
+  'maskUnits',
+  'numOctaves',
+  'pathLength',
+  'patternContentUnits',
+  'patternTransform',
+  'patternUnits',
+  'pointsAtX',
+  'pointsAtY',
+  'pointsAtZ',
+  'preserveAlpha',
+  'preserveAspectRatio',
+  'primitiveUnits',
+  'refX',
+  'refY',
+  'repeatCount',
+  'repeatDur',
+  'requiredExtensions',
+  'requiredFeatures',
+  'specularConstant',
+  'specularExponent',
+  'spreadMethod',
+  'startOffset',
+  'stdDeviation',
+  'stitchTiles',
+  'surfaceScale',
+  'systemLanguage',
+  'tableValues',
+  'targetX',
+  'targetY',
+  'textLength',
+  'viewBox',
+  'viewTarget',
+  'xChannelSelector',
+  'yChannelSelector',
+  'zoomAndPan',
 
   // MathML attributes
-  "columnAlign",
-  "columnLines",
-  "columnSpacing",
-  "displayStyle",
-  "equalColumns",
-  "equalRows",
-  "frameSpacing",
-  "labelSpacing",
-  "longdivStyle",
-  "maxSize",
-  "minSize",
-  "movablelimits",
-  "rowAlign",
-  "rowLines",
-  "rowSpacing",
-  "scriptLevel",
-  "scriptMinSize",
-  "scriptSizemultiplier",
-  "stackAlign",
-  "useHeight",
+  'columnAlign',
+  'columnLines',
+  'columnSpacing',
+  'displayStyle',
+  'equalColumns',
+  'equalRows',
+  'frameSpacing',
+  'labelSpacing',
+  'longdivStyle',
+  'maxSize',
+  'minSize',
+  'movablelimits',
+  'rowAlign',
+  'rowLines',
+  'rowSpacing',
+  'scriptLevel',
+  'scriptMinSize',
+  'scriptSizemultiplier',
+  'stackAlign',
+  'useHeight',
 
   // HTML attributes (there are no natively camel cased HTML attributes,
   // but including this comment for completeness)
 ]);
 
-const listenerModifiers = ["self", "prevent", "once", "passive", "stop"];
+const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
 
 /**
  * @typedef {((this: Node, event: Event) => void) & {
@@ -152,7 +152,7 @@ export function h(tagname, props) {
     return fragment;
   }
 
-  if (typeof tagname === "function") {
+  if (typeof tagname === 'function') {
     const completeProps = { ...props };
     // In Dev mode and using HMR, the function may have been overwritten.
     // In this case we need the latest version of the function.
@@ -164,13 +164,13 @@ export function h(tagname, props) {
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
-  const defaultNamespace = props?.xmlns ?? "http://www.w3.org/1999/xhtml";
+  const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
 
   let ns;
-  if (tagname === "svg") {
-    ns = "http://www.w3.org/2000/svg";
-  } else if (tagname === "math") {
-    ns = "http://www.w3.org/1998/Math/MathML";
+  if (tagname === 'svg') {
+    ns = 'http://www.w3.org/2000/svg';
+  } else if (tagname === 'math') {
+    ns = 'http://www.w3.org/1998/Math/MathML';
   } else {
     ns = defaultNamespace;
   }
@@ -222,12 +222,12 @@ export function appendChild(parentNode, tagname, child, fragment) {
 
   if (
     childNode instanceof window.HTMLElement &&
-    "__isShadowRootContainer" in childNode &&
+    '__isShadowRootContainer' in childNode &&
     childNode.__isShadowRootContainer &&
-    "__mode" in childNode
+    '__mode' in childNode
   ) {
     if (!(parentNode instanceof window.HTMLElement)) {
-      console.error("ShadowRoot can only be children of HTML Elements.");
+      console.error('ShadowRoot can only be children of HTML Elements.');
       return;
     }
 
@@ -236,7 +236,7 @@ export function appendChild(parentNode, tagname, child, fragment) {
       parentNode.shadowRoot ?? parentNode.attachShadow({ mode });
     if (shadowRoot.mode !== mode) {
       console.error(
-        "Shadowroot mode mismatch: Parent already has a shadowroot of a different type",
+        'Shadowroot mode mismatch: Parent already has a shadowroot of a different type'
       );
       return;
     }
@@ -266,15 +266,15 @@ export function appendChild(parentNode, tagname, child, fragment) {
   // This will lead to a loss of interactivity, but idk, you win and you lose.
   if (
     matchContext(window, Modes.Interactive) &&
-    (tagname === "svg" || tagname === "math") &&
+    (tagname === 'svg' || tagname === 'math') &&
     childNode instanceof window.HTMLElement
   ) {
     const elementNamespace = /** @type {string} */ (
-      "namespaceURI" in parentNode
+      'namespaceURI' in parentNode
         ? parentNode.namespaceURI
-        : "http://www.w3.org/1999/xhtml"
+        : 'http://www.w3.org/1999/xhtml'
     );
-    const temp = window.document.createElementNS(elementNamespace, "div");
+    const temp = window.document.createElementNS(elementNamespace, 'div');
     temp.innerHTML = /** @type {HTMLElement} */ (childNode).outerHTML;
     /** @type {ParentNode} */ (fragment || parentNode).append(...temp.children);
     return;
@@ -322,7 +322,7 @@ export function setAttributeFromProps(el, key, value) {
     if (!element.__attributeCells) {
       element.__attributeCells = new Set();
     }
-    if (key === "ref") {
+    if (key === 'ref') {
       element.__attributeCells.add(value);
       if (value instanceof SourceCell) {
         value.set(element);
@@ -351,19 +351,19 @@ export function setAttribute(el, key, value) {
 
   // store element event listeners.
   if (
-    key.startsWith("on") &&
+    key.startsWith('on') &&
     key.length > 2 &&
-    (!createdByJsx || (createdByJsx && typeof value !== "string"))
+    (!createdByJsx || (createdByJsx && typeof value !== 'string'))
   ) {
     setEventListener(el, key, value);
     return;
   }
 
-  if (key === "children") {
+  if (key === 'children') {
     return;
   }
 
-  if (key.startsWith("aria")) {
+  if (key.startsWith('aria')) {
     const ariaKey = `aria-${key.slice(4).toLowerCase()}`;
 
     if (isSomewhatFalsy(value)) {
@@ -375,10 +375,10 @@ export function setAttribute(el, key, value) {
   }
 
   if (
-    key.startsWith("form") ||
-    key.startsWith("popover") ||
-    key.startsWith("auto") ||
-    key === "tabIndex"
+    key.startsWith('form') ||
+    key.startsWith('popover') ||
+    key.startsWith('auto') ||
+    key === 'tabIndex'
   ) {
     const attrKey = key.toLowerCase();
 
@@ -392,25 +392,25 @@ export function setAttribute(el, key, value) {
   }
 
   if (
-    key === "dangerouslySetInnerHTML" &&
-    typeof value === "object" &&
+    key === 'dangerouslySetInnerHTML' &&
+    typeof value === 'object' &&
     value !== null &&
-    "__html" in value &&
-    typeof value.__html === "string"
+    '__html' in value &&
+    typeof value.__html === 'string'
   ) {
     element.innerHTML = value.__html;
     return;
   }
 
-  if (key === "style" && typeof value === "object" && value !== null) {
+  if (key === 'style' && typeof value === 'object' && value !== null) {
     element.setAttribute(
-      "style",
-      convertObjectToCssStylesheet(value, false, element),
+      'style',
+      convertObjectToCssStylesheet(value, false, element)
     );
     return;
   }
 
-  if (key === "key") {
+  if (key === 'key') {
     element.__key = value;
     return;
   }
@@ -425,15 +425,15 @@ export function setAttribute(el, key, value) {
   }
 
   const attributeName = key
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
     .toLowerCase();
 
-  if (attributeName === "class-name" || attributeName === "class") {
+  if (attributeName === 'class-name' || attributeName === 'class') {
     const normalizedClass = normalizeClassValue(value, element);
     if (normalizedClass) {
-      element.setAttribute("class", normalizedClass);
+      element.setAttribute('class', normalizedClass);
     } else {
-      element.removeAttribute("class");
+      element.removeAttribute('class');
     }
     return;
   }
@@ -469,7 +469,7 @@ export function setEventListener(el, key, value) {
   const rawEventName = /** @type {keyof ElementEventMap} */ (
     key.slice(2).toLowerCase()
   );
-  const [eventName, ...modifiers] = rawEventName.split("--");
+  const [eventName, ...modifiers] = rawEventName.split('--');
   for (const modifier of modifiers) {
     if (!listenerModifiers.includes(modifier)) {
       console.warn(`Unknown event listener modifier: ${modifier}`);
@@ -492,7 +492,7 @@ export function setEventListener(el, key, value) {
       element.__eventListenerList.delete(eventName);
     }
 
-    if (typeof value === "function") {
+    if (typeof value === 'function') {
       element.addEventListener(eventName, value);
       element.__eventListenerList.set(eventName, value);
       return;
@@ -509,7 +509,7 @@ export function setEventListener(el, key, value) {
       element.__modifiedListenerList.delete(rawEventName);
     }
 
-    if (typeof value === "function") {
+    if (typeof value === 'function') {
       /** @type {WrapperFn | undefined} */
       let wrapper = function (event) {
         return value.bind(this)(event);
@@ -523,31 +523,31 @@ export function setEventListener(el, key, value) {
       const options = {};
       for (const modifier of modifiers) {
         const oldWrapper = wrapper;
-        if (modifier === "self") {
+        if (modifier === 'self') {
           wrapper = function (event) {
             if (event.target !== event.currentTarget) return;
             oldWrapper.bind(this)(event);
           };
-        } else if (modifier === "prevent") {
+        } else if (modifier === 'prevent') {
           wrapper = function (event) {
             event.preventDefault();
             oldWrapper.bind(this)(event);
           };
-        } else if (modifier === "once") {
+        } else if (modifier === 'once') {
           options.once = true;
           wrapper = function (event) {
             oldWrapper.bind(this)(event);
             const element = /** @type {JsxElement} */ (event.currentTarget);
             element?.__modifiedListenerList.delete(rawEventName);
           };
-        } else if (modifier === "stop") {
+        } else if (modifier === 'stop') {
           wrapper = function (event) {
             event.stopPropagation();
             oldWrapper.bind(this)(event);
             const element = /** @type {JsxElement} */ (event.currentTarget);
             element.__modifiedListenerList.delete(rawEventName);
           };
-        } else if (modifier === "passive") {
+        } else if (modifier === 'passive') {
           options.passive = true;
         }
 
@@ -585,12 +585,12 @@ export function normalizeJsxChild(child) {
   }
 
   if (child === null || child === undefined) {
-    return window.document.createTextNode("");
+    return window.document.createTextNode('');
   }
 
   if (child instanceof Promise) {
-    const placeholder = window.document.createComment("----");
-    Reflect.set(placeholder, "__promise", child);
+    const placeholder = window.document.createComment('----');
+    Reflect.set(placeholder, '__promise', child);
     child.then((value) => {
       placeholder.replaceWith(/** @type {*} */ (normalizeJsxChild(value)));
     });
@@ -599,7 +599,7 @@ export function normalizeJsxChild(child) {
 
   // @ts-ignore: There is an error with the @adbl/cells library. Booleans should be allowed here.
   if (Cell.isCell(child)) {
-    const textNode = window.document.createTextNode("");
+    const textNode = window.document.createTextNode('');
     addCellListener(textNode, child, function (value) {
       this.textContent = String(value);
     });
@@ -607,7 +607,7 @@ export function normalizeJsxChild(child) {
     return textNode;
   }
 
-  return window.document.createTextNode(child?.toString() ?? "");
+  return window.document.createTextNode(child?.toString() ?? '');
 }
 
 /**
@@ -615,50 +615,51 @@ export function normalizeJsxChild(child) {
  *
  * Handles various input types for class values, including strings, arrays, objects, and cells.
  *
- * @param {string | string[] | Record<string, boolean > | Cell<string> | undefined} val - The class value to normalize.
+ * @param {string | string[] | Record<string, boolean > | Cell<string> | Cell<string[]> | undefined} val - The class value to normalize.
  * @param {JsxElement} element The target element with the class.
  * @returns {string} The normalized class value as a string.
  */
 export function normalizeClassValue(val, element) {
-  if (typeof val === "string") {
+  if (typeof val === 'string') {
     return val;
   }
 
   if (Array.isArray(val)) {
-    let result = "";
+    let result = '';
     for (const [index, value] of val.entries()) {
       const normalized = normalizeClassValue(value, element);
       if (normalized) {
         result += normalized;
       }
       if (index !== val.length - 1) {
-        result += " ";
+        result += ' ';
       }
     }
     return result;
   }
 
+  // @ts-ignore
   if (Cell.isCell(val)) {
-    let currentClassToken = val.get();
+    let currentClassToken = normalizeClassValue(val.get(), element);
     addCellListener(
       element,
       val,
       function (newValue) {
         try {
-          this.classList.remove(...currentClassToken.split(" "));
-          this.classList.add(...newValue.split(" "));
+          this.classList.remove(...currentClassToken.split(' '));
+          this.classList.add(...newValue.split(' '));
         } catch {
           //
         }
         currentClassToken = newValue;
       },
-      false,
+      false
     );
     return currentClassToken;
   }
 
-  if (typeof val === "object" && val !== null) {
-    let result = "";
+  if (typeof val === 'object' && val !== null) {
+    let result = '';
     for (const [key, value] of Object.entries(val)) {
       if (!Cell.isCell(value)) {
         if (value) result += ` ${key}`;
@@ -671,22 +672,22 @@ export function normalizeClassValue(val, element) {
         function (newValue) {
           try {
             if (newValue) {
-              this.classList.add(...key.split(" "));
+              this.classList.add(...key.split(' '));
             } else {
-              this.classList.remove(...key.split(" "));
+              this.classList.remove(...key.split(' '));
             }
           } catch {
             //
           }
         },
-        false,
+        false
       );
       if (value.get()) result += ` ${key}`;
     }
     return result;
   }
 
-  return "";
+  return '';
 }
 
 export class DocumentFragmentPlaceholder {}
@@ -696,8 +697,8 @@ export class DocumentFragmentPlaceholder {}
  * for computing JSX components.
  */
 export function defineJsxGlobals() {
-  Reflect.set(globalThis, "__jsx", h);
-  Reflect.set(globalThis, "__jsxFragment", DocumentFragmentPlaceholder);
+  Reflect.set(globalThis, '__jsx', h);
+  Reflect.set(globalThis, '__jsxFragment', DocumentFragmentPlaceholder);
 }
 
 export const jsx = h;

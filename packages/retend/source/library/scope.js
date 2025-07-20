@@ -5,9 +5,21 @@ import h from './jsx.js';
 
 /**
  * @template [T=unknown]
- * @typedef ScopeProps
+ * @typedef ScopePropsWithChildren
+ * @property {() => JSX.Template} children
+ * @property {T} value
+ */
+
+/**
+ * @template [T=unknown]
+ * @typedef ScopePropsWithContent
  * @property {() => JSX.Template} content
  * @property {T} value
+ */
+
+/**
+ * @template [T=unknown]
+ * @typedef {ScopePropsWithChildren<T> | ScopePropsWithContent<T>} ScopeProps
  */
 
 /**
@@ -51,11 +63,18 @@ export function createScope(name) {
   const Scope = {
     key: Symbol(name ?? 'Scope'),
     Provider: (props) => {
+      const renderFn =
+        'content' in props
+          ? props.content
+          : 'children' in props
+            ? props.children
+            : () => {};
+
       const activeScopeSnapshot = getScopeSnapshot();
       const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
       activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
       try {
-        return h(props.content, {});
+        return h(renderFn, {});
       } finally {
         activeScopeSnapshot.set(Scope, stackBefore);
       }
@@ -79,7 +98,15 @@ export function useScopeContext(Scope, snapshot) {
   const snapshotCtx = snapshot || getScopeSnapshot();
   const relatedScopeData = snapshotCtx.get(Scope);
   if (!relatedScopeData || relatedScopeData.length === 0) {
-    throw new Error(`No parent scope found for the provided scope.`);
+    // Enhanced error message for debugging
+    const scopeName =
+      Scope && Scope.key && Scope.key.description
+        ? Scope.key.description
+        : 'UnknownScope';
+    throw new Error(
+      `No parent scope found for the provided scope (${scopeName}).\n` +
+        `This usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
+    );
   }
   return /** @type {T} */ (relatedScopeData[relatedScopeData.length - 1]);
 }
@@ -221,13 +248,21 @@ export function combineScopes(...providers) {
   const Scope = {
     key: Symbol('CombinedScope'),
     Provider(props) {
+      let renderFn =
+        'content' in props
+          ? props.content
+          : 'children' in props
+            ? props.children
+            : () => {};
+
       const finalContent = [...providers].reverse().reduce(
-        (innerContent, Scope) => () =>
-          Scope.Provider({
+        (innerContent, Scope) => () => {
+          return Scope.Provider({
             value: props.value[Scope.key],
             content: innerContent,
-          }),
-        props.content
+          });
+        },
+        renderFn
       );
       return finalContent();
     },
