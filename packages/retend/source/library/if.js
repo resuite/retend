@@ -2,14 +2,15 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { ReactiveCellFunction } from './utils.js' */
 
-import { Cell } from '@adbl/cells';
+import { Cell } from "@adbl/cells";
 import {
   addCellListener,
   createCommentPair,
   generateChildNodes,
   getMostCurrentFunction,
-} from './utils.js';
-import { linkNodesToComponent } from '../plugin/hmr.js';
+} from "./utils.js";
+import { linkNodesToComponent } from "../plugin/hmr.js";
+import { createScopeSnapshot, withScopeSnapshot } from "./scope.js";
 
 /**
  * @template T
@@ -50,7 +51,7 @@ import { linkNodesToComponent } from '../plugin/hmr.js';
  */
 export function If(value, fnOrObject, elseFn) {
   if (!Cell.isCell(value)) {
-    if (typeof fnOrObject === 'function') {
+    if (typeof fnOrObject === "function") {
       const func = getMostCurrentFunction(fnOrObject);
       if (value) {
         return func(value);
@@ -62,71 +63,74 @@ export function If(value, fnOrObject, elseFn) {
       return;
     }
 
-    if (typeof fnOrObject === 'object') {
-      if (value && 'true' in fnOrObject) {
+    if (typeof fnOrObject === "object") {
+      if (value && "true" in fnOrObject) {
         return getMostCurrentFunction(fnOrObject.true)(value);
       }
 
-      if (!value && 'false' in fnOrObject) {
+      if (!value && "false" in fnOrObject) {
         return getMostCurrentFunction(fnOrObject.false)();
       }
     }
 
     console.error(
-      'If expects a callback or condition object as the second argument.'
+      "If expects a callback or condition object as the second argument.",
     );
     return;
   }
 
   const [rangeStart, rangeEnd] = createCommentPair();
+  const scopeSnapshot = createScopeSnapshot();
 
   /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (value) {
-    /** @type {(Node | VDom.VNode)[]} */
-    let nodes = [];
-    let nextNode = this.nextSibling;
-    while (
-      nextNode &&
-      !(
-        '__commentRangeSymbol' in nextNode &&
-        nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-      )
-    ) {
-      nextNode.remove();
-      nextNode = this.nextSibling;
-    }
-
-    if (typeof fnOrObject === 'function') {
-      if (value) {
-        const func = getMostCurrentFunction(fnOrObject);
-        nodes = generateChildNodes(func(value));
-        linkNodesToComponent(nodes, func, value);
-      } else if (elseFn) {
-        const elseFunc = getMostCurrentFunction(elseFn);
-        nodes = generateChildNodes(elseFunc());
-        linkNodesToComponent(nodes, elseFunc);
-      } else {
-        nodes = [];
+    return withScopeSnapshot(scopeSnapshot, () => {
+      /** @type {(Node | VDom.VNode)[]} */
+      let nodes = [];
+      let nextNode = this.nextSibling;
+      while (
+        nextNode &&
+        !(
+          "__commentRangeSymbol" in nextNode &&
+          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
+        )
+      ) {
+        nextNode.remove();
+        nextNode = this.nextSibling;
       }
-    } else if (typeof fnOrObject === 'object') {
-      if (value && 'true' in fnOrObject) {
-        const trueFunc = getMostCurrentFunction(fnOrObject.true);
-        nodes = generateChildNodes(trueFunc(value));
-        linkNodesToComponent(nodes, trueFunc, value);
-      } else if (!value && 'false' in fnOrObject) {
-        const falseFunc = getMostCurrentFunction(fnOrObject.false);
-        nodes = generateChildNodes(falseFunc());
-        linkNodesToComponent(nodes, falseFunc);
-      } else {
-        nodes = [];
-      }
-    } else
-      console.error(
-        'If expects a callback or condition object as the second argument.'
-      );
 
-    this.after(.../** @type {*} */ (nodes));
-    return nodes;
+      if (typeof fnOrObject === "function") {
+        if (value) {
+          const func = getMostCurrentFunction(fnOrObject);
+          nodes = generateChildNodes(func(value));
+          linkNodesToComponent(nodes, func, value);
+        } else if (elseFn) {
+          const elseFunc = getMostCurrentFunction(elseFn);
+          nodes = generateChildNodes(elseFunc());
+          linkNodesToComponent(nodes, elseFunc);
+        } else {
+          nodes = [];
+        }
+      } else if (typeof fnOrObject === "object") {
+        if (value && "true" in fnOrObject) {
+          const trueFunc = getMostCurrentFunction(fnOrObject.true);
+          nodes = generateChildNodes(trueFunc(value));
+          linkNodesToComponent(nodes, trueFunc, value);
+        } else if (!value && "false" in fnOrObject) {
+          const falseFunc = getMostCurrentFunction(fnOrObject.false);
+          nodes = generateChildNodes(falseFunc());
+          linkNodesToComponent(nodes, falseFunc);
+        } else {
+          nodes = [];
+        }
+      } else
+        console.error(
+          "If expects a callback or condition object as the second argument.",
+        );
+
+      this.after(.../** @type {*} */ (nodes));
+      return nodes;
+    });
   };
 
   // see comment in switch.js

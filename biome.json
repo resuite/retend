@@ -1,6 +1,5 @@
 {
   "files": {
-    "ignoreUnknown": true,
-    "ignore": ["node_modules/*", "./node_modules/*", "dist"]
+    "ignoreUnknown": true
   }
 }

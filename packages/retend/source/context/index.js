@@ -45,7 +45,7 @@ export class GlobalContextChangeEvent extends CustomEvent {
    * @param {Environments} [newContext]
    */
   constructor(oldContext, newContext) {
-    super('globalcontextchange', { detail: { oldContext, newContext } });
+    super("globalcontextchange", { detail: { oldContext, newContext } });
   }
 }
 
@@ -63,7 +63,7 @@ export class GlobalContextChangeEvent extends CustomEvent {
  *    consistentValues: Map<string, any>,
  *    teleportIdCounter: { value: number }
  *    observer?: DocumentObserver
- *    globalData: Map<string, any>
+ *    globalData: Map<PropertyKey, any>
  * }} Environments
  */
 
@@ -89,7 +89,7 @@ export class GlobalContextChangeEvent extends CustomEvent {
  */
 export function matchContext(window, mode) {
   const windowRenderMode =
-    '__appRenderMode__' in window
+    "__appRenderMode__" in window
       ? window.__appRenderMode__
       : Modes.Interactive;
   return windowRenderMode === mode;
@@ -98,8 +98,8 @@ export function matchContext(window, mode) {
 export function resetGlobalContext() {
   const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
   globalThis.__RETEND_GLOBAL_CONTEXT__ = {};
-  oldContext.window?.dispatchEvent(
-    new GlobalContextChangeEvent(oldContext, undefined)
+  oldContext.window?.dispatchEvent?.(
+    new GlobalContextChangeEvent(oldContext, undefined),
   );
 }
 
@@ -113,9 +113,9 @@ export function resetGlobalContext() {
  */
 export function isVNode(node) {
   return (
-    typeof node === 'object' &&
+    typeof node === "object" &&
     node !== null &&
-    '__isVNode' in node &&
+    "__isVNode" in node &&
     Boolean(node.__isVNode)
   );
 }
@@ -138,7 +138,7 @@ if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
 export function isSSREnvironment() {
   const context = getGlobalContext();
   return (
-    context.mode === Modes.VDom && context.globalData.get('env:ssr') === true
+    context.mode === Modes.VDom && context.globalData.get("env:ssr") === true
   );
 }
 
@@ -153,7 +153,7 @@ export function setGlobalContext(newContext) {
   globalThis.__RETEND_GLOBAL_CONTEXT__ = newContext;
   if (oldContext !== newContext) {
     oldContext.window?.dispatchEvent(
-      new GlobalContextChangeEvent(oldContext, newContext)
+      new GlobalContextChangeEvent(oldContext, newContext),
     );
   }
 }

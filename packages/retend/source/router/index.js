@@ -20,6 +20,7 @@ import {
   getGlobalContext,
   CustomEvent,
 } from "../context/index.js";
+import { createScopeSnapshot, withScopeSnapshot } from '../library/scope.js';
 
 export * from "./lazy.js";
 export * from "./routeTree.js";
@@ -38,6 +39,7 @@ const RELAY_ID_REGEX =
 /** @import * as Context from '../context/index.js' */
 /** @import { ReactiveCellFunction } from '../library/utils.js' */
 /** @import { RouteData } from './middleware.js' */
+/** @import { ScopeSnapshot } from '../library/scope.js' */
 
 /**
  * @typedef {Lazy<(() => JSX.Template)> | ((() => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader
@@ -240,6 +242,7 @@ export class RouteErrorEvent extends CustomEvent {
  * @typedef {Context.HTMLElementLike & {
  *  __keepAlive?: boolean;
  *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
+ *  __originScopeSnapshot?: ScopeSnapshot;
  * }} RouterOutlet
  */
 
@@ -470,26 +473,26 @@ export class Router extends EventTarget {
    * ```
    */
   Outlet(props) {
+    // A save of the snapshot from wherever the Outlet is created.
+    const originScopeSnapshot = createScopeSnapshot();
     if (!this.#window) {
       throw new Error("Cannot create Outlet in undefined window.");
     }
 
     /** @type {RouterOutlet } */
     const outlet = this.#window.document.createElement("retend-router-outlet");
+    outlet.__originScopeSnapshot = originScopeSnapshot;
 
     if (props) {
-      const { keepAlive: _, maxKeepAliveCount: __, children, ...rest } = props;
+      const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         setAttributeFromProps(outlet, key, value);
       }
       appendChild(outlet, outlet.tagName.toLowerCase(), children);
-    }
 
-    if (props) {
-      if (props.keepAlive) {
-        outlet.__keepAlive = props.keepAlive;
-        const maxKeepAliveCount = props.maxKeepAliveCount ?? 10;
-        outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount);
+      if (keepAlive) {
+        outlet.__keepAlive = keepAlive;
+        outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount ?? 10);
       }
     }
 
@@ -1047,12 +1050,18 @@ export class Router extends EventTarget {
 
       /** @type {JSX.Template} */
       let renderedComponent;
-      const snapshot = outlet.__keepAliveCache?.get(simplePath);
-      if (snapshot) {
-        renderedComponent = [...snapshot.fragment.childNodes];
+      const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
+      if (routeSnapshot) {
+        renderedComponent = [...routeSnapshot.fragment.childNodes];
       } else {
         try {
-          renderedComponent = await matchedComponent();
+          const outletScopeSnapshot = outlet.__originScopeSnapshot;
+          if (outletScopeSnapshot) {
+            renderedComponent = await withScopeSnapshot(
+              outletScopeSnapshot,
+              matchedComponent
+            );
+          } else renderedComponent = await matchedComponent();
         } catch (error) {
           if (oldOutletPath) {
             outlet.setAttribute("data-path", oldOutletPath);
