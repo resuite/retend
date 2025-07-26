@@ -311,13 +311,12 @@ export class MatchResult {
     }
 
     let current = this.subTree;
-    while (current?.child) {
+    while (current?.child?.child) {
       if (current?.child?.isTransient || !current.child?.component) {
         current.child = current.child.child;
-        current = current.child;
       }
+      current = current.child;
     }
-    this.subTree = current ?? this.subTree;
   }
 
   /**
