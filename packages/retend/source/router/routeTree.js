@@ -293,7 +293,10 @@ export class MatchResult {
    * and any remaining transient routes will be skipped over.
    */
   flattenTransientRoutes() {
-    while (this.subTree?.isTransient) {
+    while (
+      this.subTree &&
+      (this.subTree.isTransient || !this.subTree?.component)
+    ) {
       this.subTree = this.subTree.child;
     }
 
@@ -384,11 +387,10 @@ export class RouteTree {
    * @param {string} pathname - The pathname to match against
    * @param {LazyRoute<T> | EagerRoute<T>} root - The root node to check
    * @param {Map<string, string>} params - Map to store path parameters
-   * @param {number} [index] - Current match level.
    * @param {EagerRoute<T>} [parent] Parent route for lazy route replacement.
    * @returns {Promise<MatchedRoute<T> |null>} - The matching subtree or null if no match
    */
-  async checkRoot(pathname, root, params, index = 0, parent) {
+  async checkRoot(pathname, root, params, parent) {
     const pathSegments = pathname.split("/").filter(Boolean);
     const rootSegments = root.path.split("/").filter(Boolean);
 
@@ -401,7 +403,6 @@ export class RouteTree {
           pathname,
           child,
           params,
-          Math.max(index - 1, 0),
           resolved,
         );
         if (childMatchedRoute) {
@@ -414,11 +415,11 @@ export class RouteTree {
       }
     }
 
-    let matchedIndex = index;
+    let i = 0;
     let encounteredCatchAllWildcardAtParameter = "";
-    while (matchedIndex < rootSegments.length) {
-      const rootSegment = rootSegments[matchedIndex];
-      const pathSegment = pathSegments[matchedIndex];
+    while (i < rootSegments.length) {
+      const rootSegment = rootSegments[i];
+      const pathSegment = pathSegments[i];
 
       // The target path is exhausted, but the root path is not.
       if (!pathSegment) {
@@ -426,8 +427,8 @@ export class RouteTree {
       }
 
       if (rootSegment === "*") {
-        rootSegments[matchedIndex] = pathSegment;
-        matchedIndex++;
+        rootSegments[i] = pathSegment;
+        i++;
         continue;
       }
 
@@ -447,8 +448,8 @@ export class RouteTree {
         }
 
         params.set(paramName, paramValue);
-        rootSegments[matchedIndex] = paramValue;
-        matchedIndex++;
+        rootSegments[i] = paramValue;
+        i++;
         continue;
       }
 
@@ -457,7 +458,7 @@ export class RouteTree {
         return null;
       }
 
-      matchedIndex++;
+      i++;
     }
 
     const resolved = await this.flattenRoute(root, parent);
@@ -467,7 +468,7 @@ export class RouteTree {
     // using the children of the current route.
     // Also do this it the path is exhausted, but there is no component/child match
     if (
-      matchedIndex < pathSegments.length ||
+      i < pathSegments.length ||
       !(matchedRoute.child || matchedRoute.component)
     ) {
       const parent = resolved;
@@ -476,7 +477,6 @@ export class RouteTree {
           pathname,
           child,
           params,
-          matchedIndex,
           parent,
         );
         if (childMatchedRoute) {
@@ -493,7 +493,7 @@ export class RouteTree {
         if (encounteredCatchAllWildcardAtParameter) {
           params.set(
             encounteredCatchAllWildcardAtParameter,
-            pathSegments.slice(matchedIndex - 1).join("/"),
+            pathSegments.slice(i - 1).join("/"),
           );
         }
       }

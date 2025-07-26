@@ -867,6 +867,7 @@ export class Router extends EventTarget {
           params: currentPath.params,
           searchQueryParams: currentPath.query,
           hash: currentPath.hash,
+          path: currentPath.path,
         })
       : undefined;
     const nextPath = path;
@@ -1646,7 +1647,7 @@ function emptyRoute(path, window) {
 /**
  * Constructs a URL path by replacing any matched parameters in the given path with their corresponding values from the `matchResult.params` object. If a parameter is not found, the original match is returned. Additionally, any search query parameters from `matchResult.searchQueryParams` are appended to the final path.
  * @param {string} path - The original path to be constructed.
- * @param {{ params: Map<string, string>, searchQueryParams: URLSearchParams, hash: string | null }} matchResult - An object containing the matched parameters and search query parameters.
+ * @param {{ params: Map<string, string>, searchQueryParams: URLSearchParams, hash: string | null, path: string }} matchResult - An object containing the matched parameters and search query parameters.
  * @returns {string} The final constructed URL path.
  */
 function constructURL(path, matchResult) {
