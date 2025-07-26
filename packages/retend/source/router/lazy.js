@@ -1,24 +1,32 @@
-/** @import { JSX } from '../jsx-runtime/types.ts' */
-
 /**
- * @typedef {() => (Promise<{
- *  default: () => JSX.Template
- * }> | (() => JSX.Template))} LazyRouteLoader
+ * @template out LazyContent
+ * @typedef {() => (Promise<{ default: LazyContent }> | LazyContent)} LazyLoader
  */
 
-export class LazyRoute {
-  /** @param {LazyRouteLoader} importer */
+/** @template LazyContent */
+export class Lazy {
+  /** @param {LazyLoader<LazyContent>} importer */
   constructor(importer) {
     this.importer = importer;
+  }
+
+  async unwrap() {
+    const imported = this.importer();
+    if (imported instanceof Promise) {
+      return (await imported).default;
+    } else {
+      return imported;
+    }
   }
 }
 
 /**
- * Creates a new `LazyRoute` instance that can be used to lazily load and render a component.
+ * @template T
+ * Creates a new `Lazy` instance that can be used to lazily load and render resources.
  *
- * @param {LazyRouteLoader} importer - A function that returns a Promise that resolves to the component to be rendered.
- * @returns {LazyRoute} A new `LazyRoute` instance.
+ * @param {LazyLoader<T>} importer - A function that returns a Promise that resolves to the whatever is to be loaded.
+ * @returns {Lazy<T>} A new `Lazy` instance.
  */
 export function lazy(importer) {
-  return new LazyRoute(importer);
+  return new Lazy(importer);
 }
