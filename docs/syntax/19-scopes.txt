@@ -1,0 +1,150 @@
+# FILE: scopes.txt
+# TYPE: text/plain
+# CONTENT:
+
+@Title scopes
+@Description Using `createScope` and `useScopeContext` for dependency injection and state management across components, avoiding prop drilling.
+
+---
+
+@Example 1
+@Input Create a scope, provide a value, and consume it in a child.
+import { createScope, useScopeContext } from 'retend';
+
+const ThemeScope = createScope();
+
+function ThemedButton() {
+  const theme = useScopeContext(ThemeScope);
+  return <button type="button" style={{ background: theme }}>Click Me</button>;
+}
+
+function App() {
+  return (
+    <ThemeScope.Provider value={'lightblue'} content={ThemedButton} />
+  );
+}
+@Note `createScope()` creates a scope object containing a `Provider`.
+@Note The `Provider` takes a `value` and a `content` prop, where `content` is the component or a function returning JSX.
+@Note `useScopeContext(ScopeObject)` consumes the value from the nearest ancestor Provider.
+
+---
+
+@Example 2
+@Input Providing and consuming an object value.
+import { createScope, useScopeContext } from 'retend';
+
+const UserScope = createScope();
+const user = { name: 'Alice', loggedIn: true };
+
+function UserDisplay() {
+  const currentUser = useScopeContext(UserScope);
+  return <p>Welcome, {currentUser.name}!</p>;
+}
+
+function App() {
+  return (
+    <UserScope.Provider value={user} content={UserDisplay} />
+  );
+}
+@Note Scopes can provide any type of value, including objects and arrays.
+
+---
+
+@Example 3
+@Input Overriding a scope value in a nested component.
+import { createScope, useScopeContext } from 'retend';
+
+const ThemeScope = createScope();
+
+function DisplayTheme() {
+  const theme = useScopeContext(ThemeScope);
+  return <span>Current theme: {theme}</span>;
+}
+
+function DarkSection() {
+  return (
+    <div style={{ background: 'black', color: 'white' }}>
+      <ThemeScope.Provider value={'dark'} content={DisplayTheme} />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeScope.Provider value={'light'} content={() => (
+      <div>
+        <DisplayTheme /> {/* Renders 'light' */}
+        <DarkSection />  {/* Renders 'dark' inside */}
+      </div>
+    )} />
+  );
+}
+@Note A nested Provider overrides the value for its descendants. Components outside the nested provider still receive the original value.
+
+---
+
+@Example 4
+@Input Using a reactive cell as the scope value.
+import { createScope, useScopeContext, Cell } from 'retend';
+
+const CountScope = createScope();
+const count = Cell.source(0);
+
+function CounterDisplay() {
+  const countCell = useScopeContext(CountScope);
+  return <p>Count: {countCell}</p>;
+}
+
+function App() {
+  const increment = () => count.set(count.get() + 1);
+  return (
+    <CountScope.Provider value={count} content={() => (
+      <div>
+        <CounterDisplay />
+        <button type="button" onClick={increment}>Increment</button>
+      </div>
+    )} />
+  );
+}
+@Note Passing a `Cell` through a scope allows multiple descendant components to react to and modify the same state.
+
+---
+
+@Example 5
+@Input Combining multiple scopes with `combineScopes`.
+import { createScope, useScopeContext, combineScopes } from 'retend';
+
+const ThemeScope = createScope();
+const UserScope = createScope();
+const AppScope = combineScopes(ThemeScope, UserScope); // Combine them
+
+function AppStatus() {
+  const theme = useScopeContext(ThemeScope);
+  const user = useScopeContext(UserScope);
+  return <div style={{ background: theme }}>User: {user.name}</div>;
+}
+
+function App() {
+  const appData = {
+    [ThemeScope.key]: 'lightyellow',
+    [UserScope.key]: { name: 'Admin' }
+  };
+  return <AppScope.Provider value={appData} content={AppStatus} />;
+}
+@Note `combineScopes` creates a single Provider for multiple scopes.
+@Note The `value` for a combined provider is an object where keys are `Scope.key` and values are the corresponding scope values.
+
+---
+
+@Example 6
+@Input Using `useScopeContext` without a Provider.
+import { createScope, useScopeContext } from 'retend';
+
+const MyScope = createScope();
+
+function BrokenComponent() {
+  // This will throw an error because no MyScope.Provider is an ancestor.
+  const value = useScopeContext(MyScope);
+  return <div>{value}</div>;
+}
+@Note Calling `useScopeContext` for a scope that has no corresponding Provider in its ancestor tree will result in a runtime error.

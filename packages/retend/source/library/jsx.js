@@ -112,6 +112,21 @@ const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
  *  }} WrapperFn
  */
 
+// const eventTracker = new EventTarget();
+// eventTracker.addEventListener("NextTick", (event) => {
+//   if ("__callback__" in event && typeof event.__callback__ === "function") {
+//     const callback = event.__callback__;
+//     queueMicrotask(() => callback());
+//   }
+// });
+
+// /**@param {Function} callback */
+// function queueEvent(callback) {
+//   const event = new Event("NextTick");
+//   Reflect.set(event, "__callback__", callback);
+//   eventTracker.dispatchEvent(event);
+// }
+
 /**
  * Creates a new DOM element with the specified tag name, props, and children.
  *
@@ -142,9 +157,7 @@ export function h(tagname, props) {
     // In Dev mode and using HMR, the function may have been overwritten.
     // In this case we need the latest version of the function.
     const current = getMostCurrentFunction(tagname);
-    const component = current(completeProps, {
-      createdByJsx: true,
-    });
+    let component = current(completeProps, { createdByJsx: true });
     const nodes = generateChildNodes(component);
     linkNodesToComponent(nodes, current, completeProps);
     // Tries to make the API more consistent and predictable.
@@ -602,7 +615,7 @@ export function normalizeJsxChild(child) {
  *
  * Handles various input types for class values, including strings, arrays, objects, and cells.
  *
- * @param {string | string[] | Record<string, boolean > | Cell<string> | undefined} val - The class value to normalize.
+ * @param {string | string[] | Record<string, boolean > | Cell<string> | Cell<string[]> | undefined} val - The class value to normalize.
  * @param {JsxElement} element The target element with the class.
  * @returns {string} The normalized class value as a string.
  */
@@ -625,8 +638,9 @@ export function normalizeClassValue(val, element) {
     return result;
   }
 
+  // @ts-ignore
   if (Cell.isCell(val)) {
-    let currentClassToken = val.get();
+    let currentClassToken = normalizeClassValue(val.get(), element);
     addCellListener(
       element,
       val,

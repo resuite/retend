@@ -2,14 +2,15 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { ReactiveCellFunction } from './utils.js' */
 
-import { Cell } from '@adbl/cells';
+import { Cell } from "@adbl/cells";
 import {
   addCellListener,
   createCommentPair,
   generateChildNodes,
   getMostCurrentFunction,
-} from './utils.js';
-import { linkNodesToComponent } from '../plugin/hmr.js';
+} from "./utils.js";
+import { linkNodesToComponent } from "../plugin/hmr.js";
+import { createScopeSnapshot, withScopeSnapshot } from "./scope.js";
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -113,40 +114,44 @@ export function Switch(value, cases, defaultCase) {
     return undefined;
   }
 
+  const snapshot = createScopeSnapshot();
+
   /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (value) {
-    /** @type {(Node | VDom.VNode)[]} */
-    let nodes = [];
-    let nextNode = this.nextSibling;
-    while (
-      nextNode &&
-      !(
-        '__commentRangeSymbol' in nextNode &&
-        nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-      )
-    ) {
-      nextNode.remove();
-      nextNode = this.nextSibling;
-    }
+    return withScopeSnapshot(snapshot, () => {
+      /** @type {(Node | VDom.VNode)[]} */
+      let nodes = [];
+      let nextNode = this.nextSibling;
+      while (
+        nextNode &&
+        !(
+          "__commentRangeSymbol" in nextNode &&
+          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
+        )
+      ) {
+        nextNode.remove();
+        nextNode = this.nextSibling;
+      }
 
-    const caseCaller = cases[value];
-    if (caseCaller) {
-      const caseCallerFunc = getMostCurrentFunction(caseCaller);
-      nodes = generateChildNodes(caseCallerFunc(value));
-      linkNodesToComponent(nodes, caseCallerFunc, value);
-      this.after(.../** @type {*} */ (nodes));
+      const caseCaller = cases[value];
+      if (caseCaller) {
+        const caseCallerFunc = getMostCurrentFunction(caseCaller);
+        nodes = generateChildNodes(caseCallerFunc(value));
+        linkNodesToComponent(nodes, caseCallerFunc, value);
+        this.after(.../** @type {*} */ (nodes));
+        return nodes;
+      }
+
+      if (defaultCase) {
+        const defaultCaseFunc = getMostCurrentFunction(defaultCase);
+        nodes = generateChildNodes(defaultCaseFunc(value));
+        linkNodesToComponent(nodes, defaultCaseFunc, value);
+        this.after(.../** @type {*} */ (nodes));
+        return nodes;
+      }
+
       return nodes;
-    }
-
-    if (defaultCase) {
-      const defaultCaseFunc = getMostCurrentFunction(defaultCase);
-      nodes = generateChildNodes(defaultCaseFunc(value));
-      linkNodesToComponent(nodes, defaultCaseFunc, value);
-      this.after(.../** @type {*} */ (nodes));
-      return nodes;
-    }
-
-    return nodes;
+    });
   };
 
   // Don't use runAndListen with an outer array to store nodes.

@@ -53,14 +53,14 @@ Like in HTML, you can add attributes to JSX elements. For example, you can add a
 
 _However_, in Retend, there are some slight differences to HTML attributes to better support the use of JavaScript expressions.
 
-- For listener attributes, e.g. `onclick`, `oninput`, `onmouseover` etc., the jsx equivalent is named in camelCase, e.g. `onClick`, `onInput`, `onMouseOver` etc.
+- For listener attributes, e.g. `onclick`, `oninput`, `onmouseover` etc., the jsx equivalent is named in camelCase, e.g. **`onClick`, `onInput`, `onMouseOver`** etc.
   Let's say you want to add a click event listener to a button. In HTML, you would write:
 
   ```html
   <button onclick="alert('Hello, world!')">Click me!</button>
   ```
 
-  In JSX, you would write:
+  When writing JSX, you are in javascript land, so you would write:
 
   ```jsx
   function sayHello() {
@@ -72,21 +72,14 @@ _However_, in Retend, there are some slight differences to HTML attributes to be
 
 - The `style` attribute can accept text, like in HTML, _however_ it can also accepts a JavaScript object, which would contain the CSS properties (in camelCase) and their values. For example:
 
-  ```jsx
-  <div
-    style={{
-      backgroundColor: 'red',
-      fontSize: '20px',
-    }}
-  >
-    Hello, world!
-  </div>
-  ```
+```jsx
+<div style={{ color: "red", fontSize: "20px" }}>Hello, world!</div>
+```
 
-This will render a div with a red background color and a font size of 20 pixels. It is the exact same as:
+This will render a div with a red text color and a font size of 20 pixels. It is the exact same as:
 
 ```html
-<div style="background-color: red; font-size: 20px;">Hello, world!</div>
+<div style="color: red; font-size: 20px;">Hello, world!</div>
 ```
 
 ---
@@ -546,6 +539,178 @@ In this example, the `UserGreeting` component checks `userStatus`. If the user i
 
 You can also toggle the user status using the `toggleUserStatus` function, which switches between 'guest' and 'user', or set the user status to 'admin' using the `setAdminStatus` function.
 
+## Conditional Rendering with `Switch`
+
+The `Switch` function allows you to choose between a number of possible UI options based on a given value.
+
+```jsx
+import { Switch } from 'retend';
+
+const userType = 'premium';
+
+const UserTypeDisplay = () => {
+  return (
+    <div>
+      {Switch(userType, {
+        free: () => <p>Free user, features are limited.</p>,
+        basic: () => <p>Basic User</p>,
+        premium: () => <p>Premium user with more features.</p>,
+        enterprise: () => <p>Enterprise user, please contact admin.</p>,
+      })}
+    </div>
+  );
+};
+
+document.body.append(<UserTypeDisplay />);
+```
+
+In this example, `Switch` looks at the `userType` variable, and depending on its value, it shows the corresponding html on screen. This illustrates a way of rendering content conditionally by using a static JavaScript variable.
+
+### Dynamic `Switch` Using Cells
+
+If the value you want to switch on can change over time, you can make use of the reactivity system with the help of `Cells`.
+
+Here is an example showing a navigation system that has some basic routing built into it:
+
+```jsx
+import { Switch, Cell } from 'retend';
+
+const currentView = Cell.source('home');
+
+const goHome = () => {
+  currentView.set('home');
+};
+
+const goSettings = () => {
+  currentView.set('settings');
+};
+
+const goProfile = () => {
+  currentView.set('profile');
+};
+
+const NavigationView = () => {
+  return (
+    <div>
+      <nav>
+        <button onClick={goHome}>Home</button>
+        <button onClick={goSettings}>Settings</button>
+        <button onClick={goProfile}>Profile</button>
+      </nav>
+      <main>
+        {Switch(currentView, {
+          home: () => (
+            <section>
+              <h1>Welcome to the Home Screen!</h1>
+            </section>
+          ),
+          profile: () => (
+            <section>
+              <h1>Here is your profile.</h1>
+            </section>
+          ),
+          settings: () => (
+            <section>
+              <h1>Settings for your Account</h1>
+            </section>
+          ),
+        })}
+      </main>
+    </div>
+  );
+};
+
+document.body.append(<NavigationView />);
+```
+
+In this code snippet, when each button is clicked, the corresponding section is shown on screen by modifying the value of the `currentView` Cell, the changes are automatically propagated to the browser to create a dynamic web application.
+
+### Handling Complex Cases with Multiple Conditions
+
+`Switch` also shines in situations where you need to consider more complex conditions, for example if you need to apply multiple states to a component at the same time:
+
+```jsx
+import { Switch, Cell } from 'retend';
+
+const isLoggedIn = Cell.source(false);
+const isAdmin = Cell.source(false);
+
+const UserDashboard = () => {
+  const logUserOut = () => {
+    isLoggedIn.set(false);
+    isAdmin.set(false);
+  };
+
+  const logUserIn = () => {
+    isLoggedIn.set(true);
+    isAdmin.set(false);
+  };
+
+  const logAdminIn = () => {
+    isLoggedIn.set(true);
+    isAdmin.set(true);
+  };
+
+  const getUserType = () => {
+    if (!isLoggedIn.get()) return 'guest';
+    return isAdmin.get() ? 'admin' : 'user';
+  };
+  return (
+    <div>
+      <button onClick={logUserIn}>Log in</button>
+      <button onClick={logAdminIn}>Log in as Admin</button>
+      <button onClick={logUserOut}>Log out</button>
+
+      {Switch(Cell.derived(getUserType), {
+        guest: () => <h1>Please log in.</h1>,
+        admin: () => <h1>Welcome back, Administrator!</h1>,
+        user: () => <h1>Welcome back!</h1>,
+      })}
+    </div>
+  );
+};
+
+document.body.append(<UserDashboard />);
+```
+
+### Using a Default Case
+
+The optional third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
+
+```jsx
+import { Switch, Cell } from 'retend';
+
+const userRole = Cell.source('editor');
+
+const UserDashboard = () => {
+  const setRole = (role) => {
+    userRole.set(role);
+  };
+  return (
+    <div>
+      <button onClick={() => setRole('editor')}>Set Editor</button>
+      <button onClick={() => setRole('admin')}>Set Admin</button>
+      <button onClick={() => setRole('guest')}>Set Guest</button>
+      {Switch(
+        userRole,
+        {
+          admin: () => <h1>Admin Dashboard</h1>,
+          editor: () => <h2>Editor Tools</h2>,
+        },
+        (role) => (
+          <p>Unrecognized Role: {role}</p>
+        )
+      )}
+    </div>
+  );
+};
+
+document.body.append(<UserDashboard />);
+```
+
+Here we demonstrated a switch component using named "roles". This illustrates a use-case where, sometimes, the content may be unexpected, for instance, because a user may change their saved settings. This fallback allows a "catch-all" solution.
+
+
 ## List Rendering
 
 In many web applications, you'll need to display lists, whether it's a to-do list, a list of products, or a list of user comments. Retend provides a special function called `For` to handle these scenarios efficiently.
@@ -723,177 +888,7 @@ When you change something in a list wrapped by `For`, instead of tearing down an
 
 The `For` function provides a smart, performant and reactive method for displaying and handling lists. By focusing on its use of the template function, how to handle different list types and how to interpret reactivity, you can render lists effectively in Retend.
 
-## Conditional Rendering with `Switch`
-
-The `Switch` function allows you to choose between a number of possible UI options based on a given value.
-
-```jsx
-import { Switch } from 'retend';
-
-const userType = 'premium';
-
-const UserTypeDisplay = () => {
-  return (
-    <div>
-      {Switch(userType, {
-        free: () => <p>Free user, features are limited.</p>,
-        basic: () => <p>Basic User</p>,
-        premium: () => <p>Premium user with more features.</p>,
-        enterprise: () => <p>Enterprise user, please contact admin.</p>,
-      })}
-    </div>
-  );
-};
-
-document.body.append(<UserTypeDisplay />);
-```
-
-In this example, `Switch` looks at the `userType` variable, and depending on its value, it shows the corresponding html on screen. This illustrates a way of rendering content conditionally by using a static JavaScript variable.
-
-### Dynamic `Switch` Using Cells
-
-If the value you want to switch on can change over time, you can make use of the reactivity system with the help of `Cells`.
-
-Here is an example showing a navigation system that has some basic routing built into it:
-
-```jsx
-import { Switch, Cell } from 'retend';
-
-const currentView = Cell.source('home');
-
-const goHome = () => {
-  currentView.set('home');
-};
-
-const goSettings = () => {
-  currentView.set('settings');
-};
-
-const goProfile = () => {
-  currentView.set('profile');
-};
-
-const NavigationView = () => {
-  return (
-    <div>
-      <nav>
-        <button onClick={goHome}>Home</button>
-        <button onClick={goSettings}>Settings</button>
-        <button onClick={goProfile}>Profile</button>
-      </nav>
-      <main>
-        {Switch(currentView, {
-          home: () => (
-            <section>
-              <h1>Welcome to the Home Screen!</h1>
-            </section>
-          ),
-          profile: () => (
-            <section>
-              <h1>Here is your profile.</h1>
-            </section>
-          ),
-          settings: () => (
-            <section>
-              <h1>Settings for your Account</h1>
-            </section>
-          ),
-        })}
-      </main>
-    </div>
-  );
-};
-
-document.body.append(<NavigationView />);
-```
-
-In this code snippet, when each button is clicked, the corresponding section is shown on screen by modifying the value of the `currentView` Cell, the changes are automatically propagated to the browser to create a dynamic web application.
-
-### Handling Complex Cases with Multiple Conditions
-
-`Switch` also shines in situations where you need to consider more complex conditions, for example if you need to apply multiple states to a component at the same time:
-
-```jsx
-import { Switch, Cell } from 'retend';
-
-const isLoggedIn = Cell.source(false);
-const isAdmin = Cell.source(false);
-
-const UserDashboard = () => {
-  const logUserOut = () => {
-    isLoggedIn.set(false);
-    isAdmin.set(false);
-  };
-
-  const logUserIn = () => {
-    isLoggedIn.set(true);
-    isAdmin.set(false);
-  };
-
-  const logAdminIn = () => {
-    isLoggedIn.set(true);
-    isAdmin.set(true);
-  };
-
-  const getUserType = () => {
-    if (!isLoggedIn.get()) return 'guest';
-    return isAdmin.get() ? 'admin' : 'user';
-  };
-  return (
-    <div>
-      <button onClick={logUserIn}>Log in</button>
-      <button onClick={logAdminIn}>Log in as Admin</button>
-      <button onClick={logUserOut}>Log out</button>
-
-      {Switch(Cell.derived(getUserType), {
-        guest: () => <h1>Please log in.</h1>,
-        admin: () => <h1>Welcome back, Administrator!</h1>,
-        user: () => <h1>Welcome back!</h1>,
-      })}
-    </div>
-  );
-};
-
-document.body.append(<UserDashboard />);
-```
-
-### Using a Default Case
-
-The optional third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
-
-```jsx
-import { Switch, Cell } from 'retend';
-
-const userRole = Cell.source('editor');
-
-const UserDashboard = () => {
-  const setRole = (role) => {
-    userRole.set(role);
-  };
-  return (
-    <div>
-      <button onClick={() => setRole('editor')}>Set Editor</button>
-      <button onClick={() => setRole('admin')}>Set Admin</button>
-      <button onClick={() => setRole('guest')}>Set Guest</button>
-      {Switch(
-        userRole,
-        {
-          admin: () => <h1>Admin Dashboard</h1>,
-          editor: () => <h2>Editor Tools</h2>,
-        },
-        (role) => (
-          <p>Unrecognized Role: {role}</p>
-        )
-      )}
-    </div>
-  );
-};
-
-document.body.append(<UserDashboard />);
-```
-
-Here we demonstrated a switch component using named "roles". This illustrates a use-case where, sometimes, the content may be unexpected, for instance, because a user may change their saved settings. This fallback allows a "catch-all" solution.
-
+---
 ## Event Modifiers
 
 Retend allows you to add modifiers to event listeners directly in your JSX to control how events are handled. These modifiers are inspired by similar features in other frameworks and can simplify common event-handling patterns.
@@ -1026,6 +1021,7 @@ document.body.append(<MyComponent />);
 
 Using event modifiers helps streamline your event handling logic and reduces the amount of boilerplate code required to handle events.
 
+---
 ## Element References
 
 A `ref` is a "pointer" to any element that was created using JSX. It is basically an identifier or a named bookmark for an element that exists on the page. With a ref you create a JavaScript variable that actually holds your HTML element and allows you to interact with it.
@@ -1070,6 +1066,7 @@ While you could use `document.querySelector()` to get an HTML element directly, 
 - **Reacts to Node Changes**: The ref `Cell` object are reactive, so when used in conjunction with [`useObserver`](#life-cycles) or other related patterns, can be used to react whenever a related Node disappears or becomes available again.
 - **Better Code Structure**: Using refs often keeps the logic local to your component code instead of relying on a global selector-based lookup, making your code easier to read and maintain.
 
+---
 ## Life Cycles
 
 The only lifecycle mechanism in Retend is the `useObserver()` function. It provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes.
@@ -1146,6 +1143,282 @@ In this example, the `onConnected` hook now:
 
 - **Node-Centric**: `useObserver` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
 - **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
+
+---
+## Scopes
+
+As your application grows, you'll often encounter a common challenge: sharing state between components that are far apart in the component tree. For instance, a user's theme preference, authentication status, or the currently selected language might be needed by many different components.
+
+The most direct way to share data is by passing down props from parent to child. Let's imagine we have a `theme` setting that needs to be used by a `StatusIndicator` component buried deep within our application.
+
+The component tree might look something like this, getting progressively deeper:
+
+```
+App
+└── AuthenticatedLayout
+    └── DashboardPage
+        └── UserProfileWidget
+            └── AvatarDisplay
+                └── StatusIndicator
+```
+
+To get the `theme` value from the top-level `App` component all the way down to the `StatusIndicator`, we would have to pass it through every single intermediate component. This is called **"prop drilling."**
+
+Here’s what that looks like in code:
+
+```jsx
+// App.jsx
+function App() {
+  const theme = 'dark';
+  // App passes 'theme' to AuthenticatedLayout
+  return <AuthenticatedLayout theme={theme} />;
+}
+
+// AuthenticatedLayout.jsx
+function AuthenticatedLayout({ theme }) {
+  // This component might not even use the theme, but it must pass it on.
+  return <DashboardPage theme={theme} />;
+}
+
+// DashboardPage.jsx
+function DashboardPage({ theme }) {
+  // Still just passing it down...
+  return <UserProfileWidget theme={theme} />;
+}
+
+// UserProfileWidget.jsx
+function UserProfileWidget({ theme }) {
+  // And again...
+  return <AvatarDisplay theme={theme} />;
+}
+
+// AvatarDisplay.jsx
+function AvatarDisplay({ theme }) {
+  // Almost there...
+  return (
+    <div>
+      <img src="..." alt="User Avatar" />
+      <StatusIndicator theme={theme} />
+    </div>
+  );
+}
+
+// StatusIndicator.jsx
+function StatusIndicator({ theme }) {
+  // Finally, the component that actually uses the prop!
+  const indicatorClass = `status-${theme}`;
+  return <div class={indicatorClass}></div>;
+}
+```
+
+While this pattern works, it has significant downsides that become more painful as your app scales:
+
+*   **Verbose and Cumbersome:** You have to add the `theme` prop to the function signature and JSX of every intermediate component, even if they have no use for it. 
+*   **Tightly Coupled:** Components become fragile. If you decide to refactor the tree and move `UserProfileWidget`, you have to make sure you also update the prop chain in its new location.
+*   **Hard to Maintain:** Imagine you need to add another piece of shared state, like `language`. You would have to repeat this entire tedious process, modifying five different components just to get the data where it's needed.
+
+This is the exact problem that ___scopes___ are designed to solve. They provide a clean, efficient, and maintainable way to broadcast data to a whole tree of components.
+
+A scope is like a data tunnel. You can create one, "provide" a value to it at the top of a component tree, and then any component inside that tree can "consume" or read that value, no matter how deeply nested it is.
+
+There are three main parts to the Scope system:
+
+1.  `createScope()`: A function that creates a new, unique scope.
+2.  `Scope.Provider`: A special component that provides a value to all its children, which are passed via a function as its `children`.
+3.  `useScopeContext()`: A function that lets a component read a value from the nearest matching `Scope.Provider` above it in the tree.
+
+Let's refactor our theme example using Scopes and see the difference.
+
+**1. Create the Scope**
+
+First, we create a scope. It's best to do this in a separate file so it can be easily imported wherever it's needed.
+
+```jsx
+// scopes.js
+import { createScope } from 'retend';
+
+export const ThemeScope = createScope();
+```
+
+**2. Provide the Value**
+
+Next, in our main `App` component, we'll use the `ThemeScope.Provider` to wrap our component tree and provide the theme value. To make it dynamic, we'll use a reactive `Cell`.
+
+```jsx
+// App.jsx
+import { ThemeScope } from './scopes.js';
+import AuthenticatedLayout from './AuthenticatedLayout.jsx';
+
+function App() {
+  const theme = "dark";
+
+  // Any component inside the function passed as children can now access the theme.
+  // The Provider component takes a `value` and a function as its children.
+  return (
+    <ThemeScope.Provider value={theme}>
+      {() => <AuthenticatedLayout />}
+    </ThemeScope.Provider>
+  );
+}
+```
+
+**3. Consume the Value**
+
+Finally, our `StatusIndicator` component can directly access the theme using `useScopeContext()`.
+
+```jsx
+// StatusIndicator.jsx
+import { useScopeContext } from 'retend';
+import { ThemeScope } from './scopes.js';
+
+function StatusIndicator() {
+  const theme = useScopeContext(ThemeScope);
+  const indicatorClass = `status-indicator-${theme}`
+
+  return <div class={indicatorClass}></div>;
+}
+```
+
+That's it! We have completely eliminated prop drilling. Our intermediate components are now simpler, reusable, and decoupled from the `theme` state. 
+
+### Why Not Just Use a Global Variable?
+
+A common question is, "This seems like a global variable. Why can't I just create a global cell and import it where I need it?"
+
+```javascript
+// store.js
+import { Cell } from 'retend';
+export const globalTheme = Cell.source('light');
+
+// StatusIndicator.jsx
+import { globalTheme } from './store.js';
+// ... use globalTheme.get() ...
+```
+
+While this works for simple cases, it breaks down quickly and misses the key benefits that Scopes provide: **isolation** and **lifecycle management**.
+
+#### 1. Isolation and Reusability
+
+A global variable is a singleton; there is only one instance of it for the entire application. A Scope's value is tied to its `Provider`. This allows you to have multiple, independent states for the same scope within a single application.
+
+Imagine you are building a component library and want to display a component side-by-side in both "light" and "dark" themes on a documentation page. With a global variable, both components would share the same value and would always render with the same theme.
+
+With Scopes, it's trivial. You simply wrap each instance of your component in its own `ThemeScope.Provider`:
+
+```jsx
+function DocumentationPage() {
+  const lightTheme = Cell.source('light');
+  const darkTheme = Cell.source('dark');
+
+  return (
+    <div class="side-by-side-preview">
+      {/* First instance: Light Theme */}
+      <ThemeScope.Provider value={lightTheme}>
+        {() => <MyThemedComponent />}
+      </ThemeScope.Provider>
+
+      {/* Second instance: Dark Theme */}
+      <ThemeScope.Provider value={darkTheme}>
+        {() => <MyThemedComponent />}
+      </ThemeScope.Provider>
+    </div>
+  );
+}
+```
+
+Each `<MyThemedComponent />` will look up to its *nearest* `ThemeScope.Provider` and use the value it finds. The state is isolated, or "scoped," to its own component tree.
+
+#### 2. Lifecycle and Memory Management
+
+A global variable exists for the entire duration of your application. This is fine for truly global state, but often, state is only needed for a specific part of your app, like a complex, multi-step form or a temporary UI state in a modal dialog.
+
+If you stored `formData` in a global cell, that data would remain in memory even after the user has submitted the form and navigated away. If the user revisits the form later, they might see stale data. This is a common source of bugs and memory leaks.
+
+Scopes tie the lifecycle of the state to the lifecycle of the component tree.
+
+```jsx
+// Form.jsx
+import { Cell } from 'retend';
+import { createScope, useScopeContext } from 'retend';
+
+const FormScope = createScope();
+
+function Step1() {
+  const formData = useScopeContext(FormScope);
+  // ...
+}
+
+function Step2() {
+  const formData = useScopeContext(FormScope);
+  // ...
+}
+
+export function MultiStepForm() {
+  const formData = Cell.source({
+    /* ... initial form state ... */
+  });
+
+  // The formData state is only "alive" while MultiStepForm is on the screen.
+  return (
+    <FormScope.Provider value={formData}>
+      {() => (
+        <>
+          <Step1 />
+          <Step2 />
+          {/* ... other steps ... */}
+        </>
+      )}
+    </FormScope.Provider>
+  );
+}
+```
+
+When the `<MultiStepForm>` component is mounted, the `FormScope.Provider` is created, and the `formData` state comes into existence. When the user navigates away and `<MultiStepForm>` is unmounted, the provider is destroyed, and its `value` can be safely garbage-collected by the JavaScript engine. This prevents memory leaks and ensures that state is fresh every time the component is used.
+
+### Combining Scopes
+
+For applications with multiple scopes (e.g., theme, user authentication, language), you can end up nesting providers, sometimes called a "pyramid of doom."
+
+```jsx
+<AuthScope.Provider value={user}>
+  {() => (
+    <ThemeScope.Provider value={theme}>
+      {() => (
+        <LanguageScope.Provider value={lang}>
+          {() => <App />}
+        </LanguageScope.Provider>
+      )}
+    </ThemeScope.Provider>
+  )}
+</AuthScope.Provider>
+```
+
+Retend provides a `combineScopes` utility to make this cleaner.
+
+```jsx
+import { combineScopes } from 'retend';
+
+// The order matters: AuthScope is the outermost, LanguageScope is the innermost.
+const AppScopes = combineScopes(AuthScope, ThemeScope, LanguageScope);
+
+function Root() {
+  const scopeValues = {
+    [AuthScope.key]: user,
+    [ThemeScope.key]: theme,
+    [LanguageScope.key]: lang,
+  };
+
+  return (
+    <AppScopes.Provider value={scopeValues}>
+      {() => <App />}
+    </AppScopes.Provider>
+  );
+}
+```
+
+In summary, scopes are a powerful and essential tool for building maintainable and scalable Retend applications. They solve the problem of prop drilling while providing crucial state isolation and memory management benefits.
+
+---
 
 ## Routing
 
@@ -1412,15 +1685,13 @@ function UnsavedChangesForm() {
 }
 ```
 
-## `useRouteQuery` Hook
+### `useRouteQuery` Hook
 
 The `useRouteQuery` hook provides a reactive way to access and manipulate the query parameters of the current route within your Retend application. It simplifies reading, updating, and responding to changes in the URL's query string.
 
-### Overview
-
 This hook returns an object containing several methods for interacting with the route's query parameters. Changes made through these methods automatically trigger route updates, ensuring your application stays in sync with the URL.
 
-### Usage
+#### Usage
 
 ```jsx
 import { useRouteQuery } from 'retend/router';
@@ -1434,17 +1705,14 @@ function MyComponent() {
   // Returns a Cell containing the value of the 'search' parameter
   const searchValue = query.get('search');
 
-  // Function to set the 'sort' parameter
   const setSort = (value) => {
     query.set('sort', value);
   };
 
-  // Function to add a filter parameter
   const addFilter = (filterValue) => {
     query.append('filter', filterValue);
   };
 
-  // Reactive display of the search value
   return (
     <div>
       <p>Has search parameter: {hasSearch}</p>
