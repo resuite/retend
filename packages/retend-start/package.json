@@ -1,6 +1,6 @@
 {
   "name": "retend-start",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "private": false,
   "type": "module",
   "description": "Scaffold a new project with retend",
