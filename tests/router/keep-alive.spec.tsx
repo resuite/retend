@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
-import { routerSetup, getTextContent } from '../setup.ts';
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import { getGlobalContext, resetGlobalContext } from "retend/context";
+import { createWebRouter, defineRoutes, useRouter } from "retend/router";
+import { routerSetup, getTextContent } from "../setup.ts";
+import { renderToString } from "retend/render";
 
-describe('Keep Alive Outlet', () => {
+describe("Keep Alive Outlet", () => {
   beforeEach(() => {
     routerSetup();
   });
@@ -12,7 +13,7 @@ describe('Keep Alive Outlet', () => {
     resetGlobalContext();
   });
 
-  it('should keep the component alive and not re-render it on navigation', async () => {
+  it("should keep the component alive and not re-render it on navigation", async () => {
     const { window } = getGlobalContext();
     const renderSpy = vi.fn();
 
@@ -36,12 +37,12 @@ describe('Keep Alive Outlet', () => {
 
     const routes = defineRoutes([
       {
-        name: 'app',
-        path: '/',
+        name: "app",
+        path: "/",
         component: App, // Render into base outlet from setup.
         children: [
-          { path: '', name: 'home', component: Home },
-          { path: 'about', name: 'about', component: About },
+          { path: "", name: "home", component: Home },
+          { path: "about", name: "about", component: About },
         ],
       },
     ]);
@@ -51,17 +52,17 @@ describe('Keep Alive Outlet', () => {
     router.setWindow(window);
     router.attachWindowListeners();
 
-    await router.navigate('/');
+    await router.navigate("/");
     expect(renderSpy).toHaveBeenCalledTimes(1);
 
-    await router.navigate('/about');
+    await router.navigate("/about");
     expect(renderSpy).toHaveBeenCalledTimes(1);
 
-    await router.navigate('/');
+    await router.navigate("/");
     expect(renderSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('should preserve nested child routes', async () => {
+  it("should preserve nested child routes", async () => {
     const { window } = getGlobalContext();
     const nestedComponentRenderSpy = vi.fn();
     const otherNestedComponentRenderSpy = vi.fn();
@@ -88,18 +89,18 @@ describe('Keep Alive Outlet', () => {
 
     const routes = defineRoutes([
       {
-        path: '/',
-        name: 'App',
+        path: "/",
+        name: "App",
         component: App,
         children: [
           {
-            name: 'Nested Page',
-            path: 'nested',
+            name: "Nested Page",
+            path: "nested",
             component: NestedComponent,
           },
           {
-            name: 'Other Nested Page',
-            path: 'other-nested',
+            name: "Other Nested Page",
+            path: "other-nested",
             component: OtherNestedComponent,
           },
         ],
@@ -108,47 +109,47 @@ describe('Keep Alive Outlet', () => {
     const router = createWebRouter({ routes });
     router.setWindow(window);
 
-    await router.navigate('/');
+    await router.navigate("/");
     expect(nestedComponentRenderSpy).toHaveBeenCalledTimes(0);
     expect(otherNestedComponentRenderSpy).toHaveBeenCalledTimes(0);
-    expect(getTextContent(window.document.body)).toBe('This is app content.');
+    expect(getTextContent(window.document.body)).toBe("This is app content.");
 
-    await router.navigate('/nested');
+    await router.navigate("/nested");
     expect(nestedComponentRenderSpy).toHaveBeenCalledTimes(1);
     expect(getTextContent(window.document.body)).toBe(
-      'This is app content.This is nested content.'
+      "This is app content.This is nested content.",
     );
 
-    await router.navigate('/other-nested');
+    await router.navigate("/other-nested");
     expect(otherNestedComponentRenderSpy).toHaveBeenCalledTimes(1);
     expect(getTextContent(window.document.body)).toBe(
-      'This is app content.Hello world!'
+      "This is app content.Hello world!",
     );
 
-    await router.navigate('/nested');
+    await router.navigate("/nested");
     expect(nestedComponentRenderSpy).toHaveBeenCalledTimes(1); // From cache.
     expect(getTextContent(window.document.body)).toBe(
-      'This is app content.This is nested content.'
+      "This is app content.This is nested content.",
     );
 
-    await router.navigate('/other-nested');
+    await router.navigate("/other-nested");
     expect(otherNestedComponentRenderSpy).toHaveBeenCalledTimes(1); // From cache.
     expect(getTextContent(window.document.body)).toBe(
-      'This is app content.Hello world!'
+      "This is app content.Hello world!",
     );
   });
 
-  it('should preserve scroll position of the outlet when navigating back', async () => {
+  it("should preserve scroll position of the outlet when navigating back", async () => {
     const { window } = getGlobalContext();
     const routes = defineRoutes([
       {
-        path: '/',
-        name: 'home',
+        path: "/",
+        name: "home",
         component: () => (
-          <div style={{ height: '2000px' }}>Home Content (long page)</div>
+          <div style={{ height: "2000px" }}>Home Content (long page)</div>
         ),
       },
-      { path: '/about', name: 'about', component: () => <div>About</div> },
+      { path: "/about", name: "about", component: () => <div>About</div> },
     ]);
 
     const router = createWebRouter({ routes });
@@ -156,17 +157,17 @@ describe('Keep Alive Outlet', () => {
     router.setWindow(window);
     router.attachWindowListeners();
 
-    await router.navigate('/');
+    await router.navigate("/");
 
     window.document.documentElement.scrollTop = 500; // Scroll down a bit
 
-    await router.navigate('/about');
-    await router.navigate('/'); // Go back
+    await router.navigate("/about");
+    await router.navigate("/"); // Go back
 
     expect(window.document.documentElement.scrollTop).toBe(500); // Scroll position should be restored
   });
 
-  it('should respect maxKeepAliveCount', async () => {
+  it("should respect maxKeepAliveCount", async () => {
     const { window } = getGlobalContext();
     const renderSpy1 = vi.fn();
     const renderSpy2 = vi.fn();
@@ -203,14 +204,14 @@ describe('Keep Alive Outlet', () => {
 
     const routes = defineRoutes([
       {
-        name: 'App',
-        path: '/',
+        name: "App",
+        path: "/",
         component: App,
         children: [
-          { path: '/1', name: 'route1', component: Route1 },
-          { path: '/2', name: 'route2', component: Route2 },
-          { path: '/3', name: 'route3', component: Route3 },
-          { path: '/4', name: 'route4', component: Route4 },
+          { path: "/1", name: "route1", component: Route1 },
+          { path: "/2", name: "route2", component: Route2 },
+          { path: "/3", name: "route3", component: Route3 },
+          { path: "/4", name: "route4", component: Route4 },
         ],
       },
     ]);
@@ -220,21 +221,21 @@ describe('Keep Alive Outlet', () => {
     router.setWindow(window);
     router.attachWindowListeners();
 
-    await router.navigate('/1');
+    await router.navigate("/1");
     expect(renderSpy1).toHaveBeenCalledTimes(1);
 
-    await router.navigate('/2');
+    await router.navigate("/2");
     expect(renderSpy2).toHaveBeenCalledTimes(1);
 
-    await router.navigate('/3');
+    await router.navigate("/3");
     expect(renderSpy3).toHaveBeenCalledTimes(1);
 
-    await router.navigate('/4');
+    await router.navigate("/4");
 
-    await router.navigate('/1');
+    await router.navigate("/1");
     expect(renderSpy1).toHaveBeenCalledTimes(2); // Route 1 was evicted and re-rendered
 
-    await router.navigate('/3');
+    await router.navigate("/3");
     expect(renderSpy3).toHaveBeenCalledTimes(1); // Route 2 kept alive
   });
 });

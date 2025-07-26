@@ -77,3 +77,26 @@ const MyLazyComponent = () => {
 
 export default MyLazyComponent; // Must have a default export
 @Note The file being imported lazily must export the component as `default`.
+
+---
+
+@Example 6
+@Input Importing a whole lazy subtree
+// ./views/finance.routes.ts
+export default defineRoute({
+    name: 'user-finance',
+    path: 'finance/default/:id',
+    component: FinanceComponent
+})
+
+// ./views/index.routes.ts
+const baseRoute = defineRoutes({
+    name: 'base-route',
+    children: [
+        // ...
+        {
+            path: 'finance/default/:id',
+            subtree: lazy(() => import('./finance.routes.ts'))
+        }
+    ]
+})

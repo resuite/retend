@@ -13,8 +13,8 @@ const greeting = <div>Hello, world!</div>;
 This code creates a `div` element with the text "Hello, world!" and assigns it to the `greeting` variable. It is the exact same as:
 
 ```javascript
-const greeting = document.createElement('div');
-greeting.textContent = 'Hello, world!';
+const greeting = document.createElement("div");
+greeting.textContent = "Hello, world!";
 ```
 
 #### Expressions
@@ -22,7 +22,7 @@ greeting.textContent = 'Hello, world!';
 Possibly the most important reason JSX exists is to allow you to embed JavaScript expressions within your markup. This means you can dynamically generate content based on your application's state or props. For example:
 
 ```jsx
-const name = 'John';
+const name = "John";
 const greeting = <h1>Hello, {name}!</h1>;
 ```
 
@@ -64,7 +64,7 @@ _However_, in Retend, there are some slight differences to HTML attributes to be
 
   ```jsx
   function sayHello() {
-    alert('Hello, world!');
+    alert("Hello, world!");
   }
 
   const button = <button onClick={sayHello}>Click me!</button>;
@@ -102,8 +102,8 @@ This function returns a JSX element, which is then rendered as a DOM node. The e
 
 ```javascript
 function MyComponent() {
-  const h1 = document.createElement('h1');
-  h1.textContent = 'This is my component!';
+  const h1 = document.createElement("h1");
+  h1.textContent = "This is my component!";
   return h1;
 }
 ```
@@ -150,24 +150,24 @@ In this example, `Heading` and `Paragraph` are combined into `MyComponent`, crea
 
 ```javascript
 function Heading() {
-  const h1 = document.createElement('h1');
-  h1.textContent = 'Hello, world!';
+  const h1 = document.createElement("h1");
+  h1.textContent = "Hello, world!";
   return h1;
 }
 
 function Paragraph() {
-  const p = document.createElement('p');
-  p.textContent = 'This is a paragraph.';
-  p.setAttribute('id', 'my-paragraph');
+  const p = document.createElement("p");
+  p.textContent = "This is a paragraph.";
+  p.setAttribute("id", "my-paragraph");
   return p;
 }
 
 function MyComponent() {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.appendChild(Heading());
   div.appendChild(Paragraph());
-  const span = document.createElement('span');
-  span.textContent = 'This is a span.';
+  const span = document.createElement("span");
+  span.textContent = "This is a span.";
   div.appendChild(span);
   return div;
 }
@@ -196,15 +196,15 @@ In this example, the `Greeting` component accepts a `name` prop and uses it to d
 
 ```javascript
 function Greeting(props) {
-  const h1 = document.createElement('h1');
+  const h1 = document.createElement("h1");
   h1.textContent = `Hello, ${props.name}!`;
   return h1;
 }
 
 function App() {
-  const div = document.createElement('div');
-  div.appendChild(Greeting({ name: 'Alice' }));
-  div.appendChild(Greeting({ name: 'Bob' }));
+  const div = document.createElement("div");
+  div.appendChild(Greeting({ name: "Alice" }));
+  div.appendChild(Greeting({ name: "Bob" }));
   return div;
 }
 ```
@@ -253,19 +253,19 @@ Cells are provided by the [`@adbl/cells`](https://github.com/adebola-io/cells) l
 Cells are created using the `Cell.source(...)` method. For example:
 
 ```javascript
-import { Cell } from 'retend';
+import { Cell } from "retend";
 
 // Cell with value 0
 const number = Cell.source(0);
 
 // Cell with value "Hello"
-const message = Cell.source('Hello');
+const message = Cell.source("Hello");
 
 // Cell with an array of fruits.
-const fruits = Cell.source(['Apple', 'Pawpaw', 'Orange']);
+const fruits = Cell.source(["Apple", "Pawpaw", "Orange"]);
 
 // Cell with a user object.
-const user = Cell.source({ id: 0, name: 'John Doe' });
+const user = Cell.source({ id: 0, name: "John Doe" });
 ```
 
 #### Accessing and Updating Cells
@@ -274,7 +274,7 @@ To get the value of a Cell, or to update it, you interact with its `value` prope
 
 ```javascript
 number.set(number.get() + 1); // Increments the value of the count cell
-message.set('Goodbye!'); // Changes the value of the message cell
+message.set("Goodbye!"); // Changes the value of the message cell
 ```
 
 #### Derived Cells
@@ -326,11 +326,11 @@ const canDrive = Cell.derived(() => isAdult.get());
 > `NOTE`: Derived cells are constant mirrors of their dependencies, so you cannot change their values directly. For example:
 >
 > ```javascript
-> const name = Cell.source('Adebola');
+> const name = Cell.source("Adebola");
 > const greeting = Cell.derived(() => `Hello, ${name.get()}!`);
 >
 > // The line below will lead to an error!
-> greeting.set('Hello, Uche!');
+> greeting.set("Hello, Uche!");
 > ```
 >
 > This is because the flow of data in cells in unidirectional (from sources -> derivations). This will become more important to remember as you build more complex user interfaces.
@@ -398,7 +398,7 @@ It takes up to three arguments:
 In this example, we'll have a boolean variable to control whether or not to display a welcome message.
 
 ```jsx
-import { If } from 'retend';
+import { If } from "retend";
 
 const isLoggedIn = true;
 
@@ -419,7 +419,7 @@ If `isLoggedIn` is `true`, a `<h1>Welcome back!</h1>` element will be displayed 
 When you want to respond to changes dynamically, you can use `Cell` objects to control the `If` component.
 
 ```jsx
-import { Cell, If } from 'retend';
+import { Cell, If } from "retend";
 
 const isLoggedIn = Cell.source(false); // Initialized to false.
 
@@ -447,7 +447,7 @@ In the example above, we've added a button to change the state of the UI. The `A
 You can also pass an object as the second argument to the `If` component. This object is expected to have `true` property and `false` properties which are both functions. This can often be more ergonomic than passing two functions directly as the second and third parameters, especially when there is a need to nest the conditions.
 
 ```jsx
-import { Cell, If } from 'retend';
+import { Cell, If } from "retend";
 
 const isLoggedIn = Cell.source(false);
 
@@ -476,7 +476,7 @@ const AuthenticatedGreeting = () => {
 If you don't need to render anything when the condition is false, simply omit the `second` function.
 
 ```jsx
-import { If } from 'retend';
+import { If } from "retend";
 
 const isLoading = true;
 
@@ -500,10 +500,10 @@ In Retend, you can nest `If` components to create more complex conditional rende
 Here's an example of how to implement nested conditional rendering:
 
 ```jsx
-import { Cell, If } from 'retend';
+import { Cell, If } from "retend";
 
-const userStatus = Cell.source('guest'); // Initialized to 'guest'.
-const userIsAdmin = Cell.derived(() => userStatus.get() === 'admin');
+const userStatus = Cell.source("guest"); // Initialized to 'guest'.
+const userIsAdmin = Cell.derived(() => userStatus.get() === "admin");
 
 const UserGreeting = () => {
   const AdminGreeting = () => <h1>Welcome, Admin!</h1>;
@@ -526,12 +526,12 @@ const UserGreeting = () => {
 
 // Example of toggling user status
 const toggleUserStatus = () => {
-  userStatus.set(userStatus.get() === 'guest' ? 'user' : 'guest');
+  userStatus.set(userStatus.get() === "guest" ? "user" : "guest");
 };
 
 // Example of setting user status to admin
 const setAdminStatus = () => {
-  userStatus.set('admin');
+  userStatus.set("admin");
 };
 ```
 
@@ -731,17 +731,17 @@ The `For` function can handle two kinds of list: regular JavaScript arrays and s
 - **Regular JavaScript Arrays**: If your list is static (doesn't change) then you can use a normal array like this:
 
   ```javascript
-  const items = ['Apple', 'Banana', 'Orange'];
+  const items = ["Apple", "Banana", "Orange"];
   ```
 
 - **`Cell` Objects (for Dynamic Lists)**: If the list you need to display can change over time, perhaps because of user interaction or incoming data, it needs to be wrapped in a `Cell` object, using the `Cell.source()` method:
 
   ```javascript
-  import { Cell } from 'retend';
+  import { Cell } from "retend";
   const items = Cell.source([
-    'Learn the library',
-    'Build a web app',
-    'Deploy to production',
+    "Learn the library",
+    "Build a web app",
+    "Deploy to production",
   ]);
   ```
 
@@ -773,9 +773,9 @@ This is what a template function looks like:
 Here’s how you might display a list of strings using `For`:
 
 ```jsx
-import { For } from 'retend';
+import { For } from "retend";
 
-const items = ['Apple', 'Banana', 'Orange'];
+const items = ["Apple", "Banana", "Orange"];
 
 const FruitList = () => {
   return (
@@ -797,12 +797,12 @@ The result in your web browser is a basic unordered list displaying "Apple", "Ba
 If you want your list to update dynamically, then you can use a `Cell`:
 
 ```jsx
-import { For, Cell } from 'retend';
+import { For, Cell } from "retend";
 
 const items = Cell.source([
-  'Learn the library',
-  'Build a web app',
-  'Deploy to production',
+  "Learn the library",
+  "Build a web app",
+  "Deploy to production",
 ]);
 
 const TodoList = () => {
@@ -818,7 +818,7 @@ const TodoList = () => {
 document.body.append(<TodoList />);
 
 // Later, when the listItems cell updates, the DOM will be updated automatically
-items.get().push('Celebrate success');
+items.get().push("Celebrate success");
 ```
 
 With this code, the webpage now keeps the to-do list up-to-date by responding to changes in the `items` cell and re-rendering the list as needed.
@@ -828,9 +828,9 @@ With this code, the webpage now keeps the to-do list up-to-date by responding to
 The `For` function provides a second argument to your template function, a cell containing the _index_ of the current item:
 
 ```jsx
-import { For } from 'retend';
+import { For } from "retend";
 
-const items = ['First', 'Second', 'Third'];
+const items = ["First", "Second", "Third"];
 
 const NumberedList = () => {
   return (
@@ -854,12 +854,12 @@ With the `index`, you can add extra information (e.g., the item number) next to 
 `For` can also be used to display information from objects:
 
 ```jsx
-import { For, Cell } from 'retend';
+import { For, Cell } from "retend";
 
 const users = Cell.source([
-  { id: 1, name: 'Alice', age: 30 },
-  { id: 2, name: 'Bob', age: 25 },
-  { id: 3, name: 'Charlie', age: 35 },
+  { id: 1, name: "Alice", age: 30 },
+  { id: 2, name: "Bob", age: 25 },
+  { id: 3, name: "Charlie", age: 35 },
 ]);
 
 const UserList = () => {
@@ -888,7 +888,179 @@ When you change something in a list wrapped by `For`, instead of tearing down an
 
 The `For` function provides a smart, performant and reactive method for displaying and handling lists. By focusing on its use of the template function, how to handle different list types and how to interpret reactivity, you can render lists effectively in Retend.
 
+## Conditional Rendering with `Switch`
+
+The `Switch` function allows you to choose between a number of possible UI options based on a given value.
+
+```jsx
+import { Switch } from "retend";
+
+const userType = "premium";
+
+const UserTypeDisplay = () => {
+  return (
+    <div>
+      {Switch(userType, {
+        free: () => <p>Free user, features are limited.</p>,
+        basic: () => <p>Basic User</p>,
+        premium: () => <p>Premium user with more features.</p>,
+        enterprise: () => <p>Enterprise user, please contact admin.</p>,
+      })}
+    </div>
+  );
+};
+
+document.body.append(<UserTypeDisplay />);
+```
+
+In this example, `Switch` looks at the `userType` variable, and depending on its value, it shows the corresponding html on screen. This illustrates a way of rendering content conditionally by using a static JavaScript variable.
+
+### Dynamic `Switch` Using Cells
+
+If the value you want to switch on can change over time, you can make use of the reactivity system with the help of `Cells`.
+
+Here is an example showing a navigation system that has some basic routing built into it:
+
+```jsx
+import { Switch, Cell } from "retend";
+
+const currentView = Cell.source("home");
+
+const goHome = () => {
+  currentView.set("home");
+};
+
+const goSettings = () => {
+  currentView.set("settings");
+};
+
+const goProfile = () => {
+  currentView.set("profile");
+};
+
+const NavigationView = () => {
+  return (
+    <div>
+      <nav>
+        <button onClick={goHome}>Home</button>
+        <button onClick={goSettings}>Settings</button>
+        <button onClick={goProfile}>Profile</button>
+      </nav>
+      <main>
+        {Switch(currentView, {
+          home: () => (
+            <section>
+              <h1>Welcome to the Home Screen!</h1>
+            </section>
+          ),
+          profile: () => (
+            <section>
+              <h1>Here is your profile.</h1>
+            </section>
+          ),
+          settings: () => (
+            <section>
+              <h1>Settings for your Account</h1>
+            </section>
+          ),
+        })}
+      </main>
+    </div>
+  );
+};
+
+document.body.append(<NavigationView />);
+```
+
+In this code snippet, when each button is clicked, the corresponding section is shown on screen by modifying the value of the `currentView` Cell, the changes are automatically propagated to the browser to create a dynamic web application.
+
+### Handling Complex Cases with Multiple Conditions
+
+`Switch` also shines in situations where you need to consider more complex conditions, for example if you need to apply multiple states to a component at the same time:
+
+```jsx
+import { Switch, Cell } from "retend";
+
+const isLoggedIn = Cell.source(false);
+const isAdmin = Cell.source(false);
+
+const UserDashboard = () => {
+  const logUserOut = () => {
+    isLoggedIn.set(false);
+    isAdmin.set(false);
+  };
+
+  const logUserIn = () => {
+    isLoggedIn.set(true);
+    isAdmin.set(false);
+  };
+
+  const logAdminIn = () => {
+    isLoggedIn.set(true);
+    isAdmin.set(true);
+  };
+
+  const getUserType = () => {
+    if (!isLoggedIn.get()) return "guest";
+    return isAdmin.get() ? "admin" : "user";
+  };
+  return (
+    <div>
+      <button onClick={logUserIn}>Log in</button>
+      <button onClick={logAdminIn}>Log in as Admin</button>
+      <button onClick={logUserOut}>Log out</button>
+
+      {Switch(Cell.derived(getUserType), {
+        guest: () => <h1>Please log in.</h1>,
+        admin: () => <h1>Welcome back, Administrator!</h1>,
+        user: () => <h1>Welcome back!</h1>,
+      })}
+    </div>
+  );
+};
+
+document.body.append(<UserDashboard />);
+```
+
+### Using a Default Case
+
+The optional third argument of `Switch` takes a function that receives the current value of the `Switch` variable and can be used to create a fallback if it does not match any specific cases.
+
+```jsx
+import { Switch, Cell } from "retend";
+
+const userRole = Cell.source("editor");
+
+const UserDashboard = () => {
+  const setRole = (role) => {
+    userRole.set(role);
+  };
+  return (
+    <div>
+      <button onClick={() => setRole("editor")}>Set Editor</button>
+      <button onClick={() => setRole("admin")}>Set Admin</button>
+      <button onClick={() => setRole("guest")}>Set Guest</button>
+      {Switch(
+        userRole,
+        {
+          admin: () => <h1>Admin Dashboard</h1>,
+          editor: () => <h2>Editor Tools</h2>,
+        },
+        (role) => (
+          <p>Unrecognized Role: {role}</p>
+        ),
+      )}
+    </div>
+  );
+};
+
+document.body.append(<UserDashboard />);
+```
+
+Here we demonstrated a switch component using named "roles". This illustrates a use-case where, sometimes, the content may be unexpected, for instance, because a user may change their saved settings. This fallback allows a "catch-all" solution.
+
 ---
+
 ## Event Modifiers
 
 Retend allows you to add modifiers to event listeners directly in your JSX to control how events are handled. These modifiers are inspired by similar features in other frameworks and can simplify common event-handling patterns.
@@ -914,7 +1086,7 @@ Here are the available modifiers:
 ```jsx
 function MyForm() {
   const handleSubmit = () => {
-    alert('Form submitted, but default prevented!');
+    alert("Form submitted, but default prevented!");
   };
   return (
     <form onSubmit--prevent={handleSubmit}>
@@ -932,7 +1104,7 @@ Here, the `prevent` modifier will call `event.preventDefault()` before `handleSu
 ```jsx
 function ParentComponent() {
   const handleParentClick = () => {
-    alert('Parent clicked');
+    alert("Parent clicked");
   };
   return (
     <div onClick={handleParentClick}>
@@ -943,7 +1115,7 @@ function ParentComponent() {
 
 function ChildComponent() {
   const handleChildClick = () => {
-    alert('Child clicked');
+    alert("Child clicked");
   };
 
   return <button onClick--stop={handleChildClick}>Click Child</button>;
@@ -959,11 +1131,11 @@ In this example, clicking the button will only trigger the `handleChildClick`, b
 ```jsx
 function MyComponent() {
   const handleDivClick = (event) => {
-    alert('Div click triggered');
+    alert("Div click triggered");
   };
 
   const handleChildClick = (event) => {
-    alert('Child click triggered');
+    alert("Child click triggered");
   };
 
   return (
@@ -980,7 +1152,7 @@ In this example, clicking on the button will trigger the alert on the button's c
 - **`once` modifier**:
 
 ```jsx
-import { Cell } from 'retend';
+import { Cell } from "retend";
 
 function MyComponent() {
   const clickCount = Cell.source(0);
@@ -1004,7 +1176,7 @@ In this example, only the first click on the button will increase the counter, a
 ```jsx
 function MyComponent() {
   const handleClick = (event) => {
-    alert('Button clicked');
+    alert("Button clicked");
   };
 
   return (
@@ -1033,7 +1205,7 @@ In Retend, using refs involves these key parts:
 - **Creating a Reactive `Cell`:** First, you need to create a `Cell` where the reference will be stored at a later time.
 
 ```javascript
-import { Cell } from 'retend';
+import { Cell } from "retend";
 
 const elementRef = Cell.source(null);
 ```
@@ -1051,7 +1223,7 @@ Now when the `div` element is created, it will be assigned to the `elementRef` c
 - **Accessing the Element:**
 
 ```jsx
-import { Cell } from 'retend';
+import { Cell } from "retend";
 
 const elementRef = Cell.source(null); // elementRef is null
 const div = <div ref={elementRef}>Hello world!</div>;
@@ -1084,15 +1256,15 @@ The `useObserver()` function returns a `DocumentObserver` object, which is a wra
 Here's how to use `useObserver` to run a setup action as a reaction to html:
 
 ```jsx
-import { Cell, useObserver } from 'retend';
+import { Cell, useObserver } from "retend";
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
   const observer = useObserver();
 
   observer.onConnected(divRef, (element) => {
-    console.log('This HTML element has connected:', element);
-    element.setAttribute('data-connected', 'true');
+    console.log("This HTML element has connected:", element);
+    element.setAttribute("data-connected", "true");
   });
 
   return <div ref={divRef}>Hello World</div>;
@@ -1111,18 +1283,18 @@ In this code:
 The `onConnected` method also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
 
 ```jsx
-import { Cell, useObserver } from 'retend';
+import { Cell, useObserver } from "retend";
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
   const observer = useObserver();
 
   observer.onConnected(divRef, (element) => {
-    element.setAttribute('data-connected', 'true');
+    element.setAttribute("data-connected", "true");
 
     // here we return a cleanup function that runs automatically on disconnection
     return () => {
-      console.log('This element has disconnected!', element);
+      console.log("This element has disconnected!", element);
       // Do some other stuff like clear timers.
     };
   });
@@ -1454,7 +1626,7 @@ document.body.appendChild(<router.Outlet />);
 Use the `useRouter` hook to access routing functionality from inside a component. This will prevents circular dependencies and import issues.
 
 ```jsx
-import { useRouter } from 'retend/router';
+import { useRouter } from "retend/router";
 
 const App = () => {
   const router = useRouter();
@@ -1495,7 +1667,7 @@ const routes: RouteRecords = [
 ```
 
 ```jsx
-import { useRouter } from 'retend/router';
+import { useRouter } from "retend/router";
 
 const Dashboard = () => {
   const { Link, Outlet } = useRouter();
@@ -1514,11 +1686,72 @@ const Dashboard = () => {
 
 ### Lazy Loading Routes
 
-Implement code splitting with lazy-loaded routes:
+You can implement lazy loading of route components using the `lazy()` function.
 
 ```javascript
-const Settings = lazy(() => import('./Settings'));
+import { lazy } from "retend";
+
+const Settings = lazy(() => import("./Settings"));
+
+const routes = defineRoutes([
+  { path: "/home", component: Home },
+  {
+    path: "/settings",
+    component: Settings,
+  },
+]);
 ```
+
+## Lazy Route Subtrees
+
+For larger applications, you can improve initial load times by not only lazy-loading individual components but also entire sections of your routing configuration. This is achieved using the `subtree` property, which allows you to code-split your routes into smaller, on-demand chunks. When a user navigates to a path that matches a lazy-loaded subtree, Retend will automatically download the required routing module and seamlessly integrate it into the main router.
+
+#### Basic Usage
+
+Imagine your application has a `/dashboard` section with its own set of nested routes. Instead of defining them all in your main router file, you can load them lazily.
+
+**1. Main Router Configuration (`src/router.js`)**
+
+In your main router setup, define a route for `/dashboard` and use the `subtree` property with the `lazy` helper to point to the dashboard's route configuration file.
+
+```javascript
+import { createWebRouter, defineRoutes, lazy } from "retend/router";
+import Home from "./views/Home";
+
+const routes = defineRoutes([
+  { path: "/", component: Home },
+  {
+    path: "/dashboard",
+    // Lazily import the dashboard routes
+    subtree: lazy(() => import("./views/dashboard/routes.js")),
+  },
+]);
+
+export const router = createWebRouter({ routes });
+```
+
+**2. Dashboard Routes (`src/views/dashboard/routes.js`)**
+
+This file defines the routes specific to the dashboard. The key requirement is that the top-level route's path (`/dashboard`) must match the path in the main router configuration.
+
+```javascript
+import { defineRoute } from "retend/router";
+import DashboardLayout from "./DashboardLayout";
+import Overview from "./Overview";
+import Settings from "./Settings";
+
+// The path here MUST match the path in the main router.
+export default defineRoute({
+  path: "/dashboard",
+  component: DashboardLayout,
+  children: [
+    { path: "", component: Overview }, // Matches /dashboard
+    { path: "settings", component: Settings }, // Matches /dashboard/settings
+  ],
+});
+```
+
+With this setup, the code for the dashboard's routes and components will only be loaded when a user first navigates to a URL like `/dashboard` or `/dashboard/settings`.
 
 ### Programmatic Navigation
 
@@ -1528,7 +1761,7 @@ Navigate programmatically using the `navigate` method:
 const ProfileButton = () => {
   const { navigate } = useRouter();
   const goToProfile = () => {
-    navigate('/profile/123');
+    navigate("/profile/123");
   };
 
   return <button onClick={goToProfile}>View Profile</button>;
@@ -1577,8 +1810,8 @@ The `getCurrentRoute()` method on the router returns a `Cell` object that contai
 **Basic Usage:**
 
 ```jsx
-import { useRouter } from 'retend/router';
-import { Cell } from 'retend';
+import { useRouter } from "retend/router";
+import { Cell } from "retend";
 
 function CurrentRouteDisplay() {
   const router = useRouter();
@@ -1590,9 +1823,9 @@ function CurrentRouteDisplay() {
       <p>Name: {Cell.derived(() => currentRoute.get().name)}</p>
       <p>Path: {Cell.derived(() => currentRoute.get().fullPath)}</p>
       <p>
-        Parameters:{' '}
+        Parameters:{" "}
         {Cell.derived(() =>
-          JSON.stringify(Object.fromEntries(currentRoute.get().params))
+          JSON.stringify(Object.fromEntries(currentRoute.get().params)),
         )}
       </p>
       <p>Query: {Cell.derived(() => currentRoute.get().query.toString())}</p>
@@ -1614,13 +1847,13 @@ When navigation is attempted while the router is locked, the router will dispatc
 **Listening for the `routelockprevented` Event:**
 
 ```javascript
-import { useRouter } from 'retend/router';
+import { useRouter } from "retend/router";
 
 const router = useRouter();
 
-router.addEventListener('routelockprevented', (event) => {
+router.addEventListener("routelockprevented", (event) => {
   console.log(
-    `Navigation to ${event.detail.attemptedPath} was prevented by a lock.`
+    `Navigation to ${event.detail.attemptedPath} was prevented by a lock.`,
   );
   // Optionally show a message to the user
   // alert('Cannot navigate away while changes are unsaved.');
@@ -1630,8 +1863,8 @@ router.addEventListener('routelockprevented', (event) => {
 **Example:**
 
 ```jsx
-import { useRouter } from 'retend/router';
-import { Cell } from 'retend';
+import { useRouter } from "retend/router";
+import { Cell } from "retend";
 
 function UnsavedChangesForm() {
   const router = useRouter();
@@ -1642,7 +1875,7 @@ function UnsavedChangesForm() {
     if (!hasUnsavedChanges.get()) {
       hasUnsavedChanges.set(true);
       router.lock();
-      console.log('Router locked due to unsaved changes.');
+      console.log("Router locked due to unsaved changes.");
     }
   };
 
@@ -1650,7 +1883,7 @@ function UnsavedChangesForm() {
     // ... save logic ...
     hasUnsavedChanges.set(false);
     router.unlock();
-    console.log('Changes saved, router unlocked.');
+    console.log("Changes saved, router unlocked.");
     // Optionally navigate away after saving
     // router.navigate('/some-other-page');
   };
@@ -1659,7 +1892,7 @@ function UnsavedChangesForm() {
     // ... reset form logic ...
     hasUnsavedChanges.set(false);
     router.unlock(); // Unlock navigation after discarding
-    console.log('Changes discarded, router unlocked.');
+    console.log("Changes discarded, router unlocked.");
   };
 
   return (
@@ -1676,8 +1909,8 @@ function UnsavedChangesForm() {
       </button>
       <p>
         {If(hasUnsavedChanges, {
-          true: () => 'You have unsaved changes.',
-          false: () => 'No unsaved changes.',
+          true: () => "You have unsaved changes.",
+          false: () => "No unsaved changes.",
         })}
       </p>
     </form>
@@ -1694,31 +1927,31 @@ This hook returns an object containing several methods for interacting with the 
 #### Usage
 
 ```jsx
-import { useRouteQuery } from 'retend/router';
+import { useRouteQuery } from "retend/router";
 
 function MyComponent() {
   const query = useRouteQuery();
 
   // Returns a Cell that checks if a 'search' parameter exists
-  const hasSearch = query.has('search');
+  const hasSearch = query.has("search");
 
   // Returns a Cell containing the value of the 'search' parameter
-  const searchValue = query.get('search');
+  const searchValue = query.get("search");
 
   const setSort = (value) => {
-    query.set('sort', value);
+    query.set("sort", value);
   };
 
   const addFilter = (filterValue) => {
-    query.append('filter', filterValue);
+    query.append("filter", filterValue);
   };
 
   return (
     <div>
       <p>Has search parameter: {hasSearch}</p>
       <p>Search value: {searchValue}</p>
-      <button onClick={() => setSort('name')}>Sort by Name</button>
-      <button onClick={() => addFilter('category1')}>
+      <button onClick={() => setSort("name")}>Sort by Name</button>
+      <button onClick={() => addFilter("category1")}>
         Add Category 1 Filter
       </button>
     </div>
@@ -1745,18 +1978,18 @@ const router = createWebRouter({
 
 ```tsx
 // Starting at /home
-router.navigate('/photos'); // Adds /photos to the stack
-router.navigate('/photos/1'); // Adds /photos/1 to the stack
+router.navigate("/photos"); // Adds /photos to the stack
+router.navigate("/photos/1"); // Adds /photos/1 to the stack
 
 // Stack is now: ['/home', '/photos', '/photos/1']
 
 router.back(); // Pops back to /photos
 // Stack is now: ['/home', '/photos']
 
-router.navigate('/settings'); // Adds /settings to the stack
+router.navigate("/settings"); // Adds /settings to the stack
 // Stack is now: ['/home', '/photos', '/settings']
 
-router.navigate('/home'); // Pops back to /home
+router.navigate("/home"); // Pops back to /home
 // Stack is now: ['/home']
 ```
 
@@ -1849,14 +2082,14 @@ Let's imagine a simple use case: a navigation bar that is rendered at the top of
 - **Basic Example**:
 
 ```jsx
-import { Teleport } from 'retend/teleport';
+import { Teleport } from "retend/teleport";
 
 function NavBar() {
   return (
     <nav>
       <h1>My Application</h1>
       <Teleport to={document.body}>
-        <div style={{ backgroundColor: 'lightgray', padding: '20px' }}>
+        <div style={{ backgroundColor: "lightgray", padding: "20px" }}>
           This content is outside the nav bar.
         </div>
       </Teleport>
@@ -1872,20 +2105,20 @@ In the example above, the `div` will be rendered as a child of the `body` elemen
 - **More complex example**:
 
 ```jsx
-import { If, Cell } from 'retend';
-import { Teleport } from 'retend/teleport';
+import { If, Cell } from "retend";
+import { Teleport } from "retend/teleport";
 
 function Modal({ content, onClose }) {
   return (
     <div
       style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        backgroundColor: 'white',
-        padding: '20px',
-        border: '1px solid black',
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        backgroundColor: "white",
+        padding: "20px",
+        border: "1px solid black",
       }}
     >
       <button onClick={onClose}>close</button>
@@ -1922,7 +2155,7 @@ In this example, `Teleport` is used to render the `Modal` component directly und
 - **Using a CSS selector**:
 
 ```jsx
-import { Teleport } from 'retend/teleport';
+import { Teleport } from "retend/teleport";
 
 function MyComponent() {
   return (
@@ -1944,7 +2177,7 @@ Here, `Teleport` moves the `div` into a specific element that's identified by it
 The `ShadowRoot` component allows you to encapsulate your component's styling and structure by creating a shadow DOM. The shadow DOM provides a way to build complex components while avoiding conflicts with global CSS or other parts of the DOM, which is especially useful for reusable custom components.
 
 ```jsx
-import { ShadowRoot } from 'retend/shadowroot';
+import { ShadowRoot } from "retend/shadowroot";
 
 function MyComponent() {
   return (
@@ -1975,17 +2208,17 @@ Here, the styling inside `ShadowRoot` (the green background) will not leak out a
 - **Open vs Closed Shadow DOM**:
 
 ```jsx
-import { ShadowRoot } from 'retend/shadowroot';
+import { ShadowRoot } from "retend/shadowroot";
 
 function MyComponent() {
   return (
     <>
-      <div style={{ border: '2px solid blue', padding: '10px' }}>
+      <div style={{ border: "2px solid blue", padding: "10px" }}>
         <ShadowRoot mode="open">
           <div>Open Shadow DOM content</div>
         </ShadowRoot>
       </div>
-      <div style={{ border: '2px solid blue', padding: '10px' }}>
+      <div style={{ border: "2px solid blue", padding: "10px" }}>
         <ShadowRoot mode="closed">
           <div>Closed Shadow DOM content</div>
         </ShadowRoot>
@@ -2002,16 +2235,16 @@ By default, shadow DOMs are `open`, meaning you can access their nodes using the
 - **Using Components inside the Shadow Root**:
 
 ```jsx
-import { ShadowRoot } from 'retend/shadowroot';
+import { ShadowRoot } from "retend/shadowroot";
 
 function StyledButton({ children, backgroundColor }) {
   return (
     <button
       style={{
         backgroundColor,
-        color: 'white',
-        padding: '10px',
-        border: 'none',
+        color: "white",
+        padding: "10px",
+        border: "none",
       }}
     >
       {children}
@@ -2021,7 +2254,7 @@ function StyledButton({ children, backgroundColor }) {
 
 function MyComponent() {
   return (
-    <div style={{ border: '2px solid blue', padding: '10px' }}>
+    <div style={{ border: "2px solid blue", padding: "10px" }}>
       <ShadowRoot>
         <div>
           <StyledButton backgroundColor="red">Click Me</StyledButton>
@@ -2039,7 +2272,7 @@ As you can see, you can add components to shadow DOM just like any other compone
 - **Multiple Shadow Roots**:
 
 ```jsx
-import { ShadowRoot } from 'retend/shadowroot';
+import { ShadowRoot } from "retend/shadowroot";
 
 function MyComponent() {
   return (
@@ -2066,7 +2299,7 @@ The `Include` component allows you to include a pre-existing element from the DO
 - **Basic inclusion**:
 
 ```jsx
-import { Include } from 'retend/include';
+import { Include } from "retend/include";
 
 // Assume there is this element on the page:
 // <div id="external-component">
@@ -2090,7 +2323,7 @@ The above code will insert the content of the `#external-component` node inside 
 - **Including and modifying properties**:
 
 ```jsx
-import { Include } from 'retend/include';
+import { Include } from "retend/include";
 
 // Assume there is this element on the page:
 // <div id="external-component" style="color: red;">
@@ -2101,7 +2334,7 @@ function MyComponent() {
   return (
     <div>
       <h1>My Component</h1>
-      <Include from="#external-component" style={{ color: 'green' }} />
+      <Include from="#external-component" style={{ color: "green" }} />
     </div>
   );
 }
@@ -2114,14 +2347,14 @@ In this example, `Include` is used to pull in the external element, and then it 
 - **Adding event listeners and attributes**:
 
 ```jsx
-import { Include } from 'retend/include';
+import { Include } from "retend/include";
 
 // Assume there is this element on the page:
 // <button id="external-button">Click Me</button>
 
 function MyComponent() {
   const handleClick = () => {
-    alert('Button clicked!');
+    alert("Button clicked!");
   };
 
   return (
@@ -2140,7 +2373,7 @@ Here, `Include` is not just importing the button, but it is also adding a click 
 - **Overwriting children**:
 
 ```jsx
-import { Include } from 'retend/include';
+import { Include } from "retend/include";
 
 // Assume there is this element on the page:
 // <div id="external-component">
@@ -2166,8 +2399,8 @@ In this case, the child element of `#external-component` (`<p>I am from outside<
 - **Using a component reference as a target**:
 
 ```jsx
-import { Include } from 'retend/include';
-import { Cell } from 'retend';
+import { Include } from "retend/include";
+import { Cell } from "retend";
 
 const divRef = Cell.source(null);
 
@@ -2184,7 +2417,7 @@ function MyComponent() {
     <div>
       <ExternalComponent />
       <h1>My Component</h1>
-      <Include from={divRef} style={{ color: 'green' }} />
+      <Include from={divRef} style={{ color: "green" }} />
     </div>
   );
 }
