@@ -393,4 +393,36 @@ describe("Router Lazy Subtrees with Advanced Matching", () => {
     await router.navigate("/dashboard/settings");
     expect(getTextContent(window.document.body)).toBe("Dashboard Settings");
   });
+
+  it("should handle parameters directly on the lazy route importer", async () => {
+    const { window } = getGlobalContext();
+
+    const ProductDetail = () => {
+      const router = useRouter();
+      const productId = router.params.get("productId");
+      return <div>Product ID: {productId}</div>;
+    };
+
+    const productSubtree = defineRoute({
+      name: "product-detail-lazy",
+      path: "/products/:productId",
+      component: ProductDetail,
+    });
+
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          path: "/products/:productId",
+          subtree: lazy(() => Promise.resolve({ default: productSubtree })),
+        },
+      ]),
+    });
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate("/products/super-shoe-42");
+    expect(getTextContent(window.document.body)).toBe(
+      "Product ID: super-shoe-42",
+    );
+  });
 });

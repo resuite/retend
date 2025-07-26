@@ -373,6 +373,7 @@ export class Router extends EventTarget {
   constructor(routeOptions) {
     super();
     this.#routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
+    console.dir(this.#routeTree, { depth: null });
     this.middlewares = routeOptions.middlewares ?? [];
     this.#maxRedirects = routeOptions.maxRedirects ?? 50;
     this.currentPath = Cell.source(

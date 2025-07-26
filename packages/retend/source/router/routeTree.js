@@ -153,18 +153,28 @@ export class LazyRoute extends Route {
 
   /**
    * @param {EagerRoute<T>} [parent]
+   * @returns {Promise<EagerRoute<T>>}
    */
   async unroll(parent) {
-    let caller = await this.subtree.unwrap();
-    while ("subtree" in caller) {
-      caller = await caller.subtree.unwrap();
+    let record = await this.subtree.unwrap();
+    while ("subtree" in record) {
+      record = await record.subtree.unwrap();
     }
-    const roots = RouteTree.fromRouteRecords([caller], parent).roots;
-    if (roots.length !== 1 || roots[0] instanceof LazyRoute) {
+    const roots = RouteTree.fromRouteRecords([record], parent).roots;
+
+    while (roots[0] instanceof EagerRoute && roots[0].isTransient) {
+      roots[0] = roots[0].children[0];
+    }
+
+    if (roots.length !== 1) {
       const message = "Invalid lazy route subtree.";
       throw new Error(message);
     }
-    const eagerRoute = roots[0];
+    if (roots[0] instanceof LazyRoute) {
+      return roots[0].unroll(parent);
+    }
+
+    let eagerRoute = roots[0];
     if (eagerRoute.path !== this.path) {
       const message = `Lazy subtrees must have the same path as their parents. Parent path: ${this.path}, Subtree path: ${eagerRoute.path}`;
       throw new Error(message);
@@ -516,6 +526,60 @@ export class RouteTree {
 export const routeToComponent = new WeakMap();
 
 /**
+ *
+ * Creates a route subtree that is just nested transient routes, if any.
+ *
+ * @template T
+ * @template {Lazy<RouteRecord<T>> | undefined} L
+ * @param {string[]} pathSegments
+ * @param {string[]} parentPathSegments
+ * @param {L} lazySubtree
+ * @returns {{ root: EagerRoute<T> | LazyRoute<T>, leaf: EagerRoute<T> | LazyRoute<T> }}
+ */
+function createTransientTree(pathSegments, parentPathSegments, lazySubtree) {
+  let root;
+  let buildingPath = "/" + parentPathSegments.join("/");
+  if (pathSegments[0]) {
+    buildingPath += parentPathSegments.length
+      ? `/${pathSegments[0]}`
+      : pathSegments[0];
+  }
+
+  if (lazySubtree && pathSegments.length <= 1) {
+    root = new LazyRoute(buildingPath, lazySubtree);
+    return { root, leaf: root };
+  }
+
+  root = new EagerRoute(buildingPath);
+  root.isTransient = pathSegments.length > 1;
+  root.isDynamic = pathSegments[0]?.startsWith(":");
+  root.isWildcard = pathSegments[0]?.startsWith("*");
+
+  let current = root;
+  let idx = 1;
+
+  while (pathSegments[idx]) {
+    const segment = pathSegments[idx];
+    buildingPath += `/${segment}`;
+
+    const parent = current;
+    if (idx === pathSegments.length - 1 && lazySubtree) {
+      // @ts-expect-error: I gave up.
+      current = new LazyRoute(buildingPath, lazySubtree);
+    } else {
+      current = new EagerRoute(buildingPath);
+      current.isDynamic = segment.startsWith(":");
+      current.isWildcard = segment.startsWith("*");
+      current.isTransient = idx !== pathSegments.length - 1;
+    }
+    parent.children.push(current);
+    idx++;
+  }
+
+  return { root, leaf: current };
+}
+
+/**
  * @template T
  * Constructs a new `RouteTree` instance from an array of route records.
  *
@@ -525,49 +589,55 @@ export const routeToComponent = new WeakMap();
  */
 RouteTree.fromRouteRecords = (routeRecords, parent = null) => {
   const tree = new RouteTree();
-  const parentFullPath = parent ? parent.path : "/";
+  const parentPathSegments = parent?.path.split("/").filter(Boolean) || [];
+
+  if (parent?.isTransient) {
+    parentPathSegments.pop();
+  }
 
   for (const routeRecord of routeRecords) {
     const path = routeRecord.path.replace(/\/+/g, "/");
     const pathSegments = path.split("/").filter(Boolean);
-    const subPath = `${parentFullPath}/${pathSegments[0] ?? "/"}`;
-    let finalPath = subPath.replace(/\/+/g, "/");
 
-    let root;
-    if ("subtree" in routeRecord) {
-      root = new LazyRoute(finalPath, routeRecord.subtree);
-    } else {
-      root = new EagerRoute(finalPath);
-      const current = root;
-
-      current.name = routeRecord.name ?? null;
+    const { root, leaf } = createTransientTree(
+      pathSegments,
+      parentPathSegments,
+      "subtree" in routeRecord ? routeRecord.subtree : undefined,
+    );
+    if (leaf instanceof EagerRoute && !("subtree" in routeRecord)) {
+      leaf.name = routeRecord.name ?? null;
       const component = routeRecord.component;
-      current.component = component;
+      leaf.component = component;
 
       if (
         (typeof component === "object" || typeof component === "function") &&
         component !== null
       ) {
         const match = routeToComponent.get(component) ?? [];
-        match.push(current);
+        match.push(leaf);
         routeToComponent.set(component, match);
       }
-      current.redirect = routeRecord.redirect ?? null;
-      current.title = routeRecord.title ?? null;
-      current.transitionType = routeRecord.transitionType ?? null;
-      current.metadata = routeRecord.metadata ?? null;
-
-      let fullPath = `${parentFullPath}/${routeRecord.path}`;
-      current.path = fullPath.replace(/\/+/g, "/").replace(/\/$/, "");
-
-      if (pathSegments.length <= 1) {
-        current.isDynamic = routeRecord.path.startsWith(":");
-        current.isWildcard = routeRecord.path.startsWith("*");
+      if (routeRecord.redirect) {
+        leaf.redirect = routeRecord.redirect;
+      }
+      if (routeRecord.title) {
+        leaf.title = routeRecord.title;
+      }
+      if (routeRecord.transitionType) {
+        leaf.transitionType = routeRecord.transitionType;
+      }
+      if (routeRecord.metadata) {
+        leaf.metadata = routeRecord.metadata;
       }
 
-      current.children =
+      if (pathSegments.length <= 1) {
+        leaf.isDynamic = routeRecord.path.startsWith(":");
+        leaf.isWildcard = routeRecord.path.startsWith("*");
+      }
+
+      leaf.children =
         "children" in routeRecord
-          ? RouteTree.fromRouteRecords(routeRecord.children, current).roots
+          ? RouteTree.fromRouteRecords(routeRecord.children, leaf).roots
           : [];
     }
     tree.roots.push(root);
