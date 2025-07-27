@@ -7,3 +7,5 @@ export * from './use-storage.js';
 export * from './use-derived-value.js';
 export * from './use-cursor-position.js';
 export * from './use-intersection-observer.js';
+export * from './use-click-coordinates.js';
+export { createGlobalStateHook } from './_shared.js';

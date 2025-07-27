@@ -16,7 +16,7 @@ import { createGlobalStateHook } from './_shared.js';
  * @property {Cell<number>} height
  */
 
-const USE_WINDOW_SIZE_KEY = 'hooks:useWindowSize:windowSizeCache';
+const USE_WINDOW_SIZE_KEY = Symbol('hooks:useWindowSize:windowSizeCache');
 
 /**
  * Returns an object containing cells that track the current window size.

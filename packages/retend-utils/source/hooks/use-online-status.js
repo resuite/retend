@@ -9,7 +9,7 @@ import { createGlobalStateHook } from './_shared.js';
  * @property {SourceCell<boolean>} isOnlineSource - The source cell holding the status.
  */
 
-const USE_ONLINE_STATUS_KEY = 'hooks:useOnlineStatus:statusCache';
+const USE_ONLINE_STATUS_KEY = Symbol('hooks:useOnlineStatus:statusCache');
 
 /**
  * Tracks the network connection status and provides a reactive cell.

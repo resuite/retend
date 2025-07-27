@@ -7,7 +7,7 @@ import { createGlobalStateHook } from './_shared.js';
  * @property {Cell<number>} y - The y coordinate of the cursor.
  */
 
-const CURSOR_POSITION_KEY = 'hooks:useCursorPosition:position';
+const CURSOR_POSITION_KEY = Symbol('hooks:useCursorPosition:position');
 
 /**
  * Tracks the cursor position within the window.

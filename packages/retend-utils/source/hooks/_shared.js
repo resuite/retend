@@ -4,7 +4,7 @@ import { getGlobalContext, matchContext, Modes } from 'retend/context';
 /**
  * @template {Array<any>} TParams, TState, [TReturnValue=TState]
  * @typedef {object} CreateGlobalStateHookOptions
- * @property {string} cacheKey - Unique key for caching state in globalData.
+ * @property {string | symbol} cacheKey - Unique key for caching state in globalData.
  * @property {(...params: TParams) => TState} createSource - Function to create the initial source cells.
  * @property {(window: Window, cells: TState, ...params: TParams) => void} setupListeners - Function to attach event listeners to update cells.
  * @property {(cells: TState, ...params: TParams) => TReturnValue} createReturnValue - Function to format the hook's return value from source cells.

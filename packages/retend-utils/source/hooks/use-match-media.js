@@ -5,7 +5,7 @@ import { Cell } from 'retend';
 import { createGlobalStateHook } from './_shared.js';
 import { getGlobalContext, matchContext, Modes } from 'retend/context';
 
-const MATCH_MEDIA_CACHE_KEY = 'hooks:useMatchMedia:queriesCache';
+const MATCH_MEDIA_CACHE_KEY = Symbol('hooks:useMatchMedia:queriesCache');
 
 /** @type {CreateGlobalStateHookOptions<[string], Map<string, SourceCell<boolean>>, Cell<boolean>>} */
 const options = {

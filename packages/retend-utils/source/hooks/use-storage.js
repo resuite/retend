@@ -5,8 +5,8 @@ import { getGlobalContext } from 'retend/context';
 import { createGlobalStateHook } from './_shared.js';
 import { Cell } from 'retend';
 
-const LOCAL_STORAGE_CACHE_KEY = 'hooks:useLocalStorage:cache';
-const SESSION_STORAGE_CACHE_KEY = 'hooks:useSessionStorage:cache';
+const LOCAL_STORAGE_CACHE_KEY = Symbol('hooks:useLocalStorage:cache');
+const SESSION_STORAGE_CACHE_KEY = Symbol('hooks:useSessionStorage:cache');
 
 /**
  * Represents primitive JSON values.
