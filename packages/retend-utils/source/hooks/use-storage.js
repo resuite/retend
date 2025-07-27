@@ -94,7 +94,7 @@ function safeParseJson(jsonString) {
 }
 
 /**
- * @param {string} cacheKey
+ * @param {symbol} cacheKey
  * @param {'localStorage' | 'sessionStorage'} storage
  * @returns {CreateGlobalStateHookOptions<[string, any], Map<string, SourceCell<any>>, SourceCell<any>>}
  */
