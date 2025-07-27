@@ -63,5 +63,10 @@ export const startRoute = defineRoute({
       path: 'cursor-position',
       component: lazy(() => import('./cursor-position')),
     },
+    {
+      name: 'Scope Test',
+      path: 'scope',
+      component: lazy(() => import('./scope')),
+    },
   ],
 });

@@ -54,6 +54,9 @@ const Start = () => {
             <router.Link href="/cursor-position">Cursor Position</router.Link>
           </li>
           <li>
+            <router.Link href="/scope">Scope</router.Link>
+          </li>
+          <li>
             <router.Link href="/get-server-snapshot">
               Get Server Snapshot
             </router.Link>
