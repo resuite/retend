@@ -168,6 +168,28 @@ const runTests = () => {
 
     expect(firstSpan).not.toBe(secondSpan);
   });
+
+  it('should type narrow based on property', () => {
+    type Action = { type: 'Action'; label: string };
+    type Separator = { type: 'Separator' };
+    type Item = Action | Separator;
+
+    const item = Cell.source<Item>({ type: 'Action', label: 'Click Me' });
+
+    const result = (
+      <div>
+        {Switch.OnProperty(item, 'type', {
+          Action: (actionItem) => <div>Action: {actionItem.label}</div>,
+          Separator: () => <div>Separator</div>,
+        })}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('Action: Click Me');
+
+    item.set({ type: 'Separator' });
+    expect(getTextContent(result)).toBe('Separator');
+  });
 };
 
 describe('Switch', () => {
