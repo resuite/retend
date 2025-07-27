@@ -3,8 +3,6 @@
 /** @import { Cell } from 'retend' */
 /** @import { PageMeta } from './client.js' */
 
-import { isVNode } from 'retend/context';
-
 /** @type {Record<keyof PageMeta, string>} */
 const metaNameMap = {
   viewport: 'viewport',
@@ -59,9 +57,9 @@ export function updatePageMeta(newMeta, document) {
     if (!charsetMeta) {
       charsetMeta = document.createElement('meta');
 
-      if (isVNode(charsetMeta) && isVNode(head)) {
+      if ('__isVNode' in charsetMeta && '__isVNode' in head) {
         head.childNodes.splice(0, 0, charsetMeta);
-      } else if (!isVNode(charsetMeta) && !isVNode(head)) {
+      } else if (!('__isVNode' in charsetMeta) && !('__isVNode' in head)) {
         head.insertBefore(charsetMeta, head.firstChild);
       }
     }

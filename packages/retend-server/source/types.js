@@ -1,7 +1,7 @@
 /** @import { Router } from 'retend/router' */
 /** @import { VWindow } from 'retend/v-dom' */
 /** @import { AsyncLocalStorage } from 'node:async_hooks' */
-/** @import { UserConfig } from 'vite' */
+/** @import { RunnableDevEnvironment } from 'vite' */
 
 /**
  * @typedef RouterModule
@@ -24,7 +24,7 @@
  * @typedef {Object} BuildOptions
  * @property {string} [htmlShell]
  * @property {string} [rootSelector]
- * @property {UserConfig} inlineConfig
+ * @property {RunnableDevEnvironment} ssg
  * @property {boolean} [skipRedirects]
  * @property {string} routerModulePath
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage

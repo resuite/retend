@@ -1,4 +1,4 @@
-/** @import { Plugin, UserConfig } from 'vite' */
+/** @import { Plugin, UserConfig, RunnableDevEnvironmentContext } from 'vite' */
 /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { AsyncStorage, BuildOptions } from './types.js' */
@@ -11,6 +11,7 @@ import {
 import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { Modes, setGlobalContext } from 'retend/context';
+import { resolveConfig, createRunnableDevEnvironment } from 'vite';
 
 /**
  * @typedef {object} SharedData
@@ -109,6 +110,9 @@ function staticBuildPlugins(sharedData) {
           optimizeDeps: {
             exclude: ['retend'],
           },
+          environments: {
+            retend_ssg: {},
+          },
           // It is expected that all the expected functionality, be it transformations or rewrites,
           // would be handled by the main build process and cached. Having the plugins run again leads
           // to problems, as they would attempt to transform already transformed code.
@@ -135,13 +139,32 @@ function staticBuildPlugins(sharedData) {
         } = sharedData;
         if (!ssgEnvironmentConfig) throw new Error('No resolved config found');
 
+        /** @type {RunnableDevEnvironmentContext} */
+        const envContext = {
+          hot: false,
+          runnerOptions: {
+            hmr: {
+              logger: false,
+            },
+          },
+        };
+
+        const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
+        const ssg = createRunnableDevEnvironment(
+          'retend_ssg',
+          config,
+          envContext
+        );
+        await ssg.init();
+        await ssg.pluginContainer.buildStart();
+
         /** @type {BuildOptions} */
         const buildOptions = {
           rootSelector,
           htmlShell: htmlShell_,
           asyncLocalStorage,
           routerModulePath,
-          inlineConfig: ssgEnvironmentConfig,
+          ssg,
         };
 
         // Generate artifacts using buildPaths
@@ -185,6 +208,7 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
+        await ssg.close();
         return transformedHtml;
       },
 

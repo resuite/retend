@@ -7,14 +7,12 @@
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
-/** @import { RunnableDevEnvironmentContext } from 'vite' */
 
 import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
-import { createRunnableDevEnvironment, resolveConfig } from 'vite';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -54,38 +52,30 @@ export async function buildPaths(paths, options) {
     rootSelector = '#app',
     skipRedirects = false,
     asyncLocalStorage,
-    inlineConfig,
+    ssg,
     routerModulePath,
   } = options;
 
   const promises = [];
 
-  const config = await resolveConfig(inlineConfig, 'serve');
-  /** @type {RunnableDevEnvironmentContext} */
-  const envContext = {
-    hot: false,
-    runnerOptions: {
-      hmr: {
-        logger: false,
-      },
-    },
-  };
-  const ssg = createRunnableDevEnvironment('retend_ssg', config, envContext);
-  await ssg.init();
-  await ssg.pluginContainer.buildStart();
-
   const { runner } = ssg;
-  const retendModule = /** @type {typeof import('retend')} */ (
-    await runner.import('retend')
-  );
-  const retendRenderModule = /** @type {typeof import('retend/render')} */ (
-    await runner.import('retend/render')
-  );
-  const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
-    await runner.import('retend/v-dom')
-  );
   const routerModule = /** @type {{ createRouter: () => Router }} */ (
     await runner.import(resolve(routerModulePath))
+  );
+
+  const retendModule = /** @type {typeof import('retend')} */ (
+    await runner.evaluator.runExternalModule(import.meta.resolve('retend'))
+  );
+
+  const retendRenderModule = /** @type {typeof import('retend/render')} */ (
+    await runner.evaluator.runExternalModule(
+      import.meta.resolve('retend/render')
+    )
+  );
+  const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
+    await runner.evaluator.runExternalModule(
+      import.meta.resolve('retend/v-dom')
+    )
   );
 
   if (routerModule.createRouter === undefined) {
@@ -112,7 +102,6 @@ export async function buildPaths(paths, options) {
   }
 
   const outputs = (await Promise.all(promises)).flat(1);
-  await ssg.close();
   return outputs;
 }
 
