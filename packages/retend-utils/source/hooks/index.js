@@ -8,4 +8,5 @@ export * from './use-derived-value.js';
 export * from './use-cursor-position.js';
 export * from './use-intersection-observer.js';
 export * from './use-click-coordinates.js';
+export * from './use-document-visibility.js';
 export { createGlobalStateHook } from './_shared.js';
