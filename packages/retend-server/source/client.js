@@ -244,13 +244,14 @@ async function restoreContext(context, routerCreateFn) {
       console.error('Hydration error: ', error);
     });
 
-  const newGlobalData = new Map();
+  const hydratedGlobalData = getGlobalContext().globalData;
+
   setGlobalContext({
     mode: Modes.Interactive,
     window,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(),
-    globalData: newGlobalData,
+    globalData: hydratedGlobalData,
   });
 
   router.setWindow(window);
