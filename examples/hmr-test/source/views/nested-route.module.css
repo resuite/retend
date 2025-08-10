@@ -1,0 +1,13 @@
+.box {
+    height: 90px;
+    width: 90px;
+    background-color: lemonchiffon;
+    animation: spin 2s linear infinite;
+    border-radius: 20px;
+}
+
+@keyframes spin {
+    from {
+        rotate: 360deg
+    }
+}
