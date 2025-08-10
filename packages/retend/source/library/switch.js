@@ -3,14 +3,9 @@
 /** @import { ReactiveCellFunction } from './utils.js' */
 
 import { Cell } from '@adbl/cells';
-import {
-  addCellListener,
-  createCommentPair,
-  generateChildNodes,
-  getMostCurrentFunction,
-} from './utils.js';
-import { linkNodesToComponent } from '../plugin/hmr.js';
+import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import h from './jsx.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -63,21 +58,13 @@ export function Switch(value, cases, defaultCase) {
 
   if (!Cell.isCell(value)) {
     if (value in cases && cases[value]) {
-      const fn = getMostCurrentFunction(cases[value]);
-      const nodes = generateChildNodes(fn());
-      linkNodesToComponent(nodes, fn);
-      // Allows compatibility with the For and If functions,
-      // where one root node is produced if the template is a single node.
-      return nodes.length === 1 ? nodes[0] : nodes;
+      const nodes = h(cases[value], new ArgumentList([]));
+      return nodes;
     }
 
     if (defaultCase) {
-      const defaultCaseFunc = getMostCurrentFunction(defaultCase);
-      const nodes = generateChildNodes(defaultCaseFunc(value));
-      linkNodesToComponent(nodes, defaultCaseFunc, value);
-      // Allows compatibility with the For and If functions,
-      // where one root node is produced if the template is a single node.
-      return nodes.length === 1 ? nodes[0] : nodes;
+      const nodes = h(defaultCase, new ArgumentList([value]));
+      return nodes;
     }
 
     return undefined;
@@ -104,17 +91,15 @@ export function Switch(value, cases, defaultCase) {
 
       const caseCaller = cases[value];
       if (caseCaller) {
-        const caseCallerFunc = getMostCurrentFunction(caseCaller);
-        nodes = generateChildNodes(caseCallerFunc(value));
-        linkNodesToComponent(nodes, caseCallerFunc, value);
+        const newNodes = h(caseCaller, new ArgumentList([value]));
+        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         this.after(.../** @type {*} */ (nodes));
         return nodes;
       }
 
       if (defaultCase) {
-        const defaultCaseFunc = getMostCurrentFunction(defaultCase);
-        nodes = generateChildNodes(defaultCaseFunc(value));
-        linkNodesToComponent(nodes, defaultCaseFunc, value);
+        const newNodes = h(defaultCase, new ArgumentList([value]));
+        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         this.after(.../** @type {*} */ (nodes));
         return nodes;
       }
@@ -171,17 +156,13 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
     const discriminant = value[key];
 
     if (discriminant in cases && cases[discriminant]) {
-      const fn = getMostCurrentFunction(cases[discriminant]);
-      const nodes = generateChildNodes(fn(value));
-      linkNodesToComponent(nodes, fn, value);
-      return nodes.length === 1 ? nodes[0] : nodes;
+      const nodes = h(cases[discriminant], new ArgumentList([value]));
+      return nodes;
     }
 
     if (defaultCase) {
-      const defaultCaseFunc = getMostCurrentFunction(defaultCase);
-      const nodes = generateChildNodes(defaultCaseFunc(value));
-      linkNodesToComponent(nodes, defaultCaseFunc, value);
-      return nodes.length === 1 ? nodes[0] : nodes;
+      const nodes = h(defaultCase, new ArgumentList([value]));
+      return nodes;
     }
 
     return undefined;
@@ -212,17 +193,15 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       const caseCaller = cases[discriminant];
       if (caseCaller) {
-        const caseCallerFunc = getMostCurrentFunction(caseCaller);
-        nodes = generateChildNodes(caseCallerFunc(cellValue));
-        linkNodesToComponent(nodes, caseCallerFunc, cellValue);
+        const newNodes = h(caseCaller, new ArgumentList([cellValue]));
+        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         this.after(.../** @type {*} */ (nodes));
         return nodes;
       }
 
       if (defaultCase) {
-        const defaultCaseFunc = getMostCurrentFunction(defaultCase);
-        nodes = generateChildNodes(defaultCaseFunc(cellValue));
-        linkNodesToComponent(nodes, defaultCaseFunc, cellValue);
+        const newNodes = h(defaultCase, new ArgumentList([cellValue]));
+        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         this.after(.../** @type {*} */ (nodes));
         return nodes;
       }

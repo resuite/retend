@@ -70,8 +70,12 @@ export default function ScopeTest() {
           </UserScope.Provider>
         )}
       </ThemeScope.Provider>
-      <button onClick={toggleTheme}>Toggle Theme</button>
-      <button onClick={grantAdmin}>Grant Admin</button>
+      <button type="button" onClick={toggleTheme}>
+        Toggle Theme
+      </button>
+      <button type="button" onClick={grantAdmin}>
+        Grant Admin
+      </button>
     </div>
   );
 }

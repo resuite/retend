@@ -1,19 +1,17 @@
 import { Cell } from '@adbl/cells';
-import {
+import h, {
   setAttributeFromProps,
   appendChild,
   setEventListener,
 } from '../library/jsx.js';
 import {
-  generateChildNodes,
   FixedSizeMap,
-  getMostCurrentFunction,
   addCellListener,
+  generateChildNodes,
 } from '../library/utils.js';
 import { Lazy } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { RouteTree } from './routeTree.js';
-import { linkNodesToComponent } from '../plugin/hmr.js';
 import {
   matchContext,
   Modes,
@@ -21,6 +19,7 @@ import {
   CustomEvent,
 } from '../context/index.js';
 import { createScopeSnapshot, withScopeSnapshot } from '../library/scope.js';
+import { getHMRContext } from '../plugin/hmr.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -243,6 +242,7 @@ export class RouteErrorEvent extends CustomEvent {
  *  __keepAlive?: boolean;
  *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  *  __originScopeSnapshot?: ScopeSnapshot;
+ *  __createdDuringRouteLoad?: boolean;
  * }} RouterOutlet
  */
 
@@ -482,6 +482,7 @@ export class Router extends EventTarget {
     /** @type {RouterOutlet } */
     const outlet = this.#window.document.createElement('retend-router-outlet');
     outlet.__originScopeSnapshot = originScopeSnapshot;
+    outlet.__createdDuringRouteLoad = this.#currentNavigation !== null;
 
     if (props) {
       const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
@@ -580,12 +581,8 @@ export class Router extends EventTarget {
       relay.__render = props.source;
 
       if (!this.isLoading) {
-        // @ts-ignore: The render type is generic.
-        if (relay.__render) {
-          relay.__render = getMostCurrentFunction(relay.__render);
-        }
-        const nodes = generateChildNodes(relay.__render?.(relay.__props));
-        linkNodesToComponent(nodes, relay.__render, relay.__props);
+        const newNodes = h(relay.__render, relay.__props);
+        const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         appendChild(relay, relay.tagName.toLowerCase(), nodes);
         relay.__onNodesReceived?.(nodes);
       }
@@ -618,11 +615,25 @@ export class Router extends EventTarget {
       'retend-router-outlet, retend-router-relay, retend-teleport {display: contents;}'
     );
     this.#window.document.adoptedStyleSheets.push(this.sheet);
+    const router = this;
 
     if (!this.#window.customElements.get('retend-router-outlet')) {
       this.#window.customElements.define(
         'retend-router-outlet',
-        class extends HTMLElement {}
+        class extends HTMLElement {
+          connectedCallback() {
+            if (!getHMRContext()) return;
+            // // See? web components are useful!
+            // // Sometimes outlets can be rendered outside a
+            // // router navigation or load, e.g. in HMR. In this cases,
+            // // we don't have a match state or a data-path, so we cannot tell
+            // // what should be in the outlet, unless we trigger a reload.
+            if (router.#window && !router.#currentNavigation) {
+              const currentPath = getFullPath(router.#window);
+              router.loadPath(currentPath, false, undefined, true, true);
+            }
+          }
+        }
       );
     }
 
@@ -1060,13 +1071,12 @@ export class Router extends EventTarget {
         renderedComponent = [...routeSnapshot.fragment.childNodes];
       } else {
         try {
-          const outletScopeSnapshot = outlet.__originScopeSnapshot;
-          if (outletScopeSnapshot) {
-            renderedComponent = await withScopeSnapshot(
-              outletScopeSnapshot,
-              matchedComponent
+          const scopeSnapshot = outlet.__originScopeSnapshot;
+          if (scopeSnapshot) {
+            renderedComponent = withScopeSnapshot(scopeSnapshot, () =>
+              h(matchedComponent, {})
             );
-          } else renderedComponent = await matchedComponent();
+          } else renderedComponent = h(matchedComponent, {});
         } catch (error) {
           if (oldOutletPath) {
             outlet.setAttribute('data-path', oldOutletPath);
@@ -1105,10 +1115,12 @@ export class Router extends EventTarget {
         this.#preserveCurrentOutletState(oldOutletPath, outlet);
       }
 
-      const newNodes = generateChildNodes(renderedComponent);
-      linkNodesToComponent(newNodes, matchedComponent, undefined);
-
-      const newNodesFragment = this.handleRelays(outlet, newNodes);
+      const nodes = generateChildNodes(renderedComponent);
+      if (nodes.length === 1 && '__promise' in nodes[0]) {
+        // We want async route components to render before the route changes.
+        await nodes[0].__promise;
+      }
+      const newNodesFragment = this.handleRelays(outlet, nodes);
       if (newNodesFragment) {
         renderRouteIntoOutlet(outlet, newNodesFragment, this.#window);
       }
@@ -1298,8 +1310,8 @@ export class Router extends EventTarget {
           /** @type {(VDom.VNode | Node)[]} */
           let relayContents = [];
           if (enterRelay.__render) {
-            relayContents = generateChildNodes(enterRelay.__render(props));
-            linkNodesToComponent(relayContents, enterRelay.__render, props);
+            const nodes = h(enterRelay.__render, props);
+            relayContents = Array.isArray(nodes) ? nodes : [nodes];
           }
           const contents = /** @type {Context.AsNode[]} */ (relayContents);
           enterRelay.replaceChildren(...contents);

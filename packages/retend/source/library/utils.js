@@ -1,9 +1,8 @@
-import { Cell } from "@adbl/cells";
-import { getGlobalContext } from "../context/index.js";
+import { Cell } from '@adbl/cells';
+import { getGlobalContext } from '../context/index.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { UpdatableFn } from '../plugin/hmr.js' */
 
 /** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
 export const isDevMode = import.meta.env?.DEV;
@@ -114,16 +113,16 @@ export function addCellListener(
   element,
   cell,
   callback,
-  runImmediately = true,
+  runImmediately = true
 ) {
   /** @type {ReactiveCellFunction<T, This>} */
   const boundCallback = callback.bind(element);
-  Reflect.set(boundCallback, "relatedCell", cell);
+  Reflect.set(boundCallback, 'relatedCell', cell);
   // The original function has to be stored because (and I just found this out)
   // Calling .bind() on a function that is already bound leads to unintuitive
   // behavior. Functions that are already bound to VNodes cannot be rebound to
   // DOM elements.
-  Reflect.set(boundCallback, "originalFunction", callback);
+  Reflect.set(boundCallback, 'originalFunction', callback);
 
   if (runImmediately) {
     cell.runAndListen(boundCallback, { weak: true });
@@ -131,12 +130,12 @@ export function addCellListener(
     cell.listen(boundCallback, { weak: true });
   }
 
-  if (!("__attributeCells" in element)) {
-    Reflect.set(element, "__attributeCells", new Set());
+  if (!('__attributeCells' in element)) {
+    Reflect.set(element, '__attributeCells', new Set());
   }
 
   const storage = /** @type {CellSet<This>} */ (
-    Reflect.get(element, "__attributeCells")
+    Reflect.get(element, '__attributeCells')
   );
   // Persist to prevent garbage collection.
   storage.add(boundCallback);
@@ -152,7 +151,7 @@ export function addCellListener(
  * @returns {string} A CSS stylesheet string that can be applied as a style to an HTML element.
  */
 export function convertObjectToCssStylesheet(styles, useHost, element) {
-  return `${useHost ? ":host{" : ""}${Object.entries(styles)
+  return `${useHost ? ':host{' : ''}${Object.entries(styles)
     .map(([key, value]) => {
       if (Cell.isCell(/** @type any */ (value)) && element) {
         addCellListener(
@@ -167,13 +166,13 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
               this.style?.removeProperty(styleKey);
             }
           },
-          false,
+          false
         );
       }
-      if (isSomewhatFalsy(value)) return "";
+      if (isSomewhatFalsy(value)) return '';
       return `${normalizeStyleKey(key)}: ${value.valueOf()}`;
     })
-    .join("; ")}${useHost ? "}" : ""}`;
+    .join('; ')}${useHost ? '}' : ''}`;
 }
 
 /**
@@ -181,7 +180,7 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
  * @returns {string}
  */
 function normalizeStyleKey(key) {
-  return key.startsWith("--") ? key : toKebabCase(key);
+  return key.startsWith('--') ? key : toKebabCase(key);
 }
 
 /**
@@ -191,8 +190,8 @@ function normalizeStyleKey(key) {
  */
 export function toKebabCase(str) {
   return str
-    .replace(/([a-z])([A-Z])/g, "$1-$2")
-    .replace(/[\s_]+/g, "-")
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .replace(/[\s_]+/g, '-')
     .toLowerCase();
 }
 
@@ -207,20 +206,20 @@ export function generateChildNodes(children) {
   const nodes = [];
 
   if (
-    typeof children === "string" ||
-    typeof children === "number" ||
-    typeof children === "boolean"
+    typeof children === 'string' ||
+    typeof children === 'number' ||
+    typeof children === 'boolean'
   ) {
     return [window.document.createTextNode(String(children))];
   }
 
   if (children instanceof Promise) {
-    const placeholder = window.document.createComment("-------");
-    Reflect.set(placeholder, "__promise", children);
+    const placeholder = window.document.createComment('-------');
+    Reflect.set(placeholder, '__promise', children);
     children.then((template) => {
       if (placeholder.parentNode) {
         placeholder.replaceWith(
-          .../** @type {*} */ (generateChildNodes(template)),
+          .../** @type {*} */ (generateChildNodes(template))
         );
       }
     });
@@ -263,21 +262,6 @@ export function isSomewhatFalsy(value) {
   return value === undefined || value === null || value === false;
 }
 
-/**
- * Gets the most current instance of the given function.
- *
- * @param {Function & UpdatableFn} fn
- * @returns {(...args: any[]) => any}
- */
-export function getMostCurrentFunction(fn) {
-  let currentFn = fn;
-  while (currentFn.__nextInstance) {
-    currentFn = currentFn.__nextInstance;
-  }
-  // @ts-ignore: The currentFn is guaranteed to be an "updatable" function object.
-  return currentFn;
-}
-
 /** @typedef {(VDom.VComment | Comment) & { __commentRangeSymbol?: symbol }} ConnectedComment */
 
 /**
@@ -287,10 +271,10 @@ export function getMostCurrentFunction(fn) {
 export function createCommentPair() {
   const { window } = getGlobalContext();
   const symbol = Symbol();
-  const rangeStart = window.document.createComment("----");
-  const rangeEnd = window.document.createComment("----");
-  Reflect.set(rangeStart, "__commentRangeSymbol", symbol);
-  Reflect.set(rangeEnd, "__commentRangeSymbol", symbol);
+  const rangeStart = window.document.createComment('----');
+  const rangeEnd = window.document.createComment('----');
+  Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
+  Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 
   return [rangeStart, rangeEnd];
 }

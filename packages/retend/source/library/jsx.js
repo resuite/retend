@@ -1,21 +1,25 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { CellSet } from './utils.js' */
+/** @import { Scope } from './scope.js' */
+/** @import { UpdatableFn } from '../plugin/hmr.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
 import {
+  getGlobalContext,
+  isVNode,
+  Modes,
+  matchContext,
+} from '../context/index.js';
+import {
+  ArgumentList,
   addCellListener,
   convertObjectToCssStylesheet,
   generateChildNodes,
-  getMostCurrentFunction,
+  isDevMode,
   isSomewhatFalsy,
 } from './utils.js';
-import { linkNodesToComponent } from '../plugin/hmr.js';
-import {
-  getGlobalContext,
-  isVNode,
-  matchContext,
-  Modes,
-} from '../context/index.js';
+import { ComponentInvalidator, setupHMRBoundaries } from '../plugin/hmr.js';
+import { createScope, useScopeContext } from './scope.js';
 
 const camelCasedAttributes = new Set([
   // SVG attributes
@@ -112,40 +116,35 @@ const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
  *  }} WrapperFn
  */
 
-// const eventTracker = new EventTarget();
-// eventTracker.addEventListener("NextTick", (event) => {
-//   if ("__callback__" in event && typeof event.__callback__ === "function") {
-//     const callback = event.__callback__;
-//     queueMicrotask(() => callback());
-//   }
-// });
+/** @type {Scope<UpdatableFn[]>} */
+export const RetendComponentTree = createScope('__RetendComponentTree');
 
-// /**@param {Function} callback */
-// function queueEvent(callback) {
-//   const event = new Event("NextTick");
-//   Reflect.set(event, "__callback__", callback);
-//   eventTracker.dispatchEvent(event);
-// }
+export function useComponentAncestry() {
+  return useScopeContext(RetendComponentTree);
+}
 
 /**
  * Creates a new DOM element with the specified tag name, props, and children.
  *
- * @template {Record<PropertyKey, any>} Props
+ * @template {Record<PropertyKey, any> | ArgumentList<any[]>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
  * @returns {Node | VDom.VNode | (Node | VDom.VNode)[]} New DOM nodes.
  */
 export function h(tagname, props) {
+  if (tagname === undefined) return [];
   const { window } = getGlobalContext();
-  const children = props.children;
 
   if (Object.is(tagname, DocumentFragmentPlaceholder)) {
     const fragment = window.document.createDocumentFragment();
-    const childList = children
-      ? Array.isArray(children)
-        ? children
-        : [children]
-      : [];
+    const childList =
+      typeof props === 'object' && !(props instanceof ArgumentList)
+        ? props.children
+          ? Array.isArray(props.children)
+            ? props.children
+            : [props.children]
+          : []
+        : [];
     for (const child of childList) {
       fragment.append(/** @type {*} */ (normalizeJsxChild(child)));
     }
@@ -153,15 +152,49 @@ export function h(tagname, props) {
   }
 
   if (typeof tagname === 'function') {
-    const completeProps = { ...props };
-    // In Dev mode and using HMR, the function may have been overwritten.
-    // In this case we need the latest version of the function.
-    const current = getMostCurrentFunction(tagname);
-    let component = current(completeProps, { createdByJsx: true });
+    const completeProps =
+      props instanceof ArgumentList
+        ? props.data
+        : typeof props === 'object'
+          ? [{ ...props }]
+          : [];
+
+    if (isDevMode) {
+      // In Dev mode and using HMR, components have a self-referential
+      // Invalidator cell, which should automatically trigger a rerun of
+      // the component.
+      /** @type {Cell<Function>} */
+      let invalidator = tagname[ComponentInvalidator];
+      if (!tagname[ComponentInvalidator]) {
+        invalidator = Cell.source(tagname);
+        tagname[ComponentInvalidator] = invalidator;
+      }
+      const template = setupHMRBoundaries(invalidator, (c) => {
+        /** @type {UpdatableFn[]} */
+        let ancestry;
+        try {
+          ancestry = useComponentAncestry();
+        } catch {
+          ancestry = [];
+        }
+        return RetendComponentTree.Provider({
+          // @ts-expect-error: if not, it recurses.
+          h: false,
+          value: [...ancestry, c],
+          children: () => c(...completeProps, { createdByJsx: true }),
+        });
+      });
+      return generateChildNodes(template);
+    }
+
+    const component = tagname(...completeProps, { createdByJsx: true });
     const nodes = generateChildNodes(component);
-    linkNodesToComponent(nodes, current, completeProps);
     // Tries to make the API more consistent and predictable.
     return nodes.length === 1 ? nodes[0] : nodes;
+  }
+
+  if (props instanceof ArgumentList || typeof props !== 'object') {
+    throw new Error('JSX props for native elements must be an object.');
   }
 
   const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
@@ -175,6 +208,7 @@ export function h(tagname, props) {
     ns = defaultNamespace;
   }
 
+  const children = props.children;
   const element = /** @type {JsxElement} */ (
     window.document.createElementNS(ns, tagname)
   );
