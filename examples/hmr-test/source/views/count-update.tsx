@@ -17,7 +17,7 @@ export function CountUpdate() {
   return (
     <div>
       <button class={styles.button} type="button" onClick={increment}>
-        Increment
+        Increment.
       </button>
       <button class={styles.button} type="button" onClick={decrement}>
         Decrement

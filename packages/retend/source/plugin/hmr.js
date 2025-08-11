@@ -1,5 +1,5 @@
 import { Cell } from '@adbl/cells';
-import { getGlobalContext } from '../context/index.js';
+import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import { createScopeSnapshot, withScopeSnapshot } from '../library/scope.js';
 import { routeToComponent } from '../router/routeTree.js';
 import { CellUpdateError } from '@adbl/cells';
@@ -7,6 +7,7 @@ import {
   generateChildNodes,
   createCommentPair,
   addCellListener,
+  consolidateNodes,
 } from '../library/utils.js';
 import { useComponentAncestry } from '../library/jsx.js';
 
@@ -144,15 +145,35 @@ export function getHMRContext() {
  * @param {(c: UpdatableFn) => JSX.Template} fn
  */
 export function setupHMRBoundaries(value, fn) {
-  const [rangeStart, rangeEnd] = createCommentPair();
   const scopeSnapshot = createScopeSnapshot();
 
-  /** @type {ReactiveCellFunction<Function, typeof rangeStart, (Node | VDom.VNode)[]>} */
+  // We can be smarter about whether or not to create a comment pair, so we
+  // don't end up with a cluttered DOM tree.
+  // NOTE TO FUTURE SELF: This optimization is only possible because
+  // the comment ranges in other control flow structures already provide
+  // guarantees about how nodes should behave.
+  let nodes = generateChildNodes(fn(value.peek()));
+  if (nodes.length === 0) nodes = createCommentPair();
+  else if (nodes.some((node) => '__promise' in node)) {
+    // async path: If any of the nodes generated are promise
+    // placeholders, we cannot use it as a stable anchor.
+    const pair = createCommentPair();
+    nodes = [pair[0], ...nodes, pair[1]];
+  }
+
+  /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */
   const callback = function (_value) {
     return withScopeSnapshot(scopeSnapshot, () => {
+      const { window } = getGlobalContext();
+      if (!matchContext(window, Modes.Interactive)) {
+        const message = 'Cannot handle HMR in non-interactive environments';
+        console.error(message);
+        return;
+      }
       const hmr = getHMRContext();
-      if (hmr && hmr.current.peek() === _value) {
-        if (!this.isConnected) return [];
+      if (!hmr) return;
+      if (hmr.current.peek() === _value) {
+        if (!this.isConnected) return;
 
         // If a component render instance is in an update path, there is
         // no use updating it, since it will be (or has been) overwritten
@@ -166,30 +187,32 @@ export function setupHMRBoundaries(value, fn) {
             (component !== _value && hmr.old.includes(component)) ||
             hmr.new.includes(component)
         );
-        if (instanceIsInUpdatePath) {
-          return [];
-        }
+        if (instanceIsInUpdatePath) return;
       }
 
-      let nextNode = this.nextSibling;
-      while (nextNode) {
-        const reachedEnd =
-          '__commentRangeSymbol' in nextNode &&
-          nextNode.__commentRangeSymbol === this.__commentRangeSymbol;
-        if (reachedEnd) break;
+      const range = window.document.createRange();
+      const start = /** @type {Node} */ (nodes[0]);
+      const end = /** @type {Node} */ (nodes[nodes.length - 1]);
+      range.setStartBefore(start);
+      range.setEndAfter(end);
+      range.deleteContents();
 
-        nextNode.remove();
-        nextNode = this.nextSibling;
+      // update outer nodes array.
+      nodes = generateChildNodes(fn(_value));
+      if (nodes.length === 0) nodes = createCommentPair();
+      else if (nodes.some((node) => '__promise' in node)) {
+        // async path: If any of the nodes generated are promise
+        // placeholders, we cannot use it as a stable anchor.
+        const pair = createCommentPair();
+        nodes = [pair[0], ...nodes, pair[1]];
       }
-      const newNodes = generateChildNodes(fn(_value));
-      const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-      this.after(.../** @type {*} */ (nodes));
-      return newNodes;
+
+      range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
+      // listen for the next iteration.
+      addCellListener(nodes[0], value, callback, false);
     });
   };
 
-  // see comment in switch.js
-  const firstRun = callback.bind(rangeStart)(value.get());
-  addCellListener(rangeStart, value, callback, false);
-  return [rangeStart, ...firstRun, rangeEnd];
+  addCellListener(nodes[0], value, callback, false);
+  return nodes;
 }

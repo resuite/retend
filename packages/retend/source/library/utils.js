@@ -278,3 +278,22 @@ export function createCommentPair() {
 
   return [rangeStart, rangeEnd];
 }
+
+/**
+ * Consolidates an array of nodes into a single Node or DocumentFragment.
+ *
+ * If the array contains only one node, that node is returned directly.
+ * If the array contains multiple nodes, they are appended to a DocumentFragment,
+ * which is then returned.
+ *
+ * @param {(Node | VDom.VNode)[]} nodes - The array of nodes to consolidate.
+ */
+export function consolidateNodes(nodes) {
+  const { window } = getGlobalContext();
+  if (nodes.length === 1) return nodes[0];
+  else {
+    const fragment = window.document.createDocumentFragment();
+    fragment.append(.../** @type {*} */ (nodes));
+    return fragment;
+  }
+}

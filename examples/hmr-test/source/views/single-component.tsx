@@ -1,5 +1,7 @@
-import { useScopeContext } from 'retend';
+import { Cell, useScopeContext } from 'retend';
 import { Count } from './scopes.ts';
+import { ReturnsFragment } from './returns-fragment.tsx';
+import { Input } from 'retend-utils/components';
 
 export function NestedChildComponent() {
   const scopeValue = useScopeContext(Count);
@@ -13,6 +15,7 @@ export function NestedChildComponent() {
 }
 
 export function SingleComponent() {
+  const value = Cell.source('message');
   return (
     <div
       style={{
@@ -25,6 +28,8 @@ export function SingleComponent() {
       This is a display component.
       <br />
       <NestedChildComponent />
+      Hi, <ReturnsFragment />
+      <Input model={value} type="text" />
     </div>
   );
 }
