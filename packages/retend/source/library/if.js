@@ -48,21 +48,21 @@ export function If(value, fnOrObject, elseFn) {
   if (!Cell.isCell(value)) {
     if (typeof fnOrObject === 'function') {
       if (value) {
-        return fnOrObject(value);
+        return h(fnOrObject, new ArgumentList([value]));
       }
       if (elseFn) {
-        return elseFn();
+        return h(elseFn, new ArgumentList([]));
       }
       return;
     }
 
     if (typeof fnOrObject === 'object') {
       if (value && 'true' in fnOrObject) {
-        return fnOrObject.true(value);
+        return h(fnOrObject.true, new ArgumentList([value]));
       }
 
       if (!value && 'false' in fnOrObject) {
-        return fnOrObject.false();
+        return h(fnOrObject.false, new ArgumentList([]));
       }
     }
 

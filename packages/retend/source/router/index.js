@@ -622,7 +622,10 @@ export class Router extends EventTarget {
         'retend-router-outlet',
         class extends HTMLElement {
           connectedCallback() {
-            if (!getHMRContext()) return;
+            const hmr = getHMRContext();
+            // Only trigger on HMR and when this outlet has not been initialized yet
+            if (!hmr) return;
+            if (this.getAttribute('data-path')) return;
             // // See? web components are useful!
             // // Sometimes outlets can be rendered outside a
             // // router navigation or load, e.g. in HMR. In this cases,
@@ -1116,9 +1119,13 @@ export class Router extends EventTarget {
       }
 
       const nodes = generateChildNodes(renderedComponent);
-      if (nodes.length === 1 && '__promise' in nodes[0]) {
-        // We want async route components to render before the route changes.
-        await nodes[0].__promise;
+      if (nodes.some((node) => '__promise' in node)) {
+        // We want async top route components to render before the route changes.
+        await Promise.all(
+          nodes.map((node) =>
+            '__promise' in node ? node.__promise : undefined
+          )
+        );
       }
       const newNodesFragment = this.handleRelays(outlet, nodes);
       if (newNodesFragment) {
