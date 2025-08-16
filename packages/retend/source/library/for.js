@@ -2,17 +2,11 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { ReactiveCellFunction } from './utils.js' */
 
-import { Cell } from "@adbl/cells";
-import {
-  addCellListener,
-  ArgumentList,
-  createCommentPair,
-  generateChildNodes,
-  getMostCurrentFunction,
-} from "./utils.js";
-import { linkNodesToComponent } from "../plugin/hmr.js";
-import { getGlobalContext, matchContext, Modes } from "../context/index.js";
-import { createScopeSnapshot, withScopeSnapshot } from "./scope.js";
+import { Cell } from '@adbl/cells';
+import { h } from './jsx.js';
+import { ArgumentList, addCellListener, createCommentPair } from './utils.js';
+import { getGlobalContext, matchContext, Modes } from '../context/index.js';
+import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 
 /** @typedef {VDom.VNode | ChildNode} ChildNodeLike */
 
@@ -63,7 +57,6 @@ import { createScopeSnapshot, withScopeSnapshot } from "./scope.js";
 export function For(list, fn, options) {
   /*** @type {(Node | VDom.VNode)[]} */
   const initialSnapshot = [];
-  const func = getMostCurrentFunction(fn);
   const { window } = getGlobalContext();
   const { onBeforeNodesMove, onBeforeNodeRemove, key } = options ?? {};
 
@@ -74,10 +67,12 @@ export function For(list, fn, options) {
     let i = 0;
     // @ts-ignore: The list as a whole is very hard to type properly.
     for (const item of list) {
-      const parameters = [item, Cell.source(i), list];
-      const nodes = generateChildNodes(func(...parameters));
-      linkNodesToComponent(nodes, func, new ArgumentList(parameters));
-      initialSnapshot.push(...nodes);
+      const nodes = h(fn, new ArgumentList([item, Cell.source(i), list]));
+      if (Array.isArray(nodes)) {
+        initialSnapshot.push(...nodes);
+      } else {
+        initialSnapshot.push(nodes);
+      }
       i++;
     }
     return initialSnapshot;
@@ -122,7 +117,7 @@ export function For(list, fn, options) {
     };
 
     for (const node of nodes) {
-      node.addEventListener("hydrationupgrade", hydrationUpgradeCallback, {
+      node.addEventListener('hydrationupgrade', hydrationUpgradeCallback, {
         once: true,
       });
     }
@@ -137,9 +132,10 @@ export function For(list, fn, options) {
   for (const item of list.get()) {
     const index = Cell.source(i);
     const parameters = [item, index, list];
-    const template = func(...parameters);
-    const nodes = /** @type {ChildNodeLike[]} */ (generateChildNodes(template));
-    linkNodesToComponent(nodes, func, new ArgumentList(parameters));
+    const newNodes = h(fn, new ArgumentList(parameters));
+    const nodes = /** @type {ChildNodeLike[]} */ (
+      Array.isArray(newNodes) ? newNodes : [newNodes]
+    );
     addHydrationUpgradeListeners(nodes);
     initialSnapshot.push(...nodes);
     const itemKey = retrieveOrSetItemKey(item, i);
@@ -155,7 +151,6 @@ export function For(list, fn, options) {
       const newCache = new Map();
       /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
       const nodeLookAhead = new Map();
-      const func = getMostCurrentFunction(fn);
 
       let index = 0;
       let lastItemLastNode = null;
@@ -167,12 +162,11 @@ export function For(list, fn, options) {
         if (cachedResult === undefined) {
           const i = Cell.source(index);
           const parameters = [item, i, list];
-          const newTemplate = func(...parameters);
+          const newNodes = h(fn, new ArgumentList(parameters));
           const nodes = /** @type {ChildNodeLike[]} */ (
-            generateChildNodes(newTemplate)
+            Array.isArray(newNodes) ? newNodes : [newNodes]
           );
           addHydrationUpgradeListeners(nodes);
-          linkNodesToComponent(nodes, func, new ArgumentList(parameters));
           newCache.set(itemKey, { nodes, index: i });
           firstNode = nodes[0];
           lastNode = nodes[nodes.length - 1];

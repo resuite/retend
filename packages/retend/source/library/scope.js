@@ -2,6 +2,7 @@
 
 import { getGlobalContext } from '../context/index.js';
 import h from './jsx.js';
+import { generateChildNodes } from './utils.js';
 
 /**
  * @template [T=unknown]
@@ -74,6 +75,10 @@ export function createScope(name) {
       const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
       activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
       try {
+        if ('h' in props && !props.h) {
+          const template = renderFn();
+          return generateChildNodes(template);
+        }
         return h(renderFn, {});
       } finally {
         activeScopeSnapshot.set(Scope, stackBefore);
@@ -98,11 +103,7 @@ export function useScopeContext(Scope, snapshot) {
   const snapshotCtx = snapshot || getScopeSnapshot();
   const relatedScopeData = snapshotCtx.get(Scope);
   if (!relatedScopeData || relatedScopeData.length === 0) {
-    // Enhanced error message for debugging
-    const scopeName =
-      Scope && Scope.key && Scope.key.description
-        ? Scope.key.description
-        : 'UnknownScope';
+    const scopeName = Scope?.key.description || 'UnknownScope';
     throw new Error(
       `No parent scope found for the provided scope (${scopeName}).\n` +
         `This usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
@@ -248,7 +249,7 @@ export function combineScopes(...providers) {
   const Scope = {
     key: Symbol('CombinedScope'),
     Provider(props) {
-      let renderFn =
+      const renderFn =
         'content' in props
           ? props.content
           : 'children' in props

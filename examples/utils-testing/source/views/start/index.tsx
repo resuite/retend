@@ -3,13 +3,8 @@ import classes from './styles.module.css';
 import { noHydrate } from 'retend-server/client';
 
 const Heading = noHydrate(() => {
-  return (
-    <>
-      <h1 style={{ textAlign: 'center' }}>Retend Utils Testing</h1>
-      <h2 style={{ textAlign: 'center' }}>Hooks</h2>
-    </>
-  );
-}, 2);
+  return <h1 style={{ textAlign: 'center' }}>Retend Utils Testing</h1>;
+});
 
 const Start = () => {
   const router = useRouter();

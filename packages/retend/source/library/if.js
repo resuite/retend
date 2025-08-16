@@ -2,15 +2,10 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { ReactiveCellFunction } from './utils.js' */
 
-import { Cell } from "@adbl/cells";
-import {
-  addCellListener,
-  createCommentPair,
-  generateChildNodes,
-  getMostCurrentFunction,
-} from "./utils.js";
-import { linkNodesToComponent } from "../plugin/hmr.js";
-import { createScopeSnapshot, withScopeSnapshot } from "./scope.js";
+import { Cell } from '@adbl/cells';
+import { h } from './jsx.js';
+import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
 
 /**
  * @template T
@@ -51,30 +46,28 @@ import { createScopeSnapshot, withScopeSnapshot } from "./scope.js";
  */
 export function If(value, fnOrObject, elseFn) {
   if (!Cell.isCell(value)) {
-    if (typeof fnOrObject === "function") {
-      const func = getMostCurrentFunction(fnOrObject);
+    if (typeof fnOrObject === 'function') {
       if (value) {
-        return func(value);
+        return h(fnOrObject, new ArgumentList([value]));
       }
       if (elseFn) {
-        const elseFunc = getMostCurrentFunction(elseFn);
-        return elseFunc();
+        return h(elseFn, new ArgumentList([]));
       }
       return;
     }
 
-    if (typeof fnOrObject === "object") {
-      if (value && "true" in fnOrObject) {
-        return getMostCurrentFunction(fnOrObject.true)(value);
+    if (typeof fnOrObject === 'object') {
+      if (value && 'true' in fnOrObject) {
+        return h(fnOrObject.true, new ArgumentList([value]));
       }
 
-      if (!value && "false" in fnOrObject) {
-        return getMostCurrentFunction(fnOrObject.false)();
+      if (!value && 'false' in fnOrObject) {
+        return h(fnOrObject.false, new ArgumentList([]));
       }
     }
 
     console.error(
-      "If expects a callback or condition object as the second argument.",
+      'If expects a callback or condition object as the second argument.'
     );
     return;
   }
@@ -83,7 +76,7 @@ export function If(value, fnOrObject, elseFn) {
   const scopeSnapshot = createScopeSnapshot();
 
   /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
-  const callback = function (value) {
+  const callback = function (_value) {
     return withScopeSnapshot(scopeSnapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
@@ -91,7 +84,7 @@ export function If(value, fnOrObject, elseFn) {
       while (
         nextNode &&
         !(
-          "__commentRangeSymbol" in nextNode &&
+          '__commentRangeSymbol' in nextNode &&
           nextNode.__commentRangeSymbol === this.__commentRangeSymbol
         )
       ) {
@@ -99,33 +92,29 @@ export function If(value, fnOrObject, elseFn) {
         nextNode = this.nextSibling;
       }
 
-      if (typeof fnOrObject === "function") {
-        if (value) {
-          const func = getMostCurrentFunction(fnOrObject);
-          nodes = generateChildNodes(func(value));
-          linkNodesToComponent(nodes, func, value);
+      if (typeof fnOrObject === 'function') {
+        if (_value) {
+          const newNodes = h(fnOrObject, new ArgumentList([_value]));
+          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         } else if (elseFn) {
-          const elseFunc = getMostCurrentFunction(elseFn);
-          nodes = generateChildNodes(elseFunc());
-          linkNodesToComponent(nodes, elseFunc);
+          const newNodes = h(elseFn, new ArgumentList([]));
+          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         } else {
           nodes = [];
         }
-      } else if (typeof fnOrObject === "object") {
-        if (value && "true" in fnOrObject) {
-          const trueFunc = getMostCurrentFunction(fnOrObject.true);
-          nodes = generateChildNodes(trueFunc(value));
-          linkNodesToComponent(nodes, trueFunc, value);
-        } else if (!value && "false" in fnOrObject) {
-          const falseFunc = getMostCurrentFunction(fnOrObject.false);
-          nodes = generateChildNodes(falseFunc());
-          linkNodesToComponent(nodes, falseFunc);
+      } else if (typeof fnOrObject === 'object') {
+        if (_value && 'true' in fnOrObject) {
+          const newNodes = h(fnOrObject.true, new ArgumentList([_value]));
+          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+        } else if (!_value && 'false' in fnOrObject) {
+          const newNodes = h(fnOrObject.false, new ArgumentList([]));
+          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         } else {
           nodes = [];
         }
       } else
         console.error(
-          "If expects a callback or condition object as the second argument.",
+          'If expects a callback or condition object as the second argument.'
         );
 
       this.after(.../** @type {*} */ (nodes));

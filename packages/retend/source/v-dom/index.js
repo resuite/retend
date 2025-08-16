@@ -118,8 +118,8 @@ export class VNode extends EventTarget {
       n instanceof VDocumentFragment
         ? n.childNodes
         : n instanceof VNode
-        ? n
-        : ownerDocument.createTextNode(n)
+          ? n
+          : ownerDocument.createTextNode(n)
     );
     for (const node of this.childNodes) {
       node.parentNode = null;
