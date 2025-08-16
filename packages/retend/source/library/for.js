@@ -92,13 +92,14 @@ export function For(list, fn, options) {
   const retrieveOrSetItemKey = (item, i) => {
     let itemKey;
     const isObject = item && /^(object|function|symbol)$/.test(typeof item);
-    if (isObject) itemKey = key !== undefined ? item[key] : autoKeys.get(item);
-    else itemKey = item?.toString ? `${item.toString()}.${i}` : i;
+    if (isObject) {
+      itemKey = key !== undefined ? item[key] : autoKeys.get(item);
+      if (itemKey === undefined) {
+        itemKey = Symbol();
+        autoKeys.set(item, itemKey);
+      }
+    } else itemKey = item?.toString ? `${item.toString()}.${i}` : i;
 
-    if (itemKey === undefined) {
-      itemKey = Symbol();
-      autoKeys.set(item, itemKey);
-    }
     return itemKey;
   };
 
