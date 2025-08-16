@@ -94,7 +94,8 @@ export function For(list, fn, options) {
     const isObject = item && /^(object|function|symbol)$/.test(typeof item);
     if (isObject) {
       itemKey = key !== undefined ? item[key] : autoKeys.get(item);
-      if (itemKey === undefined) {
+      if (key === undefined && itemKey === undefined) {
+        // auto memo only when no key option is defined.
         itemKey = Symbol();
         autoKeys.set(item, itemKey);
       }
