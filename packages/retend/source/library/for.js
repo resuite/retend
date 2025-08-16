@@ -53,7 +53,6 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  * names.get().push('David');
  * // The list will automatically update to include the new name
  */
-// TODO: Make object mutation safe or optional.
 export function For(list, fn, options) {
   /*** @type {(Node | VDom.VNode)[]} */
   const initialSnapshot = [];
@@ -83,7 +82,7 @@ export function For(list, fn, options) {
   // -----------------------------------------------
   /** @type {Map<any, { index: Cell<number>,  nodes: ChildNodeLike[] }>} */
   let cacheFromLastRun = new Map();
-  const uniqueItemMarker = key ?? Symbol();
+  const autoKeys = new WeakMap();
   const [listStart, listEnd] = createCommentPair();
 
   /**
@@ -93,12 +92,12 @@ export function For(list, fn, options) {
   const retrieveOrSetItemKey = (item, i) => {
     let itemKey;
     const isObject = item && /^(object|function|symbol)$/.test(typeof item);
-    if (isObject) itemKey = item[uniqueItemMarker];
+    if (isObject) itemKey = key !== undefined ? item[key] : autoKeys.get(item);
     else itemKey = item?.toString ? `${item.toString()}.${i}` : i;
 
     if (itemKey === undefined) {
       itemKey = Symbol();
-      item[uniqueItemMarker] = itemKey;
+      autoKeys.set(item, itemKey);
     }
     return itemKey;
   };
