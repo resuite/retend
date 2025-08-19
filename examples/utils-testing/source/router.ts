@@ -10,6 +10,16 @@ export function createRouter() {
         path: 'llm-test',
         component: lazy(() => import('./views/start/llm-test')),
       },
+      {
+        name: 'Page 1',
+        path: 'page-1',
+        component: lazy(() => import('./views/test-pages/page1')),
+      },
+      {
+        name: 'Page 2',
+        path: 'page-2',
+        component: lazy(() => import('./views/test-pages/page2')),
+      },
     ],
   });
 }

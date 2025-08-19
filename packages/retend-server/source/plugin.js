@@ -1,7 +1,8 @@
-/** @import { Plugin, UserConfig, RunnableDevEnvironmentContext } from 'vite' */
+/** @import { Plugin, UserConfig, ResolvedConfig, RunnableDevEnvironmentContext, RunnableDevEnvironment } from 'vite' */
 /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { AsyncStorage, BuildOptions } from './types.js' */
+// /** @import { Router } from 'retend/router' */
 
 import {
   buildPaths,
@@ -19,7 +20,14 @@ import { resolveConfig, createRunnableDevEnvironment } from 'vite';
  * @property {PluginOptions} options
  * @property {boolean} sharedContextDefined
  * @property {UserConfig | null} ssgEnvironmentConfig
+ * @property {ResolvedConfig | null} resolvedConfig
 
+ */
+
+/**
+ * @typedef {RunnableDevEnvironment & {
+ *  runner: { [asyncLocalStorageSymbol]?: AsyncLocalStorage<AsyncStorage> }
+ * }} SSGEnvironment
  */
 
 /**
@@ -54,10 +62,13 @@ export function retendSSG(options) {
     options,
     sharedContextDefined: false,
     ssgEnvironmentConfig: null,
+    resolvedConfig: null,
   };
 
   return [...staticBuildPlugins(sharedData)];
 }
+
+const asyncLocalStorageSymbol = Symbol('asyncLocalStorage');
 
 /**
  *
@@ -69,6 +80,8 @@ function staticBuildPlugins(sharedData) {
   const outputArtifacts = [];
   /** @type {EmittedFile[]} */
   const outputFileEmissions = [];
+  /** @type {Record<string, Set<string>>} */
+  const cssDeps = Object.create(null);
 
   const {
     options: { pages, routerModulePath },
@@ -120,6 +133,24 @@ function staticBuildPlugins(sharedData) {
         };
       },
 
+      async configResolved(config) {
+        sharedData.resolvedConfig = config;
+      },
+
+      augmentChunkHash({ modules, viteMetadata }) {
+        const paths = Object.keys(modules).filter((id) => id.endsWith('.css'));
+        const builtPaths = viteMetadata?.importedCss;
+        if (!builtPaths) return;
+
+        for (const source of paths) {
+          const outputChunkSet = cssDeps[source] || new Set();
+          for (const value of builtPaths.values()) {
+            outputChunkSet.add(value);
+          }
+          cssDeps[source] = outputChunkSet;
+        }
+      },
+
       async transformIndexHtml(htmlShell_, ctx) {
         let transformedHtml = htmlShell_;
         if (!ctx.bundle) {
@@ -150,13 +181,13 @@ function staticBuildPlugins(sharedData) {
         };
 
         const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
-        const ssg = createRunnableDevEnvironment(
-          'retend_ssg',
-          config,
-          envContext
+        const ssg = /** @type {SSGEnvironment} */ (
+          createRunnableDevEnvironment('retend_ssg', config, envContext)
         );
         await ssg.init();
         await ssg.pluginContainer.buildStart();
+
+        ssg.runner[asyncLocalStorageSymbol] = asyncLocalStorage;
 
         /** @type {BuildOptions} */
         const buildOptions = {
@@ -189,13 +220,14 @@ function staticBuildPlugins(sharedData) {
 
           const { name: fileName } = artifact;
           promises.push(
-            stringifyArtifact(artifact, sourceDistMap).then((source) => {
-              if (fileName === 'index.html') {
-                transformedHtml = source;
-              } else {
-                outputFileEmissions.push({ type: 'asset', fileName, source });
+            stringifyArtifact(artifact, sourceDistMap, cssDeps).then(
+              (source) => {
+                if (fileName === 'index.html') transformedHtml = source;
+                else {
+                  outputFileEmissions.push({ type: 'asset', fileName, source });
+                }
               }
-            })
+            )
           );
         }
 
@@ -219,23 +251,42 @@ function staticBuildPlugins(sharedData) {
         }
       },
     },
+    {
+      name: 'vite-plugin-css-lazy-import-helper',
+      apply: 'serve',
+      enforce: 'pre',
+
+      applyToEnvironment(env) {
+        return env.name === 'retend_ssg';
+      },
+
+      resolveId(source, importer) {
+        if (!source.endsWith('.css') || !importer) return;
+        const absolutePath = path.resolve(importer, '../', source);
+        const { runner } = /** @type {SSGEnvironment}} */ (this.environment);
+        const asyncLocalStorage = runner[asyncLocalStorageSymbol];
+        if (!asyncLocalStorage) return;
+        // We need a way to access the exact route that
+        // is currently being generated, so we can determine where to track
+        // the (potentially lazy-loaded) CSS file and make it eager.
+        // This should be sharedData.asyncLocalStorage.getStore()
+        // instead, but for some reason its not treated as the same
+        // asyncLocalStorage instance.
+        asyncLocalStorage.getStore()?.cssImports.add(absolutePath);
+      },
+    },
   ];
 }
 
 /**
- * Rewrites asset references in the given artifact's document and returns the stringified result.
- *
- * This function scans for `<script>`, `<style>`, `<link>` and `<img>` elements
- * and rewrites their 'src' or 'href' attributes based on the provided assetSourceToDistMap.
- * Only local asset references (not containing '://') are considered for rewriting.
- *
  * @async
- * @param {HtmlOutputArtifact} artifact - The artifact object containing the document and a stringify method.
- * @param {Map<string, { fileName: string }>} [assetSourceToDistMap] - A map from source asset paths to their rewritten distribution info.
- * @returns {Promise<string>} The stringified artifact with rewritten asset references.
+ * @param {HtmlOutputArtifact} artifact
+ * @param {Map<string, { fileName: string }>} assetSourceToDistMap
+ * @param {Record<string, Set<string>>} cssDeps
+ * @returns {Promise<string>}
  */
-async function stringifyArtifact(artifact, assetSourceToDistMap) {
-  const { contents, stringify } = artifact;
+async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
+  const { contents, stringify, cssImports } = artifact;
   const { document } = contents;
   // Rewrite asset references
   document.findNodes((node) => {
@@ -257,6 +308,25 @@ async function stringifyArtifact(artifact, assetSourceToDistMap) {
     element.setAttribute(attrName, rewrittenAsset.fileName);
     return true;
   });
+
+  for (const cssImport of cssImports) {
+    const links = cssDeps[cssImport];
+    for (const link of links) {
+      const hasLink = document.head.findNode((node) => {
+        if (node.nodeType !== 1) return false;
+        const element = /** @type {VElement} */ (node);
+        if (element.tagName.toLowerCase() !== 'link') return false;
+        return element.getAttribute('href') === link;
+      });
+      if (!hasLink) {
+        const linkTag = document.createElement('link');
+        linkTag.setAttribute('rel', 'stylesheet');
+        linkTag.setAttribute('crossorigin', '');
+        linkTag.setAttribute('href', link);
+        document.head.append(linkTag);
+      }
+    }
+  }
 
   const source = await stringify();
   return source;

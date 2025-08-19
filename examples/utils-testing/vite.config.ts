@@ -23,6 +23,8 @@ export default defineConfig({
         '/input-test',
         '/fluid-list',
         '/cursor-position',
+        '/page-1',
+        '/page-2'
       ],
       routerModulePath: './source/router.ts',
     }),
