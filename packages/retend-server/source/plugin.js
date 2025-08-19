@@ -260,19 +260,19 @@ function staticBuildPlugins(sharedData) {
         return env.name === 'retend_ssg';
       },
 
-      resolveId(source, importer) {
-        if (!source.endsWith('.css') || !importer) return;
-        const absolutePath = path.resolve(importer, '../', source);
+      async resolveId(source, importer) {
+        if (!source.endsWith('.css')) return;
         const { runner } = /** @type {SSGEnvironment}} */ (this.environment);
         const asyncLocalStorage = runner[asyncLocalStorageSymbol];
-        if (!asyncLocalStorage) return;
+        const absolutePath = await this.resolve(source, importer);
+        if (!asyncLocalStorage || !absolutePath) return;
         // We need a way to access the exact route that
         // is currently being generated, so we can determine where to track
         // the (potentially lazy-loaded) CSS file and make it eager.
         // This should be sharedData.asyncLocalStorage.getStore()
         // instead, but for some reason its not treated as the same
         // asyncLocalStorage instance.
-        asyncLocalStorage.getStore()?.cssImports.add(absolutePath);
+        asyncLocalStorage.getStore()?.cssImports.add(absolutePath.id);
       },
     },
   ];
@@ -311,6 +311,7 @@ async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
 
   for (const cssImport of cssImports) {
     const links = cssDeps[cssImport];
+    if (!links) continue;
     for (const link of links) {
       const hasLink = document.head.findNode((node) => {
         if (node.nodeType !== 1) return false;
