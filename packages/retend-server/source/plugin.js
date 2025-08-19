@@ -322,7 +322,6 @@ async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
       if (!hasLink) {
         const linkTag = document.createElement('link');
         linkTag.setAttribute('rel', 'stylesheet');
-        linkTag.setAttribute('crossorigin', '');
         linkTag.setAttribute('href', link);
         document.head.append(linkTag);
       }
