@@ -262,7 +262,7 @@ function staticBuildPlugins(sharedData) {
 
       async resolveId(source, importer) {
         if (!source.endsWith('.css')) return;
-        const { runner } = /** @type {SSGEnvironment}} */ (this.environment);
+        const { runner } = /** @type {SSGEnvironment} */ (this.environment);
         const asyncLocalStorage = runner[asyncLocalStorageSymbol];
         const absolutePath = await this.resolve(source, importer);
         if (!asyncLocalStorage || !absolutePath) return;
