@@ -44,11 +44,11 @@ export class RedirectOutputArtifact extends OutputArtifact {
 }
 
 /**
- * @param {string[]} paths The paths to serialize.
+ * @param {string} path The path to serialize.
  * @param {BuildOptions} options Options for building, including optional skipRedirects.
  * @returns {Promise<(HtmlOutputArtifact | RedirectOutputArtifact)[]>} A promise that resolves to an array of output artifacts.
  */
-export async function buildPaths(paths, options) {
+export async function buildPath(path, options) {
   const {
     htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
@@ -57,8 +57,6 @@ export async function buildPaths(paths, options) {
     ssg,
     routerModulePath,
   } = options;
-
-  const promises = [];
 
   const { runner } = ssg;
   const routerModule = /** @type {{ createRouter: () => Router }} */ (
@@ -86,25 +84,20 @@ export async function buildPaths(paths, options) {
     );
   }
 
-  for (const path of paths) {
-    /** @type {RenderOptions} */
-    const renderOptions = {
-      path,
-      asyncLocalStorage,
-      htmlShell,
-      rootSelector,
-      routerModule,
-      retendModule,
-      retendRenderModule,
-      retendVDomModule,
-      skipRedirects,
-    };
-    const promise = renderPath(renderOptions);
-    promises.push(promise);
-  }
+  /** @type {RenderOptions} */
+  const renderOptions = {
+    path,
+    asyncLocalStorage,
+    htmlShell,
+    rootSelector,
+    routerModule,
+    retendModule,
+    retendRenderModule,
+    retendVDomModule,
+    skipRedirects,
+  };
 
-  const outputs = (await Promise.all(promises)).flat(1);
-  return outputs;
+  return renderPath(renderOptions);
 }
 
 /**

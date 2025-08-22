@@ -1,11 +1,11 @@
 /** @import { Plugin, UserConfig, ResolvedConfig, RunnableDevEnvironmentContext, RunnableDevEnvironment } from 'vite' */
 /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
-/** @import { AsyncStorage, BuildOptions } from './types.js' */
+/** @import { AsyncStorage } from './types.js' */
 // /** @import { Router } from 'retend/router' */
 
 import {
-  buildPaths,
+  buildPath,
   HtmlOutputArtifact,
   RedirectOutputArtifact,
 } from './server.js';
@@ -151,8 +151,8 @@ function staticBuildPlugins(sharedData) {
         }
       },
 
-      async transformIndexHtml(htmlShell_, ctx) {
-        let transformedHtml = htmlShell_;
+      async transformIndexHtml(htmlShell, ctx) {
+        let transformedHtml = htmlShell;
         if (!ctx.bundle) {
           console.error('Could not find output bundle context at build time.');
           return transformedHtml;
@@ -171,7 +171,7 @@ function staticBuildPlugins(sharedData) {
         if (!ssgEnvironmentConfig) throw new Error('No resolved config found');
 
         /** @type {RunnableDevEnvironmentContext} */
-        const envContext = {
+        const envCtx = {
           hot: false,
           runnerOptions: {
             hmr: {
@@ -181,25 +181,28 @@ function staticBuildPlugins(sharedData) {
         };
 
         const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
-        const ssg = /** @type {SSGEnvironment} */ (
-          createRunnableDevEnvironment('retend_ssg', config, envContext)
-        );
-        await ssg.init();
-        await ssg.pluginContainer.buildStart();
 
-        ssg.runner[asyncLocalStorageSymbol] = asyncLocalStorage;
+        console.log('\n');
+        for (const page of pages) {
+          console.log('Building page:', page);
+          const environment = /** @type {SSGEnvironment} */ (
+            createRunnableDevEnvironment('retend_ssg', config, envCtx)
+          );
+          const buildOptions = {
+            rootSelector,
+            htmlShell,
+            asyncLocalStorage,
+            routerModulePath,
+            ssg: environment,
+          };
+          environment.runner[asyncLocalStorageSymbol] = asyncLocalStorage;
 
-        /** @type {BuildOptions} */
-        const buildOptions = {
-          rootSelector,
-          htmlShell: htmlShell_,
-          asyncLocalStorage,
-          routerModulePath,
-          ssg,
-        };
-
-        // Generate artifacts using buildPaths
-        outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
+          await environment.init();
+          await environment.pluginContainer.buildStart();
+          const artifacts = await buildPath(page, buildOptions);
+          outputArtifacts.push(...artifacts);
+          await environment.close();
+        }
 
         // Create source to dist map for asset rewriting
         const sourceDistMap = new Map();
@@ -240,7 +243,6 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
-        await ssg.close();
         return transformedHtml;
       },
 
