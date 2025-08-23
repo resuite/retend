@@ -48,6 +48,7 @@
  * @property {{ value: number }} teleportIdCounter
  * @property {Map<string, unknown>} consistentValues
  * @property {Map<string, any>} globalData
+ * @property {Set<string>} cssImports
  */
 
 /**

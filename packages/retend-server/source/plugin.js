@@ -1,10 +1,11 @@
-/** @import { Plugin, UserConfig, RunnableDevEnvironmentContext } from 'vite' */
+/** @import { Plugin, UserConfig, ResolvedConfig, RunnableDevEnvironmentContext, RunnableDevEnvironment } from 'vite' */
 /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
-/** @import { AsyncStorage, BuildOptions } from './types.js' */
+/** @import { AsyncStorage } from './types.js' */
+// /** @import { Router } from 'retend/router' */
 
 import {
-  buildPaths,
+  buildPath,
   HtmlOutputArtifact,
   RedirectOutputArtifact,
 } from './server.js';
@@ -19,7 +20,14 @@ import { resolveConfig, createRunnableDevEnvironment } from 'vite';
  * @property {PluginOptions} options
  * @property {boolean} sharedContextDefined
  * @property {UserConfig | null} ssgEnvironmentConfig
+ * @property {ResolvedConfig | null} resolvedConfig
 
+ */
+
+/**
+ * @typedef {RunnableDevEnvironment & {
+ *  runner: { [asyncLocalStorageSymbol]?: AsyncLocalStorage<AsyncStorage> }
+ * }} SSGEnvironment
  */
 
 /**
@@ -54,10 +62,13 @@ export function retendSSG(options) {
     options,
     sharedContextDefined: false,
     ssgEnvironmentConfig: null,
+    resolvedConfig: null,
   };
 
   return [...staticBuildPlugins(sharedData)];
 }
+
+const asyncLocalStorageSymbol = Symbol('asyncLocalStorage');
 
 /**
  *
@@ -69,6 +80,8 @@ function staticBuildPlugins(sharedData) {
   const outputArtifacts = [];
   /** @type {EmittedFile[]} */
   const outputFileEmissions = [];
+  /** @type {Record<string, Set<string>>} */
+  const cssDeps = Object.create(null);
 
   const {
     options: { pages, routerModulePath },
@@ -120,8 +133,26 @@ function staticBuildPlugins(sharedData) {
         };
       },
 
-      async transformIndexHtml(htmlShell_, ctx) {
-        let transformedHtml = htmlShell_;
+      async configResolved(config) {
+        sharedData.resolvedConfig = config;
+      },
+
+      augmentChunkHash({ modules, viteMetadata }) {
+        const paths = Object.keys(modules).filter((id) => id.endsWith('.css'));
+        const builtPaths = viteMetadata?.importedCss;
+        if (!builtPaths) return;
+
+        for (const source of paths) {
+          const outputChunkSet = cssDeps[source] || new Set();
+          for (const value of builtPaths.values()) {
+            outputChunkSet.add(value);
+          }
+          cssDeps[source] = outputChunkSet;
+        }
+      },
+
+      async transformIndexHtml(htmlShell, ctx) {
+        let transformedHtml = htmlShell;
         if (!ctx.bundle) {
           console.error('Could not find output bundle context at build time.');
           return transformedHtml;
@@ -140,7 +171,7 @@ function staticBuildPlugins(sharedData) {
         if (!ssgEnvironmentConfig) throw new Error('No resolved config found');
 
         /** @type {RunnableDevEnvironmentContext} */
-        const envContext = {
+        const envCtx = {
           hot: false,
           runnerOptions: {
             hmr: {
@@ -150,25 +181,36 @@ function staticBuildPlugins(sharedData) {
         };
 
         const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
-        const ssg = createRunnableDevEnvironment(
-          'retend_ssg',
-          config,
-          envContext
-        );
-        await ssg.init();
-        await ssg.pluginContainer.buildStart();
+        const environments = [];
 
-        /** @type {BuildOptions} */
-        const buildOptions = {
-          rootSelector,
-          htmlShell: htmlShell_,
-          asyncLocalStorage,
-          routerModulePath,
-          ssg,
-        };
+        console.log('\n');
+        const buildingPages = [];
+        for (const page of pages) {
+          console.log('Building page:', page);
+          const environment = /** @type {SSGEnvironment} */ (
+            createRunnableDevEnvironment('retend_ssg', config, envCtx)
+          );
+          environments.push(environment);
+          const buildOptions = {
+            rootSelector,
+            htmlShell,
+            asyncLocalStorage,
+            routerModulePath,
+            ssg: environment,
+          };
+          environment.runner[asyncLocalStorageSymbol] = asyncLocalStorage;
 
-        // Generate artifacts using buildPaths
-        outputArtifacts.push(...(await buildPaths(pages, buildOptions)));
+          buildingPages.push(
+            environment
+              .init()
+              .then(() => environment.pluginContainer.buildStart())
+              .then(() => buildPath(page, buildOptions))
+              .then((artifacts) => {
+                outputArtifacts.push(...artifacts);
+              })
+          );
+        }
+        await Promise.all(buildingPages);
 
         // Create source to dist map for asset rewriting
         const sourceDistMap = new Map();
@@ -189,13 +231,14 @@ function staticBuildPlugins(sharedData) {
 
           const { name: fileName } = artifact;
           promises.push(
-            stringifyArtifact(artifact, sourceDistMap).then((source) => {
-              if (fileName === 'index.html') {
-                transformedHtml = source;
-              } else {
-                outputFileEmissions.push({ type: 'asset', fileName, source });
+            stringifyArtifact(artifact, sourceDistMap, cssDeps).then(
+              (source) => {
+                if (fileName === 'index.html') transformedHtml = source;
+                else {
+                  outputFileEmissions.push({ type: 'asset', fileName, source });
+                }
               }
-            })
+            )
           );
         }
 
@@ -208,7 +251,11 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
-        await ssg.close();
+        await Promise.all(
+          environments.map(async (environment) => {
+            await environment.close();
+          })
+        );
         return transformedHtml;
       },
 
@@ -219,23 +266,42 @@ function staticBuildPlugins(sharedData) {
         }
       },
     },
+    {
+      name: 'vite-plugin-css-lazy-import-helper',
+      apply: 'serve',
+      enforce: 'pre',
+
+      applyToEnvironment(env) {
+        return env.name === 'retend_ssg';
+      },
+
+      async resolveId(source, importer) {
+        if (!source.endsWith('.css')) return;
+        const { runner } = /** @type {SSGEnvironment} */ (this.environment);
+        const asyncLocalStorage = runner[asyncLocalStorageSymbol];
+        const absolutePath = await this.resolve(source, importer);
+        if (!asyncLocalStorage || !absolutePath) return;
+        // We need a way to access the exact route that
+        // is currently being generated, so we can determine where to track
+        // the (potentially lazy-loaded) CSS file and make it eager.
+        // This should be sharedData.asyncLocalStorage.getStore()
+        // instead, but for some reason its not treated as the same
+        // asyncLocalStorage instance.
+        asyncLocalStorage.getStore()?.cssImports.add(absolutePath.id);
+      },
+    },
   ];
 }
 
 /**
- * Rewrites asset references in the given artifact's document and returns the stringified result.
- *
- * This function scans for `<script>`, `<style>`, `<link>` and `<img>` elements
- * and rewrites their 'src' or 'href' attributes based on the provided assetSourceToDistMap.
- * Only local asset references (not containing '://') are considered for rewriting.
- *
  * @async
- * @param {HtmlOutputArtifact} artifact - The artifact object containing the document and a stringify method.
- * @param {Map<string, { fileName: string }>} [assetSourceToDistMap] - A map from source asset paths to their rewritten distribution info.
- * @returns {Promise<string>} The stringified artifact with rewritten asset references.
+ * @param {HtmlOutputArtifact} artifact
+ * @param {Map<string, { fileName: string }>} assetSourceToDistMap
+ * @param {Record<string, Set<string>>} cssDeps
+ * @returns {Promise<string>}
  */
-async function stringifyArtifact(artifact, assetSourceToDistMap) {
-  const { contents, stringify } = artifact;
+async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
+  const { contents, stringify, cssImports } = artifact;
   const { document } = contents;
   // Rewrite asset references
   document.findNodes((node) => {
@@ -257,6 +323,30 @@ async function stringifyArtifact(artifact, assetSourceToDistMap) {
     element.setAttribute(attrName, rewrittenAsset.fileName);
     return true;
   });
+
+  for (const cssImport of cssImports) {
+    const links = cssDeps[cssImport];
+    if (!links) continue;
+    for (const link of links) {
+      const hasLink = document.head.findNode((node) => {
+        if (node.nodeType !== 1) return false;
+        const element = /** @type {VElement} */ (node);
+        if (element.tagName.toLowerCase() !== 'link') return false;
+        const elementHref = element.getAttribute('href');
+        const href = elementHref?.startsWith('/')
+          ? elementHref.slice(1)
+          : elementHref;
+        return href === link;
+      });
+      if (!hasLink) {
+        const linkTag = document.createElement('link');
+        linkTag.setAttribute('rel', 'stylesheet');
+        linkTag.setAttribute('href', link);
+        linkTag.setAttribute('data-retend-preload', 'true');
+        document.head.append(linkTag);
+      }
+    }
+  }
 
   const source = await stringify();
   return source;

@@ -52,9 +52,10 @@ const Start = () => {
             <router.Link href="/scope">Scope</router.Link>
           </li>
           <li>
-            <router.Link href="/get-server-snapshot">
-              Get Server Snapshot
-            </router.Link>
+            <router.Link href="/page-1">Page 1</router.Link>
+          </li>
+          <li>
+            <router.Link href="/page-2">Page 2</router.Link>
           </li>
         </ul>
       </nav>
