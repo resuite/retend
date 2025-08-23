@@ -181,13 +181,16 @@ function staticBuildPlugins(sharedData) {
         };
 
         const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
+        const environments = [];
 
         console.log('\n');
+        const buildingPages = [];
         for (const page of pages) {
           console.log('Building page:', page);
           const environment = /** @type {SSGEnvironment} */ (
             createRunnableDevEnvironment('retend_ssg', config, envCtx)
           );
+          environments.push(environment);
           const buildOptions = {
             rootSelector,
             htmlShell,
@@ -197,12 +200,17 @@ function staticBuildPlugins(sharedData) {
           };
           environment.runner[asyncLocalStorageSymbol] = asyncLocalStorage;
 
-          await environment.init();
-          await environment.pluginContainer.buildStart();
-          const artifacts = await buildPath(page, buildOptions);
-          outputArtifacts.push(...artifacts);
-          await environment.close();
+          buildingPages.push(
+            environment
+              .init()
+              .then(() => environment.pluginContainer.buildStart())
+              .then(() => buildPath(page, buildOptions))
+              .then((artifacts) => {
+                outputArtifacts.push(...artifacts);
+              })
+          );
         }
+        await Promise.all(buildingPages);
 
         // Create source to dist map for asset rewriting
         const sourceDistMap = new Map();
@@ -243,6 +251,11 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
+        await Promise.all(
+          environments.map(async (environment) => {
+            await environment.close();
+          })
+        );
         return transformedHtml;
       },
 
@@ -319,12 +332,17 @@ async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
         if (node.nodeType !== 1) return false;
         const element = /** @type {VElement} */ (node);
         if (element.tagName.toLowerCase() !== 'link') return false;
-        return element.getAttribute('href') === link;
+        const elementHref = element.getAttribute('href');
+        const href = elementHref?.startsWith('/')
+          ? elementHref.slice(1)
+          : elementHref;
+        return href === link;
       });
       if (!hasLink) {
         const linkTag = document.createElement('link');
         linkTag.setAttribute('rel', 'stylesheet');
         linkTag.setAttribute('href', link);
+        linkTag.setAttribute('data-retend-preload', 'true');
         document.head.append(linkTag);
       }
     }

@@ -239,6 +239,12 @@ async function restoreContext(context, routerCreateFn) {
     .then(() => {
       globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
       observer.processMountedNodes();
+      const preloadedLinks = window.document.head.querySelectorAll(
+        '[data-retend-preload]'
+      );
+      for (const element of preloadedLinks) {
+        element.remove();
+      }
     })
     .catch((error) => {
       console.error('Hydration error: ', error);
