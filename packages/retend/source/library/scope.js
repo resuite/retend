@@ -1,5 +1,4 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-
 import { getGlobalContext } from '../context/index.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
@@ -31,8 +30,72 @@ import { generateChildNodes } from './utils.js';
  */
 
 /**
- * @typedef {Map<Scope, unknown[]>} ScopeSnapshot
+ * @typedef ScopeSnapshot
+ * @property {Map<Scope, unknown[]>} scopes
+ * @property {Node} node
  */
+
+/**
+ * @typedef {() => (void | (() => void))} SetupFn
+ */
+
+class Node {
+  /** @type {Array<() => void | (() => void)>} */ #setupFns = [];
+  /** @type {Array<() => void>} */ #disposeFns = [];
+  /** @type {Array<Node>} */ #children = [];
+  #enabled = false;
+
+  enable() {
+    this.#enabled = true;
+  }
+
+  disable() {
+    this.#enabled = false;
+    for (const child of this.#children) child.disable();
+  }
+
+  /** @param {SetupFn} effect  */
+  addEffect(effect) {
+    this.#setupFns.push(effect);
+  }
+
+  fork() {
+    const newNode = new Node();
+    this.#children.push(newNode);
+    return newNode;
+  }
+
+  setup() {
+    if (!this.#enabled) return;
+    for (const effect of this.#setupFns) {
+      try {
+        const cleanup = effect();
+        if (typeof cleanup === 'function') this.#disposeFns.push(cleanup);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    for (const child of this.#children) {
+      child.setup();
+    }
+  }
+
+  dispose() {
+    if (!this.#enabled) return;
+    for (const effect of this.#disposeFns) {
+      try {
+        effect();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    this.#setupFns.length = 0;
+    this.#disposeFns.length = 0;
+    this.disable();
+    this.#children.length = 0;
+    this.#enabled = true;
+  }
+}
 
 const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
 
@@ -72,8 +135,8 @@ export function createScope(name) {
             : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
-      const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
-      activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
+      const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
+      activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
       try {
         if ('h' in props && !props.h) {
           const template = renderFn();
@@ -81,7 +144,7 @@ export function createScope(name) {
         }
         return h(renderFn, {});
       } finally {
-        activeScopeSnapshot.set(Scope, stackBefore);
+        activeScopeSnapshot.scopes.set(Scope, stackBefore);
       }
     },
   };
@@ -101,7 +164,7 @@ export function createScope(name) {
  */
 export function useScopeContext(Scope, snapshot) {
   const snapshotCtx = snapshot || getScopeSnapshot();
-  const relatedScopeData = snapshotCtx.get(Scope);
+  const relatedScopeData = snapshotCtx.scopes.get(Scope);
   if (!relatedScopeData || relatedScopeData.length === 0) {
     const scopeName = Scope?.key.description || 'UnknownScope';
     throw new Error(
@@ -137,7 +200,8 @@ export function useScopeContext(Scope, snapshot) {
  * ```
  */
 export function createScopeSnapshot() {
-  return new Map(getScopeSnapshot());
+  const { scopes, node: node } = getScopeSnapshot();
+  return { scopes: new Map(scopes), node: node.fork() };
 }
 
 /**
@@ -149,7 +213,10 @@ export function createScopeSnapshot() {
 function getScopeSnapshot() {
   const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
-    globalData.set(SNAPSHOT_KEY, new Map());
+    globalData.set(SNAPSHOT_KEY, {
+      scopes: new Map(),
+      node: new Node(),
+    });
   }
   return globalData.get(SNAPSHOT_KEY);
 }
@@ -208,8 +275,11 @@ export function withScopeSnapshot(snapshot, callback) {
   try {
     previousSnapshot = createScopeSnapshot();
     setScopeSnapshot(snapshot);
+    snapshot.node.dispose();
+
     return callback();
   } finally {
+    snapshot.node.setup();
     if (getScopeSnapshot() === snapshot) {
       if (previousSnapshot) setScopeSnapshot(previousSnapshot);
     }
@@ -270,4 +340,12 @@ export function combineScopes(...providers) {
   };
 
   return Scope;
+}
+
+/**
+ *
+ * @param {SetupFn} effect
+ */
+export function onSetup(effect) {
+  getScopeSnapshot().node.addEffect(effect);
 }

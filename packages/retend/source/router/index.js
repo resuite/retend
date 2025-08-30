@@ -1051,93 +1051,97 @@ export class Router extends EventTarget {
       );
       const simplePath = fullPathWithSearchAndHash.split('?')[0];
 
-      // The current path must react before the page loads.
-      const oldOutletPath = outlet.getAttribute('data-path');
-      if (this.currentPath.get().fullPath !== fullPathWithSearchAndHash) {
-        this.currentPath.set({
-          name: currentMatchedRoute.name,
-          path: simplePath,
-          params: matchResult.params,
-          query: matchResult.searchQueryParams,
-          fullPath: fullPathWithSearchAndHash,
-          metadata: matchResult.metadata,
-          hash: matchResult.hash,
-        });
-      }
-
-      outlet.setAttribute('data-path', simplePath);
-
-      /** @type {JSX.Template} */
-      let renderedComponent;
-      const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
-      if (routeSnapshot) {
-        renderedComponent = [...routeSnapshot.fragment.childNodes];
-      } else {
-        try {
-          const scopeSnapshot = outlet.__originScopeSnapshot;
-          if (scopeSnapshot) {
-            renderedComponent = withScopeSnapshot(scopeSnapshot, () =>
-              h(matchedComponent, {})
-            );
-          } else renderedComponent = h(matchedComponent, {});
-        } catch (error) {
-          if (oldOutletPath) {
-            outlet.setAttribute('data-path', oldOutletPath);
-          } else {
-            outlet.removeAttribute('data-path');
-          }
-          console.error(error);
-          if (error instanceof Error)
-            this.dispatchEvent(new RouteErrorEvent({ error }));
-          return false;
+      const outletSnapshot =
+        outlet.__originScopeSnapshot ?? createScopeSnapshot();
+      const result = withScopeSnapshot(outletSnapshot, () => {
+        if (!outlet || !currentMatchedRoute) return false;
+        // The current path must react before the page loads.
+        const oldOutletPath = outlet.getAttribute('data-path');
+        if (this.currentPath.get().fullPath !== fullPathWithSearchAndHash) {
+          this.currentPath.set({
+            name: currentMatchedRoute.name,
+            path: simplePath,
+            params: matchResult.params,
+            query: matchResult.searchQueryParams,
+            fullPath: fullPathWithSearchAndHash,
+            metadata: matchResult.metadata,
+            hash: matchResult.hash,
+          });
         }
-      }
 
-      matchedComponent.__routeLevelFunction = true;
-      matchedComponent.__renderedOutlet = new WeakRef(outlet);
-      matchedComponent.__renderedPath = fullPathWithSearchAndHash;
+        outlet.setAttribute('data-path', simplePath);
 
-      // if the component performs a redirect internally, it would change the route
-      // stored in the outlet's dataset, so we need to check before replacing.
-      if (outlet.getAttribute('data-path') !== simplePath) return false;
+        /** @type {JSX.Template} */
+        let renderedComponent;
+        const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
+        if (routeSnapshot) {
+          renderedComponent = [...routeSnapshot.fragment.childNodes];
+        } else {
+          try {
+            renderedComponent = h(matchedComponent, {});
+          } catch (error) {
+            if (oldOutletPath) {
+              outlet.setAttribute('data-path', oldOutletPath);
+            } else {
+              outlet.removeAttribute('data-path');
+            }
+            console.error(error);
+            if (error instanceof Error)
+              this.dispatchEvent(new RouteErrorEvent({ error }));
+            return false;
+          }
+        }
 
-      // There is no feasible way to determine the final navigation direction
-      // for view transitions, without already triggering a view transition.
-      // Mind bending nonsense.
-      const navigationDirection = this.chooseNavigationDirection(
-        fullPathWithSearchAndHash,
-        replace
-      );
-      viewTransitionTypesArray[0] = navigationDirection;
-      if (currentMatchedRoute.transitionType) {
-        viewTransitionTypesArray[1] = currentMatchedRoute.transitionType;
-      }
+        matchedComponent.__routeLevelFunction = true;
+        matchedComponent.__renderedOutlet = new WeakRef(outlet);
+        matchedComponent.__renderedPath = fullPathWithSearchAndHash;
 
-      // if the outlet is keep alive, we need to cache the current nodes
-      if (oldOutletPath) {
-        this.#preserveCurrentOutletState(oldOutletPath, outlet);
-      }
+        // if the component performs a redirect internally, it would change the route
+        // stored in the outlet's dataset, so we need to check before replacing.
+        if (outlet.getAttribute('data-path') !== simplePath) return false;
 
-      const nodes = generateChildNodes(renderedComponent);
-      if (nodes.some((node) => '__promise' in node)) {
-        // We want async top route components to render before the route changes.
-        await Promise.all(
-          nodes.map((node) =>
-            '__promise' in node ? node.__promise : undefined
-          )
+        // There is no feasible way to determine the final navigation direction
+        // for view transitions, without already triggering a view transition.
+        // Mind bending nonsense.
+        const navigationDirection = this.chooseNavigationDirection(
+          fullPathWithSearchAndHash,
+          replace
         );
-      }
-      const newNodesFragment = this.handleRelays(outlet, nodes);
-      if (newNodesFragment) {
-        renderRouteIntoOutlet(outlet, newNodesFragment, this.#window);
-      }
+        viewTransitionTypesArray[0] = navigationDirection;
+        if (currentMatchedRoute.transitionType) {
+          viewTransitionTypesArray[1] = currentMatchedRoute.transitionType;
+        }
 
-      lastMatchedRoute = currentMatchedRoute;
-      currentMatchedRoute = currentMatchedRoute.child;
-      const nextOutlet = /** @type {RouterOutlet} */ (
-        outlet.querySelector('retend-router-outlet')
-      );
-      outlet = nextOutlet;
+        // if the outlet is keep alive, we need to cache the current nodes
+        if (oldOutletPath) {
+          this.#preserveCurrentOutletState(oldOutletPath, outlet);
+        }
+
+        const nodes = generateChildNodes(renderedComponent);
+        if (nodes.some((node) => '__promise' in node)) {
+          // TODO: Yes, there should be an await here, but async is like a virus,
+          // and if it has to be here, suddenly all of Retend will have to
+          // run asynchronously. Async components were a terrible, terrible idea.
+          Promise.all(
+            nodes.map((node) =>
+              '__promise' in node ? node.__promise : undefined
+            )
+          );
+        }
+        const newNodesFragment = this.handleRelays(outlet, nodes);
+        if (newNodesFragment) {
+          renderRouteIntoOutlet(outlet, newNodesFragment, this.#window);
+        }
+
+        lastMatchedRoute = currentMatchedRoute;
+        currentMatchedRoute = currentMatchedRoute.child;
+        return true;
+      });
+
+      if (!result) return false;
+
+      const nextOutlet = outlet.querySelector('retend-router-outlet');
+      outlet = /** @type {RouterOutlet} */ (nextOutlet);
     }
 
     // If the route tree traversal is exhausted, but there is still a nested
