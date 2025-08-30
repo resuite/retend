@@ -1,4 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
+/** @import { useObserver } from './observer.js' */
 import { getGlobalContext } from '../context/index.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
@@ -343,9 +344,48 @@ export function combineScopes(...providers) {
 }
 
 /**
+ * A hook for managing side effects with cleanup, tied to a component's logical lifecycle.
  *
- * @param {SetupFn} effect
+ * The callback runs once when a component instance is initialized, ideal for tasks
+ * like setting timers, subscribing to data streams, or adding global event listeners.
+ * The callback can return a cleanup function to prevent memory leaks, automatically
+ * executed when the component instance is destroyed (e.g., when removed from a `<For>` list).
+ *
+ * @param {SetupFn} callback - Function executed once on component setup. If it returns
+ *   a function, that function is used for cleanup.
+ *
+ * @example
+ * ```tsx
+ * import { Cell, useSetupEffect } from 'retend';
+ *
+ * function LiveClock() {
+ *   const time = Cell.source(new Date().toTimeString());
+ *
+ *   useSetupEffect(() => {
+ *     const timerId = setInterval(() => time.set(new Date().toTimeString()), 1000);
+ *     return () => clearInterval(timerId);
+ *   });
+ *
+ *   return <p>Current time: {time}</p>;
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * useSetupEffect(() => {
+ *   const handleResize = () => console.log('Window resized!');
+ *   window.addEventListener('resize', handleResize);
+ *
+ *   return () => window.removeEventListener('resize', handleResize);
+ * });
+ * ```
+ *
+ * @remarks
+ * - This hook runs only once per component instance, similar to `useEffect(..., [])` in React. It does not re-run on updates.
+ * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `useObserver` instead.
+ *
+ * @see {@link useObserver} for DOM-based lifecycle effects.
  */
-export function onSetup(effect) {
-  getScopeSnapshot().node.addEffect(effect);
+export function useSetupEffect(callback) {
+  getScopeSnapshot().node.addEffect(callback);
 }
