@@ -94,20 +94,19 @@ export function Switch(value, cases, defaultCase) {
       if (caseCaller) {
         const newNodes = h(caseCaller, new ArgumentList([value]));
         nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
         return nodes;
       }
 
       if (defaultCase) {
         const newNodes = h(defaultCase, new ArgumentList([value]));
         nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
         return nodes;
       }
 
       return nodes;
     });
     snapshot.node.activate(); // run new effects
+    this.after(.../** @type {*} */ (results));
     return results;
   };
 

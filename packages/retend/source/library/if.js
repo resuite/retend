@@ -118,10 +118,10 @@ export function If(value, fnOrObject, elseFn) {
           'If expects a callback or condition object as the second argument.'
         );
 
-      this.after(.../** @type {*} */ (nodes));
       return nodes;
     });
     scopeSnapshot.node.activate(); // run new effects
+    this.after(.../** @type {*} */ (results));
     return results;
   };
 
