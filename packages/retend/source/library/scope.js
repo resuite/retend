@@ -49,6 +49,7 @@ class EffectNode {
   /** @type {Array<() => void>} */ #disposeFns = [];
   /** @type {Array<EffectNode>} */ #children = [];
   #enabled = false;
+  #active = false;
 
   enable() {
     const { window } = getGlobalContext();
@@ -76,7 +77,7 @@ class EffectNode {
   }
 
   activate() {
-    if (!this.#enabled) return;
+    if (!this.#enabled || this.#active) return;
     for (const effect of this.#setupFns) {
       try {
         const cleanup = effect();
@@ -85,13 +86,14 @@ class EffectNode {
         console.error(error);
       }
     }
+    this.#active = true;
     for (const child of this.#children) {
       child.activate();
     }
   }
 
   #runDisposeFns() {
-    if (!this.#enabled) return;
+    if (!this.#enabled || !this.#active) return;
     for (const effect of this.#disposeFns) {
       try {
         effect();
@@ -99,7 +101,7 @@ class EffectNode {
         console.error('Cleanup effect failed:', error);
       }
     }
-
+    this.#active = false;
     for (const child of this.#children) {
       child.#runDisposeFns();
     }
