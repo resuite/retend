@@ -1,8 +1,8 @@
 # retend
 
-[![downloads (retend)](https://img.shields.io/npm/dm/retend?label=downloads)](https://www.npmjs.com/package/retend)
+> **Retend is not ready for any production use. Implement it at your own discretion.**
 
-Retend is a framework for building fast and fluid web apps. Like React, it allows you to use JSX to create dynamic user interfaces.
+Retend is a experimental framework for building fluid web apps. Like React, it allows you to use JSX to create dynamic user interfaces.
 
 If you've worked with HTML, CSS, and JavaScript, Retend should be easy to pick up. It is designed to help you build applications quickly and efficiently.
 
@@ -24,15 +24,17 @@ Here's a breakdown of the core functionalities:
 
   This gives you a high level of control and interoperability with existing DOM APIs.
 
-- **Built-in Router:** The library includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
+- **Built-in Router:** Retend includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
 
-- **(Experimental) Fast Refresh Support:** Retend supports hot module reloads, which allow you to see changes instantly without refreshing the page. This speeds up development by letting you focus more on your application.
+- **(Experimental) HMR Support:** Retend supports hot module reloads, which allow you to see changes instantly without refreshing the page. This speeds up development by letting you focus more on your application.
+
+- **(Experimental) SSG support:** Retends supports statically generating a select group of paths of your application.
 
 ## Installation
 
 > `NOTE`: This section assumes you already have Node.js and npm installed on your machine. If you don't, you can download them from the official [Node.js website](https://nodejs.org/en/).
 
-To get started with Retend, you'll need to create a new project using our scaffolding tool.
+To get started with Retend, you'll need to create a new project using the scaffolding tool.
 
 This will set up the basic project structure for you. Then, you'll need to install dependencies and start the development server.
 
