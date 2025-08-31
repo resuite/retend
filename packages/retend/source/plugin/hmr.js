@@ -163,8 +163,9 @@ export function setupHMRBoundaries(value, fn) {
 
   /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */
   const callback = function (_value) {
+    const range = window.document.createRange();
     scopeSnapshot.node.dispose(); // cleanup previous effects
-    const results = withScopeSnapshot(scopeSnapshot, () => {
+    withScopeSnapshot(scopeSnapshot, () => {
       const { window } = getGlobalContext();
       if (!matchContext(window, Modes.Interactive)) {
         const message = 'Cannot handle HMR in non-interactive environments';
@@ -191,7 +192,6 @@ export function setupHMRBoundaries(value, fn) {
         if (instanceIsInUpdatePath) return;
       }
 
-      const range = window.document.createRange();
       const start = /** @type {Node} */ (nodes[0]);
       const end = /** @type {Node} */ (nodes[nodes.length - 1]);
       range.setStartBefore(start);
@@ -207,13 +207,12 @@ export function setupHMRBoundaries(value, fn) {
         const pair = createCommentPair();
         nodes = [pair[0], ...nodes, pair[1]];
       }
-
-      range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
-      // listen for the next iteration.
-      addCellListener(nodes[0], value, callback, false);
     });
+
     scopeSnapshot.node.activate(); // run new effects
-    return results;
+    range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
+    // listen for the next iteration.
+    addCellListener(nodes[0], value, callback, false);
   };
 
   addCellListener(nodes[0], value, callback, false);
