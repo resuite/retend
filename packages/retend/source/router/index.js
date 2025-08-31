@@ -224,6 +224,9 @@ export class RouteErrorEvent extends CustomEvent {
  *
  * @property {[number, number]} windowScroll
  * The `(x, y)` scroll positions of the window when the snapshot was taken.
+ *
+ * @property {ScopeSnapshot['node']} node
+ * The related effect node for the route.
  */
 
 /**
@@ -1069,16 +1072,28 @@ export class Router extends EventTarget {
 
       /** @type {JSX.Template} */
       let renderedComponent;
+      let disabledEffectNodeForLastRoute;
       const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
       const oldSnapshot = outlet.__originScopeSnapshot;
       if (routeSnapshot) {
+        if (oldSnapshot) {
+          const { node } = oldSnapshot;
+          disabledEffectNodeForLastRoute = node.detach();
+          node.attach(routeSnapshot.node);
+          node.enable(); // The restored node would have disabled children.
+          node.activate();
+        }
         renderedComponent = [...routeSnapshot.fragment.childNodes];
       } else {
         try {
           if (oldSnapshot) {
+            const { node } = oldSnapshot;
+            disabledEffectNodeForLastRoute = node.detach();
             renderedComponent = withScopeSnapshot(oldSnapshot, () =>
               h(matchedComponent, {})
             );
+            // setup new effects.
+            node.activate();
           } else renderedComponent = h(matchedComponent, {});
         } catch (error) {
           if (oldOutletPath) {
@@ -1114,8 +1129,12 @@ export class Router extends EventTarget {
       }
 
       // if the outlet is keep alive, we need to cache the current nodes
-      if (oldOutletPath) {
-        this.#preserveCurrentOutletState(oldOutletPath, outlet);
+      if (oldOutletPath && disabledEffectNodeForLastRoute) {
+        this.#preserveCurrentOutletState(
+          oldOutletPath,
+          outlet,
+          disabledEffectNodeForLastRoute
+        );
       }
 
       const nodes = generateChildNodes(renderedComponent);
@@ -1145,7 +1164,11 @@ export class Router extends EventTarget {
     // that is not being used and should be flushed out.
     if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
       const oldPath = outlet.getAttribute('data-path');
-      if (oldPath) this.#preserveCurrentOutletState(oldPath, outlet);
+      const snapshot = outlet.__originScopeSnapshot;
+      if (oldPath && snapshot) {
+        const effectNode = snapshot.node.detach();
+        this.#preserveCurrentOutletState(oldPath, outlet, effectNode);
+      }
       outlet.removeAttribute('data-path');
       outlet.replaceChildren();
     }
@@ -1173,8 +1196,9 @@ export class Router extends EventTarget {
    * Saves the state of the outlet if keepAlive is turned on.
    * @param {string} oldPath
    * @param {RouterOutlet} outlet
+   * @param {ScopeSnapshot['node']} node
    */
-  #preserveCurrentOutletState(oldPath, outlet) {
+  #preserveCurrentOutletState(oldPath, outlet, node) {
     if (outlet.__keepAlive && oldPath && this.#window) {
       // Caching as a fragment instead of an array of nodes
       // makes it possible for the cached nodes to still be reactive
@@ -1187,6 +1211,7 @@ export class Router extends EventTarget {
         fragment,
         outletScroll: [outlet.scrollLeft, outlet.scrollTop],
         windowScroll: [this.#window?.scrollX ?? 0, this.#window?.scrollY ?? 0],
+        node,
       });
     }
   }

@@ -212,7 +212,7 @@ export function setupHMRBoundaries(value, fn) {
       // listen for the next iteration.
       addCellListener(nodes[0], value, callback, false);
     });
-    scopeSnapshot.node.setup(); // run new effects
+    scopeSnapshot.node.activate(); // run new effects
     return results;
   };
 

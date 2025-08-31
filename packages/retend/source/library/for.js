@@ -16,7 +16,7 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  * @typedef ForOptions
  * @property {T extends object ? keyof T : never} [key]
  * When iterating over objects with a predefined shape, this represents the property to use
- * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
+ * as a caching index. By default a unique symbol will be used.
  * @property {(node: ChildNodeLike[]) => void} [onBeforeNodesMove]
  * Provides access to a node just before it is moved to a new position in the DOM by any of the
  * items in the list.
@@ -139,12 +139,12 @@ export function For(list, fn, options) {
     /** @type {ScopeSnapshot} */
     const snapshot = {
       scopes: base.scopes,
-      node: base.node.fork(),
+      node: base.node.branch(),
     };
     const newNodes = withScopeSnapshot(snapshot, () =>
       h(fn, new ArgumentList(parameters))
     );
-    snapshot.node.setup();
+    snapshot.node.activate();
     const nodes = /** @type {ChildNodeLike[]} */ (
       Array.isArray(newNodes) ? newNodes : [newNodes]
     );
@@ -176,12 +176,12 @@ export function For(list, fn, options) {
         /** @type {ScopeSnapshot} */
         const snapshot = {
           scopes: base.scopes,
-          node: base.node.fork(),
+          node: base.node.branch(),
         };
         const newNodes = withScopeSnapshot(snapshot, () => {
           return h(fn, new ArgumentList(parameters));
         });
-        snapshot.node.setup(); // run new effects
+        snapshot.node.activate(); // run new effects
         const nodes = /** @type {ChildNodeLike[]} */ (
           Array.isArray(newNodes) ? newNodes : [newNodes]
         );

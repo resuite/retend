@@ -107,7 +107,7 @@ export function Switch(value, cases, defaultCase) {
 
       return nodes;
     });
-    snapshot.node.setup(); // run new effects
+    snapshot.node.activate(); // run new effects
     return results;
   };
 
@@ -212,7 +212,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       return nodes;
     });
-    snapshot.node.setup(); // run new effects
+    snapshot.node.activate(); // run new effects
     return results;
   };
 

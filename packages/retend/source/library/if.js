@@ -121,7 +121,7 @@ export function If(value, fnOrObject, elseFn) {
       this.after(.../** @type {*} */ (nodes));
       return nodes;
     });
-    scopeSnapshot.node.setup(); // run new effects
+    scopeSnapshot.node.activate(); // run new effects
     return results;
   };
 

@@ -33,21 +33,29 @@ import { generateChildNodes } from './utils.js';
 /**
  * @typedef ScopeSnapshot
  * @property {Map<Scope, unknown[]>} scopes
- * @property {Node} node
+ * @property {EffectNode} node
  */
 
 /**
  * @typedef {() => (void | (() => void))} SetupFn
  */
 
-class Node {
+/**
+ * Represents a node managing effects and cleanup within a hierarchy.
+ * Allows enabling/disabling, forking child nodes, and disposing by cleaning effects and children.
+ */
+class EffectNode {
   /** @type {Array<() => void | (() => void)>} */ #setupFns = [];
   /** @type {Array<() => void>} */ #disposeFns = [];
-  /** @type {Array<Node>} */ #children = [];
+  /** @type {Array<EffectNode>} */ #children = [];
   #enabled = false;
 
   enable() {
-    this.#enabled = true;
+    const { window } = getGlobalContext();
+    if (matchContext(window, Modes.Interactive)) {
+      this.#enabled = true;
+      for (const child of this.#children) child.enable();
+    }
   }
 
   disable() {
@@ -56,18 +64,18 @@ class Node {
   }
 
   /** @param {SetupFn} effect  */
-  addEffect(effect) {
+  add(effect) {
     this.#setupFns.push(effect);
   }
 
-  fork() {
-    const newNode = new Node();
+  branch() {
+    const newNode = new EffectNode();
     newNode.#enabled = this.#enabled;
     this.#children.push(newNode);
     return newNode;
   }
 
-  setup() {
+  activate() {
     if (!this.#enabled) return;
     for (const effect of this.#setupFns) {
       try {
@@ -78,29 +86,57 @@ class Node {
       }
     }
     for (const child of this.#children) {
-      child.setup();
+      child.activate();
     }
   }
 
-  dispose() {
+  #runDisposeFns() {
     if (!this.#enabled) return;
     for (const effect of this.#disposeFns) {
       try {
         effect();
       } catch (error) {
-        console.error(error);
+        console.error('Cleanup effect failed:', error);
       }
     }
-    const node = new Node();
-    node.#setupFns = this.#setupFns;
-    node.#disposeFns = this.#disposeFns;
+
+    for (const child of this.#children) {
+      child.#runDisposeFns();
+    }
+  }
+
+  dispose() {
+    if (!this.#enabled) return;
+    this.#runDisposeFns();
+
+    for (const child of this.#children) {
+      // prevents any side effects from being triggered in the
+      // (soon to be) orphaned subtrees, when any of their control
+      // structures receives changes.
+      child.disable();
+    }
 
     this.#setupFns.length = 0;
     this.#disposeFns.length = 0;
-    this.disable();
     this.#children.length = 0;
-    this.#enabled = true;
+  }
+
+  detach() {
+    const node = new EffectNode();
+    node.#setupFns = [...this.#setupFns];
+    node.#disposeFns = [...this.#disposeFns];
+    node.#children = [...this.#children];
+
+    this.dispose();
     return node;
+  }
+
+  /** @param {EffectNode} node  */
+  attach(node) {
+    this.#enabled = node.#enabled;
+    this.#children = [...node.#children];
+    this.#setupFns = [...node.#setupFns];
+    this.#disposeFns = [...node.#disposeFns];
   }
 }
 
@@ -208,7 +244,7 @@ export function useScopeContext(Scope, snapshot) {
  */
 export function createScopeSnapshot() {
   const { scopes, node: node } = getScopeSnapshot();
-  return { scopes: new Map(scopes), node: node.fork() };
+  return { scopes: new Map(scopes), node: node.branch() };
 }
 
 /**
@@ -218,13 +254,11 @@ export function createScopeSnapshot() {
  *   currently active data for that scope.
  */
 function getScopeSnapshot() {
-  const { globalData, window } = getGlobalContext();
+  const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
-    const node = new Node();
+    const node = new EffectNode();
     const scopes = new Map();
-    if (matchContext(window, Modes.Interactive)) {
-      node.enable();
-    }
+    node.enable();
     globalData.set(SNAPSHOT_KEY, { scopes, node });
   }
   return globalData.get(SNAPSHOT_KEY);
@@ -364,14 +398,17 @@ export function combineScopes(...providers) {
  * import { Cell, useSetupEffect } from 'retend';
  *
  * function LiveClock() {
- *   const time = Cell.source(new Date().toTimeString());
+ *   const time = Cell.source(new Date());
+ *   const timeStr = Cell.derived(() => {
+ *     return time.get().toLocaleTimeString();
+ *   });
  *
  *   useSetupEffect(() => {
- *     const timerId = setInterval(() => time.set(new Date().toTimeString()), 1000);
+ *     const timerId = setInterval(() => time.set(new Date()), 1000);
  *     return () => clearInterval(timerId);
  *   });
  *
- *   return <p>Current time: {time}</p>;
+ *   return <p>Current time: {timeStr}</p>;
  * }
  * ```
  *
@@ -392,5 +429,5 @@ export function combineScopes(...providers) {
  * @see {@link useObserver} for DOM-based lifecycle effects.
  */
 export function useSetupEffect(callback) {
-  getScopeSnapshot().node.addEffect(callback);
+  getScopeSnapshot().node.add(callback);
 }
