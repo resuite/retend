@@ -20,12 +20,14 @@ export class HtmlOutputArtifact extends OutputArtifact {
    * @param {string} name
    * @param {VWindow} contents
    * @param {() => Promise<string>} stringify
+   * @param {Set<string>} cssImports
    */
-  constructor(name, contents, stringify) {
+  constructor(name, contents, stringify, cssImports) {
     super();
     this.name = name;
     this.contents = contents;
     this.stringify = stringify;
+    this.cssImports = cssImports;
   }
 }
 
@@ -42,11 +44,11 @@ export class RedirectOutputArtifact extends OutputArtifact {
 }
 
 /**
- * @param {string[]} paths The paths to serialize.
+ * @param {string} path The path to serialize.
  * @param {BuildOptions} options Options for building, including optional skipRedirects.
  * @returns {Promise<(HtmlOutputArtifact | RedirectOutputArtifact)[]>} A promise that resolves to an array of output artifacts.
  */
-export async function buildPaths(paths, options) {
+export async function buildPath(path, options) {
   const {
     htmlShell = await fs.readFile(resolve('./index.html'), 'utf8'),
     rootSelector = '#app',
@@ -55,8 +57,6 @@ export async function buildPaths(paths, options) {
     ssg,
     routerModulePath,
   } = options;
-
-  const promises = [];
 
   const { runner } = ssg;
   const routerModule = /** @type {{ createRouter: () => Router }} */ (
@@ -84,25 +84,20 @@ export async function buildPaths(paths, options) {
     );
   }
 
-  for (const path of paths) {
-    /** @type {RenderOptions} */
-    const renderOptions = {
-      path,
-      asyncLocalStorage,
-      htmlShell,
-      rootSelector,
-      routerModule,
-      retendModule,
-      retendRenderModule,
-      retendVDomModule,
-      skipRedirects,
-    };
-    const promise = renderPath(renderOptions);
-    promises.push(promise);
-  }
+  /** @type {RenderOptions} */
+  const renderOptions = {
+    path,
+    asyncLocalStorage,
+    htmlShell,
+    rootSelector,
+    routerModule,
+    retendModule,
+    retendRenderModule,
+    retendVDomModule,
+    skipRedirects,
+  };
 
-  const outputs = (await Promise.all(promises)).flat(1);
-  return outputs;
+  return renderPath(renderOptions);
 }
 
 /**
@@ -130,6 +125,7 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
+  const cssImports = new Set();
   globalData.set('env:ssr', true);
   const globalContextStore = {
     window,
@@ -137,6 +133,7 @@ async function renderPath(options) {
     teleportIdCounter,
     consistentValues,
     globalData,
+    cssImports,
   };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
@@ -210,7 +207,7 @@ async function renderPath(options) {
       return contents;
     };
 
-    outputs.push(new HtmlOutputArtifact(name, window, stringify));
+    outputs.push(new HtmlOutputArtifact(name, window, stringify, cssImports));
     if (path === finalPath || skipRedirects) return;
 
     // Add redirect to both HTML and _redirects file
@@ -235,8 +232,11 @@ async function renderPath(options) {
     }
 
     outputs.push(
-      new HtmlOutputArtifact(redirectFileName, redirectWindow, () =>
-        Promise.resolve(redirectContent)
+      new HtmlOutputArtifact(
+        redirectFileName,
+        redirectWindow,
+        () => Promise.resolve(redirectContent),
+        cssImports
       )
     );
   });
