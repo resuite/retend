@@ -77,7 +77,8 @@ export function If(value, fnOrObject, elseFn) {
 
   /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (_value) {
-    return withScopeSnapshot(scopeSnapshot, () => {
+    scopeSnapshot.node.dispose(); // cleanup previous effects
+    const results = withScopeSnapshot(scopeSnapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
       let nextNode = this.nextSibling;
@@ -120,6 +121,8 @@ export function If(value, fnOrObject, elseFn) {
       this.after(.../** @type {*} */ (nodes));
       return nodes;
     });
+    scopeSnapshot.node.setup(); // run new effects
+    return results;
   };
 
   // see comment in switch.js

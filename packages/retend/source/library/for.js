@@ -144,6 +144,7 @@ export function For(list, fn, options) {
     const newNodes = withScopeSnapshot(snapshot, () =>
       h(fn, new ArgumentList(parameters))
     );
+    snapshot.node.setup();
     const nodes = /** @type {ChildNodeLike[]} */ (
       Array.isArray(newNodes) ? newNodes : [newNodes]
     );
@@ -180,6 +181,7 @@ export function For(list, fn, options) {
         const newNodes = withScopeSnapshot(snapshot, () => {
           return h(fn, new ArgumentList(parameters));
         });
+        snapshot.node.setup(); // run new effects
         const nodes = /** @type {ChildNodeLike[]} */ (
           Array.isArray(newNodes) ? newNodes : [newNodes]
         );

@@ -74,7 +74,8 @@ export function Switch(value, cases, defaultCase) {
 
   /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (value) {
-    return withScopeSnapshot(snapshot, () => {
+    snapshot.node.dispose(); // cleanup previous effects
+    const results = withScopeSnapshot(snapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
       let nextNode = this.nextSibling;
@@ -106,6 +107,8 @@ export function Switch(value, cases, defaultCase) {
 
       return nodes;
     });
+    snapshot.node.setup(); // run new effects
+    return results;
   };
 
   // Don't use runAndListen with an outer array to store nodes.
@@ -174,7 +177,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
   /** @type {ReactiveCellFunction<any, any, any>} */
   const callback = function (cellValue) {
-    return withScopeSnapshot(snapshot, () => {
+    snapshot.node.dispose(); // cleanup previous effects
+    const results = withScopeSnapshot(snapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
       let nextNode = this.nextSibling;
@@ -208,6 +212,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       return nodes;
     });
+    snapshot.node.setup(); // run new effects
+    return results;
   };
 
   const firstRun = callback.bind(rangeStart)(cell.get());

@@ -1,6 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver } from './observer.js' */
-import { getGlobalContext } from '../context/index.js';
+import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
 
@@ -62,6 +62,7 @@ class Node {
 
   fork() {
     const newNode = new Node();
+    newNode.#enabled = this.#enabled;
     this.#children.push(newNode);
     return newNode;
   }
@@ -90,11 +91,16 @@ class Node {
         console.error(error);
       }
     }
+    const node = new Node();
+    node.#setupFns = this.#setupFns;
+    node.#disposeFns = this.#disposeFns;
+
     this.#setupFns.length = 0;
     this.#disposeFns.length = 0;
     this.disable();
     this.#children.length = 0;
     this.#enabled = true;
+    return node;
   }
 }
 
@@ -212,12 +218,14 @@ export function createScopeSnapshot() {
  *   currently active data for that scope.
  */
 function getScopeSnapshot() {
-  const { globalData } = getGlobalContext();
+  const { globalData, window } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
-    globalData.set(SNAPSHOT_KEY, {
-      scopes: new Map(),
-      node: new Node(),
-    });
+    const node = new Node();
+    const scopes = new Map();
+    if (matchContext(window, Modes.Interactive)) {
+      node.enable();
+    }
+    globalData.set(SNAPSHOT_KEY, { scopes, node });
   }
   return globalData.get(SNAPSHOT_KEY);
 }
@@ -276,11 +284,8 @@ export function withScopeSnapshot(snapshot, callback) {
   try {
     previousSnapshot = createScopeSnapshot();
     setScopeSnapshot(snapshot);
-    snapshot.node.dispose();
-
     return callback();
   } finally {
-    snapshot.node.setup();
     if (getScopeSnapshot() === snapshot) {
       if (previousSnapshot) setScopeSnapshot(previousSnapshot);
     }
