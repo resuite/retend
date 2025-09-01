@@ -76,7 +76,7 @@ class EffectNode {
     return newNode;
   }
 
-  activate() {
+  #runActivateFns() {
     if (!this.#enabled || this.#active) return;
     for (const effect of this.#setupFns) {
       try {
@@ -88,8 +88,15 @@ class EffectNode {
     }
     this.#active = true;
     for (const child of this.#children) {
-      child.activate();
+      if (!child.#enabled || child.#active) continue;
+      child.#runActivateFns();
     }
+  }
+
+  async activate() {
+    if (!this.#enabled || this.#active) return;
+    await new Promise((resolve) => setTimeout(resolve));
+    this.#runActivateFns();
   }
 
   #runDisposeFns() {
@@ -108,7 +115,7 @@ class EffectNode {
   }
 
   dispose() {
-    if (!this.#enabled) return;
+    if (!this.#enabled || !this.#active) return;
     this.#runDisposeFns();
 
     for (const child of this.#children) {
@@ -247,7 +254,7 @@ export function useScopeContext(Scope, snapshot) {
  * ```
  */
 export function createScopeSnapshot() {
-  const { scopes, node: node } = getScopeSnapshot();
+  const { scopes, node } = getScopeSnapshot();
   return { scopes: new Map(scopes), node: node.branch() };
 }
 
@@ -432,7 +439,8 @@ export function combineScopes(...providers) {
  * @see {@link useObserver} for DOM-based lifecycle effects.
  */
 export function useSetupEffect(callback) {
-  getScopeSnapshot().node.add(callback);
+  const { node } = getScopeSnapshot();
+  node.add(callback);
 }
 
 /**
@@ -455,7 +463,7 @@ export function useSetupEffect(callback) {
  *
  * @see {@link useSetupEffect} for registering effects that will be run by this function.
  */
-export function runPendingSetupEffects() {
+export async function runPendingSetupEffects() {
   const { node } = getScopeSnapshot();
   if (!(node instanceof RootEffectNode)) {
     const message =
@@ -464,4 +472,5 @@ export function runPendingSetupEffects() {
   }
   node.enable();
   node.activate();
+  await new Promise((resolve) => setTimeout(resolve));
 }

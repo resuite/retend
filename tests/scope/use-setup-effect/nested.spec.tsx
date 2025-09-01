@@ -1,12 +1,12 @@
 import { describe, it, expect, assert } from 'vitest';
 import { useSetupEffect, If, Cell, For, runPendingSetupEffects } from 'retend';
 import { browserSetup, getTextContent } from '../../setup.ts';
-import { getGlobalContext, matchContext, Modes } from 'retend/context';
+import { setTimeout } from 'node:timers/promises';
 
 describe('nested useSetupEffect', () => {
   browserSetup();
 
-  it('should handle nested If components', () => {
+  it('should handle nested If components', async () => {
     const setupLogs: string[] = [];
     const cleanupLogs: string[] = [];
 
@@ -33,31 +33,36 @@ describe('nested useSetupEffect', () => {
 
     const result = App() as HTMLElement;
     window.document.body.append(result);
-    runPendingSetupEffects();
+    await runPendingSetupEffects();
+
     expect(setupLogs).toEqual([]);
     expect(cleanupLogs).toEqual([]);
 
     showOuter.set(true);
+    await setTimeout();
     expect(setupLogs).toEqual(['outer']);
     expect(cleanupLogs).toEqual([]);
     setupLogs.length = 0;
 
     showInner.set(true);
+    await setTimeout();
     expect(setupLogs).toEqual(['inner']);
     expect(cleanupLogs).toEqual([]);
     setupLogs.length = 0;
 
     showInner.set(false);
+    await setTimeout();
     expect(setupLogs).toEqual([]);
     expect(cleanupLogs).toEqual(['inner']);
     cleanupLogs.length = 0;
 
     showOuter.set(false);
+    await setTimeout();
     expect(setupLogs).toEqual([]);
     expect(cleanupLogs).toEqual(['outer']);
   });
 
-  it('should handle nested For components', () => {
+  it('should handle nested For components', async () => {
     const outerList = Cell.source<number[]>([]);
     const innerList = Cell.source<number[]>([]);
     const setupLogs: string[] = [];
@@ -89,14 +94,16 @@ describe('nested useSetupEffect', () => {
 
     const result = App() as HTMLElement;
     window.document.body.append(result);
-    runPendingSetupEffects();
+    await runPendingSetupEffects();
 
     expect(getTextContent(result)).toEqual('');
     outerList.set([1, 2, 3]);
+    await setTimeout();
     expect(getTextContent(result)).toEqual('Outer[]Outer[]Outer[]');
     expect(setupLogs).toEqual(['outer', 'outer', 'outer']);
 
     innerList.set([1, 2, 3]);
+    await setTimeout();
     expect(getTextContent(result)).toEqual(
       'Outer[InnerInnerInner]Outer[InnerInnerInner]Outer[InnerInnerInner]'
     );
@@ -116,6 +123,7 @@ describe('nested useSetupEffect', () => {
     ]);
 
     outerList.set([]);
+    await setTimeout();
     // runs depth first.
     expect(cleanupLogs).toEqual([
       'outer',

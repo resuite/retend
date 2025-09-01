@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterAll } from 'vitest';
 import { useSetupEffect, Switch, Cell, runPendingSetupEffects } from 'retend';
 import { resetGlobalContext } from 'retend/context';
 import { getTextContent, browserSetup } from '../../setup.ts';
+import { setTimeout } from 'node:timers/promises';
 
 describe('useSetupEffect with Switch', () => {
   browserSetup();
@@ -9,7 +10,7 @@ describe('useSetupEffect with Switch', () => {
     resetGlobalContext();
   });
 
-  it('works in a Switch() statement', () => {
+  it('works in a Switch() statement', async () => {
     const state = Cell.source<'A' | 'B' | 'C'>('A');
     const setupFn = vi.fn();
     const cleanupFn = vi.fn();
@@ -37,28 +38,32 @@ describe('useSetupEffect with Switch', () => {
     };
 
     const result = App() as HTMLElement;
-    runPendingSetupEffects();
+    await runPendingSetupEffects();
 
     expect(getTextContent(result)).toBe('Case A');
     expect(setupFn).not.toHaveBeenCalled();
     expect(cleanupFn).not.toHaveBeenCalled();
 
     state.set('B');
+    await setTimeout();
     expect(getTextContent(result)).toBe('Effect Component');
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).not.toHaveBeenCalled();
 
     state.set('C');
+    await setTimeout();
     expect(getTextContent(result)).toBe('Case C');
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).toHaveBeenCalledTimes(1);
 
     state.set('B');
+    await setTimeout();
     expect(getTextContent(result)).toBe('Effect Component');
     expect(setupFn).toHaveBeenCalledTimes(2);
     expect(cleanupFn).toHaveBeenCalledTimes(1);
 
     state.set('A');
+    await setTimeout();
     expect(getTextContent(result)).toBe('Case A');
     expect(setupFn).toHaveBeenCalledTimes(2);
     expect(cleanupFn).toHaveBeenCalledTimes(2);

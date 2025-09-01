@@ -29,6 +29,12 @@ import {
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
 
+const OUTLET_INTERNAL_KEYS = [
+  '__keepAlive',
+  '__keepAliveCache',
+  '__originScopeSnapshot',
+];
+
 /**
  * @template [M={}]
  * @typedef {Object} PageMeta
@@ -174,7 +180,7 @@ export async function hydrate(routerFn) {
     console.warn(
       '[retend-server] No server-side context found. Falling back to SPA mode.'
     );
-    const router = defaultToSpaMode(routerFn);
+    const router = await defaultToSpaMode(routerFn);
     activateLinks(router);
     return router;
   }
@@ -187,7 +193,7 @@ export async function hydrate(routerFn) {
 }
 
 /** @param {() => Router} routerFn  */
-function defaultToSpaMode(routerFn) {
+async function defaultToSpaMode(routerFn) {
   const router = routerFn();
   router.setWindow(window);
   router.attachWindowListeners();
@@ -195,7 +201,7 @@ function defaultToSpaMode(routerFn) {
   root?.append(/** @type {Node} */ (router.Outlet()));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
   addMetaListener(router, document);
-  runPendingSetupEffects();
+  await runPendingSetupEffects();
   return router;
 }
 
@@ -242,9 +248,7 @@ async function restoreContext(context, routerCreateFn) {
 
   await hydrateDomNode(htmlRoot, vHtmlRoot)
     .then(() => {
-      globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
       observer.processMountedNodes();
-      runPendingSetupEffects();
       const preloadedLinks = window.document.head.querySelectorAll(
         '[data-retend-preload]'
       );
@@ -269,6 +273,8 @@ async function restoreContext(context, routerCreateFn) {
   router.setWindow(window);
   router.attachWindowListeners();
   Reflect.set(globalThis.window.document, '__appRouterInstance', router);
+  await runPendingSetupEffects();
+  globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
 
   return router;
 }
@@ -312,6 +318,7 @@ async function hydrateDomNode(node, vNode) {
         data.originalFunction.bind(node)
       );
       data.relatedCell.listen(reboundFn, { weak: true });
+      data.relatedCell.ignore(data);
       newSet.add(reboundFn);
     }
     Reflect.set(node, '__attributeCells', newSet);
@@ -327,6 +334,13 @@ async function hydrateDomNode(node, vNode) {
     if (ref instanceof SourceCell) {
       Reflect.set(node, '__ref', ref);
       ref.set(node);
+    }
+
+    // Port outlet data.
+    if (vNode.tagName === 'RETEND-ROUTER-OUTLET') {
+      for (const key of OUTLET_INTERNAL_KEYS) {
+        Reflect.set(node, key, Reflect.get(vNode, key));
+      }
     }
   }
 

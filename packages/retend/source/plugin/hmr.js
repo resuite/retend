@@ -8,6 +8,7 @@ import {
   createCommentPair,
   addCellListener,
   consolidateNodes,
+  removeCellListener,
 } from '../library/utils.js';
 import { useComponentAncestry } from '../library/jsx.js';
 
@@ -152,7 +153,9 @@ export function setupHMRBoundaries(value, fn) {
   // NOTE TO FUTURE SELF: This optimization is only possible because
   // the comment ranges in other control flow structures already provide
   // guarantees about how nodes should behave.
-  let nodes = generateChildNodes(fn(value.peek()));
+  let nodes = withScopeSnapshot(scopeSnapshot, () => {
+    return generateChildNodes(fn(value.peek()));
+  });
   if (nodes.length === 0) nodes = createCommentPair();
   else if (nodes.some((node) => '__promise' in node)) {
     // async path: If any of the nodes generated are promise
@@ -210,13 +213,13 @@ export function setupHMRBoundaries(value, fn) {
 
       range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
       // listen for the next iteration.
+      removeCellListener(this, value, callback);
       addCellListener(nodes[0], value, callback, false);
       return true;
     });
-    if (updated && this.isConnected) {
+    if (updated) {
       scopeSnapshot.node.activate();
     }
-    return updated;
   };
 
   addCellListener(nodes[0], value, callback, false);

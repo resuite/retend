@@ -245,7 +245,6 @@ export class RouteErrorEvent extends CustomEvent {
  *  __keepAlive?: boolean;
  *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  *  __originScopeSnapshot?: ScopeSnapshot;
- *  __createdDuringRouteLoad?: boolean;
  * }} RouterOutlet
  */
 
@@ -485,7 +484,6 @@ export class Router extends EventTarget {
     /** @type {RouterOutlet } */
     const outlet = this.#window.document.createElement('retend-router-outlet');
     outlet.__originScopeSnapshot = originScopeSnapshot;
-    outlet.__createdDuringRouteLoad = this.#currentNavigation !== null;
 
     if (props) {
       const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
@@ -1085,8 +1083,7 @@ export class Router extends EventTarget {
       } else {
         try {
           if (oldSnapshot) {
-            const { node } = oldSnapshot;
-            disabledEffectNodeForLastRoute = node.detach();
+            disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
             renderedComponent = withScopeSnapshot(oldSnapshot, () =>
               h(matchedComponent, {})
             );
@@ -1153,7 +1150,7 @@ export class Router extends EventTarget {
         outlet.querySelector('retend-router-outlet')
       );
       if (outlet.isConnected) {
-        outlet.__originScopeSnapshot?.node.activate();
+        await outlet.__originScopeSnapshot?.node.activate();
       }
       outlet = nextOutlet;
     }

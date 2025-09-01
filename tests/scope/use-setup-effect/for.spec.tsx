@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useSetupEffect, For, Cell, runPendingSetupEffects } from 'retend';
 import { getTextContent, browserSetup } from '../../setup.ts';
+import { setTimeout } from 'node:timers/promises';
 
 describe('useSetupEffect with For', () => {
   browserSetup();
 
-  it('works in a For() loop', () => {
+  it('works in a For() loop', async () => {
     const list = Cell.source([
       { id: 1, text: 'A' },
       { id: 2, text: 'B' },
@@ -52,7 +53,7 @@ describe('useSetupEffect with For', () => {
 
     const result = App() as HTMLElement;
     window.document.body.append(result);
-    runPendingSetupEffects();
+    await runPendingSetupEffects();
 
     expect(getTextContent(result)).toBe('AB');
     expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
@@ -61,6 +62,7 @@ describe('useSetupEffect with For', () => {
     expect(cleanupFns.get(2)!).not.toHaveBeenCalled();
 
     list.set([{ id: 1, text: 'A' }]);
+    await setTimeout();
     expect(getTextContent(result)).toBe('A');
     expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
     expect(setupFns.get(2)!).toHaveBeenCalledTimes(1);
@@ -71,6 +73,7 @@ describe('useSetupEffect with For', () => {
       { id: 1, text: 'A' },
       { id: 3, text: 'C' },
     ]);
+    await setTimeout();
     expect(getTextContent(result)).toBe('AC');
     expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
     expect(setupFns.get(3)!).toBeDefined();
@@ -79,6 +82,7 @@ describe('useSetupEffect with For', () => {
     expect(cleanupFns.get(3)!).not.toHaveBeenCalled();
 
     list.set([]);
+    await setTimeout();
     expect(getTextContent(result)).toBe('');
     expect(cleanupFns.get(1)!).toHaveBeenCalledTimes(1);
     expect(cleanupFns.get(2)!).toHaveBeenCalledTimes(1);

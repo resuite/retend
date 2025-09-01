@@ -57,6 +57,9 @@ const Start = () => {
           <li>
             <router.Link href="/page-2">Page 2</router.Link>
           </li>
+          <li>
+            <router.Link href="/use-setup-effect">Use Setup Effect</router.Link>
+          </li>
         </ul>
       </nav>
       <main style={{ display: 'grid', placeItems: 'center' }}>

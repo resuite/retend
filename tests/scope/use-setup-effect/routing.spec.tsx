@@ -55,9 +55,10 @@ describe('useSetupEffect with routing', () => {
     const router = createWebRouter({ routes: routes({ keepAlive: false }) });
     router.setWindow(window);
     router.attachWindowListeners();
-    runPendingSetupEffects();
+    await runPendingSetupEffects();
 
     await router.navigate('/effect');
+
     expect(getTextContent(window.document.body)).toBe('Effect Component');
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).not.toHaveBeenCalled();
@@ -81,7 +82,7 @@ describe('useSetupEffect with routing', () => {
     const router = createWebRouter({ routes: routes({ keepAlive: true }) });
     router.setWindow(window);
     router.attachWindowListeners();
-    runPendingSetupEffects();
+    await runPendingSetupEffects();
 
     await router.navigate('/effect');
     expect(getTextContent(window.document.body)).toBe('Effect Component');

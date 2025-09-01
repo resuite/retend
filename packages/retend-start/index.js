@@ -12,7 +12,6 @@ import semver from 'semver';
 import { createPromptModule } from 'inquirer';
 import CONFIG from './config.json' with { type: 'json' };
 
-
 const isBun =
   typeof process !== 'undefined' && process.versions && process.versions.bun;
 
@@ -457,6 +456,7 @@ hydrate(createRouter)
 `
     : `
 /// <reference types="vite/client" />
+import { runPendingSetupEffects } from 'retend';
 import { createRouter } from './router';
 
 const router = createRouter();
@@ -469,6 +469,7 @@ root?.append(${
           ? 'router.Outlet() as Node'
           : '/** @type {Node} */ (router.Outlet())'
       });
+runPendingSetupEffects();
 `;
 
   await fs.writeFile(
