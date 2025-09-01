@@ -163,9 +163,8 @@ export function setupHMRBoundaries(value, fn) {
 
   /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */
   const callback = function (_value) {
-    const range = window.document.createRange();
-    scopeSnapshot.node.dispose(); // cleanup previous effects
-    withScopeSnapshot(scopeSnapshot, () => {
+    scopeSnapshot.node.dispose();
+    const updated = withScopeSnapshot(scopeSnapshot, () => {
       const { window } = getGlobalContext();
       if (!matchContext(window, Modes.Interactive)) {
         const message = 'Cannot handle HMR in non-interactive environments';
@@ -175,7 +174,7 @@ export function setupHMRBoundaries(value, fn) {
       const hmr = getHMRContext();
       if (!hmr) return;
       if (hmr.current.peek() === _value) {
-        if (!this.isConnected) return;
+        if (!this.isConnected) return false;
 
         // If a component render instance is in an update path, there is
         // no use updating it, since it will be (or has been) overwritten
@@ -189,9 +188,10 @@ export function setupHMRBoundaries(value, fn) {
             (component !== _value && hmr.old.includes(component)) ||
             hmr.new.includes(component)
         );
-        if (instanceIsInUpdatePath) return;
+        if (instanceIsInUpdatePath) return false;
       }
 
+      const range = window.document.createRange();
       const start = /** @type {Node} */ (nodes[0]);
       const end = /** @type {Node} */ (nodes[nodes.length - 1]);
       range.setStartBefore(start);
@@ -207,12 +207,16 @@ export function setupHMRBoundaries(value, fn) {
         const pair = createCommentPair();
         nodes = [pair[0], ...nodes, pair[1]];
       }
-    });
 
-    scopeSnapshot.node.activate(); // run new effects
-    range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
-    // listen for the next iteration.
-    addCellListener(nodes[0], value, callback, false);
+      range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
+      // listen for the next iteration.
+      addCellListener(nodes[0], value, callback, false);
+      return true;
+    });
+    if (updated && this.isConnected) {
+      scopeSnapshot.node.activate();
+    }
+    return updated;
   };
 
   addCellListener(nodes[0], value, callback, false);

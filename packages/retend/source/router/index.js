@@ -1077,11 +1077,9 @@ export class Router extends EventTarget {
       const oldSnapshot = outlet.__originScopeSnapshot;
       if (routeSnapshot) {
         if (oldSnapshot) {
-          const { node } = oldSnapshot;
-          disabledEffectNodeForLastRoute = node.detach();
-          node.attach(routeSnapshot.node);
-          node.enable(); // The restored node would have disabled children.
-          node.activate();
+          disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
+          oldSnapshot.node.attach(routeSnapshot.node);
+          oldSnapshot.node.enable(); // The restored node would have disabled children.
         }
         renderedComponent = [...routeSnapshot.fragment.childNodes];
       } else {
@@ -1092,8 +1090,6 @@ export class Router extends EventTarget {
             renderedComponent = withScopeSnapshot(oldSnapshot, () =>
               h(matchedComponent, {})
             );
-            // setup new effects.
-            node.activate();
           } else renderedComponent = h(matchedComponent, {});
         } catch (error) {
           if (oldOutletPath) {
@@ -1156,6 +1152,9 @@ export class Router extends EventTarget {
       const nextOutlet = /** @type {RouterOutlet} */ (
         outlet.querySelector('retend-router-outlet')
       );
+      if (outlet.isConnected) {
+        outlet.__originScopeSnapshot?.node.activate();
+      }
       outlet = nextOutlet;
     }
 

@@ -1,13 +1,9 @@
-import { describe, it, expect, vi, afterAll } from 'vitest';
-import { useSetupEffect, For, Cell } from 'retend';
-import { resetGlobalContext } from 'retend/context';
+import { describe, it, expect, vi } from 'vitest';
+import { useSetupEffect, For, Cell, runPendingSetupEffects } from 'retend';
 import { getTextContent, browserSetup } from '../../setup.ts';
 
 describe('useSetupEffect with For', () => {
   browserSetup();
-  afterAll(() => {
-    resetGlobalContext();
-  });
 
   it('works in a For() loop', () => {
     const list = Cell.source([
@@ -55,6 +51,8 @@ describe('useSetupEffect with For', () => {
     };
 
     const result = App() as HTMLElement;
+    window.document.body.append(result);
+    runPendingSetupEffects();
 
     expect(getTextContent(result)).toBe('AB');
     expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);

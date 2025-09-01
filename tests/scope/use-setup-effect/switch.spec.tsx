@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterAll } from 'vitest';
-import { useSetupEffect, Switch, Cell } from 'retend';
+import { useSetupEffect, Switch, Cell, runPendingSetupEffects } from 'retend';
 import { resetGlobalContext } from 'retend/context';
 import { getTextContent, browserSetup } from '../../setup.ts';
 
@@ -37,6 +37,7 @@ describe('useSetupEffect with Switch', () => {
     };
 
     const result = App() as HTMLElement;
+    runPendingSetupEffects();
 
     expect(getTextContent(result)).toBe('Case A');
     expect(setupFn).not.toHaveBeenCalled();

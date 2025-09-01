@@ -117,11 +117,10 @@ export function If(value, fnOrObject, elseFn) {
         console.error(
           'If expects a callback or condition object as the second argument.'
         );
-
+      this.after(.../** @type {*} */ (nodes));
       return nodes;
     });
-    scopeSnapshot.node.activate(); // run new effects
-    this.after(.../** @type {*} */ (results));
+    if (this.isConnected) scopeSnapshot.node.activate();
     return results;
   };
 

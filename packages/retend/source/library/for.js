@@ -130,7 +130,6 @@ export function For(list, fn, options) {
   // We get a snapshot of all current scopes to reuse when new
   // component instances are created.
   const base = createScopeSnapshot();
-
   for (const item of list.get()) {
     const index = Cell.source(i);
     const parameters = [item, index, list];
@@ -160,6 +159,7 @@ export function For(list, fn, options) {
     const { window } = getGlobalContext();
     isRunningInVDom = matchContext(window, Modes.VDom);
     const newCache = new Map();
+    const effectNodesToActivate = [];
     /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
     const nodeLookAhead = new Map();
 
@@ -181,7 +181,7 @@ export function For(list, fn, options) {
         const newNodes = withScopeSnapshot(snapshot, () => {
           return h(fn, new ArgumentList(parameters));
         });
-        snapshot.node.activate(); // run new effects
+        effectNodesToActivate.push(snapshot.node);
         const nodes = /** @type {ChildNodeLike[]} */ (
           Array.isArray(newNodes) ? newNodes : [newNodes]
         );
@@ -310,6 +310,9 @@ export function For(list, fn, options) {
 
     if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
     cacheFromLastRun = newCache;
+    if (this.isConnected) {
+      for (const node of effectNodesToActivate) node.activate();
+    }
   };
 
   addCellListener(listStart, list, reactToListChanges, false);

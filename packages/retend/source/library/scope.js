@@ -142,6 +142,8 @@ class EffectNode {
   }
 }
 
+class RootEffectNode extends EffectNode {}
+
 const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
 
 /**
@@ -258,9 +260,8 @@ export function createScopeSnapshot() {
 function getScopeSnapshot() {
   const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
-    const node = new EffectNode();
+    const node = new RootEffectNode();
     const scopes = new Map();
-    node.enable();
     globalData.set(SNAPSHOT_KEY, { scopes, node });
   }
   return globalData.get(SNAPSHOT_KEY);
@@ -318,7 +319,7 @@ export function withScopeSnapshot(snapshot, callback) {
   let previousSnapshot = null;
 
   try {
-    previousSnapshot = createScopeSnapshot();
+    previousSnapshot = getScopeSnapshot();
     setScopeSnapshot(snapshot);
     return callback();
   } finally {
@@ -432,4 +433,35 @@ export function combineScopes(...providers) {
  */
 export function useSetupEffect(callback) {
   getScopeSnapshot().node.add(callback);
+}
+
+/**
+ * Executes all pending setup effects that have been registered via `useSetupEffect`.
+ *
+ * In many applications, particularly on the client-side, this function is called once
+ * after the initial render to activate all registered lifecycle effects, such as
+ * setting up timers, subscriptions, or event listeners. It ensures that the setup
+ * logic defined in `useSetupEffect` is executed and can begin its work.
+ *
+ * @example
+ * ```js
+ * // After rendering your application to the DOM:
+ * const root = document.getElementById('app');
+ * root.appendChild(App());
+ *
+ * // Run all the setup effects that were registered during the render.
+ * runPendingSetupEffects();
+ * ```
+ *
+ * @see {@link useSetupEffect} for registering effects that will be run by this function.
+ */
+export function runPendingSetupEffects() {
+  const { node } = getScopeSnapshot();
+  if (!(node instanceof RootEffectNode)) {
+    const message =
+      'runPendingSetupEffects() can only be called at the root level of a component tree.';
+    throw new Error(message);
+  }
+  node.enable();
+  node.activate();
 }

@@ -6,7 +6,11 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ServerContext } from './types.js' */
 
-import { setAttributeFromProps, useObserver } from 'retend';
+import {
+  runPendingSetupEffects,
+  setAttributeFromProps,
+  useObserver,
+} from 'retend';
 import {
   setGlobalContext,
   Modes,
@@ -191,6 +195,7 @@ function defaultToSpaMode(routerFn) {
   root?.append(/** @type {Node} */ (router.Outlet()));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
   addMetaListener(router, document);
+  runPendingSetupEffects();
   return router;
 }
 
@@ -239,6 +244,7 @@ async function restoreContext(context, routerCreateFn) {
     .then(() => {
       globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
       observer.processMountedNodes();
+      runPendingSetupEffects();
       const preloadedLinks = window.document.head.querySelectorAll(
         '[data-retend-preload]'
       );

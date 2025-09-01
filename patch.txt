@@ -1022,3 +1022,2393 @@ index d1ffd9b..116399f 100644
      GlobalRegistrator.register();
    });
  
+diff --git a/packages/retend/source/library/for.js b/packages/retend/source/library/for.js
+index 756abda..f7100d5 100644
+--- a/packages/retend/source/library/for.js
++++ b/packages/retend/source/library/for.js
+@@ -1,6 +1,7 @@
+ /** @import { JSX } from '../jsx-runtime/types.ts' */
+ /** @import * as VDom from '../v-dom/index.js' */
+ /** @import { ReactiveCellFunction } from './utils.js' */
++/** @import { ScopeSnapshot } from './scope.js' */
+ 
+ import { Cell } from '@adbl/cells';
+ import { h } from './jsx.js';
+@@ -15,7 +16,7 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+  * @typedef ForOptions
+  * @property {T extends object ? keyof T : never} [key]
+  * When iterating over objects with a predefined shape, this represents the property to use
+- * as a caching index. By default a unique symbol will be used, resulting in a mutation of the object.
++ * as a caching index. By default a unique symbol will be used.
+  * @property {(node: ChildNodeLike[]) => void} [onBeforeNodesMove]
+  * Provides access to a node just before it is moved to a new position in the DOM by any of the
+  * items in the list.
+@@ -55,7 +56,7 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+  */
+ export function For(list, fn, options) {
+   /*** @type {(Node | VDom.VNode)[]} */
+-  const initialSnapshot = [];
++  const initialResult = [];
+   const { window } = getGlobalContext();
+   const { onBeforeNodesMove, onBeforeNodeRemove, key } = options ?? {};
+ 
+@@ -68,19 +69,19 @@ export function For(list, fn, options) {
+     for (const item of list) {
+       const nodes = h(fn, new ArgumentList([item, Cell.source(i), list]));
+       if (Array.isArray(nodes)) {
+-        initialSnapshot.push(...nodes);
++        initialResult.push(...nodes);
+       } else {
+-        initialSnapshot.push(nodes);
++        initialResult.push(nodes);
+       }
+       i++;
+     }
+-    return initialSnapshot;
++    return initialResult;
+   }
+ 
+   // -----------------------------------------------
+   // REACTIVE LISTS
+   // -----------------------------------------------
+-  /** @type {Map<any, { index: Cell<number>,  nodes: ChildNodeLike[] }>} */
++  /** @type {Map<any, { index: Cell<number>,  nodes: ChildNodeLike[], snapshot: ScopeSnapshot }>} */
+   let cacheFromLastRun = new Map();
+   const autoKeys = new WeakMap();
+   const [listStart, listEnd] = createCommentPair();
+@@ -128,173 +129,189 @@ export function For(list, fn, options) {
+   let i = 0;
+   // We get a snapshot of all current scopes to reuse when new
+   // component instances are created.
+-  const scopeSnapshot = createScopeSnapshot();
++  const base = createScopeSnapshot();
+ 
+   for (const item of list.get()) {
+     const index = Cell.source(i);
+     const parameters = [item, index, list];
+-    const newNodes = h(fn, new ArgumentList(parameters));
++    // We have to split the snashot so that each For item render
++    // can have its own effect context without polluting the others.
++    /** @type {ScopeSnapshot} */
++    const snapshot = {
++      scopes: base.scopes,
++      node: base.node.branch(),
++    };
++    const newNodes = withScopeSnapshot(snapshot, () =>
++      h(fn, new ArgumentList(parameters))
++    );
++    snapshot.node.activate();
+     const nodes = /** @type {ChildNodeLike[]} */ (
+       Array.isArray(newNodes) ? newNodes : [newNodes]
+     );
+     addHydrationUpgradeListeners(nodes);
+-    initialSnapshot.push(...nodes);
++    initialResult.push(...nodes);
+     const itemKey = retrieveOrSetItemKey(item, i);
+-    cacheFromLastRun.set(itemKey, { index, nodes });
++    cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
+     i++;
+   }
+ 
+   /** @type {ReactiveCellFunction<any, ChildNodeLike | VDom.VComment>} */
+   const reactToListChanges = function (newList) {
+-    withScopeSnapshot(scopeSnapshot, () => {
+-      const { window } = getGlobalContext();
+-      isRunningInVDom = matchContext(window, Modes.VDom);
+-      const newCache = new Map();
+-      /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
+-      const nodeLookAhead = new Map();
++    const { window } = getGlobalContext();
++    isRunningInVDom = matchContext(window, Modes.VDom);
++    const newCache = new Map();
++    /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
++    const nodeLookAhead = new Map();
+ 
+-      let index = 0;
+-      let lastItemLastNode = null;
+-      for (const item of newList) {
+-        const itemKey = retrieveOrSetItemKey(item, index);
+-        const cachedResult = cacheFromLastRun.get(itemKey);
+-        let firstNode = null;
+-        let lastNode = null;
+-        if (cachedResult === undefined) {
+-          const i = Cell.source(index);
+-          const parameters = [item, i, list];
+-          const newNodes = h(fn, new ArgumentList(parameters));
+-          const nodes = /** @type {ChildNodeLike[]} */ (
+-            Array.isArray(newNodes) ? newNodes : [newNodes]
+-          );
+-          addHydrationUpgradeListeners(nodes);
+-          newCache.set(itemKey, { nodes, index: i });
+-          firstNode = nodes[0];
+-          lastNode = nodes[nodes.length - 1];
+-        } else {
+-          /** @type {import('@adbl/cells').SourceCell<number>} */
+-          (cachedResult.index).set(index);
+-          newCache.set(itemKey, cachedResult);
+-          const nodes = cachedResult.nodes;
+-          firstNode = nodes[0];
+-          lastNode = nodes[nodes.length - 1];
+-        }
+-        if (firstNode)
+-          nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
+-        lastItemLastNode = lastNode;
+-        index++;
++    let index = 0;
++    let lastItemLastNode = null;
++    for (const item of newList) {
++      const itemKey = retrieveOrSetItemKey(item, index);
++      const cachedResult = cacheFromLastRun.get(itemKey);
++      let firstNode = null;
++      let lastNode = null;
++      if (cachedResult === undefined) {
++        const i = Cell.source(index);
++        const parameters = [item, i, list];
++        /** @type {ScopeSnapshot} */
++        const snapshot = {
++          scopes: base.scopes,
++          node: base.node.branch(),
++        };
++        const newNodes = withScopeSnapshot(snapshot, () => {
++          return h(fn, new ArgumentList(parameters));
++        });
++        snapshot.node.activate(); // run new effects
++        const nodes = /** @type {ChildNodeLike[]} */ (
++          Array.isArray(newNodes) ? newNodes : [newNodes]
++        );
++        addHydrationUpgradeListeners(nodes);
++        newCache.set(itemKey, { nodes, index: i, snapshot });
++        firstNode = nodes[0];
++        lastNode = nodes[nodes.length - 1];
++      } else {
++        /** @type {import('@adbl/cells').SourceCell<number>} */
++        (cachedResult.index).set(index);
++        newCache.set(itemKey, cachedResult);
++        const nodes = cachedResult.nodes;
++        firstNode = nodes[0];
++        lastNode = nodes[nodes.length - 1];
+       }
++      if (firstNode)
++        nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
++      lastItemLastNode = lastNode;
++      index++;
++    }
+ 
+-      // Removing Deleted Nodes:
+-      //
+-      // This pass is necessary to remove nodes in one go,
+-      // rather than bubbling them to the end of the list.
+-      //
+-      // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
+-      // Ideal solution is a removeChild(A), but without this pass, what would happen is:
+-      //  [A, B, C, D, E] -> [B, A, C, D, E]
+-      //  [B, A, C, D, E] -> [B, C, A, D, E]
+-      //  [B, C, A, D, E] -> [B, C, D, A, E]
+-      //  [B, C, D, A, E] -> [B, C, D, E, A]
+-      // before removing A, result in a removal and reinsertion of several unchanged nodes.
+-      for (const [key, value] of cacheFromLastRun) {
+-        if (newCache.has(key)) continue;
+-        // There was a previous optimization to try and remove contiguous nodes
+-        // at once with range.deleteContents(), but it was not worth it.
+-        for (const node of value.nodes) {
+-          onBeforeNodeRemove?.(node, value.index.get());
+-          node.remove();
+-        }
++    // Removing Deleted Nodes:
++    //
++    // This pass is necessary to remove nodes in one go,
++    // rather than bubbling them to the end of the list.
++    //
++    // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
++    // Ideal solution is a removeChild(A), but without this pass, what would happen is:
++    //  [A, B, C, D, E] -> [B, A, C, D, E]
++    //  [B, A, C, D, E] -> [B, C, A, D, E]
++    //  [B, C, A, D, E] -> [B, C, D, A, E]
++    //  [B, C, D, A, E] -> [B, C, D, E, A]
++    // before removing A, result in a removal and reinsertion of several unchanged nodes.
++    for (const [key, value] of cacheFromLastRun) {
++      if (newCache.has(key)) continue;
++      value.snapshot.node.dispose();
++      // There was a previous optimization to try and remove contiguous nodes
++      // at once with range.deleteContents(), but it was not worth it.
++      for (const node of value.nodes) {
++        onBeforeNodeRemove?.(node, value.index.get());
++        node.remove();
+       }
++    }
+ 
+-      // deno-lint-ignore no-this-alias
+-      let lastInserted = this;
++    // deno-lint-ignore no-this-alias
++    let lastInserted = this;
+ 
+-      // Reordering and Inserting New Nodes:
+-      //
+-      // This pass ensures nodes are in the correct order and new nodes are inserted.
+-      // It compares each node's current position with the expected position after lastInserted,
+-      // moving nodes only when necessary to maintain the correct sequence.
+-      let i = 0;
+-      const batchAdd = window.document.createDocumentFragment();
+-      const batchAddLike = /** @type {*} */ (batchAdd);
+-      for (const item of newList) {
+-        /** @type {{ nodes: ChildNodeLike[] }} */ // Invariant: nodes is always defined.
+-        const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
+-        const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+-        if (isAlreadyInPosition) {
+-          if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
+-          lastInserted = nodes[nodes.length - 1];
+-          i++;
+-          continue;
+-        }
++    // Reordering and Inserting New Nodes:
++    //
++    // This pass ensures nodes are in the correct order and new nodes are inserted.
++    // It compares each node's current position with the expected position after lastInserted,
++    // moving nodes only when necessary to maintain the correct sequence.
++    let i = 0;
++    const batchAdd = window.document.createDocumentFragment();
++    const batchAddLike = /** @type {*} */ (batchAdd);
++    for (const item of newList) {
++      /** @type {{ nodes: ChildNodeLike[] }} */ // Invariant: nodes is always defined.
++      const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
++      const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
++      if (isAlreadyInPosition) {
++        if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
++        lastInserted = nodes[nodes.length - 1];
++        i++;
++        continue;
++      }
+ 
+-        // This branch takes care of the case where one item moves
+-        // forward in the list, but until its correct position is reached, its nodes
+-        // block other nodes from being correctly positioned, leading to cascading moves.
+-        //
+-        // Example: A list goes from [A, B, C, D, E] to [B, C, D, E, A], the simplest
+-        // operation is to move A to the end of the list, but without this branch,
+-        // the loop would have to:
+-        // move B back, making [B, A, C, D, E]
+-        // move C back, making [B, C, A, D, E]
+-        // move D back, making [B, C, D, A, E]
+-        // move E back, making [B, C, D, E, A]
+-        const followingNode = lastInserted.nextSibling;
+-        if (followingNode) {
+-          const data = nodeLookAhead.get(followingNode);
+-          if (data) {
+-            const { itemKey, lastItemLastNode } = data;
+-            const hasViableMoveAnchor =
+-              lastItemLastNode?.parentNode &&
+-              lastItemLastNode.parentNode !== batchAdd &&
+-              lastItemLastNode.nextSibling !== followingNode &&
+-              lastItemLastNode !== nodes[0];
+-            if (hasViableMoveAnchor) {
+-              const fullNodeSet = newCache.get(itemKey).nodes;
+-              onBeforeNodesMove?.(nodes);
+-              lastItemLastNode.after(...fullNodeSet);
++      // This branch takes care of the case where one item moves
++      // forward in the list, but until its correct position is reached, its nodes
++      // block other nodes from being correctly positioned, leading to cascading moves.
++      //
++      // Example: A list goes from [A, B, C, D, E] to [B, C, D, E, A], the simplest
++      // operation is to move A to the end of the list, but without this branch,
++      // the loop would have to:
++      // move B back, making [B, A, C, D, E]
++      // move C back, making [B, C, A, D, E]
++      // move D back, making [B, C, D, A, E]
++      // move E back, making [B, C, D, E, A]
++      const followingNode = lastInserted.nextSibling;
++      if (followingNode) {
++        const data = nodeLookAhead.get(followingNode);
++        if (data) {
++          const { itemKey, lastItemLastNode } = data;
++          const hasViableMoveAnchor =
++            lastItemLastNode?.parentNode &&
++            lastItemLastNode.parentNode !== batchAdd &&
++            lastItemLastNode.nextSibling !== followingNode &&
++            lastItemLastNode !== nodes[0];
++          if (hasViableMoveAnchor) {
++            const fullNodeSet = newCache.get(itemKey).nodes;
++            onBeforeNodesMove?.(nodes);
++            lastItemLastNode.after(...fullNodeSet);
+ 
+-              // recheck sequential correctness.
+-              const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+-              if (isAlreadyInPosition) {
+-                if (batchAdd.childNodes.length)
+-                  lastInserted.after(batchAddLike);
+-                lastInserted = nodes[nodes.length - 1];
+-                i++;
+-                continue;
+-              }
++            // recheck sequential correctness.
++            const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
++            if (isAlreadyInPosition) {
++              if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
++              lastInserted = nodes[nodes.length - 1];
++              i++;
++              continue;
+             }
+           }
+         }
++      }
+ 
+-        const isNewItemInstance = !nodes[0]?.parentNode;
+-        if (isNewItemInstance) {
+-          batchAddLike.append(...nodes);
+-          i++;
+-          continue;
+-        }
+-
+-        if (batchAdd.childNodes.length === 0) {
+-          onBeforeNodesMove?.(nodes);
+-          lastInserted.after(.../** @type {*} */ (nodes));
+-        } else {
+-          const newPtr = /** @type {ChildNodeLike} */ (
+-            batchAdd.childNodes[batchAdd.childNodes.length - 1]
+-          );
+-          lastInserted.after(batchAddLike);
+-          onBeforeNodesMove?.(nodes);
+-          newPtr.after(.../** @type {*} */ (nodes));
+-        }
+-        lastInserted = nodes[nodes.length - 1] ?? lastInserted;
++      const isNewItemInstance = !nodes[0]?.parentNode;
++      if (isNewItemInstance) {
++        batchAddLike.append(...nodes);
+         i++;
++        continue;
++      }
++
++      if (batchAdd.childNodes.length === 0) {
++        onBeforeNodesMove?.(nodes);
++        lastInserted.after(.../** @type {*} */ (nodes));
++      } else {
++        const newPtr = /** @type {ChildNodeLike} */ (
++          batchAdd.childNodes[batchAdd.childNodes.length - 1]
++        );
++        lastInserted.after(batchAddLike);
++        onBeforeNodesMove?.(nodes);
++        newPtr.after(.../** @type {*} */ (nodes));
+       }
++      lastInserted = nodes[nodes.length - 1] ?? lastInserted;
++      i++;
++    }
+ 
+-      if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+-      cacheFromLastRun = newCache;
+-    });
++    if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
++    cacheFromLastRun = newCache;
+   };
+ 
+   addCellListener(listStart, list, reactToListChanges, false);
+-  return [listStart, ...initialSnapshot, listEnd];
++  return [listStart, ...initialResult, listEnd];
+ }
+diff --git a/packages/retend/source/library/if.js b/packages/retend/source/library/if.js
+index a8ed93f..9cb0572 100644
+--- a/packages/retend/source/library/if.js
++++ b/packages/retend/source/library/if.js
+@@ -77,7 +77,8 @@ export function If(value, fnOrObject, elseFn) {
+ 
+   /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
+   const callback = function (_value) {
+-    return withScopeSnapshot(scopeSnapshot, () => {
++    scopeSnapshot.node.dispose(); // cleanup previous effects
++    const results = withScopeSnapshot(scopeSnapshot, () => {
+       /** @type {(Node | VDom.VNode)[]} */
+       let nodes = [];
+       let nextNode = this.nextSibling;
+@@ -117,9 +118,11 @@ export function If(value, fnOrObject, elseFn) {
+           'If expects a callback or condition object as the second argument.'
+         );
+ 
+-      this.after(.../** @type {*} */ (nodes));
+       return nodes;
+     });
++    scopeSnapshot.node.activate(); // run new effects
++    this.after(.../** @type {*} */ (results));
++    return results;
+   };
+ 
+   // see comment in switch.js
+diff --git a/packages/retend/source/library/scope.js b/packages/retend/source/library/scope.js
+index bf0a52a..0465827 100644
+--- a/packages/retend/source/library/scope.js
++++ b/packages/retend/source/library/scope.js
+@@ -1,6 +1,6 @@
+ /** @import { JSX } from '../jsx-runtime/types.ts' */
+-
+-import { getGlobalContext } from '../context/index.js';
++/** @import { useObserver } from './observer.js' */
++import { getGlobalContext, matchContext, Modes } from '../context/index.js';
+ import h from './jsx.js';
+ import { generateChildNodes } from './utils.js';
+ 
+@@ -31,9 +31,117 @@ import { generateChildNodes } from './utils.js';
+  */
+ 
+ /**
+- * @typedef {Map<Scope, unknown[]>} ScopeSnapshot
++ * @typedef ScopeSnapshot
++ * @property {Map<Scope, unknown[]>} scopes
++ * @property {EffectNode} node
++ */
++
++/**
++ * @typedef {() => (void | (() => void))} SetupFn
+  */
+ 
++/**
++ * Represents a node managing effects and cleanup within a hierarchy.
++ * Allows enabling/disabling, forking child nodes, and disposing by cleaning effects and children.
++ */
++class EffectNode {
++  /** @type {Array<() => void | (() => void)>} */ #setupFns = [];
++  /** @type {Array<() => void>} */ #disposeFns = [];
++  /** @type {Array<EffectNode>} */ #children = [];
++  #enabled = false;
++  #active = false;
++
++  enable() {
++    const { window } = getGlobalContext();
++    if (matchContext(window, Modes.Interactive)) {
++      this.#enabled = true;
++      for (const child of this.#children) child.enable();
++    }
++  }
++
++  disable() {
++    this.#enabled = false;
++    for (const child of this.#children) child.disable();
++  }
++
++  /** @param {SetupFn} effect  */
++  add(effect) {
++    this.#setupFns.push(effect);
++  }
++
++  branch() {
++    const newNode = new EffectNode();
++    newNode.#enabled = this.#enabled;
++    this.#children.push(newNode);
++    return newNode;
++  }
++
++  activate() {
++    if (!this.#enabled || this.#active) return;
++    for (const effect of this.#setupFns) {
++      try {
++        const cleanup = effect();
++        if (typeof cleanup === 'function') this.#disposeFns.push(cleanup);
++      } catch (error) {
++        console.error(error);
++      }
++    }
++    this.#active = true;
++    for (const child of this.#children) {
++      child.activate();
++    }
++  }
++
++  #runDisposeFns() {
++    if (!this.#enabled || !this.#active) return;
++    for (const effect of this.#disposeFns) {
++      try {
++        effect();
++      } catch (error) {
++        console.error('Cleanup effect failed:', error);
++      }
++    }
++    this.#active = false;
++    for (const child of this.#children) {
++      child.#runDisposeFns();
++    }
++  }
++
++  dispose() {
++    if (!this.#enabled) return;
++    this.#runDisposeFns();
++
++    for (const child of this.#children) {
++      // prevents any side effects from being triggered in the
++      // (soon to be) orphaned subtrees, when any of their control
++      // structures receives changes.
++      child.disable();
++    }
++
++    this.#setupFns.length = 0;
++    this.#disposeFns.length = 0;
++    this.#children.length = 0;
++  }
++
++  detach() {
++    const node = new EffectNode();
++    node.#setupFns = [...this.#setupFns];
++    node.#disposeFns = [...this.#disposeFns];
++    node.#children = [...this.#children];
++
++    this.dispose();
++    return node;
++  }
++
++  /** @param {EffectNode} node  */
++  attach(node) {
++    this.#enabled = node.#enabled;
++    this.#children = [...node.#children];
++    this.#setupFns = [...node.#setupFns];
++    this.#disposeFns = [...node.#disposeFns];
++  }
++}
++
+ const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
+ 
+ /**
+@@ -72,8 +180,8 @@ export function createScope(name) {
+             : () => {};
+ 
+       const activeScopeSnapshot = getScopeSnapshot();
+-      const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
+-      activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
++      const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
++      activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
+       try {
+         if ('h' in props && !props.h) {
+           const template = renderFn();
+@@ -81,7 +189,7 @@ export function createScope(name) {
+         }
+         return h(renderFn, {});
+       } finally {
+-        activeScopeSnapshot.set(Scope, stackBefore);
++        activeScopeSnapshot.scopes.set(Scope, stackBefore);
+       }
+     },
+   };
+@@ -101,7 +209,7 @@ export function createScope(name) {
+  */
+ export function useScopeContext(Scope, snapshot) {
+   const snapshotCtx = snapshot || getScopeSnapshot();
+-  const relatedScopeData = snapshotCtx.get(Scope);
++  const relatedScopeData = snapshotCtx.scopes.get(Scope);
+   if (!relatedScopeData || relatedScopeData.length === 0) {
+     const scopeName = Scope?.key.description || 'UnknownScope';
+     throw new Error(
+@@ -137,7 +245,8 @@ export function useScopeContext(Scope, snapshot) {
+  * ```
+  */
+ export function createScopeSnapshot() {
+-  return new Map(getScopeSnapshot());
++  const { scopes, node: node } = getScopeSnapshot();
++  return { scopes: new Map(scopes), node: node.branch() };
+ }
+ 
+ /**
+@@ -149,7 +258,10 @@ export function createScopeSnapshot() {
+ function getScopeSnapshot() {
+   const { globalData } = getGlobalContext();
+   if (!globalData.has(SNAPSHOT_KEY)) {
+-    globalData.set(SNAPSHOT_KEY, new Map());
++    const node = new EffectNode();
++    const scopes = new Map();
++    node.enable();
++    globalData.set(SNAPSHOT_KEY, { scopes, node });
+   }
+   return globalData.get(SNAPSHOT_KEY);
+ }
+@@ -271,3 +383,53 @@ export function combineScopes(...providers) {
+ 
+   return Scope;
+ }
++
++/**
++ * A hook for managing side effects with cleanup, tied to a component's logical lifecycle.
++ *
++ * The callback runs once when a component instance is initialized, ideal for tasks
++ * like setting timers, subscribing to data streams, or adding global event listeners.
++ * The callback can return a cleanup function to prevent memory leaks, automatically
++ * executed when the component instance is destroyed (e.g., when removed from a `<For>` list).
++ *
++ * @param {SetupFn} callback - Function executed once on component setup. If it returns
++ *   a function, that function is used for cleanup.
++ *
++ * @example
++ * ```tsx
++ * import { Cell, useSetupEffect } from 'retend';
++ *
++ * function LiveClock() {
++ *   const time = Cell.source(new Date());
++ *   const timeStr = Cell.derived(() => {
++ *     return time.get().toLocaleTimeString();
++ *   });
++ *
++ *   useSetupEffect(() => {
++ *     const timerId = setInterval(() => time.set(new Date()), 1000);
++ *     return () => clearInterval(timerId);
++ *   });
++ *
++ *   return <p>Current time: {timeStr}</p>;
++ * }
++ * ```
++ *
++ * @example
++ * ```tsx
++ * useSetupEffect(() => {
++ *   const handleResize = () => console.log('Window resized!');
++ *   window.addEventListener('resize', handleResize);
++ *
++ *   return () => window.removeEventListener('resize', handleResize);
++ * });
++ * ```
++ *
++ * @remarks
++ * - This hook runs only once per component instance, similar to `useEffect(..., [])` in React. It does not re-run on updates.
++ * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `useObserver` instead.
++ *
++ * @see {@link useObserver} for DOM-based lifecycle effects.
++ */
++export function useSetupEffect(callback) {
++  getScopeSnapshot().node.add(callback);
++}
+diff --git a/packages/retend/source/library/switch.js b/packages/retend/source/library/switch.js
+index 23d2f64..f813ec3 100644
+--- a/packages/retend/source/library/switch.js
++++ b/packages/retend/source/library/switch.js
+@@ -74,7 +74,8 @@ export function Switch(value, cases, defaultCase) {
+ 
+   /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
+   const callback = function (value) {
+-    return withScopeSnapshot(snapshot, () => {
++    snapshot.node.dispose(); // cleanup previous effects
++    const results = withScopeSnapshot(snapshot, () => {
+       /** @type {(Node | VDom.VNode)[]} */
+       let nodes = [];
+       let nextNode = this.nextSibling;
+@@ -93,19 +94,20 @@ export function Switch(value, cases, defaultCase) {
+       if (caseCaller) {
+         const newNodes = h(caseCaller, new ArgumentList([value]));
+         nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+-        this.after(.../** @type {*} */ (nodes));
+         return nodes;
+       }
+ 
+       if (defaultCase) {
+         const newNodes = h(defaultCase, new ArgumentList([value]));
+         nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+-        this.after(.../** @type {*} */ (nodes));
+         return nodes;
+       }
+ 
+       return nodes;
+     });
++    snapshot.node.activate(); // run new effects
++    this.after(.../** @type {*} */ (results));
++    return results;
+   };
+ 
+   // Don't use runAndListen with an outer array to store nodes.
+@@ -174,7 +176,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
+ 
+   /** @type {ReactiveCellFunction<any, any, any>} */
+   const callback = function (cellValue) {
+-    return withScopeSnapshot(snapshot, () => {
++    snapshot.node.dispose(); // cleanup previous effects
++    const results = withScopeSnapshot(snapshot, () => {
+       /** @type {(Node | VDom.VNode)[]} */
+       let nodes = [];
+       let nextNode = this.nextSibling;
+@@ -208,6 +211,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
+ 
+       return nodes;
+     });
++    snapshot.node.activate(); // run new effects
++    return results;
+   };
+ 
+   const firstRun = callback.bind(rangeStart)(cell.get());
+diff --git a/packages/retend/source/plugin/hmr.js b/packages/retend/source/plugin/hmr.js
+index 9e6d87d..4b87f77 100644
+--- a/packages/retend/source/plugin/hmr.js
++++ b/packages/retend/source/plugin/hmr.js
+@@ -163,7 +163,9 @@ export function setupHMRBoundaries(value, fn) {
+ 
+   /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */
+   const callback = function (_value) {
+-    return withScopeSnapshot(scopeSnapshot, () => {
++    const range = window.document.createRange();
++    scopeSnapshot.node.dispose(); // cleanup previous effects
++    withScopeSnapshot(scopeSnapshot, () => {
+       const { window } = getGlobalContext();
+       if (!matchContext(window, Modes.Interactive)) {
+         const message = 'Cannot handle HMR in non-interactive environments';
+@@ -190,7 +192,6 @@ export function setupHMRBoundaries(value, fn) {
+         if (instanceIsInUpdatePath) return;
+       }
+ 
+-      const range = window.document.createRange();
+       const start = /** @type {Node} */ (nodes[0]);
+       const end = /** @type {Node} */ (nodes[nodes.length - 1]);
+       range.setStartBefore(start);
+@@ -206,11 +207,12 @@ export function setupHMRBoundaries(value, fn) {
+         const pair = createCommentPair();
+         nodes = [pair[0], ...nodes, pair[1]];
+       }
+-
+-      range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
+-      // listen for the next iteration.
+-      addCellListener(nodes[0], value, callback, false);
+     });
++
++    scopeSnapshot.node.activate(); // run new effects
++    range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
++    // listen for the next iteration.
++    addCellListener(nodes[0], value, callback, false);
+   };
+ 
+   addCellListener(nodes[0], value, callback, false);
+diff --git a/packages/retend/source/router/index.js b/packages/retend/source/router/index.js
+index 9f87771..7a0ce08 100644
+--- a/packages/retend/source/router/index.js
++++ b/packages/retend/source/router/index.js
+@@ -224,6 +224,9 @@ export class RouteErrorEvent extends CustomEvent {
+  *
+  * @property {[number, number]} windowScroll
+  * The `(x, y)` scroll positions of the window when the snapshot was taken.
++ *
++ * @property {ScopeSnapshot['node']} node
++ * The related effect node for the route.
+  */
+ 
+ /**
+@@ -1069,16 +1072,28 @@ export class Router extends EventTarget {
+ 
+       /** @type {JSX.Template} */
+       let renderedComponent;
++      let disabledEffectNodeForLastRoute;
+       const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
++      const oldSnapshot = outlet.__originScopeSnapshot;
+       if (routeSnapshot) {
++        if (oldSnapshot) {
++          const { node } = oldSnapshot;
++          disabledEffectNodeForLastRoute = node.detach();
++          node.attach(routeSnapshot.node);
++          node.enable(); // The restored node would have disabled children.
++          node.activate();
++        }
+         renderedComponent = [...routeSnapshot.fragment.childNodes];
+       } else {
+         try {
+-          const scopeSnapshot = outlet.__originScopeSnapshot;
+-          if (scopeSnapshot) {
+-            renderedComponent = withScopeSnapshot(scopeSnapshot, () =>
++          if (oldSnapshot) {
++            const { node } = oldSnapshot;
++            disabledEffectNodeForLastRoute = node.detach();
++            renderedComponent = withScopeSnapshot(oldSnapshot, () =>
+               h(matchedComponent, {})
+             );
++            // setup new effects.
++            node.activate();
+           } else renderedComponent = h(matchedComponent, {});
+         } catch (error) {
+           if (oldOutletPath) {
+@@ -1114,8 +1129,12 @@ export class Router extends EventTarget {
+       }
+ 
+       // if the outlet is keep alive, we need to cache the current nodes
+-      if (oldOutletPath) {
+-        this.#preserveCurrentOutletState(oldOutletPath, outlet);
++      if (oldOutletPath && disabledEffectNodeForLastRoute) {
++        this.#preserveCurrentOutletState(
++          oldOutletPath,
++          outlet,
++          disabledEffectNodeForLastRoute
++        );
+       }
+ 
+       const nodes = generateChildNodes(renderedComponent);
+@@ -1145,7 +1164,11 @@ export class Router extends EventTarget {
+     // that is not being used and should be flushed out.
+     if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
+       const oldPath = outlet.getAttribute('data-path');
+-      if (oldPath) this.#preserveCurrentOutletState(oldPath, outlet);
++      const snapshot = outlet.__originScopeSnapshot;
++      if (oldPath && snapshot) {
++        const effectNode = snapshot.node.detach();
++        this.#preserveCurrentOutletState(oldPath, outlet, effectNode);
++      }
+       outlet.removeAttribute('data-path');
+       outlet.replaceChildren();
+     }
+@@ -1173,8 +1196,9 @@ export class Router extends EventTarget {
+    * Saves the state of the outlet if keepAlive is turned on.
+    * @param {string} oldPath
+    * @param {RouterOutlet} outlet
++   * @param {ScopeSnapshot['node']} node
+    */
+-  #preserveCurrentOutletState(oldPath, outlet) {
++  #preserveCurrentOutletState(oldPath, outlet, node) {
+     if (outlet.__keepAlive && oldPath && this.#window) {
+       // Caching as a fragment instead of an array of nodes
+       // makes it possible for the cached nodes to still be reactive
+@@ -1187,6 +1211,7 @@ export class Router extends EventTarget {
+         fragment,
+         outletScroll: [outlet.scrollLeft, outlet.scrollTop],
+         windowScroll: [this.#window?.scrollX ?? 0, this.#window?.scrollY ?? 0],
++        node,
+       });
+     }
+   }
+diff --git a/patch.txt b/patch.txt
+new file mode 100644
+index 0000000..474cfb9
+--- /dev/null
++++ b/patch.txt
+@@ -0,0 +1,1024 @@
++diff --git a/packages/retend/source/library/for.js b/packages/retend/source/library/for.js
++index 756abda..2c15714 100644
++--- a/packages/retend/source/library/for.js
+++++ b/packages/retend/source/library/for.js
++@@ -1,6 +1,7 @@
++ /** @import { JSX } from '../jsx-runtime/types.ts' */
++ /** @import * as VDom from '../v-dom/index.js' */
++ /** @import { ReactiveCellFunction } from './utils.js' */
+++/** @import { ScopeSnapshot } from './scope.js' */
++ 
++ import { Cell } from '@adbl/cells';
++ import { h } from './jsx.js';
++@@ -55,7 +56,7 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
++  */
++ export function For(list, fn, options) {
++   /*** @type {(Node | VDom.VNode)[]} */
++-  const initialSnapshot = [];
+++  const initialResult = [];
++   const { window } = getGlobalContext();
++   const { onBeforeNodesMove, onBeforeNodeRemove, key } = options ?? {};
++ 
++@@ -68,19 +69,19 @@ export function For(list, fn, options) {
++     for (const item of list) {
++       const nodes = h(fn, new ArgumentList([item, Cell.source(i), list]));
++       if (Array.isArray(nodes)) {
++-        initialSnapshot.push(...nodes);
+++        initialResult.push(...nodes);
++       } else {
++-        initialSnapshot.push(nodes);
+++        initialResult.push(nodes);
++       }
++       i++;
++     }
++-    return initialSnapshot;
+++    return initialResult;
++   }
++ 
++   // -----------------------------------------------
++   // REACTIVE LISTS
++   // -----------------------------------------------
++-  /** @type {Map<any, { index: Cell<number>,  nodes: ChildNodeLike[] }>} */
+++  /** @type {Map<any, { index: Cell<number>,  nodes: ChildNodeLike[], snapshot: ScopeSnapshot }>} */
++   let cacheFromLastRun = new Map();
++   const autoKeys = new WeakMap();
++   const [listStart, listEnd] = createCommentPair();
++@@ -128,173 +129,189 @@ export function For(list, fn, options) {
++   let i = 0;
++   // We get a snapshot of all current scopes to reuse when new
++   // component instances are created.
++-  const scopeSnapshot = createScopeSnapshot();
+++  const base = createScopeSnapshot();
++ 
++   for (const item of list.get()) {
++     const index = Cell.source(i);
++     const parameters = [item, index, list];
++-    const newNodes = h(fn, new ArgumentList(parameters));
+++    // We have to split the snashot so that each For item render
+++    // can have its own effect context without polluting the others.
+++    /** @type {ScopeSnapshot} */
+++    const snapshot = {
+++      scopes: base.scopes,
+++      node: base.node.fork(),
+++    };
+++    const newNodes = withScopeSnapshot(snapshot, () =>
+++      h(fn, new ArgumentList(parameters))
+++    );
+++    snapshot.node.setup();
++     const nodes = /** @type {ChildNodeLike[]} */ (
++       Array.isArray(newNodes) ? newNodes : [newNodes]
++     );
++     addHydrationUpgradeListeners(nodes);
++-    initialSnapshot.push(...nodes);
+++    initialResult.push(...nodes);
++     const itemKey = retrieveOrSetItemKey(item, i);
++-    cacheFromLastRun.set(itemKey, { index, nodes });
+++    cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
++     i++;
++   }
++ 
++   /** @type {ReactiveCellFunction<any, ChildNodeLike | VDom.VComment>} */
++   const reactToListChanges = function (newList) {
++-    withScopeSnapshot(scopeSnapshot, () => {
++-      const { window } = getGlobalContext();
++-      isRunningInVDom = matchContext(window, Modes.VDom);
++-      const newCache = new Map();
++-      /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
++-      const nodeLookAhead = new Map();
+++    const { window } = getGlobalContext();
+++    isRunningInVDom = matchContext(window, Modes.VDom);
+++    const newCache = new Map();
+++    /** @type {Map<ChildNodeLike, { itemKey: any, lastItemLastNode: ChildNodeLike | null }>} */
+++    const nodeLookAhead = new Map();
++ 
++-      let index = 0;
++-      let lastItemLastNode = null;
++-      for (const item of newList) {
++-        const itemKey = retrieveOrSetItemKey(item, index);
++-        const cachedResult = cacheFromLastRun.get(itemKey);
++-        let firstNode = null;
++-        let lastNode = null;
++-        if (cachedResult === undefined) {
++-          const i = Cell.source(index);
++-          const parameters = [item, i, list];
++-          const newNodes = h(fn, new ArgumentList(parameters));
++-          const nodes = /** @type {ChildNodeLike[]} */ (
++-            Array.isArray(newNodes) ? newNodes : [newNodes]
++-          );
++-          addHydrationUpgradeListeners(nodes);
++-          newCache.set(itemKey, { nodes, index: i });
++-          firstNode = nodes[0];
++-          lastNode = nodes[nodes.length - 1];
++-        } else {
++-          /** @type {import('@adbl/cells').SourceCell<number>} */
++-          (cachedResult.index).set(index);
++-          newCache.set(itemKey, cachedResult);
++-          const nodes = cachedResult.nodes;
++-          firstNode = nodes[0];
++-          lastNode = nodes[nodes.length - 1];
++-        }
++-        if (firstNode)
++-          nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
++-        lastItemLastNode = lastNode;
++-        index++;
+++    let index = 0;
+++    let lastItemLastNode = null;
+++    for (const item of newList) {
+++      const itemKey = retrieveOrSetItemKey(item, index);
+++      const cachedResult = cacheFromLastRun.get(itemKey);
+++      let firstNode = null;
+++      let lastNode = null;
+++      if (cachedResult === undefined) {
+++        const i = Cell.source(index);
+++        const parameters = [item, i, list];
+++        /** @type {ScopeSnapshot} */
+++        const snapshot = {
+++          scopes: base.scopes,
+++          node: base.node.fork(),
+++        };
+++        const newNodes = withScopeSnapshot(snapshot, () => {
+++          return h(fn, new ArgumentList(parameters));
+++        });
+++        snapshot.node.setup(); // run new effects
+++        const nodes = /** @type {ChildNodeLike[]} */ (
+++          Array.isArray(newNodes) ? newNodes : [newNodes]
+++        );
+++        addHydrationUpgradeListeners(nodes);
+++        newCache.set(itemKey, { nodes, index: i, snapshot });
+++        firstNode = nodes[0];
+++        lastNode = nodes[nodes.length - 1];
+++      } else {
+++        /** @type {import('@adbl/cells').SourceCell<number>} */
+++        (cachedResult.index).set(index);
+++        newCache.set(itemKey, cachedResult);
+++        const nodes = cachedResult.nodes;
+++        firstNode = nodes[0];
+++        lastNode = nodes[nodes.length - 1];
++       }
+++      if (firstNode)
+++        nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
+++      lastItemLastNode = lastNode;
+++      index++;
+++    }
++ 
++-      // Removing Deleted Nodes:
++-      //
++-      // This pass is necessary to remove nodes in one go,
++-      // rather than bubbling them to the end of the list.
++-      //
++-      // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
++-      // Ideal solution is a removeChild(A), but without this pass, what would happen is:
++-      //  [A, B, C, D, E] -> [B, A, C, D, E]
++-      //  [B, A, C, D, E] -> [B, C, A, D, E]
++-      //  [B, C, A, D, E] -> [B, C, D, A, E]
++-      //  [B, C, D, A, E] -> [B, C, D, E, A]
++-      // before removing A, result in a removal and reinsertion of several unchanged nodes.
++-      for (const [key, value] of cacheFromLastRun) {
++-        if (newCache.has(key)) continue;
++-        // There was a previous optimization to try and remove contiguous nodes
++-        // at once with range.deleteContents(), but it was not worth it.
++-        for (const node of value.nodes) {
++-          onBeforeNodeRemove?.(node, value.index.get());
++-          node.remove();
++-        }
+++    // Removing Deleted Nodes:
+++    //
+++    // This pass is necessary to remove nodes in one go,
+++    // rather than bubbling them to the end of the list.
+++    //
+++    // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
+++    // Ideal solution is a removeChild(A), but without this pass, what would happen is:
+++    //  [A, B, C, D, E] -> [B, A, C, D, E]
+++    //  [B, A, C, D, E] -> [B, C, A, D, E]
+++    //  [B, C, A, D, E] -> [B, C, D, A, E]
+++    //  [B, C, D, A, E] -> [B, C, D, E, A]
+++    // before removing A, result in a removal and reinsertion of several unchanged nodes.
+++    for (const [key, value] of cacheFromLastRun) {
+++      if (newCache.has(key)) continue;
+++      value.snapshot.node.dispose();
+++      // There was a previous optimization to try and remove contiguous nodes
+++      // at once with range.deleteContents(), but it was not worth it.
+++      for (const node of value.nodes) {
+++        onBeforeNodeRemove?.(node, value.index.get());
+++        node.remove();
++       }
+++    }
++ 
++-      // deno-lint-ignore no-this-alias
++-      let lastInserted = this;
+++    // deno-lint-ignore no-this-alias
+++    let lastInserted = this;
++ 
++-      // Reordering and Inserting New Nodes:
++-      //
++-      // This pass ensures nodes are in the correct order and new nodes are inserted.
++-      // It compares each node's current position with the expected position after lastInserted,
++-      // moving nodes only when necessary to maintain the correct sequence.
++-      let i = 0;
++-      const batchAdd = window.document.createDocumentFragment();
++-      const batchAddLike = /** @type {*} */ (batchAdd);
++-      for (const item of newList) {
++-        /** @type {{ nodes: ChildNodeLike[] }} */ // Invariant: nodes is always defined.
++-        const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
++-        const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
++-        if (isAlreadyInPosition) {
++-          if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
++-          lastInserted = nodes[nodes.length - 1];
++-          i++;
++-          continue;
++-        }
+++    // Reordering and Inserting New Nodes:
+++    //
+++    // This pass ensures nodes are in the correct order and new nodes are inserted.
+++    // It compares each node's current position with the expected position after lastInserted,
+++    // moving nodes only when necessary to maintain the correct sequence.
+++    let i = 0;
+++    const batchAdd = window.document.createDocumentFragment();
+++    const batchAddLike = /** @type {*} */ (batchAdd);
+++    for (const item of newList) {
+++      /** @type {{ nodes: ChildNodeLike[] }} */ // Invariant: nodes is always defined.
+++      const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
+++      const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+++      if (isAlreadyInPosition) {
+++        if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
+++        lastInserted = nodes[nodes.length - 1];
+++        i++;
+++        continue;
+++      }
++ 
++-        // This branch takes care of the case where one item moves
++-        // forward in the list, but until its correct position is reached, its nodes
++-        // block other nodes from being correctly positioned, leading to cascading moves.
++-        //
++-        // Example: A list goes from [A, B, C, D, E] to [B, C, D, E, A], the simplest
++-        // operation is to move A to the end of the list, but without this branch,
++-        // the loop would have to:
++-        // move B back, making [B, A, C, D, E]
++-        // move C back, making [B, C, A, D, E]
++-        // move D back, making [B, C, D, A, E]
++-        // move E back, making [B, C, D, E, A]
++-        const followingNode = lastInserted.nextSibling;
++-        if (followingNode) {
++-          const data = nodeLookAhead.get(followingNode);
++-          if (data) {
++-            const { itemKey, lastItemLastNode } = data;
++-            const hasViableMoveAnchor =
++-              lastItemLastNode?.parentNode &&
++-              lastItemLastNode.parentNode !== batchAdd &&
++-              lastItemLastNode.nextSibling !== followingNode &&
++-              lastItemLastNode !== nodes[0];
++-            if (hasViableMoveAnchor) {
++-              const fullNodeSet = newCache.get(itemKey).nodes;
++-              onBeforeNodesMove?.(nodes);
++-              lastItemLastNode.after(...fullNodeSet);
+++      // This branch takes care of the case where one item moves
+++      // forward in the list, but until its correct position is reached, its nodes
+++      // block other nodes from being correctly positioned, leading to cascading moves.
+++      //
+++      // Example: A list goes from [A, B, C, D, E] to [B, C, D, E, A], the simplest
+++      // operation is to move A to the end of the list, but without this branch,
+++      // the loop would have to:
+++      // move B back, making [B, A, C, D, E]
+++      // move C back, making [B, C, A, D, E]
+++      // move D back, making [B, C, D, A, E]
+++      // move E back, making [B, C, D, E, A]
+++      const followingNode = lastInserted.nextSibling;
+++      if (followingNode) {
+++        const data = nodeLookAhead.get(followingNode);
+++        if (data) {
+++          const { itemKey, lastItemLastNode } = data;
+++          const hasViableMoveAnchor =
+++            lastItemLastNode?.parentNode &&
+++            lastItemLastNode.parentNode !== batchAdd &&
+++            lastItemLastNode.nextSibling !== followingNode &&
+++            lastItemLastNode !== nodes[0];
+++          if (hasViableMoveAnchor) {
+++            const fullNodeSet = newCache.get(itemKey).nodes;
+++            onBeforeNodesMove?.(nodes);
+++            lastItemLastNode.after(...fullNodeSet);
++ 
++-              // recheck sequential correctness.
++-              const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
++-              if (isAlreadyInPosition) {
++-                if (batchAdd.childNodes.length)
++-                  lastInserted.after(batchAddLike);
++-                lastInserted = nodes[nodes.length - 1];
++-                i++;
++-                continue;
++-              }
+++            // recheck sequential correctness.
+++            const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+++            if (isAlreadyInPosition) {
+++              if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+++              lastInserted = nodes[nodes.length - 1];
+++              i++;
+++              continue;
++             }
++           }
++         }
+++      }
++ 
++-        const isNewItemInstance = !nodes[0]?.parentNode;
++-        if (isNewItemInstance) {
++-          batchAddLike.append(...nodes);
++-          i++;
++-          continue;
++-        }
++-
++-        if (batchAdd.childNodes.length === 0) {
++-          onBeforeNodesMove?.(nodes);
++-          lastInserted.after(.../** @type {*} */ (nodes));
++-        } else {
++-          const newPtr = /** @type {ChildNodeLike} */ (
++-            batchAdd.childNodes[batchAdd.childNodes.length - 1]
++-          );
++-          lastInserted.after(batchAddLike);
++-          onBeforeNodesMove?.(nodes);
++-          newPtr.after(.../** @type {*} */ (nodes));
++-        }
++-        lastInserted = nodes[nodes.length - 1] ?? lastInserted;
+++      const isNewItemInstance = !nodes[0]?.parentNode;
+++      if (isNewItemInstance) {
+++        batchAddLike.append(...nodes);
++         i++;
+++        continue;
+++      }
+++
+++      if (batchAdd.childNodes.length === 0) {
+++        onBeforeNodesMove?.(nodes);
+++        lastInserted.after(.../** @type {*} */ (nodes));
+++      } else {
+++        const newPtr = /** @type {ChildNodeLike} */ (
+++          batchAdd.childNodes[batchAdd.childNodes.length - 1]
+++        );
+++        lastInserted.after(batchAddLike);
+++        onBeforeNodesMove?.(nodes);
+++        newPtr.after(.../** @type {*} */ (nodes));
++       }
+++      lastInserted = nodes[nodes.length - 1] ?? lastInserted;
+++      i++;
+++    }
++ 
++-      if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
++-      cacheFromLastRun = newCache;
++-    });
+++    if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+++    cacheFromLastRun = newCache;
++   };
++ 
++   addCellListener(listStart, list, reactToListChanges, false);
++-  return [listStart, ...initialSnapshot, listEnd];
+++  return [listStart, ...initialResult, listEnd];
++ }
++diff --git a/packages/retend/source/library/if.js b/packages/retend/source/library/if.js
++index a8ed93f..2b231a5 100644
++--- a/packages/retend/source/library/if.js
+++++ b/packages/retend/source/library/if.js
++@@ -77,7 +77,8 @@ export function If(value, fnOrObject, elseFn) {
++ 
++   /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
++   const callback = function (_value) {
++-    return withScopeSnapshot(scopeSnapshot, () => {
+++    scopeSnapshot.node.dispose(); // cleanup previous effects
+++    const results = withScopeSnapshot(scopeSnapshot, () => {
++       /** @type {(Node | VDom.VNode)[]} */
++       let nodes = [];
++       let nextNode = this.nextSibling;
++@@ -120,6 +121,8 @@ export function If(value, fnOrObject, elseFn) {
++       this.after(.../** @type {*} */ (nodes));
++       return nodes;
++     });
+++    scopeSnapshot.node.setup(); // run new effects
+++    return results;
++   };
++ 
++   // see comment in switch.js
++diff --git a/packages/retend/source/library/scope.js b/packages/retend/source/library/scope.js
++index bf0a52a..2ce9bda 100644
++--- a/packages/retend/source/library/scope.js
+++++ b/packages/retend/source/library/scope.js
++@@ -1,6 +1,6 @@
++ /** @import { JSX } from '../jsx-runtime/types.ts' */
++-
++-import { getGlobalContext } from '../context/index.js';
+++/** @import { useObserver } from './observer.js' */
+++import { getGlobalContext, matchContext, Modes } from '../context/index.js';
++ import h from './jsx.js';
++ import { generateChildNodes } from './utils.js';
++ 
++@@ -31,9 +31,79 @@ import { generateChildNodes } from './utils.js';
++  */
++ 
++ /**
++- * @typedef {Map<Scope, unknown[]>} ScopeSnapshot
+++ * @typedef ScopeSnapshot
+++ * @property {Map<Scope, unknown[]>} scopes
+++ * @property {Node} node
+++ */
+++
+++/**
+++ * @typedef {() => (void | (() => void))} SetupFn
++  */
++ 
+++class Node {
+++  /** @type {Array<() => void | (() => void)>} */ #setupFns = [];
+++  /** @type {Array<() => void>} */ #disposeFns = [];
+++  /** @type {Array<Node>} */ #children = [];
+++  #enabled = false;
+++
+++  enable() {
+++    this.#enabled = true;
+++  }
+++
+++  disable() {
+++    this.#enabled = false;
+++    for (const child of this.#children) child.disable();
+++  }
+++
+++  /** @param {SetupFn} effect  */
+++  addEffect(effect) {
+++    this.#setupFns.push(effect);
+++  }
+++
+++  fork() {
+++    const newNode = new Node();
+++    newNode.#enabled = this.#enabled;
+++    this.#children.push(newNode);
+++    return newNode;
+++  }
+++
+++  setup() {
+++    if (!this.#enabled) return;
+++    for (const effect of this.#setupFns) {
+++      try {
+++        const cleanup = effect();
+++        if (typeof cleanup === 'function') this.#disposeFns.push(cleanup);
+++      } catch (error) {
+++        console.error(error);
+++      }
+++    }
+++    for (const child of this.#children) {
+++      child.setup();
+++    }
+++  }
+++
+++  dispose() {
+++    if (!this.#enabled) return;
+++    for (const effect of this.#disposeFns) {
+++      try {
+++        effect();
+++      } catch (error) {
+++        console.error(error);
+++      }
+++    }
+++    const node = new Node();
+++    node.#setupFns = this.#setupFns;
+++    node.#disposeFns = this.#disposeFns;
+++
+++    this.#setupFns.length = 0;
+++    this.#disposeFns.length = 0;
+++    this.disable();
+++    this.#children.length = 0;
+++    this.#enabled = true;
+++    return node;
+++  }
+++}
+++
++ const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
++ 
++ /**
++@@ -72,8 +142,8 @@ export function createScope(name) {
++             : () => {};
++ 
++       const activeScopeSnapshot = getScopeSnapshot();
++-      const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
++-      activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
+++      const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
+++      activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
++       try {
++         if ('h' in props && !props.h) {
++           const template = renderFn();
++@@ -81,7 +151,7 @@ export function createScope(name) {
++         }
++         return h(renderFn, {});
++       } finally {
++-        activeScopeSnapshot.set(Scope, stackBefore);
+++        activeScopeSnapshot.scopes.set(Scope, stackBefore);
++       }
++     },
++   };
++@@ -101,7 +171,7 @@ export function createScope(name) {
++  */
++ export function useScopeContext(Scope, snapshot) {
++   const snapshotCtx = snapshot || getScopeSnapshot();
++-  const relatedScopeData = snapshotCtx.get(Scope);
+++  const relatedScopeData = snapshotCtx.scopes.get(Scope);
++   if (!relatedScopeData || relatedScopeData.length === 0) {
++     const scopeName = Scope?.key.description || 'UnknownScope';
++     throw new Error(
++@@ -137,7 +207,8 @@ export function useScopeContext(Scope, snapshot) {
++  * ```
++  */
++ export function createScopeSnapshot() {
++-  return new Map(getScopeSnapshot());
+++  const { scopes, node: node } = getScopeSnapshot();
+++  return { scopes: new Map(scopes), node: node.fork() };
++ }
++ 
++ /**
++@@ -147,9 +218,14 @@ export function createScopeSnapshot() {
++  *   currently active data for that scope.
++  */
++ function getScopeSnapshot() {
++-  const { globalData } = getGlobalContext();
+++  const { globalData, window } = getGlobalContext();
++   if (!globalData.has(SNAPSHOT_KEY)) {
++-    globalData.set(SNAPSHOT_KEY, new Map());
+++    const node = new Node();
+++    const scopes = new Map();
+++    if (matchContext(window, Modes.Interactive)) {
+++      node.enable();
+++    }
+++    globalData.set(SNAPSHOT_KEY, { scopes, node });
++   }
++   return globalData.get(SNAPSHOT_KEY);
++ }
++@@ -271,3 +347,50 @@ export function combineScopes(...providers) {
++ 
++   return Scope;
++ }
+++
+++/**
+++ * A hook for managing side effects with cleanup, tied to a component's logical lifecycle.
+++ *
+++ * The callback runs once when a component instance is initialized, ideal for tasks
+++ * like setting timers, subscribing to data streams, or adding global event listeners.
+++ * The callback can return a cleanup function to prevent memory leaks, automatically
+++ * executed when the component instance is destroyed (e.g., when removed from a `<For>` list).
+++ *
+++ * @param {SetupFn} callback - Function executed once on component setup. If it returns
+++ *   a function, that function is used for cleanup.
+++ *
+++ * @example
+++ * ```tsx
+++ * import { Cell, useSetupEffect } from 'retend';
+++ *
+++ * function LiveClock() {
+++ *   const time = Cell.source(new Date().toTimeString());
+++ *
+++ *   useSetupEffect(() => {
+++ *     const timerId = setInterval(() => time.set(new Date().toTimeString()), 1000);
+++ *     return () => clearInterval(timerId);
+++ *   });
+++ *
+++ *   return <p>Current time: {time}</p>;
+++ * }
+++ * ```
+++ *
+++ * @example
+++ * ```tsx
+++ * useSetupEffect(() => {
+++ *   const handleResize = () => console.log('Window resized!');
+++ *   window.addEventListener('resize', handleResize);
+++ *
+++ *   return () => window.removeEventListener('resize', handleResize);
+++ * });
+++ * ```
+++ *
+++ * @remarks
+++ * - This hook runs only once per component instance, similar to `useEffect(..., [])` in React. It does not re-run on updates.
+++ * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `useObserver` instead.
+++ *
+++ * @see {@link useObserver} for DOM-based lifecycle effects.
+++ */
+++export function useSetupEffect(callback) {
+++  getScopeSnapshot().node.addEffect(callback);
+++}
++diff --git a/packages/retend/source/library/switch.js b/packages/retend/source/library/switch.js
++index 23d2f64..eded27c 100644
++--- a/packages/retend/source/library/switch.js
+++++ b/packages/retend/source/library/switch.js
++@@ -74,7 +74,8 @@ export function Switch(value, cases, defaultCase) {
++ 
++   /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
++   const callback = function (value) {
++-    return withScopeSnapshot(snapshot, () => {
+++    snapshot.node.dispose(); // cleanup previous effects
+++    const results = withScopeSnapshot(snapshot, () => {
++       /** @type {(Node | VDom.VNode)[]} */
++       let nodes = [];
++       let nextNode = this.nextSibling;
++@@ -106,6 +107,8 @@ export function Switch(value, cases, defaultCase) {
++ 
++       return nodes;
++     });
+++    snapshot.node.setup(); // run new effects
+++    return results;
++   };
++ 
++   // Don't use runAndListen with an outer array to store nodes.
++@@ -174,7 +177,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
++ 
++   /** @type {ReactiveCellFunction<any, any, any>} */
++   const callback = function (cellValue) {
++-    return withScopeSnapshot(snapshot, () => {
+++    snapshot.node.dispose(); // cleanup previous effects
+++    const results = withScopeSnapshot(snapshot, () => {
++       /** @type {(Node | VDom.VNode)[]} */
++       let nodes = [];
++       let nextNode = this.nextSibling;
++@@ -208,6 +212,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
++ 
++       return nodes;
++     });
+++    snapshot.node.setup(); // run new effects
+++    return results;
++   };
++ 
++   const firstRun = callback.bind(rangeStart)(cell.get());
++diff --git a/packages/retend/source/plugin/hmr.js b/packages/retend/source/plugin/hmr.js
++index 9e6d87d..080d9e6 100644
++--- a/packages/retend/source/plugin/hmr.js
+++++ b/packages/retend/source/plugin/hmr.js
++@@ -163,7 +163,8 @@ export function setupHMRBoundaries(value, fn) {
++ 
++   /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */
++   const callback = function (_value) {
++-    return withScopeSnapshot(scopeSnapshot, () => {
+++    scopeSnapshot.node.dispose(); // cleanup previous effects
+++    const results = withScopeSnapshot(scopeSnapshot, () => {
++       const { window } = getGlobalContext();
++       if (!matchContext(window, Modes.Interactive)) {
++         const message = 'Cannot handle HMR in non-interactive environments';
++@@ -211,6 +212,8 @@ export function setupHMRBoundaries(value, fn) {
++       // listen for the next iteration.
++       addCellListener(nodes[0], value, callback, false);
++     });
+++    scopeSnapshot.node.setup(); // run new effects
+++    return results;
++   };
++ 
++   addCellListener(nodes[0], value, callback, false);
++diff --git a/packages/retend/source/router/index.js b/packages/retend/source/router/index.js
++index 9f87771..8bcef86 100644
++--- a/packages/retend/source/router/index.js
+++++ b/packages/retend/source/router/index.js
++@@ -1070,13 +1070,13 @@ export class Router extends EventTarget {
++       /** @type {JSX.Template} */
++       let renderedComponent;
++       const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
+++      const oldSnapshot = outlet.__originScopeSnapshot;
++       if (routeSnapshot) {
++         renderedComponent = [...routeSnapshot.fragment.childNodes];
++       } else {
++         try {
++-          const scopeSnapshot = outlet.__originScopeSnapshot;
++-          if (scopeSnapshot) {
++-            renderedComponent = withScopeSnapshot(scopeSnapshot, () =>
+++          if (oldSnapshot) {
+++            renderedComponent = withScopeSnapshot(oldSnapshot, () =>
++               h(matchedComponent, {})
++             );
++           } else renderedComponent = h(matchedComponent, {});
++diff --git a/tests/scope/index.spec.tsx b/tests/scope/index.spec.tsx
++index 033b081..8ea2714 100644
++--- a/tests/scope/index.spec.tsx
+++++ b/tests/scope/index.spec.tsx
++@@ -403,7 +403,7 @@ const runTests = () => {
++ 
++     it('should handle empty snapshots', () => {
++       const emptySnapshot = createScopeSnapshot();
++-      expect(emptySnapshot.size).toBe(0);
+++      expect(emptySnapshot.scopes.size).toBe(0);
++       const result = withScopeSnapshot(emptySnapshot, () => {
++         return 'test-result';
++       });
++diff --git a/tests/scope/use-setup-effect.spec.tsx b/tests/scope/use-setup-effect.spec.tsx
++new file mode 100644
++index 0000000..ec8859f
++--- /dev/null
+++++ b/tests/scope/use-setup-effect.spec.tsx
++@@ -0,0 +1,285 @@
+++import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+++import { useSetupEffect, If, Cell, For, Switch } from 'retend';
+++import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
+++import { getGlobalContext, resetGlobalContext } from 'retend/context';
+++import { routerSetupBrowser, getTextContent, browserSetup } from '../setup.ts';
+++
+++describe('useSetupEffect', () => {
+++  describe('with components', () => {
+++    browserSetup();
+++    afterAll(() => {
+++      resetGlobalContext();
+++    });
+++
+++    it('works in an If() branch', () => {
+++      const show = Cell.source(false);
+++      const setupFn = vi.fn();
+++      const cleanupFn = vi.fn();
+++
+++      const ComponentWithEffect = () => {
+++        useSetupEffect(() => {
+++          setupFn();
+++          return () => {
+++            cleanupFn();
+++          };
+++        });
+++        return <div>Component</div>;
+++      };
+++
+++      const App = () => {
+++        return (
+++          <div>
+++            {If(show, () => (
+++              <ComponentWithEffect />
+++            ))}
+++          </div>
+++        );
+++      };
+++
+++      const result = App() as HTMLElement;
+++
+++      expect(setupFn).not.toHaveBeenCalled();
+++      expect(cleanupFn).not.toHaveBeenCalled();
+++      expect(getTextContent(result)).toBe('');
+++
+++      show.set(true);
+++      expect(setupFn).toHaveBeenCalledTimes(1);
+++      expect(cleanupFn).not.toHaveBeenCalled();
+++      expect(getTextContent(result)).toBe('Component');
+++
+++      show.set(false);
+++      expect(setupFn).toHaveBeenCalledTimes(1);
+++      expect(cleanupFn).toHaveBeenCalledTimes(1);
+++      expect(getTextContent(result)).toBe('');
+++
+++      show.set(true);
+++      expect(setupFn).toHaveBeenCalledTimes(2);
+++      expect(cleanupFn).toHaveBeenCalledTimes(1);
+++      expect(getTextContent(result)).toBe('Component');
+++    });
+++
+++    it('works in a For() loop', () => {
+++      const list = Cell.source([
+++        { id: 1, text: 'A' },
+++        { id: 2, text: 'B' },
+++      ]);
+++      const setupFns = new Map<number, ReturnType<typeof vi.fn>>();
+++      const cleanupFns = new Map<number, ReturnType<typeof vi.fn>>();
+++
+++      const ComponentWithEffect = ({
+++        item,
+++      }: {
+++        item: { id: number; text: string };
+++      }) => {
+++        if (!setupFns.has(item.id)) {
+++          setupFns.set(item.id, vi.fn());
+++          cleanupFns.set(item.id, vi.fn());
+++        }
+++
+++        useSetupEffect(() => {
+++          setupFns.get(item.id)!();
+++          return () => {
+++            cleanupFns.get(item.id)!();
+++          };
+++        });
+++        return <div>{item.text}</div>;
+++      };
+++
+++      const App = () => {
+++        return (
+++          <div>
+++            {For(
+++              list,
+++              (item) => (
+++                <ComponentWithEffect item={item} />
+++              ),
+++              {
+++                key: 'id',
+++              }
+++            )}
+++          </div>
+++        );
+++      };
+++
+++      const result = App() as HTMLElement;
+++
+++      expect(getTextContent(result)).toBe('AB');
+++      expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
+++      expect(setupFns.get(2)!).toHaveBeenCalledTimes(1);
+++      expect(cleanupFns.get(1)!).not.toHaveBeenCalled();
+++      expect(cleanupFns.get(2)!).not.toHaveBeenCalled();
+++
+++      list.set([{ id: 1, text: 'A' }]);
+++      expect(getTextContent(result)).toBe('A');
+++      expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
+++      expect(setupFns.get(2)!).toHaveBeenCalledTimes(1);
+++      expect(cleanupFns.get(1)!).not.toHaveBeenCalled();
+++      expect(cleanupFns.get(2)!).toHaveBeenCalledTimes(1);
+++
+++      list.set([
+++        { id: 1, text: 'A' },
+++        { id: 3, text: 'C' },
+++      ]);
+++      expect(getTextContent(result)).toBe('AC');
+++      expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
+++      expect(setupFns.get(3)!).toBeDefined();
+++      expect(setupFns.get(3)!).toHaveBeenCalledTimes(1);
+++      expect(cleanupFns.get(1)!).not.toHaveBeenCalled();
+++      expect(cleanupFns.get(3)!).not.toHaveBeenCalled();
+++
+++      list.set([]);
+++      expect(getTextContent(result)).toBe('');
+++      expect(cleanupFns.get(1)!).toHaveBeenCalledTimes(1);
+++      expect(cleanupFns.get(2)!).toHaveBeenCalledTimes(1);
+++      expect(cleanupFns.get(3)!).toHaveBeenCalledTimes(1);
+++    });
+++
+++    it('works in a Switch() statement', () => {
+++      const state = Cell.source<'A' | 'B' | 'C'>('A');
+++      const setupFn = vi.fn();
+++      const cleanupFn = vi.fn();
+++
+++      const ComponentWithEffect = () => {
+++        useSetupEffect(() => {
+++          setupFn();
+++          return () => {
+++            cleanupFn();
+++          };
+++        });
+++        return <div>Effect Component</div>;
+++      };
+++
+++      const App = () => {
+++        return (
+++          <div>
+++            {Switch(state, {
+++              A: () => <div>Case A</div>,
+++              B: () => <ComponentWithEffect />,
+++              C: () => <div>Case C</div>,
+++            })}
+++          </div>
+++        );
+++      };
+++
+++      const result = App() as HTMLElement;
+++
+++      expect(getTextContent(result)).toBe('Case A');
+++      expect(setupFn).not.toHaveBeenCalled();
+++      expect(cleanupFn).not.toHaveBeenCalled();
+++
+++      state.set('B');
+++      expect(getTextContent(result)).toBe('Effect Component');
+++      expect(setupFn).toHaveBeenCalledTimes(1);
+++      expect(cleanupFn).not.toHaveBeenCalled();
+++
+++      state.set('C');
+++      expect(getTextContent(result)).toBe('Case C');
+++      expect(setupFn).toHaveBeenCalledTimes(1);
+++      expect(cleanupFn).toHaveBeenCalledTimes(1);
+++
+++      state.set('B');
+++      expect(getTextContent(result)).toBe('Effect Component');
+++      expect(setupFn).toHaveBeenCalledTimes(2);
+++      expect(cleanupFn).toHaveBeenCalledTimes(1);
+++
+++      state.set('A');
+++      expect(getTextContent(result)).toBe('Case A');
+++      expect(setupFn).toHaveBeenCalledTimes(2);
+++      expect(cleanupFn).toHaveBeenCalledTimes(2);
+++    });
+++  });
+++
+++  // describe('with routing', () => {
+++  //   beforeEach(() => {
+++  //     routerSetupBrowser();
+++  //   });
+++
+++  //   afterAll(() => {
+++  //     resetGlobalContext();
+++  //   });
+++
+++  //   const setupFn = vi.fn();
+++  //   const cleanupFn = vi.fn();
+++
+++  //   const EffectComponent = () => {
+++  //     useSetupEffect(() => {
+++  //       setupFn();
+++  //       return cleanupFn;
+++  //     });
+++  //     return <div>Effect Component</div>;
+++  //   };
+++
+++  //   const OtherComponent = () => <div>Other Component</div>;
+++
+++  //   const App = (props: { keepAlive?: boolean }) => {
+++  //     const { Outlet } = useRouter();
+++  //     return (
+++  //       <div>
+++  //         <Outlet keepAlive={props.keepAlive} />
+++  //       </div>
+++  //     );
+++  //   };
+++
+++  //   const routes = (props: { keepAlive?: boolean }) =>
+++  //     defineRoutes([
+++  //       {
+++  //         path: '/',
+++  //         component: () => <App {...props} />,
+++  //         children: [
+++  //           { path: 'effect', component: EffectComponent },
+++  //           { path: 'other', component: OtherComponent },
+++  //         ],
+++  //       },
+++  //     ]);
+++
+++  //   it('should run setup and cleanup on navigation (keepAlive=false)', async () => {
+++  //     const { window } = getGlobalContext();
+++  //     setupFn.mockClear();
+++  //     cleanupFn.mockClear();
+++
+++  //     const router = createWebRouter({ routes: routes({ keepAlive: false }) });
+++  //     router.setWindow(window);
+++  //     router.attachWindowListeners();
+++
+++  //     await router.navigate('/effect');
+++  //     expect(getTextContent(window.document.body)).toBe('Effect Component');
+++  //     expect(setupFn).toHaveBeenCalledTimes(1);
+++  //     expect(cleanupFn).not.toHaveBeenCalled();
+++
+++  //     await router.navigate('/other');
+++  //     expect(getTextContent(window.document.body)).toBe('Other Component');
+++  //     expect(setupFn).toHaveBeenCalledTimes(1);
+++  //     expect(cleanupFn).toHaveBeenCalledTimes(1);
+++
+++  //     await router.navigate('/effect');
+++  //     expect(getTextContent(window.document.body)).toBe('Effect Component');
+++  //     expect(setupFn).toHaveBeenCalledTimes(2);
+++  //     expect(cleanupFn).toHaveBeenCalledTimes(1);
+++  //   });
+++
+++  //   it('should dispose and re-run effects with keepAlive=true', async () => {
+++  //     const { window } = getGlobalContext();
+++  //     setupFn.mockClear();
+++  //     cleanupFn.mockClear();
+++
+++  //     const router = createWebRouter({ routes: routes({ keepAlive: true }) });
+++  //     router.setWindow(window);
+++  //     router.attachWindowListeners();
+++
+++  //     await router.navigate('/effect');
+++  //     expect(getTextContent(window.document.body)).toBe('Effect Component');
+++  //     expect(setupFn).toHaveBeenCalledTimes(1);
+++  //     expect(cleanupFn).not.toHaveBeenCalled();
+++
+++  //     await router.navigate('/other');
+++  //     expect(getTextContent(window.document.body)).toBe('Other Component');
+++  //     expect(setupFn).toHaveBeenCalledTimes(1);
+++  //     expect(cleanupFn).toHaveBeenCalledTimes(1);
+++
+++  //     await router.navigate('/effect');
+++  //     expect(getTextContent(window.document.body)).toBe('Effect Component');
+++  //     expect(setupFn).toHaveBeenCalledTimes(2);
+++  //     expect(cleanupFn).toHaveBeenCalledTimes(1);
+++  //   });
+++  // });
+++});
++diff --git a/tests/setup.ts b/tests/setup.ts
++index d1ffd9b..116399f 100644
++--- a/tests/setup.ts
+++++ b/tests/setup.ts
++@@ -25,8 +25,33 @@ export const routerSetup = () => {
++   });
++ };
++ 
+++
+++export const routerSetupBrowser = () => {
+++  if (GlobalRegistrator.isRegistered) {
+++    GlobalRegistrator.unregister();
+++  }
+++
+++  GlobalRegistrator.register({
+++    url: 'http://localhost:8080',
+++  });
+++  window.document.body.append(
+++    window.document.createElement('retend-router-outlet')
+++  );
+++
+++  setGlobalContext({
+++    mode: Modes.Interactive,
+++    window,
+++    consistentValues: new Map(),
+++    globalData: new Map(),
+++    teleportIdCounter: { value: 0 },
+++  });
+++};
+++
++ export const browserSetup = () => {
++   beforeAll(() => {
+++    if (GlobalRegistrator.isRegistered) {
+++      GlobalRegistrator.unregister();
+++    }
++     GlobalRegistrator.register();
++   });
++ 
+diff --git a/tests/scope/index.spec.tsx b/tests/scope/index.spec.tsx
+index 033b081..8ea2714 100644
+--- a/tests/scope/index.spec.tsx
++++ b/tests/scope/index.spec.tsx
+@@ -403,7 +403,7 @@ const runTests = () => {
+ 
+     it('should handle empty snapshots', () => {
+       const emptySnapshot = createScopeSnapshot();
+-      expect(emptySnapshot.size).toBe(0);
++      expect(emptySnapshot.scopes.size).toBe(0);
+       const result = withScopeSnapshot(emptySnapshot, () => {
+         return 'test-result';
+       });
+diff --git a/tests/scope/use-setup-effect/for.spec.tsx b/tests/scope/use-setup-effect/for.spec.tsx
+new file mode 100644
+index 0000000..3083ed4
+--- /dev/null
++++ b/tests/scope/use-setup-effect/for.spec.tsx
+@@ -0,0 +1,89 @@
++import { describe, it, expect, vi, afterAll } from 'vitest';
++import { useSetupEffect, For, Cell } from 'retend';
++import { resetGlobalContext } from 'retend/context';
++import { getTextContent, browserSetup } from '../../setup.ts';
++
++describe('useSetupEffect with For', () => {
++  browserSetup();
++  afterAll(() => {
++    resetGlobalContext();
++  });
++
++  it('works in a For() loop', () => {
++    const list = Cell.source([
++      { id: 1, text: 'A' },
++      { id: 2, text: 'B' },
++    ]);
++    const setupFns = new Map<number, ReturnType<typeof vi.fn>>();
++    const cleanupFns = new Map<number, ReturnType<typeof vi.fn>>();
++
++    interface ComponentWithEffectProps {
++      item: {
++        id: number;
++        text: string;
++      };
++    }
++
++    const ComponentWithEffect = (props: ComponentWithEffectProps) => {
++      const { item } = props;
++      if (!setupFns.has(item.id)) {
++        setupFns.set(item.id, vi.fn());
++        cleanupFns.set(item.id, vi.fn());
++      }
++
++      useSetupEffect(() => {
++        setupFns.get(item.id)!();
++        return () => {
++          cleanupFns.get(item.id)!();
++        };
++      });
++      return <div>{item.text}</div>;
++    };
++
++    const App = () => {
++      return (
++        <div>
++          {For(
++            list,
++            (item) => (
++              <ComponentWithEffect item={item} />
++            ),
++            { key: 'id' }
++          )}
++        </div>
++      );
++    };
++
++    const result = App() as HTMLElement;
++
++    expect(getTextContent(result)).toBe('AB');
++    expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
++    expect(setupFns.get(2)!).toHaveBeenCalledTimes(1);
++    expect(cleanupFns.get(1)!).not.toHaveBeenCalled();
++    expect(cleanupFns.get(2)!).not.toHaveBeenCalled();
++
++    list.set([{ id: 1, text: 'A' }]);
++    expect(getTextContent(result)).toBe('A');
++    expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
++    expect(setupFns.get(2)!).toHaveBeenCalledTimes(1);
++    expect(cleanupFns.get(1)!).not.toHaveBeenCalled();
++    expect(cleanupFns.get(2)!).toHaveBeenCalledTimes(1);
++
++    list.set([
++      { id: 1, text: 'A' },
++      { id: 3, text: 'C' },
++    ]);
++    expect(getTextContent(result)).toBe('AC');
++    expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
++    expect(setupFns.get(3)!).toBeDefined();
++    expect(setupFns.get(3)!).toHaveBeenCalledTimes(1);
++    expect(cleanupFns.get(1)!).not.toHaveBeenCalled();
++    expect(cleanupFns.get(3)!).not.toHaveBeenCalled();
++
++    list.set([]);
++    expect(getTextContent(result)).toBe('');
++    expect(cleanupFns.get(1)!).toHaveBeenCalledTimes(1);
++    expect(cleanupFns.get(2)!).toHaveBeenCalledTimes(1);
++    expect(cleanupFns.get(3)!).toHaveBeenCalledTimes(1);
++  });
++});
+diff --git a/tests/scope/use-setup-effect/if.spec.tsx b/tests/scope/use-setup-effect/if.spec.tsx
+new file mode 100644
+index 0000000..fbc8126
+--- /dev/null
++++ b/tests/scope/use-setup-effect/if.spec.tsx
+@@ -0,0 +1,58 @@
++import { describe, it, expect, vi, afterAll } from 'vitest';
++import { useSetupEffect, If, Cell } from 'retend';
++import { resetGlobalContext } from 'retend/context';
++import { getTextContent, browserSetup } from '../../setup.ts';
++
++describe('useSetupEffect with If', () => {
++  browserSetup();
++  afterAll(() => {
++    resetGlobalContext();
++  });
++
++  it('works in an If() branch', () => {
++    const show = Cell.source(false);
++    const setupFn = vi.fn();
++    const cleanupFn = vi.fn();
++
++    const ComponentWithEffect = () => {
++      useSetupEffect(() => {
++        setupFn();
++        return () => {
++          cleanupFn();
++        };
++      });
++      return <div>Component</div>;
++    };
++
++    const App = () => {
++      return (
++        <div>
++          {If(show, () => (
++            <ComponentWithEffect />
++          ))}
++        </div>
++      );
++    };
++
++    const result = App() as HTMLElement;
++
++    expect(setupFn).not.toHaveBeenCalled();
++    expect(cleanupFn).not.toHaveBeenCalled();
++    expect(getTextContent(result)).toBe('');
++
++    show.set(true);
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).not.toHaveBeenCalled();
++    expect(getTextContent(result)).toBe('Component');
++
++    show.set(false);
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++    expect(getTextContent(result)).toBe('');
++
++    show.set(true);
++    expect(setupFn).toHaveBeenCalledTimes(2);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++    expect(getTextContent(result)).toBe('Component');
++  });
++});
+diff --git a/tests/scope/use-setup-effect/nested.spec.tsx b/tests/scope/use-setup-effect/nested.spec.tsx
+new file mode 100644
+index 0000000..ba4419f
+--- /dev/null
++++ b/tests/scope/use-setup-effect/nested.spec.tsx
+@@ -0,0 +1,134 @@
++import { describe, it, expect, afterAll } from 'vitest';
++import { useSetupEffect, If, Cell, For } from 'retend';
++import { resetGlobalContext } from 'retend/context';
++import { browserSetup, getTextContent } from '../../setup.ts';
++
++describe('nested useSetupEffect', () => {
++  browserSetup();
++
++  afterAll(() => {
++    resetGlobalContext();
++  });
++
++  it('should handle nested If components', () => {
++    const setupLogs: string[] = [];
++    const cleanupLogs: string[] = [];
++
++    const showOuter = Cell.source(false);
++    const showInner = Cell.source(false);
++
++    const Inner = () => {
++      useSetupEffect(() => {
++        setupLogs.push('inner');
++        return () => cleanupLogs.push('inner');
++      });
++      return <div>Inner</div>;
++    };
++
++    const Outer = () => {
++      useSetupEffect(() => {
++        setupLogs.push('outer');
++        return () => cleanupLogs.push('outer');
++      });
++      return <div>{If(showInner, Inner)}</div>;
++    };
++
++    const App = () => <div>{If(showOuter, Outer)}</div>;
++
++    App();
++    expect(setupLogs).toEqual([]);
++    expect(cleanupLogs).toEqual([]);
++
++    showOuter.set(true);
++    expect(setupLogs).toEqual(['outer']);
++    expect(cleanupLogs).toEqual([]);
++    setupLogs.length = 0;
++
++    showInner.set(true);
++    expect(setupLogs).toEqual(['inner']);
++    expect(cleanupLogs).toEqual([]);
++    setupLogs.length = 0;
++
++    showInner.set(false);
++    expect(setupLogs).toEqual([]);
++    expect(cleanupLogs).toEqual(['inner']);
++    cleanupLogs.length = 0;
++
++    showOuter.set(false);
++    expect(setupLogs).toEqual([]);
++    expect(cleanupLogs).toEqual(['outer']);
++  });
++
++  it('should handle nested For components', () => {
++    const outerList = Cell.source<number[]>([]);
++    const innerList = Cell.source<number[]>([]);
++    const setupLogs: string[] = [];
++    const cleanupLogs: string[] = [];
++
++    const Inner = () => {
++      useSetupEffect(() => {
++        setupLogs.push('inner');
++
++        return () => cleanupLogs.push('inner');
++      });
++
++      return <div>Inner</div>;
++    };
++
++    const Outer = () => {
++      useSetupEffect(() => {
++        setupLogs.push('outer');
++
++        return () => cleanupLogs.push('outer');
++      });
++
++      return <div>Outer[{For(innerList, Inner)}]</div>;
++    };
++
++    const App = () => {
++      return <div>{For(outerList, Outer)}</div>;
++    };
++
++    const result = App() as HTMLElement;
++    expect(getTextContent(result)).toEqual('');
++    outerList.set([1, 2, 3]);
++    expect(getTextContent(result)).toEqual('Outer[]Outer[]Outer[]');
++    expect(setupLogs).toEqual(['outer', 'outer', 'outer']);
++
++    innerList.set([1, 2, 3]);
++    expect(getTextContent(result)).toEqual(
++      'Outer[InnerInnerInner]Outer[InnerInnerInner]Outer[InnerInnerInner]'
++    );
++    expect(setupLogs).toEqual([
++      'outer',
++      'outer',
++      'outer',
++      'inner',
++      'inner',
++      'inner',
++      'inner',
++      'inner',
++      'inner',
++      'inner',
++      'inner',
++      'inner',
++    ]);
++
++    outerList.set([]);
++    // runs depth first.
++    expect(cleanupLogs).toEqual([
++      'outer',
++      'inner',
++      'inner',
++      'inner',
++      'outer',
++      'inner',
++      'inner',
++      'inner',
++      'outer',
++      'inner',
++      'inner',
++      'inner',
++    ]);
++  });
++});
+diff --git a/tests/scope/use-setup-effect/routing.spec.tsx b/tests/scope/use-setup-effect/routing.spec.tsx
+new file mode 100644
+index 0000000..aa8d858
+--- /dev/null
++++ b/tests/scope/use-setup-effect/routing.spec.tsx
+@@ -0,0 +1,99 @@
++import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
++import { useSetupEffect } from 'retend';
++import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
++import { getGlobalContext, resetGlobalContext } from 'retend/context';
++import { routerSetupBrowser, getTextContent } from '../../setup.ts';
++
++describe('useSetupEffect with routing', () => {
++  beforeEach(() => {
++    routerSetupBrowser();
++  });
++
++  afterAll(() => {
++    resetGlobalContext();
++  });
++
++  const setupFn = vi.fn();
++  const cleanupFn = vi.fn();
++
++  const EffectComponent = () => {
++    useSetupEffect(() => {
++      setupFn();
++      return cleanupFn;
++    });
++    return <div>Effect Component</div>;
++  };
++
++  const OtherComponent = () => <div>Other Component</div>;
++
++  const App = (props: { keepAlive?: boolean }) => {
++    const { Outlet } = useRouter();
++    return (
++      <div>
++        <Outlet keepAlive={props.keepAlive} />
++      </div>
++    );
++  };
++
++  const routes = (props: { keepAlive?: boolean }) =>
++    defineRoutes([
++      {
++        path: '/',
++        component: () => <App {...props} />,
++        children: [
++          { path: 'effect', component: EffectComponent },
++          { path: 'other', component: OtherComponent },
++        ],
++      },
++    ]);
++
++  it('should run setup and cleanup on navigation (keepAlive=false)', async () => {
++    const { window } = getGlobalContext();
++    setupFn.mockClear();
++    cleanupFn.mockClear();
++
++    const router = createWebRouter({ routes: routes({ keepAlive: false }) });
++    router.setWindow(window);
++    router.attachWindowListeners();
++
++    await router.navigate('/effect');
++    expect(getTextContent(window.document.body)).toBe('Effect Component');
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).not.toHaveBeenCalled();
++
++    await router.navigate('/other');
++    expect(getTextContent(window.document.body)).toBe('Other Component');
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++
++    await router.navigate('/effect');
++    expect(getTextContent(window.document.body)).toBe('Effect Component');
++    expect(setupFn).toHaveBeenCalledTimes(2);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++  });
++
++  it('should dispose and re-run effects with keepAlive=true', async () => {
++    const { window } = getGlobalContext();
++    setupFn.mockClear();
++    cleanupFn.mockClear();
++
++    const router = createWebRouter({ routes: routes({ keepAlive: true }) });
++    router.setWindow(window);
++    router.attachWindowListeners();
++
++    await router.navigate('/effect');
++    expect(getTextContent(window.document.body)).toBe('Effect Component');
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).not.toHaveBeenCalled();
++
++    await router.navigate('/other');
++    expect(getTextContent(window.document.body)).toBe('Other Component');
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++
++    await router.navigate('/effect');
++    expect(getTextContent(window.document.body)).toBe('Effect Component');
++    expect(setupFn).toHaveBeenCalledTimes(2);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++  });
++});
+diff --git a/tests/scope/use-setup-effect/switch.spec.tsx b/tests/scope/use-setup-effect/switch.spec.tsx
+new file mode 100644
+index 0000000..a0df3e2
+--- /dev/null
++++ b/tests/scope/use-setup-effect/switch.spec.tsx
+@@ -0,0 +1,65 @@
++import { describe, it, expect, vi, afterAll } from 'vitest';
++import { useSetupEffect, Switch, Cell } from 'retend';
++import { resetGlobalContext } from 'retend/context';
++import { getTextContent, browserSetup } from '../../setup.ts';
++
++describe('useSetupEffect with Switch', () => {
++  browserSetup();
++  afterAll(() => {
++    resetGlobalContext();
++  });
++
++  it('works in a Switch() statement', () => {
++    const state = Cell.source<'A' | 'B' | 'C'>('A');
++    const setupFn = vi.fn();
++    const cleanupFn = vi.fn();
++
++    const ComponentWithEffect = () => {
++      useSetupEffect(() => {
++        setupFn();
++        return () => {
++          cleanupFn();
++        };
++      });
++      return <div>Effect Component</div>;
++    };
++
++    const App = () => {
++      return (
++        <div>
++          {Switch(state, {
++            A: () => <div>Case A</div>,
++            B: () => <ComponentWithEffect />,
++            C: () => <div>Case C</div>,
++          })}
++        </div>
++      );
++    };
++
++    const result = App() as HTMLElement;
++
++    expect(getTextContent(result)).toBe('Case A');
++    expect(setupFn).not.toHaveBeenCalled();
++    expect(cleanupFn).not.toHaveBeenCalled();
++
++    state.set('B');
++    expect(getTextContent(result)).toBe('Effect Component');
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).not.toHaveBeenCalled();
++
++    state.set('C');
++    expect(getTextContent(result)).toBe('Case C');
++    expect(setupFn).toHaveBeenCalledTimes(1);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++
++    state.set('B');
++    expect(getTextContent(result)).toBe('Effect Component');
++    expect(setupFn).toHaveBeenCalledTimes(2);
++    expect(cleanupFn).toHaveBeenCalledTimes(1);
++
++    state.set('A');
++    expect(getTextContent(result)).toBe('Case A');
++    expect(setupFn).toHaveBeenCalledTimes(2);
++    expect(cleanupFn).toHaveBeenCalledTimes(2);
++  });
++});
+diff --git a/tests/setup.ts b/tests/setup.ts
+index d1ffd9b..116399f 100644
+--- a/tests/setup.ts
++++ b/tests/setup.ts
+@@ -25,8 +25,33 @@ export const routerSetup = () => {
+   });
+ };
+ 
++
++export const routerSetupBrowser = () => {
++  if (GlobalRegistrator.isRegistered) {
++    GlobalRegistrator.unregister();
++  }
++
++  GlobalRegistrator.register({
++    url: 'http://localhost:8080',
++  });
++  window.document.body.append(
++    window.document.createElement('retend-router-outlet')
++  );
++
++  setGlobalContext({
++    mode: Modes.Interactive,
++    window,
++    consistentValues: new Map(),
++    globalData: new Map(),
++    teleportIdCounter: { value: 0 },
++  });
++};
++
+ export const browserSetup = () => {
+   beforeAll(() => {
++    if (GlobalRegistrator.isRegistered) {
++      GlobalRegistrator.unregister();
++    }
+     GlobalRegistrator.register();
+   });
+ 

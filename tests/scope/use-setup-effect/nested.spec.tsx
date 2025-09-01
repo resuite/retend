@@ -1,14 +1,10 @@
-import { describe, it, expect, afterAll } from 'vitest';
-import { useSetupEffect, If, Cell, For } from 'retend';
-import { resetGlobalContext } from 'retend/context';
+import { describe, it, expect, assert } from 'vitest';
+import { useSetupEffect, If, Cell, For, runPendingSetupEffects } from 'retend';
 import { browserSetup, getTextContent } from '../../setup.ts';
+import { getGlobalContext, matchContext, Modes } from 'retend/context';
 
 describe('nested useSetupEffect', () => {
   browserSetup();
-
-  afterAll(() => {
-    resetGlobalContext();
-  });
 
   it('should handle nested If components', () => {
     const setupLogs: string[] = [];
@@ -35,7 +31,9 @@ describe('nested useSetupEffect', () => {
 
     const App = () => <div>{If(showOuter, Outer)}</div>;
 
-    App();
+    const result = App() as HTMLElement;
+    window.document.body.append(result);
+    runPendingSetupEffects();
     expect(setupLogs).toEqual([]);
     expect(cleanupLogs).toEqual([]);
 
@@ -90,6 +88,9 @@ describe('nested useSetupEffect', () => {
     };
 
     const result = App() as HTMLElement;
+    window.document.body.append(result);
+    runPendingSetupEffects();
+
     expect(getTextContent(result)).toEqual('');
     outerList.set([1, 2, 3]);
     expect(getTextContent(result)).toEqual('Outer[]Outer[]Outer[]');

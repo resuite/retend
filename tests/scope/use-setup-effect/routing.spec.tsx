@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
-import { useSetupEffect } from 'retend';
+import { runPendingSetupEffects, useSetupEffect } from 'retend';
 import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { routerSetupBrowser, getTextContent } from '../../setup.ts';
@@ -55,6 +55,7 @@ describe('useSetupEffect with routing', () => {
     const router = createWebRouter({ routes: routes({ keepAlive: false }) });
     router.setWindow(window);
     router.attachWindowListeners();
+    runPendingSetupEffects();
 
     await router.navigate('/effect');
     expect(getTextContent(window.document.body)).toBe('Effect Component');
@@ -80,6 +81,7 @@ describe('useSetupEffect with routing', () => {
     const router = createWebRouter({ routes: routes({ keepAlive: true }) });
     router.setWindow(window);
     router.attachWindowListeners();
+    runPendingSetupEffects();
 
     await router.navigate('/effect');
     expect(getTextContent(window.document.body)).toBe('Effect Component');

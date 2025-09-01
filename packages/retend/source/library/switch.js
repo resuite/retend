@@ -71,10 +71,11 @@ export function Switch(value, cases, defaultCase) {
   }
 
   const snapshot = createScopeSnapshot();
+  let isInitialRun = true;
 
   /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (value) {
-    snapshot.node.dispose(); // cleanup previous effects
+    snapshot.node.dispose();
     const results = withScopeSnapshot(snapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
@@ -94,19 +95,21 @@ export function Switch(value, cases, defaultCase) {
       if (caseCaller) {
         const newNodes = h(caseCaller, new ArgumentList([value]));
         nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+        this.after(.../** @type {*} */ (nodes));
         return nodes;
       }
 
       if (defaultCase) {
         const newNodes = h(defaultCase, new ArgumentList([value]));
         nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+        this.after(.../** @type {*} */ (nodes));
         return nodes;
       }
 
       return nodes;
     });
-    snapshot.node.activate(); // run new effects
-    this.after(.../** @type {*} */ (results));
+    if (!isInitialRun) snapshot.node.activate();
+    else isInitialRun = false;
     return results;
   };
 
@@ -176,7 +179,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
   /** @type {ReactiveCellFunction<any, any, any>} */
   const callback = function (cellValue) {
-    snapshot.node.dispose(); // cleanup previous effects
+    snapshot.node.dispose();
     const results = withScopeSnapshot(snapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
@@ -211,7 +214,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       return nodes;
     });
-    snapshot.node.activate(); // run new effects
+    if (this.isConnected) snapshot.node.activate();
     return results;
   };
 
