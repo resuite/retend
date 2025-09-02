@@ -1,5 +1,5 @@
 import { Cell } from 'retend';
-import { createGlobalStateHook } from './_shared.js';
+import { createSharedHook } from '../internal/create-shared-hook.js';
 
 const USE_DOCUMENT_VISIBILITY_KEY = Symbol(
   'hooks:useDocumentVisibility:visibilityCache'
@@ -8,6 +8,7 @@ const USE_DOCUMENT_VISIBILITY_KEY = Symbol(
 /**
  * Tracks the document's visibility state and provides a reactive cell.
  *
+ * @type {() => Cell<DocumentVisibilityState>}
  * @returns {Cell<DocumentVisibilityState>} A derived cell containing the document's visibility state.
  *
  * @example
@@ -16,25 +17,23 @@ const USE_DOCUMENT_VISIBILITY_KEY = Symbol(
  * const visibility = useDocumentVisibility();
  * console.log(`Current visibility state: ${visibility.get()}`);
  */
-export const useDocumentVisibility = createGlobalStateHook({
-  cacheKey: USE_DOCUMENT_VISIBILITY_KEY,
-
-  createSource: () => ({
-    visibilitySource: Cell.source(
-      /** @type {DocumentVisibilityState} */ ('visible')
-    ),
+export const useDocumentVisibility = createSharedHook({
+  key: USE_DOCUMENT_VISIBILITY_KEY,
+  initialData: () => ({
+    visibilitySource: Cell.source(document.visibilityState),
+    count: 0,
   }),
-
-  initializeState: (window, cells) => {
-    cells.visibilitySource.set(window.document.visibilityState);
+  setup: (data, { document }) => {
+    data.handleVisibilityChange = () => {
+      data.visibilitySource.set(document.visibilityState);
+    };
+    document.addEventListener('visibilitychange', data.handleVisibilityChange);
   },
-
-  setupListeners: (window, cells) => {
-    window.document.addEventListener('visibilitychange', () => {
-      cells.visibilitySource.set(window.document.visibilityState);
-    });
+  teardown: (data, { document }) => {
+    document.removeEventListener(
+      'visibilitychange',
+      data.handleVisibilityChange
+    );
   },
-
-  createReturnValue: (cells) =>
-    Cell.derived(() => cells.visibilitySource.get()),
+  getValue: (data) => Cell.derived(() => data.visibilitySource.get()),
 });

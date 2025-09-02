@@ -1,8 +1,7 @@
 /** @import { SourceCell } from 'retend' */
-/** @import { CreateGlobalStateHookOptions } from './_shared.js' */
 
 import { getGlobalContext } from 'retend/context';
-import { createGlobalStateHook } from './_shared.js';
+import { createSharedHook } from '../internal/create-shared-hook.js';
 import { Cell } from 'retend';
 
 const LOCAL_STORAGE_CACHE_KEY = Symbol('hooks:useLocalStorage:cache');
@@ -48,8 +47,9 @@ const SESSION_STORAGE_CACHE_KEY = Symbol('hooks:useSessionStorage:cache');
  * theme.set('dark'); // Updates localStorage
  * ```
  */
-export const useLocalStorage = createGlobalStateHook(
-  storageOptions(LOCAL_STORAGE_CACHE_KEY, 'localStorage')
+export const useLocalStorage = createStorageOptions(
+  LOCAL_STORAGE_CACHE_KEY,
+  'localStorage'
 );
 
 /**
@@ -73,15 +73,16 @@ export const useLocalStorage = createGlobalStateHook(
  * }
  * ```
  */
-export const useSessionStorage = createGlobalStateHook(
-  storageOptions(SESSION_STORAGE_CACHE_KEY, 'sessionStorage')
+export const useSessionStorage = createStorageOptions(
+  SESSION_STORAGE_CACHE_KEY,
+  'sessionStorage'
 );
 
 /**
  * Safely parses a JSON string and returns the parsed value or null on error.
  * @template T
  * @param {string} jsonString - The JSON string to parse.
- * @returns {T} The parsed value or null if parsing fails.
+ * @returns {T | null} The parsed value or null if parsing fails.
  */
 function safeParseJson(jsonString) {
   try {
@@ -94,70 +95,75 @@ function safeParseJson(jsonString) {
 }
 
 /**
- * @param {symbol} cacheKey
- * @param {'localStorage' | 'sessionStorage'} storage
- * @returns {CreateGlobalStateHookOptions<[string, any], Map<string, SourceCell<any>>, SourceCell<any>>}
+ * @param {symbol} key
+ * @param {'localStorage' | 'sessionStorage'} storageType
+ * @returns {<T>(key: string, initialValue: T) => SourceCell<T>}
  */
-function storageOptions(cacheKey, storage) {
-  return {
-    cacheKey,
-    createSource: () => new Map(),
-    initializeState(window, map) {
-      for (const [key, coreCell] of map.entries()) {
-        const value = window[storage].getItem(key);
-        if (value) {
-          coreCell.set(safeParseJson(value));
+function createStorageOptions(key, storageType) {
+  return createSharedHook({
+    key,
+    initialData: () => ({
+      /** @type {Map<string, SourceCell<any>>} */
+      cells: new Map(),
+    }),
+    setup: (data, window) => {
+      data.handleStorageChange = (event) => {
+        if (
+          !(event instanceof StorageEvent) ||
+          event.storageArea !== window[storageType] ||
+          !event.key
+        ) {
+          return;
         }
-      }
-    },
-    setupListeners: (window, map) => {
-      window.addEventListener('storage', (event) => {
-        if (event.storageArea !== window[storage]) return;
-        const { key, newValue } = event;
-        if (!key) return;
 
-        const cell = map.get(key);
-        if (cell && newValue) {
-          cell.set(safeParseJson(newValue));
-        } else if (cell) {
-          // @ts-ignore: Default to null.
-          cell.set(null);
+        const cell = data.cells.get(event.key);
+        if (cell) {
+          const newValue = event.newValue;
+          cell.set(newValue !== null ? safeParseJson(newValue) : null);
         }
-      });
+      };
+      window.addEventListener('storage', data.handleStorageChange);
     },
-    createReturnValue: (map, key, initialValue) => {
-      const { window } = getGlobalContext();
-      let coreCell = map.get(key);
+    teardown: (data, { window }) => {
+      window.removeEventListener('storage', data.handleStorageChange);
+    },
+    getValue: (data, key, initialValue) => {
+      let coreCell = data.cells.get(key);
+
       if (!coreCell) {
-        const valueFromStorage = window[storage].getItem(key);
-        const value = valueFromStorage
-          ? safeParseJson(valueFromStorage)
-          : initialValue;
+        const { window } = getGlobalContext();
+        const valueFromStorage = window[storageType].getItem(key);
+        const value =
+          valueFromStorage !== null
+            ? safeParseJson(valueFromStorage)
+            : initialValue;
+
         coreCell = Cell.source(value, { deep: true });
-        map.set(key, coreCell);
-        if (!valueFromStorage) {
-          window[storage].setItem(key, JSON.stringify(value));
+        data.cells.set(key, coreCell);
+
+        if (valueFromStorage === null) {
+          window[storageType].setItem(key, JSON.stringify(value));
         }
+
         coreCell.listen((value) => {
           const { window } = getGlobalContext();
-          window[storage].setItem(key, JSON.stringify(value));
+          window[storageType].setItem(key, JSON.stringify(value));
         });
       }
 
       const returnCell = Cell.source(coreCell.get(), { deep: true });
+
       returnCell.listen((value) => {
         coreCell.set(value);
       });
-      /** @param {unknown} value */
+
+      /** @param {typeof initialValue} value */
       const update = (value) => {
         returnCell.set(value);
       };
       coreCell.listen(update, { weak: true });
-
-      // Set on returnCell to prevent GC as long as the returned cell
-      // is in memory.
       Reflect.set(returnCell, '__:update', update);
       return returnCell;
     },
-  };
+  });
 }

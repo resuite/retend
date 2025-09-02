@@ -1,5 +1,5 @@
 import { Cell } from 'retend';
-import { createGlobalStateHook } from './_shared.js';
+import { createSharedHook } from '../internal/create-shared-hook.js';
 
 /**
  * @typedef {object} ClickCoordinates
@@ -12,6 +12,7 @@ const CLICK_COORDINATES_KEY = Symbol('hooks:useClickCoordinates:position');
 /**
  * Tracks the coordinates of the last click within the window.
  *
+ * @type {() => ClickCoordinates}
  * @returns {ClickCoordinates} An object containing reactive cells for the x and y coordinates of the last click.
  *
  * @example
@@ -27,22 +28,26 @@ const CLICK_COORDINATES_KEY = Symbol('hooks:useClickCoordinates:position');
  *   );
  * }
  */
-export const useClickCoordinates = createGlobalStateHook({
-  cacheKey: CLICK_COORDINATES_KEY,
-  createSource: () => ({ x: Cell.source(0), y: Cell.source(0) }),
-  setupListeners: (window, cells) => {
-    /**
-     * @param {MouseEvent} event
-     */
-    const updatePosition = (event) => {
-      cells.x.set(event.clientX);
-      cells.y.set(event.clientY);
+export const useClickCoordinates = createSharedHook({
+  key: CLICK_COORDINATES_KEY,
+  initialData: () => ({
+    cells: { x: Cell.source(0), y: Cell.source(0) },
+    count: 0,
+  }),
+  setup: (data, { document }) => {
+    data.handleClick = (event) => {
+      if (event instanceof MouseEvent) {
+        data.cells.x.set(event.clientX);
+        data.cells.y.set(event.clientY);
+      }
     };
-    window.addEventListener('click', updatePosition, { passive: true });
+    document.addEventListener('click', data.handleClick);
   },
-  /** @returns {ClickCoordinates}*/
-  createReturnValue: (cells) => ({
-    x: Cell.derived(() => cells.x.get()),
-    y: Cell.derived(() => cells.y.get()),
+  teardown: (data, { document }) => {
+    document.removeEventListener('click', data.handleClick);
+  },
+  getValue: (data) => ({
+    x: Cell.derived(() => data.cells.x.get()),
+    y: Cell.derived(() => data.cells.y.get()),
   }),
 });

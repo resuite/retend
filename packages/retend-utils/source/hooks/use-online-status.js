@@ -1,19 +1,12 @@
-/** @import { SourceCell } from 'retend' */
-/** @import { CreateGlobalStateHookOptions } from './_shared.js' */
-
 import { Cell } from 'retend';
-import { createGlobalStateHook } from './_shared.js';
-
-/**
- * @typedef {object} NetworkStatusState
- * @property {SourceCell<boolean>} isOnlineSource - The source cell holding the status.
- */
+import { createSharedHook } from '../internal/create-shared-hook.js';
 
 const USE_ONLINE_STATUS_KEY = Symbol('hooks:useOnlineStatus:statusCache');
 
 /**
  * Tracks the network connection status and provides a reactive cell.
  *
+ * @type {() => Cell<boolean>}
  * @returns {Cell<boolean>} A derived cell containing the online status (true if online, false if offline).
  *
  * @example
@@ -22,29 +15,29 @@ const USE_ONLINE_STATUS_KEY = Symbol('hooks:useOnlineStatus:statusCache');
  * const isOnline = useOnlineStatus();
  * console.log(`Currently online: ${isOnline.get()}`);
  */
-export const useOnlineStatus = createGlobalStateHook(
-  /** @type {CreateGlobalStateHookOptions<[], NetworkStatusState, Cell<boolean>>} */
-  ({
-    cacheKey: USE_ONLINE_STATUS_KEY,
+export const useOnlineStatus = createSharedHook({
+  key: USE_ONLINE_STATUS_KEY,
 
-    createSource: () => ({
-      isOnlineSource: Cell.source(true),
-    }),
+  initialData: () => ({
+    isOnlineSource: Cell.source(true),
+  }),
 
-    initializeState: (window, cells) => {
-      cells.isOnlineSource.set(window.navigator.onLine);
-    },
+  setup: (data, { window }) => {
+    data.handleOnline = () => {
+      data.isOnlineSource.set(true);
+    };
+    data.handleOffline = () => {
+      data.isOnlineSource.set(false);
+    };
+    window.addEventListener('online', data.handleOnline);
+    window.addEventListener('offline', data.handleOffline);
+    data.isOnlineSource.set(window.navigator.onLine);
+  },
 
-    setupListeners: (window, cells) => {
-      window.addEventListener('online', () => {
-        cells.isOnlineSource.set(true);
-      });
-      window.addEventListener('offline', () => {
-        cells.isOnlineSource.set(false);
-      });
-    },
+  teardown: (data, { window }) => {
+    window.removeEventListener('online', data.handleOnline);
+    window.removeEventListener('offline', data.handleOffline);
+  },
 
-    createReturnValue: (cells) =>
-      Cell.derived(() => cells.isOnlineSource.get()),
-  })
-);
+  getValue: (data) => Cell.derived(() => data.isOnlineSource.get()),
+});

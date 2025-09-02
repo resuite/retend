@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getGlobalContext } from 'retend/context';
 import { browserSetup } from '../setup.ts';
 import { useDocumentVisibility } from '../../packages/retend-utils/source/hooks';
+import { runPendingSetupEffects } from 'retend';
 
 describe('useDocumentVisibility', () => {
   browserSetup();
@@ -11,9 +12,10 @@ describe('useDocumentVisibility', () => {
     expect(visibility.get()).toBe('visible');
   });
 
-  it('should update the visibility state when the visibilitychange event is fired', () => {
+  it('should update the visibility state when the visibilitychange event is fired', async () => {
     const { window } = getGlobalContext();
     const visibility = useDocumentVisibility();
+    await runPendingSetupEffects();
 
     // Simulate the visibility state changing to hidden
     Object.defineProperty(window.document, 'visibilityState', {
