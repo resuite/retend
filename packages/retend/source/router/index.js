@@ -659,15 +659,6 @@ export class Router extends EventTarget {
   }
 
   /**
-   * @private
-   * Pushes the specified path to the router's history.
-   * @param {string} path - The path to push.
-   */
-  pushHistory(path) {
-    this.#history.push(path);
-  }
-
-  /**
    * Updates the browser history and renders the corresponding route component.
    *
    * @example
