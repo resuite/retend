@@ -77,7 +77,8 @@ export function If(value, fnOrObject, elseFn) {
 
   /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (_value) {
-    return withScopeSnapshot(scopeSnapshot, () => {
+    scopeSnapshot.node.dispose(); // cleanup previous effects
+    const results = withScopeSnapshot(scopeSnapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
       let nextNode = this.nextSibling;
@@ -116,10 +117,11 @@ export function If(value, fnOrObject, elseFn) {
         console.error(
           'If expects a callback or condition object as the second argument.'
         );
-
       this.after(.../** @type {*} */ (nodes));
       return nodes;
     });
+    if (this.isConnected) scopeSnapshot.node.activate();
+    return results;
   };
 
   // see comment in switch.js

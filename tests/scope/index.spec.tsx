@@ -403,7 +403,7 @@ const runTests = () => {
 
     it('should handle empty snapshots', () => {
       const emptySnapshot = createScopeSnapshot();
-      expect(emptySnapshot.size).toBe(0);
+      expect(emptySnapshot.scopes.size).toBe(0);
       const result = withScopeSnapshot(emptySnapshot, () => {
         return 'test-result';
       });

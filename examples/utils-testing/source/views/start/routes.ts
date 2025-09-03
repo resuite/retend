@@ -68,5 +68,10 @@ export const startRoute = defineRoute({
       path: 'scope',
       component: lazy(() => import('./scope')),
     },
+    {
+      name: 'Use Setup Effect',
+      path: 'use-setup-effect',
+      component: lazy(() => import('./use-setup-effect')),
+    }
   ],
 });

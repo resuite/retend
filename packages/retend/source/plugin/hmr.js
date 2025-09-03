@@ -8,6 +8,7 @@ import {
   createCommentPair,
   addCellListener,
   consolidateNodes,
+  removeCellListener,
 } from '../library/utils.js';
 import { useComponentAncestry } from '../library/jsx.js';
 
@@ -152,7 +153,9 @@ export function setupHMRBoundaries(value, fn) {
   // NOTE TO FUTURE SELF: This optimization is only possible because
   // the comment ranges in other control flow structures already provide
   // guarantees about how nodes should behave.
-  let nodes = generateChildNodes(fn(value.peek()));
+  let nodes = withScopeSnapshot(scopeSnapshot, () => {
+    return generateChildNodes(fn(value.peek()));
+  });
   if (nodes.length === 0) nodes = createCommentPair();
   else if (nodes.some((node) => '__promise' in node)) {
     // async path: If any of the nodes generated are promise
@@ -163,7 +166,8 @@ export function setupHMRBoundaries(value, fn) {
 
   /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */
   const callback = function (_value) {
-    return withScopeSnapshot(scopeSnapshot, () => {
+    scopeSnapshot.node.dispose();
+    const updated = withScopeSnapshot(scopeSnapshot, () => {
       const { window } = getGlobalContext();
       if (!matchContext(window, Modes.Interactive)) {
         const message = 'Cannot handle HMR in non-interactive environments';
@@ -173,7 +177,7 @@ export function setupHMRBoundaries(value, fn) {
       const hmr = getHMRContext();
       if (!hmr) return;
       if (hmr.current.peek() === _value) {
-        if (!this.isConnected) return;
+        if (!this.isConnected) return false;
 
         // If a component render instance is in an update path, there is
         // no use updating it, since it will be (or has been) overwritten
@@ -187,7 +191,7 @@ export function setupHMRBoundaries(value, fn) {
             (component !== _value && hmr.old.includes(component)) ||
             hmr.new.includes(component)
         );
-        if (instanceIsInUpdatePath) return;
+        if (instanceIsInUpdatePath) return false;
       }
 
       const range = window.document.createRange();
@@ -209,8 +213,13 @@ export function setupHMRBoundaries(value, fn) {
 
       range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
       // listen for the next iteration.
+      removeCellListener(this, value, callback);
       addCellListener(nodes[0], value, callback, false);
+      return true;
     });
+    if (updated) {
+      scopeSnapshot.node.activate();
+    }
   };
 
   addCellListener(nodes[0], value, callback, false);

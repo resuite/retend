@@ -2,6 +2,7 @@ import { useLocalStorage, useSessionStorage } from 'retend-utils/hooks';
 import { describe, expect, it } from 'vitest';
 import { vDomSetup, browserSetup } from '../setup';
 import { getGlobalContext } from 'retend/context';
+import { runPendingSetupEffects } from 'retend';
 
 const localStorageKey = 'test-local-storage';
 const sessionStorageKey = 'test-session-storage';
@@ -77,9 +78,10 @@ describe('useStorage', () => {
     browserSetup();
     runTests();
 
-    it('should update when local storage changes from another window', () => {
+    it('should update when local storage changes from another window', async () => {
       const storageCell = useLocalStorage(localStorageKey, 'initialValue');
       const { window } = getGlobalContext();
+      await runPendingSetupEffects();
 
       expect(storageCell.get()).toBe(
         JSON.parse(window.localStorage.getItem(localStorageKey) as string)
@@ -96,9 +98,10 @@ describe('useStorage', () => {
       expect(storageCell.get()).toBe('newValue');
     });
 
-    it('should update when session storage changes from another window', () => {
+    it('should update when session storage changes from another window', async () => {
       const storageCell = useSessionStorage(sessionStorageKey, 'initialValue');
       const { window } = getGlobalContext();
+      await runPendingSetupEffects();
 
       expect(storageCell.get()).toBe(
         JSON.parse(window.sessionStorage.getItem(sessionStorageKey) as string)

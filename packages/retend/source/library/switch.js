@@ -71,10 +71,12 @@ export function Switch(value, cases, defaultCase) {
   }
 
   const snapshot = createScopeSnapshot();
+  let isInitialRun = true;
 
   /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
   const callback = function (value) {
-    return withScopeSnapshot(snapshot, () => {
+    snapshot.node.dispose();
+    const results = withScopeSnapshot(snapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
       let nextNode = this.nextSibling;
@@ -106,6 +108,9 @@ export function Switch(value, cases, defaultCase) {
 
       return nodes;
     });
+    if (!isInitialRun) snapshot.node.activate();
+    else isInitialRun = false;
+    return results;
   };
 
   // Don't use runAndListen with an outer array to store nodes.
@@ -174,7 +179,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
   /** @type {ReactiveCellFunction<any, any, any>} */
   const callback = function (cellValue) {
-    return withScopeSnapshot(snapshot, () => {
+    snapshot.node.dispose();
+    const results = withScopeSnapshot(snapshot, () => {
       /** @type {(Node | VDom.VNode)[]} */
       let nodes = [];
       let nextNode = this.nextSibling;
@@ -208,6 +214,8 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       return nodes;
     });
+    if (this.isConnected) snapshot.node.activate();
+    return results;
   };
 
   const firstRun = callback.bind(rangeStart)(cell.get());

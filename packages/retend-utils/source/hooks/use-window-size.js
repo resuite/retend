@@ -1,17 +1,8 @@
-/** @import { SourceCell } from 'retend' */
-/** @import { CreateGlobalStateHookOptions } from './_shared.js' */
-
 import { Cell } from 'retend';
-import { createGlobalStateHook } from './_shared.js';
+import { createSharedHook } from '../internal/create-shared-hook.js';
 
 /**
- * @typedef {object} WindowSizeState
- * @property {SourceCell<number>} width
- * @property {SourceCell<number>} height
- */
-
-/**
- * @typedef {object} ReactiveWindowSize
+ * @typedef {object} WindowSize
  * @property {Cell<number>} width
  * @property {Cell<number>} height
  */
@@ -21,9 +12,8 @@ const USE_WINDOW_SIZE_KEY = Symbol('hooks:useWindowSize:windowSizeCache');
 /**
  * Returns an object containing cells that track the current window size.
  *
- * @returns {ReactiveWindowSize} An object with two properties:
- *   - width: A Cell containing the current window width
- *   - height: A Cell containing the current window height
+ * @type {() => WindowSize}
+ * @returns {WindowSize} An object with two properties:
  *
  * @example
  * import { useWindowSize } from 'retend-utils/hooks';
@@ -40,31 +30,34 @@ const USE_WINDOW_SIZE_KEY = Symbol('hooks:useWindowSize:windowSizeCache');
  *   console.log(`Window width changed to: ${newWidth}px`);
  * });
  */
-export const useWindowSize = createGlobalStateHook(
-  /** @type {CreateGlobalStateHookOptions<[], WindowSizeState, ReactiveWindowSize>} */
-  ({
-    cacheKey: USE_WINDOW_SIZE_KEY,
+export const useWindowSize = createSharedHook({
+  key: USE_WINDOW_SIZE_KEY,
 
-    createSource: () => ({
+  initialData: () => ({
+    cells: {
       width: Cell.source(0),
       height: Cell.source(0),
-    }),
-
-    initializeState: (window, cells) => {
-      cells.width.set(window.innerWidth);
-      cells.height.set(window.innerHeight);
     },
+  }),
 
-    setupListeners: (window, cells) => {
-      window.addEventListener('resize', () => {
-        cells.width.set(window.innerWidth);
-        cells.height.set(window.innerHeight);
+  setup: (data, { window }) => {
+    const handleResize = () => {
+      Cell.batch(() => {
+        data.cells.width.set(window.innerWidth);
+        data.cells.height.set(window.innerHeight);
       });
-    },
+    };
+    handleResize();
+    data.handleResize = handleResize;
+    window.addEventListener('resize', data.handleResize);
+  },
 
-    createReturnValue: (cells) => ({
-      width: Cell.derived(() => cells.width.get()),
-      height: Cell.derived(() => cells.height.get()),
-    }),
-  })
-);
+  teardown: (data, { window }) => {
+    window.removeEventListener('resize', data.handleResize);
+  },
+
+  getValue: (data) => ({
+    width: Cell.derived(() => data.cells.width.get()),
+    height: Cell.derived(() => data.cells.height.get()),
+  }),
+});

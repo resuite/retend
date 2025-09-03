@@ -1,6 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-
-import { getGlobalContext } from '../context/index.js';
+/** @import { useObserver } from './observer.js' */
+import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
 
@@ -31,8 +31,125 @@ import { generateChildNodes } from './utils.js';
  */
 
 /**
- * @typedef {Map<Scope, unknown[]>} ScopeSnapshot
+ * @typedef ScopeSnapshot
+ * @property {Map<Scope, unknown[]>} scopes
+ * @property {EffectNode} node
  */
+
+/**
+ * @typedef {() => (void | (() => void))} SetupFn
+ */
+
+/**
+ * Represents a node managing effects and cleanup within a hierarchy.
+ * Allows enabling/disabling, forking child nodes, and disposing by cleaning effects and children.
+ */
+class EffectNode {
+  /** @type {Array<() => void | (() => void)>} */ #setupFns = [];
+  /** @type {Array<() => void>} */ #disposeFns = [];
+  /** @type {Array<EffectNode>} */ #children = [];
+  #enabled = false;
+  #active = false;
+
+  enable() {
+    const { window } = getGlobalContext();
+    if (matchContext(window, Modes.Interactive)) {
+      this.#enabled = true;
+      for (const child of this.#children) child.enable();
+    }
+  }
+
+  disable() {
+    this.#enabled = false;
+    for (const child of this.#children) child.disable();
+  }
+
+  /** @param {SetupFn} effect  */
+  add(effect) {
+    this.#setupFns.push(effect);
+  }
+
+  branch() {
+    const newNode = new EffectNode();
+    newNode.#enabled = this.#enabled;
+    this.#children.push(newNode);
+    return newNode;
+  }
+
+  #runActivateFns() {
+    if (!this.#enabled || this.#active) return;
+    for (const effect of this.#setupFns) {
+      try {
+        const cleanup = effect();
+        if (typeof cleanup === 'function') this.#disposeFns.push(cleanup);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    this.#active = true;
+    for (const child of this.#children) {
+      if (!child.#enabled || child.#active) continue;
+      child.#runActivateFns();
+    }
+  }
+
+  async activate() {
+    if (!this.#enabled || this.#active) return;
+    await new Promise((resolve) => setTimeout(resolve));
+    this.#runActivateFns();
+  }
+
+  #runDisposeFns() {
+    if (!this.#enabled || !this.#active) return;
+    for (const effect of this.#disposeFns) {
+      try {
+        effect();
+      } catch (error) {
+        console.error('Cleanup effect failed:', error);
+      }
+    }
+    this.#active = false;
+    for (const child of this.#children) {
+      child.#runDisposeFns();
+    }
+  }
+
+  dispose() {
+    if (!this.#enabled || !this.#active) return;
+    this.#runDisposeFns();
+
+    for (const child of this.#children) {
+      // prevents any side effects from being triggered in the
+      // (soon to be) orphaned subtrees, when any of their control
+      // structures receives changes.
+      child.disable();
+    }
+
+    this.#setupFns.length = 0;
+    this.#disposeFns.length = 0;
+    this.#children.length = 0;
+  }
+
+  detach() {
+    const node = new EffectNode();
+    node.#setupFns = [...this.#setupFns];
+    node.#disposeFns = [...this.#disposeFns];
+    node.#children = [...this.#children];
+
+    this.dispose();
+    return node;
+  }
+
+  /** @param {EffectNode} node  */
+  attach(node) {
+    this.#enabled = node.#enabled;
+    this.#children = [...node.#children];
+    this.#setupFns = [...node.#setupFns];
+    this.#disposeFns = [...node.#disposeFns];
+  }
+}
+
+class RootEffectNode extends EffectNode {}
 
 const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
 
@@ -72,8 +189,8 @@ export function createScope(name) {
             : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
-      const stackBefore = activeScopeSnapshot.get(Scope) ?? [];
-      activeScopeSnapshot.set(Scope, [...stackBefore, props.value]);
+      const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
+      activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
       try {
         if ('h' in props && !props.h) {
           const template = renderFn();
@@ -81,7 +198,7 @@ export function createScope(name) {
         }
         return h(renderFn, {});
       } finally {
-        activeScopeSnapshot.set(Scope, stackBefore);
+        activeScopeSnapshot.scopes.set(Scope, stackBefore);
       }
     },
   };
@@ -101,7 +218,7 @@ export function createScope(name) {
  */
 export function useScopeContext(Scope, snapshot) {
   const snapshotCtx = snapshot || getScopeSnapshot();
-  const relatedScopeData = snapshotCtx.get(Scope);
+  const relatedScopeData = snapshotCtx.scopes.get(Scope);
   if (!relatedScopeData || relatedScopeData.length === 0) {
     const scopeName = Scope?.key.description || 'UnknownScope';
     throw new Error(
@@ -137,7 +254,8 @@ export function useScopeContext(Scope, snapshot) {
  * ```
  */
 export function createScopeSnapshot() {
-  return new Map(getScopeSnapshot());
+  const { scopes, node } = getScopeSnapshot();
+  return { scopes: new Map(scopes), node: node.branch() };
 }
 
 /**
@@ -149,7 +267,9 @@ export function createScopeSnapshot() {
 function getScopeSnapshot() {
   const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
-    globalData.set(SNAPSHOT_KEY, new Map());
+    const node = new RootEffectNode();
+    const scopes = new Map();
+    globalData.set(SNAPSHOT_KEY, { scopes, node });
   }
   return globalData.get(SNAPSHOT_KEY);
 }
@@ -206,7 +326,7 @@ export function withScopeSnapshot(snapshot, callback) {
   let previousSnapshot = null;
 
   try {
-    previousSnapshot = createScopeSnapshot();
+    previousSnapshot = getScopeSnapshot();
     setScopeSnapshot(snapshot);
     return callback();
   } finally {
@@ -270,4 +390,87 @@ export function combineScopes(...providers) {
   };
 
   return Scope;
+}
+
+/**
+ * A hook for managing side effects with cleanup, tied to a component's logical lifecycle.
+ *
+ * The callback runs once when a component instance is initialized, ideal for tasks
+ * like setting timers, subscribing to data streams, or adding global event listeners.
+ * The callback can return a cleanup function to prevent memory leaks, automatically
+ * executed when the component instance is destroyed (e.g., when removed from a `<For>` list).
+ *
+ * @param {SetupFn} callback - Function executed once on component setup. If it returns
+ *   a function, that function is used for cleanup.
+ *
+ * @example
+ * ```tsx
+ * import { Cell, useSetupEffect } from 'retend';
+ *
+ * function LiveClock() {
+ *   const time = Cell.source(new Date());
+ *   const timeStr = Cell.derived(() => {
+ *     return time.get().toLocaleTimeString();
+ *   });
+ *
+ *   useSetupEffect(() => {
+ *     const timerId = setInterval(() => time.set(new Date()), 1000);
+ *     return () => clearInterval(timerId);
+ *   });
+ *
+ *   return <p>Current time: {timeStr}</p>;
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * useSetupEffect(() => {
+ *   const handleResize = () => console.log('Window resized!');
+ *   window.addEventListener('resize', handleResize);
+ *
+ *   return () => window.removeEventListener('resize', handleResize);
+ * });
+ * ```
+ *
+ * @remarks
+ * - This hook runs only once per component instance, similar to `useEffect(..., [])` in React. It does not re-run on updates.
+ * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `useObserver` instead.
+ *
+ * @see {@link useObserver} for DOM-based lifecycle effects.
+ */
+export function useSetupEffect(callback) {
+  const { node } = getScopeSnapshot();
+  node.add(callback);
+}
+
+/**
+ * Executes all pending setup effects that have been registered via `useSetupEffect`.
+ *
+ * In many applications, particularly on the client-side, this function is called once
+ * after the initial render to activate all registered lifecycle effects, such as
+ * setting up timers, subscriptions, or event listeners. It ensures that the setup
+ * logic defined in `useSetupEffect` is executed and can begin its work.
+ *
+ * @example
+ * ```js
+ * // After rendering your application to the DOM:
+ * const root = document.getElementById('app');
+ * root.appendChild(App());
+ *
+ * // Run all the setup effects that were registered during the render.
+ * runPendingSetupEffects();
+ * ```
+ *
+ * @see {@link useSetupEffect} for registering effects that will be run by this function.
+ */
+export async function runPendingSetupEffects() {
+  const { node } = getScopeSnapshot();
+  if (!(node instanceof RootEffectNode)) {
+    const message =
+      'runPendingSetupEffects() can only be called at the root level of a component tree.';
+    throw new Error(message);
+  }
+  node.enable();
+  node.activate();
+  await new Promise((resolve) => setTimeout(resolve));
 }

@@ -1,56 +1,7 @@
-/** @import { SourceCell } from 'retend' */
-/** @import { CreateGlobalStateHookOptions } from './_shared.js' */
-
-import { Cell } from 'retend';
-import { createGlobalStateHook } from './_shared.js';
-import { getGlobalContext, matchContext, Modes } from 'retend/context';
+import { Cell, SourceCell, useSetupEffect } from 'retend';
+import { getGlobalContext } from 'retend/context';
 
 const MATCH_MEDIA_CACHE_KEY = Symbol('hooks:useMatchMedia:queriesCache');
-
-/** @type {CreateGlobalStateHookOptions<[string], Map<string, SourceCell<boolean>>, Cell<boolean>>} */
-const options = {
-  cacheKey: MATCH_MEDIA_CACHE_KEY,
-
-  createSource: () => new Map(),
-
-  setupListeners: (window, savedQueries) => {
-    for (const [query, sourceCell] of savedQueries) {
-      const mediaQueryList = window.matchMedia(query);
-      sourceCell.set(mediaQueryList.matches);
-      mediaQueryList.addEventListener('change', (event) => {
-        sourceCell.set(event.matches);
-      });
-      // Store the mediaQueryList on the cell object to manage its lifecycle
-      Reflect.set(sourceCell, '__mediaQueryList', mediaQueryList);
-    }
-  },
-
-  /**
-   * @param {Map<string, SourceCell<boolean>>} savedQueries
-   * @param {string} query
-   * @returns {Cell<boolean>}
-   */
-  createReturnValue: (savedQueries, query) => {
-    const { window } = getGlobalContext();
-    let cell = /** @type {SourceCell<boolean>} */ (savedQueries.get(query));
-
-    if (!cell) {
-      cell = Cell.source(false);
-      savedQueries.set(query, cell);
-      if (matchContext(window, Modes.Interactive)) {
-        const mediaQueryList = window.matchMedia(query);
-        cell.set(mediaQueryList.matches);
-        mediaQueryList.addEventListener('change', (event) => {
-          cell.set(event.matches);
-        });
-        // Store the mediaQueryList on the cell object to manage its lifecycle
-        Reflect.set(cell, '__mediaQueryList', mediaQueryList);
-      }
-    }
-
-    return Cell.derived(() => cell.get());
-  },
-};
 
 /**
  * Creates a reactive cell that tracks the result of a media query.
@@ -67,4 +18,43 @@ const options = {
  *   console.log(matches ? 'Large screen detected' : 'Small screen detected');
  * });
  */
-export const useMatchMedia = createGlobalStateHook(options);
+export const useMatchMedia = (query) => {
+  const { globalData } = getGlobalContext();
+  /** @type {Map<string, [SourceCell<boolean>, number]> | undefined} */
+  let queries = globalData.get(MATCH_MEDIA_CACHE_KEY);
+  if (!queries) {
+    queries = new Map();
+    globalData.set(MATCH_MEDIA_CACHE_KEY, queries);
+  }
+  let data = queries.get(query);
+  if (!data) {
+    data = [Cell.source(false), 0];
+    queries.set(query, data);
+  }
+  const [match] = data;
+
+  useSetupEffect(() => {
+    /** @type (event: MediaQueryListEvent) => void */
+    let listener;
+    /** @type {MediaQueryList} */
+    let mediaQueryList;
+
+    if (data[1] === 0) {
+      mediaQueryList = window.matchMedia(query);
+      data[0].set(mediaQueryList.matches);
+
+      listener = (event) => data[0].set(event.matches);
+      mediaQueryList.addEventListener('change', listener);
+    }
+    data[1]++;
+
+    return () => {
+      data[1]--;
+      if (data[1] === 0) {
+        mediaQueryList.removeEventListener('change', listener);
+      }
+    };
+  });
+
+  return Cell.derived(() => match.get());
+};

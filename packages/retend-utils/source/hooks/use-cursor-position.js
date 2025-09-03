@@ -1,5 +1,5 @@
 import { Cell } from 'retend';
-import { createGlobalStateHook } from './_shared.js';
+import { createSharedHook } from '../internal/create-shared-hook.js';
 
 /**
  * @typedef {object} CursorPosition
@@ -12,6 +12,7 @@ const CURSOR_POSITION_KEY = Symbol('hooks:useCursorPosition:position');
 /**
  * Tracks the cursor position within the window.
  *
+ * @type {() => CursorPosition}
  * @returns {CursorPosition} An object containing reactive cells for the x and y coordinates of the cursor.
  *
  * @example
@@ -27,22 +28,28 @@ const CURSOR_POSITION_KEY = Symbol('hooks:useCursorPosition:position');
  *   );
  * }
  */
-export const useCursorPosition = createGlobalStateHook({
-  cacheKey: CURSOR_POSITION_KEY,
-  createSource: () => ({ x: Cell.source(0), y: Cell.source(0) }),
-  setupListeners: (window, cells) => {
-    /**
-     * @param {MouseEvent} event
-     */
-    const updatePosition = (event) => {
-      cells.x.set(event.clientX);
-      cells.y.set(event.clientY);
+export const useCursorPosition = createSharedHook({
+  key: CURSOR_POSITION_KEY,
+  initialData: () => ({
+    cells: { x: Cell.source(0), y: Cell.source(0) },
+  }),
+  setup: (data, { document }) => {
+    const options = { passive: true };
+    data.handleMouseMove = (event) => {
+      if (event instanceof MouseEvent) {
+        data.cells.x.set(event.clientX);
+        data.cells.y.set(event.clientY);
+      }
     };
-    window.addEventListener('mousemove', updatePosition, { passive: true });
+    document.addEventListener('mousemove', data.handleMouseMove, options);
+    document.addEventListener('pointerdown', data.handleMouseMove, options); // touch screen compat.
   },
-  /** @returns {CursorPosition}*/
-  createReturnValue: (cells) => ({
-    x: Cell.derived(() => cells.x.get()),
-    y: Cell.derived(() => cells.y.get()),
+  teardown: (data, { document }) => {
+    document.removeEventListener('mousemove', data.handleMouseMove);
+    document.removeEventListener('pointerdown', data.handleMouseMove);
+  },
+  getValue: (data) => ({
+    x: Cell.derived(() => data.cells.x.get()),
+    y: Cell.derived(() => data.cells.y.get()),
   }),
 });

@@ -25,8 +25,33 @@ export const routerSetup = () => {
   });
 };
 
+
+export const routerSetupBrowser = () => {
+  if (GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.unregister();
+  }
+
+  GlobalRegistrator.register({
+    url: 'http://localhost:8080',
+  });
+  window.document.body.append(
+    window.document.createElement('retend-router-outlet')
+  );
+
+  setGlobalContext({
+    mode: Modes.Interactive,
+    window,
+    consistentValues: new Map(),
+    globalData: new Map(),
+    teleportIdCounter: { value: 0 },
+  });
+};
+
 export const browserSetup = () => {
   beforeAll(() => {
+    if (GlobalRegistrator.isRegistered) {
+      GlobalRegistrator.unregister();
+    }
     GlobalRegistrator.register();
   });
 

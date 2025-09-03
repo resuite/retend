@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './source') },
   },
+  build: {
+    sourcemap: true,
+  },
   plugins: [
     retend(),
     retendSSG({
@@ -24,7 +27,8 @@ export default defineConfig({
         '/fluid-list',
         '/cursor-position',
         '/page-1',
-        '/page-2'
+        '/page-2',
+        '/use-setup-effect',
       ],
       routerModulePath: './source/router.ts',
     }),

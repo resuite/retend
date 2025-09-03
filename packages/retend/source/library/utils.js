@@ -143,6 +143,28 @@ export function addCellListener(
 }
 
 /**
+ * @template T
+ * @template {Node | VDom.VNode} [This=Node]
+ * @param {This} element
+ * @param {Cell<T>} cell
+ * @param {Function} callback
+ */
+export function removeCellListener(element, cell, callback) {
+  const storage = /** @type {CellSet<This>} */ (
+    Reflect.get(element, '__attributeCells')
+  );
+  const boundCallback = [...storage].find((func) => {
+    return (
+      typeof func === 'function' &&
+      Reflect.get(func, 'originalFunction') === callback
+    );
+  });
+  if (!boundCallback) return;
+  cell.ignore(/** @type {(newValue: T) => void}*/ (boundCallback));
+  storage.delete(boundCallback);
+}
+
+/**
  * Converts an object of styles to a CSS stylesheet string.
  *
  * @param {Partial<CSSStyleDeclaration>} styles - An object where the keys are CSS property names and the values are CSS property values.

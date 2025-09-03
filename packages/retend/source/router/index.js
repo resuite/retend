@@ -224,6 +224,9 @@ export class RouteErrorEvent extends CustomEvent {
  *
  * @property {[number, number]} windowScroll
  * The `(x, y)` scroll positions of the window when the snapshot was taken.
+ *
+ * @property {ScopeSnapshot['node']} node
+ * The related effect node for the route.
  */
 
 /**
@@ -242,7 +245,6 @@ export class RouteErrorEvent extends CustomEvent {
  *  __keepAlive?: boolean;
  *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  *  __originScopeSnapshot?: ScopeSnapshot;
- *  __createdDuringRouteLoad?: boolean;
  * }} RouterOutlet
  */
 
@@ -482,7 +484,6 @@ export class Router extends EventTarget {
     /** @type {RouterOutlet } */
     const outlet = this.#window.document.createElement('retend-router-outlet');
     outlet.__originScopeSnapshot = originScopeSnapshot;
-    outlet.__createdDuringRouteLoad = this.#currentNavigation !== null;
 
     if (props) {
       const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
@@ -1069,14 +1070,21 @@ export class Router extends EventTarget {
 
       /** @type {JSX.Template} */
       let renderedComponent;
+      let disabledEffectNodeForLastRoute;
       const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
+      const oldSnapshot = outlet.__originScopeSnapshot;
       if (routeSnapshot) {
+        if (oldSnapshot) {
+          disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
+          oldSnapshot.node.attach(routeSnapshot.node);
+          oldSnapshot.node.enable(); // The restored node would have disabled children.
+        }
         renderedComponent = [...routeSnapshot.fragment.childNodes];
       } else {
         try {
-          const scopeSnapshot = outlet.__originScopeSnapshot;
-          if (scopeSnapshot) {
-            renderedComponent = withScopeSnapshot(scopeSnapshot, () =>
+          if (oldSnapshot) {
+            disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
+            renderedComponent = withScopeSnapshot(oldSnapshot, () =>
               h(matchedComponent, {})
             );
           } else renderedComponent = h(matchedComponent, {});
@@ -1114,8 +1122,12 @@ export class Router extends EventTarget {
       }
 
       // if the outlet is keep alive, we need to cache the current nodes
-      if (oldOutletPath) {
-        this.#preserveCurrentOutletState(oldOutletPath, outlet);
+      if (oldOutletPath && disabledEffectNodeForLastRoute) {
+        this.#preserveCurrentOutletState(
+          oldOutletPath,
+          outlet,
+          disabledEffectNodeForLastRoute
+        );
       }
 
       const nodes = generateChildNodes(renderedComponent);
@@ -1137,6 +1149,9 @@ export class Router extends EventTarget {
       const nextOutlet = /** @type {RouterOutlet} */ (
         outlet.querySelector('retend-router-outlet')
       );
+      if (outlet.isConnected) {
+        await outlet.__originScopeSnapshot?.node.activate();
+      }
       outlet = nextOutlet;
     }
 
@@ -1145,7 +1160,11 @@ export class Router extends EventTarget {
     // that is not being used and should be flushed out.
     if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
       const oldPath = outlet.getAttribute('data-path');
-      if (oldPath) this.#preserveCurrentOutletState(oldPath, outlet);
+      const snapshot = outlet.__originScopeSnapshot;
+      if (oldPath && snapshot) {
+        const effectNode = snapshot.node.detach();
+        this.#preserveCurrentOutletState(oldPath, outlet, effectNode);
+      }
       outlet.removeAttribute('data-path');
       outlet.replaceChildren();
     }
@@ -1173,8 +1192,9 @@ export class Router extends EventTarget {
    * Saves the state of the outlet if keepAlive is turned on.
    * @param {string} oldPath
    * @param {RouterOutlet} outlet
+   * @param {ScopeSnapshot['node']} node
    */
-  #preserveCurrentOutletState(oldPath, outlet) {
+  #preserveCurrentOutletState(oldPath, outlet, node) {
     if (outlet.__keepAlive && oldPath && this.#window) {
       // Caching as a fragment instead of an array of nodes
       // makes it possible for the cached nodes to still be reactive
@@ -1187,6 +1207,7 @@ export class Router extends EventTarget {
         fragment,
         outletScroll: [outlet.scrollLeft, outlet.scrollTop],
         windowScroll: [this.#window?.scrollX ?? 0, this.#window?.scrollY ?? 0],
+        node,
       });
     }
   }
