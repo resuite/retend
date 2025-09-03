@@ -1239,9 +1239,10 @@ While you could use `document.querySelector()` to get an HTML element directly, 
 - **Better Code Structure**: Using refs often keeps the logic local to your component code instead of relying on a global selector-based lookup, making your code easier to read and maintain.
 
 ---
-## Life Cycles
+## DOM Lifecycle with `useObserver`
 
-The only lifecycle mechanism in Retend is the `useObserver()` function. It provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes.
+The `useObserver()` function provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes. This is useful for effects that are tied to a specific DOM element's presence on screen (like measuring its size).
+
 
 ### Understanding Connection and Disconnection
 
@@ -1317,6 +1318,42 @@ In this example, the `onConnected` hook now:
 - **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
 
 ---
+## Component Lifecycle with `useSetupEffect`
+
+The `useSetupEffect` hook provides a way to manage side effects that are tied to a component's logical lifecycle, rather than a specific DOM element's presence. It is similar to `useEffect(..., [])` in React.
+
+The callback passed to `useSetupEffect` runs once when a component instance is initialized. It is the ideal place for tasks like setting timers, subscribing to data streams, or adding global event listeners.
+
+### Cleanup
+
+The callback can return a cleanup function. This function is automatically executed when the component instance is destroyed (e.g., when it's removed from a `<For>` list). This is crucial for preventing memory leaks.
+
+```tsx
+import { Cell, useSetupEffect } from 'retend';
+
+function LiveClock() {
+  const time = Cell.source(new Date());
+  const timeStr = Cell.derived(() => {
+    return time.get().toLocaleTimeString();
+  });
+
+  useSetupEffect(() => {
+    const timerId = setInterval(() => time.set(new Date()), 1000);
+
+    // Cleanup function
+    return () => clearInterval(timerId);
+  });
+
+  return <p>Current time: {timeStr}</p>;
+}
+```
+
+### `useSetupEffect` vs `useObserver`
+
+- Use `useSetupEffect` for component lifecycle logic that isn't tied to a specific DOM element.
+- Use `useObserver` for effects that need to run when a specific DOM element is connected or disconnected from the DOM.
+
+---
 ## Scopes
 
 As your application grows, you'll often encounter a common challenge: sharing state between components that are far apart in the component tree. For instance, a user's theme preference, authentication status, or the currently selected language might be needed by many different components.
@@ -1385,7 +1422,7 @@ function StatusIndicator({ theme }) {
 
 While this pattern works, it has significant downsides that become more painful as your app scales:
 
-*   **Verbose and Cumbersome:** You have to add the `theme` prop to the function signature and JSX of every intermediate component, even if they have no use for it. 
+*   **Verbose and Cumbersome:** You have to add the `theme` prop to the function signature and JSX of every intermediate component, even if they have no use for it.
 *   **Tightly Coupled:** Components become fragile. If you decide to refactor the tree and move `UserProfileWidget`, you have to make sure you also update the prop chain in its new location.
 *   **Hard to Maintain:** Imagine you need to add another piece of shared state, like `language`. You would have to repeat this entire tedious process, modifying five different components just to get the data where it's needed.
 
@@ -1451,7 +1488,7 @@ function StatusIndicator() {
 }
 ```
 
-That's it! We have completely eliminated prop drilling. Our intermediate components are now simpler, reusable, and decoupled from the `theme` state. 
+That's it! We have completely eliminated prop drilling. Our intermediate components are now simpler, reusable, and decoupled from the `theme` state.
 
 ### Why Not Just Use a Global Variable?
 
