@@ -26,7 +26,6 @@ export * from './routeTree.js';
 export * from './query.js';
 export * from './middleware.js';
 
-const HISTORY_STORAGE_KEY = 'rhistory';
 const PARAM_REGEX = /:(\w+)/g;
 const RELAY_ID_REGEX =
   /^([a-zA-Z_][a-zA-Z0-9_-]*|\\[0-9A-Fa-f]{1,6}(\r\n|[ \n\r\t\f])?)/;
@@ -666,29 +665,6 @@ export class Router extends EventTarget {
    */
   pushHistory(path) {
     this.#history.push(path);
-    this.persistHistory();
-  }
-
-  /**
-   * @private
-   * Removes the most recent path from the router's history and persists the updated history.
-   */
-  popHistory() {
-    this.#history.pop();
-    this.persistHistory();
-  }
-
-  /**
-   * @private
-   * Persists the current router history to the browser's session storage.
-   * This allows the history to be restored across page reloads or browser sessions.
-   */
-  persistHistory() {
-    if (!this.#stackMode) return;
-    this.#window?.sessionStorage?.setItem(
-      HISTORY_STORAGE_KEY,
-      JSON.stringify(this.#history)
-    );
   }
 
   /**
@@ -1256,7 +1232,6 @@ export class Router extends EventTarget {
     if (replace) {
       this.#history.pop();
       this.#history.push(targetPath);
-      this.persistHistory();
       return navigationDirection;
     }
 
@@ -1271,11 +1246,11 @@ export class Router extends EventTarget {
     if (previousIndex !== -1) {
       navigationDirection = 'backwards';
       while (this.#history.length > previousIndex + 1) {
-        this.popHistory();
+        this.#history.pop();
       }
     } else {
       // If the path is not found, we need to push the new path to the history.
-      this.pushHistory(targetPath);
+      this.#history.push(targetPath);
     }
 
     return navigationDirection;
@@ -1494,35 +1469,10 @@ export class Router extends EventTarget {
    * - DOMContentLoaded: Triggered when the initial HTML document has been completely loaded and parsed
    *
    * Each listener manages the loading state and calls the loadPath method with appropriate parameters.
-   *
-   * The router also retrieves any saved history from the browser's session storage
-   * and merges it with the current history.
    */
   attachWindowListeners() {
-    const savedSessionHistory =
-      this.#window?.sessionStorage?.getItem(HISTORY_STORAGE_KEY);
-    if (savedSessionHistory) {
-      try {
-        // In cases where entries have already been added to the history
-        // before attaching the window listeners,
-        // we need to concat them with the saved history.
-        const savedHistoryArray = JSON.parse(savedSessionHistory);
-        if (Array.isArray(savedHistoryArray)) {
-          // dedupe last entry
-          if (
-            savedHistoryArray.length > 0 &&
-            savedHistoryArray.at(-1) === this.#history[0]
-          ) {
-            savedHistoryArray.pop();
-          }
-          this.#history = savedHistoryArray.concat(this.#history);
-        }
-      } catch (error) {
-        console.error('Error parsing session history:', error);
-      }
-    }
-
     if (this.#window && 'scrollRestoration' in this.#window.history) {
+      this.history = Array(this.#window.history.length);
       this.#window.history.scrollRestoration = 'manual';
     }
 
