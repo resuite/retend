@@ -1,5 +1,6 @@
 /** @import * as Context from '../context/index.js' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
+/** @import { ScopeSnapshot } from '../library/scope.js' */
 
 const voidElements = new Set([
   'AREA',
@@ -210,6 +211,7 @@ export async function renderToString(template, window, options = {}) {
  *  __attributeCells?: Map<string, any>,
  *  __isTeleportAnchor?: boolean;
  *  __eventListenerList?: Map<string, any>;
+ *  __originScopeSnapshot?: ScopeSnapshot
  *  hiddenAttributes?: Map<string, any>,
  *  getAttribute: (name: string) => string | null,
  *  childNodes: any[],
@@ -224,6 +226,7 @@ export async function renderToString(template, window, options = {}) {
 function nodeIsStatic(node, window) {
   if (node.__commentRangeSymbol) return false;
   if (node.__isTeleportAnchor) return false;
+  if (node.__originScopeSnapshot) return false;
   if (node.__attributeCells?.size) return false;
   if (node.__eventListenerList?.size) return false;
 
