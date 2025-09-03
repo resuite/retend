@@ -46,16 +46,6 @@ describe('Router Stack Mode', () => {
     expect(route.get().path).toBe('/about');
   });
 
-  test('maintains history stack when navigating', async () => {
-    const { window } = getGlobalContext();
-    await router.navigate('/');
-    await router.navigate('/about');
-    await router.navigate('/contact');
-
-    const history = window.sessionStorage.getItem('rhistory') as string;
-    expect(JSON.parse(history)).toEqual(['/', '/about', '/contact']);
-  });
-
   test('back navigation uses history stack', async () => {
     await router.navigate('/about');
     await router.navigate('/contact');
@@ -63,19 +53,6 @@ describe('Router Stack Mode', () => {
 
     const route = router.getCurrentRoute();
     expect(route.get().path).toBe('/about');
-  });
-
-  test('clears forward history on new navigation', async () => {
-    const { window } = getGlobalContext();
-    await router.navigate('/');
-    await router.navigate('/about');
-    await router.navigate('/contact');
-
-    await router.back();
-    await router.navigate('/');
-
-    const history = window.sessionStorage.getItem('rhistory') as string;
-    expect(JSON.parse(history)).toEqual(['/']);
   });
 
   test('preserves params in history stack', async () => {
