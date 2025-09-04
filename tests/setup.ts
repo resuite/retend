@@ -1,4 +1,4 @@
-import { beforeEach, beforeAll, afterAll } from 'vitest';
+import { beforeEach, beforeAll, afterAll, afterEach } from 'vitest';
 import {
   Modes,
   setGlobalContext,
@@ -11,6 +11,10 @@ import { VWindow } from 'retend/v-dom';
 import { GlobalRegistrator } from '@happy-dom/global-registrator';
 
 export const routerSetup = () => {
+  if (GlobalRegistrator.isRegistered) {
+    GlobalRegistrator.unregister();
+  }
+
   const window = new VWindow();
   window.document.body.append(
     window.document.createElement('retend-router-outlet')
@@ -27,24 +31,31 @@ export const routerSetup = () => {
 
 
 export const routerSetupBrowser = () => {
-  if (GlobalRegistrator.isRegistered) {
-    GlobalRegistrator.unregister();
-  }
+  beforeEach(() => {
+    if (GlobalRegistrator.isRegistered) {
+      GlobalRegistrator.unregister();
+    }
 
-  GlobalRegistrator.register({
-    url: 'http://localhost:8080',
-  });
-  window.document.body.append(
-    window.document.createElement('retend-router-outlet')
-  );
+    GlobalRegistrator.register({ url: 'http://localhost:8080' });
+    window.document.body.append(
+      window.document.createElement('retend-router-outlet')
+    );
 
-  setGlobalContext({
-    mode: Modes.Interactive,
-    window,
-    consistentValues: new Map(),
-    globalData: new Map(),
-    teleportIdCounter: { value: 0 },
-  });
+    setGlobalContext({
+      mode: Modes.Interactive,
+      window,
+      consistentValues: new Map(),
+      globalData: new Map(),
+      teleportIdCounter: { value: 0 },
+    });
+  })
+
+  afterEach(() => {
+    if (GlobalRegistrator.isRegistered) {
+      GlobalRegistrator.unregister();
+    }
+    resetGlobalContext()
+  })
 };
 
 export const browserSetup = () => {
@@ -52,7 +63,7 @@ export const browserSetup = () => {
     if (GlobalRegistrator.isRegistered) {
       GlobalRegistrator.unregister();
     }
-    GlobalRegistrator.register();
+    GlobalRegistrator.register({ url: 'http://localhost:8080'});
   });
 
   beforeEach(() => {

@@ -751,6 +751,7 @@ export class Router extends EventTarget {
   async back() {
     if (!this.#window) return;
     this.#window.history.back();
+    await new Promise((r) => setTimeout(r));
     await this.#currentNavigation;
   }
 
@@ -935,15 +936,6 @@ export class Router extends EventTarget {
               hash: matchResult.hash,
             });
           }
-
-          // There is no feasible way to determine the final navigation direction
-          // for view transitions, without already triggering a view transition.
-          // Mind bending nonsense.
-          const navigationDirection = this.chooseNavigationDirection(
-            fullPath,
-            replace
-          );
-          viewTransitionTypesArray[0] = navigationDirection;
         }
         continue;
       }
@@ -1076,18 +1068,6 @@ export class Router extends EventTarget {
       // stored in the outlet's dataset, so we need to check before replacing.
       if (outlet.getAttribute('data-path') !== simplePath) return false;
 
-      // There is no feasible way to determine the final navigation direction
-      // for view transitions, without already triggering a view transition.
-      // Mind bending nonsense.
-      const navigationDirection = this.chooseNavigationDirection(
-        fullPathWithSearchAndHash,
-        replace
-      );
-      viewTransitionTypesArray[0] = navigationDirection;
-      if (currentMatchedRoute.transitionType) {
-        viewTransitionTypesArray[1] = currentMatchedRoute.transitionType;
-      }
-
       // if the outlet is keep alive, we need to cache the current nodes
       if (oldOutletPath && disabledEffectNodeForLastRoute) {
         this.#preserveCurrentOutletState(
@@ -1150,6 +1130,18 @@ export class Router extends EventTarget {
     ) {
       const title = currentMatchedRoute?.title || lastMatchedRoute.title || '';
       this.#window.document.title = title;
+    }
+
+    // There is no feasible way to determine the final navigation direction
+    // for view transitions, without already triggering a view transition.
+    // Mind bending nonsense.
+    const navigationDirection = this.chooseNavigationDirection(
+      this.currentPath.get().fullPath,
+      replace
+    );
+    viewTransitionTypesArray[0] = navigationDirection;
+    if (lastMatchedRoute.transitionType) {
+      viewTransitionTypesArray[1] = lastMatchedRoute.transitionType;
     }
 
     return true;

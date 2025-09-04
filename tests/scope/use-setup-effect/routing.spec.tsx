@@ -1,17 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { runPendingSetupEffects, useSetupEffect } from 'retend';
 import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
+import { getGlobalContext } from 'retend/context';
 import { routerSetupBrowser, getTextContent } from '../../setup.ts';
 
 describe('useSetupEffect with routing', () => {
-  beforeEach(() => {
-    routerSetupBrowser();
-  });
-
-  afterAll(() => {
-    resetGlobalContext();
-  });
+  routerSetupBrowser();
 
   const setupFn = vi.fn();
   const cleanupFn = vi.fn();

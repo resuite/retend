@@ -768,6 +768,10 @@ export class VHistory {
     this.#window.location.href = String(this.#log[this.#cursor] || '/');
     this.#window.dispatchEvent(new Event('popstate'));
   }
+
+  get length() {
+    return this.#cursor + 1;
+  }
 }
 export class VLocation {
   /** @type {string} */
