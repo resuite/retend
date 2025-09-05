@@ -195,6 +195,21 @@ export function setupHMRBoundaries(value, fn) {
         if (instanceIsInUpdatePath) return false;
       }
 
+      if (this !== nodes[0]) {
+        // Hard to explain, but it means at the leaf of the render tree there was a single node,
+        // but a child component updated, changing the value of that node.
+        const staleNodes = nodes;
+        nodes = [this];
+
+        /** @type {Node | VDom.VNode | null} */
+        let next = this;
+        while (staleNodes.length !== nodes.length) {
+          next = this.nextSibling;
+          if (!next) break;
+          nodes.push(next);
+        }
+      }
+
       const range = window.document.createRange();
       const start = /** @type {Node} */ (nodes[0]);
       const end = /** @type {Node} */ (nodes[nodes.length - 1]);
