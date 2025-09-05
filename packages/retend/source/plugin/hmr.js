@@ -8,7 +8,8 @@ import {
   createCommentPair,
   addCellListener,
   consolidateNodes,
-  removeCellListener,
+  removeCellListeners,
+  copyCellListeners,
 } from '../library/utils.js';
 import { useComponentAncestry } from '../library/jsx.js';
 
@@ -212,9 +213,8 @@ export function setupHMRBoundaries(value, fn) {
       }
 
       range.insertNode(/** @type {*} */ (consolidateNodes(nodes)));
-      // listen for the next iteration.
-      removeCellListener(this, value, callback);
-      addCellListener(nodes[0], value, callback, false);
+      copyCellListeners(this, nodes[0]);
+      removeCellListeners(this); // prevents phantom updates.
       return true;
     });
     if (updated) {

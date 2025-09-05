@@ -143,25 +143,48 @@ export function addCellListener(
 }
 
 /**
- * @template T
  * @template {Node | VDom.VNode} [This=Node]
  * @param {This} element
- * @param {Cell<T>} cell
- * @param {Function} callback
  */
-export function removeCellListener(element, cell, callback) {
-  const storage = /** @type {CellSet<This>} */ (
+export function removeCellListeners(element) {
+  const storage = /** @type {CellSet<This> | undefined} */ (
     Reflect.get(element, '__attributeCells')
   );
-  const boundCallback = [...storage].find((func) => {
-    return (
-      typeof func === 'function' &&
-      Reflect.get(func, 'originalFunction') === callback
+  if (!storage) return;
+
+  for (const item of storage) {
+    if (typeof item === 'function') {
+      item.relatedCell?.ignore(item);
+    }
+  }
+
+  storage.clear();
+}
+
+/**
+ * @template {Node | VDom.VNode} [This=Node]
+ * @param {This} sourceElement
+ * @param {This} targetElement
+ */
+export function copyCellListeners(sourceElement, targetElement) {
+  const sourceStorage =
+    /** @type {CellSet<typeof sourceElement> | undefined} */ (
+      Reflect.get(sourceElement, '__attributeCells')
     );
-  });
-  if (!boundCallback) return;
-  cell.ignore(/** @type {(newValue: T) => void}*/ (boundCallback));
-  storage.delete(boundCallback);
+
+  if (!sourceStorage) return;
+
+  for (const item of sourceStorage) {
+    if (typeof item === 'function') {
+      const boundCallback = item;
+      const relatedCell = boundCallback.relatedCell;
+      const originalFunction = boundCallback.originalFunction;
+
+      if (relatedCell && originalFunction) {
+        addCellListener(targetElement, relatedCell, originalFunction, false);
+      }
+    }
+  }
 }
 
 /**
