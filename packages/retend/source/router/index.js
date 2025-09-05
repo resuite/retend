@@ -19,7 +19,6 @@ import {
   CustomEvent,
 } from '../context/index.js';
 import { createScopeSnapshot, withScopeSnapshot } from '../library/scope.js';
-import { getHMRContext } from '../plugin/hmr.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -622,9 +621,6 @@ export class Router extends EventTarget {
         'retend-router-outlet',
         class extends HTMLElement {
           connectedCallback() {
-            const hmr = getHMRContext();
-            // Only trigger on HMR and when this outlet has not been initialized yet
-            if (!hmr) return;
             if (this.getAttribute('data-path')) return;
             // // See? web components are useful!
             // // Sometimes outlets can be rendered outside a
