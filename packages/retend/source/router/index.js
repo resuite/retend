@@ -611,7 +611,7 @@ export class Router extends EventTarget {
 
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
-      'retend-router-outlet, retend-router-relay, retend-teleport {display: contents;}'
+      ':where(retend-router-outlet, retend-router-relay, retend-teleport) {display: contents;}'
     );
     this.#window.document.adoptedStyleSheets.push(this.sheet);
     const router = this;
@@ -913,8 +913,9 @@ export class Router extends EventTarget {
       if (previousOutletPath === currentMatchedRoute.path) {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
+        let lastOutlet = outlet;
         outlet = /** @type {RouterOutlet} */ (
-          outlet.querySelector('retend-router-outlet')
+          lastOutlet.querySelector('retend-router-outlet')
         );
 
         // If only the search params changed, then the last outlet
@@ -931,6 +932,14 @@ export class Router extends EventTarget {
               metadata: matchResult.metadata,
               hash: matchResult.hash,
             });
+            // There is an edge case where changing the params could result in an
+            // outlet being added on the page. It won't be caught by the connectedCallback,
+            // because technically a navigation is still ongoing.
+            if (!outlet) {
+              outlet = /** @type {RouterOutlet} */ (
+                lastOutlet.querySelector('retend-router-outlet')
+              );
+            }
           }
         }
         continue;
