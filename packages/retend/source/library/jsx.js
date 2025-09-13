@@ -649,7 +649,7 @@ export function normalizeJsxChild(child) {
  *
  * Handles various input types for class values, including strings, arrays, objects, and cells.
  *
- * @param {string | string[] | Record<string, boolean > | Cell<string> | Cell<string[]> | undefined} val - The class value to normalize.
+ * @param {string | string[] | Cell<string | string[]> | Record<string, boolean > | undefined} val - The class value to normalize.
  * @param {JsxElement} element The target element with the class.
  * @returns {string} The normalized class value as a string.
  */
@@ -672,20 +672,23 @@ export function normalizeClassValue(val, element) {
     return result;
   }
 
-  // @ts-ignore
   if (Cell.isCell(val)) {
     let currentClassToken = normalizeClassValue(val.get(), element);
     addCellListener(
       element,
       val,
       function (newValue) {
+        const classes =
+          typeof newValue === 'string'
+            ? newValue.split(' ')
+            : newValue.map(String.prototype.split).flat();
         try {
           this.classList.remove(...currentClassToken.split(' '));
-          this.classList.add(...newValue.split(' '));
+          this.classList.add(...classes);
         } catch {
           //
         }
-        currentClassToken = newValue;
+        currentClassToken = classes.join(' ');
       },
       false
     );
