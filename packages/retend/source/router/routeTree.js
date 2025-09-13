@@ -13,12 +13,23 @@
  */
 
 /**
+ * A Map whose keys are the keys of O and whose values are the corresponding properties of O.
+ *
+ * @template O
+ * @typedef {Omit<Map<keyof O, O[keyof O]>, 'get' | 'set' | 'has'> & {
+ *   get: <K extends keyof O>(key: K) => O[K];
+ *   has: <U extends PropertyKey>(key: U) => U extends keyof O ? true : false;
+ *   set: <K extends keyof O>(key: K, value: O[K]) => ObjectToMap<O>
+ * }} ObjectToMap
+ */
+
+/**
  * @typedef {Map<string, any>} MetadataMap
  */
 
 /**
  * @template {Metadata} [M=Metadata]
- * @typedef {(() => JSX.Template) & { metadata?: M | ((metadataOptions: MetadataOptions) => Promise<M> | M) }} RouteComponent
+ * @typedef {((props: { metadata: ObjectToMap<M> }) => JSX.Template) & { metadata?: M | ((metadataOptions: MetadataOptions) => Promise<M> | M) }} RouteComponent
  */
 
 /**
@@ -174,7 +185,7 @@ export class LazyRoute extends Route {
       return roots[0].unroll(parent);
     }
 
-    let eagerRoute = roots[0];
+    const eagerRoute = roots[0];
     if (eagerRoute.path !== this.path) {
       const message = `Lazy subtrees must have the same path as their parents. Parent path: ${this.path}, Subtree path: ${eagerRoute.path}`;
       throw new Error(message);
@@ -407,7 +418,7 @@ export class RouteTree {
     const rootSegments = root.path.split('/').filter(Boolean);
 
     // Matches fallthrough to children if the root path is empty
-    if (root.path === parent?.path || rootSegments.length == 0) {
+    if (root.path === parent?.path || rootSegments.length === 0) {
       const resolved = await this.flattenRoute(root, parent);
       const matchedRoute = new MatchedRoute(resolved);
       for (const child of resolved.children) {
@@ -482,7 +493,7 @@ export class RouteTree {
     const continueMatching =
       i < pathSegments.length ||
       !(matchedRoute.child || matchedRoute.component) ||
-      resolved.children.some((child) => child.path == resolved.path);
+      resolved.children.some((child) => child.path === resolved.path);
 
     if (continueMatching) {
       const parent = resolved;
@@ -542,7 +553,7 @@ export const routeToComponent = new WeakMap();
  */
 function createTransientTree(pathSegments, parentPathSegments, lazySubtree) {
   let root;
-  let buildingPath = '/' + parentPathSegments.join('/');
+  let buildingPath = `/${parentPathSegments.join('/')}`;
   if (pathSegments[0]) {
     buildingPath += parentPathSegments.length
       ? `/${pathSegments[0]}`

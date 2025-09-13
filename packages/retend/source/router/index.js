@@ -39,7 +39,7 @@ const RELAY_ID_REGEX =
 /** @import { ScopeSnapshot } from '../library/scope.js' */
 
 /**
- * @typedef {Lazy<(() => JSX.Template)> | ((() => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader
+ * @typedef {Lazy<((...args: any[]) => JSX.Template)> | (((...args: any[]) => JSX.Template) & RouteLevelFunctionData)} ComponentOrComponentLoader
  */
 
 /**
@@ -913,7 +913,7 @@ export class Router extends EventTarget {
       if (previousOutletPath === currentMatchedRoute.path) {
         lastMatchedRoute = currentMatchedRoute;
         currentMatchedRoute = currentMatchedRoute.child;
-        let lastOutlet = outlet;
+        const lastOutlet = outlet;
         outlet = /** @type {RouterOutlet} */ (
           lastOutlet.querySelector('retend-router-outlet')
         );
@@ -1049,9 +1049,9 @@ export class Router extends EventTarget {
           if (oldSnapshot) {
             disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
             renderedComponent = withScopeSnapshot(oldSnapshot, () =>
-              h(matchedComponent, {})
+              h(matchedComponent, matchResult)
             );
-          } else renderedComponent = h(matchedComponent, {});
+          } else renderedComponent = h(matchedComponent, matchResult);
         } catch (error) {
           if (oldOutletPath) {
             outlet.setAttribute('data-path', oldOutletPath);

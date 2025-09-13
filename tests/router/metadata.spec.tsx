@@ -639,4 +639,48 @@ describe('Router Metadata', () => {
     await router.back();
     expect(getTextContent(root)).toBe('This is the blog for page 123');
   });
+
+
+  it('should get metadata as props to the route component', async () => {
+    const { window } = getGlobalContext();
+    const root = window.document.documentElement;
+
+    interface ProductProps {
+      title: string,
+      type: string
+    }
+
+    const ProductPage: RouteComponent<ProductProps> = (props) => {
+      const title = props.metadata.get('title');
+      const type = props.metadata.get('type');
+      return (
+        <div>
+          Title: {title}, Type: {type}
+        </div>
+      );
+    };
+
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          name: 'product-page',
+          path: '/products/:id',
+          component: ProductPage,
+          metadata: (data) => ({
+            title: `Product ${data.params.get('id')}`,
+            type: 'product-page',
+          }),
+        },
+      ]),
+    });
+
+    router.setWindow(window);
+    router.attachWindowListeners();
+
+    await router.navigate('/products/123');
+    expect(getTextContent(root)).toBe('Title: Product 123, Type: product-page');
+
+    await router.navigate('/products/456');
+    expect(getTextContent(root)).toBe('Title: Product 456, Type: product-page');
+  });
 });
