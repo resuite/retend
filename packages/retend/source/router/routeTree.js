@@ -142,13 +142,6 @@ export class EagerRoute extends Route {
   /** @type {boolean} */ isTransient = false;
   /** @type {(EagerRoute<T> | LazyRoute<T>)[]} */ children = [];
   /** @type {Metadata | null} */ metadata = {};
-
-  /**
-   * @param {string} path - The path to assign to the route.
-   */
-  constructor(path) {
-    super(path);
-  }
 }
 
 /** @template T */
