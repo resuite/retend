@@ -1052,7 +1052,7 @@ export namespace JSX {
     /**
      * Controls the type of input method to be used for the element.
      */
-    inputMode?:
+    inputmode?:
       | 'none'
       | 'text'
       | 'tel'
