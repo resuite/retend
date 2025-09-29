@@ -37,7 +37,7 @@ import { generateChildNodes } from './utils.js';
  */
 
 /**
- * @typedef {() => (void | (() => void))} SetupFn
+ * @typedef {() => (void | Promise<void> | Promise<() => (void | Promise<void>)> | (() => void))} SetupFn
  */
 
 /**
@@ -45,8 +45,8 @@ import { generateChildNodes } from './utils.js';
  * Allows enabling/disabling, forking child nodes, and disposing by cleaning effects and children.
  */
 class EffectNode {
-  /** @type {Array<() => void | (() => void)>} */ #setupFns = [];
-  /** @type {Array<() => void>} */ #disposeFns = [];
+  /** @type {Array<SetupFn>} */ #setupFns = [];
+  /** @type {Array<() => (Promise<void> | void)>} */ #disposeFns = [];
   /** @type {Array<EffectNode>} */ #children = [];
   #enabled = false;
   #active = false;
@@ -76,27 +76,29 @@ class EffectNode {
     return newNode;
   }
 
-  #runActivateFns() {
+  async #runActivateFns() {
     if (!this.#enabled || this.#active) return;
     for (const effect of this.#setupFns) {
       try {
-        const cleanup = effect();
+        const cleanup = await effect();
         if (typeof cleanup === 'function') this.#disposeFns.push(cleanup);
       } catch (error) {
         console.error(error);
       }
     }
     this.#active = true;
+    let promises = [];
     for (const child of this.#children) {
       if (!child.#enabled || child.#active) continue;
-      child.#runActivateFns();
+      promises.push(child.#runActivateFns());
     }
+    await Promise.all(promises);
   }
 
   async activate() {
     if (!this.#enabled || this.#active) return;
     await new Promise((resolve) => setTimeout(resolve));
-    this.#runActivateFns();
+    await this.#runActivateFns();
   }
 
   #runDisposeFns() {
@@ -471,6 +473,6 @@ export async function runPendingSetupEffects() {
     throw new Error(message);
   }
   node.enable();
-  node.activate();
+  await node.activate();
   await new Promise((resolve) => setTimeout(resolve));
 }

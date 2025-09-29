@@ -460,7 +460,7 @@ import { runPendingSetupEffects } from 'retend';
 import { createRouter } from './router';
 
 const router = createRouter();
-router.window = window;
+router.setWindow(window);
 router.attachWindowListeners();
 
 const root = window.document.getElementById('app');

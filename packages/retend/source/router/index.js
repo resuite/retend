@@ -1039,7 +1039,7 @@ export class Router extends EventTarget {
       const oldSnapshot = outlet.__originScopeSnapshot;
       if (routeSnapshot) {
         if (oldSnapshot) {
-          disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
+          disabledEffectNodeForLastRoute = await oldSnapshot.node.detach();
           oldSnapshot.node.attach(routeSnapshot.node);
           oldSnapshot.node.enable(); // The restored node would have disabled children.
         }
@@ -1047,7 +1047,7 @@ export class Router extends EventTarget {
       } else {
         try {
           if (oldSnapshot) {
-            disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
+            disabledEffectNodeForLastRoute = await oldSnapshot.node.detach();
             renderedComponent = withScopeSnapshot(oldSnapshot, () =>
               h(matchedComponent, matchResult)
             );
@@ -1114,7 +1114,7 @@ export class Router extends EventTarget {
       const oldPath = outlet.getAttribute('data-path');
       const snapshot = outlet.__originScopeSnapshot;
       if (oldPath && snapshot) {
-        const effectNode = snapshot.node.detach();
+        const effectNode = await snapshot.node.detach();
         this.#preserveCurrentOutletState(oldPath, outlet, effectNode);
       }
       outlet.removeAttribute('data-path');
