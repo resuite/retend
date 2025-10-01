@@ -37,7 +37,10 @@ import { generateChildNodes } from './utils.js';
  */
 
 /**
- * @typedef {() => (void | Promise<void> | Promise<() => void> | Promise<() => Promise<void>> | (() => void))} SetupFn
+ * @typedef {() => void} CleanupFn
+ */
+/**
+ * @typedef {(() => CleanupFn | undefined) | (() => Promise<CleanupFn | undefined>) | (() => void | Promise<void>) } SetupFn
  */
 
 /**
