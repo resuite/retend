@@ -37,7 +37,7 @@ import { generateChildNodes } from './utils.js';
  */
 
 /**
- * @typedef {() => (void | Promise<void> | Promise<() => (void | Promise<void>)> | (() => void))} SetupFn
+ * @typedef {() => (void | Promise<void> | Promise<() => void> | Promise<() => Promise<void>> | (() => void))} SetupFn
  */
 
 /**
@@ -87,7 +87,7 @@ class EffectNode {
       }
     }
     this.#active = true;
-    let promises = [];
+    const promises = [];
     for (const child of this.#children) {
       if (!child.#enabled || child.#active) continue;
       promises.push(child.#runActivateFns());
@@ -187,8 +187,8 @@ export function createScope(name) {
         'content' in props
           ? props.content
           : 'children' in props
-            ? props.children
-            : () => {};
+          ? props.children
+          : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
       const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
@@ -224,8 +224,7 @@ export function useScopeContext(Scope, snapshot) {
   if (!relatedScopeData || relatedScopeData.length === 0) {
     const scopeName = Scope?.key.description || 'UnknownScope';
     throw new Error(
-      `No parent scope found for the provided scope (${scopeName}).\n` +
-        `This usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
+      `No parent scope found for the provided scope (${scopeName}).\nThis usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
     );
   }
   return /** @type {T} */ (relatedScopeData[relatedScopeData.length - 1]);
@@ -375,8 +374,8 @@ export function combineScopes(...providers) {
         'content' in props
           ? props.content
           : 'children' in props
-            ? props.children
-            : () => {};
+          ? props.children
+          : () => {};
 
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () => {
