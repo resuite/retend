@@ -1,5 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { useObserver } from './observer.js' */
+/** @import { useObserver, CleanupFn } from './observer.js' */
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
@@ -36,9 +36,6 @@ import { generateChildNodes } from './utils.js';
  * @property {EffectNode} node
  */
 
-/**
- * @typedef {() => void} CleanupFn
- */
 /**
  * @typedef {(() => CleanupFn | undefined) | (() => Promise<CleanupFn | undefined>) | (() => void | Promise<void>) } SetupFn
  */
