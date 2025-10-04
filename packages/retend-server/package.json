@@ -1,6 +1,6 @@
 {
   "name": "retend-server",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "description": "Static site generation for the retend UI framework.",
   "private": false,
   "type": "module",
