@@ -219,10 +219,6 @@ async function createProjectStructure(projectDir, answers) {
 		createConfigFile(projectDir, answers),
 		createVSCodeFolder(projectDir, answers),
 	]);
-
-	if (answers.useTailwind) {
-		await createPostcssConfig(projectDir);
-	}
 }
 
 /**
@@ -307,13 +303,15 @@ import { defineConfig } from 'vite';
 import path from 'node:path';
 import { retend } from 'retend/plugin';${
 		answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ""
+	}${
+		answers.useTailwind ? "\nimport tailwindcss from '@tailwindcss/vite';" : ""
 	}
 
 export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './source') }
   },
-  plugins: [
+  plugins: [${answers.useTailwind ? "tailwindcss()," : ""}
     retend(),
     ${
 			answers.useSSG
@@ -327,10 +325,11 @@ export default defineConfig({
 ${
 	answers.cssPreprocessor === "SCSS"
 		? `
+
   css: {
     preprocessorOptions: {
       scss: {
-         api: 'modern-compiler',
+          api: 'modern-compiler',
       },
     }
   },`
@@ -341,26 +340,6 @@ ${
 	await fs.writeFile(
 		path.join(projectDir, `vite.config.${extension}`),
 		content,
-	);
-}
-
-/**
- * Function to create the PostCSS configuration file
- * @param {string} projectDir - The directory where the project is created
- */
-async function createPostcssConfig(projectDir) {
-	const content = `
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-};
-`;
-
-	await fs.writeFile(
-		path.join(projectDir, "postcss.config.js"),
-		content.trim(),
 	);
 }
 
@@ -404,32 +383,12 @@ body {
 
 	if (answers.useTailwind) {
 		const tailwindContent = `
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 `;
 
 		await fs.writeFile(
 			path.join(projectDir, `source/styles/tailwind.${extension}`),
 			tailwindContent.trim(),
-		);
-
-		const tailwindConfigContent = `
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: [
-    "./index.html",
-    "./source/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}`;
-
-		await fs.writeFile(
-			path.join(projectDir, "tailwind.config.js"),
-			tailwindConfigContent.trim(),
 		);
 	}
 }
@@ -638,8 +597,8 @@ async function createPackageJson(projectDir, answers) {
 
 	if (answers.useTailwind) {
 		content.devDependencies.tailwindcss = CONFIG.devDependencies.tailwindcss;
-		content.devDependencies.autoprefixer = CONFIG.devDependencies.autoprefixer;
-		content.devDependencies.postcss = CONFIG.devDependencies.postcss;
+		content.devDependencies["@tailwindcss/vite"] =
+			CONFIG.devDependencies["@tailwindcss/vite"];
 	}
 
 	if (answers.cssPreprocessor === "SCSS") {
