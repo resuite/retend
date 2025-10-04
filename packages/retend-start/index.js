@@ -52,25 +52,15 @@ const questions = [
 		type: "confirm",
 		name: "useTailwind",
 		message: chalk.magenta("Do you want to use Tailwind CSS?"),
-		default: false,
+		default: true,
 		argKey: "tailwind",
-	},
-	{
-		type: "list",
-		name: "cssPreprocessor",
-		message: chalk.magenta("Which styling language would you like to use?"),
-		choices: ["SCSS", "CSS"],
-		default: "CSS",
-		argKey: "scss",
-		/** @param {string} value */
-		processArg: (value) => (value ? "SCSS" : "CSS"),
 	},
 	{
 		type: "list",
 		name: "language",
 		message: chalk.magenta("Which language would you like to use?"),
 		choices: ["TypeScript", "JavaScript"],
-		default: "JavaScript",
+		default: "TypeScript",
 		argKey: "javascript",
 		/** @param {string} value */
 		processArg: (value) => (value ? "JavaScript" : "TypeScript"),
@@ -153,6 +143,8 @@ async function main() {
 				Object.assign(answers, promptAnswers);
 			}
 		}
+
+		answers.cssPreprocessor = "CSS";
 
 		projectDir = path.join(process.cwd(), answers.projectName);
 
@@ -266,7 +258,7 @@ async function cleanupProject(projectDir) {
  */
 async function createIndexHtml(projectDir, answers) {
 	const extension = answers.language === "TypeScript" ? "ts" : "js";
-	const styleExtension = answers.cssPreprocessor === "SCSS" ? "scss" : "css";
+	const styleExtension = "css";
 	const content = `
 <!DOCTYPE html>
 <html lang="en">
@@ -321,21 +313,8 @@ export default defineConfig({
     }),`
 				: ""
 		}
-  ],
-${
-	answers.cssPreprocessor === "SCSS"
-		? `
-
-  css: {
-    preprocessorOptions: {
-      scss: {
-          api: 'modern-compiler',
-      },
-    }
-  },`
-		: ""
-}
-});`.trim();
+   ],
+ });`.trim();
 
 	await fs.writeFile(
 		path.join(projectDir, `vite.config.${extension}`),
@@ -349,7 +328,7 @@ ${
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createStyleFiles(projectDir, answers) {
-	const extension = answers.cssPreprocessor === "SCSS" ? "scss" : "css";
+	const extension = "css";
 
 	// Create base styles file
 	const baseContent = `
@@ -467,7 +446,7 @@ async function createRouterFile(projectDir, answers) {
  */
 async function createSimpleApp(projectDir, answers) {
 	const extension = answers.language === "TypeScript" ? "tsx" : "jsx";
-	const styleExtension = answers.cssPreprocessor === "SCSS" ? "scss" : "css";
+	const styleExtension = "css";
 
 	const tailwind = Boolean(answers.useTailwind);
 	const cssImport = tailwind
@@ -601,10 +580,6 @@ async function createPackageJson(projectDir, answers) {
 			CONFIG.devDependencies["@tailwindcss/vite"];
 	}
 
-	if (answers.cssPreprocessor === "SCSS") {
-		content.devDependencies.sass = CONFIG.devDependencies.sass;
-	}
-
 	await fs.writeFile(
 		path.join(projectDir, "package.json"),
 		JSON.stringify(content, null, 2),
@@ -672,10 +647,6 @@ async function createVSCodeFolder(projectDir, answers) {
 		extensions.push("bradlc.vscode-tailwindcss");
 	} else {
 		extensions.push("clinyong.vscode-css-modules", "1yasa.css-better-sorting");
-	}
-
-	if (answers.cssPreprocessor === "SCSS") {
-		extensions.push("syler.sass-indented");
 	}
 
 	const extensionsContent = {
