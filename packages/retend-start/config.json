@@ -3,7 +3,8 @@
 	"directories": ["public", "source", "source/styles"],
 	"dependencies": {
 		"retend": "^0.0.20",
-		"retend-server": "^0.0.20"
+		"retend-server": "^0.0.20",
+		"retend-utils": "^0.0.20"
 	},
 	"devDependencies": {
 		"vite": "^6.2.1",
