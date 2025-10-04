@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /// <reference types="node" />
 
-import { execSync } from 'node:child_process';
-import fs from 'node:fs/promises';
-import process from 'node:process';
-import path from 'node:path';
+import { execSync } from "node:child_process";
+import fs from "node:fs/promises";
+import process from "node:process";
+import path from "node:path";
 
-import chalk from 'chalk';
-import ora from 'ora';
-import semver from 'semver';
-import { createPromptModule } from 'inquirer';
-import CONFIG from './config.json' with { type: 'json' };
+import chalk from "chalk";
+import ora from "ora";
+import semver from "semver";
+import { createPromptModule } from "inquirer";
+import CONFIG from "./config.json" with { type: "json" };
 
 const isBun =
-  typeof process !== 'undefined' && process.versions && process.versions.bun;
+	typeof process !== "undefined" && process.versions && process.versions.bun;
 
 const args = process.argv.slice(2);
 
@@ -22,179 +22,179 @@ const args = process.argv.slice(2);
  * @returns {Record<string, any>}
  */
 function parseArgs() {
-  /** @type {Record<string, any>} */
-  const options = {};
-  for (const arg of args) {
-    if (arg.startsWith('--')) {
-      const [key, value] = arg.slice(2).split('=');
-      options[key] = value || true;
-    }
-  }
-  return options;
+	/** @type {Record<string, any>} */
+	const options = {};
+	for (const arg of args) {
+		if (arg.startsWith("--")) {
+			const [key, value] = arg.slice(2).split("=");
+			options[key] = value || true;
+		}
+	}
+	return options;
 }
 
 // Update questions array to include property for matching command line args
 /** @type {any} */
 const questions = [
-  {
-    type: 'input',
-    name: 'projectName',
-    message: chalk.magenta('What is the name of your project?'),
-    default: 'my-app',
-    argKey: 'name',
-    validate: (/** @type {string} */ input) =>
-      /^[a-z0-9-]+$/.test(input) ||
-      chalk.red(
-        'Project name can only contain lowercase letters, numbers, and hyphens'
-      ),
-  },
-  {
-    type: 'confirm',
-    name: 'useTailwind',
-    message: chalk.magenta('Do you want to use Tailwind CSS?'),
-    default: false,
-    argKey: 'tailwind',
-  },
-  {
-    type: 'list',
-    name: 'cssPreprocessor',
-    message: chalk.magenta('Which styling language would you like to use?'),
-    choices: ['SCSS', 'CSS'],
-    default: 'CSS',
-    argKey: 'scss',
-    /** @param {string} value */
-    processArg: (value) => (value ? 'SCSS' : 'CSS'),
-  },
-  {
-    type: 'list',
-    name: 'language',
-    message: chalk.magenta('Which language would you like to use?'),
-    choices: ['TypeScript', 'JavaScript'],
-    default: 'JavaScript',
-    argKey: 'javascript',
-    /** @param {string} value */
-    processArg: (value) => (value ? 'JavaScript' : 'TypeScript'),
-  },
-  {
-    type: 'confirm',
-    name: 'useSSG',
-    message: chalk.magenta('Do you want to use Static Site Generation (SSG)?'),
-    default: false,
-    argKey: 'ssg',
-    /** @param {string} value */
-  },
+	{
+		type: "input",
+		name: "projectName",
+		message: chalk.magenta("What is the name of your project?"),
+		default: "my-app",
+		argKey: "name",
+		validate: (/** @type {string} */ input) =>
+			/^[a-z0-9-]+$/.test(input) ||
+			chalk.red(
+				"Project name can only contain lowercase letters, numbers, and hyphens",
+			),
+	},
+	{
+		type: "confirm",
+		name: "useTailwind",
+		message: chalk.magenta("Do you want to use Tailwind CSS?"),
+		default: false,
+		argKey: "tailwind",
+	},
+	{
+		type: "list",
+		name: "cssPreprocessor",
+		message: chalk.magenta("Which styling language would you like to use?"),
+		choices: ["SCSS", "CSS"],
+		default: "CSS",
+		argKey: "scss",
+		/** @param {string} value */
+		processArg: (value) => (value ? "SCSS" : "CSS"),
+	},
+	{
+		type: "list",
+		name: "language",
+		message: chalk.magenta("Which language would you like to use?"),
+		choices: ["TypeScript", "JavaScript"],
+		default: "JavaScript",
+		argKey: "javascript",
+		/** @param {string} value */
+		processArg: (value) => (value ? "JavaScript" : "TypeScript"),
+	},
+	{
+		type: "confirm",
+		name: "useSSG",
+		message: chalk.magenta("Do you want to use Static Site Generation (SSG)?"),
+		default: true,
+		argKey: "ssg",
+		/** @param {string} value */
+	},
 ];
+
+function generateLightColor() {
+	// Generate high values for RGB to ensure light colors
+	const r = Math.floor(Math.random() * 56) + 200; // 200-255
+	const g = Math.floor(Math.random() * 56) + 200; // 200-255
+	const b = Math.floor(Math.random() * 56) + 200; // 200-255
+
+	return `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`;
+}
 
 /**
  * Main function to create a new project
  */
 async function main() {
-  let projectDir;
-  try {
-    checkNodeVersion();
+	let projectDir;
+	try {
+		checkNodeVersion();
 
-    const cliOptions = parseArgs();
-    /** @type {Record<string, any>} */
-    const answers = {};
+		const cliOptions = parseArgs();
+		/** @type {Record<string, any>} */
+		const answers = {};
 
-    // Handle default flag
-    if (cliOptions.default) {
-      // Get answers from CLI options first for explicitly set options
-      for (const q of questions) {
-        if (q.argKey && q.argKey in cliOptions) {
-          const value = cliOptions[q.argKey];
-          answers[q.name] = q.processArg ? q.processArg(value) : value;
-        } else {
-          // Use default values for unspecified options
-          answers[q.name] = q.default;
-        }
-      }
+		// Handle default flag
+		if (cliOptions.default) {
+			// Get answers from CLI options first for explicitly set options
+			for (const q of questions) {
+				if (q.argKey && q.argKey in cliOptions) {
+					const value = cliOptions[q.argKey];
+					answers[q.name] = q.processArg ? q.processArg(value) : value;
+				} else {
+					// Use default values for unspecified options
+					answers[q.name] = q.default;
+				}
+			}
 
-      // Handle project name separately
-      const projectName = args.find((arg) => !arg.startsWith('-'));
-      answers.projectName = projectName || 'my-app';
-    } else {
-      // Original logic for non-default mode
-      let questionsToAsk = questions.filter(
-        (
-          /** @type {{ argKey: string; name: string | number; processArg: (arg0: any) => any; }} */ q
-        ) => {
-          if (q.argKey && q.argKey in cliOptions) {
-            const value = cliOptions[q.argKey];
-            answers[q.name] = q.processArg ? q.processArg(value) : value;
-            return false;
-          }
-          return true;
-        }
-      );
+			// Handle project name separately
+			const projectName = args.find((arg) => !arg.startsWith("-"));
+			answers.projectName = projectName || "my-app";
+		} else {
+			// Original logic for non-default mode
+			let questionsToAsk = questions.filter(
+				(
+					/** @type {{ argKey: string; name: string | number; processArg: (arg0: any) => any; }} */ q,
+				) => {
+					if (q.argKey && q.argKey in cliOptions) {
+						const value = cliOptions[q.argKey];
+						answers[q.name] = q.processArg ? q.processArg(value) : value;
+						return false;
+					}
+					return true;
+				},
+			);
 
-      // Get project name from positional argument if provided
-      const projectName = args.find((arg) => !arg.startsWith('-'));
-      if (projectName) {
-        answers.projectName = projectName;
-        questionsToAsk = questionsToAsk.filter(
-          (/** @type {{ name: string; }} */ q) => q.name !== 'projectName'
-        );
-      }
+			// Get project name from positional argument if provided
+			const projectName = args.find((arg) => !arg.startsWith("-"));
+			if (projectName) {
+				answers.projectName = projectName;
+				questionsToAsk = questionsToAsk.filter(
+					(/** @type {{ name: string; }} */ q) => q.name !== "projectName",
+				);
+			}
 
-      // Only prompt for remaining questions if any
-      if (questionsToAsk.length > 0) {
-        const prompt = createPromptModule({ output: process.stdout });
-        const promptAnswers = await prompt(questionsToAsk);
-        Object.assign(answers, promptAnswers);
-      }
-    }
+			// Only prompt for remaining questions if any
+			if (questionsToAsk.length > 0) {
+				const prompt = createPromptModule({ output: process.stdout });
+				const promptAnswers = await prompt(questionsToAsk);
+				Object.assign(answers, promptAnswers);
+			}
+		}
 
-    projectDir = path.join(process.cwd(), answers.projectName);
+		projectDir = path.join(process.cwd(), answers.projectName);
 
-    const spinner = ora({
-      text: 'Creating project structure...',
-      spinner: 'aesthetic',
-      color: 'cyan',
-    }).start();
+		const spinner = ora({
+			text: "Creating project structure...",
+			spinner: "aesthetic",
+			color: "cyan",
+		}).start();
 
-    await createProjectStructure(projectDir, answers);
-    await initializeGit(projectDir);
+		await createProjectStructure(projectDir, answers);
+		await initializeGit(projectDir);
 
-    spinner.succeed(
-      chalk.green(`Project ${answers.projectName} created successfully!`)
-    );
+		spinner.succeed(
+			chalk.green(`Project ${answers.projectName} created successfully!`),
+		);
 
-    displayCompletionMessage(answers.projectName);
-    process.exit(0);
-  } catch (/** @type {any} */ error) {
-    if (error.isTtyError) {
-      console.error(
-        chalk.red("Prompt couldn't be rendered in the current environment")
-      );
-    } else if (error.name === 'UserQuitError') {
-      console.log(chalk.yellow('\nProject creation cancelled.'));
-    } else {
-      console.error(chalk.red('An error occurred:'), error);
-    }
-    await cleanupProject(projectDir);
-  }
-}
-
-function generateLightColor() {
-  // Generate high values for RGB to ensure light colors
-  const r = Math.floor(Math.random() * 56) + 200; // 200-255
-  const g = Math.floor(Math.random() * 56) + 200; // 200-255
-  const b = Math.floor(Math.random() * 56) + 200; // 200-255
-
-  return `#${r.toString(16)}${g.toString(16)}${b.toString(16)}`;
+		displayCompletionMessage(answers.projectName);
+		process.exit(0);
+	} catch (/** @type {any} */ error) {
+		if (error.isTtyError) {
+			console.error(
+				chalk.red("Prompt couldn't be rendered in the current environment"),
+			);
+		} else if (error.name === "UserQuitError") {
+			console.log(chalk.yellow("\nProject creation cancelled."));
+		} else {
+			console.error(chalk.red("An error occurred:"), error);
+		}
+		await cleanupProject(projectDir);
+	}
 }
 
 /**
  * Function to check the current Node.js version
  */
 function checkNodeVersion() {
-  const currentVersion = process.version;
-  if (semver.lt(currentVersion, CONFIG.minNodeVersion)) {
-    throw new Error(
-      `Node.js version ${CONFIG.minNodeVersion} or higher is required. Current version: ${currentVersion}`
-    );
-  }
+	const currentVersion = process.version;
+	if (semver.lt(currentVersion, CONFIG.minNodeVersion)) {
+		throw new Error(
+			`Node.js version ${CONFIG.minNodeVersion} or higher is required. Current version: ${currentVersion}`,
+		);
+	}
 }
 
 /**
@@ -203,28 +203,26 @@ function checkNodeVersion() {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createProjectStructure(projectDir, answers) {
-  await fs.mkdir(projectDir, { recursive: true });
+	await fs.mkdir(projectDir, { recursive: true });
 
-  for (const dir of CONFIG.directories) {
-    await fs.mkdir(path.join(projectDir, dir), { recursive: true });
-  }
+	for (const dir of CONFIG.directories) {
+		await fs.mkdir(path.join(projectDir, dir), { recursive: true });
+	}
 
-  await fs.mkdir(path.join(projectDir, 'source/views'), { recursive: true });
+	await Promise.all([
+		createIndexHtml(projectDir, answers),
+		createViteConfig(projectDir, answers),
+		createStyleFiles(projectDir, answers),
+		createMainFile(projectDir, answers),
+		createRouterFile(projectDir, answers),
+		createPackageJson(projectDir, answers),
+		createConfigFile(projectDir, answers),
+		createVSCodeFolder(projectDir, answers),
+	]);
 
-  await Promise.all([
-    createIndexHtml(projectDir, answers),
-    createViteConfig(projectDir, answers),
-    createStyleFiles(projectDir, answers),
-    createMainFile(projectDir, answers),
-    createRouterFile(projectDir, answers),
-    createPackageJson(projectDir, answers),
-    createConfigFile(projectDir, answers),
-    createVSCodeFolder(projectDir, answers),
-  ]);
-
-  if (answers.useTailwind) {
-    await createPostcssConfig(projectDir);
-  }
+	if (answers.useTailwind) {
+		await createPostcssConfig(projectDir);
+	}
 }
 
 /**
@@ -232,20 +230,20 @@ async function createProjectStructure(projectDir, answers) {
  * @param {string} projectDir - The directory where the project is created
  */
 async function initializeGit(projectDir) {
-  try {
-    execSync('git init', { cwd: projectDir, stdio: 'ignore' });
-    await fs.writeFile(
-      path.join(projectDir, '.gitignore'),
-      'node_modules\ndist\n.DS_Store'
-    );
-  } catch (error) {
-    console.error(error);
-    console.warn(
-      chalk.yellow(
-        'Failed to initialize git repository. You can do it manually later.'
-      )
-    );
-  }
+	try {
+		execSync("git init", { cwd: projectDir, stdio: "ignore" });
+		await fs.writeFile(
+			path.join(projectDir, ".gitignore"),
+			"node_modules\ndist\n.DS_Store",
+		);
+	} catch (error) {
+		console.error(error);
+		console.warn(
+			chalk.yellow(
+				"Failed to initialize git repository. You can do it manually later.",
+			),
+		);
+	}
 }
 
 /**
@@ -253,16 +251,16 @@ async function initializeGit(projectDir) {
  * @param {string} [projectDir] - The directory where the project is created
  */
 async function cleanupProject(projectDir) {
-  if (projectDir) {
-    try {
-      await fs.rm(projectDir, { recursive: true, force: true });
-      console.log(
-        chalk.yellow('Cleaned up partially created project directory.')
-      );
-    } catch (error) {
-      console.error(chalk.red('Failed to clean up project directory:'), error);
-    }
-  }
+	if (projectDir) {
+		try {
+			await fs.rm(projectDir, { recursive: true, force: true });
+			console.log(
+				chalk.yellow("Cleaned up partially created project directory."),
+			);
+		} catch (error) {
+			console.error(chalk.red("Failed to clean up project directory:"), error);
+		}
+	}
 }
 
 /**
@@ -271,9 +269,9 @@ async function cleanupProject(projectDir) {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createIndexHtml(projectDir, answers) {
-  const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
-  const styleExtension = answers.cssPreprocessor === 'SCSS' ? 'scss' : 'css';
-  const content = `
+	const extension = answers.language === "TypeScript" ? "ts" : "js";
+	const styleExtension = answers.cssPreprocessor === "SCSS" ? "scss" : "css";
+	const content = `
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -282,10 +280,10 @@ async function createIndexHtml(projectDir, answers) {
     <title>${answers.projectName}</title>
     <link rel="stylesheet" href="./source/styles/base.${styleExtension}">
     ${
-      answers.useTailwind
-        ? `<link rel="stylesheet" href="./source/styles/tailwind.${styleExtension}">`
-        : ''
-    }
+			answers.useTailwind
+				? `<link rel="stylesheet" href="./source/styles/tailwind.${styleExtension}">`
+				: ""
+		}
   </head>
   <body>
     <div id="app"></div>
@@ -294,7 +292,7 @@ async function createIndexHtml(projectDir, answers) {
 </html>
   `.trim();
 
-  await fs.writeFile(path.join(projectDir, 'index.html'), content);
+	await fs.writeFile(path.join(projectDir, "index.html"), content);
 }
 
 /**
@@ -303,13 +301,13 @@ async function createIndexHtml(projectDir, answers) {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createViteConfig(projectDir, answers) {
-  const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
-  const content = `
+	const extension = answers.language === "TypeScript" ? "ts" : "js";
+	const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
 import { retend } from 'retend/plugin';${
-    answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ''
-  }
+		answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ""
+	}
 
 export default defineConfig({
   resolve: {
@@ -318,17 +316,17 @@ export default defineConfig({
   plugins: [
     retend(),
     ${
-      answers.useSSG
-        ? `retendSSG({
+			answers.useSSG
+				? `retendSSG({
       pages: ['/'],
       routerModulePath: './source/router.${extension}'
     }),`
-        : ''
-    }
+				: ""
+		}
   ],
 ${
-  answers.cssPreprocessor === 'SCSS'
-    ? `
+	answers.cssPreprocessor === "SCSS"
+		? `
   css: {
     preprocessorOptions: {
       scss: {
@@ -336,14 +334,14 @@ ${
       },
     }
   },`
-    : ''
+		: ""
 }
 });`.trim();
 
-  await fs.writeFile(
-    path.join(projectDir, `vite.config.${extension}`),
-    content
-  );
+	await fs.writeFile(
+		path.join(projectDir, `vite.config.${extension}`),
+		content,
+	);
 }
 
 /**
@@ -351,7 +349,7 @@ ${
  * @param {string} projectDir - The directory where the project is created
  */
 async function createPostcssConfig(projectDir) {
-  const content = `
+	const content = `
 export default {
   plugins: {
     tailwindcss: {},
@@ -360,10 +358,10 @@ export default {
 };
 `;
 
-  await fs.writeFile(
-    path.join(projectDir, 'postcss.config.js'),
-    content.trim()
-  );
+	await fs.writeFile(
+		path.join(projectDir, "postcss.config.js"),
+		content.trim(),
+	);
 }
 
 /**
@@ -372,10 +370,10 @@ export default {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createStyleFiles(projectDir, answers) {
-  const extension = answers.cssPreprocessor === 'SCSS' ? 'scss' : 'css';
+	const extension = answers.cssPreprocessor === "SCSS" ? "scss" : "css";
 
-  // Create base styles file
-  const baseContent = `
+	// Create base styles file
+	const baseContent = `
 :root {
   --primary-color: #646cff;
   --background-color: #ffffff;
@@ -399,24 +397,24 @@ body {
 
   `.trimStart();
 
-  await fs.writeFile(
-    path.join(projectDir, `source/styles/base.${extension}`),
-    baseContent
-  );
+	await fs.writeFile(
+		path.join(projectDir, `source/styles/base.${extension}`),
+		baseContent,
+	);
 
-  if (answers.useTailwind) {
-    const tailwindContent = `
+	if (answers.useTailwind) {
+		const tailwindContent = `
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 `;
 
-    await fs.writeFile(
-      path.join(projectDir, `source/styles/tailwind.${extension}`),
-      tailwindContent.trim()
-    );
+		await fs.writeFile(
+			path.join(projectDir, `source/styles/tailwind.${extension}`),
+			tailwindContent.trim(),
+		);
 
-    const tailwindConfigContent = `
+		const tailwindConfigContent = `
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -429,11 +427,11 @@ export default {
   plugins: [],
 }`;
 
-    await fs.writeFile(
-      path.join(projectDir, 'tailwind.config.js'),
-      tailwindConfigContent.trim()
-    );
-  }
+		await fs.writeFile(
+			path.join(projectDir, "tailwind.config.js"),
+			tailwindConfigContent.trim(),
+		);
+	}
 }
 
 /**
@@ -442,9 +440,9 @@ export default {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createMainFile(projectDir, answers) {
-  const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
-  const content = answers.useSSG
-    ? `
+	const extension = answers.language === "TypeScript" ? "ts" : "js";
+	const content = answers.useSSG
+		? `
 /// <reference types="vite/client" />
 import { hydrate } from 'retend-server/client';
 import { createRouter } from './router';
@@ -454,7 +452,7 @@ hydrate(createRouter)
     console.log('[retend-server] app successfully hydrated.');
   });
 `
-    : `
+		: `
 /// <reference types="vite/client" />
 import { runPendingSetupEffects } from 'retend';
 import { createRouter } from './router';
@@ -465,17 +463,17 @@ router.attachWindowListeners();
 
 const root = window.document.getElementById('app');
 root?.append(${
-        extension === 'ts'
-          ? 'router.Outlet() as Node'
-          : '/** @type {Node} */ (router.Outlet())'
-      });
+				extension === "ts"
+					? "router.Outlet() as Node"
+					: "/** @type {Node} */ (router.Outlet())"
+			});
 runPendingSetupEffects();
 `;
 
-  await fs.writeFile(
-    path.join(projectDir, `source/main.${extension}`),
-    content.trim()
-  );
+	await fs.writeFile(
+		path.join(projectDir, `source/main.${extension}`),
+		content.trim(),
+	);
 }
 
 /**
@@ -484,95 +482,60 @@ runPendingSetupEffects();
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createRouterFile(projectDir, answers) {
-  const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
-  const content = `
-import { createWebRouter } from 'retend/router';
-import { startRoute } from './views/start/routes';
+	const extension = answers.language === "TypeScript" ? "ts" : "js";
+	const content = `
+ import { createWebRouter } from 'retend/router';
+ import App from './App';
 
-export function createRouter() {
-  return createWebRouter({ routes: [startRoute] });
-}
-  `.trim();
+ export function createRouter() {
+   return createWebRouter({ routes: [{ path: '/', component: App }] });
+ }
+   `.trim();
 
-  await fs.writeFile(
-    path.join(projectDir, `source/router.${extension}`),
-    content
-  );
+	await fs.writeFile(
+		path.join(projectDir, `source/router.${extension}`),
+		content,
+	);
 
-  // Create start view structure
-  await createViewStructure(projectDir, 'start', answers);
-}
-
-/**
- * Function to create the view structure
- * @param {string} projectDir - The directory where the project is created
- * @param {string} viewName - The name of the view
- * @param {Record<string, any>} answers - The answers to the project creation questions
- */
-async function createViewStructure(projectDir, viewName, answers) {
-  await createComponentStructure(projectDir, viewName, true, answers);
+	// Create simple App component
+	await createSimpleApp(projectDir, answers);
 }
 
 /**
- * Function to create the component structure
+ * Function to create a simple App component
  * @param {string} projectDir - The directory where the project is created
- * @param {string} componentName - The name of the component
- * @param {boolean} isView - Whether the component is a view
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
-async function createComponentStructure(
-  projectDir,
-  componentName,
-  isView,
-  answers
-) {
-  const extension = answers.language === 'TypeScript' ? 'tsx' : 'jsx';
-  const styleExtension = answers.cssPreprocessor === 'SCSS' ? 'scss' : 'css';
+async function createSimpleApp(projectDir, answers) {
+	const extension = answers.language === "TypeScript" ? "tsx" : "jsx";
+	const styleExtension = answers.cssPreprocessor === "SCSS" ? "scss" : "css";
 
-  const componentDir = isView
-    ? path.join(projectDir, `source/views/${componentName}`)
-    : path.join(projectDir, 'source');
-  await fs.mkdir(componentDir, { recursive: true });
+	const tailwind = Boolean(answers.useTailwind);
+	const cssImport = tailwind
+		? ""
+		: `import classes from './App.module.${styleExtension}';\n`;
 
-  const tailwind = Boolean(answers.useTailwind);
-  const containerClass = `${componentName}${isView ? 'View' : ''}`;
+	const containerClasses = tailwind
+		? `"min-h-screen flex items-center justify-center bg-gradient-to-r from-[${generateLightColor()}] to-[${generateLightColor()}]"`
+		: "{classes.app}";
 
-  const containerClasses = tailwind
-    ? `"min-h-screen flex items-center justify-center bg-gradient-to-r from-[${generateLightColor()}] to-[${generateLightColor()}]"`
-    : `{classes.${containerClass}}`;
+	const mainElementClasses = tailwind
+		? '"max-w-7xl mx-auto p-8 text-center"'
+		: "{classes.content}";
 
-  const mainElementClasses = tailwind
-    ? '"max-w-7xl mx-auto p-8 text-center"'
-    : '{classes.content}';
+	const headingClasses = tailwind
+		? '"text-5xl font-bold mb-4 text-gray-900"'
+		: "{classes.heading}";
 
-  const headingClasses = tailwind
-    ? '"text-5xl font-bold mb-4"'
-    : '{classes.heading}';
+	const textContent = "Welcome to your new Retend app!";
 
-  const textClass = tailwind ? '"inline-block"' : '{classes.headingText}';
+	const paragraphClasses = tailwind
+		? '"mb-4 text-gray-900"'
+		: "{classes.paragraph}";
 
-  const paragraphClasses = tailwind ? '"mb-4"' : '{classes.paragraph}';
-  const subTextClasses = tailwind ? '"text-gray-600"' : '{classes.readTheDocs}';
+	const content = `import { Cell } from 'retend'${cssImport ? `\n${cssImport}` : ""}
 
-  const textContent = "You're all set to start building amazing things!";
-
-  const buttonClasses = tailwind
-    ? '"font-[inherit] bg-white border-2 mt-4 border-gray-300 rounded-[7px] px-[15px] py-[10px]"'
-    : '{classes.button}';
-
-  const linkClasses = tailwind ? '"text-blue-600"' : '{classes.link}';
-  const linkSuffix = isView ? 'to learn more.' : 'to get started.';
-  const cssImport = tailwind
-    ? ''
-    : `import classes from './${
-        isView ? 'styles' : componentName
-      }.module.${styleExtension}';\n`;
-
-  const content = `import { Cell } from 'retend'${
-    cssImport ? `\n${cssImport}` : ''
-  }
-
-const ${capitalize(componentName)} = () => {
+const App = () => {
   const count = Cell.source(0);
   const incrementCount = () => count.set(count.get() + 1);
 
@@ -580,37 +543,24 @@ const ${capitalize(componentName)} = () => {
     <div class=${containerClasses}>
       <main class=${mainElementClasses}>
         <h1 class=${headingClasses}>
-          <span class=${textClass}>${answers.projectName}.</span>
+          ${answers.projectName}
         </h1>
         <p class=${paragraphClasses}>${textContent}</p>
-        <p class=${subTextClasses}>
-          Check out the{' '}
-          <a
-            href="https://github.com/adebola-io/retend"
-            target="_blank" rel="noopener noreferrer"
-            class=${linkClasses}
-          >
-            documentation
-          </a> ${linkSuffix}
-        </p>
-        <button class=${buttonClasses} type="button" onClick={incrementCount}>
-          Counter Value: {count}
+        <button class="font-[inherit] bg-white border-2 mt-4 border-gray-300 rounded-[7px] px-[15px] py-[10px]" type="button" onClick={incrementCount}>
+          Counter: {count}
         </button>
       </main>
     </div>
-  )
+  );
 };
 
-export default ${capitalize(componentName)};
-  `;
+export default App;
+`;
 
-  await fs.writeFile(
-    path.join(componentDir, `${isView ? 'index' : componentName}.${extension}`),
-    content
-  );
+	await fs.writeFile(path.join(projectDir, `source/App.${extension}`), content);
 
-  if (!tailwind) {
-    const stylesContent = `.${containerClass} {
+	if (!tailwind) {
+		const stylesContent = `.app {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -628,112 +578,78 @@ export default ${capitalize(componentName)};
   font-size: 3.2em;
   line-height: 1.1;
   margin-bottom: 1rem;
-}
-
-.headingText {
-  display: inline-block;
-}
-
-.readTheDocs {
-  color: #888;
+  color: #333;
 }
 
 .paragraph {
   margin-block-end: 1rem;
-}
-
-.link {
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-.button {
-  font: inherit;
-  background-color: white;
-  border-radius: 7px;
-  padding: 10px 15px;
-  border: 2px solid gray;
-  margin-top: 4px;
+  color: #333;
 }
 `;
 
-    await fs.writeFile(
-      path.join(
-        componentDir,
-        `${isView ? 'styles' : componentName}.module.${styleExtension}`
-      ),
-      stylesContent
-    );
-  }
-
-  if (isView) {
-    const routesContent = `
-import { defineRoute } from 'retend/router';
-import ${capitalize(componentName)} from '.';
-
-export const ${componentName}Route = defineRoute({
-  name: '${capitalize(componentName)} View',
-  path: '/',
-  component: ${capitalize(componentName)},
-});
-  `.trim();
-
-    const extensionBase = answers.language === 'TypeScript' ? 'ts' : 'js';
-    await fs.writeFile(
-      path.join(componentDir, `routes.${extensionBase}`),
-      routesContent
-    );
-  }
+		await fs.writeFile(
+			path.join(projectDir, `source/App.module.${styleExtension}`),
+			stylesContent,
+		);
+	}
 }
+
+/**
+ * Function to create the component structure
+ * @param {string} projectDir - The directory where the project is created
+ * @param {string} componentName - The name of the component
+ * @param {boolean} isView - Whether the component is a view
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
 
 /**
  * @param {string} projectDir
  * @param {Record<string, unknown>} answers
  */
 async function createPackageJson(projectDir, answers) {
-  if (!answers.useSSG) {
-    Reflect.deleteProperty(CONFIG.dependencies, 'retend-server');
-  }
+	if (!answers.useSSG) {
+		Reflect.deleteProperty(CONFIG.dependencies, "retend-server");
+	}
 
-  const content = {
-    name: answers.projectName,
-    private: true,
-    version: '0.0.0',
-    type: 'module',
-    scripts: {
-      dev: 'vite --port 5229',
-      build: 'vite build',
-      preview: 'vite preview',
-    },
-    dependencies: {
-      ...CONFIG.dependencies,
-    },
-    /** @type {Record<string, string>} */
-    devDependencies: {
-      vite: CONFIG.devDependencies.vite,
-    },
-  };
+	const content = {
+		name: answers.projectName,
+		private: true,
+		version: "0.0.0",
+		type: "module",
+		scripts: {
+			dev: "vite --port 5229",
+			build: "vite build",
+			preview: "vite preview",
+		},
+		dependencies: {
+			...CONFIG.dependencies,
+		},
+		/** @type {Record<string, string>} */
+		devDependencies: {
+			vite: CONFIG.devDependencies.vite,
+		},
+	};
 
-  if (answers.language === 'TypeScript') {
-    content.devDependencies.typescript = CONFIG.devDependencies.typescript;
-    // Add the appropriate types based on runtime
-    content.devDependencies[isBun ? '@types/bun' : '@types/node'] = 'latest';
-  }
+	if (answers.language === "TypeScript") {
+		content.devDependencies.typescript = CONFIG.devDependencies.typescript;
+		// Add the appropriate types based on runtime
+		content.devDependencies[isBun ? "@types/bun" : "@types/node"] = "latest";
+	}
 
-  if (answers.useTailwind) {
-    content.devDependencies.tailwindcss = CONFIG.devDependencies.tailwindcss;
-    content.devDependencies.autoprefixer = CONFIG.devDependencies.autoprefixer;
-    content.devDependencies.postcss = CONFIG.devDependencies.postcss;
-  }
+	if (answers.useTailwind) {
+		content.devDependencies.tailwindcss = CONFIG.devDependencies.tailwindcss;
+		content.devDependencies.autoprefixer = CONFIG.devDependencies.autoprefixer;
+		content.devDependencies.postcss = CONFIG.devDependencies.postcss;
+	}
 
-  if (answers.cssPreprocessor === 'SCSS') {
-    content.devDependencies.sass = CONFIG.devDependencies.sass;
-  }
+	if (answers.cssPreprocessor === "SCSS") {
+		content.devDependencies.sass = CONFIG.devDependencies.sass;
+	}
 
-  await fs.writeFile(
-    path.join(projectDir, 'package.json'),
-    JSON.stringify(content, null, 2)
-  );
+	await fs.writeFile(
+		path.join(projectDir, "package.json"),
+		JSON.stringify(content, null, 2),
+	);
 }
 
 /**
@@ -741,42 +657,41 @@ async function createPackageJson(projectDir, answers) {
  * @param {Record<string, unknown>} answers
  */
 async function createConfigFile(projectDir, answers) {
-  const isTypeScript = answers.language === 'TypeScript';
-  const fileName = isTypeScript ? 'tsconfig.json' : 'jsconfig.json';
-  const content = {
-    /** @type {Record<string, unknown>} */
-    compilerOptions: {
-      target: 'ESNext',
-      useDefineForClassFields: true,
-      module: 'ESNext',
-      lib: ['ESNext', 'DOM', 'DOM.Iterable'],
-      moduleResolution: 'bundler',
-      allowImportingTsExtensions: true,
-      resolveJsonModule: true,
-      isolatedModules: true,
-      noEmit: true,
-      strict: true,
-      noUnusedLocals: true,
-      noUnusedParameters: true,
-      noFallthroughCasesInSwitch: true,
-      jsx: 'react-jsx',
-      jsxImportSource: 'retend',
-      baseUrl: '.',
-      paths: {
-        '@/*': ['./source/*'],
-      },
-    },
-    include: ['source'],
-  };
+	const isTypeScript = answers.language === "TypeScript";
+	const fileName = isTypeScript ? "tsconfig.json" : "jsconfig.json";
+	const content = {
+		/** @type {Record<string, unknown>} */
+		compilerOptions: {
+			target: "ESNext",
+			useDefineForClassFields: true,
+			module: "ESNext",
+			lib: ["ESNext", "DOM", "DOM.Iterable"],
+			moduleResolution: "bundler",
+			allowImportingTsExtensions: true,
+			resolveJsonModule: true,
+			isolatedModules: true,
+			noEmit: true,
+			strict: true,
+			noUnusedLocals: true,
+			noUnusedParameters: true,
+			noFallthroughCasesInSwitch: true,
+			jsx: "react-jsx",
+			jsxImportSource: "retend",
+			paths: {
+				"@/*": ["./source/*"],
+			},
+		},
+		include: ["source"],
+	};
 
-  if (isTypeScript) {
-    content.compilerOptions.skipLibCheck = true;
-  }
+	if (isTypeScript) {
+		content.compilerOptions.skipLibCheck = true;
+	}
 
-  await fs.writeFile(
-    path.join(projectDir, fileName),
-    JSON.stringify(content, null, 2)
-  );
+	await fs.writeFile(
+		path.join(projectDir, fileName),
+		JSON.stringify(content, null, 2),
+	);
 }
 
 /**
@@ -785,62 +700,55 @@ async function createConfigFile(projectDir, answers) {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createVSCodeFolder(projectDir, answers) {
-  const vscodeDir = path.join(projectDir, '.vscode');
-  await fs.mkdir(vscodeDir, { recursive: true });
+	const vscodeDir = path.join(projectDir, ".vscode");
+	await fs.mkdir(vscodeDir, { recursive: true });
 
-  const extensions = ['biomejs.biome', 'esbenp.prettier-vscode'];
+	const extensions = ["biomejs.biome", "esbenp.prettier-vscode"];
 
-  if (answers.language === 'TypeScript') {
-    extensions.push('ms-vscode.vscode-typescript-next');
-  }
+	if (answers.language === "TypeScript") {
+		extensions.push("ms-vscode.vscode-typescript-next");
+	}
 
-  if (answers.useTailwind) {
-    extensions.push('bradlc.vscode-tailwindcss');
-  } else {
-    extensions.push('clinyong.vscode-css-modules', '1yasa.css-better-sorting');
-  }
+	if (answers.useTailwind) {
+		extensions.push("bradlc.vscode-tailwindcss");
+	} else {
+		extensions.push("clinyong.vscode-css-modules", "1yasa.css-better-sorting");
+	}
 
-  if (answers.cssPreprocessor === 'SCSS') {
-    extensions.push('syler.sass-indented');
-  }
+	if (answers.cssPreprocessor === "SCSS") {
+		extensions.push("syler.sass-indented");
+	}
 
-  const extensionsContent = {
-    recommendations: extensions,
-  };
+	const extensionsContent = {
+		recommendations: extensions,
+	};
 
-  await fs.writeFile(
-    path.join(vscodeDir, 'extensions.json'),
-    JSON.stringify(extensionsContent, null, 2)
-  );
+	await fs.writeFile(
+		path.join(vscodeDir, "extensions.json"),
+		JSON.stringify(extensionsContent, null, 2),
+	);
 }
 
 /**
  * @param {string} projectName
  */
 function displayCompletionMessage(projectName) {
-  console.log(chalk.green('\n✨ Your project is ready! ✨'));
-  console.log(chalk.yellow('\nNext steps:'));
-  console.log(chalk.cyan('1. Navigate to your project folder:'));
-  console.log(chalk.white(`   cd ${projectName}`));
-  console.log(chalk.cyan('2. Install project dependencies:'));
-  console.log(chalk.white(`   ${isBun ? 'bun install' : 'npm install'}`));
-  console.log(chalk.cyan('3. Start the development server:'));
-  console.log(chalk.white(`   ${isBun ? 'bun run dev' : 'npm run dev'}`));
-  console.log(chalk.cyan('4. Open your browser and visit:'));
-  console.log(chalk.white('   http://localhost:5529'));
-  console.log(
-    chalk.cyan(`5. Begin editing your project files in the 'source' directory`)
-  );
-  console.log(chalk.cyan('6. To build for production, run:'));
-  console.log(chalk.white(`${isBun ? 'bun run build' : 'npm run build'}`));
-  console.log(chalk.blue('\nHappy coding! 🚀'));
-}
-
-/**
- * @param {string} string
- */
-function capitalize(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
+	console.log(chalk.green("\n✨ Your project is ready! ✨"));
+	console.log(chalk.yellow("\nNext steps:"));
+	console.log(chalk.cyan("1. Navigate to your project folder:"));
+	console.log(chalk.white(`   cd ${projectName}`));
+	console.log(chalk.cyan("2. Install project dependencies:"));
+	console.log(chalk.white(`   ${isBun ? "bun install" : "npm install"}`));
+	console.log(chalk.cyan("3. Start the development server:"));
+	console.log(chalk.white(`   ${isBun ? "bun run dev" : "npm run dev"}`));
+	console.log(chalk.cyan("4. Open your browser and visit:"));
+	console.log(chalk.white("   http://localhost:5529"));
+	console.log(
+		chalk.cyan(`5. Begin editing your project files in the 'source' directory`),
+	);
+	console.log(chalk.cyan("6. To build for production, run:"));
+	console.log(chalk.white(`${isBun ? "bun run build" : "npm run build"}`));
+	console.log(chalk.blue("\nHappy coding! 🚀"));
 }
 
 main().catch(() => process.exit(1));
