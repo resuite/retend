@@ -69,8 +69,6 @@ export const HMRContext = Symbol('HMRContext');
  * @param {string} url - The module's URL, used to dynamically import and compare the old module.
  */
 export async function hotReloadModule(newModule, url) {
-  if (import.meta.env.SSR) return; // Skip HMR on the server
-
   if (!newModule) return;
 
   // Dynamically import the old module using its URL.
