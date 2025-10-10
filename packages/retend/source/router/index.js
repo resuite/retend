@@ -914,6 +914,10 @@ export class Router extends EventTarget {
 
     if (!outlet) return false;
 
+    if (!outlet.__originScopeSnapshot) {
+      outlet.__originScopeSnapshot = createScopeSnapshot();
+    }
+
     while (currentMatchedRoute) {
       if (!outlet) break;
 
@@ -1048,12 +1052,12 @@ export class Router extends EventTarget {
         outlet.querySelectorAll('retend-router-relay')
       );
       /** @type {Map<string, RouterRelay>} */
-      const exitRelayNodeMap = new Map();
+      const exitRelayMap = new Map();
       for (const relayNode of exitRelayNodes) {
         relayNode.__originScopeSnapshot?.node.disable();
         const name = relayNode.getAttribute('data-x-relay-name');
         if (!name) continue;
-        exitRelayNodeMap.set(name, relayNode);
+        exitRelayMap.set(name, relayNode);
       }
 
       /** @type {JSX.Template} */
@@ -1115,13 +1119,10 @@ export class Router extends EventTarget {
           )
         );
       }
-      const newNodesFragment = this.#handleRelays(
-        exitRelayNodeMap,
-        nodes,
-        Boolean(outlet.__keepAlive)
-      );
-      if (newNodesFragment) {
-        renderRouteIntoOutlet(outlet, newNodesFragment, this.#window);
+      const keepAlive = Boolean(outlet.__keepAlive);
+      const relayResult = this.#handleRelays(exitRelayMap, nodes, keepAlive);
+      if (relayResult) {
+        renderRouteIntoOutlet(outlet, relayResult.fragment, this.#window);
       }
 
       lastMatchedRoute = currentMatchedRoute;
@@ -1129,8 +1130,14 @@ export class Router extends EventTarget {
       const nextOutlet = /** @type {RouterOutlet} */ (
         outlet.querySelector('retend-router-outlet')
       );
-      if (outlet.isConnected) {
+      if (outlet.isConnected && relayResult) {
         await outlet.__originScopeSnapshot?.node.activate();
+
+        for (const node of relayResult.matchedRelays) {
+          // This closes the loop for relay effect handling:
+          // disable node to prevent disposal -> transfer node if matched -> activate root -> re-enable transferred node
+          if (node.isConnected) node.__originScopeSnapshot?.node.enable();
+        }
       }
       outlet = nextOutlet;
     }
@@ -1283,32 +1290,40 @@ export class Router extends EventTarget {
 
   /**
    * Handles relaying for DOM elements during route changes.
-   * @param {Map<string, RouterRelay>} exitRelayNodeMap - The DOM fragment containing the old route content.
+   * @param {Map<string, RouterRelay>} exitRelayMap - The DOM fragment containing the old route content.
    * @param {(Node | VDom.VNode)[]} newNodesArray - The  DOM elements that will be added to the outlet.
    * @param {boolean} isKeepAlive - Indicates whether the old route is keep-alive.
-   * @returns {VDom.VDocumentFragment | DocumentFragment | undefined}
+   * @returns {{
+   *  fragment: VDom.VDocumentFragment | DocumentFragment
+   *  matchedRelays: Array<RouterRelay>
+   * } | undefined}
    */
-  #handleRelays = (exitRelayNodeMap, newNodesArray, isKeepAlive) => {
+  #handleRelays = (exitRelayMap, newNodesArray, isKeepAlive) => {
     if (!this.#window) return;
     // Creating a fragment allows query selector to work on the new nodes.
-    const holder = this.#window.document.createDocumentFragment();
+    const fragment = this.#window.document.createDocumentFragment();
+    // nodes containing setup effects that are active from the previous route.
+    // We will need to re-enable them, but only AFTER the new route has been activated,
+    // so that the effects are only run once.
+    const matchedRelays = [];
 
     const newNodesArr = /** @type {Context.AsNode[]} */ (newNodesArray);
-    holder.append(...newNodesArr);
+    fragment.append(...newNodesArr);
 
     const enterRelayNodes = /** @type {RouterRelay[]} */ (
-      holder.querySelectorAll('retend-router-relay')
+      fragment.querySelectorAll('retend-router-relay')
     );
 
     for (const enterRelay of enterRelayNodes) {
       const name = enterRelay.getAttribute('data-x-relay-name');
       if (!name) {
-        this.dispatchEvent(
-          new RouteErrorEvent({ error: new Error(`Missing relay name or id`) })
-        );
+        const event = new RouteErrorEvent({
+          error: new Error('Missing relay name or id'),
+        });
+        this.dispatchEvent(event);
         continue;
       }
-      const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
+      const correspondingExit = name ? exitRelayMap.get(name) : undefined;
       if (!correspondingExit) {
         // No corresponding exit relay found.
         // if the relay already has contents, it is most likely a relay that was
@@ -1342,7 +1357,7 @@ export class Router extends EventTarget {
       // A corresponding exit relay was found.
       const exitRelayContents = [...correspondingExit.childNodes];
       correspondingExit.__onNodesSent?.(exitRelayContents);
-      exitRelayNodeMap.delete(name);
+      exitRelayMap.delete(name);
 
       const contents = /** @type {Context.AsNode[]} */ (exitRelayContents);
       enterRelay.replaceChildren(...contents);
@@ -1351,17 +1366,21 @@ export class Router extends EventTarget {
       const exitEffectNode = correspondingExit.__originScopeSnapshot?.node;
       if (exitEffectNode) {
         enterRelay.__originScopeSnapshot?.node.attach(exitEffectNode);
-        exitEffectNode.enable();
+        matchedRelays.push(enterRelay);
       }
     }
 
     // Any exit relays left without a corresponding enter relay need to be disposed.
-    for (const exitRelay of exitRelayNodeMap.values()) {
+    for (const exitRelay of exitRelayMap.values()) {
       const exitEffectNode = exitRelay.__originScopeSnapshot?.node;
-      if (exitEffectNode) exitEffectNode.dispose();
+      if (exitEffectNode) {
+        // a disabled node cannot be disposed.
+        exitEffectNode.enable();
+        exitEffectNode.dispose();
+      }
     }
 
-    return holder;
+    return { fragment, matchedRelays };
   };
 
   /**

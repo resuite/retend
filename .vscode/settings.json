@@ -1,4 +1,9 @@
 {
   "deno.enable": false,
-  "cSpell.words": ["globalcontextchange", "retend"]
+  "cSpell.words": [
+    "globalcontextchange",
+    "retend",
+    "routeerror",
+    "routelockprevented"
+  ]
 }

@@ -144,6 +144,7 @@ class EffectNode {
 
   /** @param {EffectNode} node  */
   attach(node) {
+    this.#active = node.#active;
     this.#enabled = node.#enabled;
     this.#children = [...node.#children];
     this.#setupFns = [...node.#setupFns];
