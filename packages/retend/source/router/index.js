@@ -43,7 +43,7 @@ const RELAY_ID_REGEX =
  */
 
 /**
- * @typedef {'routechange' | 'routelockprevented' | 'routeerror'} RouterEventTypes
+ * @typedef {'routechange' | 'routelockprevented' | 'routeerror' | 'beforenavigate'} RouterEventTypes
  */
 
 /**
@@ -100,6 +100,7 @@ export class RouteLockPreventedEvent extends CustomEvent {
  *  'routechange': (this: Router, event: RouteChangeEvent) => void;
  *  'routelockprevented': (this: Router, event: RouteLockPreventedEvent) => void;
  *  'routeerror': (this: Router, event: RouteErrorEvent) => void;
+ *  'beforenavigate': (this: Router, event: BeforeNavigateEvent) => void;
  * }} RouterEventHandlerMap
  */
 
@@ -108,6 +109,16 @@ export class RouteLockPreventedEvent extends CustomEvent {
  *
  * @property {Error} error
  * The error object.
+ */
+
+/**
+ * @typedef BeforeNavigateEventDetail
+ *
+ * @property {string | undefined} from
+ * The path of the route that was leaving.
+ *
+ * @property {string} to
+ * The path of the route that was entering.
  */
 
 /**
@@ -120,6 +131,22 @@ export class RouteErrorEvent extends CustomEvent {
   constructor(eventInitDict) {
     super('routeerror', {
       cancelable: false,
+      bubbles: false,
+      detail: eventInitDict,
+    });
+  }
+}
+
+/**
+ * @extends {CustomEvent<BeforeNavigateEventDetail>}
+ */
+export class BeforeNavigateEvent extends CustomEvent {
+  /**
+   * @param {BeforeNavigateEventDetail} eventInitDict
+   */
+  constructor(eventInitDict) {
+    super('beforenavigate', {
+      cancelable: true,
       bubbles: false,
       detail: eventInitDict,
     });
@@ -1420,6 +1447,20 @@ export class Router extends EventTarget {
       const oldTitle = this.#window?.document.title;
       /** @type {string[]} */
       const viewTransitionTypes = [];
+
+      const currentPath = this.currentPath.get();
+      const from = currentPath.fullPath
+        ? constructURL(currentPath.path, {
+            params: currentPath.params,
+            searchQueryParams: currentPath.query,
+            hash: currentPath.hash,
+            path: currentPath.path,
+          })
+        : undefined;
+      const to = path;
+      const beforeEvent = new BeforeNavigateEvent({ from, to });
+      this.dispatchEvent(beforeEvent);
+      if (beforeEvent.defaultPrevented) return;
 
       const callback = async () => {
         const wasLoaded = await this.updateDOMWithMatchingPath(
