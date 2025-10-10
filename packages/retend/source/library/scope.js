@@ -187,8 +187,8 @@ export function createScope(name) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
       const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
@@ -374,8 +374,8 @@ export function combineScopes(...providers) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () => {

@@ -255,6 +255,7 @@ export class RouteErrorEvent extends CustomEvent {
  *  __render?: SourceFn;
  *  __onNodesReceived?: (nodes: JSX.Template) => void;
  *  __onNodesSent?: (nodes: JSX.Template) => void;
+ *  __originScopeSnapshot?: ScopeSnapshot;
  * }} RouterRelay
  */
 
@@ -548,6 +549,8 @@ export class Router extends EventTarget {
    * ```
    */
   Relay(props) {
+    // A save of the snapshot from wherever the Outlet is created.
+    const originScopeSnapshot = createScopeSnapshot();
     if (!this.#window) {
       throw new Error('Cannot create Relay in undefined window.');
     }
@@ -556,6 +559,7 @@ export class Router extends EventTarget {
       /** @type {RouterRelay<NonNullable<NonNullable<(typeof props)>['sourceProps']>>} */ (
         this.#window.document.createElement('retend-router-relay')
       );
+    relay.__originScopeSnapshot = originScopeSnapshot;
 
     if (!props) {
       return relay;
@@ -580,7 +584,11 @@ export class Router extends EventTarget {
       relay.__render = props.source;
 
       if (!this.isLoading) {
-        const newNodes = h(relay.__render, relay.__props);
+        const newNodes = relay.__originScopeSnapshot
+          ? withScopeSnapshot(relay.__originScopeSnapshot, () => {
+              return h(relay.__render, relay.__props);
+            })
+          : h(relay.__render, relay.__props);
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         appendChild(relay, relay.tagName.toLowerCase(), nodes);
         relay.__onNodesReceived?.(nodes);
@@ -1032,6 +1040,22 @@ export class Router extends EventTarget {
 
       outlet.setAttribute('data-path', simplePath);
 
+      // The effects nested inside relay sources have to be disabled,
+      // so that when the parent outlet is detached, they are not automatically
+      // disposed. We will need them to persist if there is a matching
+      // entry in the next route.
+      const exitRelayNodes = /** @type {RouterRelay[]} */ (
+        outlet.querySelectorAll('retend-router-relay')
+      );
+      /** @type {Map<string, RouterRelay>} */
+      const exitRelayNodeMap = new Map();
+      for (const relayNode of exitRelayNodes) {
+        relayNode.__originScopeSnapshot?.node.disable();
+        const name = relayNode.getAttribute('data-x-relay-name');
+        if (!name) continue;
+        exitRelayNodeMap.set(name, relayNode);
+      }
+
       /** @type {JSX.Template} */
       let renderedComponent;
       let disabledEffectNodeForLastRoute;
@@ -1039,7 +1063,7 @@ export class Router extends EventTarget {
       const oldSnapshot = outlet.__originScopeSnapshot;
       if (routeSnapshot) {
         if (oldSnapshot) {
-          disabledEffectNodeForLastRoute = await oldSnapshot.node.detach();
+          disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
           oldSnapshot.node.attach(routeSnapshot.node);
           oldSnapshot.node.enable(); // The restored node would have disabled children.
         }
@@ -1047,7 +1071,7 @@ export class Router extends EventTarget {
       } else {
         try {
           if (oldSnapshot) {
-            disabledEffectNodeForLastRoute = await oldSnapshot.node.detach();
+            disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
             renderedComponent = withScopeSnapshot(oldSnapshot, () =>
               h(matchedComponent, matchResult)
             );
@@ -1091,7 +1115,11 @@ export class Router extends EventTarget {
           )
         );
       }
-      const newNodesFragment = this.handleRelays(outlet, nodes);
+      const newNodesFragment = this.#handleRelays(
+        exitRelayNodeMap,
+        nodes,
+        Boolean(outlet.__keepAlive)
+      );
       if (newNodesFragment) {
         renderRouteIntoOutlet(outlet, newNodesFragment, this.#window);
       }
@@ -1114,7 +1142,7 @@ export class Router extends EventTarget {
       const oldPath = outlet.getAttribute('data-path');
       const snapshot = outlet.__originScopeSnapshot;
       if (oldPath && snapshot) {
-        const effectNode = await snapshot.node.detach();
+        const effectNode = snapshot.node.detach();
         this.#preserveCurrentOutletState(oldPath, outlet, effectNode);
       }
       outlet.removeAttribute('data-path');
@@ -1254,28 +1282,14 @@ export class Router extends EventTarget {
   }
 
   /**
-   * @private
    * Handles relaying for DOM elements during route changes.
-   * @param {RouterOutlet} oldNodesFragment - The DOM fragment containing the old route content.
-   * @param {(Node | VDom.VNode)[]} newNodesArray - The DOM elements that will be added to the outlet.
+   * @param {Map<string, RouterRelay>} exitRelayNodeMap - The DOM fragment containing the old route content.
+   * @param {(Node | VDom.VNode)[]} newNodesArray - The  DOM elements that will be added to the outlet.
+   * @param {boolean} isKeepAlive - Indicates whether the old route is keep-alive.
    * @returns {VDom.VDocumentFragment | DocumentFragment | undefined}
    */
-  handleRelays = (oldNodesFragment, newNodesArray) => {
+  #handleRelays = (exitRelayNodeMap, newNodesArray, isKeepAlive) => {
     if (!this.#window) return;
-
-    // ---------------
-    // Handling relays
-    // ---------------
-    const exitRelayNodes = /** @type {RouterRelay[]} */ (
-      oldNodesFragment.querySelectorAll('retend-router-relay')
-    );
-    /** @type {Map<string, RouterRelay>} */
-    const exitRelayNodeMap = new Map();
-    for (const relayNode of exitRelayNodes) {
-      const name = relayNode.getAttribute('data-x-relay-name');
-      if (!name) continue;
-      exitRelayNodeMap.set(name, relayNode);
-    }
     // Creating a fragment allows query selector to work on the new nodes.
     const holder = this.#window.document.createDocumentFragment();
 
@@ -1288,20 +1302,27 @@ export class Router extends EventTarget {
 
     for (const enterRelay of enterRelayNodes) {
       const name = enterRelay.getAttribute('data-x-relay-name');
+      if (!name) {
+        this.dispatchEvent(
+          new RouteErrorEvent({ error: new Error(`Missing relay name or id`) })
+        );
+        continue;
+      }
       const correspondingExit = name ? exitRelayNodeMap.get(name) : undefined;
       if (!correspondingExit) {
         // No corresponding exit relay found.
         // if the relay already has contents, it is most likely a relay that was
         // cached and is being reused. We can skip the render step.
-        if (
-          enterRelay.childNodes.length === 0 ||
-          !oldNodesFragment.__keepAlive
-        ) {
+        if (enterRelay.childNodes.length === 0 || !isKeepAlive) {
           const props = enterRelay.__props ?? {};
           /** @type {(VDom.VNode | Node)[]} */
           let relayContents = [];
           if (enterRelay.__render) {
-            const nodes = h(enterRelay.__render, props);
+            const nodes = enterRelay.__originScopeSnapshot
+              ? withScopeSnapshot(enterRelay.__originScopeSnapshot, () => {
+                  return h(enterRelay.__render, props);
+                })
+              : h(enterRelay.__render, props);
             relayContents = Array.isArray(nodes) ? nodes : [nodes];
           }
           const contents = /** @type {Context.AsNode[]} */ (relayContents);
@@ -1321,10 +1342,23 @@ export class Router extends EventTarget {
       // A corresponding exit relay was found.
       const exitRelayContents = [...correspondingExit.childNodes];
       correspondingExit.__onNodesSent?.(exitRelayContents);
+      exitRelayNodeMap.delete(name);
 
       const contents = /** @type {Context.AsNode[]} */ (exitRelayContents);
       enterRelay.replaceChildren(...contents);
       enterRelay.__onNodesReceived?.(exitRelayContents);
+
+      const exitEffectNode = correspondingExit.__originScopeSnapshot?.node;
+      if (exitEffectNode) {
+        enterRelay.__originScopeSnapshot?.node.attach(exitEffectNode);
+        exitEffectNode.enable();
+      }
+    }
+
+    // Any exit relays left without a corresponding enter relay need to be disposed.
+    for (const exitRelay of exitRelayNodeMap.values()) {
+      const exitEffectNode = exitRelay.__originScopeSnapshot?.node;
+      if (exitEffectNode) exitEffectNode.dispose();
     }
 
     return holder;
