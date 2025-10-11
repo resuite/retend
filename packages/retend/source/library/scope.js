@@ -144,6 +144,7 @@ class EffectNode {
 
   /** @param {EffectNode} node  */
   attach(node) {
+    this.#active = node.#active;
     this.#enabled = node.#enabled;
     this.#children = [...node.#children];
     this.#setupFns = [...node.#setupFns];
@@ -187,8 +188,8 @@ export function createScope(name) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
       const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
@@ -374,8 +375,8 @@ export function combineScopes(...providers) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () => {

@@ -1,42 +1,40 @@
 @Title routing-navigation
-@Description Using `<router.Link>`, `<router.Outlet>`, `useRouter`, and `router.navigate()` for navigation.
+@Description Using `<Link>`, `<Outlet>`, `useRouter`, and `router.navigate()` for navigation.
 
 ---
 
 @Example 1
-@Input Basic navigation using `<router.Link>`.
-import { useRouter } from 'retend/router';
+@Input Basic navigation using `<Link>` (recommended new pattern).
+import { Link } from 'retend/router';
 
 function NavBar() {
-  const router = useRouter(); // Get router instance
   return (
     <nav>
-      <router.Link href="/">Home</router.Link>
-      <router.Link href="/about">About</router.Link>
+      <Link href="/">Home</Link>
+      <Link href="/about">About</Link>
     </nav>
   );
 }
-@Note Use `useRouter()` hook inside components to access router functionality.
-@Note `<router.Link href="...">` creates navigation links.
+@Note Direct import pattern is cleaner and more idiomatic.
+@Note `<Link href="...">` creates navigation links.
 
 ---
 
 @Example 2
-@Input Rendering matched routes using `<router.Outlet>`.
-import { useRouter } from 'retend/router';
+@Input Rendering matched routes using `<Outlet>` (recommended new pattern).
+import { Outlet } from 'retend/router';
 
 function AppLayout() {
-  const router = useRouter();
   return (
     <div>
       <NavBar /> {/* Assume NavBar is defined */}
       <main>
-        <router.Outlet /> {/* Matched component renders here */}
+        <Outlet /> {/* Matched component renders here */}
       </main>
     </div>
   );
 }
-@Note `<router.Outlet />` acts as a placeholder where the matched route's component is rendered.
+@Note `<Outlet />` acts as a placeholder where the matched route's component is rendered.
 
 ---
 
@@ -58,32 +56,30 @@ function LoginButton() {
 
 @Example 4
 @Input Using `Link` component with additional attributes.
-import { useRouter } from 'retend/router';
+import { Link } from 'retend/router';
 
 function StyledLink() {
-  const router = useRouter();
-  return <router.Link href="/contact" class="button-style">Contact</router.Link>;
+  return <Link href="/contact" class="button-style">Contact</Link>;
 }
-@Note `<router.Link>` accepts standard anchor attributes like `class`, `id`, `style`.
+@Note `<Link>` accepts standard anchor attributes like `class`, `id`, `style`.
 
 ---
 
 @Example 5
 @Input Integrating Link and Outlet in a main application component.
-import { useRouter } from 'retend/router';
+import { Link, Outlet } from 'retend/router';
 
 // Assume Home, About components and router setup exist
 
 function MainApp() {
-  const router = useRouter();
   return (
     <div>
       <nav>
-        <router.Link href="/">Home</router.Link> |
-        <router.Link href="/about">About</router.Link>
+        <Link href="/">Home</Link> |
+        <Link href="/about">About</Link>
       </nav>
       <hr />
-      <router.Outlet />
+      <Outlet />
     </div>
   );
 }
@@ -113,10 +109,28 @@ function RedirectButton() {
 
 @Example 7
 @Input Navigation with `replace` option (declarative).
-import { useRouter } from 'retend/router';
+import { Link } from 'retend/router';
 
 function ReplaceLink() {
-  const router = useRouter();
-  return <router.Link href="/login" replace>Login (Replace History)</router.Link>;
+  return <Link href="/login" replace>Login (Replace History)</Link>;
 }
-@Note The `replace` attribute on `<router.Link>` achieves the same as the programmatic option.
+@Note The `replace` attribute on `<Link>` achieves the same as the programmatic option.
+
+---
+
+@Example 8
+@Input Legacy router instance pattern (still supported for backward compatibility).
+import { useRouter } from 'retend/router';
+
+function LegacyNavBar() {
+  const router = useRouter(); // Get router instance
+  return (
+    <nav>
+      <router.Link href="/">Home</router.Link>
+      <router.Link href="/about">About</router.Link>
+      <router.Outlet /> {/* Matched component renders here */}
+    </nav>
+  );
+}
+@Note The legacy `router.Link` and `router.Outlet` patterns are still supported.
+@Note Direct imports (`Link`, `Outlet`) are preferred for new code.
