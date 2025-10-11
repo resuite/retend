@@ -65,6 +65,15 @@ export function For(list, fn, options) {
   // -----------------------------------------------
   if (!Cell.isCell(list)) {
     let i = 0;
+    const isNotIterable =
+      list === null ||
+      list === undefined ||
+      // @ts-ignore: The list as a whole is very hard to type properly.
+      list[Symbol.iterator] === undefined;
+
+    if (isNotIterable) {
+      return initialResult;
+    }
     // @ts-ignore: The list as a whole is very hard to type properly.
     for (const item of list) {
       const nodes = h(fn, new ArgumentList([item, Cell.source(i), list]));
@@ -130,32 +139,47 @@ export function For(list, fn, options) {
   // We get a snapshot of all current scopes to reuse when new
   // component instances are created.
   const base = createScopeSnapshot();
-  for (const item of list.get()) {
-    const index = Cell.source(i);
-    const parameters = [item, index, list];
-    // We have to split the snashot so that each For item render
-    // can have its own effect context without polluting the others.
-    /** @type {ScopeSnapshot} */
-    const snapshot = {
-      scopes: base.scopes,
-      node: base.node.branch(),
-    };
-    const newNodes = withScopeSnapshot(snapshot, () =>
-      h(fn, new ArgumentList(parameters))
-    );
-    snapshot.node.activate();
-    const nodes = /** @type {ChildNodeLike[]} */ (
-      Array.isArray(newNodes) ? newNodes : [newNodes]
-    );
-    addHydrationUpgradeListeners(nodes);
-    initialResult.push(...nodes);
-    const itemKey = retrieveOrSetItemKey(item, i);
-    cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
-    i++;
-  }
+  const _list = list.get();
+  if (
+    _list !== null &&
+    _list !== undefined &&
+    _list[Symbol.iterator] !== undefined
+  )
+    for (const item of _list) {
+      const index = Cell.source(i);
+      const parameters = [item, index, list];
+      // We have to split the snapshot so that each For item render
+      // can have its own effect context without polluting the others.
+      /** @type {ScopeSnapshot} */
+      const snapshot = {
+        scopes: base.scopes,
+        node: base.node.branch(),
+      };
+      const newNodes = withScopeSnapshot(snapshot, () =>
+        h(fn, new ArgumentList(parameters))
+      );
+      snapshot.node.activate();
+      const nodes = /** @type {ChildNodeLike[]} */ (
+        Array.isArray(newNodes) ? newNodes : [newNodes]
+      );
+      addHydrationUpgradeListeners(nodes);
+      initialResult.push(...nodes);
+      const itemKey = retrieveOrSetItemKey(item, i);
+      cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
+      i++;
+    }
 
   /** @type {ReactiveCellFunction<any, ChildNodeLike | VDom.VComment>} */
-  const reactToListChanges = function (newList) {
+  const reactToListChanges = function (_list) {
+    let newList = _list;
+    if (
+      newList === null ||
+      newList === undefined ||
+      newList[Symbol.iterator] === undefined
+    ) {
+      newList = [];
+    }
+
     const { window } = getGlobalContext();
     isRunningInVDom = matchContext(window, Modes.VDom);
     const newCache = new Map();
