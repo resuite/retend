@@ -168,6 +168,88 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('Valid');
   });
+
+  it('should handle null list', () => {
+    const result = (
+      <div>
+        {For(null, (item) => (
+          <span>{item}</span>
+        ))}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('');
+  });
+
+  it('should handle undefined list', () => {
+    const result = (
+      <div>
+        {For(undefined, (item) => (
+          <span>{item}</span>
+        ))}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('');
+  });
+
+  it('should handle Cell with null value', () => {
+    const items = Cell.source(null);
+    const result = (
+      <div>
+        {For(items, (item) => (
+          <span>{item}</span>
+        ))}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('');
+  });
+
+  it('should handle Cell with undefined value', () => {
+    const items = Cell.source(undefined);
+    const result = (
+      <div>
+        {For(items, (item) => (
+          <span>{item}</span>
+        ))}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('');
+  });
+
+  it('should handle Cell changing from array to null', () => {
+    const items = Cell.source<string[] | null>(['A', 'B']);
+    const result = (
+      <div>
+        {For(items, (item) => (
+          <span>{item}</span>
+        ))}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('AB');
+
+    items.set(null);
+    expect(getTextContent(result)).toBe('');
+  });
+
+  it('should handle Cell changing from null to array', () => {
+    const items = Cell.source<string[] | null>(null);
+    const result = (
+      <div>
+        {For(items, (item) => (
+          <span>{item}</span>
+        ))}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('');
+
+    items.set(['C', 'D']);
+    expect(getTextContent(result)).toBe('CD');
+  });
 };
 
 describe('For', () => {
