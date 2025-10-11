@@ -1,5 +1,5 @@
 /** @import { Plugin, UserConfig, ResolvedConfig, RunnableDevEnvironmentContext, RunnableDevEnvironment } from 'vite' */
-/** @import { EmittedFile } from 'rollup' */
+// /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from 'retend/v-dom' */
 /** @import { AsyncStorage } from './types.js' */
 // /** @import { Router } from 'retend/router' */
@@ -78,7 +78,7 @@ const asyncLocalStorageSymbol = Symbol('asyncLocalStorage');
 function staticBuildPlugins(sharedData) {
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputArtifacts = [];
-  /** @type {EmittedFile[]} */
+  /** @type {any[]} */
   const outputFileEmissions = [];
   /** @type {Record<string, Set<string>>} */
   const cssDeps = Object.create(null);
