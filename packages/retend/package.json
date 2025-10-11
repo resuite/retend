@@ -82,7 +82,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@adbl/cells": "https://pkg.pr.new/adebola-io/cells/@adbl/cells@7574f54",
+    "@adbl/cells": "https://pkg.pr.new/adebola-io/cells/@adbl/cells@796a64f",
     "csstype": "^3.1.3"
   },
   "publishConfig": {
