@@ -165,15 +165,9 @@ export function For(list, fn, options) {
     }
 
   /** @type {ReactiveCellFunction<any, ChildNodeLike | VDom.VComment>} */
-  const reactToListChanges = function (_list) {
-    let newList = _list;
-    if (
-      newList === null ||
-      newList === undefined ||
-      newList[Symbol.iterator] === undefined
-    ) {
-      newList = [];
-    }
+  const reactToListChanges = function (listValue) {
+    const newList =
+      typeof listValue?.[Symbol.iterator] === 'function' ? listValue : [];
 
     const { window } = getGlobalContext();
     isRunningInVDom = matchContext(window, Modes.VDom);
