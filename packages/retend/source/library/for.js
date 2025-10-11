@@ -65,13 +65,8 @@ export function For(list, fn, options) {
   // -----------------------------------------------
   if (!Cell.isCell(list)) {
     let i = 0;
-    const isNotIterable =
-      list === null ||
-      list === undefined ||
-      // @ts-ignore: The list as a whole is very hard to type properly.
-      list[Symbol.iterator] === undefined;
-
-    if (isNotIterable) {
+    // @ts-ignore: The list as a whole is very hard to type properly.
+    if (typeof list?.[Symbol.iterator] !== 'function') {
       return initialResult;
     }
     // @ts-ignore: The list as a whole is very hard to type properly.
