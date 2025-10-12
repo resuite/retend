@@ -1,5 +1,6 @@
 import { Cell } from 'retend';
 import { createSharedHook } from '../internal/create-shared-hook.js';
+import { getGlobalContext } from 'retend/context';
 
 /**
  * @typedef {object} WindowSize
@@ -33,12 +34,15 @@ const USE_WINDOW_SIZE_KEY = Symbol('hooks:useWindowSize:windowSizeCache');
 export const useWindowSize = createSharedHook({
   key: USE_WINDOW_SIZE_KEY,
 
-  initialData: () => ({
-    cells: {
-      width: Cell.source(0),
-      height: Cell.source(0),
-    },
-  }),
+  initialData: () => {
+    const { window } = getGlobalContext();
+    return {
+      cells: {
+        width: Cell.source(window.innerWidth),
+        height: Cell.source(window.innerHeight),
+      },
+    };
+  },
 
   setup: (data, { window }) => {
     const handleResize = () => {

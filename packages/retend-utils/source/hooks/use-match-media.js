@@ -28,7 +28,10 @@ export const useMatchMedia = (query) => {
   }
   let data = queries.get(query);
   if (!data) {
-    data = [Cell.source(false), 0];
+    const { window } = getGlobalContext();
+    const initialValue =
+      'matchMedia' in window ? window.matchMedia(query).matches : false;
+    data = [Cell.source(initialValue), 0];
     queries.set(query, data);
   }
   const [match] = data;
