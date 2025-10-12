@@ -6,9 +6,27 @@ Retend is a experimental framework for building fluid web apps. Like React, it a
 
 If you've worked with HTML, CSS, and JavaScript, Retend should be easy to pick up. It is designed to help you build applications quickly and efficiently.
 
-## Key Features
+## At a Glance:
+```tsx
+import { Cell } from 'retend';
 
-Here's a breakdown of the core functionalities:
+const App = () => {
+  const count = Cell.source(0);
+  const incrementCount = () => count.set(count.get() + 1);
+
+  return (
+    <div class="container">
+      <button type="button" onClick={incrementCount}>
+        Counter: {count}
+      </button>
+    </div>
+  );
+};
+
+document.body.appendChild(<App />);
+```
+
+## Key Features
 
 - **Lightweight:** Retend has a small footprint, which means it loads quickly without extra overhead.
 
