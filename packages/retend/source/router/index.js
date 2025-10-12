@@ -655,7 +655,7 @@ export class Router extends EventTarget {
       this.#window.customElements.define(
         'retend-router-outlet',
         class extends HTMLElement {
-          connectedCallback() {
+          async connectedCallback() {
             if (this.getAttribute('data-path')) return;
             // // See? web components are useful!
             // // Sometimes outlets can be rendered outside a
@@ -664,7 +664,9 @@ export class Router extends EventTarget {
             // // what should be in the outlet, unless we trigger a reload.
             if (router.#window && !router.#currentNavigation) {
               const currentPath = getFullPath(router.#window);
-              router.loadPath(currentPath, false, undefined, true, true);
+              router.isLoading = true;
+              await router.loadPath(currentPath, false, undefined, true, true);
+              router.isLoading = false;
             }
           }
         }
