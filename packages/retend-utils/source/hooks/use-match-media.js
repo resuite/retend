@@ -26,38 +26,35 @@ export const useMatchMedia = (query) => {
     queries = new Map();
     globalData.set(MATCH_MEDIA_CACHE_KEY, queries);
   }
+  /** @type {MediaQueryList | undefined} */
+  let mediaQueryList;
   let data = queries.get(query);
   if (!data) {
     const { window } = getGlobalContext();
-    const initialValue =
-      'matchMedia' in window ? window.matchMedia(query).matches : false;
+    mediaQueryList =
+      'matchMedia' in window ? window.matchMedia(query) : undefined;
+    const initialValue = mediaQueryList ? mediaQueryList.matches : false;
     data = [Cell.source(initialValue), 0];
     queries.set(query, data);
   }
   const [match] = data;
-
   useSetupEffect(() => {
     /** @type (event: MediaQueryListEvent) => void */
     let listener;
-    /** @type {MediaQueryList} */
-    let mediaQueryList;
-
     if (data[1] === 0) {
       mediaQueryList = window.matchMedia(query);
       data[0].set(mediaQueryList.matches);
-
       listener = (event) => data[0].set(event.matches);
-      mediaQueryList.addEventListener('change', listener);
+      mediaQueryList?.addEventListener('change', listener);
     }
     data[1]++;
-
     return () => {
       data[1]--;
       if (data[1] === 0) {
-        mediaQueryList.removeEventListener('change', listener);
+        mediaQueryList?.removeEventListener('change', listener);
+        queries.delete(query);
       }
     };
   });
-
   return Cell.derived(() => match.get());
 };
