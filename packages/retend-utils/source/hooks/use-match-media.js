@@ -20,7 +20,7 @@ const MATCH_MEDIA_CACHE_KEY = Symbol('hooks:useMatchMedia:queriesCache');
  */
 export const useMatchMedia = (query) => {
   const { globalData } = getGlobalContext();
-  /** @type {Map<string, [SourceCell<boolean>, number]> | undefined} */
+  /** @type {Map<string, [SourceCell<boolean>, number, MediaQueryList | undefined]> | undefined} */
   let queries = globalData.get(MATCH_MEDIA_CACHE_KEY);
   if (!queries) {
     queries = new Map();
@@ -34,7 +34,7 @@ export const useMatchMedia = (query) => {
     mediaQueryList =
       'matchMedia' in window ? window.matchMedia(query) : undefined;
     const initialValue = mediaQueryList ? mediaQueryList.matches : false;
-    data = [Cell.source(initialValue), 0];
+    data = [Cell.source(initialValue), 0, mediaQueryList];
     queries.set(query, data);
   }
   const [match] = data;
@@ -44,6 +44,7 @@ export const useMatchMedia = (query) => {
     if (data[1] === 0) {
       mediaQueryList = window.matchMedia(query);
       data[0].set(mediaQueryList.matches);
+      data[2] = mediaQueryList;
       listener = (event) => data[0].set(event.matches);
       mediaQueryList?.addEventListener('change', listener);
     }
@@ -51,7 +52,7 @@ export const useMatchMedia = (query) => {
     return () => {
       data[1]--;
       if (data[1] === 0) {
-        mediaQueryList?.removeEventListener('change', listener);
+        data[2]?.removeEventListener('change', listener);
         queries.delete(query);
       }
     };
