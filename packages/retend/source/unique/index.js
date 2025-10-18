@@ -22,6 +22,7 @@ import {
 /**
  * @typedef SavedElementInstance
  * @property {ChildNode[]} children
+ * @property {ShadowRoot | null} shadowRoot
  * @property {any} [data]
  */
 
@@ -155,7 +156,8 @@ export function Unique(props) {
   /** @param {HTMLElement | VElement} div */
   const saveState = (div) => {
     const children = /** @type {ChildNode[]} */ ([...div.childNodes]);
-    previous = { children };
+    const shadowRoot = /** @type {ShadowRoot | null} */ (div.shadowRoot);
+    previous = { children, shadowRoot };
 
     if (onSave) {
       const _div = /** @type {HTMLElement} */ (div);
@@ -252,10 +254,10 @@ export function Unique(props) {
   retendUniqueInstance.setAttribute('name', name);
 
   let childNodes;
+  let shadowRoot;
   if (previous?.children) {
-    // todo: revisit why this isn't happening automatically.
-    for (const child of previous.children) child.remove();
     childNodes = previous.children;
+    shadowRoot = previous.shadowRoot;
   } else {
     childNodes = (() => {
       const scopeSnapshot = createScopeSnapshot();
@@ -265,6 +267,13 @@ export function Unique(props) {
   }
 
   appendChild(retendUniqueInstance, elementName, childNodes);
+
+  if (shadowRoot) {
+    const { mode, childNodes } = shadowRoot;
+    const newShadowRoot = retendUniqueInstance.attachShadow({ mode });
+    // @ts-expect-error
+    newShadowRoot.append(...childNodes);
+  }
 
   return retendUniqueInstance;
 }

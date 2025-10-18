@@ -10,6 +10,7 @@ import {
   Switch,
   useSetupEffect,
 } from 'retend';
+import { ShadowRoot } from 'retend/shadowroot';
 
 const runTests = () => {
   it('should render a <Unique/> component', async () => {
@@ -338,6 +339,59 @@ describe('Unique', () => {
       expect(saveFn).toHaveBeenCalledTimes(1);
       expect(restoreFn).toHaveBeenCalledTimes(1);
       expect(setupFn).toHaveBeenCalledTimes(1);
+      body.replaceChildren();
+    });
+
+    it('should transfer shadowroots', async () => {
+      const { window } = getGlobalContext();
+      const page = Cell.source<'home' | 'about'>('home');
+
+      const PersistentMusicPlayer = () => {
+        return (
+          <Unique name="music-playerr">
+            {() => (
+              <ShadowRoot>
+                <h2>Music player</h2>
+              </ShadowRoot>
+            )}
+          </Unique>
+        );
+      };
+
+      const App = () => {
+        return (
+          <div>
+            {Switch(page, {
+              home: () => (
+                <div>
+                  <h1>Home </h1>
+                  <PersistentMusicPlayer />
+                </div>
+              ),
+              about: () => (
+                <div>
+                  <h1>About </h1>
+                  <PersistentMusicPlayer />
+                </div>
+              ),
+            })}
+          </div>
+        );
+      };
+
+      const { body } = window.document;
+      const app = <App />;
+      body.append(app as any);
+      await runPendingSetupEffects();
+      expect(getTextContent(body)).toBe('Home ');
+      const unique = body.querySelector('retend-unique-instance');
+      expect(unique?.shadowRoot).toBeInstanceOf(window.ShadowRoot);
+
+      page.set('about');
+      const unique2 = body.querySelector('retend-unique-instance');
+      expect(unique2?.shadowRoot).toBeInstanceOf(window.ShadowRoot);
+
+      await runPendingSetupEffects();
       body.replaceChildren();
     });
   });
