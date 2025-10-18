@@ -646,7 +646,7 @@ export class Router extends EventTarget {
 
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
-      ':where(retend-router-outlet, retend-router-relay, retend-teleport) {display: contents;}'
+      ':where(retend-router-outlet, retend-router-relay, retend-teleport) {display: contents;} :where(retend-unique-instance) {display: block}'
     );
     this.#window.document.adoptedStyleSheets.push(this.sheet);
     const router = this;
@@ -950,6 +950,7 @@ export class Router extends EventTarget {
     let outlet = /** @type {RouterOutlet | null | undefined} */ (
       this.#window?.document.querySelector('retend-router-outlet')
     );
+    const activations = [];
 
     if (!outlet) return false;
 
@@ -1170,13 +1171,19 @@ export class Router extends EventTarget {
         outlet.querySelector('retend-router-outlet')
       );
       if (outlet.isConnected && relayResult) {
-        await outlet.__originScopeSnapshot?.node.activate();
+        const currentOutlet = outlet;
+        const currentRelayResult = relayResult;
+        // Activation is scheduled for after all outlets are updated.
+        const activation = async () => {
+          await currentOutlet.__originScopeSnapshot?.node.activate();
 
-        for (const node of relayResult.matchedRelays) {
-          // This closes the loop for relay effect handling:
-          // disable node to prevent disposal -> transfer node if matched -> activate root -> re-enable transferred node
-          if (node.isConnected) node.__originScopeSnapshot?.node.enable();
-        }
+          for (const node of currentRelayResult.matchedRelays) {
+            // This closes the loop for relay effect handling:
+            // disable node to prevent disposal -> transfer node if matched -> activate root -> re-enable transferred node
+            if (node.isConnected) node.__originScopeSnapshot?.node.enable();
+          }
+        };
+        activations.push(activation);
       }
       outlet = nextOutlet;
     }
@@ -1195,6 +1202,7 @@ export class Router extends EventTarget {
       outlet.replaceChildren();
     }
 
+    await Promise.all(activations.map((activation) => activation()));
     if (lastMatchedRoute.redirect && lastMatchedRoute.redirect !== path) {
       await this.navigate(lastMatchedRoute.redirect, { replace });
     }

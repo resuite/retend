@@ -1,0 +1,270 @@
+/** @import { JSX } from '../jsx-runtime/types.ts' */
+/** @import { VElement } from '../v-dom/index.js'; */
+/** @import { ScopeSnapshot } from '../library/scope.js'; */
+
+import { Cell, SourceCell } from '@adbl/cells';
+import { useObserver } from '../library/observer.js';
+import h, { appendChild, setAttributeFromProps } from '../library/jsx.js';
+import { getGlobalContext } from '../context/index.js';
+import {
+  createScopeSnapshot,
+  useSetupEffect,
+  withScopeSnapshot,
+} from '../library/scope.js';
+
+/**
+ * @typedef UniqueStash
+ * @property {Map<string, SavedElementInstance>} instances
+ * @property {Map<string, Cell<HTMLElement | null>>} refs
+ * @property {Map<string, ScopeSnapshot>} scopes
+ */
+
+/**
+ * @typedef SavedElementInstance
+ * @property {ChildNode[]} children
+ * @property {any} [data]
+ */
+
+/** @typedef {JSX.IntrinsicElements["div"]} DivProps */
+
+/**
+ * @template Data
+ * @typedef UniqueSpecificProps
+ * @property {string} name
+ *   A unique identifier for this element. Elements with the same name across different
+ *   parts of the component tree will be treated as the same logical element.
+ *
+ *   When a Unique component with this name unmounts and another with the same name mounts,
+ *   the DOM nodes will be preserved and animated between positions.
+ * @property {() => JSX.Template} children
+ *   A function that returns the content to render. Must be a function to ensure proper
+ *   re-evaluation when the component moves.
+ *
+ *   The JSX content to render inside the unique container
+ * @property {Cell<HTMLElement | null>} [ref]
+ *   Optional Cell reference to the underlying DOM element.
+ *   If not provided, one will be created automatically.
+ *
+ * @property {(element: HTMLElement, savedState: SavedElementInstance) => Data} [onSave]
+ *   Called when the element is about to unmount, allowing you to save additional state.
+ *
+ * @property {(element: HTMLElement, savedState: SavedElementInstance, data: Data) => void} [onRestore]
+ *   Called when the element is being restored at a new location.
+ */
+
+/**
+ * Props for the Unique component.
+ * @template CustomData
+ * @typedef {DivProps & UniqueSpecificProps<CustomData>} UniqueProps
+ */
+
+const UniqueComponentStash = Symbol('UniqueComponentStash');
+const elementName = 'retend-unique-instance';
+
+/**
+ * @template Data
+ * @param {UniqueProps<Data>} props
+ * @returns {JSX.Template}
+ *
+ * Ensures only one instance of a component exists across your entire application,
+ * identified by its `name`. Even if the same `name` appears in different parts of the tree,
+ * it is only rendered once, and the DOM nodes are transferred to the final location
+ * instead of being recreated. Setup effects within the component only run once when first created,
+ * and continue until every instance of the component is unmounted.
+ *
+ * @example
+ * function PersistentVideo({ src, name }) {
+ *   return (
+ *     <Unique name={name}>
+ *       {() => <VideoPlayer src={src} />}
+ *     </Unique>
+ *   );
+ * }
+ *
+ * function App() {
+ *   const page = Cell.source('home');
+ *
+ *   return (
+ *     <div>
+ *       {Switch(page, {
+ *         home: () => <HomePage><PersistentVideo name="main-video" src="intro.mp4" /></HomePage>,
+ *         about: () => <AboutPage><PersistentVideo name="main-video" src="intro.mp4" /></AboutPage>
+ *       })}
+ *     </div>
+ *   );
+ * }
+ *
+ * @example
+ * function PersistentScrollArea({ children, name }) {
+ *   return (
+ *     <Unique
+ *       name={name}
+ *       onSave={(el) => ({ scrollTop: el.scrollTop })}
+ *       onRestore={(el, _, data) => { el.scrollTop = data.scrollTop; }}
+ *     >
+ *       {() => <div style="height: 400px; overflow: auto">{children}</div>}
+ *     </Unique>
+ *   );
+ * }
+ *
+ * @example
+ * function PersistentBookCard({ book }) {
+ *   return (
+ *     <Unique name={`book-${book.id}`}>
+ *       {() => (
+ *         <div class="book-card">
+ *           <h3>{book.title}</h3>
+ *           <VideoPlayer src={book.trailerUrl} />
+ *         </div>
+ *       )}
+ *     </Unique>
+ *   );
+ * }
+ *
+ * {For(books, (book) => <PersistentBookCard book={book} />)}
+ */
+export function Unique(props) {
+  const { window, globalData } = getGlobalContext();
+  const {
+    name,
+    children,
+    ref = Cell.source(null),
+    onSave,
+    onRestore,
+    ...rest
+  } = props;
+
+  /** @type {UniqueStash} */
+  let stash = globalData.get(UniqueComponentStash);
+  const selector = `${elementName}[name="${name}"]`;
+  const observer = useObserver();
+
+  if (!stash) {
+    stash = { instances: new Map(), refs: new Map(), scopes: new Map() };
+    globalData.set(UniqueComponentStash, stash);
+  }
+
+  const retendUniqueInstance = window.document.createElement(elementName);
+  for (const [key, value] of Object.entries(rest)) {
+    setAttributeFromProps(retendUniqueInstance, key, value);
+  }
+
+  let restored = false;
+  let previous = stash.instances.get(name);
+
+  /** @param {HTMLElement | VElement} div */
+  const saveState = (div) => {
+    const children = /** @type {ChildNode[]} */ ([...div.childNodes]);
+    previous = { children };
+
+    if (onSave) {
+      const _div = /** @type {HTMLElement} */ (div);
+      const customData = onSave(_div, previous);
+      previous.data = customData;
+    }
+
+    if (previous) stash.instances.set(name, previous);
+  };
+
+  /** @param {HTMLElement} div */
+  const restoreState = (div) => {
+    if (onRestore && previous && !restored) {
+      onRestore(div, previous, previous.data);
+      restored = true;
+    }
+
+    stash.refs.set(name, ref ?? Cell.source(div));
+  };
+
+  if (!previous) {
+    const div = stash.refs.get(name)?.peek();
+    if (div) saveState(div);
+  }
+
+  // it's tricky to know when to dispose,
+  // because if this instance is removed, but then rendered somewhere else
+  // in the very next frame, we want both instances consolidated.
+  //
+  // Retend's lifecycle is:
+  // -> control flow component triggers change
+  // -> its current setup effects are disposed (we save state here)
+  // -> its dom nodes are removed
+  // -> its observer cleanups are called (we add event listener here)
+  // -> new component is rendered (we transfer nodes here)
+  // -> wait till next event loop (in activate fn)
+  // -> new setup effect is activated.
+  // -> retend:activate event dispatched.
+  // Once (7) runs, it means the next node should already be in the dom, and if
+  // it isn't, then we can dispose, because there is no continuity.
+  const teardown = () => {
+    const { window } = getGlobalContext();
+    const possibleNextInstance = window.document.querySelector(selector);
+    if (possibleNextInstance) {
+      window.removeEventListener('retend:activate', teardown);
+      return;
+    }
+    const scope = stash.scopes.get(name);
+    if (scope) {
+      scope.node.enable();
+      scope.node.dispose();
+    }
+    stash.instances.delete(name);
+    stash.refs.delete(name);
+    stash.scopes.delete(name);
+    window.removeEventListener('retend:activate', teardown);
+  };
+
+  observer.onConnected(ref, (div) => {
+    restoreState(div);
+    const scope = stash.scopes.get(name);
+    if (scope) scope.node.enable();
+
+    return () => {
+      const { window } = getGlobalContext();
+      const possibleNextInstance = window.document.querySelector(selector);
+      if (!possibleNextInstance) {
+        window.addEventListener('retend:activate', teardown, { once: true });
+      }
+    };
+  });
+
+  useSetupEffect(() => {
+    const current = ref.peek();
+
+    return () => {
+      const { window } = getGlobalContext();
+      const scope = stash.scopes.get(name);
+      if (scope) scope.node.disable();
+
+      saveState(retendUniqueInstance);
+      const possibleNextInstance = window.document.querySelector(selector);
+      if (possibleNextInstance && current && current !== possibleNextInstance) {
+        // @ts-expect-error
+        possibleNextInstance.append(...retendUniqueInstance.childNodes);
+        // @ts-expect-error
+        restoreState(possibleNextInstance);
+      }
+    };
+  });
+
+  if (ref instanceof SourceCell) ref.set(retendUniqueInstance);
+  stash.refs.set(name, ref);
+  retendUniqueInstance.setAttribute('name', name);
+
+  let childNodes;
+  if (previous?.children) {
+    // todo: revisit why this isn't happening automatically.
+    for (const child of previous.children) child.remove();
+    childNodes = previous.children;
+  } else {
+    childNodes = (() => {
+      const scopeSnapshot = createScopeSnapshot();
+      stash.scopes.set(name, scopeSnapshot);
+      return withScopeSnapshot(scopeSnapshot, () => h(children, {}));
+    })();
+  }
+
+  appendChild(retendUniqueInstance, elementName, childNodes);
+
+  return retendUniqueInstance;
+}

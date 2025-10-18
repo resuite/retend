@@ -99,6 +99,8 @@ class EffectNode {
     if (!this.#enabled || this.#active) return;
     await new Promise((resolve) => setTimeout(resolve));
     await this.#runActivateFns();
+    const { window } = getGlobalContext();
+    window.dispatchEvent(new Event('retend:activate'));
   }
 
   #runDisposeFns() {
