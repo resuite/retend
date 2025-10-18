@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useSetupEffect, If, Cell, runPendingSetupEffects } from 'retend';
-import { getTextContent, browserSetup } from '../../setup.ts';
-import { setTimeout } from 'node:timers/promises';
+import { getTextContent, browserSetup, timeout } from '../../setup.ts';
 
 describe('useSetupEffect with If', () => {
   browserSetup();
@@ -40,19 +39,19 @@ describe('useSetupEffect with If', () => {
     expect(getTextContent(result)).toBe('');
 
     show.set(true);
-    await setTimeout();
+    await timeout();
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).not.toHaveBeenCalled();
     expect(getTextContent(result)).toBe('Component');
 
     show.set(false);
-    await setTimeout();
+    await timeout();
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).toHaveBeenCalledTimes(1);
     expect(getTextContent(result)).toBe('');
 
     show.set(true);
-    await setTimeout();
+    await timeout();
     expect(setupFn).toHaveBeenCalledTimes(2);
     expect(cleanupFn).toHaveBeenCalledTimes(1);
     expect(getTextContent(result)).toBe('Component');

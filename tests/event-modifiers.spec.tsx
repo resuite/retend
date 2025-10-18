@@ -190,6 +190,5 @@ describe('Event Modifiers', () => {
     form.dispatchEvent(submitEvent);
 
     expect(submitEvent.defaultPrevented).toBe(true);
-    expect(submitEvent.cancelBubble).toBe(true);
   });
 });

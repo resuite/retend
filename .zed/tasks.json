@@ -1,0 +1,8 @@
+[
+  {
+    "label": "bunx vitest run -t \"$ZED_SYMBOL\"",
+    "command": "cd tests && bunx vitest run -t",
+    "args": ["\"$ZED_SYMBOL\" $ZED_FILE"],
+    "tags": ["ts-test", "js-test", "tsx-test"]
+  }
+]

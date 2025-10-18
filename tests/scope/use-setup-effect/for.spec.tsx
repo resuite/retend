@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useSetupEffect, For, Cell, runPendingSetupEffects } from 'retend';
-import { getTextContent, browserSetup } from '../../setup.ts';
-import { setTimeout } from 'node:timers/promises';
+import { getTextContent, browserSetup, timeout } from '../../setup.ts';
 
 describe('useSetupEffect with For', () => {
   browserSetup();
@@ -62,7 +61,7 @@ describe('useSetupEffect with For', () => {
     expect(cleanupFns.get(2)!).not.toHaveBeenCalled();
 
     list.set([{ id: 1, text: 'A' }]);
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toBe('A');
     expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
     expect(setupFns.get(2)!).toHaveBeenCalledTimes(1);
@@ -73,7 +72,7 @@ describe('useSetupEffect with For', () => {
       { id: 1, text: 'A' },
       { id: 3, text: 'C' },
     ]);
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toBe('AC');
     expect(setupFns.get(1)!).toHaveBeenCalledTimes(1);
     expect(setupFns.get(3)!).toBeDefined();
@@ -82,7 +81,7 @@ describe('useSetupEffect with For', () => {
     expect(cleanupFns.get(3)!).not.toHaveBeenCalled();
 
     list.set([]);
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toBe('');
     expect(cleanupFns.get(1)!).toHaveBeenCalledTimes(1);
     expect(cleanupFns.get(2)!).toHaveBeenCalledTimes(1);

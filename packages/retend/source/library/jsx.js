@@ -156,8 +156,8 @@ export function h(tagname, props) {
       props instanceof ArgumentList
         ? props.data
         : typeof props === 'object'
-          ? [{ ...props }]
-          : [];
+        ? [{ ...props }]
+        : [];
 
     if (isDevMode) {
       // In Dev mode and using HMR, components have a self-referential

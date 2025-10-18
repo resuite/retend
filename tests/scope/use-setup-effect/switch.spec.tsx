@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, afterAll } from 'vitest';
 import { useSetupEffect, Switch, Cell, runPendingSetupEffects } from 'retend';
 import { resetGlobalContext } from 'retend/context';
-import { getTextContent, browserSetup } from '../../setup.ts';
-import { setTimeout } from 'node:timers/promises';
+import { getTextContent, browserSetup, timeout } from '../../setup.ts';
 
 describe('useSetupEffect with Switch', () => {
   browserSetup();
@@ -45,25 +44,25 @@ describe('useSetupEffect with Switch', () => {
     expect(cleanupFn).not.toHaveBeenCalled();
 
     state.set('B');
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toBe('Effect Component');
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).not.toHaveBeenCalled();
 
     state.set('C');
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toBe('Case C');
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).toHaveBeenCalledTimes(1);
 
     state.set('B');
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toBe('Effect Component');
     expect(setupFn).toHaveBeenCalledTimes(2);
     expect(cleanupFn).toHaveBeenCalledTimes(1);
 
     state.set('A');
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toBe('Case A');
     expect(setupFn).toHaveBeenCalledTimes(2);
     expect(cleanupFn).toHaveBeenCalledTimes(2);
