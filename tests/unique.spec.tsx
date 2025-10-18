@@ -192,6 +192,7 @@ describe('Unique', () => {
       expect(getTextContent(body)).toBe('');
       expect(setupFn).toHaveBeenCalledTimes(1); // isn't called again.
       expect(cleanupFn).toHaveBeenCalledTimes(1); // is called!
+      body.replaceChildren();
     });
 
     it('should preserve Unique components that are reinstantiated in the very next render', async () => {
@@ -272,6 +273,7 @@ describe('Unique', () => {
       await runPendingSetupEffects();
       expect(setupFn).toHaveBeenCalledTimes(2);
       expect(cleanupFn).toHaveBeenCalledTimes(1);
+      body.replaceChildren();
     });
 
     it('should save and restore data', async () => {
@@ -336,6 +338,7 @@ describe('Unique', () => {
       expect(saveFn).toHaveBeenCalledTimes(1);
       expect(restoreFn).toHaveBeenCalledTimes(1);
       expect(setupFn).toHaveBeenCalledTimes(1);
+      body.replaceChildren();
     });
   });
 
