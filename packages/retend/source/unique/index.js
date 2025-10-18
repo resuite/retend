@@ -150,7 +150,6 @@ export function Unique(props) {
     setAttributeFromProps(retendUniqueInstance, key, value);
   }
 
-  let restored = false;
   let previous = stash.instances.get(name);
 
   /** @param {HTMLElement | VElement} div */
@@ -170,12 +169,12 @@ export function Unique(props) {
 
   /** @param {HTMLElement} div */
   const restoreState = (div) => {
-    if (onRestore && previous && !restored) {
+    if (onRestore && previous) {
       onRestore(div, previous, previous.data);
-      restored = true;
     }
 
-    stash.refs.set(name, ref ?? Cell.source(div));
+    stash.refs.set(name, Cell.source(div));
+    stash.instances.delete(name);
   };
 
   if (!previous) {
@@ -238,13 +237,16 @@ export function Unique(props) {
       const scope = stash.scopes.get(name);
       if (scope) scope.node.disable();
 
-      saveState(retendUniqueInstance);
-      const possibleNextInstance = window.document.querySelector(selector);
-      if (possibleNextInstance && current && current !== possibleNextInstance) {
-        // @ts-expect-error
-        possibleNextInstance.append(...retendUniqueInstance.childNodes);
-        // @ts-expect-error
-        restoreState(possibleNextInstance);
+      saveState(/** @type {HTMLElement} */ (current));
+      const possibleNextInstances = window.document.querySelectorAll(selector);
+      for (const possibleNextInstance of [...possibleNextInstances].reverse()) {
+        if (current !== possibleNextInstance) {
+          // @ts-expect-error
+          possibleNextInstance.append(...retendUniqueInstance.childNodes);
+          // @ts-expect-error
+          restoreState(possibleNextInstance);
+          break;
+        }
       }
     };
   });
