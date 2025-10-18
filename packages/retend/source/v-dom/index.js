@@ -118,8 +118,8 @@ export class VNode extends EventTarget {
       n instanceof VDocumentFragment
         ? n.childNodes
         : n instanceof VNode
-          ? n
-          : ownerDocument.createTextNode(n)
+        ? n
+        : ownerDocument.createTextNode(n)
     );
     for (const node of this.childNodes) {
       node.parentNode = null;
@@ -434,13 +434,34 @@ export class VElement extends VNode {
   }
 }
 
-export class VShadowRoot extends VNode {
+export class VDocumentFragment extends VNode {
+  /**
+   * @param {VNode[]} children
+   * @param {VDocument} document
+   */
+  constructor(children, document) {
+    super(document);
+    this.childNodes = children;
+  }
+
+  /** @override */
+  get nodeType() {
+    return 11;
+  }
+
+  /** @override */
+  get tagName() {
+    return '#document-fragment';
+  }
+}
+
+export class VShadowRoot extends VDocumentFragment {
   /**
    * @param {string} mode
    * @param {VDocument} document
    */
   constructor(mode, document) {
-    super(document);
+    super([], document);
     this.mode = mode;
   }
 
@@ -473,27 +494,6 @@ export class VComment extends VNode {
   /** @override */
   get tagName() {
     return '#comment';
-  }
-}
-
-export class VDocumentFragment extends VNode {
-  /**
-   * @param {VNode[]} children
-   * @param {VDocument} document
-   */
-  constructor(children, document) {
-    super(document);
-    this.childNodes = children;
-  }
-
-  /** @override */
-  get nodeType() {
-    return 11;
-  }
-
-  /** @override */
-  get tagName() {
-    return '#document-fragment';
   }
 }
 

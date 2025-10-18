@@ -727,6 +727,16 @@ export class Router extends EventTarget {
     this.isLoading = false;
   };
 
+  /** @type {(event: Event) => Promise<void>} */
+  #windowEventHandler = async (event) => {
+    if (!this.isLoading && this.#window) {
+      this.isLoading = true;
+      const path = getFullPath(this.#window);
+      await this.loadPath(path, false, event);
+      this.isLoading = false;
+    }
+  };
+
   /**
    * Replaces the current browser history with a new path, triggering a navigation.
    *
@@ -1555,48 +1565,31 @@ export class Router extends EventTarget {
    * Each listener manages the loading state and calls the loadPath method with appropriate parameters.
    */
   attachWindowListeners() {
-    if (this.#window && 'scrollRestoration' in this.#window.history) {
-      this.history = Array(this.#window.history.length);
-      this.#window.history.scrollRestoration = 'manual';
-    }
+    if (!this.#window) return;
 
+    this.history = Array(this.#window.history.length);
     this.defineWebComponents();
 
-    this.#window?.addEventListener('popstate', async (event) => {
-      if (!this.isLoading && this.#window) {
-        this.isLoading = true;
-        const path = getFullPath(this.#window);
-        await this.loadPath(path, false, event);
-        this.isLoading = false;
-      }
-    });
+    this.#window?.addEventListener('popstate', this.#windowEventHandler);
+    this.#window?.addEventListener('hashchange', this.#windowEventHandler);
+    this.#window?.addEventListener('load', this.#windowEventHandler);
+    this.#window?.addEventListener(
+      'DOMContentLoaded',
+      this.#windowEventHandler
+    );
+  }
 
-    this.#window?.addEventListener('hashchange', async (event) => {
-      if (!this.isLoading && this.#window) {
-        this.isLoading = true;
-        const path = getFullPath(this.#window);
-        await this.loadPath(path, false, event);
-        this.isLoading = false;
-      }
-    });
-
-    this.#window?.addEventListener('load', async (event) => {
-      if (!this.isLoading && this.#window) {
-        this.isLoading = true;
-        const path = getFullPath(this.#window);
-        await this.loadPath(path, false, event);
-        this.isLoading = false;
-      }
-    });
-
-    this.#window?.addEventListener('DOMContentLoaded', async (event) => {
-      if (!this.isLoading && this.#window) {
-        this.isLoading = true;
-        const path = getFullPath(this.#window);
-        await this.loadPath(path, false, event);
-        this.isLoading = false;
-      }
-    });
+  /**
+   * Removes event listeners from the window object.
+   */
+  detachWindowListeners() {
+    this.#window?.removeEventListener('popstate', this.#windowEventHandler);
+    this.#window?.removeEventListener('hashchange', this.#windowEventHandler);
+    this.#window?.removeEventListener('load', this.#windowEventHandler);
+    this.#window?.removeEventListener(
+      'DOMContentLoaded',
+      this.#windowEventHandler
+    );
   }
 
   /**
@@ -1651,14 +1644,12 @@ export class Router extends EventTarget {
  */
 export function createWebRouter(routerOptions) {
   const { window } = getGlobalContext();
+  /** @type {Router}  */
   const previousInstance = Reflect.get(window.document, '__appRouterInstance');
   const router = new Router(routerOptions);
   Reflect.set(window.document, '__appRouterInstance', router);
-  if (previousInstance) {
-    throw new Error(
-      'Cannot create multiple web routers in the same document context.'
-    );
-  }
+  if (previousInstance) previousInstance.detachWindowListeners();
+
   return router;
 }
 

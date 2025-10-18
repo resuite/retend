@@ -1,7 +1,6 @@
 import { describe, it, expect, assert } from 'vitest';
 import { useSetupEffect, If, Cell, For, runPendingSetupEffects } from 'retend';
-import { browserSetup, getTextContent } from '../../setup.ts';
-import { setTimeout } from 'node:timers/promises';
+import { browserSetup, getTextContent, timeout } from '../../setup.ts';
 
 describe('nested useSetupEffect', () => {
   browserSetup();
@@ -39,25 +38,25 @@ describe('nested useSetupEffect', () => {
     expect(cleanupLogs).toEqual([]);
 
     showOuter.set(true);
-    await setTimeout();
+    await timeout();
     expect(setupLogs).toEqual(['outer']);
     expect(cleanupLogs).toEqual([]);
     setupLogs.length = 0;
 
     showInner.set(true);
-    await setTimeout();
+    await timeout();
     expect(setupLogs).toEqual(['inner']);
     expect(cleanupLogs).toEqual([]);
     setupLogs.length = 0;
 
     showInner.set(false);
-    await setTimeout();
+    await timeout();
     expect(setupLogs).toEqual([]);
     expect(cleanupLogs).toEqual(['inner']);
     cleanupLogs.length = 0;
 
     showOuter.set(false);
-    await setTimeout();
+    await timeout();
     expect(setupLogs).toEqual([]);
     expect(cleanupLogs).toEqual(['outer']);
   });
@@ -98,12 +97,12 @@ describe('nested useSetupEffect', () => {
 
     expect(getTextContent(result)).toEqual('');
     outerList.set([1, 2, 3]);
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toEqual('Outer[]Outer[]Outer[]');
     expect(setupLogs).toEqual(['outer', 'outer', 'outer']);
 
     innerList.set([1, 2, 3]);
-    await setTimeout();
+    await timeout();
     expect(getTextContent(result)).toEqual(
       'Outer[InnerInnerInner]Outer[InnerInnerInner]Outer[InnerInnerInner]'
     );
@@ -123,7 +122,7 @@ describe('nested useSetupEffect', () => {
     ]);
 
     outerList.set([]);
-    await setTimeout();
+    await timeout();
     // runs depth first.
     expect(cleanupLogs).toEqual([
       'outer',

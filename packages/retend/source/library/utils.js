@@ -5,7 +5,7 @@ import { getGlobalContext } from '../context/index.js';
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 
 /** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
-export const isDevMode = import.meta.env?.DEV;
+export const isDevMode = import.meta.env.DEV;
 
 /**
  * @template T

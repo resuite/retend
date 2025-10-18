@@ -4,15 +4,6 @@ import { browserSetup } from '../setup.ts';
 import { useWindowSize } from 'retend-utils/hooks';
 import { runPendingSetupEffects } from 'retend';
 
-declare global {
-  interface Window {
-    happyDOM: {
-      setInnerWidth: (width: number) => void;
-      setInnerHeight: (height: number) => void;
-    };
-  }
-}
-
 describe('Hooks (useWindowSize)', () => {
   browserSetup();
 
@@ -30,11 +21,5 @@ describe('Hooks (useWindowSize)', () => {
     const { window } = getGlobalContext() as { window: Window };
     expect(width.get()).toBe(window.innerWidth);
     expect(height.get()).toBe(window.innerHeight);
-
-    window.happyDOM.setInnerWidth(100);
-    window.happyDOM.setInnerHeight(200);
-
-    expect(width.get()).toBe(100);
-    expect(height.get()).toBe(200);
   });
 });

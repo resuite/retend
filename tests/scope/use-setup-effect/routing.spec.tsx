@@ -80,6 +80,7 @@ describe('useSetupEffect with routing', () => {
 
     await router.navigate('/effect');
     expect(getTextContent(window.document.body)).toBe('Effect Component');
+    await runPendingSetupEffects();
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).not.toHaveBeenCalled();
 

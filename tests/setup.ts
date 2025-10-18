@@ -8,13 +8,12 @@ import {
   isVNode,
 } from 'retend/context';
 import { VWindow } from 'retend/v-dom';
-import { GlobalRegistrator } from '@happy-dom/global-registrator';
+
+export const timeout = async (number?: number) => {
+  return new Promise((r) => setTimeout(r, number ?? 0));
+};
 
 export const routerSetup = () => {
-  if (GlobalRegistrator.isRegistered) {
-    GlobalRegistrator.unregister();
-  }
-
   const window = new VWindow();
   window.document.body.append(
     window.document.createElement('retend-router-outlet')
@@ -29,44 +28,43 @@ export const routerSetup = () => {
   });
 };
 
-
 export const routerSetupBrowser = () => {
-  beforeEach(() => {
-    if (GlobalRegistrator.isRegistered) {
-      GlobalRegistrator.unregister();
-    }
+  const { document } = window;
 
-    GlobalRegistrator.register({ url: 'http://localhost:8080' });
-    window.document.body.append(
-      window.document.createElement('retend-router-outlet')
-    );
+  beforeEach(async () => {
+    await clearBrowserWindow()
+    document.body.append(document.createElement('retend-router-outlet'));
 
     setGlobalContext({
       mode: Modes.Interactive,
-      window,
+      window: window,
       consistentValues: new Map(),
       globalData: new Map(),
       teleportIdCounter: { value: 0 },
     });
-  })
+  });
 
-  afterEach(() => {
-    if (GlobalRegistrator.isRegistered) {
-      GlobalRegistrator.unregister();
-    }
-    resetGlobalContext()
-  })
+  afterEach(async () => {
+    resetGlobalContext();
+    await clearBrowserWindow()
+  });
 };
 
+
+export const clearBrowserWindow = async () => {
+  window.document.body.innerHTML = '';
+  window.history.go(-window.history.length)
+  window.sessionStorage.clear();
+  window.localStorage.clear();
+  await timeout()
+}
+
 export const browserSetup = () => {
-  beforeAll(() => {
-    if (GlobalRegistrator.isRegistered) {
-      GlobalRegistrator.unregister();
-    }
-    GlobalRegistrator.register({ url: 'http://localhost:8080'});
-  });
+  const { document } = window;
 
   beforeEach(() => {
+    clearBrowserWindow()
+
     setGlobalContext({
       window,
       mode: Modes.Interactive,
@@ -76,9 +74,9 @@ export const browserSetup = () => {
     });
   });
 
-  afterAll(() => {
-    GlobalRegistrator.unregister();
+  afterEach(() => {
     resetGlobalContext();
+    clearBrowserWindow()
   });
 };
 
@@ -93,7 +91,7 @@ export const vDomSetup = () => {
     });
   });
 
-  afterAll(() => {
+  afterEach(() => {
     resetGlobalContext();
   });
 };

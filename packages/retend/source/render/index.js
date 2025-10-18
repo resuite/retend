@@ -69,14 +69,6 @@ export async function renderToString(template, window, options = {}) {
     return await renderToString(await template, window, options);
   }
 
-  if (template instanceof window.DocumentFragment) {
-    let textContent = '';
-    for (const child of template.childNodes) {
-      textContent += await renderToString(child, window, options);
-    }
-    return textContent;
-  }
-
   if (
     'MarkupContainerNode' in window &&
     template instanceof window.MarkupContainerNode
@@ -122,6 +114,14 @@ export async function renderToString(template, window, options = {}) {
       }
       text += '</template>';
       return text;
+    }
+
+    if (template instanceof window.DocumentFragment) {
+      let textContent = '';
+      for (const child of template.childNodes) {
+        textContent += await renderToString(child, window, options);
+      }
+      return textContent;
     }
 
     if (template instanceof window.Element) {
