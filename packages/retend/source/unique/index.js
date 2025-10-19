@@ -1,6 +1,7 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { VElement } from '../v-dom/index.js'; */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
+/** @import { GlobalContextChangeEvent } from '../context/index.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
@@ -17,6 +18,8 @@ import {
  * @property {Map<string, SavedElementInstance>} instances
  * @property {Map<string, Cell<HTMLElement | null>>} refs
  * @property {Map<string, ScopeSnapshot>} scopes
+ * @property {Set<() => void>} pendingTeardowns
+ * @property {() => void} onActivate
  */
 
 /**
@@ -61,6 +64,42 @@ import {
 
 const UniqueComponentStash = Symbol('UniqueComponentStash');
 const elementName = 'retend-unique-instance';
+
+/**
+ * @returns {UniqueStash}
+ */
+const initUniqueStash = () => {
+  const { window, globalData } = getGlobalContext();
+  const checkForUniqueComponentTeardowns = () => {
+    for (const teardown of stash.pendingTeardowns) {
+      teardown();
+    }
+    stash.pendingTeardowns.clear();
+  };
+
+  const stash = {
+    instances: new Map(),
+    refs: new Map(),
+    scopes: new Map(),
+    pendingTeardowns: new Set(),
+    onActivate: checkForUniqueComponentTeardowns,
+  };
+  globalData.set(UniqueComponentStash, stash);
+
+  window.addEventListener('retend:activate', stash.onActivate);
+  window.addEventListener('globalcontextchange', (event) => {
+    const _event = /** @type {GlobalContextChangeEvent} */ (event);
+    const { newContext } = _event.detail;
+    window.removeEventListener('retend:activate', stash.onActivate);
+    if (!newContext) return;
+    const { window: newWindow } = newContext;
+
+    if (stash.pendingTeardowns.size > 0) {
+      newWindow.addEventListener('retend:activate', stash.onActivate);
+    }
+  });
+  return stash;
+};
 
 /**
  * @template Data
@@ -136,14 +175,9 @@ export function Unique(props) {
   } = props;
 
   /** @type {UniqueStash} */
-  let stash = globalData.get(UniqueComponentStash);
+  const stash = globalData.get(UniqueComponentStash) ?? initUniqueStash();
   const selector = `${elementName}[name="${name}"]`;
   const observer = useObserver();
-
-  if (!stash) {
-    stash = { instances: new Map(), refs: new Map(), scopes: new Map() };
-    globalData.set(UniqueComponentStash, stash);
-  }
 
   const retendUniqueInstance = window.document.createElement(elementName);
   for (const [key, value] of Object.entries(rest)) {
@@ -201,7 +235,7 @@ export function Unique(props) {
     const { window } = getGlobalContext();
     const possibleNextInstance = window.document.querySelector(selector);
     if (possibleNextInstance) {
-      window.removeEventListener('retend:activate', teardown);
+      stash.pendingTeardowns.delete(teardown);
       return;
     }
     const scope = stash.scopes.get(name);
@@ -212,7 +246,7 @@ export function Unique(props) {
     stash.instances.delete(name);
     stash.refs.delete(name);
     stash.scopes.delete(name);
-    window.removeEventListener('retend:activate', teardown);
+    stash.pendingTeardowns.delete(teardown);
   };
 
   observer.onConnected(ref, (div) => {
@@ -223,9 +257,7 @@ export function Unique(props) {
     return () => {
       const { window } = getGlobalContext();
       const possibleNextInstance = window.document.querySelector(selector);
-      if (!possibleNextInstance) {
-        window.addEventListener('retend:activate', teardown, { once: true });
-      }
+      if (!possibleNextInstance) stash.pendingTeardowns.add(teardown);
     };
   });
 
