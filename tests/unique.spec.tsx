@@ -284,6 +284,16 @@ describe('Unique', () => {
       const restoreFn = vi.fn();
       const setupFn = vi.fn();
 
+      const saveState = (el: HTMLElement) => {
+        saveFn();
+        return { name: 'John Doe' };
+      };
+
+      const restoreState = (el: HTMLElement, data: { name: string }) => {
+        expect(data.name).toBe('John Doe');
+        restoreFn();
+      };
+
       const MusicPlayer = () => {
         useSetupEffect(() => {
           setupFn();
@@ -299,7 +309,7 @@ describe('Unique', () => {
 
       const PersistentMusicPlayer = () => {
         return (
-          <Unique name={uuid} onSave={saveFn} onRestore={restoreFn}>
+          <Unique name={uuid} onSave={saveState} onRestore={restoreState}>
             {() => <MusicPlayer />}
           </Unique>
         );

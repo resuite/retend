@@ -49,10 +49,10 @@ import {
  *   Optional Cell reference to the underlying DOM element.
  *   If not provided, one will be created automatically.
  *
- * @property {(element: HTMLElement, savedState: SavedElementInstance) => Data} [onSave]
+ * @property {(element: HTMLElement) => Data} [onSave]
  *   Called when the element is about to unmount, allowing you to save additional state.
  *
- * @property {(element: HTMLElement, savedState: SavedElementInstance, data: Data) => void} [onRestore]
+ * @property {(element: HTMLElement, data: Data) => void} [onRestore]
  *   Called when the element is being restored at a new location.
  */
 
@@ -194,7 +194,7 @@ export function Unique(props) {
 
     if (onSave) {
       const _div = /** @type {HTMLElement} */ (div);
-      const customData = onSave(_div, previous);
+      const customData = onSave(_div);
       previous.data = customData;
     }
 
@@ -204,7 +204,7 @@ export function Unique(props) {
   /** @param {HTMLElement} div */
   const restoreState = (div) => {
     if (onRestore && previous) {
-      onRestore(div, previous, previous.data);
+      onRestore(div, previous.data);
     }
 
     stash.refs.set(name, Cell.source(div));
