@@ -140,7 +140,7 @@ const initUniqueStash = () => {
  *     <Unique
  *       name={name}
  *       onSave={(el) => ({ scrollTop: el.scrollTop })}
- *       onRestore={(el, _, data) => { el.scrollTop = data.scrollTop; }}
+ *       onRestore={(el, data) => { el.scrollTop = data.scrollTop; }}
  *     >
  *       {() => <div style="height: 400px; overflow: auto">{children}</div>}
  *     </Unique>

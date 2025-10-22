@@ -2464,4 +2464,242 @@ document.body.append(<MyComponent />);
 
 In this example, instead of using a css selector, the `from` attribute takes a Cell, and its value is used as the target to inject into.
 
+### Unique
+
+The `Unique` component ensures that only one instance of a component exists across your entire application, identified by its `name` prop. When multiple `Unique` components with the same name appear in different parts of your component tree, the DOM nodes are preserved and moved to the new location instead of being recreated. This is particularly useful for maintaining state in components like video players, audio elements, or any content where you want to preserve DOM state across different views.
+
+**Key Features:**
+
+- Only one instance per unique name exists at any time
+- DOM nodes are physically moved, not recreated
+- Setup effects run once and persist until all instances are unmounted
+- Optional state saving and restoration with `onSave` and `onRestore`
+- Works seamlessly with routing and conditional rendering
+
+- **Basic Usage**:
+
+```jsx
+import { Unique } from "retend/unique";
+
+function App() {
+  return (
+    <div>
+      <Unique name="my-unique-content">
+        {() => <div>This content is unique!</div>}
+      </Unique>
+    </div>
+  );
+}
+```
+
+The `children` prop must be a function that returns JSX. The `name` prop uniquely identifies this component instance.
+
+- **Video Player Persisting Across Pages**:
+
+```jsx
+import { Cell, Switch, Unique } from "retend";
+
+function VideoPlayer() {
+  return (
+    <Unique name="main-video">
+      {() => (
+        <video src="https://example.com/video.mp4" controls autoplay>
+          Your browser does not support the video tag.
+        </video>
+      )}
+    </Unique>
+  );
+}
+
+function HomePage() {
+  return (
+    <div>
+      <h1>Home</h1>
+      <VideoPlayer />
+    </div>
+  );
+}
+
+function AboutPage() {
+  return (
+    <div>
+      <h1>About</h1>
+      <VideoPlayer />
+    </div>
+  );
+}
+
+function App() {
+  const page = Cell.source("home");
+  return (
+    <div>
+      {Switch(page, {
+        home: HomePage,
+        about: AboutPage,
+      })}
+    </div>
+  );
+}
+```
+
+In this example, the video continues playing when switching between pages because the same DOM element is moved rather than being destroyed and recreated.
+
+- **Multiple Instances with Same Name**:
+
+```jsx
+import { Unique } from "retend/unique";
+
+function App() {
+  return (
+    <div>
+      <Unique name="shared">{() => <p>First instance</p>}</Unique>
+      <Unique name="shared">{() => <p>Second instance</p>}</Unique>
+    </div>
+  );
+}
+```
+
+Only the second instance will render because the DOM node moves to the last location with that name.
+
+- **Setup Effects that Persist**:
+
+```jsx
+import { Cell, Switch, Unique, useSetupEffect } from "retend";
+
+function PersistentComponent() {
+  useSetupEffect(() => {
+    console.log("Setup called once");
+    return () => {
+      console.log("Cleanup called when completely removed");
+    };
+  });
+  return <div>Persistent content</div>;
+}
+
+function UniqueWrapper() {
+  return (
+    <Unique name="persistent">{() => <PersistentComponent />}</Unique>
+  );
+}
+
+function App() {
+  const page = Cell.source("home");
+  return (
+    <div>
+      {Switch(page, {
+        home: () => (
+          <div>
+            Home: <UniqueWrapper />
+          </div>
+        ),
+        about: () => (
+          <div>
+            About: <UniqueWrapper />
+          </div>
+        ),
+      })}
+    </div>
+  );
+}
+```
+
+The setup effect runs once when the component is first created and the cleanup only runs when all instances are completely removed from the application.
+
+- **Saving and Restoring State**:
+
+```jsx
+import { Unique } from "retend/unique";
+
+function ScrollableArea() {
+  return (
+    <Unique
+      name="scroll-area"
+      onSave={(el) => ({ scrollTop: el.scrollTop })}
+      onRestore={(el, data) => {
+        el.scrollTop = data.scrollTop;
+      }}
+    >
+      {() => (
+        <div style={{ height: "400px", overflow: "auto" }}>
+          <p>Content line 1</p>
+          <p>Content line 2</p>
+          <p>Content line 3</p>
+          {/* ... more content ... */}
+        </div>
+      )}
+    </Unique>
+  );
+}
+```
+
+The `onSave` callback is called when the component is about to move, allowing you to capture any state. The `onRestore` callback is called when the component arrives at its new location, allowing you to restore that state.
+
+- **Using with Refs**:
+
+```jsx
+import { Cell, Unique } from "retend";
+
+function App() {
+  const uniqueRef = Cell.source(null);
+  const logElement = () => {
+    console.log(uniqueRef.get());
+  };
+  return (
+    <div>
+      <Unique name="with-ref" ref={uniqueRef}>
+        {() => <div>Content with ref</div>}
+      </Unique>
+      <button type="button" onClick={logElement}>
+        Log Element
+      </button>
+    </div>
+  );
+}
+```
+
+- **Custom Attributes**:
+
+```jsx
+import { Unique } from "retend/unique";
+
+function App() {
+  return (
+    <div>
+      <Unique
+        name="styled-unique"
+        class="my-class"
+        style={{ padding: "20px", border: "1px solid blue" }}
+        data-test="unique-element"
+      >
+        {() => <div>Styled unique content</div>}
+      </Unique>
+    </div>
+  );
+}
+```
+
+Additional props are applied to the wrapper element (`retend-unique-instance` custom element).
+
+- **Dynamic Names in Lists**:
+
+```jsx
+import { Cell, For, Unique } from "retend";
+
+function App() {
+  const items = Cell.source([
+    { id: 1, name: "Item 1" },
+    { id: 2, name: "Item 2" },
+  ]);
+  return (
+    <div>
+      {For(items, (item) => (
+        <Unique name={`item-${item.id}`}>{() => <div>{item.name}</div>}</Unique>
+      ))}
+    </div>
+  );
+}
+```
+
+Use unique names per item to preserve each independently when the list changes.
+
 These advanced components provide unique ways to manage DOM interactions, encapsulation, and component structures.

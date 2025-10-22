@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { browserSetup, getTextContent, timeout, vDomSetup } from './setup';
+import { browserSetup, getTextContent, vDomSetup } from './setup';
 import { getGlobalContext } from 'retend/context';
 import { Unique } from 'retend/unique';
 import type { VNode } from 'retend/v-dom';
