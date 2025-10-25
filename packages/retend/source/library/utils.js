@@ -271,7 +271,10 @@ export function generateChildNodes(children) {
     return [placeholder];
   }
 
-  if (children instanceof window.DocumentFragment) {
+  if (
+    children instanceof window.DocumentFragment &&
+    !('__isShadowRootContainer' in children)
+  ) {
     return Array.from(/** @type {*} */ (children).childNodes);
   }
 
