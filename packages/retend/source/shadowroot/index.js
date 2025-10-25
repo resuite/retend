@@ -64,7 +64,7 @@ export function ShadowRoot(props) {
   );
 
   // @ts-ignore: The import.meta.env types are available in Vite.
-  if (import.meta.env.SSR) {
+  if (import.meta.env?.SSR) {
     if (mode === 'closed') {
       const message =
         'Closed shadow roots cannot by hydrated on the client. This code will NOT be generated.';
