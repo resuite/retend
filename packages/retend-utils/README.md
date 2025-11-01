@@ -20,6 +20,7 @@ This package provides a collection of utility hooks and components for [Retend](
   - [Components](#components)
     - [`Input`](#input)
     - [`FluidList`](#fluidlist)
+    - [`UniqueTransition`](#uniquetransition)
 
 ## Installation
 
@@ -415,6 +416,71 @@ function MyComponent() {
       Template={MyItemTemplate}
       class="my-custom-list"
     />
+  );
+}
+```
+
+### `UniqueTransition`
+
+A wrapper around the `Unique` component that adds smooth [FLIP](https://aerotwist.com/blog/flip-your-animations/) animations when an element moves between different positions in the DOM tree.
+
+When a `UniqueTransition` component with the same `name` unmounts and remounts elsewhere, it automatically animates from its previous position and size to its new position and size using CSS transforms.
+
+**Props:**
+
+- `name`: **Required**. A unique string identifier for the element. The animation is triggered when an element with the same `name` is remounted elsewhere in the DOM.
+- `children`: **Required**. A function that returns the JSX to be rendered.
+- `transitionDuration`: Optional. The duration of the transition (e.g., `'300ms'`, `'0.5s'`).
+- `transitionTimingFunction`: Optional. The easing function for the transition (e.g., `'ease-in-out'`). Default: `'ease'`.
+- `onSave`: Optional. A callback function `(element: HTMLElement) => CustomData` that runs just before the element is unmounted. It can return custom data (e.g., scroll position) to be preserved.
+- `onRestore`: Optional. A callback function `(element: HTMLElement, data: CustomData) => void` that runs after the element is remounted. It receives the element and the data returned from `onSave`.
+- `...rest`: Other standard HTML attributes.
+
+**Example: Persistent Video Player**
+
+A video player that smoothly animates when moving between a sidebar and a main content area.
+
+```tsx
+import { UniqueTransition } from 'retend-utils/components';
+
+function PersistentVideo({ src, name }) {
+  return (
+    <UniqueTransition name={name} transitionDuration="300ms">
+      {() => <VideoPlayer src={src} />}
+    </UniqueTransition>
+  );
+}
+```
+
+**Example: Preserving State**
+
+An item card that animates between a grid and a detail view while preserving its scroll position.
+
+```tsx
+import { UniqueTransition } from 'retend-utils/components';
+
+function AnimatedCard({ item }) {
+  return (
+    <UniqueTransition
+      name={`card-${item.id}`}
+      onSave={(el) => ({ scrollTop: el.querySelector('.content')?.scrollTop })}
+      onRestore={(el, data) => {
+        if (data?.scrollTop) {
+          const contentEl = el.querySelector('.content');
+          if (contentEl) contentEl.scrollTop = data.scrollTop;
+        }
+      }}
+      transitionDuration=".3s"
+    >
+      {() => (
+        <div class="card">
+          <h3>{item.title}</h3>
+          <div class="content" style="overflow-y: auto; height: 100px;">
+            {/* ... long content ... */}
+          </div>
+        </div>
+      )}
+    </UniqueTransition>
   );
 }
 ```
