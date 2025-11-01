@@ -32,7 +32,7 @@ export const routerSetupBrowser = () => {
   const { document } = window;
 
   beforeEach(async () => {
-    await clearBrowserWindow()
+    clearBrowserWindow()
     document.body.append(document.createElement('retend-router-outlet'));
 
     setGlobalContext({
@@ -44,24 +44,20 @@ export const routerSetupBrowser = () => {
     });
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     resetGlobalContext();
-    await clearBrowserWindow()
   });
 };
 
 
-export const clearBrowserWindow = async () => {
+export const clearBrowserWindow = () => {
   window.document.body.innerHTML = '';
   window.history.go(-window.history.length)
   window.sessionStorage.clear();
   window.localStorage.clear();
-  await timeout()
 }
 
 export const browserSetup = () => {
-  const { document } = window;
-
   beforeEach(() => {
     clearBrowserWindow()
 

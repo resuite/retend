@@ -4,8 +4,8 @@ import { getGlobalContext } from '../context/index.js';
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 
-/** @type {boolean | undefined} */ // @ts-ignore: check for dev mode on import type.
-export const isDevMode = import.meta.env.DEV;
+// @ts-ignore: check for dev mode on import type.
+export const isDevMode = Boolean(import.meta.env?.DEV);
 
 /**
  * @template T
@@ -271,7 +271,10 @@ export function generateChildNodes(children) {
     return [placeholder];
   }
 
-  if (children instanceof window.DocumentFragment) {
+  if (
+    children instanceof window.DocumentFragment &&
+    !('__isShadowRootContainer' in children)
+  ) {
     return Array.from(/** @type {*} */ (children).childNodes);
   }
 

@@ -1,0 +1,182 @@
+/** @import { JSX } from 'retend/jsx-runtime' */
+/** @import { UniqueProps } from 'retend/unique'; */
+import { Cell } from 'retend';
+import { Unique } from 'retend/unique';
+
+/**
+ * @template CustomData
+ * @typedef ElementUIState
+ * @property {DOMRect} rect
+ * @property {Animation[]} animations
+ * @property {CustomData} [userData]
+ */
+
+/**
+ * @typedef TransitionProps
+ * @property {string} [transitionDuration] How long the transition between states should take.
+ * @property {string} [transitionTimingFunction] How the transition should be performed.
+ */
+
+/**
+ * @template CustomData
+ * @typedef {UniqueProps<CustomData> & TransitionProps} UniqueTransitionProps
+ */
+
+/**
+ * @param {DOMRect} from
+ * @param {DOMRect} to
+ */
+function getInitialRelativeTransform(from, to) {
+  const scaleX = from.width / to.width;
+  const scaleY = from.height / to.height;
+
+  const translateX = from.x - to.x;
+  const translateY = from.y - to.y;
+
+  return `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
+}
+
+/**
+ * @template CustomData
+ * @param {UniqueTransitionProps<CustomData>} props
+ * @returns {UniqueProps<CustomData>}
+ */
+const addTransitionProps = (props) => {
+  const {
+    onSave,
+    onRestore,
+    style: styleProp,
+    transitionDuration,
+    transitionTimingFunction,
+    ...rest
+  } = props;
+
+  /** @type {JSX.StyleValue} */
+  const style = { transformOrigin: 'top left' };
+
+  if (typeof styleProp === 'object' && !Cell.isCell(styleProp)) {
+    Object.assign(style, styleProp);
+  }
+
+  return {
+    ...rest,
+    style,
+    onSave(element) {
+      const userData = onSave?.(element);
+      const animations = element.getAnimations({ subtree: true });
+      for (const animation of animations) animation.pause();
+      const rect = element.getBoundingClientRect();
+      /** @type {ElementUIState<CustomData>} */
+      const elementState = { rect, animations, userData };
+      return /** @type {CustomData} */ (elementState);
+    },
+
+    onRestore(element, data) {
+      const {
+        rect: oldRect,
+        animations: pausedAnimations,
+        userData,
+      } = /** @type {ElementUIState<CustomData>} */ (data);
+
+      // @ts-expect-error: The type of user data is defined by user.
+      onRestore?.(element, userData);
+      if (oldRect.width === 0) return;
+      const newRect = element.getBoundingClientRect();
+      const initialTransform = getInitialRelativeTransform(oldRect, newRect);
+
+      let duration = 0;
+      let easing = 'ease';
+      const durationVar = '--unique-transition-duration';
+      const easingVar = '--unique-transition-easing';
+
+      if (transitionDuration) {
+        // Allows us to dynamically resolve the duration, so
+        // calc() or css vars can be passed in.
+        element.style.setProperty(durationVar, transitionDuration);
+      }
+      if (easing) {
+        element.style.setProperty(easingVar, easing);
+      }
+
+      const styles = getComputedStyle(element);
+      if (transitionDuration) {
+        duration = +styles.getPropertyValue(durationVar).slice(0, -2);
+      }
+      if (transitionTimingFunction) {
+        easing = styles.getPropertyValue(easingVar);
+      }
+
+      for (const animation of pausedAnimations) animation.play();
+
+      element.toggleAttribute('data-unique-element-transition');
+      element
+        .animate(
+          { transform: [initialTransform, 'none'] },
+          { duration, easing }
+        )
+        .finished.finally(() => {
+          element.removeAttribute('data-unique-element-transition');
+        });
+    },
+  };
+};
+
+/**
+ * A wrapper around the Unique component that adds smooth FLIP animations when the element
+ * moves between different positions in the DOM tree.
+ *
+ * When a UniqueTransition component with the same `name` unmounts and remounts elsewhere,
+ * it automatically animates from its previous position/size to its new position/size using
+ * CSS transforms and transitions.
+ *
+ * @template CustomData
+ * @param {UniqueTransitionProps<CustomData>} props
+ * @returns {JSX.Template}
+ *
+ * @example
+ * // Video player that smoothly animates when moving between sidebar and main view
+ * function PersistentVideo({ src, name }) {
+ *   return (
+ *     <UniqueTransition name={name} transitionDuration="300ms">
+ *       {() => <VideoPlayer src={src} />}
+ *     </UniqueTransition>
+ *   );
+ * }
+ *
+ * @example
+ * // Card that animates between grid and detail view while preserving scroll position
+ * function AnimatedCard({ item }) {
+ *   return (
+ *     <UniqueTransition
+ *       name={`card-${item.id}`}
+ *       onSave={(el) => ({ scrollTop: el.scrollTop })}
+ *       onRestore={(el, data) => { el.scrollTop = data.scrollTop; }}
+ *       transitionDuration=".3s"
+ *     >
+ *       {() => (
+ *         <div class="card">
+ *           <h3>{item.title}</h3>
+ *           <div class="content">{item.content}</div>
+ *         </div>
+ *       )}
+ *     </UniqueTransition>
+ *   );
+ * }
+ *
+ * @example
+ * // Modal that animates from trigger button position
+ * function AnimatedModal({ isOpen, children }) {
+ *   return isOpen && (
+ *     <UniqueTransition name="modal">
+ *       {() => (
+ *         <div class="modal-overlay">
+ *           <div class="modal-content">{children}</div>
+ *         </div>
+ *       )}
+ *     </UniqueTransition>
+ *   );
+ * }
+ */
+export function UniqueTransition(props) {
+  return <Unique {...addTransitionProps(props)} />;
+}

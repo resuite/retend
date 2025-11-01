@@ -118,8 +118,8 @@ export class VNode extends EventTarget {
       n instanceof VDocumentFragment
         ? n.childNodes
         : n instanceof VNode
-        ? n
-        : ownerDocument.createTextNode(n)
+          ? n
+          : ownerDocument.createTextNode(n)
     );
     for (const node of this.childNodes) {
       node.parentNode = null;
@@ -135,11 +135,17 @@ export class VNode extends EventTarget {
     if (!this.ownerDocument) return;
 
     for (const child of children) {
+      if (child instanceof VNode) {
+        child.remove();
+      }
+
       if (child instanceof VDocumentFragment) {
-        for (const childNode of child.childNodes) {
+        const nodes = [...child.childNodes];
+        for (const childNode of nodes) {
+          childNode.remove();
           childNode.parentNode = this;
+          this.childNodes.push(childNode);
         }
-        this.childNodes.push(...child.childNodes);
       } else if (child instanceof VNode) {
         child.parentNode = this;
         this.childNodes.push(child);

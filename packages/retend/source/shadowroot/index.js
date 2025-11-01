@@ -20,7 +20,7 @@ import { appendChild } from '../library/jsx.js';
  * @property {boolean} [__isShadowRootContainer]
  */
 
-/** @typedef {ShadowRootContainerData & HTMLDivElement} ShadowRootContainer */
+/** @typedef {ShadowRootContainerData & DocumentFragment} ShadowRootContainer */
 
 /**
  * Provides an interface to append nodes to the shadow root of a parent component.
@@ -60,11 +60,11 @@ export function ShadowRoot(props) {
   const { window } = getGlobalContext();
 
   const shadowRoot = /** @type {ShadowRootContainer} */ (
-    window.document.createElement('div')
+    window.document.createDocumentFragment()
   );
 
-  // @ts-ignore: The import.meta.env types are available in Vite.
-  if (import.meta.env.SSR) {
+  // @ts-expect-error: The import.meta.env types are available in Vite.
+  if (import.meta.env?.SSR) {
     if (mode === 'closed') {
       const message =
         'Closed shadow roots cannot by hydrated on the client. This code will NOT be generated.';

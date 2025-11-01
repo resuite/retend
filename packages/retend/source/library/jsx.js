@@ -2,6 +2,7 @@
 /** @import { CellSet } from './utils.js' */
 /** @import { Scope } from './scope.js' */
 /** @import { UpdatableFn } from '../plugin/hmr.js'; */
+/** @import { ShadowRootContainer } from '../shadowroot/index.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
 import {
@@ -156,8 +157,8 @@ export function h(tagname, props) {
       props instanceof ArgumentList
         ? props.data
         : typeof props === 'object'
-        ? [{ ...props }]
-        : [];
+          ? [{ ...props }]
+          : [];
 
     if (isDevMode) {
       // In Dev mode and using HMR, components have a self-referential
@@ -228,7 +229,7 @@ export function h(tagname, props) {
 /**
  * Appends a child node or an array of child nodes to a parent node.
  *
- * @param {Element | VDom.VElement | ShadowRoot | VDom.VShadowRoot} parentNode
+ * @param {Element | VDom.VElement | ShadowRoot | VDom.VShadowRoot | ShadowRootContainer} parentNode
  * The parent node to which the child will be appended.
  * @param {string} tagname
  * The tag name of the parent node.
@@ -255,7 +256,7 @@ export function appendChild(parentNode, tagname, child, fragment) {
   const childNode = normalizeJsxChild(child);
 
   if (
-    childNode instanceof window.HTMLElement &&
+    childNode instanceof window.DocumentFragment &&
     '__isShadowRootContainer' in childNode &&
     childNode.__isShadowRootContainer &&
     '__mode' in childNode
