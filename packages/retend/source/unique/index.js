@@ -12,6 +12,7 @@ import {
   useSetupEffect,
   withScopeSnapshot,
 } from '../library/scope.js';
+import { getHMRContext } from '../plugin/hmr.js';
 
 /**
  * @typedef UniqueStash
@@ -215,6 +216,7 @@ export function Unique(props) {
     const div = stash.refs.get(name)?.peek();
     if (div) saveState(div);
   }
+  let disposedByHMR = false;
 
   // it's tricky to know when to dispose,
   // because if this instance is removed, but then rendered somewhere else
@@ -256,8 +258,8 @@ export function Unique(props) {
 
     return () => {
       const { window } = getGlobalContext();
-      const possibleNextInstance = window.document.querySelector(selector);
-      if (!possibleNextInstance) stash.pendingTeardowns.add(teardown);
+      const nextInstance = window.document.querySelector(selector);
+      if (!nextInstance && !disposedByHMR) stash.pendingTeardowns.add(teardown);
     };
   });
 
@@ -265,19 +267,37 @@ export function Unique(props) {
     const current = ref.peek();
 
     return () => {
+      // We dont want to preserve the instance across HMR re-renders.
+      const hmrContext = getHMRContext();
+      if (hmrContext?.current) {
+        const scope = stash.scopes.get(name);
+        if (scope) {
+          scope.node.enable();
+          scope.node.dispose();
+        }
+        stash.instances.delete(name);
+        stash.refs.delete(name);
+        stash.scopes.delete(name);
+        disposedByHMR = true;
+        return;
+      }
+
       const { window } = getGlobalContext();
       const scope = stash.scopes.get(name);
       if (scope) scope.node.disable();
+      const currentElement = stash.refs.get(name)?.peek();
+      if (currentElement === current) {
+        saveState(/** @type {HTMLElement} */ (current));
 
-      saveState(/** @type {HTMLElement} */ (current));
-      const possibleNextInstances = window.document.querySelectorAll(selector);
-      for (const possibleNextInstance of [...possibleNextInstances].reverse()) {
-        if (current !== possibleNextInstance) {
-          // @ts-expect-error
-          possibleNextInstance.append(...retendUniqueInstance.childNodes);
-          // @ts-expect-error
-          restoreState(possibleNextInstance);
-          break;
+        const nextInstances = window.document.querySelectorAll(selector);
+        for (const nextInstance of [...nextInstances].reverse()) {
+          if (currentElement !== nextInstance) {
+            // @ts-expect-error
+            nextInstance.append(...retendUniqueInstance.childNodes);
+            // @ts-expect-error
+            restoreState(nextInstance);
+            break;
+          }
         }
       }
     };
