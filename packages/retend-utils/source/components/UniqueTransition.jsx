@@ -103,7 +103,10 @@ const addTransitionProps = (props) => {
 
         const styles = getComputedStyle(element);
         if (transitionDuration) {
-          duration = +styles.getPropertyValue(durationVar).slice(0, -2);
+          const durationRaw = styles.getPropertyValue(durationVar);
+          duration = durationRaw.endsWith('ms')
+            ? Number(durationRaw.slice(0, -2))
+            : Number(durationRaw.slice(0, -1)) * 1000;
         }
         if (transitionTimingFunction) {
           easing = styles.getPropertyValue(easingVar);
