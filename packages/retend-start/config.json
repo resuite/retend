@@ -2,9 +2,9 @@
 	"minNodeVersion": "14.0.0",
 	"directories": ["public", "source", "source/styles"],
 	"dependencies": {
-		"retend": "^0.0.21",
-		"retend-server": "^0.0.21",
-		"retend-utils": "^0.0.21"
+		"retend": "^0.0.22",
+		"retend-server": "^0.0.22",
+		"retend-utils": "^0.0.22"
 	},
 	"devDependencies": {
 		"vite": "^6.2.1",
