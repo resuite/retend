@@ -81,42 +81,44 @@ const addTransitionProps = (props) => {
       // @ts-expect-error: The type of user data is defined by user.
       onRestore?.(element, userData);
       if (oldRect.width === 0) return;
-      const newRect = element.getBoundingClientRect();
-      const initialTransform = getInitialRelativeTransform(oldRect, newRect);
-
-      let duration = 0;
-      let easing = 'ease';
-      const durationVar = '--unique-transition-duration';
-      const easingVar = '--unique-transition-easing';
-
-      if (transitionDuration) {
-        // Allows us to dynamically resolve the duration, so
-        // calc() or css vars can be passed in.
-        element.style.setProperty(durationVar, transitionDuration);
-      }
-      if (easing) {
-        element.style.setProperty(easingVar, easing);
-      }
-
-      const styles = getComputedStyle(element);
-      if (transitionDuration) {
-        duration = +styles.getPropertyValue(durationVar).slice(0, -2);
-      }
-      if (transitionTimingFunction) {
-        easing = styles.getPropertyValue(easingVar);
-      }
-
       for (const animation of pausedAnimations) animation.play();
 
-      element.toggleAttribute('data-unique-element-transition');
-      element
-        .animate(
-          { transform: [initialTransform, 'none'] },
-          { duration, easing }
-        )
-        .finished.finally(() => {
-          element.removeAttribute('data-unique-element-transition');
-        });
+      requestAnimationFrame(() => {
+        const newRect = element.getBoundingClientRect();
+        const initialTransform = getInitialRelativeTransform(oldRect, newRect);
+
+        let duration = 0;
+        let easing = 'ease';
+        const durationVar = '--unique-transition-duration';
+        const easingVar = '--unique-transition-easing';
+
+        if (transitionDuration) {
+          // Allows us to dynamically resolve the duration, so
+          // calc() or css vars can be passed in.
+          element.style.setProperty(durationVar, transitionDuration);
+        }
+        if (easing) {
+          element.style.setProperty(easingVar, easing);
+        }
+
+        const styles = getComputedStyle(element);
+        if (transitionDuration) {
+          duration = +styles.getPropertyValue(durationVar).slice(0, -2);
+        }
+        if (transitionTimingFunction) {
+          easing = styles.getPropertyValue(easingVar);
+        }
+
+        element.toggleAttribute('data-unique-element-transition');
+        element
+          .animate(
+            { transform: [initialTransform, 'none'] },
+            { duration, easing }
+          )
+          .finished.finally(() => {
+            element.removeAttribute('data-unique-element-transition');
+          });
+      });
     },
   };
 };
