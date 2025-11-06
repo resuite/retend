@@ -137,10 +137,15 @@ const addTransitionProps = (props) => {
           element
         );
         element.toggleAttribute('data-transitioning');
+        /** @type {ElementInternals} */ // @ts-expect-error: is a custom element
+        const internals = element.internals_;
+        internals?.states?.add('--transitioning');
+
         element
           .animate({ transform: [initialTransform, 'none'] }, options)
           .finished.finally(() => {
             element.removeAttribute('data-transitioning');
+            internals?.states?.delete('--transitioning');
           });
       });
     },

@@ -681,6 +681,32 @@ export class Router extends EventTarget {
       );
     }
 
+    if (!this.#window.customElements.get('retend-unique-instance')) {
+      this.#window.customElements.define(
+        'retend-unique-instance',
+        class extends HTMLElement {
+          constructor() {
+            super();
+            this.internals_ = this.attachInternals?.();
+          }
+
+          static observedAttributes = ['state'];
+
+          /**
+           * @param {string} name - The name of the attribute that changed.
+           * @param {string} oldValue - The old value of the attribute.
+           * @param {string} newValue - The new value of the attribute.
+           */
+          attributeChangedCallback(name, oldValue, newValue) {
+            if (name === 'state') {
+              if (oldValue) this.internals_?.states.delete(`--${oldValue}`);
+              this.internals_?.states?.add(`--${newValue}`);
+            }
+          }
+        }
+      );
+    }
+
     return this.sheet;
   }
 
