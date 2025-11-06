@@ -36,6 +36,51 @@ function getInitialRelativeTransform(from, to) {
   return `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
 }
 
+const IS_DYNAMIC_CSS_EXPR = /(--)|(^calc\()/;
+
+/**
+ *
+ * @param {string | undefined} transitionDuration
+ * @param {string | undefined} transitionTimingFunction
+ * @param {HTMLElement} element
+ */
+function parseTransitionOptions(
+  transitionDuration,
+  transitionTimingFunction,
+  element
+) {
+  let duration = 0;
+  let easing = transitionTimingFunction ?? 'ease';
+
+  if (!transitionDuration) {
+    return { duration, easing };
+  }
+
+  if (!transitionDuration.endsWith('s') || IS_DYNAMIC_CSS_EXPR.test(easing)) {
+    const durationVar = '--unique-transition-duration';
+    const easingVar = '--unique-transition-easing';
+
+    // Allows us to dynamically resolve the duration, so
+    // calc() or css vars can be passed in.
+    element.style.setProperty(durationVar, transitionDuration);
+    element.style.setProperty(easingVar, easing);
+
+    const styles = getComputedStyle(element);
+    const durationRaw = styles.getPropertyValue(durationVar);
+    duration = durationRaw.endsWith('ms')
+      ? Number(durationRaw.slice(0, -2))
+      : Number(durationRaw.slice(0, -1)) * 1000;
+
+    easing = styles.getPropertyValue(easingVar);
+  } else {
+    duration = transitionDuration.endsWith('ms')
+      ? Number(transitionDuration.slice(0, -2))
+      : Number(transitionDuration.slice(0, -1)) * 1000;
+  }
+
+  return { duration, easing };
+}
+
 /**
  * @template CustomData
  * @param {UniqueTransitionProps<CustomData>} props
@@ -86,38 +131,14 @@ const addTransitionProps = (props) => {
       requestAnimationFrame(() => {
         const newRect = element.getBoundingClientRect();
         const initialTransform = getInitialRelativeTransform(oldRect, newRect);
-
-        let duration = 0;
-        let easing = 'ease';
-        const durationVar = '--unique-transition-duration';
-        const easingVar = '--unique-transition-easing';
-
-        if (transitionDuration) {
-          // Allows us to dynamically resolve the duration, so
-          // calc() or css vars can be passed in.
-          element.style.setProperty(durationVar, transitionDuration);
-        }
-        if (easing) {
-          element.style.setProperty(easingVar, easing);
-        }
-
-        const styles = getComputedStyle(element);
-        if (transitionDuration) {
-          const durationRaw = styles.getPropertyValue(durationVar);
-          duration = durationRaw.endsWith('ms')
-            ? Number(durationRaw.slice(0, -2))
-            : Number(durationRaw.slice(0, -1)) * 1000;
-        }
-        if (transitionTimingFunction) {
-          easing = styles.getPropertyValue(easingVar);
-        }
-
+        const options = parseTransitionOptions(
+          transitionDuration,
+          transitionTimingFunction,
+          element
+        );
         element.toggleAttribute('data-unique-element-transition');
         element
-          .animate(
-            { transform: [initialTransform, 'none'] },
-            { duration, easing }
-          )
+          .animate({ transform: [initialTransform, 'none'] }, options)
           .finished.finally(() => {
             element.removeAttribute('data-unique-element-transition');
           });
