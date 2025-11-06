@@ -646,7 +646,8 @@ export class Router extends EventTarget {
 
     this.sheet = new CSSStyleSheet();
     this.sheet.replaceSync(
-      ':where(retend-router-outlet, retend-router-relay, retend-teleport) {display: contents;} :where(retend-unique-instance) {display: block}'
+      ':where(retend-router-outlet, retend-router-relay, retend-teleport) {display: contents;}' +
+        ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}'
     );
     this.#window.document.adoptedStyleSheets.push(this.sheet);
     const router = this;
