@@ -136,11 +136,11 @@ const addTransitionProps = (props) => {
           transitionTimingFunction,
           element
         );
-        element.toggleAttribute('data-unique-element-transition');
+        element.toggleAttribute('data-transitioning');
         element
           .animate({ transform: [initialTransform, 'none'] }, options)
           .finished.finally(() => {
-            element.removeAttribute('data-unique-element-transition');
+            element.removeAttribute('data-transitioning');
           });
       });
     },

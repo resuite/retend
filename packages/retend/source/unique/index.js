@@ -191,6 +191,7 @@ export function Unique(props) {
   const saveState = (div) => {
     const children = /** @type {ChildNode[]} */ ([...div.childNodes]);
     const shadowRoot = /** @type {ShadowRoot | null} */ (div.shadowRoot);
+    div.setAttribute('state', 'removed');
     previous = { children, shadowRoot };
 
     if (onSave) {
@@ -294,6 +295,7 @@ export function Unique(props) {
           if (currentElement !== nextInstance) {
             // @ts-expect-error
             nextInstance.append(...retendUniqueInstance.childNodes);
+            nextInstance.setAttribute('state', 'restored');
             // @ts-expect-error
             restoreState(nextInstance);
             break;
@@ -320,6 +322,7 @@ export function Unique(props) {
     })();
   }
 
+  retendUniqueInstance.setAttribute('state', previous ? 'restored' : 'new');
   appendChild(retendUniqueInstance, elementName, childNodes);
 
   if (shadowRoot) {
