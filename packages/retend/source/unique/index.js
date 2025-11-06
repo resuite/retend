@@ -191,7 +191,7 @@ export function Unique(props) {
   const saveState = (div) => {
     const children = /** @type {ChildNode[]} */ ([...div.childNodes]);
     const shadowRoot = /** @type {ShadowRoot | null} */ (div.shadowRoot);
-    div.setAttribute('state', 'removed');
+    div.setAttribute('state', 'moved');
     previous = { children, shadowRoot };
 
     if (onSave) {
