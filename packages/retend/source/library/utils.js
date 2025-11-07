@@ -1,6 +1,5 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext } from '../context/index.js';
-import { useSetupEffect } from './scope.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
@@ -74,18 +73,6 @@ export function addCellListener(
   // Persist to prevent garbage collection.
   storage.add(boundCallback);
   storage.add(cell);
-
-  useSetupEffect(() => {
-    return () => {
-      // this tries to solve the phantom
-      // updates by disabling a reaction immediately its context
-      // is disposed, so we don't have to wait for a GC run by the engine.
-      //
-      // TODO: This will be solved more efficiently by context
-      // aware tracking in @adbl/cells. Some other time.
-      cell.ignore(boundCallback);
-    };
-  });
 }
 
 /**
@@ -285,8 +272,9 @@ export function createCommentPair() {
 export function consolidateNodes(nodes) {
   const { window } = getGlobalContext();
   if (nodes.length === 1) return nodes[0];
-
-  const fragment = window.document.createDocumentFragment();
-  fragment.append(.../** @type {*} */ (nodes));
-  return fragment;
+  else {
+    const fragment = window.document.createDocumentFragment();
+    fragment.append(.../** @type {*} */ (nodes));
+    return fragment;
+  }
 }
