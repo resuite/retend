@@ -47,10 +47,6 @@
       "import": "./dist/render/index.js",
       "types": "./dist/render/index.d.ts"
     },
-    "./include": {
-      "import": "./dist/include/index.js",
-      "types": "./dist/include/index.d.ts"
-    },
     "./v-dom": {
       "import": "./dist/v-dom/index.js",
       "types": "./dist/v-dom/index.d.ts"
