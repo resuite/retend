@@ -270,9 +270,10 @@ const user = Cell.source({ id: 0, name: "John Doe" });
 
 #### Accessing and Updating Cells
 
-To get the value of a Cell, or to update it, you interact with its `value` property. Whenever the `value` property is changed, Retend will automatically update the parts of your UI that use that cell.
+To get the value of a Cell, you use `Cell.get()`, which returns the value the cell currently holds. To update it, you interact with its `.set(...)` method, Retend will automatically update the parts of your UI that use that cell.
 
 ```javascript
+user.get() // Returns the value inside the user cell.
 number.set(number.get() + 1); // Increments the value of the count cell
 message.set("Goodbye!"); // Changes the value of the message cell
 ```
@@ -379,6 +380,8 @@ const Counter = () => {
   );
 };
 ```
+
+You can think of it this way: when you want to use the value contained in the cell in normal Javascript, you retrieve it using `Cell.get()`. But in JSX, the cell object itself has to be embedded to work properly.
 
 To learn more about how the cell system works, check out the [Cells documentation](https://github.com/adebola-io/cells).
 
