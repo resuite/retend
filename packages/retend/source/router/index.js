@@ -4,11 +4,7 @@ import h, {
   appendChild,
   setEventListener,
 } from '../library/jsx.js';
-import {
-  FixedSizeMap,
-  addCellListener,
-  generateChildNodes,
-} from '../library/utils.js';
+import { addCellListener, generateChildNodes } from '../library/utils.js';
 import { Lazy } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { RouteTree } from './routeTree.js';
@@ -195,18 +191,6 @@ export class BeforeNavigateEvent extends CustomEvent {
 
 /** @typedef {HTMLElement | SVGAElement | MathMLElement} DomElement */
 
-/**
- * @typedef {Object} ExtraOutletData
- *
- * @property {boolean} [keepAlive]
- * As the outlet's children change, the outlet keeps track
- * of each route's nodes and reuses them when the path is rendered again.
- *
- * @property {number} [maxKeepAliveCount]
- * The maximum number of routes that can be kept alive by the outlet.
- * It defaults to 10.
- */
-
 /** @typedef {(nodes: JSX.Template) => PromiseOrNot<void>} RelayCallback */
 
 /**
@@ -267,8 +251,6 @@ export class BeforeNavigateEvent extends CustomEvent {
 
 /**
  * @typedef {Context.HTMLElementLike & {
- *  __keepAlive?: boolean;
- *  __keepAliveCache?: FixedSizeMap<string, RouteSnapShot>;
  *  __originScopeSnapshot?: ScopeSnapshot;
  * }} RouterOutlet
  */
@@ -286,7 +268,7 @@ export class BeforeNavigateEvent extends CustomEvent {
  * }} RouterRelay
  */
 
-/** @typedef {JSX.IntrinsicElements['div'] & ExtraOutletData} RouterOutletProps */
+/** @typedef {JSX.IntrinsicElements['div']} RouterOutletProps */
 
 /**
  * @typedef RouterOptions
@@ -512,16 +494,11 @@ export class Router extends EventTarget {
     outlet.__originScopeSnapshot = originScopeSnapshot;
 
     if (props) {
-      const { keepAlive, maxKeepAliveCount, children, ...rest } = props;
+      const { children, ...rest } = props;
       for (const [key, value] of Object.entries(rest)) {
         setAttributeFromProps(outlet, key, value);
       }
       appendChild(outlet, outlet.tagName.toLowerCase(), children);
-
-      if (keepAlive) {
-        outlet.__keepAlive = keepAlive;
-        outlet.__keepAliveCache = new FixedSizeMap(maxKeepAliveCount ?? 10);
-      }
     }
 
     return outlet;
@@ -1129,35 +1106,24 @@ export class Router extends EventTarget {
 
       /** @type {JSX.Template} */
       let renderedComponent;
-      let disabledEffectNodeForLastRoute;
-      const routeSnapshot = outlet.__keepAliveCache?.get(simplePath);
       const oldSnapshot = outlet.__originScopeSnapshot;
-      if (routeSnapshot) {
+      try {
         if (oldSnapshot) {
-          disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
-          oldSnapshot.node.attach(routeSnapshot.node);
-          oldSnapshot.node.enable(); // The restored node would have disabled children.
+          oldSnapshot.node.dispose();
+          renderedComponent = withScopeSnapshot(oldSnapshot, () =>
+            h(matchedComponent, matchResult)
+          );
+        } else renderedComponent = h(matchedComponent, matchResult);
+      } catch (error) {
+        if (oldOutletPath) {
+          outlet.setAttribute('data-path', oldOutletPath);
+        } else {
+          outlet.removeAttribute('data-path');
         }
-        renderedComponent = [...routeSnapshot.fragment.childNodes];
-      } else {
-        try {
-          if (oldSnapshot) {
-            disabledEffectNodeForLastRoute = oldSnapshot.node.detach();
-            renderedComponent = withScopeSnapshot(oldSnapshot, () =>
-              h(matchedComponent, matchResult)
-            );
-          } else renderedComponent = h(matchedComponent, matchResult);
-        } catch (error) {
-          if (oldOutletPath) {
-            outlet.setAttribute('data-path', oldOutletPath);
-          } else {
-            outlet.removeAttribute('data-path');
-          }
-          console.error(error);
-          if (error instanceof Error)
-            this.dispatchEvent(new RouteErrorEvent({ error }));
-          return false;
-        }
+        console.error(error);
+        if (error instanceof Error)
+          this.dispatchEvent(new RouteErrorEvent({ error }));
+        return false;
       }
 
       matchedComponent.__routeLevelFunction = true;
@@ -1168,15 +1134,6 @@ export class Router extends EventTarget {
       // stored in the outlet's dataset, so we need to check before replacing.
       if (outlet.getAttribute('data-path') !== simplePath) return false;
 
-      // if the outlet is keep alive, we need to cache the current nodes
-      if (oldOutletPath && disabledEffectNodeForLastRoute) {
-        this.#preserveCurrentOutletState(
-          oldOutletPath,
-          outlet,
-          disabledEffectNodeForLastRoute
-        );
-      }
-
       const nodes = generateChildNodes(renderedComponent);
       if (nodes.some((node) => '__promise' in node)) {
         // We want async top route components to render before the route changes.
@@ -1186,10 +1143,9 @@ export class Router extends EventTarget {
           )
         );
       }
-      const keepAlive = Boolean(outlet.__keepAlive);
-      const relayResult = this.#handleRelays(exitRelayMap, nodes, keepAlive);
+      const relayResult = this.#handleRelays(exitRelayMap, nodes);
       if (relayResult) {
-        renderRouteIntoOutlet(outlet, relayResult.fragment, this.#window);
+        renderRouteIntoOutlet(outlet, relayResult.fragment);
       }
 
       lastMatchedRoute = currentMatchedRoute;
@@ -1219,17 +1175,12 @@ export class Router extends EventTarget {
     // outlet looking for a match, we can assume that the outlet is a child
     // that is not being used and should be flushed out.
     if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
-      const oldPath = outlet.getAttribute('data-path');
-      const snapshot = outlet.__originScopeSnapshot;
-      if (oldPath && snapshot) {
-        const effectNode = snapshot.node.detach();
-        this.#preserveCurrentOutletState(oldPath, outlet, effectNode);
-      }
       outlet.removeAttribute('data-path');
       outlet.replaceChildren();
     }
 
     await Promise.all(activations.map((activation) => activation()));
+
     if (lastMatchedRoute.redirect && lastMatchedRoute.redirect !== path) {
       await this.navigate(lastMatchedRoute.redirect, { replace });
     }
@@ -1260,30 +1211,6 @@ export class Router extends EventTarget {
 
     return true;
   };
-
-  /**
-   * Saves the state of the outlet if keepAlive is turned on.
-   * @param {string} oldPath
-   * @param {RouterOutlet} outlet
-   * @param {ScopeSnapshot['node']} node
-   */
-  #preserveCurrentOutletState(oldPath, outlet, node) {
-    if (outlet.__keepAlive && oldPath && this.#window) {
-      // Caching as a fragment instead of an array of nodes
-      // makes it possible for the cached nodes to still be reactive
-      // in a For, Switch or If block, since they are still in a DOM tree.
-      const fragment = this.#window.document.createDocumentFragment();
-      const contents = /** @type {Context.AsNode[]} */ (outlet.childNodes);
-      fragment.append(...contents);
-      recordScrollPositions(fragment);
-      outlet.__keepAliveCache?.set(oldPath, {
-        fragment,
-        outletScroll: [outlet.scrollLeft, outlet.scrollTop],
-        windowScroll: [this.#window?.scrollX ?? 0, this.#window?.scrollY ?? 0],
-        node,
-      });
-    }
-  }
 
   /**
    * @template {RouterEventTypes} EventType The type of event to listen for.
@@ -1366,13 +1293,12 @@ export class Router extends EventTarget {
    * Handles relaying for DOM elements during route changes.
    * @param {Map<string, RouterRelay>} exitRelayMap - The DOM fragment containing the old route content.
    * @param {(Node | VDom.VNode)[]} newNodesArray - The  DOM elements that will be added to the outlet.
-   * @param {boolean} isKeepAlive - Indicates whether the old route is keep-alive.
    * @returns {{
    *  fragment: VDom.VDocumentFragment | DocumentFragment
    *  matchedRelays: Array<RouterRelay>
    * } | undefined}
    */
-  #handleRelays = (exitRelayMap, newNodesArray, isKeepAlive) => {
+  #handleRelays = (exitRelayMap, newNodesArray) => {
     if (!this.#window) return;
     // Creating a fragment allows query selector to work on the new nodes.
     const fragment = this.#window.document.createDocumentFragment();
@@ -1400,9 +1326,7 @@ export class Router extends EventTarget {
       const correspondingExit = name ? exitRelayMap.get(name) : undefined;
       if (!correspondingExit) {
         // No corresponding exit relay found.
-        // if the relay already has contents, it is most likely a relay that was
-        // cached and is being reused. We can skip the render step.
-        if (enterRelay.childNodes.length === 0 || !isKeepAlive) {
+        if (enterRelay.childNodes.length === 0) {
           const props = enterRelay.__props ?? {};
           /** @type {(VDom.VNode | Node)[]} */
           let relayContents = [];
@@ -1788,63 +1712,13 @@ function constructURL(path, matchResult) {
 }
 
 /**
- * @typedef {Element & {
- *  __recordedScrollTop: number,
- *  __recordedScrollLeft: number
- * }} RecordedElement
- */
-
-/**
- * Traverses through a set of DOM nodes to record their scroll positions.
- * @param {VDom.VDocumentFragment | DocumentFragment} fragment
- */
-function recordScrollPositions(fragment) {
-  for (const node of fragment.childNodes) {
-    if (!('scrollTop' in node)) continue;
-
-    const element = /** @type {RecordedElement} */ (node);
-    element.__recordedScrollTop = element.scrollTop;
-    element.__recordedScrollLeft = element.scrollLeft;
-  }
-}
-
-/**
  *
  * @param {RouterOutlet} outlet
  * @param {DocumentFragment | VDom.VDocumentFragment} fragment
- * @param {Context.WindowLike} [window]
  */
-function renderRouteIntoOutlet(outlet, fragment, window) {
+function renderRouteIntoOutlet(outlet, fragment) {
   const contents = /** @type {Context.AsNode[]} */ (fragment.childNodes);
   outlet.replaceChildren(...contents);
-
-  if (outlet.__keepAlive) {
-    for (const node of outlet.childNodes) {
-      if ('__recordedScrollTop' in node) {
-        const element = /** @type {RecordedElement} */ (node);
-        element.scrollTop = element.__recordedScrollTop;
-        element.scrollLeft = element.__recordedScrollLeft;
-      }
-
-      const path = outlet.getAttribute('data-path');
-      if (!path) return;
-
-      const cache = outlet.__keepAliveCache?.get(path);
-      if (cache) {
-        outlet.scrollTo({
-          left: cache.outletScroll[0],
-          top: cache.outletScroll[1],
-          behavior: 'instant',
-        });
-
-        window?.scrollTo({
-          left: cache.windowScroll[0],
-          top: cache.windowScroll[1],
-          behavior: 'instant',
-        });
-      }
-    }
-  }
 }
 
 // We try to keep the "reactivity" of links as minimal as possible in the VDom

@@ -2030,36 +2030,6 @@ router.navigate("/home"); // Pops back to /home
 // Stack is now: ['/home']
 ```
 
-### Keep Alive Routes
-
-Keep Alive preserves the DOM nodes of route components when navigating away, maintaining them for when users return. This is particularly useful for preserving form inputs, scroll positions, or complex component states across navigation.
-
-```tsx
-// Basic keep alive outlet
-<Outlet keepAlive />
-
-// With custom cache size, defaults to 10
-<Outlet
-  keepAlive
-  maxKeepAliveCount={20}
-/>
-```
-
-When enabled, the router will:
-
-- Cache the DOM nodes of routes when navigating away
-- Restore the exact state when returning to the route
-- Preserve scroll positions for both the outlet and window
-- Maintain form inputs and other interactive elements
-
-This is especially valuable for scenarios like:
-
-- Multi-step forms where users navigate between steps
-- Long scrollable lists that users frequently return to
-- Complex interactive components that are expensive to reinitialize
-- Search results pages that users navigate back and forth from
-
-> **NOTE**: While useful, keep alive does consume more memory as it maintains DOM nodes in memory. Consider the `maxKeepAliveCount` parameter to limit cache size based on your application's needs.
 
 ### Router Relays
 

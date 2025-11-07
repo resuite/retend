@@ -3,7 +3,7 @@ import { For, If } from 'retend';
 import { getGlobalContext } from 'retend/context';
 import { renderToString } from 'retend/render';
 import { Cell } from 'retend';
-import { browserSetup, vDomSetup } from './setup.ts';
+import { browserSetup, timeout, vDomSetup } from './setup.ts';
 import { ShadowRoot } from 'retend/shadowroot';
 
 const runTests = () => {
@@ -117,7 +117,7 @@ const runTests = () => {
   it('should handle component promises in JSX', async () => {
     const { window } = getGlobalContext();
     const Component = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await timeout();
       return <div>Async content</div>;
     };
     const element = (
@@ -132,7 +132,7 @@ const runTests = () => {
   it('should handle component promises in JSX with children', async () => {
     const { window } = getGlobalContext();
     const Component = async (props: { children?: unknown }) => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await timeout();
       return <div>Async content: {props.children}</div>;
     };
     const element = (
@@ -149,11 +149,11 @@ const runTests = () => {
   it('should handle nested async components in JSX', async () => {
     const { window } = getGlobalContext();
     const ChildComponent = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await timeout();
       return <span>Child async content</span>;
     };
     const ParentComponent = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await timeout();
       return (
         <div>
           Parent async content
@@ -175,7 +175,7 @@ const runTests = () => {
   it('should handle fragments with async components', async () => {
     const { window } = getGlobalContext();
     const AsyncComponent = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await timeout();
       return <div>Async content</div>;
     };
     const element = (

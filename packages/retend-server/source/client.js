@@ -29,11 +29,7 @@ import {
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
 
-const OUTLET_INTERNAL_KEYS = [
-  '__keepAlive',
-  '__keepAliveCache',
-  '__originScopeSnapshot',
-];
+const OUTLET_INTERNAL_KEYS = ['__originScopeSnapshot'];
 
 /**
  * @template [M={}]

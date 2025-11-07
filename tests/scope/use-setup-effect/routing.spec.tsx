@@ -20,33 +20,32 @@ describe('useSetupEffect with routing', () => {
 
   const OtherComponent = () => <div>Other Component</div>;
 
-  const App = (props: { keepAlive?: boolean }) => {
+  const App = () => {
     const { Outlet } = useRouter();
     return (
       <div>
-        <Outlet keepAlive={props.keepAlive} />
+        <Outlet />
       </div>
     );
   };
 
-  const routes = (props: { keepAlive?: boolean }) =>
-    defineRoutes([
-      {
-        path: '/',
-        component: () => <App {...props} />,
-        children: [
-          { path: 'effect', component: EffectComponent },
-          { path: 'other', component: OtherComponent },
-        ],
-      },
-    ]);
+  const routes = defineRoutes([
+    {
+      path: '/',
+      component: App,
+      children: [
+        { path: 'effect', component: EffectComponent },
+        { path: 'other', component: OtherComponent },
+      ],
+    },
+  ]);
 
-  it('should run setup and cleanup on navigation (keepAlive=false)', async () => {
+  it('should run setup and cleanup on navigation', async () => {
     const { window } = getGlobalContext();
     setupFn.mockClear();
     cleanupFn.mockClear();
 
-    const router = createWebRouter({ routes: routes({ keepAlive: false }) });
+    const router = createWebRouter({ routes });
     router.setWindow(window);
     router.attachWindowListeners();
     await runPendingSetupEffects();
@@ -54,33 +53,6 @@ describe('useSetupEffect with routing', () => {
     await router.navigate('/effect');
 
     expect(getTextContent(window.document.body)).toBe('Effect Component');
-    expect(setupFn).toHaveBeenCalledTimes(1);
-    expect(cleanupFn).not.toHaveBeenCalled();
-
-    await router.navigate('/other');
-    expect(getTextContent(window.document.body)).toBe('Other Component');
-    expect(setupFn).toHaveBeenCalledTimes(1);
-    expect(cleanupFn).toHaveBeenCalledTimes(1);
-
-    await router.navigate('/effect');
-    expect(getTextContent(window.document.body)).toBe('Effect Component');
-    expect(setupFn).toHaveBeenCalledTimes(2);
-    expect(cleanupFn).toHaveBeenCalledTimes(1);
-  });
-
-  it('should dispose and re-run effects with keepAlive=true', async () => {
-    const { window } = getGlobalContext();
-    setupFn.mockClear();
-    cleanupFn.mockClear();
-
-    const router = createWebRouter({ routes: routes({ keepAlive: true }) });
-    router.setWindow(window);
-    router.attachWindowListeners();
-    await runPendingSetupEffects();
-
-    await router.navigate('/effect');
-    expect(getTextContent(window.document.body)).toBe('Effect Component');
-    await runPendingSetupEffects();
     expect(setupFn).toHaveBeenCalledTimes(1);
     expect(cleanupFn).not.toHaveBeenCalled();
 
