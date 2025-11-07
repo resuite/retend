@@ -1175,6 +1175,8 @@ export class Router extends EventTarget {
     // outlet looking for a match, we can assume that the outlet is a child
     // that is not being used and should be flushed out.
     if (lastMatchedRoute && currentMatchedRoute === null && outlet) {
+      const snapshot = outlet.__originScopeSnapshot;
+      snapshot?.node.dispose();
       outlet.removeAttribute('data-path');
       outlet.replaceChildren();
     }
