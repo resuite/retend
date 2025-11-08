@@ -1,6 +1,7 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
+import { getHMRContext, getHMRScopeList } from '../plugin/hmr.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
 
@@ -208,6 +209,12 @@ export function createScope(name) {
     },
   };
 
+  /// @ts-expect-error: Vite types are not ingrained.
+  if (import.meta.env?.DEV) {
+    /// @ts-expect-error: Not used in production.
+    Scope.Provider.__isScopeProviderOf = Scope;
+  }
+
   return Scope;
 }
 
@@ -224,7 +231,24 @@ export function createScope(name) {
 export function useScopeContext(Scope, snapshot) {
   const snapshotCtx = snapshot || getScopeSnapshot();
   const relatedScopeData = snapshotCtx.scopes.get(Scope);
+
   if (!relatedScopeData || relatedScopeData.length === 0) {
+    // @ts-expect-error: Vite types is not ingrained.
+    if (import.meta.env?.DEV) {
+      // In HMR, scopes can change referential identity.
+      // `__hmrId` helps identify them across reloads.
+      // Its not fool proof, but it works.
+      const hmrContext = getHMRContext();
+      if (hmrContext) {
+        const activeScopes = getHMRScopeList();
+        const hmrId = Reflect.get(Scope, '__hmrId');
+        const overwrittenScope = activeScopes.get(hmrId);
+        if (overwrittenScope && overwrittenScope !== Scope) {
+          return useScopeContext(overwrittenScope, snapshot);
+        }
+      }
+    }
+
     const scopeName = Scope?.key.description || 'UnknownScope';
     throw new Error(
       `No parent scope found for the provided scope (${scopeName}).\nThis usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
