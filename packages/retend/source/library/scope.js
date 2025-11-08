@@ -1,7 +1,12 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
-import { getHMRContext, getHMRScopeList } from '../plugin/hmr.js';
+import {
+  getHMRContext,
+  getHMRScopeList,
+  HmrId,
+  OverwrittenBy,
+} from '../plugin/hmr.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
 
@@ -236,15 +241,21 @@ export function useScopeContext(Scope, snapshot) {
     // @ts-expect-error: Vite types is not ingrained.
     if (import.meta.env?.DEV) {
       // In HMR, scopes can change referential identity.
-      // `__hmrId` helps identify them across reloads.
+      // `HmrId` helps identify them across reloads.
       // Its not fool proof, but it works.
+      const latestInstance = Reflect.get(Scope, OverwrittenBy);
+      if (latestInstance && latestInstance !== Scope) {
+        // Scope was previously invalidated by HMR.
+        return useScopeContext(latestInstance, snapshot);
+      }
       const hmrContext = getHMRContext();
       if (hmrContext) {
         const activeScopes = getHMRScopeList();
-        const hmrId = Reflect.get(Scope, '__hmrId');
-        const overwrittenScope = activeScopes.get(hmrId);
-        if (overwrittenScope && overwrittenScope !== Scope) {
-          return useScopeContext(overwrittenScope, snapshot);
+        const hmrId = Reflect.get(Scope, HmrId);
+        const latestInstance = activeScopes.get(hmrId);
+        if (latestInstance && latestInstance !== Scope) {
+          Reflect.set(Scope, OverwrittenBy, latestInstance);
+          return useScopeContext(latestInstance, snapshot);
         }
       }
     }

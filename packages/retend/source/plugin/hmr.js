@@ -19,13 +19,14 @@ import {
   isMatchingCommentPair,
 } from '../library/utils.js';
 
-/** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { SourceCell } from '@adbl/cells' */
 /** @import { ReactiveCellFunction } from '../library/utils.js' */
 /** @import { Scope } from '../library/scope.js' */
 
 export const ComponentInvalidator = Symbol('Invalidator');
+export const OverwrittenBy = Symbol('OverwrittenBy');
+export const HmrId = Symbol('HmrId');
 export const HMRContext = Symbol('HMRContext');
 export const HMRScopeContext = Symbol('HMRScopeContext');
 /** @type {Scope<UpdatableFn[]>} */
@@ -40,7 +41,6 @@ export function useComponentAncestry() {
 }
 
 /** @typedef {{
- *    __nextInstance?: (...args: any[]) => JSX.Template
  *    [ComponentInvalidator]?: Cell<Function & UpdatableFn>
  *    __isScopeProviderOf?: Scope
  * } & Function} UpdatableFn
@@ -177,18 +177,21 @@ export function getHMRScopeList() {
 
 /**
  *
- * @param {Scope} Scope
+ * @param {Scope & { [HmrId]?: string }} Scope
  * @param {string} [fileName]
  */
 function trackScopeReference(Scope, fileName) {
-  const description = Scope.key.description;
-  let uniqueId = description ? `${fileName}-${description}` : fileName;
+  if (!Reflect.get(Scope, HmrId)) {
+    const description = Scope.key.description;
+    let uniqueId = description ? `${fileName}-${description}` : fileName;
 
-  while (ScopeList.has(uniqueId)) uniqueId += '_';
-  ScopeList.set(uniqueId, Scope);
-  Reflect.set(Scope, '__hmrId', uniqueId);
+    while (ScopeList.has(uniqueId)) uniqueId += '_';
+    ScopeList.set(uniqueId, Scope);
+    Reflect.set(Scope, HmrId, uniqueId);
+  }
 
-  useSetupEffect(() => () => ScopeList.delete(uniqueId));
+  ScopeList.set(Scope[HmrId], Scope);
+  useSetupEffect(() => () => ScopeList.delete(Scope[HmrId]));
 }
 
 /**
@@ -200,7 +203,7 @@ export function withHMRBoundaries(tagname, props, fileData) {
   if (tagname.__isScopeProviderOf && fileData) {
     const { fileName } = fileData;
     const Scope = tagname.__isScopeProviderOf;
-    if (!Reflect.get(Scope, '__hmrId')) trackScopeReference(Scope, fileName);
+    if (!Reflect.get(Scope, HmrId)) trackScopeReference(Scope, fileName);
   }
 
   // In Dev mode and using HMR, components have a self-referential
