@@ -44,14 +44,6 @@ export function UserDataProvider({
           </>
         )}
       </UserDataScope.Provider>
-      <UserDataScope.Provider value={userData2}>
-        {() => (
-          <>
-            the count (2): {count1}
-            {children()}
-          </>
-        )}
-      </UserDataScope.Provider>
     </>
   );
 }

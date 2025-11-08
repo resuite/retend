@@ -6,7 +6,7 @@ export function ScopeContextUser() {
   return (
     <div>
       <button type="button" onClick={increment}>
-        Increme
+        Increment
       </button>
     </div>
   );

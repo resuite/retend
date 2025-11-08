@@ -16,7 +16,7 @@ import {
   generateChildNodes,
   isSomewhatFalsy,
 } from './utils.js';
-import { wrapComponentCallForHMR } from '../plugin/hmr.js';
+import { withHMRBoundaries } from '../plugin/hmr.js';
 
 const camelCasedAttributes = new Set([
   // SVG attributes
@@ -154,7 +154,7 @@ export function h(tagname, props, _, __, fileData) {
 
     // @ts-expect-error: Vite types are not ingrained
     if (import.meta.env?.DEV) {
-      return wrapComponentCallForHMR(tagname, completeProps, fileData);
+      return withHMRBoundaries(tagname, completeProps, fileData);
     }
 
     const component = tagname(...completeProps, { createdByJsx: true });
