@@ -1,7 +1,5 @@
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { CellSet } from './utils.js' */
-/** @import { Scope } from './scope.js' */
-/** @import { UpdatableFn } from '../plugin/hmr.js'; */
 /** @import { ShadowRootContainer } from '../shadowroot/index.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
@@ -16,11 +14,9 @@ import {
   addCellListener,
   convertObjectToCssStylesheet,
   generateChildNodes,
-  isDevMode,
   isSomewhatFalsy,
 } from './utils.js';
-import { ComponentInvalidator, setupHMRBoundaries } from '../plugin/hmr.js';
-import { createScope, useScopeContext } from './scope.js';
+import { wrapComponentCallForHMR } from '../plugin/hmr.js';
 
 const camelCasedAttributes = new Set([
   // SVG attributes
@@ -117,22 +113,18 @@ const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
  *  }} WrapperFn
  */
 
-/** @type {Scope<UpdatableFn[]>} */
-export const RetendComponentTree = createScope('__RetendComponentTree');
-
-export function useComponentAncestry() {
-  return useScopeContext(RetendComponentTree);
-}
-
 /**
  * Creates a new DOM element with the specified tag name, props, and children.
  *
  * @template {Record<PropertyKey, any> | ArgumentList<any[]>} Props
  * @param {any} tagname - The HTML tag name for the element.
  * @param {Props} props - An object containing the element's properties.
+ * @param {unknown} [_]
+ * @param {unknown} [__]
+ * @param {any} [fileData]
  * @returns {Node | VDom.VNode | (Node | VDom.VNode)[]} New DOM nodes.
  */
-export function h(tagname, props) {
+export function h(tagname, props, _, __, fileData) {
   if (tagname === undefined) return [];
   const { window } = getGlobalContext();
 
@@ -160,32 +152,9 @@ export function h(tagname, props) {
           ? [{ ...props }]
           : [];
 
-    if (isDevMode) {
-      // In Dev mode and using HMR, components have a self-referential
-      // Invalidator cell, which should automatically trigger a rerun of
-      // the component.
-      /** @type {Cell<Function>} */
-      let invalidator = tagname[ComponentInvalidator];
-      if (!tagname[ComponentInvalidator]) {
-        invalidator = Cell.source(tagname);
-        tagname[ComponentInvalidator] = invalidator;
-      }
-      const template = setupHMRBoundaries(invalidator, (c) => {
-        /** @type {UpdatableFn[]} */
-        let ancestry;
-        try {
-          ancestry = useComponentAncestry();
-        } catch {
-          ancestry = [];
-        }
-        return RetendComponentTree.Provider({
-          // @ts-expect-error: if not, it recurses.
-          h: false,
-          value: [...ancestry, c],
-          children: () => c(...completeProps, { createdByJsx: true }),
-        });
-      });
-      return generateChildNodes(template);
+    // @ts-expect-error: Vite types are not ingrained
+    if (import.meta.env?.DEV) {
+      return wrapComponentCallForHMR(tagname, completeProps, fileData);
     }
 
     const component = tagname(...completeProps, { createdByJsx: true });

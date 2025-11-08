@@ -1,6 +1,12 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
-import { createScopeSnapshot, withScopeSnapshot } from '../library/scope.js';
+import {
+  createScope,
+  createScopeSnapshot,
+  useScopeContext,
+  useSetupEffect,
+  withScopeSnapshot,
+} from '../library/scope.js';
 import { routeToComponent } from '../router/routeTree.js';
 import { CellUpdateError } from '@adbl/cells';
 import {
@@ -10,18 +16,31 @@ import {
   consolidateNodes,
   removeCellListeners,
   copyCellListeners,
+  isMatchingCommentPair,
 } from '../library/utils.js';
-import { useComponentAncestry } from '../library/jsx.js';
 
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { SourceCell } from '@adbl/cells' */
 /** @import { ReactiveCellFunction } from '../library/utils.js' */
+/** @import { Scope } from '../library/scope.js' */
 
 export const ComponentInvalidator = Symbol('Invalidator');
 export const HMRContext = Symbol('HMRContext');
+export const HMRScopeContext = Symbol('HMRScopeContext');
+/** @type {Scope<UpdatableFn[]>} */
+export const RetendComponentTree = createScope('__RetendComponentTree');
 
-/** @typedef {{ __nextInstance?: (...args: any[]) => JSX.Template, [ComponentInvalidator]?: Cell<Function & UpdatableFn> } & Function} UpdatableFn */
+export function useComponentAncestry() {
+  return useScopeContext(RetendComponentTree);
+}
+
+/** @typedef {{
+ *    __nextInstance?: (...args: any[]) => JSX.Template
+ *    [ComponentInvalidator]?: Cell<Function & UpdatableFn>
+ *    __isScopeProviderOf?: Scope
+ * } & Function} UpdatableFn
+ */
 /** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
 
 /**
@@ -29,6 +48,13 @@ export const HMRContext = Symbol('HMRContext');
  * @property {Array<unknown>} old
  * @property {Array<unknown>} new
  * @property {SourceCell<Function | null>} current
+ */
+
+/**
+ * @typedef jsxDevFileData
+ * @property {string} fileName
+ * @property {number} columnNumber
+ * @property {number} lineNumber
  */
 
 /**
@@ -118,18 +144,24 @@ export async function hotReloadModule(newModule, url) {
         cell.set(newInstance);
       }
     } catch (e) {
-      if (e instanceof CellUpdateError) errors.push(...e.errors);
-      else {
-        globalData.set(HMRContext, null);
+      if (e instanceof CellUpdateError) {
+        for (const error of e.errors) {
+          Reflect.set(error, '__component', newInstance);
+          errors.push(error);
+        }
+      } else {
+        if (e instanceof Error) Reflect.set(e, '__component', newInstance);
         throw e;
       }
+    } finally {
+      globalData.set(HMRContext, null);
     }
   }
-  globalData.set(HMRContext, null);
 
   if (errors.length > 0) {
     for (const error of errors) {
-      console.error(error);
+      // @ts-expect-error:
+      console.error(error, error.__component);
     }
     throw new Error('Errors encountered during HMR update');
   }
@@ -141,12 +173,71 @@ export function getHMRContext() {
   return globalData.get(HMRContext);
 }
 
+const ScopeList = new Map();
+export function getHMRScopeList() {
+  return ScopeList;
+}
+
+/**
+ * @param {UpdatableFn} tagname
+ * @param {any[]} completeProps
+ * @param {jsxDevFileData} fileData
+ */
+export function wrapComponentCallForHMR(tagname, completeProps, fileData) {
+  if (tagname.__isScopeProviderOf && fileData) {
+    const { fileName } = fileData;
+    const Scope = tagname.__isScopeProviderOf;
+
+    if (!Reflect.get(Scope, '__hmrId')) {
+      const description = Scope.key.description;
+      let uniqueId = description ? `${fileName}-${description}` : fileName;
+
+      while (ScopeList.has(uniqueId)) uniqueId += '_';
+      ScopeList.set(uniqueId, Scope);
+      Reflect.set(Scope, '__hmrId', uniqueId);
+
+      useSetupEffect(() => {
+        return () => {
+          console.log('Component unmounted:', uniqueId);
+          ScopeList.delete(uniqueId);
+        };
+      });
+    }
+  }
+
+  // In Dev mode and using HMR, components have a self-referential
+  // Invalidator cell, which should automatically trigger a rerun of
+  // the component.
+  let invalidator = tagname[ComponentInvalidator];
+  if (!invalidator) {
+    invalidator = Cell.source(tagname);
+    tagname[ComponentInvalidator] = invalidator;
+  }
+  const template = setupHMRBoundaries(invalidator, (c) => {
+    /** @type {UpdatableFn[]} */
+    let ancestry;
+    try {
+      ancestry = useComponentAncestry();
+    } catch {
+      ancestry = [];
+    }
+    return RetendComponentTree.Provider({
+      // @ts-expect-error: if not, it recurses.
+      h: false,
+      value: [...ancestry, c],
+      children: () => c(...completeProps, { createdByJsx: true }),
+    });
+  });
+  return generateChildNodes(template);
+}
+
 /**
  *
  * @param {Cell<UpdatableFn>} value
  * @param {(c: UpdatableFn) => JSX.Template} fn
  */
 export function setupHMRBoundaries(value, fn) {
+  const { window } = getGlobalContext();
   const scopeSnapshot = createScopeSnapshot();
 
   // We can be smarter about whether or not to create a comment pair, so we
@@ -158,11 +249,19 @@ export function setupHMRBoundaries(value, fn) {
     return generateChildNodes(fn(value.peek()));
   });
   if (nodes.length === 0) nodes = createCommentPair();
-  else if (nodes.some((node) => '__promise' in node)) {
-    // async path: If any of the nodes generated are promise
-    // placeholders, we cannot use it as a stable anchor.
-    const pair = createCommentPair();
-    nodes = [pair[0], ...nodes, pair[1]];
+  else if (nodes.length > 1 || '__promise' in nodes[0]) {
+    const startNode = nodes[0];
+    const endNode = nodes[nodes.length - 1];
+    const isAlreadyStable =
+      nodes.length > 1 &&
+      startNode instanceof window.Comment &&
+      endNode instanceof window.Comment &&
+      isMatchingCommentPair(startNode, endNode);
+
+    if (!isAlreadyStable) {
+      const pair = createCommentPair();
+      nodes = [pair[0], ...nodes, pair[1]];
+    }
   }
 
   /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */

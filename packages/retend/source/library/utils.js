@@ -1,11 +1,9 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext } from '../context/index.js';
+import { useSetupEffect } from './scope.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-
-// @ts-ignore: check for dev mode on import type.
-export const isDevMode = Boolean(import.meta.env?.DEV);
 
 /**
  * @template T
@@ -140,6 +138,8 @@ export function addCellListener(
   // Persist to prevent garbage collection.
   storage.add(boundCallback);
   storage.add(cell);
+
+  useSetupEffect(() => {});
 }
 
 /**
@@ -325,6 +325,18 @@ export function createCommentPair() {
   Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 
   return [rangeStart, rangeEnd];
+}
+
+/**
+ *
+ * @param {Node | VDom.VNode} start
+ * @param {Node | VDom.VNode} end
+ */
+export function isMatchingCommentPair(start, end) {
+  return (
+    Reflect.get(start, '__commentRangeSymbol') ===
+    Reflect.get(end, '__commentRangeSymbol')
+  );
 }
 
 /**
