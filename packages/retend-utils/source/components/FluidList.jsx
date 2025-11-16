@@ -116,8 +116,8 @@ const FLUID_LIST_STYLES = `
  * @property {JSX.ValueOrCell<string>} [gap]
  * A string representing the gap between list items.  This value should include a CSS unit (e.g., `'10px'`, `'0.5em'`, `'2vh'`).
  *
- * @property {U extends object ? keyof U : never} [itemKey]
- * The key of the `U` type to use as a marker for each rendered item.
+ * @property {(U extends object ? keyof U : never) | ((item: U) => PropertyKey)} [itemKey]
+ * The key of the item type to use as a marker for each rendered item.
  *
  * @property {JSX.ValueOrCell<boolean>} [animateSizing]
  * A boolean indicating whether the list items should animate their size (width and height) during transitions.  If `true`, the items will smoothly transition to their new size when the data changes.  If `false`, the size will change immediately.
