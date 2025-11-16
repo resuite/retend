@@ -14,9 +14,11 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 /**
  * @template T
  * @typedef ForOptions
- * @property {T extends object ? keyof T : never} [key]
- * When iterating over objects with a predefined shape, this represents the property to use
- * as a caching index. By default a unique symbol will be used.
+ * @property {(T extends object ? keyof T : never) | ((item: T) => PropertyKey)} [key]
+ * Specifies how to generate a unique key for each item to enable efficient caching and updates.
+ * Can be a property name of the item object or a function that returns a key based on the item.
+ *
+ * By default, a unique symbol is used for objects, or the item itself for primitives.
  * @property {(node: ChildNodeLike[]) => void} [onBeforeNodesMove]
  * Provides access to a node just before it is moved to a new position in the DOM by any of the
  * items in the list.
@@ -98,7 +100,12 @@ export function For(list, fn, options) {
     let itemKey;
     const isObject = item && /^(object|function|symbol)$/.test(typeof item);
     if (isObject) {
-      itemKey = key !== undefined ? item[key] : autoKeys.get(item);
+      itemKey =
+        key !== undefined
+          ? typeof key === 'function'
+            ? key(item)
+            : item[key]
+          : autoKeys.get(item);
       if (key === undefined && itemKey === undefined) {
         // auto memo only when no key option is defined.
         itemKey = Symbol();

@@ -250,6 +250,252 @@ const runTests = () => {
     items.set(['C', 'D']);
     expect(getTextContent(result)).toBe('CD');
   });
+
+  it('should use property key for object items', () => {
+    const items = Cell.source([
+      { id: 1, name: 'Alice' },
+      { id: 2, name: 'Bob' },
+      { id: 3, name: 'Charlie' },
+    ]);
+
+    let callbackCount = 0;
+    const result = (
+      <div>
+        {For(
+          items,
+          (item) => {
+            callbackCount++;
+            return <span>{item.name}</span>;
+          },
+          { key: 'id' }
+        )}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('AliceBobCharlie');
+    expect(callbackCount).toBe(3); // Called once for each initial item
+
+    items.set([
+      { id: 3, name: 'Charlie' },
+      { id: 1, name: 'Alice' },
+      { id: 2, name: 'Bob' },
+    ]);
+
+    expect(getTextContent(result)).toBe('CharlieAliceBob');
+    expect(callbackCount).toBe(3); // No additional calls - items reused due to same keys
+  });
+
+  it('should use function key for object items', () => {
+    const items = Cell.source([
+      { uuid: 'a1b2-c3d4', name: 'First' },
+      { uuid: 'e5f6-g7h8', name: 'Second' },
+      { uuid: 'i9j0-k1l2', name: 'Third' },
+    ]);
+
+    let callbackCount = 0;
+    const result = (
+      <div>
+        {For(
+          items,
+          (item) => {
+            callbackCount++;
+            return <span>{item.name}</span>;
+          },
+          { key: (item) => item.uuid }
+        )}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('FirstSecondThird');
+    expect(callbackCount).toBe(3); // Called once for each initial item
+
+    items.set([
+      { uuid: 'i9j0-k1l2', name: 'Third' },
+      { uuid: 'a1b2-c3d4', name: 'First' },
+      { uuid: 'e5f6-g7h8', name: 'Second' },
+    ]);
+
+    expect(getTextContent(result)).toBe('ThirdFirstSecond');
+    expect(callbackCount).toBe(3); // No additional calls - items reused due to same keys
+  });
+
+  it('should handle function key returning different types', () => {
+    const items = Cell.source([
+      { id: 1, category: 'A', value: 'Item1' },
+      { id: 2, category: 'B', value: 'Item2' },
+      { id: 3, category: 'A', value: 'Item3' },
+    ]);
+
+    let callbackCount = 0;
+    const result = (
+      <div>
+        {For(
+          items,
+          (item) => {
+            callbackCount++;
+            return <span>{item.value}</span>;
+          },
+          { key: (item) => `${item.category}-${item.id}` }
+        )}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('Item1Item2Item3');
+    expect(callbackCount).toBe(3); // Called once for each initial item
+
+    // Reorder by changing the array order
+    items.set([
+      { id: 3, category: 'A', value: 'Item3' },
+      { id: 1, category: 'A', value: 'Item1' },
+      { id: 2, category: 'B', value: 'Item2' },
+    ]);
+
+    expect(getTextContent(result)).toBe('Item3Item1Item2');
+    expect(callbackCount).toBe(3); // No additional calls - items reused due to same keys
+  });
+
+  it('should maintain element identity with function keys when reordering', () => {
+    const { window } = getGlobalContext();
+    let callbackCount = 0;
+    const items = Cell.source([
+      { id: 'alpha', text: 'First' },
+      { id: 'beta', text: 'Second' },
+      { id: 'gamma', text: 'Third' },
+    ]);
+
+    const result = (
+      <div>
+        {For(
+          items,
+          (item) => {
+            callbackCount++;
+            return <span data-id={item.id}>{item.text}</span>;
+          },
+          { key: (item) => item.id }
+        )}
+      </div>
+    ) as HTMLElement & VElement;
+
+    window.document.body.append(result as unknown as Node & VNode);
+    expect(callbackCount).toBe(3); // Initial render
+    const firstSpans = Array.from(result.querySelectorAll('span'));
+
+    items.set([
+      { id: 'gamma', text: 'Third' },
+      { id: 'beta', text: 'Second' },
+      { id: 'alpha', text: 'First' },
+    ]);
+    expect(callbackCount).toBe(3);
+
+    const secondSpans = Array.from(result.querySelectorAll('span'));
+
+    expect(firstSpans.length).toBe(3);
+    expect(secondSpans.length).toBe(3);
+    expect(firstSpans[0]).toBe(secondSpans[2]); // alpha moved to end
+    expect(firstSpans[1]).toBe(secondSpans[1]); // beta stayed in middle
+    expect(firstSpans[2]).toBe(secondSpans[0]); // gamma moved to start
+  });
+
+  it('should handle function key with primitive items', () => {
+    const items = Cell.source(['apple', 'banana', 'cherry']);
+
+    const result = (
+      <div>
+        {For(
+          items,
+          (item, index) => (
+            <span>{item}</span>
+          ),
+          { key: (item) => item.toUpperCase() }
+        )}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('applebananacherry');
+
+    items.set(['APPLE', 'banana', 'cherry', 'date']);
+
+    expect(getTextContent(result)).toBe('APPLEbananacherrydate');
+  });
+
+  it('should handle function key that returns null/undefined', () => {
+    const items = Cell.source([
+      { id: 1, name: 'Item1' },
+      { id: null, name: 'Item2' },
+      { id: undefined, name: 'Item3' },
+    ]);
+
+    const result = (
+      <div>
+        {For(
+          items,
+          (item) => (
+            <span>{item.name}</span>
+          ),
+          { key: (item) => item.id ?? `fallback-${item.name}` }
+        )}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('Item1Item2Item3');
+  });
+
+  it('should use auto keys when no key option is provided', () => {
+    const items = Cell.source([{ name: 'First' }, { name: 'Second' }]);
+
+    let callbackCount = 0;
+    const result = (
+      <div>
+        {For(items, (item) => {
+          callbackCount++;
+          return <span>{item.name}</span>;
+        })}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('FirstSecond');
+    expect(callbackCount).toBe(2); // Called once for each initial item
+
+    // Replace with new objects having same structure
+    items.set([{ name: 'Updated First' }, { name: 'Updated Second' }]);
+
+    expect(getTextContent(result)).toBe('Updated FirstUpdated Second');
+    expect(callbackCount).toBe(4); // Called again for new objects (different references)
+  });
+
+  it('should call callback for new items with different keys but reuse existing ones', () => {
+    const items = Cell.source([
+      { id: 1, name: 'Alice' },
+      { id: 2, name: 'Bob' },
+    ]);
+
+    let callbackCount = 0;
+    const result = (
+      <div>
+        {For(
+          items,
+          (item) => {
+            callbackCount++;
+            return <span>{item.name}</span>;
+          },
+          { key: 'id' }
+        )}
+      </div>
+    ) as NodeLike;
+
+    expect(getTextContent(result)).toBe('AliceBob');
+    expect(callbackCount).toBe(2); // Called once for each initial item
+
+    // Add new item and reorder existing ones
+    items.set([
+      { id: 3, name: 'Charlie' }, // New item - should trigger callback
+      { id: 1, name: 'Alice' }, // Existing item - should reuse
+      { id: 2, name: 'Bob' }, // Existing item - should reuse
+    ]);
+
+    expect(getTextContent(result)).toBe('CharlieAliceBob');
+    expect(callbackCount).toBe(3); // Only called once for the new item
+  });
 };
 
 describe('For', () => {
