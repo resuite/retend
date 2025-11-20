@@ -1,9 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  optimizeDeps: {
-    exclude: ['@adbl/cells', 'retend']
-  },
   test: {
     watch: false,
     env: {

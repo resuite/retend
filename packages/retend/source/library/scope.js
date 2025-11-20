@@ -141,7 +141,6 @@ class EffectNode {
     this.#runDisposeFns();
 
     for (const child of this.#children) {
-      if (!isVDom) child.localContext.destroy();
       // prevents any side effects from being triggered in the
       // (soon to be) orphaned subtrees, when any of their control
       // structures receives changes.
@@ -214,8 +213,8 @@ export function createScope(name) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
       const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
@@ -430,8 +429,8 @@ export function combineScopes(...providers) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () => {
