@@ -508,6 +508,90 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should not cleanup derived cells and listeners when Unique component is moved, but should when unmounted', async () => {
+      const { window } = getGlobalContext();
+      const uuid = crypto.randomUUID();
+      let derivedComputes = 0;
+      let listenerCalls = 0;
+      const sourceCell = Cell.source(0);
+
+      const Content = () => {
+        const derived = Cell.derived(() => {
+          derivedComputes++;
+          return sourceCell.get() * 2;
+        });
+        sourceCell.listen(() => {
+          listenerCalls++;
+        });
+
+        return <div>{derived}</div>;
+      };
+
+      const UniqueContent = () => <Unique name={uuid}>{() => <Content />}</Unique>;
+
+      const page = Cell.source<'home' | 'about'>('home');
+      const renderApp = Cell.source(true);
+
+      const App = () => (
+        <div>
+          {If(renderApp, () =>
+            Switch(page, {
+              home: () => (
+                <div>
+                  <h1>Home</h1>
+                  <UniqueContent />
+                </div>
+              ),
+              about: () => (
+                <div>
+                  <h1>About</h1>
+                  <UniqueContent />
+                </div>
+              ),
+            })
+          )}
+        </div>
+      );
+
+      const { body } = window.document;
+      body.append((<App />) as any);
+      await runPendingSetupEffects();
+
+      // 1. Initial state
+      expect(derivedComputes).toBe(1); // on initial render
+      expect(listenerCalls).toBe(0);
+
+      sourceCell.set(1);
+      expect(derivedComputes).toBe(2);
+      expect(listenerCalls).toBe(1);
+
+      const computesBeforeMove = derivedComputes;
+      const listenersBeforeMove = listenerCalls;
+
+      // 2. Move the component
+      page.set('about');
+      await runPendingSetupEffects();
+
+      // Check if effects are still active
+      sourceCell.set(2);
+      expect(derivedComputes).toBe(computesBeforeMove + 1);
+      expect(listenerCalls).toBe(listenersBeforeMove + 1);
+
+      const computesAfterMove = derivedComputes;
+      const listenersAfterMove = listenerCalls;
+
+      // 3. Unmount the component completely
+      renderApp.set(false);
+      await runPendingSetupEffects();
+
+      // Check if effects are cleaned up
+      sourceCell.set(3);
+      expect(derivedComputes).toBe(computesAfterMove);
+      expect(listenerCalls).toBe(listenersAfterMove);
+
+      body.replaceChildren();
+    });
+
     it('should transition through states correctly during lifecycle', async () => {
       const { window } = getGlobalContext();
       const uuid = crypto.randomUUID();
