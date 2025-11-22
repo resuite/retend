@@ -800,14 +800,14 @@
     ],
 
     "retend": [
-      "retend@0.0.22",
+      "retend@0.0.23",
       "",
       { "dependencies": { "@adbl/cells": "^0.0.15", "csstype": "^3.1.3" } },
       "sha512-fPZft0wAFA6sJ9y1m8M2WAVAXZhahMPtCrIT27kLwQZLYqqRFLwREz0WdpIWRtIWdbu5S9cqPBgJENJiAnEeag=="
     ],
 
     "retend-server": [
-      "retend-server@0.0.22",
+      "retend-server@0.0.23",
       "",
       {
         "dependencies": {
@@ -824,7 +824,7 @@
     ],
 
     "retend-utils": [
-      "retend-utils@0.0.22",
+      "retend-utils@0.0.23",
       "",
       { "peerDependencies": { "retend": "*" } },
       "sha512-1vXHsrvZwDAipNUff2SXRPsYhG38nmwTZNMFaKoNnwpXJgA3BzcCjjC8Z6zOeab7B//NIj5sXx0z3DGWTtXwwQ=="

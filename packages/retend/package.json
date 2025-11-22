@@ -1,6 +1,6 @@
 {
   "name": "retend",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "A modern reactive framework for fluid, dynamic web apps.",
   "private": false,
   "type": "module",
