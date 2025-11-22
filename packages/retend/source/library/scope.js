@@ -1,5 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
+import { Cell } from '@adbl/cells';
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import {
   getHMRContext,
@@ -56,6 +57,7 @@ class EffectNode {
   /** @type {Array<EffectNode>} */ #children = [];
   #enabled = false;
   #active = false;
+  localContext = Cell.context();
 
   enable() {
     const { window } = getGlobalContext();
@@ -122,9 +124,19 @@ class EffectNode {
     for (const child of this.#children) {
       child.#runDisposeFns();
     }
+    this.localContext.destroy();
   }
 
   dispose() {
+    const { window } = getGlobalContext();
+    const isVDom = matchContext(window, Modes.VDom);
+
+    if (isVDom) {
+      for (const child of this.#children) child.localContext.destroy();
+      this.localContext.destroy();
+      this.localContext = Cell.context();
+    }
+
     if (!this.#enabled || !this.#active) return;
     this.#runDisposeFns();
 
@@ -138,6 +150,11 @@ class EffectNode {
     this.#setupFns.length = 0;
     this.#disposeFns.length = 0;
     this.#children.length = 0;
+
+    if (!isVDom) {
+      this.localContext.destroy();
+      this.localContext = Cell.context();
+    }
   }
 
   detach() {
@@ -367,7 +384,7 @@ export function withScopeSnapshot(snapshot, callback) {
   try {
     previousSnapshot = getScopeSnapshot();
     setScopeSnapshot(snapshot);
-    return callback();
+    return Cell.runWithContext(snapshot.node.localContext, callback);
   } finally {
     if (getScopeSnapshot() === snapshot) {
       if (previousSnapshot) setScopeSnapshot(previousSnapshot);
