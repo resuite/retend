@@ -1,6 +1,5 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext } from '../context/index.js';
-import { useSetupEffect } from './scope.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { JSX } from '../jsx-runtime/types.ts' */
@@ -71,8 +70,6 @@ export function addCellListener(
   // Persist to prevent garbage collection.
   storage.add(boundCallback);
   storage.add(cell);
-
-  useSetupEffect(() => {});
 }
 
 /**
