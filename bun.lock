@@ -48,7 +48,7 @@
       "name": "retend",
       "version": "0.0.23",
       "dependencies": {
-        "@adbl/cells": "^0.0.20",
+        "@adbl/cells": "https://pkg.pr.new/adebola-io/cells/@adbl/cells@fb00514",
         "csstype": "^3.1.3",
       },
       "devDependencies": {
@@ -116,7 +116,7 @@
     },
   },
   "packages": {
-    "@adbl/cells": ["@adbl/cells@0.0.20", "", {}, "sha512-tRnJxjJfnnkOyzsIg0MfqvdPOmkSULtoo3ll76UkFFCddCi0yqo6YJkif0AEZ7kFdy8t8YO8NkCS8HzYQ1wj7A=="],
+    "@adbl/cells": ["@adbl/cells@https://pkg.pr.new/adebola-io/cells/@adbl/cells@fb00514", {}],
 
     "@babel/code-frame": ["@babel/code-frame@7.27.1", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.27.1", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg=="],
 
