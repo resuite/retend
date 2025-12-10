@@ -15,10 +15,6 @@ export const timeout = async (number?: number) => {
 
 export const routerSetup = () => {
   const window = new VWindow();
-  window.document.body.append(
-    window.document.createElement('retend-router-outlet')
-  );
-
   setGlobalContext({
     mode: Modes.VDom,
     window,

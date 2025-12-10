@@ -20,8 +20,8 @@
       "types": "./dist/library/index.d.ts"
     },
     "./router": {
-      "import": "./dist/router/index.js",
-      "types": "./dist/router/index.d.ts"
+      "import": "./dist/router/router.js",
+      "types": "./dist/router/router.d.ts"
     },
     "./teleport": {
       "import": "./dist/teleport/index.js",

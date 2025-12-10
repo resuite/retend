@@ -25,7 +25,7 @@ describe('useRouteQuery', () => {
     });
 
     router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/?name=Cody');
     expect(getTextContent(window.document.body)).toBe('Hello, Cody');
