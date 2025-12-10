@@ -4,6 +4,7 @@
 /** @import { MatchedRoute, MatchResult } from './routeTree.js'; */
 /** @import { RouterMiddleware, RouteData } from './middleware.js'; */
 /** @import { WindowLike } from '../context/index.js'; */
+/** @import { VNode } from '../v-dom/index.js'; */
 /** @import {
  *   NavigationOptions,
  *   RouterInternalState,
@@ -25,12 +26,13 @@ import { RouteTree } from './routeTree.js';
 import { Lazy } from './lazy.js';
 import h from '../library/jsx.js';
 import { If } from '../library/if.js';
-import { RouterNavigationEvent } from './index.js';
 import {
   BeforeNavigateEvent,
   RouteChangeEvent,
+  RouteErrorEvent,
   RouteLoadCompletedEvent,
   RouteLockPreventedEvent,
+  RouterNavigationEvent,
 } from './events.js';
 import { constructURL, getFullPath } from './utils.js';
 import { RouterMiddlewareResponse } from './middleware.js';
@@ -82,7 +84,7 @@ export class Router extends EventTarget {
   #history = [];
   /** @type {RouterMiddleware[]} */
   #middlewares;
-  #maxRedirects = 500;
+  #maxRedirects = 100;
   /** @type {RouterInternalState} */
   #internalState;
 
@@ -381,6 +383,13 @@ export class Router extends EventTarget {
     } else this.#history.push(targetPath);
   }
 
+  /** @param {string} message */
+  #logError(message) {
+    console.warn(message);
+    const event = new RouteErrorEvent({ error: new Error(message) });
+    this.dispatchEvent(event);
+  }
+
   /**
    * Loads the route component corresponding to the specified path into the router outlet.
    *
@@ -406,7 +415,9 @@ export class Router extends EventTarget {
     let title = '';
     let deepTransition = null;
     while (nextNode) {
-      if (nextNode.redirect) activeRedirect = nextNode.redirect;
+      if (nextNode.redirect) {
+        activeRedirect = constructURL(nextNode.redirect, result);
+      }
       if (nextNode.title) title = nextNode.title;
       if (nextNode.transitionType) deepTransition = nextNode.transitionType;
       nextNode = nextNode.child;
@@ -414,14 +425,23 @@ export class Router extends EventTarget {
 
     // Redirects
     if (activeRedirect && activeRedirect !== path) {
+      if (this.#redirectStackCount > this.#maxRedirects) {
+        const message = `Error loading path ${path}: Router redirected too many times`;
+        this.#logError(message);
+        this.#redirectStackCount = 0;
+        return false;
+      }
+      this.#redirectStackCount++;
       await this.navigate(activeRedirect, { replace: true });
       return false;
     }
+    this.#redirectStackCount = 0;
 
     // Run Middlewares
     const target = result.leaf();
     if (target === null) {
-      console.warn(`No route matches path: ${path}`);
+      const message = `No route matches path: ${path}`;
+      this.#logError(message);
       return false;
     }
     const currentPath = this.#currentPath.get();
@@ -436,29 +456,26 @@ export class Router extends EventTarget {
       return false;
     }
     if (result.subTree === null) {
-      console.warn(`No route matches path: ${path}`);
-      return true;
+      const message = `No route matches path: ${path}`;
+      this.#logError(message);
+      return false;
     }
 
     const { chain, metadata } = await this.#flattenRouteChain(result);
     Cell.batch(() => {
-      try {
-        const fullPath = constructURL(target.path, result);
-        this.#currentPath.set({
-          name: target.name,
-          path: target.path,
-          params: result.params,
-          query: result.searchQueryParams,
-          fullPath: fullPath,
-          metadata,
-          hash: result.hash,
-        });
+      const fullPath = constructURL(target.path, result);
+      this.#currentPath.set({
+        name: target.name,
+        path: target.path,
+        params: result.params,
+        query: result.searchQueryParams,
+        fullPath: fullPath,
+        metadata,
+        hash: result.hash,
+      });
 
-        this.#internalState.metadata = metadata;
-        this.#internalState.routeChain.set(chain);
-      } catch (error) {
-        console.error('Error updating router state:', error);
-      }
+      this.#internalState.metadata = metadata;
+      this.#internalState.routeChain.set(chain);
     });
 
     // Direction
@@ -934,4 +951,35 @@ export function defineRoutes(routes) {
  */
 export function defineRoute(route) {
   return route;
+}
+
+/**
+ * Creates the root component for a router application.
+ * This function wraps the main {@link Outlet} within a {@link RouterProvider},
+ * making the router instance available to all child components via the {@link useRouter} hook.
+ *
+ * It's useful for setting up the top-level routing context of your application.
+ *
+ * @example
+ * ```tsx
+ * import { createWebRouter, createRouterRoot } from 'retend/router';
+ * import { AppLayout } from './AppLayout';
+ *
+ * const router = createWebRouter({
+ *   routes: [
+ *     { path: '/', component: Home },
+ *     { path: '/about', component: About },
+ *   ],
+ * });
+ *
+ * document.body.append(createRouterRoot(router));
+ * ```
+ *
+ * @param {Router} router - The router instance to be provided to the application.
+ * @returns {Node & VNode} The root router component, typically an instance of `RouterProvider` wrapping an `Outlet`.
+ */
+export function createRouterRoot(router) {
+  /** @type {*} */
+  const rootOutlet = RouterProvider({ router, children: Outlet });
+  return rootOutlet[0];
 }

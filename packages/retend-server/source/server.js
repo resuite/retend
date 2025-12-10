@@ -13,6 +13,7 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
+import { createRouterRoot } from './utils.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -150,8 +151,7 @@ async function renderPath(options) {
 
     const router = routerModule.createRouter();
     const currentRoute = router.getCurrentRoute();
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     addMetaListener(router, document);
 
@@ -160,7 +160,7 @@ async function renderPath(options) {
       console.warn('appElement not found while rendering', path);
       return;
     }
-    appElement.replaceChildren(/** @type {VNode} */ (router.Outlet()));
+    appElement.replaceChildren(createRouterRoot(router));
 
     await router.navigate(path);
 

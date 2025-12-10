@@ -2,14 +2,14 @@
 /** @import { useObserver, CleanupFn } from './observer.js' */
 import { Cell } from '@adbl/cells';
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
-import {
-  getHMRContext,
-  getHMRScopeList,
-  HmrId,
-  OverwrittenBy,
-} from '../plugin/hmr.js';
 import h from './jsx.js';
 import { generateChildNodes } from './utils.js';
+import {
+  getHMRScopeList,
+  HMRContext,
+  HmrId,
+  OverwrittenBy,
+} from '../plugin/hmr-context.js';
 
 /**
  * @template [T=unknown]
@@ -265,7 +265,8 @@ export function useScopeContext(Scope, snapshot) {
         // Scope was previously invalidated by HMR.
         return useScopeContext(latestInstance, snapshot);
       }
-      const hmrContext = getHMRContext();
+      const { globalData } = getGlobalContext();
+      const hmrContext = globalData.get(HMRContext);
       if (hmrContext) {
         const activeScopes = getHMRScopeList();
         const hmrId = Reflect.get(Scope, HmrId);

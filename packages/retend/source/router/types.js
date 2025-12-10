@@ -2,7 +2,7 @@
 /** @import { Metadata, MetadataMap, RouteRecords as RouteRecordsRaw, RouteComponent } from './routeTree.js' */
 /** @import { Lazy } from './lazy.js'; */
 /** @import { RouterMiddleware } from './middleware.js'; */
-/** @import { RouterNavigationEvent } from './index.js'; */
+/** @import { RouterNavigationEvent } from './events.js'; */
 /** @import { Router } from './router.js'; */
 /** @import { SourceCell } from '@adbl/cells'; */
 

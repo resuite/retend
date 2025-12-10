@@ -1,5 +1,4 @@
 /** @import { CellSet } from '../library/utils.js' */
-/** @import { Router } from '../router/index.js'; **/
 
 import { CustomEvent, Modes } from '../context/index.js';
 
@@ -529,8 +528,6 @@ export class VDocument extends VNode {
     this.documentElement.append(this.head, this.body);
     /** @type {Array<() => Promise<*>>} */
     this.teleportMounts = [];
-    /** @type {Router | null} */
-    this.__appRouterInstance = null;
   }
 
   /** @param {string} text */

@@ -1,4 +1,5 @@
 /** @import { Router } from './router.js' */
+/** @import { NavigationOptions } from './types.js'; */
 import { CustomEvent } from '../context/index.js';
 
 /**
@@ -150,5 +151,8 @@ export class RouteLoadCompletedEvent extends CustomEvent {
 }
 
 /**
- *
+ * @typedef {NavigationOptions & { href: string }} RouterNavigationEventDetail
  */
+
+/** @extends {CustomEvent<RouterNavigationEventDetail>} */
+export class RouterNavigationEvent extends CustomEvent {}
