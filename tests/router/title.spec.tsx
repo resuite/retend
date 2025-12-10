@@ -1,0 +1,66 @@
+import { describe, it, expect } from 'vitest';
+import { getGlobalContext } from 'retend/context';
+import { routerRoot, vDomSetup } from '../setup.tsx';
+import { createWebRouter, defineRoutes } from 'retend/router';
+
+describe('Router Title Updates', () => {
+  vDomSetup();
+
+  it('should update window.document.title when navigating to routes with titles', async () => {
+    const { window } = getGlobalContext();
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          name: 'home',
+          path: '/',
+          component: () => 'Home Page',
+          title: 'Home Page Title',
+        },
+        {
+          name: 'about',
+          path: '/about',
+          component: () => 'About Us',
+          title: 'About Page Title',
+        },
+      ]),
+    });
+
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
+
+    await router.navigate('/');
+    expect(window.document.title).toBe('Home Page Title');
+
+    await router.navigate('/about');
+    expect(window.document.title).toBe('About Page Title');
+  });
+
+  it('should not update window.document.title if route has no title', async () => {
+    const { window } = getGlobalContext();
+    const initialTitle = window.document.title;
+    const router = createWebRouter({
+      routes: defineRoutes([
+        {
+          name: 'home',
+          path: '/',
+          component: () => 'Home Page',
+        },
+        {
+          name: 'about',
+          path: '/about',
+          component: () => 'About Us',
+          title: 'About Page Title',
+        },
+      ]),
+    });
+
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
+
+    await router.navigate('/');
+    expect(window.document.title).toBe(initialTitle);
+
+    await router.navigate('/about');
+    expect(window.document.title).toBe('About Page Title');
+  });
+});
