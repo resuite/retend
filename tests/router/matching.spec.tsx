@@ -1,14 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getGlobalContext } from 'retend/context';
-import { getTextContent, vDomSetup } from '../setup.tsx';
-import {
-  createWebRouter,
-  defineRoutes,
-  Outlet,
-  RouterProvider,
-  useRouter,
-  type Router,
-} from 'retend/router';
+import { getTextContent, routerRoot, vDomSetup } from '../setup.tsx';
+import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
 
 describe('Router Matching', () => {
   vDomSetup();

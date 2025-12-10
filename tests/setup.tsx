@@ -8,12 +8,13 @@ import {
   isVNode,
 } from 'retend/context';
 import { VWindow } from 'retend/v-dom';
+import { Outlet, type Router, RouterProvider } from 'retend/router';
 
 export const timeout = async (number?: number) => {
   return new Promise((r) => setTimeout(r, number ?? 0));
 };
 
-const routerRoot = (router: Router): string & Node => {
+export const routerRoot = (router: Router): string & Node => {
   // @ts-expect-error
   return <RouterProvider router={router}>{() => <Outlet />}</RouterProvider>;
 };
