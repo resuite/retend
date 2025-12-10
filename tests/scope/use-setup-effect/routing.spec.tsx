@@ -7,7 +7,11 @@ import {
   useRouter,
 } from 'retend/router';
 import { getGlobalContext } from 'retend/context';
-import { routerSetupBrowser, getTextContent } from '../../setup.tsx';
+import {
+  routerSetupBrowser,
+  getTextContent,
+  routerRoot,
+} from '../../setup.tsx';
 
 describe('useSetupEffect with routing', () => {
   routerSetupBrowser();
@@ -49,8 +53,8 @@ describe('useSetupEffect with routing', () => {
     const { window } = getGlobalContext();
 
     const router = createWebRouter({ routes });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
     await runPendingSetupEffects();
 
     await router.navigate('/effect');
@@ -115,8 +119,8 @@ describe('useSetupEffect with routing', () => {
     const { window } = getGlobalContext();
 
     const router = createWebRouter({ routes });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/parent');
     await runPendingSetupEffects();

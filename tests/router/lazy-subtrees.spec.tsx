@@ -1,20 +1,17 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { getTextContent, routerSetup } from '../setup.tsx';
+import { describe, it, expect } from 'vitest';
+import { getGlobalContext } from 'retend/context';
+import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
 import {
   createWebRouter,
   defineRoute,
   defineRoutes,
   lazy,
+  useCurrentRoute,
   useRouter,
 } from 'retend/router';
 
 describe('Router Lazy Subtrees', () => {
-  beforeEach(routerSetup);
-
-  afterAll(() => {
-    resetGlobalContext();
-  });
+  vDomSetup();
 
   it('should load a lazy subtree', async () => {
     const { window } = getGlobalContext();
@@ -40,8 +37,7 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/home');
     const route2 = router.getCurrentRoute();
@@ -78,8 +74,7 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/parent/other');
     const route1 = router.getCurrentRoute();
@@ -109,8 +104,7 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await expect(router.navigate('/parent-for-lazy')).rejects.toThrow(
       'Lazy subtrees must have the same path as their parents. Parent path: /parent-for-lazy, Subtree path: /this-is-the-wrong-path'
@@ -140,8 +134,7 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/lazy-chain');
 
@@ -180,8 +173,7 @@ describe('Router Lazy Subtrees', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/finance/reports');
 
@@ -192,18 +184,15 @@ describe('Router Lazy Subtrees', () => {
 });
 
 describe('Router Lazy Subtrees with Advanced Matching', () => {
-  beforeEach(routerSetup);
-
-  afterAll(() => {
-    resetGlobalContext();
-  });
+  vDomSetup();
 
   it('should handle parameters defined before the lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const UserProfile = () => {
       const router = useRouter();
-      const userId = router.params.get('userId');
+      const currentRoute = router.getCurrentRoute();
+      const userId = currentRoute.get().params.get('userId');
       return <div>User ID: {userId}</div>;
     };
 
@@ -226,8 +215,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/users/123/profile');
     expect(getTextContent(window.document.body)).toBe('User ID: 123');
@@ -237,8 +226,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
     const { window } = getGlobalContext();
 
     const ProductPage = () => {
-      const router = useRouter();
-      const productId = router.params.get('productId');
+      const currentRoute = useCurrentRoute();
+      const productId = currentRoute.get().params.get('productId');
       return <div>Product: {productId}</div>;
     };
 
@@ -261,8 +250,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/products/xyz-789');
     expect(getTextContent(window.document.body)).toBe('Product: xyz-789');
@@ -272,9 +261,9 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
     const { window } = getGlobalContext();
 
     const StoreItem = () => {
-      const router = useRouter();
-      const storeId = router.params.get('storeId');
-      const itemId = router.params.get('itemId');
+      const currentRoute = useCurrentRoute();
+      const storeId = currentRoute.get().params.get('storeId');
+      const itemId = currentRoute.get().params.get('itemId');
       return (
         <div>
           Store: {storeId}, Item: {itemId}
@@ -308,8 +297,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/stores/main-street/inventory/item-456');
     expect(getTextContent(window.document.body)).toBe(
@@ -321,8 +310,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
     const { window } = getGlobalContext();
 
     const DocsPage = () => {
-      const router = useRouter();
-      const pagePath = router.params.get('page');
+      const currentRoute = useCurrentRoute();
+      const pagePath = currentRoute.get().params.get('page');
       return <div>Docs Page: {pagePath}</div>;
     };
 
@@ -345,8 +334,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/docs/guides/advanced/routing');
     expect(getTextContent(window.document.body)).toBe(
@@ -384,8 +373,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/dashboard');
     expect(getTextContent(window.document.body)).toBe('Dashboard Home');
@@ -398,8 +387,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
     const { window } = getGlobalContext();
 
     const ProductDetail = () => {
-      const router = useRouter();
-      const productId = router.params.get('productId');
+      const currentRoute = useCurrentRoute();
+      const productId = currentRoute.get().params.get('productId');
       return <div>Product ID: {productId}</div>;
     };
 
@@ -417,8 +406,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/products/super-shoe-42');
     expect(getTextContent(window.document.body)).toBe(

@@ -1,4 +1,4 @@
-import { describe, it, expect, assert } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { useSetupEffect, If, Cell, For, runPendingSetupEffects } from 'retend';
 import { browserSetup, getTextContent, timeout } from '../../setup.tsx';
 

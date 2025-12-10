@@ -751,27 +751,27 @@ export class VHistory {
     }
 
     this.#cursor += delta;
-    this.#window.location.href = String(this.#log[this.#cursor] || '/');
+    this.#window.location.pathname = String(this.#log[this.#cursor] || '/');
     this.#window.dispatchEvent(new Event('popstate'));
   }
 
   /** @type {History['replaceState']} */
   replaceState(_data, _unused, path) {
     this.#log[this.#cursor] = path;
-    this.#window.location.href = String(path || '/');
+    this.#window.location.pathname = String(path || '/');
     this.#window.dispatchEvent(new Event('popstate'));
   }
 
   /** @type {History['pushState']} */
   pushState(_data, _unused, path) {
     this.#log[++this.#cursor] = path;
-    this.#window.location.href = String(path || '/');
+    this.#window.location.pathname = String(path || '/');
     this.#window.dispatchEvent(new Event('popstate'));
   }
 
   back() {
     this.#cursor = Math.max(this.#cursor - 1, 0);
-    this.#window.location.href = String(this.#log[this.#cursor] || '/');
+    this.#window.location.pathname = String(this.#log[this.#cursor] || '/');
     this.#window.dispatchEvent(new Event('popstate'));
   }
 

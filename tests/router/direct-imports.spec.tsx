@@ -1,20 +1,16 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { getTextContent, routerSetup } from '../setup.tsx';
+import { describe, it, expect } from 'vitest';
+import { getGlobalContext } from 'retend/context';
+import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
 import {
   createWebRouter,
   defineRoutes,
   Link,
   Outlet,
-  Relay,
+  RouterProvider,
 } from 'retend/router';
 
 describe('Router Direct Imports', () => {
-  beforeEach(routerSetup);
-
-  afterAll(() => {
-    resetGlobalContext();
-  });
+  vDomSetup();
 
   it('should work with directly imported Link component', async () => {
     const { window } = getGlobalContext();
@@ -24,18 +20,22 @@ describe('Router Direct Imports', () => {
         { path: '/about', name: 'about', component: () => 'About' },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
-    // Test that Link component can be used directly
-    const linkElement = Link({
-      href: '/about',
-      children: 'About Link',
-    }) as HTMLElement;
-    expect(linkElement).toBeDefined();
-    expect(linkElement.tagName.toLowerCase()).toBe('a');
-    expect(linkElement.getAttribute('href')).toBe('/about');
-    expect(getTextContent(linkElement)).toBe('About Link');
+    RouterProvider({
+      router,
+      children: () => {
+        // Test that Link component can be used directly
+        const linkElement = Link({
+          href: '/about',
+          children: 'About Link',
+        }) as HTMLElement;
+        expect(linkElement).toBeDefined();
+        expect(linkElement.tagName.toLowerCase()).toBe('a');
+        expect(linkElement.getAttribute('href')).toBe('/about');
+        expect(getTextContent(linkElement)).toBe('About Link');
+      },
+    });
   });
 
   it('should work with directly imported Outlet component', async () => {
@@ -45,33 +45,19 @@ describe('Router Direct Imports', () => {
         { path: '/', name: 'home', component: () => 'Home' },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     // Test that Outlet component can be used directly
-    const outletElement = Outlet() as HTMLElement;
-    expect(outletElement).toBeDefined();
-    expect(outletElement.tagName.toLowerCase()).toBe('retend-router-outlet');
-  });
-
-  it('should work with directly imported Relay component', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
-      routes: defineRoutes([
-        { path: '/', name: 'home', component: () => 'Home' },
-      ]),
+    RouterProvider({
+      router,
+      children: () => {
+        const outletElement = Outlet() as HTMLElement;
+        expect(outletElement).toBeDefined();
+        expect(outletElement.tagName.toLowerCase()).toBe(
+          'retend-router-outlet'
+        );
+      },
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
-
-    // Test that Relay component can be used directly
-    const relayElement = Relay({
-      id: 'test-relay',
-      source: () => 'Test Content',
-    }) as HTMLElement;
-    expect(relayElement).toBeDefined();
-    expect(relayElement.tagName.toLowerCase()).toBe('retend-router-relay');
-    expect(relayElement.getAttribute('data-x-relay-name')).toBe('test-relay');
   });
 
   it('should maintain backward compatibility with router instance methods', async () => {
@@ -82,27 +68,26 @@ describe('Router Direct Imports', () => {
         { path: '/about', name: 'about', component: () => 'About' },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
-    // Test that router instance methods still work
-    const linkElement = router.Link({
-      href: '/about',
-      children: 'About Link',
-    }) as HTMLElement;
-    expect(linkElement).toBeDefined();
-    expect(linkElement.tagName.toLowerCase()).toBe('a');
+    RouterProvider({
+      router,
+      children: () => {
+        // Test that router instance methods still work
+        const linkElement = router.Link({
+          href: '/about',
+          children: 'About Link',
+        }) as HTMLElement;
+        expect(linkElement).toBeDefined();
+        expect(linkElement.tagName.toLowerCase()).toBe('a');
 
-    const outletElement = router.Outlet() as HTMLElement;
-    expect(outletElement).toBeDefined();
-    expect(outletElement.tagName.toLowerCase()).toBe('retend-router-outlet');
-
-    const relayElement = router.Relay({
-      id: 'test-relay',
-      source: () => 'Test Content',
-    }) as HTMLElement;
-    expect(relayElement).toBeDefined();
-    expect(relayElement.tagName.toLowerCase()).toBe('retend-router-relay');
+        const outletElement = router.Outlet() as HTMLElement;
+        expect(outletElement).toBeDefined();
+        expect(outletElement.tagName.toLowerCase()).toBe(
+          'retend-router-outlet'
+        );
+      },
+    });
   });
 
   it('should render components using direct imports in a real routing scenario', async () => {
@@ -151,8 +136,8 @@ describe('Router Direct Imports', () => {
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     // Navigate to home
     await router.navigate('/');

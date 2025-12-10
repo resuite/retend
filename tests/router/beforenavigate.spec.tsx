@@ -1,19 +1,12 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
+import { describe, it, expect, vi } from 'vitest';
+import { getGlobalContext } from 'retend/context';
 import { createWebRouter, defineRoutes } from 'retend/router';
-import { routerSetup, getTextContent } from '../setup.tsx';
+import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
 
 describe('beforenavigate event', () => {
-  beforeEach(() => {
-    routerSetup();
-  });
-
-  afterAll(() => {
-    resetGlobalContext();
-  });
+  vDomSetup();
 
   it('beforenavigate event is dispatched before navigation', async () => {
-    const { window } = getGlobalContext();
     const listener = vi.fn();
     const Home = () => <div>Home</div>;
     const About = () => <div>About</div>;
@@ -24,8 +17,6 @@ describe('beforenavigate event', () => {
     ]);
 
     const router = createWebRouter({ routes });
-    router.setWindow(window);
-    router.attachWindowListeners();
 
     router.addEventListener('beforenavigate', listener);
 
@@ -58,8 +49,8 @@ describe('beforenavigate event', () => {
     ]);
 
     const router = createWebRouter({ routes });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     router.addEventListener('beforenavigate', listener);
 
@@ -73,7 +64,6 @@ describe('beforenavigate event', () => {
   });
 
   it('beforenavigate event is dispatched in replace()', async () => {
-    const { window } = getGlobalContext();
     const listener = vi.fn();
     const Home = () => <div>Home</div>;
     const About = () => <div>About</div>;
@@ -84,8 +74,6 @@ describe('beforenavigate event', () => {
     ]);
 
     const router = createWebRouter({ routes });
-    router.setWindow(window);
-    router.attachWindowListeners();
 
     router.addEventListener('beforenavigate', listener);
 

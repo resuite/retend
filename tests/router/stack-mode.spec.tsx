@@ -1,12 +1,14 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { getTextContent, routerSetup } from '../setup.tsx';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { createWebRouter, useRouter } from 'retend/router';
+import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { getGlobalContext } from 'retend/context';
+import { createWebRouter, type Router, useRouter } from 'retend/router';
 
 const runFlatTests = () => {
+  let router: Router;
+
   beforeEach(() => {
     const { window } = getGlobalContext();
-    const router = createWebRouter({
+    router = createWebRouter({
       routes: [
         {
           name: 'home',
@@ -26,12 +28,11 @@ const runFlatTests = () => {
       ],
       stackMode: true,
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
   });
 
   test('navigates to the same route', async () => {
-    const router = useRouter();
     await router.navigate('/about');
     const route = router.getCurrentRoute();
     expect(route.get().path).toBe('/about');
@@ -40,7 +41,6 @@ const runFlatTests = () => {
   });
 
   test('back navigation uses history stack', async () => {
-    const router = useRouter();
     await router.navigate('/about');
     await router.navigate('/contact');
     await router.back();
@@ -49,7 +49,6 @@ const runFlatTests = () => {
   });
 
   test('preserves params in history stack', async () => {
-    const router = useRouter();
     await router.navigate('/about?id=123');
     await router.navigate('/contact');
     await router.back();
@@ -59,6 +58,7 @@ const runFlatTests = () => {
 };
 
 const runNestedTests = () => {
+  let router: Router;
   beforeEach(() => {
     const routes = [
       {
@@ -104,17 +104,16 @@ const runNestedTests = () => {
       },
     ];
     const { window } = getGlobalContext();
-    const router = createWebRouter({
+    router = createWebRouter({
       routes,
       stackMode: true,
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
   });
 
   test('navigates properly in stack mode', async () => {
     const { window } = getGlobalContext();
-    const router = useRouter();
 
     await router.navigate('/');
     expect(getTextContent(window.document.body)).toBe(
@@ -130,7 +129,6 @@ const runNestedTests = () => {
 
   test('has correct back and forward routes', async () => {
     const { window } = getGlobalContext();
-    const router = useRouter();
 
     await router.navigate('/');
     expect(router.getCurrentRoute().get().fullPath).toBe('/');
@@ -145,7 +143,6 @@ const runNestedTests = () => {
 
   test('has correct params & query during navigation', async () => {
     const { window } = getGlobalContext();
-    const router = useRouter();
 
     await router.navigate('/');
     await router.navigate('/about?value=1');
@@ -164,21 +161,11 @@ const runNestedTests = () => {
 };
 
 describe('Router Stack Mode: Flat', () => {
-  beforeEach(() => {
-    routerSetup();
-  });
+  vDomSetup();
   runFlatTests();
-  afterEach(() => {
-    resetGlobalContext();
-  });
 });
 
 describe('Router Stack Mode: Nested', () => {
-  beforeEach(() => {
-    routerSetup();
-  });
+  vDomSetup();
   runNestedTests();
-  afterEach(() => {
-    resetGlobalContext();
-  });
 });

@@ -1,5 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { Metadata, MetadataMap, RouteRecords as RouteRecordsRaw } from './routeTree.js' */
+/** @import { Metadata, MetadataMap, RouteRecords as RouteRecordsRaw, RouteComponent } from './routeTree.js' */
 /** @import { Lazy } from './lazy.js'; */
 /** @import { RouterMiddleware } from './middleware.js'; */
 /** @import { RouterNavigationEvent } from './index.js'; */
@@ -15,7 +15,6 @@
 
 /**
  * @typedef {{ metadata: Metadata }} RouteComponentArgs
- * @typedef {((args?: RouteComponentArgs) => JSX.Template) & { metadata?: Metadata }} RouteComponent
  * @typedef {Lazy<RouteComponent> | RouteComponent} ComponentOrComponentLoader
  * @typedef {Omit<JSX.IntrinsicElements['div'], 'align'>} RouterOutletProps
  * @typedef {JSX.IntrinsicElements['a'] & ExtraLinkData} RouterLinkProps

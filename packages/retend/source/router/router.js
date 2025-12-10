@@ -156,6 +156,8 @@ export class Router extends EventTarget {
       });
       await transition.finished;
     } else await callback();
+    // Waits for whatever effects have been scheduled to settle.
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 
   /**
@@ -292,7 +294,7 @@ export class Router extends EventTarget {
    * that Outlets can easily access by depth index.
    *
    * @param {MatchResult<ComponentOrComponentLoader>} matchResult
-   * @returns {Promise<RouteLevel[]>}
+   * @returns {Promise<{ chain: RouteLevel[], metadata: Map<string, any> }>}
    */
   async #flattenRouteChain(matchResult) {
     const chain = [];
@@ -328,7 +330,10 @@ export class Router extends EventTarget {
 
     await Promise.all(unwrapPromises);
     await matchResult.collectMetadata();
-    return chain.filter(Boolean);
+    return {
+      chain: chain.filter(Boolean),
+      metadata: matchResult.metadata,
+    };
   }
 
   /**
@@ -435,21 +440,25 @@ export class Router extends EventTarget {
       return true;
     }
 
-    const chain = await this.#flattenRouteChain(result);
+    const { chain, metadata } = await this.#flattenRouteChain(result);
     Cell.batch(() => {
-      const fullPath = constructURL(target.path, result);
-      this.#currentPath.set({
-        name: target.name,
-        path: target.path,
-        params: result.params,
-        query: result.searchQueryParams,
-        fullPath: fullPath,
-        metadata: result.metadata,
-        hash: result.hash,
-      });
+      try {
+        const fullPath = constructURL(target.path, result);
+        this.#currentPath.set({
+          name: target.name,
+          path: target.path,
+          params: result.params,
+          query: result.searchQueryParams,
+          fullPath: fullPath,
+          metadata,
+          hash: result.hash,
+        });
 
-      this.#internalState.metadata = result.metadata;
-      this.#internalState.routeChain.set(chain);
+        this.#internalState.metadata = metadata;
+        this.#internalState.routeChain.set(chain);
+      } catch (error) {
+        console.error('Error updating router state:', error);
+      }
     });
 
     // Direction
@@ -492,7 +501,7 @@ export class Router extends EventTarget {
     if (!this.#assertNotLocked(path)) return;
     this.#isNavigating = true;
     try {
-      await this.#load({ rawPath: path, ...options });
+      await this.#load({ rawPath: path, navigate: true, ...options });
     } finally {
       this.#isNavigating = false;
     }
@@ -744,6 +753,21 @@ export function useRouter() {
 }
 
 /**
+ * A hook that returns a reactive {@link Cell} containing the current route data.
+ *
+ * This hook provides access to the active route's properties.
+ * The returned `Cell` will automatically update whenever the current
+ * route changes, allowing components to react to navigation.
+ *
+ * @returns {Cell<RouteData>} A reactive Cell containing the current route data.
+ * @throws {Error} If `useCurrentRoute` is called outside of a `RouterProvider`.
+ */
+export function useCurrentRoute() {
+  const { router } = useScopeContext(RouterScope);
+  return router.getCurrentRoute();
+}
+
+/**
  * Provides the router instance to the component tree.
  *
  * This component should wrap your application's root component, making the router
@@ -805,10 +829,11 @@ export function createWebRouter(routerOptions) {
  */
 export function Outlet(props) {
   const routerData = useScopeContext(RouterScope);
-  const { depth, internalState, metadata } = routerData;
-  const { routeChain } = internalState;
+  const { depth, internalState } = routerData;
   const { children, ...attributes } = props || {};
-  const currentLevel = Cell.derived(() => routeChain.get()[depth]);
+  const currentLevel = Cell.derived(() => {
+    return internalState.routeChain.get()[depth];
+  });
   const path = Cell.derived(() => currentLevel.get()?.path);
   attributes['data-path'] = path;
 
@@ -818,7 +843,7 @@ export function Outlet(props) {
       const RenderFn = currentLevel.get().component;
       return RouterScope.Provider({
         value: { ...routerData, depth: routerData.depth + 1 },
-        children: () => h(RenderFn, { metadata }),
+        children: () => h(RenderFn, { metadata: internalState.metadata }),
       });
     }),
   });

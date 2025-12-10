@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getTextContent, routerSetup } from '../setup.tsx';
+import { describe, expect, it, vi } from 'vitest';
+import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
 import { For, If, Cell } from 'retend';
 import { getGlobalContext } from 'retend/context';
 import {
@@ -9,7 +9,7 @@ import {
 } from 'retend/router';
 
 describe('useRouteQuery', () => {
-  beforeEach(routerSetup);
+  vDomSetup();
 
   it('should show the current route query params', async () => {
     const { window } = getGlobalContext();
@@ -24,8 +24,8 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'home', path: '/', component: Home }],
     });
 
-    router.setWindow(window);
     router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/?name=Cody');
     expect(getTextContent(window.document.body)).toBe('Hello, Cody');
@@ -62,8 +62,8 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -106,8 +106,8 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -156,8 +156,8 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -224,8 +224,8 @@ describe('useRouteQuery', () => {
       },
     ];
     const router = createWebRouter({ routes });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/list');
 
@@ -276,8 +276,8 @@ describe('useRouteQuery', () => {
       routes: [{ name: 'filters', path: '/filters', component: FilterPage }],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     // Initial navigation
     await router.navigate('/filters');
