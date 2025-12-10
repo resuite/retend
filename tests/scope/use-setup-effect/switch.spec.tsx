@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterAll } from 'vitest';
 import { useSetupEffect, Switch, Cell, runPendingSetupEffects } from 'retend';
 import { resetGlobalContext } from 'retend/context';
-import { getTextContent, browserSetup, timeout } from '../../setup.ts';
+import { getTextContent, browserSetup, timeout } from '../../setup.tsx';
 
 describe('useSetupEffect with Switch', () => {
   browserSetup();

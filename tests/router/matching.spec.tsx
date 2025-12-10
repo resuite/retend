@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getGlobalContext } from 'retend/context';
-import { getTextContent, vDomSetup } from '../setup.ts';
+import { getTextContent, vDomSetup } from '../setup.tsx';
 import {
   createWebRouter,
   defineRoutes,
@@ -9,11 +9,6 @@ import {
   useRouter,
   type Router,
 } from 'retend/router';
-
-const routerRoot = (router: Router): string & Node => {
-  // @ts-expect-error
-  return <RouterProvider router={router}>{() => <Outlet />}</RouterProvider>;
-};
 
 describe('Router Matching', () => {
   vDomSetup();

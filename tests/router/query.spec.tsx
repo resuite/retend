@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getTextContent, routerSetup } from '../setup.ts';
+import { getTextContent, routerSetup } from '../setup.tsx';
 import { For, If, Cell } from 'retend';
 import { getGlobalContext } from 'retend/context';
 import {

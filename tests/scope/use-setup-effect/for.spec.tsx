@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useSetupEffect, For, Cell, runPendingSetupEffects } from 'retend';
-import { getTextContent, browserSetup, timeout } from '../../setup.ts';
+import { getTextContent, browserSetup, timeout } from '../../setup.tsx';
 
 describe('useSetupEffect with For', () => {
   browserSetup();

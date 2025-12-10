@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { routerSetup } from '../setup.ts';
+import { routerSetup } from '../setup.tsx';
 import {
   createWebRouter,
   defineRouterMiddleware,

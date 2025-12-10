@@ -7,7 +7,7 @@ import {
   useRouter,
 } from 'retend/router';
 import { getGlobalContext } from 'retend/context';
-import { routerSetupBrowser, getTextContent } from '../../setup.ts';
+import { routerSetupBrowser, getTextContent } from '../../setup.tsx';
 
 describe('useSetupEffect with routing', () => {
   routerSetupBrowser();

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { createWebRouter, defineRoutes } from 'retend/router';
-import { routerSetup, getTextContent } from '../setup.ts';
+import { routerSetup, getTextContent } from '../setup.tsx';
 
 describe('beforenavigate event', () => {
   beforeEach(() => {

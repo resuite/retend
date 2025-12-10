@@ -8,7 +8,7 @@ import {
   lazy,
 } from 'retend/router';
 import { Cell } from 'retend';
-import { getTextContent, routerSetup } from '../setup.ts';
+import { getTextContent, routerSetup } from '../setup.tsx';
 
 describe('Router Metadata', () => {
   beforeEach(routerSetup);
@@ -640,14 +640,13 @@ describe('Router Metadata', () => {
     expect(getTextContent(root)).toBe('This is the blog for page 123');
   });
 
-
   it('should get metadata as props to the route component', async () => {
     const { window } = getGlobalContext();
     const root = window.document.documentElement;
 
     interface ProductProps {
-      title: string,
-      type: string
+      title: string;
+      type: string;
     }
 
     const ProductPage: RouteComponent<ProductProps> = (props) => {

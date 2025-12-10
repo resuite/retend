@@ -8,7 +8,7 @@ import {
   withScopeSnapshot,
   combineScopes,
 } from 'retend';
-import { browserSetup, getTextContent, vDomSetup } from '../setup.ts';
+import { browserSetup, getTextContent, vDomSetup } from '../setup.tsx';
 
 const runTests = () => {
   describe('createScope and useScopeContext', () => {

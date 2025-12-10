@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { If, For, Cell, runPendingSetupEffects } from 'retend';
-import { vDomSetup, browserSetup } from '../../setup.ts';
+import { vDomSetup, browserSetup } from '../../setup.tsx';
 
 const runTests = () => {
   it('stops derived cells when component unmounts', async () => {
@@ -15,7 +15,7 @@ const runTests = () => {
       });
       return <div>{derived}</div>;
     };
-    
+
     const App = () => <div>{If(show, Component)}</div>;
     App();
     await runPendingSetupEffects();
@@ -87,7 +87,13 @@ const runTests = () => {
       return <div>{props.id}</div>;
     };
 
-    const App = () => <div>{For(items, (id) => <Item id={id} />)}</div>;
+    const App = () => (
+      <div>
+        {For(items, (id) => (
+          <Item id={id} />
+        ))}
+      </div>
+    );
     App();
 
     items.set([1, 2]);
@@ -158,7 +164,12 @@ const runTests = () => {
         parentComputes++;
         return source.get();
       });
-      return <div>{derived}<Child /></div>;
+      return (
+        <div>
+          {derived}
+          <Child />
+        </div>
+      );
     };
 
     const App = () => <div>{If(show, Parent)}</div>;

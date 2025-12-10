@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { combineScopes, createScope, useScopeContext } from 'retend';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { createWebRouter, useRouter } from 'retend/router';
-import { routerSetup, getTextContent } from '../setup.ts';
+import { routerSetup, getTextContent } from '../setup.tsx';
 
 describe('Scopes in Routing', () => {
   beforeEach(() => {

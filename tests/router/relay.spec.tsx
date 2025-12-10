@@ -1,6 +1,6 @@
 import { describe, it, vi, expect, beforeEach, afterAll } from 'vitest';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { getTextContent, routerSetup, routerSetupBrowser } from '../setup.ts';
+import { getTextContent, routerSetup, routerSetupBrowser } from '../setup.tsx';
 import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
 import { Cell, If, runPendingSetupEffects, useSetupEffect } from 'retend';
 

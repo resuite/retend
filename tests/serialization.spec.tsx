@@ -3,7 +3,7 @@ import { For, If } from 'retend';
 import { getGlobalContext } from 'retend/context';
 import { renderToString } from 'retend/render';
 import { Cell } from 'retend';
-import { browserSetup, timeout, vDomSetup } from './setup.ts';
+import { browserSetup, timeout, vDomSetup } from './setup.tsx';
 import { ShadowRoot } from 'retend/shadowroot';
 
 const runTests = () => {

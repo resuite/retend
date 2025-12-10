@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { getTextContent, routerSetup } from '../setup.ts';
+import { getTextContent, routerSetup } from '../setup.tsx';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { createWebRouter, useRouter } from 'retend/router';
 

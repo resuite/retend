@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getGlobalContext } from 'retend/context';
-import { browserSetup } from '../setup.ts';
+import { browserSetup } from '../setup.tsx';
 import { useWindowSize } from 'retend-utils/hooks';
 import { runPendingSetupEffects } from 'retend';
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Cell } from 'retend';
 import { getGlobalContext } from 'retend/context';
-import { browserSetup, vDomSetup } from './setup.ts';
+import { browserSetup, vDomSetup } from './setup.tsx';
 import type { VNode } from 'retend/v-dom';
 
 const runTests = () => {

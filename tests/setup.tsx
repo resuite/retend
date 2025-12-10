@@ -13,6 +13,11 @@ export const timeout = async (number?: number) => {
   return new Promise((r) => setTimeout(r, number ?? 0));
 };
 
+const routerRoot = (router: Router): string & Node => {
+  // @ts-expect-error
+  return <RouterProvider router={router}>{() => <Outlet />}</RouterProvider>;
+};
+
 export const routerSetup = () => {
   const window = new VWindow();
   setGlobalContext({
@@ -28,7 +33,7 @@ export const routerSetupBrowser = () => {
   const { document } = window;
 
   beforeEach(async () => {
-    clearBrowserWindow()
+    clearBrowserWindow();
     document.body.append(document.createElement('retend-router-outlet'));
 
     setGlobalContext({
@@ -45,17 +50,16 @@ export const routerSetupBrowser = () => {
   });
 };
 
-
 export const clearBrowserWindow = () => {
   window.document.body.innerHTML = '';
-  window.history.go(-window.history.length)
+  window.history.go(-window.history.length);
   window.sessionStorage.clear();
   window.localStorage.clear();
-}
+};
 
 export const browserSetup = () => {
   beforeEach(() => {
-    clearBrowserWindow()
+    clearBrowserWindow();
 
     setGlobalContext({
       window,
@@ -68,7 +72,7 @@ export const browserSetup = () => {
 
   afterEach(() => {
     resetGlobalContext();
-    clearBrowserWindow()
+    clearBrowserWindow();
   });
 };
 
