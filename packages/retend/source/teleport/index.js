@@ -5,7 +5,7 @@
 import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
 import { appendChild, setAttributeFromProps } from '../library/jsx.js';
-import { generateChildNodes } from '../library/utils.js';
+import { generateChildNodes, writeStaticStyle } from '../library/utils.js';
 import {
   getGlobalContext,
   isVNode,
@@ -60,6 +60,11 @@ export function Teleport(props) {
   /** @type {string | undefined} */
   let teleportId;
   const key = `teleport/target/${teleportIdCounter.value++}`;
+
+  writeStaticStyle(
+    'retend-teleport-style',
+    ':where(retend-teleport) { display: contents }'
+  );
 
   /** @param {NodeLike} anchorNode */
   const mountTeleportedNodes = async (anchorNode) => {

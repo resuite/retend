@@ -13,6 +13,7 @@ import {
   withScopeSnapshot,
 } from '../library/scope.js';
 import { getHMRContext } from '../plugin/hmr.js';
+import { writeStaticStyle } from '../library/utils.js';
 
 /**
  * @typedef UniqueStash
@@ -179,6 +180,11 @@ export function Unique(props) {
   const stash = globalData.get(UniqueComponentStash) ?? initUniqueStash();
   const selector = `${elementName}[name="${name}"]`;
   const observer = useObserver();
+
+  writeStaticStyle(
+    'retend-unique-instance-style',
+    ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}'
+  );
 
   const retendUniqueInstance = window.document.createElement(elementName);
   for (const [key, value] of Object.entries(rest)) {

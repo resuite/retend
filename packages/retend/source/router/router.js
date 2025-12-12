@@ -37,6 +37,7 @@ import {
 import { constructURL, getFullPath } from './utils.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { getGlobalContext } from '../context/index.js';
+import { writeStaticStyle } from '../library/utils.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -852,6 +853,12 @@ export function Outlet(props) {
   });
   const path = Cell.derived(() => currentLevel.get()?.path);
   attributes['data-path'] = path;
+
+  writeStaticStyle(
+    'retend-outlet-style',
+    ':where(retend-outlet) { display: contents }'
+  );
+
   // @ts-expect-error: Children is not defined on attributes
   attributes.children = If(path, () => {
     const RenderFn = currentLevel.get().component;
