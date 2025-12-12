@@ -411,19 +411,19 @@ export class Router extends EventTarget {
     // Matching
     const result = await this.#routeTree.match(path);
     let nextNode = result.subTree;
-    let activeRedirect = null;
     let title = '';
     let deepTransition = null;
     while (nextNode) {
-      if (nextNode.redirect) {
-        activeRedirect = constructURL(nextNode.redirect, result);
-      }
       if (nextNode.title) title = nextNode.title;
       if (nextNode.transitionType) deepTransition = nextNode.transitionType;
       nextNode = nextNode.child;
     }
 
     // Redirects
+    const target = result.leaf();
+    const activeRedirect = target?.redirect
+      ? constructURL(target.redirect, result)
+      : null;
     if (activeRedirect && activeRedirect !== path) {
       if (this.#redirectStackCount > this.#maxRedirects) {
         const message = `Error loading path ${path}: Router redirected too many times`;
@@ -438,7 +438,6 @@ export class Router extends EventTarget {
     this.#redirectStackCount = 0;
 
     // Run Middlewares
-    const target = result.leaf();
     if (target === null) {
       const message = `No route matches path: ${path}`;
       this.#logError(message);
