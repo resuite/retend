@@ -853,17 +853,16 @@ export function Outlet(props) {
   });
   const path = Cell.derived(() => currentLevel.get()?.path);
   attributes['data-path'] = path;
-
-  return h('retend-router-outlet', {
-    attributes,
-    children: If(path, () => {
-      const RenderFn = currentLevel.get().component;
-      return RouterScope.Provider({
-        value: { ...routerData, depth: routerData.depth + 1 },
-        children: () => h(RenderFn, { metadata: internalState.metadata }),
-      });
-    }),
+  // @ts-expect-error: Children is not defined on attributes
+  attributes.children = If(path, () => {
+    const RenderFn = currentLevel.get().component;
+    return RouterScope.Provider({
+      value: { ...routerData, depth: routerData.depth + 1 },
+      children: () => h(RenderFn, { metadata: internalState.metadata }),
+    });
   });
+
+  return h('retend-router-outlet', attributes);
 }
 
 /**
