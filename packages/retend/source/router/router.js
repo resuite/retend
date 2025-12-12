@@ -983,3 +983,10 @@ export function createRouterRoot(router) {
   const rootOutlet = RouterProvider({ router, children: Outlet });
   return rootOutlet[0];
 }
+
+// Type Re-exports
+/** @typedef {RouterLinkProps} RouterLinkProps */
+/** @typedef {RouterOutletProps} RouterOutletProps */
+/** @typedef {RouteRecord} RouteRecord */
+/** @typedef {RouteRecord[]} RouteRecords */
+/** @typedef {RouterMiddleware} RouterMiddleware */
