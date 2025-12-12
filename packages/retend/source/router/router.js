@@ -980,6 +980,15 @@ export function defineRoute(route) {
 export function createRouterRoot(router) {
   /** @type {*} */
   const rootOutlet = RouterProvider({ router, children: Outlet });
+  if (Array.isArray(rootOutlet)) {
+    const { window } = getGlobalContext();
+    /** @type {*} */
+    const fragment = window.document.createDocumentFragment();
+    for (const child of rootOutlet) {
+      fragment.append(child);
+    }
+    return fragment;
+  }
   return rootOutlet;
 }
 

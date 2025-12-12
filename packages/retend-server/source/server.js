@@ -13,7 +13,6 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
-import { createRouterRoot } from './utils.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -68,6 +67,12 @@ export async function buildPath(path, options) {
     await runner.evaluator.runExternalModule(import.meta.resolve('retend'))
   );
 
+  const retendRouterModule = /** @type {typeof import('retend/router')} */ (
+    await runner.evaluator.runExternalModule(
+      import.meta.resolve('retend/router')
+    )
+  );
+
   const retendRenderModule = /** @type {typeof import('retend/render')} */ (
     await runner.evaluator.runExternalModule(
       import.meta.resolve('retend/render')
@@ -95,6 +100,7 @@ export async function buildPath(path, options) {
     retendModule,
     retendRenderModule,
     retendVDomModule,
+    retendRouterModule,
     skipRedirects,
   };
 
@@ -114,6 +120,7 @@ async function renderPath(options) {
     retendModule,
     routerModule,
     retendRenderModule,
+    retendRouterModule,
     retendVDomModule,
     skipRedirects,
   } = options;
@@ -160,7 +167,7 @@ async function renderPath(options) {
       console.warn('appElement not found while rendering', path);
       return;
     }
-    appElement.replaceChildren(createRouterRoot(router));
+    appElement.replaceChildren(retendRouterModule.createRouterRoot(router));
 
     await router.navigate(path);
 

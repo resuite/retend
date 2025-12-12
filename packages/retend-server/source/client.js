@@ -11,6 +11,7 @@ import {
   setAttributeFromProps,
   useObserver,
 } from 'retend';
+import { createRouterRoot } from 'retend/router';
 import {
   setGlobalContext,
   Modes,
@@ -28,7 +29,6 @@ import {
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
-import { createRouterRoot } from './utils.js';
 
 const OUTLET_INTERNAL_KEYS = ['__originScopeSnapshot'];
 
