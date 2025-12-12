@@ -981,7 +981,7 @@ export function defineRoute(route) {
 export function createRouterRoot(router) {
   /** @type {*} */
   const rootOutlet = RouterProvider({ router, children: Outlet });
-  return rootOutlet[0];
+  return rootOutlet;
 }
 
 // Type Re-exports
