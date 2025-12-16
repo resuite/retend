@@ -281,9 +281,26 @@ export function isMatchingCommentPair(start, end) {
 export function consolidateNodes(nodes) {
   const { window } = getGlobalContext();
   if (nodes.length === 1) return nodes[0];
-  else {
-    const fragment = window.document.createDocumentFragment();
-    fragment.append(.../** @type {*} */ (nodes));
-    return fragment;
-  }
+
+  const fragment = window.document.createDocumentFragment();
+  fragment.append(.../** @type {*} */ (nodes));
+  return fragment;
+}
+
+/**
+ * @param {string} id
+ * @param {string} contents
+ */
+export function writeStaticStyle(id, contents) {
+  const { window, globalData } = getGlobalContext();
+  const { head } = window.document;
+  const formatted = `retend:static-style-ids:${id}`;
+  const writtenId = globalData.get(formatted);
+  if (writtenId) return;
+
+  const newStyle = window.document.createElement('style');
+  newStyle.setAttribute('id', id);
+  newStyle.innerHTML = contents;
+  head.append(/** @type {*} */ (newStyle));
+  globalData.set(formatted, id);
 }

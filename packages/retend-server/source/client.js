@@ -11,6 +11,7 @@ import {
   setAttributeFromProps,
   useObserver,
 } from 'retend';
+import { createRouterRoot } from 'retend/router';
 import {
   setGlobalContext,
   Modes,
@@ -18,7 +19,7 @@ import {
   matchContext,
   isSSREnvironment,
 } from 'retend/context';
-import { upgradeAnchorTag } from 'retend/router';
+
 import {
   HydrationUpgradeEvent,
   VComment,
@@ -177,24 +178,21 @@ export async function hydrate(routerFn) {
       '[retend-server] No server-side context found. Falling back to SPA mode.'
     );
     const router = await defaultToSpaMode(routerFn);
-    activateLinks(router);
     return router;
   }
 
   const context = JSON.parse(contextScript.textContent ?? '{}');
   const router = await restoreContext(context, routerFn);
   addMetaListener(router, document);
-  activateLinks(router);
   return router;
 }
 
 /** @param {() => Router} routerFn  */
 async function defaultToSpaMode(routerFn) {
   const router = routerFn();
-  router.setWindow(window);
-  router.attachWindowListeners();
+  router.attachWindowListeners(window);
   const root = document.querySelector('#app');
-  root?.append(/** @type {Node} */ (router.Outlet()));
+  root?.append(/** @type {Node} */ (createRouterRoot(router)));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
   addMetaListener(router, document);
   await runPendingSetupEffects();
@@ -229,13 +227,12 @@ async function restoreContext(context, routerCreateFn) {
 
   const observer = useObserver();
   const router = routerCreateFn();
-  router.setWindow(vWindow);
-  router.attachWindowListeners();
+  router.attachWindowListeners(window);
 
   const vAppRoot = vWindow.document.querySelector(rootSelector);
   if (!vAppRoot) throw new Error(`Root element "${rootSelector}" not found`);
 
-  vAppRoot.append(/** @type {VNode} */ (router.Outlet()));
+  vAppRoot.append(/** @type {VNode} */ (createRouterRoot(router)));
   await router.navigate(path);
   await vWindow.document.mountAllTeleports();
 
@@ -266,8 +263,7 @@ async function restoreContext(context, routerCreateFn) {
     globalData: hydratedGlobalData,
   });
 
-  router.setWindow(window);
-  router.attachWindowListeners();
+  router.attachWindowListeners(window);
   Reflect.set(globalThis.window.document, '__appRouterInstance', router);
   await runPendingSetupEffects();
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
@@ -482,19 +478,6 @@ function recreateVWindow(obj, window) {
   if (obj.type === 8)
     return document.createComment(/** @type {string} */ (obj.text));
   return document.createTextNode(/** @type {string} */ (obj.text));
-}
-
-/**
- * Reactivates the router linking behavior that was disabled
- * during SSG.
- * @param {Router} router
- */
-function activateLinks(router) {
-  /** @type {NodeListOf<HTMLAnchorElement>} */
-  const links = document.querySelectorAll('a[data-router-link]');
-  for (const link of links) {
-    upgradeAnchorTag(link, router);
-  }
 }
 
 export class NoHydrateVNode extends VNode {

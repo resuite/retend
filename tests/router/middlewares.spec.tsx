@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { routerSetup } from '../setup.ts';
+import { describe, it, expect, vi } from 'vitest';
+import { getGlobalContext } from 'retend/context';
+import { vDomSetup } from '../setup.tsx';
 import {
   createWebRouter,
   defineRouterMiddleware,
@@ -10,11 +10,7 @@ import {
 import type { RouterMiddleware } from 'retend/router';
 
 describe('Router Middlewares', () => {
-  beforeEach(routerSetup);
-
-  afterAll(() => {
-    resetGlobalContext();
-  });
+  vDomSetup();
 
   it('should execute middleware before route change', async () => {
     const { window } = getGlobalContext();
@@ -34,8 +30,7 @@ describe('Router Middlewares', () => {
       middlewares: [testMiddleware],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/home');
     expect(middlewareSpy).toHaveBeenCalledWith('/home', '');
@@ -63,8 +58,7 @@ describe('Router Middlewares', () => {
       middlewares: [blockingMiddleware],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/home');
     expect(router.getCurrentRoute().get().path).toBe('/home');
@@ -92,8 +86,7 @@ describe('Router Middlewares', () => {
       middlewares: [firstMiddleware, secondMiddleware],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/home');
     expect(executionOrder).toEqual(['first', 'second']);
@@ -116,8 +109,7 @@ describe('Router Middlewares', () => {
       middlewares: [redirectMiddleware],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/old-path');
     await router.navigate('/new-path');
@@ -142,8 +134,7 @@ describe('Router Middlewares', () => {
       middlewares: [asyncMiddleware],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/home');
     expect(router.getCurrentRoute().get().path).toBe('/home');
@@ -169,8 +160,7 @@ describe('Router Middlewares', () => {
       middlewares: [metadataMiddleware],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     await router.navigate('/user/123?tab=profile');
     expect(metadataSpy).toHaveBeenCalledWith(

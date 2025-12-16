@@ -1,5 +1,5 @@
 import { Cell } from '@adbl/cells';
-import { useRouter } from './index.js';
+import { useRouter } from './router.js';
 
 /**
  * @typedef {Object} AsyncRouteQuery

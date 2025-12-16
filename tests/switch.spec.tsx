@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Cell } from 'retend';
 import { Switch, If } from 'retend';
 import { type NodeLike, getGlobalContext } from 'retend/context';
-import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
+import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
 import type { VElement, VNode } from 'retend/v-dom';
 
 const runTests = () => {

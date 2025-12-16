@@ -67,6 +67,12 @@ export async function buildPath(path, options) {
     await runner.evaluator.runExternalModule(import.meta.resolve('retend'))
   );
 
+  const retendRouterModule = /** @type {typeof import('retend/router')} */ (
+    await runner.evaluator.runExternalModule(
+      import.meta.resolve('retend/router')
+    )
+  );
+
   const retendRenderModule = /** @type {typeof import('retend/render')} */ (
     await runner.evaluator.runExternalModule(
       import.meta.resolve('retend/render')
@@ -94,6 +100,7 @@ export async function buildPath(path, options) {
     retendModule,
     retendRenderModule,
     retendVDomModule,
+    retendRouterModule,
     skipRedirects,
   };
 
@@ -113,6 +120,7 @@ async function renderPath(options) {
     retendModule,
     routerModule,
     retendRenderModule,
+    retendRouterModule,
     retendVDomModule,
     skipRedirects,
   } = options;
@@ -150,8 +158,7 @@ async function renderPath(options) {
 
     const router = routerModule.createRouter();
     const currentRoute = router.getCurrentRoute();
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
     addMetaListener(router, document);
 
@@ -160,7 +167,7 @@ async function renderPath(options) {
       console.warn('appElement not found while rendering', path);
       return;
     }
-    appElement.replaceChildren(/** @type {VNode} */ (router.Outlet()));
+    appElement.replaceChildren(retendRouterModule.createRouterRoot(router));
 
     await router.navigate(path);
 

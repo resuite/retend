@@ -128,7 +128,8 @@ export function updatePageMeta(newMeta, document) {
  */
 export function addMetaListener(router, document) {
   /** @type {Cell<RouteData>} */
-  const currentPath = Reflect.get(router, 'currentPath');
+  const currentPath = router.getCurrentRoute();
+  Reflect.set(document, 'retend:routerCurrentPath', currentPath);
   currentPath.runAndListen((data) => {
     const { metadata } = data;
     if (metadata) {

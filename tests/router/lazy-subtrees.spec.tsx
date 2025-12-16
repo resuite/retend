@@ -1,27 +1,24 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import { getGlobalContext, resetGlobalContext } from "retend/context";
-import { getTextContent, routerSetup } from "../setup.ts";
+import { describe, it, expect } from 'vitest';
+import { getGlobalContext } from 'retend/context';
+import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
 import {
   createWebRouter,
   defineRoute,
   defineRoutes,
   lazy,
+  useCurrentRoute,
   useRouter,
-} from "retend/router";
+} from 'retend/router';
 
-describe("Router Lazy Subtrees", () => {
-  beforeEach(routerSetup);
+describe('Router Lazy Subtrees', () => {
+  vDomSetup();
 
-  afterAll(() => {
-    resetGlobalContext();
-  });
-
-  it("should load a lazy subtree", async () => {
+  it('should load a lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const subtree = defineRoute({
-      name: "about-me",
-      path: "/about",
+      name: 'about-me',
+      path: '/about',
       component: () => {
         return <div>This is some info about me</div>;
       },
@@ -30,34 +27,33 @@ describe("Router Lazy Subtrees", () => {
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/home",
-          name: "home",
-          children: [{ path: "", name: "home-child", component: () => "Home" }],
+          path: '/home',
+          name: 'home',
+          children: [{ path: '', name: 'home-child', component: () => 'Home' }],
         },
         {
-          path: "/about",
+          path: '/about',
           subtree: lazy(() => Promise.resolve({ default: subtree })),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
-    await router.navigate("/home");
+    await router.navigate('/home');
     const route2 = router.getCurrentRoute();
-    expect(route2.get().name).toBe("home-child");
+    expect(route2.get().name).toBe('home-child');
 
-    await router.navigate("/about");
+    await router.navigate('/about');
     const route3 = router.getCurrentRoute();
-    expect(route3.get().name).toBe("about-me");
+    expect(route3.get().name).toBe('about-me');
   });
 
-  it("should load a lazy subtree not at the root level", async () => {
+  it('should load a lazy subtree not at the root level', async () => {
     const { window } = getGlobalContext();
 
     const nestedSubtree = defineRoute({
-      name: "lazy-nested-route",
-      path: "/child",
+      name: 'lazy-nested-route',
+      path: '/child',
       component: () => {
         return <div>This is a lazy nested route</div>;
       },
@@ -66,107 +62,104 @@ describe("Router Lazy Subtrees", () => {
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/parent",
-          name: "parent",
+          path: '/parent',
+          name: 'parent',
           children: [
             {
-              path: "/child",
+              path: '/child',
               subtree: lazy(() => Promise.resolve({ default: nestedSubtree })),
             },
-            { path: "/other", name: "parent-other", component: () => "Other" },
+            { path: '/other', name: 'parent-other', component: () => 'Other' },
           ],
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
-    await router.navigate("/parent/other");
+    await router.navigate('/parent/other');
     const route1 = router.getCurrentRoute();
-    expect(route1.get().name).toBe("parent-other");
+    expect(route1.get().name).toBe('parent-other');
 
-    await router.navigate("/parent/child");
+    await router.navigate('/parent/child');
     const route2 = router.getCurrentRoute();
-    expect(route2.get().name).toBe("lazy-nested-route");
+    expect(route2.get().name).toBe('lazy-nested-route');
   });
 
-  it("should throw errors if the path of the subtree is not the same as the importer", async () => {
+  it('should throw errors if the path of the subtree is not the same as the importer', async () => {
     const { window } = getGlobalContext();
 
     const misconfiguredSubtree = defineRoute({
-      name: "incorrect-lazy-subtree",
-      path: "/this-is-the-wrong-path",
+      name: 'incorrect-lazy-subtree',
+      path: '/this-is-the-wrong-path',
       component: () => <div>This should not load correctly</div>,
     });
 
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/parent-for-lazy",
+          path: '/parent-for-lazy',
           subtree: lazy(() =>
-            Promise.resolve({ default: misconfiguredSubtree }),
+            Promise.resolve({ default: misconfiguredSubtree })
           ),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
-    await expect(router.navigate("/parent-for-lazy")).rejects.toThrow(
-      "Lazy subtrees must have the same path as their parents. Parent path: /parent-for-lazy, Subtree path: /this-is-the-wrong-path",
+    await expect(router.navigate('/parent-for-lazy')).rejects.toThrow(
+      'Lazy subtrees must have the same path as their parents. Parent path: /parent-for-lazy, Subtree path: /this-is-the-wrong-path'
     );
   });
 
-  it("should load a lazy subtree directly importing a lazy subtree", async () => {
+  it('should load a lazy subtree directly importing a lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const deepestLazyComponent = defineRoute({
-      name: "deepest-lazy-component",
-      path: "/lazy-chain",
+      name: 'deepest-lazy-component',
+      path: '/lazy-chain',
       component: () => <div>This is the deepest lazy component loaded</div>,
     });
 
     const middleLazyImporter = defineRoute({
-      name: "middle-lazy-importer",
-      path: "/lazy-chain",
+      name: 'middle-lazy-importer',
+      path: '/lazy-chain',
       subtree: lazy(() => Promise.resolve({ default: deepestLazyComponent })),
     });
 
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/lazy-chain",
+          path: '/lazy-chain',
           subtree: lazy(() => Promise.resolve({ default: middleLazyImporter })),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
-    await router.navigate("/lazy-chain");
+    await router.navigate('/lazy-chain');
 
     const currentRoute = router.getCurrentRoute();
-    expect(currentRoute.get().name).toBe("deepest-lazy-component");
-    expect(currentRoute.get().path).toBe("/lazy-chain");
+    expect(currentRoute.get().name).toBe('deepest-lazy-component');
+    expect(currentRoute.get().path).toBe('/lazy-chain');
   });
 
-  it("should load nested lazy subtrees", async () => {
+  it('should load nested lazy subtrees', async () => {
     const { window } = getGlobalContext();
 
     const financeReportsComponent = defineRoute({
-      name: "finance-reports",
-      path: "/reports",
+      name: 'finance-reports',
+      path: '/reports',
       component: () => <div>Finance Reports</div>,
     });
 
     const financeModule = defineRoute({
-      name: "finance-module",
-      path: "/finance",
+      name: 'finance-module',
+      path: '/finance',
       children: [
         {
-          path: "/reports",
+          path: '/reports',
           subtree: lazy(() =>
-            Promise.resolve({ default: financeReportsComponent }),
+            Promise.resolve({ default: financeReportsComponent })
           ),
         },
       ],
@@ -175,79 +168,75 @@ describe("Router Lazy Subtrees", () => {
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/finance",
+          path: '/finance',
           subtree: lazy(() => Promise.resolve({ default: financeModule })),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
 
-    await router.navigate("/finance/reports");
+    await router.navigate('/finance/reports');
 
     const currentRoute = router.getCurrentRoute();
-    expect(currentRoute.get().name).toBe("finance-reports");
-    expect(currentRoute.get().path).toBe("/finance/reports");
+    expect(currentRoute.get().name).toBe('finance-reports');
+    expect(currentRoute.get().path).toBe('/finance/reports');
   });
 });
 
-describe("Router Lazy Subtrees with Advanced Matching", () => {
-  beforeEach(routerSetup);
+describe('Router Lazy Subtrees with Advanced Matching', () => {
+  vDomSetup();
 
-  afterAll(() => {
-    resetGlobalContext();
-  });
-
-  it("should handle parameters defined before the lazy subtree", async () => {
+  it('should handle parameters defined before the lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const UserProfile = () => {
       const router = useRouter();
-      const userId = router.params.get("userId");
+      const currentRoute = router.getCurrentRoute();
+      const userId = currentRoute.get().params.get('userId');
       return <div>User ID: {userId}</div>;
     };
 
     const profileSubtree = defineRoute({
-      name: "user-profile-subtree",
-      path: "/profile", // This path is relative to its mount point
+      name: 'user-profile-subtree',
+      path: '/profile', // This path is relative to its mount point
       component: UserProfile,
     });
 
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/users/:userId",
+          path: '/users/:userId',
           children: [
             {
-              path: "/profile",
+              path: '/profile',
               subtree: lazy(() => Promise.resolve({ default: profileSubtree })),
             },
           ],
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
-    await router.navigate("/users/123/profile");
-    expect(getTextContent(window.document.body)).toBe("User ID: 123");
+    await router.navigate('/users/123/profile');
+    expect(getTextContent(window.document.body)).toBe('User ID: 123');
   });
 
-  it("should handle parameters defined within the lazy subtree", async () => {
+  it('should handle parameters defined within the lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const ProductPage = () => {
-      const router = useRouter();
-      const productId = router.params.get("productId");
+      const currentRoute = useCurrentRoute();
+      const productId = currentRoute.get().params.get('productId');
       return <div>Product: {productId}</div>;
     };
 
     const productsSubtree = defineRoute({
-      path: "/products",
+      path: '/products',
       children: [
         {
-          path: "/:productId",
-          name: "product-detail",
+          path: '/:productId',
+          name: 'product-detail',
           component: ProductPage,
         },
       ],
@@ -256,25 +245,25 @@ describe("Router Lazy Subtrees with Advanced Matching", () => {
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/products",
+          path: '/products',
           subtree: lazy(() => Promise.resolve({ default: productsSubtree })),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
-    await router.navigate("/products/xyz-789");
-    expect(getTextContent(window.document.body)).toBe("Product: xyz-789");
+    await router.navigate('/products/xyz-789');
+    expect(getTextContent(window.document.body)).toBe('Product: xyz-789');
   });
 
-  it("should handle parameters defined both before and within the lazy subtree", async () => {
+  it('should handle parameters defined both before and within the lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const StoreItem = () => {
-      const router = useRouter();
-      const storeId = router.params.get("storeId");
-      const itemId = router.params.get("itemId");
+      const currentRoute = useCurrentRoute();
+      const storeId = currentRoute.get().params.get('storeId');
+      const itemId = currentRoute.get().params.get('itemId');
       return (
         <div>
           Store: {storeId}, Item: {itemId}
@@ -283,11 +272,11 @@ describe("Router Lazy Subtrees with Advanced Matching", () => {
     };
 
     const inventorySubtree = defineRoute({
-      path: "/inventory",
+      path: '/inventory',
       children: [
         {
-          path: "/:itemId",
-          name: "store-item",
+          path: '/:itemId',
+          name: 'store-item',
           component: StoreItem,
         },
       ],
@@ -296,42 +285,42 @@ describe("Router Lazy Subtrees with Advanced Matching", () => {
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/stores/:storeId",
+          path: '/stores/:storeId',
           children: [
             {
-              path: "/inventory",
+              path: '/inventory',
               subtree: lazy(() =>
-                Promise.resolve({ default: inventorySubtree }),
+                Promise.resolve({ default: inventorySubtree })
               ),
             },
           ],
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
-    await router.navigate("/stores/main-street/inventory/item-456");
+    await router.navigate('/stores/main-street/inventory/item-456');
     expect(getTextContent(window.document.body)).toBe(
-      "Store: main-street, Item: item-456",
+      'Store: main-street, Item: item-456'
     );
   });
 
-  it("should handle wildcards within a lazy subtree", async () => {
+  it('should handle wildcards within a lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const DocsPage = () => {
-      const router = useRouter();
-      const pagePath = router.params.get("page");
+      const currentRoute = useCurrentRoute();
+      const pagePath = currentRoute.get().params.get('page');
       return <div>Docs Page: {pagePath}</div>;
     };
 
     const docsSubtree = defineRoute({
-      path: "/docs",
+      path: '/docs',
       children: [
         {
-          path: ":page*",
-          name: "docs-catchall",
+          path: ':page*',
+          name: 'docs-catchall',
           component: DocsPage,
         },
       ],
@@ -340,37 +329,37 @@ describe("Router Lazy Subtrees with Advanced Matching", () => {
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/docs",
+          path: '/docs',
           subtree: lazy(() => Promise.resolve({ default: docsSubtree })),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
-    await router.navigate("/docs/guides/advanced/routing");
+    await router.navigate('/docs/guides/advanced/routing');
     expect(getTextContent(window.document.body)).toBe(
-      "Docs Page: guides/advanced/routing",
+      'Docs Page: guides/advanced/routing'
     );
   });
 
-  it("should handle fallthrough (index) routes within a lazy subtree", async () => {
+  it('should handle fallthrough (index) routes within a lazy subtree', async () => {
     const { window } = getGlobalContext();
 
     const DashboardHome = () => <div>Dashboard Home</div>;
     const DashboardSettings = () => <div>Dashboard Settings</div>;
 
     const dashboardSubtree = defineRoute({
-      path: "/dashboard",
+      path: '/dashboard',
       children: [
         {
-          path: "",
-          name: "dashboard-home",
+          path: '',
+          name: 'dashboard-home',
           component: DashboardHome,
         },
         {
-          path: "/settings",
-          name: "dashboard-settings",
+          path: '/settings',
+          name: 'dashboard-settings',
           component: DashboardSettings,
         },
       ],
@@ -379,50 +368,50 @@ describe("Router Lazy Subtrees with Advanced Matching", () => {
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/dashboard",
+          path: '/dashboard',
           subtree: lazy(() => Promise.resolve({ default: dashboardSubtree })),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
-    await router.navigate("/dashboard");
-    expect(getTextContent(window.document.body)).toBe("Dashboard Home");
+    await router.navigate('/dashboard');
+    expect(getTextContent(window.document.body)).toBe('Dashboard Home');
 
-    await router.navigate("/dashboard/settings");
-    expect(getTextContent(window.document.body)).toBe("Dashboard Settings");
+    await router.navigate('/dashboard/settings');
+    expect(getTextContent(window.document.body)).toBe('Dashboard Settings');
   });
 
-  it("should handle parameters directly on the lazy route importer", async () => {
+  it('should handle parameters directly on the lazy route importer', async () => {
     const { window } = getGlobalContext();
 
     const ProductDetail = () => {
-      const router = useRouter();
-      const productId = router.params.get("productId");
+      const currentRoute = useCurrentRoute();
+      const productId = currentRoute.get().params.get('productId');
       return <div>Product ID: {productId}</div>;
     };
 
     const productSubtree = defineRoute({
-      name: "product-detail-lazy",
-      path: "/products/:productId",
+      name: 'product-detail-lazy',
+      path: '/products/:productId',
       component: ProductDetail,
     });
 
     const router = createWebRouter({
       routes: defineRoutes([
         {
-          path: "/products/:productId",
+          path: '/products/:productId',
           subtree: lazy(() => Promise.resolve({ default: productSubtree })),
         },
       ]),
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
-    await router.navigate("/products/super-shoe-42");
+    await router.navigate('/products/super-shoe-42');
     expect(getTextContent(window.document.body)).toBe(
-      "Product ID: super-shoe-42",
+      'Product ID: super-shoe-42'
     );
   });
 });

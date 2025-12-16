@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { combineScopes, createScope, useScopeContext } from 'retend';
 import { getGlobalContext, resetGlobalContext } from 'retend/context';
 import { createWebRouter, useRouter } from 'retend/router';
-import { routerSetup, getTextContent } from '../setup.ts';
+import { routerSetup, getTextContent, routerRoot } from '../setup.tsx';
 
 describe('Scopes in Routing', () => {
   beforeEach(() => {
@@ -48,8 +48,9 @@ describe('Scopes in Routing', () => {
         },
       ],
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/content');
     expect(getTextContent(window.document.body)).toBe('Username is Sefunmi');
@@ -118,8 +119,8 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/user');
     expect(getTextContent(window.document.body)).toContain(
@@ -183,8 +184,8 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/child/grandchild');
     expect(getTextContent(window.document.body)).toContain(
@@ -248,8 +249,8 @@ describe('Scopes in Routing', () => {
       ],
     });
 
-    router.setWindow(window);
-    router.attachWindowListeners();
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/protected');
     expect(getTextContent(window.document.body)).toBe('Token: abc123');
@@ -303,8 +304,9 @@ describe('Scopes in Routing', () => {
         },
       ],
     });
-    router.setWindow(window);
-    router.attachWindowListeners();
+
+    router.attachWindowListeners(window);
+    window.document.body.append(routerRoot(router));
 
     await router.navigate('/content');
     expect(getTextContent(window.document.body)).toBe('Username is Sefunmi');

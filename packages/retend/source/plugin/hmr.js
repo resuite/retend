@@ -18,17 +18,18 @@ import {
   copyCellListeners,
   isMatchingCommentPair,
 } from '../library/utils.js';
+import {
+  ComponentInvalidator,
+  getHMRScopeList,
+  HMRContext,
+  HmrId,
+} from './hmr-context.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { SourceCell } from '@adbl/cells' */
 /** @import { ReactiveCellFunction } from '../library/utils.js' */
 /** @import { Scope } from '../library/scope.js' */
 
-export const ComponentInvalidator = Symbol('Invalidator');
-export const OverwrittenBy = Symbol('OverwrittenBy');
-export const HmrId = Symbol('HmrId');
-export const HMRContext = Symbol('HMRContext');
-export const HMRScopeContext = Symbol('HMRScopeContext');
 /** @type {Scope<UpdatableFn[]>} */
 export const RetendComponentTree = createScope('__RetendComponentTree');
 
@@ -170,17 +171,13 @@ export function getHMRContext() {
   return globalData.get(HMRContext);
 }
 
-const ScopeList = new Map();
-export function getHMRScopeList() {
-  return ScopeList;
-}
-
 /**
  *
  * @param {Scope & { [HmrId]?: string }} Scope
  * @param {string} [fileName]
  */
 function trackScopeReference(Scope, fileName) {
+  const ScopeList = getHMRScopeList();
   if (!Reflect.get(Scope, HmrId)) {
     const description = Scope.key.description;
     let uniqueId = description ? `${fileName}-${description}` : fileName;

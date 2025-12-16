@@ -1,6 +1,6 @@
 import { describe, it, expect, assert } from 'vitest';
 import { Cell } from 'retend';
-import { browserSetup, getTextContent, vDomSetup } from './setup.ts';
+import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
 import { ShadowRoot } from 'retend/shadowroot';
 import { getGlobalContext } from 'retend/context';
 import type { VNode, VElement } from 'retend/v-dom';
