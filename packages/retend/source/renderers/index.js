@@ -6,7 +6,7 @@ const RendererKey = Symbol('Renderer');
 export * from './_shared.js';
 
 /**
- * @returns {Renderer<any, any>}
+ * @returns {Renderer<any, any, any>}
  */
 export function getActiveRenderer() {
   const { globalData } = getGlobalContext();
@@ -20,7 +20,7 @@ export function getActiveRenderer() {
 }
 
 /**
- * @param {Renderer<any, any>} renderer
+ * @param {Renderer<any, any, any>} renderer
  */
 export function setActiveRenderer(renderer) {
   const { globalData } = getGlobalContext();

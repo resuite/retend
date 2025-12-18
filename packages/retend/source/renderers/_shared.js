@@ -5,14 +5,16 @@ import { Cell } from '@adbl/cells';
 import { addCellListener } from '../library/utils.js';
 
 /**
- * @template Node
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
  * Generates an array of child nodes from a given input.
  * @param {JSX.Template | TemplateStringsArray} children
- * @param {Renderer<Node, any>} renderer
- * @returns {Node[]}
+ * @param {Renderer<NodeType, Output, Group>} renderer
+ * @returns {NodeType[]}
  */
 export function generateChildNodes(children, renderer) {
-  /** @type {Node[]} */
+  /** @type {NodeType[]} */
   const nodes = [];
 
   if (
@@ -27,8 +29,8 @@ export function generateChildNodes(children, renderer) {
     return [renderer.handlePromise(children)];
   }
 
-  if (renderer.isFragment(children)) {
-    return renderer.unwrapFragment(children);
+  if (renderer.isGroup(children)) {
+    return renderer.unwrapNodeGroup(children);
   }
 
   if (renderer.isNode(children)) {
@@ -43,15 +45,17 @@ export function generateChildNodes(children, renderer) {
 }
 
 /**
- * @template Node
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
  * Appends a child node or an array of child nodes to a parent node.
- * @param {Node} parent
+ * @param {NodeType} parent
  * The tag name of the parent node.
  * @param {any} child
  * The child node, array of child nodes, or string to append.
- * @param {Renderer<Node, any>} renderer
+ * @param {Renderer<NodeType, Output, Group>} renderer
  * The renderer instance used for creating nodes.
- * @returns {Node}
+ * @returns {NodeType}
  */
 export function appendChild(parent, child, renderer) {
   let _parent = parent;
@@ -69,22 +73,24 @@ export function appendChild(parent, child, renderer) {
 }
 
 /**
- * @template Node
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
  * Normalizes a child jsx element for use in the DOM.
  * @param {unknown} child - The child element to normalize.
- * @param {Renderer<Node, any>} renderer - The renderer instance.s
- * @returns {Node} The normalized child element.
+ * @param {Renderer<NodeType, Output, Group>} renderer - The renderer instance.s
+ * @returns {NodeType} The normalized child element.
  */
 export function normalizeJsxChild(child, renderer) {
   if (renderer.isNode(child)) return child;
 
   if (Array.isArray(child)) {
-    const fragment = renderer.createFragment();
+    const group = renderer.createNodeGroup();
     for (const subchild of child) {
       const childNodes = normalizeJsxChild(subchild, renderer);
-      renderer.append(fragment, childNodes);
+      renderer.append(group, childNodes);
     }
-    return fragment;
+    return group;
   }
 
   if (child === null || child === undefined) {

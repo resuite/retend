@@ -1,5 +1,5 @@
 /** @import { InteractiveRenderer } from "./types.js"; */
-/** @import { NodeLike } from "../context/index.js"; */
+/** @import { NodeLike, FragmentLike } from "../context/index.js"; */
 /** @import { CellSet } from '../library/utils.js' */
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { jsxDevFileData, UpdatableFn } from '../plugin/hmr.js'; */
@@ -52,7 +52,7 @@ import { withHMRBoundaries } from '../plugin/hmr.js';
  */
 
 /**
- * @implements {InteractiveRenderer<NodeLike, NodeLike>}
+ * @implements {InteractiveRenderer<NodeLike, NodeLike, FragmentLike>}
  */
 export class DomRenderer {
   isInteractive = /** @type {const} */ (true);
@@ -91,7 +91,7 @@ export class DomRenderer {
    * @param {any} props
    * @param {jsxDevFileData} [fileData]
    */
-  renderComponent(tagname, props, fileData) {
+  handleComponent(tagname, props, fileData) {
     // @ts-expect-error: Vite types are not ingrained
     if (import.meta.env?.DEV) {
       return withHMRBoundaries(tagname, props, fileData);
@@ -206,7 +206,7 @@ export class DomRenderer {
   /**
    * @param {NodeLike | NodeLike[]} [input]
    */
-  createFragment(input) {
+  createNodeGroup(input) {
     const { window } = getGlobalContext();
     const fragment = window.document.createDocumentFragment();
     if (input) {
@@ -219,11 +219,11 @@ export class DomRenderer {
   }
 
   /**
-   * @param {any} fragment
+   * @param {any} group
    * @returns {NodeLike[]}
    */
-  unwrapFragment(fragment) {
-    return Array.from(fragment.childNodes);
+  unwrapNodeGroup(group) {
+    return Array.from(group.childNodes);
   }
 
   /**
@@ -262,8 +262,9 @@ export class DomRenderer {
 
   /**
    * @param {NodeLike} node
+   * @returns {node is FragmentLike}
    */
-  isFragment(node) {
+  isGroup(node) {
     const { window } = getGlobalContext();
     return (
       node instanceof window.DocumentFragment &&

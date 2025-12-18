@@ -1,26 +1,28 @@
 /** @import { jsxDevFileData, UpdatableFn } from '../plugin/hmr.js'; */
 
 /**
- * @template Node, Output
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
  * @typedef BaseRendererProperties
- * @property {(input?: Node[]) => Node} createFragment
- * @property {(child: any) => boolean} isFragment
- * @property {(child: any) => child is Node} isNode
- * @property {(tagname: string, namespace?: string) => Node} createElement
- * @property {(text: string) => Node} createText
- * @property {(node: Node, key: string, value: unknown) => Node} setProperty
- * @property {(promise: Promise<any>) => Node} handlePromise
- * @property {(fragment: any) => Node[]} unwrapFragment
- * @property {(parent: Node, children: Node | Node[]) => Node} append
- * @property {(node: Node) => Output} finalize
- * @property {(tagnameOrFunction: UpdatableFn, props: any, fileData?: jsxDevFileData) => Node} renderComponent
+ * @property {(input?: NodeType[]) => NodeType} createNodeGroup
+ * @property {(child: any) => child is Group} isGroup
+ * @property {(child: any) => child is NodeType} isNode
+ * @property {(tagname: string, namespace?: string) => NodeType} createElement
+ * @property {(text: string) => NodeType} createText
+ * @property {(node: NodeType, key: string, value: unknown) => NodeType} setProperty
+ * @property {(promise: Promise<any>) => NodeType} handlePromise
+ * @property {(fragment: Group) => NodeType[]} unwrapNodeGroup
+ * @property {(parent: NodeType, children: NodeType | NodeType[]) => NodeType} append
+ * @property {(node: NodeType) => Output} finalize
+ * @property {(tagnameOrFunction: UpdatableFn, props: any, fileData?: jsxDevFileData) => NodeType} handleComponent
  */
 
 /**
- * @template Node
+ * @template NodeType
  * @typedef InteractiveRendererProperties
  * @property {true} isInteractive
- * @property {(text: string, node: Node) => Node} setText
+ * @property {(text: string, node: NodeType) => NodeType} setText
  */
 
 /**
@@ -29,16 +31,22 @@
  */
 
 /**
- * @template Node, Output
- * @typedef {BaseRendererProperties<Node, Output> & InteractiveRendererProperties<Node>} InteractiveRenderer
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
+ * @typedef {BaseRendererProperties<NodeType, Output, Group> & InteractiveRendererProperties<NodeType>} InteractiveRenderer
  */
 
 /**
- * @template Node, Output
- * @typedef {BaseRendererProperties<Node, Output> & StaticRendererProperties} StaticRenderer
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
+ * @typedef {BaseRendererProperties<NodeType, Output, Group> & StaticRendererProperties} StaticRenderer
  */
 
 /**
- * @template Node, Output
- * @typedef {StaticRenderer<Node, Output> | InteractiveRenderer<Node, Output>} Renderer
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
+ * @typedef {StaticRenderer<NodeType, Output, Group> | InteractiveRenderer<NodeType, Output, Group>} Renderer
  */

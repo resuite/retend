@@ -1,22 +1,33 @@
 /** @import { jsxDevFileData } from '../plugin/hmr.js'; */
+/** @import { Renderer } from '../renderers/types.js'; */
 import { appendChild } from '../renderers/_shared.js';
 import { getActiveRenderer } from '../renderers/index.js';
 import { ArgumentList } from './utils.js';
 
 /**
+ * @template NodeType
+ * @template Output
+ * @template {NodeType} Group
  * @param {string | Function | undefined} tagOrFn
  * @param {*} props
  * @param {*} [_]
  * @param {*} [__]
  * @param {jsxDevFileData} [fileData]
+ * @param {Renderer<NodeType, Output, Group>} renderer
  * @returns {any}
  */
-export function h(tagOrFn, props, _, __, fileData) {
+export function h(
+  tagOrFn,
+  props,
+  _,
+  __,
+  fileData,
+  renderer = getActiveRenderer()
+) {
   if (tagOrFn === undefined) return [];
-  const renderer = getActiveRenderer();
 
   if (Object.is(tagOrFn, DocumentFragmentPlaceholder)) {
-    /** @type {Node[]} */
+    /** @type {NodeType[]} */
     const childList =
       typeof props === 'object' && !(props instanceof ArgumentList)
         ? props.children
@@ -25,7 +36,7 @@ export function h(tagOrFn, props, _, __, fileData) {
             : [props.children]
           : []
         : [];
-    return renderer.createFragment(childList);
+    return renderer.createNodeGroup(childList);
   }
 
   if (typeof tagOrFn === 'function') {
@@ -36,7 +47,7 @@ export function h(tagOrFn, props, _, __, fileData) {
           ? [{ ...props }]
           : [];
 
-    return renderer.renderComponent(tagOrFn, completeProps, fileData);
+    return renderer.handleComponent(tagOrFn, completeProps, fileData);
   }
 
   if (props instanceof ArgumentList || typeof props !== 'object') {
