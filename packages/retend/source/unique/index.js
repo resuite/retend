@@ -5,7 +5,7 @@
 
 import { Cell, SourceCell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
-import h, { appendChild, setAttributeFromProps } from '../library/jsx.js';
+import h from '../library/jsx.js';
 import { getGlobalContext } from '../context/index.js';
 import {
   createScopeSnapshot,
@@ -14,6 +14,7 @@ import {
 } from '../library/scope.js';
 import { getHMRContext } from '../plugin/hmr.js';
 import { writeStaticStyle } from '../library/utils.js';
+import { getActiveRenderer, appendChild } from '../renderers/index.js';
 
 /**
  * @typedef UniqueStash
@@ -166,7 +167,8 @@ const initUniqueStash = () => {
  * {For(books, (book) => <PersistentBookCard book={book} />)}
  */
 export function Unique(props) {
-  const { window, globalData } = getGlobalContext();
+  const { globalData } = getGlobalContext();
+  const renderer = getActiveRenderer();
   const {
     name,
     children,
@@ -186,9 +188,9 @@ export function Unique(props) {
     ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}'
   );
 
-  const retendUniqueInstance = window.document.createElement(elementName);
+  const retendUniqueInstance = renderer.createElement(elementName);
   for (const [key, value] of Object.entries(rest)) {
-    setAttributeFromProps(retendUniqueInstance, key, value);
+    renderer.setProperty(retendUniqueInstance, key, value);
   }
 
   let previous = stash.instances.get(name);
@@ -290,6 +292,7 @@ export function Unique(props) {
       }
 
       const { window } = getGlobalContext();
+      const renderer = getActiveRenderer();
       const scope = stash.scopes.get(name);
       if (scope) scope.node.disable();
       const currentElement = stash.refs.get(name)?.peek();
@@ -299,8 +302,10 @@ export function Unique(props) {
         const nextInstances = window.document.querySelectorAll(selector);
         for (const nextInstance of [...nextInstances].reverse()) {
           if (currentElement !== nextInstance) {
-            // @ts-expect-error
-            nextInstance.append(...retendUniqueInstance.childNodes);
+            renderer.append(
+              nextInstance,
+              Array.from(retendUniqueInstance.childNodes)
+            );
             nextInstance.setAttribute('state', 'restored');
             // @ts-expect-error
             restoreState(nextInstance);
@@ -329,13 +334,12 @@ export function Unique(props) {
   }
 
   retendUniqueInstance.setAttribute('state', previous ? 'restored' : 'new');
-  appendChild(retendUniqueInstance, elementName, childNodes);
+  appendChild(retendUniqueInstance, childNodes, renderer);
 
   if (shadowRoot) {
     const { mode, childNodes } = shadowRoot;
     const newShadowRoot = retendUniqueInstance.attachShadow({ mode });
-    // @ts-expect-error
-    newShadowRoot.append(...childNodes);
+    renderer.append(newShadowRoot, childNodes);
   }
 
   return retendUniqueInstance;

@@ -10,7 +10,6 @@ import {
 import { routeToComponent } from '../router/routeTree.js';
 import { CellUpdateError } from '@adbl/cells';
 import {
-  generateChildNodes,
   createCommentPair,
   addCellListener,
   consolidateNodes,
@@ -24,6 +23,7 @@ import {
   HMRContext,
   HmrId,
 } from './hmr-context.js';
+import { generateChildNodes, getActiveRenderer } from '../renderers/index.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { SourceCell } from '@adbl/cells' */
@@ -258,7 +258,7 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
       value: [...ancestry, value.peek()],
       children: () => value.peek()(...completeProps, { createdByJsx: true }),
     });
-    return stabilizeNodes(generateChildNodes(template));
+    return stabilizeNodes(generateChildNodes(template, getActiveRenderer()));
   };
 
   let nodes = withScopeSnapshot(snapshot, nextComponentRender);

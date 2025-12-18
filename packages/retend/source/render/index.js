@@ -2,6 +2,8 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { ScopeSnapshot } from '../library/scope.js' */
 
+import { escapeHTML } from '../library/utils.js';
+
 const voidElements = new Set([
   'AREA',
   'BASE',
@@ -20,20 +22,6 @@ const voidElements = new Set([
 ]);
 
 const SPLIT_TEXT_MARKER = '<!--@@-->';
-
-/**
- * Escapes HTML special characters to prevent XSS and maintain correct rendering
- * @param {*} str
- * @returns {string}
- */
-function escapeHTML(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 /**
  * @typedef {Object} RenderToStringOptions

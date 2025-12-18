@@ -527,7 +527,9 @@ describe('Unique', () => {
         return <div>{derived}</div>;
       };
 
-      const UniqueContent = () => <Unique name={uuid}>{() => <Content />}</Unique>;
+      const UniqueContent = () => (
+        <Unique name={uuid}>{() => <Content />}</Unique>
+      );
 
       const page = Cell.source<'home' | 'about'>('home');
       const renderApp = Cell.source(true);

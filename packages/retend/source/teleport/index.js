@@ -4,8 +4,7 @@
 
 import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
-import { appendChild, setAttributeFromProps } from '../library/jsx.js';
-import { generateChildNodes, writeStaticStyle } from '../library/utils.js';
+import { writeStaticStyle } from '../library/utils.js';
 import {
   getGlobalContext,
   isVNode,
@@ -13,6 +12,11 @@ import {
   Modes,
 } from '../context/index.js';
 import { useConsistent } from '../library/consistent.js';
+import {
+  getActiveRenderer,
+  appendChild,
+  generateChildNodes,
+} from '../renderers/index.js';
 
 /**
  * @typedef TeleportOnlyProps
@@ -83,15 +87,19 @@ export function Teleport(props) {
     const staleInstance = findStaleTeleport(parent, teleportId);
     const newInstance = window.document.createElement('retend-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
+    const renderer = getActiveRenderer();
 
     for (const [key, value] of Object.entries(rest)) {
       if (key === 'children') continue;
-      setAttributeFromProps(newInstance, key, value);
+      renderer.setProperty(newInstance, key, value);
     }
 
-    const children = generateChildNodes(/** @type {*} */ (props.children));
+    const children = generateChildNodes(
+      /** @type {*} */ (props.children),
+      renderer
+    );
     for (const child of children) {
-      appendChild(newInstance, newInstance.tagName.toLowerCase(), child);
+      appendChild(newInstance, child, renderer);
     }
 
     if (staleInstance)

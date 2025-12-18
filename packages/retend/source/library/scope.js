@@ -3,13 +3,14 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import h from './jsx.js';
-import { generateChildNodes } from './utils.js';
 import {
   getHMRScopeList,
   HMRContext,
   HmrId,
   OverwrittenBy,
 } from '../plugin/hmr-context.js';
+import { generateChildNodes } from '../renderers/_shared.js';
+import { getActiveRenderer } from '../renderers/index.js';
 
 /**
  * @template [T=unknown]
@@ -222,7 +223,8 @@ export function createScope(name) {
       try {
         if ('h' in props && !props.h) {
           const template = renderFn();
-          return generateChildNodes(template);
+          const renderer = getActiveRenderer();
+          return generateChildNodes(template, renderer);
         }
         return h(renderFn, {});
       } finally {

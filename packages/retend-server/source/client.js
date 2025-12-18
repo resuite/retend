@@ -1,16 +1,11 @@
 /// <reference types="vite/client" />
 
-/** @import { JsxElement } from 'retend' */
 /** @import { VDocument } from 'retend/v-dom' */
 /** @import { Router } from 'retend/router' */
 /** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ServerContext } from './types.js' */
 
-import {
-  runPendingSetupEffects,
-  setAttributeFromProps,
-  useObserver,
-} from 'retend';
+import { runPendingSetupEffects, useObserver } from 'retend';
 import { createRouterRoot } from 'retend/router';
 import {
   setGlobalContext,
@@ -29,6 +24,7 @@ import {
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
+import { getActiveRenderer } from 'retend/renderers';
 
 const OUTLET_INTERNAL_KEYS = ['__originScopeSnapshot'];
 
@@ -317,9 +313,10 @@ async function hydrateDomNode(node, vNode) {
   }
 
   if (node instanceof Element && vNode instanceof VElement) {
+    const renderer = getActiveRenderer();
     // Port hidden attributes: event listeners, etc.
     for (const [name, value] of vNode.hiddenAttributes) {
-      setAttributeFromProps(/** @type {JsxElement} */ (node), name, value);
+      renderer.setProperty(node, name, value);
     }
     // Port ref values.
     const ref = Reflect.get(vNode, '__ref');

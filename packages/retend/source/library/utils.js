@@ -2,7 +2,6 @@ import { Cell } from '@adbl/cells';
 import { getGlobalContext } from '../context/index.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
-/** @import { JSX } from '../jsx-runtime/types.ts' */
 
 /**
  * @template T
@@ -18,7 +17,7 @@ export class ArgumentList {
 
 /**
  * @template T
- * @template {Node | VDom.VNode} [This=Node]
+ * @template [This=Node]
  * @template [R=void]
  * @typedef {((this: This, argument: T) => R) & {
  *    relatedCell?: Cell<T>,
@@ -27,13 +26,13 @@ export class ArgumentList {
  */
 
 /**
- * @template {Node | VDom.VNode} [This=Node]
+ * @template [This=Node]
  * @typedef {Set<Cell<*> | ReactiveCellFunction<*, This>>} CellSet
  */
 
 /**
  * @template T
- * @template {Node | VDom.VNode} [This=Node]
+ * @template This
  * @param {This} element
  * @param {Cell<T>} cell
  * @param {ReactiveCellFunction<T, This>} callback
@@ -60,16 +59,18 @@ export function addCellListener(
     cell.listen(boundCallback, { weak: true });
   }
 
-  if (!('__attributeCells' in element)) {
-    Reflect.set(element, '__attributeCells', new Set());
-  }
+  if (element && typeof element === 'object') {
+    if (!('__attributeCells' in element)) {
+      Reflect.set(element, '__attributeCells', new Set());
+    }
 
-  const storage = /** @type {CellSet<This>} */ (
-    Reflect.get(element, '__attributeCells')
-  );
-  // Persist to prevent garbage collection.
-  storage.add(boundCallback);
-  storage.add(cell);
+    const storage = /** @type {CellSet<This>} */ (
+      Reflect.get(element, '__attributeCells')
+    );
+    // Persist to prevent garbage collection.
+    storage.add(boundCallback);
+    storage.add(cell);
+  }
 }
 
 /**
@@ -171,55 +172,6 @@ export function toKebabCase(str) {
 }
 
 /**
- * Generates an array of DOM nodes from a given input.
- * @param {JSX.Template | TemplateStringsArray} children - The input to generate DOM nodes from.
- * @returns {(Node | VDom.VNode)[]}
- */
-export function generateChildNodes(children) {
-  const { window } = getGlobalContext();
-  /** @type {Node[]} */
-  const nodes = [];
-
-  if (
-    typeof children === 'string' ||
-    typeof children === 'number' ||
-    typeof children === 'boolean'
-  ) {
-    return [window.document.createTextNode(String(children))];
-  }
-
-  if (children instanceof Promise) {
-    const placeholder = window.document.createComment('-------');
-    Reflect.set(placeholder, '__promise', children);
-    children.then((template) => {
-      if (placeholder.parentNode) {
-        placeholder.replaceWith(
-          .../** @type {*} */ (generateChildNodes(template))
-        );
-      }
-    });
-    return [placeholder];
-  }
-
-  if (
-    children instanceof window.DocumentFragment &&
-    !('__isShadowRootContainer' in children)
-  ) {
-    return Array.from(/** @type {*} */ (children).childNodes);
-  }
-
-  if (children instanceof window.Node) {
-    return [children];
-  }
-
-  if (Array.isArray(children)) {
-    return children.flatMap((child) => generateChildNodes(child));
-  }
-
-  return nodes;
-}
-
-/**
  * Checks if the given value is not an object.
  *
  * @param {any} value - The value to check.
@@ -304,3 +256,106 @@ export function writeStaticStyle(id, contents) {
   head.append(/** @type {*} */ (newStyle));
   globalData.set(formatted, id);
 }
+
+export const camelCasedAttributes = new Set([
+  // SVG attributes
+  'attributeName',
+  'attributeType',
+  'baseFrequency',
+  'baseProfile',
+  'calcMode',
+  'clipPathUnits',
+  'diffuseConstant',
+  'edgeMode',
+  'filterUnits',
+  'glyphRef',
+  'gradientTransform',
+  'gradientUnits',
+  'kernelMatrix',
+  'kernelUnitLength',
+  'keyPoints',
+  'keySplines',
+  'keyTimes',
+  'lengthAdjust',
+  'limitingConeAngle',
+  'markerHeight',
+  'markerUnits',
+  'markerWidth',
+  'maskContentUnits',
+  'maskUnits',
+  'numOctaves',
+  'pathLength',
+  'patternContentUnits',
+  'patternTransform',
+  'patternUnits',
+  'pointsAtX',
+  'pointsAtY',
+  'pointsAtZ',
+  'preserveAlpha',
+  'preserveAspectRatio',
+  'primitiveUnits',
+  'refX',
+  'refY',
+  'repeatCount',
+  'repeatDur',
+  'requiredExtensions',
+  'requiredFeatures',
+  'specularConstant',
+  'specularExponent',
+  'spreadMethod',
+  'startOffset',
+  'stdDeviation',
+  'stitchTiles',
+  'surfaceScale',
+  'systemLanguage',
+  'tableValues',
+  'targetX',
+  'targetY',
+  'textLength',
+  'viewBox',
+  'viewTarget',
+  'xChannelSelector',
+  'yChannelSelector',
+  'zoomAndPan',
+
+  // MathML attributes
+  'columnAlign',
+  'columnLines',
+  'columnSpacing',
+  'displayStyle',
+  'equalColumns',
+  'equalRows',
+  'frameSpacing',
+  'labelSpacing',
+  'longdivStyle',
+  'maxSize',
+  'minSize',
+  'movablelimits',
+  'rowAlign',
+  'rowLines',
+  'rowSpacing',
+  'scriptLevel',
+  'scriptMinSize',
+  'scriptSizemultiplier',
+  'stackAlign',
+  'useHeight',
+
+  // HTML attributes (there are no natively camel cased HTML attributes,
+  // but including this comment for completeness)
+]);
+
+/**
+ * Escapes HTML special characters to prevent XSS and maintain correct rendering
+ * @param {*} str
+ * @returns {string}
+ */
+export function escapeHTML(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+export const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];

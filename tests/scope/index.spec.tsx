@@ -372,7 +372,7 @@ const runTests = () => {
     it('should restore scope values from snapshot', () => {
       const CounterScope = createScope<number>();
       let snapshot: ReturnType<typeof createScopeSnapshot>;
-      let testResults: number[] = [];
+      const testResults: number[] = [];
       const result = (
         <CounterScope.Provider
           value={1}

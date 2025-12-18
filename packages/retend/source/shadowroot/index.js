@@ -1,7 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-
-import { getGlobalContext } from '../context/index.js';
-import { appendChild } from '../library/jsx.js';
+import { getActiveRenderer, appendChild } from '../renderers/index.js';
 
 /**
  * @typedef ShadowRootProps
@@ -57,10 +55,10 @@ import { appendChild } from '../library/jsx.js';
  */
 export function ShadowRoot(props) {
   const { mode, children } = props;
-  const { window } = getGlobalContext();
+  const renderer = getActiveRenderer();
 
   const shadowRoot = /** @type {ShadowRootContainer} */ (
-    window.document.createDocumentFragment()
+    renderer.createFragment()
   );
 
   // @ts-expect-error: The import.meta.env types are available in Vite.
@@ -74,6 +72,6 @@ export function ShadowRoot(props) {
 
   shadowRoot.__mode = mode ?? 'open';
   shadowRoot.__isShadowRootContainer = true;
-  appendChild(shadowRoot, 'shadow-root', children);
+  appendChild(shadowRoot, children, getActiveRenderer());
   return shadowRoot;
 }
