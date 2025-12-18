@@ -1,6 +1,6 @@
-/** @import { InteractiveRenderer } from "./types.js"; */
+/** @import { Renderer } from "./types.js"; */
 /** @import { NodeLike, FragmentLike } from "../context/index.js"; */
-/** @import { CellSet } from '../library/utils.js' */
+/** @import { CellSet, ConnectedComment } from '../library/utils.js' */
 /** @import * as VDom from '../v-dom/index.js' */
 /** @import { jsxDevFileData, UpdatableFn } from '../plugin/hmr.js'; */
 
@@ -15,6 +15,7 @@ import {
   addCellListener,
   camelCasedAttributes,
   convertObjectToCssStylesheet,
+  createCommentPair,
   isSomewhatFalsy,
   listenerModifiers,
 } from '../library/utils.js';
@@ -48,14 +49,39 @@ import { withHMRBoundaries } from '../plugin/hmr.js';
 
 /**
  * @typedef {(Element | VDom.VElement) & HiddenElementProperties} JsxElement
- *
+ * @typedef {[ConnectedComment, ...NodeLike[], ConnectedComment]} DOMSegment
+ * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
  */
 
 /**
- * @implements {InteractiveRenderer<NodeLike, NodeLike, FragmentLike>}
+ * @typedef DOMRenderingTypes
+ * @property {NodeLike} Output
+ * @property {NodeLike} Node
+ * @property {NodeLike} Text
+ * @property {DOMSegment} Segment
+ * @property {FragmentLike} Group
  */
-export class DomRenderer {
-  isInteractive = /** @type {const} */ (true);
+
+/**
+ * @implements {DOMRendererInterface}
+ */
+export class DOMRenderer {
+  createSegment() {
+    return createCommentPair();
+  }
+
+  /**
+   * @param {any} child
+   * @returns {child is DOMSegment}
+   */
+  isSegment(child) {
+    const { window } = getGlobalContext();
+    return (
+      Array.isArray(child) &&
+      child[0] instanceof window.Comment &&
+      child[child.length - 1] instanceof window.Comment
+    );
+  }
 
   /**
    * @param {NodeLike} node
@@ -65,24 +91,17 @@ export class DomRenderer {
   setProperty(node, key, value) {
     const element = /** @type {JsxElement} */ (node);
     if (Cell.isCell(value)) {
-      if (!element.__attributeCells) {
-        element.__attributeCells = new Set();
-      }
+      if (!element.__attributeCells) element.__attributeCells = new Set();
       if (key === 'ref') {
         element.__attributeCells.add(value);
-        if (value instanceof SourceCell) {
-          value.set(element);
-          element.__ref = value;
-        }
+        if (value instanceof SourceCell) element.__ref = value;
         return node;
       }
-      const setAttribute = this.#setAttribute;
-      addCellListener(element, value, function (value) {
-        setAttribute(this, key, value);
-      });
+      this.#setAttribute(element, key, value.get());
     } else {
       this.#setAttribute(element, key, value);
     }
+
     return node;
   }
 
@@ -190,7 +209,7 @@ export class DomRenderer {
    * @param {string} text
    * @param {NodeLike} node
    */
-  setText(text, node) {
+  updateText(text, node) {
     // @ts-ignore
     node.textContent = text;
     return node;
@@ -206,7 +225,7 @@ export class DomRenderer {
   /**
    * @param {NodeLike | NodeLike[]} [input]
    */
-  createNodeGroup(input) {
+  createGroup(input) {
     const { window } = getGlobalContext();
     const fragment = window.document.createDocumentFragment();
     if (input) {
@@ -228,11 +247,11 @@ export class DomRenderer {
 
   /**
    * @param {string} tagname
-   * @param {string} [namespace]
+   * @param {any} [props]
    */
-  createElement(tagname, namespace) {
+  createContainer(tagname, props) {
     const { window } = getGlobalContext();
-    const defaultNamespace = namespace ?? 'http://www.w3.org/1999/xhtml';
+    const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
 
     let ns;
     if (tagname === 'svg') {

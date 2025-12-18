@@ -1,19 +1,27 @@
 /** @import { jsxDevFileData } from '../plugin/hmr.js'; */
 /** @import { Renderer } from '../renderers/types.js'; */
+import { Cell, SourceCell } from '@adbl/cells';
 import { appendChild } from '../renderers/_shared.js';
 import { getActiveRenderer } from '../renderers/index.js';
-import { ArgumentList } from './utils.js';
+import { addCellListener, ArgumentList } from './utils.js';
 
 /**
- * @template NodeType
- * @template Output
- * @template {NodeType} Group
+ * @typedef RendererData
+ * @property {unknown} Output
+ * @property {unknown} Node
+ * @property {unknown} Segment
+ * @property {unknown} Group
+ * @property {unknown} Text
+ */
+
+/**
+ * @template {RendererData} Data
  * @param {string | Function | undefined} tagOrFn
  * @param {*} props
  * @param {*} [_]
  * @param {*} [__]
  * @param {jsxDevFileData} [fileData]
- * @param {Renderer<NodeType, Output, Group>} renderer
+ * @param {Renderer<Data>} renderer
  * @returns {any}
  */
 export function h(
@@ -27,7 +35,7 @@ export function h(
   if (tagOrFn === undefined) return [];
 
   if (Object.is(tagOrFn, DocumentFragmentPlaceholder)) {
-    /** @type {NodeType[]} */
+    /** @type {Data['Node'][]} */
     const childList =
       typeof props === 'object' && !(props instanceof ArgumentList)
         ? props.children
@@ -36,7 +44,7 @@ export function h(
             : [props.children]
           : []
         : [];
-    return renderer.createNodeGroup(childList);
+    return renderer.createGroup(childList);
   }
 
   if (typeof tagOrFn === 'function') {
@@ -54,10 +62,22 @@ export function h(
     throw new Error('JSX props for native elements must be an object.');
   }
 
-  let element = renderer.createElement(tagOrFn, props?.xmlns);
+  let element = renderer.createContainer(tagOrFn, props);
   const { children } = props;
   for (const key in props) {
-    element = renderer.setProperty(element, key, props[key]);
+    const value = props[key];
+    element = renderer.setProperty(element, key, value);
+    if (Cell.isCell(value)) {
+      if (key === 'ref' && value instanceof SourceCell) value.set(element);
+      addCellListener(
+        element,
+        value,
+        function (value) {
+          renderer.setProperty(this, key, value);
+        },
+        false
+      );
+    }
   }
 
   return appendChild(element, children, renderer);

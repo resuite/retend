@@ -58,7 +58,7 @@ export function ShadowRoot(props) {
   const renderer = getActiveRenderer();
 
   const shadowRoot = /** @type {ShadowRootContainer} */ (
-    renderer.createNodeGroup()
+    renderer.createGroup()
   );
 
   // @ts-expect-error: The import.meta.env types are available in Vite.

@@ -188,7 +188,7 @@ export function Unique(props) {
     ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}'
   );
 
-  const retendUniqueInstance = renderer.createElement(elementName);
+  const retendUniqueInstance = renderer.createContainer(elementName);
   for (const [key, value] of Object.entries(rest)) {
     renderer.setProperty(retendUniqueInstance, key, value);
   }

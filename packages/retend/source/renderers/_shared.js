@@ -1,20 +1,17 @@
-/** @import { JSX } from '../jsx-runtime/index.js' */
-/** @import { Renderer } from './types.js'; */
+/** @import { Renderer, RendererData } from './types.js'; */
 
 import { Cell } from '@adbl/cells';
 import { addCellListener } from '../library/utils.js';
 
 /**
- * @template NodeType
- * @template Output
- * @template {NodeType} Group
+ * @template {RendererData} Data
  * Generates an array of child nodes from a given input.
- * @param {JSX.Template | TemplateStringsArray} children
- * @param {Renderer<NodeType, Output, Group>} renderer
- * @returns {NodeType[]}
+ * @param {any} children
+ * @param {Renderer<Data>} renderer
+ * @returns {Data['Node'][]}
  */
 export function generateChildNodes(children, renderer) {
-  /** @type {NodeType[]} */
+  /** @type {Data['Node'][]} */
   const nodes = [];
 
   if (
@@ -45,17 +42,15 @@ export function generateChildNodes(children, renderer) {
 }
 
 /**
- * @template NodeType
- * @template Output
- * @template {NodeType} Group
+ * @template {RendererData} Data
  * Appends a child node or an array of child nodes to a parent node.
- * @param {NodeType} parent
+ * @param {Data['Node']} parent
  * The tag name of the parent node.
  * @param {any} child
  * The child node, array of child nodes, or string to append.
- * @param {Renderer<NodeType, Output, Group>} renderer
+ * @param {Renderer<Data>} renderer
  * The renderer instance used for creating nodes.
- * @returns {NodeType}
+ * @returns {Data['Node']}
  */
 export function appendChild(parent, child, renderer) {
   let _parent = parent;
@@ -73,19 +68,17 @@ export function appendChild(parent, child, renderer) {
 }
 
 /**
- * @template NodeType
- * @template Output
- * @template {NodeType} Group
+ * @template {RendererData} Types
  * Normalizes a child jsx element for use in the DOM.
- * @param {unknown} child - The child element to normalize.
- * @param {Renderer<NodeType, Output, Group>} renderer - The renderer instance.s
- * @returns {NodeType} The normalized child element.
+ * @param {any} child - The child element to normalize.
+ * @param {Renderer<Types>} renderer - The renderer instance.s
+ * @returns {Types['Node']} The normalized child element.
  */
 export function normalizeJsxChild(child, renderer) {
   if (renderer.isNode(child)) return child;
 
   if (Array.isArray(child)) {
-    const group = renderer.createNodeGroup();
+    const group = renderer.createGroup();
     for (const subchild of child) {
       const childNodes = normalizeJsxChild(subchild, renderer);
       renderer.append(group, childNodes);
@@ -103,14 +96,16 @@ export function normalizeJsxChild(child, renderer) {
 
   // @ts-ignore: There is an error with the @adbl/cells library. Booleans should be allowed here.
   if (Cell.isCell(child)) {
-    if (renderer.isInteractive) {
-      const textNode = renderer.createText('');
-      addCellListener(textNode, child, function (value) {
-        renderer.setText(value, this);
-      });
-      return textNode;
-    }
-    return renderer.createText(child.get());
+    const textNode = renderer.createText(child.get());
+    addCellListener(
+      textNode,
+      child,
+      function (value) {
+        renderer.updateText(value, this);
+      },
+      false
+    );
+    return textNode;
   }
 
   return renderer.createText(child?.toString() ?? '');
