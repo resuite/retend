@@ -1,11 +1,10 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import * as VDom from '../v-dom/index.js' */
-/** @import { ReactiveCellFunction } from './utils.js' */
 
 import { Cell } from '@adbl/cells';
-import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
+import { ArgumentList } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import h from './jsx.js';
+import { getActiveRenderer } from '../renderers/index.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -54,8 +53,6 @@ import h from './jsx.js';
  * @param {*} [defaultCase]
  */
 export function Switch(value, cases, defaultCase) {
-  const [rangeStart, rangeEnd] = createCommentPair();
-
   if (!Cell.isCell(value)) {
     if (value in cases && cases[value]) {
       const nodes = h(cases[value], new ArgumentList([]));
@@ -71,53 +68,33 @@ export function Switch(value, cases, defaultCase) {
   }
 
   const snapshot = createScopeSnapshot();
+  const renderer = getActiveRenderer();
+  const segment = renderer.createSegment();
   let isInitialRun = true;
 
-  /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
-  const callback = function (value) {
+  /** @param {any} value */
+  const callback = (value) => {
     snapshot.node.dispose();
     const results = withScopeSnapshot(snapshot, () => {
-      /** @type {(Node | VDom.VNode)[]} */
-      let nodes = [];
-      let nextNode = this.nextSibling;
-      while (
-        nextNode &&
-        !(
-          '__commentRangeSymbol' in nextNode &&
-          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-        )
-      ) {
-        nextNode.remove();
-        nextNode = this.nextSibling;
-      }
-
       const caseCaller = cases[value];
       if (caseCaller) {
         const newNodes = h(caseCaller, new ArgumentList([value]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
       if (defaultCase) {
         const newNodes = h(defaultCase, new ArgumentList([value]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
-
-      return nodes;
+      return [];
     });
+    renderer.updateSegment(segment, results);
     if (!isInitialRun) snapshot.node.activate();
     else isInitialRun = false;
-    return results;
   };
 
-  // Don't use runAndListen with an outer array to store nodes.
-  // It leads to a memory leak.
-  const firstRun = callback.bind(rangeStart)(value.get());
-  addCellListener(rangeStart, value, callback, false);
-  return [rangeStart, ...firstRun, rangeEnd];
+  value.runAndListen(callback);
+  return segment;
 }
 
 /**
@@ -155,8 +132,6 @@ export function Switch(value, cases, defaultCase) {
  * @param {*} [defaultCase]
  */
 Switch.OnProperty = (value, key, cases, defaultCase) => {
-  const [rangeStart, rangeEnd] = createCommentPair();
-
   if (!Cell.isCell(value)) {
     const discriminant = value[key];
 
@@ -174,51 +149,35 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
   }
 
   // Reactive path
-  const cell = value;
+  let isInitialRun = false;
   const snapshot = createScopeSnapshot();
+  const renderer = getActiveRenderer();
+  const segment = renderer.createSegment();
 
-  /** @type {ReactiveCellFunction<any, any, any>} */
-  const callback = function (cellValue) {
+  /** @param {any} cellValue */
+  const callback = (cellValue) => {
     snapshot.node.dispose();
     const results = withScopeSnapshot(snapshot, () => {
-      /** @type {(Node | VDom.VNode)[]} */
-      let nodes = [];
-      let nextNode = this.nextSibling;
-      while (
-        nextNode &&
-        !(
-          '__commentRangeSymbol' in nextNode &&
-          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-        )
-      ) {
-        nextNode.remove();
-        nextNode = this.nextSibling;
-      }
-
       const discriminant = cellValue[key];
 
       const caseCaller = cases[discriminant];
       if (caseCaller) {
         const newNodes = h(caseCaller, new ArgumentList([cellValue]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
       if (defaultCase) {
         const newNodes = h(defaultCase, new ArgumentList([cellValue]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
-      return nodes;
+      return [];
     });
-    if (this.isConnected) snapshot.node.activate();
-    return results;
+    renderer.updateSegment(segment, results);
+    if (!isInitialRun) snapshot.node.activate();
+    else isInitialRun = false;
   };
 
-  const firstRun = callback.bind(rangeStart)(cell.get());
-  addCellListener(rangeStart, cell, callback, false);
-  return [rangeStart, ...firstRun, rangeEnd];
+  value.runAndListen(callback);
+  return segment;
 };

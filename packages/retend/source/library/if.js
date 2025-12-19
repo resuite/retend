@@ -113,7 +113,6 @@ export function If(value, fnOrObject, elseFn) {
     renderer.updateSegment(segment, results);
     if (!isInitialRun) scopeSnapshot.node.activate();
     else isInitialRun = false;
-    return segment;
   };
 
   value.runAndListen(callback);
