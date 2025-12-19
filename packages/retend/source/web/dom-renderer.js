@@ -50,7 +50,7 @@ import { createCommentPair } from './utils.js';
 
 /**
  * @typedef {(Element | VDom.VElement) & HiddenElementProperties} JsxElement
- * @typedef {[ConnectedComment, ...NodeLike[], ConnectedComment]} DOMSegment
+ * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
  */
 
@@ -59,7 +59,7 @@ import { createCommentPair } from './utils.js';
  * @property {NodeLike} Output
  * @property {NodeLike} Node
  * @property {NodeLike} Text
- * @property {DOMSegment} Segment
+ * @property {DOMHandle} Segment
  * @property {FragmentLike} Group
  * @property {JsxElement} Container
  */
@@ -68,21 +68,25 @@ import { createCommentPair } from './utils.js';
  * @implements {DOMRendererInterface}
  */
 export class DOMRenderer {
-  createSegment() {
-    /** @type {DOMSegment} */
-    const segment = createCommentPair();
-    Reflect.set(segment[0], '__segment', segment);
-    Reflect.set(segment[1], '__segment', segment);
-    return segment;
+  /**
+   * @param {FragmentLike} fragment
+   */
+  createGroupHandle(fragment) {
+    const handle = createCommentPair();
+    Reflect.set(handle[0], '__handle', handle);
+    Reflect.set(handle[1], '__handle', handle);
+    // @ts-expect-error: Node types get tangled in vdom.
+    fragment.replaceChildren(handle[0], ...fragment.childNodes, handle[1]);
+    return handle;
   }
 
   /**
-   * @param {DOMSegment} segment
+   * @param {DOMHandle} segment
    * @param {NodeLike[]} newContent
    */
-  overwriteSegment(segment, newContent) {
+  write(segment, newContent) {
     const start = segment[0];
-    const end = segment[segment.length - 1];
+    const end = segment[1];
 
     let nextNode = start.nextSibling;
     while (nextNode && nextNode !== end) {
@@ -90,17 +94,14 @@ export class DOMRenderer {
       nextNode = start.nextSibling;
     }
     start.after(.../** @type {*} */ (newContent));
-
-    segment.length = 0;
-    segment.push(start, ...newContent, end);
   }
 
   /**
    *
-   * @param {DOMSegment} segment
+   * @param {DOMHandle} segment
    * @param {ReconcilerOptions<NodeLike>} options
    */
-  reconcileSegment(segment, options) {
+  reconcile(segment, options) {
     const { window } = getGlobalContext();
     const {
       onBeforeNodeRemove,
@@ -217,24 +218,6 @@ export class DOMRenderer {
     }
 
     if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
-  }
-
-  /**
-   * @param {any} child
-   * @returns {child is DOMSegment}
-   */
-  isSegment(child) {
-    const { window } = getGlobalContext();
-    return (
-      Array.isArray(child) &&
-      child[0] instanceof window.Comment &&
-      child[child.length - 1] instanceof window.Comment
-    );
-  }
-
-  /** @param {DOMSegment} segment  */
-  unwrapSegment(segment) {
-    return [...segment];
   }
 
   /**

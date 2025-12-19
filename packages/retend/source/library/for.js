@@ -85,7 +85,6 @@ export function For(list, fn, options) {
   let cacheFromLastRun = new Map();
   const autoKeys = new WeakMap();
   const renderer = getActiveRenderer();
-  const segment = renderer.createSegment();
 
   /**
    * @param {any} item
@@ -120,42 +119,6 @@ export function For(list, fn, options) {
       renderer.setProperty(node, 'retend:collection', nodes);
     }
   };
-
-  // First run, prior to any changes.
-  let i = 0;
-  // We get a snapshot of all current scopes to reuse when new
-  // component instances are created.
-  const base = createScopeSnapshot();
-  const _list = list.get();
-  if (
-    _list !== null &&
-    _list !== undefined &&
-    _list[Symbol.iterator] !== undefined
-  ) {
-    const allNodes = [];
-    for (const item of _list) {
-      const index = Cell.source(i);
-      const parameters = [item, index, list];
-      // We have to split the snapshot so that each For item render
-      // can have its own effect context without polluting the others.
-      /** @type {ScopeSnapshot} */
-      const snapshot = {
-        scopes: base.scopes,
-        node: base.node.branch(),
-      };
-      const newNodes = withScopeSnapshot(snapshot, () =>
-        h(fn, new ArgumentList(parameters))
-      );
-      const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-      trackNodes(nodes);
-      allNodes.push(...nodes);
-
-      const itemKey = retrieveOrSetItemKey(item, i);
-      cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
-      i++;
-    }
-    renderer.overwriteSegment(segment, allNodes);
-  }
 
   /**
    * @param {V & {[Symbol.iterator]: () => Iterator<V>}} listValue
@@ -216,12 +179,56 @@ export function For(list, fn, options) {
       newList,
       nodeLookAhead,
     };
-    renderer.reconcileSegment(segment, reconciliationOptions);
+    renderer.reconcile(handle, reconciliationOptions);
 
     cacheFromLastRun = newCache;
     for (const node of effectNodesToActivate) node.activate();
   };
 
   list.listen(reactToListChanges);
-  return segment;
+
+  /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+  let handle;
+  /** @type {ReturnType<typeof renderer.createGroup>} */
+  let group;
+  // First run, prior to any changes.
+  let i = 0;
+  // We get a snapshot of all current scopes to reuse when new
+  // component instances are created.
+  const base = createScopeSnapshot();
+  const _list = list.get();
+  if (
+    _list !== null &&
+    _list !== undefined &&
+    _list[Symbol.iterator] !== undefined
+  ) {
+    const allNodes = [];
+    for (const item of _list) {
+      const index = Cell.source(i);
+      const parameters = [item, index, list];
+      // We have to split the snapshot so that each For item render
+      // can have its own effect context without polluting the others.
+      /** @type {ScopeSnapshot} */
+      const snapshot = {
+        scopes: base.scopes,
+        node: base.node.branch(),
+      };
+      const newNodes = withScopeSnapshot(snapshot, () =>
+        h(fn, new ArgumentList(parameters))
+      );
+      const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+      trackNodes(nodes);
+      allNodes.push(...nodes);
+
+      const itemKey = retrieveOrSetItemKey(item, i);
+      cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
+      i++;
+    }
+    group = renderer.createGroup(allNodes);
+    handle = renderer.createGroupHandle(group);
+  } else {
+    group = renderer.createGroup([]);
+    handle = renderer.createGroupHandle(group);
+  }
+  return group;
 }

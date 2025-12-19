@@ -30,10 +30,6 @@ export function generateChildNodes(children, renderer) {
     return renderer.unwrapGroup(children);
   }
 
-  if (renderer.isSegment(children)) {
-    return renderer.unwrapSegment(children);
-  }
-
   if (renderer.isNode(children)) {
     return [children];
   }
@@ -58,22 +54,17 @@ export function generateChildNodes(children, renderer) {
  */
 export function appendChild(parent, child, renderer) {
   let _parent = parent;
-  let _child = child;
 
-  if (renderer.isSegment(_child)) {
-    _child = renderer.unwrapSegment(_child);
-  }
-
-  if (Array.isArray(_child)) {
-    for (const childNode of _child) {
+  if (Array.isArray(child)) {
+    for (const childNode of child) {
       _parent = appendChild(_parent, childNode, renderer);
     }
     return _parent;
   }
 
-  if (!_child) return _parent;
+  if (!child) return _parent;
 
-  const childNode = normalizeJsxChild(_child, renderer);
+  const childNode = normalizeJsxChild(child, renderer);
   return renderer.append(_parent, childNode);
 }
 

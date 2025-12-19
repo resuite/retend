@@ -29,7 +29,7 @@
  * @template [Output=Types['Output']]
  * @template {Node} [Container=Types['Container']]
  * @template {Node} [Group=Types['Group']]
- * @template {Node} [Segment=Types['Segment']]
+ * @template {Node} [Handle=Types['Segment']]
  * @template {Node} [Text=Types['Text']]
  * @typedef Renderer
  *
@@ -63,19 +63,11 @@
  * @property {(parent: Node, children: Node | Node[]) => Node} append
  * Physically attaches a child node (or multiple) to a parent container in the host tree.
  *
- * @property {() => Segment} createSegment
- * Creates a mutable slice of nodes.
+ * @property {(group: Group) => Handle} createGroupHandle
  *
- * @property {(child: any) => child is Segment} isSegment
- * A predicate that validates if a value is a segment.
+ * @property {(handle: Handle, newContent: Node[]) => void} write
  *
- * @property {(segment: Segment) => Node[]} unwrapSegment
- * Flattens a Segment node back into its constituent array of nodes.
- *
- * @property {(segment: Segment, newContent: Node[]) => void} overwriteSegment
- * Replaces the existing content of a segment with a new array of nodes.
- *
- * @property {(segment: Segment, options: ReconcilerOptions<Node>) => void} reconcileSegment
+ * @property {(handle: Handle, options: ReconcilerOptions<Node>) => void} reconcile
  *
  * @property {(node: Node) => Output} finalize
  * Performs the final transformation on the produced node tree before returning it to the user.

@@ -71,14 +71,11 @@ export function If(value, fnOrObject, elseFn) {
   }
 
   const renderer = getActiveRenderer();
-  const segment = renderer.createSegment();
   const scopeSnapshot = createScopeSnapshot();
-  let isInitialRun = true;
 
   /** @param {T} _value */
   const callback = (_value) => {
-    scopeSnapshot.node.dispose(); // cleanup previous effects
-    const results = withScopeSnapshot(scopeSnapshot, () => {
+    return withScopeSnapshot(scopeSnapshot, () => {
       if (typeof fnOrObject === 'function') {
         if (_value) {
           const newNodes = h(fnOrObject, new ArgumentList([_value]));
@@ -109,11 +106,18 @@ export function If(value, fnOrObject, elseFn) {
       );
       return [];
     });
-    renderer.overwriteSegment(segment, results);
-    if (!isInitialRun) scopeSnapshot.node.activate();
-    else isInitialRun = false;
   };
 
-  value.runAndListen(callback);
-  return segment;
+  // It is important that the listener is registered first.
+  value.listen((nextValue) => {
+    scopeSnapshot.node.dispose();
+    const results = callback(nextValue);
+    renderer.write(handle, results);
+    scopeSnapshot.node.activate();
+  });
+
+  const initialResults = callback(value.get());
+  const group = renderer.createGroup(initialResults);
+  const handle = renderer.createGroupHandle(group);
+  return group;
 }

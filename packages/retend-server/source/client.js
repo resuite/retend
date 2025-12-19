@@ -333,34 +333,14 @@ async function hydrateDomNode(node, vNode) {
     }
   }
 
-  // Port range symbols and segments.
+  // Port range symbols and handles.
   if (node instanceof Comment && vNode instanceof VComment) {
     const commentRangeSymbol = Reflect.get(vNode, '__commentRangeSymbol');
-    const segment = Reflect.get(vNode, '__segment');
+    const handle = Reflect.get(vNode, '__handle');
     if (commentRangeSymbol) {
       Reflect.set(node, '__commentRangeSymbol', commentRangeSymbol);
     }
-    if (segment) {
-      const index = segment.indexOf(vNode);
-      segment[index] = node;
-      // If hydrating the end comment in the segment,
-      // we assume the first comment has already been updated and
-      // update the rest of the nodes between.
-      if (index === segment.length - 1) {
-        /** @type {Comment} */
-        const segmentStart = segment[0];
-        const segmentEnd = node;
-        segment.length = 1; // The array ref must remain stable.
-        let next = segmentStart.nextSibling;
-        while (true) {
-          if (!next || next === segmentEnd) break;
-          next = next.nextSibling;
-          segment.push(next);
-        }
-        Reflect.set(segmentStart, '__segment', segment);
-        Reflect.set(segmentEnd, '__segment', segment);
-      }
-    }
+    if (handle) handle[handle.indexOf(vNode)] = node;
 
     // Port ref values
     const ref = Reflect.get(vNode, '__ref');

@@ -69,13 +69,10 @@ export function Switch(value, cases, defaultCase) {
 
   const snapshot = createScopeSnapshot();
   const renderer = getActiveRenderer();
-  const segment = renderer.createSegment();
-  let isInitialRun = true;
 
   /** @param {any} value */
   const callback = (value) => {
-    snapshot.node.dispose();
-    const results = withScopeSnapshot(snapshot, () => {
+    return withScopeSnapshot(snapshot, () => {
       const caseCaller = cases[value];
       if (caseCaller) {
         const newNodes = h(caseCaller, new ArgumentList([value]));
@@ -88,13 +85,20 @@ export function Switch(value, cases, defaultCase) {
       }
       return [];
     });
-    renderer.overwriteSegment(segment, results);
-    if (!isInitialRun) snapshot.node.activate();
-    else isInitialRun = false;
   };
 
-  value.runAndListen(callback);
-  return segment;
+  // The effect must be registered first.
+  value.listen((nextValue) => {
+    snapshot.node.dispose();
+    const results = callback(nextValue);
+    renderer.write(handle, results);
+    snapshot.node.activate();
+  });
+
+  const initialResults = callback(value.get());
+  const group = renderer.createGroup(initialResults);
+  const handle = renderer.createGroupHandle(group);
+  return group;
 }
 
 /**
@@ -148,16 +152,12 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
     return undefined;
   }
 
-  // Reactive path
-  let isInitialRun = false;
   const snapshot = createScopeSnapshot();
   const renderer = getActiveRenderer();
-  const segment = renderer.createSegment();
 
   /** @param {any} cellValue */
   const callback = (cellValue) => {
-    snapshot.node.dispose();
-    const results = withScopeSnapshot(snapshot, () => {
+    return withScopeSnapshot(snapshot, () => {
       const discriminant = cellValue[key];
 
       const caseCaller = cases[discriminant];
@@ -173,11 +173,18 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       return [];
     });
-    renderer.overwriteSegment(segment, results);
-    if (!isInitialRun) snapshot.node.activate();
-    else isInitialRun = false;
   };
 
-  value.runAndListen(callback);
-  return segment;
+  // The effect must be registered first.
+  value.listen((nextValue) => {
+    snapshot.node.dispose();
+    const newNodes = callback(nextValue);
+    renderer.write(handle, newNodes);
+    snapshot.node.activate();
+  });
+
+  const initialResults = callback(value.get());
+  const group = renderer.createGroup(initialResults);
+  const handle = renderer.createGroupHandle(group);
+  return group;
 };
