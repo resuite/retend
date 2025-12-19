@@ -1,10 +1,9 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { ReactiveCellFunction } from './utils.js' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
-import { addCellListener, ArgumentList } from './utils.js';
+import { ArgumentList } from './utils.js';
 import { getActiveRenderer } from '../renderers/index.js';
 
 /**
@@ -77,45 +76,46 @@ export function If(value, fnOrObject, elseFn) {
   const scopeSnapshot = createScopeSnapshot();
   let isInitialRun = true;
 
-  /** @type {ReactiveCellFunction<T, typeof segment, typeof segment>} */
-  const callback = function (_value) {
+  /** @param {T} _value */
+  const callback = (_value) => {
     scopeSnapshot.node.dispose(); // cleanup previous effects
     const results = withScopeSnapshot(scopeSnapshot, () => {
-      /** @type {any[]} */
-      let nodes = [];
-
       if (typeof fnOrObject === 'function') {
         if (_value) {
           const newNodes = h(fnOrObject, new ArgumentList([_value]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else if (elseFn) {
-          const newNodes = h(elseFn, new ArgumentList([]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else {
-          nodes = [];
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
-      } else if (typeof fnOrObject === 'object') {
+        if (elseFn) {
+          const newNodes = h(elseFn, new ArgumentList([]));
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+        return [];
+      }
+
+      if (typeof fnOrObject === 'object') {
         if (_value && 'true' in fnOrObject) {
           const newNodes = h(fnOrObject.true, new ArgumentList([_value]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else if (!_value && 'false' in fnOrObject) {
-          const newNodes = h(fnOrObject.false, new ArgumentList([]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else {
-          nodes = [];
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
-      } else
-        console.error(
-          'If expects a callback or condition object as the second argument.'
-        );
-      renderer.updateSegment(this, nodes);
-      return this;
+
+        if (!_value && 'false' in fnOrObject) {
+          const newNodes = h(fnOrObject.false, new ArgumentList([]));
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        return [];
+      }
+      console.error(
+        'If expects a callback or condition object as the second argument.'
+      );
+      return [];
     });
+    renderer.updateSegment(segment, results);
     if (!isInitialRun) scopeSnapshot.node.activate();
     else isInitialRun = false;
-    return results;
+    return segment;
   };
 
-  addCellListener(segment, value, callback, false);
-  return callback.bind(segment)(value.get());
+  value.runAndListen(callback);
+  return segment;
 }
