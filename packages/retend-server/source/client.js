@@ -357,6 +357,8 @@ async function hydrateDomNode(node, vNode) {
           next = next.nextSibling;
           segment.push(next);
         }
+        Reflect.set(segmentStart, '__segment', segment);
+        Reflect.set(segmentEnd, '__segment', segment);
       }
     }
 
