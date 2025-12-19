@@ -6,12 +6,7 @@
 /** @import { ConnectedComment } from './utils.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
-import {
-  getGlobalContext,
-  isVNode,
-  matchContext,
-  Modes,
-} from '../context/index.js';
+import { isVNode, matchContext, Modes } from '../context/index.js';
 import {
   addCellListener,
   camelCasedAttributes,
@@ -59,15 +54,27 @@ import { createCommentPair } from './utils.js';
  * @property {NodeLike} Output
  * @property {NodeLike} Node
  * @property {NodeLike} Text
- * @property {DOMHandle} Segment
+ * @property {DOMHandle} Handle
  * @property {FragmentLike} Group
  * @property {JsxElement} Container
+ * @property {VDom.VWindow | Window} Host
  */
 
 /**
  * @implements {DOMRendererInterface}
  */
 export class DOMRenderer {
+  host;
+  capabilities = {};
+
+  /** @param {VDom.VWindow | Window & globalThis} host */
+  constructor(host) {
+    this.host = host;
+    this.capabilities = {
+      supportsSetupEffects: matchContext(window, Modes.Interactive),
+    };
+  }
+
   /**
    * @param {FragmentLike} fragment
    */
@@ -93,7 +100,8 @@ export class DOMRenderer {
       nextNode.remove();
       nextNode = start.nextSibling;
     }
-    start.after(.../** @type {*} */ (newContent));
+    // @ts-expect-error: Node types get tangled in vdom.
+    start.after(...newContent);
   }
 
   /**
@@ -102,7 +110,6 @@ export class DOMRenderer {
    * @param {ReconcilerOptions<NodeLike>} options
    */
   reconcile(segment, options) {
-    const { window } = getGlobalContext();
     const {
       onBeforeNodeRemove,
       retrieveOrSetItemKey,
@@ -143,7 +150,7 @@ export class DOMRenderer {
     // It compares each node's current position with the expected position after lastInserted,
     // moving nodes only when necessary to maintain the correct sequence.
     let i = 0;
-    const batchAdd = window.document.createDocumentFragment();
+    const batchAdd = this.host.document.createDocumentFragment();
     const batchAddLike = /** @type {*} */ (batchAdd);
     for (const item of newList) {
       // @ts-ignore: Invariant: nodes is always defined.
@@ -273,14 +280,13 @@ export class DOMRenderer {
    * @param {NodeLike | NodeLike[]} childNode
    */
   append(parentNode, childNode) {
-    const { window } = getGlobalContext();
     if (
-      childNode instanceof window.DocumentFragment &&
+      childNode instanceof this.host.DocumentFragment &&
       '__isShadowRootContainer' in childNode &&
       childNode.__isShadowRootContainer &&
       '__mode' in childNode
     ) {
-      if (!(parentNode instanceof window.HTMLElement)) {
+      if (!(parentNode instanceof this.host.HTMLElement)) {
         console.error('ShadowRoot can only be children of HTML Elements.');
         return parentNode;
       }
@@ -311,16 +317,16 @@ export class DOMRenderer {
     //
     // This will lead to a loss of interactivity, but idk, you win and you lose.
     if (
-      matchContext(window, Modes.Interactive) &&
+      matchContext(this.host, Modes.Interactive) &&
       (tagname === 'svg' || tagname === 'math') &&
-      childNode instanceof window.HTMLElement
+      childNode instanceof this.host.HTMLElement
     ) {
       const elementNamespace = /** @type {string} */ (
         'namespaceURI' in parentNode
           ? parentNode.namespaceURI
           : 'http://www.w3.org/1999/xhtml'
       );
-      const temp = window.document.createElementNS(elementNamespace, 'div');
+      const temp = this.host.document.createElementNS(elementNamespace, 'div');
       temp.innerHTML = /** @type {HTMLElement} */ (childNode).outerHTML;
       /** @type {ParentNode} */ (parentNode).append(...temp.children);
       return parentNode;
@@ -341,8 +347,7 @@ export class DOMRenderer {
    * @param {Promise<any>} child
    */
   handlePromise(child) {
-    const { window } = getGlobalContext();
-    const placeholder = window.document.createComment('----');
+    const placeholder = this.host.document.createComment('----');
     Reflect.set(placeholder, '__promise', child);
     child.then((value) => {
       placeholder.replaceWith(
@@ -373,8 +378,7 @@ export class DOMRenderer {
    * @param {NodeLike | NodeLike[]} [input]
    */
   createGroup(input) {
-    const { window } = getGlobalContext();
-    const fragment = window.document.createDocumentFragment();
+    const fragment = this.host.document.createDocumentFragment();
     if (input) {
       const children = Array.isArray(input) ? input : [input];
       for (const child of children) {
@@ -397,7 +401,6 @@ export class DOMRenderer {
    * @param {any} [props]
    */
   createContainer(tagname, props) {
-    const { window } = getGlobalContext();
     const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
 
     let ns;
@@ -410,7 +413,7 @@ export class DOMRenderer {
     }
 
     const element = /** @type {JsxElement} */ (
-      window.document.createElementNS(ns, tagname)
+      this.host.document.createElementNS(ns, tagname)
     );
     element.__eventListenerList = new Map();
     element.__attributeCells = new Set();
@@ -422,8 +425,7 @@ export class DOMRenderer {
    * @param {string} text
    */
   createText(text) {
-    const { window } = getGlobalContext();
-    return window.document.createTextNode(text);
+    return this.host.document.createTextNode(text);
   }
 
   /**
@@ -431,9 +433,8 @@ export class DOMRenderer {
    * @returns {node is FragmentLike}
    */
   isGroup(node) {
-    const { window } = getGlobalContext();
     return (
-      node instanceof window.DocumentFragment &&
+      node instanceof this.host.DocumentFragment &&
       !('__isShadowRootContainer' in node)
     );
   }
@@ -443,8 +444,7 @@ export class DOMRenderer {
    * @returns {child is NodeLike}
    */
   isNode(child) {
-    const { window } = getGlobalContext();
-    return child instanceof window.Node;
+    return child instanceof this.host.Node;
   }
 
   /**

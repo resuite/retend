@@ -51,6 +51,10 @@
       "import": "./dist/v-dom/index.js",
       "types": "./dist/v-dom/index.d.ts"
     },
+    "./web": {
+      "import": "./dist/web/index.js",
+      "types": "./dist/web/index.d.ts"
+    },
     "./web/plugin": {
       "import": "./dist/web/plugin/index.js",
       "types": "./dist/web/plugin/index.d.ts"

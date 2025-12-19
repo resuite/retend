@@ -1,5 +1,6 @@
 /** @import * as VDom from '../v-dom/index.js' */
-import { getGlobalContext } from '../context/index.js';
+import { getActiveRenderer } from '../renderers/index.js';
+import { DOMRenderer } from './dom-renderer.js';
 
 /** @typedef {(VDom.VComment | Comment) & { __commentRangeSymbol?: symbol }} ConnectedComment */
 
@@ -8,10 +9,10 @@ import { getGlobalContext } from '../context/index.js';
  * @returns {[ConnectedComment, ConnectedComment]} A pair of connected comment nodes with a shared symbol.
  */
 export function createCommentPair() {
-  const { window } = getGlobalContext();
+  const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   const symbol = Symbol();
-  const rangeStart = window.document.createComment('----');
-  const rangeEnd = window.document.createComment('----');
+  const rangeStart = renderer.host.document.createComment('----');
+  const rangeEnd = renderer.host.document.createComment('----');
   Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
   Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 

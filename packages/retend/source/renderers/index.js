@@ -9,10 +9,10 @@ export * from './_shared.js';
  * @returns {Renderer<UnknownRendererTypes>}
  */
 export function getActiveRenderer() {
-  const { globalData } = getGlobalContext();
+  const { globalData, window } = getGlobalContext();
   const renderer = globalData.get(RendererKey);
   if (!renderer) {
-    const newRenderer = new DOMRenderer();
+    const newRenderer = new DOMRenderer(window);
     setActiveRenderer(newRenderer);
     // @ts-expect-error: type of renderer should be opaque
     return newRenderer;

@@ -188,6 +188,8 @@ export function withHMRBoundaries(tagname, props, fileData) {
  * @param {(Node | VDom.VNode)[]} nodes
  */
 function stabilizeNodes(nodes) {
+  /** @type {DOMRenderer} */ // @ts-expect-error
+  const { host: window } = getActiveRenderer();
   // We can be smarter about whether or not to create a comment pair, so we
   // don't end up with a cluttered DOM tree.
   // NOTE TO FUTURE SELF: This optimization is only possible because
@@ -239,7 +241,8 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
   const refresh = function (fn) {
     snapshot.node.dispose();
     const swap = () => {
-      const { window } = getGlobalContext();
+      /** @type {DOMRenderer} */ // @ts-expect-error
+      const { host: window } = getActiveRenderer();
       if (!matchContext(window, Modes.Interactive)) {
         const message = 'Cannot handle HMR in non-interactive environments';
         console.error(message);

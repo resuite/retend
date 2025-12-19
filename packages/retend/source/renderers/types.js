@@ -5,22 +5,29 @@
 /**
  * Defines the concrete types used by a specific renderer implementation.
  * @typedef RendererTypes
- * @property {any} Output - The final result of the rendering process (e.g., a string or a Root DOM node).
- * @property {any} Node - The base type for all renderable entities in the host environment.
- * @property {any} Segment - A living, mutable sequence of nodes.
- * @property {any} Group - A logical collection of nodes that doesn't create a host-level element (e.g. Fragments).
- * @property {any} Text - The specific node type for representing text.
- * @property {any} Container - A collection of nodes logically belonging to a single 'parent'.
+ * @property {any} Output
+ * @property {any} Node
+ * @property {any} Handle
+ * @property {any} Group
+ * @property {any} Text
+ * @property {any} Container
+ * @property {EventTarget} Host
+ */
+
+/**
+ * @typedef Capabilities
+ * @property {boolean} [supportsSetupEffects]
  */
 
 /**
  * @typedef UnknownRendererTypes
  * @property {unknown} Output
  * @property {unknown} Node
- * @property {unknown} Segment
+ * @property {unknown} Handle
  * @property {unknown} Group
  * @property {unknown} Text
  * @property {unknown} Container
+ * @property {EventTarget} Host
  */
 
 /**
@@ -29,9 +36,14 @@
  * @template [Output=Types['Output']]
  * @template {Node} [Container=Types['Container']]
  * @template {Node} [Group=Types['Group']]
- * @template {Node} [Handle=Types['Segment']]
+ * @template {Node} [Handle=Types['Handle']]
  * @template {Node} [Text=Types['Text']]
+ * @template [Host=Types['Host']]
+ *
  * @typedef Renderer
+ *
+ * @property {Host} host
+ * @property {Capabilities} capabilities
  *
  * @property {(child: any) => child is Node} isNode
  * A predicate that identifies if a value is a valid node.

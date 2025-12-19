@@ -1,11 +1,12 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
 import { Cell } from '@adbl/cells';
-import { getGlobalContext, matchContext, Modes } from '../context/index.js';
+// import {  matchContext, Modes } from '../context/index.js';
 import h from './jsx.js';
 import { getHMRScopeList, HMRContextKey, HmrId, OverwrittenBy } from './hmr.js';
 import { generateChildNodes } from '../renderers/_shared.js';
 import { getActiveRenderer } from '../renderers/index.js';
+import { getGlobalContext } from '../context/index.js';
 
 /**
  * @template [T=unknown]
@@ -56,8 +57,8 @@ class EffectNode {
   localContext = Cell.context();
 
   enable() {
-    const { window } = getGlobalContext();
-    if (matchContext(window, Modes.Interactive)) {
+    const renderer = getActiveRenderer();
+    if (renderer.capabilities.supportsSetupEffects) {
       this.#enabled = true;
       for (const child of this.#children) child.enable();
     }
@@ -101,10 +102,10 @@ class EffectNode {
 
   async activate() {
     if (!this.#enabled || this.#active) return;
-    const { window } = getGlobalContext();
+    const { host } = getActiveRenderer();
     await new Promise((resolve) => setTimeout(resolve));
     await this.#runActivateFns();
-    window.dispatchEvent(new Event('retend:activate'));
+    host.dispatchEvent(new Event('retend:activate'));
   }
 
   #runDisposeFns() {
@@ -124,10 +125,8 @@ class EffectNode {
   }
 
   dispose() {
-    const { window } = getGlobalContext();
-    const isVDom = matchContext(window, Modes.VDom);
-
-    if (isVDom) {
+    const renderer = getActiveRenderer();
+    if (!renderer.capabilities.supportsSetupEffects) {
       for (const child of this.#children) child.localContext.destroy();
       this.localContext.destroy();
       this.localContext = Cell.context();
@@ -147,7 +146,7 @@ class EffectNode {
     this.#disposeFns.length = 0;
     this.#children.length = 0;
 
-    if (!isVDom) {
+    if (!renderer.capabilities.supportsSetupEffects) {
       this.localContext.destroy();
       this.localContext = Cell.context();
     }

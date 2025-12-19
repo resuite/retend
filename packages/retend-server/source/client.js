@@ -24,7 +24,8 @@ import {
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
-import { getActiveRenderer } from 'retend/renderers';
+import { getActiveRenderer, setActiveRenderer } from 'retend/renderers';
+import { DOMRenderer } from 'retend/web';
 
 const OUTLET_INTERNAL_KEYS = ['__originScopeSnapshot'];
 
@@ -220,6 +221,7 @@ async function restoreContext(context, routerCreateFn) {
     consistentValues: new Map(Object.entries(context.consistentValues)),
     globalData: new Map(),
   });
+  setActiveRenderer(new DOMRenderer(vWindow));
 
   const observer = useObserver();
   const router = routerCreateFn();
@@ -258,6 +260,7 @@ async function restoreContext(context, routerCreateFn) {
     consistentValues: new Map(),
     globalData: hydratedGlobalData,
   });
+  setActiveRenderer(new DOMRenderer(window));
 
   router.attachWindowListeners(window);
   Reflect.set(globalThis.window.document, '__appRouterInstance', router);

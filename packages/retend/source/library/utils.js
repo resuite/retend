@@ -1,5 +1,7 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext } from '../context/index.js';
+import { getActiveRenderer } from '../renderers/index.js';
+import { DOMRenderer } from '../web/dom-renderer.js';
 
 /** @import * as VDom from '../v-dom/index.js' */
 
@@ -214,10 +216,10 @@ export function isMatchingCommentPair(start, end) {
  * @param {(Node | VDom.VNode)[]} nodes - The array of nodes to consolidate.
  */
 export function consolidateNodes(nodes) {
-  const { window } = getGlobalContext();
+  const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   if (nodes.length === 1) return nodes[0];
 
-  const fragment = window.document.createDocumentFragment();
+  const fragment = renderer.host.document.createDocumentFragment();
   fragment.append(.../** @type {*} */ (nodes));
   return fragment;
 }
