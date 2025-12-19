@@ -1,4 +1,4 @@
-/** @import { jsxDevFileData } from '../plugin/hmr.js'; */
+/** @import { jsxDevFileData } from './hmr.js'; */
 /** @import { Renderer, UnknownRendererTypes } from '../renderers/types.js'; */
 import { Cell, SourceCell } from '@adbl/cells';
 import { appendChild } from '../renderers/_shared.js';

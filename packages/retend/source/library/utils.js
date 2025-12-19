@@ -192,23 +192,6 @@ export function isSomewhatFalsy(value) {
   return value === undefined || value === null || value === false;
 }
 
-/** @typedef {(VDom.VComment | Comment) & { __commentRangeSymbol?: symbol }} ConnectedComment */
-
-/**
- * Creates a pair of connected comment nodes that can be used to represent a range.
- * @returns {[ConnectedComment, ConnectedComment]} A pair of connected comment nodes with a shared symbol.
- */
-export function createCommentPair() {
-  const { window } = getGlobalContext();
-  const symbol = Symbol();
-  const rangeStart = window.document.createComment('----');
-  const rangeEnd = window.document.createComment('----');
-  Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
-  Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
-
-  return [rangeStart, rangeEnd];
-}
-
 /**
  *
  * @param {Node | VDom.VNode} start

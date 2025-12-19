@@ -1,4 +1,4 @@
-/** @import { jsxDevFileData, UpdatableFn } from '../plugin/hmr.js'; */
+/** @import { jsxDevFileData, UpdatableFn } from '../library/hmr.js'; */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
 /** @import { Cell } from '@adbl/cells'; */
 

@@ -12,7 +12,7 @@ import {
   useSetupEffect,
   withScopeSnapshot,
 } from '../library/scope.js';
-import { getHMRContext } from '../plugin/hmr.js';
+import { getHMRContext } from '../library/hmr.js';
 import { writeStaticStyle } from '../library/utils.js';
 import { getActiveRenderer, appendChild } from '../renderers/index.js';
 

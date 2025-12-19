@@ -1,68 +1,42 @@
 import { Cell } from '@adbl/cells';
-import { getGlobalContext, matchContext, Modes } from '../context/index.js';
+import { getGlobalContext, matchContext, Modes } from '../../context/index.js';
 import {
-  createScope,
   createScopeSnapshot,
-  useScopeContext,
   useSetupEffect,
   withScopeSnapshot,
-} from '../library/scope.js';
-import { routeToComponent } from '../router/routeTree.js';
+} from '../../library/scope.js';
+import { routeToComponent } from '../../router/routeTree.js';
 import { CellUpdateError } from '@adbl/cells';
 import {
-  createCommentPair,
   addCellListener,
   consolidateNodes,
   removeCellListeners,
   copyCellListeners,
   isMatchingCommentPair,
-} from '../library/utils.js';
+} from '../../library/utils.js';
 import {
   ComponentInvalidator,
+  getHMRContext,
   getHMRScopeList,
-  HMRContext,
+  HMRContextKey,
   HmrId,
-} from './hmr-context.js';
-import { generateChildNodes, getActiveRenderer } from '../renderers/index.js';
+  RetendComponentTree,
+  useComponentAncestry,
+} from '../../library/hmr.js';
+import {
+  generateChildNodes,
+  getActiveRenderer,
+} from '../../renderers/index.js';
+import { createCommentPair } from '../utils.js';
 
-/** @import * as VDom from '../v-dom/index.js' */
-/** @import { SourceCell } from '@adbl/cells' */
-/** @import { ReactiveCellFunction } from '../library/utils.js' */
-/** @import { Scope } from '../library/scope.js' */
-/** @import { DOMRenderer } from '../web/dom-renderer.js'; */
-/** @import { NodeLike } from '../context/index.js' */
+/** @import * as VDom from '../../v-dom/index.js' */
+/** @import { ReactiveCellFunction } from '../../library/utils.js' */
+/** @import { UpdatableFn, jsxDevFileData, HmrContext } from '../../library/hmr.js'; */
+/** @import { Scope } from '../../library/scope.js' */
+/** @import { DOMRenderer } from '../../web/dom-renderer.js'; */
+/** @import { NodeLike } from '../../context/index.js' */
 
-/** @type {Scope<UpdatableFn[]>} */
-export const RetendComponentTree = createScope('__RetendComponentTree');
-
-export function useComponentAncestry() {
-  try {
-    return useScopeContext(RetendComponentTree);
-  } catch {
-    return [];
-  }
-}
-
-/** @typedef {{
- *    [ComponentInvalidator]?: Cell<Function & UpdatableFn>
- *    __isScopeProviderOf?: Scope
- * } & Function} UpdatableFn
- */
 /** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
-
-/**
- * @typedef HmrContext
- * @property {Array<unknown>} old
- * @property {Array<unknown>} new
- * @property {SourceCell<Function | null>} current
- */
-
-/**
- * @typedef jsxDevFileData
- * @property {string} fileName
- * @property {number} columnNumber
- * @property {number} lineNumber
- */
 
 /**
  * @typedef Instance
@@ -123,7 +97,7 @@ export async function hotReloadModule(newModule, url) {
     old: Object.values(oldModule),
     new: Object.values(newModule),
   };
-  globalData.set(HMRContext, context);
+  globalData.set(HMRContextKey, context);
   for (const [key, newInstance] of newModuleData) {
     const oldInstance = oldModule[key];
     if (!oldInstance) continue;
@@ -155,7 +129,7 @@ export async function hotReloadModule(newModule, url) {
         for (const error of e.errors) errors.push(error);
       } else throw e;
     } finally {
-      globalData.set(HMRContext, null);
+      globalData.set(HMRContextKey, null);
     }
   }
 
@@ -165,12 +139,6 @@ export async function hotReloadModule(newModule, url) {
       console.error('HMR Update Error: ', error, error.__component);
     }
   }
-}
-
-/** @returns {HmrContext | null} */
-export function getHMRContext() {
-  const { globalData } = getGlobalContext();
-  return globalData.get(HMRContext);
 }
 
 /**

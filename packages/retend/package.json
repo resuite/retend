@@ -51,13 +51,13 @@
       "import": "./dist/v-dom/index.js",
       "types": "./dist/v-dom/index.d.ts"
     },
-    "./plugin": {
-      "import": "./dist/plugin/index.js",
-      "types": "./dist/plugin/index.d.ts"
+    "./web/plugin": {
+      "import": "./dist/web/plugin/index.js",
+      "types": "./dist/web/plugin/index.d.ts"
     },
-    "./plugin/hmr": {
-      "import": "./dist/plugin/hmr.js",
-      "types": "./dist/plugin/hmr.d.ts"
+    "./web/plugin/hmr": {
+      "import": "./dist/web/plugin/hmr.js",
+      "types": "./dist/web/plugin/hmr.d.ts"
     },
     "./context": {
       "import": "./dist/context/index.js",

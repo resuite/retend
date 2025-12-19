@@ -1,8 +1,9 @@
 /** @import { ReconcilerOptions, Renderer } from "../renderers/types.js"; */
 /** @import { NodeLike, FragmentLike } from "../context/index.js"; */
-/** @import { CellSet, ConnectedComment } from '../library/utils.js' */
+/** @import { CellSet } from '../library/utils.js' */
 /** @import * as VDom from '../v-dom/index.js' */
-/** @import { jsxDevFileData, UpdatableFn } from '../plugin/hmr.js'; */
+/** @import { jsxDevFileData, UpdatableFn } from '../library/hmr.js'; */
+/** @import { ConnectedComment } from './utils.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
 import {
@@ -15,7 +16,6 @@ import {
   addCellListener,
   camelCasedAttributes,
   convertObjectToCssStylesheet,
-  createCommentPair,
   isSomewhatFalsy,
   listenerModifiers,
 } from '../library/utils.js';
@@ -24,7 +24,8 @@ import {
   generateChildNodes,
   normalizeJsxChild,
 } from '../renderers/_shared.js';
-import { withHMRBoundaries } from '../plugin/hmr.js';
+import { withHMRBoundaries } from './plugin/hmr.js';
+import { createCommentPair } from './utils.js';
 
 /**
  * @typedef {((this: Node, event: Event) => void) & {

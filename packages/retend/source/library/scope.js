@@ -3,12 +3,7 @@
 import { Cell } from '@adbl/cells';
 import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import h from './jsx.js';
-import {
-  getHMRScopeList,
-  HMRContext,
-  HmrId,
-  OverwrittenBy,
-} from '../plugin/hmr-context.js';
+import { getHMRScopeList, HMRContextKey, HmrId, OverwrittenBy } from './hmr.js';
 import { generateChildNodes } from '../renderers/_shared.js';
 import { getActiveRenderer } from '../renderers/index.js';
 
@@ -268,7 +263,7 @@ export function useScopeContext(Scope, snapshot) {
         return useScopeContext(latestInstance, snapshot);
       }
       const { globalData } = getGlobalContext();
-      const hmrContext = globalData.get(HMRContext);
+      const hmrContext = globalData.get(HMRContextKey);
       if (hmrContext) {
         const activeScopes = getHMRScopeList();
         const hmrId = Reflect.get(Scope, HmrId);
