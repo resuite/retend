@@ -188,11 +188,7 @@ export function Unique(props) {
     ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}'
   );
 
-  const retendUniqueInstance = renderer.createContainer(elementName);
-  for (const [key, value] of Object.entries(rest)) {
-    renderer.setProperty(retendUniqueInstance, key, value);
-  }
-
+  const retendUniqueInstance = h(elementName, rest);
   let previous = stash.instances.get(name);
 
   /** @param {HTMLElement | VElement} div */
@@ -339,7 +335,7 @@ export function Unique(props) {
   if (shadowRoot) {
     const { mode, childNodes } = shadowRoot;
     const newShadowRoot = retendUniqueInstance.attachShadow({ mode });
-    renderer.append(newShadowRoot, childNodes);
+    appendChild(newShadowRoot, childNodes, renderer);
   }
 
   return retendUniqueInstance;

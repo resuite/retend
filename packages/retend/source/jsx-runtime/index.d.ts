@@ -766,16 +766,16 @@ export namespace JSX {
      * Many options including "text", "additions", "removals", etc.
      */
     ariaRelevant?:
-      | 'additions'
-      | 'additions removals'
-      | 'additions text'
-      | 'all'
-      | 'removals'
-      | 'removals additions'
-      | 'removals text'
-      | 'text'
-      | 'text additions'
-      | 'text removals';
+    | 'additions'
+    | 'additions removals'
+    | 'additions text'
+    | 'all'
+    | 'removals'
+    | 'removals additions'
+    | 'removals text'
+    | 'text'
+    | 'text additions'
+    | 'text removals';
 
     /**
      * Indicates that user input is required on this element.
@@ -1053,14 +1053,14 @@ export namespace JSX {
      * Controls the type of input method to be used for the element.
      */
     inputmode?:
-      | 'none'
-      | 'text'
-      | 'tel'
-      | 'url'
-      | 'email'
-      | 'numeric'
-      | 'decimal'
-      | 'search';
+    | 'none'
+    | 'text'
+    | 'tel'
+    | 'url'
+    | 'email'
+    | 'numeric'
+    | 'decimal'
+    | 'search';
 
     /**
      * Turns an element into a popover element; takes a popover state ("auto" or "manual") as its value.
@@ -1093,10 +1093,10 @@ export namespace JSX {
 
   interface JsxHtmlElement<E = HTMLElement>
     extends JSXGlobalAttributes,
-      JsxAriaAttributes,
-      JsxGlobalEventHandlers<E>,
-      DatasetAttributes,
-      JsxNativeProps {}
+    JsxAriaAttributes,
+    JsxGlobalEventHandlers<E>,
+    DatasetAttributes,
+    JsxNativeProps { }
 
   interface JsxHtmlAnchorElement extends JsxHtmlElement<HTMLAnchorElement> {
     /**
@@ -2285,11 +2285,11 @@ export namespace JSX {
     width?: number | string;
   }
 
-  interface JsxHtmlDivElement extends JsxHtmlElement<HTMLDivElement> {}
-  interface JsxHtmlHeadingElement extends JsxHtmlElement<HTMLHeadingElement> {}
-  interface JsxHtmlOutputElement extends JsxHtmlElement<HTMLOutputElement> {}
+  interface JsxHtmlDivElement extends JsxHtmlElement<HTMLDivElement> { }
+  interface JsxHtmlHeadingElement extends JsxHtmlElement<HTMLHeadingElement> { }
+  interface JsxHtmlOutputElement extends JsxHtmlElement<HTMLOutputElement> { }
   interface JsxHtmlParagraphElement
-    extends JsxHtmlElement<HTMLParagraphElement> {}
+    extends JsxHtmlElement<HTMLParagraphElement> { }
 
   interface JsxHtmlElementMap {
     a: JsxHtmlAnchorElement;
@@ -2442,19 +2442,19 @@ export namespace JSX {
   interface SVGPresentationAttributes {
     /** Specifies how an object is aligned along the font baseline */
     alignmentBaseline?:
-      | 'auto'
-      | 'baseline'
-      | 'before-edge'
-      | 'text-before-edge'
-      | 'middle'
-      | 'central'
-      | 'after-edge'
-      | 'text-after-edge'
-      | 'ideographic'
-      | 'alphabetic'
-      | 'hanging'
-      | 'mathematical'
-      | 'inherit';
+    | 'auto'
+    | 'baseline'
+    | 'before-edge'
+    | 'text-before-edge'
+    | 'middle'
+    | 'central'
+    | 'after-edge'
+    | 'text-after-edge'
+    | 'ideographic'
+    | 'alphabetic'
+    | 'hanging'
+    | 'mathematical'
+    | 'inherit';
     /** Specifies the base color of the element */
     baselineShift?: 'auto' | 'baseline' | 'super' | 'sub' | string | number;
     /** Specifies the color to paint the element */
@@ -2494,14 +2494,14 @@ export namespace JSX {
   /** Interface for SVG core attributes */
   interface SVGCoreAttributes<E = SVGElement>
     extends JSXGlobalAttributes,
-      JsxAriaAttributes,
-      JsxGlobalEventHandlers<E>,
-      DatasetAttributes,
-      JsxNativeProps {}
+    JsxAriaAttributes,
+    JsxGlobalEventHandlers<E>,
+    DatasetAttributes,
+    JsxNativeProps { }
 
   interface JsxSVGElement
     extends SVGCoreAttributes<SVGSVGElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the width of the SVG viewport */
     width?: number | string;
     /** Specifies the height of the SVG viewport */
@@ -2514,7 +2514,7 @@ export namespace JSX {
 
   interface JsxSVGAElement
     extends SVGCoreAttributes<SVGAElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the URL to link to */
     href?: string;
     /** Specifies the target window or frame for the linked URL */
@@ -2560,7 +2560,7 @@ export namespace JSX {
 
   interface JsxSVGCircleElement
     extends SVGCoreAttributes<SVGCircleElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x-coordinate of the center of the circle */
     cx?: number | string;
     /** Specifies the y-coordinate of the center of the circle */
@@ -2575,13 +2575,13 @@ export namespace JSX {
     clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
   }
 
-  interface JsxSVGDefsElement extends SVGCoreAttributes<SVGDefsElement> {}
+  interface JsxSVGDefsElement extends SVGCoreAttributes<SVGDefsElement> { }
 
-  interface JsxSVGDescElement extends SVGCoreAttributes<SVGDescElement> {}
+  interface JsxSVGDescElement extends SVGCoreAttributes<SVGDescElement> { }
 
   interface JsxSVGEllipseElement
     extends SVGCoreAttributes<SVGEllipseElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x-coordinate of the center of the ellipse */
     cx?: number | string;
     /** Specifies the y-coordinate of the center of the ellipse */
@@ -2693,7 +2693,7 @@ export namespace JSX {
 
   interface JsxSVGFEFloodElement
     extends SVGCoreAttributes<SVGFEFloodElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the flood color */
     floodColor?: string;
     /** Specifies the flood opacity */
@@ -2730,14 +2730,14 @@ export namespace JSX {
 
   interface JsxSVGFEImageElement
     extends SVGCoreAttributes<SVGFEImageElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the URL of the image file */
     href?: string;
     /** Specifies how to align the image */
     preserveAspectRatio?: string;
   }
 
-  interface JsxSVGFEMergeElement extends SVGCoreAttributes<SVGFEMergeElement> {}
+  interface JsxSVGFEMergeElement extends SVGCoreAttributes<SVGFEMergeElement> { }
 
   interface JsxSVGFEMergeNodeElement
     extends SVGCoreAttributes<SVGFEMergeNodeElement> {
@@ -2843,7 +2843,7 @@ export namespace JSX {
 
   interface JsxSVGForeignObjectElement
     extends SVGCoreAttributes<SVGForeignObjectElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the foreign object */
     x?: number | string;
     /** Specifies the y coordinate of the foreign object */
@@ -2856,14 +2856,14 @@ export namespace JSX {
 
   interface JsxSVGGElement
     extends SVGCoreAttributes<SVGGElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Defines a mask to be applied to the element. */
     mask?: string;
   }
 
   interface JsxSVGImageElement
     extends SVGCoreAttributes<SVGImageElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the image */
     x?: number | string;
     /** Specifies the y coordinate of the image */
@@ -2880,7 +2880,7 @@ export namespace JSX {
 
   interface JsxSVGLineElement
     extends SVGCoreAttributes<SVGLineElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the start of the line */
     x1?: number | string;
     /** Specifies the y coordinate of the start of the line */
@@ -2907,7 +2907,7 @@ export namespace JSX {
 
   interface JsxSVGMarkerElement
     extends SVGCoreAttributes<SVGMarkerElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the width of the marker */
     markerWidth?: number | string;
     /** Specifies the height of the marker */
@@ -2924,7 +2924,7 @@ export namespace JSX {
 
   interface JsxSVGMaskElement
     extends SVGCoreAttributes<SVGMaskElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the mask */
     x?: number | string;
     /** Specifies the y coordinate of the mask */
@@ -2940,7 +2940,7 @@ export namespace JSX {
   }
 
   interface JsxSVGMetadataElement
-    extends SVGCoreAttributes<SVGMetadataElement> {}
+    extends SVGCoreAttributes<SVGMetadataElement> { }
 
   interface JsxSVGMPathElement extends SVGCoreAttributes<SVGMPathElement> {
     /** Specifies a path to follow */
@@ -2949,7 +2949,7 @@ export namespace JSX {
 
   interface JsxSVGPathElement
     extends SVGCoreAttributes<SVGPathElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the path to be drawn */
     d?: string;
     /** Specifies the path length for path animation */
@@ -2958,7 +2958,7 @@ export namespace JSX {
 
   interface JsxSVGPatternElement
     extends SVGCoreAttributes<SVGPatternElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the pattern tile */
     x?: number | string;
     /** Specifies the y coordinate of the pattern tile */
@@ -2975,14 +2975,14 @@ export namespace JSX {
 
   interface JsxSVGPolygonElement
     extends SVGCoreAttributes<SVGPolygonElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the points that make up the polygon */
     points?: string;
   }
 
   interface JsxSVGPolylineElement
     extends SVGCoreAttributes<SVGPolylineElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the points that make up the polyline */
     points?: string;
   }
@@ -3007,7 +3007,7 @@ export namespace JSX {
 
   interface JsxSVGRectElement
     extends SVGCoreAttributes<SVGRectElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the rectangle */
     x?: number | string;
     /** Specifies the y coordinate of the rectangle */
@@ -3026,7 +3026,7 @@ export namespace JSX {
 
   interface JsxSVGStopElement
     extends SVGCoreAttributes<SVGStopElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies where the gradient stop is placed */
     offset?: number | string;
     /** Specifies the color of the gradient stop */
@@ -3037,11 +3037,11 @@ export namespace JSX {
 
   interface JsxSVGSwitchElement
     extends SVGCoreAttributes<SVGSwitchElement>,
-      SVGPresentationAttributes {}
+    SVGPresentationAttributes { }
 
   interface JsxSVGSymbolElement
     extends SVGCoreAttributes<SVGSymbolElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the symbol */
     x?: number | string;
     /** Specifies the y coordinate of the symbol */
@@ -3058,7 +3058,7 @@ export namespace JSX {
 
   interface JsxSVGTextElement
     extends SVGCoreAttributes<SVGTextElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the starting point of the text */
     x?: number | string;
     /** Specifies the y coordinate of the starting point of the text */
@@ -3077,7 +3077,7 @@ export namespace JSX {
 
   interface JsxSVGTextPathElement
     extends SVGCoreAttributes<SVGTextPathElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the path the text should follow */
     href?: string;
     /** Specifies where on the path the text should begin */
@@ -3090,7 +3090,7 @@ export namespace JSX {
 
   interface JsxSVGTSpanElement
     extends SVGCoreAttributes<SVGTSpanElement>,
-      SVGPresentationAttributes {
+    SVGPresentationAttributes {
     /** Specifies the x coordinate of the starting point of the text */
     x?: number | string;
     /** Specifies the y coordinate of the starting point of the text */
@@ -3107,9 +3107,9 @@ export namespace JSX {
     lengthAdjust?: 'spacing' | 'spacingAndGlyphs';
   }
 
-  interface JsxSVGUseElement extends SVGCoreAttributes<SVGUseElement> {}
+  interface JsxSVGUseElement extends SVGCoreAttributes<SVGUseElement> { }
 
-  interface JsxSVGViewElement extends SVGCoreAttributes<SVGViewElement> {}
+  interface JsxSVGViewElement extends SVGCoreAttributes<SVGViewElement> { }
 
   interface JsxSvgElementMap {
     svg: JsxSVGElement;
@@ -3189,7 +3189,7 @@ export namespace JSX {
     [key in keyof IntrinsicElementsBase]: ElementTypes<key>;
   } & Record<`${string}-${string}`, ElementTypes<'div'>>;
 
-  export interface IntrinsicElements extends IntrinsicElementsInner {}
+  export interface IntrinsicElements extends IntrinsicElementsInner { }
 
   type NodeLike = globalThis.Node | import('../v-dom/index.js').VNode;
 
@@ -3197,18 +3197,19 @@ export namespace JSX {
     | NodeLike
     | PropertyKey
     | Promise<
-        | NodeLike
-        | NodeLike[]
-        | PropertyKey
-        | null
-        | undefined
-        // biome-ignore lint/suspicious/noConfusingVoidType:
-        | void
-      >;
+      | NodeLike
+      | NodeLike[]
+      | PropertyKey
+      | null
+      | undefined
+      // biome-ignore lint/suspicious/noConfusingVoidType:
+      | void
+    >;
   export type Template =
     | Node
     | Node[]
     | undefined
+    | unknown
     | void
     | null
     // biome-ignore lint/suspicious/noConfusingVoidType:

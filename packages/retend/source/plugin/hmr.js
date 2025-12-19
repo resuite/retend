@@ -29,6 +29,8 @@ import { generateChildNodes, getActiveRenderer } from '../renderers/index.js';
 /** @import { SourceCell } from '@adbl/cells' */
 /** @import { ReactiveCellFunction } from '../library/utils.js' */
 /** @import { Scope } from '../library/scope.js' */
+/** @import { DOMRenderer } from '../web/dom-renderer.js'; */
+/** @import { NodeLike } from '../context/index.js' */
 
 /** @type {Scope<UpdatableFn[]>} */
 export const RetendComponentTree = createScope('__RetendComponentTree');
@@ -249,7 +251,9 @@ function stabilizeNodes(nodes) {
  */
 export function runInvalidatorWithHMRBoundaries(value, completeProps) {
   const snapshot = createScopeSnapshot();
+  const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
 
+  /** @returns {NodeLike[]} */
   const nextComponentRender = () => {
     const ancestry = useComponentAncestry();
     const template = RetendComponentTree.Provider({
@@ -258,7 +262,7 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
       value: [...ancestry, value.peek()],
       children: () => value.peek()(...completeProps, { createdByJsx: true }),
     });
-    return stabilizeNodes(generateChildNodes(template, getActiveRenderer()));
+    return stabilizeNodes(generateChildNodes(template, renderer));
   };
 
   let nodes = withScopeSnapshot(snapshot, nextComponentRender);

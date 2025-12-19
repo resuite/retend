@@ -106,9 +106,9 @@ class EffectNode {
 
   async activate() {
     if (!this.#enabled || this.#active) return;
+    const { window } = getGlobalContext();
     await new Promise((resolve) => setTimeout(resolve));
     await this.#runActivateFns();
-    const { window } = getGlobalContext();
     window.dispatchEvent(new Event('retend:activate'));
   }
 

@@ -1,4 +1,4 @@
-/** @import { Renderer } from "./types.js"; */
+/** @import { Renderer } from "../renderers/types.js"; */
 /** @import { NodeLike, FragmentLike } from "../context/index.js"; */
 /** @import { CellSet, ConnectedComment } from '../library/utils.js' */
 /** @import * as VDom from '../v-dom/index.js' */
@@ -23,7 +23,7 @@ import {
   appendChild,
   generateChildNodes,
   normalizeJsxChild,
-} from './_shared.js';
+} from '../renderers/_shared.js';
 import { withHMRBoundaries } from '../plugin/hmr.js';
 
 /**
@@ -60,6 +60,7 @@ import { withHMRBoundaries } from '../plugin/hmr.js';
  * @property {NodeLike} Text
  * @property {DOMSegment} Segment
  * @property {FragmentLike} Group
+ * @property {JsxElement} Container
  */
 
 /**
@@ -67,7 +68,30 @@ import { withHMRBoundaries } from '../plugin/hmr.js';
  */
 export class DOMRenderer {
   createSegment() {
-    return createCommentPair();
+    /** @type {DOMSegment} */
+    const segment = createCommentPair();
+    Reflect.set(segment[0], '__segment', segment);
+    Reflect.set(segment[1], '__segment', segment);
+    return segment;
+  }
+
+  /**
+   * @param {DOMSegment} segment
+   * @param {NodeLike[]} newContent
+   */
+  updateSegment(segment, newContent) {
+    const start = segment[0];
+    const end = segment[segment.length - 1];
+
+    let nextNode = start.nextSibling;
+    while (nextNode && nextNode !== end) {
+      nextNode.remove();
+      nextNode = start.nextSibling;
+    }
+    start.after(.../** @type {*} */ (newContent));
+
+    segment.length = 0;
+    segment.push(start, ...newContent, end);
   }
 
   /**
@@ -83,10 +107,17 @@ export class DOMRenderer {
     );
   }
 
+  /** @param {DOMSegment} segment  */
+  unwrapSegment(segment) {
+    return [...segment];
+  }
+
   /**
-   * @param {NodeLike} node
+   * @template {NodeLike} N
+   * @param {N} node
    * @param {string} key
    * @param {any} value
+   * @returns {N}
    */
   setProperty(node, key, value) {
     const element = /** @type {JsxElement} */ (node);
@@ -98,9 +129,7 @@ export class DOMRenderer {
         return node;
       }
       this.#setAttribute(element, key, value.get());
-    } else {
-      this.#setAttribute(element, key, value);
-    }
+    } else this.#setAttribute(element, key, value);
 
     return node;
   }
@@ -241,7 +270,7 @@ export class DOMRenderer {
    * @param {any} group
    * @returns {NodeLike[]}
    */
-  unwrapNodeGroup(group) {
+  unwrapGroup(group) {
     return Array.from(group.childNodes);
   }
 

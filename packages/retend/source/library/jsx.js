@@ -1,21 +1,12 @@
 /** @import { jsxDevFileData } from '../plugin/hmr.js'; */
-/** @import { Renderer } from '../renderers/types.js'; */
+/** @import { Renderer, UnknownRendererTypes } from '../renderers/types.js'; */
 import { Cell, SourceCell } from '@adbl/cells';
 import { appendChild } from '../renderers/_shared.js';
 import { getActiveRenderer } from '../renderers/index.js';
 import { addCellListener, ArgumentList } from './utils.js';
 
 /**
- * @typedef RendererData
- * @property {unknown} Output
- * @property {unknown} Node
- * @property {unknown} Segment
- * @property {unknown} Group
- * @property {unknown} Text
- */
-
-/**
- * @template {RendererData} Data
+ * @template {UnknownRendererTypes} Data
  * @param {string | Function | undefined} tagOrFn
  * @param {*} props
  * @param {*} [_]
@@ -35,7 +26,6 @@ export function h(
   if (tagOrFn === undefined) return [];
 
   if (Object.is(tagOrFn, DocumentFragmentPlaceholder)) {
-    /** @type {Data['Node'][]} */
     const childList =
       typeof props === 'object' && !(props instanceof ArgumentList)
         ? props.children

@@ -1,11 +1,11 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import * as VDom from '../v-dom/index.js' */
 /** @import { ReactiveCellFunction } from './utils.js' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
-import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
+import { addCellListener, ArgumentList } from './utils.js';
+import { getActiveRenderer } from '../renderers/index.js';
 
 /**
  * @template T
@@ -72,26 +72,17 @@ export function If(value, fnOrObject, elseFn) {
     return;
   }
 
-  const [rangeStart, rangeEnd] = createCommentPair();
+  const renderer = getActiveRenderer();
+  const segment = renderer.createSegment();
   const scopeSnapshot = createScopeSnapshot();
+  let isInitialRun = true;
 
-  /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
+  /** @type {ReactiveCellFunction<T, typeof segment, typeof segment>} */
   const callback = function (_value) {
     scopeSnapshot.node.dispose(); // cleanup previous effects
     const results = withScopeSnapshot(scopeSnapshot, () => {
-      /** @type {(Node | VDom.VNode)[]} */
+      /** @type {any[]} */
       let nodes = [];
-      let nextNode = this.nextSibling;
-      while (
-        nextNode &&
-        !(
-          '__commentRangeSymbol' in nextNode &&
-          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-        )
-      ) {
-        nextNode.remove();
-        nextNode = this.nextSibling;
-      }
 
       if (typeof fnOrObject === 'function') {
         if (_value) {
@@ -117,15 +108,14 @@ export function If(value, fnOrObject, elseFn) {
         console.error(
           'If expects a callback or condition object as the second argument.'
         );
-      this.after(.../** @type {*} */ (nodes));
-      return nodes;
+      renderer.updateSegment(this, nodes);
+      return this;
     });
-    if (this.isConnected) scopeSnapshot.node.activate();
+    if (!isInitialRun) scopeSnapshot.node.activate();
+    else isInitialRun = false;
     return results;
   };
 
-  // see comment in switch.js
-  const firstRun = callback.bind(rangeStart)(value.get());
-  addCellListener(rangeStart, value, callback, false);
-  return [rangeStart, ...firstRun, rangeEnd];
+  addCellListener(segment, value, callback, false);
+  return callback.bind(segment)(value.get());
 }
