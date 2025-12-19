@@ -4,7 +4,6 @@
 /** @import { MatchedRoute, MatchResult } from './routeTree.js'; */
 /** @import { RouterMiddleware, RouteData } from './middleware.js'; */
 /** @import { WindowLike } from '../context/index.js'; */
-/** @import { VNode } from '../v-dom/index.js'; */
 /** @import {
  *   NavigationOptions,
  *   RouterInternalState,
@@ -38,6 +37,7 @@ import { constructURL, getFullPath } from './utils.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { getGlobalContext } from '../context/index.js';
 import { writeStaticStyle } from '../library/utils.js';
+import { getActiveRenderer } from '../renderers/index.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -981,19 +981,14 @@ export function defineRoute(route) {
  * ```
  *
  * @param {Router} router - The router instance to be provided to the application.
- * @returns {Node & VNode} The root router component, typically an instance of `RouterProvider` wrapping an `Outlet`.
+ * @returns {any} The root router component, typically an instance of `RouterProvider` wrapping an `Outlet`.
  */
 export function createRouterRoot(router) {
-  /** @type {*} */
   const rootOutlet = RouterProvider({ router, children: Outlet });
   if (Array.isArray(rootOutlet)) {
-    const { window } = getGlobalContext();
-    /** @type {*} */
-    const fragment = window.document.createDocumentFragment();
-    for (const child of rootOutlet) {
-      fragment.append(child);
-    }
-    return fragment;
+    const renderer = getActiveRenderer();
+    const group = renderer.createGroup(rootOutlet);
+    return group;
   }
   return rootOutlet;
 }
