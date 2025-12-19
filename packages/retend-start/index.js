@@ -293,7 +293,7 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { retend } from 'retend/plugin';${
+import { retend } from 'retend/web/plugin';${
     answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ''
   }${
     answers.useTailwind ? "\nimport tailwindcss from '@tailwindcss/vite';" : ''
@@ -393,18 +393,14 @@ hydrate(createRouter)
     : `
 /// <reference types="vite/client" />
 import { runPendingSetupEffects } from 'retend';
+import { createRouterRoot } from 'retend/router';
 import { createRouter } from './router';
 
 const router = createRouter();
-router.setWindow(window);
-router.attachWindowListeners();
+router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
-root?.append(${
-        extension === 'ts'
-          ? 'router.Outlet() as Node'
-          : '/** @type {Node} */ (router.Outlet())'
-      });
+root?.append(createRouterRoot(router));
 runPendingSetupEffects();
 `;
 
@@ -542,7 +538,7 @@ export default App;
 `;
 
     await fs.writeFile(
-      path.join(projectDir, `source/App.module.css`),
+      path.join(projectDir, 'source/App.module.css'),
       stylesContent
     );
   }

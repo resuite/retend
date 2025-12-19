@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { retend } from 'retend/plugin';
+import { retend } from 'retend/web/plugin';
 import { retendSSG } from 'retend-server/plugin';
 
 export default defineConfig({
