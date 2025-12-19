@@ -79,7 +79,7 @@ export class DOMRenderer {
    * @param {DOMSegment} segment
    * @param {NodeLike[]} newContent
    */
-  updateSegment(segment, newContent) {
+  overwriteSegment(segment, newContent) {
     const start = segment[0];
     const end = segment[segment.length - 1];
 

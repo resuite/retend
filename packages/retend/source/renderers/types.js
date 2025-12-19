@@ -68,9 +68,10 @@
  * A predicate that validates if a value is a segment.
  *
  * @property {(segment: Segment) => Node[]} unwrapSegment
+ * Flattens a Segment node back into its constituent array of nodes.
  *
- * @property {(segment: Segment, newContent: Node[]) => void} updateSegment
- * Updates the content of a segment.
+ * @property {(segment: Segment, newContent: Node[]) => void} overwriteSegment
+ * Replaces the existing content of a segment with a new array of nodes.
  *
  * @property {(node: Node) => Output} finalize
  * Performs the final transformation on the produced node tree before returning it to the user.

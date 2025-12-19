@@ -88,7 +88,7 @@ export function Switch(value, cases, defaultCase) {
       }
       return [];
     });
-    renderer.updateSegment(segment, results);
+    renderer.overwriteSegment(segment, results);
     if (!isInitialRun) snapshot.node.activate();
     else isInitialRun = false;
   };
@@ -173,7 +173,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       return [];
     });
-    renderer.updateSegment(segment, results);
+    renderer.overwriteSegment(segment, results);
     if (!isInitialRun) snapshot.node.activate();
     else isInitialRun = false;
   };

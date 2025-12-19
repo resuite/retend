@@ -110,7 +110,7 @@ export function If(value, fnOrObject, elseFn) {
       );
       return [];
     });
-    renderer.updateSegment(segment, results);
+    renderer.overwriteSegment(segment, results);
     if (!isInitialRun) scopeSnapshot.node.activate();
     else isInitialRun = false;
   };
