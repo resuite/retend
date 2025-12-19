@@ -1,4 +1,4 @@
-/** @import { Renderer } from "../renderers/types.js"; */
+/** @import { ReconcilerOptions, Renderer } from "../renderers/types.js"; */
 /** @import { NodeLike, FragmentLike } from "../context/index.js"; */
 /** @import { CellSet, ConnectedComment } from '../library/utils.js' */
 /** @import * as VDom from '../v-dom/index.js' */
@@ -92,6 +92,130 @@ export class DOMRenderer {
 
     segment.length = 0;
     segment.push(start, ...newContent, end);
+  }
+
+  /**
+   *
+   * @param {DOMSegment} segment
+   * @param {ReconcilerOptions<NodeLike>} options
+   */
+  reconcileSegment(segment, options) {
+    const { window } = getGlobalContext();
+    const {
+      onBeforeNodeRemove,
+      retrieveOrSetItemKey,
+      cacheFromLastRun,
+      onBeforeNodeMove,
+      nodeLookAhead,
+      newCache,
+      newList,
+    } = options;
+    // Removing Deleted Nodes:
+    //
+    // This pass is necessary to remove nodes in one go,
+    // rather than bubbling them to the end of the list.
+    //
+    // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
+    // Ideal solution is a removeChild(A), but without this pass, what would happen is:
+    //  [A, B, C, D, E] -> [B, A, C, D, E]
+    //  [B, A, C, D, E] -> [B, C, A, D, E]
+    //  [B, C, A, D, E] -> [B, C, D, A, E]
+    //  [B, C, D, A, E] -> [B, C, D, E, A]
+    // before removing A, result in a removal and reinsertion of several unchanged nodes.
+    for (const [key, value] of cacheFromLastRun) {
+      if (newCache.has(key)) continue;
+      value.snapshot.node.dispose();
+      // There was a previous optimization to try and remove contiguous nodes
+      // at once with range.deleteContents(), but it was not worth it.
+      for (const node of value.nodes) {
+        onBeforeNodeRemove?.(node, value.index.get());
+        /** @type {ChildNode} */ (node).remove();
+      }
+    }
+
+    let lastInserted = segment[0];
+
+    // Reordering and Inserting New Nodes:
+    //
+    // This pass ensures nodes are in the correct order and new nodes are inserted.
+    // It compares each node's current position with the expected position after lastInserted,
+    // moving nodes only when necessary to maintain the correct sequence.
+    let i = 0;
+    const batchAdd = window.document.createDocumentFragment();
+    const batchAddLike = /** @type {*} */ (batchAdd);
+    for (const item of newList) {
+      // @ts-ignore: Invariant: nodes is always defined.
+      const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
+      const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+      if (isAlreadyInPosition) {
+        if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
+        lastInserted = nodes[nodes.length - 1];
+        i++;
+        continue;
+      }
+
+      // This branch takes care of the case where one item moves
+      // forward in the list, but until its correct position is reached, its nodes
+      // block other nodes from being correctly positioned, leading to cascading moves.
+      //
+      // Example: A list goes from [A, B, C, D, E] to [B, C, D, E, A], the simplest
+      // operation is to move A to the end of the list, but without this branch,
+      // the loop would have to:
+      // move B back, making [B, A, C, D, E]
+      // move C back, making [B, C, A, D, E]
+      // move D back, making [B, C, D, A, E]
+      // move E back, making [B, C, D, E, A]
+      const followingNode = lastInserted.nextSibling;
+      if (followingNode) {
+        const data = nodeLookAhead.get(followingNode);
+        if (data) {
+          const { itemKey, lastItemLastNode } = data;
+          const hasViableMoveAnchor =
+            lastItemLastNode?.parentNode &&
+            lastItemLastNode.parentNode !== batchAdd &&
+            lastItemLastNode.nextSibling !== followingNode &&
+            lastItemLastNode !== nodes[0];
+          if (hasViableMoveAnchor) {
+            const fullNodeSet = newCache.get(itemKey)?.nodes;
+            if (fullNodeSet) {
+              onBeforeNodeMove?.(nodes);
+              //@ts-expect-error: after() should be available.
+              lastItemLastNode.after(...fullNodeSet);
+            }
+
+            // recheck sequential correctness.
+            const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
+            if (isAlreadyInPosition) {
+              if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+              lastInserted = nodes[nodes.length - 1];
+              i++;
+              continue;
+            }
+          }
+        }
+      }
+
+      const isNewItemInstance = !nodes[0]?.parentNode;
+      if (isNewItemInstance) {
+        batchAddLike.append(...nodes);
+        i++;
+        continue;
+      }
+
+      if (batchAdd.childNodes.length === 0) {
+        onBeforeNodeMove?.(nodes);
+        lastInserted.after(.../** @type {*} */ (nodes));
+      } else {
+        const newPtr = batchAdd.childNodes[batchAdd.childNodes.length - 1];
+        lastInserted.after(batchAddLike);
+        onBeforeNodeMove?.(nodes);
+        newPtr.after(.../** @type {*} */ (nodes));
+      }
+      lastInserted = nodes[nodes.length - 1] ?? lastInserted;
+      i++;
+    }
+
+    if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
   }
 
   /**

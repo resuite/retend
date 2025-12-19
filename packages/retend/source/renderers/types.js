@@ -1,4 +1,6 @@
 /** @import { jsxDevFileData, UpdatableFn } from '../plugin/hmr.js'; */
+/** @import { ScopeSnapshot } from '../library/scope.js'; */
+/** @import { Cell } from '@adbl/cells'; */
 
 /**
  * Defines the concrete types used by a specific renderer implementation.
@@ -73,10 +75,35 @@
  * @property {(segment: Segment, newContent: Node[]) => void} overwriteSegment
  * Replaces the existing content of a segment with a new array of nodes.
  *
+ * @property {(segment: Segment, options: ReconcilerOptions<Node>) => void} reconcileSegment
+ *
  * @property {(node: Node) => Output} finalize
  * Performs the final transformation on the produced node tree before returning it to the user.
  *
  * @property {(tagnameOrFunction: UpdatableFn, props: any, fileData?: jsxDevFileData) => Node} handleComponent
  * Orchestrates the execution of functional components, including hook initialization
  * and HMR (Hot Module Replacement) boundary setup.
+ */
+
+/**
+ * @template Node
+ * @typedef {{ index: Cell<number>,  nodes: Node[], snapshot: ScopeSnapshot }} ForCachedData
+ */
+
+/**
+ * @template Node
+ * @typedef {Object} ReconcilerOptions
+ *
+ * @property {(item: any, i: number) => any} retrieveOrSetItemKey
+ *
+ * @property {(node: Node, fromIndex: number) => void} [onBeforeNodeRemove]
+ * Callback invoked before a node is removed from the DOM.
+ *
+ * @property {(node: Node[]) => void} [onBeforeNodeMove]
+ * Callback invoked before nodes are moved within the DOM.
+ *
+ * @property {Map<any, ForCachedData<Node>>} cacheFromLastRun
+ * @property {Map<any, ForCachedData<Node>>} newCache
+ * @property {Iterable<any>} newList
+ * @property {Map<unknown, { itemKey: any, lastItemLastNode: Node | null }>} nodeLookAhead
  */
