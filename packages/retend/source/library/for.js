@@ -1,15 +1,11 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import * as VDom from '../v-dom/index.js' */
 /** @import { ScopeSnapshot } from './scope.js' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
 import { ArgumentList } from './utils.js';
-import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import { getActiveRenderer } from '../renderers/index.js';
-
-/** @typedef {VDom.VNode | ChildNode} ChildNodeLike */
 
 /**
  * @template T
@@ -84,8 +80,7 @@ export function For(list, fn, options) {
   // -----------------------------------------------
   // REACTIVE LISTS
   // -----------------------------------------------
-  const { window } = getGlobalContext();
-  const { key } = options ?? {};
+  const { key, onBeforeNodeRemove, onBeforeNodesMove } = options ?? {};
   /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: ScopeSnapshot }>} */
   let cacheFromLastRun = new Map();
   const autoKeys = new WeakMap();
@@ -116,23 +111,13 @@ export function For(list, fn, options) {
     return itemKey;
   };
 
-  let isRunningInVDom = matchContext(window, Modes.VDom);
-  /** @param {any[]} nodes */
-  const addHydrationUpgradeListeners = (nodes) => {
-    if (!isRunningInVDom) return;
-    // Allows the hydration process to hook into the caching behavior of
-    // the For function and update the nodes directly in the cached array.
-    /** @param {VDom.HydrationUpgradeEvent} event */
-    const hydrationUpgradeCallback = (event) => {
-      const target = /** @type {VDom.VNode} */ (event.target);
-      const domNode = event.detail.newInstance;
-      nodes[nodes.indexOf(target)] = domNode;
-    };
-
+  /** @param {unknown[]} nodes */
+  const trackNodes = (nodes) => {
     for (const node of nodes) {
-      node.addEventListener('hydrationupgrade', hydrationUpgradeCallback, {
-        once: true,
-      });
+      // "Bind" the node to this array.
+      // If the node's identity changes (e.g. hydration), the system
+      // is responsible for updating the array.
+      renderer.setProperty(node, 'retend:collection', nodes);
     }
   };
 
@@ -162,8 +147,8 @@ export function For(list, fn, options) {
         h(fn, new ArgumentList(parameters))
       );
       const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+      trackNodes(nodes);
       allNodes.push(...nodes);
-      if (isRunningInVDom) addHydrationUpgradeListeners(nodes);
 
       const itemKey = retrieveOrSetItemKey(item, i);
       cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
@@ -178,9 +163,6 @@ export function For(list, fn, options) {
   const reactToListChanges = (listValue) => {
     const newList =
       typeof listValue?.[Symbol.iterator] === 'function' ? listValue : [];
-
-    const { window } = getGlobalContext();
-    isRunningInVDom = matchContext(window, Modes.VDom);
     const newCache = new Map();
     const effectNodesToActivate = [];
     /** @type {Map<unknown, { itemKey: any, lastItemLastNode: unknown | null }>} */
@@ -206,7 +188,7 @@ export function For(list, fn, options) {
         });
         effectNodesToActivate.push(snapshot.node);
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        addHydrationUpgradeListeners(nodes);
+        trackNodes(nodes);
         newCache.set(itemKey, { nodes, index: i, snapshot });
         firstNode = nodes[0];
         lastNode = nodes[nodes.length - 1];
@@ -225,15 +207,16 @@ export function For(list, fn, options) {
       index++;
     }
 
-    renderer.reconcileSegment(segment, {
+    const reconciliationOptions = {
       cacheFromLastRun,
-      onBeforeNodeRemove: options?.onBeforeNodeRemove,
-      onBeforeNodeMove: options?.onBeforeNodesMove,
+      onBeforeNodeRemove,
+      onBeforeNodesMove,
       retrieveOrSetItemKey,
       newCache,
       newList,
       nodeLookAhead,
-    });
+    };
+    renderer.reconcileSegment(segment, reconciliationOptions);
 
     cacheFromLastRun = newCache;
     for (const node of effectNodesToActivate) node.activate();

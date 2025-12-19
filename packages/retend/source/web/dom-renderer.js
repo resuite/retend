@@ -244,6 +244,16 @@ export class DOMRenderer {
    * @returns {N}
    */
   setProperty(node, key, value) {
+    // Special Internal Key:
+    // Links a VNode to the array that holds it.
+    if (key === 'retend:collection') {
+      // We assume the VNode implementation allows arbitrary property assignment
+      // or we use a weakmap if we want to be stricter.
+      // Since we are likely in VDOM mode if this is relevant:
+      Reflect.set(node, '__retend_collection_ref', value);
+      return node;
+    }
+
     const element = /** @type {JsxElement} */ (node);
     if (Cell.isCell(value)) {
       if (!element.__attributeCells) element.__attributeCells = new Set();

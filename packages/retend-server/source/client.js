@@ -444,8 +444,17 @@ async function hydrateDomNode(node, vNode) {
       );
   }
 
-  // Dispatch final hydration callbacks. This will update
-  // For loop caches and other listeners.
+  // If the VNode was tracked by a control flow structure (like For),
+  // we update that structure's cache to point to the new real DOM node.
+  const collection = Reflect.get(vNode, '__retend_collection_ref');
+  if (Array.isArray(collection)) {
+    const index = collection.indexOf(vNode);
+    if (index !== -1) {
+      collection[index] = node;
+    }
+  }
+
+  // Dispatch final hydration callbacks.
   vNode.dispatchEvent(new HydrationUpgradeEvent(node));
 
   for (const textSplitNode of textSplitNodes) textSplitNode.remove();
