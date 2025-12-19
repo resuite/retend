@@ -16,16 +16,16 @@ import { getActiveRenderer } from '../renderers/index.js';
  *
  * By default, a unique symbol is used for objects, or the item itself for primitives.
  * @property {(node: unknown[]) => void} [onBeforeNodesMove]
- * Provides access to a node just before it is moved to a new position in the DOM by any of the
+ * Provides access to a node just before it is moved to a new position by any of the
  * items in the list.
  * @property {(node: unknown, fromIndex: number) => void} [onBeforeNodeRemove]
- * Provides access to a node just before it is removed from the DOM by any of the
+ * Provides access to a node just before it is removed by any of the
  * items in the list.
  */
 
 /**
- * Creates a dynamic, efficient mapping of an iterable to DOM nodes that automatically updates when the iterable changes.
- * Supports both static and reactive lists, with optimized DOM operations for minimal reflows.
+ * Creates a dynamic, efficient mapping of an iterable that automatically updates when the iterable changes.
+ * Supports both static and reactive lists, with optimized operations for minimal reflows.
  *
  * @template V
  * @template {V extends Cell<infer S> ? S extends Iterable<infer T> ? T: never: V extends Iterable<infer U>? U: never} W
@@ -43,7 +43,7 @@ import { getActiveRenderer } from '../renderers/index.js';
  *  return <li>{name} at index {index}</li>;
  * });
  *
- * // Append the list items to a <ul> element
+
  * const ul = document.createElement('ul');
  * ul.append(...listItems);
  * document.body.appendChild(ul);

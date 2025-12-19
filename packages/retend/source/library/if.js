@@ -36,7 +36,6 @@ import { getActiveRenderer } from '../renderers/index.js';
  *   false: () => <div>Please log in.</div>
  * });
  *
- * // Add the result to the DOM
  * document.body.append(...message);
  *
  * // Later, when the user logs in, update the cell
