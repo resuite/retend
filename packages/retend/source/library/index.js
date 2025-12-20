@@ -7,5 +7,6 @@ export * from './consistent.js';
 export * from './scope.js';
 export * from './renderer.js';
 export * from './utils.js';
+export * from './unique.js';
 // Exported for convenience.
 export * from '@adbl/cells';

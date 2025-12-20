@@ -2318,7 +2318,7 @@ The `Unique` component ensures that only one instance of a component exists acro
 - **Basic Usage**:
 
 ```jsx
-import { Unique } from "retend/unique";
+import { Unique } from "retend";
 
 function App() {
   return (
@@ -2386,7 +2386,7 @@ In this example, the video continues playing when switching between pages becaus
 - **Multiple Instances with Same Name**:
 
 ```jsx
-import { Unique } from "retend/unique";
+import { Unique } from "retend";
 
 function App() {
   return (
@@ -2447,7 +2447,7 @@ The setup effect runs once when the component is first created and the cleanup o
 - **Saving and Restoring State**:
 
 ```jsx
-import { Unique } from "retend/unique";
+import { Unique } from "retend";
 
 function ScrollableArea() {
   return (
@@ -2499,7 +2499,7 @@ function App() {
 - **Custom Attributes**:
 
 ```jsx
-import { Unique } from "retend/unique";
+import { Unique } from "retend";
 
 function App() {
   return (

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, getTextContent, vDomSetup } from './setup';
 import { getGlobalContext } from 'retend/context';
-import { Unique } from 'retend/unique';
+import { Unique } from 'retend';
 import type { VNode } from 'retend/v-dom';
 import {
   Cell,

@@ -1,7 +1,7 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import { UniqueProps } from 'retend/unique'; */
+/** @import { UniqueProps } from 'retend'; */
 import { Cell } from 'retend';
-import { Unique } from 'retend/unique';
+import { Unique } from 'retend';
 
 /**
  * @template CustomData

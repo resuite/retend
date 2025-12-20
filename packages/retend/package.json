@@ -47,10 +47,6 @@
       "import": "./dist/context/index.js",
       "types": "./dist/context/index.d.ts"
     },
-    "./unique": {
-      "import": "./dist/unique/index.js",
-      "types": "./dist/unique/index.d.ts"
-    },
     "./hmr": {
       "import": "./dist/hmr/index.js",
       "types": "./dist/hmr/index.d.ts"
