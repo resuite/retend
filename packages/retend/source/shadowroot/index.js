@@ -1,5 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-import { getActiveRenderer, appendChild } from '../renderers/index.js';
+import { getActiveRenderer } from '../library/renderer.js';
+import { connectNodes } from '../library/utils.js';
 
 /**
  * @typedef ShadowRootProps
@@ -72,6 +73,6 @@ export function ShadowRoot(props) {
 
   shadowRoot.__mode = mode ?? 'open';
   shadowRoot.__isShadowRootContainer = true;
-  appendChild(shadowRoot, children, getActiveRenderer());
+  connectNodes(shadowRoot, children, getActiveRenderer());
   return shadowRoot;
 }

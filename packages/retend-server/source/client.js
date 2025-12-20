@@ -5,7 +5,12 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ServerContext } from './types.js' */
 
-import { runPendingSetupEffects, useObserver } from 'retend';
+import {
+  runPendingSetupEffects,
+  useObserver,
+  getActiveRenderer,
+  setActiveRenderer,
+} from 'retend';
 import { createRouterRoot } from 'retend/router';
 import {
   setGlobalContext,
@@ -24,8 +29,7 @@ import {
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
-import { getActiveRenderer, setActiveRenderer } from 'retend/renderers';
-import { DOMRenderer } from 'retend/web';
+import { DOMRenderer } from 'retend-web';
 
 const OUTLET_INTERNAL_KEYS = ['__originScopeSnapshot'];
 

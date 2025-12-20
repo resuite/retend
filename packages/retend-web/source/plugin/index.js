@@ -25,7 +25,7 @@ export const retend = () => {
       if (!isJsx) return null;
 
       const injectedCode = `
-import { hotReloadModule as __HMR____ } from 'retend/web/plugin/hmr';
+import { hotReloadModule as __HMR____ } from 'retend-web/plugin/hmr';
 
 ${code}
 

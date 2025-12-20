@@ -73,10 +73,8 @@ export async function buildPath(path, options) {
     )
   );
 
-  const retendRenderModule = /** @type {typeof import('retend/render')} */ (
-    await runner.evaluator.runExternalModule(
-      import.meta.resolve('retend/render')
-    )
+  const retendRenderModule = /** @type {typeof import('retend-web')} */ (
+    await runner.evaluator.runExternalModule(import.meta.resolve('retend-web'))
   );
   const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
     await runner.evaluator.runExternalModule(

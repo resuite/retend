@@ -1,4 +1,4 @@
-/** @import { Scope } from "./scope.js"; */
+/** @import { Scope } from "../library/scope.js"; */
 /** @import { Cell, SourceCell } from "@adbl/cells"; */
 /** @typedef {{
  *    [ComponentInvalidator]?: Cell<Function & UpdatableFn>
@@ -21,7 +21,7 @@
  */
 
 import { getGlobalContext } from '../context/index.js';
-import { createScope, useScopeContext } from './scope.js';
+import { createScope, useScopeContext } from '../library/scope.js';
 
 export const ComponentInvalidator = Symbol('Invalidator');
 export const OverwrittenBy = Symbol('OverwrittenBy');

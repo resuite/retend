@@ -39,29 +39,9 @@
       "import": "./dist/jsx-runtime/index.js",
       "types": "./dist/jsx-runtime/index.d.ts"
     },
-    "./render": {
-      "import": "./dist/render/index.js",
-      "types": "./dist/render/index.d.ts"
-    },
-    "./renderers": {
-      "import": "./dist/renderers/index.js",
-      "types": "./dist/renderers/index.d.ts"
-    },
     "./v-dom": {
       "import": "./dist/v-dom/index.js",
       "types": "./dist/v-dom/index.d.ts"
-    },
-    "./web": {
-      "import": "./dist/web/index.js",
-      "types": "./dist/web/index.d.ts"
-    },
-    "./web/plugin": {
-      "import": "./dist/web/plugin/index.js",
-      "types": "./dist/web/plugin/index.d.ts"
-    },
-    "./web/plugin/hmr": {
-      "import": "./dist/web/plugin/hmr.js",
-      "types": "./dist/web/plugin/hmr.d.ts"
     },
     "./context": {
       "import": "./dist/context/index.js",
@@ -70,6 +50,10 @@
     "./unique": {
       "import": "./dist/unique/index.js",
       "types": "./dist/unique/index.d.ts"
+    },
+    "./hmr": {
+      "import": "./dist/hmr/index.js",
+      "types": "./dist/hmr/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/retend#readme",

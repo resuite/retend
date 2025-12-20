@@ -1,8 +1,8 @@
-/** @import * as Context from '../context/index.js' */
-/** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { ScopeSnapshot } from '../library/scope.js' */
+/** @import * as Context from 'retend/context' */
+/** @import { JSX } from 'retend/jsx-runtime' */
+/** @import { ScopeSnapshot } from 'retend' */
 
-import { escapeHTML } from '../library/utils.js';
+import { escapeHTML } from './utils.js';
 
 const voidElements = new Set([
   'AREA',

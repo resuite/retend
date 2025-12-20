@@ -1,5 +1,3 @@
-/** @import { CellSet } from '../library/utils.js' */
-
 import { CustomEvent, Modes } from '../context/index.js';
 
 export class VNode extends EventTarget {
@@ -241,7 +239,7 @@ export class VNode extends EventTarget {
 
   getRelatedCellData() {
     const set = Reflect.get(this, '__attributeCells');
-    return /** @type {CellSet | undefined} */ (set);
+    return set;
   }
 
   get isConnected() {

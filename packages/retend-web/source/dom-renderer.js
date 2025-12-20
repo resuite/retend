@@ -1,47 +1,27 @@
-/** @import { ReconcilerOptions, Renderer } from "../renderers/types.js"; */
-/** @import { NodeLike, FragmentLike } from "../context/index.js"; */
-/** @import { CellSet } from '../library/utils.js' */
-/** @import * as VDom from '../v-dom/index.js' */
-/** @import { jsxDevFileData, UpdatableFn } from '../library/hmr.js'; */
-/** @import { ConnectedComment } from './utils.js'; */
+/** @import { ReconcilerOptions, Renderer } from "retend"; */
+/** @import { NodeLike, FragmentLike, WindowLike } from "retend/context"; */
+/** @import * as VDom from 'retend/v-dom' */
+/** @import { jsxDevFileData, UpdatableFn } from 'retend/hmr'; */
+/** @import { ConnectedComment, HiddenElementProperties, WrapperFn } from './utils.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
-import { isVNode, matchContext, Modes } from '../context/index.js';
+import { isVNode, matchContext, Modes } from 'retend/context';
+import {
+  connectNodes,
+  createNodesFromTemplate,
+  normalizeJsxChild,
+} from 'retend';
+import { withHMRBoundaries } from './plugin/hmr.js';
 import {
   addCellListener,
   camelCasedAttributes,
   convertObjectToCssStylesheet,
+  createCommentPair,
   isSomewhatFalsy,
   listenerModifiers,
-} from '../library/utils.js';
-import {
-  appendChild,
-  generateChildNodes,
-  normalizeJsxChild,
-} from '../renderers/_shared.js';
-import { withHMRBoundaries } from './plugin/hmr.js';
-import { createCommentPair } from './utils.js';
-
-/**
- * @typedef {((this: Node, event: Event) => void) & {
- *  __getInnerFunction?: () => (WrapperFn | (() => void) | undefined)
- *  }} WrapperFn
- */
-
-/**
- * @typedef HiddenElementProperties
- * @property {Map<string, (event: Event) => void>} __eventListenerList
- * List of event listeners set as attributes on the element.
- * @property {Map<string, WrapperFn>} __modifiedListenerList
- * @property {CellSet} __attributeCells
- * List of cell callbacks sets on the element.
- * @property {boolean} __createdByJsx
- * Whether or not the element was created using JSX syntax.
- * @property {string | boolean | number | undefined} __key
- * Unique key for the element.
- * @property {Cell<unknown> | undefined} __ref
- * Cellular reference pointing to the element.
- */
+  normalizeClassValue,
+  writeStaticStyle,
+} from './utils.js';
 
 /**
  * @typedef {(Element | VDom.VElement) & HiddenElementProperties} JsxElement
@@ -64,15 +44,27 @@ import { createCommentPair } from './utils.js';
  * @implements {DOMRendererInterface}
  */
 export class DOMRenderer {
+  /** @type {WindowLike} */
   host;
   capabilities = {};
 
   /** @param {VDom.VWindow | Window & globalThis} host */
   constructor(host) {
     this.host = host;
+    this.injectStyles();
     this.capabilities = {
       supportsSetupEffects: matchContext(window, Modes.Interactive),
     };
+  }
+
+  injectStyles() {
+    writeStaticStyle(
+      'dom-styles',
+      ':where(retend-outlet) { display: contents }' +
+        ':where(retend-teleport) { display: contents }' +
+        ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
+      this.host
+    );
   }
 
   /**
@@ -246,15 +238,24 @@ export class DOMRenderer {
     }
 
     const element = /** @type {JsxElement} */ (node);
+    const setAttribute = this.#setAttribute;
     if (Cell.isCell(value)) {
       if (!element.__attributeCells) element.__attributeCells = new Set();
-      if (key === 'ref') {
+      if (key === 'ref' && value instanceof SourceCell) {
+        value.set(element);
+        element.__ref = value;
         element.__attributeCells.add(value);
-        if (value instanceof SourceCell) element.__ref = value;
         return node;
       }
-      this.#setAttribute(element, key, value.get());
-    } else this.#setAttribute(element, key, value);
+      addCellListener(
+        element,
+        value,
+        function (value) {
+          setAttribute(this, key, value);
+        },
+        false
+      );
+    } else setAttribute(element, key, value);
 
     return node;
   }
@@ -271,7 +272,7 @@ export class DOMRenderer {
     }
     const component = tagname(...props);
     /** @type {NodeLike[]} */
-    const nodes = generateChildNodes(component, this);
+    const nodes = createNodesFromTemplate(component, this);
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
@@ -300,7 +301,7 @@ export class DOMRenderer {
         );
         return parentNode;
       }
-      appendChild(shadowRoot, [...childNode.childNodes], this);
+      connectNodes(shadowRoot, [...childNode.childNodes], this);
       return parentNode;
     }
     const tagname = Reflect.get(parentNode, 'tagName');
@@ -382,7 +383,7 @@ export class DOMRenderer {
     if (input) {
       const children = Array.isArray(input) ? input : [input];
       for (const child of children) {
-        appendChild(fragment, child, this);
+        connectNodes(fragment, child, this);
       }
     }
     return fragment;
@@ -422,9 +423,23 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {string} text
+   * @param {string | Cell<any>} text
    */
   createText(text) {
+    if (Cell.isCell(text)) {
+      const textNode = this.host.document.createTextNode(text.get());
+      const { updateText } = this;
+      addCellListener(
+        textNode,
+        text,
+        function (value) {
+          updateText(value, this);
+        },
+        false
+      );
+      return textNode;
+    }
+
     return this.host.document.createTextNode(text);
   }
 
@@ -670,87 +685,4 @@ export class DOMRenderer {
       }
     }
   }
-}
-
-/**
- * Normalizes a JSX class attribute value to a string.
- *
- * Handles various input types for class values, including strings, arrays, objects, and cells.
- *
- * @param {string | string[] | Cell<string | string[]> | Record<string, boolean > | undefined} val - The class value to normalize.
- * @param {JsxElement} [element] The target element with the class.
- * @returns {string} The normalized class value as a string.
- */
-function normalizeClassValue(val, element) {
-  if (typeof val === 'string') {
-    return val;
-  }
-
-  if (Array.isArray(val)) {
-    let result = '';
-    for (const [index, value] of val.entries()) {
-      const normalized = normalizeClassValue(value, element);
-      if (normalized) {
-        result += normalized;
-      }
-      if (index !== val.length - 1) {
-        result += ' ';
-      }
-    }
-    return result;
-  }
-
-  if (Cell.isCell(val) && element) {
-    let currentClassToken = normalizeClassValue(val.get(), element);
-    addCellListener(
-      element,
-      val,
-      function (newValue) {
-        const classes =
-          typeof newValue === 'string'
-            ? newValue.split(' ')
-            : newValue.flatMap(String.prototype.split);
-        try {
-          this.classList.remove(...currentClassToken.split(' '));
-          this.classList.add(...classes);
-        } catch {
-          //
-        }
-        currentClassToken = classes.join(' ');
-      },
-      false
-    );
-    return currentClassToken;
-  }
-
-  if (typeof val === 'object' && val !== null && element) {
-    let result = '';
-    for (const [key, value] of Object.entries(val)) {
-      if (!Cell.isCell(value)) {
-        if (value) result += ` ${key}`;
-        continue;
-      }
-
-      addCellListener(
-        element,
-        value,
-        function (newValue) {
-          try {
-            if (newValue) {
-              this.classList.add(...key.split(' '));
-            } else {
-              this.classList.remove(...key.split(' '));
-            }
-          } catch {
-            //
-          }
-        },
-        false
-      );
-      if (value.get()) result += ` ${key}`;
-    }
-    return result;
-  }
-
-  return '';
 }

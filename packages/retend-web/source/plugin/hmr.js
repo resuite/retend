@@ -1,19 +1,14 @@
 import { Cell } from '@adbl/cells';
-import { getGlobalContext, matchContext, Modes } from '../../context/index.js';
+import { getGlobalContext, matchContext, Modes } from 'retend/context';
 import {
   createScopeSnapshot,
   useSetupEffect,
   withScopeSnapshot,
-} from '../../library/scope.js';
-import { routeToComponent } from '../../router/routeTree.js';
-import { CellUpdateError } from '@adbl/cells';
-import {
-  addCellListener,
-  consolidateNodes,
-  removeCellListeners,
-  copyCellListeners,
-  isMatchingCommentPair,
-} from '../../library/utils.js';
+  CellUpdateError,
+  getActiveRenderer,
+  createNodesFromTemplate,
+} from 'retend';
+import { routeToComponent } from 'retend/router';
 import {
   ComponentInvalidator,
   getHMRContext,
@@ -22,19 +17,22 @@ import {
   HmrId,
   RetendComponentTree,
   useComponentAncestry,
-} from '../../library/hmr.js';
+} from 'retend/hmr';
 import {
-  generateChildNodes,
-  getActiveRenderer,
-} from '../../renderers/index.js';
-import { createCommentPair } from '../utils.js';
+  addCellListener,
+  removeCellListeners,
+  copyCellListeners,
+  createCommentPair,
+  isMatchingCommentPair,
+  consolidateNodes,
+} from '../utils.js';
 
-/** @import * as VDom from '../../v-dom/index.js' */
-/** @import { ReactiveCellFunction } from '../../library/utils.js' */
-/** @import { UpdatableFn, jsxDevFileData, HmrContext } from '../../library/hmr.js'; */
-/** @import { Scope } from '../../library/scope.js' */
-/** @import { DOMRenderer } from '../../web/dom-renderer.js'; */
-/** @import { NodeLike } from '../../context/index.js' */
+/** @import * as VDom from 'retend/v-dom' */
+/** @import { ReactiveCellFunction } from '../utils.js' */
+/** @import { UpdatableFn, jsxDevFileData, HmrContext } from 'retend/hmr'; */
+/** @import { Scope } from 'retend' */
+/** @import { DOMRenderer } from '../dom-renderer.js'; */
+/** @import { NodeLike } from 'retend/context' */
 
 /** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
 
@@ -232,7 +230,7 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
       value: [...ancestry, value.peek()],
       children: () => value.peek()(...completeProps, { createdByJsx: true }),
     });
-    return stabilizeNodes(generateChildNodes(template, renderer));
+    return stabilizeNodes(createNodesFromTemplate(template, renderer));
   };
 
   let nodes = withScopeSnapshot(snapshot, nextComponentRender);

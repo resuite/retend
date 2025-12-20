@@ -4,7 +4,7 @@ import { Cell } from '@adbl/cells';
 import { ArgumentList } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import h from './jsx.js';
-import { getActiveRenderer } from '../renderers/index.js';
+import { getActiveRenderer } from './renderer.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.

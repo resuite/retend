@@ -1,9 +1,7 @@
-/** @import { jsxDevFileData } from './hmr.js'; */
-/** @import { Renderer, UnknownRendererTypes } from '../renderers/types.js'; */
-import { Cell, SourceCell } from '@adbl/cells';
-import { appendChild } from '../renderers/_shared.js';
-import { getActiveRenderer } from '../renderers/index.js';
-import { addCellListener, ArgumentList } from './utils.js';
+/** @import { jsxDevFileData } from '../hmr/index.js'; */
+/** @import { Renderer, UnknownRendererTypes } from './renderer.js'; */
+import { getActiveRenderer } from './renderer.js';
+import { ArgumentList, connectNodes } from './utils.js';
 
 /**
  * @template {UnknownRendererTypes} Data
@@ -25,7 +23,7 @@ export function h(
 ) {
   if (tagOrFn === undefined) return [];
 
-  if (Object.is(tagOrFn, DocumentFragmentPlaceholder)) {
+  if (Object.is(tagOrFn, FragmentPlaceholder)) {
     const childList =
       typeof props === 'object' && !(props instanceof ArgumentList)
         ? props.children
@@ -52,28 +50,17 @@ export function h(
     throw new Error('JSX props for native elements must be an object.');
   }
 
-  let element = renderer.createContainer(tagOrFn, props);
+  let container = renderer.createContainer(tagOrFn, props);
   const { children } = props;
   for (const key in props) {
     const value = props[key];
-    element = renderer.setProperty(element, key, value);
-    if (Cell.isCell(value)) {
-      if (key === 'ref' && value instanceof SourceCell) value.set(element);
-      addCellListener(
-        element,
-        value,
-        function (value) {
-          renderer.setProperty(this, key, value);
-        },
-        false
-      );
-    }
+    container = renderer.setProperty(container, key, value);
   }
 
-  return appendChild(element, children, renderer);
+  return connectNodes(container, children, renderer);
 }
 
-export class DocumentFragmentPlaceholder {}
+export class FragmentPlaceholder {}
 
 /**
  * Defines the `__jsx` and `__jsxFragment` global functions
@@ -81,10 +68,10 @@ export class DocumentFragmentPlaceholder {}
  */
 export function defineJsxGlobals() {
   Reflect.set(globalThis, '__jsx', h);
-  Reflect.set(globalThis, '__jsxFragment', DocumentFragmentPlaceholder);
+  Reflect.set(globalThis, '__jsxFragment', FragmentPlaceholder);
 }
 
 export const jsx = h;
-export const jsxFragment = DocumentFragmentPlaceholder;
-export const Fragment = DocumentFragmentPlaceholder;
+export const jsxFragment = FragmentPlaceholder;
+export const Fragment = FragmentPlaceholder;
 export default h;

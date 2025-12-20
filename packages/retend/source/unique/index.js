@@ -12,9 +12,9 @@ import {
   useSetupEffect,
   withScopeSnapshot,
 } from '../library/scope.js';
-import { getHMRContext } from '../library/hmr.js';
-import { writeStaticStyle } from '../library/utils.js';
-import { getActiveRenderer, appendChild } from '../renderers/index.js';
+import { getHMRContext } from '../hmr/index.js';
+import { getActiveRenderer } from '../library/renderer.js';
+import { connectNodes } from '../library/utils.js';
 
 /**
  * @typedef UniqueStash
@@ -183,11 +183,6 @@ export function Unique(props) {
   const selector = `${elementName}[name="${name}"]`;
   const observer = useObserver();
 
-  writeStaticStyle(
-    'retend-unique-instance-style',
-    ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}'
-  );
-
   const retendUniqueInstance = h(elementName, rest);
   let previous = stash.instances.get(name);
 
@@ -330,12 +325,12 @@ export function Unique(props) {
   }
 
   retendUniqueInstance.setAttribute('state', previous ? 'restored' : 'new');
-  appendChild(retendUniqueInstance, childNodes, renderer);
+  connectNodes(retendUniqueInstance, childNodes, renderer);
 
   if (shadowRoot) {
     const { mode, childNodes } = shadowRoot;
     const newShadowRoot = retendUniqueInstance.attachShadow({ mode });
-    appendChild(newShadowRoot, childNodes, renderer);
+    connectNodes(newShadowRoot, childNodes, renderer);
   }
 
   return retendUniqueInstance;

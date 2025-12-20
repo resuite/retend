@@ -4,7 +4,6 @@
 
 import { Cell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
-import { writeStaticStyle } from '../library/utils.js';
 import {
   getGlobalContext,
   isVNode,
@@ -12,11 +11,8 @@ import {
   Modes,
 } from '../context/index.js';
 import { useConsistent } from '../library/consistent.js';
-import {
-  getActiveRenderer,
-  appendChild,
-  generateChildNodes,
-} from '../renderers/index.js';
+import { getActiveRenderer } from '../library/renderer.js';
+import { connectNodes, createNodesFromTemplate } from '../library/utils.js';
 
 /**
  * @typedef TeleportOnlyProps
@@ -65,11 +61,6 @@ export function Teleport(props) {
   let teleportId;
   const key = `teleport/target/${teleportIdCounter.value++}`;
 
-  writeStaticStyle(
-    'retend-teleport-style',
-    ':where(retend-teleport) { display: contents }'
-  );
-
   /** @param {NodeLike} anchorNode */
   const mountTeleportedNodes = async (anchorNode) => {
     if (!anchorNode.isConnected) return;
@@ -94,12 +85,12 @@ export function Teleport(props) {
       renderer.setProperty(newInstance, key, value);
     }
 
-    const children = generateChildNodes(
+    const children = createNodesFromTemplate(
       /** @type {*} */ (props.children),
       renderer
     );
     for (const child of children) {
-      appendChild(newInstance, child, renderer);
+      connectNodes(newInstance, child, renderer);
     }
 
     if (staleInstance)

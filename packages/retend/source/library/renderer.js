@@ -1,6 +1,9 @@
-/** @import { jsxDevFileData, UpdatableFn } from '../library/hmr.js'; */
+/** @import { jsxDevFileData, UpdatableFn } from '../hmr/index.js'; */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
 /** @import { Cell } from '@adbl/cells'; */
+
+import { getGlobalContext } from '../context/index.js';
+const RendererKey = Symbol('Renderer');
 
 /**
  * Defines the concrete types used by a specific renderer implementation.
@@ -111,3 +114,20 @@
  * @property {Iterable<any>} newList
  * @property {Map<unknown, { itemKey: any, lastItemLastNode: Node | null }>} nodeLookAhead
  */
+
+/**
+ * @returns {Renderer<UnknownRendererTypes>}
+ */
+export function getActiveRenderer() {
+  const { globalData } = getGlobalContext();
+  const renderer = globalData.get(RendererKey);
+  return renderer;
+}
+
+/**
+ * @param {Renderer<any>} renderer
+ */
+export function setActiveRenderer(renderer) {
+  const { globalData } = getGlobalContext();
+  globalData.set(RendererKey, renderer);
+}

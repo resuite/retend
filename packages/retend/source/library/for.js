@@ -5,7 +5,7 @@ import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
 import { ArgumentList } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
-import { getActiveRenderer } from '../renderers/index.js';
+import { getActiveRenderer } from './renderer.js';
 
 /**
  * @template T

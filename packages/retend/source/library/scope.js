@@ -1,12 +1,17 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
-import { Cell } from '@adbl/cells';
 // import {  matchContext, Modes } from '../context/index.js';
+import { Cell } from '@adbl/cells';
 import h from './jsx.js';
-import { getHMRScopeList, HMRContextKey, HmrId, OverwrittenBy } from './hmr.js';
-import { generateChildNodes } from '../renderers/_shared.js';
-import { getActiveRenderer } from '../renderers/index.js';
+import {
+  getHMRScopeList,
+  HMRContextKey,
+  HmrId,
+  OverwrittenBy,
+} from '../hmr/index.js';
+import { getActiveRenderer } from './renderer.js';
 import { getGlobalContext } from '../context/index.js';
+import { createNodesFromTemplate } from './utils.js';
 
 /**
  * @template [T=unknown]
@@ -218,7 +223,7 @@ export function createScope(name) {
         if ('h' in props && !props.h) {
           const template = renderFn();
           const renderer = getActiveRenderer();
-          return generateChildNodes(template, renderer);
+          return createNodesFromTemplate(template, renderer);
         }
         return h(renderFn, {});
       } finally {

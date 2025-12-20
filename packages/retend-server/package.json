@@ -38,7 +38,8 @@
     "vite": "^6.2.1"
   },
   "peerDependencies": {
-    "retend": "*"
+    "retend": "*",
+    "retend-web": "*"
   },
   "publishConfig": {
     "access": "public"

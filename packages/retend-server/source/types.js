@@ -59,7 +59,7 @@
  * @property {string} rootSelector
  * @property {typeof import('retend')} retendModule
  * @property {{ createRouter: () => Router }} routerModule
- * @property {typeof import('retend/render')} retendRenderModule
+ * @property {typeof import('retend-web')} retendRenderModule
  * @property {typeof import('retend/v-dom')} retendVDomModule
  * @property {typeof import('retend/router')} retendRouterModule
  * @property {boolean} skipRedirects
