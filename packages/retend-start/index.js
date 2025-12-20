@@ -394,7 +394,10 @@ hydrate(createRouter)
 /// <reference types="vite/client" />
 import { runPendingSetupEffects } from 'retend';
 import { createRouterRoot } from 'retend/router';
+import { DOMRenderer } from 'retend-web';
 import { createRouter } from './router';
+
+setActiveRenderer(new DOMRenderer(window));
 
 const router = createRouter();
 router.attachWindowListeners(window);
