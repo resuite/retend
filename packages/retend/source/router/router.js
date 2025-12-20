@@ -351,7 +351,7 @@ export class Router extends EventTarget {
     if (replace) return 'neutral';
 
     if (this.#stackMode) {
-      const previousIndex = this.#history.lastIndexOf(targetPath);
+      const previousIndex = this.#history.indexOf(targetPath);
       if (previousIndex !== -1 && previousIndex < this.#history.length - 1) {
         return 'backwards';
       }
@@ -376,7 +376,7 @@ export class Router extends EventTarget {
     }
 
     if (direction === 'backwards' && this.#stackMode) {
-      const targetIndex = this.#history.lastIndexOf(targetPath);
+      const targetIndex = this.#history.indexOf(targetPath);
       if (targetIndex !== -1) {
         this.#history = this.#history.slice(0, targetIndex + 1);
       }

@@ -164,6 +164,18 @@ const runNestedTests = () => {
     expect(router.getCurrentRoute().get().fullPath).toBe('/about?value=1');
     expect(getTextContent(window.document.body)).toBe('Nested Route: About');
   });
+
+  test('navigates correctly from a query page to a normal one.', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+
+    await router.navigate('/');
+    await router.navigate('/about');
+    await router.navigate('/about?id=123');
+    await router.navigate('/about');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/about');
+    expect(getTextContent(window.document.body)).toBe('Nested Route: About');
+  });
 };
 
 describe('Router Stack Mode: Flat', () => {
