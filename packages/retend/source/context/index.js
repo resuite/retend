@@ -1,7 +1,7 @@
 // @ts-nocheck: globalThis is not typed.
 
 /** @import * as VDom from '../v-dom/index.js' */
-/** @import { DocumentObserver } from '../library/observer.js' */
+/** @import { Observer } from '../library/observer.js' */
 
 /** @type {typeof globalThis.CustomEvent} */
 export const CustomEvent =
@@ -62,7 +62,7 @@ export class GlobalContextChangeEvent extends CustomEvent {
  *  }) & {
  *    consistentValues: Map<string, any>,
  *    teleportIdCounter: { value: number }
- *    observer?: DocumentObserver
+ *    observer?: Observer
  *    globalData: Map<PropertyKey, any>
  * }} Environments
  */

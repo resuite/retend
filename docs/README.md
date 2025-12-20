@@ -1253,7 +1253,7 @@ The `useObserver()` function provides a way to trigger code based on the _connec
 
 - **Disconnection:** A node is "disconnected" when it is removed from the DOM tree. This happens when you remove or replace the element directly from Javascript, or when a parent of that node gets removed from the DOM.
 
-The `useObserver()` function returns a `DocumentObserver` object, which is a wrapper around the browser's `MutationObserver` API. Its main method, `onConnected`, allows you to run a callback function when a node is connected to the DOM.
+The `useObserver()` function returns a `Observer` object, which is a wrapper around the browser's `MutationObserver` API. Its main method, `onConnected`, allows you to run a callback function when a node is connected to the DOM.
 
 ### Executing Code on Connection
 

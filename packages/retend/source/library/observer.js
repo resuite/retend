@@ -12,7 +12,7 @@ import { getGlobalContext, matchContext, Modes } from '../context/index.js';
  * @class
  * @description Observes DOM nodes and manages their lifecycle through callbacks
  */
-export class DocumentObserver {
+export class Observer {
   #initialized = false;
   /** @type {Map<Node, Array<CleanupFn>>} */
   #mountedNodes = new Map();
@@ -56,8 +56,8 @@ export class DocumentObserver {
    */
   onConnected(ref, callback) {
     if (!this.#initialized) this.#init();
-    
-    ref.get(); // force ref initialization if it is lazy. 
+
+    ref.get(); // force ref initialization if it is lazy.
     // we can't use the above value because it is a proxy that can break DOM operations.
     const currentValue = ref.peek();
     if (currentValue?.isConnected) {
@@ -93,7 +93,7 @@ export class DocumentObserver {
     if (!this.#initialized) this.#init();
 
     for (const [key, callbacks] of this.#callbackSets.entries()) {
-      key.get()
+      key.get();
       const currentValue = key.peek();
       if (!currentValue?.isConnected) continue;
       for (const callback of callbacks) {
@@ -113,7 +113,7 @@ export class DocumentObserver {
 }
 
 /**
- * Returns the singleton instance of the `DocumentObserver` class,
+ * Returns the singleton instance of the `Observer` class,
  * which is responsible for observing the DOM and managing the lifecycle of mounted nodes.
  *
  * @example
@@ -126,10 +126,10 @@ export class DocumentObserver {
  *
  * const node = <div ref={nodeRef}>Hello, world!</div>;
  *
- * @returns {DocumentObserver} The singleton instance of the `DocumentObserver` class
+ * @returns {Observer} The singleton instance of the `Observer` class
  */
 export function useObserver() {
   const context = getGlobalContext();
-  if (!context.observer) context.observer = new DocumentObserver();
+  if (!context.observer) context.observer = new Observer();
   return context.observer;
 }
