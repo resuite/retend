@@ -4,9 +4,10 @@
 /** @import { jsxDevFileData, UpdatableFn } from 'retend/hmr'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
-import { Cell, SourceCell } from '@adbl/cells';
 import { matchContext, Modes } from 'retend/context';
 import {
+  Cell,
+  SourceCell,
   connectNodes,
   createNodesFromTemplate,
   normalizeJsxChild,

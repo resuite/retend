@@ -1,6 +1,6 @@
-import { Cell } from '@adbl/cells';
 import { getGlobalContext, matchContext, Modes } from 'retend/context';
 import {
+  Cell,
   createScopeSnapshot,
   useSetupEffect,
   withScopeSnapshot,
