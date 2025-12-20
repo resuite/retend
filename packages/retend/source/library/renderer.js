@@ -1,6 +1,7 @@
 /** @import { jsxDevFileData, UpdatableFn } from '../hmr/index.js'; */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
 /** @import { Cell } from '@adbl/cells'; */
+/** @import { Observer } from './observer.js'; */
 
 import { getGlobalContext } from '../context/index.js';
 const RendererKey = Symbol('Renderer');
@@ -34,9 +35,7 @@ const RendererKey = Symbol('Renderer');
  *
  * @property {any} SavedNodeState
  * A serializable or structured representation of a node's state, used for preservation and restoration.
- */
-
-/**
+ *//**
  * A collection of flags defining the feature set and constraints of a renderer.
  * These are used by the framework to conditionally enable optimizations or
  * alternative execution paths based on what the host environment supports.
@@ -44,6 +43,8 @@ const RendererKey = Symbol('Renderer');
  * @typedef Capabilities
  * @property {boolean} [supportsSetupEffects]
  * Whether the renderer supports executing setup effects.
+ * @property {boolean} [supportsObserverConnectedCallbacks]
+ * Whether the renderer supports the observer.onConnected API
  */
 
 /**
@@ -99,6 +100,12 @@ const RendererKey = Symbol('Renderer');
  * @property {Host} host
  * The instance of the host environment where the renderer is operating.
  *
+ * @property {Observer | null} observer
+ * An observer instance for watching the node environment and firing callbacks
+ * on renderer-defined connections.
+ *
+ * @property {(callback: () => void) => void} onViewChange
+ *
  * @property {Capabilities} capabilities
  * Configuration flags indicating which features this renderer supports.
  *
@@ -131,6 +138,10 @@ const RendererKey = Symbol('Renderer');
  *
  * @property {(parent: Node, children: Node | Node[]) => Node} append
  * Physically attaches nodes to a container in the host environment.
+ *
+ * @property {(node: Node) => boolean} isActive
+ * Checks if a node is "active". Activity of a node is renderer-defined. When a node
+ * is active, it fires its associated observer.onConnected callback.
  *
  * @property {(group: Group) => Handle} createGroupHandle
  * Creates a stable reference (handle) to a group of nodes, enabling subsequent incremental updates.

@@ -329,6 +329,7 @@ export function FluidList(props) {
    */
   const ItemRenderer = (item, idx) => {
     const previousIdx = Cell.source(idx.get());
+    /** @type {Cell<HTMLElement | null>} */
     const nodeRef = Cell.source(null);
 
     const listItemPreviousCol = Cell.derived(() =>

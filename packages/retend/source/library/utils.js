@@ -63,12 +63,12 @@ export function createNodesFromTemplate(children, renderer) {
  * The renderer instance used for creating nodes.
  * @returns {Data['Node']}
  */
-export function connectNodes(first, second, renderer) {
+export function linkNodes(first, second, renderer) {
   let _first = first;
 
   if (Array.isArray(second)) {
     for (const childNode of second) {
-      _first = connectNodes(_first, childNode, renderer);
+      _first = linkNodes(_first, childNode, renderer);
     }
     return _first;
   }

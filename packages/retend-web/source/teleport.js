@@ -8,7 +8,7 @@ import {
   useConsistent,
   useObserver,
   getActiveRenderer,
-  connectNodes,
+  linkNodes,
   createNodesFromTemplate,
 } from 'retend';
 
@@ -88,7 +88,7 @@ export function Teleport(props) {
       renderer
     );
     for (const child of children) {
-      connectNodes(newInstance, child, renderer);
+      linkNodes(newInstance, child, renderer);
     }
 
     if (staleInstance)

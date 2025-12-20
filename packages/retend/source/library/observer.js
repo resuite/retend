@@ -1,10 +1,12 @@
+/** @import { Cell } from '@adbl/cells'; */
+/** @import { Renderer } from './renderer.js' */
 /**
  * @typedef {() => void} CleanupFn
  */
-import { getGlobalContext, matchContext, Modes } from '../context/index.js';
+import { getActiveRenderer } from './renderer.js';
 
 /**
- * @template {Node} T
+ * @template T
  * @typedef {((node: T) => CleanupFn | undefined) | ((node: T) => Promise<CleanupFn | undefined>) | ((node: T) => void | Promise<void>) } MountFn
  */
 
@@ -13,19 +15,25 @@ import { getGlobalContext, matchContext, Modes } from '../context/index.js';
  * @description Observes nodes and manages their lifecycle through callbacks
  */
 export class Observer {
-  #initialized = false;
-  /** @type {Map<Node, Array<CleanupFn>>} */
+  /** @type {Map<unknown, Array<CleanupFn>>} */
   #mountedNodes = new Map();
-  /** @type {Map<import('@adbl/cells').Cell<Node | null>, Array<MountFn<Node>>>} */
+  /** @type {Map<Cell<unknown | null>, Array<MountFn<unknown>>>} */
   #callbackSets = new Map();
+  /** @type {Renderer<any> | null} */
+  #renderer = null;
 
-  constructor() {
-    this.#init();
+  /** @param {Renderer<any>} renderer  */
+  constructor(renderer) {
+    const { capabilities } = renderer;
+    if (!capabilities.supportsObserverConnectedCallbacks) return;
+    this.#renderer = renderer;
+    const processor = this.processMountedNodes.bind(this);
+    renderer.onViewChange(processor);
   }
 
   /**
    * Mounts a callback to a node and manages its cleanup
-   * @template {Node} T
+   * @template T
    * @param {T} node - The node to mount the callback to
    * @param {MountFn<T>} callback - The callback to execute when mounted
    */
@@ -50,37 +58,19 @@ export class Observer {
    * If the node is already connected, the callback is called immediately.
    * The callback can return a cleanup function that will be called when the node is disconnected.
    *
-   * @template {Node} T
-   * @param {import('@adbl/cells').Cell<T | null>} ref - A `Cell` containing the node to observe
+   * @template T
+   * @param {Cell<T | null>} ref - A `Cell` containing the node to observe
    * @param {MountFn<T>} callback - A function that will be called when the node is connected
    */
   onConnected(ref, callback) {
-    if (!this.#initialized) this.#init();
-
-    ref.get(); // force ref initialization if it is lazy.
-    // we can't use the above value because it is a proxy that can break DOM operations.
     const currentValue = ref.peek();
-    if (currentValue?.isConnected) {
+    if (currentValue && this.#renderer?.isActive(currentValue)) {
       this.#mount(currentValue, callback);
       return;
     }
     const connectedCallbacks = this.#callbackSets.get(ref) || [];
-    connectedCallbacks.push(/** @type {MountFn<Node>} */ (callback));
+    connectedCallbacks.push(/** @type {MountFn<unknown>} */ (callback));
     this.#callbackSets.set(ref, connectedCallbacks);
-  }
-
-  /**
-   * Initializes the observer to watch for changes in the host environment
-   */
-  #init() {
-    const { window } = getGlobalContext();
-    if (matchContext(window, Modes.VDom)) return;
-
-    this.#initialized = true;
-    const observer = new window.MutationObserver(
-      this.processMountedNodes.bind(this)
-    );
-    observer.observe(window.document.body, { subtree: true, childList: true });
   }
 
   /**
@@ -90,20 +80,18 @@ export class Observer {
    * and iterates through the `mountedNodes` to execute cleanup functions for disconnected nodes.
    */
   processMountedNodes() {
-    if (!this.#initialized) this.#init();
-
-    for (const [key, callbacks] of this.#callbackSets.entries()) {
+    for (const [key, callbacks] of this.#callbackSets) {
       key.get();
       const currentValue = key.peek();
-      if (!currentValue?.isConnected) continue;
+      if (!currentValue || !this.#renderer?.isActive(currentValue)) continue;
       for (const callback of callbacks) {
         this.#mount(currentValue, callback);
       }
       this.#callbackSets.delete(key);
     }
 
-    for (const [node, cleanups] of this.#mountedNodes.entries()) {
-      if (node.isConnected) continue;
+    for (const [node, cleanups] of this.#mountedNodes) {
+      if (this.#renderer?.isActive(node)) continue;
       for (const cleanup of cleanups) {
         cleanup();
       }
@@ -118,8 +106,9 @@ export class Observer {
  *
  * @example
  * // Mount a callback when a node is connected to the DOM
+ * const observer = useObserver()
  * const nodeRef = Cell.source<HTMLDivElement | null>(null);
- * useObserver().onConnected(nodeRef, (node) => {
+ * observer.onConnected(nodeRef, (node) => {
  *   console.log('Node connected:', node);
  *   return () => console.log('Node disconnected:', node);
  * });
@@ -129,7 +118,9 @@ export class Observer {
  * @returns {Observer} The singleton instance of the `Observer` class
  */
 export function useObserver() {
-  const context = getGlobalContext();
-  if (!context.observer) context.observer = new Observer();
-  return context.observer;
+  const renderer = getActiveRenderer();
+  if (!renderer.observer) {
+    renderer.observer = new Observer(renderer);
+  }
+  return renderer.observer;
 }

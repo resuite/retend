@@ -13,7 +13,7 @@ import {
 } from '../library/scope.js';
 import { getHMRContext } from '../hmr/index.js';
 import { getActiveRenderer } from '../library/renderer.js';
-import { connectNodes } from '../library/utils.js';
+import { linkNodes } from '../library/utils.js';
 
 /**
  * @typedef UniqueStash
@@ -320,7 +320,7 @@ export function Unique(props) {
       stash.scopes.set(name, scopeSnapshot);
       return withScopeSnapshot(scopeSnapshot, () => h(children, {}));
     })();
-    connectNodes(retendUniqueInstance, childNodes, renderer);
+    linkNodes(retendUniqueInstance, childNodes, renderer);
   }
 
   return retendUniqueInstance;

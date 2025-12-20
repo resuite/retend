@@ -1,5 +1,5 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-import { getActiveRenderer, connectNodes } from 'retend';
+import { getActiveRenderer, linkNodes } from 'retend';
 
 /**
  * @typedef ShadowRootProps
@@ -46,6 +46,6 @@ export function ShadowRoot(props) {
 
   shadowRoot.__mode = 'open';
   shadowRoot.__isShadowRootContainer = true;
-  connectNodes(shadowRoot, children, getActiveRenderer());
+  linkNodes(shadowRoot, children, getActiveRenderer());
   return shadowRoot;
 }

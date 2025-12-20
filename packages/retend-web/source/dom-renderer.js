@@ -8,7 +8,7 @@ import { matchContext, Modes } from 'retend/context';
 import {
   Cell,
   SourceCell,
-  connectNodes,
+  linkNodes,
   createNodesFromTemplate,
   normalizeJsxChild,
 } from 'retend';
@@ -53,7 +53,7 @@ import {
 export class DOMRenderer {
   /** @type {WindowLike} */
   host;
-  capabilities = {};
+  observer = null;
 
   /** @param {VDom.VWindow | Window & globalThis} host */
   constructor(host) {
@@ -65,9 +65,27 @@ export class DOMRenderer {
         ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
       this.host
     );
+    const isInteractive = matchContext(window, Modes.Interactive);
     this.capabilities = {
-      supportsSetupEffects: matchContext(window, Modes.Interactive),
+      supportsSetupEffects: isInteractive,
+      supportsObserverConnectedCallbacks: isInteractive,
     };
+  }
+
+  /**
+   * @param {NodeLike} node
+   */
+  isActive(node) {
+    return node.isConnected;
+  }
+
+  /** @param {() => void} processor  */
+  onViewChange(processor) {
+    const mutObserver = new window.MutationObserver(processor);
+    mutObserver.observe(window.document.body, {
+      subtree: true,
+      childList: true,
+    });
   }
 
   /**
@@ -341,7 +359,7 @@ export class DOMRenderer {
         );
         return parentNode;
       }
-      connectNodes(shadowRoot, [...childNode.childNodes], this);
+      linkNodes(shadowRoot, [...childNode.childNodes], this);
       return parentNode;
     }
     const tagname = Reflect.get(parentNode, 'tagName');
@@ -423,7 +441,7 @@ export class DOMRenderer {
     if (input) {
       const children = Array.isArray(input) ? input : [input];
       for (const child of children) {
-        connectNodes(fragment, child, this);
+        linkNodes(fragment, child, this);
       }
     }
     return fragment;

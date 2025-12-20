@@ -1,7 +1,7 @@
 /** @import { jsxDevFileData } from '../hmr/index.js'; */
 /** @import { Renderer, UnknownRendererTypes } from './renderer.js'; */
 import { getActiveRenderer } from './renderer.js';
-import { ArgumentList, connectNodes } from './utils.js';
+import { ArgumentList, linkNodes } from './utils.js';
 
 /**
  * @template {UnknownRendererTypes} Data
@@ -58,7 +58,7 @@ export function h(
     container = renderer.setProperty(container, key, value);
   }
 
-  return connectNodes(container, children, renderer);
+  return linkNodes(container, children, renderer);
 }
 
 export class FragmentPlaceholder {}
