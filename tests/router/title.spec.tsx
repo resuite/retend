@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext } from 'retend/context';
 import { routerRoot, vDomSetup } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { createWebRouter, defineRoutes } from 'retend/router';
 
 describe('Router Title Updates', () => {
   vDomSetup();
 
   it('should update window.document.title when navigating to routes with titles', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const router = createWebRouter({
       routes: defineRoutes([
         {
@@ -36,7 +38,8 @@ describe('Router Title Updates', () => {
   });
 
   it('should not update window.document.title if route has no title', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const initialTitle = window.document.title;
     const router = createWebRouter({
       routes: defineRoutes([

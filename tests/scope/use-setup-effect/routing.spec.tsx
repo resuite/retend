@@ -1,17 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runPendingSetupEffects, useSetupEffect } from 'retend';
+import {
+  runPendingSetupEffects,
+  useSetupEffect,
+  getActiveRenderer,
+} from 'retend';
 import {
   createWebRouter,
   defineRoutes,
   Outlet,
   useRouter,
 } from 'retend/router';
-import { getGlobalContext } from 'retend/context';
 import {
   routerSetupBrowser,
   getTextContent,
   routerRoot,
 } from '../../setup.tsx';
+import type { DOMRenderer } from 'retend-web';
 
 describe('useSetupEffect with routing', () => {
   routerSetupBrowser();
@@ -50,7 +54,8 @@ describe('useSetupEffect with routing', () => {
       },
     ]);
 
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);
@@ -116,7 +121,8 @@ describe('useSetupEffect with routing', () => {
         ],
       },
     ]);
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);

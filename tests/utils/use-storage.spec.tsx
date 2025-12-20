@@ -1,7 +1,8 @@
 import { useLocalStorage, useSessionStorage } from 'retend-utils/hooks';
 import { describe, expect, it } from 'vitest';
 import { vDomSetup, browserSetup } from '../setup';
-import { getGlobalContext } from 'retend/context';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { runPendingSetupEffects } from 'retend';
 
 const localStorageKey = 'test-local-storage';
@@ -13,7 +14,8 @@ const runTests = () => {
       localStorageKey,
       'initialValue'
     );
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     expect(storageCell.get()).toBe('initialValue');
 
@@ -24,7 +26,8 @@ const runTests = () => {
   });
 
   it('should delete value from local storage', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     window.localStorage.setItem(localStorageKey, '"initialValue"');
     const storageCell = useLocalStorage<string | null>(
       localStorageKey,
@@ -44,7 +47,8 @@ const runTests = () => {
       sessionStorageKey,
       'initialValue'
     );
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     expect(storageCell.get()).toBe('initialValue');
 
@@ -55,7 +59,8 @@ const runTests = () => {
   });
 
   it('should delete value from session storage', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     window.sessionStorage.setItem(sessionStorageKey, '"initialValue"');
     const storageCell = useSessionStorage<string | null>(
       sessionStorageKey,
@@ -80,7 +85,8 @@ describe('useStorage', () => {
 
     it('should update when local storage changes from another window', async () => {
       const storageCell = useLocalStorage(localStorageKey, 'initialValue');
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       await runPendingSetupEffects();
 
       expect(storageCell.get()).toBe(
@@ -100,7 +106,8 @@ describe('useStorage', () => {
 
     it('should update when session storage changes from another window', async () => {
       const storageCell = useSessionStorage(sessionStorageKey, 'initialValue');
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       await runPendingSetupEffects();
 
       expect(storageCell.get()).toBe(

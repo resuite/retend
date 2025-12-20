@@ -3,13 +3,12 @@ import {
   Modes,
   setGlobalContext,
   resetGlobalContext,
-  getGlobalContext,
   type NodeLike,
   isVNode,
 } from 'retend/context';
 import { VWindow } from 'retend/v-dom';
 import { Outlet, type Router, RouterProvider } from 'retend/router';
-import { setActiveRenderer } from 'retend';
+import { setActiveRenderer, getActiveRenderer } from 'retend';
 import { DOMRenderer } from 'retend-web';
 
 export const timeout = async (number?: number) => {
@@ -101,7 +100,8 @@ export const vDomSetup = () => {
 };
 
 export const getTextContent = (element: NodeLike) => {
-  const { window } = getGlobalContext();
+  const renderer = getActiveRenderer() as DOMRenderer;
+  const { host: window } = renderer;
 
   if (!isVNode(element)) {
     return element.textContent;

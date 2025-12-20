@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext } from 'retend/context';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import {
   createWebRouter,
   defineRoutes,
@@ -14,7 +15,8 @@ describe('Router Metadata', () => {
   vDomSetup();
 
   it('should contain correct metadata for current route', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'home',
@@ -59,7 +61,8 @@ describe('Router Metadata', () => {
   });
 
   it('should aggregate metadata from nested routes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const routes = defineRoutes([
       {
@@ -128,7 +131,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle dynamic metadata based on route params', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'product-page',
@@ -162,7 +166,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle async dynamic metadata', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'product-page',
@@ -199,7 +204,8 @@ describe('Router Metadata', () => {
   });
 
   it('should update metadata when route params change', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'post-details',
@@ -237,7 +243,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle metadata with query parameters', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'post-details',
@@ -265,7 +272,8 @@ describe('Router Metadata', () => {
   });
 
   it('should read metadata from the component function object', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const Home: RouteComponent = () => {
       return <div>This is the home page</div>;
     };
@@ -322,7 +330,8 @@ describe('Router Metadata', () => {
   });
 
   it('should inherit metadata from parent components', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const About: RouteComponent = () => {
       return <div>This is the about page</div>;
@@ -428,7 +437,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle embedded metadata functions', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductPage: RouteComponent = () => {
       return <div>This is the product page</div>;
@@ -462,7 +472,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle embedded metadata functions with nested routes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductPage: RouteComponent = () => {
       const { Outlet } = useRouter();
@@ -518,7 +529,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle async embedded metadata functions', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const BlogPage: RouteComponent = () => {
       return <div>Hello world!</div>;
     };
@@ -553,7 +565,8 @@ describe('Router Metadata', () => {
   });
 
   it('should read async metadata inside the route component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const BlogPage: RouteComponent = () => {
       const router = useRouter();
@@ -593,7 +606,8 @@ describe('Router Metadata', () => {
   });
 
   it('should read embedded async metadata from a lazy route component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const BlogPage: RouteComponent = () => {
       const router = useRouter();
@@ -637,7 +651,8 @@ describe('Router Metadata', () => {
   });
 
   it('should get metadata as props to the route component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const root = window.document.body;
 
     interface ProductProps {

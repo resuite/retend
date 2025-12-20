@@ -2,7 +2,8 @@ import { useClickCoordinates } from '../../packages/retend-utils/source/hooks/us
 import { Cell, runPendingSetupEffects } from 'retend';
 import { describe, expect, it } from 'vitest';
 import { vDomSetup, browserSetup } from '../setup';
-import { getGlobalContext } from 'retend/context';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 
 const runTests = () => {
   it('should return a Cell containing the click coordinates', () => {
@@ -20,7 +21,8 @@ describe('useClickCoordinates', () => {
     runTests();
 
     it('should update the coordinates on click', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const { x, y } = useClickCoordinates();
       await runPendingSetupEffects();
 

@@ -40,6 +40,14 @@ import {
  */
 
 /**
+ * A concrete implementation of the {@link Renderer} interface for web-based environments.
+ *
+ * This renderer bridges the Retend framework's reactive logic with the standard Web DOM API,
+ * supporting both real browser environments and the framework's own virtual DOM implementation.
+ * It manages node creation, reconciliation, and lifecycle events specifically for HTML/SVG/MathML
+ * elements while remaining compatible with standard web window and document structures.
+ *
+ * @class
  * @implements {DOMRendererInterface}
  */
 export class DOMRenderer {

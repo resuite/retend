@@ -1,20 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, getTextContent, vDomSetup } from './setup';
-import { getGlobalContext } from 'retend/context';
-import { Unique } from 'retend';
-import type { VNode } from 'retend/v-dom';
 import {
   Cell,
   If,
   runPendingSetupEffects,
   Switch,
   useSetupEffect,
+  Unique,
+  getActiveRenderer,
 } from 'retend';
+import type { VNode } from 'retend/v-dom';
+import type { DOMRenderer } from 'retend-web';
 import { ShadowRoot } from 'retend-web';
 
 const runTests = () => {
   it('should render a <Unique/> component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const uuid = crypto.randomUUID();
 
     const UniqueContent = () => {
@@ -36,7 +38,8 @@ const runTests = () => {
   });
 
   it('should only render one <Unique/> component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const uuid = crypto.randomUUID();
 
     const UniqueContent = () => {
@@ -64,7 +67,8 @@ describe('Unique', () => {
     runTests();
 
     it('should move the <Unique/> component on change', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
 
       const UniqueContent = () => {
@@ -102,7 +106,8 @@ describe('Unique', () => {
     });
 
     it('should keep the scope of Unique components alive', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const setupFn = vi.fn();
       const cleanupFn = vi.fn();
@@ -197,7 +202,8 @@ describe('Unique', () => {
     });
 
     it('should preserve Unique components that are reinstantiated in the very next render', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const setupFn = vi.fn();
       const cleanupFn = vi.fn();
@@ -278,7 +284,8 @@ describe('Unique', () => {
     });
 
     it('should save and restore data', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const saveFn = vi.fn();
       const restoreFn = vi.fn();
@@ -353,7 +360,8 @@ describe('Unique', () => {
     });
 
     it('should transfer shadowroots', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const page = Cell.source<'home' | 'about'>('home');
 
       const PersistentMusicPlayer = () => {
@@ -406,7 +414,8 @@ describe('Unique', () => {
     });
 
     it('should set state to "new" when first rendered', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
 
       const UniqueContent = () => {
@@ -429,7 +438,8 @@ describe('Unique', () => {
     });
 
     it('should set state to "restored" when moved to new location', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
 
       const UniqueContent = () => {
@@ -466,7 +476,8 @@ describe('Unique', () => {
     });
 
     it('should set state to "moved" when component is unmounted', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const saveStates: string[] = [];
 
@@ -509,7 +520,8 @@ describe('Unique', () => {
     });
 
     it('should not cleanup derived cells and listeners when Unique component is moved, but should when unmounted', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       let derivedComputes = 0;
       let listenerCalls = 0;
@@ -595,7 +607,8 @@ describe('Unique', () => {
     });
 
     it('should transition through states correctly during lifecycle', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const states: string[] = [];
       const saveStates: string[] = [];
@@ -671,7 +684,8 @@ describe('Unique', () => {
     });
 
     it('should preserve content even if new instance has different children function', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
 
       const { body } = window.document;
@@ -710,7 +724,8 @@ describe('Unique', () => {
     });
 
     it('should preserve and update attributes on the Unique wrapper', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const className = Cell.source('initial-class');
 
@@ -734,7 +749,8 @@ describe('Unique', () => {
     });
 
     it('should handle nested Unique components', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const outerUuid = crypto.randomUUID();
       const innerUuid = crypto.randomUUID();
       const innerSetup = vi.fn();
@@ -787,7 +803,8 @@ describe('Unique', () => {
     });
 
     it('should dispose when not remounted before activate', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const cleanupFn = vi.fn();
 

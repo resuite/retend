@@ -10,7 +10,7 @@ import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 
 /**
  * @class
- * @description Observes DOM nodes and manages their lifecycle through callbacks
+ * @description Observes nodes and manages their lifecycle through callbacks
  */
 export class Observer {
   #initialized = false;
@@ -26,7 +26,7 @@ export class Observer {
   /**
    * Mounts a callback to a node and manages its cleanup
    * @template {Node} T
-   * @param {T} node - The DOM node to mount the callback to
+   * @param {T} node - The node to mount the callback to
    * @param {MountFn<T>} callback - The callback to execute when mounted
    */
   async #mount(node, callback) {
@@ -46,9 +46,9 @@ export class Observer {
   }
 
   /**
-   * Registers a callback to be called when the node referenced by the provided `ref` is connected to the DOM.
+   * Registers a callback to be called when the node referenced by the provided `ref` is connected to the host environment.
    * If the node is already connected, the callback is called immediately.
-   * The callback can return a cleanup function that will be called when the node is disconnected from the DOM.
+   * The callback can return a cleanup function that will be called when the node is disconnected.
    *
    * @template {Node} T
    * @param {import('@adbl/cells').Cell<T | null>} ref - A `Cell` containing the node to observe
@@ -70,7 +70,7 @@ export class Observer {
   }
 
   /**
-   * Initializes the mutation observer to watch for DOM changes
+   * Initializes the observer to watch for changes in the host environment
    */
   #init() {
     const { window } = getGlobalContext();
@@ -85,7 +85,7 @@ export class Observer {
 
   /**
    * Processes the mounted nodes and their associated callbacks.
-   * This function is called by the mutation observer when DOM changes occur.
+   * This function is called when changes occur in the host environment.
    * It iterates through the `callbackSets` to mount callbacks for newly connected nodes
    * and iterates through the `mountedNodes` to execute cleanup functions for disconnected nodes.
    */
@@ -114,7 +114,7 @@ export class Observer {
 
 /**
  * Returns the singleton instance of the `Observer` class,
- * which is responsible for observing the DOM and managing the lifecycle of mounted nodes.
+ * which is responsible for observing the host environment and managing the lifecycle of mounted nodes.
  *
  * @example
  * // Mount a callback when a node is connected to the DOM

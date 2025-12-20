@@ -1,13 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
-import { useObserver, Cell } from 'retend';
-import { browserSetup, vDomSetup, timeout } from './setup.tsx';
-import { getGlobalContext } from 'retend/context';
+import { Cell, getActiveRenderer, useObserver } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { describe, expect, it, vi } from 'vitest';
+import { browserSetup, timeout, vDomSetup } from './setup.tsx';
 
 describe('useObserver', () => {
   browserSetup();
 
   it('should call callback immediately if node is already connected', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const node = window.document.createElement('div');
     window.document.body.append(node);
 
@@ -24,7 +25,8 @@ describe('useObserver', () => {
   });
 
   it('should call callback when node becomes connected', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const node = window.document.createElement('div');
     const nodeRef = Cell.source<HTMLElement | null>(node);
     const callback = vi.fn();
@@ -45,7 +47,8 @@ describe('useObserver', () => {
   });
 
   it('should call cleanup when node is disconnected', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const node = window.document.createElement('div');
     window.document.body.append(node);
 
@@ -66,7 +69,8 @@ describe('useObserver', () => {
   });
 
   it('should handle multiple callbacks and cleanups', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const node = window.document.createElement('div');
     const nodeRef = Cell.source<HTMLElement | null>(node);
 
@@ -94,7 +98,8 @@ describe('useObserver', () => {
   });
 
   it('should handle async callbacks', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const node = window.document.createElement('div');
     window.document.body.append(node);
 
@@ -120,7 +125,8 @@ describe('useObserver', () => {
   });
 
   it('should handle ref value change before connection', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const node = window.document.createElement('div');
     const nodeRef = Cell.source<HTMLElement | null>(null);
     const callback = vi.fn();

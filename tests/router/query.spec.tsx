@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
-import { For, If, Cell } from 'retend';
-import { getGlobalContext } from 'retend/context';
+import { For, If, Cell, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import {
   createWebRouter,
   useRouteQuery,
@@ -12,7 +12,8 @@ describe('useRouteQuery', () => {
   vDomSetup();
 
   it('should show the current route query params', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const Home = () => {
       const query = useRouteQuery();
@@ -38,7 +39,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should trigger route change on query change', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const cardPageWasRun = vi.fn();
 
     let changeStage = (stage: string): void | Promise<void> => {
@@ -81,7 +83,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should trigger route change on query delete', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const cardPageWasRun = vi.fn();
 
     //@ts-expect-error: Typescript cannot infer that the variable would have been assigned.
@@ -131,7 +134,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should trigger route change on query clear', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const cardPageWasRun = vi.fn();
 
     //@ts-expect-error: Typescript cannot infer that the variable would have been assigned.
@@ -181,7 +185,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should read multiple queries reactively', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routePageCalled = vi.fn();
 
     const List = () => {
@@ -245,7 +250,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should append multiple values to the same query parameter', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     //@ts-expect-error: Typescript cannot infer that the variable would have been assigned.
     let query: AsyncRouteQuery = null;

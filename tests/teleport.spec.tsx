@@ -1,6 +1,6 @@
 import { Cell, getActiveRenderer } from 'retend';
-import { type DOMRenderer, Teleport } from 'retend-web';
-import { getGlobalContext } from 'retend/context';
+import type { DOMRenderer } from 'retend-web';
+import { Teleport } from 'retend-web';
 import { assert, describe, expect, it, vi } from 'vitest';
 import { browserSetup, getTextContent, timeout } from './setup.tsx';
 
@@ -39,7 +39,8 @@ describe('Teleport', () => {
     });
 
     it('should teleport content to a target element by tag name', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
 
       // Create target element
       const target = window.document.createElement('section');
@@ -64,7 +65,8 @@ describe('Teleport', () => {
     });
 
     it('should handle dynamic content updates', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
 
       // Create target element
       const target = window.document.createElement('div');
@@ -94,7 +96,8 @@ describe('Teleport', () => {
     });
 
     it('should log error when target is not found', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const consoleSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -119,7 +122,8 @@ describe('Teleport', () => {
     });
 
     it('should handle multiple teleports to the same target', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
 
       // Create target element
       const target = window.document.createElement('div');

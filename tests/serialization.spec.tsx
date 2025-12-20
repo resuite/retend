@@ -1,21 +1,22 @@
-import { describe, it, expect } from 'vitest';
-import { For, If } from 'retend';
-import { getGlobalContext } from 'retend/context';
+import { Cell, For, If, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { renderToString } from 'retend-web';
-import { Cell } from 'retend';
-import { browserSetup, timeout, vDomSetup } from './setup.tsx';
 import { ShadowRoot } from 'retend-web';
+import { describe, expect, it } from 'vitest';
+import { browserSetup, timeout, vDomSetup } from './setup.tsx';
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = <div class="test">Hello World</div>;
     const result = await renderToString(element, window);
     expect(result).toBe('<div class="test">Hello World</div>');
   });
 
   it('should mark static nodes when option is enabled', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <span>Static content</span>
@@ -30,7 +31,8 @@ const runTests = () => {
   });
 
   it('should skip reactive nodes when marking static nodes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <span>{Cell.source('Dynamic content')}</span>
@@ -46,7 +48,8 @@ const runTests = () => {
   });
 
   it('should skip nodes with event listeners when marking static nodes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <button type="button" onClick={() => console.log('Clicked!')}>
@@ -66,7 +69,8 @@ const runTests = () => {
   });
 
   it('should preserve whitespace between text nodes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         Hello {'World'}
@@ -78,7 +82,8 @@ const runTests = () => {
   });
 
   it('should handle void elements correctly', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <img src="test.jpg" alt="Test illustration" />
@@ -93,7 +98,8 @@ const runTests = () => {
   });
 
   it('should handle nested fragments', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <>
         <div>First</div>
@@ -108,14 +114,16 @@ const runTests = () => {
   });
 
   it('should handle promises in JSX', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = <div>{Promise.resolve('Async content')}</div>;
     const result = await renderToString(element, window);
     expect(result).toBe('<div>Async content</div>');
   });
 
   it('should handle component promises in JSX', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const Component = async () => {
       await timeout();
       return <div>Async content</div>;
@@ -130,7 +138,8 @@ const runTests = () => {
   });
 
   it('should handle component promises in JSX with children', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const Component = async (props: { children?: unknown }) => {
       await timeout();
       return <div>Async content: {props.children}</div>;
@@ -147,7 +156,8 @@ const runTests = () => {
   });
 
   it('should handle nested async components in JSX', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const ChildComponent = async () => {
       await timeout();
       return <span>Child async content</span>;
@@ -173,7 +183,8 @@ const runTests = () => {
   });
 
   it('should handle fragments with async components', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const AsyncComponent = async () => {
       await timeout();
       return <div>Async content</div>;
@@ -189,7 +200,8 @@ const runTests = () => {
   });
 
   it('should handle deeply nested elements', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <div>
@@ -208,7 +220,8 @@ const runTests = () => {
   });
 
   it('should handle elements with multiple attributes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div id="test" class="test-class" data-test="value">
         Content
@@ -221,7 +234,8 @@ const runTests = () => {
   });
 
   it('should handle elements with special characters', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = <div>Special characters: &amp; &lt; &gt; " '</div>;
     const result = await renderToString(element, window);
     expect(result).toBe(
@@ -230,14 +244,16 @@ const runTests = () => {
   });
 
   it('should handle elements with boolean attributes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = <input type="checkbox" checked />;
     const result = await renderToString(element, window);
     expect(result).toBe('<input type="checkbox" checked="true"/>');
   });
 
   it('should handle arrays of elements', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const items = ['Item 1', 'Item 2', 'Item 3'];
     const element = (
       <ul>
@@ -253,7 +269,8 @@ const runTests = () => {
   });
 
   it('should handle null and undefined values gracefully', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         {null}
@@ -266,7 +283,8 @@ const runTests = () => {
   });
 
   it('should handle conditional rendering', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const showContent = true;
     const element = (
       <div>
@@ -281,7 +299,8 @@ const runTests = () => {
   });
 
   it('should mark static nodes inside shadow root when enabled', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <ShadowRoot>
@@ -298,7 +317,8 @@ const runTests = () => {
   });
 
   it('should hoist shadow roots to the start of the parent node', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <div>Normal content</div>
@@ -314,7 +334,8 @@ const runTests = () => {
   });
 
   it('should handle static marking in nested shadow roots', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <ShadowRoot>
@@ -336,7 +357,8 @@ const runTests = () => {
   });
 
   it('should not mark nodes with event listeners as static in shadow root', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <ShadowRoot>
@@ -356,7 +378,8 @@ const runTests = () => {
   });
 
   it('should serialize shadow root content', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <ShadowRoot>
@@ -371,7 +394,8 @@ const runTests = () => {
   });
 
   it('should serialize shadow root with styles', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <ShadowRoot>
@@ -387,7 +411,8 @@ const runTests = () => {
   });
 
   it('should serialize nested shadow roots', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <ShadowRoot>
@@ -407,7 +432,8 @@ const runTests = () => {
   });
 
   it('should serialize shadow roots with reactive content', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const content = Cell.source('Dynamic content');
     const element = (
       <div>
@@ -423,7 +449,8 @@ const runTests = () => {
   });
 
   it('should not mark shadowroot parent as static if it has reactive children', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const content = Cell.source('Dynamic content');
     const element = (
       <div>
@@ -441,7 +468,8 @@ const runTests = () => {
   });
 
   it('should mark shadowroot parent as static if it has static children', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const element = (
       <div>
         <ShadowRoot>
@@ -458,7 +486,8 @@ const runTests = () => {
   });
 
   it('should correctly serialize upper case attribute names', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     //@ts-ignore: testing
     const element = <div AttrName="test" Other="test" />;
 

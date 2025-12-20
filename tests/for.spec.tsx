@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { Cell } from 'retend';
-import { For } from 'retend';
-import { type NodeLike, getGlobalContext } from 'retend/context';
+import { Cell, For, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import type { NodeLike } from 'retend/context';
 import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
 import type { VNode, VElement } from 'retend/v-dom';
 
@@ -108,7 +108,8 @@ const runTests = () => {
   });
 
   it('should maintain element identity when items are reordered', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const items = Cell.source([
       { id: 1, text: 'First' },
       { id: 2, text: 'Second' },
@@ -355,7 +356,8 @@ const runTests = () => {
   });
 
   it('should maintain element identity with function keys when reordering', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     let callbackCount = 0;
     const items = Cell.source([
       { id: 'alpha', text: 'First' },

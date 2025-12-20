@@ -1,13 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
-import { getGlobalContext } from 'retend/context';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { createWebRouter, type Router, useRouter } from 'retend/router';
 
 const runFlatTests = () => {
   let router: Router;
 
   beforeEach(() => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     router = createWebRouter({
       routes: [
         {
@@ -103,7 +105,8 @@ const runNestedTests = () => {
         component: () => 'marketing',
       },
     ];
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     router = createWebRouter({
       routes,
       stackMode: true,
@@ -113,7 +116,8 @@ const runNestedTests = () => {
   });
 
   test('navigates properly in stack mode', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     await router.navigate('/');
     expect(getTextContent(window.document.body)).toBe(
@@ -128,7 +132,8 @@ const runNestedTests = () => {
   });
 
   test('has correct back and forward routes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     await router.navigate('/');
     expect(router.getCurrentRoute().get().fullPath).toBe('/');
@@ -142,7 +147,8 @@ const runNestedTests = () => {
   });
 
   test('has correct params & query during navigation', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     await router.navigate('/');
     await router.navigate('/about?value=1');

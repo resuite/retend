@@ -1,13 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getGlobalContext } from 'retend/context';
 import { getTextContent, routerRoot, vDomSetup } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { createWebRouter, defineRoutes } from 'retend/router';
 
 describe('Router Redirects', () => {
   vDomSetup();
 
   it('should redirect from one path to another', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const router = createWebRouter({
       routes: defineRoutes([
         {
@@ -30,7 +32,8 @@ describe('Router Redirects', () => {
   });
 
   it('should handle redirect with path parameters', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const router = createWebRouter({
       routes: defineRoutes([
         {
@@ -53,7 +56,8 @@ describe('Router Redirects', () => {
   });
 
   it('should handle nested route redirects', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const router = createWebRouter({
       routes: defineRoutes([
         {
@@ -80,7 +84,8 @@ describe('Router Redirects', () => {
   });
 
   it('should prevent redirect loops', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => {});
@@ -104,7 +109,8 @@ describe('Router Redirects', () => {
   });
 
   it('should ignore redirect to the same path', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const router = createWebRouter({
       routes: defineRoutes([
         {
@@ -125,7 +131,8 @@ describe('Router Redirects', () => {
   });
 
   it('should redirect with query parameters preserved', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const router = createWebRouter({
       routes: defineRoutes([
         {
@@ -148,7 +155,8 @@ describe('Router Redirects', () => {
   });
 
   it('should redirect with hash preserved', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const router = createWebRouter({
       routes: defineRoutes([
         {

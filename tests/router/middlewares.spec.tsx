@@ -1,19 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getGlobalContext } from 'retend/context';
 import { vDomSetup } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
 import {
+  type RouterMiddleware,
   createWebRouter,
   defineRouterMiddleware,
   defineRoutes,
   redirect,
 } from 'retend/router';
-import type { RouterMiddleware } from 'retend/router';
+import type { DOMRenderer } from 'retend-web';
 
 describe('Router Middlewares', () => {
   vDomSetup();
 
   it('should execute middleware before route change', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const middlewareSpy = vi.fn();
 
     const testMiddleware: RouterMiddleware = defineRouterMiddleware(
@@ -40,7 +42,8 @@ describe('Router Middlewares', () => {
   });
 
   it('should allow middleware to cancel navigation', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const blockingMiddleware: RouterMiddleware = defineRouterMiddleware(
       (details) => {
         if (details.to.path === '/protected' && details.from) {
@@ -68,7 +71,8 @@ describe('Router Middlewares', () => {
   });
 
   it('should chain multiple middlewares', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const executionOrder: string[] = [];
 
     const firstMiddleware: RouterMiddleware = defineRouterMiddleware(() => {
@@ -93,7 +97,8 @@ describe('Router Middlewares', () => {
   });
 
   it('should allow middleware to modify route', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const redirectMiddleware = defineRouterMiddleware((details) => {
       if (details.to.path === '/new-path' && details.from) {
         return redirect(details.from.fullPath);
@@ -117,7 +122,8 @@ describe('Router Middlewares', () => {
   });
 
   it('should handle async middleware operations', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const delay = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -141,7 +147,8 @@ describe('Router Middlewares', () => {
   });
 
   it('should provide route metadata to middleware', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const metadataSpy = vi.fn();
 
     const metadataMiddleware = defineRouterMiddleware((details) => {

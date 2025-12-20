@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext } from 'retend/context';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
 import {
   createWebRouter,
@@ -14,7 +15,8 @@ describe('Router Lazy Subtrees', () => {
   vDomSetup();
 
   it('should load a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const subtree = defineRoute({
       name: 'about-me',
@@ -49,7 +51,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load a lazy subtree not at the root level', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const nestedSubtree = defineRoute({
       name: 'lazy-nested-route',
@@ -86,7 +89,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should throw errors if the path of the subtree is not the same as the importer', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const misconfiguredSubtree = defineRoute({
       name: 'incorrect-lazy-subtree',
@@ -112,7 +116,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load a lazy subtree directly importing a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const deepestLazyComponent = defineRoute({
       name: 'deepest-lazy-component',
@@ -144,7 +149,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load nested lazy subtrees', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const financeReportsComponent = defineRoute({
       name: 'finance-reports',
@@ -187,7 +193,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   vDomSetup();
 
   it('should handle parameters defined before the lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const UserProfile = () => {
       const router = useRouter();
@@ -223,7 +230,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle parameters defined within the lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductPage = () => {
       const currentRoute = useCurrentRoute();
@@ -258,7 +266,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle parameters defined both before and within the lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const StoreItem = () => {
       const currentRoute = useCurrentRoute();
@@ -307,7 +316,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle wildcards within a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const DocsPage = () => {
       const currentRoute = useCurrentRoute();
@@ -344,7 +354,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle fallthrough (index) routes within a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const DashboardHome = () => <div>Dashboard Home</div>;
     const DashboardSettings = () => <div>Dashboard Settings</div>;
@@ -384,7 +395,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle parameters directly on the lazy route importer', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductDetail = () => {
       const currentRoute = useCurrentRoute();
