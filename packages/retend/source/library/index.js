@@ -8,6 +8,5 @@ export * from './scope.js';
 export * from './renderer.js';
 export * from './utils.js';
 export * from './unique.js';
-export * from './teleport.js';
 // Exported for convenience.
 export * from '@adbl/cells';

@@ -19,6 +19,7 @@ export function h(
   _,
   __,
   fileData,
+  // @ts-expect-error: renderer types are a pain.
   renderer = getActiveRenderer()
 ) {
   if (tagOrFn === undefined) return [];

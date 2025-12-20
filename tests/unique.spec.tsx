@@ -10,7 +10,7 @@ import {
   Switch,
   useSetupEffect,
 } from 'retend';
-import { ShadowRoot } from 'retend-web/shadowroot';
+import { ShadowRoot } from 'retend-web';
 
 const runTests = () => {
   it('should render a <Unique/> component', async () => {

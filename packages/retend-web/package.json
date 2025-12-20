@@ -1,54 +1,45 @@
 {
-  "name": "retend-web",
-  "version": "0.0.23",
-  "description": "A modern reactive framework for fluid, dynamic web apps.",
-  "private": false,
-  "type": "module",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "bun scripts/build.js"
-  },
-  "keywords": [
-    "web",
-    "javascript",
-    "pwa",
-    "jsx"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./shadowroot": {
-      "import": "./dist/shadowroot.js",
-      "types": "./dist/shadowroot.d.ts"
-    },
-    "./plugin": {
-      "import": "./dist/web/plugin/index.js",
-      "types": "./dist/web/plugin/index.d.ts"
-    },
-    "./plugin/hmr": {
-      "import": "./dist/web/plugin/hmr.js",
-      "types": "./dist/web/plugin/hmr.d.ts"
-    }
-  },
-  "homepage": "https://github.com/adebola-io/retend#readme",
-  "bugs": {
-    "url": "https://github.com/adebola-io/retend/issues"
-  },
-  "author": "Adebola Akomolafe",
-  "repository": {
-    "directory": "github.com/adebola-io/retend",
-    "type": "git"
-  },
-  "license": "MIT",
-  "devDependencies": {
-    "typescript": "^5.8.2"
-  },
-  "peerDependencies": {
-    "retend": "*"
-  },
-  "publishConfig": {
-    "access": "public"
-  }
+	"name": "retend-web",
+	"version": "0.0.23",
+	"description": "A modern reactive framework for fluid, dynamic web apps.",
+	"private": false,
+	"type": "module",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"build": "bun scripts/build.js"
+	},
+	"keywords": ["web", "javascript", "pwa", "jsx"],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./plugin": {
+			"import": "./dist/web/plugin/index.js",
+			"types": "./dist/web/plugin/index.d.ts"
+		},
+		"./plugin/hmr": {
+			"import": "./dist/web/plugin/hmr.js",
+			"types": "./dist/web/plugin/hmr.d.ts"
+		}
+	},
+	"homepage": "https://github.com/adebola-io/retend#readme",
+	"bugs": {
+		"url": "https://github.com/adebola-io/retend/issues"
+	},
+	"author": "Adebola Akomolafe",
+	"repository": {
+		"directory": "github.com/adebola-io/retend",
+		"type": "git"
+	},
+	"license": "MIT",
+	"devDependencies": {
+		"typescript": "^5.8.2"
+	},
+	"peerDependencies": {
+		"retend": "*"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
 }

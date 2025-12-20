@@ -1,9 +1,9 @@
-import { describe, it, expect, assert } from 'vitest';
 import { Cell } from 'retend';
-import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
-import { ShadowRoot } from 'retend-web/shadowroot';
+import { ShadowRoot } from 'retend-web';
 import { getGlobalContext } from 'retend/context';
-import type { VNode, VElement } from 'retend/v-dom';
+import type { VElement, VNode } from 'retend/v-dom';
+import { assert, describe, expect, it } from 'vitest';
+import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
 
 const runTests = () => {
   it('should create a shadow root with default mode "open"', () => {

@@ -1,18 +1,16 @@
-/** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import * as VDom from '../v-dom/index.js' */
-/** @import { NodeLike } from '../context/index.js' */
+/** @import { JSX } from 'retend/jsx-runtime' */
+/** @import * as VDom from 'retend/v-dom' */
+/** @import { NodeLike } from 'retend/context' */
 
 import { Cell } from '@adbl/cells';
-import { useObserver } from './observer.js';
+import { getGlobalContext, isVNode, matchContext, Modes } from 'retend/context';
 import {
-  getGlobalContext,
-  isVNode,
-  matchContext,
-  Modes,
-} from '../context/index.js';
-import { useConsistent } from './consistent.js';
-import { getActiveRenderer } from './renderer.js';
-import { connectNodes, createNodesFromTemplate } from './utils.js';
+  useConsistent,
+  useObserver,
+  getActiveRenderer,
+  connectNodes,
+  createNodesFromTemplate,
+} from 'retend';
 
 /**
  * @typedef TeleportOnlyProps
