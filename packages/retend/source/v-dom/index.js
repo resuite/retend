@@ -413,14 +413,14 @@ export class VElement extends VNode {
     return this.#tag.toUpperCase();
   }
 
-  /** @param {{ mode: ShadowRootMode}} options */
-  attachShadow({ mode }) {
+  /** @param {{ mode: string }} _options */
+  attachShadow(_options) {
     if (!this.ownerDocument) {
       throw new Error(
         'Cannot attach shadow to a node without an ownerDocument'
       );
     }
-    this.#shadowRoot = new VShadowRoot(mode, this.ownerDocument);
+    this.#shadowRoot = new VShadowRoot('open', this.ownerDocument);
     return this.#shadowRoot;
   }
 
@@ -430,9 +430,6 @@ export class VElement extends VNode {
   }
 
   get shadowRoot() {
-    if (!this.#shadowRoot) return null;
-
-    if (this.#shadowRoot.mode === 'closed') return null;
     return this.#shadowRoot;
   }
 }
@@ -460,7 +457,7 @@ export class VDocumentFragment extends VNode {
 
 export class VShadowRoot extends VDocumentFragment {
   /**
-   * @param {string} mode
+   * @param {'open'} mode
    * @param {VDocument} document
    */
   constructor(mode, document) {

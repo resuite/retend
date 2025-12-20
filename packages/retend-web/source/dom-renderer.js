@@ -99,7 +99,6 @@ export class DOMRenderer {
     this.append(node, data.childNodes);
     if (data.shadowRoot) {
       const { mode, childNodes } = data.shadowRoot;
-      // @ts-expect-error: mode is not properly typed.
       const newShadow = node.attachShadow({ mode });
       this.append(newShadow, [...childNodes]);
     }

@@ -1,7 +1,7 @@
 {
   "name": "retend",
   "version": "0.0.23",
-  "description": "A modern reactive framework for fluid, dynamic web apps.",
+  "description": "A library for reactive user interfaces",
   "private": false,
   "type": "module",
   "scripts": {
@@ -22,10 +22,6 @@
     "./router": {
       "import": "./dist/router/router.js",
       "types": "./dist/router/router.d.ts"
-    },
-    "./shadowroot": {
-      "import": "./dist/shadowroot/index.js",
-      "types": "./dist/shadowroot/index.d.ts"
     },
     "./jsx-runtime": {
       "import": "./dist/jsx-runtime/index.js",

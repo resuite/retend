@@ -1,7 +1,7 @@
 import { describe, it, expect, assert } from 'vitest';
 import { Cell } from 'retend';
 import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
-import { ShadowRoot } from 'retend/shadowroot';
+import { ShadowRoot } from 'retend-web/shadowroot';
 import { getGlobalContext } from 'retend/context';
 import type { VNode, VElement } from 'retend/v-dom';
 
@@ -21,21 +21,6 @@ const runTests = () => {
     assert(shadowRoot);
     expect(shadowRoot?.mode).toBe('open');
     expect(getTextContent(shadowRoot)).toBe('Shadow content');
-  });
-
-  it('should create a closed shadow root', () => {
-    const { window } = getGlobalContext();
-    const result = (
-      <div>
-        <ShadowRoot mode="closed">
-          <div>Shadow content</div>
-        </ShadowRoot>
-      </div>
-    ) as HTMLElement & VElement;
-
-    expect(result instanceof window.HTMLElement).toBe(true);
-    // Cannot access closed shadowRoot directly
-    expect(result.shadowRoot).toBeNull();
   });
 
   it('should encapsulate styles within shadow root', () => {

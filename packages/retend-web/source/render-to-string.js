@@ -88,7 +88,7 @@ export async function renderToString(template, window, options = {}) {
     }
 
     if (template instanceof window.ShadowRoot) {
-      let text = `<template shadowrootmode="${template.mode}">`;
+      let text = '<template shadowrootmode="open">';
 
       if (options.markStaticNodes) {
         const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
@@ -229,7 +229,6 @@ function nodeIsStatic(node, window) {
   }
 
   if (node.shadowRoot) {
-    if (node.shadowRoot.mode === 'closed') return true; // might as well be static
     for (const child of node.shadowRoot.childNodes) {
       if (!nodeIsStatic(child, window)) return false;
     }

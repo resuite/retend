@@ -1,12 +1,8 @@
-/** @import { JSX } from '../jsx-runtime/types.ts' */
-import { getActiveRenderer } from '../library/renderer.js';
-import { connectNodes } from '../library/utils.js';
+/** @import { JSX } from 'retend/jsx-runtime' */
+import { getActiveRenderer, connectNodes } from 'retend';
 
 /**
  * @typedef ShadowRootProps
- *
- * @property {ShadowRootMode} [mode]
- * The mode to use for the shadow root. If not provided, the default mode is "open".
  *
  * @property {unknown} [children]
  * The children to render in the shadow root.
@@ -35,43 +31,20 @@ import { connectNodes } from '../library/utils.js';
  *   </ShadowRoot>
  * </some-web-component>
  *
- * @example
- * // Creating a closed shadow root
- * <some-web-component>
- *   <ShadowRoot mode="closed">
- *     <div>Content inside shadow DOM</div>
- *   </ShadowRoot>
- * </some-web-component>
- *
  * @note
  * The behavior of the element might seem counterintuitive when dealing with
  * multiple `ShadowRoot` components on the same parent. Ideally a parent node should
  * have at most one `ShadowRoot` child.
- *
- * @note
- * When using static site generation, the shadow root _will not be rendered_ if
- * `mode` is set to "closed". This is because it becomes inaccessible in JavaScript
- * and can neither be serialized nor hydrated on the client. Use `closed` shadow-roots
- * only in client-side projects.
  */
 export function ShadowRoot(props) {
-  const { mode, children } = props;
+  const { children } = props;
   const renderer = getActiveRenderer();
 
   const shadowRoot = /** @type {ShadowRootContainer} */ (
     renderer.createGroup()
   );
 
-  // @ts-expect-error: The import.meta.env types are available in Vite.
-  if (import.meta.env?.SSR) {
-    if (mode === 'closed') {
-      const message =
-        'Closed shadow roots cannot by hydrated on the client. This code will NOT be generated.';
-      console.trace(message);
-    }
-  }
-
-  shadowRoot.__mode = mode ?? 'open';
+  shadowRoot.__mode = 'open';
   shadowRoot.__isShadowRootContainer = true;
   connectNodes(shadowRoot, children, getActiveRenderer());
   return shadowRoot;

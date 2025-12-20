@@ -19,6 +19,10 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./shadowroot": {
+      "import": "./dist/shadowroot.js",
+      "types": "./dist/shadowroot.d.ts"
+    },
     "./plugin": {
       "import": "./dist/web/plugin/index.js",
       "types": "./dist/web/plugin/index.d.ts"
