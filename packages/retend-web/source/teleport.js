@@ -2,9 +2,9 @@
 /** @import * as VDom from 'retend/v-dom' */
 /** @import { NodeLike } from 'retend/context' */
 
-import { Cell } from '@adbl/cells';
 import { getGlobalContext, isVNode, matchContext, Modes } from 'retend/context';
 import {
+  Cell,
   useConsistent,
   useObserver,
   getActiveRenderer,
