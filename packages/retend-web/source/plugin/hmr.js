@@ -219,7 +219,8 @@ function stabilizeNodes(nodes) {
  */
 export function runInvalidatorWithHMRBoundaries(value, completeProps) {
   const snapshot = createScopeSnapshot();
-  const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
+  /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
+  const renderer = getActiveRenderer();
 
   /** @returns {NodeLike[]} */
   const nextComponentRender = () => {

@@ -23,6 +23,7 @@ import {
  * @typedef {(Element | VDom.VElement) & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
+ * @typedef {{ childNodes: NodeLike[], shadowRoot: ShadowRoot | VDom.VShadowRoot | null, data: any }} SavedInstance
  */
 
 /**
@@ -34,6 +35,7 @@ import {
  * @property {FragmentLike} Group
  * @property {JsxElement} Container
  * @property {VDom.VWindow | Window} Host
+ * @property {SavedInstance} SavedNodeState
  */
 
 /**
@@ -47,13 +49,6 @@ export class DOMRenderer {
   /** @param {VDom.VWindow | Window & globalThis} host */
   constructor(host) {
     this.host = host;
-    this.injectStyles();
-    this.capabilities = {
-      supportsSetupEffects: matchContext(window, Modes.Interactive),
-    };
-  }
-
-  injectStyles() {
     writeStaticStyle(
       'dom-styles',
       ':where(retend-outlet) { display: contents }' +
@@ -61,6 +56,53 @@ export class DOMRenderer {
         ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
       this.host
     );
+    this.capabilities = {
+      supportsSetupEffects: matchContext(window, Modes.Interactive),
+    };
+  }
+
+  /**
+   * @param {string} key
+   */
+  selectMatchingNodes(key) {
+    return [...this.host.document.querySelectorAll(key)];
+  }
+
+  /**
+   * @param {string} key
+   */
+  selectMatchingNode(key) {
+    return this.host.document.querySelector(key);
+  }
+
+  /**
+   * @param {NodeLike} node
+   * @param {any} data
+   * @returns {SavedInstance}
+   */
+  saveContainerState(node, data) {
+    if (!(node instanceof this.host.Element)) {
+      throw new Error('Cannot save state of non-element node.');
+    }
+    return {
+      childNodes: [...node.childNodes],
+      shadowRoot: node.shadowRoot,
+      data,
+    };
+  }
+
+  /**
+   * @param {JsxElement} node
+   * @param {SavedInstance} data
+   */
+  restoreContainerState(node, data) {
+    this.append(node, data.childNodes);
+    if (data.shadowRoot) {
+      const { mode, childNodes } = data.shadowRoot;
+      // @ts-expect-error: mode is not properly typed.
+      const newShadow = node.attachShadow({ mode });
+      this.append(newShadow, [...childNodes]);
+    }
   }
 
   /**

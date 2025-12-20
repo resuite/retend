@@ -15,6 +15,7 @@ const RendererKey = Symbol('Renderer');
  * @property {any} Text
  * @property {any} Container
  * @property {EventTarget} Host
+ * @property {any} SavedNodeState
  */
 
 /**
@@ -31,6 +32,7 @@ const RendererKey = Symbol('Renderer');
  * @property {unknown} Text
  * @property {unknown} Container
  * @property {EventTarget} Host
+ * @property {{ data: unknown }} SavedNodeState
  */
 
 /**
@@ -42,6 +44,7 @@ const RendererKey = Symbol('Renderer');
  * @template {Node} [Handle=Types['Handle']]
  * @template {Node} [Text=Types['Text']]
  * @template [Host=Types['Host']]
+ * @template [SavedNodeState=Types['SavedNodeState']]
  *
  * @typedef Renderer
  *
@@ -90,6 +93,18 @@ const RendererKey = Symbol('Renderer');
  * @property {(tagnameOrFunction: UpdatableFn, props: any, fileData?: jsxDevFileData) => Node} handleComponent
  * Orchestrates the execution of functional components, including hook initialization
  * and HMR (Hot Module Replacement) boundary setup.
+ *
+ * @property {(key: string) => Node | null} selectMatchingNode
+ * Locates a node in the host environment by its unique key.
+ *
+ * @property {(key: string) => Node[]} selectMatchingNodes
+ * Locates all nodes in the host environment matching a specific key.
+ *
+ * @property {(node: Container, customData: unknown) => SavedNodeState} saveContainerState
+ * Captures the current state of a container node to be restored later.
+ *
+ * @property {(node: Container, state: SavedNodeState) => void} restoreContainerState
+ * Re-applies a previously saved state to a container node.
  */
 
 /**
@@ -125,7 +140,8 @@ export function getActiveRenderer() {
 }
 
 /**
- * @param {Renderer<any>} renderer
+ * @template {RendererTypes} Types
+ * @param {Renderer<Types>} renderer
  */
 export function setActiveRenderer(renderer) {
   const { globalData } = getGlobalContext();

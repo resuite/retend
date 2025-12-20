@@ -669,6 +669,161 @@ describe('Unique', () => {
 
       body.replaceChildren();
     });
+
+    it('should preserve content even if new instance has different children function', async () => {
+      const { window } = getGlobalContext();
+      const uuid = crypto.randomUUID();
+
+      const { body } = window.document;
+      const showFirst = Cell.source(true);
+
+      const App = () => (
+        <div>
+          {If(
+            showFirst,
+            () => (
+              <Unique name={uuid}>
+                {() => <div id="orig">Original Content</div>}
+              </Unique>
+            ),
+            () => (
+              <Unique name={uuid}>
+                {() => <div id="new">New Content</div>}
+              </Unique>
+            )
+          )}
+        </div>
+      );
+
+      body.append((<App />) as any);
+      await runPendingSetupEffects();
+      expect(body.querySelector('#orig')).not.toBeNull();
+      expect(body.querySelector('#new')).toBeNull();
+
+      showFirst.set(false);
+      await runPendingSetupEffects();
+
+      // Should still have original content because it's "Unique" by name
+      expect(body.querySelector('#orig')).not.toBeNull();
+      expect(body.querySelector('#new')).toBeNull();
+      body.replaceChildren();
+    });
+
+    it('should preserve and update attributes on the Unique wrapper', async () => {
+      const { window } = getGlobalContext();
+      const uuid = crypto.randomUUID();
+      const className = Cell.source('initial-class');
+
+      const { body } = window.document;
+      const App = () => (
+        <Unique name={uuid} class={className}>
+          {() => <div>Content</div>}
+        </Unique>
+      );
+
+      body.append((<App />) as any);
+      await runPendingSetupEffects();
+
+      let uniqueEl = body.querySelector('retend-unique-instance');
+      expect(uniqueEl?.className).toBe('initial-class');
+
+      className.set('updated-class');
+      await runPendingSetupEffects();
+      expect(uniqueEl?.className).toBe('updated-class');
+      body.replaceChildren();
+    });
+
+    it('should handle nested Unique components', async () => {
+      const { window } = getGlobalContext();
+      const outerUuid = crypto.randomUUID();
+      const innerUuid = crypto.randomUUID();
+      const innerSetup = vi.fn();
+
+      const Inner = () => {
+        useSetupEffect(() => {
+          innerSetup();
+        });
+        return <div>Inner Content</div>;
+      };
+
+      const Outer = () => (
+        <Unique name={outerUuid}>
+          {() => (
+            <div class="outer-box">
+              <Unique name={innerUuid}>{() => <Inner />}</Unique>
+            </div>
+          )}
+        </Unique>
+      );
+
+      const { body } = window.document;
+      const show = Cell.source(true);
+      body.append(
+        (
+          <div>
+            {If(show, () => (
+              <Outer />
+            ))}
+          </div>
+        ) as any
+      );
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toContain('Inner Content');
+      expect(innerSetup).toHaveBeenCalledTimes(1);
+
+      // Move it
+      show.set(false);
+      await runPendingSetupEffects();
+      // It should still exist in memory but not in DOM
+      expect(body.querySelector('.outer-box')).toBeNull();
+
+      show.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toContain('Inner Content');
+      expect(innerSetup).toHaveBeenCalledTimes(2); // Should not re-run setup
+      body.replaceChildren();
+    });
+
+    it('should dispose when not remounted before activate', async () => {
+      const { window } = getGlobalContext();
+      const uuid = crypto.randomUUID();
+      const cleanupFn = vi.fn();
+
+      const Content = () => {
+        useSetupEffect(() => {
+          return cleanupFn;
+        });
+        return <div>Content</div>;
+      };
+
+      const { body } = window.document;
+      const show = Cell.source(true);
+      const app = (
+        <div>
+          {If(show, () => (
+            <Unique name={uuid}>{() => <Content />}</Unique>
+          ))}
+        </div>
+      );
+      body.append(app as any);
+      await runPendingSetupEffects();
+
+      expect(cleanupFn).not.toHaveBeenCalled();
+
+      show.set(false);
+      await runPendingSetupEffects();
+
+      // At this point, it should be in pending teardowns.
+      // We need to trigger the activate event to process teardowns.
+      body.dispatchEvent(
+        new window.CustomEvent('retend:activate', { bubbles: true })
+      );
+
+      expect(cleanupFn).toHaveBeenCalledTimes(1);
+      body.replaceChildren();
+    });
   });
 
   describe('VDom', () => {

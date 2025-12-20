@@ -32,7 +32,8 @@ import { getGlobalContext, isVNode } from 'retend/context';
  * @returns {[ConnectedComment, ConnectedComment]} A pair of connected comment nodes with a shared symbol.
  */
 export function createCommentPair() {
-  const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
+  /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
+  const renderer = getActiveRenderer();
   const symbol = Symbol();
   const rangeStart = renderer.host.document.createComment('----');
   const rangeEnd = renderer.host.document.createComment('----');
@@ -64,7 +65,8 @@ export function isMatchingCommentPair(start, end) {
  * @param {(Node | VDom.VNode)[]} nodes - The array of nodes to consolidate.
  */
 export function consolidateNodes(nodes) {
-  const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
+  /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
+  const renderer = getActiveRenderer();
   if (nodes.length === 1) return nodes[0];
 
   const fragment = renderer.host.document.createDocumentFragment();

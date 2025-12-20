@@ -15,7 +15,7 @@
     "test": "cd ./tests && bunx vitest run",
     "test:watch": "cd ./tests && vitest",
     "test:ci": "cd ./tests && vitest run --reporter=verbose",
-    "build": "bun build-core && bun build-ssg && bun build-utils && bun build-web",
+    "build": "bun build-core && bun build-web && bun build-ssg && bun build-utils",
     "build-core": "cd packages/retend && bun run build",
     "build-web": "cd packages/retend-web && bun run build",
     "build-ssg": "cd packages/retend-server && bun run build",

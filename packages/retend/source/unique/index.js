@@ -1,5 +1,4 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { VElement } from '../v-dom/index.js'; */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
 /** @import { GlobalContextChangeEvent } from '../context/index.js'; */
 
@@ -18,19 +17,19 @@ import { connectNodes } from '../library/utils.js';
 
 /**
  * @typedef UniqueStash
- * @property {Map<string, SavedElementInstance>} instances
- * @property {Map<string, Cell<HTMLElement | null>>} refs
+ * @property {Map<string, { data: any }>} instances
+ * @property {Map<string, Cell<unknown | null>>} refs
  * @property {Map<string, ScopeSnapshot>} scopes
  * @property {Set<() => void>} pendingTeardowns
  * @property {() => void} onActivate
  */
 
-/**
- * @typedef SavedElementInstance
- * @property {ChildNode[]} children
- * @property {ShadowRoot | null} shadowRoot
- * @property {any} [data]
- */
+// /**
+//  * @typedef SavedElementInstance
+//  * @property {ChildNode[]} children
+//  * @property {ShadowRoot | null} shadowRoot
+//  * @property {any} [data]
+//  */
 
 /** @typedef {JSX.IntrinsicElements["div"]} DivProps */
 
@@ -72,7 +71,8 @@ const elementName = 'retend-unique-instance';
  * @returns {UniqueStash}
  */
 const initUniqueStash = () => {
-  const { window, globalData } = getGlobalContext();
+  const { globalData } = getGlobalContext();
+  const renderer = getActiveRenderer();
   const checkForUniqueComponentTeardowns = () => {
     for (const teardown of stash.pendingTeardowns) {
       teardown();
@@ -89,11 +89,11 @@ const initUniqueStash = () => {
   };
   globalData.set(UniqueComponentStash, stash);
 
-  window.addEventListener('retend:activate', stash.onActivate);
-  window.addEventListener('globalcontextchange', (event) => {
+  renderer.host.addEventListener('retend:activate', stash.onActivate);
+  renderer.host.addEventListener('globalcontextchange', (event) => {
     const _event = /** @type {GlobalContextChangeEvent} */ (event);
     const { newContext } = _event.detail;
-    window.removeEventListener('retend:activate', stash.onActivate);
+    renderer.host.removeEventListener('retend:activate', stash.onActivate);
     if (!newContext) return;
     const { window: newWindow } = newContext;
 
@@ -186,25 +186,23 @@ export function Unique(props) {
   const retendUniqueInstance = h(elementName, rest);
   let previous = stash.instances.get(name);
 
-  /** @param {HTMLElement | VElement} div */
+  /** @param {unknown} div */
   const saveState = (div) => {
-    const children = /** @type {ChildNode[]} */ ([...div.childNodes]);
-    const shadowRoot = /** @type {ShadowRoot | null} */ (div.shadowRoot);
-    div.setAttribute('state', 'moved');
-    previous = { children, shadowRoot };
+    const renderer = getActiveRenderer();
 
-    if (onSave) {
-      const _div = /** @type {HTMLElement} */ (div);
-      const customData = onSave(_div);
-      previous.data = customData;
-    }
+    renderer.setProperty(div, 'state', 'moved');
+    let customData;
+    // @ts-ignore: TODO: The base type should be unknown when more environments are added.
+    if (onSave) customData = onSave(div);
 
+    previous = renderer.saveContainerState(div, customData);
     if (previous) stash.instances.set(name, previous);
   };
 
-  /** @param {HTMLElement} div */
+  /** @param {unknown} div */
   const restoreState = (div) => {
     if (onRestore && previous) {
+      // @ts-ignore: TODO: The base type should be unknown when more environments are added.
       onRestore(div, previous.data);
     }
 
@@ -234,8 +232,8 @@ export function Unique(props) {
   // Once (7) runs, it means the next node should already be in the dom, and if
   // it isn't, then we can dispose, because there is no continuity.
   const teardown = () => {
-    const { window } = getGlobalContext();
-    const possibleNextInstance = window.document.querySelector(selector);
+    const renderer = getActiveRenderer();
+    const possibleNextInstance = renderer.selectMatchingNode(selector);
     if (possibleNextInstance) {
       stash.pendingTeardowns.delete(teardown);
       return;
@@ -257,8 +255,8 @@ export function Unique(props) {
     if (scope) scope.node.enable();
 
     return () => {
-      const { window } = getGlobalContext();
-      const nextInstance = window.document.querySelector(selector);
+      const renderer = getActiveRenderer();
+      const nextInstance = renderer.selectMatchingNode(selector);
       if (!nextInstance && !disposedByHMR) stash.pendingTeardowns.add(teardown);
     };
   });
@@ -281,8 +279,6 @@ export function Unique(props) {
         disposedByHMR = true;
         return;
       }
-
-      const { window } = getGlobalContext();
       const renderer = getActiveRenderer();
       const scope = stash.scopes.get(name);
       if (scope) scope.node.disable();
@@ -290,15 +286,14 @@ export function Unique(props) {
       if (currentElement === current) {
         saveState(/** @type {HTMLElement} */ (current));
 
-        const nextInstances = window.document.querySelectorAll(selector);
-        for (const nextInstance of [...nextInstances].reverse()) {
+        const nextInstances = renderer.selectMatchingNodes(selector);
+        for (const nextInstance of nextInstances.reverse()) {
           if (currentElement !== nextInstance) {
             renderer.append(
               nextInstance,
               Array.from(retendUniqueInstance.childNodes)
             );
-            nextInstance.setAttribute('state', 'restored');
-            // @ts-expect-error
+            renderer.setProperty(nextInstance, 'state', 'restored');
             restoreState(nextInstance);
             break;
           }
@@ -309,28 +304,20 @@ export function Unique(props) {
 
   if (ref instanceof SourceCell) ref.set(retendUniqueInstance);
   stash.refs.set(name, ref);
-  retendUniqueInstance.setAttribute('name', name);
 
+  renderer.setProperty(retendUniqueInstance, 'name', name);
   let childNodes;
-  let shadowRoot;
-  if (previous?.children) {
-    childNodes = previous.children;
-    shadowRoot = previous.shadowRoot;
+  if (previous) {
+    renderer.setProperty(retendUniqueInstance, 'state', 'restored');
+    renderer.restoreContainerState(retendUniqueInstance, previous);
   } else {
+    renderer.setProperty(retendUniqueInstance, 'state', 'new');
     childNodes = (() => {
       const scopeSnapshot = createScopeSnapshot();
       stash.scopes.set(name, scopeSnapshot);
       return withScopeSnapshot(scopeSnapshot, () => h(children, {}));
     })();
-  }
-
-  retendUniqueInstance.setAttribute('state', previous ? 'restored' : 'new');
-  connectNodes(retendUniqueInstance, childNodes, renderer);
-
-  if (shadowRoot) {
-    const { mode, childNodes } = shadowRoot;
-    const newShadowRoot = retendUniqueInstance.attachShadow({ mode });
-    connectNodes(newShadowRoot, childNodes, renderer);
+    connectNodes(retendUniqueInstance, childNodes, renderer);
   }
 
   return retendUniqueInstance;
