@@ -3,16 +3,16 @@
 /** @import { NodeLike } from '../context/index.js' */
 
 import { Cell } from '@adbl/cells';
-import { useObserver } from '../library/observer.js';
+import { useObserver } from './observer.js';
 import {
   getGlobalContext,
   isVNode,
   matchContext,
   Modes,
 } from '../context/index.js';
-import { useConsistent } from '../library/consistent.js';
-import { getActiveRenderer } from '../library/renderer.js';
-import { connectNodes, createNodesFromTemplate } from '../library/utils.js';
+import { useConsistent } from './consistent.js';
+import { getActiveRenderer } from './renderer.js';
+import { connectNodes, createNodesFromTemplate } from './utils.js';
 
 /**
  * @typedef TeleportOnlyProps

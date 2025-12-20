@@ -2092,7 +2092,7 @@ Let's imagine a simple use case: a navigation bar that is rendered at the top of
 - **Basic Example**:
 
 ```jsx
-import { Teleport } from "retend/teleport";
+import { Teleport } from "retend";
 
 function NavBar() {
   return (
@@ -2116,7 +2116,7 @@ In the example above, the `div` will be rendered as a child of the `body` elemen
 
 ```jsx
 import { If, Cell } from "retend";
-import { Teleport } from "retend/teleport";
+import { Teleport } from "retend";
 
 function Modal({ content, onClose }) {
   return (
@@ -2165,7 +2165,7 @@ In this example, `Teleport` is used to render the `Modal` component directly und
 - **Using a CSS selector**:
 
 ```jsx
-import { Teleport } from "retend/teleport";
+import { Teleport } from "retend";
 
 function MyComponent() {
   return (

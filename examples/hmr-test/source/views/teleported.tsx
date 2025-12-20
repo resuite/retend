@@ -1,4 +1,4 @@
-import { Teleport } from 'retend/teleport';
+import { Teleport } from 'retend';
 
 export function TeleportedElement() {
   return (

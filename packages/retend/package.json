@@ -23,10 +23,6 @@
       "import": "./dist/router/router.js",
       "types": "./dist/router/router.d.ts"
     },
-    "./teleport": {
-      "import": "./dist/teleport/index.js",
-      "types": "./dist/teleport/index.d.ts"
-    },
     "./shadowroot": {
       "import": "./dist/shadowroot/index.js",
       "types": "./dist/shadowroot/index.d.ts"
