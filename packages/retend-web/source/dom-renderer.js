@@ -242,14 +242,9 @@ export class DOMRenderer {
         element.__attributeCells.add(value);
         return node;
       }
-      addCellListener(
-        element,
-        value,
-        function (value) {
-          setAttribute(this, key, value);
-        },
-        false
-      );
+      addCellListener(element, value, function (value) {
+        setAttribute(this, key, value);
+      });
     } else setAttribute(element, key, value);
 
     return node;

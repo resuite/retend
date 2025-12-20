@@ -45,7 +45,7 @@ export * from './middleware.js';
 export * from './events.js';
 
 /** @type {Scope<RouterData>} */
-const RouterScope = createScope('Router');
+const RouterScope = createScope('retend:Router');
 
 // ----------
 /** A client-side router for building dynamic web applications.
