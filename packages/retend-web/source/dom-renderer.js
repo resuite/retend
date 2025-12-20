@@ -2,10 +2,10 @@
 /** @import { NodeLike, FragmentLike, WindowLike } from "retend/context"; */
 /** @import * as VDom from 'retend/v-dom' */
 /** @import { jsxDevFileData, UpdatableFn } from 'retend/hmr'; */
-/** @import { ConnectedComment, HiddenElementProperties, WrapperFn } from './utils.js'; */
+/** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
-import { isVNode, matchContext, Modes } from 'retend/context';
+import { matchContext, Modes } from 'retend/context';
 import {
   connectNodes,
   createNodesFromTemplate,
@@ -14,12 +14,8 @@ import {
 import { withHMRBoundaries } from './plugin/hmr.js';
 import {
   addCellListener,
-  camelCasedAttributes,
-  convertObjectToCssStylesheet,
   createCommentPair,
-  isSomewhatFalsy,
-  listenerModifiers,
-  normalizeClassValue,
+  setAttribute,
   writeStaticStyle,
 } from './utils.js';
 
@@ -238,7 +234,6 @@ export class DOMRenderer {
     }
 
     const element = /** @type {JsxElement} */ (node);
-    const setAttribute = this.#setAttribute;
     if (Cell.isCell(value)) {
       if (!element.__attributeCells) element.__attributeCells = new Set();
       if (key === 'ref' && value instanceof SourceCell) {
@@ -460,229 +455,5 @@ export class DOMRenderer {
    */
   isNode(child) {
     return child instanceof this.host.Node;
-  }
-
-  /**
-   * Sets an attribute on an element.
-   * @param {Element | VDom.VElement} el - The element to set the attribute on.
-   * @param {string} key - The name of the attribute.
-   * @param {any} value - The value of the attribute.
-   */
-  #setAttribute(el, key, value) {
-    const createdByJsx = true;
-    const element = /** @type {JsxElement} */ (el);
-
-    // store element event listeners.
-    if (
-      key.startsWith('on') &&
-      key.length > 2 &&
-      (!createdByJsx || (createdByJsx && typeof value !== 'string'))
-    ) {
-      this.#setEventListener(el, key, value);
-      return;
-    }
-
-    if (key === 'children') {
-      return;
-    }
-
-    if (key.startsWith('aria')) {
-      const ariaKey = `aria-${key.slice(4).toLowerCase()}`;
-
-      if (isSomewhatFalsy(value)) {
-        element.removeAttribute(ariaKey);
-      } else {
-        element.setAttribute(ariaKey, value);
-      }
-      return;
-    }
-
-    if (
-      key.startsWith('form') ||
-      key.startsWith('popover') ||
-      key.startsWith('auto') ||
-      key === 'tabIndex'
-    ) {
-      const attrKey = key.toLowerCase();
-
-      if (isSomewhatFalsy(value)) {
-        element.removeAttribute(attrKey);
-      } else {
-        element.setAttribute(attrKey, value);
-      }
-
-      return;
-    }
-
-    if (
-      key === 'dangerouslySetInnerHTML' &&
-      typeof value === 'object' &&
-      value !== null &&
-      '__html' in value &&
-      typeof value.__html === 'string'
-    ) {
-      element.innerHTML = value.__html;
-      return;
-    }
-
-    if (key === 'style' && typeof value === 'object' && value !== null) {
-      element.setAttribute(
-        'style',
-        convertObjectToCssStylesheet(value, false, element)
-      );
-      return;
-    }
-
-    if (key === 'key') {
-      element.__key = value;
-      return;
-    }
-
-    if (camelCasedAttributes.has(key)) {
-      if (isSomewhatFalsy(value)) {
-        element.removeAttribute(key);
-      } else {
-        element.setAttribute(key, value);
-      }
-      return;
-    }
-
-    const attributeName = key
-      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-      .toLowerCase();
-
-    if (attributeName === 'class-name' || attributeName === 'class') {
-      const normalizedClass = normalizeClassValue(value, element);
-      if (normalizedClass) {
-        element.setAttribute('class', normalizedClass);
-      } else {
-        element.removeAttribute('class');
-      }
-      return;
-    }
-
-    if (isSomewhatFalsy(value)) {
-      element.removeAttribute(key);
-    } else {
-      element.setAttribute(attributeName, value);
-    }
-  }
-
-  /**
-   * Sets an event Listener on an element.
-   * @param {Element | VDom.VElement} el - The element to set the attribute on.
-   * @param {string} key - The name of the attribute.
-   * @param {any} value - The value of the attribute.
-   */
-  #setEventListener(el, key, value) {
-    const createdByJsx = true;
-    const element = /** @type {JsxElement} */ (el);
-
-    if (isVNode(element)) {
-      // Event listeners are not useful in the VDom,
-      // but they need to be stored so they can be propagated to the
-      // static DOM representation in the browser.
-      element.setHiddenAttribute(key, value);
-      return;
-    }
-
-    if (createdByJsx && key[2].toLowerCase() === key[2]) {
-      return;
-    }
-    const rawEventName = /** @type {keyof ElementEventMap} */ (
-      key.slice(2).toLowerCase()
-    );
-    const [eventName, ...modifiers] = rawEventName.split('--');
-    for (const modifier of modifiers) {
-      if (!listenerModifiers.includes(modifier)) {
-        console.warn(`Unknown event listener modifier: ${modifier}`);
-      }
-    }
-
-    if (!element.__eventListenerList) {
-      element.__eventListenerList = new Map();
-    }
-    if (!element.__modifiedListenerList) {
-      element.__modifiedListenerList = new Map();
-    }
-
-    // remove stale listeners
-    if (!modifiers.length) {
-      element.removeEventListener(eventName, value);
-      const oldValue = element.__eventListenerList.get(eventName);
-      if (oldValue !== undefined && oldValue !== value) {
-        element.removeEventListener(eventName, oldValue);
-        element.__eventListenerList.delete(eventName);
-      }
-
-      if (typeof value === 'function') {
-        element.addEventListener(eventName, value);
-        element.__eventListenerList.set(eventName, value);
-        return;
-      }
-    } else {
-      const oldValue = element.__modifiedListenerList.get(rawEventName);
-      const oldUserFunction = oldValue?.__getInnerFunction?.();
-      if (
-        oldValue !== undefined &&
-        oldUserFunction &&
-        oldUserFunction !== value
-      ) {
-        element.removeEventListener(eventName, oldUserFunction);
-        element.__modifiedListenerList.delete(rawEventName);
-      }
-
-      if (typeof value === 'function') {
-        /** @type {WrapperFn | undefined} */
-        let wrapper = function (event) {
-          return value.bind(this)(event);
-        };
-        wrapper.__getInnerFunction = function () {
-          this; // only here to silence biome.
-          return value;
-        };
-
-        /** @type {Record<string, unknown>} */
-        const options = {};
-        for (const modifier of modifiers) {
-          const oldWrapper = wrapper;
-          if (modifier === 'self') {
-            wrapper = function (event) {
-              if (event.target !== event.currentTarget) return;
-              oldWrapper.bind(this)(event);
-            };
-          } else if (modifier === 'prevent') {
-            wrapper = function (event) {
-              event.preventDefault();
-              oldWrapper.bind(this)(event);
-            };
-          } else if (modifier === 'once') {
-            options.once = true;
-            wrapper = function (event) {
-              oldWrapper.bind(this)(event);
-              const element = /** @type {JsxElement} */ (event.currentTarget);
-              element?.__modifiedListenerList.delete(rawEventName);
-            };
-          } else if (modifier === 'stop') {
-            wrapper = function (event) {
-              event.stopPropagation();
-              oldWrapper.bind(this)(event);
-              const element = /** @type {JsxElement} */ (event.currentTarget);
-              element.__modifiedListenerList.delete(rawEventName);
-            };
-          } else if (modifier === 'passive') {
-            options.passive = true;
-          }
-
-          wrapper.__getInnerFunction = function () {
-            this; // only here to silence biome.
-            return oldWrapper?.__getInnerFunction?.();
-          };
-        }
-
-        element.addEventListener(eventName, wrapper, options);
-        element.__modifiedListenerList.set(rawEventName, wrapper);
-      }
-    }
   }
 }

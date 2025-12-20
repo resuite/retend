@@ -123,6 +123,7 @@
       "peerDependencies": {
         "retend": "*",
         "retend-utils": "*",
+        "retend-web": "*",
       },
     },
   },

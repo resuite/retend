@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { For, If } from 'retend';
 import { getGlobalContext } from 'retend/context';
-import { renderToString } from 'retend/render';
+import { renderToString } from 'retend-web';
 import { Cell } from 'retend';
 import { browserSetup, timeout, vDomSetup } from './setup.tsx';
 import { ShadowRoot } from 'retend/shadowroot';

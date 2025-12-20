@@ -9,6 +9,8 @@ import {
 } from 'retend/context';
 import { VWindow } from 'retend/v-dom';
 import { Outlet, type Router, RouterProvider } from 'retend/router';
+import { setActiveRenderer } from 'retend';
+import { DOMRenderer } from 'retend-web';
 
 export const timeout = async (number?: number) => {
   return new Promise((r) => setTimeout(r, number ?? 0));
@@ -28,6 +30,7 @@ export const routerSetup = () => {
     globalData: new Map(),
     teleportIdCounter: { value: 0 },
   });
+  setActiveRenderer(new DOMRenderer(window));
 };
 
 export const routerSetupBrowser = () => {
@@ -44,6 +47,7 @@ export const routerSetupBrowser = () => {
       globalData: new Map(),
       teleportIdCounter: { value: 0 },
     });
+    setActiveRenderer(new DOMRenderer(window));
   });
 
   afterEach(() => {
@@ -69,6 +73,7 @@ export const browserSetup = () => {
       consistentValues: new Map(),
       globalData: new Map(),
     });
+    setActiveRenderer(new DOMRenderer(window));
   });
 
   afterEach(() => {
@@ -79,13 +84,15 @@ export const browserSetup = () => {
 
 export const vDomSetup = () => {
   beforeEach(() => {
+    const window = new VWindow();
     setGlobalContext({
-      window: new VWindow(),
+      window,
       consistentValues: new Map(),
       globalData: new Map(),
       mode: Modes.VDom,
       teleportIdCounter: { value: 0 },
     });
+    setActiveRenderer(new DOMRenderer(window));
   });
 
   afterEach(() => {
