@@ -1,6 +1,6 @@
 /** @import { Plugin, UserConfig, ResolvedConfig, RunnableDevEnvironmentContext, RunnableDevEnvironment } from 'vite' */
 // /** @import { EmittedFile } from 'rollup' */
-/** @import { VElement } from 'retend/v-dom' */
+/** @import { VElement } from './v-dom/index.js' */
 /** @import { AsyncStorage } from './types.js' */
 // /** @import { Router } from 'retend/router' */
 

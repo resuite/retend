@@ -6,8 +6,8 @@ import {
   getActiveRenderer,
 } from 'retend';
 import { resetGlobalContext } from 'retend/context';
-import { createWebRouter, useRouter } from 'retend/router';
-import { routerSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { createRouterRoot, createWebRouter, useRouter } from 'retend/router';
+import { routerSetup, getTextContent } from '../setup.tsx';
 import type { DOMRenderer } from 'retend-web';
 
 describe('Scopes in Routing', () => {
@@ -57,7 +57,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');
     expect(getTextContent(window.document.body)).toBe('Username is Sefunmi');
@@ -128,7 +128,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/user');
     expect(getTextContent(window.document.body)).toContain(
@@ -194,7 +194,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/child/grandchild');
     expect(getTextContent(window.document.body)).toContain(
@@ -260,7 +260,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/protected');
     expect(getTextContent(window.document.body)).toBe('Token: abc123');
@@ -317,7 +317,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');
     expect(getTextContent(window.document.body)).toBe('Username is Sefunmi');

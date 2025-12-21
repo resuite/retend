@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { routerRoot, vDomSetup } from '../setup.tsx';
+import { vDomSetup } from '../setup.tsx';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createWebRouter, defineRoutes } from 'retend/router';
+import { createRouterRoot, createWebRouter, defineRoutes } from 'retend/router';
 
 describe('Router Title Updates', () => {
   vDomSetup();
@@ -28,7 +28,7 @@ describe('Router Title Updates', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
     expect(window.document.title).toBe('Home Page Title');
@@ -58,7 +58,7 @@ describe('Router Title Updates', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
     expect(window.document.title).toBe(initialTitle);

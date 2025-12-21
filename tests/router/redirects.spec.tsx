@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getTextContent, routerRoot, vDomSetup } from '../setup.tsx';
+import { getTextContent, vDomSetup } from '../setup.tsx';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createWebRouter, defineRoutes } from 'retend/router';
+import { createRouterRoot, createWebRouter, defineRoutes } from 'retend/router';
 
 describe('Router Redirects', () => {
   vDomSetup();
@@ -22,7 +22,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old-path');
     const route = router.getCurrentRoute();
@@ -46,7 +46,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old/123');
     const route = router.getCurrentRoute();
@@ -75,7 +75,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/app/old');
     const route = router.getCurrentRoute();
@@ -97,7 +97,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/a');
     // Should not navigate and should warn about redirect loop
@@ -122,7 +122,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/same');
     const route = router.getCurrentRoute();
@@ -145,7 +145,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old?param=value');
     const route = router.getCurrentRoute();
@@ -169,7 +169,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old#section');
     const route = router.getCurrentRoute();

@@ -1,5 +1,3 @@
-import { CustomEvent } from '../context/index.js';
-
 export class VNode extends EventTarget {
   /** @param {VDocument | null} document */
   constructor(document) {
@@ -632,7 +630,7 @@ export class VWindow extends EventTarget {
    * @param {() => void} callback
    * @param {number} delay
    * @param  {...any} args
-   * @returns {ReturnType<typeof setTimeout>}
+   * @returns {number}
    */
   setTimeout(callback, delay, ...args) {
     const timeout = setTimeout(callback, delay, ...args);
@@ -645,7 +643,7 @@ export class VWindow extends EventTarget {
    * @param {() => void} callback
    * @param {number} delay
    * @param  {...any} args
-   * @returns {ReturnType<typeof setInterval>}
+   * @returns {number}
    */
   setInterval(callback, delay, ...args) {
     const interval = setInterval(callback, delay, ...args);
@@ -832,18 +830,13 @@ export class VLocation {
 }
 
 /**
- * @typedef {Object} HydrationUpgradeEventDetail
- * @property {Node} newInstance
- */
-
-/**
  * An event that can be dispatched when a virtual node is upgraded to a real DOM node.
- * @extends {CustomEvent<HydrationUpgradeEventDetail>}
  */
-export class HydrationUpgradeEvent extends CustomEvent {
+export class HydrationUpgradeEvent extends Event {
   /** @param {Node} newInstance */
   constructor(newInstance) {
-    super('hydrationupgrade', { detail: { newInstance } });
+    super('hydrationupgrade');
+    this.detail = { newInstance };
   }
 }
 
@@ -861,3 +854,5 @@ export function isVNode(node) {
     Boolean(node.__isVNode)
   );
 }
+
+export * from './renderer.js';

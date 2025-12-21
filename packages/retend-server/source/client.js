@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-/** @import { VDocument } from 'retend/v-dom' */
+/** @import { VDocument } from './v-dom/index.js' */
 /** @import { Router } from 'retend/router' */
 /** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ServerContext } from './types.js' */
@@ -24,11 +24,13 @@ import {
   VElement,
   VWindow,
   VNode,
-} from 'retend/v-dom';
+} from './v-dom/index.js';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
-import { VDOMRenderer } from './v-dom-renderer.js';
+import { VDOMRenderer } from './v-dom/renderer.js';
 import { DOMRenderer } from 'retend-web';
+
+export * from './render-to-string.js';
 
 const OUTLET_INTERNAL_KEYS = ['__originScopeSnapshot'];
 

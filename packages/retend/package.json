@@ -31,10 +31,6 @@
       "import": "./dist/jsx-runtime/index.js",
       "types": "./dist/jsx-runtime/index.d.ts"
     },
-    "./v-dom": {
-      "import": "./dist/v-dom/index.js",
-      "types": "./dist/v-dom/index.d.ts"
-    },
     "./context": {
       "import": "./dist/context/index.js",
       "types": "./dist/context/index.d.ts"

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 import { For, If, Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
 import {
+  createRouterRoot,
   createWebRouter,
   useRouteQuery,
   type AsyncRouteQuery,
@@ -26,7 +27,7 @@ describe('useRouteQuery', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/?name=Cody');
     expect(getTextContent(window.document.body)).toBe('Hello, Cody');
@@ -65,7 +66,7 @@ describe('useRouteQuery', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -110,7 +111,7 @@ describe('useRouteQuery', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -161,7 +162,7 @@ describe('useRouteQuery', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -230,7 +231,7 @@ describe('useRouteQuery', () => {
     ];
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/list');
 
@@ -283,7 +284,7 @@ describe('useRouteQuery', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     // Initial navigation
     await router.navigate('/filters');

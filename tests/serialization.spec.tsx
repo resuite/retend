@@ -1,6 +1,6 @@
 import { Cell, For, If, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { renderToString } from 'retend-web';
+import { renderToString } from 'retend-server/client';
 import { ShadowRoot } from 'retend-web';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, timeout, vDomSetup } from './setup.tsx';

@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 import {
+  createRouterRoot,
   createWebRouter,
   defineRoute,
   defineRoutes,
@@ -223,7 +224,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/users/123/profile');
     expect(getTextContent(window.document.body)).toBe('User ID: 123');
@@ -259,7 +260,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/xyz-789');
     expect(getTextContent(window.document.body)).toBe('Product: xyz-789');
@@ -307,7 +308,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/stores/main-street/inventory/item-456');
     expect(getTextContent(window.document.body)).toBe(
@@ -345,7 +346,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/docs/guides/advanced/routing');
     expect(getTextContent(window.document.body)).toBe(
@@ -385,7 +386,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/dashboard');
     expect(getTextContent(window.document.body)).toBe('Dashboard Home');
@@ -419,7 +420,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/super-shoe-42');
     expect(getTextContent(window.document.body)).toBe(

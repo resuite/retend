@@ -1,10 +1,10 @@
 /** @import { Renderer, ReconcilerOptions, Observer } from "retend"; */
-/** @import * as VDom from 'retend/v-dom' */
+/** @import * as VDom from './index.js' */
 /** @import { UpdatableFn } from 'retend/hmr'; */
 
 import { createNodesFromTemplate, getActiveRenderer, Cell } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
-import { isVNode } from 'retend/v-dom';
+import { isVNode } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement

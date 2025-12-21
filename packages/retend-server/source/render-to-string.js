@@ -1,8 +1,6 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ScopeSnapshot } from 'retend' */
-/** @import * as VDom from 'retend/v-dom' */
-
-import { escapeHTML } from './utils.js';
+/** @import * as VDom from './v-dom/index.js' */
 
 const voidElements = new Set([
   'AREA',
@@ -235,4 +233,18 @@ function nodeIsStatic(node, window) {
   }
 
   return true;
+}
+
+/**
+ * Escapes HTML special characters to prevent XSS and maintain correct rendering
+ * @param {*} str
+ * @returns {string}
+ */
+function escapeHTML(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

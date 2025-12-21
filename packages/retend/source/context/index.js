@@ -52,8 +52,6 @@ export class GlobalContextChangeEvent extends CustomEvent {
  * }} Environments
  */
 
-/** @typedef {DocumentFragment | VDom.VDocumentFragment} FragmentLike */
-
 export function resetGlobalContext() {
   const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
   globalThis.__RETEND_GLOBAL_CONTEXT__ = {};

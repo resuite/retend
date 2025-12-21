@@ -179,20 +179,6 @@ export const camelCasedAttributes = new Set([
 ]);
 
 /**
- * Escapes HTML special characters to prevent XSS and maintain correct rendering
- * @param {*} str
- * @returns {string}
- */
-export function escapeHTML(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-/**
  * @template T
  * @template [This=Node]
  * @template [R=void]

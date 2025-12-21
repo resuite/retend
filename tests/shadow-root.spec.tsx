@@ -1,7 +1,7 @@
 import { Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
 import { ShadowRoot } from 'retend-web';
-import type { VElement, VNode } from 'retend/v-dom';
+import type { VElement, VNode } from 'retend-server/v-dom';
 import { assert, describe, expect, it } from 'vitest';
 import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
 

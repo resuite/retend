@@ -1,19 +1,15 @@
 import { beforeEach, afterEach } from 'vitest';
 import { setGlobalContext, resetGlobalContext } from 'retend/context';
-import { type VNode, VWindow, isVNode } from 'retend/v-dom';
-import { Outlet, type Router, RouterProvider } from 'retend/router';
+import { type VNode, VWindow, isVNode } from 'retend-server/v-dom';
 import { setActiveRenderer, getActiveRenderer } from 'retend';
 
 import { DOMRenderer } from 'retend-web';
-import { VDOMRenderer } from 'retend-server/renderer';
+import { VDOMRenderer } from 'retend-server/v-dom';
+
+export type NodeLike = VNode | Node;
 
 export const timeout = async (number?: number) => {
   return new Promise((r) => setTimeout(r, number ?? 0));
-};
-
-export const routerRoot = (router: Router): string & Node => {
-  // @ts-expect-error
-  return <RouterProvider router={router}>{() => <Outlet />}</RouterProvider>;
 };
 
 export const routerSetup = () => {

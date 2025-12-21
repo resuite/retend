@@ -1,8 +1,13 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createWebRouter, type Router, useRouter } from 'retend/router';
+import {
+  createRouterRoot,
+  createWebRouter,
+  type Router,
+  useRouter,
+} from 'retend/router';
 
 const runFlatTests = () => {
   let router: Router;
@@ -31,7 +36,7 @@ const runFlatTests = () => {
       stackMode: true,
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
   });
 
   test('navigates to the same route', async () => {
@@ -112,7 +117,7 @@ const runNestedTests = () => {
       stackMode: true,
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
   });
 
   test('navigates properly in stack mode', async () => {

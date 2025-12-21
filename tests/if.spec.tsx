@@ -1,9 +1,13 @@
 import { Cell, If, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import type { NodeLike } from 'retend/context';
-import type { VNode } from 'retend/v-dom';
+import type { VNode } from 'retend-server/v-dom';
 import { describe, expect, it } from 'vitest';
-import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
+import {
+  browserSetup,
+  getTextContent,
+  vDomSetup,
+  type NodeLike,
+} from './setup.tsx';
 
 const runTests = () => {
   it('should render truthy branch when condition is true', () => {

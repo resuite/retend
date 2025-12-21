@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 import {
+  createRouterRoot,
   createWebRouter,
   defineRoutes,
   Link,
@@ -142,7 +143,7 @@ describe('Router Direct Imports', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     // Navigate to home
     await router.navigate('/');

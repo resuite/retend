@@ -5,16 +5,13 @@ import {
   getActiveRenderer,
 } from 'retend';
 import {
+  createRouterRoot,
   createWebRouter,
   defineRoutes,
   Outlet,
   useRouter,
 } from 'retend/router';
-import {
-  routerSetupBrowser,
-  getTextContent,
-  routerRoot,
-} from '../../setup.tsx';
+import { routerSetupBrowser, getTextContent } from '../../setup.tsx';
 import type { DOMRenderer } from 'retend-web';
 
 describe('useSetupEffect with routing', () => {
@@ -59,7 +56,7 @@ describe('useSetupEffect with routing', () => {
 
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
     await runPendingSetupEffects();
 
     await router.navigate('/effect');
@@ -126,7 +123,7 @@ describe('useSetupEffect with routing', () => {
 
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/parent');
     await runPendingSetupEffects();

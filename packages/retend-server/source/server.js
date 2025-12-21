@@ -1,4 +1,4 @@
-/** @import { VElement, VNode, VWindow } from 'retend/v-dom' */
+/** @import { VNode } from './v-dom/index.js' */
 /** @import { Router } from 'retend/router' */
 /** @import {
  *    BuildOptions,
@@ -13,8 +13,10 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
-import { VDOMRenderer } from './v-dom-renderer.js';
+import { VDOMRenderer } from './v-dom/renderer.js';
+import { VElement, VWindow } from './v-dom/index.js';
 import { getActiveRenderer, setActiveRenderer } from 'retend';
+import { renderToString } from './render-to-string.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -78,11 +80,6 @@ export async function buildPath(path, options) {
   const retendRenderModule = /** @type {typeof import('retend-web')} */ (
     await runner.evaluator.runExternalModule(import.meta.resolve('retend-web'))
   );
-  const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
-    await runner.evaluator.runExternalModule(
-      import.meta.resolve('retend/v-dom')
-    )
-  );
 
   if (routerModule.createRouter === undefined) {
     throw new Error(
@@ -99,7 +96,6 @@ export async function buildPath(path, options) {
     routerModule,
     retendModule,
     retendRenderModule,
-    retendVDomModule,
     retendRouterModule,
     skipRedirects,
   };
@@ -119,15 +115,11 @@ async function renderPath(options) {
     rootSelector,
     retendModule,
     routerModule,
-    retendRenderModule,
     retendRouterModule,
-    retendVDomModule,
     skipRedirects,
   } = options;
 
   const { getConsistentValues } = retendModule;
-  const { renderToString } = retendRenderModule;
-  const { VElement, VWindow } = retendVDomModule;
 
   const window = buildWindowFromHtmlText(htmlShell, VWindow);
   const renderer = new VDOMRenderer(window);
@@ -163,6 +155,7 @@ async function renderPath(options) {
 
     const router = routerModule.createRouter();
     const currentRoute = router.getCurrentRoute();
+    // @ts-expect-error: window is mocked by vdom.
     router.attachWindowListeners(window);
 
     addMetaListener(router, document);

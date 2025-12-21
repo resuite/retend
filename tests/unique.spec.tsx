@@ -9,7 +9,7 @@ import {
   Unique,
   getActiveRenderer,
 } from 'retend';
-import type { VNode } from 'retend/v-dom';
+import type { VNode } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
 import { ShadowRoot } from 'retend-web';
 

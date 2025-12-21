@@ -3191,7 +3191,7 @@ export namespace JSX {
 
   export interface IntrinsicElements extends IntrinsicElementsInner { }
 
-  type NodeLike = globalThis.Node | import('../v-dom/index.js').VNode;
+  type NodeLike = globalThis.Node
 
   type Node =
     | NodeLike
@@ -3216,4 +3216,5 @@ export namespace JSX {
     | Promise<Node | Node[] | void | undefined | null>;
 
   export type Element = Template;
+  export type DivProps = JSX.IntrinsicElements['div']
 }

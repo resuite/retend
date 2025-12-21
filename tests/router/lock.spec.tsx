@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createWebRouter, defineRoutes } from 'retend/router';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { createRouterRoot, createWebRouter, defineRoutes } from 'retend/router';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 
 describe('router.lock()', () => {
   vDomSetup();
@@ -21,7 +21,7 @@ describe('router.lock()', () => {
 
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
     expect(getTextContent(window.document.body)).toBe('Home');
@@ -50,7 +50,7 @@ describe('router.lock()', () => {
 
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
     expect(getTextContent(window.document.body)).toBe('Home');

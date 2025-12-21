@@ -1,8 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { getTextContent, routerRoot, vDomSetup } from '../setup.tsx';
-import { createWebRouter, defineRoutes, useRouter } from 'retend/router';
+import { getTextContent, vDomSetup } from '../setup.tsx';
+import {
+  createRouterRoot,
+  createWebRouter,
+  defineRoutes,
+  useRouter,
+} from 'retend/router';
 
 describe('Router Matching', () => {
   vDomSetup();
@@ -20,7 +25,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
     const route2 = router.getCurrentRoute();
@@ -51,7 +56,7 @@ describe('Router Matching', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
     const route2 = router.getCurrentRoute();
@@ -80,7 +85,7 @@ describe('Router Matching', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/app');
     const route2 = router.getCurrentRoute();
@@ -100,7 +105,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
     const route = router.getCurrentRoute();
@@ -134,7 +139,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home/about');
     const route = router.getCurrentRoute();
@@ -163,7 +168,7 @@ describe('Router Matching', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/users/123');
     const route = router.getCurrentRoute();
@@ -198,7 +203,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/posts/456');
     const route = router.getCurrentRoute();
@@ -216,7 +221,7 @@ describe('Router Matching', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/invalid');
     expect(router.getCurrentRoute().get().name).toBeNull();
@@ -231,7 +236,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/search?q=test&page=2');
     const route = router.getCurrentRoute();
@@ -252,7 +257,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/article#section1');
     const route = router.getCurrentRoute();
@@ -274,7 +279,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/org/github/repo/retend');
     const route = router.getCurrentRoute();
@@ -296,7 +301,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/non/existent/path');
     const route = router.getCurrentRoute();
@@ -332,7 +337,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/docs/any/nested/path');
     const route = router.getCurrentRoute();
@@ -356,7 +361,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/electronics/phones/android');
     const route = router.getCurrentRoute();
@@ -378,7 +383,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/very/deep/nested/path');
     const route = router.getCurrentRoute();
@@ -415,7 +420,7 @@ describe('Router Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/very/deep/nested/path');
     const route = router.getCurrentRoute();
@@ -452,7 +457,7 @@ describe('Router Matching', () => {
     ]);
     const router = createWebRouter({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
     const route = router.getCurrentRoute();

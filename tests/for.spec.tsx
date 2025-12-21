@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { Cell, For, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import type { NodeLike } from 'retend/context';
-import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
-import type { VNode, VElement } from 'retend/v-dom';
+import {
+  browserSetup,
+  getTextContent,
+  vDomSetup,
+  type NodeLike,
+} from './setup.tsx';
+import type { VNode, VElement } from 'retend-server/v-dom';
 
 const runTests = () => {
   it('should render a list of elements', () => {

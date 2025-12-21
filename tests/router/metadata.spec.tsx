@@ -7,9 +7,10 @@ import {
   useRouter,
   type RouteComponent,
   lazy,
+  createRouterRoot,
 } from 'retend/router';
 import { Cell } from 'retend';
-import { getTextContent, routerRoot, vDomSetup } from '../setup.tsx';
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Metadata', () => {
   vDomSetup();
@@ -43,7 +44,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
 
@@ -109,7 +110,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/dashboard/users');
     expect(currentRoute.get().fullPath).toBe('/dashboard/users');
@@ -150,7 +151,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -188,7 +189,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -227,7 +228,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/users/1/posts/100');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -262,7 +263,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/search?q=javascript');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -310,7 +311,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => route.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
     expect(window.location.pathname).toBe('/home');
@@ -400,7 +401,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => route.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
     expect(window.location.pathname).toBe('/home');
@@ -462,7 +463,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -518,7 +519,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123/456');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -554,7 +555,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/blog?pageId=123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -592,7 +593,7 @@ describe('Router Metadata', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
     const root = window.document.body;
 
     await router.navigate('/blog/123');
@@ -637,7 +638,7 @@ describe('Router Metadata', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
     const root = window.document.body;
 
     await router.navigate('/blog/123');
@@ -687,7 +688,7 @@ describe('Router Metadata', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(getTextContent(root)).toBe('Title: Product 123, Type: product-page');
