@@ -1,4 +1,4 @@
-import { beforeEach, beforeAll, afterAll, afterEach } from 'vitest';
+import { beforeEach, afterEach } from 'vitest';
 import {
   Modes,
   setGlobalContext,
@@ -9,7 +9,9 @@ import {
 import { VWindow } from 'retend/v-dom';
 import { Outlet, type Router, RouterProvider } from 'retend/router';
 import { setActiveRenderer, getActiveRenderer } from 'retend';
+
 import { DOMRenderer } from 'retend-web';
+import { VDOMRenderer } from 'retend-server/renderer';
 
 export const timeout = async (number?: number) => {
   return new Promise((r) => setTimeout(r, number ?? 0));
@@ -29,7 +31,7 @@ export const routerSetup = () => {
     globalData: new Map(),
     teleportIdCounter: { value: 0 },
   });
-  setActiveRenderer(new DOMRenderer(window));
+  setActiveRenderer(new VDOMRenderer(window));
 };
 
 export const routerSetupBrowser = () => {
@@ -91,7 +93,7 @@ export const vDomSetup = () => {
       mode: Modes.VDom,
       teleportIdCounter: { value: 0 },
     });
-    setActiveRenderer(new DOMRenderer(window));
+    setActiveRenderer(new VDOMRenderer(window));
   });
 
   afterEach(() => {

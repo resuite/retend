@@ -1,4 +1,4 @@
-import { getGlobalContext, matchContext, Modes } from 'retend/context';
+import { getGlobalContext } from 'retend/context';
 import {
   Cell,
   createScopeSnapshot,
@@ -27,12 +27,10 @@ import {
   consolidateNodes,
 } from '../utils.js';
 
-/** @import * as VDom from 'retend/v-dom' */
 /** @import { ReactiveCellFunction } from '../utils.js' */
 /** @import { UpdatableFn, jsxDevFileData, HmrContext } from 'retend/hmr'; */
 /** @import { Scope } from 'retend' */
 /** @import { DOMRenderer } from '../dom-renderer.js'; */
-/** @import { NodeLike } from 'retend/context' */
 
 /** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
 
@@ -47,7 +45,7 @@ import {
  */
 
 /**
- * @typedef {(Node | VDom.VNode) & {
+ * @typedef {Node & {
  *  __linked?: boolean,
  *  __promise?: Promise<Node[]>
  * }} LinkableNodeLike
@@ -183,17 +181,18 @@ export function withHMRBoundaries(tagname, props, fileData) {
 }
 
 /**
- * @param {(Node | VDom.VNode)[]} nodes
+ * @param {Node[]} nodes
  */
 function stabilizeNodes(nodes) {
   /** @type {DOMRenderer} */ // @ts-expect-error
-  const { host: window } = getActiveRenderer();
+  const renderer = getActiveRenderer();
+  const { host: window } = renderer;
   // We can be smarter about whether or not to create a comment pair, so we
   // don't end up with a cluttered DOM tree.
   // NOTE TO FUTURE SELF: This optimization is only possible because
   // the comment ranges in other control flow structures already provide
   // guarantees about how nodes should behave.
-  if (nodes.length === 0) return createCommentPair();
+  if (nodes.length === 0) return createCommentPair(renderer);
 
   if (nodes.length > 1 || '__promise' in nodes[0]) {
     const startNode = nodes[0];
@@ -206,7 +205,7 @@ function stabilizeNodes(nodes) {
 
     if (isAlreadyStable) return nodes;
 
-    const pair = createCommentPair();
+    const pair = createCommentPair(renderer);
     return [pair[0], ...nodes, pair[1]];
   }
 
@@ -222,7 +221,7 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
   /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
   const renderer = getActiveRenderer();
 
-  /** @returns {NodeLike[]} */
+  /** @returns {Node[]} */
   const nextComponentRender = () => {
     const ancestry = useComponentAncestry();
     const template = RetendComponentTree.Provider({
@@ -236,17 +235,12 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
 
   let nodes = withScopeSnapshot(snapshot, nextComponentRender);
 
-  /** @type {ReactiveCellFunction<Function, Node | VDom.VNode, void>} */
+  /** @type {ReactiveCellFunction<Function, Node, void>} */
   const refresh = function (fn) {
     snapshot.node.dispose();
     const swap = () => {
       /** @type {DOMRenderer} */ // @ts-expect-error
       const { host: window } = getActiveRenderer();
-      if (!matchContext(window, Modes.Interactive)) {
-        const message = 'Cannot handle HMR in non-interactive environments';
-        console.error(message);
-        return false;
-      }
       const hmr = getHMRContext();
       if (!hmr) return false;
       if (hmr.current.peek() === fn) {
@@ -268,7 +262,7 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
         const staleNodes = nodes;
         nodes = [this];
 
-        /** @type {Node | VDom.VNode | null} */
+        /** @type {Node | null} */
         let next = this;
         while (staleNodes.length !== nodes.length) {
           next = this.nextSibling;
@@ -277,8 +271,8 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
         }
       }
 
-      const oldStart = /** @type {Node} */ (nodes[0]);
-      const oldEnd = /** @type {Node} */ (nodes[nodes.length - 1]);
+      const oldStart = nodes[0];
+      const oldEnd = nodes[nodes.length - 1];
 
       nodes = nextComponentRender();
       const finalFragment = /** @type {*} */ (consolidateNodes(nodes));

@@ -31,6 +31,10 @@
     "./types": {
       "import": "./dist/types.js",
       "types": "./dist/types.d.ts"
+    },
+    "./renderer": {
+      "import": "./dist/v-dom-renderer.js",
+      "types": "./dist/v-dom-renderer.d.ts"
     }
   },
   "devDependencies": {

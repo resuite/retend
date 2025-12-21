@@ -1,4 +1,4 @@
-import { Cell, SourceCell, useSetupEffect } from 'retend';
+import { Cell, getActiveRenderer, SourceCell, useSetupEffect } from 'retend';
 import { getGlobalContext } from 'retend/context';
 
 const MATCH_MEDIA_CACHE_KEY = Symbol('hooks:useMatchMedia:queriesCache');
@@ -30,7 +30,8 @@ export const useMatchMedia = (query) => {
   let mediaQueryList;
   let data = queries.get(query);
   if (!data) {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer();
+    const { host: window } = renderer;
     mediaQueryList =
       'matchMedia' in window ? window.matchMedia(query) : undefined;
     const initialValue = mediaQueryList ? mediaQueryList.matches : false;

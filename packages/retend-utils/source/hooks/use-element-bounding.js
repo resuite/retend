@@ -122,15 +122,12 @@ export function useElementBounding(elementRef, options = {}) {
     if (updateTiming === 'sync') {
       recalculate();
     } else {
-      const { window } = getGlobalContext();
-      if ('requestAnimationFrame' in window) {
-        window.requestAnimationFrame(recalculate);
-      }
+      requestAnimationFrame(recalculate);
     }
   };
 
   observer.onConnected(elementRef, (element) => {
-    const { globalData, window } = getGlobalContext();
+    const { globalData } = getGlobalContext();
 
     /** @type {(() => void) | undefined} */
     let resizeListener = globalData.get(RESIZE_LISTENER_KEY);

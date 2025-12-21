@@ -1,6 +1,5 @@
-import { Cell } from 'retend';
+import { Cell, getActiveRenderer } from 'retend';
 import { createSharedHook } from '../internal/create-shared-hook.js';
-import { getGlobalContext } from 'retend/context';
 
 /**
  * @typedef {object} WindowSize
@@ -35,7 +34,8 @@ export const useWindowSize = createSharedHook({
   key: USE_WINDOW_SIZE_KEY,
 
   initialData: () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer();
+    const { host: window } = renderer;
     return {
       cells: {
         width: Cell.source(window.innerWidth),

@@ -155,7 +155,7 @@ const RendererKey = Symbol('Renderer');
  * @property {(node: Node) => Output} finalize
  * Performs the final transformation on the produced output before returning it to the user.
  *
- * @property {(tagnameOrFunction: UpdatableFn, props: any, fileData?: jsxDevFileData) => Node} handleComponent
+ * @property {(tagnameOrFunction: UpdatableFn, props: any, fileData?: jsxDevFileData) => Node | Node[]} handleComponent
  * Orchestrates the execution of components.
  *
  * @property {(key: string) => Node | null} selectMatchingNode

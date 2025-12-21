@@ -1,41 +1,27 @@
-/** @import { ReconcilerOptions, Renderer } from "retend"; */
-/** @import { NodeLike, FragmentLike, WindowLike } from "retend/context"; */
-/** @import * as VDom from 'retend/v-dom' */
+/** @import { Observer, ReconcilerOptions, Renderer } from "retend"; */
 /** @import { jsxDevFileData, UpdatableFn } from 'retend/hmr'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
-import { matchContext, Modes } from 'retend/context';
-import {
-  Cell,
-  SourceCell,
-  linkNodes,
-  createNodesFromTemplate,
-  normalizeJsxChild,
-} from 'retend';
+import { Cell, createNodesFromTemplate } from 'retend';
 import { withHMRBoundaries } from './plugin/hmr.js';
-import {
-  addCellListener,
-  createCommentPair,
-  setAttribute,
-  writeStaticStyle,
-} from './utils.js';
+import * as Ops from './dom-ops.js';
 
 /**
- * @typedef {(Element | VDom.VElement) & HiddenElementProperties} JsxElement
+ * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
- * @typedef {{ childNodes: NodeLike[], shadowRoot: ShadowRoot | VDom.VShadowRoot | null, data: any }} SavedInstance
+ * @typedef {{ childNodes: Node[], shadowRoot: ShadowRoot | null, data: any }} SavedInstance
  */
 
 /**
  * @typedef DOMRenderingTypes
- * @property {NodeLike} Output
- * @property {NodeLike} Node
- * @property {NodeLike} Text
+ * @property {Node} Output
+ * @property {Node} Node
+ * @property {Node} Text
  * @property {DOMHandle} Handle
- * @property {FragmentLike} Group
+ * @property {DocumentFragment} Group
  * @property {JsxElement} Container
- * @property {VDom.VWindow | Window} Host
+ * @property {Window} Host
  * @property {SavedInstance} SavedNodeState
  */
 
@@ -51,29 +37,22 @@ import {
  * @implements {DOMRendererInterface}
  */
 export class DOMRenderer {
-  /** @type {WindowLike} */
+  /** @type {Window & globalThis} */
   host;
   observer = null;
 
-  /** @param {VDom.VWindow | Window & globalThis} host */
+  /** @param {Window & globalThis} host */
   constructor(host) {
     this.host = host;
-    writeStaticStyle(
-      'dom-styles',
-      ':where(retend-outlet) { display: contents }' +
-        ':where(retend-teleport) { display: contents }' +
-        ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
-      this.host
-    );
-    const isInteractive = matchContext(window, Modes.Interactive);
+    Ops.writeStaticStyles(this);
     this.capabilities = {
-      supportsSetupEffects: isInteractive,
-      supportsObserverConnectedCallbacks: isInteractive,
+      supportsSetupEffects: true,
+      supportsObserverConnectedCallbacks: true,
     };
   }
 
   /**
-   * @param {NodeLike} node
+   * @param {Node} node
    */
   isActive(node) {
     return node.isConnected;
@@ -81,41 +60,30 @@ export class DOMRenderer {
 
   /** @param {() => void} processor  */
   onViewChange(processor) {
-    const mutObserver = new window.MutationObserver(processor);
+    const mutObserver = new this.host.MutationObserver(processor);
     mutObserver.observe(window.document.body, {
       subtree: true,
       childList: true,
     });
   }
 
-  /**
-   * @param {string} key
-   */
+  /** @param {string} key */
   selectMatchingNodes(key) {
     return [...this.host.document.querySelectorAll(key)];
   }
 
-  /**
-   * @param {string} key
-   */
+  /** @param {string} key */
   selectMatchingNode(key) {
     return this.host.document.querySelector(key);
   }
 
   /**
-   * @param {NodeLike} node
+   * @param {Node} node
    * @param {any} data
    * @returns {SavedInstance}
    */
   saveContainerState(node, data) {
-    if (!(node instanceof this.host.Element)) {
-      throw new Error('Cannot save state of non-element node.');
-    }
-    return {
-      childNodes: [...node.childNodes],
-      shadowRoot: node.shadowRoot,
-      data,
-    };
+    return Ops.saveContainerState(node, data, this);
   }
 
   /**
@@ -123,199 +91,42 @@ export class DOMRenderer {
    * @param {SavedInstance} data
    */
   restoreContainerState(node, data) {
-    this.append(node, data.childNodes);
-    if (data.shadowRoot) {
-      const { mode, childNodes } = data.shadowRoot;
-      const newShadow = node.attachShadow({ mode });
-      this.append(newShadow, [...childNodes]);
-    }
+    return Ops.restoreContainerState(node, data, this);
   }
 
   /**
-   * @param {FragmentLike} fragment
+   * @param {DocumentFragment} fragment
+   * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
-    const handle = createCommentPair();
-    Reflect.set(handle[0], '__handle', handle);
-    Reflect.set(handle[1], '__handle', handle);
-    // @ts-expect-error: Node types get tangled in vdom.
-    fragment.replaceChildren(handle[0], ...fragment.childNodes, handle[1]);
-    return handle;
+    return Ops.createGroupHandle(fragment, this);
   }
 
   /**
    * @param {DOMHandle} segment
-   * @param {NodeLike[]} newContent
+   * @param {Node[]} newContent
    */
   write(segment, newContent) {
-    const start = segment[0];
-    const end = segment[1];
-
-    let nextNode = start.nextSibling;
-    while (nextNode && nextNode !== end) {
-      nextNode.remove();
-      nextNode = start.nextSibling;
-    }
-    // @ts-expect-error: Node types get tangled in vdom.
-    start.after(...newContent);
+    return Ops.write(segment, newContent);
   }
 
   /**
-   *
    * @param {DOMHandle} segment
-   * @param {ReconcilerOptions<NodeLike>} options
+   * @param {ReconcilerOptions<Node>} options
    */
   reconcile(segment, options) {
-    const {
-      onBeforeNodeRemove,
-      retrieveOrSetItemKey,
-      cacheFromLastRun,
-      onBeforeNodeMove,
-      nodeLookAhead,
-      newCache,
-      newList,
-    } = options;
-    // Removing Deleted Nodes:
-    //
-    // This pass is necessary to remove nodes in one go,
-    // rather than bubbling them to the end of the list.
-    //
-    // e.g. Consider a scenario where a list changes from [A, B, C, D, E] to [B, C, D, E]
-    // Ideal solution is a removeChild(A), but without this pass, what would happen is:
-    //  [A, B, C, D, E] -> [B, A, C, D, E]
-    //  [B, A, C, D, E] -> [B, C, A, D, E]
-    //  [B, C, A, D, E] -> [B, C, D, A, E]
-    //  [B, C, D, A, E] -> [B, C, D, E, A]
-    // before removing A, result in a removal and reinsertion of several unchanged nodes.
-    for (const [key, value] of cacheFromLastRun) {
-      if (newCache.has(key)) continue;
-      value.snapshot.node.dispose();
-      // There was a previous optimization to try and remove contiguous nodes
-      // at once with range.deleteContents(), but it was not worth it.
-      for (const node of value.nodes) {
-        onBeforeNodeRemove?.(node, value.index.get());
-        /** @type {ChildNode} */ (node).remove();
-      }
-    }
-
-    let lastInserted = segment[0];
-
-    // Reordering and Inserting New Nodes:
-    //
-    // This pass ensures nodes are in the correct order and new nodes are inserted.
-    // It compares each node's current position with the expected position after lastInserted,
-    // moving nodes only when necessary to maintain the correct sequence.
-    let i = 0;
-    const batchAdd = this.host.document.createDocumentFragment();
-    const batchAddLike = /** @type {*} */ (batchAdd);
-    for (const item of newList) {
-      // @ts-ignore: Invariant: nodes is always defined.
-      const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
-      const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
-      if (isAlreadyInPosition) {
-        if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
-        lastInserted = nodes[nodes.length - 1];
-        i++;
-        continue;
-      }
-
-      // This branch takes care of the case where one item moves
-      // forward in the list, but until its correct position is reached, its nodes
-      // block other nodes from being correctly positioned, leading to cascading moves.
-      //
-      // Example: A list goes from [A, B, C, D, E] to [B, C, D, E, A], the simplest
-      // operation is to move A to the end of the list, but without this branch,
-      // the loop would have to:
-      // move B back, making [B, A, C, D, E]
-      // move C back, making [B, C, A, D, E]
-      // move D back, making [B, C, D, A, E]
-      // move E back, making [B, C, D, E, A]
-      const followingNode = lastInserted.nextSibling;
-      if (followingNode) {
-        const data = nodeLookAhead.get(followingNode);
-        if (data) {
-          const { itemKey, lastItemLastNode } = data;
-          const hasViableMoveAnchor =
-            lastItemLastNode?.parentNode &&
-            lastItemLastNode.parentNode !== batchAdd &&
-            lastItemLastNode.nextSibling !== followingNode &&
-            lastItemLastNode !== nodes[0];
-          if (hasViableMoveAnchor) {
-            const fullNodeSet = newCache.get(itemKey)?.nodes;
-            if (fullNodeSet) {
-              onBeforeNodeMove?.(nodes);
-              //@ts-expect-error: after() should be available.
-              lastItemLastNode.after(...fullNodeSet);
-            }
-
-            // recheck sequential correctness.
-            const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
-            if (isAlreadyInPosition) {
-              if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
-              lastInserted = nodes[nodes.length - 1];
-              i++;
-              continue;
-            }
-          }
-        }
-      }
-
-      const isNewItemInstance = !nodes[0]?.parentNode;
-      if (isNewItemInstance) {
-        batchAddLike.append(...nodes);
-        i++;
-        continue;
-      }
-
-      if (batchAdd.childNodes.length === 0) {
-        onBeforeNodeMove?.(nodes);
-        lastInserted.after(.../** @type {*} */ (nodes));
-      } else {
-        const newPtr = batchAdd.childNodes[batchAdd.childNodes.length - 1];
-        lastInserted.after(batchAddLike);
-        onBeforeNodeMove?.(nodes);
-        newPtr.after(.../** @type {*} */ (nodes));
-      }
-      lastInserted = nodes[nodes.length - 1] ?? lastInserted;
-      i++;
-    }
-
-    if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+    return Ops.reconcile(segment, options, this);
   }
 
   /**
-   * @template {NodeLike} N
+   * @template {Node} N
    * @param {N} node
    * @param {string} key
    * @param {any} value
    * @returns {N}
    */
   setProperty(node, key, value) {
-    // Special Internal Key:
-    // Links a VNode to the array that holds it.
-    if (key === 'retend:collection') {
-      // We assume the VNode implementation allows arbitrary property assignment
-      // or we use a weakmap if we want to be stricter.
-      // Since we are likely in VDOM mode if this is relevant:
-      Reflect.set(node, '__retend_collection_ref', value);
-      return node;
-    }
-
-    const element = /** @type {JsxElement} */ (node);
-    if (Cell.isCell(value)) {
-      if (!element.__attributeCells) element.__attributeCells = new Set();
-      if (key === 'ref' && value instanceof SourceCell) {
-        value.set(element);
-        element.__ref = value;
-        element.__attributeCells.add(value);
-        return node;
-      }
-      addCellListener(element, value, function (value) {
-        setAttribute(this, key, value);
-      });
-    } else setAttribute(element, key, value);
-
-    return node;
+    return Ops.setProperty(node, key, value);
   }
 
   /**
@@ -329,40 +140,22 @@ export class DOMRenderer {
       return withHMRBoundaries(tagname, props, fileData);
     }
     const component = tagname(...props);
-    /** @type {NodeLike[]} */
+    /** @type {Node[]} */
     const nodes = createNodesFromTemplate(component, this);
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
   /**
-   * @param {NodeLike} parentNode
-   * @param {NodeLike | NodeLike[]} childNode
+   * @param {Node} _parentNode
+   * @param {Node | Node[]} childNode
    */
-  append(parentNode, childNode) {
-    if (
-      childNode instanceof this.host.DocumentFragment &&
-      '__isShadowRootContainer' in childNode &&
-      childNode.__isShadowRootContainer &&
-      '__mode' in childNode
-    ) {
-      if (!(parentNode instanceof this.host.HTMLElement)) {
-        console.error('ShadowRoot can only be children of HTML Elements.');
-        return parentNode;
-      }
-
-      const mode = /** @type {ShadowRootMode} */ (childNode.__mode);
-      const shadowRoot =
-        parentNode.shadowRoot ?? parentNode.attachShadow({ mode });
-      if (shadowRoot.mode !== mode) {
-        console.error(
-          'Shadowroot mode mismatch: Parent already has a shadowroot of a different type'
-        );
-        return parentNode;
-      }
-      linkNodes(shadowRoot, [...childNode.childNodes], this);
-      return parentNode;
+  append(_parentNode, childNode) {
+    const parentNode = /** @type {Element} */ (_parentNode);
+    const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
+    if (shadowRoot) {
+      return shadowRoot;
     }
-    const tagname = Reflect.get(parentNode, 'tagName');
+    const tagname = parentNode.tagName;
 
     // Client-side bailout for SVG and MathML elements.
     //
@@ -376,27 +169,21 @@ export class DOMRenderer {
     //
     // This will lead to a loss of interactivity, but idk, you win and you lose.
     if (
-      matchContext(this.host, Modes.Interactive) &&
       (tagname === 'svg' || tagname === 'math') &&
       childNode instanceof this.host.HTMLElement
     ) {
-      const elementNamespace = /** @type {string} */ (
-        'namespaceURI' in parentNode
-          ? parentNode.namespaceURI
-          : 'http://www.w3.org/1999/xhtml'
-      );
+      const elementNamespace =
+        parentNode.namespaceURI ?? 'http://www.w3.org/1999/xhtml';
       const temp = this.host.document.createElementNS(elementNamespace, 'div');
       temp.innerHTML = /** @type {HTMLElement} */ (childNode).outerHTML;
-      /** @type {ParentNode} */ (parentNode).append(...temp.children);
+      parentNode.append(...temp.children);
       return parentNode;
     }
     if (Array.isArray(childNode)) {
-      const children = /** @type {*} */ (childNode.filter(Boolean));
-      /** @type {ParentNode} */ (parentNode).append(...children);
+      const children = childNode.filter(Boolean);
+      parentNode.append(...children);
     } else {
-      /** @type {ParentNode} */ (parentNode).append(
-        /** @type {*} */ (childNode)
-      );
+      parentNode.append(childNode);
     }
 
     return parentNode;
@@ -404,52 +191,39 @@ export class DOMRenderer {
 
   /**
    * @param {Promise<any>} child
+   * @returns {Node}
    */
   handlePromise(child) {
-    const placeholder = this.host.document.createComment('----');
-    Reflect.set(placeholder, '__promise', child);
-    child.then((value) => {
-      placeholder.replaceWith(
-        /** @type {*} */ (normalizeJsxChild(value, this))
-      );
-    });
-    return placeholder;
+    return Ops.handlePromise(child, this);
   }
 
   /**
    * @param {string} text
-   * @param {NodeLike} node
+   * @param {Node} node
+   * @returns {Node}
    */
   updateText(text, node) {
-    // @ts-ignore
-    node.textContent = text;
-    return node;
+    return Ops.updateText(text, node);
   }
 
   /**
-   * @param {NodeLike} node
+   * @param {Node} node
    */
   finalize(node) {
     return node;
   }
 
   /**
-   * @param {NodeLike | NodeLike[]} [input]
+   * @param {Node | Node[]} [input]
+   * @returns {DocumentFragment}
    */
   createGroup(input) {
-    const fragment = this.host.document.createDocumentFragment();
-    if (input) {
-      const children = Array.isArray(input) ? input : [input];
-      for (const child of children) {
-        linkNodes(fragment, child, this);
-      }
-    }
-    return fragment;
+    return Ops.createGroup(input, this);
   }
 
   /**
    * @param {any} group
-   * @returns {NodeLike[]}
+   * @returns {Node[]}
    */
   unwrapGroup(group) {
     return Array.from(group.childNodes);
@@ -471,12 +245,10 @@ export class DOMRenderer {
       ns = defaultNamespace;
     }
 
-    const element = /** @type {JsxElement} */ (
-      this.host.document.createElementNS(ns, tagname)
-    );
+    /** @type {JsxElement} */ // @ts-expect-error
+    const element = this.host.document.createElementNS(ns, tagname);
     element.__eventListenerList = new Map();
     element.__attributeCells = new Set();
-    element.__createdByJsx = true;
     return element;
   }
 
@@ -484,26 +256,12 @@ export class DOMRenderer {
    * @param {string | Cell<any>} text
    */
   createText(text) {
-    if (Cell.isCell(text)) {
-      const textNode = this.host.document.createTextNode(text.get());
-      const { updateText } = this;
-      addCellListener(
-        textNode,
-        text,
-        function (value) {
-          updateText(value, this);
-        },
-        false
-      );
-      return textNode;
-    }
-
-    return this.host.document.createTextNode(text);
+    return Ops.createText(text, this);
   }
 
   /**
-   * @param {NodeLike} node
-   * @returns {node is FragmentLike}
+   * @param {Node} node
+   * @returns {node is DocumentFragment}
    */
   isGroup(node) {
     return (
@@ -514,9 +272,20 @@ export class DOMRenderer {
 
   /**
    * @param {any} child
-   * @returns {child is NodeLike}
+   * @returns {child is Node}
    */
   isNode(child) {
     return child instanceof this.host.Node;
+  }
+
+  /**
+   * @param {(node: Node) => void} callback
+   * @param {Observer} observer
+   */
+  scheduleTeleport(callback, observer) {
+    const anchorNode = window.document.createComment('teleport-anchor');
+    const ref = Cell.source(anchorNode);
+    observer.onConnected(ref, () => callback(anchorNode));
+    return anchorNode;
   }
 }

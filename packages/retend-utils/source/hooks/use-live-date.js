@@ -1,6 +1,7 @@
 /** @import { SourceCell } from 'retend' */
 /** @import { GlobalContextChangeEvent } from 'retend/context' */
-import { Cell } from 'retend';
+import { Cell, getActiveRenderer } from 'retend';
+import { DOMRenderer } from 'retend-web';
 import { getGlobalContext, matchContext, Modes } from 'retend/context';
 
 const RUNNING_TIMERS_KEY = 'hooks:useLiveDate:timers';
@@ -30,7 +31,10 @@ const TRANSFER_SCHEDULED_KEY = 'hooks:useLiveDate:transferScheduled';
  * }
  */
 export function useLiveDate(interval = 1000) {
-  const { window, globalData } = getGlobalContext();
+  const { globalData } = getGlobalContext();
+  /** @type {{ host: Window }} */
+  const renderer = getActiveRenderer();
+  const { host: window } = renderer;
 
   /** @type {Map<number, SourceCell<Date>>} */
   let runningTimers = globalData.get(RUNNING_TIMERS_KEY);
@@ -47,7 +51,7 @@ export function useLiveDate(interval = 1000) {
     }, interval);
     runningTimers.set(interval, now);
 
-    if (matchContext(window, Modes.VDom)) {
+    if (!(renderer instanceof DOMRenderer)) {
       const transferScheduled = globalData.get(TRANSFER_SCHEDULED_KEY);
       if (transferScheduled) return now;
 

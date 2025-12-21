@@ -2,9 +2,8 @@
 /** @import { SourceCell, ForOptions } from 'retend' */
 /** @import { JSX } from 'retend/jsx-runtime' */
 
-import { Cell, For, useObserver } from 'retend';
+import { Cell, For, getActiveRenderer, useObserver } from 'retend';
 import { useDerivedValue } from '../hooks/use-derived-value.js';
-import { getGlobalContext } from 'retend/context';
 
 let stylesAdded = false;
 const FLUID_LIST_STYLES = `
@@ -192,9 +191,10 @@ export function FluidList(props) {
   // during SSR.
   if (!stylesAdded) {
     stylesAdded = true;
-    const { window } = getGlobalContext();
+    /** @type {{ host: Window }} */
+    const renderer = getActiveRenderer();
+    const { host: window } = renderer;
     const document = window.document;
-    /** @type {*} */
     const fluidStyles = document.createElement('style');
     fluidStyles.innerHTML = FLUID_LIST_STYLES;
     document.head.append(fluidStyles);

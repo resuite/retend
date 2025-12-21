@@ -9,6 +9,7 @@
   "peerDependencies": {
     "retend": "*",
     "retend-utils": "*",
+    "retend-server": "*",
     "retend-web": "*"
   },
   "devDependencies": {

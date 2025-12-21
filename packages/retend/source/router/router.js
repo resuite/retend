@@ -35,7 +35,6 @@ import {
 } from './events.js';
 import { constructURL, getFullPath } from './utils.js';
 import { RouterMiddlewareResponse } from './middleware.js';
-import { getGlobalContext } from '../context/index.js';
 import { getActiveRenderer } from '../library/renderer.js';
 
 export * from './lazy.js';
@@ -146,10 +145,12 @@ export class Router extends EventTarget {
    * @param {string[]} transitionTypes
    */
   async #startTransition(callback, transitionTypes) {
-    const { window } = getGlobalContext();
+    // TODO: This assumes that the current active renderer is DOMRenderer
+    const renderer = getActiveRenderer();
+    const window = /** @type {Window} */ (renderer.host);
     if (
       this.useViewTransitions &&
-      window?.document &&
+      'document' in window &&
       'startViewTransition' in window.document
     ) {
       const transition = window.document.startViewTransition(callback);

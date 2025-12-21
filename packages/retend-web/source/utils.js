@@ -1,10 +1,9 @@
-/** @import * as VDom from 'retend/v-dom' */
 /** @import { JsxElement } from './dom-renderer.js'; */
 import { getActiveRenderer, Cell } from 'retend';
 import { DOMRenderer } from './dom-renderer.js';
-import { getGlobalContext, isVNode } from 'retend/context';
+import { getGlobalContext } from 'retend/context';
 
-/** @typedef {(VDom.VComment | Comment) & { __commentRangeSymbol?: symbol }} ConnectedComment */
+/** @typedef {Comment & { __commentRangeSymbol?: symbol }} ConnectedComment */
 
 /**
  * @typedef {((this: Node, event: Event) => void) & {
@@ -29,11 +28,10 @@ import { getGlobalContext, isVNode } from 'retend/context';
 
 /**
  * Creates a pair of connected comment nodes that can be used to represent a range.
+ * @param {DOMRenderer} renderer
  * @returns {[ConnectedComment, ConnectedComment]} A pair of connected comment nodes with a shared symbol.
  */
-export function createCommentPair() {
-  /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
-  const renderer = getActiveRenderer();
+export function createCommentPair(renderer) {
   const symbol = Symbol();
   const rangeStart = renderer.host.document.createComment('----');
   const rangeEnd = renderer.host.document.createComment('----');
@@ -45,8 +43,8 @@ export function createCommentPair() {
 
 /**
  *
- * @param {Node | VDom.VNode} start
- * @param {Node | VDom.VNode} end
+ * @param {Node} start
+ * @param {Node} end
  */
 export function isMatchingCommentPair(start, end) {
   return (
@@ -62,7 +60,7 @@ export function isMatchingCommentPair(start, end) {
  * If the array contains multiple nodes, they are appended to a DocumentFragment,
  * which is then returned.
  *
- * @param {(Node | VDom.VNode)[]} nodes - The array of nodes to consolidate.
+ * @param {(Node)[]} nodes - The array of nodes to consolidate.
  */
 export function consolidateNodes(nodes) {
   /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
@@ -70,14 +68,14 @@ export function consolidateNodes(nodes) {
   if (nodes.length === 1) return nodes[0];
 
   const fragment = renderer.host.document.createDocumentFragment();
-  fragment.append(.../** @type {*} */ (nodes));
+  fragment.append(...nodes);
   return fragment;
 }
 
 /**
  * @param {string} id
  * @param {string} contents
- * @param {Window | VDom.VWindow} window
+ * @param {Window} window
  */
 export function writeStaticStyle(id, contents, window) {
   const { globalData } = getGlobalContext();
@@ -466,21 +464,13 @@ export function normalizeClassValue(val, element) {
 
 /**
  * Sets an event Listener on an element.
- * @param {Element | VDom.VElement} el - The element to set the attribute on.
+ * @param {Element} el - The element to set the attribute on.
  * @param {string} key - The name of the attribute.
  * @param {any} value - The value of the attribute.
  */
-export function setEventListener(el, key, value) {
+function setDOMEventListener(el, key, value) {
   const createdByJsx = true;
   const element = /** @type {JsxElement} */ (el);
-
-  if (isVNode(element)) {
-    // Event listeners are not useful in the VDom,
-    // but they need to be stored so they can be propagated to the
-    // static DOM representation in the browser.
-    element.setHiddenAttribute(key, value);
-    return;
-  }
 
   if (createdByJsx && key[2].toLowerCase() === key[2]) {
     return;
@@ -584,20 +574,21 @@ export function setEventListener(el, key, value) {
 
 /**
  * Sets an attribute on an element.
- * @param {Element | VDom.VElement} el - The element to set the attribute on.
+ * @param {Element} el - The element to set the attribute on.
  * @param {string} key - The name of the attribute.
  * @param {any} value - The value of the attribute.
+ * @param {(el: Element, key: string, value: any) => void} [setEventListener=setDOMEventListener]
  */
-export function setAttribute(el, key, value) {
-  const createdByJsx = true;
+export function setAttribute(
+  el,
+  key,
+  value,
+  setEventListener = setDOMEventListener
+) {
   const element = /** @type {JsxElement} */ (el);
 
   // store element event listeners.
-  if (
-    key.startsWith('on') &&
-    key.length > 2 &&
-    (!createdByJsx || (createdByJsx && typeof value !== 'string'))
-  ) {
+  if (key.startsWith('on') && key.length > 2) {
     setEventListener(el, key, value);
     return;
   }

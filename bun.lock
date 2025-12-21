@@ -99,6 +99,7 @@
       },
       "peerDependencies": {
         "retend": "*",
+        "retend-web": "*",
       },
     },
     "packages/retend-web": {
@@ -122,6 +123,7 @@
       },
       "peerDependencies": {
         "retend": "*",
+        "retend-server": "*",
         "retend-utils": "*",
         "retend-web": "*",
       },

@@ -1,16 +1,14 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import * as VDom from 'retend/v-dom' */
-/** @import { NodeLike } from 'retend/context' */
 
-import { getGlobalContext, isVNode, matchContext, Modes } from 'retend/context';
+import { getGlobalContext } from 'retend/context';
 import {
-  Cell,
   useConsistent,
   useObserver,
   getActiveRenderer,
   linkNodes,
   createNodesFromTemplate,
 } from 'retend';
+import { DOMRenderer } from './dom-renderer.js';
 
 /**
  * @typedef TeleportOnlyProps
@@ -54,16 +52,18 @@ import {
 export function Teleport(props) {
   const { to: target, ...rest } = props;
   const observer = useObserver();
-  const { window, teleportIdCounter } = getGlobalContext();
+  const { teleportIdCounter } = getGlobalContext();
+  const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   /** @type {string | undefined} */
   let teleportId;
   const key = `teleport/target/${teleportIdCounter.value++}`;
 
-  /** @param {NodeLike} anchorNode */
+  /** @param {Node} anchorNode */
   const mountTeleportedNodes = async (anchorNode) => {
     if (!anchorNode.isConnected) return;
 
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer();
+    const window = /** @type {Window} */ (renderer.host);
     const parent = window.document.querySelector(target);
 
     if (!parent) {
@@ -73,10 +73,11 @@ export function Teleport(props) {
     }
 
     teleportId = await useConsistent(key, () => crypto.randomUUID());
-    const staleInstance = findStaleTeleport(parent, teleportId);
+    const staleInstance = parent.querySelector(
+      `retend-teleport[data-teleport-id='${teleportId}']`
+    );
     const newInstance = window.document.createElement('retend-teleport');
     newInstance.setAttribute('data-teleport-id', teleportId);
-    const renderer = getActiveRenderer();
 
     for (const [key, value] of Object.entries(rest)) {
       if (key === 'children') continue;
@@ -98,60 +99,11 @@ export function Teleport(props) {
     return () => newInstance.remove();
   };
 
-  if (matchContext(window, Modes.Interactive)) {
-    const anchorNode = window.document.createComment('teleport-anchor');
-    const ref = Cell.source(anchorNode);
-    observer.onConnected(ref, () => mountTeleportedNodes(anchorNode));
-
-    return anchorNode;
-  }
-
-  // VDom mode:
-  const anchorNode = window.document.createComment('teleport-anchor');
-  window.document.teleportMounts.push(() => mountTeleportedNodes(anchorNode));
-  //@ts-expect-error: Observers are not supported in VDom, they work only in Interactive mode,
-  // but a callback still needs to be registered so the teleport can be unmounted as soon
-  // as the anchor node is disconnected.
-  const ref = /** @type {Cell<Node>} */ (Cell.source(anchorNode));
-  Reflect.set(anchorNode, '__isTeleportAnchor', true);
-  Reflect.set(anchorNode, '__ref', ref);
-  observer.onConnected(ref, () => {
-    return () => {
-      const { window } = getGlobalContext();
-      const parent = window.document.querySelector(target);
-      if (!parent) {
-        const message = `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`;
-        console.error(message);
-        return;
-      }
-      if (!teleportId) return;
-      const instance = findStaleTeleport(parent, teleportId);
-      if (instance) instance.remove();
-    };
-  });
-  return anchorNode;
-}
-
-/**
- * Finds the last rendered teleport instance with a matching teleportId.
- * @param {Element | VDom.VElement} parent
- * @param {string} teleportId
- * @returns {Element | VDom.VElement | null | undefined}
- */
-function findStaleTeleport(parent, teleportId) {
-  if (!isVNode(parent)) {
-    return parent.querySelector(
-      `retend-teleport[data-teleport-id='${teleportId}']`
-    );
-  }
-
-  return parent.findNode((node) => {
-    if (node === parent) return false;
-    if (node.nodeType !== 1) return false;
-    const element = /** @type {VDom.VElement} */ (node);
-    return (
-      element.tagName === 'retend-TELEPORT' &&
-      element.getAttribute('data-teleport-id') === teleportId
-    );
-  });
+  return renderer.scheduleTeleport(
+    mountTeleportedNodes,
+    observer,
+    // @ts-expect-error
+    target,
+    teleportId
+  );
 }

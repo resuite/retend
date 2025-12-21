@@ -16,7 +16,6 @@ import {
   setGlobalContext,
   Modes,
   getGlobalContext,
-  matchContext,
   isSSREnvironment,
 } from 'retend/context';
 
@@ -29,6 +28,7 @@ import {
 } from 'retend/v-dom';
 import { SourceCell } from 'retend';
 import { addMetaListener } from './meta.js';
+import { VDOMRenderer } from './v-dom-renderer.js';
 import { DOMRenderer } from 'retend-web';
 
 const OUTLET_INTERNAL_KEYS = ['__originScopeSnapshot'];
@@ -225,7 +225,7 @@ async function restoreContext(context, routerCreateFn) {
     consistentValues: new Map(Object.entries(context.consistentValues)),
     globalData: new Map(),
   });
-  setActiveRenderer(new DOMRenderer(vWindow));
+  setActiveRenderer(new VDOMRenderer(vWindow));
 
   const observer = useObserver();
   const router = routerCreateFn();
@@ -572,9 +572,9 @@ export function noHydrate(component, nodeCount = 1) {
   return /** @type {TemplateFunction} */ (
     (props) => {
       if (!isSSREnvironment()) {
-        const { window } = getGlobalContext();
-        if (matchContext(window, Modes.VDom)) {
-          const { document } = window;
+        const renderer = getActiveRenderer();
+        if (renderer instanceof VDOMRenderer) {
+          const { document } = renderer.host;
           return new NoHydrateVNode(document, nodeCount);
         }
       }
