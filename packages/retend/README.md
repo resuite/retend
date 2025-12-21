@@ -1,32 +1,23 @@
 # retend
 
-[![downloads (retend)](https://img.shields.io/npm/dm/retend?label=downloads)](https://www.npmjs.com/package/retend)
+[![npm version](https://img.shields.io/npm/v/retend?color=blue)](https://www.npmjs.com/package/retend)
 
-Retend is a framework for building fast and fluid web apps. Like React, it allows you to use JSX to create dynamic user interfaces.
-
-If you've worked with HTML, CSS, and JavaScript, Retend should be easy to pick up. It is designed to help you build applications quickly and efficiently.
+Retend is a engine for building reactive user interfaces using JSX. It provides a core set of primitives for state management, reconciliation, and rendering, designed to be fast and lightweight.
 
 ## Key Features
 
-Here's a breakdown of the core functionalities:
+- **Lightweight & Modular:** Retend is built with a small footprint, focusing on the essential logic for reactive updates without imposing a heavy runtime.
+- **JSX Support:** Define your UI using familiar JSX syntax. Retend's engine handles the transformation into efficient update instructions.
+- **Fine-grained Reactivity:** Powered by [`@adbl/cells`](https://github.com/adebola-io/cells), Retend ensures that only the necessary parts of your UI update when data changes.
+- **Abstract Core Engine:** Retend's architecture uses an abstract `Renderer` interface. While primarily designed for the web, this decoupling allows for high efficiency and future extensibility.
+- **Built-in Router:** Includes a flexible routing system for managing application state and navigation.
+- **(Experimental) Fast Refresh Support:** Designed to support hot module reloads for a seamless development experience.
 
-- **Lightweight:** Retend has a small footprint, which means it loads quickly without extra overhead.
+## Usage
 
-- **JSX Support:** You can use JSX to define your user interfaces. This allows you embed HTML-like structures directly into JavaScript.
+Retend is typically used with a renderer. The primary and recommended renderer is [**`retend-web`**](https://github.com/resuite/retend/tree/main/packages/retend-web), which targets the browser DOM.
 
-- **Built-in Reactivity:** [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
-
-- **Components are DOM Elements:** Components in Retend are just functions that return elements.
-
-  - There is no extra layer.
-  - There is no Virtual DOM.
-  - There is no "re-render".
-
-  This gives you a high level of control and interoperability with existing DOM APIs.
-
-- **Built-in Router:** The library includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
-
-- **(Experimental) Fast Refresh Support:** Retend supports hot module reloads, which allow you to see changes instantly without refreshing the page. This speeds up development by letting you focus more on your application.
+> `NOTE`: While the core engine's abstract nature allows for targeting other environments (like static generation), these use cases are currently experimental and have not been fully tested.
 
 ## Installation
 

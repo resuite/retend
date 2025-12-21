@@ -1,6 +1,4 @@
 // @ts-nocheck: globalThis is not typed.
-
-/** @import * as VDom from '../v-dom/index.js' */
 /** @import { Observer } from '../library/observer.js' */
 
 /** @type {typeof globalThis.CustomEvent} */

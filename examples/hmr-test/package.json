@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "retend": "*",
+    "retend-web": "*",
     "retend-server": "*",
     "retend-utils": "*"
   },
