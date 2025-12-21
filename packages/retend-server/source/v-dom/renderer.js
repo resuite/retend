@@ -9,7 +9,7 @@ import { isVNode } from './index.js';
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
  * @typedef {[VDom.VComment, VDom.VComment]} DOMHandle
- * @typedef {Renderer<VDOMRenderingTypes>} DOMRendererInterface
+ * @typedef {Renderer<VDOMRenderingTypes>} VDOMRendererInterface
  * @typedef {{ childNodes: VDom.VNode[], shadowRoot: VDom.VShadowRoot | null, data: any }} SavedInstance
  */
 
@@ -26,7 +26,17 @@ import { isVNode } from './index.js';
  */
 
 /**
- * @implements {DOMRendererInterface}
+ * A specialized implementation of the {@link Renderer} interface for server-side
+ * and virtual DOM environments.
+ *
+ * This renderer implements the Retend framework's rendering logic using a lightweight,
+ * platform-agnostic virtual DOM. It is designed for environments where a real browser
+ * DOM is not available, such as Server-Side Rendering (SSR) or unit testing in Node.js.
+ * It provides the necessary hooks for node creation and reconciliation while maintaining
+ * compatibility with standard web-like structures.
+ *
+ * @class
+ * @implements {VDOMRendererInterface}
  */
 export class VDOMRenderer {
   observer = null;
