@@ -1,6 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
-// import {  matchContext, Modes } from '../context/index.js';
 import { Cell } from '@adbl/cells';
 import h from './jsx.js';
 import {

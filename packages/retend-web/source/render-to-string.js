@@ -1,6 +1,6 @@
-/** @import * as Context from 'retend/context' */
 /** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { ScopeSnapshot } from 'retend' */
+/** @import * as VDom from 'retend/v-dom' */
 
 import { escapeHTML } from './utils.js';
 
@@ -34,7 +34,7 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  *
  *
  * @param {JSX.Template} template - The JSX template to render.
- * @param {Context.WindowLike} window - The window object.
+ * @param {Window & globalThis | VDom.VWindow} window - The window object.
  * @param {RenderToStringOptions} [options] - Options for rendering the template.
  * @returns {Promise<string>} A promise that resolves to the rendered string.
  *
@@ -193,7 +193,7 @@ export async function renderToString(template, window, options = {}) {
 /**
  * Checks if a node has no reactivity attached so it can be marked as static.
  * Static node can be safely skipped during hydration.
- * @param {Context.NodeLike & {
+ * @param {(Node | VDom.VNode) & {
  *  __isHydrationUpgradable?: boolean,
  *  __ref?: any,
  *  __attributeCells?: Map<string, any>,
@@ -209,7 +209,7 @@ export async function renderToString(template, window, options = {}) {
  *  childNodes: any[]
  * }
  * }} node
- * @param {Context.WindowLike} window
+ * @param {VDom.VWindow | Window & globalThis} window
  */
 function nodeIsStatic(node, window) {
   if (node.__commentRangeSymbol) return false;

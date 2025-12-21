@@ -1,12 +1,6 @@
 import { beforeEach, afterEach } from 'vitest';
-import {
-  Modes,
-  setGlobalContext,
-  resetGlobalContext,
-  type NodeLike,
-  isVNode,
-} from 'retend/context';
-import { VWindow } from 'retend/v-dom';
+import { setGlobalContext, resetGlobalContext, isVNode } from 'retend/context';
+import { type VNode, VWindow } from 'retend/v-dom';
 import { Outlet, type Router, RouterProvider } from 'retend/router';
 import { setActiveRenderer, getActiveRenderer } from 'retend';
 
@@ -25,7 +19,6 @@ export const routerRoot = (router: Router): string & Node => {
 export const routerSetup = () => {
   const window = new VWindow();
   setGlobalContext({
-    mode: Modes.VDom,
     window,
     consistentValues: new Map(),
     globalData: new Map(),
@@ -42,7 +35,6 @@ export const routerSetupBrowser = () => {
     document.body.append(document.createElement('retend-router-outlet'));
 
     setGlobalContext({
-      mode: Modes.Interactive,
       window: window,
       consistentValues: new Map(),
       globalData: new Map(),
@@ -69,7 +61,6 @@ export const browserSetup = () => {
 
     setGlobalContext({
       window,
-      mode: Modes.Interactive,
       teleportIdCounter: { value: 0 },
       consistentValues: new Map(),
       globalData: new Map(),
@@ -90,7 +81,6 @@ export const vDomSetup = () => {
       window,
       consistentValues: new Map(),
       globalData: new Map(),
-      mode: Modes.VDom,
       teleportIdCounter: { value: 0 },
     });
     setActiveRenderer(new VDOMRenderer(window));
@@ -101,7 +91,7 @@ export const vDomSetup = () => {
   });
 };
 
-export const getTextContent = (element: NodeLike) => {
+export const getTextContent = (element: Node | VNode) => {
   const renderer = getActiveRenderer() as DOMRenderer;
   const { host: window } = renderer;
 

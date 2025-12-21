@@ -2,7 +2,7 @@
 /** @import { GlobalContextChangeEvent } from 'retend/context' */
 import { Cell, getActiveRenderer } from 'retend';
 import { DOMRenderer } from 'retend-web';
-import { getGlobalContext, matchContext, Modes } from 'retend/context';
+import { getGlobalContext } from 'retend/context';
 
 const RUNNING_TIMERS_KEY = 'hooks:useLiveDate:timers';
 const TRANSFER_SCHEDULED_KEY = 'hooks:useLiveDate:transferScheduled';
@@ -58,10 +58,7 @@ export function useLiveDate(interval = 1000) {
       /** @param {GlobalContextChangeEvent} event */
       const transferTimers = (event) => {
         const { newContext } = event.detail;
-        if (
-          newContext?.window &&
-          matchContext(newContext.window, Modes.Interactive)
-        ) {
+        if (newContext?.window && renderer instanceof DOMRenderer) {
           newContext.globalData.set(RUNNING_TIMERS_KEY, runningTimers);
           // @ts-ignore: Custom events are not properly typed in JS.
           window.removeEventListener('globalcontextchange', transferTimers);

@@ -24,15 +24,6 @@ export const CustomEvent =
   };
 
 /**
- * Defines the possible render contexts for the application.
- * @type {{VDom: 1, Interactive: 2}}
- */
-export const Modes = {
-  VDom: 1,
-  Interactive: 2,
-};
-
-/**
  * @typedef GlobalContextChangeDetail
  * @property {Environments} [newContext]
  * @property {Environments} [oldContext]
@@ -54,10 +45,8 @@ export class GlobalContextChangeEvent extends CustomEvent {
  * Each environment provides its own window interface optimized for that context.
  *
  * @typedef {({
- *    mode: 1,
  *    window: VDom.VWindow
  *  } | {
- *    mode: 2
  *    window: Window & typeof globalThis
  *  }) & {
  *    consistentValues: Map<string, any>,
@@ -67,34 +56,8 @@ export class GlobalContextChangeEvent extends CustomEvent {
  * }} Environments
  */
 
-/** @typedef {Environments['mode']} RenderMode */
 /** @typedef {Environments['window']} WindowLike */
-/** @typedef {InstanceType<Environments['window']['HTMLElement']>} HTMLElementLike */
-/** @typedef {Node & VDom.VNode} AsNode */
-/** @typedef {Node | VDom.VNode} NodeLike */
 /** @typedef {DocumentFragment | VDom.VDocumentFragment} FragmentLike */
-
-/**
- * @template {RenderMode} T
- * @typedef {Environments extends infer U ? U extends Environments ? T extends U['mode'] ? U['window']: never : never: never} ExtractWindowFromEnvironmentMode
- */
-
-/**
- * Validates if a window instance matches the expected render mode.
- * Used to ensure operations are performed in the correct environment.
- *
- * @template {RenderMode} M
- * @param {WindowLike} window - Window instance to check
- * @param {M} mode - Expected render mode
- * @returns {window is ExtractWindowFromEnvironmentMode<M>}
- */
-export function matchContext(window, mode) {
-  const windowRenderMode =
-    '__appRenderMode__' in window
-      ? window.__appRenderMode__
-      : Modes.Interactive;
-  return windowRenderMode === mode;
-}
 
 export function resetGlobalContext() {
   const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
@@ -123,7 +86,6 @@ export function isVNode(node) {
 
 if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
   globalThis.__RETEND_GLOBAL_CONTEXT__ = {
-    mode: Modes.Interactive,
     window: globalThis.window,
     consistentValues: new Map(),
     globalData: new Map(),
@@ -138,9 +100,7 @@ if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
  */
 export function isSSREnvironment() {
   const context = getGlobalContext();
-  return (
-    context.mode === Modes.VDom && context.globalData.get('env:ssr') === true
-  );
+  return context.globalData.get('env:ssr') === true;
 }
 
 /**

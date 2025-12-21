@@ -11,7 +11,7 @@ import {
 } from './server.js';
 import path from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { Modes, setGlobalContext } from 'retend/context';
+import { setGlobalContext } from 'retend/context';
 import { resolveConfig, createRunnableDevEnvironment } from 'vite';
 
 /**
@@ -361,7 +361,6 @@ async function defineSharedGlobalContext(sharedData) {
   const { asyncLocalStorage } = sharedData;
 
   const context = {
-    mode: Modes.VDom,
     get window() {
       const store = asyncLocalStorage.getStore();
       if (!store) throw new Error('No store found');

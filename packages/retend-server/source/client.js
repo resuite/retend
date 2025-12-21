@@ -14,7 +14,6 @@ import {
 import { createRouterRoot } from 'retend/router';
 import {
   setGlobalContext,
-  Modes,
   getGlobalContext,
   isSSREnvironment,
 } from 'retend/context';
@@ -219,7 +218,6 @@ async function restoreContext(context, routerCreateFn) {
 
   recreateVWindow(shell, vWindow);
   setGlobalContext({
-    mode: Modes.VDom,
     window: vWindow,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(Object.entries(context.consistentValues)),
@@ -258,7 +256,6 @@ async function restoreContext(context, routerCreateFn) {
   const hydratedGlobalData = getGlobalContext().globalData;
 
   setGlobalContext({
-    mode: Modes.Interactive,
     window,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(),
