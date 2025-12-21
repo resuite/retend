@@ -44,11 +44,7 @@ export class GlobalContextChangeEvent extends CustomEvent {
  * Environment configuration that pairs a mode with its corresponding window implementation.
  * Each environment provides its own window interface optimized for that context.
  *
- * @typedef {({
- *    window: VDom.VWindow
- *  } | {
- *    window: Window & typeof globalThis
- *  }) & {
+ * @typedef {{
  *    consistentValues: Map<string, any>,
  *    teleportIdCounter: { value: number }
  *    observer?: Observer
@@ -56,7 +52,6 @@ export class GlobalContextChangeEvent extends CustomEvent {
  * }} Environments
  */
 
-/** @typedef {Environments['window']} WindowLike */
 /** @typedef {DocumentFragment | VDom.VDocumentFragment} FragmentLike */
 
 export function resetGlobalContext() {
@@ -64,23 +59,6 @@ export function resetGlobalContext() {
   globalThis.__RETEND_GLOBAL_CONTEXT__ = {};
   oldContext.window?.dispatchEvent?.(
     new GlobalContextChangeEvent(oldContext, undefined)
-  );
-}
-
-/**
- * Identifies virtual nodes in any environment.
- * Useful for conditional logic that needs to handle both real and virtual DOM nodes.
- *
- * @template {object} [M=VDom.VNode]
- * @param {M} node - Node to check
- * @returns {node is M extends VDom.VNode ? M : never}
- */
-export function isVNode(node) {
-  return (
-    typeof node === 'object' &&
-    node !== null &&
-    '__isVNode' in node &&
-    Boolean(node.__isVNode)
   );
 }
 

@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "retend": "*",
+    "retend-web": "*",
     "retend-server": "*",
     "retend-utils": "*"
   },
   "devDependencies": {
-    "vite": "^6.2.1",
+    "vite": "*",
     "typescript": "^5.8.2",
     "@types/node": "latest"
   }

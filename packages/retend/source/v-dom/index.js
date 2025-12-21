@@ -846,3 +846,18 @@ export class HydrationUpgradeEvent extends CustomEvent {
     super('hydrationupgrade', { detail: { newInstance } });
   }
 }
+
+/**
+ * Identifies virtual nodes in any environment.
+ * Useful for conditional logic that needs to handle both real and virtual DOM nodes.
+ * @param {any} node - Node to check
+ * @returns {node is VNode}
+ */
+export function isVNode(node) {
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    '__isVNode' in node &&
+    Boolean(node.__isVNode)
+  );
+}

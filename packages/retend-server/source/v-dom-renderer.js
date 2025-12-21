@@ -4,7 +4,7 @@
 
 import { createNodesFromTemplate, getActiveRenderer, Cell } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
-import { isVNode } from 'retend/context';
+import { isVNode } from 'retend/v-dom';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement

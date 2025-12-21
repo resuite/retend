@@ -189,6 +189,8 @@ export async function hydrate(routerFn) {
 
 /** @param {() => Router} routerFn  */
 async function defaultToSpaMode(routerFn) {
+  const renderer = new DOMRenderer(window);
+  setActiveRenderer(renderer);
   const router = routerFn();
   router.attachWindowListeners(window);
   const root = document.querySelector('#app');
@@ -218,7 +220,6 @@ async function restoreContext(context, routerCreateFn) {
 
   recreateVWindow(shell, vWindow);
   setGlobalContext({
-    window: vWindow,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(Object.entries(context.consistentValues)),
     globalData: new Map(),
@@ -256,7 +257,6 @@ async function restoreContext(context, routerCreateFn) {
   const hydratedGlobalData = getGlobalContext().globalData;
 
   setGlobalContext({
-    window,
     teleportIdCounter: { value: 0 },
     consistentValues: new Map(),
     globalData: hydratedGlobalData,

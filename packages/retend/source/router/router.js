@@ -3,7 +3,7 @@
 /** @import { RouterEventTypes, RouterEventHandlerMap } from './events.js'; */
 /** @import { MatchedRoute, MatchResult } from './routeTree.js'; */
 /** @import { RouterMiddleware, RouteData } from './middleware.js'; */
-/** @import { WindowLike } from '../context/index.js'; */
+/** @import { VWindow } from '../v-dom/index.js'; */
 /** @import {
  *   NavigationOptions,
  *   RouterInternalState,
@@ -624,14 +624,14 @@ export class Router extends EventTarget {
   /** @param {Event} event */
   #windowEventHandler = async (event) => {
     if (this.#isNavigating) return;
-    const window = /** @type {WindowLike} */ (event.currentTarget);
+    const window = /** @type {Window | VWindow} */ (event.currentTarget);
     this.#isNavigating = true;
     const path = getFullPath(window);
     await this.#load({ rawPath: path, navigate: false });
     this.#isNavigating = false;
   };
 
-  /** @param {WindowLike} window */
+  /** @param {Window | VWindow} window */
   attachWindowListeners = (window) => {
     const handleRoutePrevented = () => {
       window.history.replaceState({}, '', this.#lock);

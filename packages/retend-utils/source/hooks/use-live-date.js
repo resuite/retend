@@ -57,9 +57,10 @@ export function useLiveDate(interval = 1000) {
 
       /** @param {GlobalContextChangeEvent} event */
       const transferTimers = (event) => {
+        const { host: newWindow } = getActiveRenderer();
         const { newContext } = event.detail;
-        if (newContext?.window && renderer instanceof DOMRenderer) {
-          newContext.globalData.set(RUNNING_TIMERS_KEY, runningTimers);
+        if (newWindow && renderer instanceof DOMRenderer) {
+          newContext?.globalData.set(RUNNING_TIMERS_KEY, runningTimers);
           // @ts-ignore: Custom events are not properly typed in JS.
           window.removeEventListener('globalcontextchange', transferTimers);
         }

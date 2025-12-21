@@ -1,6 +1,6 @@
 import { beforeEach, afterEach } from 'vitest';
-import { setGlobalContext, resetGlobalContext, isVNode } from 'retend/context';
-import { type VNode, VWindow } from 'retend/v-dom';
+import { setGlobalContext, resetGlobalContext } from 'retend/context';
+import { type VNode, VWindow, isVNode } from 'retend/v-dom';
 import { Outlet, type Router, RouterProvider } from 'retend/router';
 import { setActiveRenderer, getActiveRenderer } from 'retend';
 
@@ -19,7 +19,6 @@ export const routerRoot = (router: Router): string & Node => {
 export const routerSetup = () => {
   const window = new VWindow();
   setGlobalContext({
-    window,
     consistentValues: new Map(),
     globalData: new Map(),
     teleportIdCounter: { value: 0 },
@@ -35,7 +34,6 @@ export const routerSetupBrowser = () => {
     document.body.append(document.createElement('retend-router-outlet'));
 
     setGlobalContext({
-      window: window,
       consistentValues: new Map(),
       globalData: new Map(),
       teleportIdCounter: { value: 0 },
@@ -60,7 +58,6 @@ export const browserSetup = () => {
     clearBrowserWindow();
 
     setGlobalContext({
-      window,
       teleportIdCounter: { value: 0 },
       consistentValues: new Map(),
       globalData: new Map(),
@@ -78,7 +75,6 @@ export const vDomSetup = () => {
   beforeEach(() => {
     const window = new VWindow();
     setGlobalContext({
-      window,
       consistentValues: new Map(),
       globalData: new Map(),
       teleportIdCounter: { value: 0 },

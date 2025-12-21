@@ -13,6 +13,8 @@ import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
+import { VDOMRenderer } from './v-dom-renderer.js';
+import { getActiveRenderer, setActiveRenderer } from 'retend';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -128,13 +130,15 @@ async function renderPath(options) {
   const { VElement, VWindow } = retendVDomModule;
 
   const window = buildWindowFromHtmlText(htmlShell, VWindow);
+  const renderer = new VDOMRenderer(window);
+
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
   const cssImports = new Set();
   globalData.set('env:ssr', true);
+  setActiveRenderer(renderer, globalData);
   const globalContextStore = {
-    window,
     path,
     teleportIdCounter,
     consistentValues,
@@ -148,7 +152,10 @@ async function renderPath(options) {
     const store = asyncLocalStorage.getStore();
     if (!store) throw new Error('No store found');
 
-    const { path, window } = store;
+    const { path } = store;
+    /** @type {VDOMRenderer} */ // @ts-ignore
+    const renderer = getActiveRenderer();
+    const { host: window } = renderer;
     const shell = vNodeToObject(window.document.documentElement, VElement);
 
     const { document, location } = window;

@@ -1,5 +1,4 @@
 /** @import { Router } from 'retend/router' */
-/** @import { VWindow } from 'retend/v-dom' */
 /** @import { AsyncLocalStorage } from 'node:async_hooks' */
 /** @import { RunnableDevEnvironment } from 'vite' */
 
@@ -43,7 +42,6 @@
 
 /**
  * @typedef {Object} AsyncStorage
- * @property {VWindow} window
  * @property {string} path
  * @property {{ value: number }} teleportIdCounter
  * @property {Map<string, unknown>} consistentValues

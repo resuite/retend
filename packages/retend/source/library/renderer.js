@@ -222,8 +222,13 @@ export function getActiveRenderer() {
  * @template {RendererTypes} Types
  * @param {Renderer<Types>} renderer
  * The renderer instance to be used for subsequent rendering operations.
+ * @param {Map<PropertyKey, any>} [globalData]
  */
-export function setActiveRenderer(renderer) {
-  const { globalData } = getGlobalContext();
-  globalData.set(RendererKey, renderer);
+export function setActiveRenderer(renderer, globalData) {
+  if (globalData) {
+    globalData.set(RendererKey, renderer);
+  } else {
+    const { globalData } = getGlobalContext();
+    globalData.set(RendererKey, renderer);
+  }
 }

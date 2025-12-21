@@ -97,7 +97,7 @@ const initUniqueStash = () => {
       const { newContext } = _event.detail;
       renderer.host.removeEventListener('retend:activate', stash.onActivate);
       if (!newContext) return;
-      const { window: newWindow } = newContext;
+      const { host: newWindow } = getActiveRenderer();
 
       if (stash.pendingTeardowns.size > 0) {
         newWindow.addEventListener('retend:activate', stash.onActivate);
