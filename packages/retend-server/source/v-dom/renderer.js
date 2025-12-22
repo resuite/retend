@@ -1,10 +1,9 @@
-/** @import { Renderer, ReconcilerOptions, Observer } from "retend"; */
+/** @import { Renderer, ReconcilerOptions } from "retend"; */
 /** @import * as VDom from './index.js' */
 /** @import { UpdatableFn } from 'retend/hmr'; */
 
-import { createNodesFromTemplate, getActiveRenderer, Cell } from 'retend';
+import { createNodesFromTemplate, Cell } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
-import { isVNode } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
@@ -33,7 +32,7 @@ import { isVNode } from './index.js';
  * platform-agnostic virtual DOM. It is designed for environments where a real browser
  * DOM is not available, such as Server-Side Rendering (SSR) or unit testing in Node.js.
  * It provides the necessary hooks for node creation and reconciliation while maintaining
- * compatibility with standard web-like structures.
+ * a level of compatibility with standard web-like structures.
  *
  * @class
  * @implements {VDOMRendererInterface}
@@ -116,7 +115,11 @@ export class VDOMRenderer {
    * @returns {N}
    */
   setProperty(node, key, value) {
-    return Ops.setProperty(node, key, value, setEventListener);
+    // event listeners are not needed in the vdom.
+    if (key.startsWith('on') && key.length > 2) {
+      return node;
+    }
+    return Ops.setProperty(node, key, value);
   }
 
   /**
@@ -242,70 +245,13 @@ export class VDOMRenderer {
 
   /**
    * @param {(node: VDom.VNode) => Promise<any>} callback
-   * @param {Observer} observer
-   * @param {string} target
-   * @param {string} teleportId
    */
-  scheduleTeleport(callback, observer, target, teleportId) {
+  scheduleTeleport(callback) {
     const anchorNode = this.host.document.createComment('teleport-anchor');
     this.host.document.teleportMounts.push(() => callback(anchorNode));
-    //Observers are not supported in VDom, they work only in Interactive mode,
-    // but a callback still needs to be registered so the teleport can be unmounted as soon
-    // as the anchor node is disconnected.
     const ref = Cell.source(anchorNode);
     Reflect.set(anchorNode, '__isTeleportAnchor', true);
     Reflect.set(anchorNode, '__ref', ref);
-    observer.onConnected(ref, () => {
-      return () => {
-        const renderer = getActiveRenderer();
-        const window = /** @type {Window} */ (renderer.host);
-        const parent = window.document.querySelector(target);
-        if (!parent) {
-          const message = `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`;
-          console.error(message);
-          return;
-        }
-        if (!teleportId) return;
-        const instance = findStaleTeleport(parent, teleportId);
-        if (instance) instance.remove();
-      };
-    });
     return anchorNode;
   }
-}
-
-/**
- * @param {VDom.VElement} el
- * @param {string} key
- * @param {any} value
- */
-function setEventListener(el, key, value) {
-  const element = /** @type {JsxElement} */ (el);
-  // Event listeners are not useful in the VDom,
-  // but they need to be stored so they can be propagated to the
-  // static DOM representation in the browser.
-  element.setHiddenAttribute(key, value);
-}
-
-/**
- * Finds the last rendered teleport instance with a matching teleportId.
- * @param {Element | VDom.VElement} parent
- * @param {string} teleportId
- * @returns {VDom.VElement | Element | null | undefined}
- */
-function findStaleTeleport(parent, teleportId) {
-  if (isVNode(parent))
-    return parent.findNode((node) => {
-      if (node === parent) return false;
-      if (node.nodeType !== 1) return false;
-      const element = /** @type {VDom.VElement} */ (node);
-      return (
-        element.tagName === 'retend-TELEPORT' &&
-        element.getAttribute('data-teleport-id') === teleportId
-      );
-    });
-
-  return parent.querySelector(
-    `retend-teleport[data-teleport-id='${teleportId}']`
-  );
 }

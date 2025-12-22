@@ -40,6 +40,9 @@ export class DOMRenderer {
   /** @type {Window & globalThis} */
   host;
   observer = null;
+  #isHydrating = false;
+  /** @type {Node[]} */ // @ts-expect-error
+  #hydrationNodeTable = [];
 
   /** @param {Window & globalThis} host */
   constructor(host) {
@@ -151,6 +154,11 @@ export class DOMRenderer {
    */
   append(_parentNode, childNode) {
     const parentNode = /** @type {Element} */ (_parentNode);
+    if (this.#isHydrating) {
+      // The assumption here is that there is already a static DOM with
+      // the correct children appended.
+      return parentNode;
+    }
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
     if (shadowRoot) {
       return shadowRoot;
@@ -287,5 +295,19 @@ export class DOMRenderer {
     const ref = Cell.source(anchorNode);
     observer.onConnected(ref, () => callback(anchorNode));
     return anchorNode;
+  }
+
+  /**
+   * Enables hydration mode.
+   * @param {Node[]} nodeTable
+   */
+  startHydration(nodeTable) {
+    this.#isHydrating = true;
+    this.#hydrationNodeTable = nodeTable;
+  }
+
+  endHydration() {
+    this.#isHydrating = false;
+    this.#hydrationNodeTable = [];
   }
 }

@@ -14,7 +14,7 @@ import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
 import { VDOMRenderer } from './v-dom/renderer.js';
-import { VElement, VWindow } from './v-dom/index.js';
+import { VWindow } from './v-dom/index.js';
 import { getActiveRenderer, setActiveRenderer } from 'retend';
 import { renderToString } from './render-to-string.js';
 
@@ -148,7 +148,6 @@ async function renderPath(options) {
     /** @type {VDOMRenderer} */ // @ts-ignore
     const renderer = getActiveRenderer();
     const { host: window } = renderer;
-    const shell = vNodeToObject(window.document.documentElement, VElement);
 
     const { document, location } = window;
     location.href = path;
@@ -191,7 +190,6 @@ async function renderPath(options) {
     const ctx = {
       path,
       rootSelector,
-      shell,
       consistentValues,
     };
     const payload = JSON.stringify(ctx);
@@ -297,32 +295,6 @@ function createVNodeFromParsedNode(node, window) {
   }
   if (node instanceof Comment) return document.createComment(node.data);
   return window.document.createMarkupNode(String(node));
-}
-
-/**
- * @param {VNode} node
- * @param {typeof VElement} VElement
- * @returns {Record<string, unknown>}
- */
-function vNodeToObject(node, VElement) {
-  /** @type {Record<string, unknown>} */
-  const object = { type: node.nodeType };
-  if (node instanceof VElement) {
-    object.tag = node.tagName;
-    const attrs = node.attributes;
-    object.attrs = attrs.length
-      ? attrs.reduce((acc, attr) => {
-          acc[attr.name] = attr.value;
-          return acc;
-        }, /** @type {Record<string, string>} */ ({}))
-      : undefined;
-    if (node.childNodes.length) {
-      object.nodes = node.childNodes.map((node) =>
-        vNodeToObject(node, VElement)
-      );
-    }
-  } else object.text = node.textContent ?? '';
-  return object;
 }
 
 /**

@@ -22,23 +22,6 @@ export const CustomEvent =
   };
 
 /**
- * @typedef GlobalContextChangeDetail
- * @property {Environments} [newContext]
- * @property {Environments} [oldContext]
- */
-
-/** @extends {CustomEvent<GlobalContextChangeDetail>} */
-export class GlobalContextChangeEvent extends CustomEvent {
-  /**
-   * @param {Environments} [oldContext]
-   * @param {Environments} [newContext]
-   */
-  constructor(oldContext, newContext) {
-    super('globalcontextchange', { detail: { oldContext, newContext } });
-  }
-}
-
-/**
  * Environment configuration that pairs a mode with its corresponding window implementation.
  * Each environment provides its own window interface optimized for that context.
  *
@@ -53,9 +36,6 @@ export class GlobalContextChangeEvent extends CustomEvent {
 export function resetGlobalContext() {
   const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
   globalThis.__RETEND_GLOBAL_CONTEXT__ = {};
-  oldContext.window?.dispatchEvent?.(
-    new GlobalContextChangeEvent(oldContext, undefined)
-  );
 }
 
 if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
@@ -86,11 +66,6 @@ export function isSSREnvironment() {
 export function setGlobalContext(newContext) {
   const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
   globalThis.__RETEND_GLOBAL_CONTEXT__ = newContext;
-  if (oldContext !== newContext) {
-    oldContext.window?.dispatchEvent(
-      new GlobalContextChangeEvent(oldContext, newContext)
-    );
-  }
 }
 
 /**

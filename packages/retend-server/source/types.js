@@ -15,7 +15,6 @@
  * @typedef {Object} ServerContext
  * @property {string} path
  * @property {string} rootSelector
- * @property {Record<string, unknown>} shell
  * @property {Record<string, unknown>} consistentValues
  */
 

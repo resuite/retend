@@ -384,14 +384,6 @@ export class VElement extends VNode {
   }
 
   /**
-   * @param {string} name
-   * @param {unknown} value
-   */
-  setHiddenAttribute(name, value) {
-    this.#hiddenAttributes.set(name, value);
-  }
-
-  /**
    * @param {string} qualifiedName
    * @param {boolean} [force]
    */
@@ -826,17 +818,6 @@ export class VLocation {
 
   #updateHref() {
     this.#href = `${this.#pathname}${this.#search}${this.#hash}`;
-  }
-}
-
-/**
- * An event that can be dispatched when a virtual node is upgraded to a real DOM node.
- */
-export class HydrationUpgradeEvent extends Event {
-  /** @param {Node} newInstance */
-  constructor(newInstance) {
-    super('hydrationupgrade');
-    this.detail = { newInstance };
   }
 }
 

@@ -1,10 +1,5 @@
 {
   "deno.enable": false,
-  "cSpell.words": [
-    "globalcontextchange",
-    "retend",
-    "routeerror",
-    "routelockprevented"
-  ],
-   "typescript.tsdk": "packages/retend/node_modules/typescript/lib/"
+  "cSpell.words": ["retend", "routeerror", "routelockprevented"],
+  "typescript.tsdk": "packages/retend/node_modules/typescript/lib/",
 }
