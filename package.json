@@ -34,9 +34,6 @@
     "packages/retend-start",
     "packages/retend-utils",
     "packages/retend-web",
-    "examples/utils-testing",
-    "examples/hmr-test",
-    "examples/unique-test",
     "tests"
   ]
 }
