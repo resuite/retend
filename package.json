@@ -1,5 +1,6 @@
 {
   "author": "Adebola Akomolafe",
+  "version": "0.0.23",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adebola-io/retend.git"
