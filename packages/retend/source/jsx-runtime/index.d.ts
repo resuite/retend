@@ -1,7 +1,6 @@
 export namespace JSX {
   type Booleanish = boolean | 'true' | 'false';
   type Numberish = number | `${number}`;
-  type ElementType = string | ((props: any) => any)
   type ValueOrCell<T> = T | import("@adbl/cells").Cell<T>
 
 
@@ -19,14 +18,8 @@ export namespace JSX {
     active?: JSX.ValueOrCell<Booleanish>
   }
 
-  interface IntrinsicElements {}
-
-  export type Template =
-    | undefined
-    | unknown
-    | void
-    | null
-    // biome-ignore lint/suspicious/noConfusingVoidType:
-    | Promise< void | undefined | null>;
-  export type Element = Template;
+  // biome-ignore lint/suspicious/noEmptyInterface: should be augmented by renderers.
+  interface IntrinsicElements { }
+  export type Template = null | undefined | Promise<any> | string | number | boolean | void | object;
+  export type Element = Template
 }

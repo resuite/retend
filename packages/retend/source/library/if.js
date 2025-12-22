@@ -5,6 +5,7 @@ import { h } from './jsx.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import { ArgumentList } from './utils.js';
 import { getActiveRenderer } from './renderer.js';
+import { IgnoredHProps } from '../_internals.js';
 
 /**
  * @template T
@@ -43,24 +44,40 @@ import { getActiveRenderer } from './renderer.js';
  * // The welcome message will now be displayed
  */
 export function If(value, fnOrObject, elseFn) {
+  const renderer = getActiveRenderer();
   if (!Cell.isCell(value)) {
     if (typeof fnOrObject === 'function') {
       if (value) {
-        return h(fnOrObject, new ArgumentList([value]));
+        return h(
+          fnOrObject,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
       }
       if (elseFn) {
-        return h(elseFn, new ArgumentList([]));
+        return h(elseFn, new ArgumentList([]), ...IgnoredHProps, renderer);
       }
       return;
     }
 
     if (typeof fnOrObject === 'object') {
       if (value && 'true' in fnOrObject) {
-        return h(fnOrObject.true, new ArgumentList([value]));
+        return h(
+          fnOrObject.true,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
       }
 
       if (!value && 'false' in fnOrObject) {
-        return h(fnOrObject.false, new ArgumentList([]));
+        return h(
+          fnOrObject.false,
+          new ArgumentList([]),
+          ...IgnoredHProps,
+          renderer
+        );
       }
     }
 
@@ -70,7 +87,6 @@ export function If(value, fnOrObject, elseFn) {
     return;
   }
 
-  const renderer = getActiveRenderer();
   const scopeSnapshot = createScopeSnapshot();
 
   /** @param {T} _value */
@@ -78,11 +94,21 @@ export function If(value, fnOrObject, elseFn) {
     return withScopeSnapshot(scopeSnapshot, () => {
       if (typeof fnOrObject === 'function') {
         if (_value) {
-          const newNodes = h(fnOrObject, new ArgumentList([_value]));
+          const newNodes = h(
+            fnOrObject,
+            new ArgumentList([_value]),
+            ...IgnoredHProps,
+            renderer
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
         if (elseFn) {
-          const newNodes = h(elseFn, new ArgumentList([]));
+          const newNodes = h(
+            elseFn,
+            new ArgumentList([]),
+            ...IgnoredHProps,
+            renderer
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
         return [];
@@ -90,12 +116,22 @@ export function If(value, fnOrObject, elseFn) {
 
       if (typeof fnOrObject === 'object') {
         if (_value && 'true' in fnOrObject) {
-          const newNodes = h(fnOrObject.true, new ArgumentList([_value]));
+          const newNodes = h(
+            fnOrObject.true,
+            new ArgumentList([_value]),
+            ...IgnoredHProps,
+            renderer
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
 
         if (!_value && 'false' in fnOrObject) {
-          const newNodes = h(fnOrObject.false, new ArgumentList([]));
+          const newNodes = h(
+            fnOrObject.false,
+            new ArgumentList([]),
+            ...IgnoredHProps,
+            renderer
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
 

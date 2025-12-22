@@ -216,15 +216,22 @@ export function createScope(name) {
             : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
+      const renderer = getActiveRenderer();
+      const hArgs = /** @type {const} */ ([
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        renderer,
+      ]);
       const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
       activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
       try {
         if ('h' in props && !props.h) {
           const template = renderFn();
-          const renderer = getActiveRenderer();
           return createNodesFromTemplate(template, renderer);
         }
-        return h(renderFn, {});
+        return h(renderFn, {}, ...hArgs);
       } finally {
         activeScopeSnapshot.scopes.set(Scope, stackBefore);
       }

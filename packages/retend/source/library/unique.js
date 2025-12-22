@@ -170,6 +170,13 @@ const initUniqueStash = () => {
 export function Unique(props) {
   const { globalData } = getGlobalContext();
   const renderer = getActiveRenderer();
+  const hArgs = /** @type {const} */ ([
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    renderer,
+  ]);
   const {
     name,
     children,
@@ -184,13 +191,11 @@ export function Unique(props) {
   const selector = `${elementName}[name="${name}"]`;
   const observer = useObserver();
 
-  const retendUniqueInstance = h(elementName, rest);
+  const retendUniqueInstance = h(elementName, rest, ...hArgs);
   let previous = stash.instances.get(name);
 
   /** @param {unknown} div */
   const saveState = (div) => {
-    const renderer = getActiveRenderer();
-
     renderer.setProperty(div, 'state', 'moved');
     let customData;
     // @ts-ignore: TODO: The base type should be unknown when more environments are added.
@@ -233,7 +238,6 @@ export function Unique(props) {
   // Once (7) runs, it means the next node should already be in the dom, and if
   // it isn't, then we can dispose, because there is no continuity.
   const teardown = () => {
-    const renderer = getActiveRenderer();
     const possibleNextInstance = renderer.selectMatchingNode(selector);
     if (possibleNextInstance) {
       stash.pendingTeardowns.delete(teardown);
@@ -256,7 +260,6 @@ export function Unique(props) {
     if (scope) scope.node.enable();
 
     return () => {
-      const renderer = getActiveRenderer();
       const nextInstance = renderer.selectMatchingNode(selector);
       if (!nextInstance && !disposedByHMR) stash.pendingTeardowns.add(teardown);
     };
@@ -280,7 +283,6 @@ export function Unique(props) {
         disposedByHMR = true;
         return;
       }
-      const renderer = getActiveRenderer();
       const scope = stash.scopes.get(name);
       if (scope) scope.node.disable();
       const currentElement = stash.refs.get(name)?.peek();
@@ -316,7 +318,7 @@ export function Unique(props) {
     childNodes = (() => {
       const scopeSnapshot = createScopeSnapshot();
       stash.scopes.set(name, scopeSnapshot);
-      return withScopeSnapshot(scopeSnapshot, () => h(children, {}));
+      return withScopeSnapshot(scopeSnapshot, () => h(children, {}, ...hArgs));
     })();
     linkNodes(retendUniqueInstance, childNodes, renderer);
   }

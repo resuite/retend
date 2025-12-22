@@ -5,6 +5,7 @@ import { ArgumentList } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import h from './jsx.js';
 import { getActiveRenderer } from './renderer.js';
+import { IgnoredHProps } from '../_internals.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -53,14 +54,25 @@ import { getActiveRenderer } from './renderer.js';
  * @param {*} [defaultCase]
  */
 export function Switch(value, cases, defaultCase) {
+  const renderer = getActiveRenderer();
   if (!Cell.isCell(value)) {
     if (value in cases && cases[value]) {
-      const nodes = h(cases[value], new ArgumentList([]));
+      const nodes = h(
+        cases[value],
+        new ArgumentList([]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
     if (defaultCase) {
-      const nodes = h(defaultCase, new ArgumentList([value]));
+      const nodes = h(
+        defaultCase,
+        new ArgumentList([value]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
@@ -68,19 +80,28 @@ export function Switch(value, cases, defaultCase) {
   }
 
   const snapshot = createScopeSnapshot();
-  const renderer = getActiveRenderer();
 
   /** @param {any} value */
   const callback = (value) => {
     return withScopeSnapshot(snapshot, () => {
       const caseCaller = cases[value];
       if (caseCaller) {
-        const newNodes = h(caseCaller, new ArgumentList([value]));
+        const newNodes = h(
+          caseCaller,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
         return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
       if (defaultCase) {
-        const newNodes = h(defaultCase, new ArgumentList([value]));
+        const newNodes = h(
+          defaultCase,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
         return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
       return [];
@@ -136,16 +157,27 @@ export function Switch(value, cases, defaultCase) {
  * @param {*} [defaultCase]
  */
 Switch.OnProperty = (value, key, cases, defaultCase) => {
+  const renderer = getActiveRenderer();
   if (!Cell.isCell(value)) {
     const discriminant = value[key];
 
     if (discriminant in cases && cases[discriminant]) {
-      const nodes = h(cases[discriminant], new ArgumentList([value]));
+      const nodes = h(
+        cases[discriminant],
+        new ArgumentList([value]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
     if (defaultCase) {
-      const nodes = h(defaultCase, new ArgumentList([value]));
+      const nodes = h(
+        defaultCase,
+        new ArgumentList([value]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
@@ -153,7 +185,6 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
   }
 
   const snapshot = createScopeSnapshot();
-  const renderer = getActiveRenderer();
 
   /** @param {any} cellValue */
   const callback = (cellValue) => {
@@ -162,12 +193,22 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
       const caseCaller = cases[discriminant];
       if (caseCaller) {
-        const newNodes = h(caseCaller, new ArgumentList([cellValue]));
+        const newNodes = h(
+          caseCaller,
+          new ArgumentList([cellValue]),
+          ...IgnoredHProps,
+          renderer
+        );
         return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
       if (defaultCase) {
-        const newNodes = h(defaultCase, new ArgumentList([cellValue]));
+        const newNodes = h(
+          defaultCase,
+          new ArgumentList([cellValue]),
+          ...IgnoredHProps,
+          renderer
+        );
         return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 

@@ -35,6 +35,7 @@ import {
 import { constructURL, getFullPath } from './utils.js';
 import { RouterMiddlewareResponse } from './middleware.js';
 import { getActiveRenderer } from '../library/renderer.js';
+import { IgnoredHProps } from '../_internals.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -845,6 +846,7 @@ export function createWebRouter(routerOptions) {
  */
 export function Outlet(props) {
   const routerData = useScopeContext(RouterScope);
+  const renderer = getActiveRenderer();
   const { depth, internalState } = routerData;
   const rawProps = props || {};
   const currentLevel = Cell.derived(() => {
@@ -856,11 +858,17 @@ export function Outlet(props) {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
       value: { ...routerData, depth: routerData.depth + 1 },
-      children: () => h(RenderFn, { metadata: internalState.metadata }),
+      children: () =>
+        h(
+          RenderFn,
+          { metadata: internalState.metadata },
+          ...IgnoredHProps,
+          renderer
+        ),
     });
   });
 
-  return h('retend-router-outlet', rawProps);
+  return h('retend-router-outlet', rawProps, ...IgnoredHProps, renderer);
 }
 
 /**
@@ -883,13 +891,15 @@ export function Outlet(props) {
 export function Link(props = {}) {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
+  const renderer = getActiveRenderer();
+
   if (!('href' in props)) {
     console.error('missing to attribute for link component.');
   }
   if ('active' in props) {
     console.error('active attribute is reserved for router.');
   }
-  const { href: hrefProp, replace, children } = props;
+  const { href: hrefProp, replace } = props;
   const href = Cell.derived(() => {
     return Cell.isCell(hrefProp) ? hrefProp.get() : hrefProp;
   });
@@ -928,7 +938,7 @@ export function Link(props = {}) {
   };
   props.active = active;
 
-  return h('a', props, children);
+  return h('a', props, ...IgnoredHProps, renderer);
 }
 
 /**

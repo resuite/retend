@@ -6,6 +6,7 @@ import { h } from './jsx.js';
 import { ArgumentList } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import { getActiveRenderer } from './renderer.js';
+import { IgnoredHProps } from '../_internals.js';
 
 /**
  * @template T
@@ -53,6 +54,8 @@ import { getActiveRenderer } from './renderer.js';
  * // The list will automatically update to include the new name
  */
 export function For(list, fn, options) {
+  const renderer = getActiveRenderer();
+
   // -----------------------------------------------
   // STATIC LISTS
   // -----------------------------------------------
@@ -66,7 +69,12 @@ export function For(list, fn, options) {
     }
     // @ts-ignore: The list as a whole is very hard to type properly.
     for (const item of list) {
-      const nodes = h(fn, new ArgumentList([item, Cell.source(i), list]));
+      const nodes = h(
+        fn,
+        new ArgumentList([item, Cell.source(i), list]),
+        ...IgnoredHProps,
+        renderer
+      );
       if (Array.isArray(nodes)) {
         initialResult.push(...nodes);
       } else {
@@ -84,7 +92,6 @@ export function For(list, fn, options) {
   /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: ScopeSnapshot }>} */
   let cacheFromLastRun = new Map();
   const autoKeys = new WeakMap();
-  const renderer = getActiveRenderer();
 
   /**
    * @param {any} item
@@ -147,7 +154,12 @@ export function For(list, fn, options) {
           node: base.node.branch(),
         };
         const newNodes = withScopeSnapshot(snapshot, () => {
-          return h(fn, new ArgumentList(parameters));
+          return h(
+            fn,
+            new ArgumentList(parameters),
+            ...IgnoredHProps,
+            renderer
+          );
         });
         effectNodesToActivate.push(snapshot.node);
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
@@ -214,7 +226,7 @@ export function For(list, fn, options) {
         node: base.node.branch(),
       };
       const newNodes = withScopeSnapshot(snapshot, () =>
-        h(fn, new ArgumentList(parameters))
+        h(fn, new ArgumentList(parameters), ...IgnoredHProps, renderer)
       );
       const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
       trackNodes(nodes);

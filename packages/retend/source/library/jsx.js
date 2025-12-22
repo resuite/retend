@@ -1,16 +1,16 @@
 /** @import { jsxDevFileData } from '../hmr/index.js'; */
-/** @import { Renderer, UnknownRendererTypes } from './renderer.js'; */
+/** @import { Renderer } from './renderer.js'; */
 import { getActiveRenderer } from './renderer.js';
 import { ArgumentList, linkNodes } from './utils.js';
 
 /**
- * @template {UnknownRendererTypes} Data
  * @param {string | Function | undefined} tagOrFn
  * @param {*} props
  * @param {*} [_]
  * @param {*} [__]
+ * @param {*} [___]
  * @param {jsxDevFileData} [fileData]
- * @param {Renderer<Data>} renderer
+ * @param {Renderer<any>} renderer
  * @returns {any}
  */
 export function h(
@@ -18,8 +18,8 @@ export function h(
   props,
   _,
   __,
+  ___,
   fileData,
-  // @ts-expect-error: renderer types are a pain.
   renderer = getActiveRenderer()
 ) {
   if (tagOrFn === undefined) return [];

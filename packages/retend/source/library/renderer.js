@@ -48,18 +48,6 @@ const RendererKey = Symbol('Renderer');
  */
 
 /**
- * @typedef UnknownRendererTypes
- * @property {unknown} Output
- * @property {unknown} Node
- * @property {unknown} Handle
- * @property {unknown} Group
- * @property {unknown} Text
- * @property {unknown} Container
- * @property {any} Host
- * @property {any} SavedNodeState
- */
-
-/**
  * The core interface for a rendering engine, acting as an abstract bridge between
  * the framework's reactive logic and a specific host environment.
  *
@@ -207,7 +195,7 @@ const RendererKey = Symbol('Renderer');
 /**
  * Retrieves the currently active renderer from the global context.
  *
- * @returns {Renderer<UnknownRendererTypes>}
+ * @returns {Renderer<any>}
  * The renderer instance responsible for the current execution cycle.
  */
 export function getActiveRenderer() {
