@@ -4,6 +4,7 @@ import { renderToString } from 'retend-server/client';
 import { ShadowRoot } from 'retend-web';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, timeout, vDomSetup } from './setup.tsx';
+import type { VDOMRenderer } from 'retend-server/v-dom';
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {
@@ -496,6 +497,187 @@ const runTests = () => {
   });
 };
 
+const dynamicTests = () => {
+  it('should mark elements with event listeners as dynamic when option is enabled', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = (
+      <button type="button" onClick={() => {}}>
+        Click me
+      </button>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toContain(
+      '<button type="button" r-dynamic-id="0">Click me</button>'
+    );
+  });
+
+  it('should mark elements with reactive attributes as dynamic when option is enabled', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = <div class={Cell.source('test-class')}>Content</div>;
+    const result = await renderToString(element, window);
+    expect(result).toContain(
+      '<div class="test-class" r-dynamic-id="0">Content</div>'
+    );
+  });
+
+  it('should mark element as reactive if it has a reactive attribute', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = <div title={Cell.source('dynamic-title')}>Content</div>;
+    const result = await renderToString(element, window);
+    expect(result).toContain('r-dynamic-id="0"');
+  });
+
+  it('should mark an element as dynamic if it is held by a ref', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const ref = Cell.source('dynamic-ref');
+    const element = <div ref={ref}>Content</div>;
+    const result = await renderToString(element, window);
+    expect(result).toContain('r-dynamic-id="0"');
+  });
+
+  it('should not mark static elements as dynamic when option is enabled', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = <div class="static">Static content</div>;
+    const result = await renderToString(element, window);
+    expect(result).not.toContain('r-dynamic-id');
+  });
+
+  it('should assign incremental dynamic ids to multiple dynamic elements', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = (
+      <div>
+        <button type="button" onClick={() => {}}>
+          Button 1
+        </button>
+        <div class={Cell.source('class1')}>Div 1</div>
+        <span>Static</span>
+        <button type="button" onClick={() => {}}>
+          Button 2
+        </button>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toBe(
+      '<div><button type="button" r-dynamic-id="0">Button 1</button><div class="class1" r-dynamic-id="1">Div 1</div><span>Static</span><button type="button" r-dynamic-id="2">Button 2</button></div>'
+    );
+  });
+
+  it('should mark elements with reactive text content as dynamic if they have dynamic text node children', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = <div>{Cell.source('Dynamic text')}</div>;
+    const result = await renderToString(element, window);
+    expect(result).toContain('<div r-dynamic-id');
+  });
+
+  it('should only consider immediate children when checking for dynamism', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = (
+      <div>
+        <div>
+          <button type="button" onClick={() => {}}>
+            Click
+          </button>
+        </div>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toBe(
+      '<div><div><button type="button" r-dynamic-id="0">Click</button></div></div>'
+    );
+  });
+
+  it('should mark the container for a For loop as reactive', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const items = Cell.source(['Item 1']);
+    const element = (
+      <ul>
+        {For(items, (item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toContain('<ul r-dynamic-id="0">');
+  });
+
+  it('should mark the container for a If as reactive', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const condition = Cell.source(true);
+    const element = (
+      <div>
+        {If(condition, {
+          true: () => <span>True</span>,
+        })}
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toContain('<div r-dynamic-id="0">');
+  });
+
+  it('should mark an element as reactive if it has a shadowroot', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = (
+      <div>
+        <ShadowRoot>
+          <div>Shadow content</div>
+        </ShadowRoot>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    expect(result).toContain('<div r-dynamic-id="0">');
+  });
+
+  it('should increment for very large subtrees', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const size = 100;
+    const element = (
+      <div>
+        {Array.from({ length: size }).map((_, i) => (
+          <div key={i} onClick={() => {}}>
+            {i}
+          </div>
+        ))}
+      </div>
+    );
+    const result = await renderToString(element, window);
+    for (let i = 0; i < size; i++) {
+      expect(result).toContain(`r-dynamic-id="${i}"`);
+    }
+  });
+
+  it('should handle deeply nested dynamic elements', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = (
+      <div onClick={() => {}}>
+        <div onClick={() => {}}>
+          <div onClick={() => {}}>
+            <div onClick={() => {}}>
+              <div onClick={() => {}}>Deeply nested</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+    const result = await renderToString(element, window);
+    for (let i = 0; i < 5; i++) {
+      expect(result).toContain(`r-dynamic-id="${i}"`);
+    }
+  });
+};
+
 describe('JSX Serialization', () => {
   describe('Browser', () => {
     browserSetup();
@@ -505,5 +687,10 @@ describe('JSX Serialization', () => {
   describe('VDom', () => {
     vDomSetup();
     runTests();
+  });
+
+  describe('VDom (Dynamic)', () => {
+    vDomSetup({ markDynamicNodes: true });
+    dynamicTests();
   });
 });

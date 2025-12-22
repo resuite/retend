@@ -4,6 +4,7 @@
 
 import { createNodesFromTemplate, Cell } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
+import { VElement, VComment, VText } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
@@ -40,10 +41,13 @@ import * as Ops from 'retend-web/dom-ops';
 export class VDOMRenderer {
   observer = null;
   staticStyleIds = new Set();
+  markDynamicNodes = false;
+  dynamicNodeMarker = 0;
 
   /** @param {VDom.VWindow} host */
-  constructor(host) {
+  constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
     this.host = host;
+    this.markDynamicNodes = markDynamicNodes;
     // @ts-expect-error: all static styles need is staticStyleIds set and a window
     Ops.writeStaticStyles(this);
     this.capabilities = {
@@ -119,6 +123,8 @@ export class VDOMRenderer {
   setProperty(node, key, value) {
     // event listeners are not needed in the vdom.
     if (key.startsWith('on') && key.length > 2) {
+      // @ts-expect-error
+      node.__hasEventListeners = true;
       return node;
     }
     return Ops.setProperty(node, key, value);
@@ -136,12 +142,33 @@ export class VDOMRenderer {
   }
 
   /**
+   * @param {VDom.VNode} child
+   */
+  checkIfDynamicNode(child) {
+    if (isDynamicElementOrHasImmediateDynamicChildnode(child)) {
+      if (child.getAttribute('r-dynamic-id')) {
+        return;
+      }
+      child.setAttribute('r-dynamic-id', String(this.dynamicNodeMarker++));
+    }
+  }
+
+  /**
    * @param {VDom.VNode} parentNode
    * @param {VDom.VNode | VDom.VNode[]} childNode
    */
   append(parentNode, childNode) {
+    // This seems like the most appropriate place to check for dynamism
+    // because it is assumed that the childNode is already processed.
+    if (this.markDynamicNodes) {
+      if (Array.isArray(childNode)) {
+        for (const child of childNode) this.checkIfDynamicNode(child);
+      } else this.checkIfDynamicNode(childNode);
+    }
+
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
     if (shadowRoot) {
+      if (this.markDynamicNodes) this.checkIfDynamicNode(parentNode);
       return shadowRoot;
     }
 
@@ -151,6 +178,7 @@ export class VDOMRenderer {
     } else {
       parentNode.append(childNode);
     }
+    if (this.markDynamicNodes) this.checkIfDynamicNode(parentNode);
 
     return parentNode;
   }
@@ -254,4 +282,27 @@ export class VDOMRenderer {
     Reflect.set(anchorNode, '__ref', ref);
     return anchorNode;
   }
+}
+
+/**
+ * @param {any} node
+ * @return {node is VElement}
+ */
+function isDynamicElementOrHasImmediateDynamicChildnode(node) {
+  if (!(node instanceof VElement)) return false;
+  // @ts-expect-error
+  if (node.__attributeCells?.size || node.__ref || node.__hasEventListeners) {
+    return true;
+  }
+  for (const child of node.childNodes) {
+    // @ts-expect-error
+    if (child instanceof VComment && child.__commentRangeSymbol) {
+      return true;
+    }
+    // @ts-expect-error
+    if (child instanceof VText && child.__attributeCells?.size) {
+      return true;
+    }
+  }
+  return false;
 }

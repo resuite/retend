@@ -68,7 +68,7 @@ export const browserSetup = () => {
   });
 };
 
-export const vDomSetup = () => {
+export const vDomSetup = (options?: { markDynamicNodes: boolean }) => {
   beforeEach(() => {
     const window = new VWindow();
     setGlobalContext({
@@ -76,7 +76,7 @@ export const vDomSetup = () => {
       globalData: new Map(),
       teleportIdCounter: { value: 0 },
     });
-    setActiveRenderer(new VDOMRenderer(window));
+    setActiveRenderer(new VDOMRenderer(window, options));
   });
 
   afterEach(() => {

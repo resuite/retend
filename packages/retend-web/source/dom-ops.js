@@ -147,6 +147,9 @@ export function setProperty(node, key, value, setEventListener) {
     return node;
   }
 
+  if (key === 'children') {
+    return node;
+  }
   const element = node;
   if (Cell.isCell(value)) {
     if (!element.__attributeCells) element.__attributeCells = new Set();
@@ -200,8 +203,6 @@ export function createGroup(input, renderer) {
 export function createGroupHandle(fragment, renderer) {
   // @ts-expect-error
   const handle = createCommentPair(renderer);
-  Reflect.set(handle[0], '__handle', handle);
-  Reflect.set(handle[1], '__handle', handle);
   fragment.replaceChildren(handle[0], ...fragment.childNodes, handle[1]);
   return handle;
 }

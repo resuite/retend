@@ -198,6 +198,7 @@ export async function renderToString(template, window, options = {}) {
  *  __isTeleportAnchor?: boolean;
  *  __eventListenerList?: Map<string, any>;
  *  __originScopeSnapshot?: ScopeSnapshot
+ *  __hasEventListeners?: boolean;
  *  hiddenAttributes?: Map<string, any>,
  *  getAttribute: (name: string) => string | null,
  *  childNodes: any[],
@@ -219,7 +220,7 @@ function nodeIsStatic(node, window) {
   if (node.nodeType === window.Node.ELEMENT_NODE) {
     if (node.getAttribute('data-static') !== null) return true;
     if (node.__ref) return false;
-    if (node.hiddenAttributes?.size) return false;
+    if (node.__hasEventListeners) return false;
 
     for (const child of node.childNodes) {
       if (!nodeIsStatic(child, window)) return false;
