@@ -846,15 +846,13 @@ export function createWebRouter(routerOptions) {
 export function Outlet(props) {
   const routerData = useScopeContext(RouterScope);
   const { depth, internalState } = routerData;
-  const { children, ...attributes } = props || {};
+  const rawProps = props || {};
   const currentLevel = Cell.derived(() => {
     return internalState.routeChain.get()[depth];
   });
   const path = Cell.derived(() => currentLevel.get()?.path);
-  attributes['data-path'] = path;
-
-  // @ts-expect-error: Children is not defined on attributes
-  attributes.children = If(path, () => {
+  Reflect.set(rawProps, 'data-path', path);
+  rawProps.children = If(path, () => {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
       value: { ...routerData, depth: routerData.depth + 1 },
@@ -862,7 +860,7 @@ export function Outlet(props) {
     });
   });
 
-  return h('retend-router-outlet', attributes);
+  return h('retend-router-outlet', rawProps);
 }
 
 /**
@@ -901,6 +899,7 @@ export function Link(props = {}) {
     return Boolean(fullPath && hrefValue && fullPath.startsWith(hrefValue));
   });
 
+  /** @param {Event} event */
   props.onClick = async (event) => {
     const anchor = /** @type {HTMLElement} */ (event.currentTarget);
     if (router.isNavigating) {
@@ -927,7 +926,6 @@ export function Link(props = {}) {
       anchor.dispatchEvent(afterEvent);
     }
   };
-  // @ts-expect-error: active is not an external prop.
   props.active = active;
 
   return h('a', props, children);

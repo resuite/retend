@@ -1,3 +1,4 @@
+import 'retend-web/jsx-runtime';
 import { beforeEach, afterEach } from 'vitest';
 import { setGlobalContext, resetGlobalContext } from 'retend/context';
 import { type VNode, VWindow, isVNode } from 'retend-server/v-dom';

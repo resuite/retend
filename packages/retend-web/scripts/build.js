@@ -16,5 +16,9 @@ for (const dir of fs.readdirSync('source')) {
 }
 console.log('Done!');
 
+// Add stub index.js for jsx-runtime augments
+console.log('Adding stub index.js for jsx-runtime...');
+fs.writeFileSync('dist/jsx-runtime/index.js', 'export {}');
+
 console.log('Building types...');
 execSync('bunx tsc --project tsconfig.json', { stdio: 'inherit' });

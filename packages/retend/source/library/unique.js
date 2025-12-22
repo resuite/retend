@@ -31,8 +31,6 @@ import { linkNodes } from '../library/utils.js';
 //  * @property {any} [data]
 //  */
 
-/** @typedef {JSX.IntrinsicElements["div"]} DivProps */
-
 /**
  * @template Data
  * @typedef UniqueSpecificProps
@@ -61,7 +59,7 @@ import { linkNodes } from '../library/utils.js';
 /**
  * Props for the Unique component.
  * @template CustomData
- * @typedef {DivProps & UniqueSpecificProps<CustomData>} UniqueProps
+ * @typedef {JSX.BaseContainerProps & UniqueSpecificProps<CustomData>} UniqueProps
  */
 
 const UniqueComponentStash = Symbol('UniqueComponentStash');

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "rootDir": "./source",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitAny": true,

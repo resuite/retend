@@ -23,9 +23,13 @@
 			"types": "./dist/plugin/hmr.d.ts"
 		},
 		"./dom-ops": {
-		  "import": "./dist/dom-ops.js",
+			"import": "./dist/dom-ops.js",
 			"types": "./dist/dom-ops.d.ts"
-		}
+		},
+  "./jsx-runtime": {
+      "import": "./dist/jsx-runtime/index.js",
+      "types": "./dist/jsx-runtime/index.d.ts"
+    }
 	},
 	"homepage": "https://github.com/adebola-io/retend#readme",
 	"bugs": {
@@ -45,5 +49,8 @@
 	},
 	"publishConfig": {
 		"access": "public"
+	},
+	"dependencies": {
+		"csstype": "^3.2.3"
 	}
 }

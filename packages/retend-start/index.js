@@ -398,7 +398,6 @@ import { DOMRenderer } from 'retend-web';
 import { createRouter } from './router';
 
 setActiveRenderer(new DOMRenderer(window));
-
 const router = createRouter();
 router.attachWindowListeners(window);
 
