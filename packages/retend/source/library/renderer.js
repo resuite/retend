@@ -4,7 +4,8 @@
 /** @import { Observer } from './observer.js'; */
 
 import { getGlobalContext } from '../context/index.js';
-const RendererKey = Symbol('Renderer');
+// This should be a symbol for better security, but it breaks randomly in SSR.
+const RendererKey = 'retend:Renderer';
 
 /**
  * A registry of concrete types specific to a renderer implementation.

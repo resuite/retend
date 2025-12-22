@@ -606,6 +606,7 @@ export class VWindow extends EventTarget {
     this.Document = VDocument;
     this.ShadowRoot = VShadowRoot;
     this.Node = VNode;
+    this.Text = VText;
     this.MarkupContainerNode = MarkupContainerNode;
     this.sessionStorage = new VStorage();
     this.localStorage = new VStorage();

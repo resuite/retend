@@ -40,6 +40,8 @@ export class DOMRenderer {
   /** @type {Window & globalThis} */
   host;
   observer = null;
+
+  staticStyleIds = new Set();
   #isHydrating = false;
   /** @type {Node[]} */ // @ts-expect-error
   #hydrationNodeTable = [];

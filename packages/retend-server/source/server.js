@@ -1,5 +1,4 @@
 /** @import { VNode } from './v-dom/index.js' */
-/** @import { Router } from 'retend/router' */
 /** @import {
  *    BuildOptions,
  *    ServerContext,
@@ -7,15 +6,13 @@
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
+/** @import { VWindow, VDOMRenderer } from './v-dom/index.js'; */
 
 import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
-import { VDOMRenderer } from './v-dom/renderer.js';
-import { VWindow } from './v-dom/index.js';
-import { getActiveRenderer, setActiveRenderer } from 'retend';
 import { renderToString } from './render-to-string.js';
 
 export class OutputArtifact {}
@@ -58,34 +55,12 @@ export async function buildPath(path, options) {
     rootSelector = '#app',
     skipRedirects = false,
     asyncLocalStorage,
-    ssg,
-    routerModulePath,
+    routerModule,
+    retendModule,
+    retendRenderModule,
+    vdomModule,
+    retendRouterModule,
   } = options;
-
-  const { runner } = ssg;
-  const routerModule = /** @type {{ createRouter: () => Router }} */ (
-    await runner.import(resolve(routerModulePath))
-  );
-
-  const retendModule = /** @type {typeof import('retend')} */ (
-    await runner.evaluator.runExternalModule(import.meta.resolve('retend'))
-  );
-
-  const retendRouterModule = /** @type {typeof import('retend/router')} */ (
-    await runner.evaluator.runExternalModule(
-      import.meta.resolve('retend/router')
-    )
-  );
-
-  const retendRenderModule = /** @type {typeof import('retend-web')} */ (
-    await runner.evaluator.runExternalModule(import.meta.resolve('retend-web'))
-  );
-
-  if (routerModule.createRouter === undefined) {
-    throw new Error(
-      'The router module must export a createRouter function. Please add export function createRouter() { return createWebRouter({ ... }); } to your router module.'
-    );
-  }
 
   /** @type {RenderOptions} */
   const renderOptions = {
@@ -98,6 +73,7 @@ export async function buildPath(path, options) {
     retendRenderModule,
     retendRouterModule,
     skipRedirects,
+    vdomModule,
   };
 
   return renderPath(renderOptions);
@@ -117,19 +93,20 @@ async function renderPath(options) {
     routerModule,
     retendRouterModule,
     skipRedirects,
+    vdomModule,
   } = options;
 
   const { getConsistentValues } = retendModule;
 
-  const window = buildWindowFromHtmlText(htmlShell, VWindow);
-  const renderer = new VDOMRenderer(window);
+  const window = buildWindowFromHtmlText(htmlShell, vdomModule.VWindow);
+  const renderer = new vdomModule.VDOMRenderer(window);
 
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
   const cssImports = new Set();
   globalData.set('env:ssr', true);
-  setActiveRenderer(renderer, globalData);
+  retendModule.setActiveRenderer(renderer, globalData);
   const globalContextStore = {
     path,
     teleportIdCounter,
@@ -145,8 +122,8 @@ async function renderPath(options) {
     if (!store) throw new Error('No store found');
 
     const { path } = store;
-    /** @type {VDOMRenderer} */ // @ts-ignore
-    const renderer = getActiveRenderer();
+    /** @type {VDOMRenderer} */ // @ts-expect-error
+    const renderer = retendModule.getActiveRenderer();
     const { host: window } = renderer;
 
     const { document, location } = window;
@@ -174,12 +151,6 @@ async function renderPath(options) {
         .querySelector('title')
         ?.replaceChildren(document.createTextNode(pageTitle));
     }
-
-    document.head.append(
-      document.createMarkupNode(
-        '<style>retend-router-outlet,retend-router-relay,retend-teleport{display: contents;}</style>'
-      )
-    );
 
     await document.mountAllTeleports();
 
@@ -215,7 +186,10 @@ async function renderPath(options) {
 
     // Add redirect to both HTML and _redirects file
     const redirectContent = generateRedirectHtmlContent(finalPath);
-    const redirectWindow = buildWindowFromHtmlText(redirectContent, VWindow);
+    const redirectWindow = buildWindowFromHtmlText(
+      redirectContent,
+      vdomModule.VWindow
+    );
 
     // Create redirect entry for _redirects file
     const redirectEntry = `${path} ${finalPath} 301`;

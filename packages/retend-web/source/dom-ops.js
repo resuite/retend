@@ -1,4 +1,5 @@
 /** @import { ReconcilerOptions, Renderer } from "retend" */
+/** @import { DOMRenderer } from './dom-renderer.js'; */
 import { Cell, linkNodes, normalizeJsxChild, SourceCell } from 'retend';
 import {
   addCellListener,
@@ -226,7 +227,7 @@ export function write(segment, newContent) {
  * @param {any} node
  */
 export function updateText(text, node) {
-  node.textContent = text;
+  node.textContent = String(text);
   return node;
 }
 
@@ -236,7 +237,7 @@ export function updateText(text, node) {
  */
 export function createText(text, renderer) {
   if (Cell.isCell(text)) {
-    const textNode = renderer.host.document.createTextNode(text.get());
+    const textNode = renderer.host.document.createTextNode(String(text.get()));
     const { updateText } = renderer;
     addCellListener(
       textNode,
@@ -249,19 +250,18 @@ export function createText(text, renderer) {
     return textNode;
   }
 
-  return renderer.host.document.createTextNode(text);
+  return renderer.host.document.createTextNode(String(text));
 }
 
 /**
- * @param {Renderer<any>} renderer
+ * @param {DOMRenderer} renderer
  */
 export function writeStaticStyles(renderer) {
   writeStaticStyle(
     'dom-styles',
-    ':where(retend-outlet) { display: contents }' +
-      ':where(retend-teleport) { display: contents }' +
+    ':where(retend-outlet, retend-teleport) { display: contents }' +
       ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
-    renderer.host
+    renderer
   );
 }
 

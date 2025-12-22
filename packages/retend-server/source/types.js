@@ -1,6 +1,5 @@
 /** @import { Router } from 'retend/router' */
 /** @import { AsyncLocalStorage } from 'node:async_hooks' */
-/** @import { RunnableDevEnvironment } from 'vite' */
 
 /**
  * @typedef RouterModule
@@ -22,10 +21,13 @@
  * @typedef {Object} BuildOptions
  * @property {string} [htmlShell]
  * @property {string} [rootSelector]
- * @property {RunnableDevEnvironment} ssg
  * @property {boolean} [skipRedirects]
- * @property {string} routerModulePath
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
+ * @property {typeof import('retend')} retendModule
+ * @property {{ createRouter: () => Router }} routerModule
+ * @property {typeof import('retend-web')} retendRenderModule
+ * @property {typeof import('retend/router')} retendRouterModule
+ * @property {typeof import('./v-dom/index.js')} vdomModule
  */
 
 /**
@@ -58,5 +60,6 @@
  * @property {{ createRouter: () => Router }} routerModule
  * @property {typeof import('retend-web')} retendRenderModule
  * @property {typeof import('retend/router')} retendRouterModule
+ * @property {typeof import('./v-dom/index.js')} vdomModule
  * @property {boolean} skipRedirects
  */

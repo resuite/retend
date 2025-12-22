@@ -1,7 +1,6 @@
 /** @import { JsxElement } from './dom-renderer.js'; */
 import { Cell } from 'retend';
 import { DOMRenderer } from './dom-renderer.js';
-import { getGlobalContext } from 'retend/context';
 
 /** @typedef {Comment & { __commentRangeSymbol?: symbol }} ConnectedComment */
 
@@ -74,20 +73,18 @@ export function consolidateNodes(nodes, renderer) {
 /**
  * @param {string} id
  * @param {string} contents
- * @param {Window} window
+ * @param {{ staticStyleIds: Set<string>, host: Window }} renderer
  */
-export function writeStaticStyle(id, contents, window) {
-  const { globalData } = getGlobalContext();
-  const { head } = window.document;
+export function writeStaticStyle(id, contents, renderer) {
+  const { head } = renderer.host.document;
   const formatted = `retend:static-style-ids:${id}`;
-  const writtenId = globalData.get(formatted);
-  if (writtenId) return;
+  if (renderer.staticStyleIds.has(formatted)) return;
 
-  const newStyle = window.document.createElement('style');
+  const newStyle = renderer.host.document.createElement('style');
   newStyle.setAttribute('id', id);
   newStyle.innerHTML = contents;
-  head.append(/** @type {*} */ (newStyle));
-  globalData.set(formatted, id);
+  head.append(newStyle);
+  renderer.staticStyleIds.add(formatted);
 }
 
 export const camelCasedAttributes = new Set([

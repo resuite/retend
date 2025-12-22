@@ -39,10 +39,12 @@ import * as Ops from 'retend-web/dom-ops';
  */
 export class VDOMRenderer {
   observer = null;
+  staticStyleIds = new Set();
 
   /** @param {VDom.VWindow} host */
   constructor(host) {
     this.host = host;
+    // @ts-expect-error: all static styles need is staticStyleIds set and a window
     Ops.writeStaticStyles(this);
     this.capabilities = {
       supportsSetupEffects: false,
@@ -166,9 +168,7 @@ export class VDOMRenderer {
    * @param {VDom.VNode} node
    */
   updateText(text, node) {
-    // @ts-ignore
-    node.textContent = text;
-    return node;
+    return Ops.updateText(text, node);
   }
 
   /**

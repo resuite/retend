@@ -725,11 +725,11 @@ export class Router extends EventTarget {
   }
 
   /** @param {RouterProviderProps} props */
-  static asProvider(props) {
-    const { router, children } = props;
+  asProvider(props) {
+    const { children } = props;
     const value = {
-      router,
-      internalState: router.#internalState,
+      router: this,
+      internalState: this.#internalState,
       depth: 0,
       metadata: new Map(),
     };
@@ -815,7 +815,7 @@ export function useCurrentRoute() {
  * ```
  */
 export function RouterProvider(props) {
-  return Router.asProvider(props);
+  return props.router.asProvider(props);
 }
 
 /**

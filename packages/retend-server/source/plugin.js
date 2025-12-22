@@ -2,16 +2,15 @@
 // /** @import { EmittedFile } from 'rollup' */
 /** @import { VElement } from './v-dom/index.js' */
 /** @import { AsyncStorage } from './types.js' */
-// /** @import { Router } from 'retend/router' */
+/** @import { Router } from 'retend/router' */
 
 import {
   buildPath,
   HtmlOutputArtifact,
   RedirectOutputArtifact,
 } from './server.js';
-import path from 'node:path';
+import path, { resolve } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { setGlobalContext } from 'retend/context';
 import { resolveConfig, createRunnableDevEnvironment } from 'vite';
 
 /**
@@ -162,7 +161,6 @@ function staticBuildPlugins(sharedData) {
         outputArtifacts.length = 0;
         outputFileEmissions.length = 0;
 
-        await defineSharedGlobalContext(sharedData);
         const {
           options: { routerModulePath, rootSelector },
           asyncLocalStorage,
@@ -181,33 +179,59 @@ function staticBuildPlugins(sharedData) {
         };
 
         const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
-        const environments = [];
+        const environment = /** @type {SSGEnvironment} */ (
+          createRunnableDevEnvironment('retend_ssg', config, envCtx)
+        );
+        await environment.init();
+        await environment.pluginContainer.buildStart();
+        const { runner } = environment;
+        const ctxModule = await runner.import(
+          import.meta.resolve('retend/context')
+        );
+        const retendModule = await runner.import(import.meta.resolve('retend'));
+        const retendRouterModule = await runner.import(
+          import.meta.resolve('retend/router')
+        );
+        const retendRenderModule = await runner.import(
+          import.meta.resolve('retend-web')
+        );
+        const vdomModule = await runner.import(
+          import.meta.resolve('./v-dom/index.js')
+        );
+        const routerModule = /** @type {{ createRouter: () => Router }} */ (
+          await runner.import(resolve(routerModulePath))
+        );
+
+        if (routerModule.createRouter === undefined) {
+          throw new Error(
+            'The router module must export a createRouter function. Please add export function createRouter() { return createWebRouter({ ... }); } to your router module.'
+          );
+        }
+        await defineSharedGlobalContext(sharedData, ctxModule.setGlobalContext);
 
         console.log('\n');
         const buildingPages = [];
+
         for (const page of pages) {
           console.log('Building page:', page);
-          const environment = /** @type {SSGEnvironment} */ (
-            createRunnableDevEnvironment('retend_ssg', config, envCtx)
-          );
-          environments.push(environment);
           const buildOptions = {
             rootSelector,
             htmlShell,
             asyncLocalStorage,
             routerModulePath,
             ssg: environment,
+            retendModule,
+            retendRenderModule,
+            vdomModule,
+            retendRouterModule,
+            routerModule,
           };
           environment.runner[asyncLocalStorageSymbol] = asyncLocalStorage;
 
           buildingPages.push(
-            environment
-              .init()
-              .then(() => environment.pluginContainer.buildStart())
-              .then(() => buildPath(page, buildOptions))
-              .then((artifacts) => {
-                outputArtifacts.push(...artifacts);
-              })
+            buildPath(page, buildOptions).then((artifacts) => {
+              outputArtifacts.push(...artifacts);
+            })
           );
         }
         await Promise.all(buildingPages);
@@ -251,11 +275,7 @@ function staticBuildPlugins(sharedData) {
         }
 
         await Promise.all(promises);
-        await Promise.all(
-          environments.map(async (environment) => {
-            await environment.close();
-          })
-        );
+        await environment.close();
         return transformedHtml;
       },
 
@@ -273,21 +293,6 @@ function staticBuildPlugins(sharedData) {
 
       applyToEnvironment(env) {
         return env.name === 'retend_ssg';
-      },
-
-      async resolveId(source, importer) {
-        if (!source.endsWith('.css')) return;
-        const { runner } = /** @type {SSGEnvironment} */ (this.environment);
-        const asyncLocalStorage = runner[asyncLocalStorageSymbol];
-        const absolutePath = await this.resolve(source, importer);
-        if (!asyncLocalStorage || !absolutePath) return;
-        // We need a way to access the exact route that
-        // is currently being generated, so we can determine where to track
-        // the (potentially lazy-loaded) CSS file and make it eager.
-        // This should be sharedData.asyncLocalStorage.getStore()
-        // instead, but for some reason its not treated as the same
-        // asyncLocalStorage instance.
-        asyncLocalStorage.getStore()?.cssImports.add(absolutePath.id);
       },
     },
   ];
@@ -356,8 +361,9 @@ async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
  * Sets the global context retriever for the current build or
  * SSR environment.
  * @param {SharedData} sharedData
+ * @param {Function} setGlobalContext
  */
-async function defineSharedGlobalContext(sharedData) {
+async function defineSharedGlobalContext(sharedData, setGlobalContext) {
   const { asyncLocalStorage } = sharedData;
 
   const context = {
