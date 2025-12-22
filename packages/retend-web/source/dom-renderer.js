@@ -137,7 +137,7 @@ export class DOMRenderer {
   handleComponent(tagname, props, fileData) {
     // @ts-expect-error: Vite types are not ingrained
     if (import.meta.env?.DEV) {
-      return withHMRBoundaries(tagname, props, fileData);
+      return withHMRBoundaries(tagname, props, fileData, this);
     }
     const component = tagname(...props);
     /** @type {Node[]} */

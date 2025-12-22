@@ -1,5 +1,5 @@
 /** @import { JsxElement } from './dom-renderer.js'; */
-import { getActiveRenderer, Cell } from 'retend';
+import { Cell } from 'retend';
 import { DOMRenderer } from './dom-renderer.js';
 import { getGlobalContext } from 'retend/context';
 
@@ -61,10 +61,9 @@ export function isMatchingCommentPair(start, end) {
  * which is then returned.
  *
  * @param {(Node)[]} nodes - The array of nodes to consolidate.
+ * @param {DOMRenderer} renderer - The renderer instance.
  */
-export function consolidateNodes(nodes) {
-  /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
-  const renderer = getActiveRenderer();
+export function consolidateNodes(nodes, renderer) {
   if (nodes.length === 1) return nodes[0];
 
   const fragment = renderer.host.document.createDocumentFragment();

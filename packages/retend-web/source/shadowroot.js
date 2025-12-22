@@ -40,9 +40,8 @@ export function ShadowRoot(props) {
   const { children } = props;
   const renderer = getActiveRenderer();
 
-  const shadowRoot = /** @type {ShadowRootContainer} */ (
-    renderer.createGroup()
-  );
+  /** @type {ShadowRootContainer} */
+  const shadowRoot = renderer.createGroup();
 
   shadowRoot.__mode = 'open';
   shadowRoot.__isShadowRootContainer = true;

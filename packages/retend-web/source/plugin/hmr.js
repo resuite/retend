@@ -5,7 +5,6 @@ import {
   useSetupEffect,
   withScopeSnapshot,
   CellUpdateError,
-  getActiveRenderer,
   createNodesFromTemplate,
 } from 'retend';
 import { routeToComponent } from 'retend/router';
@@ -160,9 +159,10 @@ function trackScopeReference(Scope, fileName) {
 /**
  * @param {UpdatableFn} tagname
  * @param {any[]} props
- * @param {jsxDevFileData} [fileData]
+ * @param {jsxDevFileData | undefined} fileData
+ * @param {DOMRenderer} renderer
  */
-export function withHMRBoundaries(tagname, props, fileData) {
+export function withHMRBoundaries(tagname, props, fileData, renderer) {
   if (tagname.__isScopeProviderOf && fileData) {
     const { fileName } = fileData;
     const Scope = tagname.__isScopeProviderOf;
@@ -177,15 +177,14 @@ export function withHMRBoundaries(tagname, props, fileData) {
     invalidator = Cell.source(tagname);
     tagname[ComponentInvalidator] = invalidator;
   }
-  return runInvalidatorWithHMRBoundaries(invalidator, props);
+  return runInvalidatorWithHMRBoundaries(invalidator, props, renderer);
 }
 
 /**
  * @param {Node[]} nodes
+ * @param {DOMRenderer} renderer
  */
-function stabilizeNodes(nodes) {
-  /** @type {DOMRenderer} */ // @ts-expect-error
-  const renderer = getActiveRenderer();
+function stabilizeNodes(nodes, renderer) {
   const { host: window } = renderer;
   // We can be smarter about whether or not to create a comment pair, so we
   // don't end up with a cluttered DOM tree.
@@ -215,11 +214,14 @@ function stabilizeNodes(nodes) {
 /**
  * @param {Cell<UpdatableFn>} value
  * @param {any[]} completeProps
+ * @param {DOMRenderer} renderer
  */
-export function runInvalidatorWithHMRBoundaries(value, completeProps) {
+export function runInvalidatorWithHMRBoundaries(
+  value,
+  completeProps,
+  renderer
+) {
   const snapshot = createScopeSnapshot();
-  /** @type {DOMRenderer} */ //@ts-expect-error: guaranteed to be in DOM environment.
-  const renderer = getActiveRenderer();
 
   /** @returns {Node[]} */
   const nextComponentRender = () => {
@@ -230,7 +232,10 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
       value: [...ancestry, value.peek()],
       children: () => value.peek()(...completeProps, { createdByJsx: true }),
     });
-    return stabilizeNodes(createNodesFromTemplate(template, renderer));
+    return stabilizeNodes(
+      createNodesFromTemplate(template, renderer),
+      renderer
+    );
   };
 
   let nodes = withScopeSnapshot(snapshot, nextComponentRender);
@@ -239,8 +244,6 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
   const refresh = function (fn) {
     snapshot.node.dispose();
     const swap = () => {
-      /** @type {DOMRenderer} */ // @ts-expect-error
-      const { host: window } = getActiveRenderer();
       const hmr = getHMRContext();
       if (!hmr) return false;
       if (hmr.current.peek() === fn) {
@@ -275,7 +278,7 @@ export function runInvalidatorWithHMRBoundaries(value, completeProps) {
       const oldEnd = nodes[nodes.length - 1];
 
       nodes = nextComponentRender();
-      const finalFragment = /** @type {*} */ (consolidateNodes(nodes));
+      const finalFragment = consolidateNodes(nodes, renderer);
 
       const range = window.document.createRange();
       range.setStartBefore(oldStart);

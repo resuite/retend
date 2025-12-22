@@ -1,6 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
-/** @import { GlobalContextChangeEvent } from '../context/index.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
@@ -88,20 +87,6 @@ const initUniqueStash = () => {
   globalData.set(UniqueComponentStash, stash);
 
   renderer.host.addEventListener('retend:activate', stash.onActivate);
-  renderer.host.addEventListener(
-    'globalcontextchange',
-    (/** @type {Event} */ event) => {
-      const _event = /** @type {GlobalContextChangeEvent} */ (event);
-      const { newContext } = _event.detail;
-      renderer.host.removeEventListener('retend:activate', stash.onActivate);
-      if (!newContext) return;
-      const { host: newWindow } = getActiveRenderer();
-
-      if (stash.pendingTeardowns.size > 0) {
-        newWindow.addEventListener('retend:activate', stash.onActivate);
-      }
-    }
-  );
   return stash;
 };
 
