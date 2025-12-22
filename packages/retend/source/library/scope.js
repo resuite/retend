@@ -1,5 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
+/** @import { Renderer } from './renderer.js'; */
 import { Cell } from '@adbl/cells';
 import h from './jsx.js';
 import {
@@ -59,10 +60,11 @@ class EffectNode {
   #enabled = false;
   #active = false;
   localContext = Cell.context();
+  /** @type {Renderer<any>} | undefined */
+  renderer = getActiveRenderer();
 
   enable() {
-    const renderer = getActiveRenderer();
-    if (renderer.capabilities.supportsSetupEffects) {
+    if (this.renderer?.capabilities.supportsSetupEffects) {
       this.#enabled = true;
       for (const child of this.#children) child.enable();
     }
@@ -106,10 +108,9 @@ class EffectNode {
 
   async activate() {
     if (!this.#enabled || this.#active) return;
-    const { host } = getActiveRenderer();
     await new Promise((resolve) => setTimeout(resolve));
     await this.#runActivateFns();
-    host.dispatchEvent(new Event('retend:activate'));
+    this.renderer?.host.dispatchEvent(new Event('retend:activate'));
   }
 
   #runDisposeFns() {
@@ -129,8 +130,7 @@ class EffectNode {
   }
 
   dispose() {
-    const renderer = getActiveRenderer();
-    if (!renderer.capabilities.supportsSetupEffects) {
+    if (!this.renderer?.capabilities.supportsSetupEffects) {
       for (const child of this.#children) child.localContext.destroy();
       this.localContext.destroy();
       this.localContext = Cell.context();
@@ -150,7 +150,7 @@ class EffectNode {
     this.#disposeFns.length = 0;
     this.#children.length = 0;
 
-    if (!renderer.capabilities.supportsSetupEffects) {
+    if (!this.renderer?.capabilities.supportsSetupEffects) {
       this.localContext.destroy();
       this.localContext = Cell.context();
     }
