@@ -2,12 +2,11 @@ export namespace JSX {
   type Booleanish = boolean | 'true' | 'false';
   type Numberish = number | `${number}`;
   type ElementType = string | ((props: any) => any)
-  type Element = any;
-  type ValueOrCell<T> = T | import('retend').Cell<T>;
+  type ValueOrCell<T> = T | import("@adbl/cells").Cell<T>
 
 
   interface IntrinsicAttributes {
-    key?: string | number | symbol;
+    key?: JSX.ValueOrCell<string | number | symbol>;
     children?: Children
   }
 
@@ -29,4 +28,5 @@ export namespace JSX {
     | null
     // biome-ignore lint/suspicious/noConfusingVoidType:
     | Promise< void | undefined | null>;
+  export type Element = Template;
 }
