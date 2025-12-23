@@ -112,15 +112,23 @@ function staticBuildPlugins(sharedData) {
             ...config_.dev,
             moduleRunnerTransform: true,
           },
+          resolve: {
+            ...config_.resolve,
+            dedupe: ['retend', 'retend-web', 'retend-server', 'retend-utils'],
+          },
           server: {
             ...config_.server,
             middlewareMode: true,
             perEnvironmentStartEndDuringDev: true,
           },
-          ssr: { ...config_.ssr, target: 'node' },
+          ssr: {
+            ...config_.ssr,
+            target: 'node',
+            noExternal: [/retend.*/, /@adbl\/cells/],
+          },
           appType: 'custom',
           optimizeDeps: {
-            exclude: ['retend'],
+            exclude: ['retend', 'retend-web', 'retend-server', 'retend-utils'],
           },
           environments: {
             retend_ssg: {},
@@ -185,19 +193,15 @@ function staticBuildPlugins(sharedData) {
         await environment.init();
         await environment.pluginContainer.buildStart();
         const { runner } = environment;
-        const ctxModule = await runner.import(
-          import.meta.resolve('retend/context')
+
+        const vdomModule = await runner.evaluator.runExternalModule(
+          'retend-server/v-dom'
         );
-        const retendModule = await runner.import(import.meta.resolve('retend'));
-        const retendRouterModule = await runner.import(
-          import.meta.resolve('retend/router')
-        );
-        const retendRenderModule = await runner.import(
-          import.meta.resolve('retend-web')
-        );
-        const vdomModule = await runner.import(
-          import.meta.resolve('./v-dom/index.js')
-        );
+        const retendRouterModule =
+          await runner.evaluator.runExternalModule('retend/router');
+        const ctxModule =
+          await runner.evaluator.runExternalModule('retend/context');
+        const retendModule = await runner.evaluator.runExternalModule('retend');
         const routerModule = /** @type {{ createRouter: () => Router }} */ (
           await runner.import(resolve(routerModulePath))
         );
@@ -221,7 +225,6 @@ function staticBuildPlugins(sharedData) {
             routerModulePath,
             ssg: environment,
             retendModule,
-            retendRenderModule,
             vdomModule,
             retendRouterModule,
             routerModule,

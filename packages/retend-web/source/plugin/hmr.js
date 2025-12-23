@@ -6,17 +6,9 @@ import {
   withScopeSnapshot,
   CellUpdateError,
   createNodesFromTemplate,
+  __HMR_SYMBOLS,
 } from 'retend';
 import { routeToComponent } from 'retend/router';
-import {
-  ComponentInvalidator,
-  getHMRContext,
-  getHMRScopeList,
-  HMRContextKey,
-  HmrId,
-  RetendComponentTree,
-  useComponentAncestry,
-} from 'retend/hmr';
 import {
   addCellListener,
   removeCellListeners,
@@ -27,7 +19,8 @@ import {
 } from '../utils.js';
 
 /** @import { ReactiveCellFunction } from '../utils.js' */
-/** @import { UpdatableFn, jsxDevFileData, HmrContext } from 'retend/hmr'; */
+/** @import { __HMR_UpdatableFn, HmrContext } from 'retend'; */
+/** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { Scope } from 'retend' */
 /** @import { DOMRenderer } from '../dom-renderer.js'; */
 
@@ -92,7 +85,7 @@ export async function hotReloadModule(newModule, url) {
     old: Object.values(oldModule),
     new: Object.values(newModule),
   };
-  globalData.set(HMRContextKey, context);
+  globalData.set(__HMR_SYMBOLS.HMRContextKey, context);
   for (const [key, newInstance] of newModuleData) {
     const oldInstance = oldModule[key];
     if (!oldInstance) continue;
@@ -113,9 +106,9 @@ export async function hotReloadModule(newModule, url) {
     }
 
     try {
-      const cell = oldInstance[ComponentInvalidator];
+      const cell = oldInstance[__HMR_SYMBOLS.ComponentInvalidator];
       if (cell) {
-        newInstance[ComponentInvalidator] = cell;
+        newInstance[__HMR_SYMBOLS.ComponentInvalidator] = cell;
         context.current.set(newInstance);
         cell.set(newInstance);
       }
@@ -124,7 +117,7 @@ export async function hotReloadModule(newModule, url) {
         for (const error of e.errors) errors.push(error);
       } else throw e;
     } finally {
-      globalData.set(HMRContextKey, null);
+      globalData.set(__HMR_SYMBOLS.HMRContextKey, null);
     }
   }
 
@@ -138,44 +131,45 @@ export async function hotReloadModule(newModule, url) {
 
 /**
  *
- * @param {Scope & { [HmrId]?: string }} Scope
+ * @param {Scope & { [__HMR_SYMBOLS.HmrId]?: string }} Scope
  * @param {string} [fileName]
  */
 function trackScopeReference(Scope, fileName) {
-  const ScopeList = getHMRScopeList();
-  if (!Reflect.get(Scope, HmrId)) {
+  const ScopeList = __HMR_SYMBOLS.ScopeList;
+  if (!Reflect.get(Scope, __HMR_SYMBOLS.HmrId)) {
     const description = Scope.key.description;
     let uniqueId = description ? `${fileName}-${description}` : fileName;
 
     while (ScopeList.has(uniqueId)) uniqueId += '_';
     ScopeList.set(uniqueId, Scope);
-    Reflect.set(Scope, HmrId, uniqueId);
+    Reflect.set(Scope, __HMR_SYMBOLS.HmrId, uniqueId);
   }
 
-  ScopeList.set(Scope[HmrId], Scope);
-  useSetupEffect(() => () => ScopeList.delete(Scope[HmrId]));
+  ScopeList.set(Scope[__HMR_SYMBOLS.HmrId], Scope);
+  useSetupEffect(() => () => ScopeList.delete(Scope[__HMR_SYMBOLS.HmrId]));
 }
 
 /**
- * @param {UpdatableFn} tagname
+ * @param {__HMR_UpdatableFn} tagname
  * @param {any[]} props
- * @param {jsxDevFileData | undefined} fileData
+ * @param {JSX.JSXDevFileData | undefined} fileData
  * @param {DOMRenderer} renderer
  */
 export function withHMRBoundaries(tagname, props, fileData, renderer) {
   if (tagname.__isScopeProviderOf && fileData) {
     const { fileName } = fileData;
     const Scope = tagname.__isScopeProviderOf;
-    if (!Reflect.get(Scope, HmrId)) trackScopeReference(Scope, fileName);
+    if (!Reflect.get(Scope, __HMR_SYMBOLS.HmrId))
+      trackScopeReference(Scope, fileName);
   }
 
   // In Dev mode and using HMR, components have a self-referential
   // Invalidator cell, which should automatically trigger a rerun of
   // the component.
-  let invalidator = tagname[ComponentInvalidator];
+  let invalidator = tagname[__HMR_SYMBOLS.ComponentInvalidator];
   if (!invalidator) {
     invalidator = Cell.source(tagname);
-    tagname[ComponentInvalidator] = invalidator;
+    tagname[__HMR_SYMBOLS.ComponentInvalidator] = invalidator;
   }
   return runInvalidatorWithHMRBoundaries(invalidator, props, renderer);
 }
@@ -212,7 +206,7 @@ function stabilizeNodes(nodes, renderer) {
 }
 
 /**
- * @param {Cell<UpdatableFn>} value
+ * @param {Cell<__HMR_UpdatableFn>} value
  * @param {any[]} completeProps
  * @param {DOMRenderer} renderer
  */
@@ -225,8 +219,8 @@ export function runInvalidatorWithHMRBoundaries(
 
   /** @returns {Node[]} */
   const nextComponentRender = () => {
-    const ancestry = useComponentAncestry();
-    const template = RetendComponentTree.Provider({
+    const ancestry = __HMR_SYMBOLS.useComponentAncestry();
+    const template = __HMR_SYMBOLS.RetendComponentTree.Provider({
       // @ts-expect-error: if not, it recurses.
       h: false,
       value: [...ancestry, value.peek()],
@@ -244,14 +238,14 @@ export function runInvalidatorWithHMRBoundaries(
   const refresh = function (fn) {
     snapshot.node.dispose();
     const swap = () => {
-      const hmr = getHMRContext();
+      const hmr = __HMR_SYMBOLS.getHMRContext();
       if (!hmr) return false;
       if (hmr.current.peek() === fn) {
         if (!this.isConnected) return false;
         // If a component render instance is in an update path, there is
         // no use updating it, since it will be (or has been) overwritten
         // by its parent.
-        const parents = useComponentAncestry();
+        const parents = __HMR_SYMBOLS.useComponentAncestry();
         const instanceIsInUpdatePath = parents.some((c) => {
           return (c !== fn && hmr.old.includes(c)) || hmr.new.includes(c);
         });

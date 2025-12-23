@@ -34,10 +34,6 @@
     "./context": {
       "import": "./dist/context/index.js",
       "types": "./dist/context/index.d.ts"
-    },
-    "./hmr": {
-      "import": "./dist/hmr/index.js",
-      "types": "./dist/hmr/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/retend#readme",

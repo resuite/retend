@@ -9,6 +9,11 @@ export namespace JSX {
     children?: Children
   }
 
+  interface JSXDevFileData {
+    fileName: string;
+    columnNumber: number;
+    lineNumber: number;
+  }
 
   export type Children = unknown;
   interface BaseContainerProps extends IntrinsicAttributes {}

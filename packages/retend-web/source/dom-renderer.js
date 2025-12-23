@@ -1,12 +1,12 @@
-/** @import { Observer, ReconcilerOptions, Renderer } from "retend"; */
-/** @import { jsxDevFileData, UpdatableFn } from 'retend/hmr'; */
+/** @import { Observer, ReconcilerOptions, Renderer, __HMR_UpdatableFn } from "retend"; */
+/** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
 import { Cell, createNodesFromTemplate } from 'retend';
 import { withHMRBoundaries } from './plugin/hmr.js';
 import {
   addCellListener,
-  containsDynamicProperties as isDynamicContainer,
+  isDynamicContainer,
   DeferredHandleSymbol,
   Skip,
 } from './utils.js';
@@ -165,9 +165,9 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {UpdatableFn} tagname
+   * @param {__HMR_UpdatableFn} tagname
    * @param {any} props
-   * @param {jsxDevFileData} [fileData]
+   * @param {JSX.JSXDevFileData} [fileData]
    */
   handleComponent(tagname, props, fileData) {
     // @ts-expect-error: Vite types are not ingrained

@@ -6,11 +6,11 @@ import { useObserver } from '../library/observer.js';
 import h from '../library/jsx.js';
 import { getGlobalContext } from '../context/index.js';
 import {
+  __HMR_SYMBOLS,
   createScopeSnapshot,
   useSetupEffect,
   withScopeSnapshot,
 } from '../library/scope.js';
-import { getHMRContext } from '../hmr/index.js';
 import { getActiveRenderer } from '../library/renderer.js';
 import { linkNodes } from '../library/utils.js';
 
@@ -255,7 +255,7 @@ export function Unique(props) {
 
     return () => {
       // We dont want to preserve the instance across HMR re-renders.
-      const hmrContext = getHMRContext();
+      const hmrContext = __HMR_SYMBOLS.getHMRContext();
       if (hmrContext?.current) {
         const scope = stash.scopes.get(name);
         if (scope) {

@@ -1,4 +1,5 @@
-/** @import { jsxDevFileData, UpdatableFn } from '../hmr/index.js'; */
+/** @import { JSX } from '../jsx-runtime/index.js'; */
+/** @import { __HMR_UpdatableFn } from '../library/index.js'; */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
 /** @import { Cell } from '@adbl/cells'; */
 /** @import { Observer } from './observer.js'; */
@@ -144,7 +145,7 @@ const RendererKey = 'retend:Renderer';
  * @property {(node: Node) => Output} finalize
  * Performs the final transformation on the produced output before returning it to the user.
  *
- * @property {(tagnameOrFunction: UpdatableFn, props: any, fileData?: jsxDevFileData) => Node | Node[]} handleComponent
+ * @property {(tagnameOrFunction: __HMR_UpdatableFn, props: any, fileData?: JSX.JSXDevFileData) => Node | Node[]} handleComponent
  * Orchestrates the execution of components.
  *
  * @property {(key: string) => Node | null} selectMatchingNode

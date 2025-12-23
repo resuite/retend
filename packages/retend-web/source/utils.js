@@ -685,7 +685,7 @@ export class DeferredHandleSymbol {
  * @param {string} tagname
  * @param {any} props
  */
-export function containsDynamicProperties(tagname, props) {
+export function isDynamicContainer(tagname, props) {
   if (tagname === 'retend-unique-instance') return true;
 
   for (const key in props) {

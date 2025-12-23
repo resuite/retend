@@ -57,7 +57,6 @@ export async function buildPath(path, options) {
     asyncLocalStorage,
     routerModule,
     retendModule,
-    retendRenderModule,
     vdomModule,
     retendRouterModule,
   } = options;
@@ -70,7 +69,6 @@ export async function buildPath(path, options) {
     rootSelector,
     routerModule,
     retendModule,
-    retendRenderModule,
     retendRouterModule,
     skipRedirects,
     vdomModule,

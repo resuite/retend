@@ -1,6 +1,5 @@
-/** @import { Renderer, ReconcilerOptions } from "retend"; */
+/** @import { Renderer, ReconcilerOptions, __HMR_UpdatableFn } from "retend"; */
 /** @import * as VDom from './index.js' */
-/** @import { UpdatableFn } from 'retend/hmr'; */
 
 import { createNodesFromTemplate, Cell } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
@@ -130,7 +129,7 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {UpdatableFn} tagname
+   * @param {__HMR_UpdatableFn} tagname
    * @param {any} props
    */
   handleComponent(tagname, props) {

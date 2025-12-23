@@ -1,4 +1,4 @@
-/** @import { jsxDevFileData } from '../hmr/index.js'; */
+/** @import { JSX } from '../jsx-runtime/index.js'; */
 /** @import { Renderer } from './renderer.js'; */
 import { getActiveRenderer } from './renderer.js';
 import { ArgumentList, linkNodes } from './utils.js';
@@ -9,7 +9,7 @@ import { ArgumentList, linkNodes } from './utils.js';
  * @param {*} [_]
  * @param {*} [__]
  * @param {*} [___]
- * @param {jsxDevFileData} [fileData]
+ * @param {JSX.JSXDevFileData} [fileData]
  * @param {Renderer<any>} renderer
  * @returns {any}
  */

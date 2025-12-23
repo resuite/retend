@@ -3,15 +3,52 @@
 /** @import { Renderer } from './renderer.js'; */
 import { Cell } from '@adbl/cells';
 import h from './jsx.js';
-// import {
-//   getHMRScopeList,
-//   HMRContextKey,
-//   HmrId,
-//   OverwrittenBy,
-// } from '../hmr/index.js';
+
 import { getActiveRenderer } from './renderer.js';
 import { getGlobalContext } from '../context/index.js';
 import { createNodesFromTemplate } from './utils.js';
+
+/** @import { Scope } from "../library/scope.js"; */
+/** @import { SourceCell } from "@adbl/cells"; */
+
+/** @typedef {{
+ *    [ComponentInvalidator]?: Cell<Function & __HMR_UpdatableFn>
+ *    __isScopeProviderOf?: Scope
+ * } & Function} __HMR_UpdatableFn
+ */
+
+/**
+ * @typedef HmrContext
+ * @property {Array<unknown>} old
+ * @property {Array<unknown>} new
+ * @property {SourceCell<Function | null>} current
+ */
+
+/** @type {Scope<__HMR_UpdatableFn[]>} */
+const RetendComponentTree = createScope('retend:RetendComponentTree');
+const ComponentInvalidator = Symbol('Invalidator');
+
+export const __HMR_SYMBOLS = {
+  ComponentInvalidator,
+  OverwrittenBy: Symbol('OverwrittenBy'),
+  HmrId: Symbol('HmrId'),
+  HMRContextKey: Symbol('HMRContext'),
+  HMRScopeContext: Symbol('HMRScopeContext'),
+  ScopeList: new Map(),
+  RetendComponentTree,
+  useComponentAncestry() {
+    try {
+      return useScopeContext(RetendComponentTree);
+    } catch {
+      return [];
+    }
+  },
+  /** @returns {HmrContext | null} */
+  getHMRContext() {
+    const { globalData } = getGlobalContext();
+    return globalData.get(__HMR_SYMBOLS.HMRContextKey);
+  },
+};
 
 /**
  * @template [T=unknown]
@@ -262,28 +299,28 @@ export function useScopeContext(Scope, snapshot) {
   const relatedScopeData = snapshotCtx.scopes.get(Scope);
 
   if (!relatedScopeData || relatedScopeData.length === 0) {
-    // // @ts-expect-error: Vite types is not ingrained.
-    // if (import.meta.env?.DEV) {
-    //   // In HMR, scopes can change referential identity.
-    //   // `HmrId` helps identify them across reloads.
-    //   // Its not fool proof, but it works.
-    //   const latestInstance = Reflect.get(Scope, OverwrittenBy);
-    //   if (latestInstance && latestInstance !== Scope) {
-    //     // Scope was previously invalidated by HMR.
-    //     return useScopeContext(latestInstance, snapshot);
-    //   }
-    //   const { globalData } = getGlobalContext();
-    //   const hmrContext = globalData.get(HMRContextKey);
-    //   if (hmrContext) {
-    //     const activeScopes = getHMRScopeList();
-    //     const hmrId = Reflect.get(Scope, HmrId);
-    //     const latestInstance = activeScopes.get(hmrId);
-    //     if (latestInstance && latestInstance !== Scope) {
-    //       Reflect.set(Scope, OverwrittenBy, latestInstance);
-    //       return useScopeContext(latestInstance, snapshot);
-    //     }
-    //   }
-    // }
+    // @ts-expect-error: Vite types is not ingrained.
+    if (import.meta.env?.DEV) {
+      // In HMR, scopes can change referential identity.
+      // `HmrId` helps identify them across reloads.
+      // Its not fool proof, but it works.
+      const latestInstance = Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy);
+      if (latestInstance && latestInstance !== Scope) {
+        // Scope was previously invalidated by HMR.
+        return useScopeContext(latestInstance, snapshot);
+      }
+      const { globalData } = getGlobalContext();
+      const hmrContext = globalData.get(__HMR_SYMBOLS.HMRContextKey);
+      if (hmrContext) {
+        const activeScopes = __HMR_SYMBOLS.ScopeList;
+        const hmrId = Reflect.get(Scope, __HMR_SYMBOLS.HmrId);
+        const latestInstance = activeScopes.get(hmrId);
+        if (latestInstance && latestInstance !== Scope) {
+          Reflect.set(Scope, __HMR_SYMBOLS.OverwrittenBy, latestInstance);
+          return useScopeContext(latestInstance, snapshot);
+        }
+      }
+    }
 
     const scopeName = Scope?.key.description || 'UnknownScope';
     throw new Error(

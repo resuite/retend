@@ -24,7 +24,6 @@
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
  * @property {typeof import('retend')} retendModule
  * @property {{ createRouter: () => Router }} routerModule
- * @property {typeof import('retend-web')} retendRenderModule
  * @property {typeof import('retend/router')} retendRouterModule
  * @property {typeof import('./v-dom/index.js')} vdomModule
  */
@@ -57,7 +56,6 @@
  * @property {string} rootSelector
  * @property {typeof import('retend')} retendModule
  * @property {{ createRouter: () => Router }} routerModule
- * @property {typeof import('retend-web')} retendRenderModule
  * @property {typeof import('retend/router')} retendRouterModule
  * @property {typeof import('./v-dom/index.js')} vdomModule
  * @property {boolean} skipRedirects
