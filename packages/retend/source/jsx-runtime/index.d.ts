@@ -5,7 +5,7 @@ export namespace JSX {
 
 
   interface IntrinsicAttributes {
-    key?: JSX.ValueOrCell<string | number | symbol>;
+    key?: JSX.ValueOrCell<string | number | undefined>;
     children?: Children
   }
 
