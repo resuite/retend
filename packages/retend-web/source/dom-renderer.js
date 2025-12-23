@@ -138,7 +138,7 @@ export class DOMRenderer {
   write(segment, newContent) {
     if (this.#isHydrating) {
       //@ts-expect-error
-      segment.splice(1, 0, ...newContent);
+      segment.splice(1, segment.length - 2, ...newContent);
       return segment;
     }
     return Ops.write(segment, newContent);
