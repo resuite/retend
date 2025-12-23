@@ -351,13 +351,17 @@ export class DOMRenderer {
     return anchorNode;
   }
 
-  /**
-   * Enables hydration mode.
-   * @param {JsxElement[]} nodeTable
-   */
-  enableHydrationMode(nodeTable) {
+  enableHydrationMode() {
+    /** @type {JsxElement[]} */
+    const dynamicNodeTable = [];
+    const dynamicNodes = document.querySelectorAll('[data-dyn]');
+    for (const node of dynamicNodes) {
+      // @ts-expect-error: no need for stringifying.
+      dynamicNodeTable[node.getAttribute('data-dyn')] = node;
+    }
+
     this.#isHydrating = true;
-    this.#hydrationTable = nodeTable;
+    this.#hydrationTable = dynamicNodeTable;
     this.#readyToHydrateChildren = new Promise((resolve) => {
       this.#startHydratingChildren = resolve;
     });
@@ -383,8 +387,21 @@ export class DOMRenderer {
     }
 
     await this.#readyToHydrateChildren;
-    if (!Array.isArray(props.children)) return;
-    const resolvedChildren = props.children.flat(Number.POSITIVE_INFINITY);
+    const { updateText } = this;
+    const { children } = props;
+    if (Cell.isCell(children) && staticNode.firstChild instanceof Text) {
+      /**
+       * @param {string} value
+       * @this {Text}
+       */
+      function listener(value) {
+        updateText(value, this);
+      }
+      addCellListener(staticNode.firstChild, children, listener, false);
+      return;
+    }
+    if (!Array.isArray(children)) return;
+    const resolvedChildren = children.flat(Number.POSITIVE_INFINITY);
     let nodeIndex = 0;
     let domIndex = 0;
 
@@ -425,7 +442,6 @@ export class DOMRenderer {
       }
 
       if (Cell.isCell(node) && domNode instanceof Text) {
-        const { updateText } = this;
         /**
          * @param {string} value
          * @this {Text}

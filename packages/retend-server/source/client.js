@@ -2,7 +2,6 @@
 
 /** @import { Router } from 'retend/router' */
 /** @import { ServerContext } from './types.js' */
-/** @import { JsxElement } from 'retend-web' */
 
 import { runPendingSetupEffects, useObserver, setActiveRenderer } from 'retend';
 import { createRouterRoot } from 'retend/router';
@@ -205,18 +204,7 @@ async function restoreContext(context, routerCreateFn) {
   setActiveRenderer(renderer);
 
   const router = routerCreateFn();
-  /** @type {JsxElement[]} */
-  const dynamicNodeTable = [];
-  const dynamicNodes = document.querySelectorAll('[data-dyn]');
-  for (const node of dynamicNodes) {
-    // @ts-expect-error: no need for stringifying.
-    dynamicNodeTable[node.getAttribute('data-dyn')] = node;
-    if (node.tagName === 'retend-unique-instance') {
-      renderer.saveContainerState(node, undefined);
-    }
-  }
-
-  renderer.enableHydrationMode(dynamicNodeTable);
+  renderer.enableHydrationMode();
   const observer = useObserver();
   createRouterRoot(router);
   await renderer.hydrateChildrenWhenResolved(router.navigate(path));
