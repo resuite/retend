@@ -1,4 +1,13 @@
-import { Cell, For, If, Switch, Unique, getActiveRenderer, setActiveRenderer } from 'retend';
+import {
+  Cell,
+  For,
+  If,
+  type SourceCell,
+  Switch,
+  Unique,
+  getActiveRenderer,
+  setActiveRenderer,
+} from 'retend';
 import { DOMRenderer } from 'retend-web';
 import { renderToString } from 'retend-server/client';
 import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
@@ -67,7 +76,7 @@ describe('Hydration', () => {
     expect(btn.textContent).toBe('Count: 0');
 
     btn.click();
-    await timeout();
+
     expect(btn.textContent).toBe('Count: 1');
   });
 
@@ -92,7 +101,7 @@ describe('Hydration', () => {
     expect(document.querySelector('#dynamic')).toBe(dynamicSpan);
 
     text.set('Updated');
-    await timeout();
+
     expect(dynamicSpan?.textContent).toBe('Updated');
   });
 
@@ -110,7 +119,7 @@ describe('Hydration', () => {
     expect(div.className).toBe('initial-class');
 
     cls.set('updated-class');
-    await timeout();
+
     expect(div.className).toBe('updated-class');
   });
 
@@ -129,7 +138,7 @@ describe('Hydration', () => {
     expect(document.querySelector('#true-branch')).not.toBeNull();
 
     show.set(false);
-    await timeout();
+
     expect(document.querySelector('#true-branch')).toBeNull();
     expect(document.querySelector('#false-branch')).not.toBeNull();
   });
@@ -148,13 +157,17 @@ describe('Hydration', () => {
     expect(document.querySelectorAll('.item').length).toBe(2);
 
     items.set([...items.get(), 'Item 3']);
-    await timeout();
+
     expect(document.querySelectorAll('.item').length).toBe(3);
   });
 
   it('should hydrate dynamic classes', async () => {
     const cls = Cell.source(['a', 'b']);
-    const template = () => <div id="target" class={cls}>Content</div>;
+    const template = () => (
+      <div id="target" class={cls}>
+        Content
+      </div>
+    );
 
     const { document } = await setupHydration(template);
     const div = document.querySelector('#target') as HTMLElement;
@@ -163,7 +176,7 @@ describe('Hydration', () => {
     expect(div.classList.contains('b')).toBe(true);
 
     cls.set(['a', 'c']);
-    await timeout();
+
     expect(div.classList.contains('b')).toBe(false);
     expect(div.classList.contains('c')).toBe(true);
   });
@@ -184,7 +197,7 @@ describe('Hydration', () => {
     expect(document.querySelector('#a')).not.toBeNull();
 
     state.set('b');
-    await timeout();
+
     expect(document.querySelector('#a')).toBeNull();
     expect(document.querySelector('#b')).not.toBeNull();
   });
@@ -197,15 +210,18 @@ describe('Hydration', () => {
     const template = () => (
       <div id="complex-root">
         {Switch(mode, {
-          list: () => If(show, {
-            true: () => (
-              <ul id="main-list">
-                {For(items, (item) => <li class="list-item">{item}</li>)}
-              </ul>
-            ),
-            false: () => <div id="hidden">Hidden</div>
-          }),
-          other: () => <div id="other">Other</div>
+          list: () =>
+            If(show, {
+              true: () => (
+                <ul id="main-list">
+                  {For(items, (item) => (
+                    <li class="list-item">{item}</li>
+                  ))}
+                </ul>
+              ),
+              false: () => <div id="hidden">Hidden</div>,
+            }),
+          other: () => <div id="other">Other</div>,
         })}
       </div>
     );
@@ -214,16 +230,16 @@ describe('Hydration', () => {
     expect(document.querySelectorAll('.list-item').length).toBe(1);
 
     items.set(['Item 1', 'Item 2']);
-    await timeout();
+
     expect(document.querySelectorAll('.list-item').length).toBe(2);
 
     show.set(false);
-    await timeout();
+
     expect(document.querySelector('#main-list')).toBeNull();
     expect(document.querySelector('#hidden')).not.toBeNull();
 
     mode.set('other');
-    await timeout();
+
     expect(document.querySelector('#hidden')).toBeNull();
     expect(document.querySelector('#other')).not.toBeNull();
   });
@@ -232,20 +248,27 @@ describe('Hydration', () => {
     const count = Cell.source(0);
     const template = () => (
       <div>
-        <Unique id="unique-comp">
-          <button id="unique-btn" onClick={() => count.set(count.get() + 1)}>
-            Unique: {count}
-          </button>
+        <Unique id="unique-comp" name="test-unique">
+          {() => (
+            <button
+              id="unique-btn"
+              type="button"
+              onClick={() => count.set(count.get() + 1)}
+            >
+              Unique: {count}
+            </button>
+          )}
         </Unique>
       </div>
     );
 
     const { document } = await setupHydration(template);
+    console.log(document.body);
     const btn = document.querySelector('#unique-btn') as HTMLButtonElement;
     expect(btn.textContent).toBe('Unique: 0');
 
     btn.click();
-    await timeout();
+
     expect(btn.textContent).toBe('Unique: 1');
   });
 
@@ -253,9 +276,13 @@ describe('Hydration', () => {
     const parentCount = Cell.source(0);
     const childCount = Cell.source(0);
 
-    const Child = (props: { count: Cell<number> }) => (
+    const Child = (props: { count: SourceCell<number> }) => (
       <div id="child">
-        <button id="child-btn" type="button" onClick={() => props.count.set(props.count.get() + 1)}>
+        <button
+          id="child-btn"
+          type="button"
+          onClick={() => props.count.set(props.count.get() + 1)}
+        >
           Child: {props.count}
         </button>
       </div>
@@ -263,7 +290,11 @@ describe('Hydration', () => {
 
     const template = () => (
       <div id="parent">
-        <button id="parent-btn" type="button" onClick={() => parentCount.set(parentCount.get() + 1)}>
+        <button
+          id="parent-btn"
+          type="button"
+          onClick={() => parentCount.set(parentCount.get() + 1)}
+        >
           Parent: {parentCount}
         </button>
         <Child count={childCount} />
@@ -278,12 +309,12 @@ describe('Hydration', () => {
     expect(cBtn.textContent).toBe('Child: 0');
 
     pBtn.click();
-    await timeout();
+
     expect(pBtn.textContent).toBe('Parent: 1');
     expect(cBtn.textContent).toBe('Child: 0');
 
     cBtn.click();
-    await timeout();
+
     expect(pBtn.textContent).toBe('Parent: 1');
     expect(cBtn.textContent).toBe('Child: 1');
   });
@@ -296,10 +327,12 @@ describe('Hydration', () => {
         {If(show, {
           true: () => (
             <ul id="nested-list">
-              {For(items, (item) => <li class="nested-item">{item}</li>)}
+              {For(items, (item) => (
+                <li class="nested-item">{item}</li>
+              ))}
             </ul>
           ),
-          false: () => <div id="nested-empty">Empty</div>
+          false: () => <div id="nested-empty">Empty</div>,
         })}
       </div>
     );
@@ -308,11 +341,11 @@ describe('Hydration', () => {
     expect(document.querySelectorAll('.nested-item').length).toBe(2);
 
     items.set(['A', 'B', 'C']);
-    await timeout();
+
     expect(document.querySelectorAll('.nested-item').length).toBe(3);
 
     show.set(false);
-    await timeout();
+
     expect(document.querySelector('#nested-list')).toBeNull();
     expect(document.querySelector('#nested-empty')).not.toBeNull();
   });
@@ -334,7 +367,6 @@ describe('Hydration', () => {
 
     color.set('blue');
     title.set('updated-title');
-    await timeout();
 
     expect(div.style.color).toBe('blue');
     expect(div.title).toBe('updated-title');
@@ -352,12 +384,12 @@ describe('Hydration', () => {
 
     const { document } = await setupHydration(template);
     const root = document.querySelector('#mixed') as HTMLElement;
-    
+
     expect(root.childNodes.length).toBe(3);
     expect(root.textContent).toBe('Static 1DynamicStatic 2');
 
     dynamicText.set('Modified');
-    await timeout();
+
     expect(root.textContent).toBe('Static 1ModifiedStatic 2');
   });
 
@@ -380,7 +412,6 @@ describe('Hydration', () => {
 
     text1.set('A+');
     text2.set('B+');
-    await timeout();
 
     expect(f1?.textContent).toBe('A+');
     expect(f2?.textContent).toBe('B+');
@@ -388,7 +419,11 @@ describe('Hydration', () => {
 
   it('should hydrate style object with reactive property alone', async () => {
     const color = Cell.source('red');
-    const template = () => <div id="style-test" style={{ color }}>Styled</div>;
+    const template = () => (
+      <div id="style-test" style={{ color }}>
+        Styled
+      </div>
+    );
 
     const { document } = await setupHydration(template);
     const div = document.querySelector('#style-test') as HTMLElement;
@@ -396,7 +431,7 @@ describe('Hydration', () => {
     expect(div.style.color).toBe('red');
 
     color.set('blue');
-    await timeout();
+
     expect(div.style.color).toBe('blue');
   });
 });
