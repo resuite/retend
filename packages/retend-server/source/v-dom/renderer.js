@@ -205,7 +205,10 @@ export class VDOMRenderer {
   createContainer(tagname, props) {
     /** @type {JsxElement} */ // @ts-expect-error
     const element = this.host.document.createElement(tagname);
-    if (this.markDynamicNodes && isDynamicContainer(tagname, props)) {
+    if (
+      this.markDynamicNodes &&
+      Ops.containerIsDynamic(tagname, props, isReactiveChild)
+    ) {
       element.setAttribute('data-dyn', String(this.#dynamicNodeMarker++));
     }
     return element;
@@ -252,26 +255,6 @@ export class VDOMRenderer {
 
 import { VText, VComment, VDocumentFragment } from './index.js';
 const ShadowRootKey = Ops.SHADOW_ROOT_KEY;
-
-/**
- * @param {string} tagname
- * @param {any} props
- */
-function isDynamicContainer(tagname, props) {
-  if (tagname === 'retend-unique-instance') return true;
-
-  for (const key in props) {
-    const value = props[key];
-    if (key.startsWith('on') && key.length > 2) return true;
-    if (key === 'ref' && Cell.isCell(value)) return true;
-    if (Cell.isCell(value)) return true;
-
-    if (key === 'children') {
-      if (isReactiveChild(value)) return true;
-    }
-  }
-  return false;
-}
 
 /** @param {any} value  */
 function isReactiveChild(value) {

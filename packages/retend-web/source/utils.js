@@ -684,25 +684,31 @@ export class DeferredHandleSymbol {
 /**
  * @param {string} tagname
  * @param {any} props
+ * @param {Function} childChecker
  */
-export function isDynamicContainer(tagname, props) {
+export function containerIsDynamic(tagname, props, childChecker) {
   if (tagname === 'retend-unique-instance') return true;
-
   for (const key in props) {
     const value = props[key];
-    if (key.startsWith('on')) return true;
-    if (key === 'ref' && Cell.isCell(value)) return true;
-    if (Cell.isCell(value)) return true;
-
-    if (key === 'children') {
-      if (isReactiveChild(value)) return true;
+    if (key === 'className' || key === 'class') {
+      if (isReactiveClass(value)) return true;
+      continue;
     }
+    if (key === 'style') {
+      if (isReactiveStyle(value)) return true;
+      continue;
+    }
+    if (key.startsWith('on') && key.length > 2) {
+      return true;
+    }
+    if (Cell.isCell(value)) return true;
+    if (key === 'children' && childChecker(value)) return true;
   }
   return false;
 }
 
 /** @param {any} value  */
-function isReactiveChild(value) {
+export function isReactiveChild(value) {
   if (Cell.isCell(value)) return true;
   if (Array.isArray(value)) {
     if (
@@ -713,6 +719,35 @@ function isReactiveChild(value) {
     }
     for (const child of value) {
       if (isReactiveChild(child)) return true;
+    }
+  }
+  return false;
+}
+
+/** @param {any} className */
+export function isReactiveClass(className) {
+  if (typeof className === 'string') return false;
+  if (Cell.isCell(className)) return true;
+  if (Array.isArray(className)) {
+    for (const child of className) {
+      if (isReactiveClass(child)) return true;
+    }
+  }
+  if (typeof className === 'object') {
+    for (const key in className) {
+      if (isReactiveClass(className[key])) return true;
+    }
+  }
+  return false;
+}
+
+/** @param {any} style */
+export function isReactiveStyle(style) {
+  if (typeof style === 'string') return false;
+  if (Cell.isCell(style)) return true;
+  if (typeof style === 'object') {
+    for (const key in style) {
+      if (isReactiveStyle(style[key])) return true;
     }
   }
   return false;

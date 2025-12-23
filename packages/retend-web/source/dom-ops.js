@@ -326,3 +326,5 @@ export function appendShadowRoot(parentNode, childNode, renderer) {
     return parentNode;
   }
 }
+
+export { containerIsDynamic } from './utils.js';

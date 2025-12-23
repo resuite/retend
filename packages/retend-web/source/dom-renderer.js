@@ -6,8 +6,9 @@ import { Cell, createNodesFromTemplate } from 'retend';
 import { withHMRBoundaries } from './plugin/hmr.js';
 import {
   addCellListener,
-  isDynamicContainer,
+  containerIsDynamic,
   DeferredHandleSymbol,
+  isReactiveChild,
   Skip,
 } from './utils.js';
 import * as Ops from './dom-ops.js';
@@ -282,7 +283,7 @@ export class DOMRenderer {
    */
   createContainer(tagname, props) {
     if (this.#isHydrating) {
-      if (isDynamicContainer(tagname, props)) {
+      if (containerIsDynamic(tagname, props, isReactiveChild)) {
         const index = this.#hydrationDynamicNodeCursor++;
         const staticNode = this.#hydrationTable[index];
         this.#hydrateNode(staticNode, props);
