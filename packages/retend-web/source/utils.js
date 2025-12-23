@@ -660,3 +660,53 @@ export function setAttribute(
     element.setAttribute(attributeName, value);
   }
 }
+
+export class Skip {
+  /** @param {string} tag  */
+  constructor(tag) {
+    this.tag = tag;
+  }
+
+  toString() {
+    return this.tag;
+  }
+}
+
+export class DeferredHandleSymbol {
+  symbol = Symbol();
+
+  /** @param {Array<any>} handle  */
+  constructor(handle) {
+    this.sourceArray = handle;
+  }
+}
+
+/**
+ * @param {string} tagname
+ * @param {any} props
+ */
+export function containsDynamicProperties(tagname, props) {
+  if (tagname === 'retend-unique-instance') return true;
+
+  for (const key in props) {
+    const value = props[key];
+    if (key.startsWith('on')) return true;
+    if (Cell.isCell(value)) return true;
+    if (key === 'ref' && Cell.isCell(value)) return true;
+
+    if (key === 'children') {
+      if (Array.isArray(value)) {
+        if (
+          value[0] instanceof DeferredHandleSymbol &&
+          value[0] === value[value.length - 1]
+        ) {
+          return true;
+        }
+        for (const child of value) {
+          if (Cell.isCell(child)) return true;
+        }
+      } else if (Cell.isCell(value)) return true;
+    }
+  }
+  return false;
+}

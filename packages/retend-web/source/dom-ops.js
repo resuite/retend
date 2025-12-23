@@ -296,6 +296,8 @@ export function restoreContainerState(node, data, renderer) {
   }
 }
 
+export const SHADOW_ROOT_KEY = '__isShadowRootContainer';
+
 /**
  * @param {any} parentNode
  * @param {any | any[]} childNode
@@ -304,9 +306,7 @@ export function restoreContainerState(node, data, renderer) {
 export function appendShadowRoot(parentNode, childNode, renderer) {
   if (
     childNode instanceof renderer.host.DocumentFragment &&
-    '__isShadowRootContainer' in childNode &&
-    childNode.__isShadowRootContainer &&
-    '__mode' in childNode
+    childNode[SHADOW_ROOT_KEY]
   ) {
     if (!(parentNode instanceof renderer.host.HTMLElement)) {
       console.error('ShadowRoot can only be children of HTML Elements.');

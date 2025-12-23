@@ -508,7 +508,7 @@ const dynamicTests = () => {
     );
     const result = await renderToString(element, window);
     expect(result).toContain(
-      '<button type="button" r-dynamic-id="0">Click me</button>'
+      '<button data-dyn="0" type="button">Click me</button>'
     );
   });
 
@@ -518,7 +518,7 @@ const dynamicTests = () => {
     const element = <div class={Cell.source('test-class')}>Content</div>;
     const result = await renderToString(element, window);
     expect(result).toContain(
-      '<div class="test-class" r-dynamic-id="0">Content</div>'
+      '<div data-dyn="0" class="test-class">Content</div>'
     );
   });
 
@@ -527,7 +527,7 @@ const dynamicTests = () => {
     const { host: window } = renderer;
     const element = <div title={Cell.source('dynamic-title')}>Content</div>;
     const result = await renderToString(element, window);
-    expect(result).toContain('r-dynamic-id="0"');
+    expect(result).toContain('data-dyn="0"');
   });
 
   it('should mark an element as dynamic if it is held by a ref', async () => {
@@ -536,7 +536,7 @@ const dynamicTests = () => {
     const ref = Cell.source('dynamic-ref');
     const element = <div ref={ref}>Content</div>;
     const result = await renderToString(element, window);
-    expect(result).toContain('r-dynamic-id="0"');
+    expect(result).toContain('data-dyn="0"');
   });
 
   it('should not mark static elements as dynamic when option is enabled', async () => {
@@ -544,7 +544,7 @@ const dynamicTests = () => {
     const { host: window } = renderer;
     const element = <div class="static">Static content</div>;
     const result = await renderToString(element, window);
-    expect(result).not.toContain('r-dynamic-id');
+    expect(result).not.toContain('data-dyn');
   });
 
   it('should assign incremental dynamic ids to multiple dynamic elements', async () => {
@@ -564,7 +564,7 @@ const dynamicTests = () => {
     );
     const result = await renderToString(element, window);
     expect(result).toBe(
-      '<div><button type="button" r-dynamic-id="0">Button 1</button><div class="class1" r-dynamic-id="1">Div 1</div><span>Static</span><button type="button" r-dynamic-id="2">Button 2</button></div>'
+      '<div><button data-dyn="0" type="button">Button 1</button><div data-dyn="1" class="class1">Div 1</div><span>Static</span><button data-dyn="2" type="button">Button 2</button></div>'
     );
   });
 
@@ -573,7 +573,7 @@ const dynamicTests = () => {
     const { host: window } = renderer;
     const element = <div>{Cell.source('Dynamic text')}</div>;
     const result = await renderToString(element, window);
-    expect(result).toContain('<div r-dynamic-id');
+    expect(result).toContain('<div data-dyn');
   });
 
   it('should only consider immediate children when checking for dynamism', async () => {
@@ -590,7 +590,7 @@ const dynamicTests = () => {
     );
     const result = await renderToString(element, window);
     expect(result).toBe(
-      '<div><div><button type="button" r-dynamic-id="0">Click</button></div></div>'
+      '<div><div><button data-dyn="0" type="button">Click</button></div></div>'
     );
   });
 
@@ -606,7 +606,7 @@ const dynamicTests = () => {
       </ul>
     );
     const result = await renderToString(element, window);
-    expect(result).toContain('<ul r-dynamic-id="0">');
+    expect(result).toContain('<ul data-dyn="0">');
   });
 
   it('should mark the container for a If as reactive', async () => {
@@ -621,7 +621,7 @@ const dynamicTests = () => {
       </div>
     );
     const result = await renderToString(element, window);
-    expect(result).toContain('<div r-dynamic-id="0">');
+    expect(result).toContain('<div data-dyn="0">');
   });
 
   it('should mark an element as reactive if it has a shadowroot', async () => {
@@ -635,7 +635,7 @@ const dynamicTests = () => {
       </div>
     );
     const result = await renderToString(element, window);
-    expect(result).toContain('<div r-dynamic-id="0">');
+    expect(result).toContain('<div data-dyn="0">');
   });
 
   it('should increment for very large subtrees', async () => {
@@ -653,7 +653,7 @@ const dynamicTests = () => {
     );
     const result = await renderToString(element, window);
     for (let i = 0; i < size; i++) {
-      expect(result).toContain(`r-dynamic-id="${i}"`);
+      expect(result).toContain(`data-dyn="${i}"`);
     }
   });
 
@@ -673,7 +673,7 @@ const dynamicTests = () => {
     );
     const result = await renderToString(element, window);
     for (let i = 0; i < 5; i++) {
-      expect(result).toContain(`r-dynamic-id="${i}"`);
+      expect(result).toContain(`data-dyn="${i}"`);
     }
   });
 };

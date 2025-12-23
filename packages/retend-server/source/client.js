@@ -2,6 +2,7 @@
 
 /** @import { Router } from 'retend/router' */
 /** @import { ServerContext } from './types.js' */
+/** @import { JsxElement } from 'retend-web' */
 
 import { runPendingSetupEffects, useObserver, setActiveRenderer } from 'retend';
 import { createRouterRoot } from 'retend/router';
@@ -193,12 +194,7 @@ async function defaultToSpaMode(routerFn) {
  *  to create the application's router.
  */
 async function restoreContext(context, routerCreateFn) {
-  const { path, rootSelector } = context;
-
-  // Hydration involves creating an index of all the nodes with
-  // dynamism from the server (r-hydration-id) and rerunning the
-  // application with a global cursor to match them, recreating the
-  // server state without creating new DOM nodes.
+  const { path } = context;
 
   setGlobalContext({
     teleportIdCounter: { value: 0 },
@@ -206,20 +202,26 @@ async function restoreContext(context, routerCreateFn) {
     globalData: new Map(),
   });
   const renderer = new DOMRenderer(window);
-  renderer.startHydration([]);
   setActiveRenderer(renderer);
 
-  const observer = useObserver();
   const router = routerCreateFn();
-  const root = createRouterRoot(router);
+  /** @type {JsxElement[]} */
+  const dynamicNodeTable = [];
+  const dynamicNodes = document.querySelectorAll('[data-dyn]');
+  for (const node of dynamicNodes) {
+    // @ts-expect-error: no need for stringifying.
+    dynamicNodeTable[node.getAttribute('data-dyn')] = node;
+    if (node.tagName === 'retend-unique-instance') {
+      renderer.saveContainerState(node, undefined);
+    }
+  }
 
-  await router.navigate(path);
-  console.log(
-    { root, expectedRoot: document.querySelector(rootSelector) },
-    root === document.querySelector(rootSelector)
-  );
-
+  renderer.enableHydrationMode(dynamicNodeTable);
+  const observer = useObserver();
+  createRouterRoot(router);
+  await renderer.hydrateChildrenWhenResolved(router.navigate(path));
   renderer.endHydration();
+  router.attachWindowListeners(window);
 
   const preloadedLinks = window.document.head.querySelectorAll(
     '[data-retend-preload]'

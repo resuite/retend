@@ -20,9 +20,6 @@ export class ArgumentList {
  * @returns {Data['Node'][]}
  */
 export function createNodesFromTemplate(children, renderer) {
-  /** @type {Data['Node'][]} */
-  const nodes = [];
-
   if (
     typeof children === 'string' ||
     typeof children === 'number' ||
@@ -49,7 +46,7 @@ export function createNodesFromTemplate(children, renderer) {
     );
   }
 
-  return nodes;
+  return [children];
 }
 
 /**

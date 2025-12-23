@@ -99,7 +99,9 @@ async function renderPath(options) {
   const { getConsistentValues } = retendModule;
 
   const window = buildWindowFromHtmlText(htmlShell, vdomModule.VWindow);
-  const renderer = new vdomModule.VDOMRenderer(window);
+  const renderer = new vdomModule.VDOMRenderer(window, {
+    markDynamicNodes: true,
+  });
 
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
@@ -160,7 +162,6 @@ async function renderPath(options) {
     /** @type {ServerContext} */
     const ctx = {
       path,
-      rootSelector,
       consistentValues,
     };
     const payload = JSON.stringify(ctx);
@@ -174,8 +175,7 @@ async function renderPath(options) {
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
 
     const stringify = async () => {
-      const options = { markStaticNodes: true };
-      const htmlContents = await renderToString(document, window, options);
+      const htmlContents = await renderToString(document, window);
       const contents = `<!DOCTYPE html>${htmlContents}`;
       window.close(); // destroys timeouts and intervals.
       return contents;

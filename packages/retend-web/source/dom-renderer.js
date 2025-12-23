@@ -4,6 +4,12 @@
 
 import { Cell, createNodesFromTemplate } from 'retend';
 import { withHMRBoundaries } from './plugin/hmr.js';
+import {
+  addCellListener,
+  containsDynamicProperties as isDynamicContainer,
+  DeferredHandleSymbol,
+  Skip,
+} from './utils.js';
 import * as Ops from './dom-ops.js';
 
 /**
@@ -40,11 +46,20 @@ export class DOMRenderer {
   /** @type {Window & globalThis} */
   host;
   observer = null;
-
   staticStyleIds = new Set();
+
   #isHydrating = false;
-  /** @type {Node[]} */ // @ts-expect-error
-  #hydrationNodeTable = [];
+  /** @type {Promise<void> | null} */
+  #readyToHydrateChildren = null;
+  /** @type {null | ((value: void) => void)} */
+  #startHydratingChildren = null;
+  /**
+   * @type {JsxElement[]}
+   * A list of all the dynamic elements
+   * that need to be hydrated.
+   */
+  #hydrationTable = [];
+  #hydrationDynamicNodeCursor = 0;
 
   /** @param {Window & globalThis} host */
   constructor(host) {
@@ -104,6 +119,15 @@ export class DOMRenderer {
    * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
+    if (this.#isHydrating) {
+      /** @type {DeferredHandleSymbol[]} */ // @ts-expect-error
+      const array = fragment;
+      const symbol = new DeferredHandleSymbol(array);
+      array.splice(0, 0, symbol);
+      array.push(symbol);
+      // @ts-expect-error
+      return array;
+    }
     return Ops.createGroupHandle(fragment, this);
   }
 
@@ -112,6 +136,11 @@ export class DOMRenderer {
    * @param {Node[]} newContent
    */
   write(segment, newContent) {
+    if (this.#isHydrating) {
+      //@ts-expect-error
+      segment.splice(1, 0, ...newContent);
+      return segment;
+    }
     return Ops.write(segment, newContent);
   }
 
@@ -131,6 +160,7 @@ export class DOMRenderer {
    * @returns {N}
    */
   setProperty(node, key, value) {
+    if (this.#isHydrating && node instanceof Skip) return node;
     return Ops.setProperty(node, key, value);
   }
 
@@ -144,9 +174,9 @@ export class DOMRenderer {
     if (import.meta.env?.DEV) {
       return withHMRBoundaries(tagname, props, fileData, this);
     }
-    const component = tagname(...props);
+    const template = tagname(...props);
     /** @type {Node[]} */
-    const nodes = createNodesFromTemplate(component, this);
+    const nodes = createNodesFromTemplate(template, this);
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
@@ -156,15 +186,11 @@ export class DOMRenderer {
    */
   append(_parentNode, childNode) {
     const parentNode = /** @type {Element} */ (_parentNode);
-    if (this.#isHydrating) {
-      // The assumption here is that there is already a static DOM with
-      // the correct children appended.
-      return parentNode;
-    }
+    if (this.#isHydrating) return parentNode;
+
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
-    if (shadowRoot) {
-      return shadowRoot;
-    }
+    if (shadowRoot) return shadowRoot;
+
     const tagname = parentNode.tagName;
 
     // Client-side bailout for SVG and MathML elements.
@@ -228,6 +254,16 @@ export class DOMRenderer {
    * @returns {DocumentFragment}
    */
   createGroup(input) {
+    if (this.#isHydrating) {
+      if (input) {
+        // @ts-expect-error
+        if (Array.isArray(input)) return input;
+        // @ts-expect-error
+        return [input];
+      }
+      // @ts-expect-error
+      return [];
+    }
     return Ops.createGroup(input, this);
   }
 
@@ -242,10 +278,21 @@ export class DOMRenderer {
   /**
    * @param {string} tagname
    * @param {any} [props]
+   * @returns {JsxElement}
    */
   createContainer(tagname, props) {
-    const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
+    if (this.#isHydrating) {
+      if (isDynamicContainer(tagname, props)) {
+        const index = this.#hydrationDynamicNodeCursor++;
+        const staticNode = this.#hydrationTable[index];
+        this.#hydrateNode(staticNode, props);
+        return staticNode;
+      }
+      // @ts-expect-error: The types are different in hydration mode.
+      return new Skip(tagname);
+    }
 
+    const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
     let ns;
     if (tagname === 'svg') {
       ns = 'http://www.w3.org/2000/svg';
@@ -257,8 +304,6 @@ export class DOMRenderer {
 
     /** @type {JsxElement} */ // @ts-expect-error
     const element = this.host.document.createElementNS(ns, tagname);
-    element.__eventListenerList = new Map();
-    element.__attributeCells = new Set();
     return element;
   }
 
@@ -266,6 +311,10 @@ export class DOMRenderer {
    * @param {string | Cell<any>} text
    */
   createText(text) {
+    if (this.#isHydrating) {
+      if (Cell.isCell(text)) return text;
+      return new Skip(text);
+    }
     return Ops.createText(text, this);
   }
 
@@ -285,7 +334,10 @@ export class DOMRenderer {
    * @returns {child is Node}
    */
   isNode(child) {
-    return child instanceof this.host.Node;
+    return (
+      (this.#isHydrating && child instanceof Skip) ||
+      child instanceof this.host.Node
+    );
   }
 
   /**
@@ -301,15 +353,102 @@ export class DOMRenderer {
 
   /**
    * Enables hydration mode.
-   * @param {Node[]} nodeTable
+   * @param {JsxElement[]} nodeTable
    */
-  startHydration(nodeTable) {
+  enableHydrationMode(nodeTable) {
     this.#isHydrating = true;
-    this.#hydrationNodeTable = nodeTable;
+    this.#hydrationTable = nodeTable;
+    this.#readyToHydrateChildren = new Promise((resolve) => {
+      this.#startHydratingChildren = resolve;
+    });
+  }
+
+  /**
+   * @param {Promise<any>} promise
+   * @returns {Promise<void>}
+   */
+  async hydrateChildrenWhenResolved(promise) {
+    await promise;
+    this.#startHydratingChildren?.();
+  }
+
+  /**
+   * @param {any} props
+   * @param {Element} staticNode
+   */
+  async #hydrateNode(staticNode, props) {
+    // staticNode.removeAttribute('data-dyn');
+    for (const key in props) {
+      if (key !== 'children') this.setProperty(staticNode, key, props[key]);
+    }
+
+    await this.#readyToHydrateChildren;
+    if (!Array.isArray(props.children)) return;
+    const resolvedChildren = props.children.flat(Number.POSITIVE_INFINITY);
+    let nodeIndex = 0;
+    let domIndex = 0;
+
+    while (true) {
+      const node = resolvedChildren[nodeIndex];
+      const domNode = staticNode.childNodes[domIndex];
+      if (domNode instanceof Comment && domNode.textContent === '@@') {
+        // Skip HTML separators added by the serializer.
+        domNode.remove();
+        continue;
+      }
+      if (!node) break;
+      const skip =
+        node === domNode ||
+        node instanceof Skip ||
+        typeof node === 'string' ||
+        typeof node === 'number';
+
+      if (skip) {
+        nodeIndex++;
+        domIndex++;
+        continue;
+      }
+
+      if (node instanceof DeferredHandleSymbol && domNode instanceof Comment) {
+        Reflect.set(domNode, '__commentRangeSymbol', node.symbol);
+        if (node.sourceArray[0] instanceof Comment) {
+          // This is end comment marker.
+          node.sourceArray.push(domNode);
+        } else {
+          // this is start comment marker
+          node.sourceArray.length = 0;
+          node.sourceArray.push(domNode);
+        }
+        nodeIndex++;
+        domIndex++;
+        continue;
+      }
+
+      if (Cell.isCell(node) && domNode instanceof Text) {
+        const { updateText } = this;
+        /**
+         * @param {string} value
+         * @this {Text}
+         */
+        function listener(value) {
+          updateText(value, this);
+        }
+        addCellListener(domNode, node, listener, false);
+        nodeIndex++;
+        domIndex++;
+        continue;
+      }
+
+      console.error('Hydration error: Expected', node, 'but got', domNode);
+      nodeIndex++;
+      domIndex++;
+    }
   }
 
   endHydration() {
     this.#isHydrating = false;
-    this.#hydrationNodeTable = [];
+    this.#hydrationTable = [];
+    this.#readyToHydrateChildren = null;
+    this.#startHydratingChildren = null;
   }
 }
