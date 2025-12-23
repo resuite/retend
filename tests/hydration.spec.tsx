@@ -263,7 +263,6 @@ describe('Hydration', () => {
     );
 
     const { document } = await setupHydration(template);
-    console.log(document.body);
     const btn = document.querySelector('#unique-btn') as HTMLButtonElement;
     expect(btn.textContent).toBe('Unique: 0');
 
