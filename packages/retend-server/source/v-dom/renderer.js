@@ -267,39 +267,28 @@ function isDynamicContainer(tagname, props) {
     if (Cell.isCell(value)) return true;
 
     if (key === 'children') {
-      if (Array.isArray(value)) {
-        for (const c of value) {
-          if (Cell.isCell(c)) return true;
-          // @ts-expect-error
-          if (c instanceof VText && c.__attributeCells) return true;
-          // @ts-expect-error
-          if (c instanceof VComment && c.__commentRangeSymbol) return true;
-          // @ts-expect-error
-          if (c instanceof VDocumentFragment && c[ShadowRootKey]) return true;
-        }
-        // @ts-expect-error
-      } else if (value instanceof VDocumentFragment && !value[ShadowRootKey]) {
-        for (const c of value.childNodes) {
-          if (Cell.isCell(c)) return true;
-          // @ts-expect-error
-          if (c instanceof VText && c.__attributeCells) return true;
-          // @ts-expect-error
-          if (c instanceof VComment && c.__commentRangeSymbol) return true;
-          // @ts-expect-error
-          if (c instanceof VDocumentFragment && c[ShadowRootKey]) return true;
-        }
-      } else {
-        if (Cell.isCell(value)) return true;
-        // @ts-expect-error
-        if (value instanceof VText && value.__attributeCells) return true;
-        // @ts-expect-error
-        if (value instanceof VComment && value.__commentRangeSymbol)
-          return true;
-        // @ts-expect-error
-        if (value instanceof VDocumentFragment && value[ShadowRootKey])
-          return true;
-      }
+      if (isReactiveChild(value)) return true;
     }
   }
+  return false;
+}
+
+/** @param {any} value  */
+function isReactiveChild(value) {
+  if (Cell.isCell(value)) return true;
+  if (Array.isArray(value)) {
+    for (const c of value) if (isReactiveChild(c)) return true;
+  }
+  if (value instanceof VDocumentFragment) {
+    // @ts-expect-error
+    if (value[ShadowRootKey]) return true;
+    for (const sc of value.childNodes) {
+      if (isReactiveChild(sc)) return true;
+    }
+  }
+  // @ts-expect-error
+  if (value instanceof VText && value.__attributeCells?.size) return true;
+  // @ts-expect-error
+  if (value instanceof VComment && value.__commentRangeSymbol) return true;
   return false;
 }

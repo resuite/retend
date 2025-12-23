@@ -691,21 +691,28 @@ export function isDynamicContainer(tagname, props) {
   for (const key in props) {
     const value = props[key];
     if (key.startsWith('on')) return true;
-    if (Cell.isCell(value)) return true;
     if (key === 'ref' && Cell.isCell(value)) return true;
+    if (Cell.isCell(value)) return true;
 
     if (key === 'children') {
-      if (Array.isArray(value)) {
-        if (
-          value[0] instanceof DeferredHandleSymbol &&
-          value[0] === value[value.length - 1]
-        ) {
-          return true;
-        }
-        for (const child of value) {
-          if (Cell.isCell(child)) return true;
-        }
-      } else if (Cell.isCell(value)) return true;
+      if (isReactiveChild(value)) return true;
+    }
+  }
+  return false;
+}
+
+/** @param {any} value  */
+function isReactiveChild(value) {
+  if (Cell.isCell(value)) return true;
+  if (Array.isArray(value)) {
+    if (
+      value[0] instanceof DeferredHandleSymbol &&
+      value[0] === value[value.length - 1]
+    ) {
+      return true;
+    }
+    for (const child of value) {
+      if (isReactiveChild(child)) return true;
     }
   }
   return false;
