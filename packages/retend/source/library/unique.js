@@ -1,5 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
+/** @import { Renderer } from '../library/renderer.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
 import { useObserver } from '../library/observer.js';
@@ -21,6 +22,10 @@ import { linkNodes } from '../library/utils.js';
  * @property {Map<string, ScopeSnapshot>} scopes
  * @property {Set<() => void>} pendingTeardowns
  * @property {() => void} onActivate
+ */
+
+/**
+ * @typedef {WeakMap<Renderer<any>, UniqueStash>} RendererToUniqueStash
  */
 
 // /**
@@ -65,11 +70,11 @@ const UniqueComponentStash = Symbol('UniqueComponentStash');
 const elementName = 'retend-unique-instance';
 
 /**
+ * @param {Renderer<any>} renderer
  * @returns {UniqueStash}
  */
-const initUniqueStash = () => {
+const initUniqueStash = (renderer) => {
   const { globalData } = getGlobalContext();
-  const renderer = getActiveRenderer();
   const checkForUniqueComponentTeardowns = () => {
     for (const teardown of stash.pendingTeardowns) {
       teardown();
@@ -84,7 +89,9 @@ const initUniqueStash = () => {
     pendingTeardowns: new Set(),
     onActivate: checkForUniqueComponentTeardowns,
   };
-  globalData.set(UniqueComponentStash, stash);
+  const rendererStash = new Map();
+  rendererStash.set(renderer, stash);
+  globalData.set(UniqueComponentStash, rendererStash);
 
   renderer.host.addEventListener('retend:activate', stash.onActivate);
   return stash;
@@ -172,7 +179,9 @@ export function Unique(props) {
   } = props;
 
   /** @type {UniqueStash} */
-  const stash = globalData.get(UniqueComponentStash) ?? initUniqueStash();
+  const stash =
+    globalData.get(UniqueComponentStash)?.get(renderer) ??
+    initUniqueStash(renderer);
   const selector = `${elementName}[name="${name}"]`;
   const observer = useObserver();
 
