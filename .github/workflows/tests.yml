@@ -17,6 +17,6 @@ jobs:
           bun-version: 1.3.0
 
       - run: bun install
-      - run: bunx playwright install
+      - run: PLAYWRIGHT_BROWSERS_PATH=0 bunx playwright install
       - run: bun run build
       - run: bun run test
