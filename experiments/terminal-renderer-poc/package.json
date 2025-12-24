@@ -1,0 +1,22 @@
+{
+  "name": "terminal-renderer-poc",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx source/main.ts"
+  },
+  "dependencies": {
+    "retend": "file:../../packages/retend",
+    "retend-web": "file:../../packages/retend-web",
+    "retend-server": "file:../../packages/retend-server",
+    "retend-utils": "file:../../packages/retend-utils",
+    "blessed": "^0.1.81",
+    "@types/blessed": "^0.1.25"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1",
+    "typescript": "^5.5.2",
+    "@types/node": "latest"
+  }
+}

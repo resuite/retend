@@ -293,7 +293,7 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { retend } from 'retend/web/plugin';${
+import { retend } from 'retend-web/plugin';${
     answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ''
   }${
     answers.useTailwind ? "\nimport tailwindcss from '@tailwindcss/vite';" : ''
@@ -394,7 +394,7 @@ hydrate(createRouter)
     : `
 /// <reference types="vite/client" />
 /// <reference types="retend-web/jsx-runtime" />
-import { runPendingSetupEffects } from 'retend';
+import { runPendingSetupEffects, setActiveRenderer } from 'retend';
 import { createRouterRoot } from 'retend/router';
 import { DOMRenderer } from 'retend-web';
 import { createRouter } from './router';
