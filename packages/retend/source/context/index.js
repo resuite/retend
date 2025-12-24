@@ -48,16 +48,6 @@ if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
 }
 
 /**
- * Determines if the current environment is a server-side rendering (SSR) context.
- *
- * @returns {boolean} True if the current context is a virtual DOM mode with SSR enabled, false otherwise.
- */
-export function isSSREnvironment() {
-  const context = getGlobalContext();
-  return context.globalData.get('env:ssr') === true;
-}
-
-/**
  * Updates the global render context for retend.
  * The default context is the interactive, web DOM environment.
  *
