@@ -84,11 +84,9 @@ const App = () => {
       <text style={styles.output}>Count: {count}</text>
 
       <view style={styles.buttonRow}>
-        {/* biome-ignore lint/a11y/useKeyWithClickEvents: This is not web.*/}
         <view style={styles.button} onClick={() => count.set(count.get() - 1)}>
           <text style={styles.buttonText}>- Decrement</text>
         </view>
-        {/* biome-ignore lint/a11y/useKeyWithClickEvents: This is not web.*/}
         <view style={styles.button} onClick={() => count.set(count.get() + 1)}>
           <text style={styles.buttonText}>+ Increment</text>
         </view>
