@@ -46,7 +46,7 @@ export function createNodesFromTemplate(children, renderer) {
     );
   }
 
-  return [children];
+  return [children].filter(Boolean);
 }
 
 /**
