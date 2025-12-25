@@ -1,76 +1,61 @@
-import type { TerminalStyle } from '@/types';
+/// <reference path="./jsx-runtime/index.d.ts" />
 import { Cell } from 'retend';
 
-const useWindowSize = () => {
-  const width = Cell.source(process.stdout.columns || 80);
-  const height = Cell.source(process.stdout.rows || 24);
-
-  process.stdout.on('resize', () => {
-    width.set(process.stdout.columns || 80);
-    height.set(process.stdout.rows || 24);
-  });
-
-  return { width, height };
-};
-
 const styles = {
-  container: (width: number, height: number) => ({
-    width,
-    height,
-    backgroundColor: 'black',
+  container: {
+    width: '100%' as const,
+    height: '100%' as const,
+    backgroundColor: '#1E1E1E',
     justifyContent: 'center' as const,
     alignItems: 'center' as const,
-    rowGap: 1,
-  }),
+    rowGap: '2u' as const,
+  },
   title: {
     color: 'white',
-    fontWeight: 'bold',
-    textDecoration: 'underline',
+    fontSize: '4u' as const,
+    fontWeight: 'bold' as const,
+    textDecoration: 'underline' as const,
   },
-  subtitleBox: (viewportWidth: number) => ({
-    borderColor: 'yellow',
-    padding: 2,
-    width: Math.max(20, viewportWidth - 16),
-  }),
+  subtitleBox: {
+    borderColor: '#FFD700',
+    padding: '2u' as const,
+    width: '90%' as const,
+  },
   subtitle: {
-    color: 'gray',
-    textAlign: 'center',
+    color: '#AAAAAA',
+    fontSize: '2u' as const,
+    textAlign: 'center' as const,
   },
   output: {
     color: 'white',
-    fontWeight: 'bold',
-    padding: 1,
+    fontSize: '3u' as const,
+    fontWeight: 'bold' as const,
+    padding: '1u' as const,
   },
   buttonRow: {
-    flexDirection: 'row',
-    padding: 1,
-    columnGap: 2,
+    flexDirection: 'row' as const,
+    padding: '1u' as const,
+    columnGap: '2u' as const,
   },
   button: {
-    borderColor: 'blue',
-    padding: 1,
+    borderColor: '#5B9BD5',
+    padding: '2u' as const,
   },
   buttonText: {
     color: 'white',
-    whiteSpace: 'nowrap',
+    fontSize: '2u' as const,
+    whiteSpace: 'nowrap' as const,
   },
 } as const;
 
 const App = () => {
-  const { width, height } = useWindowSize();
   const count = Cell.source(0);
 
-  const rootStyle = Cell.derived(() =>
-    styles.container(width.get(), height.get())
-  );
-
-  const subtitleBoxStyle = Cell.derived(() => styles.subtitleBox(width.get()));
-
   return (
-    <view style={rootStyle}>
+    <view style={styles.container}>
       <text style={styles.title}>Hello Retend!</text>
 
-      <view style={subtitleBoxStyle}>
+      <view style={styles.subtitleBox}>
         <text style={styles.subtitle}>
           A lightweight framework for building fluid apps. Use JSX to create
           dynamic interfaces, leveraging built-in reactivity for automatic

@@ -3,7 +3,7 @@
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
@@ -14,12 +14,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@local",
-    "baseUrl": ".",
-    "paths": {
-        "@local/jsx-runtime": ["./source/jsx-runtime/index.ts"],
-        "@/*": ["./source/*"]
-    }
+    "jsxImportSource": "retend",
+    "skipLibCheck": true,
   },
-  "include": ["source"]
+  "include": ["source"],
 }

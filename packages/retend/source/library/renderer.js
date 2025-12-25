@@ -114,7 +114,7 @@ const RendererKey = 'retend:Renderer';
  * @property {(text: string) => Node} createText
  * Instantiates a text node from a string.
  *
- * @property {(text: string, node: Node) => Node} updateText
+ * @property {(text: string, node: Text) => Node} updateText
  * Mutates the content of an existing text node.
  *
  * @property {<N extends Node>(node: N, key: string, value: unknown) => N} setProperty
