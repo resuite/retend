@@ -8,11 +8,11 @@ import {
   getActiveRenderer,
   setActiveRenderer,
 } from 'retend';
-import { DOMRenderer } from 'retend-web';
+import { DOMRenderer, Teleport } from 'retend-web';
 import { renderToString } from 'retend-server/client';
-import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
-import { describe, expect, it } from 'vitest';
-import { browserSetup, timeout } from './setup.tsx';
+import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
+import { describe, expect, it, vi } from 'vitest';
+import { browserSetup } from './setup.tsx';
 import type { JSX } from 'retend/jsx-runtime';
 
 const setupHydration = async (templateFn: () => JSX.Template) => {
@@ -28,8 +28,9 @@ const setupHydration = async (templateFn: () => JSX.Template) => {
   });
   setActiveRenderer(serverRenderer);
 
-  const vdomTree = templateFn();
-  const html = await renderToString(vdomTree, serverWindow);
+  serverWindow.document.body.append(templateFn() as VNode);
+  await serverWindow.document.mountAllTeleports();
+  const html = await renderToString(serverWindow.document.body, serverWindow);
 
   // 2. Client Setup Phase
   document.body.innerHTML = `<div id="app">${html}</div>`;
@@ -42,7 +43,7 @@ const setupHydration = async (templateFn: () => JSX.Template) => {
 
   await clientRenderer.hydrateChildrenWhenResolved(Promise.resolve());
   templateFn();
-  clientRenderer.endHydration();
+  await clientRenderer.endHydration();
 
   return {
     html,
@@ -432,5 +433,134 @@ describe('Hydration', () => {
     color.set('blue');
 
     expect(div.style.color).toBe('blue');
+  });
+
+  it('should hydrate Teleport to target by ID', async () => {
+    const template = () => (
+      <div>
+        <div id="teleport-target" />
+        <Teleport id="test" to="#teleport-target">
+          <div id="teleported-content">Teleported content</div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#teleport-target');
+    const teleported = target?.querySelector('#teleported-content');
+
+    expect(target).not.toBeNull();
+    expect(teleported).not.toBeNull();
+    expect(teleported?.textContent).toBe('Teleported content');
+  });
+
+  it('should hydrate Teleport with dynamic content', async () => {
+    const content = Cell.source('Initial content');
+    const template = () => (
+      <div>
+        <div id="dynamic-target" />
+        <Teleport to="#dynamic-target">
+          <div id="dynamic-teleported">{content}</div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#dynamic-target');
+    const teleported = target?.querySelector('#dynamic-teleported');
+
+    expect(teleported?.textContent).toBe('Initial content');
+
+    content.set('Updated content');
+
+    expect(teleported?.textContent).toBe('Updated content');
+  });
+
+  it('should hydrate multiple Teleports to same target', async () => {
+    const template = () => (
+      <div>
+        <div id="multi-target" />
+        <Teleport to="#multi-target">
+          <div id="first">First teleport</div>
+        </Teleport>
+        <Teleport to="#multi-target">
+          <div id="second">Second teleport</div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#multi-target');
+    const first = target?.querySelector('#first');
+    const second = target?.querySelector('#second');
+
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(first?.textContent).toBe('First teleport');
+    expect(second?.textContent).toBe('Second teleport');
+  });
+
+  it('should hydrate Teleport with dynamic attributes on children', async () => {
+    const color = Cell.source('red');
+    const template = () => (
+      <div>
+        <div id="attr-target" />
+        <Teleport to="#attr-target">
+          <div id="styled-teleported" style={{ color }}>
+            Styled content
+          </div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#attr-target');
+    const teleported = target?.querySelector(
+      '#styled-teleported'
+    ) as HTMLElement;
+
+    expect(teleported?.style.color).toBe('red');
+
+    color.set('blue');
+
+    expect(teleported?.style.color).toBe('blue');
+  });
+
+  it('should hydrate Teleport with control flow inside', async () => {
+    const show = Cell.source(true);
+    const items = Cell.source(['A', 'B']);
+    const template = () => (
+      <div>
+        <div id="control-target" />
+        <Teleport to="#control-target">
+          {If(show, {
+            true: () => (
+              <div>
+                <div id="if-content">Visible</div>
+                <ul id="for-list">
+                  {For(items, (item) => (
+                    <li class="control-item">{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ),
+            false: () => <div id="hidden">Hidden</div>,
+          })}
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#control-target');
+    const ifContent = target?.querySelector('#if-content');
+    const forItems = target?.querySelectorAll('.control-item');
+
+    expect(ifContent).not.toBeNull();
+    expect(forItems?.length).toBe(2);
+
+    show.set(false);
+
+    expect(target?.querySelector('#if-content')).toBeNull();
+    expect(target?.querySelector('#hidden')).not.toBeNull();
   });
 });

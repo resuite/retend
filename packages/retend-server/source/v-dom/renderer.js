@@ -246,9 +246,7 @@ export class VDOMRenderer {
   scheduleTeleport(callback) {
     const anchorNode = this.host.document.createComment('teleport-anchor');
     this.host.document.teleportMounts.push(() => callback(anchorNode));
-    const ref = Cell.source(anchorNode);
-    Reflect.set(anchorNode, '__isTeleportAnchor', true);
-    Reflect.set(anchorNode, '__ref', ref);
+    anchorNode.__isTeleportAnchor = true;
     return anchorNode;
   }
 }

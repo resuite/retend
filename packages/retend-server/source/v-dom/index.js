@@ -1,12 +1,16 @@
 export class VNode extends EventTarget {
+  /** @type {VNode | null} */
+  parentNode = null;
+  /** @type {VNode[]} */
+  childNodes = [];
+  __isVNode = true;
+  __isTeleportAnchor = false;
+  /** @type {VDocument | null} document */
+  ownerDocument = null;
+
   /** @param {VDocument | null} document */
   constructor(document) {
     super();
-    /** @type {VNode[]} */
-    this.childNodes = [];
-    /** @type {VNode | null} */
-    this.parentNode = null;
-    this.__isVNode = true;
     this.ownerDocument = document;
   }
 
@@ -201,6 +205,16 @@ export class VNode extends EventTarget {
           node !== this &&
           node instanceof VElement &&
           node.getAttribute('id') === id
+      );
+    }
+    if (selector.startsWith("retend-teleport[data-teleport-id='")) {
+      const id = selector.slice(34, -2);
+      return this.findNode(
+        (node) =>
+          node !== this &&
+          node instanceof VElement &&
+          node.tagName === 'RETEND-TELEPORT' &&
+          node.getAttribute('data-teleport-id') === id
       );
     }
     const selectorLower = selector.toLowerCase();
@@ -587,7 +601,9 @@ export class VDocument extends VNode {
   }
 
   async mountAllTeleports() {
-    await Promise.all(this.teleportMounts.map((mount) => mount()));
+    for (const mount of this.teleportMounts) {
+      await mount();
+    }
     this.teleportMounts = [];
   }
 }

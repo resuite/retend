@@ -58,14 +58,11 @@ export function Teleport(props) {
   let teleportId;
   const key = `teleport/target/${teleportIdCounter.value++}`;
 
-  /** @param {Node} anchorNode */
-  const mountTeleportedNodes = async (anchorNode) => {
-    if (!anchorNode.isConnected) return;
+  /** @param {Node} [anchor] */
+  const mountTeleportedNodes = async (anchor) => {
+    if (anchor && !anchor.isConnected) return;
 
-    const renderer = getActiveRenderer();
-    const window = /** @type {Window} */ (renderer.host);
-    const parent = window.document.querySelector(target);
-
+    const parent = renderer.host.document.querySelector(target);
     if (!parent) {
       const message = `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`;
       console.error(message);
@@ -73,37 +70,22 @@ export function Teleport(props) {
     }
 
     teleportId = await useConsistent(key, () => crypto.randomUUID());
-    const staleInstance = parent.querySelector(
-      `retend-teleport[data-teleport-id='${teleportId}']`
-    );
-    const newInstance = window.document.createElement('retend-teleport');
-    newInstance.setAttribute('data-teleport-id', teleportId);
+    const newInstance = renderer.createContainer('retend-teleport', props);
+    renderer.setProperty(newInstance, 'data-teleport-id', teleportId);
 
     for (const [key, value] of Object.entries(rest)) {
       if (key === 'children') continue;
       renderer.setProperty(newInstance, key, value);
     }
 
-    const children = createNodesFromTemplate(
-      /** @type {*} */ (props.children),
-      renderer
-    );
+    const children = createNodesFromTemplate(props.children, renderer);
     for (const child of children) {
       linkNodes(newInstance, child, renderer);
     }
 
-    if (staleInstance)
-      staleInstance.replaceWith(/** @type {*} */ (newInstance));
-    else parent.append(/** @type {*} */ (newInstance));
-
+    renderer.append(parent, newInstance);
     return () => newInstance.remove();
   };
 
-  return renderer.scheduleTeleport(
-    mountTeleportedNodes,
-    observer,
-    // @ts-expect-error
-    target,
-    teleportId
-  );
+  return renderer.scheduleTeleport(mountTeleportedNodes, observer);
 }

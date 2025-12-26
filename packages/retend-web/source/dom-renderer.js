@@ -54,6 +54,8 @@ export class DOMRenderer {
   #readyToHydrateChildren = null;
   /** @type {null | ((value: void) => void)} */
   #startHydratingChildren = null;
+  /** @type {Array<() => Promise<*>>} */
+  #scheduledHydrationTeleports = [];
   /**
    * @type {JsxElement[]}
    * A list of all the dynamic elements
@@ -342,13 +344,17 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {(node: Node) => void} callback
+   * @param {(node?: Node) => Promise<*>} callback
    * @param {Observer} observer
    */
   scheduleTeleport(callback, observer) {
-    const anchorNode = window.document.createComment('teleport-anchor');
+    if (this.#isHydrating) {
+      this.#scheduledHydrationTeleports.push(callback);
+      return new Skip('teleport');
+    }
+    const anchorNode = this.host.document.createComment('teleport-anchor');
     const ref = Cell.source(anchorNode);
-    observer.onConnected(ref, () => callback(anchorNode));
+    observer.onConnected(ref, callback);
     return anchorNode;
   }
 
@@ -462,10 +468,14 @@ export class DOMRenderer {
     }
   }
 
-  endHydration() {
+  async endHydration() {
+    for (const mount of this.#scheduledHydrationTeleports) {
+      await mount();
+    }
     this.#isHydrating = false;
     this.#hydrationTable = [];
     this.#readyToHydrateChildren = null;
     this.#startHydratingChildren = null;
+    this.#scheduledHydrationTeleports = [];
   }
 }
