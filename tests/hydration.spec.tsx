@@ -563,4 +563,422 @@ describe('Hydration', () => {
     expect(target?.querySelector('#if-content')).toBeNull();
     expect(target?.querySelector('#hidden')).not.toBeNull();
   });
+
+  it('should hydrate nested Teleports', async () => {
+    const template = () => (
+      <div>
+        <div id="outer-target" />
+        <Teleport to="#outer-target">
+          <div id="outer-content">
+            <div id="inner-target" />
+            <Teleport to="#inner-target">
+              <div id="inner-content">Inner teleported</div>
+            </Teleport>
+          </div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const outerTarget = document.querySelector('#outer-target');
+    const outerContent = outerTarget?.querySelector('#outer-content');
+    const innerTarget = outerContent?.querySelector('#inner-target');
+    const innerContent = innerTarget?.querySelector('#inner-content');
+
+    expect(outerContent).not.toBeNull();
+    expect(innerContent).not.toBeNull();
+    expect(innerContent?.textContent).toBe('Inner teleported');
+  });
+
+  it('should hydrate Teleport with Switch inside', async () => {
+    const mode = Cell.source('a');
+    const template = () => (
+      <div>
+        <div id="switch-target" />
+        <Teleport to="#switch-target">
+          {Switch(mode, {
+            a: () => <div id="mode-a">Mode A</div>,
+            b: () => <div id="mode-b">Mode B</div>,
+            default: () => <div id="mode-default">Default</div>,
+          })}
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#switch-target');
+
+    expect(target?.querySelector('#mode-a')).not.toBeNull();
+
+    mode.set('b');
+
+    expect(target?.querySelector('#mode-a')).toBeNull();
+    expect(target?.querySelector('#mode-b')).not.toBeNull();
+  });
+
+  it('should hydrate Teleport with Unique component inside', async () => {
+    const count = Cell.source(0);
+    const template = () => (
+      <div>
+        <div id="unique-target" />
+        <Teleport to="#unique-target">
+          <Unique id="teleported-unique" name="test">
+            {() => (
+              <button
+                id="teleport-btn"
+                type="button"
+                onClick={() => count.set(count.get() + 1)}
+              >
+                Count: {count}
+              </button>
+            )}
+          </Unique>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const btn = document.querySelector('#teleport-btn') as HTMLButtonElement;
+
+    expect(btn.textContent).toBe('Count: 0');
+
+    btn.click();
+
+    expect(btn.textContent).toBe('Count: 1');
+  });
+
+  it('should hydrate Teleport with events on children', async () => {
+    let clicked = false;
+    const handleClick = () => {
+      clicked = true;
+    };
+    const template = () => (
+      <div>
+        <div id="event-target" />
+        <Teleport to="#event-target">
+          <button id="teleport-event-btn" type="button" onClick={handleClick}>
+            Click me
+          </button>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const btn = document.querySelector(
+      '#teleport-event-btn'
+    ) as HTMLButtonElement;
+
+    expect(clicked).toBe(false);
+
+    btn.click();
+
+    expect(clicked).toBe(true);
+  });
+
+  it('should hydrate Teleport with multiple dynamic children', async () => {
+    const text1 = Cell.source('First');
+    const text2 = Cell.source('Second');
+    const text3 = Cell.source('Third');
+    const template = () => (
+      <div>
+        <div id="multi-child-target" />
+        <Teleport to="#multi-child-target">
+          <div id="child1">{text1}</div>
+          <div id="child2">{text2}</div>
+          <div id="child3">{text3}</div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#multi-child-target');
+    const child1 = target?.querySelector('#child1');
+    const child2 = target?.querySelector('#child2');
+    const child3 = target?.querySelector('#child3');
+
+    expect(child1?.textContent).toBe('First');
+    expect(child2?.textContent).toBe('Second');
+    expect(child3?.textContent).toBe('Third');
+
+    text1.set('First Updated');
+    text2.set('Second Updated');
+    text3.set('Third Updated');
+
+    expect(child1?.textContent).toBe('First Updated');
+    expect(child2?.textContent).toBe('Second Updated');
+    expect(child3?.textContent).toBe('Third Updated');
+  });
+
+  it('should hydrate Teleport with fragment content', async () => {
+    const text = Cell.source('Fragment content');
+    const template = () => (
+      <div>
+        <div id="fragment-target" />
+        <Teleport to="#fragment-target">
+          <>
+            <span id="frag1">{text}</span>
+            <span id="frag2">Static fragment</span>
+          </>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#fragment-target');
+    const frag1 = target?.querySelector('#frag1');
+    const frag2 = target?.querySelector('#frag2');
+
+    expect(frag1?.textContent).toBe('Fragment content');
+    expect(frag2?.textContent).toBe('Static fragment');
+
+    text.set('Updated fragment');
+
+    expect(frag1?.textContent).toBe('Updated fragment');
+  });
+
+  it('should hydrate Teleport with form elements', async () => {
+    const placeholder = Cell.source('Enter text');
+    const value = Cell.source('Initial');
+    const template = () => (
+      <div>
+        <div id="form-target" />
+        <Teleport to="#form-target">
+          <div>
+            <input
+              id="teleport-input"
+              type="text"
+              placeholder={placeholder}
+              value={value}
+            />
+            <label for="teleport-input">Teleported input</label>
+          </div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#form-target');
+    const input = target?.querySelector('#teleport-input') as HTMLInputElement;
+
+    expect(input?.placeholder).toBe('Enter text');
+    expect(input?.value).toBe('Initial');
+
+    placeholder.set('Updated placeholder');
+    value.set('Updated value');
+
+    expect(input?.placeholder).toBe('Updated placeholder');
+    expect(input?.value).toBe('Updated value');
+  });
+
+  it('should hydrate Teleport with text-only content', async () => {
+    const text = Cell.source('Plain text content');
+    const template = () => (
+      <div>
+        <div id="text-target" />
+        <Teleport to="#text-target">{text}</Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#text-target');
+
+    expect(target?.textContent).toBe('Plain text content');
+
+    text.set('Updated plain text');
+
+    expect(target?.textContent).toBe('Updated plain text');
+  });
+
+  it('should hydrate Teleport with multiple nested For loops', async () => {
+    const categories = Cell.source([
+      { name: 'Fruits', items: ['Apple', 'Banana'] },
+      { name: 'Vegetables', items: ['Carrot', 'Potato'] },
+    ]);
+    const template = () => (
+      <div>
+        <div id="nested-for-target" />
+        <Teleport to="#nested-for-target">
+          <div>
+            {For(categories, (category) => (
+              <div class="category" id={`cat-${category.name}`}>
+                <h3>{category.name}</h3>
+                <ul>
+                  {For(category.items, (item) => (
+                    <li class="item">{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#nested-for-target');
+    const categoriesEl = target?.querySelectorAll('.category');
+    const items = target?.querySelectorAll('.item');
+
+    expect(categoriesEl?.length).toBe(2);
+    expect(items?.length).toBe(4);
+    expect(target?.querySelector('#cat-Fruits')).not.toBeNull();
+    expect(target?.querySelector('#cat-Vegetables')).not.toBeNull();
+  });
+
+  it('should hydrate Teleport with dynamic class list', async () => {
+    const classes = Cell.source(['class1', 'class2']);
+    const template = () => (
+      <div>
+        <div id="class-target" />
+        <Teleport to="#class-target">
+          <div id="dynamic-class" class={classes}>
+            Dynamic classes
+          </div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#class-target');
+    const div = target?.querySelector('#dynamic-class') as HTMLElement;
+
+    expect(div?.classList.contains('class1')).toBe(true);
+    expect(div?.classList.contains('class2')).toBe(true);
+
+    classes.set(['class1', 'class3']);
+
+    expect(div?.classList.contains('class2')).toBe(false);
+    expect(div?.classList.contains('class3')).toBe(true);
+  });
+
+  it('should hydrate Teleport with mixed static and dynamic content', async () => {
+    const dynamic = Cell.source('Dynamic');
+    const template = () => (
+      <div>
+        <div id="mixed-target" />
+        <Teleport to="#mixed-target">
+          <div id="mixed-content">
+            <span>Static start</span>
+            {dynamic}
+            <span>Static end</span>
+          </div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#mixed-target');
+    const content = target?.querySelector('#mixed-content');
+
+    expect(content?.textContent).toBe('Static startDynamicStatic end');
+
+    dynamic.set('Updated');
+
+    expect(content?.textContent).toBe('Static startUpdatedStatic end');
+  });
+
+  it('should hydrate Teleport with SVG elements', async () => {
+    const fill = Cell.source('red');
+    const template = () => (
+      <div>
+        <div id="svg-target" />
+        <Teleport to="#svg-target">
+          <svg id="teleport-svg" width="100" height="100">
+            <title>Test SVG</title>
+            <circle cx="50" cy="50" r="40" fill={fill} />
+          </svg>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#svg-target');
+    const svg = target?.querySelector('#teleport-svg');
+    const circle = svg?.querySelector('circle');
+
+    expect(svg).not.toBeNull();
+    expect(circle?.getAttribute('fill')).toBe('red');
+
+    fill.set('blue');
+
+    expect(circle?.getAttribute('fill')).toBe('blue');
+  });
+
+  it('should hydrate Teleport with For containing Unique components', async () => {
+    const items = Cell.source(['A', 'B', 'C']);
+    const template = () => (
+      <div>
+        <div id="unique-for-target" />
+        <Teleport to="#unique-for-target">
+          <div>
+            {For(items, (item, index) => (
+              <Unique id={`item-${item}`} name={`unique-${index}`}>
+                {() => (
+                  <div class="unique-item" id={`item-el-${item}`}>
+                    Item: {item}
+                  </div>
+                )}
+              </Unique>
+            ))}
+          </div>
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#unique-for-target');
+    const itemsEl = target?.querySelectorAll('.unique-item');
+
+    expect(itemsEl?.length).toBe(3);
+    expect(target?.querySelector('#item-el-A')).not.toBeNull();
+    expect(target?.querySelector('#item-el-B')).not.toBeNull();
+    expect(target?.querySelector('#item-el-C')).not.toBeNull();
+  });
+
+  it('should hydrate Teleport with If containing For containing If', async () => {
+    const showList = Cell.source(true);
+    const showItems = Cell.source(true);
+    const items = Cell.source(['X', 'Y']);
+    const template = () => (
+      <div>
+        <div id="deep-nest-target" />
+        <Teleport to="#deep-nest-target">
+          {If(showList, {
+            true: () => (
+              <div id="outer-if">
+                {If(showItems, {
+                  true: () => (
+                    <ul id="inner-if-list">
+                      {For(items, (item) => (
+                        <li class="deep-item">{item}</li>
+                      ))}
+                    </ul>
+                  ),
+                  false: () => <div id="items-hidden">Items hidden</div>,
+                })}
+              </div>
+            ),
+            false: () => <div id="list-hidden">List hidden</div>,
+          })}
+        </Teleport>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#deep-nest-target');
+
+    expect(target?.querySelector('#outer-if')).not.toBeNull();
+    expect(target?.querySelector('#inner-if-list')).not.toBeNull();
+    expect(target?.querySelectorAll('.deep-item').length).toBe(2);
+
+    showItems.set(false);
+
+    expect(target?.querySelector('#inner-if-list')).toBeNull();
+    expect(target?.querySelector('#items-hidden')).not.toBeNull();
+
+    showList.set(false);
+
+    expect(target?.querySelector('#outer-if')).toBeNull();
+    expect(target?.querySelector('#list-hidden')).not.toBeNull();
+  });
 });
