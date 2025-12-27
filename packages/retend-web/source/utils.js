@@ -580,7 +580,12 @@ export function setAttribute(
   }
 
   if (key.startsWith('aria')) {
-    const ariaKey = `aria-${key.slice(4).toLowerCase()}`;
+    let ariaKey;
+    if (key.startsWith('aria-')) {
+      ariaKey = key.toLowerCase();
+    } else {
+      ariaKey = `aria-${key.slice(4).toLowerCase()}`;
+    }
 
     if (isSomewhatFalsy(value)) {
       element.removeAttribute(ariaKey);

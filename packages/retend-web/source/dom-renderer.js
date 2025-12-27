@@ -163,7 +163,15 @@ export class DOMRenderer {
    * @returns {N}
    */
   setProperty(node, key, value) {
-    if (this.#isHydrating && node instanceof Skip) return node;
+    // Allow retend:collection even for Skip objects during hydration,
+    // so the For cache can be updated when Skip is resolved to real DOM.
+    if (
+      this.#isHydrating &&
+      node instanceof Skip &&
+      key !== 'retend:collection'
+    ) {
+      return node;
+    }
     return Ops.setProperty(node, key, value);
   }
 
@@ -428,6 +436,18 @@ export class DOMRenderer {
         typeof node === 'number';
 
       if (skip) {
+        // When a Skip node is encountered during hydration, we need to update
+        // any For cache that references it to use the actual DOM node instead.
+        // This ensures reconcile can call node.remove() later.
+        if (node instanceof Skip && domNode) {
+          const collection = Reflect.get(node, '__retend_collection_ref');
+          if (Array.isArray(collection)) {
+            const idx = collection.indexOf(node);
+            if (idx !== -1) {
+              collection[idx] = domNode;
+            }
+          }
+        }
         nodeIndex++;
         domIndex++;
         continue;

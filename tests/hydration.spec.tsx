@@ -981,4 +981,53 @@ describe('Hydration', () => {
     expect(target?.querySelector('#outer-if')).toBeNull();
     expect(target?.querySelector('#list-hidden')).not.toBeNull();
   });
+
+  it('should hydrate aria-label attribute correctly', async () => {
+    const label = Cell.source('Toggle button');
+    const template = () => (
+      <button id="aria-btn" type="button" aria-label={label}>
+        Toggle
+      </button>
+    );
+
+    const { document } = await setupHydration(template);
+    const btn = document.querySelector('#aria-btn') as HTMLButtonElement;
+
+    expect(btn.getAttribute('aria-label')).toBe('Toggle button');
+
+    label.set('Close button');
+
+    expect(btn.getAttribute('aria-label')).toBe('Close button');
+  });
+
+  it('should hydrate For and support item removal', async () => {
+    const items = Cell.source(['A', 'B', 'C']);
+    const template = () => (
+      <ul id="removal-list">
+        {For(items, (item) => (
+          <li class="removal-item">{item}</li>
+        ))}
+      </ul>
+    );
+
+    const { document } = await setupHydration(template);
+    const list = document.querySelector('#removal-list');
+
+    expect(list?.querySelectorAll('.removal-item').length).toBe(3);
+
+    // Remove middle item
+    items.set(['A', 'C']);
+
+    expect(list?.querySelectorAll('.removal-item').length).toBe(2);
+
+    // Remove all
+    items.set([]);
+
+    expect(list?.querySelectorAll('.removal-item').length).toBe(0);
+
+    // Add back
+    items.set(['X', 'Y', 'Z']);
+
+    expect(list?.querySelectorAll('.removal-item').length).toBe(3);
+  });
 });
