@@ -60,7 +60,7 @@ export function Teleport(props) {
 
   /** @param {Node} [anchor] */
   const mountTeleportedNodes = async (anchor) => {
-    if (anchor && !anchor.isConnected) return;
+    if (anchor && !anchor.isConnected) return false;
 
     const parent = renderer.host.document.querySelector(target);
     if (!parent) {

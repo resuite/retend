@@ -117,8 +117,8 @@ export class VNode extends EventTarget {
       n instanceof VDocumentFragment
         ? n.childNodes
         : n instanceof VNode
-          ? n
-          : ownerDocument.createTextNode(n)
+        ? n
+        : ownerDocument.createTextNode(n)
     );
     for (const node of this.childNodes) {
       node.parentNode = null;
@@ -601,10 +601,17 @@ export class VDocument extends VNode {
   }
 
   async mountAllTeleports() {
-    for (const mount of this.teleportMounts) {
-      await mount();
+    let maxIterations = this.teleportMounts.length * 2 + 10; // Safety limit
+    while (this.teleportMounts.length > 0 && maxIterations-- > 0) {
+      const mount = this.teleportMounts.shift();
+      if (mount) {
+        const result = await mount();
+        // If mount returned false (failed due to not connected), re-queue it
+        if (result === false) {
+          this.teleportMounts.push(mount);
+        }
+      }
     }
-    this.teleportMounts = [];
   }
 }
 
