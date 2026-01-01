@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createRouterRoot, createWebRouter, defineRoutes } from 'retend/router';
+import { createRouterRoot, Router, defineRoutes } from 'retend/router';
 import { vDomSetup, getTextContent } from '../setup.tsx';
 
 describe('beforenavigate event', () => {
@@ -17,7 +17,7 @@ describe('beforenavigate event', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
 
     router.addEventListener('beforenavigate', listener);
 
@@ -50,7 +50,7 @@ describe('beforenavigate event', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
@@ -75,7 +75,7 @@ describe('beforenavigate event', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
 
     router.addEventListener('beforenavigate', listener);
 

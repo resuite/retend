@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createRouterRoot, createWebRouter, defineRoutes } from 'retend/router';
+import { createRouterRoot, Router, defineRoutes } from 'retend/router';
 import { vDomSetup, getTextContent } from '../setup.tsx';
 
 describe('router.lock()', () => {
@@ -19,7 +19,7 @@ describe('router.lock()', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
@@ -48,7 +48,7 @@ describe('router.lock()', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
@@ -78,7 +78,7 @@ describe('router.lock()', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
 
     router.addEventListener('routelockprevented', listener);
 
@@ -105,7 +105,7 @@ describe('router.lock()', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
 
     router.addEventListener('routelockprevented', listener);

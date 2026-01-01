@@ -1,12 +1,12 @@
 @Title routing-setup
-@Description Basic setup of the Retend router using `createWebRouter` and `RouteRecords`.
+@Description Basic setup of the Retend router using `Router` and `RouteRecords`.
 
 ---
 
 @Example 1
 @Input Define a simple route record array with two routes.
 import { type RouteRecords } from 'retend/router';
- 
+
 const Home = () => <div>Home</div>;
 const About = () => <div>About</div>;
 
@@ -21,14 +21,14 @@ const routes: RouteRecords = [
 
 @Example 2
 @Input Initialize the router with defined routes.
-import { createWebRouter, type RouteRecords } from 'retend/router';
+import { Router, type RouteRecords } from 'retend/router';
 
 const Home = () => <div>Home</div>;
 const About = () => <div>About</div>;
 const routes: RouteRecords = [ /* ... from Example 1 ... */ ];
 
-const router = createWebRouter({ routes });
-@Note Pass the route records array to `createWebRouter`.
+const router = new Router({ routes });
+@Note Pass the route records array to `new Router`.
 
 ---
 

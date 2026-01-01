@@ -6,7 +6,7 @@ import {
   getActiveRenderer,
 } from 'retend';
 import { resetGlobalContext } from 'retend/context';
-import { createRouterRoot, createWebRouter, useRouter } from 'retend/router';
+import { createRouterRoot, Router, useRouter } from 'retend/router';
 import { routerSetup, getTextContent } from '../setup.tsx';
 import type { DOMRenderer } from 'retend-web';
 
@@ -39,7 +39,7 @@ describe('Scopes in Routing', () => {
       return <DataScope.Provider value={data} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'Home',
@@ -110,7 +110,7 @@ describe('Scopes in Routing', () => {
       return <Scope.Provider value={combinedData} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'App',
@@ -169,7 +169,7 @@ describe('Scopes in Routing', () => {
       return <ProfileScope.Provider value={profile} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'Parent',
@@ -232,7 +232,7 @@ describe('Scopes in Routing', () => {
       return <Outlet />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'App',
@@ -294,7 +294,7 @@ describe('Scopes in Routing', () => {
       return <DataScope.Provider value={data} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'Home',

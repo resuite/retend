@@ -3,7 +3,7 @@ import { vDomSetup } from '../setup.tsx';
 import { getActiveRenderer } from 'retend';
 import {
   type RouterMiddleware,
-  createWebRouter,
+  Router,
   defineRouterMiddleware,
   defineRoutes,
   redirect,
@@ -24,7 +24,7 @@ describe('Router Middlewares', () => {
       }
     );
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
@@ -53,7 +53,7 @@ describe('Router Middlewares', () => {
       }
     );
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
         { path: '/protected', name: 'protected', component: () => 'Protected' },
@@ -83,7 +83,7 @@ describe('Router Middlewares', () => {
       executionOrder.push('second');
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
       ]),
@@ -106,7 +106,7 @@ describe('Router Middlewares', () => {
       return;
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/old-path', name: 'old', component: () => 'Old' },
         { path: '/new-path', name: 'new', component: () => 'New' },
@@ -133,7 +133,7 @@ describe('Router Middlewares', () => {
       }
     );
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
       ]),
@@ -156,7 +156,7 @@ describe('Router Middlewares', () => {
       return;
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/user/:id',

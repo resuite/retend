@@ -38,10 +38,10 @@ import { resolveConfig, createRunnableDevEnvironment } from 'vite';
  * The path to the module exporting the `createRouter` function.
  * It should look like this:
  * ```js
- * import { createWebRouter } from 'retend/router';
+ * import { Router } from 'retend/router';
  *
  * export function createRouter() {
- *   return createWebRouter({ routes: [...] });
+ *   return new Router({ routes: [...] });
  * }
  * ```
  *
@@ -208,7 +208,7 @@ function staticBuildPlugins(sharedData) {
 
         if (routerModule.createRouter === undefined) {
           throw new Error(
-            'The router module must export a createRouter function. Please add export function createRouter() { return createWebRouter({ ... }); } to your router module.'
+            'The router module must export a createRouter function. Please add export function createRouter() { return new Router({ ... }); } to your router module.'
           );
         }
         await defineSharedGlobalContext(sharedData, ctxModule.setGlobalContext);

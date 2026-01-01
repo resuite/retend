@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { getTextContent, vDomSetup } from '../setup.tsx';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createRouterRoot, createWebRouter, defineRoutes } from 'retend/router';
+import { createRouterRoot, Router, defineRoutes } from 'retend/router';
 
 describe('Router Redirects', () => {
   vDomSetup();
@@ -10,7 +10,7 @@ describe('Router Redirects', () => {
   it('should redirect from one path to another', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old-path',
@@ -34,7 +34,7 @@ describe('Router Redirects', () => {
   it('should handle redirect with path parameters', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old/:id',
@@ -58,7 +58,7 @@ describe('Router Redirects', () => {
   it('should handle nested route redirects', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/app',
@@ -90,7 +90,7 @@ describe('Router Redirects', () => {
       .spyOn(console, 'warn')
       .mockImplementation(() => {});
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/a', name: 'a', redirect: '/b', component: () => 'A' },
         { path: '/b', name: 'b', redirect: '/a', component: () => 'B' },
@@ -111,7 +111,7 @@ describe('Router Redirects', () => {
   it('should ignore redirect to the same path', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/same',
@@ -133,7 +133,7 @@ describe('Router Redirects', () => {
   it('should redirect with query parameters preserved', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old',
@@ -157,7 +157,7 @@ describe('Router Redirects', () => {
   it('should redirect with hash preserved', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old',

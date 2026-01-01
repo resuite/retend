@@ -6,7 +6,7 @@ import {
 } from 'retend';
 import {
   createRouterRoot,
-  createWebRouter,
+  Router,
   defineRoutes,
   Outlet,
   useRouter,
@@ -54,7 +54,7 @@ describe('useSetupEffect with routing', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
     await runPendingSetupEffects();
@@ -121,7 +121,7 @@ describe('useSetupEffect with routing', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 

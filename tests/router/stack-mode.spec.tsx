@@ -2,12 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { vDomSetup, getTextContent } from '../setup.tsx';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import {
-  createRouterRoot,
-  createWebRouter,
-  type Router,
-  useRouter,
-} from 'retend/router';
+import { createRouterRoot, Router, useRouter } from 'retend/router';
 
 const runFlatTests = () => {
   let router: Router;
@@ -15,7 +10,7 @@ const runFlatTests = () => {
   beforeEach(() => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    router = createWebRouter({
+    router = new Router({
       routes: [
         {
           name: 'home',
@@ -112,7 +107,7 @@ const runNestedTests = () => {
     ];
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    router = createWebRouter({
+    router = new Router({
       routes,
       stackMode: true,
     });

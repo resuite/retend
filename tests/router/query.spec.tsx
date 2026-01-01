@@ -4,7 +4,7 @@ import { For, If, Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
 import {
   createRouterRoot,
-  createWebRouter,
+  Router,
   useRouteQuery,
   type AsyncRouteQuery,
 } from 'retend/router';
@@ -22,7 +22,7 @@ describe('useRouteQuery', () => {
       return <div>Hello, {name}</div>;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'home', path: '/', component: Home }],
     });
 
@@ -61,7 +61,7 @@ describe('useRouteQuery', () => {
       return <div>This is the {stage} stage</div>;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
@@ -106,7 +106,7 @@ describe('useRouteQuery', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
@@ -157,7 +157,7 @@ describe('useRouteQuery', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
@@ -229,7 +229,7 @@ describe('useRouteQuery', () => {
         component: List,
       },
     ];
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
@@ -279,7 +279,7 @@ describe('useRouteQuery', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'filters', path: '/filters', component: FilterPage }],
     });
 

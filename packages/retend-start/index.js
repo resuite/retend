@@ -422,11 +422,11 @@ runPendingSetupEffects();
 async function createRouterFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
- import { createWebRouter } from 'retend/router';
+ import { Router } from 'retend/router';
  import App from './App';
 
  export function createRouter() {
-   return createWebRouter({ routes: [{ path: '/', component: App }] });
+   return new Router({ routes: [{ path: '/', component: App }] });
  }
    `.trim();
 

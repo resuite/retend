@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { vDomSetup } from '../setup.tsx';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createRouterRoot, createWebRouter, defineRoutes } from 'retend/router';
+import { createRouterRoot, Router, defineRoutes } from 'retend/router';
 
 describe('Router Title Updates', () => {
   vDomSetup();
@@ -10,7 +10,7 @@ describe('Router Title Updates', () => {
   it('should update window.document.title when navigating to routes with titles', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'home',
@@ -41,7 +41,7 @@ describe('Router Title Updates', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const initialTitle = window.document.title;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'home',

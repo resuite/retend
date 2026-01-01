@@ -4,7 +4,7 @@ import type { DOMRenderer } from 'retend-web';
 import { getTextContent, vDomSetup } from '../setup.tsx';
 import {
   createRouterRoot,
-  createWebRouter,
+  Router,
   defineRoutes,
   useRouter,
 } from 'retend/router';
@@ -15,7 +15,7 @@ describe('Router Matching', () => {
   it('should match simple empty path', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/',
@@ -36,7 +36,7 @@ describe('Router Matching', () => {
   it('should match empty path with nested fallthroughs', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/',
@@ -66,7 +66,7 @@ describe('Router Matching', () => {
   it('should match empty path in between nested fallthroughs', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/app',
@@ -98,7 +98,7 @@ describe('Router Matching', () => {
   it('should match exact path', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
@@ -116,7 +116,7 @@ describe('Router Matching', () => {
   it('should prioritize closest match', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
         {
@@ -150,7 +150,7 @@ describe('Router Matching', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const callback = vi.fn();
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/users/:id',
@@ -186,7 +186,7 @@ describe('Router Matching', () => {
   it('should match nested routes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/posts',
@@ -214,7 +214,7 @@ describe('Router Matching', () => {
   it('should not match invalid paths', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
       ]),
@@ -230,7 +230,7 @@ describe('Router Matching', () => {
   it('should handle query parameters', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/search', name: 'search', component: () => 'Search' },
       ]),
@@ -251,7 +251,7 @@ describe('Router Matching', () => {
   it('should handle hash fragments', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/article', name: 'article', component: () => 'Article' },
       ]),
@@ -269,7 +269,7 @@ describe('Router Matching', () => {
   it('should match multiple path parameters', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/org/:orgId/repo/:repoId',
@@ -294,7 +294,7 @@ describe('Router Matching', () => {
   it('should match wildcard routes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
         { path: '*', name: 'not-found', component: () => '404' },
@@ -311,7 +311,7 @@ describe('Router Matching', () => {
   it('should match nested wildcard routes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/docs',
@@ -351,7 +351,7 @@ describe('Router Matching', () => {
   it('should match wildcard with parameters', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/products/:category/*',
@@ -372,7 +372,7 @@ describe('Router Matching', () => {
   it('should handle deep catch-all routes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
         {
@@ -394,7 +394,7 @@ describe('Router Matching', () => {
   it('should match nested deep catch-all routes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/home', name: 'home', component: () => 'Home' },
         {
@@ -455,7 +455,7 @@ describe('Router Matching', () => {
         ],
       },
     ]);
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 

@@ -56,7 +56,7 @@ const RouterScope = createScope('retend:Router');
  * Basic Usage
  * ```tsx
  * // Create and configure the router
- * const router = createWebRouter({
+ * const router = new Router({
  *   routes: [
  *     { path: '/', component: Home },
  *     { path: '/about', component: About }
@@ -795,10 +795,10 @@ export function useCurrentRoute() {
  *
  * @example
  * ```tsx
- * import { createWebRouter, RouterProvider } from 'retend/router';
+ * import { Router, RouterProvider } from 'retend/router';
  *
  * // Create and configure your router instance
- * const router = createWebRouter({
+ * const router = new Router({
  *   routes: [
  *     { path: '/', component: Home },
  *     { path: '/about', component: About },
@@ -816,17 +816,6 @@ export function useCurrentRoute() {
  */
 export function RouterProvider(props) {
   return props.router.asProvider(props);
-}
-
-/**
- * Creates a new web-based router instance with the provided route configurations.
- *
- * @param {RouterOptions} routerOptions - The options object for configuring the router.
- * @returns {Router} The created router instance.
- */
-export function createWebRouter(routerOptions) {
-  const router = new Router(routerOptions);
-  return router;
 }
 
 /**
@@ -969,10 +958,10 @@ export function defineRoute(route) {
  *
  * @example
  * ```tsx
- * import { createWebRouter, createRouterRoot } from 'retend/router';
+ * import { Router, createRouterRoot } from 'retend/router';
  * import { AppLayout } from './AppLayout';
  *
- * const router = createWebRouter({
+ * const router = new Router({
  *   routes: [
  *     { path: '/', component: Home },
  *     { path: '/about', component: About },

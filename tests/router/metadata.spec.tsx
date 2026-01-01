@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
 import {
-  createWebRouter,
+  Router,
   defineRoutes,
   useRouter,
   type RouteComponent,
@@ -39,7 +39,7 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
@@ -105,7 +105,7 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
@@ -146,7 +146,7 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
@@ -184,7 +184,7 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
@@ -223,7 +223,7 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
@@ -258,7 +258,7 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
@@ -293,7 +293,7 @@ describe('Router Metadata', () => {
       description: 'Learn more about our company',
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'home page',
@@ -371,7 +371,7 @@ describe('Router Metadata', () => {
       immersivePage: true,
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'home page',
@@ -450,7 +450,7 @@ describe('Router Metadata', () => {
       type: 'product-page',
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'product-page',
@@ -499,7 +499,7 @@ describe('Router Metadata', () => {
       summary: `Summary: Product ${data.params.get('sku')}`,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'product-page',
@@ -545,7 +545,7 @@ describe('Router Metadata', () => {
       };
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { name: 'blog', path: '/blog', component: BlogPage },
       ]),
@@ -586,7 +586,7 @@ describe('Router Metadata', () => {
       };
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { name: 'blog', path: '/blog/:id', component: BlogPage },
       ]),
@@ -627,7 +627,7 @@ describe('Router Metadata', () => {
       };
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'blog',
@@ -671,7 +671,7 @@ describe('Router Metadata', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'product-page',

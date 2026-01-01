@@ -4,7 +4,7 @@ import type { DOMRenderer } from 'retend-web';
 import { vDomSetup, getTextContent } from '../setup.tsx';
 import {
   createRouterRoot,
-  createWebRouter,
+  Router,
   defineRoute,
   defineRoutes,
   lazy,
@@ -27,7 +27,7 @@ describe('Router Lazy Subtrees', () => {
       },
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/home',
@@ -63,7 +63,7 @@ describe('Router Lazy Subtrees', () => {
       },
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/parent',
@@ -99,7 +99,7 @@ describe('Router Lazy Subtrees', () => {
       component: () => <div>This should not load correctly</div>,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/parent-for-lazy',
@@ -132,7 +132,7 @@ describe('Router Lazy Subtrees', () => {
       subtree: lazy(() => Promise.resolve({ default: deepestLazyComponent })),
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/lazy-chain',
@@ -172,7 +172,7 @@ describe('Router Lazy Subtrees', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/finance',
@@ -210,7 +210,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       component: UserProfile,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/users/:userId',
@@ -251,7 +251,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/products',
@@ -292,7 +292,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/stores/:storeId',
@@ -337,7 +337,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/docs',
@@ -377,7 +377,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/dashboard',
@@ -411,7 +411,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       component: ProductDetail,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/products/:productId',

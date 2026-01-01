@@ -1639,7 +1639,7 @@ The library includes a routing system for single-page applications.
 ### Setting Up the Router
 
 ```jsx
-import { createWebRouter, type RouteRecords } from 'retend/router';
+import { Router, type RouteRecords } from 'retend/router';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -1657,7 +1657,7 @@ const routes: RouteRecords = [
   { name: 'not-found', path: '*', component: NotFound },
 ];
 
-const router = createWebRouter({ routes });
+const router = new Router({ routes });
 document.body.appendChild(<router.Outlet />);
 ```
 
@@ -1755,7 +1755,7 @@ Imagine your application has a `/dashboard` section with its own set of nested r
 In your main router setup, define a route for `/dashboard` and use the `subtree` property with the `lazy` helper to point to the dashboard's route configuration file.
 
 ```javascript
-import { createWebRouter, defineRoutes, lazy } from 'retend/router';
+import { Router, defineRoutes, lazy } from 'retend/router';
 import Home from './views/Home';
 
 const routes = defineRoutes([
@@ -1767,7 +1767,7 @@ const routes = defineRoutes([
   },
 ]);
 
-export const router = createWebRouter({ routes });
+export const router = new Router({ routes });
 ```
 
 **2. Dashboard Routes (`src/views/dashboard/routes.js`)**
@@ -2008,7 +2008,7 @@ function MyComponent() {
 To enable Stack Mode, set `stackMode: true` in your router configuration:
 
 ```tsx
-const router = createWebRouter({
+const router = new Router({
   routes: [...],
   stackMode: true
 });

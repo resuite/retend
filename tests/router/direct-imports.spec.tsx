@@ -4,7 +4,7 @@ import type { DOMRenderer } from 'retend-web';
 import { vDomSetup, getTextContent } from '../setup.tsx';
 import {
   createRouterRoot,
-  createWebRouter,
+  Router,
   defineRoutes,
   Link,
   Outlet,
@@ -17,7 +17,7 @@ describe('Router Direct Imports', () => {
   it('should work with directly imported Link component', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
@@ -44,7 +44,7 @@ describe('Router Direct Imports', () => {
   it('should work with directly imported Outlet component', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
       ]),
@@ -67,7 +67,7 @@ describe('Router Direct Imports', () => {
   it('should maintain backward compatibility with router instance methods', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
@@ -129,7 +129,7 @@ describe('Router Direct Imports', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/',
