@@ -47,6 +47,10 @@ import { resolveConfig, createRunnableDevEnvironment } from 'vite';
  *
  * @property {string} [rootSelector]
  * The CSS selector for the root element. Defaults to '#app'.
+ *
+ * @property {boolean} [inlineEnvironmentImports]
+ * Changes the import mode in SSR from `ModuleRunner.evaluator.runExternalModule`
+ * to `ModuleRunner.import(..)`
  */
 
 /**
@@ -194,14 +198,14 @@ function staticBuildPlugins(sharedData) {
         await environment.pluginContainer.buildStart();
         const { runner } = environment;
 
-        const vdomModule = await runner.evaluator.runExternalModule(
-          'retend-server/v-dom'
-        );
-        const retendRouterModule =
-          await runner.evaluator.runExternalModule('retend/router');
-        const ctxModule =
-          await runner.evaluator.runExternalModule('retend/context');
-        const retendModule = await runner.evaluator.runExternalModule('retend');
+        const evaluate = sharedData.options.inlineEnvironmentImports
+          ? runner.import
+          : runner.evaluator.runExternalModule;
+
+        const vdomModule = await evaluate('retend-server/v-dom');
+        const retendRouterModule = await evaluate('retend/router');
+        const ctxModule = await evaluate('retend/context');
+        const retendModule = await evaluate('retend');
         const routerModule = /** @type {{ createRouter: () => Router }} */ (
           await runner.import(resolve(routerModulePath))
         );
