@@ -1,5 +1,5 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-import { getActiveRenderer, linkNodes } from 'retend';
+import { ShadowRootFragment } from './dom-ops.js';
 
 /**
  * @typedef ShadowRootProps
@@ -7,15 +7,6 @@ import { getActiveRenderer, linkNodes } from 'retend';
  * @property {unknown} [children]
  * The children to render in the shadow root.
  */
-
-/**
- * @typedef ShadowRootContainerData
- *
- * @property {ShadowRootMode} [__mode]
- * @property {boolean} [__isShadowRootContainer]
- */
-
-/** @typedef {ShadowRootContainerData & DocumentFragment} ShadowRootContainer */
 
 /**
  * Provides an interface to append nodes to the shadow root of a parent component.
@@ -37,14 +28,5 @@ import { getActiveRenderer, linkNodes } from 'retend';
  * have at most one `ShadowRoot` child.
  */
 export function ShadowRoot(props) {
-  const { children } = props;
-  const renderer = getActiveRenderer();
-
-  /** @type {ShadowRootContainer} */
-  const shadowRoot = renderer.createGroup();
-
-  shadowRoot.__mode = 'open';
-  shadowRoot.__isShadowRootContainer = true;
-  linkNodes(shadowRoot, children, getActiveRenderer());
-  return shadowRoot;
+  return new ShadowRootFragment(props);
 }

@@ -8,7 +8,7 @@ import {
   getActiveRenderer,
   setActiveRenderer,
 } from 'retend';
-import { DOMRenderer, Teleport } from 'retend-web';
+import { DOMRenderer, ShadowRoot, Teleport } from 'retend-web';
 import { renderToString } from 'retend-server/client';
 import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -33,7 +33,7 @@ const setupHydration = async (templateFn: () => JSX.Template) => {
   const html = await renderToString(serverWindow.document.body, serverWindow);
 
   // 2. Client Setup Phase
-  document.body.innerHTML = `<div id="app">${html}</div>`;
+  document.body.setHTMLUnsafe(`<div id="app">${html}</div>`);
   const root = document.querySelector('#app') as HTMLElement;
 
   // 3. Client Hydration Initiation
@@ -1029,5 +1029,528 @@ describe('Hydration', () => {
     items.set(['X', 'Y', 'Z']);
 
     expect(list?.querySelectorAll('.removal-item').length).toBe(3);
+  });
+
+  it('should hydrate shadowroots', async () => {
+    const template = () => (
+      <div id="parent">
+        <ShadowRoot>Hello world.</ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#parent');
+
+    expect(div).not.toBeNull();
+    expect(div?.shadowRoot).not.toBeNull();
+    expect(div?.shadowRoot?.textContent).toBe('Hello world.');
+  });
+
+  it('should hydrate shadowroots with children', async () => {
+    const template = () => (
+      <div id="parent">
+        <ShadowRoot>
+          <div id="child">Hello world.</div>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#parent');
+
+    expect(div).not.toBeNull();
+    expect(div?.shadowRoot).not.toBeNull();
+    expect(div?.shadowRoot?.querySelector('#child')).not.toBeNull();
+    expect(div?.shadowRoot?.querySelector('#child')?.textContent).toBe(
+      'Hello world.'
+    );
+  });
+
+  it('should hydrate shadowroots with reactive content', async () => {
+    const text = Cell.source('Initial');
+    const template = () => (
+      <div id="reactive-shadow-parent">
+        <ShadowRoot>
+          <span id="reactive-text">{text}</span>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#reactive-shadow-parent');
+    const span = div?.shadowRoot?.querySelector('#reactive-text');
+
+    expect(span?.textContent).toBe('Initial');
+
+    text.set('Updated');
+
+    expect(span?.textContent).toBe('Updated');
+  });
+
+  it('should hydrate shadowroots with event listeners', async () => {
+    const count = Cell.source(0);
+    const template = () => (
+      <div id="event-shadow-parent">
+        <ShadowRoot>
+          <button
+            id="shadow-btn"
+            type="button"
+            onClick={() => count.set(count.get() + 1)}
+          >
+            Count: {count}
+          </button>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#event-shadow-parent');
+    const btn = div?.shadowRoot?.querySelector(
+      '#shadow-btn'
+    ) as HTMLButtonElement;
+
+    expect(btn.textContent).toBe('Count: 0');
+
+    btn.click();
+
+    expect(btn.textContent).toBe('Count: 1');
+  });
+
+  it('should hydrate nested shadowroots', async () => {
+    const template = () => (
+      <div id="outer-shadow-parent">
+        <ShadowRoot>
+          <div id="inner-shadow-parent">
+            <ShadowRoot>
+              <span id="nested-content">Nested shadow content</span>
+            </ShadowRoot>
+          </div>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const outer = document.querySelector('#outer-shadow-parent');
+    const inner = outer?.shadowRoot?.querySelector('#inner-shadow-parent');
+    const content = inner?.shadowRoot?.querySelector('#nested-content');
+
+    expect(outer?.shadowRoot).not.toBeNull();
+    expect(inner?.shadowRoot).not.toBeNull();
+    expect(content?.textContent).toBe('Nested shadow content');
+  });
+
+  it('should hydrate shadowroots with If control flow', async () => {
+    const show = Cell.source(true);
+    const template = () => (
+      <div id="if-shadow-parent">
+        <ShadowRoot>
+          {If(show, {
+            true: () => <span id="if-visible">Visible</span>,
+            false: () => <span id="if-hidden">Hidden</span>,
+          })}
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#if-shadow-parent');
+
+    expect(div?.shadowRoot?.querySelector('#if-visible')).not.toBeNull();
+
+    show.set(false);
+
+    expect(div?.shadowRoot?.querySelector('#if-visible')).toBeNull();
+    expect(div?.shadowRoot?.querySelector('#if-hidden')).not.toBeNull();
+  });
+
+  it('should hydrate shadowroots with For control flow', async () => {
+    const items = Cell.source(['A', 'B', 'C']);
+    const template = () => (
+      <div id="for-shadow-parent">
+        <ShadowRoot>
+          <ul id="shadow-list">
+            {For(items, (item) => (
+              <li class="shadow-item">{item}</li>
+            ))}
+          </ul>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#for-shadow-parent');
+    const list = div?.shadowRoot?.querySelector('#shadow-list');
+
+    expect(list?.querySelectorAll('.shadow-item').length).toBe(3);
+
+    items.set(['A', 'B', 'C', 'D']);
+
+    expect(list?.querySelectorAll('.shadow-item').length).toBe(4);
+
+    items.set(['A']);
+
+    expect(list?.querySelectorAll('.shadow-item').length).toBe(1);
+  });
+
+  it('should hydrate shadowroots with Switch control flow', async () => {
+    const mode = Cell.source('a');
+    const template = () => (
+      <div id="switch-shadow-parent">
+        <ShadowRoot>
+          {Switch(mode, {
+            a: () => <span id="shadow-mode-a">Mode A</span>,
+            b: () => <span id="shadow-mode-b">Mode B</span>,
+            c: () => <span id="shadow-mode-c">Mode C</span>,
+          })}
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#switch-shadow-parent');
+
+    expect(div?.shadowRoot?.querySelector('#shadow-mode-a')).not.toBeNull();
+
+    mode.set('b');
+
+    expect(div?.shadowRoot?.querySelector('#shadow-mode-a')).toBeNull();
+    expect(div?.shadowRoot?.querySelector('#shadow-mode-b')).not.toBeNull();
+
+    mode.set('c');
+
+    expect(div?.shadowRoot?.querySelector('#shadow-mode-b')).toBeNull();
+    expect(div?.shadowRoot?.querySelector('#shadow-mode-c')).not.toBeNull();
+  });
+
+  it('should hydrate shadowroots with dynamic attributes', async () => {
+    const cls = Cell.source('initial-class');
+    const title = Cell.source('Initial title');
+    const template = () => (
+      <div id="attr-shadow-parent">
+        <ShadowRoot>
+          <div id="shadow-attr-target" class={cls} title={title}>
+            Content
+          </div>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#attr-shadow-parent');
+    const target = div?.shadowRoot?.querySelector(
+      '#shadow-attr-target'
+    ) as HTMLElement;
+
+    expect(target.className).toBe('initial-class');
+    expect(target.title).toBe('Initial title');
+
+    cls.set('updated-class');
+    title.set('Updated title');
+
+    expect(target.className).toBe('updated-class');
+    expect(target.title).toBe('Updated title');
+  });
+
+  it('should hydrate shadowroots with dynamic styles', async () => {
+    const color = Cell.source('red');
+    const fontSize = Cell.source('16px');
+    const template = () => (
+      <div id="style-shadow-parent">
+        <ShadowRoot>
+          <div id="shadow-style-target" style={{ color, fontSize }}>
+            Styled content
+          </div>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#style-shadow-parent');
+    const target = div?.shadowRoot?.querySelector(
+      '#shadow-style-target'
+    ) as HTMLElement;
+
+    expect(target.style.color).toBe('red');
+    expect(target.style.fontSize).toBe('16px');
+
+    color.set('blue');
+    fontSize.set('20px');
+
+    expect(target.style.color).toBe('blue');
+    expect(target.style.fontSize).toBe('20px');
+  });
+
+  it('should hydrate shadowroots with Unique component', async () => {
+    const count = Cell.source(0);
+    const template = () => (
+      <div id="unique-shadow-parent">
+        <ShadowRoot>
+          <Unique id="shadow-unique" name="shadow-unique-test">
+            {() => (
+              <button
+                id="shadow-unique-btn"
+                type="button"
+                onClick={() => count.set(count.get() + 1)}
+              >
+                Unique: {count}
+              </button>
+            )}
+          </Unique>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#unique-shadow-parent');
+    const btn = div?.shadowRoot?.querySelector(
+      '#shadow-unique-btn'
+    ) as HTMLButtonElement;
+
+    expect(btn.textContent).toBe('Unique: 0');
+
+    btn.click();
+
+    expect(btn.textContent).toBe('Unique: 1');
+  });
+
+  it('should hydrate shadowroots with mixed static and dynamic content', async () => {
+    const dynamicText = Cell.source('Dynamic');
+    const template = () => (
+      <div id="mixed-shadow-parent">
+        <ShadowRoot>
+          <div id="shadow-mixed">
+            <span>Static 1</span>
+            {dynamicText}
+            <span>Static 2</span>
+          </div>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#mixed-shadow-parent');
+    const mixed = div?.shadowRoot?.querySelector('#shadow-mixed');
+
+    expect(mixed?.textContent).toBe('Static 1DynamicStatic 2');
+
+    dynamicText.set('Modified');
+
+    expect(mixed?.textContent).toBe('Static 1ModifiedStatic 2');
+  });
+
+  it('should hydrate shadowroots with complex nested control flow', async () => {
+    const mode = Cell.source('list');
+    const show = Cell.source(true);
+    const items = Cell.source(['Item 1', 'Item 2']);
+
+    const template = () => (
+      <div id="complex-shadow-parent">
+        <ShadowRoot>
+          {Switch(mode, {
+            list: () =>
+              If(show, {
+                true: () => (
+                  <ul id="shadow-complex-list">
+                    {For(items, (item) => (
+                      <li class="shadow-complex-item">{item}</li>
+                    ))}
+                  </ul>
+                ),
+                false: () => <div id="shadow-complex-hidden">Hidden</div>,
+              }),
+            other: () => <div id="shadow-complex-other">Other</div>,
+          })}
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#complex-shadow-parent');
+    const shadowRoot = div?.shadowRoot;
+
+    expect(shadowRoot?.querySelectorAll('.shadow-complex-item').length).toBe(2);
+
+    items.set(['Item 1', 'Item 2', 'Item 3']);
+
+    expect(shadowRoot?.querySelectorAll('.shadow-complex-item').length).toBe(3);
+
+    show.set(false);
+
+    expect(shadowRoot?.querySelector('#shadow-complex-list')).toBeNull();
+    expect(shadowRoot?.querySelector('#shadow-complex-hidden')).not.toBeNull();
+
+    mode.set('other');
+
+    expect(shadowRoot?.querySelector('#shadow-complex-hidden')).toBeNull();
+    expect(shadowRoot?.querySelector('#shadow-complex-other')).not.toBeNull();
+  });
+
+  it('should hydrate shadowroots with light DOM content (default slot)', async () => {
+    const template = () => (
+      <div id="slot-shadow-parent">
+        <ShadowRoot>
+          <div id="shadow-wrapper">
+            <slot />
+          </div>
+        </ShadowRoot>
+        <span id="light-dom-content">Light DOM content</span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#slot-shadow-parent');
+    const shadowWrapper = div?.shadowRoot?.querySelector('#shadow-wrapper');
+    const lightContent = div?.querySelector('#light-dom-content');
+
+    expect(shadowWrapper).not.toBeNull();
+    expect(lightContent).not.toBeNull();
+    expect(lightContent?.textContent).toBe('Light DOM content');
+  });
+
+  it('should hydrate shadowroots with named slots', async () => {
+    const template = () => (
+      <div id="named-slot-parent">
+        <ShadowRoot>
+          <header>
+            <slot name="header" />
+          </header>
+          <main>
+            <slot />
+          </main>
+          <footer>
+            <slot name="footer" />
+          </footer>
+        </ShadowRoot>
+        <span slot="header" id="header-content">
+          Header
+        </span>
+        <span id="main-content">Main content</span>
+        <span slot="footer" id="footer-content">
+          Footer
+        </span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#named-slot-parent');
+
+    expect(div?.querySelector('#header-content')?.textContent).toBe('Header');
+    expect(div?.querySelector('#main-content')?.textContent).toBe(
+      'Main content'
+    );
+    expect(div?.querySelector('#footer-content')?.textContent).toBe('Footer');
+    expect(div?.shadowRoot?.querySelector('header')).not.toBeNull();
+    expect(div?.shadowRoot?.querySelector('main')).not.toBeNull();
+    expect(div?.shadowRoot?.querySelector('footer')).not.toBeNull();
+  });
+
+  it('should hydrate shadowroots with reactive light DOM content', async () => {
+    const text = Cell.source('Initial light');
+    const template = () => (
+      <div id="reactive-light-parent">
+        <ShadowRoot>
+          <div id="shadow-container">
+            <slot />
+          </div>
+        </ShadowRoot>
+        <span id="reactive-light">{text}</span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#reactive-light-parent');
+    const lightSpan = div?.querySelector('#reactive-light');
+
+    expect(lightSpan?.textContent).toBe('Initial light');
+
+    text.set('Updated light');
+
+    expect(lightSpan?.textContent).toBe('Updated light');
+  });
+
+  it('should hydrate shadowroots with reactive shadow and light DOM content', async () => {
+    const shadowText = Cell.source('Shadow content');
+    const lightText = Cell.source('Light content');
+    const template = () => (
+      <div id="mixed-reactive-parent">
+        <ShadowRoot>
+          <div id="shadow-part">{shadowText}</div>
+          <slot />
+        </ShadowRoot>
+        <span id="light-part">{lightText}</span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#mixed-reactive-parent');
+    const shadowPart = div?.shadowRoot?.querySelector('#shadow-part');
+    const lightPart = div?.querySelector('#light-part');
+
+    expect(shadowPart?.textContent).toBe('Shadow content');
+    expect(lightPart?.textContent).toBe('Light content');
+
+    shadowText.set('Updated shadow');
+    lightText.set('Updated light');
+
+    expect(shadowPart?.textContent).toBe('Updated shadow');
+    expect(lightPart?.textContent).toBe('Updated light');
+  });
+
+  it('should hydrate shadowroots with For loop in light DOM', async () => {
+    const items = Cell.source(['A', 'B', 'C']);
+    const template = () => (
+      <div id="for-light-parent">
+        <ShadowRoot>
+          <div id="shadow-header">Header</div>
+          <slot />
+        </ShadowRoot>
+        <ul id="light-list">
+          {For(items, (item) => (
+            <li class="light-item">{item}</li>
+          ))}
+        </ul>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#for-light-parent');
+    const list = div?.querySelector('#light-list');
+
+    expect(list?.querySelectorAll('.light-item').length).toBe(3);
+
+    items.set(['A', 'B', 'C', 'D']);
+
+    expect(list?.querySelectorAll('.light-item').length).toBe(4);
+
+    items.set(['A']);
+
+    expect(list?.querySelectorAll('.light-item').length).toBe(1);
+  });
+
+  it('should hydrate shadowroots with event listeners on light DOM', async () => {
+    const count = Cell.source(0);
+    const template = () => (
+      <div id="event-light-parent">
+        <ShadowRoot>
+          <slot />
+        </ShadowRoot>
+        <button
+          id="light-btn"
+          type="button"
+          onClick={() => count.set(count.get() + 1)}
+        >
+          Light count: {count}
+        </button>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const btn = document.querySelector('#light-btn') as HTMLButtonElement;
+
+    expect(btn.textContent).toBe('Light count: 0');
+
+    btn.click();
+
+    expect(btn.textContent).toBe('Light count: 1');
   });
 });

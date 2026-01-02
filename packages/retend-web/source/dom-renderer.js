@@ -8,6 +8,7 @@ import {
   addCellListener,
   containerIsDynamic,
   DeferredHandleSymbol,
+  flattenJSXChildren,
   isReactiveChild,
   Skip,
 } from './utils.js';
@@ -334,10 +335,7 @@ export class DOMRenderer {
    * @returns {node is DocumentFragment}
    */
   isGroup(node) {
-    return (
-      node instanceof this.host.DocumentFragment &&
-      !('__isShadowRootContainer' in node)
-    );
+    return node instanceof this.host.DocumentFragment;
   }
 
   /**
@@ -347,7 +345,8 @@ export class DOMRenderer {
   isNode(child) {
     return (
       (this.#isHydrating && child instanceof Skip) ||
-      child instanceof this.host.Node
+      child instanceof this.host.Node ||
+      child instanceof Ops.ShadowRootFragment
     );
   }
 
@@ -369,10 +368,17 @@ export class DOMRenderer {
   enableHydrationMode() {
     /** @type {JsxElement[]} */
     const dynamicNodeTable = [];
-    const dynamicNodes = document.querySelectorAll('[data-dyn]');
-    for (const node of dynamicNodes) {
-      // @ts-expect-error: no need for stringifying.
-      dynamicNodeTable[node.getAttribute('data-dyn')] = node;
+    /** @type {ParentNode[]} */
+    const roots = [document];
+
+    while (roots.length > 0) {
+      const root = /** @type {ParentNode} */ (roots.pop());
+      const dynamicNodes = root.querySelectorAll('[data-dyn]');
+      for (const node of dynamicNodes) {
+        // @ts-expect-error: no need for stringifying.
+        dynamicNodeTable[node.getAttribute('data-dyn')] = node;
+        if (node.shadowRoot) roots.push(node.shadowRoot);
+      }
     }
 
     this.#isHydrating = true;
@@ -393,7 +399,7 @@ export class DOMRenderer {
 
   /**
    * @param {any} props
-   * @param {Element} staticNode
+   * @param {ParentNode} staticNode
    */
   async #hydrateNode(staticNode, props) {
     // staticNode.removeAttribute('data-dyn');
@@ -404,6 +410,18 @@ export class DOMRenderer {
     await this.#readyToHydrateChildren;
     const { updateText } = this;
     const { children } = props;
+
+    const isShadowRoot =
+      children instanceof Ops.ShadowRootFragment &&
+      staticNode instanceof Element;
+
+    if (isShadowRoot) {
+      const root =
+        staticNode.shadowRoot ?? staticNode.attachShadow({ mode: 'open' });
+      this.#hydrateNode(root, children.props);
+      return;
+    }
+
     if (Cell.isCell(children) && staticNode.firstChild instanceof Text) {
       /**
        * @param {string} value
@@ -416,7 +434,7 @@ export class DOMRenderer {
       return;
     }
     if (!Array.isArray(children)) return;
-    const resolvedChildren = children.flat(Number.POSITIVE_INFINITY);
+    const resolvedChildren = flattenJSXChildren(children);
     let nodeIndex = 0;
     let domIndex = 0;
 
@@ -428,6 +446,18 @@ export class DOMRenderer {
         domNode.remove();
         continue;
       }
+
+      const isShadowRoot =
+        node instanceof Ops.ShadowRootFragment && staticNode instanceof Element;
+
+      if (isShadowRoot) {
+        const root =
+          staticNode.shadowRoot ?? staticNode.attachShadow({ mode: 'open' });
+        this.#hydrateNode(root, node.props);
+        nodeIndex++;
+        continue;
+      }
+
       if (!node) break;
       const skip =
         node === domNode ||

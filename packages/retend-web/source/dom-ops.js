@@ -296,34 +296,29 @@ export function restoreContainerState(node, data, renderer) {
   }
 }
 
-export const SHADOW_ROOT_KEY = '__isShadowRootContainer';
-
 /**
  * @param {any} parentNode
  * @param {any | any[]} childNode
  * @param {Renderer<any>} renderer
  */
 export function appendShadowRoot(parentNode, childNode, renderer) {
-  if (
-    childNode instanceof renderer.host.DocumentFragment &&
-    childNode[SHADOW_ROOT_KEY]
-  ) {
+  if (childNode instanceof ShadowRootFragment) {
     if (!(parentNode instanceof renderer.host.HTMLElement)) {
       console.error('ShadowRoot can only be children of HTML Elements.');
       return parentNode;
     }
 
-    const mode = /** @type {ShadowRootMode} */ (childNode.__mode);
     const shadowRoot =
-      parentNode.shadowRoot ?? parentNode.attachShadow({ mode });
-    if (shadowRoot.mode !== mode) {
-      console.error(
-        'Shadowroot mode mismatch: Parent already has a shadowroot of a different type'
-      );
-      return parentNode;
-    }
-    linkNodes(shadowRoot, [...childNode.childNodes], renderer);
+      parentNode.shadowRoot ?? parentNode.attachShadow({ mode: 'open' });
+    linkNodes(shadowRoot, childNode.props.children, renderer);
     return parentNode;
+  }
+}
+
+export class ShadowRootFragment {
+  /** @param {any} props */
+  constructor(props) {
+    this.props = props ?? {};
   }
 }
 

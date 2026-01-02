@@ -1,6 +1,7 @@
 /** @import { JsxElement } from './dom-renderer.js'; */
 import { Cell } from 'retend';
 import { DOMRenderer } from './dom-renderer.js';
+import { ShadowRootFragment } from './dom-ops.js';
 
 /** @typedef {Comment & { __commentRangeSymbol?: symbol }} ConnectedComment */
 
@@ -728,6 +729,7 @@ export function isReactiveChild(value) {
       if (isReactiveChild(child)) return true;
     }
   }
+  if (value instanceof ShadowRootFragment) return true;
   return false;
 }
 
@@ -758,4 +760,22 @@ export function isReactiveStyle(style) {
     }
   }
   return false;
+}
+
+/** @param {any} tree */
+export function flattenJSXChildren(tree) {
+  /** @type {any[]} tree */
+  const html = [];
+  const stack = [tree];
+
+  while (stack.length) {
+    const node = stack.pop();
+    if (Array.isArray(node)) {
+      for (let i = node.length - 1; i >= 0; i--) {
+        stack.push(node[i]);
+      }
+    } else html.push(node);
+  }
+
+  return html;
 }

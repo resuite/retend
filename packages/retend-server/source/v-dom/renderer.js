@@ -2,6 +2,7 @@
 /** @import * as VDom from './index.js' */
 
 import { createNodesFromTemplate, Cell } from 'retend';
+import { VText, VComment, VDocumentFragment } from './index.js';
 import * as Ops from 'retend-web/dom-ops';
 
 /**
@@ -226,10 +227,7 @@ export class VDOMRenderer {
    * @returns {node is VDom.VDocumentFragment}
    */
   isGroup(node) {
-    return (
-      node instanceof this.host.DocumentFragment &&
-      !('__isShadowRootContainer' in node)
-    );
+    return node instanceof this.host.DocumentFragment;
   }
 
   /**
@@ -237,7 +235,9 @@ export class VDOMRenderer {
    * @returns {child is VDom.VNode}
    */
   isNode(child) {
-    return child instanceof this.host.Node;
+    return (
+      child instanceof this.host.Node || child instanceof Ops.ShadowRootFragment
+    );
   }
 
   /**
@@ -251,9 +251,6 @@ export class VDOMRenderer {
   }
 }
 
-import { VText, VComment, VDocumentFragment } from './index.js';
-const ShadowRootKey = Ops.SHADOW_ROOT_KEY;
-
 /** @param {any} value  */
 function isReactiveChild(value) {
   if (Cell.isCell(value)) return true;
@@ -261,12 +258,11 @@ function isReactiveChild(value) {
     for (const c of value) if (isReactiveChild(c)) return true;
   }
   if (value instanceof VDocumentFragment) {
-    // @ts-expect-error
-    if (value[ShadowRootKey]) return true;
     for (const sc of value.childNodes) {
       if (isReactiveChild(sc)) return true;
     }
   }
+  if (value instanceof Ops.ShadowRootFragment) return true;
   // @ts-expect-error
   if (value instanceof VText && value.__attributeCells?.size) return true;
   // @ts-expect-error
