@@ -21,14 +21,12 @@ export class HtmlOutputArtifact extends OutputArtifact {
    * @param {string} name
    * @param {VWindow} contents
    * @param {() => Promise<string>} stringify
-   * @param {Set<string>} cssImports
    */
-  constructor(name, contents, stringify, cssImports) {
+  constructor(name, contents, stringify) {
     super();
     this.name = name;
     this.contents = contents;
     this.stringify = stringify;
-    this.cssImports = cssImports;
   }
 }
 
@@ -104,7 +102,6 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
-  const cssImports = new Set();
   globalData.set('env:ssr', true);
   retendModule.setActiveRenderer(renderer, globalData);
   const globalContextStore = {
@@ -112,7 +109,6 @@ async function renderPath(options) {
     teleportIdCounter,
     consistentValues,
     globalData,
-    cssImports,
   };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
@@ -179,7 +175,7 @@ async function renderPath(options) {
       return contents;
     };
 
-    outputs.push(new HtmlOutputArtifact(name, window, stringify, cssImports));
+    outputs.push(new HtmlOutputArtifact(name, window, stringify));
     if (path === finalPath || skipRedirects) return;
 
     // Add redirect to both HTML and _redirects file
@@ -207,11 +203,8 @@ async function renderPath(options) {
     }
 
     outputs.push(
-      new HtmlOutputArtifact(
-        redirectFileName,
-        redirectWindow,
-        () => Promise.resolve(redirectContent),
-        cssImports
+      new HtmlOutputArtifact(redirectFileName, redirectWindow, () =>
+        Promise.resolve(redirectContent)
       )
     );
   });

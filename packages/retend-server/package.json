@@ -38,12 +38,12 @@
     }
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
-    "vite": "^6.2.1"
+    "typescript": "^5.8.2"
   },
   "peerDependencies": {
     "retend": "*",
-    "retend-web": "*"
+    "retend-web": "*",
+    "vite": "*"
   },
   "publishConfig": {
     "access": "public"
