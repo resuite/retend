@@ -142,6 +142,13 @@ export function useElementBounding(elementRef, options = {}) {
     const scrollWatchers = globalData.get(SCROLL_WATCHERS_KEY) ?? new Set();
     globalData.set(SCROLL_WATCHERS_KEY, scrollWatchers);
 
+    element.addEventListener('animationstart', update);
+    element.addEventListener('animationcancel', update);
+    element.addEventListener('transitionstart', update);
+    element.addEventListener('animationiteration', update);
+    element.addEventListener('animationend', update);
+    element.addEventListener('transitionend', update);
+
     // ---- Watch for element resizes ----
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(element);
@@ -185,6 +192,13 @@ export function useElementBounding(elementRef, options = {}) {
     update();
 
     return () => {
+      element.removeEventListener('animationstart', update);
+      element.removeEventListener('animationcancel', update);
+      element.removeEventListener('animationiteration', update);
+      element.removeEventListener('animationend', update);
+      element.removeEventListener('transitionstart', update);
+      element.removeEventListener('transitionend', update);
+
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       if (resizeListener !== undefined) {
