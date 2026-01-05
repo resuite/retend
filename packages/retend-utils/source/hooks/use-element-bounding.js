@@ -38,6 +38,10 @@ const SCROLL_WATCHERS_KEY = 'hooks:useElementBounding:scrollWatchers';
  *
  * @property {'sync' | 'next-frame'} [updateTiming]
  * The timing for updating the bounding rectangle. Defaults to `'sync'`.
+ *
+ * @property {boolean} [ignoreTransforms]
+ * Whether to ignore CSS transforms when calculating the bounding rectangle.
+ * Defaults to `false`.
  */
 
 /**
@@ -77,6 +81,7 @@ export function useElementBounding(elementRef, options = {}) {
     windowResize = true,
     windowScroll = true,
     updateTiming = 'sync',
+    ignoreTransforms = false,
   } = options;
 
   const width = Cell.source(0);
@@ -107,7 +112,10 @@ export function useElementBounding(elementRef, options = {}) {
       return;
     }
 
-    const rect = element.getBoundingClientRect();
+    const rect = ignoreTransforms
+      ? getBoundingClientRectWithoutTransforms(element)
+      : element.getBoundingClientRect();
+
     width.set(rect.width);
     height.set(rect.height);
     x.set(rect.x);
@@ -219,4 +227,31 @@ export function useElementBounding(elementRef, options = {}) {
   });
 
   return { width, height, x, y, top, right, bottom, left };
+}
+
+/** @param {HTMLElement} element */
+function getBoundingClientRectWithoutTransforms(element) {
+  let x = 0;
+  let y = 0;
+  let currentElement = element;
+
+  while (currentElement) {
+    x += currentElement.offsetLeft;
+    y += currentElement.offsetTop;
+    currentElement = /** @type {HTMLElement} */ (currentElement.offsetParent);
+  }
+
+  const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+
+  return {
+    width: element.offsetWidth,
+    height: element.offsetHeight,
+    x: x - scrollLeft,
+    y: y - scrollTop,
+    top: y - scrollTop,
+    right: x - scrollLeft + element.offsetWidth,
+    bottom: y - scrollTop + element.offsetHeight,
+    left: x - scrollLeft,
+  };
 }
