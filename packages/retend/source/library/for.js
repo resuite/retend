@@ -152,6 +152,7 @@ export function For(list, fn, options) {
         const snapshot = {
           scopes: base.scopes,
           node: base.node.branch(),
+          renderer: base.renderer,
         };
         const newNodes = withScopeSnapshot(snapshot, () => {
           return h(
@@ -224,6 +225,7 @@ export function For(list, fn, options) {
       const snapshot = {
         scopes: base.scopes,
         node: base.node.branch(),
+        renderer: base.renderer,
       };
       const newNodes = withScopeSnapshot(snapshot, () =>
         h(fn, new ArgumentList(parameters), ...IgnoredHProps, renderer)

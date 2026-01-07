@@ -4,7 +4,7 @@
 import { Cell } from '@adbl/cells';
 import h from './jsx.js';
 
-import { getActiveRenderer } from './renderer.js';
+import { getActiveRenderer, setActiveRenderer } from './renderer.js';
 import { getGlobalContext } from '../context/index.js';
 import { createNodesFromTemplate } from './utils.js';
 
@@ -80,6 +80,7 @@ export const __HMR_SYMBOLS = {
  * @typedef ScopeSnapshot
  * @property {Map<Scope, unknown[]>} scopes
  * @property {EffectNode} node
+ * @property {Renderer<any> | undefined} renderer
  */
 
 /**
@@ -249,8 +250,8 @@ export function createScope(name) {
         'content' in props
           ? props.content
           : 'children' in props
-            ? props.children
-            : () => {};
+          ? props.children
+          : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
       const renderer = getActiveRenderer();
@@ -356,7 +357,11 @@ export function useScopeContext(Scope, snapshot) {
  */
 export function createScopeSnapshot() {
   const { scopes, node } = getScopeSnapshot();
-  return { scopes: new Map(scopes), node: node.branch() };
+  return {
+    scopes: new Map(scopes),
+    node: node.branch(),
+    renderer: getActiveRenderer(),
+  };
 }
 
 /**
@@ -370,7 +375,8 @@ function getScopeSnapshot() {
   if (!globalData.has(SNAPSHOT_KEY)) {
     const node = new RootEffectNode();
     const scopes = new Map();
-    globalData.set(SNAPSHOT_KEY, { scopes, node });
+    const renderer = getActiveRenderer();
+    globalData.set(SNAPSHOT_KEY, { scopes, node, renderer });
   }
   return globalData.get(SNAPSHOT_KEY);
 }
@@ -425,12 +431,17 @@ function setScopeSnapshot(snapshot) {
 export function withScopeSnapshot(snapshot, callback) {
   /** @type {ScopeSnapshot | null} */
   let previousSnapshot = null;
+  const previousRenderer = getActiveRenderer();
 
   try {
     previousSnapshot = getScopeSnapshot();
     setScopeSnapshot(snapshot);
+    if (snapshot.renderer) {
+      setActiveRenderer(snapshot.renderer);
+    }
     return Cell.runWithContext(snapshot.node.localContext, callback);
   } finally {
+    setActiveRenderer(previousRenderer);
     if (getScopeSnapshot() === snapshot) {
       if (previousSnapshot) setScopeSnapshot(previousSnapshot);
     }
@@ -474,8 +485,8 @@ export function combineScopes(...providers) {
         'content' in props
           ? props.content
           : 'children' in props
-            ? props.children
-            : () => {};
+          ? props.children
+          : () => {};
 
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () => {

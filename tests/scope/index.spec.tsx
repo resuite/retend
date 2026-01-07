@@ -7,6 +7,8 @@ import {
   createScopeSnapshot,
   withScopeSnapshot,
   combineScopes,
+  getActiveRenderer,
+  setActiveRenderer,
 } from 'retend';
 import { browserSetup, getTextContent, vDomSetup } from '../setup.tsx';
 
@@ -399,6 +401,24 @@ const runTests = () => {
       ) as HTMLElement;
       expect(getTextContent(result)).toBe('Test completed');
       expect(testResults).toEqual([2, 1]); // Current value: 2, Restored value: 1
+    });
+
+    it('should restore active renderer from snapshot', () => {
+      const initialRenderer = getActiveRenderer();
+      const mockRenderer = { name: 'mock' } as any;
+
+      setActiveRenderer(mockRenderer);
+      const snapshot = createScopeSnapshot();
+      expect(snapshot.renderer).toBe(mockRenderer);
+
+      setActiveRenderer(initialRenderer);
+      expect(getActiveRenderer()).toBe(initialRenderer);
+
+      withScopeSnapshot(snapshot, () => {
+        expect(getActiveRenderer()).toBe(mockRenderer);
+      });
+
+      expect(getActiveRenderer()).toBe(initialRenderer);
     });
 
     it('should handle empty snapshots', () => {
