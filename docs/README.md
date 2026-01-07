@@ -1253,7 +1253,7 @@ The `useObserver()` function provides a way to trigger code based on the _connec
 
 - **Disconnection:** A node is "disconnected" when it is removed from the DOM tree. This happens when you remove or replace the element directly from Javascript, or when a parent of that node gets removed from the DOM.
 
-The `useObserver()` function returns a `DocumentObserver` object, which is a wrapper around the browser's `MutationObserver` API. Its main method, `onConnected`, allows you to run a callback function when a node is connected to the DOM.
+The `useObserver()` function returns a `Observer` object, which is a wrapper around the browser's `MutationObserver` API. Its main method, `onConnected`, allows you to run a callback function when a node is connected to the DOM.
 
 ### Executing Code on Connection
 
@@ -1639,7 +1639,7 @@ The library includes a routing system for single-page applications.
 ### Setting Up the Router
 
 ```jsx
-import { createWebRouter, type RouteRecords } from 'retend/router';
+import { Router, type RouteRecords } from 'retend/router';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -1657,7 +1657,7 @@ const routes: RouteRecords = [
   { name: 'not-found', path: '*', component: NotFound },
 ];
 
-const router = createWebRouter({ routes });
+const router = new Router({ routes });
 document.body.appendChild(<router.Outlet />);
 ```
 
@@ -1755,7 +1755,7 @@ Imagine your application has a `/dashboard` section with its own set of nested r
 In your main router setup, define a route for `/dashboard` and use the `subtree` property with the `lazy` helper to point to the dashboard's route configuration file.
 
 ```javascript
-import { createWebRouter, defineRoutes, lazy } from 'retend/router';
+import { Router, defineRoutes, lazy } from 'retend/router';
 import Home from './views/Home';
 
 const routes = defineRoutes([
@@ -1767,7 +1767,7 @@ const routes = defineRoutes([
   },
 ]);
 
-export const router = createWebRouter({ routes });
+export const router = new Router({ routes });
 ```
 
 **2. Dashboard Routes (`src/views/dashboard/routes.js`)**
@@ -2008,7 +2008,7 @@ function MyComponent() {
 To enable Stack Mode, set `stackMode: true` in your router configuration:
 
 ```tsx
-const router = createWebRouter({
+const router = new Router({
   routes: [...],
   stackMode: true
 });
@@ -2082,197 +2082,9 @@ In the example above, the relay ensures that the `Photo` component with the same
 
 Retend provides several advanced components that can help you build complex UIs. Here's a breakdown of the most useful ones:
 
-### Teleport
+### Teleport & ShadowRoot
 
-The `Teleport` component allows you to move a part of your component's content to a different location in the DOM, outside of its natural parent. This is extremely useful for creating modals, tooltips, or elements that should appear at a specific place in the document, regardless of the component's position in your application's structure.
-
-Let's imagine a simple use case: a navigation bar that is rendered at the top of the page, and a modal that needs to be rendered outside of the navigation bar, directly as a child of the `body` element.
-
-- **Basic Example**:
-
-```jsx
-import { Teleport } from 'retend';
-
-function NavBar() {
-  return (
-    <nav>
-      <h1>My Application</h1>
-      <Teleport to={document.body}>
-        <div style={{ backgroundColor: 'lightgray', padding: '20px' }}>
-          This content is outside the nav bar.
-        </div>
-      </Teleport>
-    </nav>
-  );
-}
-
-document.body.append(<NavBar />);
-```
-
-In the example above, the `div` will be rendered as a child of the `body` element, even though it is defined inside the `NavBar` component.
-
-- **More complex example**:
-
-```jsx
-import { If, Cell } from 'retend';
-import { Teleport } from 'retend';
-
-function Modal({ content, onClose }) {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        backgroundColor: 'white',
-        padding: '20px',
-        border: '1px solid black',
-      }}
-    >
-      <button onClick={onClose}>close</button>
-      {content}
-    </div>
-  );
-}
-
-function NavBar() {
-  const showModal = Cell.source(false);
-
-  return (
-    <nav>
-      <h1>My Application</h1>
-      <button onClick={() => showModal.set(true)}>Open Modal</button>
-
-      {If(showModal, () => (
-        <Teleport to={document.body}>
-          <Modal
-            content={<p>This is a modal outside the nav bar.</p>}
-            onClose={() => showModal.set(false)}
-          />
-        </Teleport>
-      ))}
-    </nav>
-  );
-}
-
-document.body.append(<NavBar />);
-```
-
-In this example, `Teleport` is used to render the `Modal` component directly under the `body` tag. This simplifies modal positioning without needing complex CSS workarounds for the nav bar structure.
-
-- **Using a CSS selector**:
-
-```jsx
-import { Teleport } from 'retend';
-
-function MyComponent() {
-  return (
-    <div>
-      <Teleport to="#portal-target">
-        <div>This is rendered into the #portal-target div</div>
-      </Teleport>
-    </div>
-  );
-}
-
-document.body.append(<MyComponent />);
-```
-
-Here, `Teleport` moves the `div` into a specific element that's identified by its ID (`#portal-target`). This means you can move components to specific locations using existing structures.
-
-### ShadowRoot
-
-The `ShadowRoot` component allows you to encapsulate your component's styling and structure by creating a shadow DOM. The shadow DOM provides a way to build complex components while avoiding conflicts with global CSS or other parts of the DOM, which is especially useful for reusable custom components.
-
-```jsx
-import { ShadowRoot } from 'retend-web/shadowroot';
-
-function MyComponent() {
-  return (
-    <div>
-      <ShadowRoot>
-        <style>
-          {`
-          div {
-            background-color: lightgreen;
-            padding: 10px;
-          }
-        `}
-        </style>
-        <div>
-          <h1>Content in Shadow DOM</h1>
-          <p>This content is encapsulated.</p>
-        </div>
-      </ShadowRoot>
-    </div>
-  );
-}
-
-document.body.append(<MyComponent />);
-```
-
-Here, the styling inside `ShadowRoot` (the green background) will not leak out and will not be affected by any external CSS styles that target the `div` tag.
-
-- **Using Components inside the Shadow Root**:
-
-```jsx
-import { ShadowRoot } from 'retend-web/shadowroot';
-
-function StyledButton({ children, backgroundColor }) {
-  return (
-    <button
-      style={{
-        backgroundColor,
-        color: 'white',
-        padding: '10px',
-        border: 'none',
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function MyComponent() {
-  return (
-    <div style={{ border: '2px solid blue', padding: '10px' }}>
-      <ShadowRoot>
-        <div>
-          <StyledButton backgroundColor="red">Click Me</StyledButton>
-        </div>
-      </ShadowRoot>
-    </div>
-  );
-}
-
-document.body.append(<MyComponent />);
-```
-
-As you can see, you can add components to shadow DOM just like any other component and they will inherit the encapsulation behavior of `ShadowRoot`.
-
-- **Multiple Shadow Roots**:
-
-```jsx
-import { ShadowRoot } from 'retend-web/shadowroot';
-
-function MyComponent() {
-  return (
-    <div>
-      <ShadowRoot>
-        <div>First shadow root.</div>
-      </ShadowRoot>
-      <ShadowRoot>
-        <div>Second shadow root.</div>
-      </ShadowRoot>
-    </div>
-  );
-}
-
-document.body.append(<MyComponent />);
-```
-
-It is possible to add multiple `ShadowRoot` components on a single parent component, but it may not lead to the most predictable behavior. Ideally, it's best to only have one `ShadowRoot` per parent, but these can be nested in different parents to get fine-grained control over the shadow DOMs.
+These components are specifically for web-based rendering and are documented in the [retend-web documentation](../packages/retend-web/README.md).
 
 ### Unique
 

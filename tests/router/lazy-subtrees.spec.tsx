@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext } from 'retend/context';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 import {
-  createWebRouter,
+  createRouterRoot,
+  Router,
   defineRoute,
   defineRoutes,
   lazy,
@@ -14,7 +16,8 @@ describe('Router Lazy Subtrees', () => {
   vDomSetup();
 
   it('should load a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const subtree = defineRoute({
       name: 'about-me',
@@ -24,7 +27,7 @@ describe('Router Lazy Subtrees', () => {
       },
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/home',
@@ -49,7 +52,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load a lazy subtree not at the root level', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const nestedSubtree = defineRoute({
       name: 'lazy-nested-route',
@@ -59,7 +63,7 @@ describe('Router Lazy Subtrees', () => {
       },
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/parent',
@@ -86,7 +90,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should throw errors if the path of the subtree is not the same as the importer', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const misconfiguredSubtree = defineRoute({
       name: 'incorrect-lazy-subtree',
@@ -94,7 +99,7 @@ describe('Router Lazy Subtrees', () => {
       component: () => <div>This should not load correctly</div>,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/parent-for-lazy',
@@ -112,7 +117,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load a lazy subtree directly importing a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const deepestLazyComponent = defineRoute({
       name: 'deepest-lazy-component',
@@ -126,7 +132,7 @@ describe('Router Lazy Subtrees', () => {
       subtree: lazy(() => Promise.resolve({ default: deepestLazyComponent })),
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/lazy-chain',
@@ -144,7 +150,8 @@ describe('Router Lazy Subtrees', () => {
   });
 
   it('should load nested lazy subtrees', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const financeReportsComponent = defineRoute({
       name: 'finance-reports',
@@ -165,7 +172,7 @@ describe('Router Lazy Subtrees', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/finance',
@@ -187,7 +194,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   vDomSetup();
 
   it('should handle parameters defined before the lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const UserProfile = () => {
       const router = useRouter();
@@ -202,7 +210,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       component: UserProfile,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/users/:userId',
@@ -216,14 +224,15 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/users/123/profile');
     expect(getTextContent(window.document.body)).toBe('User ID: 123');
   });
 
   it('should handle parameters defined within the lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductPage = () => {
       const currentRoute = useCurrentRoute();
@@ -242,7 +251,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/products',
@@ -251,14 +260,15 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/xyz-789');
     expect(getTextContent(window.document.body)).toBe('Product: xyz-789');
   });
 
   it('should handle parameters defined both before and within the lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const StoreItem = () => {
       const currentRoute = useCurrentRoute();
@@ -282,7 +292,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/stores/:storeId',
@@ -298,7 +308,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/stores/main-street/inventory/item-456');
     expect(getTextContent(window.document.body)).toBe(
@@ -307,7 +317,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle wildcards within a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const DocsPage = () => {
       const currentRoute = useCurrentRoute();
@@ -326,7 +337,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/docs',
@@ -335,7 +346,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/docs/guides/advanced/routing');
     expect(getTextContent(window.document.body)).toBe(
@@ -344,7 +355,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle fallthrough (index) routes within a lazy subtree', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const DashboardHome = () => <div>Dashboard Home</div>;
     const DashboardSettings = () => <div>Dashboard Settings</div>;
@@ -365,7 +377,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ],
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/dashboard',
@@ -374,7 +386,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/dashboard');
     expect(getTextContent(window.document.body)).toBe('Dashboard Home');
@@ -384,7 +396,8 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
   });
 
   it('should handle parameters directly on the lazy route importer', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductDetail = () => {
       const currentRoute = useCurrentRoute();
@@ -398,7 +411,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       component: ProductDetail,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/products/:productId',
@@ -407,7 +420,7 @@ describe('Router Lazy Subtrees with Advanced Matching', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/super-shoe-42');
     expect(getTextContent(window.document.body)).toBe(

@@ -38,6 +38,10 @@ const SCROLL_WATCHERS_KEY = 'hooks:useElementBounding:scrollWatchers';
  *
  * @property {'sync' | 'next-frame'} [updateTiming]
  * The timing for updating the bounding rectangle. Defaults to `'sync'`.
+ *
+ * @property {boolean} [ignoreTransforms]
+ * Whether to ignore CSS transforms when calculating the bounding rectangle.
+ * Defaults to `false`.
  */
 
 /**
@@ -77,6 +81,7 @@ export function useElementBounding(elementRef, options = {}) {
     windowResize = true,
     windowScroll = true,
     updateTiming = 'sync',
+    ignoreTransforms = false,
   } = options;
 
   const width = Cell.source(0);
@@ -107,7 +112,10 @@ export function useElementBounding(elementRef, options = {}) {
       return;
     }
 
-    const rect = element.getBoundingClientRect();
+    const rect = ignoreTransforms
+      ? getBoundingClientRectWithoutTransforms(element)
+      : element.getBoundingClientRect();
+
     width.set(rect.width);
     height.set(rect.height);
     x.set(rect.x);
@@ -122,15 +130,12 @@ export function useElementBounding(elementRef, options = {}) {
     if (updateTiming === 'sync') {
       recalculate();
     } else {
-      const { window } = getGlobalContext();
-      if ('requestAnimationFrame' in window) {
-        window.requestAnimationFrame(recalculate);
-      }
+      requestAnimationFrame(recalculate);
     }
   };
 
   observer.onConnected(elementRef, (element) => {
-    const { globalData, window } = getGlobalContext();
+    const { globalData } = getGlobalContext();
 
     /** @type {(() => void) | undefined} */
     let resizeListener = globalData.get(RESIZE_LISTENER_KEY);
@@ -144,6 +149,13 @@ export function useElementBounding(elementRef, options = {}) {
     /** @type {Set<(() => void)>} */
     const scrollWatchers = globalData.get(SCROLL_WATCHERS_KEY) ?? new Set();
     globalData.set(SCROLL_WATCHERS_KEY, scrollWatchers);
+
+    element.addEventListener('animationstart', update);
+    element.addEventListener('animationcancel', update);
+    element.addEventListener('transitionstart', update);
+    element.addEventListener('animationiteration', update);
+    element.addEventListener('animationend', update);
+    element.addEventListener('transitionend', update);
 
     // ---- Watch for element resizes ----
     const resizeObserver = new ResizeObserver(update);
@@ -188,6 +200,13 @@ export function useElementBounding(elementRef, options = {}) {
     update();
 
     return () => {
+      element.removeEventListener('animationstart', update);
+      element.removeEventListener('animationcancel', update);
+      element.removeEventListener('animationiteration', update);
+      element.removeEventListener('animationend', update);
+      element.removeEventListener('transitionstart', update);
+      element.removeEventListener('transitionend', update);
+
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       if (resizeListener !== undefined) {
@@ -208,4 +227,31 @@ export function useElementBounding(elementRef, options = {}) {
   });
 
   return { width, height, x, y, top, right, bottom, left };
+}
+
+/** @param {HTMLElement} element */
+function getBoundingClientRectWithoutTransforms(element) {
+  let x = 0;
+  let y = 0;
+  let currentElement = element;
+
+  while (currentElement) {
+    x += currentElement.offsetLeft;
+    y += currentElement.offsetTop;
+    currentElement = /** @type {HTMLElement} */ (currentElement.offsetParent);
+  }
+
+  const scrollLeft = window.scrollX || document.documentElement.scrollLeft;
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+
+  return {
+    width: element.offsetWidth,
+    height: element.offsetHeight,
+    x: x - scrollLeft,
+    y: y - scrollTop,
+    top: y - scrollTop,
+    right: x - scrollLeft + element.offsetWidth,
+    bottom: y - scrollTop + element.offsetHeight,
+    left: x - scrollLeft,
+  };
 }

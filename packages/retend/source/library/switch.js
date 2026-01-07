@@ -1,11 +1,11 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import * as VDom from '../v-dom/index.js' */
-/** @import { ReactiveCellFunction } from './utils.js' */
 
 import { Cell } from '@adbl/cells';
-import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
+import { ArgumentList } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import h from './jsx.js';
+import { getActiveRenderer } from './renderer.js';
+import { IgnoredHProps } from '../_internals.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -54,16 +54,25 @@ import h from './jsx.js';
  * @param {*} [defaultCase]
  */
 export function Switch(value, cases, defaultCase) {
-  const [rangeStart, rangeEnd] = createCommentPair();
-
+  const renderer = getActiveRenderer();
   if (!Cell.isCell(value)) {
     if (value in cases && cases[value]) {
-      const nodes = h(cases[value], new ArgumentList([]));
+      const nodes = h(
+        cases[value],
+        new ArgumentList([]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
     if (defaultCase) {
-      const nodes = h(defaultCase, new ArgumentList([value]));
+      const nodes = h(
+        defaultCase,
+        new ArgumentList([value]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
@@ -71,53 +80,46 @@ export function Switch(value, cases, defaultCase) {
   }
 
   const snapshot = createScopeSnapshot();
-  let isInitialRun = true;
 
-  /** @type {ReactiveCellFunction<ReturnType<typeof value.get>, typeof rangeStart, (Node | VDom.VNode)[]>} */
-  const callback = function (value) {
-    snapshot.node.dispose();
-    const results = withScopeSnapshot(snapshot, () => {
-      /** @type {(Node | VDom.VNode)[]} */
-      let nodes = [];
-      let nextNode = this.nextSibling;
-      while (
-        nextNode &&
-        !(
-          '__commentRangeSymbol' in nextNode &&
-          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-        )
-      ) {
-        nextNode.remove();
-        nextNode = this.nextSibling;
-      }
-
+  /** @param {any} value */
+  const callback = (value) => {
+    return withScopeSnapshot(snapshot, () => {
       const caseCaller = cases[value];
       if (caseCaller) {
-        const newNodes = h(caseCaller, new ArgumentList([value]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        const newNodes = h(
+          caseCaller,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
       if (defaultCase) {
-        const newNodes = h(defaultCase, new ArgumentList([value]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        const newNodes = h(
+          defaultCase,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
-
-      return nodes;
+      return [];
     });
-    if (!isInitialRun) snapshot.node.activate();
-    else isInitialRun = false;
-    return results;
   };
 
-  // Don't use runAndListen with an outer array to store nodes.
-  // It leads to a memory leak.
-  const firstRun = callback.bind(rangeStart)(value.get());
-  addCellListener(rangeStart, value, callback, false);
-  return [rangeStart, ...firstRun, rangeEnd];
+  // The effect must be registered first.
+  value.listen((nextValue) => {
+    snapshot.node.dispose();
+    const results = callback(nextValue);
+    renderer.write(handle, results);
+    snapshot.node.activate();
+  });
+
+  const initialResults = callback(value.get());
+  const group = renderer.createGroup(initialResults);
+  const handle = renderer.createGroupHandle(group);
+  return group;
 }
 
 /**
@@ -155,70 +157,75 @@ export function Switch(value, cases, defaultCase) {
  * @param {*} [defaultCase]
  */
 Switch.OnProperty = (value, key, cases, defaultCase) => {
-  const [rangeStart, rangeEnd] = createCommentPair();
-
+  const renderer = getActiveRenderer();
   if (!Cell.isCell(value)) {
     const discriminant = value[key];
 
     if (discriminant in cases && cases[discriminant]) {
-      const nodes = h(cases[discriminant], new ArgumentList([value]));
+      const nodes = h(
+        cases[discriminant],
+        new ArgumentList([value]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
     if (defaultCase) {
-      const nodes = h(defaultCase, new ArgumentList([value]));
+      const nodes = h(
+        defaultCase,
+        new ArgumentList([value]),
+        ...IgnoredHProps,
+        renderer
+      );
       return nodes;
     }
 
     return undefined;
   }
 
-  // Reactive path
-  const cell = value;
   const snapshot = createScopeSnapshot();
 
-  /** @type {ReactiveCellFunction<any, any, any>} */
-  const callback = function (cellValue) {
-    snapshot.node.dispose();
-    const results = withScopeSnapshot(snapshot, () => {
-      /** @type {(Node | VDom.VNode)[]} */
-      let nodes = [];
-      let nextNode = this.nextSibling;
-      while (
-        nextNode &&
-        !(
-          '__commentRangeSymbol' in nextNode &&
-          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-        )
-      ) {
-        nextNode.remove();
-        nextNode = this.nextSibling;
-      }
-
+  /** @param {any} cellValue */
+  const callback = (cellValue) => {
+    return withScopeSnapshot(snapshot, () => {
       const discriminant = cellValue[key];
 
       const caseCaller = cases[discriminant];
       if (caseCaller) {
-        const newNodes = h(caseCaller, new ArgumentList([cellValue]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        const newNodes = h(
+          caseCaller,
+          new ArgumentList([cellValue]),
+          ...IgnoredHProps,
+          renderer
+        );
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
       if (defaultCase) {
-        const newNodes = h(defaultCase, new ArgumentList([cellValue]));
-        nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        this.after(.../** @type {*} */ (nodes));
-        return nodes;
+        const newNodes = h(
+          defaultCase,
+          new ArgumentList([cellValue]),
+          ...IgnoredHProps,
+          renderer
+        );
+        return Array.isArray(newNodes) ? newNodes : [newNodes];
       }
 
-      return nodes;
+      return [];
     });
-    if (this.isConnected) snapshot.node.activate();
-    return results;
   };
 
-  const firstRun = callback.bind(rangeStart)(cell.get());
-  addCellListener(rangeStart, cell, callback, false);
-  return [rangeStart, ...firstRun, rangeEnd];
+  // The effect must be registered first.
+  value.listen((nextValue) => {
+    snapshot.node.dispose();
+    const newNodes = callback(nextValue);
+    renderer.write(handle, newNodes);
+    snapshot.node.activate();
+  });
+
+  const initialResults = callback(value.get());
+  const group = renderer.createGroup(initialResults);
+  const handle = renderer.createGroupHandle(group);
+  return group;
 };

@@ -1,20 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, getTextContent, vDomSetup } from './setup';
-import { getGlobalContext } from 'retend/context';
-import { Unique } from 'retend/unique';
-import type { VNode } from 'retend/v-dom';
 import {
   Cell,
   If,
   runPendingSetupEffects,
   Switch,
   useSetupEffect,
+  Unique,
+  getActiveRenderer,
 } from 'retend';
-import { ShadowRoot } from 'retend/shadowroot';
+import type { VNode } from 'retend-server/v-dom';
+import type { DOMRenderer } from 'retend-web';
+import { ShadowRoot } from 'retend-web';
 
 const runTests = () => {
   it('should render a <Unique/> component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const uuid = crypto.randomUUID();
 
     const UniqueContent = () => {
@@ -36,7 +38,8 @@ const runTests = () => {
   });
 
   it('should only render one <Unique/> component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const uuid = crypto.randomUUID();
 
     const UniqueContent = () => {
@@ -64,7 +67,8 @@ describe('Unique', () => {
     runTests();
 
     it('should move the <Unique/> component on change', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
 
       const UniqueContent = () => {
@@ -102,7 +106,8 @@ describe('Unique', () => {
     });
 
     it('should keep the scope of Unique components alive', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const setupFn = vi.fn();
       const cleanupFn = vi.fn();
@@ -197,7 +202,8 @@ describe('Unique', () => {
     });
 
     it('should preserve Unique components that are reinstantiated in the very next render', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const setupFn = vi.fn();
       const cleanupFn = vi.fn();
@@ -278,7 +284,8 @@ describe('Unique', () => {
     });
 
     it('should save and restore data', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const saveFn = vi.fn();
       const restoreFn = vi.fn();
@@ -353,7 +360,8 @@ describe('Unique', () => {
     });
 
     it('should transfer shadowroots', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const page = Cell.source<'home' | 'about'>('home');
 
       const PersistentMusicPlayer = () => {
@@ -406,7 +414,8 @@ describe('Unique', () => {
     });
 
     it('should set state to "new" when first rendered', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
 
       const UniqueContent = () => {
@@ -429,7 +438,8 @@ describe('Unique', () => {
     });
 
     it('should set state to "restored" when moved to new location', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
 
       const UniqueContent = () => {
@@ -466,7 +476,8 @@ describe('Unique', () => {
     });
 
     it('should set state to "moved" when component is unmounted', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const saveStates: string[] = [];
 
@@ -509,7 +520,8 @@ describe('Unique', () => {
     });
 
     it('should not cleanup derived cells and listeners when Unique component is moved, but should when unmounted', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       let derivedComputes = 0;
       let listenerCalls = 0;
@@ -527,7 +539,9 @@ describe('Unique', () => {
         return <div>{derived}</div>;
       };
 
-      const UniqueContent = () => <Unique name={uuid}>{() => <Content />}</Unique>;
+      const UniqueContent = () => (
+        <Unique name={uuid}>{() => <Content />}</Unique>
+      );
 
       const page = Cell.source<'home' | 'about'>('home');
       const renderApp = Cell.source(true);
@@ -593,7 +607,8 @@ describe('Unique', () => {
     });
 
     it('should transition through states correctly during lifecycle', async () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const states: string[] = [];
       const saveStates: string[] = [];
@@ -665,6 +680,165 @@ describe('Unique', () => {
       // Verify the state transitions
       expect(states).toEqual(['new', 'restored', 'restored', 'new']);
 
+      body.replaceChildren();
+    });
+
+    it('should preserve content even if new instance has different children function', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+
+      const { body } = window.document;
+      const showFirst = Cell.source(true);
+
+      const App = () => (
+        <div>
+          {If(
+            showFirst,
+            () => (
+              <Unique name={uuid}>
+                {() => <div id="orig">Original Content</div>}
+              </Unique>
+            ),
+            () => (
+              <Unique name={uuid}>
+                {() => <div id="new">New Content</div>}
+              </Unique>
+            )
+          )}
+        </div>
+      );
+
+      body.append((<App />) as any);
+      await runPendingSetupEffects();
+      expect(body.querySelector('#orig')).not.toBeNull();
+      expect(body.querySelector('#new')).toBeNull();
+
+      showFirst.set(false);
+      await runPendingSetupEffects();
+
+      // Should still have original content because it's "Unique" by name
+      expect(body.querySelector('#orig')).not.toBeNull();
+      expect(body.querySelector('#new')).toBeNull();
+      body.replaceChildren();
+    });
+
+    it('should preserve and update attributes on the Unique wrapper', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const className = Cell.source('initial-class');
+
+      const { body } = window.document;
+      const App = () => (
+        <Unique name={uuid} class={className}>
+          {() => <div>Content</div>}
+        </Unique>
+      );
+
+      body.append((<App />) as any);
+      await runPendingSetupEffects();
+
+      let uniqueEl = body.querySelector('retend-unique-instance');
+      expect(uniqueEl?.className).toBe('initial-class');
+
+      className.set('updated-class');
+      await runPendingSetupEffects();
+      expect(uniqueEl?.className).toBe('updated-class');
+      body.replaceChildren();
+    });
+
+    it('should handle nested Unique components', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const outerUuid = crypto.randomUUID();
+      const innerUuid = crypto.randomUUID();
+      const innerSetup = vi.fn();
+
+      const Inner = () => {
+        useSetupEffect(() => {
+          innerSetup();
+        });
+        return <div>Inner Content</div>;
+      };
+
+      const Outer = () => (
+        <Unique name={outerUuid}>
+          {() => (
+            <div class="outer-box">
+              <Unique name={innerUuid}>{() => <Inner />}</Unique>
+            </div>
+          )}
+        </Unique>
+      );
+
+      const { body } = window.document;
+      const show = Cell.source(true);
+      body.append(
+        (
+          <div>
+            {If(show, () => (
+              <Outer />
+            ))}
+          </div>
+        ) as any
+      );
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toContain('Inner Content');
+      expect(innerSetup).toHaveBeenCalledTimes(1);
+
+      // Move it
+      show.set(false);
+      await runPendingSetupEffects();
+      // It should still exist in memory but not in DOM
+      expect(body.querySelector('.outer-box')).toBeNull();
+
+      show.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toContain('Inner Content');
+      expect(innerSetup).toHaveBeenCalledTimes(2); // Should not re-run setup
+      body.replaceChildren();
+    });
+
+    it('should dispose when not remounted before activate', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const cleanupFn = vi.fn();
+
+      const Content = () => {
+        useSetupEffect(() => {
+          return cleanupFn;
+        });
+        return <div>Content</div>;
+      };
+
+      const { body } = window.document;
+      const show = Cell.source(true);
+      const app = (
+        <div>
+          {If(show, () => (
+            <Unique name={uuid}>{() => <Content />}</Unique>
+          ))}
+        </div>
+      );
+      body.append(app as any);
+      await runPendingSetupEffects();
+
+      expect(cleanupFn).not.toHaveBeenCalled();
+
+      show.set(false);
+      await runPendingSetupEffects();
+
+      // At this point, it should be in pending teardowns.
+      // We need to trigger the activate event to process teardowns.
+      body.dispatchEvent(
+        new window.CustomEvent('retend:activate', { bubbles: true })
+      );
+
+      expect(cleanupFn).toHaveBeenCalledTimes(1);
       body.replaceChildren();
     });
   });

@@ -1,7 +1,7 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import { UniqueProps } from 'retend/unique'; */
+/** @import { UniqueProps } from 'retend'; */
 import { Cell } from 'retend';
-import { Unique } from 'retend/unique';
+import { Unique } from 'retend';
 
 /**
  * @template CustomData
@@ -128,14 +128,39 @@ const addTransitionProps = (props) => {
       if (oldRect.width === 0) return;
       for (const animation of pausedAnimations) animation.play();
 
+      const options = parseTransitionOptions(
+        transitionDuration,
+        transitionTimingFunction,
+        element
+      );
+
+      // Animations on ancestors of the target may modify the positioning
+      // of the target element, making the bounding rect incorrect.
+      // We need to recompute the new rect after all parent animations
+      // have been scrubbed to the expected point on the document timeline.
+      const { duration } = options;
+      const parentAnimations = getAllParentAnimations(element);
+      for (const animation of parentAnimations) {
+        const currentTime = Number(animation.currentTime);
+        animation.currentTime = currentTime + duration;
+      }
+
       requestAnimationFrame(() => {
         const newRect = element.getBoundingClientRect();
-        const initialTransform = getInitialRelativeTransform(oldRect, newRect);
-        const options = parseTransitionOptions(
-          transitionDuration,
-          transitionTimingFunction,
-          element
-        );
+        for (const animation of parentAnimations) {
+          animation.currentTime = Number(animation.currentTime) - duration;
+        }
+        const parentTransform = getParentTransformMatrix(element);
+        const isInvertible =
+          Math.abs(
+            parentTransform.a * parentTransform.d -
+              parentTransform.b * parentTransform.c
+          ) > 1e-10;
+
+        const displacement = getInitialRelativeTransform(oldRect, newRect);
+        const initialTransform = isInvertible
+          ? `${parentTransform.inverse().toString()} ${displacement}`
+          : displacement;
         element.toggleAttribute('data-transitioning');
         /** @type {ElementInternals} */ // @ts-expect-error: is a custom element
         const internals = element.internals_;
@@ -151,6 +176,45 @@ const addTransitionProps = (props) => {
     },
   };
 };
+
+/**
+ * @param {Element} element
+ */
+function getAllParentAnimations(element) {
+  const parentAnimations = [];
+
+  let parent = element.parentElement;
+  while (parent) {
+    const animations = parent
+      .getAnimations()
+      .filter((animation) => animation.timeline instanceof DocumentTimeline);
+    parentAnimations.push(...animations);
+    parent = parent.parentElement;
+  }
+
+  return parentAnimations;
+}
+
+/**
+ * Get the cumulative transform matrix from all parent elements
+ * @param {Element} element
+ */
+function getParentTransformMatrix(element) {
+  let parent = element.parentElement;
+  let matrix = new DOMMatrix();
+
+  while (parent) {
+    const style = getComputedStyle(parent);
+    const transform = style.transform;
+    if (transform && transform !== 'none') {
+      const parentMatrix = new DOMMatrix(transform);
+      matrix = matrix.multiply(parentMatrix);
+    }
+    parent = parent.parentElement;
+  }
+
+  return matrix;
+}
 
 /**
  * A wrapper around the Unique component that adds smooth FLIP animations when the element

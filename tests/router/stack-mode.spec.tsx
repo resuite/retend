@@ -1,14 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
-import { getGlobalContext } from 'retend/context';
-import { createWebRouter, type Router, useRouter } from 'retend/router';
+import { vDomSetup, getTextContent } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { createRouterRoot, Router, useRouter } from 'retend/router';
 
 const runFlatTests = () => {
   let router: Router;
 
   beforeEach(() => {
-    const { window } = getGlobalContext();
-    router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    router = new Router({
       routes: [
         {
           name: 'home',
@@ -29,7 +31,7 @@ const runFlatTests = () => {
       stackMode: true,
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
   });
 
   test('navigates to the same route', async () => {
@@ -103,17 +105,19 @@ const runNestedTests = () => {
         component: () => 'marketing',
       },
     ];
-    const { window } = getGlobalContext();
-    router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    router = new Router({
       routes,
       stackMode: true,
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
   });
 
   test('navigates properly in stack mode', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     await router.navigate('/');
     expect(getTextContent(window.document.body)).toBe(
@@ -128,7 +132,8 @@ const runNestedTests = () => {
   });
 
   test('has correct back and forward routes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     await router.navigate('/');
     expect(router.getCurrentRoute().get().fullPath).toBe('/');
@@ -142,7 +147,8 @@ const runNestedTests = () => {
   });
 
   test('has correct params & query during navigation', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     await router.navigate('/');
     await router.navigate('/about?value=1');
@@ -156,6 +162,18 @@ const runNestedTests = () => {
     await router.navigate('/about?value=2'); // pop back to ['/', '/about?value=1', '/about?value=2']
     await router.back();
     expect(router.getCurrentRoute().get().fullPath).toBe('/about?value=1');
+    expect(getTextContent(window.document.body)).toBe('Nested Route: About');
+  });
+
+  test('navigates correctly from a query page to a normal one.', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+
+    await router.navigate('/');
+    await router.navigate('/about');
+    await router.navigate('/about?id=123');
+    await router.navigate('/about');
+    expect(router.getCurrentRoute().get().fullPath).toBe('/about');
     expect(getTextContent(window.document.body)).toBe('Nested Route: About');
   });
 };

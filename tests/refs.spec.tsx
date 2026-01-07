@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Cell } from 'retend';
-import { getGlobalContext } from 'retend/context';
+import { Cell, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { browserSetup, vDomSetup } from './setup.tsx';
-import type { VNode } from 'retend/v-dom';
+import type { VNode } from 'retend-server/v-dom';
 
 const runTests = () => {
   it('should assign a ref to an element', () => {
@@ -13,7 +13,8 @@ const runTests = () => {
   });
 
   it('should work with functional components', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const elementRef = Cell.source<HTMLElement | null>(null);
     const callback = vi.fn();
 

@@ -293,7 +293,7 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { retend } from 'retend/plugin';${
+import { retend } from 'retend-web/plugin';${
     answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ''
   }${
     answers.useTailwind ? "\nimport tailwindcss from '@tailwindcss/vite';" : ''
@@ -382,6 +382,7 @@ async function createMainFile(projectDir, answers) {
   const content = answers.useSSG
     ? `
 /// <reference types="vite/client" />
+/// <reference types="retend-web/jsx-runtime" />
 import { hydrate } from 'retend-server/client';
 import { createRouter } from './router';
 
@@ -392,19 +393,18 @@ hydrate(createRouter)
 `
     : `
 /// <reference types="vite/client" />
-import { runPendingSetupEffects } from 'retend';
+/// <reference types="retend-web/jsx-runtime" />
+import { runPendingSetupEffects, setActiveRenderer } from 'retend';
+import { createRouterRoot } from 'retend/router';
+import { DOMRenderer } from 'retend-web';
 import { createRouter } from './router';
 
+setActiveRenderer(new DOMRenderer(window));
 const router = createRouter();
-router.setWindow(window);
-router.attachWindowListeners();
+router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
-root?.append(${
-        extension === 'ts'
-          ? 'router.Outlet() as Node'
-          : '/** @type {Node} */ (router.Outlet())'
-      });
+root?.append(createRouterRoot(router));
 runPendingSetupEffects();
 `;
 
@@ -422,11 +422,11 @@ runPendingSetupEffects();
 async function createRouterFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
- import { createWebRouter } from 'retend/router';
+ import { Router } from 'retend/router';
  import App from './App';
 
  export function createRouter() {
-   return createWebRouter({ routes: [{ path: '/', component: App }] });
+   return new Router({ routes: [{ path: '/', component: App }] });
  }
    `.trim();
 
@@ -542,7 +542,7 @@ export default App;
 `;
 
     await fs.writeFile(
-      path.join(projectDir, `source/App.module.css`),
+      path.join(projectDir, 'source/App.module.css'),
       stylesContent
     );
   }

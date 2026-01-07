@@ -16,8 +16,8 @@
 /**
  * @typedef {{ metadata: Metadata }} RouteComponentArgs
  * @typedef {Lazy<RouteComponent> | RouteComponent} ComponentOrComponentLoader
- * @typedef {Omit<JSX.IntrinsicElements['div'], 'align'>} RouterOutletProps
- * @typedef {JSX.IntrinsicElements['a'] & ExtraLinkData} RouterLinkProps
+ * @typedef {JSX.BaseContainerProps} RouterOutletProps
+ * @typedef {JSX.LinkElementProps & ExtraLinkData} RouterLinkProps
  * @typedef {RouteRecordsRaw<ComponentOrComponentLoader>} RouteRecords
  * @typedef {RouteRecords[number]} RouteRecord
  */

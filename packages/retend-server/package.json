@@ -31,14 +31,19 @@
     "./types": {
       "import": "./dist/types.js",
       "types": "./dist/types.d.ts"
+    },
+    "./v-dom": {
+      "import": "./dist/v-dom/index.js",
+      "types": "./dist/v-dom/index.d.ts"
     }
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
-    "vite": "^6.2.1"
+    "typescript": "^5.8.2"
   },
   "peerDependencies": {
-    "retend": "*"
+    "retend": "*",
+    "retend-web": "*",
+    "vite": "*"
   },
   "publishConfig": {
     "access": "public"

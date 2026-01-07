@@ -1,5 +1,5 @@
 /** @import { RouteData, Router } from 'retend/router' */
-/** @import { VDocument } from 'retend/v-dom' */
+/** @import { VDocument } from './v-dom/index.js' */
 /** @import { Cell } from 'retend' */
 /** @import { PageMeta } from './client.js' */
 

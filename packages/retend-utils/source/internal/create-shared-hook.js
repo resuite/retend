@@ -1,5 +1,6 @@
-import { useSetupEffect } from 'retend';
-import { getGlobalContext, matchContext, Modes } from 'retend/context';
+import { getActiveRenderer, useSetupEffect } from 'retend';
+import { DOMRenderer } from 'retend-web';
+import { getGlobalContext } from 'retend/context';
 
 /**
  * @template T
@@ -43,8 +44,9 @@ export function createSharedHook(options) {
     }
 
     useSetupEffect(() => {
-      const { window } = getGlobalContext();
-      if (!matchContext(window, Modes.Interactive)) return;
+      const renderer = getActiveRenderer();
+      if (!(renderer instanceof DOMRenderer)) return;
+      const { host: window } = renderer;
 
       if (data.count === 0) setup(data, window);
       data.count++;

@@ -1,7 +1,5 @@
 /** @import { Router } from 'retend/router' */
-/** @import { VWindow } from 'retend/v-dom' */
 /** @import { AsyncLocalStorage } from 'node:async_hooks' */
-/** @import { RunnableDevEnvironment } from 'vite' */
 
 /**
  * @typedef RouterModule
@@ -15,8 +13,6 @@
 /**
  * @typedef {Object} ServerContext
  * @property {string} path
- * @property {string} rootSelector
- * @property {Record<string, unknown>} shell
  * @property {Record<string, unknown>} consistentValues
  */
 
@@ -24,10 +20,12 @@
  * @typedef {Object} BuildOptions
  * @property {string} [htmlShell]
  * @property {string} [rootSelector]
- * @property {RunnableDevEnvironment} ssg
  * @property {boolean} [skipRedirects]
- * @property {string} routerModulePath
  * @property {AsyncLocalStorage<AsyncStorage>} asyncLocalStorage
+ * @property {typeof import('retend')} retendModule
+ * @property {{ createRouter: () => Router }} routerModule
+ * @property {typeof import('retend/router')} retendRouterModule
+ * @property {typeof import('./v-dom/index.js')} vdomModule
  */
 
 /**
@@ -43,12 +41,10 @@
 
 /**
  * @typedef {Object} AsyncStorage
- * @property {VWindow} window
  * @property {string} path
  * @property {{ value: number }} teleportIdCounter
  * @property {Map<string, unknown>} consistentValues
  * @property {Map<string, any>} globalData
- * @property {Set<string>} cssImports
  */
 
 /**
@@ -59,8 +55,7 @@
  * @property {string} rootSelector
  * @property {typeof import('retend')} retendModule
  * @property {{ createRouter: () => Router }} routerModule
- * @property {typeof import('retend/render')} retendRenderModule
- * @property {typeof import('retend/v-dom')} retendVDomModule
  * @property {typeof import('retend/router')} retendRouterModule
+ * @property {typeof import('./v-dom/index.js')} vdomModule
  * @property {boolean} skipRedirects
  */

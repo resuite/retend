@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext } from 'retend/context';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 import {
-  createWebRouter,
+  createRouterRoot,
+  Router,
   defineRoutes,
   Link,
   Outlet,
@@ -13,8 +15,9 @@ describe('Router Direct Imports', () => {
   vDomSetup();
 
   it('should work with directly imported Link component', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
@@ -39,8 +42,9 @@ describe('Router Direct Imports', () => {
   });
 
   it('should work with directly imported Outlet component', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
       ]),
@@ -61,8 +65,9 @@ describe('Router Direct Imports', () => {
   });
 
   it('should maintain backward compatibility with router instance methods', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         { path: '/', name: 'home', component: () => 'Home' },
         { path: '/about', name: 'about', component: () => 'About' },
@@ -91,7 +96,8 @@ describe('Router Direct Imports', () => {
   });
 
   it('should render components using direct imports in a real routing scenario', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const HomeComponent = () => {
       return (
@@ -123,7 +129,7 @@ describe('Router Direct Imports', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/',
@@ -137,7 +143,7 @@ describe('Router Direct Imports', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     // Navigate to home
     await router.navigate('/');

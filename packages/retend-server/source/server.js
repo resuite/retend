@@ -1,5 +1,4 @@
-/** @import { VElement, VNode, VWindow } from 'retend/v-dom' */
-/** @import { Router } from 'retend/router' */
+/** @import { VNode } from './v-dom/index.js' */
 /** @import {
  *    BuildOptions,
  *    ServerContext,
@@ -7,12 +6,14 @@
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
+/** @import { VWindow, VDOMRenderer } from './v-dom/index.js'; */
 
 import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
 import { parseDocument } from 'htmlparser2';
 import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
+import { renderToString } from './render-to-string.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -20,14 +21,12 @@ export class HtmlOutputArtifact extends OutputArtifact {
    * @param {string} name
    * @param {VWindow} contents
    * @param {() => Promise<string>} stringify
-   * @param {Set<string>} cssImports
    */
-  constructor(name, contents, stringify, cssImports) {
+  constructor(name, contents, stringify) {
     super();
     this.name = name;
     this.contents = contents;
     this.stringify = stringify;
-    this.cssImports = cssImports;
   }
 }
 
@@ -54,41 +53,11 @@ export async function buildPath(path, options) {
     rootSelector = '#app',
     skipRedirects = false,
     asyncLocalStorage,
-    ssg,
-    routerModulePath,
+    routerModule,
+    retendModule,
+    vdomModule,
+    retendRouterModule,
   } = options;
-
-  const { runner } = ssg;
-  const routerModule = /** @type {{ createRouter: () => Router }} */ (
-    await runner.import(resolve(routerModulePath))
-  );
-
-  const retendModule = /** @type {typeof import('retend')} */ (
-    await runner.evaluator.runExternalModule(import.meta.resolve('retend'))
-  );
-
-  const retendRouterModule = /** @type {typeof import('retend/router')} */ (
-    await runner.evaluator.runExternalModule(
-      import.meta.resolve('retend/router')
-    )
-  );
-
-  const retendRenderModule = /** @type {typeof import('retend/render')} */ (
-    await runner.evaluator.runExternalModule(
-      import.meta.resolve('retend/render')
-    )
-  );
-  const retendVDomModule = /** @type {typeof import('retend/v-dom')} */ (
-    await runner.evaluator.runExternalModule(
-      import.meta.resolve('retend/v-dom')
-    )
-  );
-
-  if (routerModule.createRouter === undefined) {
-    throw new Error(
-      'The router module must export a createRouter function. Please add export function createRouter() { return createWebRouter({ ... }); } to your router module.'
-    );
-  }
 
   /** @type {RenderOptions} */
   const renderOptions = {
@@ -98,10 +67,9 @@ export async function buildPath(path, options) {
     rootSelector,
     routerModule,
     retendModule,
-    retendRenderModule,
-    retendVDomModule,
     retendRouterModule,
     skipRedirects,
+    vdomModule,
   };
 
   return renderPath(renderOptions);
@@ -119,29 +87,28 @@ async function renderPath(options) {
     rootSelector,
     retendModule,
     routerModule,
-    retendRenderModule,
     retendRouterModule,
-    retendVDomModule,
     skipRedirects,
+    vdomModule,
   } = options;
 
   const { getConsistentValues } = retendModule;
-  const { renderToString } = retendRenderModule;
-  const { VElement, VWindow } = retendVDomModule;
 
-  const window = buildWindowFromHtmlText(htmlShell, VWindow);
+  const window = buildWindowFromHtmlText(htmlShell, vdomModule.VWindow);
+  const renderer = new vdomModule.VDOMRenderer(window, {
+    markDynamicNodes: true,
+  });
+
   const teleportIdCounter = { value: 0 };
   const consistentValues = new Map();
   const globalData = new Map();
-  const cssImports = new Set();
   globalData.set('env:ssr', true);
+  retendModule.setActiveRenderer(renderer, globalData);
   const globalContextStore = {
-    window,
     path,
     teleportIdCounter,
     consistentValues,
     globalData,
-    cssImports,
   };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
@@ -150,14 +117,17 @@ async function renderPath(options) {
     const store = asyncLocalStorage.getStore();
     if (!store) throw new Error('No store found');
 
-    const { path, window } = store;
-    const shell = vNodeToObject(window.document.documentElement, VElement);
+    const { path } = store;
+    /** @type {VDOMRenderer} */ // @ts-expect-error
+    const renderer = retendModule.getActiveRenderer();
+    const { host: window } = renderer;
 
     const { document, location } = window;
     location.href = path;
 
     const router = routerModule.createRouter();
     const currentRoute = router.getCurrentRoute();
+    // @ts-expect-error: window is mocked by vdom.
     router.attachWindowListeners(window);
 
     addMetaListener(router, document);
@@ -178,12 +148,6 @@ async function renderPath(options) {
         ?.replaceChildren(document.createTextNode(pageTitle));
     }
 
-    document.head.append(
-      document.createMarkupNode(
-        '<style>retend-router-outlet,retend-router-relay,retend-teleport{display: contents;}</style>'
-      )
-    );
-
     await document.mountAllTeleports();
 
     // The server context can restore useful information about
@@ -192,8 +156,6 @@ async function renderPath(options) {
     /** @type {ServerContext} */
     const ctx = {
       path,
-      rootSelector,
-      shell,
       consistentValues,
     };
     const payload = JSON.stringify(ctx);
@@ -207,19 +169,21 @@ async function renderPath(options) {
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
 
     const stringify = async () => {
-      const options = { markStaticNodes: true };
-      const htmlContents = await renderToString(document, window, options);
+      const htmlContents = await renderToString(document, window);
       const contents = `<!DOCTYPE html>${htmlContents}`;
       window.close(); // destroys timeouts and intervals.
       return contents;
     };
 
-    outputs.push(new HtmlOutputArtifact(name, window, stringify, cssImports));
+    outputs.push(new HtmlOutputArtifact(name, window, stringify));
     if (path === finalPath || skipRedirects) return;
 
     // Add redirect to both HTML and _redirects file
     const redirectContent = generateRedirectHtmlContent(finalPath);
-    const redirectWindow = buildWindowFromHtmlText(redirectContent, VWindow);
+    const redirectWindow = buildWindowFromHtmlText(
+      redirectContent,
+      vdomModule.VWindow
+    );
 
     // Create redirect entry for _redirects file
     const redirectEntry = `${path} ${finalPath} 301`;
@@ -239,11 +203,8 @@ async function renderPath(options) {
     }
 
     outputs.push(
-      new HtmlOutputArtifact(
-        redirectFileName,
-        redirectWindow,
-        () => Promise.resolve(redirectContent),
-        cssImports
+      new HtmlOutputArtifact(redirectFileName, redirectWindow, () =>
+        Promise.resolve(redirectContent)
       )
     );
   });
@@ -299,32 +260,6 @@ function createVNodeFromParsedNode(node, window) {
   }
   if (node instanceof Comment) return document.createComment(node.data);
   return window.document.createMarkupNode(String(node));
-}
-
-/**
- * @param {VNode} node
- * @param {typeof VElement} VElement
- * @returns {Record<string, unknown>}
- */
-function vNodeToObject(node, VElement) {
-  /** @type {Record<string, unknown>} */
-  const object = { type: node.nodeType };
-  if (node instanceof VElement) {
-    object.tag = node.tagName;
-    const attrs = node.attributes;
-    object.attrs = attrs.length
-      ? attrs.reduce((acc, attr) => {
-          acc[attr.name] = attr.value;
-          return acc;
-        }, /** @type {Record<string, string>} */ ({}))
-      : undefined;
-    if (node.childNodes.length) {
-      object.nodes = node.childNodes.map((node) =>
-        vNodeToObject(node, VElement)
-      );
-    }
-  } else object.text = node.textContent ?? '';
-  return object;
 }
 
 /**

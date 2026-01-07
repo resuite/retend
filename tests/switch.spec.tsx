@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { Cell } from 'retend';
-import { Switch, If } from 'retend';
-import { type NodeLike, getGlobalContext } from 'retend/context';
-import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
-import type { VElement, VNode } from 'retend/v-dom';
+import { Cell, If, Switch, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import type { VElement, VNode } from 'retend-server/v-dom';
+import { describe, expect, it } from 'vitest';
+import {
+  browserSetup,
+  getTextContent,
+  vDomSetup,
+  type NodeLike,
+} from './setup.tsx';
 
 const runTests = () => {
   it('should render matching case', () => {
@@ -16,7 +20,8 @@ const runTests = () => {
   });
 
   it('should handle Cell values', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const value = Cell.source('A');
     const result = (
       <div id="test-node">
@@ -149,7 +154,8 @@ const runTests = () => {
   });
 
   it('should not maintain element identity across updates', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const value = Cell.source('A');
     const result = (
       <div>

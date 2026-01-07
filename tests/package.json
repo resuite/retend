@@ -8,10 +8,12 @@
   },
   "peerDependencies": {
     "retend": "*",
-    "retend-utils": "*"
+    "retend-utils": "*",
+    "retend-server": "*",
+    "retend-web": "*"
   },
   "devDependencies": {
     "@vitest/browser": "^3.2.4",
-    "playwright": "^1.48.0"
+    "playwright": "^1.57.0"
   }
 }

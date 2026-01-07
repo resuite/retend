@@ -1,10 +1,8 @@
 /** @import { SourceCell } from 'retend' */
-/** @import { GlobalContextChangeEvent } from 'retend/context' */
-import { Cell } from 'retend';
-import { getGlobalContext, matchContext, Modes } from 'retend/context';
+import { Cell, getActiveRenderer } from 'retend';
+import { getGlobalContext } from 'retend/context';
 
 const RUNNING_TIMERS_KEY = 'hooks:useLiveDate:timers';
-const TRANSFER_SCHEDULED_KEY = 'hooks:useLiveDate:transferScheduled';
 
 /**
  *
@@ -30,7 +28,10 @@ const TRANSFER_SCHEDULED_KEY = 'hooks:useLiveDate:transferScheduled';
  * }
  */
 export function useLiveDate(interval = 1000) {
-  const { window, globalData } = getGlobalContext();
+  const { globalData } = getGlobalContext();
+  /** @type {{ host: Window }} */
+  const renderer = getActiveRenderer();
+  const { host: window } = renderer;
 
   /** @type {Map<number, SourceCell<Date>>} */
   let runningTimers = globalData.get(RUNNING_TIMERS_KEY);
@@ -46,28 +47,6 @@ export function useLiveDate(interval = 1000) {
       now.set(new Date());
     }, interval);
     runningTimers.set(interval, now);
-
-    if (matchContext(window, Modes.VDom)) {
-      const transferScheduled = globalData.get(TRANSFER_SCHEDULED_KEY);
-      if (transferScheduled) return now;
-
-      /** @param {GlobalContextChangeEvent} event */
-      const transferTimers = (event) => {
-        const { newContext } = event.detail;
-        if (
-          newContext?.window &&
-          matchContext(newContext.window, Modes.Interactive)
-        ) {
-          newContext.globalData.set(RUNNING_TIMERS_KEY, runningTimers);
-          // @ts-ignore: Custom events are not properly typed in JS.
-          window.removeEventListener('globalcontextchange', transferTimers);
-        }
-      };
-
-      // @ts-ignore: Custom events are not properly typed in JS.
-      window.addEventListener('globalcontextchange', transferTimers);
-      globalData.set(TRANSFER_SCHEDULED_KEY, true);
-    }
   }
 
   return now;

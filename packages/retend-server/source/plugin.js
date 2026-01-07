@@ -1,17 +1,16 @@
-/** @import { Plugin, UserConfig, ResolvedConfig, RunnableDevEnvironmentContext, RunnableDevEnvironment } from 'vite' */
+/** @import { Plugin, UserConfig, ResolvedConfig, RunnableDevEnvironmentContext } from 'vite' */
 // /** @import { EmittedFile } from 'rollup' */
-/** @import { VElement } from 'retend/v-dom' */
+/** @import { VElement } from './v-dom/index.js' */
 /** @import { AsyncStorage } from './types.js' */
-// /** @import { Router } from 'retend/router' */
+/** @import { Router } from 'retend/router' */
 
 import {
   buildPath,
   HtmlOutputArtifact,
   RedirectOutputArtifact,
 } from './server.js';
-import path from 'node:path';
+import path, { resolve } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { Modes, setGlobalContext } from 'retend/context';
 import { resolveConfig, createRunnableDevEnvironment } from 'vite';
 
 /**
@@ -25,12 +24,6 @@ import { resolveConfig, createRunnableDevEnvironment } from 'vite';
  */
 
 /**
- * @typedef {RunnableDevEnvironment & {
- *  runner: { [asyncLocalStorageSymbol]?: AsyncLocalStorage<AsyncStorage> }
- * }} SSGEnvironment
- */
-
-/**
  * @typedef {object} PluginOptions
  * @property {string[]} pages
  * An array of routes to generate static HTML files for (e.g., ['/', '/about']).
@@ -39,21 +32,25 @@ import { resolveConfig, createRunnableDevEnvironment } from 'vite';
  * The path to the module exporting the `createRouter` function.
  * It should look like this:
  * ```js
- * import { createWebRouter } from 'retend/router';
+ * import { Router } from 'retend/router';
  *
  * export function createRouter() {
- *   return createWebRouter({ routes: [...] });
+ *   return new Router({ routes: [...] });
  * }
  * ```
  *
  * @property {string} [rootSelector]
  * The CSS selector for the root element. Defaults to '#app'.
+ *
+ * @property {boolean} [inlineEnvironmentImports]
+ * Changes the import mode in SSR from `ModuleRunner.evaluator.runExternalModule`
+ * to `ModuleRunner.import(..)`
  */
 
 /**
  * A Vite plugin that generates static HTML files for `retend` applications after the Vite build.
  * @param {PluginOptions} options - Configuration options for the plugin.
- * @returns {Plugin[]} A Vite plugin object.
+ * @returns {Plugin} A Vite plugin object.
  */
 export function retendSSG(options) {
   /** @type {SharedData} */
@@ -65,17 +62,15 @@ export function retendSSG(options) {
     resolvedConfig: null,
   };
 
-  return [...staticBuildPlugins(sharedData)];
+  return staticBuildPlugin(sharedData);
 }
-
-const asyncLocalStorageSymbol = Symbol('asyncLocalStorage');
 
 /**
  *
  * @param {SharedData} sharedData
- * @returns {Plugin[]}
+ * @returns {Plugin}
  */
-function staticBuildPlugins(sharedData) {
+function staticBuildPlugin(sharedData) {
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputArtifacts = [];
   /** @type {any[]} */
@@ -95,202 +90,201 @@ function staticBuildPlugins(sharedData) {
     throw new Error('The `routerPath` option must be a string.');
   }
 
-  return [
-    {
-      name: 'vite-plugin-retend-server-post-build',
-      apply: 'build',
-      enforce: 'post',
+  return {
+    name: 'vite-plugin-retend-server-post-build',
+    apply: 'build',
+    enforce: 'post',
 
-      applyToEnvironment(env) {
-        // Only apply in the client build.
-        return env.name === 'client';
-      },
+    applyToEnvironment(env) {
+      // Only apply in the client build.
+      return env.name === 'client';
+    },
 
-      async config(config_) {
-        sharedData.ssgEnvironmentConfig = {
-          ...config_,
-          dev: {
-            ...config_.dev,
-            moduleRunnerTransform: true,
-          },
-          server: {
-            ...config_.server,
-            middlewareMode: true,
-            perEnvironmentStartEndDuringDev: true,
-          },
-          ssr: { ...config_.ssr, target: 'node' },
-          appType: 'custom',
-          optimizeDeps: {
-            exclude: ['retend'],
-          },
-          environments: {
-            retend_ssg: {},
-          },
-          // It is expected that all the expected functionality, be it transformations or rewrites,
-          // would be handled by the main build process and cached. Having the plugins run again leads
-          // to problems, as they would attempt to transform already transformed code.
-          plugins: [],
-        };
-      },
+    async config(config_) {
+      sharedData.ssgEnvironmentConfig = {
+        ...config_,
+        dev: {
+          ...config_.dev,
+          moduleRunnerTransform: true,
+        },
+        resolve: {
+          ...config_.resolve,
+          dedupe: ['retend', 'retend-web', 'retend-server', 'retend-utils'],
+        },
+        server: {
+          ...config_.server,
+          middlewareMode: true,
+          perEnvironmentStartEndDuringDev: true,
+        },
+        ssr: {
+          ...config_.ssr,
+          target: 'node',
+          noExternal: [/retend.*/, /@adbl\/cells/],
+        },
+        appType: 'custom',
+        optimizeDeps: {
+          exclude: ['retend', 'retend-web', 'retend-server', 'retend-utils'],
+        },
+        environments: {
+          retend_ssg: {},
+        },
+        // It is expected that all the expected functionality, be it transformations or rewrites,
+        // would be handled by the main build process and cached. Having the plugins run again leads
+        // to problems, as they would attempt to transform already transformed code.
+        plugins: [],
+      };
+    },
 
-      async configResolved(config) {
-        sharedData.resolvedConfig = config;
-      },
+    async configResolved(config) {
+      sharedData.resolvedConfig = config;
+    },
 
-      augmentChunkHash({ modules, viteMetadata }) {
-        const paths = Object.keys(modules).filter((id) => id.endsWith('.css'));
-        const builtPaths = viteMetadata?.importedCss;
-        if (!builtPaths) return;
+    augmentChunkHash({ modules, viteMetadata }) {
+      const paths = Object.keys(modules).filter((id) => id.endsWith('.css'));
+      const builtPaths = viteMetadata?.importedCss;
+      if (!builtPaths) return;
 
-        for (const source of paths) {
-          const outputChunkSet = cssDeps[source] || new Set();
-          for (const value of builtPaths.values()) {
-            outputChunkSet.add(value);
-          }
-          cssDeps[source] = outputChunkSet;
+      for (const source of paths) {
+        const outputChunkSet = cssDeps[source] || new Set();
+        for (const value of builtPaths.values()) {
+          outputChunkSet.add(value);
         }
-      },
+        cssDeps[source] = outputChunkSet;
+      }
+    },
 
-      async transformIndexHtml(htmlShell, ctx) {
-        let transformedHtml = htmlShell;
-        if (!ctx.bundle) {
-          console.error('Could not find output bundle context at build time.');
-          return transformedHtml;
-        }
+    async transformIndexHtml(htmlShell, ctx) {
+      let transformedHtml = htmlShell;
+      if (!ctx.bundle) {
+        console.error('Could not find output bundle context at build time.');
+        return transformedHtml;
+      }
 
-        // Clear previous artifacts and emissions for this build
-        outputArtifacts.length = 0;
-        outputFileEmissions.length = 0;
+      // Clear previous artifacts and emissions for this build
+      outputArtifacts.length = 0;
+      outputFileEmissions.length = 0;
 
-        await defineSharedGlobalContext(sharedData);
-        const {
-          options: { routerModulePath, rootSelector },
+      const {
+        options: { routerModulePath, rootSelector },
+        asyncLocalStorage,
+        ssgEnvironmentConfig,
+      } = sharedData;
+      if (!ssgEnvironmentConfig) throw new Error('No resolved config found');
+
+      /** @type {RunnableDevEnvironmentContext} */
+      const envCtx = {
+        hot: false,
+        runnerOptions: {
+          hmr: {
+            logger: false,
+          },
+        },
+      };
+
+      const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
+      const environment = createRunnableDevEnvironment(
+        'retend_ssg',
+        config,
+        envCtx
+      );
+      await environment.init();
+      await environment.pluginContainer.buildStart();
+      const { runner } = environment;
+
+      const evaluate = sharedData.options.inlineEnvironmentImports
+        ? runner.import.bind(runner)
+        : runner.evaluator.runExternalModule.bind(runner.evaluator);
+
+      const vdomModule = await evaluate('retend-server/v-dom');
+      const retendRouterModule = await evaluate('retend/router');
+      const ctxModule = await evaluate('retend/context');
+      const retendModule = await evaluate('retend');
+      /** @type {{ createRouter: () => Router }} */
+      const routerModule = await runner.import(resolve(routerModulePath));
+
+      if (routerModule.createRouter === undefined) {
+        throw new Error(
+          'The router module must export a createRouter function. Please add export function createRouter() { return new Router({ ... }); } to your router module.'
+        );
+      }
+      await defineSharedGlobalContext(sharedData, ctxModule.setGlobalContext);
+
+      const buildingPages = [];
+
+      for (const page of pages) {
+        const buildOptions = {
+          rootSelector,
+          htmlShell,
           asyncLocalStorage,
-          ssgEnvironmentConfig,
-        } = sharedData;
-        if (!ssgEnvironmentConfig) throw new Error('No resolved config found');
-
-        /** @type {RunnableDevEnvironmentContext} */
-        const envCtx = {
-          hot: false,
-          runnerOptions: {
-            hmr: {
-              logger: false,
-            },
-          },
+          routerModulePath,
+          ssg: environment,
+          retendModule,
+          vdomModule,
+          retendRouterModule,
+          routerModule,
         };
 
-        const config = await resolveConfig(ssgEnvironmentConfig, 'serve');
-        const environments = [];
-
-        console.log('\n');
-        const buildingPages = [];
-        for (const page of pages) {
-          console.log('Building page:', page);
-          const environment = /** @type {SSGEnvironment} */ (
-            createRunnableDevEnvironment('retend_ssg', config, envCtx)
-          );
-          environments.push(environment);
-          const buildOptions = {
-            rootSelector,
-            htmlShell,
-            asyncLocalStorage,
-            routerModulePath,
-            ssg: environment,
-          };
-          environment.runner[asyncLocalStorageSymbol] = asyncLocalStorage;
-
-          buildingPages.push(
-            environment
-              .init()
-              .then(() => environment.pluginContainer.buildStart())
-              .then(() => buildPath(page, buildOptions))
-              .then((artifacts) => {
-                outputArtifacts.push(...artifacts);
-              })
-          );
-        }
-        await Promise.all(buildingPages);
-
-        // Create source to dist map for asset rewriting
-        const sourceDistMap = new Map();
-        for (const obj of Object.values(ctx.bundle)) {
-          if ('originalFileNames' in obj && obj.originalFileNames.length) {
-            sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
-          }
-        }
-
-        // Process artifacts and prepare file emissions
-        const redirectLines = [];
-        const promises = [];
-        for (const artifact of outputArtifacts) {
-          if (artifact instanceof RedirectOutputArtifact) {
-            redirectLines.push(artifact.contents);
-            continue;
-          }
-
-          const { name: fileName } = artifact;
-          promises.push(
-            stringifyArtifact(artifact, sourceDistMap, cssDeps).then(
-              (source) => {
-                if (fileName === 'index.html') transformedHtml = source;
-                else {
-                  outputFileEmissions.push({ type: 'asset', fileName, source });
-                }
-              }
-            )
-          );
-        }
-
-        if (redirectLines.length > 0) {
-          outputFileEmissions.push({
-            type: 'asset',
-            fileName: '_redirects',
-            source: redirectLines.join('\n'),
-          });
-        }
-
-        await Promise.all(promises);
-        await Promise.all(
-          environments.map(async (environment) => {
-            await environment.close();
+        buildingPages.push(
+          buildPath(page, buildOptions).then((artifacts) => {
+            outputArtifacts.push(...artifacts);
           })
         );
-        return transformedHtml;
-      },
+      }
+      await Promise.all(buildingPages);
+      const cssImports = [
+        ...runner.evaluatedModules.idToModuleMap.keys(),
+      ].filter((id) => id.endsWith('.css'));
 
-      async generateBundle() {
-        // Emit all files that were prepared in transformIndexHtml
-        for (const fileEmit of outputFileEmissions) {
-          this.emitFile(fileEmit);
+      // Create source to dist map for asset rewriting
+      const sourceDistMap = new Map();
+      for (const obj of Object.values(ctx.bundle)) {
+        if ('originalFileNames' in obj && obj.originalFileNames.length) {
+          sourceDistMap.set(path.resolve(obj.originalFileNames[0]), obj);
         }
-      },
-    },
-    {
-      name: 'vite-plugin-css-lazy-import-helper',
-      apply: 'serve',
-      enforce: 'pre',
+      }
 
-      applyToEnvironment(env) {
-        return env.name === 'retend_ssg';
-      },
+      // Process artifacts and prepare file emissions
+      const redirectLines = [];
+      const promises = [];
+      for (const artifact of outputArtifacts) {
+        if (artifact instanceof RedirectOutputArtifact) {
+          redirectLines.push(artifact.contents);
+          continue;
+        }
 
-      async resolveId(source, importer) {
-        if (!source.endsWith('.css')) return;
-        const { runner } = /** @type {SSGEnvironment} */ (this.environment);
-        const asyncLocalStorage = runner[asyncLocalStorageSymbol];
-        const absolutePath = await this.resolve(source, importer);
-        if (!asyncLocalStorage || !absolutePath) return;
-        // We need a way to access the exact route that
-        // is currently being generated, so we can determine where to track
-        // the (potentially lazy-loaded) CSS file and make it eager.
-        // This should be sharedData.asyncLocalStorage.getStore()
-        // instead, but for some reason its not treated as the same
-        // asyncLocalStorage instance.
-        asyncLocalStorage.getStore()?.cssImports.add(absolutePath.id);
-      },
+        const { name: fileName } = artifact;
+        promises.push(
+          stringifyArtifact(artifact, sourceDistMap, cssDeps, cssImports).then(
+            (source) => {
+              if (fileName === 'index.html') transformedHtml = source;
+              else {
+                outputFileEmissions.push({ type: 'asset', fileName, source });
+              }
+            }
+          )
+        );
+      }
+
+      if (redirectLines.length > 0) {
+        outputFileEmissions.push({
+          type: 'asset',
+          fileName: '_redirects',
+          source: redirectLines.join('\n'),
+        });
+      }
+
+      await Promise.all(promises);
+      await environment.close();
+      return transformedHtml;
     },
-  ];
+
+    async generateBundle() {
+      // Emit all files that were prepared in transformIndexHtml
+      for (const fileEmit of outputFileEmissions) {
+        this.emitFile(fileEmit);
+      }
+    },
+  };
 }
 
 /**
@@ -298,10 +292,16 @@ function staticBuildPlugins(sharedData) {
  * @param {HtmlOutputArtifact} artifact
  * @param {Map<string, { fileName: string }>} assetSourceToDistMap
  * @param {Record<string, Set<string>>} cssDeps
+ * @param {string[]} cssImports
  * @returns {Promise<string>}
  */
-async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
-  const { contents, stringify, cssImports } = artifact;
+async function stringifyArtifact(
+  artifact,
+  assetSourceToDistMap,
+  cssDeps,
+  cssImports
+) {
+  const { contents, stringify } = artifact;
   const { document } = contents;
   // Rewrite asset references
   document.findNodes((node) => {
@@ -356,17 +356,12 @@ async function stringifyArtifact(artifact, assetSourceToDistMap, cssDeps) {
  * Sets the global context retriever for the current build or
  * SSR environment.
  * @param {SharedData} sharedData
+ * @param {Function} setGlobalContext
  */
-async function defineSharedGlobalContext(sharedData) {
+async function defineSharedGlobalContext(sharedData, setGlobalContext) {
   const { asyncLocalStorage } = sharedData;
 
   const context = {
-    mode: Modes.VDom,
-    get window() {
-      const store = asyncLocalStorage.getStore();
-      if (!store) throw new Error('No store found');
-      return store.window;
-    },
     get teleportIdCounter() {
       const store = asyncLocalStorage.getStore();
       if (!store) throw new Error('No store found');

@@ -1,5 +1,6 @@
 {
   "author": "Adebola Akomolafe",
+  "version": "0.0.23",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adebola-io/retend.git"
@@ -15,8 +16,9 @@
     "test": "cd ./tests && bunx vitest run",
     "test:watch": "cd ./tests && vitest",
     "test:ci": "cd ./tests && vitest run --reporter=verbose",
-    "build": "bun build-core && bun build-ssg && bun build-utils",
+    "build": "bun build-core && bun build-web && bun build-ssg && bun build-utils",
     "build-core": "cd packages/retend && bun run build",
+    "build-web": "cd packages/retend-web && bun run build",
     "build-ssg": "cd packages/retend-server && bun run build",
     "build-utils": "cd packages/retend-utils && bun run build",
     "publish-core": "cd packages/retend && bun run build && bun publish",
@@ -25,16 +27,14 @@
     "publish-utils": "cd packages/retend-utils && bun run build && bun publish",
     "publish-all": "bun run publish-core && bun run publish-ssg && bun run publish-start && bun run publish-utils",
     "pack-all": "chmod +x ./scripts/pack.sh && ./scripts/pack.sh",
-    "previews": "cp README.md packages/retend/README.md && bunx pkg-pr-new publish './packages/retend' './packages/retend-server' './packages/retend-start' './packages/retend-utils'"
+    "previews": "cp README.md packages/retend/README.md && bunx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-server' './packages/retend-start' './packages/retend-utils'"
   },
   "workspaces": [
     "packages/retend",
     "packages/retend-server",
     "packages/retend-start",
     "packages/retend-utils",
-    "examples/utils-testing",
-    "examples/hmr-test",
-    "examples/unique-test",
+    "packages/retend-web",
     "tests"
   ]
 }

@@ -1,11 +1,11 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import * as VDom from '../v-dom/index.js' */
-/** @import { ReactiveCellFunction } from './utils.js' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
-import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
+import { ArgumentList } from './utils.js';
+import { getActiveRenderer } from './renderer.js';
+import { IgnoredHProps } from '../_internals.js';
 
 /**
  * @template T
@@ -37,7 +37,6 @@ import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
  *   false: () => <div>Please log in.</div>
  * });
  *
- * // Add the result to the DOM
  * document.body.append(...message);
  *
  * // Later, when the user logs in, update the cell
@@ -45,24 +44,40 @@ import { addCellListener, ArgumentList, createCommentPair } from './utils.js';
  * // The welcome message will now be displayed
  */
 export function If(value, fnOrObject, elseFn) {
+  const renderer = getActiveRenderer();
   if (!Cell.isCell(value)) {
     if (typeof fnOrObject === 'function') {
       if (value) {
-        return h(fnOrObject, new ArgumentList([value]));
+        return h(
+          fnOrObject,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
       }
       if (elseFn) {
-        return h(elseFn, new ArgumentList([]));
+        return h(elseFn, new ArgumentList([]), ...IgnoredHProps, renderer);
       }
       return;
     }
 
     if (typeof fnOrObject === 'object') {
       if (value && 'true' in fnOrObject) {
-        return h(fnOrObject.true, new ArgumentList([value]));
+        return h(
+          fnOrObject.true,
+          new ArgumentList([value]),
+          ...IgnoredHProps,
+          renderer
+        );
       }
 
       if (!value && 'false' in fnOrObject) {
-        return h(fnOrObject.false, new ArgumentList([]));
+        return h(
+          fnOrObject.false,
+          new ArgumentList([]),
+          ...IgnoredHProps,
+          renderer
+        );
       }
     }
 
@@ -72,60 +87,73 @@ export function If(value, fnOrObject, elseFn) {
     return;
   }
 
-  const [rangeStart, rangeEnd] = createCommentPair();
   const scopeSnapshot = createScopeSnapshot();
 
-  /** @type {ReactiveCellFunction<T, typeof rangeStart, (Node | VDom.VNode)[]>} */
-  const callback = function (_value) {
-    scopeSnapshot.node.dispose(); // cleanup previous effects
-    const results = withScopeSnapshot(scopeSnapshot, () => {
-      /** @type {(Node | VDom.VNode)[]} */
-      let nodes = [];
-      let nextNode = this.nextSibling;
-      while (
-        nextNode &&
-        !(
-          '__commentRangeSymbol' in nextNode &&
-          nextNode.__commentRangeSymbol === this.__commentRangeSymbol
-        )
-      ) {
-        nextNode.remove();
-        nextNode = this.nextSibling;
-      }
-
+  /** @param {T} _value */
+  const callback = (_value) => {
+    return withScopeSnapshot(scopeSnapshot, () => {
       if (typeof fnOrObject === 'function') {
         if (_value) {
-          const newNodes = h(fnOrObject, new ArgumentList([_value]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else if (elseFn) {
-          const newNodes = h(elseFn, new ArgumentList([]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else {
-          nodes = [];
+          const newNodes = h(
+            fnOrObject,
+            new ArgumentList([_value]),
+            ...IgnoredHProps,
+            renderer
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
-      } else if (typeof fnOrObject === 'object') {
+        if (elseFn) {
+          const newNodes = h(
+            elseFn,
+            new ArgumentList([]),
+            ...IgnoredHProps,
+            renderer
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+        return [];
+      }
+
+      if (typeof fnOrObject === 'object') {
         if (_value && 'true' in fnOrObject) {
-          const newNodes = h(fnOrObject.true, new ArgumentList([_value]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else if (!_value && 'false' in fnOrObject) {
-          const newNodes = h(fnOrObject.false, new ArgumentList([]));
-          nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-        } else {
-          nodes = [];
+          const newNodes = h(
+            fnOrObject.true,
+            new ArgumentList([_value]),
+            ...IgnoredHProps,
+            renderer
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
-      } else
-        console.error(
-          'If expects a callback or condition object as the second argument.'
-        );
-      this.after(.../** @type {*} */ (nodes));
-      return nodes;
+
+        if (!_value && 'false' in fnOrObject) {
+          const newNodes = h(
+            fnOrObject.false,
+            new ArgumentList([]),
+            ...IgnoredHProps,
+            renderer
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        return [];
+      }
+      console.error(
+        'If expects a callback or condition object as the second argument.'
+      );
+      return [];
     });
-    if (this.isConnected) scopeSnapshot.node.activate();
-    return results;
   };
 
-  // see comment in switch.js
-  const firstRun = callback.bind(rangeStart)(value.get());
-  addCellListener(rangeStart, value, callback, false);
-  return [rangeStart, ...firstRun, rangeEnd];
+  // It is important that the listener is registered first.
+  value.listen((nextValue) => {
+    scopeSnapshot.node.dispose();
+    const results = callback(nextValue);
+    renderer.write(handle, results);
+    scopeSnapshot.node.activate();
+  });
+
+  const initialResults = callback(value.get());
+  const group = renderer.createGroup(initialResults);
+  const handle = renderer.createGroupHandle(group);
+  return group;
 }

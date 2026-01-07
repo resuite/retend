@@ -3,8 +3,6 @@
 /** @import { RouterEventTypes, RouterEventHandlerMap } from './events.js'; */
 /** @import { MatchedRoute, MatchResult } from './routeTree.js'; */
 /** @import { RouterMiddleware, RouteData } from './middleware.js'; */
-/** @import { WindowLike } from '../context/index.js'; */
-/** @import { VNode } from '../v-dom/index.js'; */
 /** @import {
  *   NavigationOptions,
  *   RouterInternalState,
@@ -36,8 +34,8 @@ import {
 } from './events.js';
 import { constructURL, getFullPath } from './utils.js';
 import { RouterMiddlewareResponse } from './middleware.js';
-import { getGlobalContext } from '../context/index.js';
-import { writeStaticStyle } from '../library/utils.js';
+import { getActiveRenderer } from '../library/renderer.js';
+import { IgnoredHProps } from '../_internals.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -46,7 +44,7 @@ export * from './middleware.js';
 export * from './events.js';
 
 /** @type {Scope<RouterData>} */
-const RouterScope = createScope('Router');
+const RouterScope = createScope('retend:Router');
 
 // ----------
 /** A client-side router for building dynamic web applications.
@@ -58,7 +56,7 @@ const RouterScope = createScope('Router');
  * Basic Usage
  * ```tsx
  * // Create and configure the router
- * const router = createWebRouter({
+ * const router = new Router({
  *   routes: [
  *     { path: '/', component: Home },
  *     { path: '/about', component: About }
@@ -147,10 +145,12 @@ export class Router extends EventTarget {
    * @param {string[]} transitionTypes
    */
   async #startTransition(callback, transitionTypes) {
-    const { window } = getGlobalContext();
+    // TODO: This assumes that the current active renderer is DOMRenderer
+    const renderer = getActiveRenderer();
+    const window = /** @type {Window} */ (renderer.host);
     if (
       this.useViewTransitions &&
-      window?.document &&
+      'document' in window &&
       'startViewTransition' in window.document
     ) {
       const transition = window.document.startViewTransition(callback);
@@ -352,7 +352,7 @@ export class Router extends EventTarget {
     if (replace) return 'neutral';
 
     if (this.#stackMode) {
-      const previousIndex = this.#history.lastIndexOf(targetPath);
+      const previousIndex = this.#history.indexOf(targetPath);
       if (previousIndex !== -1 && previousIndex < this.#history.length - 1) {
         return 'backwards';
       }
@@ -377,7 +377,7 @@ export class Router extends EventTarget {
     }
 
     if (direction === 'backwards' && this.#stackMode) {
-      const targetIndex = this.#history.lastIndexOf(targetPath);
+      const targetIndex = this.#history.indexOf(targetPath);
       if (targetIndex !== -1) {
         this.#history = this.#history.slice(0, targetIndex + 1);
       }
@@ -624,14 +624,14 @@ export class Router extends EventTarget {
   /** @param {Event} event */
   #windowEventHandler = async (event) => {
     if (this.#isNavigating) return;
-    const window = /** @type {WindowLike} */ (event.currentTarget);
+    const window = /** @type {Window} */ (event.currentTarget);
     this.#isNavigating = true;
     const path = getFullPath(window);
     await this.#load({ rawPath: path, navigate: false });
     this.#isNavigating = false;
   };
 
-  /** @param {WindowLike} window */
+  /** @param {Window} window */
   attachWindowListeners = (window) => {
     const handleRoutePrevented = () => {
       window.history.replaceState({}, '', this.#lock);
@@ -725,11 +725,11 @@ export class Router extends EventTarget {
   }
 
   /** @param {RouterProviderProps} props */
-  static asProvider(props) {
-    const { router, children } = props;
+  asProvider(props) {
+    const { children } = props;
     const value = {
-      router,
-      internalState: router.#internalState,
+      router: this,
+      internalState: this.#internalState,
       depth: 0,
       metadata: new Map(),
     };
@@ -795,10 +795,10 @@ export function useCurrentRoute() {
  *
  * @example
  * ```tsx
- * import { createWebRouter, RouterProvider } from 'retend/router';
+ * import { Router, RouterProvider } from 'retend/router';
  *
  * // Create and configure your router instance
- * const router = createWebRouter({
+ * const router = new Router({
  *   routes: [
  *     { path: '/', component: Home },
  *     { path: '/about', component: About },
@@ -815,18 +815,7 @@ export function useCurrentRoute() {
  * ```
  */
 export function RouterProvider(props) {
-  return Router.asProvider(props);
-}
-
-/**
- * Creates a new web-based router instance with the provided route configurations.
- *
- * @param {RouterOptions} routerOptions - The options object for configuring the router.
- * @returns {Router} The created router instance.
- */
-export function createWebRouter(routerOptions) {
-  const router = new Router(routerOptions);
-  return router;
+  return props.router.asProvider(props);
 }
 
 /**
@@ -846,29 +835,29 @@ export function createWebRouter(routerOptions) {
  */
 export function Outlet(props) {
   const routerData = useScopeContext(RouterScope);
+  const renderer = getActiveRenderer();
   const { depth, internalState } = routerData;
-  const { children, ...attributes } = props || {};
+  const rawProps = props || {};
   const currentLevel = Cell.derived(() => {
     return internalState.routeChain.get()[depth];
   });
   const path = Cell.derived(() => currentLevel.get()?.path);
-  attributes['data-path'] = path;
-
-  writeStaticStyle(
-    'retend-outlet-style',
-    ':where(retend-outlet) { display: contents }'
-  );
-
-  // @ts-expect-error: Children is not defined on attributes
-  attributes.children = If(path, () => {
+  Reflect.set(rawProps, 'data-path', path);
+  rawProps.children = If(path, () => {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
       value: { ...routerData, depth: routerData.depth + 1 },
-      children: () => h(RenderFn, { metadata: internalState.metadata }),
+      children: () =>
+        h(
+          RenderFn,
+          { metadata: internalState.metadata },
+          ...IgnoredHProps,
+          renderer
+        ),
     });
   });
 
-  return h('retend-router-outlet', attributes);
+  return h('retend-router-outlet', rawProps, ...IgnoredHProps, renderer);
 }
 
 /**
@@ -891,13 +880,15 @@ export function Outlet(props) {
 export function Link(props = {}) {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
+  const renderer = getActiveRenderer();
+
   if (!('href' in props)) {
     console.error('missing to attribute for link component.');
   }
   if ('active' in props) {
     console.error('active attribute is reserved for router.');
   }
-  const { href: hrefProp, replace, children } = props;
+  const { href: hrefProp, replace } = props;
   const href = Cell.derived(() => {
     return Cell.isCell(hrefProp) ? hrefProp.get() : hrefProp;
   });
@@ -907,6 +898,7 @@ export function Link(props = {}) {
     return Boolean(fullPath && hrefValue && fullPath.startsWith(hrefValue));
   });
 
+  /** @param {Event} event */
   props.onClick = async (event) => {
     const anchor = /** @type {HTMLElement} */ (event.currentTarget);
     if (router.isNavigating) {
@@ -933,10 +925,9 @@ export function Link(props = {}) {
       anchor.dispatchEvent(afterEvent);
     }
   };
-  // @ts-expect-error: active is not an external prop.
   props.active = active;
 
-  return h('a', props, children);
+  return h('a', props, ...IgnoredHProps, renderer);
 }
 
 /**
@@ -967,10 +958,10 @@ export function defineRoute(route) {
  *
  * @example
  * ```tsx
- * import { createWebRouter, createRouterRoot } from 'retend/router';
+ * import { Router, createRouterRoot } from 'retend/router';
  * import { AppLayout } from './AppLayout';
  *
- * const router = createWebRouter({
+ * const router = new Router({
  *   routes: [
  *     { path: '/', component: Home },
  *     { path: '/about', component: About },
@@ -981,19 +972,14 @@ export function defineRoute(route) {
  * ```
  *
  * @param {Router} router - The router instance to be provided to the application.
- * @returns {Node & VNode} The root router component, typically an instance of `RouterProvider` wrapping an `Outlet`.
+ * @returns {any} The root router component, typically an instance of `RouterProvider` wrapping an `Outlet`.
  */
 export function createRouterRoot(router) {
-  /** @type {*} */
   const rootOutlet = RouterProvider({ router, children: Outlet });
   if (Array.isArray(rootOutlet)) {
-    const { window } = getGlobalContext();
-    /** @type {*} */
-    const fragment = window.document.createDocumentFragment();
-    for (const child of rootOutlet) {
-      fragment.append(child);
-    }
-    return fragment;
+    const renderer = getActiveRenderer();
+    const group = renderer.createGroup(rootOutlet);
+    return group;
   }
   return rootOutlet;
 }

@@ -2,9 +2,8 @@
 /** @import { SourceCell, ForOptions } from 'retend' */
 /** @import { JSX } from 'retend/jsx-runtime' */
 
-import { Cell, For, useObserver } from 'retend';
+import { Cell, For, getActiveRenderer } from 'retend';
 import { useDerivedValue } from '../hooks/use-derived-value.js';
-import { getGlobalContext } from 'retend/context';
 
 let stylesAdded = false;
 const FLUID_LIST_STYLES = `
@@ -192,9 +191,10 @@ export function FluidList(props) {
   // during SSR.
   if (!stylesAdded) {
     stylesAdded = true;
-    const { window } = getGlobalContext();
+    /** @type {{ host: Window }} */
+    const renderer = getActiveRenderer();
+    const { host: window } = renderer;
     const document = window.document;
-    /** @type {*} */
     const fluidStyles = document.createElement('style');
     fluidStyles.innerHTML = FLUID_LIST_STYLES;
     document.head.append(fluidStyles);
@@ -220,8 +220,6 @@ export function FluidList(props) {
   const manager = new AnimationSessionManager();
   const nextTranslate =
     'calc(var(--list-item-col) * var(--factor)) calc(var(--list-item-row) * var(--factor))';
-
-  const observer = useObserver();
   const direction = useDerivedValue(directionProp);
   const itemWidth = useDerivedValue(itemWidthProp);
   const itemHeight = useDerivedValue(itemHeightProp);
@@ -329,6 +327,7 @@ export function FluidList(props) {
    */
   const ItemRenderer = (item, idx) => {
     const previousIdx = Cell.source(idx.get());
+    /** @type {Cell<HTMLElement | null>} */
     const nodeRef = Cell.source(null);
 
     const listItemPreviousCol = Cell.derived(() =>
@@ -365,11 +364,11 @@ export function FluidList(props) {
       '--list-item-row': listItemRow,
     };
 
-    observer.onConnected(nodeRef, (itemNode) => {
+    nodeRef.listen((itemNode) => {
       const el = /** @type {AnimatedListElement} */ (itemNode);
       el._previousIndex = previousIdx;
       el._currentIndex = idx;
-    });
+    }, { once: true });
 
     return (
       <li ref={nodeRef} class="retendFluidListItem" style={styles}>
@@ -486,14 +485,8 @@ export function FluidList(props) {
 
   if (rest.style) Object.assign(style, rest.style);
 
-  observer.onConnected(ref, () => {
-    items.listen(beforeDomUpdates, { priority: 1 });
-    items.listen(afterDomUpdates, { priority: -1 });
-    return () => {
-      items.ignore(afterDomUpdates);
-      items.ignore(beforeDomUpdates);
-    };
-  });
+  items.listen(beforeDomUpdates, { priority: 1 });
+  items.listen(afterDomUpdates, { priority: -1 });
 
   return (
     <ul

@@ -14,9 +14,8 @@ export class Lazy {
     const imported = this.importer();
     if (imported instanceof Promise) {
       return (await imported).default;
-    } else {
-      return imported;
     }
+    return imported;
   }
 }
 

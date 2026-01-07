@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { combineScopes, createScope, useScopeContext } from 'retend';
-import { getGlobalContext, resetGlobalContext } from 'retend/context';
-import { createWebRouter, useRouter } from 'retend/router';
-import { routerSetup, getTextContent, routerRoot } from '../setup.tsx';
+import {
+  combineScopes,
+  createScope,
+  useScopeContext,
+  getActiveRenderer,
+} from 'retend';
+import { resetGlobalContext } from 'retend/context';
+import { createRouterRoot, Router, useRouter } from 'retend/router';
+import { routerSetup, getTextContent } from '../setup.tsx';
+import type { DOMRenderer } from 'retend-web';
 
 describe('Scopes in Routing', () => {
   beforeEach(() => {
@@ -14,7 +20,8 @@ describe('Scopes in Routing', () => {
   });
 
   it('should support a provider and caller in the same routing context', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     interface Data {
       name: string;
     }
@@ -32,7 +39,7 @@ describe('Scopes in Routing', () => {
       return <DataScope.Provider value={data} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'Home',
@@ -50,14 +57,15 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');
     expect(getTextContent(window.document.body)).toBe('Username is Sefunmi');
   });
 
   it('should support multiple providers in the same routing context', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     interface UserData {
       id: string;
       name: string;
@@ -102,7 +110,7 @@ describe('Scopes in Routing', () => {
       return <Scope.Provider value={combinedData} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'App',
@@ -120,7 +128,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/user');
     expect(getTextContent(window.document.body)).toContain(
@@ -132,7 +140,8 @@ describe('Scopes in Routing', () => {
   });
 
   it('should allow a grandchild route to consume a scope provided by a parent route across different outlets', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     interface ProfileData {
       username: string;
     }
@@ -160,7 +169,7 @@ describe('Scopes in Routing', () => {
       return <ProfileScope.Provider value={profile} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'Parent',
@@ -185,7 +194,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/child/grandchild');
     expect(getTextContent(window.document.body)).toContain(
@@ -194,7 +203,8 @@ describe('Scopes in Routing', () => {
   });
 
   it('should not leak scope between sibling routes when only one provides it', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     interface SessionData {
       token: string;
     }
@@ -222,7 +232,7 @@ describe('Scopes in Routing', () => {
       return <Outlet />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'App',
@@ -250,7 +260,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/protected');
     expect(getTextContent(window.document.body)).toBe('Token: abc123');
@@ -263,7 +273,8 @@ describe('Scopes in Routing', () => {
   });
 
   it('should reset scope when navigating between routes with and without provider', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     interface Data {
       name: string;
     }
@@ -283,7 +294,7 @@ describe('Scopes in Routing', () => {
       return <DataScope.Provider value={data} content={Outlet} />;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'Home',
@@ -306,7 +317,7 @@ describe('Scopes in Routing', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/content');
     expect(getTextContent(window.document.body)).toBe('Username is Sefunmi');

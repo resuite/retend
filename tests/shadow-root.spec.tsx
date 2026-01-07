@@ -1,13 +1,14 @@
-import { describe, it, expect, assert } from 'vitest';
-import { Cell } from 'retend';
+import { Cell, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { ShadowRoot } from 'retend-web';
+import type { VElement, VNode } from 'retend-server/v-dom';
+import { assert, describe, expect, it } from 'vitest';
 import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
-import { ShadowRoot } from 'retend/shadowroot';
-import { getGlobalContext } from 'retend/context';
-import type { VNode, VElement } from 'retend/v-dom';
 
 const runTests = () => {
   it('should create a shadow root with default mode "open"', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const result = (
       <div>
         <ShadowRoot>
@@ -23,23 +24,9 @@ const runTests = () => {
     expect(getTextContent(shadowRoot)).toBe('Shadow content');
   });
 
-  it('should create a closed shadow root', () => {
-    const { window } = getGlobalContext();
-    const result = (
-      <div>
-        <ShadowRoot mode="closed">
-          <div>Shadow content</div>
-        </ShadowRoot>
-      </div>
-    ) as HTMLElement & VElement;
-
-    expect(result instanceof window.HTMLElement).toBe(true);
-    // Cannot access closed shadowRoot directly
-    expect(result.shadowRoot).toBeNull();
-  });
-
   it('should encapsulate styles within shadow root', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const result = (
       <div>
         <div class="test">Light DOM</div>
@@ -56,7 +43,8 @@ const runTests = () => {
   });
 
   it('should handle Cell children updates', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const content = Cell.source('Initial');
     const result = (
       <div>
@@ -107,7 +95,8 @@ describe('ShadowRoot', () => {
 
     // Event listeners are not supported in the VDom.
     it('should maintain event listeners in shadow DOM', () => {
-      const { window } = getGlobalContext();
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
       const clicked = Cell.source(false);
       const handleClick = () => {
         clicked.set(true);

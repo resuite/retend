@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { Cell } from 'retend';
-import { If } from 'retend';
-import { type NodeLike, getGlobalContext } from 'retend/context';
-import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
-import type { VNode } from 'retend/v-dom';
+import { Cell, If, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import type { VNode } from 'retend-server/v-dom';
+import { describe, expect, it } from 'vitest';
+import {
+  browserSetup,
+  getTextContent,
+  vDomSetup,
+  type NodeLike,
+} from './setup.tsx';
 
 const runTests = () => {
   it('should render truthy branch when condition is true', () => {
@@ -26,7 +30,8 @@ const runTests = () => {
   });
 
   it('should work with Cell conditions', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const condition = Cell.source(true);
     const result = (
       <div id="test-node">
@@ -55,7 +60,8 @@ const runTests = () => {
   });
 
   it('should accept an object with true/false branches', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const result = If(true, {
       true: () => <div>True</div>,
       false: () => <div>False</div>,
@@ -65,7 +71,8 @@ const runTests = () => {
   });
 
   it('should handle nested If statements', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const outer = Cell.source(true);
     const inner = Cell.source(false);
 

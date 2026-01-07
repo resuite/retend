@@ -1,0 +1,26 @@
+{
+  "name": "canvas-renderer-poc",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "canvas-dev": "vite --port 5229",
+    "terminal-dev": "bun source/renderers/terminal/entry.ts",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "retend": "file:../../packages/retend",
+    "retend-web": "file:../../packages/retend-web",
+    "retend-server": "file:../../packages/retend-server",
+    "retend-utils": "file:../../packages/retend-utils",
+    "blessed": "^0.1.81",
+    "@types/blessed": "^0.1.25"
+  },
+  "devDependencies": {
+    "vite": "^6.2.1",
+    "tsx": "^4.7.1",
+    "typescript": "^5.5.2",
+    "@types/node": "latest"
+  }
+}

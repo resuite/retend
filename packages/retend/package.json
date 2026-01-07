@@ -1,7 +1,7 @@
 {
   "name": "retend",
   "version": "0.0.23",
-  "description": "A modern reactive framework for fluid, dynamic web apps.",
+  "description": "A library for reactive user interfaces",
   "private": false,
   "type": "module",
   "scripts": {
@@ -23,14 +23,6 @@
       "import": "./dist/router/router.js",
       "types": "./dist/router/router.d.ts"
     },
-    "./teleport": {
-      "import": "./dist/teleport/index.js",
-      "types": "./dist/teleport/index.d.ts"
-    },
-    "./shadowroot": {
-      "import": "./dist/shadowroot/index.js",
-      "types": "./dist/shadowroot/index.d.ts"
-    },
     "./jsx-runtime": {
       "import": "./dist/jsx-runtime/index.js",
       "types": "./dist/jsx-runtime/index.d.ts"
@@ -39,29 +31,9 @@
       "import": "./dist/jsx-runtime/index.js",
       "types": "./dist/jsx-runtime/index.d.ts"
     },
-    "./render": {
-      "import": "./dist/render/index.js",
-      "types": "./dist/render/index.d.ts"
-    },
-    "./v-dom": {
-      "import": "./dist/v-dom/index.js",
-      "types": "./dist/v-dom/index.d.ts"
-    },
-    "./plugin": {
-      "import": "./dist/plugin/index.js",
-      "types": "./dist/plugin/index.d.ts"
-    },
-    "./plugin/hmr": {
-      "import": "./dist/plugin/hmr.js",
-      "types": "./dist/plugin/hmr.d.ts"
-    },
     "./context": {
       "import": "./dist/context/index.js",
       "types": "./dist/context/index.d.ts"
-    },
-    "./unique": {
-      "import": "./dist/unique/index.js",
-      "types": "./dist/unique/index.d.ts"
     }
   },
   "homepage": "https://github.com/adebola-io/retend#readme",

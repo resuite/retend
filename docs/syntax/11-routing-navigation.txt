@@ -85,7 +85,7 @@ function MainApp() {
 }
 
 // Initial setup (usually in main.ts/js)
-// const router = createWebRouter({ routes: [...] });
+// const router = new Router({ routes: [...] });
 // router.setWindow(window);
 // root.append(<MainApp />); // Render the MainApp component
 @Note Combines `Link` for navigation structure and `Outlet` for content display.

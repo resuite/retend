@@ -1,15 +1,54 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { useObserver, CleanupFn } from './observer.js' */
+/** @import { Renderer } from './renderer.js'; */
 import { Cell } from '@adbl/cells';
-import { getGlobalContext, matchContext, Modes } from '../context/index.js';
 import h from './jsx.js';
-import { generateChildNodes } from './utils.js';
-import {
-  getHMRScopeList,
-  HMRContext,
-  HmrId,
-  OverwrittenBy,
-} from '../plugin/hmr-context.js';
+
+import { getActiveRenderer, setActiveRenderer } from './renderer.js';
+import { getGlobalContext } from '../context/index.js';
+import { createNodesFromTemplate } from './utils.js';
+
+/** @import { Scope } from "../library/scope.js"; */
+/** @import { SourceCell } from "@adbl/cells"; */
+
+/** @typedef {{
+ *    [ComponentInvalidator]?: Cell<Function & __HMR_UpdatableFn>
+ *    __isScopeProviderOf?: Scope
+ * } & Function} __HMR_UpdatableFn
+ */
+
+/**
+ * @typedef HmrContext
+ * @property {Array<unknown>} old
+ * @property {Array<unknown>} new
+ * @property {SourceCell<Function | null>} current
+ */
+
+/** @type {Scope<__HMR_UpdatableFn[]>} */
+const RetendComponentTree = createScope('retend:RetendComponentTree');
+const ComponentInvalidator = Symbol('Invalidator');
+
+export const __HMR_SYMBOLS = {
+  ComponentInvalidator,
+  OverwrittenBy: Symbol('OverwrittenBy'),
+  HmrId: Symbol('HmrId'),
+  HMRContextKey: Symbol('HMRContext'),
+  HMRScopeContext: Symbol('HMRScopeContext'),
+  ScopeList: new Map(),
+  RetendComponentTree,
+  useComponentAncestry() {
+    try {
+      return useScopeContext(RetendComponentTree);
+    } catch {
+      return [];
+    }
+  },
+  /** @returns {HmrContext | null} */
+  getHMRContext() {
+    const { globalData } = getGlobalContext();
+    return globalData.get(__HMR_SYMBOLS.HMRContextKey);
+  },
+};
 
 /**
  * @template [T=unknown]
@@ -41,6 +80,7 @@ import {
  * @typedef ScopeSnapshot
  * @property {Map<Scope, unknown[]>} scopes
  * @property {EffectNode} node
+ * @property {Renderer<any> | undefined} renderer
  */
 
 /**
@@ -58,10 +98,11 @@ class EffectNode {
   #enabled = false;
   #active = false;
   localContext = Cell.context();
+  /** @type {Renderer<any>} | undefined */
+  renderer = getActiveRenderer();
 
   enable() {
-    const { window } = getGlobalContext();
-    if (matchContext(window, Modes.Interactive)) {
+    if (this.renderer?.capabilities.supportsSetupEffects) {
       this.#enabled = true;
       for (const child of this.#children) child.enable();
     }
@@ -107,8 +148,7 @@ class EffectNode {
     if (!this.#enabled || this.#active) return;
     await new Promise((resolve) => setTimeout(resolve));
     await this.#runActivateFns();
-    const { window } = getGlobalContext();
-    window.dispatchEvent(new Event('retend:activate'));
+    this.renderer?.host.dispatchEvent(new Event('retend:activate'));
   }
 
   #runDisposeFns() {
@@ -128,10 +168,7 @@ class EffectNode {
   }
 
   dispose() {
-    const { window } = getGlobalContext();
-    const isVDom = matchContext(window, Modes.VDom);
-
-    if (isVDom) {
+    if (!this.renderer?.capabilities.supportsSetupEffects) {
       for (const child of this.#children) child.localContext.destroy();
       this.localContext.destroy();
       this.localContext = Cell.context();
@@ -151,7 +188,7 @@ class EffectNode {
     this.#disposeFns.length = 0;
     this.#children.length = 0;
 
-    if (!isVDom) {
+    if (!this.renderer?.capabilities.supportsSetupEffects) {
       this.localContext.destroy();
       this.localContext = Cell.context();
     }
@@ -213,18 +250,26 @@ export function createScope(name) {
         'content' in props
           ? props.content
           : 'children' in props
-            ? props.children
-            : () => {};
+          ? props.children
+          : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
+      const renderer = getActiveRenderer();
+      const hArgs = /** @type {const} */ ([
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        renderer,
+      ]);
       const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
       activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
       try {
         if ('h' in props && !props.h) {
           const template = renderFn();
-          return generateChildNodes(template);
+          return createNodesFromTemplate(template, renderer);
         }
-        return h(renderFn, {});
+        return h(renderFn, {}, ...hArgs);
       } finally {
         activeScopeSnapshot.scopes.set(Scope, stackBefore);
       }
@@ -260,19 +305,19 @@ export function useScopeContext(Scope, snapshot) {
       // In HMR, scopes can change referential identity.
       // `HmrId` helps identify them across reloads.
       // Its not fool proof, but it works.
-      const latestInstance = Reflect.get(Scope, OverwrittenBy);
+      const latestInstance = Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy);
       if (latestInstance && latestInstance !== Scope) {
         // Scope was previously invalidated by HMR.
         return useScopeContext(latestInstance, snapshot);
       }
       const { globalData } = getGlobalContext();
-      const hmrContext = globalData.get(HMRContext);
+      const hmrContext = globalData.get(__HMR_SYMBOLS.HMRContextKey);
       if (hmrContext) {
-        const activeScopes = getHMRScopeList();
-        const hmrId = Reflect.get(Scope, HmrId);
+        const activeScopes = __HMR_SYMBOLS.ScopeList;
+        const hmrId = Reflect.get(Scope, __HMR_SYMBOLS.HmrId);
         const latestInstance = activeScopes.get(hmrId);
         if (latestInstance && latestInstance !== Scope) {
-          Reflect.set(Scope, OverwrittenBy, latestInstance);
+          Reflect.set(Scope, __HMR_SYMBOLS.OverwrittenBy, latestInstance);
           return useScopeContext(latestInstance, snapshot);
         }
       }
@@ -312,7 +357,11 @@ export function useScopeContext(Scope, snapshot) {
  */
 export function createScopeSnapshot() {
   const { scopes, node } = getScopeSnapshot();
-  return { scopes: new Map(scopes), node: node.branch() };
+  return {
+    scopes: new Map(scopes),
+    node: node.branch(),
+    renderer: getActiveRenderer(),
+  };
 }
 
 /**
@@ -326,7 +375,8 @@ function getScopeSnapshot() {
   if (!globalData.has(SNAPSHOT_KEY)) {
     const node = new RootEffectNode();
     const scopes = new Map();
-    globalData.set(SNAPSHOT_KEY, { scopes, node });
+    const renderer = getActiveRenderer();
+    globalData.set(SNAPSHOT_KEY, { scopes, node, renderer });
   }
   return globalData.get(SNAPSHOT_KEY);
 }
@@ -381,12 +431,17 @@ function setScopeSnapshot(snapshot) {
 export function withScopeSnapshot(snapshot, callback) {
   /** @type {ScopeSnapshot | null} */
   let previousSnapshot = null;
+  const previousRenderer = getActiveRenderer();
 
   try {
     previousSnapshot = getScopeSnapshot();
     setScopeSnapshot(snapshot);
+    if (snapshot.renderer) {
+      setActiveRenderer(snapshot.renderer);
+    }
     return Cell.runWithContext(snapshot.node.localContext, callback);
   } finally {
+    setActiveRenderer(previousRenderer);
     if (getScopeSnapshot() === snapshot) {
       if (previousSnapshot) setScopeSnapshot(previousSnapshot);
     }
@@ -430,8 +485,8 @@ export function combineScopes(...providers) {
         'content' in props
           ? props.content
           : 'children' in props
-            ? props.children
-            : () => {};
+          ? props.children
+          : () => {};
 
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () => {

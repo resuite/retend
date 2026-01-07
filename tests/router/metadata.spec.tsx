@@ -1,20 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext } from 'retend/context';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import {
-  createWebRouter,
+  Router,
   defineRoutes,
   useRouter,
   type RouteComponent,
   lazy,
+  createRouterRoot,
 } from 'retend/router';
 import { Cell } from 'retend';
-import { getTextContent, routerRoot, vDomSetup } from '../setup.tsx';
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Metadata', () => {
   vDomSetup();
 
   it('should contain correct metadata for current route', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'home',
@@ -36,12 +39,12 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/');
 
@@ -59,7 +62,8 @@ describe('Router Metadata', () => {
   });
 
   it('should aggregate metadata from nested routes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const routes = defineRoutes([
       {
@@ -101,12 +105,12 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/dashboard/users');
     expect(currentRoute.get().fullPath).toBe('/dashboard/users');
@@ -128,7 +132,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle dynamic metadata based on route params', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'product-page',
@@ -141,12 +146,12 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -162,7 +167,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle async dynamic metadata', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'product-page',
@@ -178,12 +184,12 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -199,7 +205,8 @@ describe('Router Metadata', () => {
   });
 
   it('should update metadata when route params change', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'post-details',
@@ -216,12 +223,12 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/users/1/posts/100');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -237,7 +244,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle metadata with query parameters', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routes = defineRoutes([
       {
         name: 'post-details',
@@ -250,12 +258,12 @@ describe('Router Metadata', () => {
       },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     const currentRoute = router.getCurrentRoute();
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/search?q=javascript');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -265,7 +273,8 @@ describe('Router Metadata', () => {
   });
 
   it('should read metadata from the component function object', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const Home: RouteComponent = () => {
       return <div>This is the home page</div>;
     };
@@ -284,7 +293,7 @@ describe('Router Metadata', () => {
       description: 'Learn more about our company',
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'home page',
@@ -302,7 +311,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => route.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
     expect(window.location.pathname).toBe('/home');
@@ -322,7 +331,8 @@ describe('Router Metadata', () => {
   });
 
   it('should inherit metadata from parent components', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const About: RouteComponent = () => {
       return <div>This is the about page</div>;
@@ -361,7 +371,7 @@ describe('Router Metadata', () => {
       immersivePage: true,
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [
         {
           name: 'home page',
@@ -391,7 +401,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => route.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/home');
     expect(window.location.pathname).toBe('/home');
@@ -428,7 +438,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle embedded metadata functions', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductPage: RouteComponent = () => {
       return <div>This is the product page</div>;
@@ -439,7 +450,7 @@ describe('Router Metadata', () => {
       type: 'product-page',
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'product-page',
@@ -452,7 +463,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -462,7 +473,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle embedded metadata functions with nested routes', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const ProductPage: RouteComponent = () => {
       const { Outlet } = useRouter();
@@ -487,7 +499,7 @@ describe('Router Metadata', () => {
       summary: `Summary: Product ${data.params.get('sku')}`,
     });
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'product-page',
@@ -507,7 +519,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123/456');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -518,7 +530,8 @@ describe('Router Metadata', () => {
   });
 
   it('should handle async embedded metadata functions', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const BlogPage: RouteComponent = () => {
       return <div>Hello world!</div>;
     };
@@ -532,7 +545,7 @@ describe('Router Metadata', () => {
       };
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { name: 'blog', path: '/blog', component: BlogPage },
       ]),
@@ -542,7 +555,7 @@ describe('Router Metadata', () => {
     const metadata = Cell.derived(() => currentRoute.get().metadata);
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/blog?pageId=123');
     expect(Object.fromEntries(metadata.get().entries())).toEqual({
@@ -553,7 +566,8 @@ describe('Router Metadata', () => {
   });
 
   it('should read async metadata inside the route component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const BlogPage: RouteComponent = () => {
       const router = useRouter();
@@ -572,14 +586,14 @@ describe('Router Metadata', () => {
       };
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { name: 'blog', path: '/blog/:id', component: BlogPage },
       ]),
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
     const root = window.document.body;
 
     await router.navigate('/blog/123');
@@ -593,7 +607,8 @@ describe('Router Metadata', () => {
   });
 
   it('should read embedded async metadata from a lazy route component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const BlogPage: RouteComponent = () => {
       const router = useRouter();
@@ -612,7 +627,7 @@ describe('Router Metadata', () => {
       };
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'blog',
@@ -623,7 +638,7 @@ describe('Router Metadata', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
     const root = window.document.body;
 
     await router.navigate('/blog/123');
@@ -637,7 +652,8 @@ describe('Router Metadata', () => {
   });
 
   it('should get metadata as props to the route component', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const root = window.document.body;
 
     interface ProductProps {
@@ -655,7 +671,7 @@ describe('Router Metadata', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         {
           name: 'product-page',
@@ -672,7 +688,7 @@ describe('Router Metadata', () => {
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/products/123');
     expect(getTextContent(root)).toBe('Title: Product 123, Type: product-page');

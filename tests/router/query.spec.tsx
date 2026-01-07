@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
-import { For, If, Cell } from 'retend';
-import { getGlobalContext } from 'retend/context';
+import { vDomSetup, getTextContent } from '../setup.tsx';
+import { For, If, Cell, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import {
-  createWebRouter,
+  createRouterRoot,
+  Router,
   useRouteQuery,
   type AsyncRouteQuery,
 } from 'retend/router';
@@ -12,7 +13,8 @@ describe('useRouteQuery', () => {
   vDomSetup();
 
   it('should show the current route query params', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     const Home = () => {
       const query = useRouteQuery();
@@ -20,12 +22,12 @@ describe('useRouteQuery', () => {
       return <div>Hello, {name}</div>;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'home', path: '/', component: Home }],
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/?name=Cody');
     expect(getTextContent(window.document.body)).toBe('Hello, Cody');
@@ -38,7 +40,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should trigger route change on query change', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const cardPageWasRun = vi.fn();
 
     let changeStage = (stage: string): void | Promise<void> => {
@@ -58,12 +61,12 @@ describe('useRouteQuery', () => {
       return <div>This is the {stage} stage</div>;
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -81,7 +84,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should trigger route change on query delete', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const cardPageWasRun = vi.fn();
 
     //@ts-expect-error: Typescript cannot infer that the variable would have been assigned.
@@ -102,12 +106,12 @@ describe('useRouteQuery', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -131,7 +135,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should trigger route change on query clear', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const cardPageWasRun = vi.fn();
 
     //@ts-expect-error: Typescript cannot infer that the variable would have been assigned.
@@ -152,12 +157,12 @@ describe('useRouteQuery', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'card page', path: '/card', component: CardPage }],
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/card?stage=design');
     expect(window.location.href).toBe('/card?stage=design');
@@ -181,7 +186,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should read multiple queries reactively', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const routePageCalled = vi.fn();
 
     const List = () => {
@@ -223,9 +229,9 @@ describe('useRouteQuery', () => {
         component: List,
       },
     ];
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/list');
 
@@ -245,7 +251,8 @@ describe('useRouteQuery', () => {
   });
 
   it('should append multiple values to the same query parameter', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
 
     //@ts-expect-error: Typescript cannot infer that the variable would have been assigned.
     let query: AsyncRouteQuery = null;
@@ -272,12 +279,12 @@ describe('useRouteQuery', () => {
       );
     };
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: [{ name: 'filters', path: '/filters', component: FilterPage }],
     });
 
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     // Initial navigation
     await router.navigate('/filters');

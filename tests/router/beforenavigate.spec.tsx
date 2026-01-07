@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getGlobalContext } from 'retend/context';
-import { createWebRouter, defineRoutes } from 'retend/router';
-import { vDomSetup, getTextContent, routerRoot } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { createRouterRoot, Router, defineRoutes } from 'retend/router';
+import { vDomSetup, getTextContent } from '../setup.tsx';
 
 describe('beforenavigate event', () => {
   vDomSetup();
@@ -16,7 +17,7 @@ describe('beforenavigate event', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
 
     router.addEventListener('beforenavigate', listener);
 
@@ -34,7 +35,8 @@ describe('beforenavigate event', () => {
   });
 
   it('beforenavigate event can be prevented to cancel navigation', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const listener = vi.fn((event) => {
       if (event.detail.to === '/about') {
         event.preventDefault();
@@ -48,9 +50,9 @@ describe('beforenavigate event', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     router.addEventListener('beforenavigate', listener);
 
@@ -73,7 +75,7 @@ describe('beforenavigate event', () => {
       { name: 'about', path: '/about', component: About },
     ]);
 
-    const router = createWebRouter({ routes });
+    const router = new Router({ routes });
 
     router.addEventListener('beforenavigate', listener);
 

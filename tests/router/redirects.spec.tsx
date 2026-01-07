@@ -1,14 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getGlobalContext } from 'retend/context';
-import { getTextContent, routerRoot, vDomSetup } from '../setup.tsx';
-import { createWebRouter, defineRoutes } from 'retend/router';
+import { getTextContent, vDomSetup } from '../setup.tsx';
+import { getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { createRouterRoot, Router, defineRoutes } from 'retend/router';
 
 describe('Router Redirects', () => {
   vDomSetup();
 
   it('should redirect from one path to another', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old-path',
@@ -20,7 +22,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old-path');
     const route = router.getCurrentRoute();
@@ -30,8 +32,9 @@ describe('Router Redirects', () => {
   });
 
   it('should handle redirect with path parameters', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old/:id',
@@ -43,7 +46,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old/123');
     const route = router.getCurrentRoute();
@@ -53,8 +56,9 @@ describe('Router Redirects', () => {
   });
 
   it('should handle nested route redirects', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/app',
@@ -71,7 +75,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/app/old');
     const route = router.getCurrentRoute();
@@ -80,19 +84,20 @@ describe('Router Redirects', () => {
   });
 
   it('should prevent redirect loops', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => {});
 
-    const router = createWebRouter({
+    const router = new Router({
       routes: defineRoutes([
         { path: '/a', name: 'a', redirect: '/b', component: () => 'A' },
         { path: '/b', name: 'b', redirect: '/a', component: () => 'B' },
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/a');
     // Should not navigate and should warn about redirect loop
@@ -104,8 +109,9 @@ describe('Router Redirects', () => {
   });
 
   it('should ignore redirect to the same path', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/same',
@@ -116,7 +122,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/same');
     const route = router.getCurrentRoute();
@@ -125,8 +131,9 @@ describe('Router Redirects', () => {
   });
 
   it('should redirect with query parameters preserved', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old',
@@ -138,7 +145,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old?param=value');
     const route = router.getCurrentRoute();
@@ -148,8 +155,9 @@ describe('Router Redirects', () => {
   });
 
   it('should redirect with hash preserved', async () => {
-    const { window } = getGlobalContext();
-    const router = createWebRouter({
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
       routes: defineRoutes([
         {
           path: '/old',
@@ -161,7 +169,7 @@ describe('Router Redirects', () => {
       ]),
     });
     router.attachWindowListeners(window);
-    window.document.body.append(routerRoot(router));
+    window.document.body.append(createRouterRoot(router));
 
     await router.navigate('/old#section');
     const route = router.getCurrentRoute();

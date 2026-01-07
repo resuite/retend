@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalContext } from 'retend/context';
 import { browserSetup } from '../setup.tsx';
 import { useDocumentVisibility } from '../../packages/retend-utils/source/hooks';
-import { runPendingSetupEffects } from 'retend';
+import { runPendingSetupEffects, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 
 describe('useDocumentVisibility', () => {
   browserSetup();
@@ -13,7 +13,8 @@ describe('useDocumentVisibility', () => {
   });
 
   it('should update the visibility state when the visibilitychange event is fired', async () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const visibility = useDocumentVisibility();
     await runPendingSetupEffects();
 

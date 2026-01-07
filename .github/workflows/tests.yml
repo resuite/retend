@@ -16,7 +16,7 @@ jobs:
         with:
           bun-version: 1.3.0
 
+      - run: bunx playwright install chromium                         
       - run: bun install
-      - run: bunx playwright install chromium
       - run: bun run build
       - run: bun run test

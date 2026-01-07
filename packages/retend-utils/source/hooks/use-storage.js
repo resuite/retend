@@ -1,8 +1,7 @@
 /** @import { SourceCell } from 'retend' */
 
-import { getGlobalContext } from 'retend/context';
 import { createSharedHook } from '../internal/create-shared-hook.js';
-import { Cell } from 'retend';
+import { Cell, getActiveRenderer } from 'retend';
 
 const LOCAL_STORAGE_CACHE_KEY = Symbol('hooks:useLocalStorage:cache');
 const SESSION_STORAGE_CACHE_KEY = Symbol('hooks:useSessionStorage:cache');
@@ -131,7 +130,8 @@ function createStorageOptions(key, storageType) {
       let coreCell = data.cells.get(key);
 
       if (!coreCell) {
-        const { window } = getGlobalContext();
+        const renderer = getActiveRenderer();
+        const { host: window } = renderer;
         const valueFromStorage = window[storageType].getItem(key);
         const value =
           valueFromStorage !== null
@@ -146,7 +146,8 @@ function createStorageOptions(key, storageType) {
         }
 
         coreCell.listen((value) => {
-          const { window } = getGlobalContext();
+          const renderer = getActiveRenderer();
+          const { host: window } = renderer;
           window[storageType].setItem(key, JSON.stringify(value));
         });
       }

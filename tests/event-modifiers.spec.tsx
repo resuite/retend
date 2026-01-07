@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Cell } from 'retend';
-import { getGlobalContext } from 'retend/context';
+import { Cell, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
 import { browserSetup } from './setup.tsx';
-import type { VNode } from 'retend/v-dom';
+import type { VNode } from 'retend-server/v-dom';
 
 describe('Event Modifiers', () => {
   // Only run in browser since VDom doesn't support events
@@ -10,7 +10,8 @@ describe('Event Modifiers', () => {
   browserSetup();
 
   it('should handle prevent modifier', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const prevented = Cell.source(false);
     const form = (
       <form
@@ -29,7 +30,8 @@ describe('Event Modifiers', () => {
   });
 
   it('should handle stop modifier', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const parentClicked = Cell.source(false);
     const childClicked = Cell.source(false);
 
@@ -63,7 +65,8 @@ describe('Event Modifiers', () => {
   });
 
   it('should handle self modifier', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const clicked = Cell.source(false);
 
     const div = (
@@ -85,7 +88,8 @@ describe('Event Modifiers', () => {
   });
 
   it('should handle once modifier', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const clickCount = Cell.source(0);
 
     const button = (
@@ -108,7 +112,8 @@ describe('Event Modifiers', () => {
   });
 
   it('should handle passive modifier', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const handler = vi.fn();
 
     const div = (
@@ -130,7 +135,8 @@ describe('Event Modifiers', () => {
   });
 
   it('should handle multiple modifiers', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const parentClicked = Cell.source(false);
     const childClicked = Cell.source(0);
 
@@ -168,7 +174,8 @@ describe('Event Modifiers', () => {
   });
 
   it('should apply modifiers in correct order', () => {
-    const { window } = getGlobalContext();
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
     const events: string[] = [];
 
     const form = (
