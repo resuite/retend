@@ -1,6 +1,6 @@
 {
   "name": "retend",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "A library for reactive user interfaces",
   "private": false,
   "type": "module",
