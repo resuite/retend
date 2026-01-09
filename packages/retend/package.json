@@ -50,7 +50,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@adbl/cells": "^0.0.21",
+    "@adbl/cells": "https://pkg.pr.new/adebola-io/cells/@adbl/cells@7aa1334",
     "csstype": "^3.1.3"
   },
   "publishConfig": {
