@@ -15,6 +15,8 @@ import { Unique } from 'retend';
  * @typedef TransitionProps
  * @property {string} [transitionDuration] How long the transition between states should take.
  * @property {string} [transitionTimingFunction] How the transition should be performed.
+ * @property {boolean} [maintainWidthDuringTransition] If true, disables horizontal scaling during transitions.
+ * @property {boolean} [maintainHeightDuringTransition] If true, disables vertical scaling during transitions.
  */
 
 /**
@@ -25,10 +27,14 @@ import { Unique } from 'retend';
 /**
  * @param {DOMRect} from
  * @param {DOMRect} to
+ * @param {object} [options]
+ * @param {boolean} [options.maintainWidth]
+ * @param {boolean} [options.maintainHeight]
  */
-function getInitialRelativeTransform(from, to) {
-  const scaleX = from.width / to.width;
-  const scaleY = from.height / to.height;
+function getInitialRelativeTransform(from, to, options = {}) {
+  const { maintainWidth = false, maintainHeight = false } = options;
+  const scaleX = maintainWidth ? 1 : from.width / to.width;
+  const scaleY = maintainHeight ? 1 : from.height / to.height;
 
   const translateX = from.x - to.x;
   const translateY = from.y - to.y;
@@ -93,6 +99,8 @@ const addTransitionProps = (props) => {
     style: styleProp,
     transitionDuration,
     transitionTimingFunction,
+    maintainWidthDuringTransition,
+    maintainHeightDuringTransition,
     ...rest
   } = props;
 
@@ -157,7 +165,10 @@ const addTransitionProps = (props) => {
               parentTransform.b * parentTransform.c
           ) > 1e-10;
 
-        const displacement = getInitialRelativeTransform(oldRect, newRect);
+        const displacement = getInitialRelativeTransform(oldRect, newRect, {
+          maintainWidth: maintainWidthDuringTransition,
+          maintainHeight: maintainHeightDuringTransition,
+        });
         const initialTransform = isInvertible
           ? `${parentTransform.inverse().toString()} ${displacement}`
           : displacement;
