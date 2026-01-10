@@ -95,11 +95,16 @@ export function updatePageMeta(newMeta, document) {
     const metaName = metaNameMap[/** @type {keyof PageMeta} */ (key)];
     const newValue = newMeta[/** @type {keyof PageMeta} */ (key)];
 
+    // OG and Twitter tags use 'property' attribute, others use 'name'
+    const isOgOrTwitter =
+      metaName.startsWith('og:') || metaName.startsWith('twitter:');
+    const attrName = isOgOrTwitter ? 'property' : 'name';
+
     const metaTags = head.querySelectorAll('meta');
     let metaTag = null;
 
     for (let i = 0; i < metaTags.length; i++) {
-      if (metaTags[i].getAttribute('name') === metaName) {
+      if (metaTags[i].getAttribute(attrName) === metaName) {
         metaTag = metaTags[i];
         break;
       }
@@ -108,13 +113,16 @@ export function updatePageMeta(newMeta, document) {
     if (newValue) {
       if (!metaTag) {
         metaTag = document.createElement('meta');
-        metaTag.setAttribute('name', metaName);
+        metaTag.setAttribute(attrName, metaName);
+        // Mark as dynamically added so we can remove it later
+        metaTag.setAttribute('data-dynamic', '');
         head.append(/** @type {*} */ (metaTag));
       }
       if (metaTag.getAttribute('content') !== newValue) {
         metaTag.setAttribute('content', /** @type {*} */ (newValue));
       }
-    } else if (metaTag) {
+    } else if (metaTag && metaTag.getAttribute('data-dynamic') !== null) {
+      // Only remove tags that were dynamically added by the router
       metaTag.remove();
     }
   }
