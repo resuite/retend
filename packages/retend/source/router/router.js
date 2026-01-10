@@ -641,7 +641,9 @@ export class Router extends EventTarget {
       const { detail } = event;
       const { newHistoryLength, oldHistoryLength, replace, fullPath, title } =
         detail;
-      window.document.title = title;
+      if (title) {
+        window.document.title = title;
+      }
       const goingBack = newHistoryLength < oldHistoryLength;
       if (goingBack) {
         const negativeDiff = newHistoryLength - oldHistoryLength;
