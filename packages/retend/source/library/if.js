@@ -1,4 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
+/** @import { AsyncDerivedCell } from '@adbl/cells' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
@@ -18,11 +19,20 @@ import { IgnoredHProps } from '../_internals.js';
  */
 
 /**
+ * Extracts the resolved value type from a cell type.
+ * For AsyncDerivedCell<Promise<T>>, returns T.
+ * For Cell<T>, returns T.
+ * For T, returns T.
+ * @template T
+ * @typedef {T extends AsyncDerivedCell<infer U> ? Awaited<U> : T extends Cell<infer V> ? V : T} ResolvedCellValue
+ */
+
+/**
  * Conditionally renders nodes based on the truthiness of a value.
  *
  * @template T
- * @param {T | Cell<T>} value
- * @param {( ((value: NonNullable<T>) => JSX.Template)) | ConditionObject<T>} fnOrObject
+ * @param {T | Cell<T> | AsyncDerivedCell<T>} value
+ * @param {( ((value: NonNullable<ResolvedCellValue<T>>) => JSX.Template)) | ConditionObject<ResolvedCellValue<T>>} fnOrObject
  * @param { (() => JSX.Template)} [elseFn] - Optional callback for falsy values
  * @returns {JSX.Template}
  *
@@ -144,16 +154,39 @@ export function If(value, fnOrObject, elseFn) {
     });
   };
 
-  // It is important that the listener is registered first.
-  value.listen((nextValue) => {
+  /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+  let handle;
+
+  /**
+   * @param {T} nextValue
+   */
+  const processValueChange = (nextValue) => {
     scopeSnapshot.node.dispose();
     const results = callback(nextValue);
     renderer.write(handle, results);
     scopeSnapshot.node.activate();
+  };
+
+  // It is important that the listener is registered first.
+  value.listen((nextValue) => {
+    if (nextValue instanceof Promise) {
+      nextValue.then((resolved) => processValueChange(resolved));
+      return;
+    }
+    processValueChange(nextValue);
   });
 
-  const initialResults = callback(value.get());
+  const initialValue = value.get();
+
+  if (initialValue instanceof Promise) {
+    const group = renderer.createGroup([]);
+    handle = renderer.createGroupHandle(group);
+    initialValue.then((resolved) => processValueChange(resolved));
+    return group;
+  }
+
+  const initialResults = callback(initialValue);
   const group = renderer.createGroup(initialResults);
-  const handle = renderer.createGroupHandle(group);
+  handle = renderer.createGroupHandle(group);
   return group;
 }

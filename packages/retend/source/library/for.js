@@ -1,5 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { ScopeSnapshot } from './scope.js' */
+/** @import { AsyncDerivedCell } from '@adbl/cells' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
@@ -7,6 +8,17 @@ import { ArgumentList } from './utils.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import { getActiveRenderer } from './renderer.js';
 import { IgnoredHProps } from '../_internals.js';
+
+/**
+ * Extracts the item type from a list value.
+ * Handles AsyncDerivedCell<Promise<Iterable<T>>>, Cell<Iterable<T>>, and Iterable<T>.
+ * @template V
+ * @typedef {V extends AsyncDerivedCell<infer P>
+ *   ? Awaited<P> extends Iterable<infer T> ? T : never
+ *   : V extends Cell<infer S>
+ *     ? S extends Iterable<infer T> ? T : never
+ *     : V extends Iterable<infer U> ? U : never} ExtractItemType
+ */
 
 /**
  * @template T
@@ -29,10 +41,10 @@ import { IgnoredHProps } from '../_internals.js';
  * Supports both static and reactive lists, with optimized operations for minimal reflows.
  *
  * @template V
- * @template {V extends Cell<infer S> ? S extends Iterable<infer T> ? T: never: V extends Iterable<infer U>? U: never} W
+ * @template {ExtractItemType<V>} W
  * @param {V} list - The iterable or Cell containing an iterable to map over
  * @param {((item: W, index: Cell<number>, iter: V) => JSX.Template)} fn - Function to create a Template for each item
- * @param {ForOptions<V extends Cell<infer S> ? S extends Iterable<infer T> ? T: never: V extends Iterable<infer U>? U: never>} [options]
+ * @param {ForOptions<W>} [options]
  * @returns {JSX.Template} - A Template representing the mapped items
  *
  * @example
@@ -128,9 +140,20 @@ export function For(list, fn, options) {
   };
 
   /**
-   * @param {V & {[Symbol.iterator]: () => Iterator<V>}} listValue
+   * @param {V & {[Symbol.iterator]: () => Iterator<V>} | Promise<any>} listValue
    */
   const reactToListChanges = (listValue) => {
+    if (listValue instanceof Promise) {
+      listValue.then((resolved) => processListChanges(resolved));
+      return;
+    }
+    processListChanges(listValue);
+  };
+
+  /**
+   * @param {any} listValue
+   */
+  const processListChanges = (listValue) => {
     const newList =
       typeof listValue?.[Symbol.iterator] === 'function' ? listValue : [];
     const newCache = new Map();
@@ -210,6 +233,14 @@ export function For(list, fn, options) {
   // component instances are created.
   const base = createScopeSnapshot();
   const _list = list.get();
+
+  if (_list instanceof Promise) {
+    group = renderer.createGroup([]);
+    handle = renderer.createGroupHandle(group);
+    _list.then((resolved) => processListChanges(resolved));
+    return group;
+  }
+
   if (
     _list !== null &&
     _list !== undefined &&

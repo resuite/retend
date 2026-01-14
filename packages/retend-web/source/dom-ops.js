@@ -242,8 +242,9 @@ export function updateText(text, node) {
  */
 export function createText(text, renderer) {
   if (Cell.isCell(text)) {
-    const textNode = renderer.host.document.createTextNode(String(text.get()));
+    const initialValue = text.get();
     const { updateText } = renderer;
+
     /**
      * @this any
      * @param {any} value
@@ -253,6 +254,18 @@ export function createText(text, renderer) {
         value.then((resolvedValue) => updateText(resolvedValue, this));
       } else updateText(value, this);
     }
+
+    // Handle async cells - start empty and update when resolved
+    if (initialValue instanceof Promise) {
+      const textNode = renderer.host.document.createTextNode('');
+      addCellListener(textNode, text, updateTextValue, false);
+      initialValue.then((resolvedValue) => updateText(resolvedValue, textNode));
+      return textNode;
+    }
+
+    const textNode = renderer.host.document.createTextNode(
+      String(initialValue)
+    );
     addCellListener(textNode, text, updateTextValue, false);
     return textNode;
   }
