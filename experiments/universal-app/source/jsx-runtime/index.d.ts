@@ -2,6 +2,10 @@ declare module 'retend/jsx-runtime' {
   namespace JSX {
     type Booleanish = boolean | 'true' | 'false';
     type Numberish = number | `${number}`;
+    type ValueOrCellOrPromise<T> =
+      | T
+      | import('retend').Cell<T>
+      | import('retend').AsyncDerivedCell<T>;
     type ValueOrCell<T> = T | import('retend').Cell<T>;
 
     /**

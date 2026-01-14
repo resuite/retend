@@ -1,7 +1,8 @@
 export namespace JSX {
   type Booleanish = boolean | 'true' | 'false';
   type Numberish = number | `${number}`;
-  type ValueOrCell<T> = T | import("@adbl/cells").Cell<T>
+  type ValueOrCellOrPromise<T> = T | import('retend').Cell<T> | import('retend').AsyncDerivedCell<T>;
+  type ValueOrCell<T> = T | import('retend').Cell<T>
 
 
   interface IntrinsicAttributes {
