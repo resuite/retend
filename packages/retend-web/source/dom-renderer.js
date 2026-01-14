@@ -424,11 +424,15 @@ export class DOMRenderer {
 
     if (Cell.isCell(children) && staticNode.firstChild instanceof Text) {
       /**
-       * @param {string} value
+       * @param {any} value
        * @this {Text}
        */
       function listener(value) {
-        updateText(value, this);
+        if (value instanceof Promise) {
+          value.then((resolvedValue) => {
+            updateText(resolvedValue, this);
+          });
+        } else updateText(value, this);
       }
       addCellListener(staticNode.firstChild, children, listener, false);
       return;

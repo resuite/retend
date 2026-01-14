@@ -308,8 +308,9 @@ export class VDomTokenList {
   /** @param {string[]} tokens */
   add(...tokens) {
     const className = this.element.getAttribute('class') ?? '';
-    const newClassName = [...className.split(' '), ...tokens].join(' ');
-    this.element.setAttribute('class', newClassName);
+    const classes = className.split(' ').filter((c) => c.length > 0);
+    classes.push(...tokens);
+    this.element.setAttribute('class', classes.join(' '));
   }
 
   /** @param {string[]} tokens */
@@ -317,7 +318,7 @@ export class VDomTokenList {
     const className = this.element.getAttribute('class') ?? '';
     const newClassName = className
       .split(' ')
-      .filter((c) => !tokens.includes(c))
+      .filter((c) => c.length > 0 && !tokens.includes(c))
       .join(' ');
     this.element.setAttribute('class', newClassName);
   }

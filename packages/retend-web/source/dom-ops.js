@@ -160,7 +160,11 @@ export function setProperty(node, key, value, setEventListener) {
       return node;
     }
     addCellListener(element, value, function (value) {
-      setAttribute(this, key, value, setEventListener);
+      if (value instanceof Promise) {
+        value.then((resolvedValue) => {
+          setAttribute(this, key, resolvedValue, setEventListener);
+        });
+      } else setAttribute(this, key, value, setEventListener);
     });
   } else setAttribute(element, key, value, setEventListener);
 
@@ -240,14 +244,16 @@ export function createText(text, renderer) {
   if (Cell.isCell(text)) {
     const textNode = renderer.host.document.createTextNode(String(text.get()));
     const { updateText } = renderer;
-    addCellListener(
-      textNode,
-      text,
-      function (value) {
-        updateText(value, this);
-      },
-      false
-    );
+    /**
+     * @this any
+     * @param {any} value
+     */
+    function updateTextValue(value) {
+      if (value instanceof Promise) {
+        value.then((resolvedValue) => updateText(resolvedValue, this));
+      } else updateText(value, this);
+    }
+    addCellListener(textNode, text, updateTextValue, false);
     return textNode;
   }
 

@@ -16,7 +16,7 @@ declare module 'retend/jsx-runtime' {
       | undefined
       | string
       | CSSProperties
-      | Container<JSX.ValueOrCell<CSSProperties>>
+      | Container<JSX.ValueOrCellOrPromise<CSSProperties>>
       | Array<StyleValue>;
 
     type HTMLAttributeReferrerPolicy =
@@ -3173,7 +3173,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     type Container<ElementAttributes extends object> = {
-      [attribute in keyof ElementAttributes]: JSX.ValueOrCell<
+      [attribute in keyof ElementAttributes]: JSX.ValueOrCellOrPromise<
         ElementAttributes[attribute]
       >;
     };
