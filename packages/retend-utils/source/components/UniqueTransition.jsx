@@ -1,6 +1,6 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 /** @import { UniqueProps } from 'retend'; */
-import { Cell } from 'retend';
+import { Cell, useObserver } from 'retend';
 import { Unique } from 'retend';
 
 /**
@@ -23,6 +23,68 @@ import { Unique } from 'retend';
  * @template CustomData
  * @typedef {UniqueProps<CustomData> & TransitionProps} UniqueTransitionProps
  */
+
+/**
+ * Continuous Geometry Tracking
+ *
+ * Problem: The `onSave` callback may fire too late, after a parent style change
+ * (e.g., `display: none`, visibility toggle, or DOM removal) has already hidden
+ * the element. When this happens, `getBoundingClientRect()` returns a zero-sized
+ * rect, breaking the FLIP animation.
+ *
+ * Solution: Continuously track the element's bounding rect while it's visible
+ * using a ResizeObserver. This way, we always have the "last known good" geometry
+ * to use in `onSave`, even if the element is no longer measurable at that moment.
+ */
+
+/** @type {WeakMap<Element, DOMRect>} */
+const geometryCache = new WeakMap();
+
+/** @type {WeakMap<Element, ResizeObserver>} */
+const observerCache = new WeakMap();
+
+/**
+ * Starts tracking an element's geometry continuously.
+ * @param {Element} element
+ */
+function startGeometryTracking(element) {
+  if (observerCache.has(element)) return;
+
+  const updateGeometry = () => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      geometryCache.set(element, rect);
+    }
+  };
+
+  updateGeometry();
+
+  const resizeObserver = new ResizeObserver(updateGeometry);
+  resizeObserver.observe(element);
+  observerCache.set(element, resizeObserver);
+}
+
+/**
+ * Stops tracking an element's geometry.
+ * @param {Element} element
+ */
+function stopGeometryTracking(element) {
+  const observer = observerCache.get(element);
+  if (observer) {
+    observer.disconnect();
+    observerCache.delete(element);
+  }
+}
+
+/**
+ * Gets the last known good geometry for an element.
+ * Falls back to getBoundingClientRect if no cached value exists.
+ * @param {Element} element
+ * @returns {DOMRect}
+ */
+function getTrackedGeometry(element) {
+  return geometryCache.get(element) ?? element.getBoundingClientRect();
+}
 
 /**
  * @param {DOMRect} from
@@ -118,7 +180,9 @@ const addTransitionProps = (props) => {
       const userData = onSave?.(element);
       const animations = element.getAnimations({ subtree: true });
       for (const animation of animations) animation.pause();
-      const rect = element.getBoundingClientRect();
+      const rect = getTrackedGeometry(element);
+      // Stop tracking since content is moving away.
+      stopGeometryTracking(element);
       /** @type {ElementUIState<CustomData>} */
       const elementState = { rect, animations, userData };
       return /** @type {CustomData} */ (elementState);
@@ -284,5 +348,15 @@ function getParentTransformMatrix(element) {
  * }
  */
 export function UniqueTransition(props) {
-  return <Unique {...addTransitionProps(props)} />;
+  const ref = props.ref ?? Cell.source(null);
+  const observer = useObserver();
+
+  observer.onConnected(ref, (element) => {
+    startGeometryTracking(element);
+    // Cleanup for cases where element disconnects without onSave
+    // (e.g., parent component unmounts entirely).
+    return () => stopGeometryTracking(element);
+  });
+
+  return <Unique {...addTransitionProps(props)} ref={ref} />;
 }
