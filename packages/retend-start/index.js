@@ -24,10 +24,19 @@ const args = process.argv.slice(2);
 function parseArgs() {
   /** @type {Record<string, any>} */
   const options = {};
-  for (const arg of args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
     if (arg.startsWith('--')) {
       const [key, value] = arg.slice(2).split('=');
-      options[key] = value || true;
+      if (value) {
+        options[key] = value;
+      } else if (key === 'commit' && args[i + 1] && !args[i + 1].startsWith('-')) {
+        // Handle "--commit hash" format (value as next argument)
+        options[key] = args[i + 1];
+        i++; // Skip the next argument since we consumed it
+      } else {
+        options[key] = true;
+      }
     }
   }
   return options;
@@ -557,13 +566,40 @@ export default App;
  */
 
 /**
+ * Get the dependencies object, optionally using pkg.pr.new URLs for a specific commit
+ * @param {string} [commitHash] - Optional commit hash to use pkg.pr.new URLs
+ * @param {boolean} [useSSG] - Whether SSG is enabled
+ * @returns {Record<string, string>}
+ */
+function getRetendDependencies(commitHash, useSSG = true) {
+  if (commitHash) {
+    /** @type {Record<string, string>} */
+    const deps = {
+      retend: `https://pkg.pr.new/resuite/retend@${commitHash}`,
+      'retend-utils': `https://pkg.pr.new/resuite/retend/retend-utils@${commitHash}`,
+      'retend-web': `https://pkg.pr.new/resuite/retend/retend-web@${commitHash}`,
+    };
+    if (useSSG) {
+      deps['retend-server'] = `https://pkg.pr.new/resuite/retend/retend-server@${commitHash}`;
+    }
+    return deps;
+  }
+
+  // Use default CONFIG dependencies
+  const deps = { ...CONFIG.dependencies };
+  if (!useSSG) {
+    Reflect.deleteProperty(deps, 'retend-server');
+  }
+  return deps;
+}
+
+/**
  * @param {string} projectDir
  * @param {Record<string, unknown>} answers
  */
 async function createPackageJson(projectDir, answers) {
-  if (!answers.useSSG) {
-    Reflect.deleteProperty(CONFIG.dependencies, 'retend-server');
-  }
+  const cliOptions = parseArgs();
+  const commitHash = cliOptions.commit;
 
   const content = {
     name: answers.projectName,
@@ -575,9 +611,7 @@ async function createPackageJson(projectDir, answers) {
       build: 'vite build',
       preview: 'vite preview',
     },
-    dependencies: {
-      ...CONFIG.dependencies,
-    },
+    dependencies: getRetendDependencies(commitHash, Boolean(answers.useSSG)),
     /** @type {Record<string, string>} */
     devDependencies: {
       vite: CONFIG.devDependencies.vite,
