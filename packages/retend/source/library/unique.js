@@ -21,6 +21,7 @@ import { linkNodes } from '../library/utils.js';
  * @property {Map<string, Cell<unknown | null>>} refs
  * @property {Map<string, ScopeSnapshot>} scopes
  * @property {Set<() => void>} pendingTeardowns
+ * @property {Map<string, unknown[]>} stack
  * @property {() => void} onActivate
  */
 
@@ -87,6 +88,7 @@ const initUniqueStash = (renderer) => {
     refs: new Map(),
     scopes: new Map(),
     pendingTeardowns: new Set(),
+    stack: new Map(),
     onActivate: checkForUniqueComponentTeardowns,
   };
   const rendererStash = new Map();
@@ -182,7 +184,11 @@ export function Unique(props) {
   const stash =
     globalData.get(UniqueComponentStash)?.get(renderer) ??
     initUniqueStash(renderer);
-  const selector = `${elementName}[name="${name}"]`;
+  let journey = stash.stack.get(name);
+  if (!journey) {
+    journey = [];
+    stash.stack.set(name, journey);
+  }
   const observer = useObserver();
 
   const retendUniqueInstance = h(elementName, rest, ...hArgs);
@@ -207,6 +213,7 @@ export function Unique(props) {
     }
 
     stash.refs.set(name, Cell.source(div));
+    if (!journey.includes(div)) journey.push(div);
     stash.instances.delete(name);
   };
 
@@ -232,7 +239,7 @@ export function Unique(props) {
   // Once (7) runs, it means the next node should already be in the dom, and if
   // it isn't, then we can dispose, because there is no continuity.
   const teardown = () => {
-    const possibleNextInstance = renderer.selectMatchingNode(selector);
+    const possibleNextInstance = journey.at(-1);
     if (possibleNextInstance) {
       stash.pendingTeardowns.delete(teardown);
       return;
@@ -245,6 +252,7 @@ export function Unique(props) {
     stash.instances.delete(name);
     stash.refs.delete(name);
     stash.scopes.delete(name);
+    stash.stack.delete(name);
     stash.pendingTeardowns.delete(teardown);
   };
 
@@ -254,7 +262,8 @@ export function Unique(props) {
     if (scope) scope.node.enable();
 
     return () => {
-      const nextInstance = renderer.selectMatchingNode(selector);
+      journey.splice(journey.indexOf(div), 1);
+      const nextInstance = journey.at(-1);
       if (!nextInstance && !disposedByHMR) stash.pendingTeardowns.add(teardown);
     };
   });
@@ -280,20 +289,15 @@ export function Unique(props) {
       const scope = stash.scopes.get(name);
       if (scope) scope.node.disable();
       const currentElement = stash.refs.get(name)?.peek();
+      journey.splice(journey.indexOf(currentElement), 1);
       if (currentElement === current) {
         saveState(/** @type {HTMLElement} */ (current));
 
-        const nextInstances = renderer.selectMatchingNodes(selector);
-        for (const nextInstance of nextInstances.reverse()) {
-          if (currentElement !== nextInstance) {
-            renderer.append(
-              nextInstance,
-              Array.from(retendUniqueInstance.childNodes)
-            );
-            renderer.setProperty(nextInstance, 'state', 'restored');
-            restoreState(nextInstance);
-            break;
-          }
+        const next = journey.at(-1);
+        if (next && currentElement !== next) {
+          renderer.append(next, Array.from(retendUniqueInstance.childNodes));
+          renderer.setProperty(next, 'state', 'restored');
+          restoreState(next);
         }
       }
     };

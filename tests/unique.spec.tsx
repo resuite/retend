@@ -751,8 +751,8 @@ describe('Unique', () => {
     it('should handle nested Unique components', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
-      const outerUuid = crypto.randomUUID();
-      const innerUuid = crypto.randomUUID();
+      const outerUuid = `outer-${crypto.randomUUID()}`;
+      const innerUuid = `inner-${crypto.randomUUID()}`;
       const innerSetup = vi.fn();
 
       const Inner = () => {
