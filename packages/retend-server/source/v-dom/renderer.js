@@ -61,16 +61,6 @@ export class VDOMRenderer {
 
   onViewChange() {}
 
-  /** @param {string} key */
-  selectMatchingNodes(key) {
-    return [...this.host.document.querySelectorAll(key)];
-  }
-
-  /** @param {string} key */
-  selectMatchingNode(key) {
-    return this.host.document.querySelector(key);
-  }
-
   /**
    * @param {VDom.VNode} node
    * @param {any} data

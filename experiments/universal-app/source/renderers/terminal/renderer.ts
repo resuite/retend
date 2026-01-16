@@ -854,12 +854,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
     // Minimal impl
     this.write(handle, options.nodes || []);
   }
-  selectMatchingNodes() {
-    return [];
-  }
-  selectMatchingNode() {
-    return null;
-  }
   saveContainerState() {
     return null;
   }

@@ -91,16 +91,6 @@ export class DOMRenderer {
     });
   }
 
-  /** @param {string} key */
-  selectMatchingNodes(key) {
-    return [...this.host.document.querySelectorAll(key)];
-  }
-
-  /** @param {string} key */
-  selectMatchingNode(key) {
-    return this.host.document.querySelector(key);
-  }
-
   /**
    * @param {Node} node
    * @param {any} data

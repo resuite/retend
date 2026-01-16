@@ -512,12 +512,6 @@ export class CanvasRenderer {
 
   onViewChange(_processor: () => void) {}
 
-  selectMatchingNodes(_key: string) {
-    return [];
-  }
-  selectMatchingNode(_key: string) {
-    return null;
-  }
   saveContainerState() {
     return null;
   }
