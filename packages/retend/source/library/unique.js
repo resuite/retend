@@ -262,7 +262,8 @@ export function Unique(props) {
     if (scope) scope.node.enable();
 
     return () => {
-      journey.splice(journey.indexOf(div), 1);
+      const index = journey.indexOf(div);
+      if (index !== -1) journey.splice(index, 1);
       const nextInstance = journey.at(-1);
       if (!nextInstance && !disposedByHMR) stash.pendingTeardowns.add(teardown);
     };
@@ -289,7 +290,10 @@ export function Unique(props) {
       const scope = stash.scopes.get(name);
       if (scope) scope.node.disable();
       const currentElement = stash.refs.get(name)?.peek();
-      journey.splice(journey.indexOf(currentElement), 1);
+
+      const index = journey.indexOf(currentElement);
+      if (index !== -1) journey.splice(index, 1);
+
       if (currentElement === current) {
         saveState(/** @type {HTMLElement} */ (current));
 
