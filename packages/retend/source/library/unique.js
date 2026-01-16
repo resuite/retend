@@ -199,7 +199,7 @@ export function Unique(props) {
     renderer.setProperty(div, 'state', 'moved');
     let customData;
     // @ts-ignore: TODO: The base type should be unknown when more environments are added.
-    if (onSave) customData = onSave(div);
+    if (onSave && renderer.isActive(div)) customData = onSave(div);
 
     previous = renderer.saveContainerState(div, customData);
     if (previous) stash.instances.set(name, previous);
