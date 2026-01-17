@@ -2086,52 +2086,70 @@ Retend provides several advanced components that can help you build complex UIs.
 
 These components are specifically for web-based rendering and are documented in the [retend-web documentation](../packages/retend-web/README.md).
 
-### Unique
+### createUnique
 
-The `Unique` component ensures that only one instance of a component exists across your entire application, identified by its `name` prop. When multiple `Unique` components with the same name appear in different parts of your component tree, the DOM nodes are preserved and moved to the new location instead of being recreated. This is particularly useful for maintaining state in components like video players, audio elements, or any content where you want to preserve DOM state across different views.
+The `createUnique` factory function creates components that preserve their identity and internal state across different locations in your application. DOM nodes are moved instead of recreated, maintaining state like video playback, scroll position, or form input values.
 
 **Key Features:**
 
-- Only one instance per unique name exists at any time
+- Only one instance per unique identity exists at any time
 - DOM nodes are physically moved, not recreated
 - Setup effects run once and persist until all instances are unmounted
 - Optional state saving and restoration with `onSave` and `onRestore`
 - Works seamlessly with routing and conditional rendering
+- Props are passed reactively as a Cell
 
 - **Basic Usage**:
 
 ```jsx
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
+
+const UniqueContent = createUnique(() => {
+  return <div>This content is unique!</div>;
+});
 
 function App() {
   return (
     <div>
-      <Unique name="my-unique-content">
-        {() => <div>This content is unique!</div>}
-      </Unique>
+      <UniqueContent />
     </div>
   );
 }
 ```
 
-The `children` prop must be a function that returns JSX. The `name` prop uniquely identifies this component instance.
+The factory function returns a component that can be used like any other component. By default, the component's identity is tied to the render function itself.
+
+- **Using the id prop to distinguish instances**:
+
+```jsx
+import { createUnique } from 'retend';
+
+const UniquePanel = createUnique(() => {
+  return <div>Panel content</div>;
+});
+
+function App() {
+  return (
+    <div>
+      <UniquePanel id="left-panel" />
+      <UniquePanel id="right-panel" />
+    </div>
+  );
+}
+```
+
+Each unique `id` creates a separate persistent instance. Without an `id`, all usages share the same instance.
 
 - **Video Player Persisting Across Pages**:
 
 ```jsx
-import { Cell, Switch, Unique } from 'retend';
+import { Cell, Switch, createUnique } from 'retend';
 
-function VideoPlayer() {
-  return (
-    <Unique name="main-video">
-      {() => (
-        <video src="https://example.com/video.mp4" controls autoplay>
-          Your browser does not support the video tag.
-        </video>
-      )}
-    </Unique>
-  );
-}
+const VideoPlayer = createUnique(() => (
+  <video src="https://example.com/video.mp4" controls autoplay>
+    Your browser does not support the video tag.
+  </video>
+));
 
 function HomePage() {
   return (
@@ -2166,29 +2184,12 @@ function App() {
 
 In this example, the video continues playing when switching between pages because the same DOM element is moved rather than being destroyed and recreated.
 
-- **Multiple Instances with Same Name**:
-
-```jsx
-import { Unique } from 'retend';
-
-function App() {
-  return (
-    <div>
-      <Unique name="shared">{() => <p>First instance</p>}</Unique>
-      <Unique name="shared">{() => <p>Second instance</p>}</Unique>
-    </div>
-  );
-}
-```
-
-Only the second instance will render because the DOM node moves to the last location with that name.
-
 - **Setup Effects that Persist**:
 
 ```jsx
-import { Cell, Switch, Unique, useSetupEffect } from 'retend';
+import { Cell, Switch, createUnique, useSetupEffect } from 'retend';
 
-function PersistentComponent() {
+const PersistentComponent = createUnique(() => {
   useSetupEffect(() => {
     console.log('Setup called once');
     return () => {
@@ -2196,11 +2197,7 @@ function PersistentComponent() {
     };
   });
   return <div>Persistent content</div>;
-}
-
-function UniqueWrapper() {
-  return <Unique name="persistent">{() => <PersistentComponent />}</Unique>;
-}
+});
 
 function App() {
   const page = Cell.source('home');
@@ -2209,12 +2206,12 @@ function App() {
       {Switch(page, {
         home: () => (
           <div>
-            Home: <UniqueWrapper />
+            Home: <PersistentComponent />
           </div>
         ),
         about: () => (
           <div>
-            About: <UniqueWrapper />
+            About: <PersistentComponent />
           </div>
         ),
       })}
@@ -2228,82 +2225,86 @@ The setup effect runs once when the component is first created and the cleanup o
 - **Saving and Restoring State**:
 
 ```jsx
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
-function ScrollableArea() {
-  return (
-    <Unique
-      name="scroll-area"
-      onSave={(el) => ({ scrollTop: el.scrollTop })}
-      onRestore={(el, data) => {
-        el.scrollTop = data.scrollTop;
-      }}
-    >
-      {() => (
-        <div style={{ height: '400px', overflow: 'auto' }}>
-          <p>Content line 1</p>
-          <p>Content line 2</p>
-          <p>Content line 3</p>
-          {/* ... more content ... */}
-        </div>
-      )}
-    </Unique>
-  );
-}
+const ScrollableArea = createUnique(
+  () => (
+    <div style={{ height: '400px', overflow: 'auto' }}>
+      <p>Content line 1</p>
+      <p>Content line 2</p>
+      <p>Content line 3</p>
+      {/* ... more content ... */}
+    </div>
+  ),
+  {
+    onSave: (el) => ({ scrollTop: el.scrollTop }),
+    onRestore: (el, data) => {
+      el.scrollTop = data.scrollTop;
+    },
+  }
+);
 ```
 
 The `onSave` callback is called when the component is about to move, allowing you to capture any state. The `onRestore` callback is called when the component arrives at its new location, allowing you to restore that state.
 
-- **Using with Refs**:
+- **Accessing Props Reactively**:
 
 ```jsx
-import { Cell, Unique } from 'retend';
+import { Cell, createUnique } from 'retend';
 
-function App() {
-  const uniqueRef = Cell.source(null);
-  const logElement = () => {
-    console.log(uniqueRef.get());
-  };
+const Counter = createUnique((props) => {
+  const label = Cell.derived(() => props.get().label || 'Count');
+  const count = Cell.source(0);
+  const increment = () => count.set(count.get() + 1);
+
   return (
     <div>
-      <Unique name="with-ref" ref={uniqueRef}>
-        {() => <div>Content with ref</div>}
-      </Unique>
-      <button type="button" onClick={logElement}>
-        Log Element
+      <span>
+        {label}: {count}
+      </span>
+      <button type="button" onClick={increment}>
+        +1
       </button>
     </div>
   );
-}
-```
-
-- **Custom Attributes**:
-
-```jsx
-import { Unique } from 'retend';
+});
 
 function App() {
   return (
     <div>
-      <Unique
-        name="styled-unique"
-        class="my-class"
-        style={{ padding: '20px', border: '1px solid blue' }}
-        data-test="unique-element"
-      >
-        {() => <div>Styled unique content</div>}
-      </Unique>
+      <Counter label="Clicks" />
     </div>
   );
 }
 ```
 
-Additional props are applied to the wrapper element (`retend-unique-instance` custom element).
+Props are passed as a Cell, enabling reactive access to prop changes. Use `props.get()` to access current values, or derive cells for reactivity.
 
-- **Dynamic Names in Lists**:
+- **Container Styling Options**:
 
 ```jsx
-import { Cell, For, Unique } from 'retend';
+import { createUnique } from 'retend';
+
+const StyledUnique = createUnique(() => <div>Styled unique content</div>, {
+  container: {
+    class: 'my-class',
+    style: { padding: '20px', border: '1px solid blue' },
+    'data-test': 'unique-element',
+  },
+});
+```
+
+Container options are applied to the wrapper element (`retend-unique-instance` custom element).
+
+- **Dynamic IDs in Lists**:
+
+```jsx
+import { Cell, For, createUnique } from 'retend';
+
+const ItemComponent = createUnique((props) => {
+  const name = Cell.derived(() => props.get().name);
+  return <div>{name}</div>;
+});
 
 function App() {
   const items = Cell.source([
@@ -2313,13 +2314,13 @@ function App() {
   return (
     <div>
       {For(items, (item) => (
-        <Unique name={`item-${item.id}`}>{() => <div>{item.name}</div>}</Unique>
+        <ItemComponent id={`item-${item.id}`} name={item.name} />
       ))}
     </div>
   );
 }
 ```
 
-Use unique names per item to preserve each independently when the list changes.
+Use unique IDs per item to preserve each independently when the list changes.
 
 These advanced components provide unique ways to manage DOM interactions, encapsulation, and component structures.

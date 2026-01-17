@@ -1,7 +1,7 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import { UniqueProps } from 'retend'; */
+/** @import { UniqueComponent, UniqueComponentOptions, UniqueComponentRenderFn } from 'retend' */
 import { Cell } from 'retend';
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
 /**
  * @template CustomData
@@ -21,7 +21,7 @@ import { Unique } from 'retend';
 
 /**
  * @template CustomData
- * @typedef {UniqueProps<CustomData> & TransitionProps} UniqueTransitionProps
+ * @typedef {UniqueComponentOptions<CustomData, HTMLElement> & TransitionProps} UniqueTransitionOptions
  */
 
 /**
@@ -89,20 +89,21 @@ function parseTransitionOptions(
 
 /**
  * @template CustomData
- * @param {UniqueTransitionProps<CustomData>} props
- * @returns {UniqueProps<CustomData>}
+ * @param {UniqueTransitionOptions<CustomData>} options
+ * @returns {UniqueTransitionOptions<CustomData>}
  */
-const addTransitionProps = (props) => {
+const addTransitionProps = (options) => {
   const {
     onSave,
     onRestore,
-    style: styleProp,
+    container,
     transitionDuration,
     transitionTimingFunction,
     maintainWidthDuringTransition,
     maintainHeightDuringTransition,
     ...rest
-  } = props;
+  } = options;
+  const { style: styleProp } = container ?? {};
 
   /** @type {JSX.StyleValue} */
   const style = { transformOrigin: 'top left' };
@@ -112,8 +113,7 @@ const addTransitionProps = (props) => {
   }
 
   return {
-    ...rest,
-    style,
+    container: { ...rest, style },
     onSave(element) {
       const userData = onSave?.(element);
       const animations = element.getAnimations({ subtree: true });
@@ -228,61 +228,34 @@ function getParentTransformMatrix(element) {
 }
 
 /**
- * A wrapper around the Unique component that adds smooth FLIP animations when the element
- * moves between different positions in the DOM tree.
+ * Creates a unique component that visually transitions between locations
+ * using a "First, Last, Invert, Play" (FLIP) strategy.
  *
- * When a UniqueTransition component with the same `name` unmounts and remounts elsewhere,
- * it automatically animates from its previous position/size to its new position/size using
- * CSS transforms and transitions.
+ * This utility ensures that when a persistent component moves from one
+ * container to another, the transition is seamless rather than an
+ * instantaneous jump.
  *
- * @template CustomData
- * @param {UniqueTransitionProps<CustomData>} props
- * @returns {JSX.Template}
+ * ### Key Behaviors
+ * - **Visual Continuity**: The component calculates its change in position
+ * and scale (including parent transforms) and animates the difference.
+ * - **Transition Styling**: The component container is marked with the
+ * `data-transitioning` attribute and `--transitioning` state while the
+ * animation is active.
  *
- * @example
- * // Video player that smoothly animates when moving between sidebar and main view
- * function PersistentVideo({ src, name }) {
- *   return (
- *     <UniqueTransition name={name} transitionDuration="300ms">
- *       {() => <VideoPlayer src={src} />}
- *     </UniqueTransition>
- *   );
- * }
+ * - The component must have an identifiable size (width/height > 0) in the
+ * previous location for a transition to occur.
+ * - To distinguish multiple instances of the same component type, provide
+ * a unique `id` prop.
  *
- * @example
- * // Card that animates between grid and detail view while preserving scroll position
- * function AnimatedCard({ item }) {
- *   return (
- *     <UniqueTransition
- *       name={`card-${item.id}`}
- *       onSave={(el) => ({ scrollTop: el.scrollTop })}
- *       onRestore={(el, data) => { el.scrollTop = data.scrollTop; }}
- *       transitionDuration=".3s"
- *     >
- *       {() => (
- *         <div class="card">
- *           <h3>{item.title}</h3>
- *           <div class="content">{item.content}</div>
- *         </div>
- *       )}
- *     </UniqueTransition>
- *   );
- * }
+ * @template {{}} Props
+ * @template [CustomData=any]
  *
- * @example
- * // Modal that animates from trigger button position
- * function AnimatedModal({ isOpen, children }) {
- *   return isOpen && (
- *     <UniqueTransition name="modal">
- *       {() => (
- *         <div class="modal-overlay">
- *           <div class="modal-content">{children}</div>
- *         </div>
- *       )}
- *     </UniqueTransition>
- *   );
- * }
+ * @param {UniqueComponentRenderFn<Props>} renderFn - The factory function
+ * that defines the component's structure and reactivity.
+ * @param {UniqueTransitionOptions<CustomData>} props - Configuration for
+ * the transition timing, layout constraints, and state persistence.
+ * @returns {UniqueComponent<Props>}
  */
-export function UniqueTransition(props) {
-  return <Unique {...addTransitionProps(props)} />;
+export function createUniqueTransition(renderFn, props) {
+  return createUnique(renderFn, addTransitionProps(props));
 }

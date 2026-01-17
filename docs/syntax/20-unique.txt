@@ -1,61 +1,60 @@
-@Title unique
-@Description The `Unique` component ensures only one instance of a component exists across your entire application by name. DOM nodes are preserved and moved instead of being recreated, maintaining state like video playback or scroll position.
+@Title createUnique
+@Description The `createUnique` factory function creates components that preserve their identity and internal state across different locations in your application. DOM nodes are moved instead of recreated, maintaining state like video playback, scroll position, or form input values.
 
 ---
 
 @Example 1
-@Input Basic Unique component with a name.
-import { Unique } from 'retend';
+@Input Basic unique component creation.
+import { createUnique } from 'retend';
+
+const UniqueContent = createUnique(() => {
+  return <div>This content is unique!</div>;
+});
 
 const App = () => {
   return (
     <div>
-      <Unique name="my-unique-content">
-        {() => <div>This content is unique!</div>}
-      </Unique>
+      <UniqueContent />
     </div>
   );
 };
-@Note The `name` prop uniquely identifies this component instance.
-@Note The `children` prop must be a function that returns JSX.
+@Note The factory function returns a component that can be used like any other component.
+@Note By default, the component's identity is tied to the render function itself.
 
 ---
 
 @Example 2
-@Input Multiple Unique components with the same name - only one renders.
-import { Unique } from 'retend';
+@Input Using the id prop to distinguish multiple instances.
+import { createUnique } from 'retend';
+
+const UniquePanel = createUnique(() => {
+  return <div>Panel content</div>;
+});
 
 const App = () => {
   return (
     <div>
-      <Unique name="shared">
-        {() => <p>First instance</p>}
-      </Unique>
-      <Unique name="shared">
-        {() => <p>Second instance</p>}
-      </Unique>
+      <UniquePanel id="left-panel" />
+      <UniquePanel id="right-panel" />
     </div>
   );
 };
-@Note Only the second instance renders; DOM moves to the last location.
+@Note Each unique `id` creates a separate persistent instance.
+@Note Without an `id`, all usages share the same instance.
 
 ---
 
 @Example 3
 @Input Video player that persists across navigation.
-import { Cell, Switch, Unique } from 'retend';
+import { Cell, Switch, createUnique } from 'retend';
 
-const VideoPlayer = () => {
+const VideoPlayer = createUnique(() => {
   return (
-    <Unique name="main-video">
-      {() => (
-        <video src="https://example.com/video.mp4" controls autoplay>
-          Your browser does not support the video tag.
-        </video>
-      )}
-    </Unique>
+    <video src="https://example.com/video.mp4" controls autoplay>
+      Your browser does not support the video tag.
+    </video>
   );
-};
+});
 
 const HomePage = () => {
   return (
@@ -92,39 +91,37 @@ const App = () => {
 ---
 
 @Example 4
-@Input Moving Unique component with If conditional.
-import { Cell, If, Unique } from 'retend';
+@Input Moving unique component with If conditional.
+import { Cell, If, createUnique } from 'retend';
 
-const UniqueContent = () => {
-  return (
-    <Unique name="movable-content">
-      {() => <div>I move around!</div>}
-    </Unique>
-  );
-};
+const MovableContent = createUnique(() => {
+  return <div>I move around!</div>;
+});
 
 const App = () => {
   const showInFirst = Cell.source(true);
+  const showInSecond = Cell.derived(() => !showInFirst.get());
   const toggle = () => {
     showInFirst.set(!showInFirst.get());
   };
   return (
     <div>
-      <div>First: {If(showInFirst, UniqueContent)}</div>
-      <div>Second: {If(!showInFirst, UniqueContent)}</div>
+      <div>First: {If(showInFirst, () => <MovableContent />)}</div>
+      <div>Second: {If(showInSecond, () => <MovableContent />)}</div>
       <button type="button" onClick={toggle}>Toggle Position</button>
     </div>
   );
 };
 @Note Component moves between positions without recreating.
+@Note Use derived cells for proper reactivity when negating conditions.
 
 ---
 
 @Example 5
 @Input Unique with setup effects that persist.
-import { Cell, Switch, Unique, useSetupEffect } from 'retend';
+import { Cell, Switch, createUnique, useSetupEffect } from 'retend';
 
-const PersistentComponent = () => {
+const PersistentComponent = createUnique(() => {
   useSetupEffect(() => {
     console.log('Setup called once');
     return () => {
@@ -132,15 +129,7 @@ const PersistentComponent = () => {
     };
   });
   return <div>Persistent content</div>;
-};
-
-const UniqueWrapper = () => {
-  return (
-    <Unique name="persistent">
-      {() => <PersistentComponent />}
-    </Unique>
-  );
-};
+});
 
 const App = () => {
   const page = Cell.source('home');
@@ -149,12 +138,12 @@ const App = () => {
       {Switch(page, {
         home: () => (
           <div>
-            Home: <UniqueWrapper />
+            Home: <PersistentComponent />
           </div>
         ),
         about: () => (
           <div>
-            About: <UniqueWrapper />
+            About: <PersistentComponent />
           </div>
         ),
       })}
@@ -167,114 +156,131 @@ const App = () => {
 
 @Example 6
 @Input Saving and restoring scroll position.
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
-const ScrollableArea = () => {
-  return (
-    <Unique
-      name="scroll-area"
-      onSave={(el) => ({ scrollTop: el.scrollTop })}
-      onRestore={(el, data) => {
-        el.scrollTop = data.scrollTop;
-      }}
-    >
-      {() => (
-        <div style={{ height: '400px', overflow: 'auto' }}>
-          <p>Content line 1</p>
-          <p>Content line 2</p>
-          <p>Content line 3</p>
-        </div>
-      )}
-    </Unique>
-  );
-};
+const ScrollableArea = createUnique(
+  () => (
+    <div style={{ height: '400px', overflow: 'auto' }}>
+      <p>Content line 1</p>
+      <p>Content line 2</p>
+      <p>Content line 3</p>
+    </div>
+  ),
+  {
+    onSave: (el) => ({ scrollTop: el.scrollTop }),
+    onRestore: (el, data) => {
+      el.scrollTop = data.scrollTop;
+    },
+  }
+);
 @Note `onSave` captures custom state before moving.
 @Note `onRestore` applies saved state at new location.
 
 ---
 
 @Example 7
-@Input Multiple unique components with different names.
-import { Unique } from 'retend';
+@Input Using the same component with different IDs for independent instances.
+import { Cell, If, createUnique } from 'retend';
+
+const VideoPlayer = createUnique(() => (
+  <video src="video.mp4" controls />
+));
 
 const App = () => {
+  const mainInHeader = Cell.source(true);
+  const mainInBody = Cell.derived(() => !mainInHeader.get());
+  const pipInHeader = Cell.source(false);
+  const pipInBody = Cell.derived(() => !pipInHeader.get());
+  
+  const toggle = () => {
+    mainInHeader.set(!mainInHeader.get());
+    pipInHeader.set(!pipInHeader.get());
+  };
+
   return (
     <div>
-      <Unique name="header-video">
-        {() => <video src="header.mp4" controls />}
-      </Unique>
-      <Unique name="main-content">
-        {() => <div>Main content here</div>}
-      </Unique>
-      <Unique name="footer-widget">
-        {() => <div>Footer widget</div>}
-      </Unique>
+      <header>
+        {If(mainInHeader, () => <VideoPlayer id="main" />)}
+        {If(pipInHeader, () => <VideoPlayer id="pip" />)}
+      </header>
+      <main>
+        {If(mainInBody, () => <VideoPlayer id="main" />)}
+        {If(pipInBody, () => <VideoPlayer id="pip" />)}
+      </main>
+      <button type="button" onClick={toggle}>Swap Videos</button>
     </div>
   );
 };
-@Note Each unique name creates a separate persistent instance.
+@Note Both videos use the same `VideoPlayer` component but have different IDs.
+@Note Each ID creates a separate persistent instance that moves independently.
+@Note Without an ID, all usages would share the same single instance.
 
 ---
 
 @Example 8
-@Input Using ref to access the Unique element.
-import { Cell, Unique } from 'retend';
+@Input Accessing props reactively.
+import { Cell, createUnique } from 'retend';
 
-const App = () => {
-  const uniqueRef = Cell.source(null);
-  const logElement = () => {
-    console.log(uniqueRef.get());
-  };
+const Counter = createUnique((props) => {
+  const label = Cell.derived(() => props.get().label || 'Count');
+  const count = Cell.source(0);
+  const increment = () => count.set(count.get() + 1);
+  
   return (
     <div>
-      <Unique name="with-ref" ref={uniqueRef}>
-        {() => <div>Content with ref</div>}
-      </Unique>
-      <button type="button" onClick={logElement}>Log Element</button>
+      <span>{label}: {count}</span>
+      <button type="button" onClick={increment}>+1</button>
+    </div>
+  );
+});
+
+const App = () => {
+  return (
+    <div>
+      <Counter label="Clicks" />
     </div>
   );
 };
-@Note `ref` provides access to the underlying DOM element.
+@Note Props are passed as a Cell, enabling reactive access to prop changes.
+@Note Use `props.get()` to access current values, or derive cells for reactivity.
 
 ---
 
 @Example 9
-@Input Unique component with custom attributes.
-import { Unique } from 'retend';
+@Input Unique component with container styling.
+import { createUnique } from 'retend';
+
+const StyledUnique = createUnique(
+  () => <div>Styled unique content</div>,
+  {
+    container: {
+      class: 'my-class',
+      style: { padding: '20px', border: '1px solid blue' },
+      'data-test': 'unique-element',
+    },
+  }
+);
 
 const App = () => {
   return (
     <div>
-      <Unique
-        name="styled-unique"
-        class="my-class"
-        style={{ padding: '20px', border: '1px solid blue' }}
-        data-test="unique-element"
-      >
-        {() => <div>Styled unique content</div>}
-      </Unique>
+      <StyledUnique />
     </div>
   );
 };
-@Note Additional props are applied to the wrapper element.
+@Note Container options are applied to the wrapper element.
 
 ---
 
 @Example 10
 @Input Audio player persisting across routes.
-import { Cell, Switch, Unique } from 'retend';
+import { Cell, Switch, createUnique } from 'retend';
 
-const AudioPlayer = () => {
-  return (
-    <Unique name="audio-player">
-      {() => (
-        <audio src="https://example.com/audio.mp3" controls autoplay>
-          Your browser does not support the audio tag.
-        </audio>
-      )}
-    </Unique>
-  );
-};
+const AudioPlayer = createUnique(() => (
+  <audio src="https://example.com/audio.mp3" controls autoplay>
+    Your browser does not support the audio tag.
+  </audio>
+));
 
 const App = () => {
   const route = Cell.source('home');
@@ -300,8 +306,13 @@ const App = () => {
 ---
 
 @Example 11
-@Input Unique in a For loop with dynamic names.
-import { Cell, For, Unique } from 'retend';
+@Input Unique in a For loop with dynamic IDs.
+import { Cell, For, createUnique } from 'retend';
+
+const ItemComponent = createUnique((props) => {
+  const name = Cell.derived(() => props.get().name);
+  return <div>{name}</div>;
+});
 
 const App = () => {
   const items = Cell.source([
@@ -311,49 +322,43 @@ const App = () => {
   return (
     <div>
       {For(items, (item) => (
-        <Unique name={`item-${item.id}`}>
-          {() => <div>{item.name}</div>}
-        </Unique>
+        <ItemComponent id={`item-${item.id}`} name={item.name} />
       ))}
     </div>
   );
 };
-@Note Use unique names per item to preserve each independently.
+@Note Use unique IDs per item to preserve each independently.
 
 ---
 
 @Example 12
 @Input Saving form input state.
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
-const FormInput = () => {
-  return (
-    <Unique
-      name="form-input"
-      onSave={(el) => {
-        const input = el.querySelector('input');
-        return { value: input?.value || '' };
-      }}
-      onRestore={(el, data) => {
-        const input = el.querySelector('input');
-        if (input && data) {
-          input.value = data.value;
-        }
-      }}
-    >
-      {() => <input type="text" placeholder="Enter text..." />}
-    </Unique>
-  );
-};
+const FormInput = createUnique(
+  () => <input type="text" placeholder="Enter text..." />,
+  {
+    onSave: (el) => {
+      const input = el.querySelector('input');
+      return { value: input?.value || '' };
+    },
+    onRestore: (el, data) => {
+      const input = el.querySelector('input');
+      if (input && data) {
+        input.value = data.value;
+      }
+    },
+  }
+);
 @Note Input value is preserved when component moves.
 
 ---
 
 @Example 13
-@Input Unique component with nested components.
-import { Cell, Unique, useSetupEffect } from 'retend';
+@Input Unique component with nested reactive state.
+import { Cell, createUnique, useSetupEffect } from 'retend';
 
-const NestedComponent = () => {
+const TimerComponent = createUnique(() => {
   const count = Cell.source(0);
   useSetupEffect(() => {
     const interval = setInterval(() => {
@@ -362,46 +367,38 @@ const NestedComponent = () => {
     return () => clearInterval(interval);
   });
   return <div>Count: {count}</div>;
-};
+});
 
 const App = () => {
-  return (
-    <Unique name="nested-unique">
-      {() => <NestedComponent />}
-    </Unique>
-  );
+  return <TimerComponent />;
 };
 @Note Nested components maintain their state and effects.
 
 ---
 
 @Example 14
-@Input Conditionally rendering Unique across different containers.
-import { Cell, If, Unique } from 'retend';
+@Input Conditionally rendering unique across different containers.
+import { Cell, createUnique } from 'retend';
 
-const SharedContent = () => {
-  return (
-    <Unique name="shared-content">
-      {() => <div>Shared across containers</div>}
-    </Unique>
-  );
-};
+const SharedContent = createUnique(() => (
+  <div>Shared across containers</div>
+));
 
 const App = () => {
   const location = Cell.source('left');
-  const moveRight = () => {
-    location.set('right');
-  };
-  const moveLeft = () => {
-    location.set('left');
-  };
+  const moveRight = () => location.set('right');
+  const moveLeft = () => location.set('left');
+  
+  const isLeft = Cell.derived(() => location.get() === 'left');
+  const isRight = Cell.derived(() => location.get() === 'right');
+  
   return (
     <div style={{ display: 'flex', gap: '20px' }}>
       <div style={{ border: '1px solid red', padding: '10px' }}>
-        Left: {If(location, (loc) => If(loc === 'left', SharedContent))}
+        Left: {If(isLeft, () => <SharedContent />)}
       </div>
       <div style={{ border: '1px solid blue', padding: '10px' }}>
-        Right: {If(location, (loc) => If(loc === 'right', SharedContent))}
+        Right: {If(isRight, () => <SharedContent />)}
       </div>
       <button type="button" onClick={moveLeft}>Move Left</button>
       <button type="button" onClick={moveRight}>Move Right</button>
@@ -413,105 +410,85 @@ const App = () => {
 
 @Example 15
 @Input Saving complex state with multiple data points.
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
-const ComplexComponent = () => {
-  return (
-    <Unique
-      name="complex"
-      onSave={(el) => {
-        return {
-          timestamp: Date.now(),
-          scrollTop: el.scrollTop,
-          customData: 'preserved',
-        };
-      }}
-      onRestore={(el, data) => {
-        console.log('Restored at:', new Date(data.timestamp));
-        el.scrollTop = data.scrollTop;
-      }}
-    >
-      {() => (
-        <div style={{ height: '300px', overflow: 'auto' }}>
-          <p>Line 1</p>
-          <p>Line 2</p>
-        </div>
-      )}
-    </Unique>
-  );
-};
+const ComplexComponent = createUnique(
+  () => (
+    <div style={{ height: '300px', overflow: 'auto' }}>
+      <p>Line 1</p>
+      <p>Line 2</p>
+    </div>
+  ),
+  {
+    onSave: (el) => ({
+      timestamp: Date.now(),
+      scrollTop: el.scrollTop,
+      customData: 'preserved',
+    }),
+    onRestore: (el, data) => {
+      console.log('Restored at:', new Date(data.timestamp));
+      el.scrollTop = data.scrollTop;
+    },
+  }
+);
 @Note onSave can return any custom data structure.
 
 ---
 
 @Example 16
 @Input Unique component with video and custom controls.
-import { Cell, Unique } from 'retend';
+import { Cell, createUnique } from 'retend';
 
-const VideoWithControls = () => {
+const VideoWithControls = createUnique(() => {
   const videoRef = Cell.source(null);
-  const play = () => {
-    videoRef.get()?.play();
-  };
-  const pause = () => {
-    videoRef.get()?.pause();
-  };
+  const play = () => videoRef.get()?.play();
+  const pause = () => videoRef.get()?.pause();
+  
   return (
-    <Unique name="video-controls">
-      {() => (
-        <div>
-          <video ref={videoRef} src="video.mp4">
-            Your browser does not support the video tag.
-          </video>
-          <button type="button" onClick={play}>Play</button>
-          <button type="button" onClick={pause}>Pause</button>
-        </div>
-      )}
-    </Unique>
+    <div>
+      <video ref={videoRef} src="video.mp4">
+        Your browser does not support the video tag.
+      </video>
+      <button type="button" onClick={play}>Play</button>
+      <button type="button" onClick={pause}>Pause</button>
+    </div>
   );
-};
-@Note Refs work inside Unique components.
+});
+@Note Refs work inside unique components.
 
 ---
 
 @Example 17
 @Input Unique modal that persists across pages.
-import { Cell, Switch, Unique, If } from 'retend';
+import { Cell, Switch, If, createUnique } from 'retend';
 
-const Modal = () => {
-  return (
-    <Unique name="global-modal">
-      {() => (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: 'white',
-          padding: '20px',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-        }}>
-          <h2>Modal Content</h2>
-          <p>This modal persists across page changes</p>
-        </div>
-      )}
-    </Unique>
-  );
-};
+const Modal = createUnique(() => (
+  <div style={{
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    background: 'white',
+    padding: '20px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+  }}>
+    <h2>Modal Content</h2>
+    <p>This modal persists across page changes</p>
+  </div>
+));
 
 const App = () => {
   const showModal = Cell.source(false);
   const page = Cell.source('home');
-  const toggleModal = () => {
-    showModal.set(!showModal.get());
-  };
+  const toggleModal = () => showModal.set(!showModal.get());
+  
   return (
     <div>
       {Switch(page, {
         home: () => <div>Home Page</div>,
         about: () => <div>About Page</div>,
       })}
-      {If(showModal, Modal)}
+      {If(showModal, () => <Modal />)}
       <button type="button" onClick={toggleModal}>Toggle Modal</button>
     </div>
   );
@@ -521,9 +498,9 @@ const App = () => {
 
 @Example 18
 @Input Unique component that only cleans up when fully removed.
-import { Cell, If, Unique, useSetupEffect } from 'retend';
+import { Cell, If, createUnique, useSetupEffect } from 'retend';
 
-const ResourceComponent = () => {
+const ResourceComponent = createUnique(() => {
   useSetupEffect(() => {
     console.log('Resource initialized');
     const resource = { connected: true };
@@ -533,24 +510,15 @@ const ResourceComponent = () => {
     };
   });
   return <div>Resource Component</div>;
-};
-
-const UniqueResource = () => {
-  return (
-    <Unique name="resource">
-      {() => <ResourceComponent />}
-    </Unique>
-  );
-};
+});
 
 const App = () => {
   const show = Cell.source(true);
-  const toggle = () => {
-    show.set(!show.get());
-  };
+  const toggle = () => show.set(!show.get());
+  
   return (
     <div>
-      {If(show, UniqueResource)}
+      {If(show, () => <ResourceComponent />)}
       <button type="button" onClick={toggle}>Toggle</button>
     </div>
   );
@@ -561,46 +529,34 @@ const App = () => {
 
 @Example 19
 @Input Using Unique with ShadowRoot components.
-import { ShadowRoot, Unique } from 'retend';
+import { ShadowRoot, createUnique } from 'retend';
 
-const ShadowComponent = () => {
-  return (
-    <Unique name="shadow-unique">
-      {() => (
-        <ShadowRoot mode="open">
-          {() => (
-            <div>
-              <style>
-                {`div { color: blue; }`}
-              </style>
-              <div>Styled in Shadow DOM</div>
-            </div>
-          )}
-        </ShadowRoot>
-      )}
-    </Unique>
-  );
-};
-@Note ShadowRoot is preserved when Unique component moves.
+const ShadowComponent = createUnique(() => (
+  <ShadowRoot mode="open">
+    {() => (
+      <div>
+        <style>
+          {`div { color: blue; }`}
+        </style>
+        <div>Styled in Shadow DOM</div>
+      </div>
+    )}
+  </ShadowRoot>
+));
+@Note ShadowRoot is preserved when unique component moves.
 
 ---
 
 @Example 20
 @Input Unique component in routing setup.
-import { Cell, Router, Route, Link, Unique } from 'retend';
+import { Cell, Router, Route, Link, createUnique } from 'retend';
 
-const PersistentSidebar = () => {
-  return (
-    <Unique name="sidebar">
-      {() => (
-        <aside style={{ width: '200px', background: '#f0f0f0' }}>
-          <h3>Sidebar</h3>
-          <p>Always visible</p>
-        </aside>
-      )}
-    </Unique>
-  );
-};
+const PersistentSidebar = createUnique(() => (
+  <aside style={{ width: '200px', background: '#f0f0f0' }}>
+    <h3>Sidebar</h3>
+    <p>Always visible</p>
+  </aside>
+));
 
 const routes = Route.create({
   '/': () => (
@@ -626,125 +582,104 @@ const App = () => {
 
 @Example 21
 @Input Saving and restoring canvas state.
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
-const DrawingCanvas = () => {
-  return (
-    <Unique
-      name="canvas"
-      onSave={(el) => {
+const DrawingCanvas = createUnique(
+  () => <canvas width="400" height="300" />,
+  {
+    onSave: (el) => {
+      const canvas = el.querySelector('canvas');
+      return { dataURL: canvas?.toDataURL() || '' };
+    },
+    onRestore: (el, data) => {
+      if (data?.dataURL) {
         const canvas = el.querySelector('canvas');
-        return {
-          dataURL: canvas?.toDataURL() || '',
-        };
-      }}
-      onRestore={(el, data) => {
-        if (data?.dataURL) {
-          const canvas = el.querySelector('canvas');
-          const ctx = canvas?.getContext('2d');
-          const img = new Image();
-          img.onload = () => {
-            ctx?.drawImage(img, 0, 0);
-          };
-          img.src = data.dataURL;
-        }
-      }}
-    >
-      {() => <canvas width="400" height="300" />}
-    </Unique>
-  );
-};
+        const ctx = canvas?.getContext('2d');
+        const img = new Image();
+        img.onload = () => ctx?.drawImage(img, 0, 0);
+        img.src = data.dataURL;
+      }
+    },
+  }
+);
 @Note Canvas drawing is preserved across moves.
 
 ---
 
 @Example 22
-@Input Multiple Unique instances moving independently.
-import { Cell, If, Unique } from 'retend';
+@Input Multiple unique instances moving independently.
+import { Cell, If, createUnique } from 'retend';
+
+const Panel = createUnique((props) => {
+  const label = Cell.derived(() => props.get().label);
+  return <div>{label} Unique</div>;
+});
 
 const App = () => {
   const showFirstInA = Cell.source(true);
+  const showFirstInB = Cell.derived(() => !showFirstInA.get());
   const showSecondInA = Cell.source(false);
+  const showSecondInB = Cell.derived(() => !showSecondInA.get());
+  
   return (
     <div>
       <div style={{ border: '1px solid red' }}>
         Container A:
-        {If(showFirstInA, () => (
-          <Unique name="first">
-            {() => <div>First Unique</div>}
-          </Unique>
-        ))}
-        {If(showSecondInA, () => (
-          <Unique name="second">
-            {() => <div>Second Unique</div>}
-          </Unique>
-        ))}
+        {If(showFirstInA, () => <Panel id="first" label="First" />)}
+        {If(showSecondInA, () => <Panel id="second" label="Second" />)}
       </div>
       <div style={{ border: '1px solid blue' }}>
         Container B:
-        {If(!showFirstInA, () => (
-          <Unique name="first">
-            {() => <div>First Unique</div>}
-          </Unique>
-        ))}
-        {If(!showSecondInA, () => (
-          <Unique name="second">
-            {() => <div>Second Unique</div>}
-          </Unique>
-        ))}
+        {If(showFirstInB, () => <Panel id="first" label="First" />)}
+        {If(showSecondInB, () => <Panel id="second" label="Second" />)}
       </div>
     </div>
   );
 };
-@Note Each unique name moves independently.
+@Note Each unique ID moves independently.
 
 ---
 
 @Example 23
 @Input Unique component with iframe that preserves state.
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
-const EmbeddedContent = () => {
-  return (
-    <Unique name="embedded-iframe">
-      {() => (
-        <iframe
-          src="https://example.com"
-          width="600"
-          height="400"
-          style={{ border: '1px solid gray' }}
-        />
-      )}
-    </Unique>
-  );
-};
+const EmbeddedContent = createUnique(() => (
+  <iframe
+    src="https://example.com"
+    width="600"
+    height="400"
+    style={{ border: '1px solid gray' }}
+  />
+));
 @Note iframe navigation state persists across component moves.
 
 ---
 
 @Example 24
 @Input Unique with dynamic content based on props.
-import { Cell, Switch, Unique } from 'retend';
+import { Cell, Switch, createUnique } from 'retend';
 
-const VideoPlayer = ({ videoId }) => {
+const VideoPlayer = createUnique((props) => {
+  const src = Cell.derived(() => {
+    const videoId = props.get().videoId;
+    return `https://example.com/video-${videoId}.mp4`;
+  });
+  
   return (
-    <Unique name={`video-${videoId}`}>
-      {() => (
-        <video src={`https://example.com/video-${videoId}.mp4`} controls>
-          Your browser does not support the video tag.
-        </video>
-      )}
-    </Unique>
+    <video src={src} controls>
+      Your browser does not support the video tag.
+    </video>
   );
-};
+});
 
 const App = () => {
   const currentVideo = Cell.source('intro');
   return (
     <div>
       {Switch(currentVideo, {
-        intro: () => <VideoPlayer videoId="intro" />,
-        tutorial: () => <VideoPlayer videoId="tutorial" />,
+        intro: () => <VideoPlayer id="intro" videoId="intro" />,
+        tutorial: () => <VideoPlayer id="tutorial" videoId="tutorial" />,
       })}
     </div>
   );
@@ -755,13 +690,60 @@ const App = () => {
 
 @Example 25
 @Input Preserving Web Component state.
-import { Unique } from 'retend';
+import { createUnique } from 'retend';
 
-const WebComponentWrapper = () => {
+const WebComponentWrapper = createUnique(() => (
+  <custom-element data-value="preserved" />
+));
+@Note Custom elements maintain their internal state.
+
+---
+
+@Example 26
+@Input Reactive container attributes.
+import { Cell, createUnique } from 'retend';
+
+const className = Cell.source('initial-class');
+
+const DynamicContainer = createUnique(
+  () => <div>Content</div>,
+  {
+    container: { class: className },
+  }
+);
+
+const App = () => {
+  const updateClass = () => className.set('updated-class');
   return (
-    <Unique name="web-component">
-      {() => <custom-element data-value="preserved" />}
-    </Unique>
+    <div>
+      <DynamicContainer />
+      <button type="button" onClick={updateClass}>Update Class</button>
+    </div>
   );
 };
-@Note Custom elements maintain their internal state.
+@Note Container attributes can be reactive Cells.
+
+---
+
+@Example 27
+@Input Nested unique components.
+import { createUnique, useSetupEffect } from 'retend';
+
+const Inner = createUnique(() => {
+  useSetupEffect(() => {
+    console.log('Inner setup');
+  });
+  return <div>Inner Content</div>;
+});
+
+const Outer = createUnique(() => (
+  <div class="outer-box">
+    <Inner id="nested-inner" />
+  </div>
+));
+
+const App = () => {
+  return <Outer id="outer" />;
+};
+@Note Unique components can be nested within each other.
+@Note Each maintains its own identity and lifecycle.
