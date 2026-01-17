@@ -22,7 +22,7 @@ import { linkNodes } from '../library/utils.js';
  * @property {Map<string | Function, ScopeSnapshot>} scopes
  * @property {Map<string | Function, SourceCell<any>>} props
  * @property {Set<() => void>} pendingTeardowns
- * @property {Map<string | Function, unknown[]>} stack
+ * @property {Map<string | Function, { node: unknown, props: any }[]>} stack
  * @property {() => void} onActivate
  */
 
@@ -227,15 +227,17 @@ export function createUnique(renderFn, options = {}) {
       if (previous) stash.instances.set(id, previous);
     };
 
-    /** @param {unknown} div */
-    const restoreState = (div) => {
+    /** @param {unknown} node */
+    const restoreState = (node) => {
       if (onRestore && previous?.data) {
         // @ts-ignore: TODO: The base type should be unknown when more environments are added.
-        onRestore(div, previous.data);
+        onRestore(node, previous.data);
       }
 
-      stash.refs.set(id, Cell.source(div));
-      if (!journey.includes(div)) journey.push(div);
+      stash.refs.set(id, Cell.source(node));
+      if (!journey.find(({ node: n }) => node === n)) {
+        journey.push({ node, props });
+      }
       stash.instances.delete(id);
     };
 
@@ -279,13 +281,13 @@ export function createUnique(renderFn, options = {}) {
       stash.pendingTeardowns.delete(teardown);
     };
 
-    observer.onConnected(ref, (div) => {
-      restoreState(div);
+    observer.onConnected(ref, (node) => {
+      restoreState(node);
       const scope = stash.scopes.get(id);
       if (scope) scope.node.enable();
 
       return () => {
-        const index = journey.indexOf(div);
+        const index = journey.findIndex(({ node: n }) => node === n);
         if (index !== -1) journey.splice(index, 1);
         const nextInstance = journey.at(-1);
         if (!nextInstance && !disposedByHMR)
@@ -317,17 +319,21 @@ export function createUnique(renderFn, options = {}) {
         if (scope) scope.node.disable();
         const currentElement = stash.refs.get(id)?.peek();
 
-        const index = journey.indexOf(currentElement);
+        const index = journey.findIndex(({ node }) => node === currentElement);
         if (index !== -1) journey.splice(index, 1);
 
         if (currentElement === current) {
           saveState(current);
 
           const next = journey.at(-1);
-          if (next && currentElement !== next) {
-            renderer.append(next, Array.from(retendUniqueInstance.childNodes));
-            renderer.setProperty(next, 'state', 'restored');
-            restoreState(next);
+          if (next && currentElement !== next.node) {
+            renderer.append(
+              next.node,
+              Array.from(retendUniqueInstance.childNodes)
+            );
+            renderer.setProperty(next.node, 'state', 'restored');
+            propSource.set(next.props);
+            restoreState(next.node);
           }
         }
       };
