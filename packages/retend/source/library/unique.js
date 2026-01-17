@@ -181,7 +181,7 @@ const initUniqueStash = (renderer) => {
  */
 export function createUnique(renderFn, options = {}) {
   /** @param {UniqueProps<Props>} props */
-  const Fn = (props) => {
+  const UniqueComponent = (props) => {
     const { id = renderFn } = props;
     const { globalData } = getGlobalContext();
     const renderer = getActiveRenderer();
@@ -275,6 +275,7 @@ export function createUnique(renderFn, options = {}) {
       stash.refs.delete(id);
       stash.scopes.delete(id);
       stash.stack.delete(id);
+      stash.props.delete(id);
       stash.pendingTeardowns.delete(teardown);
     };
 
@@ -351,6 +352,5 @@ export function createUnique(renderFn, options = {}) {
 
     return retendUniqueInstance;
   };
-  Object.defineProperty(Fn, 'name', { value: 'UniqueComponent' });
-  return Fn;
+  return UniqueComponent;
 }
