@@ -308,6 +308,8 @@ export function createUnique(renderFn, options = {}) {
           stash.instances.delete(id);
           stash.refs.delete(id);
           stash.scopes.delete(id);
+          stash.stack.delete(id);
+          stash.props.delete(id);
           disposedByHMR = true;
           return;
         }
