@@ -4,7 +4,7 @@ import {
   If,
   type SourceCell,
   Switch,
-  Unique,
+  createUnique,
   getActiveRenderer,
   setActiveRenderer,
 } from 'retend';
@@ -247,19 +247,18 @@ describe('Hydration', () => {
 
   it('should hydrate Unique components', async () => {
     const count = Cell.source(0);
+    const Component = createUnique(() => (
+      <button
+        id="unique-btn"
+        type="button"
+        onClick={() => count.set(count.get() + 1)}
+      >
+        Unique: {count}
+      </button>
+    ));
     const template = () => (
       <div>
-        <Unique id="unique-comp" name="test-unique">
-          {() => (
-            <button
-              id="unique-btn"
-              type="button"
-              onClick={() => count.set(count.get() + 1)}
-            >
-              Unique: {count}
-            </button>
-          )}
-        </Unique>
+        <Component />
       </div>
     );
 
@@ -618,21 +617,20 @@ describe('Hydration', () => {
 
   it('should hydrate Teleport with Unique component inside', async () => {
     const count = Cell.source(0);
+    const Component = createUnique(() => (
+      <button
+        id="teleport-btn"
+        type="button"
+        onClick={() => count.set(count.get() + 1)}
+      >
+        Count: {count}
+      </button>
+    ));
     const template = () => (
       <div>
         <div id="unique-target" />
         <Teleport to="#unique-target">
-          <Unique id="teleported-unique" name="test">
-            {() => (
-              <button
-                id="teleport-btn"
-                type="button"
-                onClick={() => count.set(count.get() + 1)}
-              >
-                Count: {count}
-              </button>
-            )}
-          </Unique>
+          <Component />
         </Teleport>
       </div>
     );
@@ -906,19 +904,21 @@ describe('Hydration', () => {
 
   it('should hydrate Teleport with For containing Unique components', async () => {
     const items = Cell.source(['A', 'B', 'C']);
+    const Item = createUnique<{ item: string }>((props) => {
+      const { item } = props.get();
+      return (
+        <div class="unique-item" id={`item-el-${item}`}>
+          Item: {item}
+        </div>
+      );
+    });
     const template = () => (
       <div>
         <div id="unique-for-target" />
         <Teleport to="#unique-for-target">
           <div>
             {For(items, (item, index) => (
-              <Unique id={`item-${item}`} name={`unique-${index}`}>
-                {() => (
-                  <div class="unique-item" id={`item-el-${item}`}>
-                    Item: {item}
-                  </div>
-                )}
-              </Unique>
+              <Item id={`item-el-${index.get()}`} item={item} />
             ))}
           </div>
         </Teleport>
@@ -1282,20 +1282,22 @@ describe('Hydration', () => {
 
   it('should hydrate shadowroots with Unique component', async () => {
     const count = Cell.source(0);
+    const Component = createUnique(() => {
+      return (
+        <button
+          id="shadow-unique-btn"
+          type="button"
+          onClick={() => count.set(count.get() + 1)}
+        >
+          Unique: {count}
+        </button>
+      );
+    });
+
     const template = () => (
       <div id="unique-shadow-parent">
         <ShadowRoot>
-          <Unique id="shadow-unique" name="shadow-unique-test">
-            {() => (
-              <button
-                id="shadow-unique-btn"
-                type="button"
-                onClick={() => count.set(count.get() + 1)}
-              >
-                Unique: {count}
-              </button>
-            )}
-          </Unique>
+          <Component />
         </ShadowRoot>
       </div>
     );
