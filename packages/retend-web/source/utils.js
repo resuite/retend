@@ -298,20 +298,22 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
   return `${useHost ? ':host{' : ''}${Object.entries(styles)
     .map(([key, value]) => {
       if (Cell.isCell(/** @type any */ (value)) && element) {
-        addCellListener(
-          element,
-          value,
-          function (newValue) {
-            const styleKey = normalizeStyleKey(key);
-            if (!isSomewhatFalsy(newValue)) {
-              // optional because the style property does not exist in the vDOM.
-              this.style?.setProperty(styleKey, newValue);
-            } else {
-              this.style?.removeProperty(styleKey);
-            }
-          },
-          false
-        );
+        /**
+         * @this HTMLElement
+         * @param {string} newValue
+         */
+        function applyNewStyle(newValue) {
+          const styleKey = normalizeStyleKey(key);
+          if (value instanceof Promise) {
+            value.then((resolvedValue) => {
+              applyNewStyle.bind(this)(resolvedValue);
+            });
+          } else if (!isSomewhatFalsy(newValue)) {
+            // optional because the style property does not exist in the vDOM.
+            this.style?.setProperty(styleKey, newValue);
+          } else this.style?.removeProperty(styleKey);
+        }
+        addCellListener(element, value, applyNewStyle, false);
       }
       if (isSomewhatFalsy(value)) return '';
       return `${normalizeStyleKey(key)}: ${value.valueOf()}`;
@@ -367,7 +369,7 @@ export const listenerModifiers = ['self', 'prevent', 'once', 'passive', 'stop'];
  *
  * Handles various input types for class values, including strings, arrays, objects, and cells.
  *
- * @param {string | string[] | Cell<string | string[]> | Record<string, boolean > | undefined} val - The class value to normalize.
+ * @param {string | string[] | Promise<string | string[]> | Cell<string | string[] | Promise<string | string[]>> | Record<string, boolean | Cell<boolean | Promise<boolean>>> | undefined} val - The class value to normalize.
  * @param {JsxElement} [element] The target element with the class.
  * @returns {string} The normalized class value as a string.
  */
@@ -378,38 +380,60 @@ export function normalizeClassValue(val, element) {
 
   if (Array.isArray(val)) {
     let result = '';
-    for (const [index, value] of val.entries()) {
+    for (const value of val) {
       const normalized = normalizeClassValue(value, element);
       if (normalized) {
+        if (result) result += ' ';
         result += normalized;
-      }
-      if (index !== val.length - 1) {
-        result += ' ';
       }
     }
     return result;
   }
 
   if (Cell.isCell(val) && element) {
-    let currentClassToken = normalizeClassValue(val.get(), element);
-    addCellListener(
-      element,
-      val,
-      function (newValue) {
-        const classes =
-          typeof newValue === 'string'
-            ? newValue.split(' ')
-            : newValue.flatMap(String.prototype.split);
-        try {
-          this.classList.remove(...currentClassToken.split(' '));
-          this.classList.add(...classes);
-        } catch {
-          //
+    let currentClassToken = '';
+    /**
+     *
+     * @param {string | string[]} newValue
+     * @param {Element} element
+     */
+    const setClasses = (newValue, element) => {
+      const classes =
+        typeof newValue === 'string'
+          ? newValue.split(' ')
+          : (newValue?.flatMap(String.prototype.split) ?? []);
+      try {
+        if (currentClassToken) {
+          element.classList.remove(...currentClassToken.split(' '));
         }
-        currentClassToken = classes.join(' ');
-      },
-      false
-    );
+        element.classList.add(...classes);
+      } catch {
+        //
+      }
+      currentClassToken = classes.join(' ');
+    };
+    /**
+     * @this Element
+     * @param {string | Promise<string | string[]> | string[]} newValue
+     */
+    function applyValue(newValue) {
+      if (newValue instanceof Promise) {
+        newValue.then((newValue) => setClasses(newValue, this));
+        return;
+      }
+      setClasses(newValue, this);
+    }
+
+    const value = val.get();
+    if (value instanceof Promise) {
+      value.then((resolvedValue) => {
+        const token = normalizeClassValue(resolvedValue, element);
+        applyValue.bind(element)(token);
+      });
+      return '';
+    }
+    currentClassToken = normalizeClassValue(value, element);
+    addCellListener(element, val, applyValue, false);
     return currentClassToken;
   }
 
@@ -417,27 +441,49 @@ export function normalizeClassValue(val, element) {
     let result = '';
     for (const [key, value] of Object.entries(val)) {
       if (!Cell.isCell(value)) {
-        if (value) result += ` ${key}`;
+        if (value) {
+          if (result) result += ' ';
+          result += key;
+        }
         continue;
       }
 
-      addCellListener(
-        element,
-        value,
-        function (newValue) {
-          try {
-            if (newValue) {
-              this.classList.add(...key.split(' '));
-            } else {
-              this.classList.remove(...key.split(' '));
+      /**
+       * @this {Element}
+       * @param {any} newVal
+       */
+      function applyValue(newVal) {
+        if (newVal instanceof Promise) {
+          newVal.then((newValue) => {
+            try {
+              if (newValue) {
+                this.classList.add(...key.split(' '));
+              } else {
+                this.classList.remove(...key.split(' '));
+              }
+            } catch {
+              //
             }
-          } catch {
-            //
+          });
+          return;
+        }
+        try {
+          const newValue = newVal;
+          if (newValue) {
+            this.classList.add(...key.split(' '));
+          } else {
+            this.classList.remove(...key.split(' '));
           }
-        },
-        false
-      );
-      if (value.get()) result += ` ${key}`;
+        } catch {
+          //
+        }
+      }
+
+      addCellListener(element, value, applyValue, false);
+      if (value.get()) {
+        if (result) result += ' ';
+        result += key;
+      }
     }
     return result;
   }

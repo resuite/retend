@@ -1,0 +1,394 @@
+@Title createUniqueTransition
+@Description The `createUniqueTransition` factory creates unique components that animate smoothly when moving between locations using a FLIP (First, Last, Invert, Play) animation strategy. It extends `createUnique` with automatic position and scale transitions.
+
+---
+
+@Example 1
+@Input Basic unique transition component.
+import { createUniqueTransition } from 'retend-utils';
+
+const AnimatedPanel = createUniqueTransition(
+  () => <div class="panel">Animated content</div>,
+  { transitionDuration: '300ms' }
+);
+
+const App = () => {
+  return (
+    <div>
+      <AnimatedPanel />
+    </div>
+  );
+};
+@Note The component animates when moved to a new position in the DOM.
+@Note Uses FLIP animation for smooth visual transitions.
+
+---
+
+@Example 2
+@Input Video player with smooth transitions between pages.
+import { Cell, Switch } from 'retend';
+import { createUniqueTransition } from 'retend-utils';
+
+const VideoPlayer = createUniqueTransition(
+  () => (
+    <video src="https://example.com/video.mp4" controls autoplay>
+      Your browser does not support the video tag.
+    </video>
+  ),
+  {
+    transitionDuration: '400ms',
+    transitionTimingFunction: 'ease-out',
+  }
+);
+
+const HomePage = () => (
+  <div>
+    <h1>Home</h1>
+    <div style={{ width: '800px', height: '450px' }}>
+      <VideoPlayer />
+    </div>
+  </div>
+);
+
+const AboutPage = () => (
+  <div>
+    <h1>About</h1>
+    <div style={{ width: '400px', height: '225px' }}>
+      <VideoPlayer />
+    </div>
+  </div>
+);
+
+const App = () => {
+  const page = Cell.source('home');
+  return (
+    <div>
+      {Switch(page, {
+        home: HomePage,
+        about: AboutPage,
+      })}
+    </div>
+  );
+};
+@Note Video smoothly scales and moves when changing pages.
+@Note Playback continues uninterrupted during the transition.
+
+---
+
+@Example 3
+@Input Picture-in-picture style transition.
+import { Cell, If } from 'retend';
+import { createUniqueTransition } from 'retend-utils';
+
+const styles = {
+  main: { width: '640px', height: '360px' },
+  pip: { 
+    position: 'fixed', 
+    bottom: '20px', 
+    right: '20px', 
+    width: '200px', 
+    height: '112px' 
+  },
+};
+
+const VideoPlayer = createUniqueTransition(
+  () => <video src="video.mp4" controls />,
+  {
+    transitionDuration: '300ms',
+    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  }
+);
+
+const App = () => {
+  const isPip = Cell.source(false);
+  const isMain = Cell.derived(() => !isPip.get());
+  const toggle = () => isPip.set(!isPip.get());
+  
+  return (
+    <div>
+      {If(isMain, () => (
+        <div style={styles.main}>
+          <VideoPlayer />
+        </div>
+      ))}
+      {If(isPip, () => (
+        <div style={styles.pip}>
+          <VideoPlayer />
+        </div>
+      ))}
+      <button type="button" onClick={toggle}>Toggle PiP</button>
+    </div>
+  );
+};
+@Note Component smoothly animates between main view and picture-in-picture.
+
+---
+
+@Example 4
+@Input Maintaining width during transition.
+import { createUniqueTransition } from 'retend-utils';
+
+const Panel = createUniqueTransition(
+  () => <div class="panel">Content that keeps its width</div>,
+  {
+    transitionDuration: '250ms',
+    maintainWidthDuringTransition: true,
+  }
+);
+@Note Setting `maintainWidthDuringTransition` disables horizontal scaling.
+@Note The element only animates position and vertical scale.
+
+---
+
+@Example 5
+@Input Maintaining height during transition.
+import { createUniqueTransition } from 'retend-utils';
+
+const Panel = createUniqueTransition(
+  () => <div class="panel">Content that keeps its height</div>,
+  {
+    transitionDuration: '250ms',
+    maintainHeightDuringTransition: true,
+  }
+);
+@Note Setting `maintainHeightDuringTransition` disables vertical scaling.
+@Note Useful for text-heavy content where height distortion looks unnatural.
+
+---
+
+@Example 6
+@Input Combining with custom state save/restore.
+import { createUniqueTransition } from 'retend-utils';
+
+const ScrollingPanel = createUniqueTransition(
+  () => (
+    <div style={{ height: '300px', overflow: 'auto' }}>
+      <p>Long scrollable content...</p>
+      <p>More content...</p>
+    </div>
+  ),
+  {
+    transitionDuration: '300ms',
+    onSave: (el) => ({ scrollTop: el.scrollTop }),
+    onRestore: (el, data) => {
+      el.scrollTop = data.scrollTop;
+    },
+  }
+);
+@Note `onSave` and `onRestore` work alongside the transition animation.
+@Note Scroll position is preserved while the element animates.
+
+---
+
+@Example 7
+@Input Using CSS variables for dynamic transitions.
+import { createUniqueTransition } from 'retend-utils';
+
+const DynamicPanel = createUniqueTransition(
+  () => <div class="panel">Dynamic timing</div>,
+  {
+    transitionDuration: 'var(--transition-speed)',
+    transitionTimingFunction: 'var(--transition-easing)',
+  }
+);
+@Note CSS variables are resolved at runtime.
+@Note Allows theming and dynamic adjustment of animation properties.
+
+---
+
+@Example 8
+@Input Product card expanding to detail view.
+import { Cell } from 'retend';
+import { createUniqueTransition } from 'retend-utils';
+
+const ProductImage = createUniqueTransition(
+  (props) => {
+    const src = Cell.derived(() => props.get().src);
+    return <img src={src} alt="Product" />;
+  },
+  {
+    transitionDuration: '350ms',
+    transitionTimingFunction: 'ease-in-out',
+  }
+);
+
+const ProductCard = ({ product }) => (
+  <div class="product-card">
+    <ProductImage id={`product-${product.id}`} src={product.image} />
+    <h3>{product.name}</h3>
+  </div>
+);
+
+const ProductDetail = ({ product }) => (
+  <div class="product-detail">
+    <div class="large-image">
+      <ProductImage id={`product-${product.id}`} src={product.image} />
+    </div>
+    <div class="info">
+      <h1>{product.name}</h1>
+      <p>{product.description}</p>
+    </div>
+  </div>
+);
+@Note Same image instance animates from card thumbnail to full detail view.
+
+---
+
+@Example 9
+@Input Styling the transitioning state.
+import { createUniqueTransition } from 'retend-utils';
+
+const Panel = createUniqueTransition(
+  () => <div class="panel">Content</div>,
+  { transitionDuration: '300ms' }
+);
+
+// In CSS:
+// retend-unique-instance[data-transitioning] {
+//   z-index: 1000;
+//   pointer-events: none;
+// }
+// 
+// retend-unique-instance:state(--transitioning) {
+//   /* Alternative using CSS state pseudo-class */
+//   box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+// }
+@Note The container has `data-transitioning` attribute during animation.
+@Note Also supports the `--transitioning` CSS state for modern browsers.
+
+---
+
+@Example 10
+@Input Multi-panel layout with independent transitions.
+import { Cell, For } from 'retend';
+import { createUniqueTransition } from 'retend-utils';
+
+const Panel = createUniqueTransition(
+  (props) => {
+    const title = Cell.derived(() => props.get().title);
+    return (
+      <div class="panel">
+        <h2>{title}</h2>
+        <p>Panel content</p>
+      </div>
+    );
+  },
+  {
+    transitionDuration: '250ms',
+    transitionTimingFunction: 'ease-out',
+  }
+);
+
+const App = () => {
+  const panels = Cell.source([
+    { id: 'a', title: 'Panel A' },
+    { id: 'b', title: 'Panel B' },
+    { id: 'c', title: 'Panel C' },
+  ]);
+  
+  const shuffle = () => {
+    const arr = [...panels.get()];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    panels.set(arr);
+  };
+  
+  return (
+    <div>
+      <div class="grid">
+        {For(panels, (panel) => (
+          <Panel id={panel.id} title={panel.title} />
+        ))}
+      </div>
+      <button type="button" onClick={shuffle}>Shuffle</button>
+    </div>
+  );
+};
+@Note Each panel animates independently when reordered.
+
+---
+
+@Example 11
+@Input Tab content with animated transitions.
+import { Cell, Switch } from 'retend';
+import { createUniqueTransition } from 'retend-utils';
+
+const TabContent = createUniqueTransition(
+  (props) => {
+    const content = Cell.derived(() => props.get().content);
+    return <div class="tab-content">{content}</div>;
+  },
+  {
+    transitionDuration: '200ms',
+    maintainHeightDuringTransition: true,
+  }
+);
+
+const App = () => {
+  const activeTab = Cell.source('home');
+  
+  return (
+    <div>
+      <nav>
+        <button onClick={() => activeTab.set('home')}>Home</button>
+        <button onClick={() => activeTab.set('profile')}>Profile</button>
+        <button onClick={() => activeTab.set('settings')}>Settings</button>
+      </nav>
+      {Switch(activeTab, {
+        home: () => <TabContent id="shared-tab" content="Home content" />,
+        profile: () => <TabContent id="shared-tab" content="Profile content" />,
+        settings: () => <TabContent id="shared-tab" content="Settings content" />,
+      })}
+    </div>
+  );
+};
+@Note Same component instance transitions between tab positions.
+
+---
+
+@Example 12
+@Input Container styling options.
+import { createUniqueTransition } from 'retend-utils';
+
+const StyledPanel = createUniqueTransition(
+  () => <div>Content</div>,
+  {
+    transitionDuration: '300ms',
+    container: {
+      class: 'unique-panel',
+      style: { 
+        display: 'block',
+        borderRadius: '8px',
+        overflow: 'hidden',
+      },
+    },
+  }
+);
+@Note Container options style the wrapper element.
+@Note `transformOrigin: 'top left'` is applied automatically for FLIP animations.
+
+---
+
+@Example 13
+@Input Handling parent transforms.
+import { Cell } from 'retend';
+import { createUniqueTransition } from 'retend-utils';
+
+const AnimatedElement = createUniqueTransition(
+  () => <div class="element">Animated</div>,
+  { transitionDuration: '400ms' }
+);
+
+const App = () => {
+  const scale = Cell.source(1);
+  
+  return (
+    <div style={{ transform: `scale(${scale.get()})` }}>
+      <AnimatedElement />
+    </div>
+  );
+};
+@Note The transition accounts for transforms on parent elements.
+@Note Parent transforms are inverted to maintain accurate positioning.

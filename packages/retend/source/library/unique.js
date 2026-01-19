@@ -17,54 +17,17 @@ import { linkNodes } from '../library/utils.js';
 
 /**
  * @typedef UniqueStash
- * @property {Map<string, { data: any }>} instances
- * @property {Map<string, Cell<unknown | null>>} refs
- * @property {Map<string, ScopeSnapshot>} scopes
+ * @property {Map<string | Function, { data: any }>} instances
+ * @property {Map<string | Function, Cell<unknown | null>>} refs
+ * @property {Map<string | Function, ScopeSnapshot>} scopes
+ * @property {Map<string | Function, SourceCell<any>>} props
  * @property {Set<() => void>} pendingTeardowns
- * @property {Map<string, unknown[]>} stack
+ * @property {Map<string | Function, { node: unknown, props: any }[]>} stack
  * @property {() => void} onActivate
  */
 
 /**
  * @typedef {WeakMap<Renderer<any>, UniqueStash>} RendererToUniqueStash
- */
-
-// /**
-//  * @typedef SavedElementInstance
-//  * @property {ChildNode[]} children
-//  * @property {ShadowRoot | null} shadowRoot
-//  * @property {any} [data]
-//  */
-
-/**
- * @template Data
- * @typedef UniqueSpecificProps
- * @property {string} name
- *   A unique identifier for this element. Elements with the same name across different
- *   parts of the component tree will be treated as the same logical element.
- *
- *   When a Unique component with this name unmounts and another with the same name mounts,
- *   the DOM nodes will be preserved and animated between positions.
- * @property {() => JSX.Template} children
- *   A function that returns the content to render. Must be a function to ensure proper
- *   re-evaluation when the component moves.
- *
- *   The JSX content to render inside the unique container
- * @property {Cell<HTMLElement | null>} [ref]
- *   Optional Cell reference to the underlying DOM element.
- *   If not provided, one will be created automatically.
- *
- * @property {(element: HTMLElement) => Data} [onSave]
- *   Called when the element is about to unmount, allowing you to save additional state.
- *
- * @property {(element: HTMLElement, data: Data) => void} [onRestore]
- *   Called when the element is being restored at a new location.
- */
-
-/**
- * Props for the Unique component.
- * @template CustomData
- * @typedef {JSX.BaseContainerProps & UniqueSpecificProps<CustomData>} UniqueProps
  */
 
 const UniqueComponentStash = Symbol('UniqueComponentStash');
@@ -89,6 +52,7 @@ const initUniqueStash = (renderer) => {
     scopes: new Map(),
     pendingTeardowns: new Set(),
     stack: new Map(),
+    props: new Map(),
     onActivate: checkForUniqueComponentTeardowns,
   };
   const rendererStash = new Map();
@@ -100,230 +64,301 @@ const initUniqueStash = (renderer) => {
 };
 
 /**
- * @template Data
- * @param {UniqueProps<Data>} props
- * @returns {JSX.Template}
+ * @template Data, Node
+ * @typedef {Object} UniqueComponentOptions
+ * @property {(node: Node) => Data} [onSave]
+ * @property {(node: Node, data: Data) => void} [onRestore]
+ * @property {JSX.BaseContainerProps} [container]
+ */
+
+/**
+ * @template {{}} Props
+ * @typedef {{ id?: string } & Props} UniqueProps
+ */
+
+/**
+ * @template {{}} Props
+ * @typedef {(props: UniqueProps<Props>) => JSX.Template} UniqueComponent
+ */
+
+/**
+ * @template {{}} Props
+ * @typedef {(props: Cell<UniqueProps<Props>>) => JSX.Template} UniqueComponentRenderFn
+ */
+
+/**
+ * Creates a component that preserves its identity and internal state
+ * even when its position in the render tree changes. Rather than being destroyed
+ * and recreated each time it renders, it persists one instance across different locations.
  *
- * Ensures only one instance of a component exists across your entire application,
- * identified by its `name`. Even if the same `name` appears in different parts of the tree,
- * it is only rendered once, and the DOM nodes are transferred to the final location
- * instead of being recreated. Setup effects within the component only run once when first created,
- * and continue until every instance of the component is unmounted.
+ * By default, the component's identity is tied to the render function itself. To distinguish
+ * between multiple shared instances of the same component, you can provide an explicit `id` prop.
+ *
+ * Props remain fully reactive: any changes propagate through a Cell and automatically
+ * trigger re-evaluation of any derived values or effects inside the component.
+ *
+ * When a unique instance is removed from one place in the UI and later rendered elsewhere,
+ * it carries over its entire state intact, including:
+ * - All child nodes and their internal state
+ * - Any scoped reactive computations
+ * - Custom data managed via `onSave` / `onRestore` callbacks (if used)
+ *
+ * The component is only fully disposed once it is no longer rendered anywhere.
+ *
+ * Common use cases include:
+ * - Media players that need to keep their playback position and state
+ *   during navigation or layout shifts
+ * - Form inputs that should retain their value, focus, and caret position
+ * - Expensive computations, WebSocket connections, or other heavy resources
+ *   that shouldn't be torn down unnecessarily
+ * - Stateful widgets that are moved between different containers or tabs
  *
  * @example
- * function PersistentVideo({ src, name }) {
- *   return (
- *     <Unique name={name}>
- *       {() => <VideoPlayer src={src} />}
- *     </Unique>
- *   );
- * }
- *
- * function App() {
- *   const page = Cell.source('home');
- *
+ * const UniqueCounter = createUnique((props) => {
+ *   const count = Cell.source(0);
+ *   const increment = () => count.set(count.get() + 1);
  *   return (
  *     <div>
- *       {Switch(page, {
- *         home: () => <HomePage><PersistentVideo name="main-video" src="intro.mp4" /></HomePage>,
- *         about: () => <AboutPage><PersistentVideo name="main-video" src="intro.mp4" /></AboutPage>
- *       })}
+ *       <button onClick={increment}>Count: {count}</button>
  *     </div>
  *   );
- * }
+ * });
+ *
+ * // Renders the same instance regardless of where it appears
+ * <UniqueCounter />
  *
  * @example
- * function PersistentScrollArea({ children, name }) {
- *   return (
- *     <Unique
- *       name={name}
- *       onSave={(el) => ({ scrollTop: el.scrollTop })}
- *       onRestore={(el, data) => { el.scrollTop = data.scrollTop; }}
- *     >
- *       {() => <div style="height: 400px; overflow: auto">{children}</div>}
- *     </Unique>
- *   );
- * }
+ * // With id - multiple instances distinguished by id prop
+ * const UniqueVideoPlayer = createUnique((props) => {
+ *   const src = Cell.derived(() => props.get().src);
+ *   return <video src={src} controls />;
+ * });
+ *
+ * // Each id creates a separate persistent instance
+ * <UniqueVideoPlayer id="main" src="/video1.mp4" />
+ * <UniqueVideoPlayer id="pip" src="/video2.mp4" />
  *
  * @example
- * function PersistentBookCard({ book }) {
- *   return (
- *     <Unique name={`book-${book.id}`}>
- *       {() => (
- *         <div class="book-card">
- *           <h3>{book.title}</h3>
- *           <VideoPlayer src={book.trailerUrl} />
- *         </div>
- *       )}
- *     </Unique>
- *   );
- * }
+ * // With custom state management
+ * const UniqueCanvas = createUnique(
+ *   (props) => {
+ *     const canvas = Cell.source(null);
+ *     useSetupEffect(() => {
+ *       const node = canvas.get();
+ *       if (!node) return;
+ *       // Initialize canvas context, listeners, etc.
+ *       const ctx = node.getContext('2d');
+ *       // ... setup
+ *     });
+ *     return <canvas ref={canvas} />;
+ *   },
+ *   {
+ *     onSave: (node) => {
+ *       // Extract custom state before component moves
+ *       return { customState: extractState(node) };
+ *     },
+ *     onRestore: (node, data) => {
+ *       // Restore custom state after component moves
+ *       applyState(node, data.customState);
+ *     }
+ *   }
+ * );
  *
- * {For(books, (book) => <PersistentBookCard book={book} />)}
+ * @template {{}} Props - Props type (excluding id, which is added automatically)
+ * @template [Data=any] - Type of custom data managed by onSave/onRestore
+ * @template [Node=unknown] - Type of the root node (environment-specific)
+ *
+ * @param {UniqueComponentRenderFn<Props>} renderFn
+ *   Function that receives reactive props as a Cell and returns a template.
+ *   Props updates propagate reactively through the Cell.
+ *
+ * @param {UniqueComponentOptions<Data, Node>} [options]
+ *
+ * @returns {UniqueComponent<Props>}
+ *   A component function that accepts props including an optional `id` string.
+ *   When `id` is omitted, a single instance is created per renderFn.
+ *   When `id` is provided, separate instances are created for each unique id.
  */
-export function Unique(props) {
-  const { globalData } = getGlobalContext();
-  const renderer = getActiveRenderer();
-  const hArgs = /** @type {const} */ ([
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    renderer,
-  ]);
-  const {
-    name,
-    children,
-    ref = Cell.source(null),
-    onSave,
-    onRestore,
-    ...rest
-  } = props;
+export function createUnique(renderFn, options = {}) {
+  /** @param {UniqueProps<Props>} props */
+  const UniqueComponent = (props) => {
+    const { id = renderFn } = props;
+    const { globalData } = getGlobalContext();
+    const renderer = getActiveRenderer();
+    const hArgs = /** @type {const} */ ([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      renderer,
+    ]);
+    const { onSave, onRestore, container = {} } = options;
+    const ref = Cell.source(null);
 
-  /** @type {UniqueStash} */
-  const stash =
-    globalData.get(UniqueComponentStash)?.get(renderer) ??
-    initUniqueStash(renderer);
-  let journey = stash.stack.get(name);
-  if (!journey) {
-    journey = [];
-    stash.stack.set(name, journey);
-  }
-  const observer = useObserver();
+    /** @type {UniqueStash} */
+    const stash =
+      globalData.get(UniqueComponentStash)?.get(renderer) ??
+      initUniqueStash(renderer);
+    let journey = stash.stack.get(id);
+    if (!journey) {
+      journey = [];
+      stash.stack.set(id, journey);
+    }
+    let propSource = stash.props.get(id);
+    if (!propSource) {
+      propSource = Cell.source(props);
+      stash.props.set(id, propSource);
+    } else {
+      propSource.set(props);
+    }
+    const observer = useObserver();
 
-  const retendUniqueInstance = h(elementName, rest, ...hArgs);
-  let previous = stash.instances.get(name);
+    const retendUniqueInstance = h(elementName, container, ...hArgs);
+    let previous = stash.instances.get(id);
 
-  /** @param {unknown} div */
-  const saveState = (div) => {
-    renderer.setProperty(div, 'state', 'moved');
-    let customData;
-    // @ts-ignore: TODO: The base type should be unknown when more environments are added.
-    if (onSave && renderer.isActive(div)) customData = onSave(div);
-
-    previous = renderer.saveContainerState(div, customData);
-    if (previous) stash.instances.set(name, previous);
-  };
-
-  /** @param {unknown} div */
-  const restoreState = (div) => {
-    if (onRestore && previous) {
+    /** @param {unknown} div */
+    const saveState = (div) => {
+      renderer.setProperty(div, 'state', 'moved');
+      let customData;
       // @ts-ignore: TODO: The base type should be unknown when more environments are added.
-      onRestore(div, previous.data);
-    }
+      if (onSave && renderer.isActive(div)) customData = onSave(div);
 
-    stash.refs.set(name, Cell.source(div));
-    if (!journey.includes(div)) journey.push(div);
-    stash.instances.delete(name);
-  };
-
-  if (!previous) {
-    const div = stash.refs.get(name)?.peek();
-    if (div) saveState(div);
-  }
-  let disposedByHMR = false;
-
-  // it's tricky to know when to dispose,
-  // because if this instance is removed, but then rendered somewhere else
-  // in the very next frame, we want both instances consolidated.
-  //
-  // Retend's lifecycle is:
-  // -> control flow component triggers change
-  // -> its current setup effects are disposed (we save state here)
-  // -> its dom nodes are removed
-  // -> its observer cleanups are called (we add event listener here)
-  // -> new component is rendered (we transfer nodes here)
-  // -> wait till next event loop (in activate fn)
-  // -> new setup effect is activated.
-  // -> retend:activate event dispatched.
-  // Once (7) runs, it means the next node should already be in the dom, and if
-  // it isn't, then we can dispose, because there is no continuity.
-  const teardown = () => {
-    const possibleNextInstance = journey.at(-1);
-    if (possibleNextInstance) {
-      stash.pendingTeardowns.delete(teardown);
-      return;
-    }
-    const scope = stash.scopes.get(name);
-    if (scope) {
-      scope.node.enable();
-      scope.node.dispose();
-    }
-    stash.instances.delete(name);
-    stash.refs.delete(name);
-    stash.scopes.delete(name);
-    stash.stack.delete(name);
-    stash.pendingTeardowns.delete(teardown);
-  };
-
-  observer.onConnected(ref, (div) => {
-    restoreState(div);
-    const scope = stash.scopes.get(name);
-    if (scope) scope.node.enable();
-
-    return () => {
-      const index = journey.indexOf(div);
-      if (index !== -1) journey.splice(index, 1);
-      const nextInstance = journey.at(-1);
-      if (!nextInstance && !disposedByHMR) stash.pendingTeardowns.add(teardown);
+      previous = renderer.saveContainerState(div, customData);
+      if (previous) stash.instances.set(id, previous);
     };
-  });
 
-  useSetupEffect(() => {
-    const current = ref.peek();
+    /** @param {unknown} node */
+    const restoreState = (node) => {
+      if (onRestore && previous?.data) {
+        // @ts-ignore: TODO: The base type should be unknown when more environments are added.
+        onRestore(node, previous.data);
+      }
 
-    return () => {
-      // We dont want to preserve the instance across HMR re-renders.
-      const hmrContext = __HMR_SYMBOLS.getHMRContext();
-      if (hmrContext?.current) {
-        const scope = stash.scopes.get(name);
-        if (scope) {
-          scope.node.enable();
-          scope.node.dispose();
-        }
-        stash.instances.delete(name);
-        stash.refs.delete(name);
-        stash.scopes.delete(name);
-        disposedByHMR = true;
+      stash.refs.set(id, Cell.source(node));
+      if (!journey.find(({ node: n }) => node === n)) {
+        journey.push({ node, props });
+      }
+      stash.instances.delete(id);
+    };
+
+    if (!previous) {
+      const div = stash.refs.get(id)?.peek();
+      if (div) saveState(div);
+    }
+    let disposedByHMR = false;
+
+    // it's tricky to know when to dispose,
+    // because if this instance is removed, but then rendered somewhere else
+    // in the very next frame, we want both instances consolidated.
+    //
+    // Retend's lifecycle is:
+    // -> control flow component triggers change
+    // -> its current setup effects are disposed (we save state here)
+    // -> its dom nodes are removed
+    // -> its observer cleanups are called (we add event listener here)
+    // -> new component is rendered (we transfer nodes here)
+    // -> wait till next event loop (in activate fn)
+    // -> new setup effect is activated.
+    // -> retend:activate event dispatched.
+    // Once (7) runs, it means the next node should already be in the dom, and if
+    // it isn't, then we can dispose, because there is no continuity.
+    const teardown = () => {
+      const possibleNextInstance = journey.at(-1);
+      if (possibleNextInstance) {
+        stash.pendingTeardowns.delete(teardown);
         return;
       }
-      const scope = stash.scopes.get(name);
-      if (scope) scope.node.disable();
-      const currentElement = stash.refs.get(name)?.peek();
-
-      const index = journey.indexOf(currentElement);
-      if (index !== -1) journey.splice(index, 1);
-
-      if (currentElement === current) {
-        saveState(/** @type {HTMLElement} */ (current));
-
-        const next = journey.at(-1);
-        if (next && currentElement !== next) {
-          renderer.append(next, Array.from(retendUniqueInstance.childNodes));
-          renderer.setProperty(next, 'state', 'restored');
-          restoreState(next);
-        }
+      const scope = stash.scopes.get(id);
+      if (scope) {
+        scope.node.enable();
+        scope.node.dispose();
       }
+      stash.instances.delete(id);
+      stash.refs.delete(id);
+      stash.scopes.delete(id);
+      stash.stack.delete(id);
+      stash.props.delete(id);
+      stash.pendingTeardowns.delete(teardown);
     };
-  });
 
-  if (ref instanceof SourceCell) ref.set(retendUniqueInstance);
-  stash.refs.set(name, ref);
+    observer.onConnected(ref, (node) => {
+      restoreState(node);
+      const scope = stash.scopes.get(id);
+      if (scope) scope.node.enable();
 
-  renderer.setProperty(retendUniqueInstance, 'name', name);
-  let childNodes;
-  if (previous) {
-    renderer.setProperty(retendUniqueInstance, 'state', 'restored');
-    renderer.restoreContainerState(retendUniqueInstance, previous);
-  } else {
-    renderer.setProperty(retendUniqueInstance, 'state', 'new');
-    childNodes = (() => {
-      const scopeSnapshot = createScopeSnapshot();
-      stash.scopes.set(name, scopeSnapshot);
-      return withScopeSnapshot(scopeSnapshot, () => h(children, {}, ...hArgs));
-    })();
-    linkNodes(retendUniqueInstance, childNodes, renderer);
-  }
+      return () => {
+        const index = journey.findIndex(({ node: n }) => node === n);
+        if (index !== -1) journey.splice(index, 1);
+        const nextInstance = journey.at(-1);
+        if (!nextInstance && !disposedByHMR)
+          stash.pendingTeardowns.add(teardown);
+      };
+    });
 
-  return retendUniqueInstance;
+    useSetupEffect(() => {
+      const current = ref.peek();
+
+      return () => {
+        // We dont want to preserve the instance across HMR re-renders.
+        const hmrContext = __HMR_SYMBOLS.getHMRContext();
+        if (hmrContext?.current) {
+          const scope = stash.scopes.get(id);
+          if (scope) {
+            scope.node.enable();
+            scope.node.dispose();
+          }
+          stash.instances.delete(id);
+          stash.refs.delete(id);
+          stash.scopes.delete(id);
+          stash.stack.delete(id);
+          stash.props.delete(id);
+          disposedByHMR = true;
+          return;
+        }
+        const scope = stash.scopes.get(id);
+        if (scope) scope.node.disable();
+        const currentElement = stash.refs.get(id)?.peek();
+
+        const index = journey.findIndex(({ node }) => node === currentElement);
+        if (index !== -1) journey.splice(index, 1);
+
+        if (currentElement === current) {
+          saveState(current);
+
+          const next = journey.at(-1);
+          if (next && currentElement !== next.node) {
+            renderer.append(
+              next.node,
+              Array.from(retendUniqueInstance.childNodes)
+            );
+            renderer.setProperty(next.node, 'state', 'restored');
+            propSource.set(next.props);
+            restoreState(next.node);
+          }
+        }
+      };
+    });
+
+    if (ref instanceof SourceCell) ref.set(retendUniqueInstance);
+    stash.refs.set(id, ref);
+
+    let childNodes;
+    if (previous) {
+      renderer.setProperty(retendUniqueInstance, 'state', 'restored');
+      renderer.restoreContainerState(retendUniqueInstance, previous);
+    } else {
+      renderer.setProperty(retendUniqueInstance, 'state', 'new');
+      childNodes = (() => {
+        const scopeSnapshot = createScopeSnapshot();
+        stash.scopes.set(id, scopeSnapshot);
+        return withScopeSnapshot(scopeSnapshot, () =>
+          h(renderFn, propSource, ...hArgs)
+        );
+      })();
+      linkNodes(retendUniqueInstance, childNodes, renderer);
+    }
+
+    return retendUniqueInstance;
+  };
+  return UniqueComponent;
 }

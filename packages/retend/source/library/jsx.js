@@ -41,7 +41,7 @@ export function h(
       props instanceof ArgumentList
         ? props.data
         : typeof props === 'object'
-          ? [{ ...props }]
+          ? [props]
           : [];
 
     return renderer.handleComponent(tagOrFn, completeProps, fileData);
