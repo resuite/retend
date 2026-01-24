@@ -591,6 +591,9 @@ function setDOMEventListener(el, key, value) {
 
         wrapper.__getInnerFunction = function () {
           this; // only here to silence biome.
+          if (oldWrapper.__getInnerFunction === wrapper?.__getInnerFunction) {
+            return oldWrapper;
+          }
           return oldWrapper?.__getInnerFunction?.();
         };
       }
