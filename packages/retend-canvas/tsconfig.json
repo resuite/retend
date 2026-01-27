@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "rootDir": "./source",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitAny": true,
+    "allowUnreachableCode": false,
+    "lib": ["DOM", "ESNext", "DOM.Iterable"],
+    "allowImportingTsExtensions": true,
+    "target": "ESNext",
+
+    "strictFunctionTypes": true,
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "skipLibCheck": true,
+
+    "noImplicitReturns": true,
+
+    "allowJs": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "declarationMap": true,
+
+    "checkJs": true,
+    "strict": true,
+  },
+  "include": ["source"],
+  "exclude": ["node_modules/**/*", "dist"],
+}

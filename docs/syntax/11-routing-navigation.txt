@@ -27,7 +27,7 @@ import { Outlet } from 'retend/router';
 function AppLayout() {
   return (
     <div>
-      <NavBar /> {/* Assume NavBar is defined */}
+      <NavBar />
       <main>
         <Outlet /> {/* Matched component renders here */}
       </main>
