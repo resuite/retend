@@ -320,7 +320,7 @@ async function stringifyArtifact(
     const rewrittenAsset = assetSourceToDistMap?.get(fullPath);
     if (!rewrittenAsset) return false;
 
-    element.setAttribute(attrName, rewrittenAsset.fileName);
+    element.setAttribute(attrName, `/${rewrittenAsset.fileName}`);
     return true;
   });
 

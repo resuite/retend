@@ -148,12 +148,6 @@ const RendererKey = 'retend:Renderer';
  * @property {(tagnameOrFunction: __HMR_UpdatableFn, props: any, fileData?: JSX.JSXDevFileData) => Node | Node[]} handleComponent
  * Orchestrates the execution of components.
  *
- * @property {(key: string) => Node | null} selectMatchingNode
- * Locates a node in the host environment by its unique key.
- *
- * @property {(key: string) => Node[]} selectMatchingNodes
- * Locates all nodes in the host environment matching a specific key.
- *
  * @property {(node: Container, customData: unknown) => SavedNodeState} saveContainerState
  * Captures the current state of a container node to be restored later.
  *

@@ -401,7 +401,7 @@ export function normalizeClassValue(val, element) {
       const classes =
         typeof newValue === 'string'
           ? newValue.split(' ')
-          : newValue.flatMap(String.prototype.split);
+          : (newValue?.flatMap(String.prototype.split) ?? []);
       try {
         if (currentClassToken) {
           element.classList.remove(...currentClassToken.split(' '));
@@ -591,6 +591,9 @@ function setDOMEventListener(el, key, value) {
 
         wrapper.__getInnerFunction = function () {
           this; // only here to silence biome.
+          if (oldWrapper.__getInnerFunction === wrapper?.__getInnerFunction) {
+            return oldWrapper;
+          }
           return oldWrapper?.__getInnerFunction?.();
         };
       }
