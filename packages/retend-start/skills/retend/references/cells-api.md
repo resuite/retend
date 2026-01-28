@@ -149,9 +149,9 @@ function ListenerExample() {
     console.log('Value changed:', value);
   });
 
-  return (
-    <button onClick={() => count.set(count.get() + 1)}>Count: {count}</button>
-  );
+  const increment = () => count.set(count.get() + 1);
+
+  return <button onClick={increment}>Count: {count}</button>;
 }
 ```
 
@@ -233,58 +233,6 @@ const displayName = Cell.derived(() => user.get().name);
 // Update object properties
 user.set({ ...user.get(), age: 31 }); // Update one field
 user.set({ ...user.get(), email: 'newemail@example.com' }); // Update via function
-```
-
-## Best Practices
-
-### 1. Keep Cells Granular
-
-**Good:**
-
-```tsx
-const firstName = Cell.source('John');
-const lastName = Cell.source('Doe');
-const age = Cell.source(30);
-```
-
-**Less efficient:**
-
-```tsx
-const user = Cell.source({ firstName: 'John', lastName: 'Doe', age: 30 });
-// Changing age triggers updates even if only firstName is used elsewhere
-```
-
-### 2. Use .peek() for Non-Reactive Reads
-
-```tsx
-const count = Cell.source(0);
-const lastCount = Cell.source(0);
-
-// Save previous value without creating circular dependency
-const increment = () => {
-  lastCount.set(count.peek()); // Use peek() here
-  count.set(count.get() + 1);
-};
-```
-
-### 4. Avoid Side Effects in Derived Cells
-
-Derived cells should be pure functions:
-
-```tsx
-// BAD - has side effects
-const count = Cell.source(0);
-const bad = Cell.derived(() => {
-  console.log('Count changed!'); // Side effect!
-  return count.get();
-});
-
-// GOOD - Handle side effects in event handlers
-const increment = () => {
-  const newVal = count.get() + 1;
-  count.set(newVal);
-  console.log('Count changed to:', newVal);
-};
 ```
 
 ## Common Patterns

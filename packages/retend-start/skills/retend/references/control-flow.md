@@ -155,13 +155,11 @@ function FilteredList() {
       .filter((item) => item.toLowerCase().includes(filter.get().toLowerCase()))
   );
 
+  const handleInput = (e) => filter.set(e.target.value);
+
   return (
     <div>
-      <input
-        type="text"
-        value={filter}
-        onInput={(e) => filter.set(e.target.value)}
-      />
+      <input type="text" value={filter} onInput={handleInput} />
       <ul>
         {For(filtered, (item) => (
           <li>{item}</li>
@@ -228,11 +226,11 @@ function ColorIndicator() {
   return Switch(
     color,
     {
-      red: () => <div style="background: red">Red</div>,
-      green: () => <div style="background: green">Green</div>,
-      blue: () => <div style="background: blue">Blue</div>,
+      red: () => <div style={{ background: 'red' }}>Red</div>,
+      green: () => <div style={{ background: 'green' }}>Green</div>,
+      blue: () => <div style={{ background: 'blue' }}>Blue</div>,
     },
-    () => <div style="background: gray">Unknown color</div>
+    () => <div style={{ background: 'gray' }}>Unknown color</div>
   );
 }
 ```
@@ -350,10 +348,11 @@ function FilteredTodoList() {
   });
 
   const hasTodos = Cell.derived(() => filtered.get().length > 0);
+  const handleFilterChange = (e) => filter.set(e.target.value);
 
   return (
     <div>
-      <select onChange={(e) => filter.set(e.target.value)}>
+      <select onChange={handleFilterChange}>
         <option value="all">All</option>
         <option value="active">Active</option>
         <option value="completed">Completed</option>
@@ -363,7 +362,7 @@ function FilteredTodoList() {
         true: () => (
           <ul>
             {For(filtered, (todo) => (
-              <li class={todo.done ? 'done' : ''}>{todo.text}</li>
+              <li class={[{ done: todo.done }]}>{todo.text}</li>
             ))}
           </ul>
         ),
@@ -385,9 +384,11 @@ function ViewSwitcher() {
     { id: 3, name: 'Item 3' },
   ]);
 
+  const handleViewChange = (e) => view.set(e.target.value);
+
   return (
     <div>
-      <select onChange={(e) => view.set(e.target.value)}>
+      <select onChange={handleViewChange}>
         <option value="list">List</option>
         <option value="grid">Grid</option>
         <option value="table">Table</option>
@@ -424,73 +425,3 @@ function ViewSwitcher() {
   );
 }
 ```
-
-## Best Practices
-
-### 1. Use Control Flow Instead of Inline Conditionals
-
-**Avoid:**
-
-```tsx
-return <div>{isLoggedIn.get() ? <Profile /> : <Login />}</div>;
-```
-
-**Prefer:**
-
-```tsx
-return If(isLoggedIn, {
-  true: () => <Profile />,
-  false: () => <Login />,
-});
-```
-
-### 2. Use For Instead of .map()
-
-**Avoid:**
-
-```tsx
-return (
-  <ul>
-    {items.get().map((item) => (
-      <li>{item}</li>
-    ))}
-  </ul>
-);
-```
-
-**Prefer:**
-
-```tsx
-return (
-  <ul>
-    {For(items, (item) => (
-      <li>{item}</li>
-    ))}
-  </ul>
-);
-```
-
-### 3. Separate Side Effects from Derivation
-
-**Avoid:**
-
-```tsx
-const title = Cell.derived(() => {
-  document.title = pageName.get(); // Side effect in derived!
-  return pageName.get();
-});
-```
-
-**Prefer:**
-
-```tsx
-// Use event handlers or setup hooks
-const updateTitle = (newName) => {
-  pageName.set(newName);
-  document.title = newName;
-};
-```
-
-### 4. Keep Callbacks Pure
-
-The functions passed to If, For, and Switch should be pure and return JSX. Side effects belong in event handlers or lifecycle hooks.

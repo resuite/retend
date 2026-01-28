@@ -1,6 +1,6 @@
 ---
 name: retend
-description: Reactive JSX framework using Cells for fine-grained reactivity. Use when building Retend applications.
+description: Reactive JSX framework using Cells for fine-grained reactivity. Use when building applications.
 ---
 
 # Retend
@@ -18,11 +18,11 @@ function Counter() {
   const count = Cell.source(0);
   const doubled = Cell.derived(() => count.get() * 2);
 
+  const increment = () => count.set(count.get() + 1);
+
   return (
     <div>
-      <button onClick={() => count.set(count.get() + 1)}>
-        Clicks: {count}
-      </button>
+      <button onClick={increment}>Clicks: {count}</button>
       <p>Doubled: {doubled}</p>
     </div>
   );
@@ -62,12 +62,12 @@ function TodoList() {
 
 ```tsx
 function Form() {
+  const handleSubmit = (e) => {
+    console.log('Form submitted, default prevented, bubbling stopped');
+  };
+
   return (
-    <form
-      onSubmit--prevent--stop={(e) => {
-        console.log('Form submitted, default prevented, bubbling stopped');
-      }}
-    >
+    <form onSubmit--prevent--stop={handleSubmit}>
       <input type="text" />
       <button type="submit">Submit</button>
     </form>
@@ -117,20 +117,6 @@ function LoginForm() {
 
 **For detailed control flow guide →** see `references/control-flow.md`
 
-### Event Modifiers
-
-Chain modifiers with `--`: `onClick--prevent--stop--once={handler}`
-
-Available modifiers:
-
-- `--prevent` - preventDefault()
-- `--stop` - stopPropagation()
-- `--once` - Fire only once
-- `--self` - Only if target is element itself
-- `--passive` - Passive event listener
-
-**For all modifier combinations and examples →** see `references/event-modifiers.md`
-
 ### Routing
 
 ```tsx
@@ -138,9 +124,9 @@ import { Router, lazy } from 'retend/router';
 
 const router = new Router({
   routes: [
-    { path: '/', component: () => lazy(import('./pages/Home')) },
-    { path: '/about', component: () => lazy(import('./pages/About')) },
-    { path: '/users/:id', component: () => lazy(import('./pages/User')) },
+    { path: '/', component: lazy(() => import('./pages/Home')) },
+    { path: '/about', component: lazy(() => import('./pages/About')) },
+    { path: '/users/:id', component: lazy(() => import('./pages/User')) },
   ],
 });
 
@@ -160,6 +146,20 @@ Additional hooks and components for common patterns:
 
 **For complete utils reference →** see `references/retend-utils.md`
 
+### Scopes (Context)
+
+- `createScope()` - Create a context scope
+- `Scope.Provider` - Provide values to children
+- `useScopeContext(Scope)` - Consume values from provider
+
+**For complete scopes guide →** see `references/scopes.md`
+
+### Advanced Components
+
+- `createUnique` - Persist component identity across moves
+
+**For details →** see `references/advanced-components.md` (For Teleport/ShadowRoot see `retend-web` skill)
+
 ## Common Patterns
 
 ### Form with Validation
@@ -172,17 +172,17 @@ function SignupForm() {
   const email = Cell.source('');
   const isValid = Cell.derived(() => email.get().includes('@'));
 
+  const handleSubmit = () => {
+    if (isValid.get()) {
+      console.log('Valid!', email.get());
+    }
+  };
+
   return (
-    <form
-      onSubmit--prevent={(e) => {
-        if (isValid.get()) {
-          console.log('Valid!', email.get());
-        }
-      }}
-    >
+    <form onSubmit--prevent={handleSubmit}>
       <Input type="email" model={email} />
       {If(isValid, {
-        false: () => <span style="color: red">Invalid email</span>,
+        false: () => <span style={{ color: 'red' }}>Invalid email</span>,
       })}
       <button type="submit">Sign Up</button>
     </form>
@@ -243,9 +243,53 @@ function UserProfile() {
 
 - **cells-api.md** - Complete Cell API reference with all methods and patterns
 - **control-flow.md** - Detailed guide to If/For/Switch/Observer with examples
-- **routing.md** - Full routing documentation (setup, navigation, params, queries, lazy loading, nested routes)
-- **event-modifiers.md** - All event modifiers with combinations and use cases
+- **routing/setup.md** - Router initialization, lazy loading, subtrees, and 404s
+- **routing/navigation.md** - Navigation hooks, Link component, and Active state
+- **routing/data.md** - Dynamic route params and query parameters
+- **routing/middleware.md** - Router middleware and redirects
+- **routing/advanced.md** - Nested routes, Locking, Stack Mode, View Transitions
 - **retend-utils.md** - Complete reference for all hooks and components in retend-utils
+- **scopes.md** - Guide to Context API (Scopes), Providers, and useScopeContext
+- **element-references.md** - Using refs with Cells for direct DOM manipulation
+
+### Rules
+
+- [prefer-subtrees.md](rules/prefer-subtrees.md) - Use `subtree` for large route trees.
+- [headless-routes.md](rules/headless-routes.md) - Use headless routes for grouping.
+- [avoid-route-names.md](rules/avoid-route-names.md) - Avoid using `name` field.
+- [keep-cells-granular.md](rules/keep-cells-granular.md) - Keep state granular.
+- [pure-derived-cells.md](rules/pure-derived-cells.md) - Derived cells must be pure.
+- [use-peek.md](rules/use-peek.md) - Use `.peek()` for non-reactive reads.
+- [component-scoped-listeners.md](rules/component-scoped-listeners.md) - Listeners inside components.
+- [use-builtin-control-flow.md](rules/use-builtin-control-flow.md) - Use `If`/`For` helpers.
+- [pure-render-callbacks.md](rules/pure-render-callbacks.md) - Render callbacks must be pure.
+- [top-level-hooks.md](rules/top-level-hooks.md) - Only call hooks at top level.
+- [prefer-input-component.md](rules/prefer-input-component.md) - Use `Input` helper.
+- [refs-on-elements.md](rules/refs-on-elements.md) - Safe ref creation and typing.
+- [pass-cells-directly.md](rules/pass-cells-directly.md) - Don't unwrap cells in JSX.
+- [derived-outside-jsx.md](rules/derived-outside-jsx.md) - Define derived state outside JSX.
+- [no-argument-destructuring.md](rules/no-argument-destructuring.md) - Destructure props in body.
+- [customizable-components.md](rules/customizable-components.md) - Favor extension over invention.
+- [explicit-children-type.md](rules/explicit-children-type.md) - Use `JSX.Children`.
+- [scope-injection.md](rules/scope-injection.md) - Use function children for scopes.
+- [no-any.md](rules/no-any.md) - No `any` type.
+- [reactive-props.md](rules/reactive-props.md) - Handle ValueOrCell props.
+- [prefer-scopes.md](rules/prefer-scopes.md) - Avoid prop drilling.
+- [self-closing-tags.md](rules/self-closing-tags.md) - Used self-closing tags.
+- [button-type.md](rules/button-type.md) - Always set button type.
+- [use-for-attribute.md](rules/use-for-attribute.md) - Use `for` not `htmlFor`.
+- [prefer-event-modifiers.md](rules/prefer-event-modifiers.md) - Use modifiers.
+- [unique-component-ids.md](rules/unique-component-ids.md) - Unique IDs for `createUnique`.
+- [component-structure.md](rules/component-structure.md) - Order of internals.
+- [svg-xmlns.md](rules/svg-xmlns.md) - Required xmlns for SVG.
+- [use-link-component.md](rules/use-link-component.md) - Use `Link` for internal navigation.
+- [no-ternary.md](rules/no-ternary.md) - **No** ternary operators in JSX.
+- [function-children-as-component.md](rules/function-children-as-component.md) - Render function children as components.
+- [combine-scopes-keys.md](rules/combine-scopes-keys.md) - Use `[Scope.key]` for combined scopes.
+- [component-pascal-case.md](rules/component-pascal-case.md) - Use PascalCase for components.
+- [hoist-handlers.md](rules/hoist-handlers.md) - Hoist event handlers.
+- [prefer-router-navigation.md](rules/prefer-router-navigation.md) - Use router for navigation.
+- **advanced-components.md** - Guide to createUnique (persistent identity).
 
 ### Scripts
 

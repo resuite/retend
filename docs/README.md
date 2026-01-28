@@ -2033,51 +2033,6 @@ router.navigate('/home'); // Pops back to /home
 // Stack is now: ['/home']
 ```
 
-### Router Relays
-
-Router Relays maintain continuity of DOM elements between routes. This is useful when certain elements should persist state across route changes, ensuring the same DOM node is used rather than recreating it.
-
-#### Basic Usage
-
-Relays allow components to be carried over between routes without unmounting or remounting. This is particularly useful for shared elements like images, avatars, or other reusable components.
-
-```tsx
-// Define a component that will persist between routes
-function Photo({ src, alt }) {
-  return <img src={src} alt={alt} />;
-}
-
-// Define a relay wrapper for the component
-function PhotoRelay({ src, alt }) {
-  const { Relay } = useRouter();
-  return <Relay id="photo-relay" source={Photo} sourceProps={{ src, alt }} />;
-}
-
-// Create relay instances in different routes
-function HomeRoute() {
-  return (
-    <div>
-      <h1>Home</h1>
-      <PhotoRelay src="photo.jpg" alt="Shared photo" />
-    </div>
-  );
-}
-
-function DetailRoute() {
-  return (
-    <div>
-      <h1>Detail</h1>
-      <PhotoRelay src="photo.jpg" alt="Shared photo" />
-    </div>
-  );
-}
-```
-
-In the example above, the relay ensures that the `Photo` component with the same `id` (`photo-relay`) is the same across both routes, even as the routes change.
-
-> **NOTE**: Relays do not handle animations or transitions. Developers can implement view transitions on their own if needed, using techniques like the native `ViewTransition` API or CSS animations in combination with relays.
-> View transitions can be turned on by setting the `useViewTransitions` property of the router to `true`.
-
 ## Advanced Components
 
 Retend provides several advanced components that can help you build complex UIs. Here's a breakdown of the most useful ones:
