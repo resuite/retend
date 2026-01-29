@@ -55,6 +55,24 @@ for any Retend frontend tasks.
 - `.agent/skills/retend/rules/component-pascal-case.md` - Use PascalCase for components.
 - `.agent/skills/retend/rules/hoist-handlers.md` - Hoist event handlers.
 - `.agent/skills/retend/rules/prefer-router-navigation.md` - Use router for navigation.
+- `.agent/skills/retend/rules/no-react-hooks.md` - Do not use React hooks (useState, useEffect, etc.).
+- `.agent/skills/retend/rules/no-get-in-jsx.md` - Never call .get() on Cells inside JSX.
+- `.agent/skills/retend/rules/no-dependency-arrays.md` - Don't use dependency arrays with Cell.derived or useSetupEffect.
+- `.agent/skills/retend/rules/derived-cells-readonly.md` - Never call .set() on derived cells.
+- `.agent/skills/retend/rules/no-usememo-usecallback.md` - Don't use useMemo/useCallback patterns.
+- `.agent/skills/retend/rules/scope-provider-function-children.md` - Always pass function children to Scope providers.
+- `.agent/skills/retend/rules/for-index-is-cell.md` - For's index parameter is a Cell, not a number.
+- `.agent/skills/retend/rules/teleport-selector-limitations.md` - Teleport only supports #id or tagname selectors.
+- `.agent/skills/retend/rules/lowercase-event-names.md` - Use camelCase event names (onClick not onclick).
+- `.agent/skills/retend/rules/no-re-render-optimization.md` - Don't optimize for "re-renders" - components don't re-render.
+- `.agent/skills/retend/rules/query-mutations-are-async.md` - Route query mutations are async and trigger navigation.
+- `.agent/skills/retend/rules/useobserver-not-layouteffect.md` - Use useObserver for DOM connection awareness.
+- `.agent/skills/retend/rules/no-react-imports.md` - Don't import from 'react' or 'react-dom'.
+- `.agent/skills/retend/rules/consistent-values-await.md` - Always await useConsistent() calls.
+- `.agent/skills/retend/rules/prefer-switch-for-multiple-cases.md` - Use Switch() for multiple conditional branches.
+- `.agent/skills/retend/rules/for-pass-cell-to-children.md` - Pass Cell<Item> to children in keyed For loops.
+- `.agent/skills/retend/rules/fragment-shorthand.md` - Use <>...</> shorthand for fragments.
+- `.agent/skills/retend/rules/no-manual-keys-on-for-children.md` - Don't add manual key props to For children.
 
 ### retend-web
 - **Path**: `.agent/skills/retend-web/`
