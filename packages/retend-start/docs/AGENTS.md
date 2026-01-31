@@ -2,10 +2,59 @@
 description: Main skill for retend-start monorepo. Provides unified access to all retend and retend-web skills.
 ---
 
-IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning
-for any Retend frontend tasks.
+IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any Retend frontend tasks.
 
-**References**:
+**CONSOLIDATED GUIDES (Use These First - Optimized for LLMs):**
+
+These consolidated files organize all rules by topic for easier consumption by LLMs. Each rule is explicitly stated with clear DO/DO NOT examples.
+
+1. **`.docs/consolidated/react-migration-patterns.md`** - **[START HERE]** Critical patterns for React developers. Prevents the most common mistakes when reverting to React patterns.
+2. **`.docs/consolidated/jsx-reactivity-patterns.md`** - Core reactivity rules. How to use Cells in JSX correctly.
+3. **`.docs/consolidated/derived-cells-complete-guide.md`** - Complete guide to Cell.derived() and Cell.derivedAsync().
+4. **`.docs/consolidated/control-flow-patterns.md`** - If, For, Switch, and Observer patterns.
+5. **`.docs/consolidated/component-structure-patterns.md`** - Component organization, naming, and structure.
+6. **`.docs/consolidated/routing-patterns.md`** - Router setup, navigation, and route configuration.
+7. **`.docs/consolidated/common-anti-patterns.md`** - What NOT to do and why. Essential for avoiding mistakes.
+8. **`.docs/consolidated/rule-validation-architecture.md`** - Design for automated rule checking.
+
+**CLI VALIDATION TOOL:**
+Run `npx retend-check [files...]` to validate code against Retend patterns.
+
+**Rules Checked:**
+- **Errors**: `.get()` in JSX, React hooks, dependency arrays, ternary/logical in JSX, `.map()` in JSX, `window.location`, internal `<a>` tags
+- **Warnings**: Inline handlers, missing button types
+- **Style**: `htmlFor` (should be `for`), `className` (should be `class`), string class concatenation
+
+**Usage:**
+```bash
+# Check all files in src/
+npx retend-check
+
+# Check specific files
+npx retend-check src/components/Counter.tsx
+
+# Check with glob
+npx retend-check "src/**/*.tsx"
+```
+
+**Exit codes:** 0 = all passed, 1 = errors found
+
+---
+
+**Severity Levels:**
+- **[CRITICAL]** - Will cause bugs or errors. Must follow.
+- **[WARNING]** - Suboptimal or error-prone. Should follow.
+- **[STYLE]** - Consistency and readability. Recommended.
+
+**Quick Decision Flows:**
+Each consolidated file includes decision trees for common scenarios. Look for "Quick Decision Flow" or "Decision Tree" sections.
+
+---
+
+**DETAILED REFERENCES (API Documentation):**
+
+Use these for detailed API information and edge cases.
+
 - `.docs/retend/references/cells-api.md` - Complete Cell API reference with all methods and patterns
 - `.docs/retend/references/control-flow.md` - Detailed guide to If/For/Switch/Observer with examples
 - `.docs/retend/references/routing/setup.md` - Router initialization, lazy loading, subtrees, and 404s
@@ -18,7 +67,11 @@ for any Retend frontend tasks.
 - `.docs/retend/references/element-references.md` - Using refs with Cells for direct DOM manipulation
 - `.docs/retend/references/advanced-components.md` - Guide to createUnique (persistent identity)
 
-**Rules**:
+**Individual Rules:**
+
+These individual rule files are now organized in the consolidated guides above. Refer to those first.
+
+**Core Rules:**
 - `.docs/retend/rules/key-for-items.md` - Always provide explicit keys for For component with objects.
 - `.docs/retend/rules/prefer-subtrees.md` - Use `subtree` for large route trees.
 - `.docs/retend/rules/headless-routes.md` - Use headless routes for grouping.
@@ -27,6 +80,7 @@ for any Retend frontend tasks.
 - `.docs/retend/rules/pure-derived-cells.md` - Derived cells must be pure.
 - `.docs/retend/rules/use-peek.md` - Use `.peek()` for non-reactive reads.
 - `.docs/retend/rules/component-scoped-listeners.md` - Listeners inside components.
+- `.docs/retend/rules/no-listen-in-useSetupEffect.md` - **CRITICAL**: Never wrap .listen() in useSetupEffect.
 - `.docs/retend/rules/use-builtin-control-flow.md` - Use `If`/`For` helpers.
 - `.docs/retend/rules/pure-render-callbacks.md` - Render callbacks must be pure.
 - `.docs/retend/rules/top-level-hooks.md` - Only call hooks at top level.
@@ -87,13 +141,13 @@ for any Retend frontend tasks.
 - **Path**: `.docs/retend-web/`
 - **Description**: Web-specific features for Retend. Use when building web applications with Retend.
 
-**References**:
+**References:**
 - `.docs/retend-web/references/setup.md` - Renderer initialization and configuration.
 - `.docs/retend-web/references/attributes-and-events.md` - Guide to classes, styles, and event handling.
 - `.docs/retend-web/references/event-modifiers.md` - Detailed reference for all event modifiers.
 - `.docs/retend-web/references/components.md` - Teleport, ShadowRoot, and other web-specific components.
 - `.docs/retend-web/references/hydration.md` - Enabling and managing hydration.
 
-**Rules**:
+**Rules:**
 - `.docs/retend-web/rules/class-attribute-syntax.md` - No string concat or ternaries for classes.
 - `.docs/retend-web/rules/component-class-merging.md` - Merge classes with props correctly.
