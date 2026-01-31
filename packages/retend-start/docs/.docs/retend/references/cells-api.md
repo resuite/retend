@@ -310,3 +310,84 @@ async function fetchData() {
   }
 }
 ```
+
+### Cell.derivedAsync()
+
+Creates an **async derived cell** that automatically recomputes when its dependencies change, with built-in support for loading states, error handling, and request cancellation.
+
+```tsx
+const userId = Cell.source(1);
+
+const userData = Cell.derivedAsync(async (get, signal) => {
+  const id = get(userId);
+  const response = await fetch(`/api/users/${id}`, { signal });
+  return response.json();
+});
+```
+
+**Parameters:**
+
+- `callback: (get, signal) => Promise<U>` - An async function that computes the derived value
+  - `get: <T>(cell: Cell<T>) => T` - Function to read cell values while tracking them as dependencies
+  - `signal: AbortSignal` - Signal that aborts when a new computation starts (use for cancellation)
+
+**Returns:** `AsyncDerivedCell<U>` with these properties:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `.get()` | `() => Promise<T \| null>` | Returns a promise that resolves to the async value |
+| `.peek()` | `() => Promise<T \| null>` | Same as get() but without registering dependencies |
+| `.pending` | `SourceCell<boolean>` | `true` while the async computation is running |
+| `.error` | `SourceCell<Error \| null>` | Holds any error thrown during computation |
+| `.revalidate()` | `() => void` | Manually re-runs the async computation |
+
+**Example with loading and error states:**
+
+```tsx
+function UserProfile(props: { userId: Cell<number> }) {
+  const { userId } = props;
+  const user = Cell.derivedAsync(async (get, signal) => {
+    const id = get(userId);
+    const response = await fetch(`/api/users/${id}`, { signal });
+    return response.json();
+  });
+
+  const userName = Cell.derivedAsync(async (get) => {
+    const userData = await get(user);
+    return userData?.name ?? '';
+  });
+
+  const hasUser = Cell.derived(() => user.get() !== null);
+
+  return (
+    <div>
+      {If(user.pending, {
+        true: () => <LoadingSpinner />,
+      })}
+      {If(user.error, {
+        true: (err) => <ErrorMessage error={err} />,
+      })}
+      {If(hasUser, () => <h1>{userName}</h1>)}
+    </div>
+  );
+}
+```
+
+**Key features:**
+
+- **Automatic dependency tracking** - Uses the `get` function to track which cells are dependencies
+- **Automatic cancellation** - The `AbortSignal` is aborted when dependencies change, cancelling in-flight requests
+- **Race condition prevention** - Old requests are cancelled when new ones start
+- **Loading state** - The `.pending` cell indicates when computation is running
+- **Error state** - The `.error` cell stores any errors that occur
+
+**Listening for errors:**
+
+```tsx
+userData.error.listen((err) => {
+  if (err) {
+    console.error('Failed to load user:', err);
+    showToast('Error loading user data');
+  }
+});
+```

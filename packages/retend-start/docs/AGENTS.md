@@ -59,6 +59,14 @@ for any Retend frontend tasks.
 - `.docs/retend/rules/no-get-in-jsx.md` - Never call .get() on Cells inside JSX.
 - `.docs/retend/rules/no-dependency-arrays.md` - Don't use dependency arrays with Cell.derived or useSetupEffect.
 - `.docs/retend/rules/derived-cells-readonly.md` - Never call .set() on derived cells.
+- `.docs/retend/rules/derivedAsync-use-get-param.md` - Use the `get` parameter to track dependencies in derivedAsync.
+- `.docs/retend/rules/derivedAsync-handle-errors.md` - Always handle errors from derivedAsync cells.
+- `.docs/retend/rules/derivedAsync-use-abort-signal.md` - Pass AbortSignal to fetch/cancellable operations.
+- `.docs/retend/rules/derivedAsync-handle-pending.md` - Show loading state while derivedAsync is pending.
+- `.docs/retend/rules/derivedAsync-readonly.md` - Never call .set() on derivedAsync cells.
+- `.docs/retend/rules/derivedAsync-pure-function.md` - Keep derivedAsync callbacks pure (no side effects).
+- `.docs/retend/rules/derivedAsync-outside-jsx.md` - Define derivedAsync in component body, not inline.
+- `.docs/retend/rules/derivedAsync-from-derivedAsync.md` - Derive async cells from async cells using derivedAsync.
 - `.docs/retend/rules/no-usememo-usecallback.md` - Don't use useMemo/useCallback patterns.
 - `.docs/retend/rules/scope-provider-function-children.md` - Always pass function children to Scope providers.
 - `.docs/retend/rules/for-index-is-cell.md` - For's index parameter is a Cell, not a number.
@@ -70,6 +78,7 @@ for any Retend frontend tasks.
 - `.docs/retend/rules/no-react-imports.md` - Don't import from 'react' or 'react-dom'.
 - `.docs/retend/rules/consistent-values-await.md` - Always await useConsistent() calls.
 - `.docs/retend/rules/prefer-switch-for-multiple-cases.md` - Use Switch() for multiple conditional branches.
+- `.docs/retend/rules/prefer-if-object-syntax.md` - Use object syntax for If when both branches exist.
 - `.docs/retend/rules/for-pass-cell-to-children.md` - Pass Cell<Item> to children in keyed For loops.
 - `.docs/retend/rules/fragment-shorthand.md` - Use <>...</> shorthand for fragments.
 - `.docs/retend/rules/no-manual-keys-on-for-children.md` - Don't add manual key props to For children.
