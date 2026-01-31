@@ -3,13 +3,13 @@
 
 import { execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
-import process from 'node:process';
 import path from 'node:path';
+import process from 'node:process';
 
 import chalk from 'chalk';
+import { createPromptModule } from 'inquirer';
 import ora from 'ora';
 import semver from 'semver';
-import { createPromptModule } from 'inquirer';
 import CONFIG from './config.json' with { type: 'json' };
 
 const isBun =
@@ -30,7 +30,11 @@ function parseArgs() {
       const [key, value] = arg.slice(2).split('=');
       if (value) {
         options[key] = value;
-      } else if (key === 'commit' && args[i + 1] && !args[i + 1].startsWith('-')) {
+      } else if (
+        key === 'commit' &&
+        args[i + 1] &&
+        !args[i + 1].startsWith('-')
+      ) {
         // Handle "--commit hash" format (value as next argument)
         options[key] = args[i + 1];
         i++; // Skip the next argument since we consumed it
@@ -80,7 +84,13 @@ const questions = [
     message: chalk.magenta('Do you want to use Static Site Generation (SSG)?'),
     default: true,
     argKey: 'ssg',
-    /** @param {string} value */
+  },
+  {
+    type: 'confirm',
+    name: 'includeDocs',
+    message: chalk.magenta('Include .docs folder for AI assistants?'),
+    default: true,
+    argKey: 'docs',
   },
 ];
 
@@ -219,6 +229,7 @@ async function createProjectStructure(projectDir, answers) {
     createPackageJson(projectDir, answers),
     createConfigFile(projectDir, answers),
     createVSCodeFolder(projectDir, answers),
+    createDocsFiles(projectDir, answers),
   ]);
 }
 
@@ -580,7 +591,8 @@ function getRetendDependencies(commitHash, useSSG = true) {
       'retend-web': `https://pkg.pr.new/resuite/retend/retend-web@${commitHash}`,
     };
     if (useSSG) {
-      deps['retend-server'] = `https://pkg.pr.new/resuite/retend/retend-server@${commitHash}`;
+      deps['retend-server'] =
+        `https://pkg.pr.new/resuite/retend/retend-server@${commitHash}`;
     }
     return deps;
   }
@@ -707,6 +719,34 @@ async function createVSCodeFolder(projectDir, answers) {
     path.join(vscodeDir, 'extensions.json'),
     JSON.stringify(extensionsContent, null, 2)
   );
+}
+
+/**
+ * Function to create the .docs folder and AGENTS.md file for AI assistants
+ * @param {string} projectDir - The directory where the project is created
+ * @param {Record<string, any>} answers - The answers to the project creation questions
+ */
+async function createDocsFiles(projectDir, answers) {
+  if (!answers.includeDocs) {
+    return;
+  }
+
+  const packageRoot = path.dirname(new URL(import.meta.url).pathname);
+  const docsDir = path.join(packageRoot, 'docs', '.docs');
+  const agentsFile = path.join(packageRoot, 'docs', 'AGENTS.md');
+
+  try {
+    // Copy .docs folder to project
+    await fs.cp(docsDir, path.join(projectDir, '.docs'), { recursive: true });
+    // Copy AGENTS.md file to project
+    await fs.cp(agentsFile, path.join(projectDir, 'AGENTS.md'));
+  } catch (error) {
+    console.warn(
+      chalk.yellow(
+        'Failed to copy documentation files. You can add them manually later.'
+      )
+    );
+  }
 }
 
 /**
