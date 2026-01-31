@@ -1,0 +1,90 @@
+---
+description: Main skill for retend-start monorepo. Provides unified access to all retend and retend-web skills.
+---
+
+IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning
+for any Retend frontend tasks.
+
+**References**:
+- `.docs/retend/references/cells-api.md` - Complete Cell API reference with all methods and patterns
+- `.docs/retend/references/control-flow.md` - Detailed guide to If/For/Switch/Observer with examples
+- `.docs/retend/references/routing/setup.md` - Router initialization, lazy loading, subtrees, and 404s
+- `.docs/retend/references/routing/navigation.md` - Navigation hooks, Link component, and Active state
+- `.docs/retend/references/routing/data.md` - Dynamic route params and query parameters
+- `.docs/retend/references/routing/middleware.md` - Router middleware and redirects
+- `.docs/retend/references/routing/advanced.md` - Nested routes, Locking, Stack Mode, View Transitions
+- `.docs/retend/references/retend-utils.md` - Complete reference for all hooks and components in retend-utils
+- `.docs/retend/references/scopes.md` - Guide to Context API (Scopes), Providers, and useScopeContext
+- `.docs/retend/references/element-references.md` - Using refs with Cells for direct DOM manipulation
+- `.docs/retend/references/advanced-components.md` - Guide to createUnique (persistent identity)
+
+**Rules**:
+- `.docs/retend/rules/key-for-items.md` - Always provide explicit keys for For component with objects.
+- `.docs/retend/rules/prefer-subtrees.md` - Use `subtree` for large route trees.
+- `.docs/retend/rules/headless-routes.md` - Use headless routes for grouping.
+- `.docs/retend/rules/avoid-route-names.md` - Avoid using `name` field.
+- `.docs/retend/rules/keep-cells-granular.md` - Keep state granular.
+- `.docs/retend/rules/pure-derived-cells.md` - Derived cells must be pure.
+- `.docs/retend/rules/use-peek.md` - Use `.peek()` for non-reactive reads.
+- `.docs/retend/rules/component-scoped-listeners.md` - Listeners inside components.
+- `.docs/retend/rules/use-builtin-control-flow.md` - Use `If`/`For` helpers.
+- `.docs/retend/rules/pure-render-callbacks.md` - Render callbacks must be pure.
+- `.docs/retend/rules/top-level-hooks.md` - Only call hooks at top level.
+- `.docs/retend/rules/prefer-input-component.md` - Use `Input` helper.
+- `.docs/retend/rules/refs-on-elements.md` - Safe ref creation and typing.
+- `.docs/retend/rules/pass-cells-directly.md` - Don't unwrap cells in JSX.
+- `.docs/retend/rules/derived-outside-jsx.md` - Define derived state outside JSX.
+- `.docs/retend/rules/destructure-props-in-body.md` - Destructure props in body.
+- `.docs/retend/rules/customizable-components.md` - Favor extension over invention.
+- `.docs/retend/rules/explicit-children-type.md` - Use `JSX.Children`.
+- `.docs/retend/rules/scope-injection.md` - Use function children for scopes.
+- `.docs/retend/rules/no-any.md` - No `any` type.
+- `.docs/retend/rules/reactive-props.md` - Handle ValueOrCell props.
+- `.docs/retend/rules/prefer-scopes.md` - Avoid prop drilling.
+- `.docs/retend/rules/self-closing-tags.md` - Used self-closing tags.
+- `.docs/retend/rules/button-type.md` - Always set button type.
+- `.docs/retend/rules/use-for-attribute.md` - Use `for` not `htmlFor`.
+- `.docs/retend/rules/prefer-event-modifiers.md` - Use modifiers.
+- `.docs/retend/rules/unique-component-ids.md` - Unique IDs for `createUnique`.
+- `.docs/retend/rules/component-structure.md` - Order of internals.
+- `.docs/retend/rules/svg-xmlns.md` - Required xmlns for SVG.
+- `.docs/retend/rules/use-link-component.md` - Use `Link` for internal navigation.
+- `.docs/retend/rules/no-logical-operators-in-jsx.md` - No ternary or logical operators (&&, ||) in JSX.
+- `.docs/retend/rules/function-children-as-component.md` - Render function children as components.
+- `.docs/retend/rules/combine-scopes-keys.md` - Use `[Scope.key]` for combined scopes.
+- `.docs/retend/rules/component-pascal-case.md` - Use PascalCase for components.
+- `.docs/retend/rules/hoist-handlers.md` - Hoist event handlers.
+- `.docs/retend/rules/prefer-router-navigation.md` - Use router for navigation.
+- `.docs/retend/rules/no-react-hooks.md` - Do not use React hooks (useState, useEffect, etc.).
+- `.docs/retend/rules/no-get-in-jsx.md` - Never call .get() on Cells inside JSX.
+- `.docs/retend/rules/no-dependency-arrays.md` - Don't use dependency arrays with Cell.derived or useSetupEffect.
+- `.docs/retend/rules/derived-cells-readonly.md` - Never call .set() on derived cells.
+- `.docs/retend/rules/no-usememo-usecallback.md` - Don't use useMemo/useCallback patterns.
+- `.docs/retend/rules/scope-provider-function-children.md` - Always pass function children to Scope providers.
+- `.docs/retend/rules/for-index-is-cell.md` - For's index parameter is a Cell, not a number.
+- `.docs/retend/rules/teleport-selector-limitations.md` - Teleport only supports #id or tagname selectors.
+- `.docs/retend/rules/lowercase-event-names.md` - Use camelCase event names (onClick not onclick).
+- `.docs/retend/rules/no-re-render-optimization.md` - Don't optimize for "re-renders" - components don't re-render.
+- `.docs/retend/rules/query-mutations-are-async.md` - Route query mutations are async and trigger navigation.
+- `.docs/retend/rules/useobserver-not-layouteffect.md` - Use useObserver for DOM connection awareness.
+- `.docs/retend/rules/no-react-imports.md` - Don't import from 'react' or 'react-dom'.
+- `.docs/retend/rules/consistent-values-await.md` - Always await useConsistent() calls.
+- `.docs/retend/rules/prefer-switch-for-multiple-cases.md` - Use Switch() for multiple conditional branches.
+- `.docs/retend/rules/for-pass-cell-to-children.md` - Pass Cell<Item> to children in keyed For loops.
+- `.docs/retend/rules/fragment-shorthand.md` - Use <>...</> shorthand for fragments.
+- `.docs/retend/rules/no-manual-keys-on-for-children.md` - Don't add manual key props to For children.
+
+### retend-web
+- **Path**: `.docs/retend-web/`
+- **Description**: Web-specific features for Retend. Use when building web applications with Retend.
+
+**References**:
+- `.docs/retend-web/references/setup.md` - Renderer initialization and configuration.
+- `.docs/retend-web/references/attributes-and-events.md` - Guide to classes, styles, and event handling.
+- `.docs/retend-web/references/event-modifiers.md` - Detailed reference for all event modifiers.
+- `.docs/retend-web/references/components.md` - Teleport, ShadowRoot, and other web-specific components.
+- `.docs/retend-web/references/hydration.md` - Enabling and managing hydration.
+
+**Rules**:
+- `.docs/retend-web/rules/class-attribute-syntax.md` - No string concat or ternaries for classes.
+- `.docs/retend-web/rules/component-class-merging.md` - Merge classes with props correctly.
