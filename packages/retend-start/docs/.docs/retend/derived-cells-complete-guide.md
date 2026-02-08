@@ -256,7 +256,7 @@ const userData = Cell.derivedAsync(async (get) => {
   return await fetchUser(id); // Only async computation
 });
 
-// Side effects go in component-scoped listener (called directly, not in useSetupEffect)
+// Side effects go in component-scoped listener (called directly, not in onSetup)
 userData.listen(() => {
   console.log('User data updated');
   analytics.track('user_loaded');

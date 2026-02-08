@@ -6,7 +6,7 @@
 
 **Context**: Listening to Cell updates inside a component using `.listen()`.
 
-**Rule**: Call `.listen()` directly in the component body. Do NOT wrap it in `useSetupEffect`.
+**Rule**: Call `.listen()` directly in the component body. Do NOT wrap it in `onSetup`.
 
 **Why**:
 
@@ -21,7 +21,7 @@ function MyComponent() {
   count.listen((val) => console.log(val));
 
   // INCORRECT:
-  // useSetupEffect(() => count.listen(...));
+  // onSetup(() => count.listen(...));
 
   return <div>{count}</div>;
 }

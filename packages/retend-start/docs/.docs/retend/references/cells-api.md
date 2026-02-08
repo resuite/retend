@@ -136,7 +136,7 @@ function SearchResults() {
 
 ### Component-Scoped Listeners
 
-You can call `.listen()` directly within a component. The subscription is automatically tied to the component's lifecycle and will be cleaned up when the component unmounts. Do not use `useSetupEffect` for this.
+You can call `.listen()` directly within a component. The subscription is automatically tied to the component's lifecycle and will be cleaned up when the component unmounts. Do not use `onSetup` for this.
 
 ```tsx
 import { Cell } from 'retend';

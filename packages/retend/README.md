@@ -52,7 +52,7 @@ render(<Counter />, document.body);
 
 ```tsx
 // Core (reactivity, control flow, lifecycle)
-import { Cell, For, If, Switch, useSetupEffect } from 'retend';
+import { Cell, For, If, Switch, onSetup } from 'retend';
 
 // Router
 import { Router, Link, Outlet, useRouter } from 'retend/router';

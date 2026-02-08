@@ -1322,18 +1322,18 @@ In this example, the `onConnected` hook now:
 
 ---
 
-## Component Lifecycle with `useSetupEffect`
+## Component Lifecycle with `onSetup`
 
-The `useSetupEffect` hook provides a way to manage side effects that are tied to a component's logical lifecycle, rather than a specific DOM element's presence. It is similar to `useEffect(..., [])` in React.
+The `onSetup` hook provides a way to manage side effects that are tied to a component's logical lifecycle, rather than a specific DOM element's presence. It is similar to `useEffect(..., [])` in React.
 
-The callback passed to `useSetupEffect` runs once when a component instance is initialized. It is the ideal place for tasks like setting timers, subscribing to data streams, or adding global event listeners.
+The callback passed to `onSetup` runs once when a component instance is initialized. It is the ideal place for tasks like setting timers, subscribing to data streams, or adding global event listeners.
 
 ### Cleanup
 
 The callback can return a cleanup function. This function is automatically executed when the component instance is destroyed (e.g., when it's removed from a `<For>` list). This is crucial for preventing memory leaks.
 
 ```tsx
-import { Cell, useSetupEffect } from 'retend';
+import { Cell, onSetup } from 'retend';
 
 function LiveClock() {
   const time = Cell.source(new Date());
@@ -1341,7 +1341,7 @@ function LiveClock() {
     return time.get().toLocaleTimeString();
   });
 
-  useSetupEffect(() => {
+  onSetup(() => {
     const timerId = setInterval(() => time.set(new Date()), 1000);
 
     // Cleanup function
@@ -1352,9 +1352,9 @@ function LiveClock() {
 }
 ```
 
-### `useSetupEffect` vs `useObserver`
+### `onSetup` vs `useObserver`
 
-- Use `useSetupEffect` for component lifecycle logic that isn't tied to a specific DOM element.
+- Use `onSetup` for component lifecycle logic that isn't tied to a specific DOM element.
 - Use `useObserver` for effects that need to run when a specific DOM element is connected or disconnected from the DOM.
 
 ---
@@ -2142,10 +2142,10 @@ In this example, the video continues playing when switching between pages becaus
 - **Setup Effects that Persist**:
 
 ```jsx
-import { Cell, Switch, createUnique, useSetupEffect } from 'retend';
+import { Cell, Switch, createUnique, onSetup } from 'retend';
 
 const PersistentComponent = createUnique(() => {
-  useSetupEffect(() => {
+  onSetup(() => {
     console.log('Setup called once');
     return () => {
       console.log('Cleanup called when completely removed');

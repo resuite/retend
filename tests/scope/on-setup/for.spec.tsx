@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { useSetupEffect, For, Cell, runPendingSetupEffects } from 'retend';
-import { getTextContent, browserSetup, timeout } from '../../setup.tsx';
+import { Cell, For, onSetup, runPendingSetupEffects } from 'retend';
+import { describe, expect, it, vi } from 'vitest';
+import { browserSetup, getTextContent, timeout } from '../../setup.tsx';
 
-describe('useSetupEffect with For', () => {
+describe('onSetup with For', () => {
   browserSetup();
 
   it('works in a For() loop', async () => {
@@ -27,7 +27,7 @@ describe('useSetupEffect with For', () => {
         cleanupFns.set(item.id, vi.fn());
       }
 
-      useSetupEffect(() => {
+      onSetup(() => {
         setupFns.get(item.id)!();
         return () => {
           cleanupFns.get(item.id)!();

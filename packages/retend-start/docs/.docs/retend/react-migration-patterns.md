@@ -18,7 +18,7 @@ description: Critical rules for React developers migrating to Retend. Prevents t
 
 **DO NOT use**:
 - `useState` → Use `Cell.source()`
-- `useEffect` → Use `useSetupEffect()` (runs once) or `cell.listen()`
+- `useEffect` → Use `onSetup()` (runs once) or `cell.listen()`
 - `useMemo` → Use `Cell.derived()`
 - `useCallback` → Use plain functions (no memoization needed)
 - `useRef` → Use `Cell.source(null)`
@@ -40,7 +40,7 @@ function Counter() {
   const count = Cell.source(0);
   
   // Listeners are called directly in component body
-  // Automatic cleanup - no useSetupEffect wrapper needed
+  // Automatic cleanup - no onSetup wrapper needed
   count.listen((value) => {
     console.log('Count:', value);
   });
@@ -89,7 +89,7 @@ function Display() {
 
 ## [CRITICAL] NEVER Use Dependency Arrays
 
-**Applies to**: `Cell.derived()`, `useSetupEffect()`
+**Applies to**: `Cell.derived()`, `onSetup()`
 
 **Rule**: Retend tracks dependencies automatically. Never provide dependency arrays.
 
@@ -99,13 +99,13 @@ const count = Cell.source(0);
 
 // WRONG - dependency arrays don't exist
 const doubled = Cell.derived(() => count.get() * 2, [count]);
-useSetupEffect(() => { ... }, [count]);
+onSetup(() => { ... }, [count]);
 
 // CORRECT - automatic dependency tracking
 const doubled = Cell.derived(() => count.get() * 2);
 // ^ Automatically knows count is a dependency
 
-useSetupEffect(() => {
+onSetup(() => {
   console.log(count.get()); // Runs once, use listen() for reactive updates
 });
 ```
@@ -292,7 +292,7 @@ function Form() {
 | React | Retend | Notes |
 |-------|--------|-------|
 | `useState(initial)` | `Cell.source(initial)` | Initialize once, use throughout |
-| `useEffect(fn, [])` | `useSetupEffect(fn)` | Runs once, no deps array |
+| `useEffect(fn, [])` | `onSetup(fn)` | Runs once, no deps array |
 | `useEffect(fn, [dep])` | `cell.listen(fn)` | Reactive updates |
 | `useMemo(() => compute, [dep])` | `Cell.derived(() => compute)` | Auto-tracking, no deps |
 | `useCallback(fn, [dep])` | Plain function `fn` | No memoization needed |

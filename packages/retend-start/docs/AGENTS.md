@@ -80,7 +80,7 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/pure-derived-cells.md` - Derived cells must be pure.
 - `.docs/retend/rules/use-peek.md` - Use `.peek()` for non-reactive reads.
 - `.docs/retend/rules/component-scoped-listeners.md` - Listeners inside components.
-- `.docs/retend/rules/no-listen-in-useSetupEffect.md` - **CRITICAL**: Never wrap .listen() in useSetupEffect.
+- `.docs/retend/rules/no-listen-in-onSetup.md` - **CRITICAL**: Never wrap .listen() in onSetup.
 - `.docs/retend/rules/use-builtin-control-flow.md` - Use `If`/`For` helpers.
 - `.docs/retend/rules/pure-render-callbacks.md` - Render callbacks must be pure.
 - `.docs/retend/rules/top-level-hooks.md` - Only call hooks at top level.
@@ -111,7 +111,7 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/prefer-router-navigation.md` - Use router for navigation.
 - `.docs/retend/rules/no-react-hooks.md` - Do not use React hooks (useState, useEffect, etc.).
 - `.docs/retend/rules/no-get-in-jsx.md` - Never call .get() on Cells inside JSX.
-- `.docs/retend/rules/no-dependency-arrays.md` - Don't use dependency arrays with Cell.derived or useSetupEffect.
+- `.docs/retend/rules/no-dependency-arrays.md` - Don't use dependency arrays with Cell.derived or onSetup.
 - `.docs/retend/rules/derived-cells-readonly.md` - Never call .set() on derived cells.
 - `.docs/retend/rules/derivedAsync-use-get-param.md` - Use the `get` parameter to track dependencies in derivedAsync.
 - `.docs/retend/rules/derivedAsync-handle-errors.md` - Always handle errors from derivedAsync cells.

@@ -53,7 +53,7 @@ function navigation_menu() { ... }
 2. State Cells (`Cell.source()`)
 3. Derived Cells (`Cell.derived()`, `Cell.derivedAsync()`)
 4. Event handlers (hoisted functions)
-5. Effects (`useSetupEffect()`, `useObserver()`)
+5. Effects (`onSetup()`, `useObserver()`)
 6. Return JSX
 
 **Explicit Pattern**:
@@ -91,7 +91,7 @@ function UserProfile(props: { userId: Cell<number>; class?: string }) {
   };
   
   // 5. Effects
-  useSetupEffect(() => {
+  onSetup(() => {
     console.log('Component initialized');
     return () => {
       console.log('Component cleanup');
@@ -363,7 +363,7 @@ const dynamicText = Cell.source('Hello');
 
 **Applies to**: Using `.listen()` inside components
 
-**Rule**: Call `.listen()` directly in the component body. Do NOT wrap it in `useSetupEffect`.
+**Rule**: Call `.listen()` directly in the component body. Do NOT wrap it in `onSetup`.
 
 **Why**: Retend automatically binds listeners to the component lifecycle and handles cleanup.
 
@@ -384,8 +384,8 @@ function StatusIndicator() {
 
 **Explicit Anti-Pattern**:
 ```tsx
-// ❌ WRONG - don't wrap in useSetupEffect
-useSetupEffect(() => {
+// ❌ WRONG - don't wrap in onSetup
+onSetup(() => {
   const unsubscribe = status.listen((val) => console.log(val));
   return unsubscribe;
 });
@@ -499,8 +499,8 @@ Before considering a component complete, verify:
 - [ ] State Cells at top (after props)
 - [ ] Derived Cells next
 - [ ] Handlers hoisted (not inline)
-- [ ] Listeners called directly in component body (not in useSetupEffect)
-- [ ] useSetupEffect only for non-reactive setup (NOT for .listen())
+- [ ] Listeners called directly in component body (not in onSetup)
+- [ ] onSetup only for non-reactive setup (NOT for .listen())
 - [ ] JSX uses self-closing tags where appropriate
 - [ ] Buttons have type attribute
 - [ ] Labels use `for` not `htmlFor`

@@ -6,7 +6,7 @@
 
 **Context**: Creating derived cells and setup effects.
 
-**Rule**: Do not provide dependency arrays to `Cell.derived()` or `useSetupEffect()`. Retend tracks dependencies automatically.
+**Rule**: Do not provide dependency arrays to `Cell.derived()` or `onSetup()`. Retend tracks dependencies automatically.
 
 **Why**:
 
@@ -22,7 +22,7 @@
 // INVALID - dependency arrays don't exist in Retend
 const doubled = Cell.derived(() => count.get() * 2, [count]);
 
-useSetupEffect(() => {
+onSetup(() => {
   console.log(count.get());
 }, [count]); // Error - no second parameter!
 ```
@@ -34,13 +34,13 @@ useSetupEffect(() => {
 const doubled = Cell.derived(() => count.get() * 2);
 // ^ Automatically tracks that count is a dependency
 
-useSetupEffect(() => {
+onSetup(() => {
   console.log(count.get());
 });
 // ^ Runs once on mount
 
 // For reactive updates, use cell.listen()
-useSetupEffect(() => {
+onSetup(() => {
   const unsubscribe = count.listen((newValue) => {
     console.log('Count changed:', newValue);
   });

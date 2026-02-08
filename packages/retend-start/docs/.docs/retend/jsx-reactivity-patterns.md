@@ -295,7 +295,7 @@ const updateFirstName = (value) => {
 1. State Cells (`Cell.source()`)
 2. Derived Cells (`Cell.derived()`, `Cell.derivedAsync()`)
 3. Event handlers
-4. Effects (`useSetupEffect()`, `useObserver()`)
+4. Effects (`onSetup()`, `useObserver()`)
 5. Return JSX
 
 **Explicit Pattern**:
@@ -304,24 +304,24 @@ function UserProfile(props: { userId: Cell<number> }) {
   // 1. State
   const { userId } = props;
   const localState = Cell.source('');
-  
+
   // 2. Derived
   const user = Cell.derivedAsync(async (get) => {
     return await fetchUser(get(userId));
   });
-  
+
   const displayName = Cell.derived(() => {
     const u = user.get();
     return u?.name ?? 'Anonymous';
   });
-  
+
   // 3. Handlers
   const handleUpdate = () => {
     localState.set('updated');
   };
-  
+
   // 4. Effects
-  useSetupEffect(() => {
+  onSetup(() => {
     // Initialize something
     return () => {
       // Cleanup

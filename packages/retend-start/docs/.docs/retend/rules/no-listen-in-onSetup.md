@@ -1,12 +1,12 @@
 | title                      | impact | impactDescription                                      | tags                           |
 | :------------------------- | :----- | :----------------------------------------------------- | :----------------------------- |
-| No useSetupEffect for Listeners | CRITICAL | Listeners must be called directly in component body for automatic cleanup. | reactivity, listeners, lifecycle |
+| No onSetup for Listeners | CRITICAL | Listeners must be called directly in component body for automatic cleanup. | reactivity, listeners, lifecycle |
 
-# NEVER Wrap .listen() in useSetupEffect
+# NEVER Wrap .listen() in onSetup
 
 **Context**: Creating side effects that respond to Cell changes.
 
-**Rule**: Call `.listen()` directly in the component body. **NEVER** wrap it in `useSetupEffect`.
+**Rule**: Call `.listen()` directly in the component body. **NEVER** wrap it in `onSetup`.
 
 **Why**:
 
@@ -21,15 +21,15 @@
 // ❌ WRONG - Never do this
 function MyComponent() {
   const count = Cell.source(0);
-  
-  useSetupEffect(() => {
-    // WRONG: Don't wrap .listen() in useSetupEffect
+
+  onSetup(() => {
+    // WRONG: Don't wrap .listen() in onSetup
     const unsubscribe = count.listen((val) => {
       console.log('Count:', val);
     });
     return unsubscribe; // Unnecessary manual cleanup
   });
-  
+
   return <div>{count}</div>;
 }
 ```
@@ -40,29 +40,29 @@ function MyComponent() {
 // ✅ CORRECT - Call .listen() directly
 function MyComponent() {
   const count = Cell.source(0);
-  
+
   // CORRECT: Call directly in component body
   count.listen((val) => {
     console.log('Count:', val);
   });
   // Automatic cleanup - no unsubscribe needed!
-  
+
   return <div>{count}</div>;
 }
 ```
 
-## When to Use useSetupEffect
+## When to Use onSetup
 
-Use `useSetupEffect` for **non-reactive** setup that runs **once**:
+Use `onSetup` for **non-reactive** setup that runs **once**:
 
 ```tsx
-// ✅ CORRECT - useSetupEffect for non-reactive setup
-useSetupEffect(() => {
+// ✅ CORRECT - onSetup for non-reactive setup
+onSetup(() => {
   // One-time initialization (not reactive)
   const id = setInterval(() => {
     // This is NOT reactive - runs on timer, not on Cell changes
   }, 1000);
-  
+
   return () => clearInterval(id);
 });
 
@@ -78,27 +78,27 @@ count.listen((newValue) => {
 ```
 NEED REACTIVE SIDE EFFECTS?
 ├─ React to Cell changes → Call .listen() directly in component body
-└─ One-time setup (timers, external libs) → Use useSetupEffect()
+└─ One-time setup (timers, external libs) → Use onSetup()
 
 NEED CLEANUP?
 ├─ For .listen() → Automatic, no action needed
-└─ For useSetupEffect → Return cleanup function
+└─ For onSetup → Return cleanup function
 ```
 
 ## Common Mistakes
 
 | Mistake | Why It's Wrong | Correct Approach |
 |---------|---------------|------------------|
-| `useSetupEffect(() => cell.listen(...))` | Unnecessary wrapper, manual cleanup | `cell.listen(...)` directly |
+| `onSetup(() => cell.listen(...))` | Unnecessary wrapper, manual cleanup | `cell.listen(...)` directly |
 | `useEffect(() => cell.listen(...), [])` | React pattern doesn't apply | `cell.listen(...)` directly |
 | `const unsub = cell.listen(); return unsub` | Manual cleanup not needed | Just `cell.listen(...)` |
 
 ## Quick Reference
 
 **DO**: Call `.listen()` directly in component body
-**DON'T**: Wrap `.listen()` in `useSetupEffect`
+**DON'T**: Wrap `.listen()` in `onSetup`
 **DON'T**: Store unsubscribe functions
-**DON'T**: Return unsubscribe from useSetupEffect
+**DON'T**: Return unsubscribe from onSetup
 
 ---
 

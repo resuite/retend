@@ -1,21 +1,21 @@
-import { getGlobalContext } from 'retend/context';
 import {
   Cell,
-  createScopeSnapshot,
-  useSetupEffect,
-  withScopeSnapshot,
   CellUpdateError,
-  createNodesFromTemplate,
   __HMR_SYMBOLS,
+  createNodesFromTemplate,
+  createScopeSnapshot,
+  onSetup,
+  withScopeSnapshot,
 } from 'retend';
+import { getGlobalContext } from 'retend/context';
 import { routeToComponent } from 'retend/router';
 import {
   addCellListener,
-  removeCellListeners,
+  consolidateNodes,
   copyCellListeners,
   createCommentPair,
   isMatchingCommentPair,
-  consolidateNodes,
+  removeCellListeners,
 } from '../utils.js';
 
 /** @import { ReactiveCellFunction } from '../utils.js' */
@@ -146,7 +146,7 @@ function trackScopeReference(Scope, fileName) {
   }
 
   ScopeList.set(Scope[__HMR_SYMBOLS.HmrId], Scope);
-  useSetupEffect(() => () => ScopeList.delete(Scope[__HMR_SYMBOLS.HmrId]));
+  onSetup(() => () => ScopeList.delete(Scope[__HMR_SYMBOLS.HmrId]));
 }
 
 /**

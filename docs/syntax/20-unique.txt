@@ -119,10 +119,10 @@ const App = () => {
 
 @Example 5
 @Input Unique with setup effects that persist.
-import { Cell, Switch, createUnique, useSetupEffect } from 'retend';
+import { Cell, Switch, createUnique, onSetup } from 'retend';
 
 const PersistentComponent = createUnique(() => {
-  useSetupEffect(() => {
+  onSetup(() => {
     console.log('Setup called once');
     return () => {
       console.log('Cleanup called when completely removed');
@@ -191,7 +191,7 @@ const App = () => {
   const mainInBody = Cell.derived(() => !mainInHeader.get());
   const pipInHeader = Cell.source(false);
   const pipInBody = Cell.derived(() => !pipInHeader.get());
-  
+
   const toggle = () => {
     mainInHeader.set(!mainInHeader.get());
     pipInHeader.set(!pipInHeader.get());
@@ -225,7 +225,7 @@ const Counter = createUnique((props) => {
   const label = Cell.derived(() => props.get().label || 'Count');
   const count = Cell.source(0);
   const increment = () => count.set(count.get() + 1);
-  
+
   return (
     <div>
       <span>{label}: {count}</span>
@@ -356,11 +356,11 @@ const FormInput = createUnique(
 
 @Example 13
 @Input Unique component with nested reactive state.
-import { Cell, createUnique, useSetupEffect } from 'retend';
+import { Cell, createUnique, onSetup } from 'retend';
 
 const TimerComponent = createUnique(() => {
   const count = Cell.source(0);
-  useSetupEffect(() => {
+  onSetup(() => {
     const interval = setInterval(() => {
       count.set(count.get() + 1);
     }, 1000);
@@ -388,10 +388,10 @@ const App = () => {
   const location = Cell.source('left');
   const moveRight = () => location.set('right');
   const moveLeft = () => location.set('left');
-  
+
   const isLeft = Cell.derived(() => location.get() === 'left');
   const isRight = Cell.derived(() => location.get() === 'right');
-  
+
   return (
     <div style={{ display: 'flex', gap: '20px' }}>
       <div style={{ border: '1px solid red', padding: '10px' }}>
@@ -443,7 +443,7 @@ const VideoWithControls = createUnique(() => {
   const videoRef = Cell.source(null);
   const play = () => videoRef.get()?.play();
   const pause = () => videoRef.get()?.pause();
-  
+
   return (
     <div>
       <video ref={videoRef} src="video.mp4">
@@ -481,7 +481,7 @@ const App = () => {
   const showModal = Cell.source(false);
   const page = Cell.source('home');
   const toggleModal = () => showModal.set(!showModal.get());
-  
+
   return (
     <div>
       {Switch(page, {
@@ -498,10 +498,10 @@ const App = () => {
 
 @Example 18
 @Input Unique component that only cleans up when fully removed.
-import { Cell, If, createUnique, useSetupEffect } from 'retend';
+import { Cell, If, createUnique, onSetup } from 'retend';
 
 const ResourceComponent = createUnique(() => {
-  useSetupEffect(() => {
+  onSetup(() => {
     console.log('Resource initialized');
     const resource = { connected: true };
     return () => {
@@ -515,7 +515,7 @@ const ResourceComponent = createUnique(() => {
 const App = () => {
   const show = Cell.source(true);
   const toggle = () => show.set(!show.get());
-  
+
   return (
     <div>
       {If(show, () => <ResourceComponent />)}
@@ -620,7 +620,7 @@ const App = () => {
   const showFirstInB = Cell.derived(() => !showFirstInA.get());
   const showSecondInA = Cell.source(false);
   const showSecondInB = Cell.derived(() => !showSecondInA.get());
-  
+
   return (
     <div>
       <div style={{ border: '1px solid red' }}>
@@ -665,7 +665,7 @@ const VideoPlayer = createUnique((props) => {
     const videoId = props.get().videoId;
     return `https://example.com/video-${videoId}.mp4`;
   });
-  
+
   return (
     <video src={src} controls>
       Your browser does not support the video tag.
@@ -727,10 +727,10 @@ const App = () => {
 
 @Example 27
 @Input Nested unique components.
-import { createUnique, useSetupEffect } from 'retend';
+import { createUnique, onSetup } from 'retend';
 
 const Inner = createUnique(() => {
-  useSetupEffect(() => {
+  onSetup(() => {
     console.log('Inner setup');
   });
   return <div>Inner Content</div>;

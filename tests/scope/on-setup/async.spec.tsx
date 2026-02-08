@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { useSetupEffect, If, Cell, runPendingSetupEffects } from 'retend';
+import { Cell, If, onSetup, runPendingSetupEffects } from 'retend';
+import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, timeout } from '../../setup.tsx';
 
-describe('useSetupEffect with async setup functions', () => {
+describe('onSetup with async setup functions', () => {
   browserSetup();
 
   it('should handle async setup functions', async () => {
@@ -10,7 +10,7 @@ describe('useSetupEffect with async setup functions', () => {
     const asyncOperation = vi.fn().mockResolvedValue('done');
 
     const ComponentWithAsyncEffect = () => {
-      useSetupEffect(async () => {
+      onSetup(async () => {
         setupFn();
         const result = await asyncOperation();
         expect(result).toBe('done');
@@ -35,7 +35,7 @@ describe('useSetupEffect with async setup functions', () => {
     const cleanupFn = vi.fn();
 
     const ComponentWithAsyncCleanup = () => {
-      useSetupEffect(async () => {
+      onSetup(async () => {
         await timeout(10);
         return () => {
           cleanupFn();
@@ -78,7 +78,7 @@ describe('useSetupEffect with async setup functions', () => {
     const cleanupFn = vi.fn();
 
     const ComponentWithSyncCleanup = () => {
-      useSetupEffect(() => {
+      onSetup(() => {
         return () => {
           cleanupFn();
         };

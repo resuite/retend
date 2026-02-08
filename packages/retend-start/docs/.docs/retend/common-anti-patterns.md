@@ -20,7 +20,7 @@ description: Common mistakes and anti-patterns to avoid when writing Retend code
 ```tsx
 function Counter() {
   const count = Cell.source(0);
-  
+
   return (
     <div>
       <p>{count.get()}</p>  {/* Static! Never updates! */}
@@ -34,7 +34,7 @@ function Counter() {
 ```tsx
 function Counter() {
   const count = Cell.source(0);
-  
+
   return (
     <div>
       <p>{count}</p>  {/* Reactive! Subscribes to changes */}
@@ -60,11 +60,11 @@ import { useState, useEffect } from 'retend';  // These don't exist!
 
 function Counter() {
   const [count, setCount] = useState(0);  // ERROR!
-  
+
   useEffect(() => {  // ERROR!
     console.log(count);
   }, [count]);
-  
+
   return <div>{count}</div>;
 }
 ```
@@ -75,13 +75,13 @@ import { Cell } from 'retend';
 
 function Counter() {
   const count = Cell.source(0);
-  
+
   // ✅ CORRECT - call .listen() directly in component body
   count.listen((value) => {
     console.log('Count:', value);
   });
-  // Automatic cleanup - no useSetupEffect wrapper needed!
-  
+  // Automatic cleanup - no onSetup wrapper needed!
+
   return <div>{count}</div>;
 }
 ```
@@ -92,7 +92,7 @@ function Counter() {
 
 ## [CRITICAL] Anti-Pattern #3: Dependency Arrays
 
-**The Mistake**: Adding dependency arrays to `Cell.derived()` or `useSetupEffect()`.
+**The Mistake**: Adding dependency arrays to `Cell.derived()` or `onSetup()`.
 
 **Why It's Wrong**: Retend tracks dependencies automatically. Dependency arrays cause errors or unexpected behavior.
 
@@ -100,7 +100,7 @@ function Counter() {
 ```tsx
 const doubled = Cell.derived(() => count.get() * 2, [count]);  // ERROR!
 
-useSetupEffect(() => {
+onSetup(() => {
   console.log(count.get());
 }, [count]);  // ERROR - no second parameter!
 ```
@@ -110,7 +110,7 @@ useSetupEffect(() => {
 const doubled = Cell.derived(() => count.get() * 2);  // Auto-tracking
 
 // For one-time setup (non-reactive)
-useSetupEffect(() => {
+onSetup(() => {
   console.log('Component mounted');
 });
 
@@ -120,7 +120,7 @@ count.listen((v) => {
 });
 ```
 
-**Detection**: Look for arrays as second parameters to derived or useSetupEffect.
+**Detection**: Look for arrays as second parameters to derived or onSetup.
 
 ---
 
@@ -372,7 +372,7 @@ const goToHome = () => {
 **Wrong**:
 ```tsx
 return (
-  <button 
+  <button
     type="button"
     onClick={() => {
       count.set(count.get() + 1);

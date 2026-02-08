@@ -4,8 +4,8 @@
 import { Cell } from '@adbl/cells';
 import h from './jsx.js';
 
-import { getActiveRenderer, setActiveRenderer } from './renderer.js';
 import { getGlobalContext } from '../context/index.js';
+import { getActiveRenderer, setActiveRenderer } from './renderer.js';
 import { createNodesFromTemplate } from './utils.js';
 
 /** @import { Scope } from "../library/scope.js"; */
@@ -250,8 +250,8 @@ export function createScope(name) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
       const renderer = getActiveRenderer();
@@ -485,8 +485,8 @@ export function combineScopes(...providers) {
         'content' in props
           ? props.content
           : 'children' in props
-          ? props.children
-          : () => {};
+            ? props.children
+            : () => {};
 
       const finalContent = [...providers].reverse().reduce(
         (innerContent, Scope) => () => {
@@ -517,7 +517,7 @@ export function combineScopes(...providers) {
  *
  * @example
  * ```tsx
- * import { Cell, useSetupEffect } from 'retend';
+ * import { Cell, onSetup } from 'retend';
  *
  * function LiveClock() {
  *   const time = Cell.source(new Date());
@@ -525,7 +525,7 @@ export function combineScopes(...providers) {
  *     return time.get().toLocaleTimeString();
  *   });
  *
- *   useSetupEffect(() => {
+ *   onSetup(() => {
  *     const timerId = setInterval(() => time.set(new Date()), 1000);
  *     return () => clearInterval(timerId);
  *   });
@@ -536,7 +536,7 @@ export function combineScopes(...providers) {
  *
  * @example
  * ```tsx
- * useSetupEffect(() => {
+ * onSetup(() => {
  *   const handleResize = () => console.log('Window resized!');
  *   window.addEventListener('resize', handleResize);
  *
@@ -548,20 +548,21 @@ export function combineScopes(...providers) {
  * - This hook runs only once per component instance, similar to `useEffect(..., [])` in React. It does not re-run on updates.
  * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `useObserver` instead.
  *
+ * @see {@link onSetup} for registering effects that will be run by this function.
  * @see {@link useObserver} for DOM-based lifecycle effects.
  */
-export function useSetupEffect(callback) {
+export function onSetup(callback) {
   const { node } = getScopeSnapshot();
   node.add(callback);
 }
 
 /**
- * Executes all pending setup effects that have been registered via `useSetupEffect`.
+ * Executes all pending setup effects that have been registered via `onSetup`.
  *
  * In many applications, particularly on the client-side, this function is called once
  * after the initial render to activate all registered lifecycle effects, such as
  * setting up timers, subscriptions, or event listeners. It ensures that the setup
- * logic defined in `useSetupEffect` is executed and can begin its work.
+ * logic defined in `onSetup` is executed and can begin its work.
  *
  * @example
  * ```js
@@ -573,7 +574,7 @@ export function useSetupEffect(callback) {
  * runPendingSetupEffects();
  * ```
  *
- * @see {@link useSetupEffect} for registering effects that will be run by this function.
+ * @see {@link onSetup} for registering effects that will be run by this function.
  */
 export async function runPendingSetupEffects() {
   const { node } = getScopeSnapshot();

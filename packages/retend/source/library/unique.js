@@ -3,16 +3,16 @@
 /** @import { Renderer } from '../library/renderer.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
-import { useObserver } from '../library/observer.js';
-import h from '../library/jsx.js';
 import { getGlobalContext } from '../context/index.js';
+import h from '../library/jsx.js';
+import { useObserver } from '../library/observer.js';
+import { getActiveRenderer } from '../library/renderer.js';
 import {
   __HMR_SYMBOLS,
   createScopeSnapshot,
-  useSetupEffect,
+  onSetup,
   withScopeSnapshot,
 } from '../library/scope.js';
-import { getActiveRenderer } from '../library/renderer.js';
 import { linkNodes } from '../library/utils.js';
 
 /**
@@ -45,7 +45,7 @@ const initUniqueStash = (renderer) => {
     }
     stash.pendingTeardowns.clear();
   };
-
+  /** @type {UniqueStash} */
   const stash = {
     instances: new Map(),
     refs: new Map(),
@@ -143,7 +143,7 @@ const initUniqueStash = (renderer) => {
  * const UniqueCanvas = createUnique(
  *   (props) => {
  *     const canvas = Cell.source(null);
- *     useSetupEffect(() => {
+ *     onSetup(() => {
  *       const node = canvas.get();
  *       if (!node) return;
  *       // Initialize canvas context, listeners, etc.
@@ -295,7 +295,7 @@ export function createUnique(renderFn, options = {}) {
       };
     });
 
-    useSetupEffect(() => {
+    onSetup(() => {
       const current = ref.peek();
 
       return () => {

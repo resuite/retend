@@ -71,7 +71,7 @@ Prevent navigation away from a route using `router.lock()`:
 
 ```tsx
 import { useRouter } from 'retend/router';
-import { Cell, useSetupEffect } from 'retend';
+import { Cell, onSetup } from 'retend';
 
 function FormPage() {
   const router = useRouter();
@@ -87,7 +87,7 @@ function FormPage() {
   });
 
   // Listen for lock prevention (optional)
-  useSetupEffect(() => {
+  onSetup(() => {
     // You would need to add an event listener to the router instance
     const handler = (e) => {
       if (confirm('Discard changes?')) {

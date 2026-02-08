@@ -33,7 +33,7 @@ import type { FC, ReactNode } from 'react';
 
 ```tsx
 // VALID - Retend imports
-import { Cell, useSetupEffect } from 'retend';
+import { Cell, onSetup } from 'retend';
 import { render, DomRenderer } from 'retend-web';
 import { Router } from 'retend/router';
 
@@ -67,13 +67,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
 
 **Retend Version:**
 ```tsx
-import { Cell, useSetupEffect } from 'retend';
+import { Cell, onSetup } from 'retend';
 import { DomRenderer } from 'retend-web';
 
 function App() {
   const count = Cell.source(0);
   
-  useSetupEffect(() => {
+  onSetup(() => {
     const unsubscribe = count.listen((newCount) => {
       document.title = `Count: ${newCount}`;
     });

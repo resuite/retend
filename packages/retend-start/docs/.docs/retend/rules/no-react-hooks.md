@@ -6,7 +6,7 @@
 
 **Context**: Importing hooks and component definitions.
 
-**Rule**: Do not use React hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useContext`, etc.). Retend uses Cells and `useSetupEffect` instead.
+**Rule**: Do not use React hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useContext`, etc.). Retend uses Cells and `onSetup` instead.
 
 **Why**:
 
@@ -24,11 +24,11 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'retend';
 
 function Counter() {
   const [count, setCount] = useState(0);
-  
+
   useEffect(() => {
     console.log('Count:', count);
   }, [count]);
-  
+
   return <div>{count}</div>;
 }
 ```
@@ -37,18 +37,18 @@ function Counter() {
 
 ```tsx
 // VALID - use Cells instead
-import { Cell, useSetupEffect } from 'retend';
+import { Cell, onSetup } from 'retend';
 
 function Counter() {
   const count = Cell.source(0);
-  
-  useSetupEffect(() => {
+
+  onSetup(() => {
     console.log('Count:', count.get());
     return () => {
       // Cleanup if needed
     };
   });
-  
+
   return <div>{count}</div>;
 }
 ```
@@ -58,7 +58,7 @@ function Counter() {
 | React Hook | Retend Equivalent |
 |------------|-------------------|
 | `useState` | `Cell.source()` |
-| `useEffect` | `useSetupEffect()` (runs once) + `cell.listen()` for reactivity |
+| `useEffect` | `onSetup()` (runs once) + `cell.listen()` for reactivity |
 | `useMemo` | `Cell.derived()` |
 | `useCallback` | Plain function |
 | `useRef` | `Cell.source(null)` |

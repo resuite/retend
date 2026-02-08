@@ -278,17 +278,17 @@ function NumberCategory() {
 
 ## Lifecycle Hooks
 
-### useSetupEffect
+### onSetup
 
 Runs a setup function when the component is initialized. Useful for starting timers, subscriptions, or other side effects.
 
 ```tsx
-import { Cell, useSetupEffect } from 'retend';
+import { Cell, onSetup } from 'retend';
 
 function Timer() {
   const time = Cell.source(new Date());
 
-  useSetupEffect(() => {
+  onSetup(() => {
     const timer = setInterval(() => {
       time.set(new Date());
     }, 1000);

@@ -6,11 +6,11 @@
 
 **Context**: Measuring or manipulating DOM nodes.
 
-**Rule**: Use `useObserver()` for DOM connection awareness, not `useSetupEffect`.
+**Rule**: Use `useObserver()` for DOM connection awareness, not `onSetup`.
 
 **Why**:
 
-- `useSetupEffect` runs immediately after component creation
+- `onSetup` runs immediately after component creation
 - DOM nodes may not be in the document yet
 - `useObserver` fires when nodes are actually connected to the DOM
 - Provides proper cleanup callbacks when nodes disconnect
@@ -23,15 +23,15 @@
 // INVALID - node might not be in DOM yet
 function MeasureComponent() {
   const ref = Cell.source(null);
-  
-  useSetupEffect(() => {
+
+  onSetup(() => {
     const node = ref.get();
     if (node) {
       const rect = node.getBoundingClientRect(); // May be 0x0 if not in DOM
       console.log(rect);
     }
   });
-  
+
   return <div ref={ref}>Measure me</div>;
 }
 ```
@@ -43,18 +43,18 @@ function MeasureComponent() {
 function MeasureComponent() {
   const ref = Cell.source(null);
   const observer = useObserver();
-  
+
   observer.onConnected(ref, (node) => {
     // Guaranteed to be in the DOM
     const rect = node.getBoundingClientRect();
     console.log('Size:', rect.width, rect.height);
-    
+
     // Return cleanup function
     return () => {
       console.log('Node disconnected');
     };
   });
-  
+
   return <div ref={ref}>Measure me</div>;
 }
 
@@ -63,21 +63,21 @@ function ResponsiveComponent() {
   const ref = Cell.source(null);
   const observer = useObserver();
   const windowSize = useWindowSize();
-  
+
   observer.onConnected(ref, (node) => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         console.log('Resized:', entry.contentRect);
       }
     });
-    
+
     resizeObserver.observe(node);
-    
+
     return () => {
       resizeObserver.disconnect();
     };
   });
-  
+
   return <div ref={ref}>Resize me</div>;
 }
 ```
@@ -90,7 +90,7 @@ const observer = useObserver();
 // Watch when a ref connects to the DOM
 observer.onConnected(refCell, (node) => {
   // node is guaranteed to be in the DOM
-  
+
   return () => {
     // Optional cleanup when node disconnects
   };

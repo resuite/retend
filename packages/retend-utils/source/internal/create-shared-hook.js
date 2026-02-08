@@ -1,4 +1,4 @@
-import { getActiveRenderer, useSetupEffect } from 'retend';
+import { getActiveRenderer, onSetup } from 'retend';
 import { DOMRenderer } from 'retend-web';
 import { getGlobalContext } from 'retend/context';
 
@@ -43,7 +43,7 @@ export function createSharedHook(options) {
       globalData.set(key, data);
     }
 
-    useSetupEffect(() => {
+    onSetup(() => {
       const renderer = getActiveRenderer();
       if (!(renderer instanceof DOMRenderer)) return;
       const { host: window } = renderer;

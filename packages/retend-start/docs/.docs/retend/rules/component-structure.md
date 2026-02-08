@@ -9,7 +9,7 @@
 1. **Prop Destructuring**: `const { ... } = props;`
 2. **Constants, Hooks, and Local Cells**: `const count = Cell.source(0);`
 3. **Event Handlers and Inline Functions**: `const handleClick = ...`
-4. **Effects**: `Cell.listen`, `useSetupEffect`, and `useObserver` MUST come last, just before the return.
+4. **Effects**: `Cell.listen`, `onSetup`, and `useObserver` MUST come last, just before the return.
 5. **JSX Return**: `return ( ... );`
 
 **Why**:
@@ -23,7 +23,7 @@
 
 ```tsx
 function Counter(props) {
-  useSetupEffect(() => console.log('Init')); // Effects too early
+  onSetup(() => console.log('Init')); // Effects too early
 
   const { initial } = props; // Props too late
   const count = Cell.source(initial);
@@ -46,7 +46,7 @@ function Counter(props) {
   const increment = () => count.set(count.get() + 1);
 
   // 4. Effects
-  useSetupEffect(() => {
+  onSetup(() => {
     console.log('Counter initialized');
   });
 

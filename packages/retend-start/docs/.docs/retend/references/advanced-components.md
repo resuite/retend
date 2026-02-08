@@ -38,7 +38,7 @@ Use the `id` prop to distinguish multiple persistent instances of the same compo
 
 ### Lifecycle & State
 
-- **`useSetupEffect`**: Runs once on creation. Cleanup runs only when the component is completely removed from the app (not just moved).
+- **`onSetup`**: Runs once on creation. Cleanup runs only when the component is completely removed from the app (not just moved).
 - **`onSave` / `onRestore`**: Optional callbacks in the options object to manually save/restore state (like scroll position) during moves.
 
 ```javascript
