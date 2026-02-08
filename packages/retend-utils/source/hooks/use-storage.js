@@ -138,7 +138,7 @@ function createStorageOptions(key, storageType) {
             ? safeParseJson(valueFromStorage)
             : initialValue;
 
-        coreCell = Cell.source(value, { deep: true });
+        coreCell = Cell.source(value);
         data.cells.set(key, coreCell);
 
         if (valueFromStorage === null) {
@@ -152,7 +152,7 @@ function createStorageOptions(key, storageType) {
         });
       }
 
-      const returnCell = Cell.source(coreCell.get(), { deep: true });
+      const returnCell = Cell.source(coreCell.get());
 
       returnCell.listen((value) => {
         coreCell.set(value);
