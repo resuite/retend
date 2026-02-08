@@ -470,7 +470,7 @@ function SubmitForm() {
 | Data that should auto-refresh | ❌ | ✅ |
 | Dependent on reactive state | ❌ | ✅ |
 
-### Cell.createComposite()
+### Cell.composite()
 
 Joins multiple cells into a single **"all-or-nothing" async unit**. Each returned property only produces a new value after **all** input cells have settled. This prevents partial updates and ensures data consistency.
 
@@ -492,7 +492,7 @@ const notifications = Cell.derivedAsync(async (get, signal) => {
 });
 
 // Create a composite - both cells settle before either value updates
-const userDashboard = Cell.createComposite({ user, notifications });
+const userDashboard = Cell.composite({ user, notifications });
 ```
 
 **Parameters:**
@@ -505,13 +505,16 @@ const userDashboard = Cell.createComposite({ user, notifications });
 |----------|------|-------------|
 | `.values` | Object | Each original cell wrapped as `AsyncDerivedCell`, synchronized by a barrier |
 | `.pending` | `Cell<boolean>` | `true` if ANY input cell is pending |
+| `.loaded` | `Cell<boolean>` | `true` after the first successful load (good for showing content without flickering) |
 | `.error` | `Cell<Error \| null>` | First error found in any input cell |
+
+**Note:** Each property above is a Cell, so you can use `.get()` and `.listen()` on them individually.
 
 **Example with loading and error states:**
 
 ```tsx
 function Dashboard() {
-  const dashboard = Cell.createComposite({ user, posts, notifications });
+  const dashboard = Cell.composite({ user, posts, notifications });
   const isReady = Cell.derived(() => !dashboard.pending.get());
 
   return (
@@ -530,7 +533,31 @@ function Dashboard() {
 }
 ```
 
-**When to use Cell.createComposite():**
+**Using `.loaded` to prevent content flicker:**
+
+The `.loaded` cell stays `true` after the first successful load, even during subsequent refreshes. This is useful for showing existing content while refreshing:
+
+```tsx
+function Dashboard() {
+  const dashboard = Cell.composite({ user, posts });
+
+  return (
+    <div>
+      {If(dashboard.pending, () => <LoadingSpinner />)}
+      {If(dashboard.error, (err) => <ErrorMessage error={err} />)}
+      {If(dashboard.loaded, () => (
+        <>
+          {/* Content stays visible during refresh, only showing spinner above */}
+          <UserProfile user={dashboard.values.user} />
+          <PostList posts={dashboard.values.posts} />
+        </>
+      ))}
+    </div>
+  );
+}
+```
+
+**When to use Cell.composite():**
 
 - Loading related data that should display together (user + user's posts)
 - Preventing UI from showing mismatched data during updates
@@ -547,7 +574,7 @@ const deleteTask = Cell.task(async (id: string, signal) => {
   // Delete logic
 });
 
-const operations = Cell.createComposite({
+const operations = Cell.composite({
   upload: uploadTask,
   delete: deleteTask
 });

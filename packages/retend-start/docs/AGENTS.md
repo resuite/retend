@@ -125,7 +125,7 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/task-not-for-auto-refresh.md` - Don't use Cell.task() for auto-refreshing data.
 - `.docs/retend/rules/task-define-at-component-level.md` - Define Cell.task() at component level, not in handlers.
 - `.docs/retend/rules/task-handle-pending-and-error.md` - Handle pending and error states from Cell.task().
-- `.docs/retend/rules/composite-for-related-data.md` - Use Cell.createComposite() only for related data.
+- `.docs/retend/rules/composite-for-related-data.md` - Use Cell.composite() only for related data.
 - `.docs/retend/rules/no-usememo-usecallback.md` - Don't use useMemo/useCallback patterns.
 - `.docs/retend/rules/scope-provider-function-children.md` - Always pass function children to Scope providers.
 - `.docs/retend/rules/for-index-is-cell.md` - For's index parameter is a Cell, not a number.
