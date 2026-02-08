@@ -1,6 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { ScopeSnapshot } from './scope.js' */
-/** @import { AsyncDerivedCell } from '@adbl/cells' */
+/** @import { AsyncCell } from '@adbl/cells' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
@@ -11,9 +11,9 @@ import { IgnoredHProps } from '../_internals.js';
 
 /**
  * Extracts the item type from a list value.
- * Handles AsyncDerivedCell<Promise<Iterable<T>>>, Cell<Iterable<T>>, and Iterable<T>.
+ * Handles AsyncCell<Promise<Iterable<T>>>, Cell<Iterable<T>>, and Iterable<T>.
  * @template V
- * @typedef {V extends AsyncDerivedCell<infer P>
+ * @typedef {V extends AsyncCell<infer P>
  *   ? Awaited<P> extends Iterable<infer T> ? T : never
  *   : V extends Cell<infer S>
  *     ? S extends Iterable<infer T> ? T : never

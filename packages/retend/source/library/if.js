@@ -1,5 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { AsyncDerivedCell } from '@adbl/cells' */
+/** @import { AsyncCell } from '@adbl/cells' */
 
 import { Cell } from '@adbl/cells';
 import { h } from './jsx.js';
@@ -20,18 +20,18 @@ import { IgnoredHProps } from '../_internals.js';
 
 /**
  * Extracts the resolved value type from a cell type.
- * For AsyncDerivedCell<Promise<T>>, returns T.
+ * For AsyncCell<Promise<T>>, returns T.
  * For Cell<T>, returns T.
  * For T, returns T.
  * @template T
- * @typedef {T extends AsyncDerivedCell<infer U> ? Awaited<U> : T extends Cell<infer V> ? V : T} ResolvedCellValue
+ * @typedef {T extends AsyncCell<infer U> ? Awaited<U> : T extends Cell<infer V> ? V : T} ResolvedCellValue
  */
 
 /**
  * Conditionally renders nodes based on the truthiness of a value.
  *
  * @template T
- * @param {T | Cell<T> | AsyncDerivedCell<T>} value
+ * @param {T | Cell<T> | AsyncCell<T>} value
  * @param {( ((value: NonNullable<ResolvedCellValue<T>>) => JSX.Template)) | ConditionObject<ResolvedCellValue<T>>} fnOrObject
  * @param { (() => JSX.Template)} [elseFn] - Optional callback for falsy values
  * @returns {JSX.Template}
