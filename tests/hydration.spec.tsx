@@ -13,7 +13,7 @@ import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
 import { DOMRenderer, ShadowRoot, Teleport } from 'retend-web';
 import type { JSX } from 'retend/jsx-runtime';
 import { describe, expect, it, vi } from 'vitest';
-import { browserSetup } from './setup.tsx';
+import { browserSetup, getTextContent } from './setup.tsx';
 
 const setupHydration = async (templateFn: () => JSX.Template) => {
   const currentRenderer = getActiveRenderer() as DOMRenderer;
@@ -1065,6 +1065,34 @@ describe('Hydration', () => {
     expect(div?.shadowRoot?.querySelector('#child')?.textContent).toBe(
       'Hello world.'
     );
+  });
+
+  it('should hydrate shadowroots with fragment children', async () => {
+    const text = Cell.source('First');
+    const template = () => (
+      <div id="fragment-shadow-parent">
+        <ShadowRoot>
+          <>
+            <span id="fragment-shadow-first">{text}</span>
+            <span id="fragment-shadow-second">Second</span>
+          </>
+        </ShadowRoot>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const div = document.querySelector('#fragment-shadow-parent');
+    const first = div?.shadowRoot?.querySelector('#fragment-shadow-first');
+    const second = div?.shadowRoot?.querySelector('#fragment-shadow-second');
+
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(getTextContent(first as Node)).toBe('First');
+    expect(getTextContent(second as Node)).toBe('Second');
+
+    text.set('Updated');
+
+    expect(getTextContent(first as Node)).toBe('Updated');
   });
 
   it('should hydrate shadowroots with reactive content', async () => {
