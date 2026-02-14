@@ -6,20 +6,20 @@
 
 **Context**: Components that provide a Scope to their subtree.
 
-**Rule**: If a component injects a Scope, its `children` prop MUST be a function.
+**Rule**: If a component injects a Scope, it must pass direct children, not function children.
 
 **Why**:
 
-- **Laziness**: Allows the scope to be accessed by the immediate children. If children are evaluated before the provider renders, they won't see the new scope.
+- **Thunk-first rendering**: Providers now establish scope context before children execute, so direct children see the scope without function wrapping.
 
 ```tsx
 // Good
 <Scope.Provider value={val}>
-  {() => <Child />}
+  <Child />
 </Scope.Provider>
 
 // Avoid for Providers
 <Scope.Provider value={val}>
-  <Child /> {/* Child evaluates eagerly, potentially missing Scope */}
+  {() => <Child />}
 </Scope.Provider>
 ```

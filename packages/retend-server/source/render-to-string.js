@@ -1,5 +1,4 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import { ScopeSnapshot } from 'retend' */
 /** @import * as VDom from './v-dom/index.js' */
 
 const voidElements = new Set([
@@ -22,18 +21,11 @@ const voidElements = new Set([
 const SPLIT_TEXT_MARKER = '<!--@@-->';
 
 /**
- * @typedef {Object} RenderToStringOptions
- * @property {boolean} [markStaticNodes]
- * Whether to mark static elements with the [data-static] attribute.
- */
-
-/**
  * Renders a JSX template to a string.
  *
  *
  * @param {JSX.Template} template - The JSX template to render.
  * @param {Window & globalThis | VDom.VWindow} window - The window object.
- * @param {RenderToStringOptions} [options] - Options for rendering the template.
  * @returns {Promise<string>} A promise that resolves to the rendered string.
  *
  * @description
@@ -46,13 +38,13 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  * const renderedString = await renderToString(jsxTemplate);
  * console.log(renderedString); // Outputs: <div>Hello, world!</div>
  */
-export async function renderToString(template, window, options = {}) {
+export async function renderToString(template, window) {
   if (/string|number|boolean/.test(typeof template)) {
     return escapeHTML(template);
   }
 
   if (template instanceof Promise) {
-    return await renderToString(await template, window, options);
+    return await renderToString(await template, window);
   }
 
   if (
@@ -68,7 +60,7 @@ export async function renderToString(template, window, options = {}) {
     template.__promise instanceof Promise
   ) {
     const value = await template.__promise;
-    return await renderToString(value, window, options);
+    return await renderToString(value, window);
   }
 
   if (template instanceof window.Node) {
@@ -87,16 +79,8 @@ export async function renderToString(template, window, options = {}) {
 
     if (template instanceof window.ShadowRoot) {
       let text = '<template shadowrootmode="open">';
-
-      if (options.markStaticNodes) {
-        const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
-        if (isStatic) {
-          Reflect.set(template, '__isStatic', true);
-        }
-      }
-
       for (const child of template.childNodes) {
-        text += await renderToString(child, window, options);
+        text += await renderToString(child, window);
       }
       text += '</template>';
       return text;
@@ -105,7 +89,7 @@ export async function renderToString(template, window, options = {}) {
     if (template instanceof window.DocumentFragment) {
       let textContent = '';
       for (const child of template.childNodes) {
-        textContent += await renderToString(child, window, options);
+        textContent += await renderToString(child, window);
       }
       return textContent;
     }
@@ -119,26 +103,12 @@ export async function renderToString(template, window, options = {}) {
         text += ` ${attribute.name}="${escapeHTML(attribute.value)}"`;
       }
 
-      if (options.markStaticNodes) {
-        const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
-        if (isStatic) {
-          Reflect.set(template, '__isStatic', true);
-          const parentIsStatic =
-            template.parentNode &&
-            Reflect.get(template.parentNode, '__isStatic');
-
-          if (!parentIsStatic) {
-            text += ' data-static';
-          }
-        }
-      }
-
       const isVoid = voidElements.has(template.tagName);
       if (!isVoid || template.childNodes.length > 0 || template.shadowRoot) {
         text += '>';
 
         if (template.shadowRoot) {
-          text += await renderToString(template.shadowRoot, window, options);
+          text += await renderToString(template.shadowRoot, window);
         }
 
         let precededByTextNode = false;
@@ -151,13 +121,9 @@ export async function renderToString(template, window, options = {}) {
             (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
 
           if (shouldSplit) {
-            text += `${SPLIT_TEXT_MARKER}${await renderToString(
-              child,
-              window,
-              options
-            )}`;
+            text += `${SPLIT_TEXT_MARKER}${await renderToString(child, window)}`;
           } else {
-            text += await renderToString(child, window, options);
+            text += await renderToString(child, window);
           }
           precededByTextNode =
             child.nodeType === window.Node.TEXT_NODE &&
@@ -173,67 +139,19 @@ export async function renderToString(template, window, options = {}) {
     }
 
     if (template instanceof window.Document) {
-      return await renderToString(template.documentElement, window, options);
+      return await renderToString(template.documentElement, window);
     }
   }
 
   if (Array.isArray(template)) {
     let textContent = '';
     for (const child of template) {
-      textContent += await renderToString(child, window, options);
+      textContent += await renderToString(child, window);
     }
     return textContent;
   }
 
   return '';
-}
-
-/**
- * Checks if a node has no reactivity attached so it can be marked as static.
- * Static node can be safely skipped during hydration.
- * @param {(Node | VDom.VNode) & {
- *  __isHydrationUpgradable?: boolean,
- *  __ref?: any,
- *  __attributeCells?: Map<string, any>,
- *  __isTeleportAnchor?: boolean;
- *  __eventListenerList?: Map<string, any>;
- *  __originScopeSnapshot?: ScopeSnapshot
- *  __hasEventListeners?: boolean;
- *  hiddenAttributes?: Map<string, any>,
- *  getAttribute: (name: string) => string | null,
- *  childNodes: any[],
- *  __commentRangeSymbol?: any
- * shadowRoot?: {
- *  mode: string,
- *  childNodes: any[]
- * }
- * }} node
- * @param {VDom.VWindow | Window & globalThis} window
- */
-function nodeIsStatic(node, window) {
-  if (node.__commentRangeSymbol) return false;
-  if (node.__isTeleportAnchor) return false;
-  if (node.__originScopeSnapshot) return false;
-  if (node.__attributeCells?.size) return false;
-  if (node.__eventListenerList?.size) return false;
-
-  if (node.nodeType === window.Node.ELEMENT_NODE) {
-    if (node.getAttribute('data-static') !== null) return true;
-    if (node.__ref) return false;
-    if (node.__hasEventListeners) return false;
-
-    for (const child of node.childNodes) {
-      if (!nodeIsStatic(child, window)) return false;
-    }
-  }
-
-  if (node.shadowRoot) {
-    for (const child of node.shadowRoot.childNodes) {
-      if (!nodeIsStatic(child, window)) return false;
-    }
-  }
-
-  return true;
 }
 
 /**

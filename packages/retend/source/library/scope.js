@@ -57,14 +57,7 @@ export const __HMR_SYMBOLS = {
 
 /**
  * @template [T=unknown]
- * @typedef ScopePropsWithContent
- * @property {JSX.Template} content
- * @property {T} value
- */
-
-/**
- * @template [T=unknown]
- * @typedef {ScopePropsWithChildren<T> | ScopePropsWithContent<T>} ScopeProps
+ * @typedef {ScopePropsWithChildren<T>} ScopeProps
  */
 
 /**
@@ -113,7 +106,6 @@ class EffectNode {
 
   /** @param {SetupFn} effect  */
   add(effect) {
-    console.trace();
     this.#setupFns.push(effect);
   }
 
@@ -167,10 +159,6 @@ class EffectNode {
   }
 
   dispose() {
-    console.log('dispose', {
-      functions: this.#setupFns,
-      children: this.#children,
-    });
     if (!this.renderer?.capabilities.supportsSetupEffects) {
       for (const child of this.#children) child.localContext.destroy();
       this.localContext.destroy();
@@ -235,7 +223,11 @@ const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
  *
  * function App() {
  *    const userInfo = { name: 'Alice' };
- *    return <UserInfoScope.Provider value={userInfo} content={ChildComponent} />
+ *    return (
+ *      <UserInfoScope.Provider value={userInfo}>
+ *        <ChildComponent />
+ *      </UserInfoScope.Provider>
+ *    );
  * }
  *
  * function ChildComponent() {
@@ -249,12 +241,7 @@ export function createScope(name) {
   const Scope = {
     key: Symbol(name ?? 'Scope'),
     Provider: (props) => {
-      const renderFn =
-        'content' in props
-          ? props.content
-          : 'children' in props
-            ? props.children
-            : () => {};
+      const renderFn = 'children' in props ? props.children : () => {};
 
       const activeScopeSnapshot = getScopeSnapshot();
       const renderer = getActiveRenderer();
@@ -352,9 +339,10 @@ export function useScopeContext(Scope, snapshot) {
  */
 export function createScopeSnapshot() {
   const { scopes, node } = getScopeSnapshot();
+  const branched = node.branch();
   return {
     scopes: new Map(scopes),
-    node: node.branch(),
+    node: branched,
     renderer: getActiveRenderer(),
   };
 }

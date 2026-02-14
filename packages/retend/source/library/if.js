@@ -126,7 +126,6 @@ export function If(value, fnOrObject, elseFn) {
      * @param {T} nextValue
      */
     const processValueChange = (nextValue) => {
-      console.log('processValueChange', { nextValue }, scopeSnapshot.node);
       scopeSnapshot.node.dispose();
       const results = callback(nextValue);
       renderer.write(handle, results);

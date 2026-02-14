@@ -1,7 +1,7 @@
 import {
   Cell,
-  getActiveRenderer,
   If,
+  getActiveRenderer,
   onSetup,
   runPendingSetupEffects,
 } from 'retend';
@@ -111,7 +111,6 @@ describe('onSetup with async setup functions', () => {
     };
 
     const result = renderer.render(App) as HTMLElement;
-    console.log({ result });
     window.document.body.append(result);
     await runPendingSetupEffects();
 

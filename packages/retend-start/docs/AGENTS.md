@@ -91,7 +91,7 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/destructure-props-in-body.md` - Destructure props in body.
 - `.docs/retend/rules/customizable-components.md` - Favor extension over invention.
 - `.docs/retend/rules/explicit-children-type.md` - Use `JSX.Children`.
-- `.docs/retend/rules/scope-injection.md` - Use function children for scopes.
+- `.docs/retend/rules/scope-injection.md` - Use direct children for scopes.
 - `.docs/retend/rules/no-any.md` - No `any` type.
 - `.docs/retend/rules/reactive-props.md` - Handle ValueOrCell props.
 - `.docs/retend/rules/prefer-scopes.md` - Avoid prop drilling.
@@ -127,7 +127,7 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/task-handle-pending-and-error.md` - Handle pending and error states from Cell.task().
 - `.docs/retend/rules/composite-for-related-data.md` - Use Cell.composite() only for related data.
 - `.docs/retend/rules/no-usememo-usecallback.md` - Don't use useMemo/useCallback patterns.
-- `.docs/retend/rules/scope-provider-function-children.md` - Always pass function children to Scope providers.
+- `.docs/retend/rules/scope-provider-function-children.md` - Pass direct children to Scope providers.
 - `.docs/retend/rules/for-index-is-cell.md` - For's index parameter is a Cell, not a number.
 - `.docs/retend/rules/teleport-selector-limitations.md` - Teleport only supports #id or tagname selectors.
 - `.docs/retend/rules/lowercase-event-names.md` - Use camelCase event names (onClick not onclick).

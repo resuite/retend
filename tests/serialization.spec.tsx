@@ -1,10 +1,10 @@
 import { Cell, For, If, getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
 import { renderToString } from 'retend-server/client';
+import type { VDOMRenderer } from 'retend-server/v-dom';
+import type { DOMRenderer } from 'retend-web';
 import { ShadowRoot } from 'retend-web';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, timeout, vDomSetup } from './setup.tsx';
-import type { VDOMRenderer } from 'retend-server/v-dom';
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {
@@ -13,60 +13,6 @@ const runTests = () => {
     const element = <div class="test">Hello World</div>;
     const result = await renderToString(element, window);
     expect(result).toBe('<div class="test">Hello World</div>');
-  });
-
-  it('should mark static nodes when option is enabled', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <span>Static content</span>
-        <span>{Cell.source('Dynamic content')}</span>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toContain('<span data-static>Static content</span>');
-    expect(result).not.toContain('<span data-static>Dynamic content</span>');
-  });
-
-  it('should skip reactive nodes when marking static nodes', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <span>{Cell.source('Dynamic content')}</span>
-        <span>Static Content</span>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toContain(
-      '<div><span>Dynamic content</span><span data-static>Static Content</span></div>'
-    );
-  });
-
-  it('should skip nodes with event listeners when marking static nodes', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <button type="button" onClick={() => console.log('Clicked!')}>
-          Click me
-        </button>
-        <p>
-          This is a paragraph with a <a href="https://example.com">link</a>.
-        </p>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toContain(
-      '<div><button type="button">Click me</button><p data-static>This is a paragraph with a <a href="https://example.com">link</a>.</p></div>'
-    );
   });
 
   it('should preserve whitespace between text nodes', async () => {
@@ -299,24 +245,6 @@ const runTests = () => {
     expect(result).toBe('<div><span>Conditional content</span></div>');
   });
 
-  it('should mark static nodes inside shadow root when enabled', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div>Static content</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div data-static><template shadowrootmode="open"><div>Static content</div></template></div>'
-    );
-  });
-
   it('should hoist shadow roots to the start of the parent node', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
@@ -331,50 +259,6 @@ const runTests = () => {
     const result = await renderToString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Shadow content</div></template><div>Normal content</div></div>'
-    );
-  });
-
-  it('should handle static marking in nested shadow roots', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div data-outer>
-            <ShadowRoot>
-              <div>Static inner</div>
-            </ShadowRoot>
-            <span>Static outer</span>
-          </div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div data-static><template shadowrootmode="open"><div data-outer="true"><template shadowrootmode="open"><div>Static inner</div></template><span>Static outer</span></div></template></div>'
-    );
-  });
-
-  it('should not mark nodes with event listeners as static in shadow root', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <button type="button" onClick={() => {}}>
-            Click me
-          </button>
-          <div>Static content</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div><template shadowrootmode="open"><button type="button">Click me</button><div>Static content</div></template></div>'
     );
   });
 
@@ -446,43 +330,6 @@ const runTests = () => {
     const result = await renderToString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Dynamic content</div></template></div>'
-    );
-  });
-
-  it('should not mark shadowroot parent as static if it has reactive children', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const content = Cell.source('Dynamic content');
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div>{content}</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div><template shadowrootmode="open"><div>Dynamic content</div></template></div>'
-    );
-  });
-
-  it('should mark shadowroot parent as static if it has static children', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div>Static content</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div data-static><template shadowrootmode="open"><div>Static content</div></template></div>'
     );
   });
 

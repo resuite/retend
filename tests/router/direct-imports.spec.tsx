@@ -1,160 +1,164 @@
-import { describe, it, expect } from 'vitest';
-import { getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
-import { vDomSetup, getTextContent } from '../setup.tsx';
+import { getActiveRenderer } from "retend";
+import type { DOMRenderer } from "retend-web";
 import {
-  createRouterRoot,
-  Router,
-  defineRoutes,
-  Link,
-  Outlet,
-  RouterProvider,
-} from 'retend/router';
+	Link,
+	Outlet,
+	Router,
+	RouterProvider,
+	createRouterRoot,
+	defineRoutes,
+} from "retend/router";
+import { describe, expect, it } from "vitest";
+import { getTextContent, vDomSetup } from "../setup.tsx";
 
-describe('Router Direct Imports', () => {
-  vDomSetup();
+describe("Router Direct Imports", () => {
+	vDomSetup();
 
-  it('should work with directly imported Link component', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const router = new Router({
-      routes: defineRoutes([
-        { path: '/', name: 'home', component: () => 'Home' },
-        { path: '/about', name: 'about', component: () => 'About' },
-      ]),
-    });
-    router.attachWindowListeners(window);
+	it("should work with directly imported Link component", async () => {
+		const renderer = getActiveRenderer() as DOMRenderer;
+		const { host: window } = renderer;
+		const router = new Router({
+			routes: defineRoutes([
+				{ path: "/", name: "home", component: () => "Home" },
+				{ path: "/about", name: "about", component: () => "About" },
+			]),
+		});
+		router.attachWindowListeners(window);
+		const Component = () => {
+			// Test that Link component can be used directly
+			const linkElement = Link({
+				href: "/about",
+				children: "About Link",
+			}) as HTMLElement;
+			expect(linkElement).toBeDefined();
+			expect(linkElement.tagName.toLowerCase()).toBe("a");
+			expect(linkElement.getAttribute("href")).toBe("/about");
+			expect(getTextContent(linkElement)).toBe("About Link");
 
-    RouterProvider({
-      router,
-      children: () => {
-        // Test that Link component can be used directly
-        const linkElement = Link({
-          href: '/about',
-          children: 'About Link',
-        }) as HTMLElement;
-        expect(linkElement).toBeDefined();
-        expect(linkElement.tagName.toLowerCase()).toBe('a');
-        expect(linkElement.getAttribute('href')).toBe('/about');
-        expect(getTextContent(linkElement)).toBe('About Link');
-      },
-    });
-  });
+			return <></>;
+		};
 
-  it('should work with directly imported Outlet component', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const router = new Router({
-      routes: defineRoutes([
-        { path: '/', name: 'home', component: () => 'Home' },
-      ]),
-    });
-    router.attachWindowListeners(window);
+		renderer.render(
+			<RouterProvider router={router}>
+				<Component />
+			</RouterProvider>,
+		);
+	});
 
-    // Test that Outlet component can be used directly
-    RouterProvider({
-      router,
-      children: () => {
-        const outletElement = Outlet() as HTMLElement;
-        expect(outletElement).toBeDefined();
-        expect(outletElement.tagName.toLowerCase()).toBe(
-          'retend-router-outlet'
-        );
-      },
-    });
-  });
+	it("should work with directly imported Outlet component", async () => {
+		const renderer = getActiveRenderer() as DOMRenderer;
+		const { host: window } = renderer;
+		const router = new Router({
+			routes: defineRoutes([
+				{ path: "/", name: "home", component: () => "Home" },
+			]),
+		});
+		router.attachWindowListeners(window);
+		const Component = () => {
+			const outletElement = Outlet() as HTMLElement;
+			expect(outletElement).toBeDefined();
+			expect(outletElement.tagName.toLowerCase()).toBe("retend-router-outlet");
 
-  it('should maintain backward compatibility with router instance methods', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const router = new Router({
-      routes: defineRoutes([
-        { path: '/', name: 'home', component: () => 'Home' },
-        { path: '/about', name: 'about', component: () => 'About' },
-      ]),
-    });
-    router.attachWindowListeners(window);
+			return <></>;
+		};
 
-    RouterProvider({
-      router,
-      children: () => {
-        // Test that router instance methods still work
-        const linkElement = router.Link({
-          href: '/about',
-          children: 'About Link',
-        }) as HTMLElement;
-        expect(linkElement).toBeDefined();
-        expect(linkElement.tagName.toLowerCase()).toBe('a');
+		renderer.render(
+			<RouterProvider router={router}>
+				<Component />
+			</RouterProvider>,
+		);
+	});
 
-        const outletElement = router.Outlet() as HTMLElement;
-        expect(outletElement).toBeDefined();
-        expect(outletElement.tagName.toLowerCase()).toBe(
-          'retend-router-outlet'
-        );
-      },
-    });
-  });
+	it("should maintain backward compatibility with router instance methods", async () => {
+		const renderer = getActiveRenderer() as DOMRenderer;
+		const { host: window } = renderer;
+		const router = new Router({
+			routes: defineRoutes([
+				{ path: "/", name: "home", component: () => "Home" },
+				{ path: "/about", name: "about", component: () => "About" },
+			]),
+		});
+		router.attachWindowListeners(window);
+		const Component = () => {
+			const linkElement = router.Link({
+				href: "/about",
+				children: "About Link",
+			}) as HTMLElement;
+			expect(linkElement).toBeDefined();
+			expect(linkElement.tagName.toLowerCase()).toBe("a");
 
-  it('should render components using direct imports in a real routing scenario', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
+			const outletElement = router.Outlet() as HTMLElement;
+			expect(outletElement).toBeDefined();
+			expect(outletElement.tagName.toLowerCase()).toBe("retend-router-outlet");
 
-    const HomeComponent = () => {
-      return (
-        <div>
-          <h1>Home Page</h1>
-          <Link href="/about">Go to About</Link>
-        </div>
-      );
-    };
+			return <></>;
+		};
 
-    const AboutComponent = () => {
-      return (
-        <div>
-          <h1>About Page</h1>
-          <Link href="/">Go to Home</Link>
-        </div>
-      );
-    };
+		renderer.render(
+			<RouterProvider router={router}>
+				<Component />
+			</RouterProvider>,
+		);
+	});
 
-    const LayoutComponent = () => {
-      return (
-        <div>
-          <header>App Header</header>
-          <main>
-            <Outlet />
-          </main>
-          <footer>App Footer</footer>
-        </div>
-      );
-    };
+	it("should render components using direct imports in a real routing scenario", async () => {
+		const renderer = getActiveRenderer() as DOMRenderer;
+		const { host: window } = renderer;
 
-    const router = new Router({
-      routes: defineRoutes([
-        {
-          path: '/',
-          name: 'layout',
-          component: LayoutComponent,
-          children: [
-            { path: '', name: 'home', component: HomeComponent },
-            { path: 'about', name: 'about', component: AboutComponent },
-          ],
-        },
-      ]),
-    });
-    router.attachWindowListeners(window);
-    window.document.body.append(createRouterRoot(router));
+		const HomeComponent = () => {
+			return (
+				<div>
+					<h1>Home Page</h1>
+					<Link href="/about">Go to About</Link>
+				</div>
+			);
+		};
 
-    // Navigate to home
-    await router.navigate('/');
-    expect(getTextContent(window.document.body)).toContain('Home Page');
-    expect(getTextContent(window.document.body)).toContain('App Header');
-    expect(getTextContent(window.document.body)).toContain('App Footer');
+		const AboutComponent = () => {
+			return (
+				<div>
+					<h1>About Page</h1>
+					<Link href="/">Go to Home</Link>
+				</div>
+			);
+		};
 
-    // Navigate to about
-    await router.navigate('/about');
-    expect(getTextContent(window.document.body)).toContain('About Page');
-    expect(getTextContent(window.document.body)).toContain('App Header');
-    expect(getTextContent(window.document.body)).toContain('App Footer');
-  });
+		const LayoutComponent = () => {
+			return (
+				<div>
+					<header>App Header</header>
+					<main>
+						<Outlet />
+					</main>
+					<footer>App Footer</footer>
+				</div>
+			);
+		};
+
+		const router = new Router({
+			routes: defineRoutes([
+				{
+					path: "/",
+					name: "layout",
+					component: LayoutComponent,
+					children: [
+						{ path: "", name: "home", component: HomeComponent },
+						{ path: "about", name: "about", component: AboutComponent },
+					],
+				},
+			]),
+		});
+		router.attachWindowListeners(window);
+		window.document.body.append(createRouterRoot(router));
+
+		await router.navigate("/");
+		expect(getTextContent(window.document.body)).toContain("Home Page");
+		expect(getTextContent(window.document.body)).toContain("App Header");
+		expect(getTextContent(window.document.body)).toContain("App Footer");
+
+		await router.navigate("/about");
+		expect(getTextContent(window.document.body)).toContain("About Page");
+		expect(getTextContent(window.document.body)).toContain("App Header");
+		expect(getTextContent(window.document.body)).toContain("App Footer");
+	});
 });

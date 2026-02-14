@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
 import { getActiveRenderer } from 'retend';
+import { Cell } from 'retend';
 import type { DOMRenderer } from 'retend-web';
 import {
-  Router,
-  defineRoutes,
-  useRouter,
   type RouteComponent,
-  lazy,
+  Router,
   createRouterRoot,
+  defineRoutes,
+  lazy,
+  useRouter,
 } from 'retend/router';
-import { Cell } from 'retend';
+import { describe, expect, it } from 'vitest';
 import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Metadata', () => {
@@ -594,16 +594,21 @@ describe('Router Metadata', () => {
 
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
-    const root = window.document.body;
 
     await router.navigate('/blog/123');
-    expect(getTextContent(root)).toBe('This is the blog for page 123');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the blog for page 123'
+    );
 
     await router.navigate('/blog/1030');
-    expect(getTextContent(root)).toBe('This is the blog for page 1030');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the blog for page 1030'
+    );
 
     await router.back();
-    expect(getTextContent(root)).toBe('This is the blog for page 123');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the blog for page 123'
+    );
   });
 
   it('should read embedded async metadata from a lazy route component', async () => {
@@ -639,16 +644,21 @@ describe('Router Metadata', () => {
 
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
-    const root = window.document.body;
 
     await router.navigate('/blog/123');
-    expect(getTextContent(root)).toBe('This is the blog for page 123');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the blog for page 123'
+    );
 
     await router.navigate('/blog/1030');
-    expect(getTextContent(root)).toBe('This is the blog for page 1030');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the blog for page 1030'
+    );
 
     await router.back();
-    expect(getTextContent(root)).toBe('This is the blog for page 123');
+    expect(getTextContent(window.document.body)).toBe(
+      'This is the blog for page 123'
+    );
   });
 
   it('should get metadata as props to the route component', async () => {

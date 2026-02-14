@@ -8,10 +8,10 @@
 /** @import { ChildNode } from 'domhandler' */
 /** @import { VWindow, VDOMRenderer } from './v-dom/index.js'; */
 
-import { resolve } from 'node:path';
 import { promises as fs } from 'node:fs';
+import { resolve } from 'node:path';
+import { Comment, Element, Text } from 'domhandler';
 import { parseDocument } from 'htmlparser2';
-import { Comment, Text, Element } from 'domhandler';
 import { addMetaListener } from './meta.js';
 import { renderToString } from './render-to-string.js';
 
@@ -161,7 +161,7 @@ async function renderPath(options) {
     const payload = JSON.stringify(ctx);
     document.body.append(
       document.createMarkupNode(
-        `<script data-static data-server-context type="application/json">${payload}</script>`
+        `<script data-server-context type="application/json">${payload}</script>`
       )
     );
 

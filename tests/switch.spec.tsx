@@ -1,211 +1,232 @@
-import { Cell, If, Switch, getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
-import type { VElement, VNode } from 'retend-server/v-dom';
-import { describe, expect, it } from 'vitest';
+import { Cell, If, Switch, getActiveRenderer } from "retend";
+import type { VElement, VNode } from "retend-server/v-dom";
+import type { DOMRenderer } from "retend-web";
+import { describe, expect, it } from "vitest";
 import {
-  browserSetup,
-  getTextContent,
-  vDomSetup,
-  type NodeLike,
-} from './setup.tsx';
+	type NodeLike,
+	browserSetup,
+	getTextContent,
+	vDomSetup,
+} from "./setup.tsx";
 
 const runTests = () => {
-  it('should render matching case', () => {
-    const result = Switch('A' as 'A' | 'B', {
-      A: () => <div>Case A</div>,
-      B: () => <div>Case B</div>,
-    }) as NodeLike;
+	it("should render matching case", () => {
+		const renderer = getActiveRenderer();
+		const App = () =>
+			Switch("A" as "A" | "B", {
+				A: () => <div>Case A</div>,
+				B: () => <div>Case B</div>,
+			});
+		const result = renderer.render(App) as NodeLike;
 
-    expect(getTextContent(result)).toBe('Case A');
-  });
+		expect(getTextContent(result)).toBe("Case A");
+	});
 
-  it('should handle Cell values', () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const value = Cell.source('A');
-    const result = (
-      <div id="test-node">
-        {Switch(value, {
-          A: () => <div>Case A</div>,
-          B: () => <div>Case B</div>,
-        })}
-      </div>
-    ) as NodeLike;
+	it("should handle Cell values", () => {
+		const renderer = getActiveRenderer() as DOMRenderer;
+		const { host: window } = renderer;
+		const value = Cell.source("A");
+		const App = () => (
+			<div id="test-node">
+				{Switch(value, {
+					A: () => <div>Case A</div>,
+					B: () => <div>Case B</div>,
+				})}
+			</div>
+		);
+		const result = renderer.render(App) as NodeLike;
 
-    window.document.body.append(result as Node & VNode);
-    expect(getTextContent(result)).toBe('Case A');
+		window.document.body.append(result as Node & VNode);
+		expect(getTextContent(result)).toBe("Case A");
 
-    value.set('B');
-    expect(getTextContent(result)).toBe('Case B');
-  });
+		value.set("B");
+		expect(getTextContent(result)).toBe("Case B");
+	});
 
-  it('should use default case when no match found', () => {
-    const result = Switch(
-      'C' as 'A' | 'B' | 'C',
-      {
-        A: () => <div>Case A</div>,
-        B: () => <div>Case B</div>,
-      },
-      (value) => <div>Default: {value}</div>
-    ) as NodeLike;
+	it("should use default case when no match found", () => {
+		const renderer = getActiveRenderer();
+		const App = () =>
+			Switch(
+				"C" as "A" | "B" | "C",
+				{
+					A: () => <div>Case A</div>,
+					B: () => <div>Case B</div>,
+				},
+				(value) => <div>Default: {value}</div>,
+			);
+		const result = renderer.render(App) as NodeLike;
 
-    expect(getTextContent(result)).toBe('Default: C');
-  });
+		expect(getTextContent(result)).toBe("Default: C");
+	});
 
-  it('should return undefined when no match and no default', () => {
-    const result = Switch('C' as 'A' | 'B', {
-      A: () => <div>Case A</div>,
-      B: () => <div>Case B</div>,
-    });
+	it("should return undefined when no match and no default", () => {
+		const result = Switch("C" as "A" | "B", {
+			A: () => <div>Case A</div>,
+			B: () => <div>Case B</div>,
+		});
 
-    expect(result).toBeUndefined();
-  });
+		expect(result).toBeUndefined();
+	});
 
-  it('should handle number cases', () => {
-    const value = Cell.source(1);
-    const result = (
-      <div>
-        {Switch(value, {
-          1: () => <div>One</div>,
-          2: () => <div>Two</div>,
-        })}
-      </div>
-    ) as NodeLike;
+	it("should handle number cases", () => {
+		const renderer = getActiveRenderer();
+		const value = Cell.source(1);
+		const App = () => (
+			<div>
+				{Switch(value, {
+					1: () => <div>One</div>,
+					2: () => <div>Two</div>,
+				})}
+			</div>
+		);
+		const result = renderer.render(App) as NodeLike;
 
-    expect(getTextContent(result)).toBe('One');
+		expect(getTextContent(result)).toBe("One");
 
-    value.set(2);
-    expect(getTextContent(result)).toBe('Two');
-  });
+		value.set(2);
+		expect(getTextContent(result)).toBe("Two");
+	});
 
-  it('should handle nested switches', () => {
-    const outer = Cell.source('A');
-    const inner = Cell.source(1);
+	it("should handle nested switches", () => {
+		const renderer = getActiveRenderer();
+		const outer = Cell.source("A");
+		const inner = Cell.source(1);
 
-    const result = (
-      <div>
-        {Switch(outer, {
-          A: () =>
-            Switch(inner, {
-              1: () => <div>A1</div>,
-              2: () => <div>A2</div>,
-            }),
-          B: () => <div>B</div>,
-        })}
-      </div>
-    ) as NodeLike;
+		const App = () => (
+			<div>
+				{Switch(outer, {
+					A: () =>
+						Switch(inner, {
+							1: () => <div>A1</div>,
+							2: () => <div>A2</div>,
+						}),
+					B: () => <div>B</div>,
+				})}
+			</div>
+		);
+		const result = renderer.render(App) as NodeLike;
 
-    expect(getTextContent(result)).toBe('A1');
+		expect(getTextContent(result)).toBe("A1");
 
-    inner.set(2);
-    expect(getTextContent(result)).toBe('A2');
+		inner.set(2);
+		expect(getTextContent(result)).toBe("A2");
 
-    outer.set('B');
-    expect(getTextContent(result)).toBe('B');
-  });
+		outer.set("B");
+		expect(getTextContent(result)).toBe("B");
+	});
 
-  it('should handle null and undefined values', () => {
-    const result = Switch(
-      null,
-      {
-        A: () => <div>Case A</div>,
-      },
-      () => <div>Default Case</div>
-    ) as NodeLike;
+	it("should handle null and undefined values", () => {
+		const renderer = getActiveRenderer();
+		const App = () =>
+			Switch(
+				null,
+				{
+					A: () => <div>Case A</div>,
+				},
+				() => <div>Default Case</div>,
+			);
+		const result = renderer.render(App) as NodeLike;
 
-    expect(getTextContent(result)).toBe('Default Case');
+		expect(getTextContent(result)).toBe("Default Case");
 
-    const result2 = Switch(
-      undefined,
-      {
-        A: () => <div>Case A</div>,
-      },
-      () => <div>Default Case</div>
-    ) as NodeLike;
+		const App2 = () =>
+			Switch(
+				undefined,
+				{
+					A: () => <div>Case A</div>,
+				},
+				() => <div>Default Case</div>,
+			);
+		const result2 = renderer.render(App2) as NodeLike;
 
-    expect(getTextContent(result2)).toBe('Default Case');
-  });
+		expect(getTextContent(result2)).toBe("Default Case");
+	});
 
-  it('should handle complex case values', () => {
-    const status = Cell.source('loading');
-    const error = Cell.source<Error | null>(null);
+	it("should handle complex case values", () => {
+		const renderer = getActiveRenderer();
+		const status = Cell.source("loading");
+		const error = Cell.source<Error | null>(null);
 
-    const result = (
-      <div>
-        {Switch(status, {
-          loading: () => <div>Loading...</div>,
-          error: () =>
-            If(error, (err) => (
-              <div>Error: {err?.message ?? 'Unknown error'}</div>
-            )),
-          success: () => <div>Success!</div>,
-        })}
-      </div>
-    ) as NodeLike;
+		const App = () => (
+			<div>
+				{Switch(status, {
+					loading: () => <div>Loading...</div>,
+					error: () =>
+						If(error, (err) => (
+							<div>Error: {err?.message ?? "Unknown error"}</div>
+						)),
+					success: () => <div>Success!</div>,
+				})}
+			</div>
+		);
+		const result = renderer.render(App) as NodeLike;
 
-    expect(getTextContent(result)).toBe('Loading...');
+		expect(getTextContent(result)).toBe("Loading...");
 
-    status.set('error');
-    error.set(new Error('Test error'));
-    expect(getTextContent(result)).toBe('Error: Test error');
+		status.set("error");
+		error.set(new Error("Test error"));
+		expect(getTextContent(result)).toBe("Error: Test error");
 
-    status.set('success');
-    expect(getTextContent(result)).toBe('Success!');
-  });
+		status.set("success");
+		expect(getTextContent(result)).toBe("Success!");
+	});
 
-  it('should not maintain element identity across updates', () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const value = Cell.source('A');
-    const result = (
-      <div>
-        {Switch(value, {
-          A: () => <span>Case A</span>,
-          B: () => <span>Case B</span>,
-        })}
-      </div>
-    ) as HTMLElement & VElement;
+	it("should not maintain element identity across updates", () => {
+		const renderer = getActiveRenderer() as DOMRenderer;
+		const { host: window } = renderer;
+		const value = Cell.source("A");
+		const App = () => (
+			<div>
+				{Switch(value, {
+					A: () => <span>Case A</span>,
+					B: () => <span>Case B</span>,
+				})}
+			</div>
+		);
+		const result = renderer.render(App) as HTMLElement & VElement;
 
-    window.document.body.append(result as Node & VNode);
-    const firstSpan = result.querySelector('span');
+		window.document.body.append(result as Node & VNode);
+		const firstSpan = result.querySelector("span");
 
-    value.set('B');
-    const secondSpan = result.querySelector('span');
+		value.set("B");
+		const secondSpan = result.querySelector("span");
 
-    expect(firstSpan).not.toBe(secondSpan);
-  });
+		expect(firstSpan).not.toBe(secondSpan);
+	});
 
-  it('should type narrow based on property', () => {
-    type Action = { type: 'Action'; label: string };
-    type Separator = { type: 'Separator' };
-    type Item = Action | Separator;
+	it("should type narrow based on property", () => {
+		const renderer = getActiveRenderer();
+		type Action = { type: "Action"; label: string };
+		type Separator = { type: "Separator" };
+		type Item = Action | Separator;
 
-    const item = Cell.source<Item>({ type: 'Action', label: 'Click Me' });
+		const item = Cell.source<Item>({ type: "Action", label: "Click Me" });
 
-    const result = (
-      <div>
-        {Switch.OnProperty(item, 'type', {
-          Action: (actionItem) => <div>Action: {actionItem.label}</div>,
-          Separator: () => <div>Separator</div>,
-        })}
-      </div>
-    ) as NodeLike;
+		const App = () => (
+			<div>
+				{Switch.OnProperty(item, "type", {
+					Action: (actionItem) => <div>Action: {actionItem.label}</div>,
+					Separator: () => <div>Separator</div>,
+				})}
+			</div>
+		);
+		const result = renderer.render(App) as NodeLike;
 
-    expect(getTextContent(result)).toBe('Action: Click Me');
+		expect(getTextContent(result)).toBe("Action: Click Me");
 
-    item.set({ type: 'Separator' });
-    expect(getTextContent(result)).toBe('Separator');
-  });
+		item.set({ type: "Separator" });
+		expect(getTextContent(result)).toBe("Separator");
+	});
 };
 
-describe('Switch', () => {
-  describe('Browser', () => {
-    browserSetup();
-    runTests();
-  });
+describe("Switch", () => {
+	describe("Browser", () => {
+		browserSetup();
+		runTests();
+	});
 
-  describe('VDom', () => {
-    vDomSetup();
-    runTests();
-  });
+	describe("VDom", () => {
+		vDomSetup();
+		runTests();
+	});
 });

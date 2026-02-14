@@ -19,11 +19,11 @@
  */
 
 import { Cell } from '@adbl/cells';
-import { createScope, useScopeContext } from '../library/scope.js';
-import { RouteTree } from './routeTree.js';
-import { Lazy } from './lazy.js';
-import h from '../library/jsx.js';
+import { IgnoredHProps } from '../_internals.js';
 import { If } from '../library/if.js';
+import h from '../library/jsx.js';
+import { getActiveRenderer } from '../library/renderer.js';
+import { createScope, useScopeContext } from '../library/scope.js';
 import {
   BeforeNavigateEvent,
   RouteChangeEvent,
@@ -32,10 +32,10 @@ import {
   RouteLockPreventedEvent,
   RouterNavigationEvent,
 } from './events.js';
-import { constructURL, getFullPath } from './utils.js';
+import { Lazy } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
-import { getActiveRenderer } from '../library/renderer.js';
-import { IgnoredHProps } from '../_internals.js';
+import { RouteTree } from './routeTree.js';
+import { constructURL, getFullPath } from './utils.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -810,7 +810,7 @@ export function useCurrentRoute() {
  * function App() {
  *   return (
  *     <RouterProvider router={router}>
- *       {() => <router.Outlet />}
+ *       <router.Outlet />
  *     </RouterProvider>
  *   );
  * }
@@ -969,7 +969,8 @@ export function defineRoute(route) {
  *   ],
  * });
  *
- * document.body.append(createRouterRoot(router));
+ * const renderer = getActiveRenderer();
+ * document.body.append(renderer.render(() => createRouterRoot(router)));
  * ```
  *
  * @param {Router} router - The router instance to be provided to the application.

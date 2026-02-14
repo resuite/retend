@@ -1,23 +1,24 @@
-import { describe, it, expect } from 'vitest';
 import { Cell, If, getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
 import type { VNode } from 'retend-server/v-dom';
+import type { DOMRenderer } from 'retend-web';
+import { describe, expect, it } from 'vitest';
 import {
+  type NodeLike,
   browserSetup,
   getTextContent,
-  vDomSetup,
   timeout,
-  type NodeLike,
+  vDomSetup,
 } from '../setup.tsx';
 
 const runTests = () => {
   it('should render async truthy value after resolution', async () => {
+    const renderer = getActiveRenderer();
     const asyncCondition = Cell.derivedAsync(async () => {
       await timeout(10);
       return true;
     });
 
-    const result = (
+    const App = () => (
       <div>
         {If(
           asyncCondition,
@@ -29,7 +30,8 @@ const runTests = () => {
           )
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = renderer.render(App) as NodeLike;
 
     // Initially empty while pending
     expect(getTextContent(result)).toBe('');
@@ -40,12 +42,13 @@ const runTests = () => {
   });
 
   it('should render async falsy value after resolution', async () => {
+    const renderer = getActiveRenderer();
     const asyncCondition = Cell.derivedAsync(async () => {
       await timeout(10);
       return false;
     });
 
-    const result = (
+    const App = () => (
       <div>
         {If(
           asyncCondition,
@@ -57,7 +60,8 @@ const runTests = () => {
           )
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = renderer.render(App) as NodeLike;
 
     await timeout(20);
 
@@ -65,6 +69,7 @@ const runTests = () => {
   });
 
   it('should update when async condition changes', async () => {
+    const renderer = getActiveRenderer();
     const trigger = Cell.source(true);
     const asyncCondition = Cell.derivedAsync(async (get) => {
       const val = get(trigger);
@@ -72,7 +77,7 @@ const runTests = () => {
       return val;
     });
 
-    const result = (
+    const App = () => (
       <div>
         {If(
           asyncCondition,
@@ -84,7 +89,8 @@ const runTests = () => {
           )
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = renderer.render(App) as NodeLike;
 
     await timeout(20);
     expect(getTextContent(result)).toBe('True');
@@ -96,19 +102,21 @@ const runTests = () => {
   });
 
   it('should work with object syntax for branches', async () => {
+    const renderer = getActiveRenderer();
     const asyncCondition = Cell.derivedAsync(async () => {
       await timeout(10);
       return true;
     });
 
-    const result = (
+    const App = () => (
       <div>
         {If(asyncCondition, {
           true: () => <span>Yes</span>,
           false: () => <span>No</span>,
         })}
       </div>
-    ) as NodeLike;
+    );
+    const result = renderer.render(App) as NodeLike;
 
     expect(getTextContent(result)).toBe('');
 
@@ -118,12 +126,13 @@ const runTests = () => {
   });
 
   it('should handle async condition with value passed to callback', async () => {
+    const renderer = getActiveRenderer();
     const asyncData = Cell.derivedAsync(async () => {
       await timeout(10);
       return { name: 'Alice', age: 30 };
     });
 
-    const result = (
+    const App = () => (
       <div>
         {If(asyncData, (data) => (
           <span>
@@ -131,7 +140,8 @@ const runTests = () => {
           </span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = renderer.render(App) as NodeLike;
 
     expect(getTextContent(result)).toBe('');
 
@@ -141,12 +151,13 @@ const runTests = () => {
   });
 
   it('should handle async null value', async () => {
+    const renderer = getActiveRenderer();
     const asyncCondition = Cell.derivedAsync(async () => {
       await timeout(10);
       return null;
     });
 
-    const result = (
+    const App = () => (
       <div>
         {If(
           asyncCondition,
@@ -158,7 +169,8 @@ const runTests = () => {
           )
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = renderer.render(App) as NodeLike;
 
     await timeout(20);
 
@@ -179,7 +191,7 @@ const runTests = () => {
       return true;
     });
 
-    const result = (
+    const App = () => (
       <div>
         {If(outer, () =>
           If(
@@ -189,7 +201,8 @@ const runTests = () => {
           )
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = renderer.render(App) as NodeLike;
 
     window.document.body.append(result as Node & VNode);
 

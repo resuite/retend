@@ -8,33 +8,37 @@
  * @returns {Data['Node'][]}
  */
 export function createNodesFromTemplate(children, renderer) {
-  if (
-    typeof children === 'string' ||
-    typeof children === 'number' ||
-    typeof children === 'boolean'
-  ) {
-    return [renderer.createText(String(children))];
-  }
+	if (
+		typeof children === "string" ||
+		typeof children === "number" ||
+		typeof children === "boolean"
+	) {
+		return [renderer.createText(String(children))];
+	}
 
-  if (children instanceof Promise) {
-    return [renderer.handlePromise(children)];
-  }
+	if (children instanceof Promise) {
+		return [renderer.handlePromise(children)];
+	}
 
-  if (renderer.isGroup(children)) {
-    return renderer.unwrapGroup(children);
-  }
+	if (renderer.isGroup(children)) {
+		return renderer.unwrapGroup(children);
+	}
 
-  if (renderer.isNode(children)) {
-    return [children];
-  }
+	if (renderer.isNode(children)) {
+		return [children];
+	}
 
-  if (Array.isArray(children)) {
-    return children.flatMap((child) =>
-      createNodesFromTemplate(child, renderer)
-    );
-  }
+	if (Array.isArray(children)) {
+		return children.flatMap((child) =>
+			createNodesFromTemplate(child, renderer),
+		);
+	}
 
-  return [children].filter(Boolean);
+	if (typeof children === "function") {
+		return createNodesFromTemplate(children(), renderer);
+	}
+
+	return [children].filter(Boolean);
 }
 
 /**
@@ -49,19 +53,19 @@ export function createNodesFromTemplate(children, renderer) {
  * @returns {Data['Node']}
  */
 export function linkNodes(first, second, renderer) {
-  let _first = first;
+	let _first = first;
 
-  if (Array.isArray(second)) {
-    for (const childNode of second) {
-      _first = linkNodes(_first, childNode, renderer);
-    }
-    return _first;
-  }
+	if (Array.isArray(second)) {
+		for (const childNode of second) {
+			_first = linkNodes(_first, childNode, renderer);
+		}
+		return _first;
+	}
 
-  if (!second) return _first;
+	if (!second) return _first;
 
-  const childNode = normalizeJsxChild(second, renderer);
-  return renderer.append(_first, childNode);
+	const childNode = normalizeJsxChild(second, renderer);
+	return renderer.append(_first, childNode);
 }
 
 /**
@@ -72,28 +76,28 @@ export function linkNodes(first, second, renderer) {
  * @returns {Types['Node']} The normalized child element.
  */
 export function normalizeJsxChild(child, renderer) {
-  if (renderer.isNode(child)) return child;
+	if (renderer.isNode(child)) return child;
 
-  if (Array.isArray(child)) {
-    const group = renderer.createGroup();
-    for (const subchild of child) {
-      const childNodes = normalizeJsxChild(subchild, renderer);
-      renderer.append(group, childNodes);
-    }
-    return group;
-  }
+	if (Array.isArray(child)) {
+		const group = renderer.createGroup();
+		for (const subchild of child) {
+			const childNodes = normalizeJsxChild(subchild, renderer);
+			renderer.append(group, childNodes);
+		}
+		return group;
+	}
 
-  if (typeof child === 'function') {
-    return normalizeJsxChild(child(), renderer);
-  }
+	if (typeof child === "function") {
+		return normalizeJsxChild(child(), renderer);
+	}
 
-  if (child === null || child === undefined) {
-    return renderer.createText('');
-  }
+	if (child === null || child === undefined) {
+		return renderer.createText("");
+	}
 
-  if (child instanceof Promise) {
-    return renderer.handlePromise(child);
-  }
+	if (child instanceof Promise) {
+		return renderer.handlePromise(child);
+	}
 
-  return renderer.createText(child);
+	return renderer.createText(child);
 }

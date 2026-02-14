@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest';
-import { If, For, Cell, runPendingSetupEffects } from 'retend';
-import { vDomSetup, browserSetup } from '../../setup.tsx';
+import {
+  Cell,
+  For,
+  If,
+  getActiveRenderer,
+  runPendingSetupEffects,
+} from 'retend';
+import { describe, expect, it } from 'vitest';
+import { browserSetup, vDomSetup } from '../../setup.tsx';
 
 const runTests = () => {
   it('stops derived cells when component unmounts', async () => {
@@ -17,7 +23,8 @@ const runTests = () => {
     };
 
     const App = () => <div>{If(show, Component)}</div>;
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     const countBeforeUnmount = computeCount;
@@ -40,7 +47,8 @@ const runTests = () => {
     };
 
     const App = () => <div>{If(show, Component)}</div>;
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     const countBeforeUnmount = listenCount;
@@ -63,7 +71,8 @@ const runTests = () => {
     };
 
     const App = () => <div>{If(show, Component)}</div>;
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     const countBeforeUnmount = runAndListenCount;
@@ -94,7 +103,8 @@ const runTests = () => {
         ))}
       </div>
     );
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
 
     items.set([1, 2]);
 
@@ -133,8 +143,8 @@ const runTests = () => {
     };
 
     const App = () => <div>{Switch(state, { a: CaseA, b: CaseB })}</div>;
-
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     state.set('b');
@@ -173,7 +183,8 @@ const runTests = () => {
     };
 
     const App = () => <div>{If(show, Parent)}</div>;
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     const parentBefore = parentComputes;
@@ -209,7 +220,8 @@ const runTests = () => {
     };
 
     const App = () => <div>{If(show, Component)}</div>;
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     const c1Before = compute1;
@@ -238,7 +250,8 @@ const runTests = () => {
     };
 
     const App = () => <div>{If(show, Component)}</div>;
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     const l1Before = listen1;
@@ -272,13 +285,14 @@ const runTests = () => {
       <div>
         {If(show, () => (
           <TestScope.Provider value={scopeCell}>
-            {() => <Consumer />}
+            <Consumer />
           </TestScope.Provider>
         ))}
       </div>
     );
 
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     const computesBefore = computes;
@@ -318,7 +332,8 @@ const runTests = () => {
       </div>
     );
 
-    App();
+    const renderer = getActiveRenderer();
+    renderer.render(App);
     await runPendingSetupEffects();
 
     show1.set(false);

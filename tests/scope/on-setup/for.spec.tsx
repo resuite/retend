@@ -1,4 +1,10 @@
-import { Cell, For, onSetup, runPendingSetupEffects } from 'retend';
+import {
+  Cell,
+  For,
+  getActiveRenderer,
+  onSetup,
+  runPendingSetupEffects,
+} from 'retend';
 import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, getTextContent, timeout } from '../../setup.tsx';
 
@@ -50,7 +56,8 @@ describe('onSetup with For', () => {
       );
     };
 
-    const result = App() as HTMLElement;
+    const renderer = getActiveRenderer();
+    const result = renderer.render(App) as HTMLElement;
     window.document.body.append(result);
     await runPendingSetupEffects();
 
