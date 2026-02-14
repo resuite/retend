@@ -4,14 +4,14 @@ To render a Retend application in a web environment, you need to configure the a
 
 ## Basic Setup
 
-In your entry file (e.g., `index.js` or `main.js`), import `setActiveRenderer` from `retend` and `DomRenderer` from `retend-web`.
+In your entry file (e.g., `index.js` or `main.js`), import `setActiveRenderer` from `retend` and `DOMRenderer` from `retend-web`.
 
 ```javascript
 import { setActiveRenderer } from 'retend';
-import { DomRenderer } from 'retend-web';
+import { DOMRenderer } from 'retend-web';
 
-// Initialize the renderer with the host element (usually document.body)
-const renderer = new DomRenderer(document.body);
+// Initialize the renderer with the window object
+const renderer = new DOMRenderer(window);
 
 // Set it as the active renderer for the framework
 setActiveRenderer(renderer);

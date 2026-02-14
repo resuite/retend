@@ -34,7 +34,7 @@ npx retend-start
 
 ```tsx
 import { Cell } from 'retend';
-import { render } from 'retend-web';
+import { DOMRenderer } from 'retend-web';
 
 const Counter = () => {
   const count = Cell.source(0);
@@ -45,7 +45,9 @@ const Counter = () => {
   );
 };
 
-render(<Counter />, document.body);
+// Initialize the renderer
+const renderer = new DOMRenderer(window);
+document.body.append(<Counter />);
 ```
 
 ## Module Exports

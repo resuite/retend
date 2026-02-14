@@ -115,22 +115,3 @@ function ReplaceLink() {
   return <Link href="/login" replace>Login (Replace History)</Link>;
 }
 @Note The `replace` attribute on `<Link>` achieves the same as the programmatic option.
-
----
-
-@Example 8
-@Input Legacy router instance pattern (still supported for backward compatibility).
-import { useRouter } from 'retend/router';
-
-function LegacyNavBar() {
-  const router = useRouter(); // Get router instance
-  return (
-    <nav>
-      <router.Link href="/">Home</router.Link>
-      <router.Link href="/about">About</router.Link>
-      <router.Outlet /> {/* Matched component renders here */}
-    </nav>
-  );
-}
-@Note The legacy `router.Link` and `router.Outlet` patterns are still supported.
-@Note Direct imports (`Link`, `Outlet`) are preferred for new code.

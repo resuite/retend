@@ -20,11 +20,13 @@ function ThemedButton() {
 
 function App() {
   return (
-    <ThemeScope.Provider value={'lightblue'} content={ThemedButton} />
+    <ThemeScope.Provider value={'lightblue'}>
+      <ThemedButton />
+    </ThemeScope.Provider>
   );
 }
 @Note `createScope()` creates a scope object containing a `Provider`.
-@Note The `Provider` takes a `value` and a `content` prop, where `content` is the component or a function returning JSX.
+@Note The `Provider` takes a `value` and renders its direct children inside the scope.
 @Note `useScopeContext(ScopeObject)` consumes the value from the nearest ancestor Provider.
 
 ---
@@ -43,7 +45,9 @@ function UserDisplay() {
 
 function App() {
   return (
-    <UserScope.Provider value={user} content={UserDisplay} />
+    <UserScope.Provider value={user}>
+      <UserDisplay />
+    </UserScope.Provider>
   );
 }
 @Note Scopes can provide any type of value, including objects and arrays.
@@ -64,19 +68,21 @@ function DisplayTheme() {
 function DarkSection() {
   return (
     <div style={{ background: 'black', color: 'white' }}>
-      <ThemeScope.Provider value={'dark'} content={DisplayTheme} />
+      <ThemeScope.Provider value={'dark'}>
+        <DisplayTheme />
+      </ThemeScope.Provider>
     </div>
   );
 }
 
 function App() {
   return (
-    <ThemeScope.Provider value={'light'} content={() => (
+    <ThemeScope.Provider value={'light'}>
       <div>
         <DisplayTheme /> {/* Renders 'light' */}
         <DarkSection />  {/* Renders 'dark' inside */}
       </div>
-    )} />
+    </ThemeScope.Provider>
   );
 }
 @Note A nested Provider overrides the value for its descendants. Components outside the nested provider still receive the original value.
@@ -98,12 +104,12 @@ function CounterDisplay() {
 function App() {
   const increment = () => count.set(count.get() + 1);
   return (
-    <CountScope.Provider value={count} content={() => (
+    <CountScope.Provider value={count}>
       <div>
         <CounterDisplay />
         <button type="button" onClick={increment}>Increment</button>
       </div>
-    )} />
+    </CountScope.Provider>
   );
 }
 @Note Passing a `Cell` through a scope allows multiple descendant components to react to and modify the same state.
@@ -129,7 +135,11 @@ function App() {
     [ThemeScope.key]: 'lightyellow',
     [UserScope.key]: { name: 'Admin' }
   };
-  return <AppScope.Provider value={appData} content={AppStatus} />;
+  return (
+    <AppScope.Provider value={appData}>
+      <AppStatus />
+    </AppScope.Provider>
+  );
 }
 @Note `combineScopes` creates a single Provider for multiple scopes.
 @Note The `value` for a combined provider is an object where keys are `Scope.key` and values are the corresponding scope values.

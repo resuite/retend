@@ -6,12 +6,14 @@ Scopes provide a way to share state between components that are far apart in the
 
 ### `createScope()`
 
-Creates a new, unique scope object. Best practice is to create this in a separate file for easy import.
+Creates a new, unique scope object. Best practice is to create this in a separate file for easy import. The returned Scope object contains a `key` property (a unique symbol) and a `Provider` component.
 
 ```javascript
 import { createScope } from 'retend';
 
 export const ThemeScope = createScope();
+// ThemeScope.key - unique symbol for this scope
+// ThemeScope.Provider - component to provide the scope value
 ```
 
 ### `Scope.Provider`

@@ -1,17 +1,13 @@
 @Title routing-nested
-@Description Defining and rendering nested routes using `children` and nested `<router.Outlet>`.
+@Description Defining and rendering nested routes using `children` and nested `<Outlet>`.
 
 ---
 
 @Example 1
 @Input Define nested routes in RouteRecords.
-import { defineRoutes } from 'retend/router';
-import { useRouter } from 'retend/router'; // Import hook
+import { defineRoutes, Outlet } from 'retend/router';
 
-const SettingsLayout = () => {
-  const { Outlet } = useRouter(); // Use hook to get Outlet
-  return <div><h1>Settings</h1><Outlet /></div>;
-};
+const SettingsLayout = () => <div><h1>Settings</h1><Outlet /></div>;
 const ProfileSettings = () => <p>Profile Settings</p>;
 const AccountSettings = () => <p>Account Settings</p>;
 
@@ -29,31 +25,29 @@ const routes = defineRoutes([
 
 @Example 2
 @Input Parent component rendering child routes via nested Outlet.
-import { useRouter } from 'retend/router';
+import { Link, Outlet } from 'retend/router';
 
 function SettingsLayout() {
-  const router = useRouter();
   return (
     <div>
       <h1>User Settings</h1>
       <nav>
-        <router.Link href="/settings/profile">Profile</router.Link> |
-        <router.Link href="/settings/account">Account</router.Link>
+        <Link href="/settings/profile">Profile</Link> |
+        <Link href="/settings/account">Account</Link>
       </nav>
       <main>
-        <router.Outlet /> {/* Child routes (Profile/Account) render here */}
+        <Outlet /> {/* Child routes (Profile/Account) render here */}
       </main>
     </div>
   );
 }
-@Note The `<router.Outlet>` inside the parent component renders the matched child component.
+@Note The `<Outlet>` inside the parent component renders the matched child component.
 
 ---
 
 @Example 3
 @Input Deeply nested routes (three levels).
-import { defineRoutes } from 'retend/router';
-import { useRouter } from 'retend/router'; // Import hook
+import { defineRoutes, Outlet } from 'retend/router';
 
 const AdminLayout = () => <div>Admin <Outlet /></div>; // L1
 const UsersLayout = () => <div>Users <Outlet /></div>; // L2
@@ -74,8 +68,7 @@ const routes = defineRoutes([
 
 @Example 4
 @Input Index route within a nested structure (empty path child).
-import { defineRoutes } from 'retend/router';
-import { useRouter } from 'retend/router';
+import { defineRoutes, Outlet } from 'retend/router';
 
 const ProductsLayout = () => <div>Products <Outlet /></div>;
 const ProductList = () => <p>Product List</p>;
@@ -94,14 +87,13 @@ const routes = defineRoutes([
 
 @Example 5
 @Input Navigation links for nested routes.
-import { useRouter } from 'retend/router';
+import { Link } from 'retend/router';
 
 function ProductNav() {
-  const router = useRouter();
   return (
     <nav>
-      <router.Link href="/products">Product List</router.Link> |
-      <router.Link href="/products/123">Product 123</router.Link>
+      <Link href="/products">Product List</Link> |
+      <Link href="/products/123">Product 123</Link>
     </nav>
   );
 }

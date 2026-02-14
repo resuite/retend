@@ -23,9 +23,9 @@ To start using `retend-web`, you need to set the active renderer:
 
 ```javascript
 import { setActiveRenderer } from 'retend';
-import { DomRenderer } from 'retend-web';
+import { DOMRenderer } from 'retend-web';
 
-const renderer = new DomRenderer(document.body);
+const renderer = new DOMRenderer(window);
 setActiveRenderer(renderer);
 ```
 
@@ -39,7 +39,7 @@ The `<Teleport />` component allows you to render its children into a specific D
 import { Teleport } from 'retend-web';
 
 const MyModal = () => (
-  <Teleport to={document.body}>
+  <Teleport to="body">
     <div class="modal">
       <h1>Hello from the teleported modal!</h1>
     </div>

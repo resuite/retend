@@ -270,7 +270,7 @@ const user = Cell.source({ id: 0, name: 'John Doe' });
 
 #### Accessing and Updating Cells
 
-To get the value of a Cell, you use `Cell.get()`, which returns the value the cell currently holds. To update it, you interact with its `.set(...)` method, Retend will automatically update the parts of your UI that use that cell.
+To get the value of a Cell, you use `.get()` on the cell instance, which returns the value the cell currently holds. To update it, you interact with its `.set(...)` method, Retend will automatically update the parts of your UI that use that cell.
 
 ```javascript
 user.get(); // Returns the value inside the user cell.
@@ -1438,7 +1438,7 @@ A scope is like a data tunnel. You can create one, "provide" a value to it at th
 There are three main parts to the Scope system:
 
 1.  `createScope()`: A function that creates a new, unique scope.
-2.  `Scope.Provider`: A special component that provides a value to all its children, which are passed via a function as its `children`.
+2.  `Scope.Provider`: A component that provides a value to all its children, passed directly as its `children`.
 3.  `useScopeContext()`: A function that lets a component read a value from the nearest matching `Scope.Provider` above it in the tree.
 
 Let's refactor our theme example using Scopes and see the difference.
@@ -1466,11 +1466,10 @@ import AuthenticatedLayout from './AuthenticatedLayout.jsx';
 function App() {
   const theme = 'dark';
 
-  // Any component inside the function passed as children can now access the theme.
-  // The Provider component takes a `value` and a function as its children.
+  // Any component rendered inside the Provider can now access the theme.
   return (
     <ThemeScope.Provider value={theme}>
-      {() => <AuthenticatedLayout />}
+      <AuthenticatedLayout />
     </ThemeScope.Provider>
   );
 }
@@ -1528,12 +1527,12 @@ function DocumentationPage() {
     <div class="side-by-side-preview">
       {/* First instance: Light Theme */}
       <ThemeScope.Provider value={lightTheme}>
-        {() => <MyThemedComponent />}
+        <MyThemedComponent />
       </ThemeScope.Provider>
 
       {/* Second instance: Dark Theme */}
       <ThemeScope.Provider value={darkTheme}>
-        {() => <MyThemedComponent />}
+        <MyThemedComponent />
       </ThemeScope.Provider>
     </div>
   );
@@ -1575,13 +1574,11 @@ export function MultiStepForm() {
   // The formData state is only "alive" while MultiStepForm is on the screen.
   return (
     <FormScope.Provider value={formData}>
-      {() => (
-        <>
-          <Step1 />
-          <Step2 />
-          {/* ... other steps ... */}
-        </>
-      )}
+      <>
+        <Step1 />
+        <Step2 />
+        {/* ... other steps ... */}
+      </>
     </FormScope.Provider>
   );
 }
@@ -1595,15 +1592,11 @@ For applications with multiple scopes (e.g., theme, user authentication, languag
 
 ```jsx
 <AuthScope.Provider value={user}>
-  {() => (
-    <ThemeScope.Provider value={theme}>
-      {() => (
-        <LanguageScope.Provider value={lang}>
-          {() => <App />}
-        </LanguageScope.Provider>
-      )}
-    </ThemeScope.Provider>
-  )}
+  <ThemeScope.Provider value={theme}>
+    <LanguageScope.Provider value={lang}>
+      <App />
+    </LanguageScope.Provider>
+  </ThemeScope.Provider>
 </AuthScope.Provider>
 ```
 
@@ -1623,7 +1616,9 @@ function Root() {
   };
 
   return (
-    <AppScopes.Provider value={scopeValues}>{() => <App />}</AppScopes.Provider>
+    <AppScopes.Provider value={scopeValues}>
+      <App />
+    </AppScopes.Provider>
   );
 }
 ```
@@ -1639,7 +1634,8 @@ The library includes a routing system for single-page applications.
 ### Setting Up the Router
 
 ```jsx
-import { Router, type RouteRecords } from 'retend/router';
+import { Router, type RouteRecords, createRouterRoot } from 'retend/router';
+import { render } from 'retend-web';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -1658,20 +1654,17 @@ const routes: RouteRecords = [
 ];
 
 const router = new Router({ routes });
-document.body.appendChild(<router.Outlet />);
+render(createRouterRoot(router), document.body);
 ```
 
 ### Implementing the Router
 
-Use the `useRouter` hook to access routing functionality from inside a component. This will prevents circular dependencies and import issues.
+Use `Link` and `Outlet` for navigation structure, and `useRouter` when you need programmatic navigation or route data.
 
 ```jsx
-import { useRouter } from 'retend/router';
+import { Link, Outlet } from 'retend/router';
 
 const App = () => {
-  const router = useRouter();
-  const { Link, Outlet } = router;
-
   return (
     <div class="app">
       <nav>
@@ -1707,10 +1700,9 @@ const routes: RouteRecords = [
 ```
 
 ```jsx
-import { useRouter } from 'retend/router';
+import { Link, Outlet } from 'retend/router';
 
 const Dashboard = () => {
-  const { Link, Outlet } = useRouter();
   return (
     <div>
       <h1>Dashboard</h1>

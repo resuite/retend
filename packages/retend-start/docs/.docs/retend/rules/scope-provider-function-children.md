@@ -6,12 +6,12 @@
 
 **Context**: Using Scope providers to pass context.
 
-**Rule**: Pass children directly to Scope providers. Do not use function children or the `content` prop.
+**Rule**: Pass children directly to Scope providers. Do not use function children.
 
 **Why**:
 
 - Components are now evaluated as thunks by the renderer, so provider context is established before children execute.
-- Function-children and `content` are no longer supported.
+- Avoid function-children to keep scope usage consistent.
 - A single children-only API prevents mixed patterns and keeps scopes consistent.
 
 ## Examples
@@ -33,11 +33,8 @@
 ### Invalid
 
 ```tsx
-// INVALID - Function children no longer supported
+// INVALID - Function children
 <MyScope.Provider value={data}>
   {() => <Child />}
 </MyScope.Provider>
-
-// INVALID - content prop is removed
-// (content prop no longer supported)
 ```

@@ -71,7 +71,7 @@ function App() {
   return (
     <div id="app">
       <RouterProvider router={router}>
-        {() => <router.Outlet />}
+        <Outlet />
       </RouterProvider>
       
       <Teleport to="#modal-root">
