@@ -4,9 +4,11 @@ import {
   If,
   type SourceCell,
   Switch,
+  createScope,
   createUnique,
   getActiveRenderer,
   setActiveRenderer,
+  useScopeContext,
 } from 'retend';
 import { renderToString } from 'retend-server/client';
 import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
@@ -1583,5 +1585,396 @@ describe('Hydration', () => {
     btn.click();
 
     expect(btn.textContent).toBe('Light count: 1');
+  });
+
+  it('should report hydration mismatch errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const text = Cell.source('Expected Content');
+    const template = () => (
+      <div id="mismatch-root">
+        <span id="mismatch-text">{text}</span>
+      </div>
+    );
+
+    const currentRenderer = getActiveRenderer() as DOMRenderer;
+    const {
+      host: clientWindow,
+      host: { document },
+    } = currentRenderer;
+
+    const serverWindow = new VWindow();
+    const serverRenderer = new VDOMRenderer(serverWindow, {
+      markDynamicNodes: true,
+    });
+    setActiveRenderer(serverRenderer);
+
+    const serverRoot = serverRenderer.render(template) as VNode;
+    serverWindow.document.body.append(serverRoot);
+    await serverWindow.document.mountAllTeleports();
+    const html = await renderToString(serverWindow.document.body, serverWindow);
+
+    const corruptedHtml = html.replace('Expected Content', 'Different Content');
+    document.body.setHTMLUnsafe(`<div id="app">${corruptedHtml}</div>`);
+
+    const clientRenderer = new DOMRenderer(clientWindow);
+    setActiveRenderer(clientRenderer);
+    clientRenderer.enableHydrationMode();
+
+    await clientRenderer.hydrateChildrenWhenResolved(Promise.resolve());
+    clientRenderer.render(template);
+    await clientRenderer.endHydration();
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const errorCalls = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('Hydration error')
+    );
+    expect(errorCalls.length).toBeGreaterThan(0);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should hydrate For loop with items returning Fragments', async () => {
+    const items = Cell.source(['A', 'B']);
+    const template = () => (
+      <ul id="fragment-for-list">
+        {For(items, (item) => (
+          <>
+            <li class="fragment-item-main">{item}</li>
+            <li class="fragment-item-divider">-</li>
+          </>
+        ))}
+      </ul>
+    );
+
+    const { document } = await setupHydration(template);
+    const list = document.querySelector('#fragment-for-list');
+
+    expect(list?.querySelectorAll('.fragment-item-main').length).toBe(2);
+    expect(list?.querySelectorAll('.fragment-item-divider').length).toBe(2);
+
+    items.set(['A', 'B', 'C']);
+
+    expect(list?.querySelectorAll('.fragment-item-main').length).toBe(3);
+    expect(list?.querySelectorAll('.fragment-item-divider').length).toBe(3);
+
+    items.set(['X']);
+
+    expect(list?.querySelectorAll('.fragment-item-main').length).toBe(1);
+    expect(list?.querySelectorAll('.fragment-item-divider').length).toBe(1);
+  });
+
+  it('should handle missing DOM nodes during hydration gracefully', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const text = Cell.source('Dynamic Content');
+    const template = () => (
+      <div id="missing-node-root">
+        <span id="missing-static">Static</span>
+        <span id="missing-trailing">Trailing</span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+
+    const root = document.querySelector('#missing-node-root');
+    expect(root).not.toBeNull();
+    expect(document.querySelector('#missing-static')).not.toBeNull();
+    expect(document.querySelector('#missing-trailing')).not.toBeNull();
+
+    expect(consoleSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
+  it('should recover from unexpected DOM nodes during hydration', async () => {
+    const text = Cell.source('Dynamic Content');
+    const template = () => (
+      <div id="unexpected-node-root">
+        <span id="unexpected-static">Static</span>
+        <span id="unexpected-dynamic">{text}</span>
+        <span id="unexpected-trailing">Trailing</span>
+      </div>
+    );
+
+    const currentRenderer = getActiveRenderer() as DOMRenderer;
+    const {
+      host: clientWindow,
+      host: { document },
+    } = currentRenderer;
+
+    const serverWindow = new VWindow();
+    const serverRenderer = new VDOMRenderer(serverWindow, {
+      markDynamicNodes: true,
+    });
+    setActiveRenderer(serverRenderer);
+
+    const serverRoot = serverRenderer.render(template) as VNode;
+    serverWindow.document.body.append(serverRoot);
+    await serverWindow.document.mountAllTeleports();
+    const html = await renderToString(serverWindow.document.body, serverWindow);
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    const dynamicSpan = tempDiv.querySelector('#unexpected-dynamic');
+    const unexpectedSpan = document.createElement('span');
+    unexpectedSpan.id = 'unexpected-injected';
+    unexpectedSpan.textContent = 'Injected';
+    dynamicSpan?.before(unexpectedSpan);
+    document.body.setHTMLUnsafe(`<div id="app">${tempDiv.innerHTML}</div>`);
+
+    const clientRenderer = new DOMRenderer(clientWindow);
+    setActiveRenderer(clientRenderer);
+    clientRenderer.enableHydrationMode();
+
+    await clientRenderer.hydrateChildrenWhenResolved(Promise.resolve());
+    clientRenderer.render(template);
+    await clientRenderer.endHydration();
+
+    const root = document.querySelector('#unexpected-node-root');
+    expect(root).not.toBeNull();
+
+    text.set('Updated Content');
+    expect(document.querySelector('#unexpected-dynamic')?.textContent).toBe(
+      'Updated Content'
+    );
+  });
+
+  it('should preserve SVG key attributes during hydration', async () => {
+    const fill = Cell.source('red');
+    const stroke = Cell.source('black');
+    const template = () => (
+      <svg
+        id="svg-preserve"
+        viewBox="0 0 100 100"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect
+          id="svg-rect"
+          x="10"
+          y="10"
+          width="80"
+          height="80"
+          fill={fill}
+          stroke={stroke}
+          strokeWidth="2"
+        />
+        <circle id="svg-circle" cx="50" cy="50" r="25" fill={fill} />
+      </svg>
+    );
+
+    const { document } = await setupHydration(template);
+    const svg = document.querySelector('#svg-preserve');
+    const rect = document.querySelector('#svg-rect');
+    const circle = document.querySelector('#svg-circle');
+
+    expect(svg).not.toBeNull();
+    expect(svg?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(rect?.getAttribute('fill')).toBe('red');
+    expect(rect?.getAttribute('stroke')).toBe('black');
+    expect(rect?.getAttribute('x')).toBe('10');
+    expect(circle?.getAttribute('fill')).toBe('red');
+
+    fill.set('blue');
+    stroke.set('white');
+
+    expect(rect?.getAttribute('fill')).toBe('blue');
+    expect(rect?.getAttribute('stroke')).toBe('white');
+    expect(circle?.getAttribute('fill')).toBe('blue');
+  });
+
+  it('should hydrate Teleport from ShadowRoot to light DOM', async () => {
+    const content = Cell.source('Light DOM Content');
+    const template = () => (
+      <div id="shadow-to-light-parent">
+        <ShadowRoot>
+          <Teleport to="#light-teleport-target">
+            <div id="shadow-to-light-content">{content}</div>
+          </Teleport>
+        </ShadowRoot>
+        <div id="light-teleport-target" />
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#light-teleport-target');
+    const teleported = target?.querySelector('#shadow-to-light-content');
+
+    expect(teleported).not.toBeNull();
+    expect(teleported?.textContent).toBe('Light DOM Content');
+
+    content.set('Updated Light DOM');
+
+    expect(teleported?.textContent).toBe('Updated Light DOM');
+  });
+
+  it('should hydrate Context provider/consumer', async () => {
+    const TestScope = createScope<{ value: Cell<string> }>();
+    const externalValue = Cell.source('Initial Context');
+
+    const ConsumerComponent = () => {
+      const ctx = useScopeContext(TestScope);
+      return <span id="context-consumer">{ctx.value}</span>;
+    };
+
+    const template = () => (
+      <div id="context-root">
+        <TestScope.Provider value={{ value: externalValue }}>
+          <ConsumerComponent />
+        </TestScope.Provider>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const consumer = document.querySelector('#context-consumer');
+
+    expect(consumer?.textContent).toBe('Initial Context');
+
+    externalValue.set('Updated Context');
+
+    expect(consumer?.textContent).toBe('Updated Context');
+  });
+
+  it('should hydrate nested Context providers', async () => {
+    const OuterScope = createScope<Cell<string>>();
+    const InnerScope = createScope<Cell<number>>();
+
+    const NestedConsumer = () => {
+      const outer = useScopeContext(OuterScope);
+      const inner = useScopeContext(InnerScope);
+      return (
+        <span id="nested-consumer">
+          {outer}-{inner}
+        </span>
+      );
+    };
+
+    const outerValue = Cell.source('Outer');
+    const innerValue = Cell.source(42);
+
+    const template = () => (
+      <div id="nested-context-root">
+        <OuterScope.Provider value={outerValue}>
+          <InnerScope.Provider value={innerValue}>
+            <NestedConsumer />
+          </InnerScope.Provider>
+        </OuterScope.Provider>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const consumer = document.querySelector('#nested-consumer');
+
+    expect(consumer?.textContent).toBe('Outer-42');
+
+    outerValue.set('ChangedOuter');
+    innerValue.set(100);
+
+    expect(consumer?.textContent).toBe('ChangedOuter-100');
+  });
+
+  it('should hydrate Context with For loop consumers', async () => {
+    const ItemScope = createScope<string>();
+    const items = Cell.source(['A', 'B', 'C']);
+
+    const ItemComponent = () => {
+      const prefix = useScopeContext(ItemScope);
+      return <li class="context-item">{prefix}</li>;
+    };
+
+    const prefix = Cell.source('Item: ');
+
+    const template = () => (
+      <div id="context-for-root">
+        <ItemScope.Provider value={prefix}>
+          <ul id="context-for-list">
+            {For(items, () => (
+              <ItemComponent />
+            ))}
+          </ul>
+        </ItemScope.Provider>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const list = document.querySelector('#context-for-list');
+
+    expect(list?.querySelectorAll('.context-item').length).toBe(3);
+    expect(list?.querySelectorAll('.context-item')[0]?.textContent).toBe(
+      'Item: '
+    );
+
+    items.set(['A', 'B', 'C', 'D']);
+
+    expect(list?.querySelectorAll('.context-item').length).toBe(4);
+
+    prefix.set('Element: ');
+
+    const allItems = list?.querySelectorAll('.context-item');
+    allItems?.forEach((item) => {
+      expect(item.textContent).toBe('Element: ');
+    });
+  });
+
+  it('should hydrate SVG with nested elements and preserve namespace', async () => {
+    const color = Cell.source('green');
+    const template = () => (
+      <svg id="nested-svg" xmlns="http://www.w3.org/2000/svg">
+        <g id="svg-group">
+          <path id="svg-path" d="M10 10 L90 90" stroke={color} />
+          <defs>
+            <linearGradient id="svg-gradient">
+              <stop offset="0%" stopColor={color} />
+              <stop offset="100%" stopColor="white" />
+            </linearGradient>
+          </defs>
+          <ellipse
+            id="svg-ellipse"
+            cx="50"
+            cy="50"
+            rx="30"
+            ry="20"
+            fill="url(#svg-gradient)"
+          />
+        </g>
+      </svg>
+    );
+
+    const { document } = await setupHydration(template);
+    const svg = document.querySelector('#nested-svg');
+    const group = document.querySelector('#svg-group');
+    const path = document.querySelector('#svg-path');
+    const ellipse = document.querySelector('#svg-ellipse');
+
+    expect(svg?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(group?.namespaceURI).toBe('http://www.w3.org/2000/svg');
+    expect(path?.getAttribute('stroke')).toBe('green');
+
+    color.set('purple');
+
+    expect(path?.getAttribute('stroke')).toBe('purple');
+    const stops = svg?.querySelectorAll('stop');
+    expect(stops?.[0]?.getAttribute('stop-color')).toBe('purple');
+  });
+
+  it('should hydrate MathML elements with preserved namespace', async () => {
+    const value = Cell.source('x');
+    const template = () => (
+      <math id="math-element" xmlns="http://www.w3.org/1998/Math/MathML">
+        <mrow>
+          <mi>{value}</mi>
+          <mo>+</mo>
+          <mn>1</mn>
+        </mrow>
+      </math>
+    );
+
+    const { document } = await setupHydration(template);
+    const math = document.querySelector('#math-element');
+    const mi = math?.querySelector('mi');
+
+    expect(math?.namespaceURI).toBe('http://www.w3.org/1998/Math/MathML');
+    expect(mi?.textContent).toBe('x');
+
+    value.set('y');
+
+    expect(mi?.textContent).toBe('y');
   });
 });
