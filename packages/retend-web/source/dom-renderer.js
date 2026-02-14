@@ -3,16 +3,16 @@
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
 import { Cell, createNodesFromTemplate, normalizeJsxChild } from 'retend';
+import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugin/hmr.js';
 import {
+  DeferredHandleSymbol,
+  Skip,
   addCellListener,
   containerIsDynamic,
-  DeferredHandleSymbol,
   flattenJSXChildren,
   isReactiveChild,
-  Skip,
 } from './utils.js';
-import * as Ops from './dom-ops.js';
 
 /**
  * @typedef {Element & HiddenElementProperties} JsxElement
@@ -428,7 +428,24 @@ export class DOMRenderer {
       return;
     }
 
-    if (Cell.isCell(children) && staticNode.firstChild instanceof Text) {
+    if (Cell.isCell(children)) {
+      const textNode = staticNode.firstChild;
+      if (!(textNode instanceof Text)) {
+        console.error('Hydration error: Expected text node but got', textNode);
+        return;
+      }
+      const expectedValue = children.get();
+      if (!(expectedValue instanceof Promise)) {
+        const expectedText = String(expectedValue);
+        if (textNode.textContent !== expectedText) {
+          console.error(
+            'Hydration error: Expected text',
+            expectedText,
+            'but got',
+            textNode.textContent
+          );
+        }
+      }
       /**
        * @param {any} value
        * @this {Text}
@@ -440,7 +457,7 @@ export class DOMRenderer {
           });
         } else updateText(value, this);
       }
-      addCellListener(staticNode.firstChild, children, listener, false);
+      addCellListener(textNode, children, listener, false);
       return;
     }
     if (!Array.isArray(children)) return;
@@ -509,6 +526,18 @@ export class DOMRenderer {
       }
 
       if (Cell.isCell(node) && domNode instanceof Text) {
+        const expectedValue = node.get();
+        if (!(expectedValue instanceof Promise)) {
+          const expectedText = String(expectedValue);
+          if (domNode.textContent !== expectedText) {
+            console.error(
+              'Hydration error: Expected text',
+              expectedText,
+              'but got',
+              domNode.textContent
+            );
+          }
+        }
         /**
          * @param {string} value
          * @this {Text}
