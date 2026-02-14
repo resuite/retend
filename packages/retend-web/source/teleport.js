@@ -70,6 +70,7 @@ export function Teleport(props) {
     }
 
     teleportId = await useConsistent(key, () => crypto.randomUUID());
+    props.children = createNodesFromTemplate(props.children, renderer);
     const newInstance = renderer.createContainer('retend-teleport', props);
     renderer.setProperty(newInstance, 'data-teleport-id', teleportId);
 

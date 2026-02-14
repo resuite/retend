@@ -1,7 +1,7 @@
 /** @import { JSX } from '../jsx-runtime/index.js'; */
 /** @import { Renderer } from './renderer.js'; */
 import { getActiveRenderer } from './renderer.js';
-import { linkNodes } from './utils.js';
+import { createNodesFromTemplate, linkNodes } from './utils.js';
 
 /**
  * @param {string | Function | undefined} tagOrFn
@@ -49,14 +49,14 @@ export function h(
   }
 
   return () => {
+    props.children = createNodesFromTemplate(props.children, renderer);
     let container = renderer.createContainer(tagOrFn, props);
-    const { children } = props;
     for (const key in props) {
       const value = props[key];
       container = renderer.setProperty(container, key, value);
     }
 
-    return linkNodes(container, children, renderer);
+    return linkNodes(container, props.children, renderer);
   };
 }
 
