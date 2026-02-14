@@ -51,104 +51,109 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  * // The welcome message will now be displayed
  */
 export function If(value, fnOrObject, elseFn) {
-  const renderer = getActiveRenderer();
-  if (!Cell.isCell(value)) {
-    if (typeof fnOrObject === 'function') {
-      if (value) {
-        return renderer.handleComponent(fnOrObject, [value]);
-      }
-      if (elseFn) {
-        return renderer.handleComponent(elseFn, []);
-      }
-      return;
-    }
-
-    if (typeof fnOrObject === 'object') {
-      if (value && 'true' in fnOrObject) {
-        return renderer.handleComponent(fnOrObject.true, [value]);
-      }
-
-      if (!value && 'false' in fnOrObject) {
-        return renderer.handleComponent(fnOrObject.false, []);
-      }
-    }
-
-    console.error(
-      'If expects a callback or condition object as the second argument.'
-    );
-    return;
-  }
-
-  const scopeSnapshot = createScopeSnapshot();
-
-  /** @param {T} _value */
-  const callback = (_value) => {
-    return withScopeSnapshot(scopeSnapshot, () => {
+  return () => {
+    const renderer = getActiveRenderer();
+    if (!Cell.isCell(value)) {
       if (typeof fnOrObject === 'function') {
-        if (_value) {
-          const newNodes = renderer.handleComponent(fnOrObject, [_value]);
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        if (value) {
+          return renderer.handleComponent(fnOrObject, [value]);
         }
         if (elseFn) {
-          const newNodes = renderer.handleComponent(elseFn, []);
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+          return renderer.handleComponent(elseFn, []);
         }
-        return [];
+        return;
       }
 
       if (typeof fnOrObject === 'object') {
-        if (_value && 'true' in fnOrObject) {
-          const newNodes = renderer.handleComponent(fnOrObject.true, [_value]);
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        if (value && 'true' in fnOrObject) {
+          return renderer.handleComponent(fnOrObject.true, [value]);
         }
 
-        if (!_value && 'false' in fnOrObject) {
-          const newNodes = renderer.handleComponent(fnOrObject.false, []);
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        if (!value && 'false' in fnOrObject) {
+          return renderer.handleComponent(fnOrObject.false, []);
         }
-
-        return [];
       }
+
       console.error(
         'If expects a callback or condition object as the second argument.'
       );
-      return [];
-    });
-  };
-
-  /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-  let handle;
-
-  /**
-   * @param {T} nextValue
-   */
-  const processValueChange = (nextValue) => {
-    scopeSnapshot.node.dispose();
-    const results = callback(nextValue);
-    renderer.write(handle, results);
-    scopeSnapshot.node.activate();
-  };
-
-  // It is important that the listener is registered first.
-  value.listen((nextValue) => {
-    if (nextValue instanceof Promise) {
-      nextValue.then((resolved) => processValueChange(resolved));
       return;
     }
-    processValueChange(nextValue);
-  });
 
-  const initialValue = value.get();
+    const scopeSnapshot = createScopeSnapshot();
 
-  if (initialValue instanceof Promise) {
-    const group = renderer.createGroup([]);
+    /** @param {T} _value */
+    const callback = (_value) => {
+      return withScopeSnapshot(scopeSnapshot, () => {
+        if (typeof fnOrObject === 'function') {
+          if (_value) {
+            const newNodes = renderer.handleComponent(fnOrObject, [_value]);
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+          if (elseFn) {
+            const newNodes = renderer.handleComponent(elseFn, []);
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+          return [];
+        }
+
+        if (typeof fnOrObject === 'object') {
+          if (_value && 'true' in fnOrObject) {
+            const newNodes = renderer.handleComponent(fnOrObject.true, [
+              _value,
+            ]);
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+
+          if (!_value && 'false' in fnOrObject) {
+            const newNodes = renderer.handleComponent(fnOrObject.false, []);
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+
+          return [];
+        }
+        console.error(
+          'If expects a callback or condition object as the second argument.'
+        );
+        return [];
+      });
+    };
+
+    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+    let handle;
+
+    /**
+     * @param {T} nextValue
+     */
+    const processValueChange = (nextValue) => {
+      console.log('processValueChange', { nextValue }, scopeSnapshot.node);
+      scopeSnapshot.node.dispose();
+      const results = callback(nextValue);
+      renderer.write(handle, results);
+      scopeSnapshot.node.activate();
+    };
+
+    // It is important that the listener is registered first.
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) {
+        nextValue.then((resolved) => processValueChange(resolved));
+        return;
+      }
+      processValueChange(nextValue);
+    });
+
+    const initialValue = value.get();
+
+    if (initialValue instanceof Promise) {
+      const group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
+      initialValue.then((resolved) => processValueChange(resolved));
+      return group;
+    }
+
+    const initialResults = callback(initialValue);
+    const group = renderer.createGroup(initialResults);
     handle = renderer.createGroupHandle(group);
-    initialValue.then((resolved) => processValueChange(resolved));
     return group;
-  }
-
-  const initialResults = callback(initialValue);
-  const group = renderer.createGroup(initialResults);
-  handle = renderer.createGroupHandle(group);
-  return group;
+  };
 }

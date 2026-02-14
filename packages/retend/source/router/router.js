@@ -849,13 +849,12 @@ export function Outlet(props) {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
       value: { ...routerData, depth: routerData.depth + 1 },
-      children: () =>
-        h(
-          RenderFn,
-          { metadata: internalState.metadata },
-          ...IgnoredHProps,
-          renderer
-        ),
+      children: h(
+        RenderFn,
+        { metadata: internalState.metadata },
+        ...IgnoredHProps,
+        renderer
+      ),
     });
   });
 

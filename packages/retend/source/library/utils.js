@@ -83,6 +83,10 @@ export function normalizeJsxChild(child, renderer) {
     return group;
   }
 
+  if (typeof child === 'function') {
+    return normalizeJsxChild(child(), renderer);
+  }
+
   if (child === null || child === undefined) {
     return renderer.createText('');
   }

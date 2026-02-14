@@ -2,7 +2,7 @@
 /** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
-import { Cell, createNodesFromTemplate } from 'retend';
+import { Cell, createNodesFromTemplate, normalizeJsxChild } from 'retend';
 import { withHMRBoundaries } from './plugin/hmr.js';
 import {
   addCellListener,
@@ -73,6 +73,14 @@ export class DOMRenderer {
       supportsSetupEffects: true,
       supportsObserverConnectedCallbacks: true,
     };
+  }
+
+  /**
+   * @param {JSX.Template} app
+   * @returns {Node | Node[]}
+   */
+  render(app) {
+    return normalizeJsxChild(app, this);
   }
 
   /**

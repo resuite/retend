@@ -1,7 +1,8 @@
 /** @import { Renderer, ReconcilerOptions, __HMR_UpdatableFn } from "retend"; */
 /** @import * as VDom from './index.js' */
+/** @import { JSX } from 'retend/jsx-runtime'; */
 
-import { createNodesFromTemplate, Cell } from 'retend';
+import { createNodesFromTemplate, Cell, normalizeJsxChild } from 'retend';
 import { VText, VComment, VDocumentFragment } from './index.js';
 import * as Ops from 'retend-web/dom-ops';
 
@@ -53,6 +54,16 @@ export class VDOMRenderer {
       supportsSetupEffects: false,
       supportsObserverConnectedCallbacks: false,
     };
+  }
+
+  /**
+   * Renders the given application into a virtual DOM tree.
+   *
+   * @param {JSX.Template} app - The application to render.
+   * @returns {VDom.VNode | VDom.VNode[]} The rendered virtual DOM tree.
+   */
+  render(app) {
+    return normalizeJsxChild(app, this);
   }
 
   isActive() {

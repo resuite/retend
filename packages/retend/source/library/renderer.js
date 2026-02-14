@@ -94,6 +94,8 @@ const RendererKey = 'retend:Renderer';
  * An observer instance for watching the node environment and firing callbacks
  * on renderer-defined connections.
  *
+ * @property {(app: JSX.Template) => Node | Node[]} render
+ *
  * @property {(callback: () => void) => void} onViewChange
  *
  * @property {Capabilities} capabilities

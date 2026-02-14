@@ -51,52 +51,54 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  * @param {*} [defaultCase]
  */
 export function Switch(value, cases, defaultCase) {
-  const renderer = getActiveRenderer();
-  if (!Cell.isCell(value)) {
-    if (value in cases && cases[value]) {
-      const nodes = renderer.handleComponent(cases[value], []);
-      return nodes;
-    }
-
-    if (defaultCase) {
-      const nodes = renderer.handleComponent(defaultCase, [value]);
-      return nodes;
-    }
-
-    return undefined;
-  }
-
-  const snapshot = createScopeSnapshot();
-
-  /** @param {any} value */
-  const callback = (value) => {
-    return withScopeSnapshot(snapshot, () => {
-      const caseCaller = cases[value];
-      if (caseCaller) {
-        const newNodes = renderer.handleComponent(caseCaller, [value]);
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+  return () => {
+    const renderer = getActiveRenderer();
+    if (!Cell.isCell(value)) {
+      if (value in cases && cases[value]) {
+        const nodes = renderer.handleComponent(cases[value], []);
+        return nodes;
       }
 
       if (defaultCase) {
-        const newNodes = renderer.handleComponent(defaultCase, [value]);
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+        const nodes = renderer.handleComponent(defaultCase, [value]);
+        return nodes;
       }
-      return [];
+
+      return undefined;
+    }
+
+    const snapshot = createScopeSnapshot();
+
+    /** @param {any} value */
+    const callback = (value) => {
+      return withScopeSnapshot(snapshot, () => {
+        const caseCaller = cases[value];
+        if (caseCaller) {
+          const newNodes = renderer.handleComponent(caseCaller, [value]);
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        if (defaultCase) {
+          const newNodes = renderer.handleComponent(defaultCase, [value]);
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+        return [];
+      });
+    };
+
+    // The effect must be registered first.
+    value.listen((nextValue) => {
+      snapshot.node.dispose();
+      const results = callback(nextValue);
+      renderer.write(handle, results);
+      snapshot.node.activate();
     });
+
+    const initialResults = callback(value.get());
+    const group = renderer.createGroup(initialResults);
+    const handle = renderer.createGroupHandle(group);
+    return group;
   };
-
-  // The effect must be registered first.
-  value.listen((nextValue) => {
-    snapshot.node.dispose();
-    const results = callback(nextValue);
-    renderer.write(handle, results);
-    snapshot.node.activate();
-  });
-
-  const initialResults = callback(value.get());
-  const group = renderer.createGroup(initialResults);
-  const handle = renderer.createGroupHandle(group);
-  return group;
 }
 
 /**
@@ -134,55 +136,57 @@ export function Switch(value, cases, defaultCase) {
  * @param {*} [defaultCase]
  */
 Switch.OnProperty = (value, key, cases, defaultCase) => {
-  const renderer = getActiveRenderer();
-  if (!Cell.isCell(value)) {
-    const discriminant = value[key];
+  return () => {
+    const renderer = getActiveRenderer();
+    if (!Cell.isCell(value)) {
+      const discriminant = value[key];
 
-    if (discriminant in cases && cases[discriminant]) {
-      const nodes = renderer.handleComponent(cases[discriminant], [value]);
-      return nodes;
-    }
-
-    if (defaultCase) {
-      const nodes = renderer.handleComponent(defaultCase, [value]);
-      return nodes;
-    }
-
-    return undefined;
-  }
-
-  const snapshot = createScopeSnapshot();
-
-  /** @param {any} cellValue */
-  const callback = (cellValue) => {
-    return withScopeSnapshot(snapshot, () => {
-      const discriminant = cellValue[key];
-
-      const caseCaller = cases[discriminant];
-      if (caseCaller) {
-        const newNodes = renderer.handleComponent(caseCaller, [cellValue]);
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+      if (discriminant in cases && cases[discriminant]) {
+        const nodes = renderer.handleComponent(cases[discriminant], [value]);
+        return nodes;
       }
 
       if (defaultCase) {
-        const newNodes = renderer.handleComponent(defaultCase, [cellValue]);
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+        const nodes = renderer.handleComponent(defaultCase, [value]);
+        return nodes;
       }
 
-      return [];
+      return undefined;
+    }
+
+    const snapshot = createScopeSnapshot();
+
+    /** @param {any} cellValue */
+    const callback = (cellValue) => {
+      return withScopeSnapshot(snapshot, () => {
+        const discriminant = cellValue[key];
+
+        const caseCaller = cases[discriminant];
+        if (caseCaller) {
+          const newNodes = renderer.handleComponent(caseCaller, [cellValue]);
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        if (defaultCase) {
+          const newNodes = renderer.handleComponent(defaultCase, [cellValue]);
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        return [];
+      });
+    };
+
+    // The effect must be registered first.
+    value.listen((nextValue) => {
+      snapshot.node.dispose();
+      const newNodes = callback(nextValue);
+      renderer.write(handle, newNodes);
+      snapshot.node.activate();
     });
+
+    const initialResults = callback(value.get());
+    const group = renderer.createGroup(initialResults);
+    const handle = renderer.createGroupHandle(group);
+    return group;
   };
-
-  // The effect must be registered first.
-  value.listen((nextValue) => {
-    snapshot.node.dispose();
-    const newNodes = callback(nextValue);
-    renderer.write(handle, newNodes);
-    snapshot.node.activate();
-  });
-
-  const initialResults = callback(value.get());
-  const group = renderer.createGroup(initialResults);
-  const handle = renderer.createGroupHandle(group);
-  return group;
 };

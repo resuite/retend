@@ -39,7 +39,7 @@ export function h(
   if (typeof tagOrFn === 'function') {
     const completeProps = typeof props === 'object' ? [props] : [];
 
-    return renderer.handleComponent(tagOrFn, completeProps, fileData);
+    return () => renderer.handleComponent(tagOrFn, completeProps, fileData);
   }
 
   if (typeof props !== 'object') {

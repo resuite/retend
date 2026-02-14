@@ -63,204 +63,210 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  * // The list will automatically update to include the new name
  */
 export function For(list, fn, options) {
-  const renderer = getActiveRenderer();
+  return () => {
+    const renderer = getActiveRenderer();
 
-  // -----------------------------------------------
-  // STATIC LISTS
-  // -----------------------------------------------
-  if (!Cell.isCell(list)) {
-    /** @type {*} */
-    const initialResult = [];
-    let i = 0;
-    // @ts-ignore: The list as a whole is very hard to type properly.
-    if (typeof list?.[Symbol.iterator] !== 'function') {
+    // -----------------------------------------------
+    // STATIC LISTS
+    // -----------------------------------------------
+    if (!Cell.isCell(list)) {
+      /** @type {*} */
+      const initialResult = [];
+      let i = 0;
+      // @ts-ignore: The list as a whole is very hard to type properly.
+      if (typeof list?.[Symbol.iterator] !== 'function') {
+        return initialResult;
+      }
+      // @ts-ignore: The list as a whole is very hard to type properly.
+      for (const item of list) {
+        const nodes = renderer.handleComponent(fn, [
+          item,
+          Cell.source(i),
+          list,
+        ]);
+        if (Array.isArray(nodes)) {
+          initialResult.push(...nodes);
+        } else {
+          initialResult.push(nodes);
+        }
+        i++;
+      }
       return initialResult;
     }
-    // @ts-ignore: The list as a whole is very hard to type properly.
-    for (const item of list) {
-      const nodes = renderer.handleComponent(fn, [item, Cell.source(i), list]);
-      if (Array.isArray(nodes)) {
-        initialResult.push(...nodes);
-      } else {
-        initialResult.push(nodes);
+
+    // -----------------------------------------------
+    // REACTIVE LISTS
+    // -----------------------------------------------
+    const { key, onBeforeNodeRemove, onBeforeNodesMove } = options ?? {};
+    /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: ScopeSnapshot }>} */
+    let cacheFromLastRun = new Map();
+    const autoKeys = new WeakMap();
+
+    /**
+     * @param {any} item
+     * @param {number} i
+     */
+    const retrieveOrSetItemKey = (item, i) => {
+      let itemKey;
+      const isObject = item && /^(object|function|symbol)$/.test(typeof item);
+      if (isObject) {
+        itemKey =
+          key !== undefined
+            ? typeof key === 'function'
+              ? key(item)
+              : item[key]
+            : autoKeys.get(item);
+        if (key === undefined && itemKey === undefined) {
+          // auto memo only when no key option is defined.
+          itemKey = Symbol();
+          autoKeys.set(item, itemKey);
+        }
+      } else itemKey = item?.toString ? `${item.toString()}.${i}` : i;
+
+      return itemKey;
+    };
+
+    /** @param {unknown[]} nodes */
+    const trackNodes = (nodes) => {
+      for (const node of nodes) {
+        // "Bind" the node to this array.
+        // If the node's identity changes (e.g. hydration), the system
+        // is responsible for updating the array.
+        renderer.setProperty(node, 'retend:collection', nodes);
       }
-      i++;
-    }
-    return initialResult;
-  }
+    };
 
-  // -----------------------------------------------
-  // REACTIVE LISTS
-  // -----------------------------------------------
-  const { key, onBeforeNodeRemove, onBeforeNodesMove } = options ?? {};
-  /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: ScopeSnapshot }>} */
-  let cacheFromLastRun = new Map();
-  const autoKeys = new WeakMap();
-
-  /**
-   * @param {any} item
-   * @param {number} i
-   */
-  const retrieveOrSetItemKey = (item, i) => {
-    let itemKey;
-    const isObject = item && /^(object|function|symbol)$/.test(typeof item);
-    if (isObject) {
-      itemKey =
-        key !== undefined
-          ? typeof key === 'function'
-            ? key(item)
-            : item[key]
-          : autoKeys.get(item);
-      if (key === undefined && itemKey === undefined) {
-        // auto memo only when no key option is defined.
-        itemKey = Symbol();
-        autoKeys.set(item, itemKey);
+    /**
+     * @param {V & {[Symbol.iterator]: () => Iterator<V>} | Promise<any>} listValue
+     */
+    const reactToListChanges = (listValue) => {
+      if (listValue instanceof Promise) {
+        listValue.then((resolved) => processListChanges(resolved));
+        return;
       }
-    } else itemKey = item?.toString ? `${item.toString()}.${i}` : i;
+      processListChanges(listValue);
+    };
 
-    return itemKey;
-  };
+    /**
+     * @param {any} listValue
+     */
+    const processListChanges = (listValue) => {
+      const newList =
+        typeof listValue?.[Symbol.iterator] === 'function' ? listValue : [];
+      const newCache = new Map();
+      const effectNodesToActivate = [];
+      /** @type {Map<unknown, { itemKey: any, lastItemLastNode: unknown | null }>} */
+      const nodeLookAhead = new Map();
 
-  /** @param {unknown[]} nodes */
-  const trackNodes = (nodes) => {
-    for (const node of nodes) {
-      // "Bind" the node to this array.
-      // If the node's identity changes (e.g. hydration), the system
-      // is responsible for updating the array.
-      renderer.setProperty(node, 'retend:collection', nodes);
+      let index = 0;
+      let lastItemLastNode = null;
+      for (const item of newList) {
+        const itemKey = retrieveOrSetItemKey(item, index);
+        const cachedResult = cacheFromLastRun.get(itemKey);
+        let firstNode = null;
+        let lastNode = null;
+        if (cachedResult === undefined) {
+          const i = Cell.source(index);
+          const parameters = [item, i, list];
+          /** @type {ScopeSnapshot} */
+          const snapshot = {
+            scopes: base.scopes,
+            node: base.node.branch(),
+            renderer: base.renderer,
+          };
+          const newNodes = withScopeSnapshot(snapshot, () => {
+            return renderer.handleComponent(fn, parameters);
+          });
+          effectNodesToActivate.push(snapshot.node);
+          const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+          trackNodes(nodes);
+          newCache.set(itemKey, { nodes, index: i, snapshot });
+          firstNode = nodes[0];
+          lastNode = nodes[nodes.length - 1];
+        } else {
+          /** @type {import('@adbl/cells').SourceCell<number>} */
+          (cachedResult.index).set(index);
+          newCache.set(itemKey, cachedResult);
+          const nodes = cachedResult.nodes;
+          firstNode = nodes[0];
+          lastNode = nodes[nodes.length - 1];
+        }
+        if (firstNode) {
+          nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
+        }
+        lastItemLastNode = lastNode;
+        index++;
+      }
+
+      const reconciliationOptions = {
+        cacheFromLastRun,
+        onBeforeNodeRemove,
+        onBeforeNodesMove,
+        retrieveOrSetItemKey,
+        newCache,
+        newList,
+        nodeLookAhead,
+      };
+      renderer.reconcile(handle, reconciliationOptions);
+
+      cacheFromLastRun = newCache;
+      for (const node of effectNodesToActivate) node.activate();
+    };
+
+    list.listen(reactToListChanges);
+
+    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+    let handle;
+    /** @type {ReturnType<typeof renderer.createGroup>} */
+    let group;
+    // First run, prior to any changes.
+    let i = 0;
+    // We get a snapshot of all current scopes to reuse when new
+    // component instances are created.
+    const base = createScopeSnapshot();
+    const _list = list.get();
+
+    if (_list instanceof Promise) {
+      group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
+      _list.then((resolved) => processListChanges(resolved));
+      return group;
     }
-  };
 
-  /**
-   * @param {V & {[Symbol.iterator]: () => Iterator<V>} | Promise<any>} listValue
-   */
-  const reactToListChanges = (listValue) => {
-    if (listValue instanceof Promise) {
-      listValue.then((resolved) => processListChanges(resolved));
-      return;
-    }
-    processListChanges(listValue);
-  };
-
-  /**
-   * @param {any} listValue
-   */
-  const processListChanges = (listValue) => {
-    const newList =
-      typeof listValue?.[Symbol.iterator] === 'function' ? listValue : [];
-    const newCache = new Map();
-    const effectNodesToActivate = [];
-    /** @type {Map<unknown, { itemKey: any, lastItemLastNode: unknown | null }>} */
-    const nodeLookAhead = new Map();
-
-    let index = 0;
-    let lastItemLastNode = null;
-    for (const item of newList) {
-      const itemKey = retrieveOrSetItemKey(item, index);
-      const cachedResult = cacheFromLastRun.get(itemKey);
-      let firstNode = null;
-      let lastNode = null;
-      if (cachedResult === undefined) {
-        const i = Cell.source(index);
-        const parameters = [item, i, list];
+    if (
+      _list !== null &&
+      _list !== undefined &&
+      _list[Symbol.iterator] !== undefined
+    ) {
+      const allNodes = [];
+      for (const item of _list) {
+        const index = Cell.source(i);
+        const parameters = [item, index, list];
+        // We have to split the snapshot so that each For item render
+        // can have its own effect context without polluting the others.
         /** @type {ScopeSnapshot} */
         const snapshot = {
           scopes: base.scopes,
           node: base.node.branch(),
           renderer: base.renderer,
         };
-        const newNodes = withScopeSnapshot(snapshot, () => {
-          return renderer.handleComponent(fn, parameters);
-        });
-        effectNodesToActivate.push(snapshot.node);
+        const newNodes = withScopeSnapshot(snapshot, () =>
+          renderer.handleComponent(fn, parameters)
+        );
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         trackNodes(nodes);
-        newCache.set(itemKey, { nodes, index: i, snapshot });
-        firstNode = nodes[0];
-        lastNode = nodes[nodes.length - 1];
-      } else {
-        /** @type {import('@adbl/cells').SourceCell<number>} */
-        (cachedResult.index).set(index);
-        newCache.set(itemKey, cachedResult);
-        const nodes = cachedResult.nodes;
-        firstNode = nodes[0];
-        lastNode = nodes[nodes.length - 1];
+        allNodes.push(...nodes);
+
+        const itemKey = retrieveOrSetItemKey(item, i);
+        cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
+        i++;
       }
-      if (firstNode) {
-        nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
-      }
-      lastItemLastNode = lastNode;
-      index++;
+      group = renderer.createGroup(allNodes);
+      handle = renderer.createGroupHandle(group);
+    } else {
+      group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
     }
-
-    const reconciliationOptions = {
-      cacheFromLastRun,
-      onBeforeNodeRemove,
-      onBeforeNodesMove,
-      retrieveOrSetItemKey,
-      newCache,
-      newList,
-      nodeLookAhead,
-    };
-    renderer.reconcile(handle, reconciliationOptions);
-
-    cacheFromLastRun = newCache;
-    for (const node of effectNodesToActivate) node.activate();
-  };
-
-  list.listen(reactToListChanges);
-
-  /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-  let handle;
-  /** @type {ReturnType<typeof renderer.createGroup>} */
-  let group;
-  // First run, prior to any changes.
-  let i = 0;
-  // We get a snapshot of all current scopes to reuse when new
-  // component instances are created.
-  const base = createScopeSnapshot();
-  const _list = list.get();
-
-  if (_list instanceof Promise) {
-    group = renderer.createGroup([]);
-    handle = renderer.createGroupHandle(group);
-    _list.then((resolved) => processListChanges(resolved));
     return group;
-  }
-
-  if (
-    _list !== null &&
-    _list !== undefined &&
-    _list[Symbol.iterator] !== undefined
-  ) {
-    const allNodes = [];
-    for (const item of _list) {
-      const index = Cell.source(i);
-      const parameters = [item, index, list];
-      // We have to split the snapshot so that each For item render
-      // can have its own effect context without polluting the others.
-      /** @type {ScopeSnapshot} */
-      const snapshot = {
-        scopes: base.scopes,
-        node: base.node.branch(),
-        renderer: base.renderer,
-      };
-      const newNodes = withScopeSnapshot(snapshot, () =>
-        renderer.handleComponent(fn, parameters)
-      );
-      const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
-      trackNodes(nodes);
-      allNodes.push(...nodes);
-
-      const itemKey = retrieveOrSetItemKey(item, i);
-      cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
-      i++;
-    }
-    group = renderer.createGroup(allNodes);
-    handle = renderer.createGroupHandle(group);
-  } else {
-    group = renderer.createGroup([]);
-    handle = renderer.createGroupHandle(group);
-  }
-  return group;
+  };
 }

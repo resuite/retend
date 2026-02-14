@@ -2,13 +2,11 @@
 /** @import { useObserver, CleanupFn } from './observer.js' */
 /** @import { Renderer } from './renderer.js'; */
 import { Cell } from '@adbl/cells';
-import h from './jsx.js';
 
 import { getGlobalContext } from '../context/index.js';
 import { getActiveRenderer, setActiveRenderer } from './renderer.js';
-import { createNodesFromTemplate } from './utils.js';
+import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
 
-/** @import { Scope } from "../library/scope.js"; */
 /** @import { SourceCell } from "@adbl/cells"; */
 
 /** @typedef {{
@@ -53,14 +51,14 @@ export const __HMR_SYMBOLS = {
 /**
  * @template [T=unknown]
  * @typedef ScopePropsWithChildren
- * @property {() => JSX.Template} children
+ * @property {JSX.Template} children
  * @property {T} value
  */
 
 /**
  * @template [T=unknown]
  * @typedef ScopePropsWithContent
- * @property {() => JSX.Template} content
+ * @property {JSX.Template} content
  * @property {T} value
  */
 
@@ -115,6 +113,7 @@ class EffectNode {
 
   /** @param {SetupFn} effect  */
   add(effect) {
+    console.trace();
     this.#setupFns.push(effect);
   }
 
@@ -168,6 +167,10 @@ class EffectNode {
   }
 
   dispose() {
+    console.log('dispose', {
+      functions: this.#setupFns,
+      children: this.#children,
+    });
     if (!this.renderer?.capabilities.supportsSetupEffects) {
       for (const child of this.#children) child.localContext.destroy();
       this.localContext.destroy();
@@ -255,21 +258,13 @@ export function createScope(name) {
 
       const activeScopeSnapshot = getScopeSnapshot();
       const renderer = getActiveRenderer();
-      const hArgs = /** @type {const} */ ([
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        renderer,
-      ]);
       const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
       activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
       try {
         if ('h' in props && !props.h) {
-          const template = renderFn();
-          return createNodesFromTemplate(template, renderer);
+          return createNodesFromTemplate(renderFn, renderer);
         }
-        return h(renderFn, {}, ...hArgs);
+        return normalizeJsxChild(renderFn, renderer);
       } finally {
         activeScopeSnapshot.scopes.set(Scope, stackBefore);
       }
@@ -446,62 +441,6 @@ export function withScopeSnapshot(snapshot, callback) {
       if (previousSnapshot) setScopeSnapshot(previousSnapshot);
     }
   }
-}
-
-/**
- * Combines multiple scopes into a single, composite provider component.
- * This is a utility for composing multiple contexts without manually nesting them.
- * The providers are applied from first to last, meaning the first provider
- * in the argument list will be the outermost in the component tree.
- *
- * @param {...Scope<any>} providers A sequence of scope provider components to combine.
- * @returns {Scope<any>} A new provider component that wraps the content with all given providers.
- *
- * @example
- * ```js
- * const ThemeScope = createScope();
- * const UserScope = createScope();
- *
- * // Instead of nesting providers like this:
- * <ThemeScope.Provider value='light' content={() =>
- *   <UserScope.Provider value={{ name: 'Anonymous' }} content={() => <App />} />
- * } />
- *
- * // You can combine them and use it like a single provider:
- * const AppScope = combineScopes(ThemeScope, UserScope);
- * const data = {
- *   [ThemeScope.key]: 'light',
- *   [UserScope.key]: { name: 'Anonymous' }
- * };
- * <AppScope.Provider value={data} content={App} />
- * ```
- */
-export function combineScopes(...providers) {
-  /** @type {Scope<any>} */
-  const Scope = {
-    key: Symbol('CombinedScope'),
-    Provider(props) {
-      const renderFn =
-        'content' in props
-          ? props.content
-          : 'children' in props
-            ? props.children
-            : () => {};
-
-      const finalContent = [...providers].reverse().reduce(
-        (innerContent, Scope) => () => {
-          return Scope.Provider({
-            value: props.value[Scope.key],
-            content: innerContent,
-          });
-        },
-        renderFn
-      );
-      return finalContent();
-    },
-  };
-
-  return Scope;
 }
 
 /**
