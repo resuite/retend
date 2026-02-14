@@ -6,12 +6,16 @@ import { setActiveRenderer, getActiveRenderer } from 'retend';
 
 import { DOMRenderer } from 'retend-web';
 import { VDOMRenderer } from 'retend-server/v-dom';
+import type { JSX } from 'retend/jsx-runtime';
 
 export type NodeLike = VNode | Node;
 
 export const timeout = async (number?: number) => {
   return new Promise((r) => setTimeout(r, number ?? 0));
 };
+
+export const render = (node: JSX.Template) =>
+  getActiveRenderer().render(node) as unknown as Element;
 
 export const routerSetup = () => {
   const window = new VWindow();

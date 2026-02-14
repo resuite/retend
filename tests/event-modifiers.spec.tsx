@@ -1,203 +1,200 @@
-import { Cell, getActiveRenderer } from "retend";
-import type { DOMRenderer } from "retend-web";
-import { describe, expect, it, vi } from "vitest";
-import { browserSetup } from "./setup.tsx";
+import { Cell, getActiveRenderer } from 'retend';
+import type { DOMRenderer } from 'retend-web';
+import { describe, expect, it, vi } from 'vitest';
+import { browserSetup, render } from './setup.tsx';
 
-describe("Event Modifiers", () => {
-	// Only run in browser since VDom doesn't support events
+describe('Event Modifiers', () => {
+  // Only run in browser since VDom doesn't support events
 
-	browserSetup();
+  browserSetup();
 
-	const renderElement = (node: unknown) =>
-		getActiveRenderer().render(node) as unknown as HTMLElement;
+  it('should handle prevent modifier', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const prevented = Cell.source(false);
+    const form = render(
+      <form
+        onSubmit--prevent={() => {
+          prevented.set(true);
+        }}
+      >
+        <button type="submit">Submit</button>
+      </form>
+    ) as HTMLFormElement;
 
-	it("should handle prevent modifier", () => {
-		const renderer = getActiveRenderer() as DOMRenderer;
-		const { host: window } = renderer;
-		const prevented = Cell.source(false);
-		const form = renderElement(
-			<form
-				onSubmit--prevent={() => {
-					prevented.set(true);
-				}}
-			>
-				<button type="submit">Submit</button>
-			</form>,
-		) as HTMLFormElement;
+    window.document.body.append(form);
+    form.querySelector('button')?.click();
 
-		window.document.body.append(form);
-		form.querySelector("button")?.click();
+    expect(prevented.get()).toBe(true);
+  });
 
-		expect(prevented.get()).toBe(true);
-	});
+  it('should handle stop modifier', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const parentClicked = Cell.source(false);
+    const childClicked = Cell.source(false);
 
-	it("should handle stop modifier", () => {
-		const renderer = getActiveRenderer() as DOMRenderer;
-		const { host: window } = renderer;
-		const parentClicked = Cell.source(false);
-		const childClicked = Cell.source(false);
+    const div = render(
+      <div
+        onClick={() => {
+          parentClicked.set(true);
+        }}
+        onKeyUp={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            parentClicked.set(true);
+          }
+        }}
+      >
+        <button
+          type="button"
+          onClick--stop={() => {
+            childClicked.set(true);
+          }}
+        >
+          Click me
+        </button>
+      </div>
+    ) as HTMLDivElement;
 
-		const div = renderElement(
-			<div
-				onClick={() => {
-					parentClicked.set(true);
-				}}
-				onKeyUp={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						parentClicked.set(true);
-					}
-				}}
-			>
-				<button
-					type="button"
-					onClick--stop={() => {
-						childClicked.set(true);
-					}}
-				>
-					Click me
-				</button>
-			</div>,
-		) as HTMLDivElement;
+    window.document.body.append(div);
+    div.querySelector('button')?.click();
 
-		window.document.body.append(div);
-		div.querySelector("button")?.click();
+    expect(childClicked.get()).toBe(true);
+    expect(parentClicked.get()).toBe(false);
+  });
 
-		expect(childClicked.get()).toBe(true);
-		expect(parentClicked.get()).toBe(false);
-	});
+  it('should handle self modifier', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const clicked = Cell.source(false);
 
-	it("should handle self modifier", () => {
-		const renderer = getActiveRenderer() as DOMRenderer;
-		const { host: window } = renderer;
-		const clicked = Cell.source(false);
+    const div = render(
+      <div
+        onClick--self={() => {
+          clicked.set(true);
+        }}
+      >
+        <button type="button">Click me</button>
+      </div>
+    ) as HTMLDivElement;
 
-		const div = renderElement(
-			<div
-				onClick--self={() => {
-					clicked.set(true);
-				}}
-			>
-				<button type="button">Click me</button>
-			</div>,
-		) as HTMLDivElement;
+    window.document.body.append(div);
+    div.querySelector('button')?.click();
+    expect(clicked.get()).toBe(false);
 
-		window.document.body.append(div);
-		div.querySelector("button")?.click();
-		expect(clicked.get()).toBe(false);
+    div.click();
+    expect(clicked.get()).toBe(true);
+  });
 
-		div.click();
-		expect(clicked.get()).toBe(true);
-	});
+  it('should handle once modifier', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const clickCount = Cell.source(0);
 
-	it("should handle once modifier", () => {
-		const renderer = getActiveRenderer() as DOMRenderer;
-		const { host: window } = renderer;
-		const clickCount = Cell.source(0);
+    const button = render(
+      <button
+        type="button"
+        onClick--once={() => {
+          clickCount.set(clickCount.get() + 1);
+        }}
+      >
+        Click me
+      </button>
+    ) as HTMLButtonElement;
 
-		const button = renderElement(
-			<button
-				type="button"
-				onClick--once={() => {
-					clickCount.set(clickCount.get() + 1);
-				}}
-			>
-				Click me
-			</button>,
-		) as HTMLButtonElement;
+    window.document.body.append(button);
+    button.click();
+    button.click();
+    button.click();
 
-		window.document.body.append(button);
-		button.click();
-		button.click();
-		button.click();
+    expect(clickCount.get()).toBe(1);
+  });
 
-		expect(clickCount.get()).toBe(1);
-	});
+  it('should handle passive modifier', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const handler = vi.fn();
 
-	it("should handle passive modifier", () => {
-		const renderer = getActiveRenderer() as DOMRenderer;
-		const { host: window } = renderer;
-		const handler = vi.fn();
+    const div = render(
+      <div
+        onScroll--passive={handler}
+        style={{ height: '100px', overflow: 'auto' }}
+      >
+        <div style={{ height: '200px' }}>Scroll content</div>
+      </div>
+    ) as HTMLDivElement;
 
-		const div = renderElement(
-			<div
-				onScroll--passive={handler}
-				style={{ height: "100px", overflow: "auto" }}
-			>
-				<div style={{ height: "200px" }}>Scroll content</div>
-			</div>,
-		) as HTMLDivElement;
+    window.document.body.append(div);
 
-		window.document.body.append(div);
+    const event = new Event('scroll', { cancelable: true });
+    div.dispatchEvent(event);
 
-		const event = new Event("scroll", { cancelable: true });
-		div.dispatchEvent(event);
+    expect(handler).toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
 
-		expect(handler).toHaveBeenCalled();
-		expect(event.defaultPrevented).toBe(false);
-	});
+  it('should handle multiple modifiers', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const parentClicked = Cell.source(false);
+    const childClicked = Cell.source(0);
 
-	it("should handle multiple modifiers", () => {
-		const renderer = getActiveRenderer() as DOMRenderer;
-		const { host: window } = renderer;
-		const parentClicked = Cell.source(false);
-		const childClicked = Cell.source(0);
+    const div = render(
+      <div
+        style={{ padding: '10px' }}
+        onClick={() => {
+          parentClicked.set(true);
+        }}
+        onKeyUp={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            parentClicked.set(true);
+          }
+        }}
+      >
+        <button
+          type="button"
+          onClick--stop--once={() => {
+            childClicked.set(childClicked.get() + 1);
+          }}
+        >
+          Click me
+        </button>
+      </div>
+    ) as HTMLDivElement;
 
-		const div = renderElement(
-			<div
-				style={{ padding: "10px" }}
-				onClick={() => {
-					parentClicked.set(true);
-				}}
-				onKeyUp={(e) => {
-					if (e.key === "Enter" || e.key === " ") {
-						parentClicked.set(true);
-					}
-				}}
-			>
-				<button
-					type="button"
-					onClick--stop--once={() => {
-						childClicked.set(childClicked.get() + 1);
-					}}
-				>
-					Click me
-				</button>
-			</div>,
-		) as HTMLDivElement;
+    window.document.body.append(div);
+    const button = div.querySelector('button');
+    if (!button) throw new Error('Button not found');
+    button.click();
+    expect(parentClicked.get()).toBe(false);
 
-		window.document.body.append(div);
-		const button = div.querySelector("button");
-		if (!button) throw new Error("Button not found");
-		button.click();
-		expect(parentClicked.get()).toBe(false);
+    button.click();
+    expect(childClicked.get()).toBe(1);
+  });
 
-		button.click();
-		expect(childClicked.get()).toBe(1);
-	});
+  it('should apply modifiers in correct order', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const events: string[] = [];
 
-	it("should apply modifiers in correct order", () => {
-		const renderer = getActiveRenderer() as DOMRenderer;
-		const { host: window } = renderer;
-		const events: string[] = [];
+    const form = render(
+      <form
+        onSubmit--prevent--stop={() => {
+          events.push('submit');
+        }}
+      >
+        <button type="submit">Submit</button>
+      </form>
+    ) as HTMLFormElement;
 
-		const form = renderElement(
-			<form
-				onSubmit--prevent--stop={() => {
-					events.push("submit");
-				}}
-			>
-				<button type="submit">Submit</button>
-			</form>,
-		) as HTMLFormElement;
+    window.document.body.append(form);
 
-		window.document.body.append(form);
+    const submitEvent = new Event('submit', {
+      cancelable: true,
+      bubbles: true,
+    });
+    form.dispatchEvent(submitEvent);
 
-		const submitEvent = new Event("submit", {
-			cancelable: true,
-			bubbles: true,
-		});
-		form.dispatchEvent(submitEvent);
-
-		expect(submitEvent.defaultPrevented).toBe(true);
-	});
+    expect(submitEvent.defaultPrevented).toBe(true);
+  });
 });

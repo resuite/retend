@@ -1,263 +1,264 @@
-import { Cell, If, getActiveRenderer } from "retend";
-import { describe, expect, it, vi } from "vitest";
+import { Cell, If } from 'retend';
+import { describe, expect, it, vi } from 'vitest';
 import {
-	type NodeLike,
-	browserSetup,
-	getTextContent,
-	timeout,
-	vDomSetup,
-} from "../setup.tsx";
+  type NodeLike,
+  browserSetup,
+  getTextContent,
+  render,
+  timeout,
+  vDomSetup,
+} from '../setup.tsx';
 
 const runTests = () => {
-	it("should start with pending as false", () => {
-		const task = Cell.task(async (input: number) => {
-			return input * 2;
-		});
+  it('should start with pending as false', () => {
+    const task = Cell.task(async (input: number) => {
+      return input * 2;
+    });
 
-		expect(task.pending.get()).toBe(false);
-		expect(task.error.get()).toBe(null);
-	});
+    expect(task.pending.get()).toBe(false);
+    expect(task.error.get()).toBe(null);
+  });
 
-	it("should execute when runWith is called", async () => {
-		const task = Cell.task(async (input: number) => {
-			await timeout(10);
-			return input * 2;
-		});
+  it('should execute when runWith is called', async () => {
+    const task = Cell.task(async (input: number) => {
+      await timeout(10);
+      return input * 2;
+    });
 
-		const promise = task.runWith(5);
-		expect(task.pending.get()).toBe(true);
+    const promise = task.runWith(5);
+    expect(task.pending.get()).toBe(true);
 
-		const result = await promise;
-		expect(result).toBe(10);
-		expect(task.pending.get()).toBe(false);
-	});
+    const result = await promise;
+    expect(result).toBe(10);
+    expect(task.pending.get()).toBe(false);
+  });
 
-	it("should set pending to true while running", async () => {
-		const pendingStates: boolean[] = [];
-		const task = Cell.task(async (input: number) => {
-			await timeout(20);
-			return input;
-		});
+  it('should set pending to true while running', async () => {
+    const pendingStates: boolean[] = [];
+    const task = Cell.task(async (input: number) => {
+      await timeout(20);
+      return input;
+    });
 
-		task.pending.listen((val) => pendingStates.push(val));
+    task.pending.listen((val) => pendingStates.push(val));
 
-		const promise = task.runWith(1);
-		await timeout(5);
-		expect(task.pending.get()).toBe(true);
+    const promise = task.runWith(1);
+    await timeout(5);
+    expect(task.pending.get()).toBe(true);
 
-		await promise;
-		expect(task.pending.get()).toBe(false);
-		expect(pendingStates).toContain(true);
-		expect(pendingStates).toContain(false);
-	});
+    await promise;
+    expect(task.pending.get()).toBe(false);
+    expect(pendingStates).toContain(true);
+    expect(pendingStates).toContain(false);
+  });
 
-	it("should set error when task throws", async () => {
-		const task = Cell.task(async () => {
-			await timeout(10);
-			throw new Error("Task failed");
-		});
+  it('should set error when task throws', async () => {
+    const task = Cell.task(async () => {
+      await timeout(10);
+      throw new Error('Task failed');
+    });
 
-		await task.runWith(undefined);
+    await task.runWith(undefined);
 
-		expect(task.error.get()).toBeInstanceOf(Error);
-		expect(task.error.get()?.message).toBe("Task failed");
-		expect(task.pending.get()).toBe(false);
-	});
+    expect(task.error.get()).toBeInstanceOf(Error);
+    expect(task.error.get()?.message).toBe('Task failed');
+    expect(task.pending.get()).toBe(false);
+  });
 
-	it("should clear error on successful run after failure", async () => {
-		let shouldFail = true;
-		const task = Cell.task(async () => {
-			await timeout(10);
-			if (shouldFail) {
-				throw new Error("Task failed");
-			}
-			return "success";
-		});
+  it('should clear error on successful run after failure', async () => {
+    let shouldFail = true;
+    const task = Cell.task(async () => {
+      await timeout(10);
+      if (shouldFail) {
+        throw new Error('Task failed');
+      }
+      return 'success';
+    });
 
-		await task.runWith(undefined);
-		expect(task.error.get()).toBeInstanceOf(Error);
+    await task.runWith(undefined);
+    expect(task.error.get()).toBeInstanceOf(Error);
 
-		shouldFail = false;
-		await task.runWith(undefined);
-		expect(task.error.get()).toBe(null);
-	});
+    shouldFail = false;
+    await task.runWith(undefined);
+    expect(task.error.get()).toBe(null);
+  });
 
-	it("should pass input to the task function", async () => {
-		const task = Cell.task(async (data: { name: string; age: number }) => {
-			await timeout(10);
-			return `${data.name} is ${data.age}`;
-		});
+  it('should pass input to the task function', async () => {
+    const task = Cell.task(async (data: { name: string; age: number }) => {
+      await timeout(10);
+      return `${data.name} is ${data.age}`;
+    });
 
-		const result = await task.runWith({ name: "Alice", age: 30 });
-		expect(result).toBe("Alice is 30");
-	});
+    const result = await task.runWith({ name: 'Alice', age: 30 });
+    expect(result).toBe('Alice is 30');
+  });
 
-	it("should provide an AbortSignal", async () => {
-		let receivedSignal: AbortSignal | null = null;
+  it('should provide an AbortSignal', async () => {
+    let receivedSignal: AbortSignal | null = null;
 
-		const task = Cell.task(async (input: number, signal: AbortSignal) => {
-			receivedSignal = signal;
-			await timeout(10);
-			return input;
-		});
+    const task = Cell.task(async (input: number, signal: AbortSignal) => {
+      receivedSignal = signal;
+      await timeout(10);
+      return input;
+    });
 
-		await task.runWith(1);
-		expect(receivedSignal).toBeInstanceOf(AbortSignal);
-	});
+    await task.runWith(1);
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+  });
 
-	it("should not auto-execute when created", async () => {
-		const fn = vi.fn().mockResolvedValue("result");
-		Cell.task(fn);
+  it('should not auto-execute when created', async () => {
+    const fn = vi.fn().mockResolvedValue('result');
+    Cell.task(fn);
 
-		await timeout(20);
-		expect(fn).not.toHaveBeenCalled();
-	});
+    await timeout(20);
+    expect(fn).not.toHaveBeenCalled();
+  });
 
-	it("should execute each runWith call independently", async () => {
-		const fn = vi.fn().mockImplementation(async (input: number) => {
-			await timeout(10);
-			return input * 2;
-		});
+  it('should execute each runWith call independently', async () => {
+    const fn = vi.fn().mockImplementation(async (input: number) => {
+      await timeout(10);
+      return input * 2;
+    });
 
-		const task = Cell.task(fn);
+    const task = Cell.task(fn);
 
-		await task.runWith(1);
-		await task.runWith(2);
-		await task.runWith(3);
+    await task.runWith(1);
+    await task.runWith(2);
+    await task.runWith(3);
 
-		expect(fn).toHaveBeenCalledTimes(3);
-		expect(fn).toHaveBeenNthCalledWith(1, 1, expect.any(AbortSignal));
-		expect(fn).toHaveBeenNthCalledWith(2, 2, expect.any(AbortSignal));
-		expect(fn).toHaveBeenNthCalledWith(3, 3, expect.any(AbortSignal));
-	});
+    expect(fn).toHaveBeenCalledTimes(3);
+    expect(fn).toHaveBeenNthCalledWith(1, 1, expect.any(AbortSignal));
+    expect(fn).toHaveBeenNthCalledWith(2, 2, expect.any(AbortSignal));
+    expect(fn).toHaveBeenNthCalledWith(3, 3, expect.any(AbortSignal));
+  });
 
-	it("should work with If for pending state", async () => {
-		const task = Cell.task(async (input: string) => {
-			await timeout(20);
-			return input.toUpperCase();
-		});
+  it('should work with If for pending state', async () => {
+    const task = Cell.task(async (input: string) => {
+      await timeout(20);
+      return input.toUpperCase();
+    });
 
-		const App = () => (
-			<div>
-				{If(task.pending, {
-					true: () => <span>Loading...</span>,
-					false: () => <span>Ready</span>,
-				})}
-			</div>
-		);
-		const result = getActiveRenderer().render(App) as NodeLike;
+    const App = () => (
+      <div>
+        {If(task.pending, {
+          true: () => <span>Loading...</span>,
+          false: () => <span>Ready</span>,
+        })}
+      </div>
+    );
+    const result = render(App) as NodeLike;
 
-		expect(getTextContent(result)).toBe("Ready");
+    expect(getTextContent(result)).toBe('Ready');
 
-		const promise = task.runWith("hello");
-		await timeout(5);
-		expect(getTextContent(result)).toBe("Loading...");
+    const promise = task.runWith('hello');
+    await timeout(5);
+    expect(getTextContent(result)).toBe('Loading...');
 
-		await promise;
-		expect(getTextContent(result)).toBe("Ready");
-	});
+    await promise;
+    expect(getTextContent(result)).toBe('Ready');
+  });
 
-	it("should work with If for error state", async () => {
-		const task = Cell.task(async () => {
-			await timeout(10);
-			throw new Error("Something went wrong");
-		});
+  it('should work with If for error state', async () => {
+    const task = Cell.task(async () => {
+      await timeout(10);
+      throw new Error('Something went wrong');
+    });
 
-		const App = () => (
-			<div>
-				{If(task.error, (err) => (
-					<span>Error: {err.message}</span>
-				))}
-			</div>
-		);
-		const result = getActiveRenderer().render(App) as NodeLike;
+    const App = () => (
+      <div>
+        {If(task.error, (err) => (
+          <span>Error: {err.message}</span>
+        ))}
+      </div>
+    );
+    const result = render(App) as NodeLike;
 
-		expect(getTextContent(result)).toBe("");
+    expect(getTextContent(result)).toBe('');
 
-		await task.runWith(undefined);
-		expect(getTextContent(result)).toBe("Error: Something went wrong");
-	});
+    await task.runWith(undefined);
+    expect(getTextContent(result)).toBe('Error: Something went wrong');
+  });
 
-	it("should handle concurrent calls", async () => {
-		const results: number[] = [];
-		const task = Cell.task(async (input: number) => {
-			await timeout(10);
-			results.push(input);
-			return input;
-		});
+  it('should handle concurrent calls', async () => {
+    const results: number[] = [];
+    const task = Cell.task(async (input: number) => {
+      await timeout(10);
+      results.push(input);
+      return input;
+    });
 
-		const p1 = task.runWith(1);
-		const p2 = task.runWith(2);
-		const p3 = task.runWith(3);
+    const p1 = task.runWith(1);
+    const p2 = task.runWith(2);
+    const p3 = task.runWith(3);
 
-		await Promise.all([p1, p2, p3]);
-		expect(results).toEqual([1, 2, 3]);
-	});
+    await Promise.all([p1, p2, p3]);
+    expect(results).toEqual([1, 2, 3]);
+  });
 
-	it("should return null from get() before first run", async () => {
-		const task = Cell.task(async (input: number) => {
-			return input * 2;
-		});
+  it('should return null from get() before first run', async () => {
+    const task = Cell.task(async (input: number) => {
+      return input * 2;
+    });
 
-		const result = await task.get();
-		expect(result).toBe(null);
-	});
+    const result = await task.get();
+    expect(result).toBe(null);
+  });
 
-	it("should return result from get() after run", async () => {
-		const task = Cell.task(async (input: number) => {
-			await timeout(10);
-			return input * 2;
-		});
+  it('should return result from get() after run', async () => {
+    const task = Cell.task(async (input: number) => {
+      await timeout(10);
+      return input * 2;
+    });
 
-		await task.runWith(5);
-		const result = await task.get();
-		expect(result).toBe(10);
-	});
+    await task.runWith(5);
+    const result = await task.get();
+    expect(result).toBe(10);
+  });
 
-	it("should handle void return type", async () => {
-		let sideEffect = 0;
-		const task = Cell.task(async (increment: number) => {
-			await timeout(10);
-			sideEffect += increment;
-		});
+  it('should handle void return type', async () => {
+    let sideEffect = 0;
+    const task = Cell.task(async (increment: number) => {
+      await timeout(10);
+      sideEffect += increment;
+    });
 
-		await task.runWith(5);
-		expect(sideEffect).toBe(5);
+    await task.runWith(5);
+    expect(sideEffect).toBe(5);
 
-		await task.runWith(3);
-		expect(sideEffect).toBe(8);
-	});
+    await task.runWith(3);
+    expect(sideEffect).toBe(8);
+  });
 
-	it("should handle complex input types", async () => {
-		interface FormData {
-			email: string;
-			password: string;
-			remember: boolean;
-		}
+  it('should handle complex input types', async () => {
+    interface FormData {
+      email: string;
+      password: string;
+      remember: boolean;
+    }
 
-		const task = Cell.task(async (data: FormData) => {
-			await timeout(10);
-			return { success: true, email: data.email };
-		});
+    const task = Cell.task(async (data: FormData) => {
+      await timeout(10);
+      return { success: true, email: data.email };
+    });
 
-		const result = await task.runWith({
-			email: "test@example.com",
-			password: "secret",
-			remember: true,
-		});
+    const result = await task.runWith({
+      email: 'test@example.com',
+      password: 'secret',
+      remember: true,
+    });
 
-		expect(result).toEqual({ success: true, email: "test@example.com" });
-	});
+    expect(result).toEqual({ success: true, email: 'test@example.com' });
+  });
 };
 
-describe("Cell.task()", () => {
-	describe("Browser", () => {
-		browserSetup();
-		runTests();
-	});
+describe('Cell.task()', () => {
+  describe('Browser', () => {
+    browserSetup();
+    runTests();
+  });
 
-	describe("VDom", () => {
-		vDomSetup();
-		runTests();
-	});
+  describe('VDom', () => {
+    vDomSetup();
+    runTests();
+  });
 });
