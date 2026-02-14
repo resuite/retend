@@ -25,30 +25,30 @@ export function h(
   if (tagOrFn === undefined) return [];
 
   if (Object.is(tagOrFn, FragmentPlaceholder)) {
-    return () => {
-      const childList =
-        typeof props === 'object'
-          ? props.children
-            ? Array.isArray(props.children)
-              ? props.children
-              : [props.children]
-            : []
-          : [];
-      return renderer.createGroup(childList);
-    };
+    const childList =
+      typeof props === 'object'
+        ? props.children
+          ? Array.isArray(props.children)
+            ? props.children
+            : [props.children]
+          : []
+        : [];
+    return renderer.createGroup(childList);
   }
 
   if (typeof tagOrFn === 'function') {
     const completeProps = typeof props === 'object' ? [props] : [];
-
-    return () => renderer.handleComponent(tagOrFn, completeProps, fileData);
+    const _renderComponent = () => {
+      return renderer.handleComponent(tagOrFn, completeProps, fileData);
+    };
+    return _renderComponent;
   }
 
   if (typeof props !== 'object') {
     throw new Error('JSX props for native elements must be an object.');
   }
 
-  return () => {
+  const _renderElement = () => {
     props.children = createNodesFromTemplate(props.children, renderer);
     let container = renderer.createContainer(tagOrFn, props);
     for (const key in props) {
@@ -58,6 +58,7 @@ export function h(
 
     return linkNodes(container, props.children, renderer);
   };
+  return _renderElement;
 }
 
 export class FragmentPlaceholder {}
