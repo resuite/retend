@@ -1,7 +1,7 @@
 /** @import { JSX } from '../jsx-runtime/index.js'; */
 /** @import { Renderer } from './renderer.js'; */
 import { getActiveRenderer } from './renderer.js';
-import { ArgumentList, linkNodes } from './utils.js';
+import { linkNodes } from './utils.js';
 
 /**
  * @param {string | Function | undefined} tagOrFn
@@ -26,7 +26,7 @@ export function h(
 
   if (Object.is(tagOrFn, FragmentPlaceholder)) {
     const childList =
-      typeof props === 'object' && !(props instanceof ArgumentList)
+      typeof props === 'object'
         ? props.children
           ? Array.isArray(props.children)
             ? props.children
@@ -37,17 +37,12 @@ export function h(
   }
 
   if (typeof tagOrFn === 'function') {
-    const completeProps =
-      props instanceof ArgumentList
-        ? props.data
-        : typeof props === 'object'
-          ? [props]
-          : [];
+    const completeProps = typeof props === 'object' ? [props] : [];
 
     return renderer.handleComponent(tagOrFn, completeProps, fileData);
   }
 
-  if (props instanceof ArgumentList || typeof props !== 'object') {
+  if (typeof props !== 'object') {
     throw new Error('JSX props for native elements must be an object.');
   }
 

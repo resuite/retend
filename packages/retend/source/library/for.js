@@ -3,11 +3,8 @@
 /** @import { AsyncCell } from '@adbl/cells' */
 
 import { Cell } from '@adbl/cells';
-import { h } from './jsx.js';
-import { ArgumentList } from './utils.js';
-import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 import { getActiveRenderer } from './renderer.js';
-import { IgnoredHProps } from '../_internals.js';
+import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
 
 /**
  * Extracts the item type from a list value.
@@ -81,12 +78,7 @@ export function For(list, fn, options) {
     }
     // @ts-ignore: The list as a whole is very hard to type properly.
     for (const item of list) {
-      const nodes = h(
-        fn,
-        new ArgumentList([item, Cell.source(i), list]),
-        ...IgnoredHProps,
-        renderer
-      );
+      const nodes = renderer.handleComponent(fn, [item, Cell.source(i), list]);
       if (Array.isArray(nodes)) {
         initialResult.push(...nodes);
       } else {
@@ -178,12 +170,7 @@ export function For(list, fn, options) {
           renderer: base.renderer,
         };
         const newNodes = withScopeSnapshot(snapshot, () => {
-          return h(
-            fn,
-            new ArgumentList(parameters),
-            ...IgnoredHProps,
-            renderer
-          );
+          return renderer.handleComponent(fn, parameters);
         });
         effectNodesToActivate.push(snapshot.node);
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
@@ -259,7 +246,7 @@ export function For(list, fn, options) {
         renderer: base.renderer,
       };
       const newNodes = withScopeSnapshot(snapshot, () =>
-        h(fn, new ArgumentList(parameters), ...IgnoredHProps, renderer)
+        renderer.handleComponent(fn, parameters)
       );
       const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
       trackNodes(nodes);

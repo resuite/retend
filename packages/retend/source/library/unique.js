@@ -352,7 +352,7 @@ export function createUnique(renderFn, options = {}) {
         const scopeSnapshot = createScopeSnapshot();
         stash.scopes.set(id, scopeSnapshot);
         return withScopeSnapshot(scopeSnapshot, () =>
-          h(renderFn, propSource, ...hArgs)
+          renderer.handleComponent(renderFn, [propSource])
         );
       })();
       linkNodes(retendUniqueInstance, childNodes, renderer);

@@ -1,18 +1,6 @@
 /** @import { Renderer, RendererTypes } from './renderer.js'; */
 
 /**
- * @template T
- * A list of parameters that are passed to a component as props.
- * It is differentiated from an array of values or a single object.
- */
-export class ArgumentList {
-  /** @param {T} data */
-  constructor(data) {
-    this.data = data;
-  }
-}
-
-/**
  * @template {RendererTypes} Data
  * Generates an array of child nodes from a given input.
  * @param {any} children
