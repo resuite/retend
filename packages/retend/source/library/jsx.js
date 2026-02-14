@@ -25,15 +25,17 @@ export function h(
   if (tagOrFn === undefined) return [];
 
   if (Object.is(tagOrFn, FragmentPlaceholder)) {
-    const childList =
-      typeof props === 'object'
-        ? props.children
-          ? Array.isArray(props.children)
-            ? props.children
-            : [props.children]
-          : []
-        : [];
-    return renderer.createGroup(childList);
+    return () => {
+      const childList =
+        typeof props === 'object'
+          ? props.children
+            ? Array.isArray(props.children)
+              ? props.children
+              : [props.children]
+            : []
+          : [];
+      return renderer.createGroup(childList);
+    };
   }
 
   if (typeof tagOrFn === 'function') {
@@ -46,14 +48,16 @@ export function h(
     throw new Error('JSX props for native elements must be an object.');
   }
 
-  let container = renderer.createContainer(tagOrFn, props);
-  const { children } = props;
-  for (const key in props) {
-    const value = props[key];
-    container = renderer.setProperty(container, key, value);
-  }
+  return () => {
+    let container = renderer.createContainer(tagOrFn, props);
+    const { children } = props;
+    for (const key in props) {
+      const value = props[key];
+      container = renderer.setProperty(container, key, value);
+    }
 
-  return linkNodes(container, children, renderer);
+    return linkNodes(container, children, renderer);
+  };
 }
 
 export class FragmentPlaceholder {}

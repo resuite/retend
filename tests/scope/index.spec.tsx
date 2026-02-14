@@ -56,11 +56,12 @@ const runTests = () => {
       };
 
       const renderer = getActiveRenderer();
+
       const result = renderer.render(
-        <ThemeScope.Provider value={'light'}>
+        <ThemeScope.Provider value="light">
           <div>
             <Component />
-            <ThemeScope.Provider value={'dark'}>
+            <ThemeScope.Provider value="dark">
               <Component />
             </ThemeScope.Provider>
             <Component />
@@ -444,83 +445,6 @@ const runTests = () => {
         return 'test-result';
       });
       expect(result).toBe('test-result');
-    });
-  });
-
-  describe('combineScopes', () => {
-    it('should combine multiple scopes', () => {
-      const UserScope = createScope<{ name: string }>();
-      const ThemeScope = createScope<string>();
-      const ConfigScope = createScope<{ debug: boolean }>();
-      const CombinedScope = combineScopes(UserScope, ThemeScope, ConfigScope);
-      const Component = () => {
-        const user = useScopeContext(UserScope);
-        const theme = useScopeContext(ThemeScope);
-        const config = useScopeContext(ConfigScope);
-        return (
-          <div>
-            User: {user.name}, Theme: {theme}, Debug:{' '}
-            {config.debug ? 'On' : 'Off'}
-          </div>
-        );
-      };
-      const ScopeData = {
-        [UserScope.key]: { name: 'Alice' },
-        [ThemeScope.key]: 'dark',
-        [ConfigScope.key]: { debug: true },
-      };
-      const renderer = getActiveRenderer();
-      const result = renderer.render(
-        <CombinedScope.Provider value={ScopeData}>
-          <Component />
-        </CombinedScope.Provider>
-      ) as HTMLElement;
-      expect(getTextContent(result)).toBe(
-        'User: Alice, Theme: dark, Debug: On'
-      );
-    });
-
-    it('should handle Scope order correctly', () => {
-      const Scope1 = createScope<string>();
-      const Scope2 = createScope<string>();
-      const CombinedScope = combineScopes(Scope1, Scope2);
-      const Component = () => {
-        const value1 = useScopeContext(Scope1);
-        const value2 = useScopeContext(Scope2);
-        return (
-          <div>
-            {value1}-{value2}
-          </div>
-        );
-      };
-      const ScopeData = {
-        [Scope1.key]: 'first',
-        [Scope2.key]: 'second',
-      };
-      const renderer = getActiveRenderer();
-      const result = renderer.render(
-        <CombinedScope.Provider value={ScopeData}>
-          <Component />
-        </CombinedScope.Provider>
-      ) as HTMLElement;
-      expect(getTextContent(result)).toBe('first-second');
-    });
-
-    it('should work with a single Scope', () => {
-      const UserScope = createScope<{ name: string }>();
-      const CombinedScope = combineScopes(UserScope);
-      const Component = () => {
-        const user = useScopeContext(UserScope);
-        return <div>{user.name}</div>;
-      };
-      const ScopeData = { [UserScope.key]: { name: 'Solo' } };
-      const renderer = getActiveRenderer();
-      const result = renderer.render(
-        <CombinedScope.Provider value={ScopeData}>
-          <Component />
-        </CombinedScope.Provider>
-      ) as HTMLElement;
-      expect(getTextContent(result)).toBe('Solo');
     });
   });
 

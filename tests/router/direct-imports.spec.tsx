@@ -26,10 +26,12 @@ describe("Router Direct Imports", () => {
 		router.attachWindowListeners(window);
 		const Component = () => {
 			// Test that Link component can be used directly
-			const linkElement = Link({
-				href: "/about",
-				children: "About Link",
-			}) as HTMLElement;
+			const linkElement = renderer.render(
+				Link({
+					href: "/about",
+					children: "About Link",
+				}),
+			) as HTMLElement;
 			expect(linkElement).toBeDefined();
 			expect(linkElement.tagName.toLowerCase()).toBe("a");
 			expect(linkElement.getAttribute("href")).toBe("/about");
@@ -55,7 +57,7 @@ describe("Router Direct Imports", () => {
 		});
 		router.attachWindowListeners(window);
 		const Component = () => {
-			const outletElement = Outlet() as HTMLElement;
+			const outletElement = renderer.render(Outlet()) as HTMLElement;
 			expect(outletElement).toBeDefined();
 			expect(outletElement.tagName.toLowerCase()).toBe("retend-router-outlet");
 
@@ -80,14 +82,16 @@ describe("Router Direct Imports", () => {
 		});
 		router.attachWindowListeners(window);
 		const Component = () => {
-			const linkElement = router.Link({
-				href: "/about",
-				children: "About Link",
-			}) as HTMLElement;
+			const linkElement = renderer.render(
+				router.Link({
+					href: "/about",
+					children: "About Link",
+				}),
+			) as HTMLElement;
 			expect(linkElement).toBeDefined();
 			expect(linkElement.tagName.toLowerCase()).toBe("a");
 
-			const outletElement = router.Outlet() as HTMLElement;
+			const outletElement = renderer.render(router.Outlet()) as HTMLElement;
 			expect(outletElement).toBeDefined();
 			expect(outletElement.tagName.toLowerCase()).toBe("retend-router-outlet");
 

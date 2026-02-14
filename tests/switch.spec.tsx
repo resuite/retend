@@ -60,11 +60,12 @@ const runTests = () => {
 	});
 
 	it("should return undefined when no match and no default", () => {
-		const result = Switch("C" as "A" | "B", {
+		const template = Switch("C" as "A" | "B", {
 			A: () => <div>Case A</div>,
 			B: () => <div>Case B</div>,
 		});
 
+		const result = template();
 		expect(result).toBeUndefined();
 	});
 

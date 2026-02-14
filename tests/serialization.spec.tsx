@@ -1,10 +1,19 @@
 import { Cell, For, If, getActiveRenderer } from 'retend';
-import { renderToString } from 'retend-server/client';
-import type { VDOMRenderer } from 'retend-server/v-dom';
+import { renderToString as renderToStringBase } from 'retend-server/client';
+import type { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
 import { ShadowRoot } from 'retend-web';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, timeout, vDomSetup } from './setup.tsx';
+import type { JSX } from 'retend/jsx-runtime';
+
+const renderToString = async (
+  template: JSX.Template,
+  window: Window & globalThis
+) => {
+  const renderer = getActiveRenderer() as DOMRenderer | VDOMRenderer;
+  return await renderToStringBase(renderer.render(template), window);
+};
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {

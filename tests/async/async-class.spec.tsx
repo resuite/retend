@@ -1,116 +1,107 @@
-import { describe, it, expect } from 'vitest';
-import { Cell } from 'retend';
-import { browserSetup, vDomSetup, timeout } from '../setup.tsx';
+import { Cell, getActiveRenderer } from "retend";
+import { describe, expect, it } from "vitest";
+import { browserSetup, timeout, vDomSetup } from "../setup.tsx";
 
 const runTests = () => {
-  it('should handle async class string', async () => {
-    const className = Cell.derivedAsync(async () => {
-      await timeout(10);
-      return 'async-container';
-    });
+	const renderElement = (node: unknown) =>
+		getActiveRenderer().render(node) as unknown as Element;
 
-    const element = <div class={className} />;
+	it("should handle async class string", async () => {
+		const className = Cell.derivedAsync(async () => {
+			await timeout(10);
+			return "async-container";
+		});
 
-    const cls = (element as unknown as Element).getAttribute('class');
-    expect(cls === null || cls === '').toBe(true);
+		const element = renderElement(<div class={className} />);
 
-    await timeout(20);
+		const cls = element.getAttribute("class");
+		expect(cls === null || cls === "").toBe(true);
 
-    expect((element as unknown as Element).getAttribute('class')).toBe(
-      'async-container'
-    );
-  });
+		await timeout(20);
 
-  it('should handle async class update', async () => {
-    const trigger = Cell.source('first');
-    const className = Cell.derivedAsync(async (get) => {
-      const val = get(trigger);
-      await timeout(10);
-      return val;
-    });
+		expect(element.getAttribute("class")).toBe("async-container");
+	});
 
-    const element = <div class={className} />;
+	it("should handle async class update", async () => {
+		const trigger = Cell.source("first");
+		const className = Cell.derivedAsync(async (get) => {
+			const val = get(trigger);
+			await timeout(10);
+			return val;
+		});
 
-    await timeout(20);
-    expect((element as unknown as Element).getAttribute('class')).toBe('first');
+		const element = renderElement(<div class={className} />);
 
-    trigger.set('second');
+		await timeout(20);
+		expect(element.getAttribute("class")).toBe("first");
 
-    await timeout(20);
-    expect((element as unknown as Element).getAttribute('class')).toBe(
-      'second'
-    );
-  });
+		trigger.set("second");
 
-  it('should handle async class in array', async () => {
-    const asyncPart = Cell.derivedAsync(async () => {
-      await timeout(10);
-      return 'async-part';
-    });
+		await timeout(20);
+		expect(element.getAttribute("class")).toBe("second");
+	});
 
-    const element = <div class={['static', asyncPart]} />;
+	it("should handle async class in array", async () => {
+		const asyncPart = Cell.derivedAsync(async () => {
+			await timeout(10);
+			return "async-part";
+		});
 
-    expect((element as unknown as Element).getAttribute('class')).toBe(
-      'static'
-    );
+		const element = renderElement(<div class={["static", asyncPart]} />);
 
-    await timeout(20);
+		expect(element.getAttribute("class")).toBe("static");
 
-    expect((element as unknown as Element).getAttribute('class')).toBe(
-      'static async-part'
-    );
-  });
+		await timeout(20);
 
-  it('should handle async class object', async () => {
-    const enable = Cell.source(false);
-    const asyncObj = Cell.derivedAsync(async (get) => {
-      const isEnabled = get(enable);
-      await timeout(10);
-      return { 'async-active': isEnabled };
-    });
+		expect(element.getAttribute("class")).toBe("static async-part");
+	});
 
-    const element = <div class={asyncObj} />;
+	it("should handle async class object", async () => {
+		const enable = Cell.source(false);
+		const asyncObj = Cell.derivedAsync(async (get) => {
+			const isEnabled = get(enable);
+			await timeout(10);
+			return { "async-active": isEnabled };
+		});
 
-    await timeout(20);
-    const cls = (element as unknown as Element).getAttribute('class');
-    expect(cls === null || cls === '').toBe(true);
+		const element = renderElement(<div class={asyncObj} />);
 
-    enable.set(true);
-    await timeout(20);
+		await timeout(20);
+		const cls = element.getAttribute("class");
+		expect(cls === null || cls === "").toBe(true);
 
-    expect((element as unknown as Element).getAttribute('class')).toBe(
-      'async-active'
-    );
-  });
+		enable.set(true);
+		await timeout(20);
 
-  it('should handle mixed static and async derived classes', async () => {
-    const asyncClass = Cell.derivedAsync(async () => {
-      await timeout(10);
-      return 'async-loaded';
-    });
+		expect(element.getAttribute("class")).toBe("async-active");
+	});
 
-    const element = <div class={['static', { dynamic: true }, asyncClass]} />;
+	it("should handle mixed static and async derived classes", async () => {
+		const asyncClass = Cell.derivedAsync(async () => {
+			await timeout(10);
+			return "async-loaded";
+		});
 
-    expect((element as unknown as Element).getAttribute('class')).toBe(
-      'static dynamic'
-    );
+		const element = renderElement(
+			<div class={["static", { dynamic: true }, asyncClass]} />,
+		);
 
-    await timeout(20);
+		expect(element.getAttribute("class")).toBe("static dynamic");
 
-    expect((element as unknown as Element).getAttribute('class')).toBe(
-      'static dynamic async-loaded'
-    );
-  });
+		await timeout(20);
+
+		expect(element.getAttribute("class")).toBe("static dynamic async-loaded");
+	});
 };
 
-describe('Async Class Attribute', () => {
-  describe('Browser', () => {
-    browserSetup();
-    runTests();
-  });
+describe("Async Class Attribute", () => {
+	describe("Browser", () => {
+		browserSetup();
+		runTests();
+	});
 
-  describe('VDom', () => {
-    vDomSetup();
-    runTests();
-  });
+	describe("VDom", () => {
+		vDomSetup();
+		runTests();
+	});
 });

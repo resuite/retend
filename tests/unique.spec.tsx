@@ -7,11 +7,13 @@ import {
 	onSetup,
 	runPendingSetupEffects,
 } from "retend";
-import type { VNode } from "retend-server/v-dom";
 import type { DOMRenderer } from "retend-web";
 import { ShadowRoot } from "retend-web";
 import { describe, expect, it, vi } from "vitest";
 import { browserSetup, getTextContent, vDomSetup } from "./setup";
+
+const renderNode = (node: unknown) =>
+	getActiveRenderer().render(node) as unknown as Node;
 
 const runTests = () => {
 	it("should render a Unique component", async () => {
@@ -23,14 +25,14 @@ const runTests = () => {
 			return <div>Unique Data</div>;
 		});
 
-		const doc = (
+		const doc = renderNode(
 			<div>
 				Hello world: <UniqueContent id={uuid} />
-			</div>
+			</div>,
 		);
 
 		const { body } = window.document;
-		body.append(doc as Node & VNode);
+		body.append(doc);
 		await runPendingSetupEffects();
 
 		expect(getTextContent(body)).toBe("Hello world: Unique Data");
@@ -46,15 +48,15 @@ const runTests = () => {
 			return <div>Unique Data</div>;
 		});
 
-		const doc = (
+		const doc = renderNode(
 			<div>
 				Hello world: <UniqueContent id={uuid} />
 				Component 2?: <UniqueContent id={uuid} />
-			</div>
+			</div>,
 		);
 
 		const { body } = window.document;
-		body.append(doc as Node & VNode);
+		body.append(doc);
 
 		expect(getTextContent(body)).toBe("Hello world: Component 2?: Unique Data");
 		body.replaceChildren();
@@ -77,14 +79,14 @@ describe("Unique", () => {
 
 			const { body } = window.document;
 			const show = Cell.source(false);
-			const element = (
+			const element = renderNode(
 				<div>
 					Showing content: {show}, <UniqueContent id={uuid} /> ||
 					{If(show, () => (
 						<UniqueContent id={uuid} />
 					))}
-				</div>
-			) as unknown as Node;
+				</div>,
+			);
 
 			body.append(element);
 			await runPendingSetupEffects();
@@ -167,7 +169,7 @@ describe("Unique", () => {
 			};
 
 			const { body } = window.document;
-			body.append((<App />) as unknown as Element);
+			body.append(renderNode(<App />));
 			await runPendingSetupEffects();
 
 			expect(getTextContent(body)).toBe(
@@ -237,7 +239,7 @@ describe("Unique", () => {
 			};
 
 			const { body } = window.document;
-			body.append((<App />) as unknown as Node);
+			body.append(renderNode(<App />));
 
 			expect(getTextContent(body)).toBe(
 				"Unique Component Ctx:  Unique Component Ctx 2: ",
@@ -344,8 +346,8 @@ describe("Unique", () => {
 			};
 
 			const { body } = window.document;
-			const app = <App />;
-			body.append(app as unknown as HTMLElement);
+			const app = renderNode(<App />);
+			body.append(app);
 			await runPendingSetupEffects();
 			expect(getTextContent(body)).toBe("Home Music player:");
 			expect(setupFn).toHaveBeenCalledTimes(1);
@@ -393,8 +395,8 @@ describe("Unique", () => {
 			};
 
 			const { body } = window.document;
-			const app = <App />;
-			body.append(app as unknown as Element);
+			const app = renderNode(<App />);
+			body.append(app);
 			await runPendingSetupEffects();
 			expect(getTextContent(body)).toBe("Home ");
 			const unique = body.querySelector("retend-unique-instance");
@@ -417,14 +419,14 @@ describe("Unique", () => {
 				return <div>Unique Data</div>;
 			});
 
-			const doc = (
+			const doc = renderNode(
 				<div>
 					Hello world: <UniqueContent id={uuid} />
-				</div>
+				</div>,
 			);
 
 			const { body } = window.document;
-			body.append(doc as Node & VNode);
+			body.append(doc);
 			await runPendingSetupEffects();
 
 			const uniqueElement = body.querySelector("retend-unique-instance");
@@ -443,16 +445,16 @@ describe("Unique", () => {
 
 			const { body } = window.document;
 			const show = Cell.source(false);
-			const element = (
+			const element = renderNode(
 				<div>
 					Showing content: {show}, <UniqueContent id={uuid} /> ||
 					{If(show, () => (
 						<UniqueContent id={uuid} />
 					))}
-				</div>
+				</div>,
 			);
 
-			body.append(element as unknown as HTMLElement);
+			body.append(element);
 			await runPendingSetupEffects();
 
 			const uniqueElement = body.querySelector("retend-unique-instance");
@@ -487,15 +489,15 @@ describe("Unique", () => {
 
 			const { body } = window.document;
 			const show = Cell.source(true);
-			const element = (
+			const element = renderNode(
 				<div>
 					{If(show, () => (
 						<UniqueContent id={uuid} />
 					))}
-				</div>
+				</div>,
 			);
 
-			body.append(element as unknown as Node);
+			body.append(element);
 			await runPendingSetupEffects();
 
 			let uniqueElement = body.querySelector("retend-unique-instance");
@@ -560,7 +562,7 @@ describe("Unique", () => {
 			);
 
 			const { body } = window.document;
-			body.append((<App />) as unknown as HTMLElement);
+			body.append(renderNode(<App />));
 			await runPendingSetupEffects();
 
 			// 1. Initial state
@@ -616,7 +618,7 @@ describe("Unique", () => {
 			const showFirst = Cell.source(true);
 			const showSecond = Cell.source(false);
 
-			const element = (
+			const element = renderNode(
 				<div>
 					First:{" "}
 					{If(showFirst, () => (
@@ -626,10 +628,10 @@ describe("Unique", () => {
 					{If(showSecond, () => (
 						<UniqueContent id={uuid} />
 					))}
-				</div>
+				</div>,
 			);
 
-			body.append(element as unknown as Node);
+			body.append(element);
 			await runPendingSetupEffects();
 
 			let uniqueElement = body.querySelector("retend-unique-instance");
@@ -685,7 +687,7 @@ describe("Unique", () => {
 				container: { class: className },
 			});
 
-			body.append((<Component />) as unknown as Element);
+			body.append(renderNode(<Component />));
 			await runPendingSetupEffects();
 
 			const uniqueEl = body.querySelector("retend-unique-instance");
@@ -720,13 +722,13 @@ describe("Unique", () => {
 			const { body } = window.document;
 			const show = Cell.source(true);
 			body.append(
-				(
+				renderNode(
 					<div>
 						{If(show, () => (
 							<Outer id={outerUuid} />
 						))}
-					</div>
-				) as unknown as Node,
+					</div>,
+				),
 			);
 			await runPendingSetupEffects();
 
@@ -762,14 +764,14 @@ describe("Unique", () => {
 
 			const { body } = window.document;
 			const show = Cell.source(true);
-			const app = (
+			const app = renderNode(
 				<div>
 					{If(show, () => (
 						<Content id={uuid} />
 					))}
-				</div>
+				</div>,
 			);
-			body.append(app as unknown as Node);
+			body.append(app);
 			await runPendingSetupEffects();
 
 			expect(cleanupFn).not.toHaveBeenCalled();
@@ -805,9 +807,7 @@ describe("Unique", () => {
 
 			const { body } = window.document;
 			body.append(
-				(
-					<UniqueWithProps id={uuid} name="test" value={42} />
-				) as unknown as Node,
+				renderNode(<UniqueWithProps id={uuid} name="test" value={42} />),
 			);
 			await runPendingSetupEffects();
 
@@ -847,7 +847,7 @@ describe("Unique", () => {
 				</div>
 			);
 
-			body.append((<App />) as unknown as Node);
+			body.append(renderNode(<App />));
 			await runPendingSetupEffects();
 
 			expect(getTextContent(body)).toBe("Name: Alice");
@@ -907,7 +907,7 @@ describe("Unique", () => {
 				</div>
 			);
 
-			body.append((<App />) as unknown as Node);
+			body.append(renderNode(<App />));
 			await runPendingSetupEffects();
 
 			expect(getTextContent(body.querySelector(".first")!)).toBe("First: 0");
@@ -971,7 +971,7 @@ describe("Unique", () => {
 				</div>
 			);
 
-			body.append((<App />) as unknown as Node);
+			body.append(renderNode(<App />));
 			await runPendingSetupEffects();
 
 			expect(getTextContent(body)).toBe("Alice (25)");
@@ -1027,7 +1027,7 @@ describe("Unique", () => {
 				</div>
 			);
 
-			body.append((<App />) as unknown as Node);
+			body.append(renderNode(<App />));
 			await runPendingSetupEffects();
 
 			expect(getTextContent(body)).toBe("Label A: 100");

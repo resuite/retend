@@ -1,9 +1,4 @@
-import {
-	combineScopes,
-	createScope,
-	getActiveRenderer,
-	useScopeContext,
-} from "retend";
+import { createScope, getActiveRenderer, useScopeContext } from "retend";
 import type { DOMRenderer } from "retend-web";
 import { resetGlobalContext } from "retend/context";
 import { Router, createRouterRoot, useRouter } from "retend/router";
@@ -106,15 +101,12 @@ describe("Scopes in Routing", () => {
 				zip: "12345",
 			};
 
-			const Scope = combineScopes(UserScope, UserAddressScope);
-			const combinedData = {
-				[UserScope.key]: userData,
-				[UserAddressScope.key]: userAddress,
-			};
 			return (
-				<Scope.Provider value={combinedData}>
-					<Outlet />
-				</Scope.Provider>
+				<UserScope.Provider value={userData}>
+					<UserAddressScope.Provider value={userAddress}>
+						<Outlet />
+					</UserAddressScope.Provider>
+				</UserScope.Provider>
 			);
 		};
 
