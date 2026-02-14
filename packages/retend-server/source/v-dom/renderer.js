@@ -136,6 +136,14 @@ export class VDOMRenderer {
    */
   handleComponent(tagname, props) {
     const component = tagname(...props);
+    if (component instanceof Promise) {
+      const resolvedPromise = component.then((value) => {
+        /** @type {VDom.VNode[]} */
+        const nodes = createNodesFromTemplate(value, this);
+        return nodes.length === 1 ? nodes[0] : nodes;
+      });
+      return this.handlePromise(resolvedPromise);
+    }
     /** @type {VDom.VNode[]} */
     const nodes = createNodesFromTemplate(component, this);
     return nodes.length === 1 ? nodes[0] : nodes;

@@ -213,7 +213,7 @@ export function createUnique(renderFn, options = {}) {
     }
     const observer = useObserver();
 
-    const retendUniqueInstance = h(elementName, container, ...hArgs);
+    const retendUniqueInstance = h(elementName, container, ...hArgs)();
     let previous = stash.instances.get(id);
 
     /** @param {unknown} div */
