@@ -117,36 +117,6 @@ function App() {
 ---
 
 @Example 5
-@Input Combining multiple scopes with `combineScopes`.
-import { createScope, useScopeContext, combineScopes } from 'retend';
-
-const ThemeScope = createScope();
-const UserScope = createScope();
-const AppScope = combineScopes(ThemeScope, UserScope); // Combine them
-
-function AppStatus() {
-  const theme = useScopeContext(ThemeScope);
-  const user = useScopeContext(UserScope);
-  return <div style={{ background: theme }}>User: {user.name}</div>;
-}
-
-function App() {
-  const appData = {
-    [ThemeScope.key]: 'lightyellow',
-    [UserScope.key]: { name: 'Admin' }
-  };
-  return (
-    <AppScope.Provider value={appData}>
-      <AppStatus />
-    </AppScope.Provider>
-  );
-}
-@Note `combineScopes` creates a single Provider for multiple scopes.
-@Note The `value` for a combined provider is an object where keys are `Scope.key` and values are the corresponding scope values.
-
----
-
-@Example 6
 @Input Using `useScopeContext` without a Provider.
 import { createScope, useScopeContext } from 'retend';
 

@@ -44,7 +44,7 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  *   false: () => <div>Please log in.</div>
  * });
  *
- * document.body.append(...message);
+ * document.body.append(...renderer.render(message));
  *
  * // Later, when the user logs in, update the cell
  * isLoggedIn.set(true);

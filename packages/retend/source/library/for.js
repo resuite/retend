@@ -55,7 +55,7 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  *
 
  * const ul = document.createElement('ul');
- * ul.append(...listItems);
+ * ul.append(...renderer.render(listItems));
  * document.body.appendChild(ul);
  *
  * // Later, update the names

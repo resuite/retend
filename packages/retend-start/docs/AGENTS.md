@@ -91,7 +91,6 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/destructure-props-in-body.md` - Destructure props in body.
 - `.docs/retend/rules/customizable-components.md` - Favor extension over invention.
 - `.docs/retend/rules/explicit-children-type.md` - Use `JSX.Children`.
-- `.docs/retend/rules/scope-injection.md` - Use direct children for scopes.
 - `.docs/retend/rules/no-any.md` - No `any` type.
 - `.docs/retend/rules/reactive-props.md` - Handle ValueOrCell props.
 - `.docs/retend/rules/prefer-scopes.md` - Avoid prop drilling.
@@ -105,7 +104,6 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/use-link-component.md` - Use `Link` for internal navigation.
 - `.docs/retend/rules/no-logical-operators-in-jsx.md` - No ternary or logical operators (&&, ||) in JSX.
 - `.docs/retend/rules/function-children-as-component.md` - Render function children as components.
-- `.docs/retend/rules/combine-scopes-keys.md` - Use `[Scope.key]` for combined scopes.
 - `.docs/retend/rules/component-pascal-case.md` - Use PascalCase for components.
 - `.docs/retend/rules/hoist-handlers.md` - Hoist event handlers.
 - `.docs/retend/rules/prefer-router-navigation.md` - Use router for navigation.
@@ -127,7 +125,6 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/task-handle-pending-and-error.md` - Handle pending and error states from Cell.task().
 - `.docs/retend/rules/composite-for-related-data.md` - Use Cell.composite() only for related data.
 - `.docs/retend/rules/no-usememo-usecallback.md` - Don't use useMemo/useCallback patterns.
-- `.docs/retend/rules/scope-provider-function-children.md` - Pass direct children to Scope providers.
 - `.docs/retend/rules/for-index-is-cell.md` - For's index parameter is a Cell, not a number.
 - `.docs/retend/rules/teleport-selector-limitations.md` - Teleport only supports #id or tagname selectors.
 - `.docs/retend/rules/lowercase-event-names.md` - Use camelCase event names (onClick not onclick).

@@ -1586,43 +1586,6 @@ export function MultiStepForm() {
 
 When the `<MultiStepForm>` component is mounted, the `FormScope.Provider` is created, and the `formData` state comes into existence. When the user navigates away and `<MultiStepForm>` is unmounted, the provider is destroyed, and its `value` can be safely garbage-collected by the JavaScript engine. This prevents memory leaks and ensures that state is fresh every time the component is used.
 
-### Combining Scopes
-
-For applications with multiple scopes (e.g., theme, user authentication, language), you can end up nesting providers, sometimes called a "pyramid of doom."
-
-```jsx
-<AuthScope.Provider value={user}>
-  <ThemeScope.Provider value={theme}>
-    <LanguageScope.Provider value={lang}>
-      <App />
-    </LanguageScope.Provider>
-  </ThemeScope.Provider>
-</AuthScope.Provider>
-```
-
-Retend provides a `combineScopes` utility to make this cleaner.
-
-```jsx
-import { combineScopes } from 'retend';
-
-// The order matters: AuthScope is the outermost, LanguageScope is the innermost.
-const AppScopes = combineScopes(AuthScope, ThemeScope, LanguageScope);
-
-function Root() {
-  const scopeValues = {
-    [AuthScope.key]: user,
-    [ThemeScope.key]: theme,
-    [LanguageScope.key]: lang,
-  };
-
-  return (
-    <AppScopes.Provider value={scopeValues}>
-      <App />
-    </AppScopes.Provider>
-  );
-}
-```
-
 In summary, scopes are a powerful and essential tool for building maintainable and scalable Retend applications. They solve the problem of prop drilling while providing crucial state isolation and memory management benefits.
 
 ---
