@@ -3,12 +3,11 @@
 /** @import { SourceCell } from '@adbl/cells'; */
 
 import { AsyncCell, Cell } from '@adbl/cells';
-import { createScope, useScopeContext } from './scope.js';
+import { createScope, onSetup, useScopeContext } from './scope.js';
 import { createNodesFromTemplate, getActiveRenderer, If } from './index.js';
 
 /**
  * @typedef AwaitContext
- * @property {boolean} isLoaded
  * @property {(promise: AsyncCell<any>) => void} waitUntil
  */
 
@@ -49,17 +48,13 @@ export function Await(props) {
   /** @type {SourceCell<Set<AsyncCell<any>>>} */
   const asyncCells = Cell.source(new Set());
   const awaitList = Cell.derivedAsync(async (get) => {
-    await Promise.all([...get(asyncCells).values()].map((cell) => get(cell)));
-    return await new Promise((r) => setTimeout(r));
+    await Promise.all([...get(asyncCells).values()].map(get));
   });
 
   /** @type {AwaitContext} */
   const value = {
-    isLoaded: false,
     waitUntil(promise) {
-      if (initialStateDone.get()) {
-        return;
-      }
+      if (initialStateDone.get()) return;
       const set = new Set(asyncCells.get());
       set.add(promise);
       asyncCells.set(set);
@@ -69,15 +64,14 @@ export function Await(props) {
   const template = AwaitScope.Provider({ value, children });
   const render = createNodesFromTemplate(template, renderer);
 
-  const showRender = Cell.derived(() => {
-    return initialStateDone.get() || !awaitList.pending.get();
+  awaitList.pending.listen(() => {
+    initialStateDone.set(true);
   });
 
-  return If(showRender, {
+  return If(initialStateDone, {
     true: () => {
-      Cell.batch(() => {
-        initialStateDone.set(true);
-        asyncCells.set(new Set()); // Prevents memory leak.
+      onSetup(() => {
+        asyncCells.set(new Set());
       });
       return render;
     },

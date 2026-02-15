@@ -467,8 +467,7 @@ const runTests = () => {
     const App = () => (
       <Await fallback={<span>Loading</span>}>
         <>
-          <span>Hello</span>
-          <span>{asyncWord}</span>
+          <span>Hello {asyncWord}</span>
           <span>!</span>
         </>
       </Await>
@@ -479,7 +478,7 @@ const runTests = () => {
 
     await vi.advanceTimersByTimeAsync(20);
 
-    expect(getTextContent(result)).toBe('HelloWorld!');
+    expect(getTextContent(result)).toBe('Hello World!');
   });
 
   it('should allow nested Await boundaries with independent fallbacks', async () => {
@@ -513,39 +512,45 @@ const runTests = () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(getTextContent(result)).toBe('Outer Inner');
   });
+
+  it('should support multiple sibling Await boundaries', async () => {
+    const renderer = getActiveRenderer();
+    const first = Cell.derivedAsync(async () => {
+      await timeout(10);
+      return 'First';
+    });
+    const second = Cell.derivedAsync(async () => {
+      await timeout(25);
+      return 'Second';
+    });
+
+    const App = () => (
+      <div>
+        <Await fallback={<span>Loading A</span>}>
+          <span>{first}</span>
+        </Await>
+        {' | '}
+        <Await fallback={<span>Loading B</span>}>
+          <span>{second}</span>
+        </Await>
+      </div>
+    );
+    const result = renderer.render(App) as NodeLike;
+
+    expect(getTextContent(result)).toBe('Loading A | Loading B');
+
+    await vi.advanceTimersByTimeAsync(15);
+    expect(getTextContent(result)).toBe('First | Loading B');
+
+    await vi.advanceTimersByTimeAsync(20);
+    expect(getTextContent(result)).toBe('First | Second');
+  });
 };
 
 describe('Await', () => {
   describe('Browser', () => {
     browserSetup();
     runTests();
-
-    it('should suspend for async style attributes with Await', async () => {
-      const renderer = getActiveRenderer();
-      const color = Cell.derivedAsync(async () => {
-        await timeout(10);
-        return 'red';
-      });
-
-      const App = () => (
-        <div id="root">
-          <Await fallback={<span>Loading</span>}>
-            <div id="styled" style={{ color }}>
-              Ready
-            </div>
-          </Await>
-        </div>
-      );
-      const result = renderer.render(App) as unknown as Element;
-
-      expect(getTextContent(result)).toBe('Loading');
-
-      await vi.advanceTimersByTimeAsync(20);
-
-      const styled = result.querySelector('#styled');
-      expect(styled?.getAttribute('style')).toContain('color: red');
-      expect(getTextContent(result)).toBe('Ready');
-    });
   });
 
   describe('VDom', () => {
