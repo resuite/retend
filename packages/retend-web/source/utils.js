@@ -1,5 +1,5 @@
 /** @import { JsxElement } from './dom-renderer.js'; */
-import { Cell } from 'retend';
+import { AsyncCell, Cell, useAwait } from 'retend';
 import { DOMRenderer } from './dom-renderer.js';
 import { ShadowRootFragment } from './dom-ops.js';
 
@@ -298,25 +298,32 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
   return `${useHost ? ':host{' : ''}${Object.entries(styles)
     .map(([key, value]) => {
       if (Cell.isCell(/** @type any */ (value)) && element) {
+        if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
         /**
          * @this HTMLElement
-         * @param {string} newValue
+         * @param {string | Promise<any>} newValue
          */
-        function applyNewStyle(newValue) {
+        function applyStyle(newValue) {
           const styleKey = normalizeStyleKey(key);
-          if (value instanceof Promise) {
-            value.then((resolvedValue) => {
-              applyNewStyle.bind(this)(resolvedValue);
+          if (newValue instanceof Promise) {
+            newValue.then((resolvedValue) => {
+              applyStyle.bind(this)(resolvedValue);
             });
           } else if (!isSomewhatFalsy(newValue)) {
             // optional because the style property does not exist in the vDOM.
             this.style?.setProperty(styleKey, newValue);
           } else this.style?.removeProperty(styleKey);
         }
-        addCellListener(element, value, applyNewStyle, false);
+        addCellListener(element, value, applyStyle, false);
+        const raw = value.peek();
+        if (raw instanceof Promise) {
+          raw.then((resolvedValue) => applyStyle.bind(element)(resolvedValue));
+          return '';
+        } else if (isSomewhatFalsy(value)) return '';
+        return `${normalizeStyleKey(key)}: ${raw}`;
       }
       if (isSomewhatFalsy(value)) return '';
-      return `${normalizeStyleKey(key)}: ${value.valueOf()}`;
+      return `${normalizeStyleKey(key)}: ${value}`;
     })
     .join('; ')}${useHost ? '}' : ''}`;
 }
@@ -391,6 +398,7 @@ export function normalizeClassValue(val, element) {
   }
 
   if (Cell.isCell(val) && element) {
+    if (val instanceof AsyncCell) useAwait()?.waitUntil(val);
     let currentClassToken = '';
     /**
      *

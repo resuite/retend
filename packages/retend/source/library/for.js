@@ -1,10 +1,10 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { ScopeSnapshot } from './scope.js' */
-/** @import { AsyncCell } from '@adbl/cells' */
 
-import { Cell } from '@adbl/cells';
+import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import { useAwait } from './await.js';
 
 /**
  * Extracts the item type from a list value.
@@ -213,6 +213,7 @@ export function For(list, fn, options) {
       for (const node of effectNodesToActivate) node.activate();
     };
 
+    if (list instanceof AsyncCell) useAwait()?.waitUntil(list);
     list.listen(reactToListChanges);
 
     /** @type {ReturnType<typeof renderer.createGroupHandle>} */

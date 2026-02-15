@@ -1,6 +1,13 @@
 /** @import { ReconcilerOptions, Renderer } from "retend" */
 /** @import { DOMRenderer } from './dom-renderer.js'; */
-import { Cell, linkNodes, normalizeJsxChild, SourceCell } from 'retend';
+import {
+  AsyncCell,
+  Cell,
+  linkNodes,
+  normalizeJsxChild,
+  SourceCell,
+  useAwait,
+} from 'retend';
 import {
   addCellListener,
   createCommentPair,
@@ -244,6 +251,8 @@ export function createText(text, renderer) {
   if (Cell.isCell(text)) {
     const initialValue = text.get();
     const { updateText } = renderer;
+
+    if (text instanceof AsyncCell) useAwait()?.waitUntil(text);
 
     /**
      * @this any

@@ -1,6 +1,6 @@
-import { Cell, getActiveRenderer } from 'retend';
+import { Await, Cell, getActiveRenderer } from 'retend';
 import { describe, expect, it } from 'vitest';
-import { browserSetup, timeout, vDomSetup } from '../setup.tsx';
+import { browserSetup, getTextContent, timeout, vDomSetup } from '../setup.tsx';
 
 const runTests = () => {
   it('should handle async id attribute', async () => {
@@ -98,12 +98,66 @@ const runTests = () => {
 
     expect(element.getAttribute('href')).toBe('https://example.com');
   });
+
+  it('should suspend async attributes within an Await boundary', async () => {
+    const renderer = getActiveRenderer();
+    const idCell = Cell.derivedAsync(async () => {
+      await timeout(10);
+      return 'async-id';
+    });
+
+    const App = () => (
+      <div id="root">
+        <Await fallback={<span>Loading</span>}>
+          <div id={idCell}>Ready</div>
+        </Await>
+      </div>
+    );
+
+    const result = renderer.render(App) as unknown as Element;
+
+    expect(getTextContent(result)).toBe('Loading');
+
+    await timeout(20);
+
+    const target = result.querySelector('#async-id');
+    expect(target?.getAttribute('id')).toBe('async-id');
+    expect(getTextContent(result)).toBe('Ready');
+  });
 };
 
 describe('Async Attributes', () => {
   describe('Browser', () => {
     browserSetup();
     runTests();
+
+    it('should suspend async style attributes within an Await boundary', async () => {
+      const renderer = getActiveRenderer();
+      const color = Cell.derivedAsync(async () => {
+        await timeout(10);
+        return 'red';
+      });
+
+      const App = () => (
+        <div id="root">
+          <Await fallback={<span>Loading</span>}>
+            <div id="styled" style={{ color }}>
+              Ready
+            </div>
+          </Await>
+        </div>
+      );
+
+      const result = renderer.render(App) as unknown as Element;
+
+      expect(getTextContent(result)).toBe('Loading');
+
+      await timeout(20);
+
+      const styled = result.querySelector('#styled');
+      expect(styled?.getAttribute('style')).toContain('color: red');
+      expect(getTextContent(result)).toBe('Ready');
+    });
   });
 
   describe('VDom', () => {

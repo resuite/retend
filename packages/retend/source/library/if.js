@@ -1,9 +1,9 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { AsyncCell } from '@adbl/cells' */
 
-import { Cell } from '@adbl/cells';
+import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import { useAwait } from './await.js';
 
 /**
  * @template T
@@ -81,6 +81,7 @@ export function If(value, fnOrObject, elseFn) {
     }
 
     const scopeSnapshot = createScopeSnapshot();
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {T} _value */
     const callback = (_value) => {
@@ -134,11 +135,8 @@ export function If(value, fnOrObject, elseFn) {
 
     // It is important that the listener is registered first.
     value.listen((nextValue) => {
-      if (nextValue instanceof Promise) {
-        nextValue.then((resolved) => processValueChange(resolved));
-        return;
-      }
-      processValueChange(nextValue);
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
     });
 
     const initialValue = value.get();

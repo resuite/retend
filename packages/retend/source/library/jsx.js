@@ -1,7 +1,9 @@
 /** @import { JSX } from '../jsx-runtime/index.js'; */
 /** @import { Renderer } from './renderer.js'; */
+import { AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
 import { createNodesFromTemplate, linkNodes } from './utils.js';
+import { useAwait } from './await.js';
 
 /**
  * @param {string | Function | undefined} tagOrFn
@@ -53,6 +55,7 @@ export function h(
     let container = renderer.createContainer(tagOrFn, props);
     for (const key in props) {
       const value = props[key];
+      if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
       container = renderer.setProperty(container, key, value);
     }
 

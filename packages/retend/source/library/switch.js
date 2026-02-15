@@ -1,8 +1,9 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 
-import { Cell } from '@adbl/cells';
+import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
 import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import { useAwait } from './await.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -34,13 +35,13 @@ import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
  *
  * @template {string | number | symbol} Discriminant
  * @overload
- * @param {Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Discriminant | null | undefined> | Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Partial<Record<Discriminant, () => JSX.Template>>} cases - An object mapping possible values to template-generating functions.
  * @param {(value: Discriminant) => JSX.Template} defaultCase - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  *
  * @overload
- * @param {Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Discriminant | null | undefined> | Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Record<Discriminant, () => JSX.Template>} cases - An object mapping possible values to template-generating functions.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  */
@@ -68,6 +69,7 @@ export function Switch(value, cases, defaultCase) {
     }
 
     const snapshot = createScopeSnapshot();
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {any} value */
     const callback = (value) => {
@@ -86,12 +88,20 @@ export function Switch(value, cases, defaultCase) {
       });
     };
 
-    // The effect must be registered first.
-    value.listen((nextValue) => {
+    /**
+     * @param {*} nextValue
+     */
+    const processValueChange = (nextValue) => {
       snapshot.node.dispose();
       const results = callback(nextValue);
       renderer.write(handle, results);
       snapshot.node.activate();
+    };
+
+    // It is important that the listener is registered first.
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
     });
 
     const initialResults = callback(value.get());
@@ -110,7 +120,7 @@ export function Switch(value, cases, defaultCase) {
  * @template {{ [Selected in Extract<Value, PropertyKey>]: (value: Extract<Obj, Record<Key, Selected>>) => JSX.Template }} Cases
  * @template {Partial<Cases>} DefinedCases
  * @overload
- * @param {Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Obj | null | undefined> | Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Key} key - The key of the object or cell to switch against.
  * @param {DefinedCases} cases - An object mapping possible values to template-generating functions.
  * @param {(value: Exclude<Obj, Record<Key, keyof DefinedCases>>) => JSX.Template} defaultCase
@@ -123,7 +133,7 @@ export function Switch(value, cases, defaultCase) {
  * @template {Obj[Key]} Value
  * @template {{ [Selected in Extract<Value, PropertyKey>]: (value: Extract<Obj, Record<Key, Selected>>) => JSX.Template }} Cases
  * @overload
- * @param {Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Obj | null | undefined> | Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Key} key - The key of the object or cell to switch against.
  * @param {Required<Cases>} cases - An object mapping possible values to template-generating functions.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
@@ -155,6 +165,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
     }
 
     const snapshot = createScopeSnapshot();
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {any} cellValue */
     const callback = (cellValue) => {
@@ -176,12 +187,20 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
       });
     };
 
-    // The effect must be registered first.
-    value.listen((nextValue) => {
+    /**
+     * @param {*} nextValue
+     */
+    const processValueChange = (nextValue) => {
       snapshot.node.dispose();
-      const newNodes = callback(nextValue);
-      renderer.write(handle, newNodes);
+      const results = callback(nextValue);
+      renderer.write(handle, results);
       snapshot.node.activate();
+    };
+
+    // It is important that the listener is registered first.
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
     });
 
     const initialResults = callback(value.get());
