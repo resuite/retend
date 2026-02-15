@@ -1,7 +1,7 @@
 import { Cell, If, getActiveRenderer } from 'retend';
 import type { VNode } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type NodeLike,
   browserSetup,
@@ -9,6 +9,14 @@ import {
   timeout,
   vDomSetup,
 } from '../setup.tsx';
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const runTests = () => {
   it('should render async truthy value after resolution', async () => {
@@ -36,7 +44,7 @@ const runTests = () => {
     // Initially empty while pending
     expect(getTextContent(result)).toBe('');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(getTextContent(result)).toBe('True');
   });
@@ -63,7 +71,7 @@ const runTests = () => {
     );
     const result = renderer.render(App) as NodeLike;
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(getTextContent(result)).toBe('False');
   });
@@ -92,12 +100,12 @@ const runTests = () => {
     );
     const result = renderer.render(App) as NodeLike;
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     expect(getTextContent(result)).toBe('True');
 
     trigger.set(false);
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     expect(getTextContent(result)).toBe('False');
   });
 
@@ -120,7 +128,7 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(getTextContent(result)).toBe('Yes');
   });
@@ -145,7 +153,7 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(getTextContent(result)).toBe('Alice is 30');
   });
@@ -172,7 +180,7 @@ const runTests = () => {
     );
     const result = renderer.render(App) as NodeLike;
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(getTextContent(result)).toBe('No Value');
   });
@@ -208,7 +216,7 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('');
 
-    await timeout(25);
+    await vi.advanceTimersByTimeAsync(25);
 
     expect(getTextContent(result)).toBe('Both True');
   });

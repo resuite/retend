@@ -1,5 +1,5 @@
 import { Cell, If } from 'retend';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type NodeLike,
   browserSetup,
@@ -8,6 +8,14 @@ import {
   timeout,
   vDomSetup,
 } from '../setup.tsx';
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const runTests = () => {
   it('should start with pending as false', () => {
@@ -28,6 +36,7 @@ const runTests = () => {
     const promise = task.runWith(5);
     expect(task.pending.get()).toBe(true);
 
+    await vi.advanceTimersByTimeAsync(10);
     const result = await promise;
     expect(result).toBe(10);
     expect(task.pending.get()).toBe(false);
@@ -43,9 +52,10 @@ const runTests = () => {
     task.pending.listen((val) => pendingStates.push(val));
 
     const promise = task.runWith(1);
-    await timeout(5);
+    await vi.advanceTimersByTimeAsync(5);
     expect(task.pending.get()).toBe(true);
 
+    await vi.advanceTimersByTimeAsync(20);
     await promise;
     expect(task.pending.get()).toBe(false);
     expect(pendingStates).toContain(true);
@@ -58,7 +68,9 @@ const runTests = () => {
       throw new Error('Task failed');
     });
 
-    await task.runWith(undefined);
+    const promise = task.runWith(undefined);
+    await vi.advanceTimersByTimeAsync(10);
+    await promise;
 
     expect(task.error.get()).toBeInstanceOf(Error);
     expect(task.error.get()?.message).toBe('Task failed');
@@ -75,11 +87,15 @@ const runTests = () => {
       return 'success';
     });
 
-    await task.runWith(undefined);
+    const firstAttempt = task.runWith(undefined);
+    await vi.advanceTimersByTimeAsync(10);
+    await firstAttempt;
     expect(task.error.get()).toBeInstanceOf(Error);
 
     shouldFail = false;
-    await task.runWith(undefined);
+    const secondAttempt = task.runWith(undefined);
+    await vi.advanceTimersByTimeAsync(10);
+    await secondAttempt;
     expect(task.error.get()).toBe(null);
   });
 
@@ -89,7 +105,9 @@ const runTests = () => {
       return `${data.name} is ${data.age}`;
     });
 
-    const result = await task.runWith({ name: 'Alice', age: 30 });
+    const promise = task.runWith({ name: 'Alice', age: 30 });
+    await vi.advanceTimersByTimeAsync(10);
+    const result = await promise;
     expect(result).toBe('Alice is 30');
   });
 
@@ -102,7 +120,9 @@ const runTests = () => {
       return input;
     });
 
-    await task.runWith(1);
+    const promise = task.runWith(1);
+    await vi.advanceTimersByTimeAsync(10);
+    await promise;
     expect(receivedSignal).toBeInstanceOf(AbortSignal);
   });
 
@@ -110,7 +130,7 @@ const runTests = () => {
     const fn = vi.fn().mockResolvedValue('result');
     Cell.task(fn);
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     expect(fn).not.toHaveBeenCalled();
   });
 
@@ -122,9 +142,17 @@ const runTests = () => {
 
     const task = Cell.task(fn);
 
-    await task.runWith(1);
-    await task.runWith(2);
-    await task.runWith(3);
+    const first = task.runWith(1);
+    await vi.advanceTimersByTimeAsync(10);
+    await first;
+
+    const second = task.runWith(2);
+    await vi.advanceTimersByTimeAsync(10);
+    await second;
+
+    const third = task.runWith(3);
+    await vi.advanceTimersByTimeAsync(10);
+    await third;
 
     expect(fn).toHaveBeenCalledTimes(3);
     expect(fn).toHaveBeenNthCalledWith(1, 1, expect.any(AbortSignal));
@@ -151,9 +179,10 @@ const runTests = () => {
     expect(getTextContent(result)).toBe('Ready');
 
     const promise = task.runWith('hello');
-    await timeout(5);
+    await vi.advanceTimersByTimeAsync(5);
     expect(getTextContent(result)).toBe('Loading...');
 
+    await vi.advanceTimersByTimeAsync(20);
     await promise;
     expect(getTextContent(result)).toBe('Ready');
   });
@@ -175,7 +204,9 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('');
 
-    await task.runWith(undefined);
+    const promise = task.runWith(undefined);
+    await vi.advanceTimersByTimeAsync(10);
+    await promise;
     expect(getTextContent(result)).toBe('Error: Something went wrong');
   });
 
@@ -191,6 +222,7 @@ const runTests = () => {
     const p2 = task.runWith(2);
     const p3 = task.runWith(3);
 
+    await vi.advanceTimersByTimeAsync(10);
     await Promise.all([p1, p2, p3]);
     expect(results).toEqual([1, 2, 3]);
   });
@@ -210,7 +242,9 @@ const runTests = () => {
       return input * 2;
     });
 
-    await task.runWith(5);
+    const promise = task.runWith(5);
+    await vi.advanceTimersByTimeAsync(10);
+    await promise;
     const result = await task.get();
     expect(result).toBe(10);
   });
@@ -222,10 +256,14 @@ const runTests = () => {
       sideEffect += increment;
     });
 
-    await task.runWith(5);
+    const first = task.runWith(5);
+    await vi.advanceTimersByTimeAsync(10);
+    await first;
     expect(sideEffect).toBe(5);
 
-    await task.runWith(3);
+    const second = task.runWith(3);
+    await vi.advanceTimersByTimeAsync(10);
+    await second;
     expect(sideEffect).toBe(8);
   });
 
@@ -241,11 +279,13 @@ const runTests = () => {
       return { success: true, email: data.email };
     });
 
-    const result = await task.runWith({
+    const promise = task.runWith({
       email: 'test@example.com',
       password: 'secret',
       remember: true,
     });
+    await vi.advanceTimersByTimeAsync(10);
+    const result = await promise;
 
     expect(result).toEqual({ success: true, email: 'test@example.com' });
   });

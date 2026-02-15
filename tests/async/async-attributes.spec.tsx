@@ -1,6 +1,14 @@
 import { Await, Cell, getActiveRenderer } from 'retend';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { browserSetup, getTextContent, timeout, vDomSetup } from '../setup.tsx';
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const runTests = () => {
   it('should handle async id attribute', async () => {
@@ -15,7 +23,7 @@ const runTests = () => {
     // Initially should be null or default
     expect(element.getAttribute('id')).toBeNull();
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(element.getAttribute('id')).toBe('async-id');
   });
@@ -33,12 +41,12 @@ const runTests = () => {
       <div title={titleCell} />
     ) as unknown as Element;
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     expect(element.getAttribute('title')).toBe('initial title');
 
     titleTrigger.set('updated title');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     expect(element.getAttribute('title')).toBe('updated title');
   });
 
@@ -55,7 +63,7 @@ const runTests = () => {
 
     expect(element.getAttribute('data-test')).toBeNull();
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(element.getAttribute('data-test')).toBe('data-value');
   });
@@ -75,11 +83,11 @@ const runTests = () => {
       <div id={idCell} title={titleCell} />
     ) as unknown as Element;
 
-    await timeout(15);
+    await vi.advanceTimersByTimeAsync(15);
     expect(element.getAttribute('id')).toBe('multi-id');
     expect(element.getAttribute('title')).toBeNull();
 
-    await timeout(15);
+    await vi.advanceTimersByTimeAsync(15);
     expect(element.getAttribute('title')).toBe('multi-title');
   });
 
@@ -94,7 +102,7 @@ const runTests = () => {
       <a href={urlCell}>Link</a>
     ) as unknown as HTMLAnchorElement;
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(element.getAttribute('href')).toBe('https://example.com');
   });
@@ -118,7 +126,7 @@ const runTests = () => {
 
     expect(getTextContent(result)).toBe('Loading');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     const target = result.querySelector('#async-id');
     expect(target?.getAttribute('id')).toBe('async-id');
@@ -152,7 +160,7 @@ describe('Async Attributes', () => {
 
       expect(getTextContent(result)).toBe('Loading');
 
-      await timeout(20);
+      await vi.advanceTimersByTimeAsync(20);
 
       const styled = result.querySelector('#styled');
       expect(styled?.getAttribute('style')).toContain('color: red');

@@ -1,6 +1,14 @@
 import { Cell } from 'retend';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { browserSetup, render, timeout, vDomSetup } from '../setup.tsx';
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const runTests = () => {
   it('should handle async class string', async () => {
@@ -14,7 +22,7 @@ const runTests = () => {
     const cls = element.getAttribute('class');
     expect(cls === null || cls === '').toBe(true);
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(element.getAttribute('class')).toBe('async-container');
   });
@@ -29,12 +37,12 @@ const runTests = () => {
 
     const element = render(<div class={className} />);
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     expect(element.getAttribute('class')).toBe('first');
 
     trigger.set('second');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     expect(element.getAttribute('class')).toBe('second');
   });
 
@@ -48,7 +56,7 @@ const runTests = () => {
 
     expect(element.getAttribute('class')).toBe('static');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(element.getAttribute('class')).toBe('static async-part');
   });
@@ -63,12 +71,12 @@ const runTests = () => {
 
     const element = render(<div class={asyncObj} />);
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
     const cls = element.getAttribute('class');
     expect(cls === null || cls === '').toBe(true);
 
     enable.set(true);
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(element.getAttribute('class')).toBe('async-active');
   });
@@ -85,7 +93,7 @@ const runTests = () => {
 
     expect(element.getAttribute('class')).toBe('static dynamic');
 
-    await timeout(20);
+    await vi.advanceTimersByTimeAsync(20);
 
     expect(element.getAttribute('class')).toBe('static dynamic async-loaded');
   });

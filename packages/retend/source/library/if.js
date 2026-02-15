@@ -21,14 +21,14 @@ import { useAwait } from './await.js';
  * For Cell<T>, returns T.
  * For T, returns T.
  * @template T
- * @typedef {T extends AsyncCell<infer U> ? Awaited<U> : T extends Cell<infer V> ? V : T} ResolvedCellValue
+ * @typedef {Awaited<T extends AsyncCell<infer U> ? U : T extends Cell<infer V> ? V : T>} ResolvedCellValue
  */
 
 /**
  * Conditionally renders nodes based on the truthiness of a value.
  *
  * @template T
- * @param {T | Cell<T> | AsyncCell<T>} value
+ * @param {T | AsyncCell<T> | Cell<T>} value
  * @param {( ((value: NonNullable<ResolvedCellValue<T>>) => JSX.Template)) | ConditionObject<ResolvedCellValue<T>>} fnOrObject
  * @param { (() => JSX.Template)} [elseFn] - Optional callback for falsy values
  * @returns {JSX.Template}
