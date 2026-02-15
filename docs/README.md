@@ -1684,7 +1684,7 @@ const Dashboard = () => {
 You can implement lazy loading of route components using the `lazy()` function.
 
 ```javascript
-import { lazy } from 'retend';
+import { lazy, defineRoutes } from 'retend/router';
 
 const Settings = lazy(() => import('./Settings'));
 

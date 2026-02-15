@@ -529,7 +529,8 @@ const App = () => {
 
 @Example 19
 @Input Using Unique with ShadowRoot components.
-import { ShadowRoot, createUnique } from 'retend';
+import { createUnique } from 'retend';
+import { ShadowRoot } from 'retend-web';
 
 const ShadowComponent = createUnique(() => (
   <ShadowRoot mode="open">
@@ -549,7 +550,8 @@ const ShadowComponent = createUnique(() => (
 
 @Example 20
 @Input Unique component in routing setup.
-import { Cell, Router, Route, Link, createUnique } from 'retend';
+import { createUnique } from 'retend';
+import { Router, RouterProvider } from 'retend/router';
 
 const PersistentSidebar = createUnique(() => (
   <aside style={{ width: '200px', background: '#f0f0f0' }}>
@@ -558,23 +560,33 @@ const PersistentSidebar = createUnique(() => (
   </aside>
 ));
 
-const routes = Route.create({
-  '/': () => (
-    <div>
-      <PersistentSidebar />
-      <main>Home Content</main>
-    </div>
-  ),
-  '/about': () => (
-    <div>
-      <PersistentSidebar />
-      <main>About Content</main>
-    </div>
-  ),
+const Home = () => (
+  <div>
+    <PersistentSidebar />
+    <main>Home Content</main>
+  </div>
+);
+
+const About = () => (
+  <div>
+    <PersistentSidebar />
+    <main>About Content</main>
+  </div>
+);
+
+const router = new Router({
+  routes: [
+    { path: '/', component: Home },
+    { path: '/about', component: About },
+  ],
 });
 
 const App = () => {
-  return <Router routes={routes} />;
+  return (
+    <RouterProvider router={router}>
+      <router.Outlet />
+    </RouterProvider>
+  );
 };
 @Note Sidebar persists across route changes.
 
