@@ -1,4 +1,19 @@
-import { getGlobalContext } from '../context/index.js';
+import { getGlobalContext } from 'retend/context';
+
+const ConsistentValuesKey = Symbol.for('retend:consistent-values');
+
+/**
+ * @returns {Map<string, any>}
+ */
+function getConsistentMap() {
+  const { globalData } = getGlobalContext();
+  let map = globalData.get(ConsistentValuesKey);
+  if (!map) {
+    map = new Map();
+    globalData.set(ConsistentValuesKey, map);
+  }
+  return map;
+}
 
 /**
  * Initializes the consistent value store with a predefined set of values.
@@ -8,10 +23,10 @@ import { getGlobalContext } from '../context/index.js';
  *                                       All values must be JSON-serializable.
  */
 export function setConsistentValues(values) {
-  const { consistentValues } = getGlobalContext();
-  consistentValues.clear();
+  const map = getConsistentMap();
+  map.clear();
   for (const [key, value] of values) {
-    consistentValues.set(key, value);
+    map.set(key, value);
   }
 }
 
@@ -22,8 +37,7 @@ export function setConsistentValues(values) {
  * @returns {Map<string, unknown>} Map containing all stored consistent values
  */
 export function getConsistentValues() {
-  const { consistentValues } = getGlobalContext();
-  return new Map(consistentValues);
+  return new Map(getConsistentMap());
 }
 
 /**
@@ -39,31 +53,19 @@ export function getConsistentValues() {
  *                                          Must return JSON-serializable data.
  * @returns {Promise<T>} The consistent value
  *
- * @example
- * // Generate IDs that match during hydration
- * const id = await useConsistent('todo/new-item', crypto.randomUUID);
- *
- * // Keep creation timestamps identical
- * const created = await useConsistent('post/timestamp', Date.now);
- *
- * // Ensure initial data matches
- * const posts = await useConsistent('blog/initial-posts', () =>
- *   fetch('/api/posts').then(r => r.json())
- * );
- *
  * @notes
- * As earlier stated, consistent values can only be stored and retrieved once,
+ * Consistent values can only be stored and retrieved once.
  * The main purpose of this limitation is to prevent memory leaks that could
  * occur if values are not removed after being read.
  */
 export async function useConsistent(key, generator) {
-  const { consistentValues } = getGlobalContext();
-  if (consistentValues.has(key)) {
-    const value = consistentValues.get(key);
-    consistentValues.delete(key);
+  const map = getConsistentMap();
+  if (map.has(key)) {
+    const value = map.get(key);
+    map.delete(key);
     return value;
   }
   const value = await generator();
-  consistentValues.set(key, value);
+  map.set(key, value);
   return value;
 }

@@ -3,7 +3,6 @@ export * from './for.js';
 export * from './if.js';
 export * from './switch.js';
 export * from './observer.js';
-export * from './consistent.js';
 export * from './scope.js';
 export * from './renderer.js';
 export * from './utils.js';

@@ -16,7 +16,6 @@ import { getGlobalContext } from '../context/index.js';
 /**
  * @typedef AwaitContext
  * @property {(cell: AsyncCell<any>) => void} waitUntil
- * @property {(cell: AsyncCell<any>) => void} skip
  */
 
 /**
@@ -70,12 +69,6 @@ export function Await(props) {
 
   /** @type {AwaitContext} */
   const value = {
-    skip(cell) {
-      if (initialStateDone.get()) return;
-      const set = asyncCells.get();
-      set.delete(cell);
-      asyncCells.set(set);
-    },
     waitUntil(promise) {
       if (initialStateDone.get()) return;
       const set = asyncCells.peek();

@@ -26,7 +26,6 @@ export const CustomEvent =
  * Each environment provides its own window interface optimized for that context.
  *
  * @typedef {{
- *    consistentValues: Map<string, any>,
  *    teleportIdCounter: { value: number }
  *    observer?: Observer
  *    globalData: Map<PropertyKey, any>
@@ -41,7 +40,6 @@ export function resetGlobalContext() {
 if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
   globalThis.__RETEND_GLOBAL_CONTEXT__ = {
     window: globalThis.window,
-    consistentValues: new Map(),
     globalData: new Map(),
     teleportIdCounter: { value: 0 },
   };

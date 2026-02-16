@@ -14,6 +14,7 @@ import { Comment, Element, Text } from 'domhandler';
 import { parseDocument } from 'htmlparser2';
 import { addMetaListener } from './meta.js';
 import { renderToString } from './render-to-string.js';
+import { getConsistentValues } from './consistent.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -92,22 +93,18 @@ async function renderPath(options) {
     vdomModule,
   } = options;
 
-  const { getConsistentValues } = retendModule;
-
   const window = buildWindowFromHtmlText(htmlShell, vdomModule.VWindow);
   const renderer = new vdomModule.VDOMRenderer(window, {
     markDynamicNodes: true,
   });
 
   const teleportIdCounter = { value: 0 };
-  const consistentValues = new Map();
   const globalData = new Map();
   globalData.set('env:ssr', true);
   retendModule.setActiveRenderer(renderer, globalData);
   const globalContextStore = {
     path,
     teleportIdCounter,
-    consistentValues,
     globalData,
   };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */

@@ -8,6 +8,7 @@ import { createRouterRoot } from 'retend/router';
 import { setGlobalContext } from 'retend/context';
 import { addMetaListener } from './meta.js';
 import { DOMRenderer } from 'retend-web';
+import { setConsistentValues } from './consistent.js';
 
 export * from './render-to-string.js';
 
@@ -195,9 +196,9 @@ async function defaultToSpaMode(routerFn) {
 async function restoreContext(context, routerCreateFn) {
   const { path } = context;
 
+  setConsistentValues(new Map(Object.entries(context.consistentValues)));
   setGlobalContext({
     teleportIdCounter: { value: 0 },
-    consistentValues: new Map(Object.entries(context.consistentValues)),
     globalData: new Map(),
   });
   const renderer = new DOMRenderer(window);
