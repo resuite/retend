@@ -26,7 +26,7 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  *
  * @param {JSX.Template} template - The JSX template to render.
  * @param {Window & globalThis | VDom.VWindow} window - The window object.
- * @returns {Promise<string>} A promise that resolves to the rendered string.
+ * @returns {string} The rendered string.
  *
  * @description
  * This function takes a JSX template and converts it to its string representation.
@@ -35,10 +35,10 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  *
  * @example
  * const jsxTemplate = <div>Hello, world!</div>;
- * const renderedString = await renderToString(jsxTemplate);
+ * const renderedString = renderToString(jsxTemplate);
  * console.log(renderedString); // Outputs: <div>Hello, world!</div>
  */
-export async function renderToString(template, window) {
+export function renderToString(template, window) {
   if (/string|number|boolean/.test(typeof template)) {
     return escapeHTML(template);
   }
@@ -67,7 +67,7 @@ export async function renderToString(template, window) {
     if (template instanceof window.ShadowRoot) {
       let text = '<template shadowrootmode="open">';
       for (const child of template.childNodes) {
-        text += await renderToString(child, window);
+        text += renderToString(child, window);
       }
       text += '</template>';
       return text;
@@ -76,7 +76,7 @@ export async function renderToString(template, window) {
     if (template instanceof window.DocumentFragment) {
       let textContent = '';
       for (const child of template.childNodes) {
-        textContent += await renderToString(child, window);
+        textContent += renderToString(child, window);
       }
       return textContent;
     }
@@ -95,7 +95,7 @@ export async function renderToString(template, window) {
         text += '>';
 
         if (template.shadowRoot) {
-          text += await renderToString(template.shadowRoot, window);
+          text += renderToString(template.shadowRoot, window);
         }
 
         let precededByTextNode = false;
@@ -108,9 +108,9 @@ export async function renderToString(template, window) {
             (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
 
           if (shouldSplit) {
-            text += `${SPLIT_TEXT_MARKER}${await renderToString(child, window)}`;
+            text += `${SPLIT_TEXT_MARKER}${renderToString(child, window)}`;
           } else {
-            text += await renderToString(child, window);
+            text += renderToString(child, window);
           }
           precededByTextNode =
             child.nodeType === window.Node.TEXT_NODE &&
@@ -126,14 +126,14 @@ export async function renderToString(template, window) {
     }
 
     if (template instanceof window.Document) {
-      return await renderToString(template.documentElement, window);
+      return renderToString(template.documentElement, window);
     }
   }
 
   if (Array.isArray(template)) {
     let textContent = '';
     for (const child of template) {
-      textContent += await renderToString(child, window);
+      textContent += renderToString(child, window);
     }
     return textContent;
   }

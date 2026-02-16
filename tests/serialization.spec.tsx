@@ -7,9 +7,9 @@ import type { JSX } from 'retend/jsx-runtime';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, vDomSetup } from './setup.tsx';
 
-const toString = async (template: JSX.Template, window: Window | VWindow) => {
+const toString = (template: JSX.Template, window: Window | VWindow) => {
   const renderer = getActiveRenderer() as DOMRenderer | VDOMRenderer;
-  return await renderToString(
+  return renderToString(
     renderer.render(template),
     window as Parameters<typeof renderToString>[1]
   );
@@ -19,7 +19,7 @@ const runTests = () => {
   it('should render basic JSX elements to strings', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const result = await toString(<div class="test">Hello World</div>, window);
+    const result = toString(<div class="test">Hello World</div>, window);
     expect(result).toBe('<div class="test">Hello World</div>');
   });
 
@@ -32,7 +32,7 @@ const runTests = () => {
         {'!'}
       </div>
     );
-    const result = await toString(template, window);
+    const result = toString(template, window);
     expect(result).toContain('<div>Hello <!--@@-->World<!--@@-->!</div>');
   });
 
@@ -46,7 +46,7 @@ const runTests = () => {
         <input type="text" />
       </div>
     );
-    const result = await toString(template, window);
+    const result = toString(template, window);
     expect(result).toBe(
       '<div><img src="test.jpg" alt="Test illustration"/><br/><input type="text"/></div>'
     );
@@ -64,7 +64,7 @@ const runTests = () => {
         </>
       </>
     );
-    const result = await toString(template, window);
+    const result = toString(template, window);
     expect(result).toBe('<div>First</div><div>Second</div><div>Third</div>');
   });
 
@@ -82,7 +82,7 @@ const runTests = () => {
         </div>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><div><div><div><div>Deeply nested content</div></div></div></div></div>'
     );
@@ -96,7 +96,7 @@ const runTests = () => {
         Content
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div id="test" class="test-class" data-test="value">Content</div>'
     );
@@ -106,7 +106,7 @@ const runTests = () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const element = <div>Special characters: &amp; &lt; &gt; " '</div>;
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div>Special characters: &amp; &lt; &gt; &quot; &apos;</div>'
     );
@@ -116,7 +116,7 @@ const runTests = () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const element = <input type="checkbox" checked />;
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<input type="checkbox" checked="true"/>');
   });
 
@@ -131,7 +131,7 @@ const runTests = () => {
         ))}
       </ul>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>'
     );
@@ -147,7 +147,7 @@ const runTests = () => {
         <span>Valid content</span>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<div><span>Valid content</span></div>');
   });
 
@@ -163,7 +163,7 @@ const runTests = () => {
         })}
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<div><span>Conditional content</span></div>');
   });
 
@@ -178,7 +178,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Shadow content</div></template><div>Normal content</div></div>'
     );
@@ -194,7 +194,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Shadow content</div></template></div>'
     );
@@ -211,7 +211,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><style>.test { color: red; }</style><div class="test">Styled content</div></template></div>'
     );
@@ -232,7 +232,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div><template shadowrootmode="open"><div>Inner content</div></template>Outer content</div></template></div>'
     );
@@ -249,7 +249,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Dynamic content</div></template></div>'
     );
@@ -261,7 +261,7 @@ const runTests = () => {
     //@ts-ignore: testing
     const element = <div AttrName="test" Other="test" />;
 
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<div attr-name="test" other="test"></div>');
   });
 };
@@ -275,7 +275,7 @@ const dynamicTests = () => {
         Click me
       </button>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain(
       '<button data-dyn="0" type="button">Click me</button>'
     );
@@ -285,7 +285,7 @@ const dynamicTests = () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div class={Cell.source('test-class')}>Content</div>;
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain(
       '<div data-dyn="0" class="test-class">Content</div>'
     );
@@ -295,7 +295,7 @@ const dynamicTests = () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div title={Cell.source('dynamic-title')}>Content</div>;
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain('data-dyn="0"');
   });
 
@@ -304,7 +304,7 @@ const dynamicTests = () => {
     const { host: window } = renderer;
     const ref = Cell.source('dynamic-ref');
     const element = <div ref={ref}>Content</div>;
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain('data-dyn="0"');
   });
 
@@ -312,7 +312,7 @@ const dynamicTests = () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div class="static">Static content</div>;
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).not.toContain('data-dyn');
   });
 
@@ -331,7 +331,7 @@ const dynamicTests = () => {
         </button>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><button data-dyn="0" type="button">Button 1</button><div data-dyn="1" class="class1">Div 1</div><span>Static</span><button data-dyn="2" type="button">Button 2</button></div>'
     );
@@ -341,7 +341,7 @@ const dynamicTests = () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div>{Cell.source('Dynamic text')}</div>;
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain('<div data-dyn');
   });
 
@@ -357,7 +357,7 @@ const dynamicTests = () => {
         </div>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><div><button data-dyn="0" type="button">Click</button></div></div>'
     );
@@ -374,7 +374,7 @@ const dynamicTests = () => {
         ))}
       </ul>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain('<ul data-dyn="0">');
   });
 
@@ -389,7 +389,7 @@ const dynamicTests = () => {
         })}
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain('<div data-dyn="0">');
   });
 
@@ -403,7 +403,7 @@ const dynamicTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     expect(result).toContain('<div data-dyn="0">');
   });
 
@@ -420,7 +420,7 @@ const dynamicTests = () => {
         ))}
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     for (let i = 0; i < size; i++) {
       expect(result).toContain(`data-dyn="${i}"`);
     }
@@ -440,7 +440,7 @@ const dynamicTests = () => {
         </div>
       </div>
     );
-    const result = await toString(element, window);
+    const result = toString(element, window);
     for (let i = 0; i < 5; i++) {
       expect(result).toContain(`data-dyn="${i}"`);
     }

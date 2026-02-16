@@ -20,7 +20,7 @@ export class HtmlOutputArtifact extends OutputArtifact {
   /**
    * @param {string} name
    * @param {VWindow} contents
-   * @param {() => Promise<string>} stringify
+   * @param {() => string} stringify
    */
   constructor(name, contents, stringify) {
     super();
@@ -168,8 +168,8 @@ async function renderPath(options) {
     const finalPath = currentRoute.get().fullPath;
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
 
-    const stringify = async () => {
-      const htmlContents = await renderToString(document, window);
+    const stringify = () => {
+      const htmlContents = renderToString(document, window);
       const contents = `<!DOCTYPE html>${htmlContents}`;
       window.close(); // destroys timeouts and intervals.
       return contents;
@@ -203,8 +203,10 @@ async function renderPath(options) {
     }
 
     outputs.push(
-      new HtmlOutputArtifact(redirectFileName, redirectWindow, () =>
-        Promise.resolve(redirectContent)
+      new HtmlOutputArtifact(
+        redirectFileName,
+        redirectWindow,
+        () => redirectContent
       )
     );
   });

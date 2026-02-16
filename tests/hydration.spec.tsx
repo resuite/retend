@@ -33,7 +33,7 @@ const setupHydration = async (templateFn: () => JSX.Template) => {
   const serverRoot = serverRenderer.render(templateFn) as VNode;
   serverWindow.document.body.append(serverRoot);
   await serverWindow.document.mountAllTeleports();
-  const html = await renderToString(serverWindow.document.body, serverWindow);
+  const html = renderToString(serverWindow.document.body, serverWindow);
 
   // 2. Client Setup Phase
   document.body.setHTMLUnsafe(`<div id="app">${html}</div>`);
@@ -1611,7 +1611,7 @@ describe('Hydration', () => {
     const serverRoot = serverRenderer.render(template) as VNode;
     serverWindow.document.body.append(serverRoot);
     await serverWindow.document.mountAllTeleports();
-    const html = await renderToString(serverWindow.document.body, serverWindow);
+    const html = renderToString(serverWindow.document.body, serverWindow);
 
     const corruptedHtml = html.replace('Expected Content', 'Different Content');
     document.body.setHTMLUnsafe(`<div id="app">${corruptedHtml}</div>`);
@@ -1709,7 +1709,7 @@ describe('Hydration', () => {
     const serverRoot = serverRenderer.render(template) as VNode;
     serverWindow.document.body.append(serverRoot);
     await serverWindow.document.mountAllTeleports();
-    const html = await renderToString(serverWindow.document.body, serverWindow);
+    const html = renderToString(serverWindow.document.body, serverWindow);
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
@@ -1871,7 +1871,7 @@ describe('Hydration', () => {
   });
 
   it('should hydrate Context with For loop consumers', async () => {
-    const ItemScope = createScope<string>();
+    const ItemScope = createScope<SourceCell<string>>();
     const items = Cell.source(['A', 'B', 'C']);
 
     const ItemComponent = () => {
