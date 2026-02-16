@@ -14,7 +14,6 @@ import { Comment, Element, Text } from 'domhandler';
 import { parseDocument } from 'htmlparser2';
 import { addMetaListener } from './meta.js';
 import { renderToString } from './render-to-string.js';
-import { getConsistentValues } from './consistent.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -150,11 +149,9 @@ async function renderPath(options) {
 
     // The server context can restore useful information about
     // the app for a client-side hydration.
-    const consistentValues = Object.fromEntries(getConsistentValues());
     /** @type {ServerContext} */
     const ctx = {
       path,
-      consistentValues,
     };
     const payload = JSON.stringify(ctx);
     document.body.append(

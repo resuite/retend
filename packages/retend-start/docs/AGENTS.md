@@ -110,7 +110,6 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/query-mutations-are-async.md` - Route query mutations are async and trigger navigation.
 - `.docs/retend/rules/useobserver-not-layouteffect.md` - Use useObserver for DOM connection awareness.
 - `.docs/retend/rules/no-react-imports.md` - Don't import from 'react' or 'react-dom'.
-- `.docs/retend/rules/consistent-values-await.md` - Always await useConsistent() calls.
 - `.docs/retend/rules/prefer-switch-for-multiple-cases.md` - Use Switch() for multiple conditional branches.
 - `.docs/retend/rules/prefer-if-object-syntax.md` - Use object syntax for If when both branches exist.
 - `.docs/retend/rules/for-pass-cell-to-children.md` - Pass Cell<Item> to children in keyed For loops.

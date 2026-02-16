@@ -35,10 +35,6 @@
     "./v-dom": {
       "import": "./dist/v-dom/index.js",
       "types": "./dist/v-dom/index.d.ts"
-    },
-    "./consistent": {
-      "import": "./dist/consistent.js",
-      "types": "./dist/consistent.d.ts"
     }
   },
   "devDependencies": {
