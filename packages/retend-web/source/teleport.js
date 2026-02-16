@@ -2,7 +2,6 @@
 
 import { getGlobalContext } from 'retend/context';
 import {
-  useConsistent,
   useObserver,
   getActiveRenderer,
   linkNodes,
@@ -55,8 +54,7 @@ export function Teleport(props) {
   const { teleportIdCounter } = getGlobalContext();
   const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   /** @type {string | undefined} */
-  let teleportId;
-  const key = `teleport/target/${teleportIdCounter.value++}`;
+  const teleportId = `teleport/target/${teleportIdCounter.value++}`;
 
   /** @param {Node} [anchor] */
   const mountTeleportedNodes = async (anchor) => {
@@ -69,7 +67,6 @@ export function Teleport(props) {
       return;
     }
 
-    teleportId = await useConsistent(key, () => crypto.randomUUID());
     props.children = createNodesFromTemplate(props.children, renderer);
     const newInstance = renderer.createContainer('retend-teleport', props);
     renderer.setProperty(newInstance, 'data-teleport-id', teleportId);
