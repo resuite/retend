@@ -8,36 +8,14 @@ IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for an
 
 These consolidated files organize all rules by topic for easier consumption by LLMs. Each rule is explicitly stated with clear DO/DO NOT examples.
 
-1. **`.docs/consolidated/react-migration-patterns.md`** - **[START HERE]** Critical patterns for React developers. Prevents the most common mistakes when reverting to React patterns.
-2. **`.docs/consolidated/jsx-reactivity-patterns.md`** - Core reactivity rules. How to use Cells in JSX correctly.
-3. **`.docs/consolidated/derived-cells-complete-guide.md`** - Complete guide to Cell.derived() and Cell.derivedAsync().
-4. **`.docs/consolidated/control-flow-patterns.md`** - If, For, Switch, and Observer patterns.
-5. **`.docs/consolidated/component-structure-patterns.md`** - Component organization, naming, and structure.
-6. **`.docs/consolidated/routing-patterns.md`** - Router setup, navigation, and route configuration.
-7. **`.docs/consolidated/common-anti-patterns.md`** - What NOT to do and why. Essential for avoiding mistakes.
-8. **`.docs/consolidated/rule-validation-architecture.md`** - Design for automated rule checking.
-
-**CLI VALIDATION TOOL:**
-Run `npx retend-check [files...]` to validate code against Retend patterns.
-
-**Rules Checked:**
-- **Errors**: `.get()` in JSX, React hooks, dependency arrays, ternary/logical in JSX, `.map()` in JSX, `window.location`, internal `<a>` tags
-- **Warnings**: Inline handlers, missing button types
-- **Style**: `htmlFor` (should be `for`), `className` (should be `class`), string class concatenation
-
-**Usage:**
-```bash
-# Check all files in src/
-npx retend-check
-
-# Check specific files
-npx retend-check src/components/Counter.tsx
-
-# Check with glob
-npx retend-check "src/**/*.tsx"
-```
-
-**Exit codes:** 0 = all passed, 1 = errors found
+1. **`.docs/retend/react-migration-patterns.md`** - **[START HERE]** Critical patterns for React developers. Prevents the most common mistakes when reverting to React patterns.
+2. **`.docs/retend/jsx-reactivity-patterns.md`** - Core reactivity rules. How to use Cells in JSX correctly.
+3. **`.docs/retend/derived-cells-complete-guide.md`** - Complete guide to Cell.derived() and Cell.derivedAsync().
+4. **`.docs/retend/control-flow-patterns.md`** - If, For, Switch, and Observer patterns.
+5. **`.docs/retend/component-structure-patterns.md`** - Component organization, naming, and structure.
+6. **`.docs/retend/routing-patterns.md`** - Router setup, navigation, and route configuration.
+7. **`.docs/retend/common-anti-patterns.md`** - What NOT to do and why. Essential for avoiding mistakes.
+8. **`.docs/retend/rule-validation-architecture.md`** - Design for automated rule checking.
 
 ---
 
