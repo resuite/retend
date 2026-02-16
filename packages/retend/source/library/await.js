@@ -4,11 +4,19 @@
 
 import { AsyncCell, Cell } from '@adbl/cells';
 import { If, createNodesFromTemplate, getActiveRenderer } from './index.js';
-import { createScope, onSetup, useScopeContext } from './scope.js';
+import {
+  createScope,
+  createScopeSnapshot,
+  onSetup,
+  useScopeContext,
+  withScopeSnapshot,
+} from './scope.js';
+import { getGlobalContext } from '../context/index.js';
 
 /**
  * @typedef AwaitContext
- * @property {(promise: AsyncCell<any>) => void} waitUntil
+ * @property {(cell: AsyncCell<any>) => void} waitUntil
+ * @property {(cell: AsyncCell<any>) => void} skip
  */
 
 /**
@@ -19,14 +27,15 @@ import { createScope, onSetup, useScopeContext } from './scope.js';
 
 /** @type {Scope<AwaitContext>} */
 const AwaitScope = createScope('retend:Await');
+const AsyncKey = Symbol('retend:Await');
 
 /**
- * Suspends the rendering of a component tree until all asynchronous operations
+ * Pauses the rendering of a component tree until all asynchronous operations
  * within it have completed.
  *
  * This component acts as a boundary for async states. It is useful for
- * coordinating the loading states of multiple nested components,
- * ensuring they appear together only when fully prepared.
+ * coordinating the loading states of multiple nested components, ensuring
+ * they appear together only when fully prepared on the initial render.
  *
  * @param {AwaitProps} props
  * @returns {JSX.Template}
@@ -41,25 +50,50 @@ const AwaitScope = createScope('retend:Await');
 export function Await(props) {
   const { children, fallback } = props;
   const renderer = getActiveRenderer();
+  const { globalData } = getGlobalContext();
+  const asyncHolders = globalData.get(AsyncKey) ?? new Set();
+  globalData.set(AsyncKey, asyncHolders);
   const initialStateDone = Cell.source(false);
   /** @type {SourceCell<Set<AsyncCell<any>>>} */
   const asyncCells = Cell.source(new Set());
   const awaitList = Cell.derivedAsync(async (get) => {
     await Promise.all([...get(asyncCells).values()].map(get));
   });
+  /** @type {Promise<void>} */
+  const promise = new Promise((resolve) => {
+    initialStateDone.listen(() => {
+      resolve();
+      asyncHolders.delete(promise);
+    });
+  });
+  asyncHolders.add(promise);
 
   /** @type {AwaitContext} */
   const value = {
+    skip(cell) {
+      if (initialStateDone.get()) return;
+      const set = asyncCells.get();
+      set.delete(cell);
+      asyncCells.set(set);
+    },
     waitUntil(promise) {
       if (initialStateDone.get()) return;
-      const set = new Set(asyncCells.get());
-      set.add(promise);
-      asyncCells.set(set);
+      const set = asyncCells.peek();
+      if (!set.has(promise)) {
+        const newSet = new Set(set);
+        newSet.add(promise);
+        asyncCells.set(newSet);
+      }
     },
   };
 
-  const template = AwaitScope.Provider({ value, children });
-  const render = createNodesFromTemplate(template, renderer);
+  const snapshot = createScopeSnapshot();
+  snapshot.node.suspend();
+
+  const render = withScopeSnapshot(snapshot, () => {
+    const template = AwaitScope.Provider({ value, children });
+    return createNodesFromTemplate(template, renderer);
+  });
 
   awaitList.pending.listen(() => {
     initialStateDone.set(true);
@@ -67,8 +101,12 @@ export function Await(props) {
 
   return If(initialStateDone, {
     true: () => {
+      snapshot.node.unsuspend();
+      snapshot.node.enable();
       onSetup(() => {
         asyncCells.set(new Set());
+        // will dispose automatically from parent scope.
+        snapshot.node.activate();
       });
       return render;
     },
@@ -90,5 +128,23 @@ export function useAwait() {
     return useScopeContext(AwaitScope);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Waits for all active `Await` boundaries to resolve.
+ *
+ * This is primarily used by renderers to ensure
+ * all asynchronous data has loaded before serializing the page.
+ *
+ * @returns {Promise<void>}
+ */
+export async function waitForAsyncBoundaries() {
+  const { globalData } = getGlobalContext();
+  /** @type {Set<any>} */
+  const holders = globalData.get(AsyncKey);
+  if (!holders?.size) return;
+  while (holders.size) {
+    await Promise.all([...holders]);
   }
 }

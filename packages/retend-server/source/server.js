@@ -140,6 +140,7 @@ async function renderPath(options) {
     appElement.replaceChildren(retendRouterModule.createRouterRoot(router));
 
     await router.navigate(path);
+    await retendModule.waitForAsyncBoundaries();
 
     const pageTitle = document.title;
     if (pageTitle) {

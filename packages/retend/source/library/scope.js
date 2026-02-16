@@ -87,6 +87,7 @@ class EffectNode {
   /** @type {Array<() => (Promise<void> | void)>} */ #disposeFns = [];
   /** @type {Array<EffectNode>} */ #children = [];
   #enabled = false;
+  #suspended = false;
   #active = false;
   localContext = Cell.context();
   /** @type {Renderer<any>} | undefined */
@@ -95,8 +96,18 @@ class EffectNode {
   enable() {
     if (this.renderer?.capabilities.supportsSetupEffects) {
       this.#enabled = true;
-      for (const child of this.#children) child.enable();
+      for (const child of this.#children) {
+        if (!child.#suspended) child.enable();
+      }
     }
+  }
+
+  suspend() {
+    this.#suspended = true;
+  }
+
+  unsuspend() {
+    this.#suspended = false;
   }
 
   disable() {
