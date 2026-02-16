@@ -26,6 +26,6 @@ export namespace JSX {
 
   // biome-ignore lint/suspicious/noEmptyInterface: should be augmented by renderers.
   interface IntrinsicElements { }
-  export type Template = null | undefined | Promise<any> | string | number | boolean | void | object;
+  export type Template = null | undefined | string | number | boolean | void | object;
   export type Element = Template
 }

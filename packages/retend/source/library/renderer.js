@@ -122,9 +122,6 @@ const RendererKey = 'retend:Renderer';
  * @property {<N extends Node>(node: N, key: string, value: unknown) => N} setProperty
  * Applies a property or reactive value to a node.
  *
- * @property {(promise: Promise<any>) => Node} handlePromise
- * Manages the lifecycle of a node that resolves asynchronously.
- *
  * @property {(fragment: Group) => Node[]} unwrapGroup
  * Flattens a Group node back into its constituent nodes.
  *

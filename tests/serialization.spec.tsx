@@ -3,9 +3,9 @@ import { renderToString } from 'retend-server/client';
 import type { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
 import { ShadowRoot } from 'retend-web';
-import { describe, expect, it } from 'vitest';
-import { browserSetup, timeout, vDomSetup } from './setup.tsx';
 import type { JSX } from 'retend/jsx-runtime';
+import { describe, expect, it } from 'vitest';
+import { browserSetup, vDomSetup } from './setup.tsx';
 
 const toString = async (template: JSX.Template, window: Window | VWindow) => {
   const renderer = getActiveRenderer() as DOMRenderer | VDOMRenderer;
@@ -66,92 +66,6 @@ const runTests = () => {
     );
     const result = await toString(template, window);
     expect(result).toBe('<div>First</div><div>Second</div><div>Third</div>');
-  });
-
-  it('should handle promises in JSX', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const template = <div>{Promise.resolve('Async content')}</div>;
-    const result = await toString(template, window);
-    expect(result).toBe('<div>Async content</div>');
-  });
-
-  it('should handle component promises in JSX', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const Component = async () => {
-      await timeout();
-      return <div>Async content</div>;
-    };
-    const template = (
-      <div>
-        <Component />
-      </div>
-    );
-    const result = await toString(template, window);
-    expect(result).toBe('<div><div>Async content</div></div>');
-  });
-
-  it('should handle component promises in JSX with children', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const Component = async (props: { children?: unknown }) => {
-      await timeout();
-      return <div>Async content: {props.children}</div>;
-    };
-    const element = (
-      <div>
-        <Component>
-          <p>Child</p>
-        </Component>
-      </div>
-    );
-    const result = await toString(element, window);
-    expect(result).toBe('<div><div>Async content: <p>Child</p></div></div>');
-  });
-
-  it('should handle nested async components in JSX', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const ChildComponent = async () => {
-      await timeout();
-      return <span>Child async content</span>;
-    };
-    const ParentComponent = async () => {
-      await timeout();
-      return (
-        <div>
-          Parent async content
-          <ChildComponent />
-        </div>
-      );
-    };
-    const element = (
-      <div>
-        <ParentComponent />
-      </div>
-    );
-    const result = await toString(element, window);
-    expect(result).toBe(
-      '<div><div>Parent async content<span>Child async content</span></div></div>'
-    );
-  });
-
-  it('should handle fragments with async components', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const AsyncComponent = async () => {
-      await timeout();
-      return <div>Async content</div>;
-    };
-    const element = (
-      <>
-        <div>Static content</div>
-        <AsyncComponent />
-      </>
-    );
-    const result = await toString(element, window);
-    expect(result).toBe('<div>Static content</div><div>Async content</div>');
   });
 
   it('should handle deeply nested elements', async () => {

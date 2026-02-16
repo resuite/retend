@@ -2,9 +2,9 @@
 /** @import * as VDom from './index.js' */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 
-import { createNodesFromTemplate, Cell, normalizeJsxChild } from 'retend';
-import { VText, VComment, VDocumentFragment } from './index.js';
+import { Cell, createNodesFromTemplate, normalizeJsxChild } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
+import { VComment, VDocumentFragment, VText } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
@@ -136,14 +136,6 @@ export class VDOMRenderer {
    */
   handleComponent(tagname, props) {
     const component = tagname(...props);
-    if (component instanceof Promise) {
-      const resolvedPromise = component.then((value) => {
-        /** @type {VDom.VNode[]} */
-        const nodes = createNodesFromTemplate(value, this);
-        return nodes.length === 1 ? nodes[0] : nodes;
-      });
-      return this.handlePromise(resolvedPromise);
-    }
     /** @type {VDom.VNode[]} */
     const nodes = createNodesFromTemplate(component, this);
     return nodes.length === 1 ? nodes[0] : nodes;
@@ -167,14 +159,6 @@ export class VDOMRenderer {
     }
 
     return parentNode;
-  }
-
-  /**
-   * @param {Promise<any>} child
-   * @returns {VDom.VNode}
-   */
-  handlePromise(child) {
-    return Ops.handlePromise(child, this);
   }
 
   /**

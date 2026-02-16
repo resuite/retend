@@ -39,14 +39,12 @@ import {
 /**
  * @typedef {Node & {
  *  __linked?: boolean,
- *  __promise?: Promise<Node[]>
  * }} LinkableNodeLike
  */
 
 /**
  * @typedef {Node & {
  *  __linked?: boolean,
- *  __promise?: Promise<Node[]>
  * }} LinkableNode
  */
 
@@ -187,7 +185,7 @@ function stabilizeNodes(nodes, renderer) {
   // guarantees about how nodes should behave.
   if (nodes.length === 0) return createCommentPair(renderer);
 
-  if (nodes.length > 1 || '__promise' in nodes[0]) {
+  if (nodes.length > 1) {
     const startNode = nodes[0];
     const endNode = nodes[nodes.length - 1];
     const isAlreadyStable =

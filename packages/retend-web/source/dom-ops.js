@@ -1,13 +1,6 @@
 /** @import { ReconcilerOptions, Renderer } from "retend" */
 /** @import { DOMRenderer } from './dom-renderer.js'; */
-import {
-  AsyncCell,
-  Cell,
-  linkNodes,
-  normalizeJsxChild,
-  SourceCell,
-  useAwait,
-} from 'retend';
+import { AsyncCell, Cell, SourceCell, linkNodes, useAwait } from 'retend';
 import {
   addCellListener,
   createCommentPair,
@@ -176,19 +169,6 @@ export function setProperty(node, key, value, setEventListener) {
   } else setAttribute(element, key, value, setEventListener);
 
   return node;
-}
-
-/**
- * @param {Promise<any>} child
- * @param {Renderer<any>} renderer
- */
-export function handlePromise(child, renderer) {
-  const placeholder = renderer.host.document.createComment('----');
-  Reflect.set(placeholder, '__promise', child);
-  child.then((value) => {
-    placeholder.replaceWith(normalizeJsxChild(value, renderer));
-  });
-  return placeholder;
 }
 
 /**

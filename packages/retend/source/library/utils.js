@@ -16,10 +16,6 @@ export function createNodesFromTemplate(children, renderer) {
     return [renderer.createText(String(children))];
   }
 
-  if (children instanceof Promise) {
-    return [renderer.handlePromise(children)];
-  }
-
   if (renderer.isGroup(children)) {
     return renderer.unwrapGroup(children);
   }
@@ -93,10 +89,6 @@ export function normalizeJsxChild(child, renderer) {
 
   if (child === null || child === undefined) {
     return renderer.createText('');
-  }
-
-  if (child instanceof Promise) {
-    return renderer.handlePromise(child);
   }
 
   return renderer.createText(child);

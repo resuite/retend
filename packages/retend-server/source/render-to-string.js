@@ -30,7 +30,7 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  *
  * @description
  * This function takes a JSX template and converts it to its string representation.
- * It can handle various types of input, including primitive values, Promises,
+ * It can handle various types of input, including primitive values,
  * DOM nodes, and arrays of templates.
  *
  * @example
@@ -43,24 +43,11 @@ export async function renderToString(template, window) {
     return escapeHTML(template);
   }
 
-  if (template instanceof Promise) {
-    return await renderToString(await template, window);
-  }
-
   if (
     'MarkupContainerNode' in window &&
     template instanceof window.MarkupContainerNode
   ) {
     return template.html;
-  }
-
-  if (
-    template instanceof window.Comment &&
-    '__promise' in template &&
-    template.__promise instanceof Promise
-  ) {
-    const value = await template.__promise;
-    return await renderToString(value, window);
   }
 
   if (template instanceof window.Node) {

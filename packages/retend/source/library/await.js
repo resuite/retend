@@ -3,8 +3,8 @@
 /** @import { SourceCell } from '@adbl/cells'; */
 
 import { AsyncCell, Cell } from '@adbl/cells';
+import { If, createNodesFromTemplate, getActiveRenderer } from './index.js';
 import { createScope, onSetup, useScopeContext } from './scope.js';
-import { createNodesFromTemplate, getActiveRenderer, If } from './index.js';
 
 /**
  * @typedef AwaitContext
@@ -24,11 +24,8 @@ const AwaitScope = createScope('retend:Await');
  * Suspends the rendering of a component tree until all asynchronous operations
  * within it have completed.
  *
- * This component acts as a boundary for async states. It immediately evaluates
- * the `children` to initiate any pending tasks, but prevents them from being
- * output until they are ready. Instead, the `fallback` template is displayed.
- *
- * It is useful for coordinating the loading states of multiple nested components,
+ * This component acts as a boundary for async states. It is useful for
+ * coordinating the loading states of multiple nested components,
  * ensuring they appear together only when fully prepared.
  *
  * @param {AwaitProps} props

@@ -185,14 +185,6 @@ export class DOMRenderer {
       return withHMRBoundaries(tagname, props, fileData, this);
     }
     const template = tagname(...props);
-    if (template instanceof Promise) {
-      const resolvedPromise = template.then((value) => {
-        /** @type {Node[]} */
-        const nodes = createNodesFromTemplate(value, this);
-        return nodes.length === 1 ? nodes[0] : nodes;
-      });
-      return this.handlePromise(resolvedPromise);
-    }
     /** @type {Node[]} */
     const nodes = createNodesFromTemplate(template, this);
     return nodes.length === 1 ? nodes[0] : nodes;
@@ -241,14 +233,6 @@ export class DOMRenderer {
     }
 
     return parentNode;
-  }
-
-  /**
-   * @param {Promise<any>} child
-   * @returns {Node}
-   */
-  handlePromise(child) {
-    return Ops.handlePromise(child, this);
   }
 
   /**
