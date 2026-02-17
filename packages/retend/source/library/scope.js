@@ -22,32 +22,6 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
  * @property {SourceCell<Function | null>} current
  */
 
-/** @type {Scope<__HMR_UpdatableFn[]>} */
-const RetendComponentTree = createScope('retend:RetendComponentTree');
-const ComponentInvalidator = Symbol('Invalidator');
-
-export const __HMR_SYMBOLS = {
-  ComponentInvalidator,
-  OverwrittenBy: Symbol('OverwrittenBy'),
-  HmrId: Symbol('HmrId'),
-  HMRContextKey: Symbol('HMRContext'),
-  HMRScopeContext: Symbol('HMRScopeContext'),
-  ScopeList: new Map(),
-  RetendComponentTree,
-  useComponentAncestry() {
-    try {
-      return useScopeContext(RetendComponentTree);
-    } catch {
-      return [];
-    }
-  },
-  /** @returns {HmrContext | null} */
-  getHMRContext() {
-    const { globalData } = getGlobalContext();
-    return globalData.get(__HMR_SYMBOLS.HMRContextKey);
-  },
-};
-
 /**
  * @template [T=unknown]
  * @typedef ScopePropsWithChildren
@@ -69,7 +43,7 @@ export const __HMR_SYMBOLS = {
 
 /**
  * @typedef ScopeSnapshot
- * @property {Map<Scope, unknown[]>} scopes
+ * @property {Map<Scope, any>} scopes
  * @property {EffectNode} node
  * @property {Renderer<any> | undefined} renderer
  */
@@ -256,15 +230,19 @@ export function createScope(name) {
 
       const activeScopeSnapshot = getScopeSnapshot();
       const renderer = getActiveRenderer();
-      const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
-      activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
+      const hasPreviousValue = activeScopeSnapshot.scopes.has(Scope);
+      const previous = hasPreviousValue
+        ? activeScopeSnapshot.scopes.get(Scope)
+        : undefined;
+      activeScopeSnapshot.scopes.set(Scope, props.value);
       try {
         if ('h' in props && !props.h) {
           return createNodesFromTemplate(renderFn, renderer);
         }
         return normalizeJsxChild(renderFn, renderer);
       } finally {
-        activeScopeSnapshot.scopes.set(Scope, stackBefore);
+        if (hasPreviousValue) activeScopeSnapshot.scopes.set(Scope, previous);
+        else activeScopeSnapshot.scopes.delete(Scope);
       }
     },
   };
@@ -292,7 +270,7 @@ export function useScopeContext(Scope, snapshot) {
   const snapshotCtx = snapshot || getScopeSnapshot();
   const relatedScopeData = snapshotCtx.scopes.get(Scope);
 
-  if (!relatedScopeData || relatedScopeData.length === 0) {
+  if (!relatedScopeData) {
     // @ts-expect-error: Vite types is not ingrained.
     if (import.meta.env?.DEV) {
       // In HMR, scopes can change referential identity.
@@ -321,7 +299,7 @@ export function useScopeContext(Scope, snapshot) {
       `No parent scope found for the provided scope (${scopeName}).\nThis usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
     );
   }
-  return /** @type {T} */ (relatedScopeData[relatedScopeData.length - 1]);
+  return /** @type {T} */ relatedScopeData;
 }
 
 /**
@@ -525,3 +503,29 @@ export async function runPendingSetupEffects() {
   await node.activate();
   await new Promise((resolve) => setTimeout(resolve));
 }
+
+/** @type {Scope<__HMR_UpdatableFn[]>} */
+const RetendComponentTree = createScope('retend:RetendComponentTree');
+const ComponentInvalidator = Symbol('Invalidator');
+
+export const __HMR_SYMBOLS = {
+  ComponentInvalidator,
+  OverwrittenBy: Symbol('OverwrittenBy'),
+  HmrId: Symbol('HmrId'),
+  HMRContextKey: Symbol('HMRContext'),
+  HMRScopeContext: Symbol('HMRScopeContext'),
+  ScopeList: new Map(),
+  RetendComponentTree,
+  useComponentAncestry() {
+    try {
+      return useScopeContext(RetendComponentTree);
+    } catch {
+      return [];
+    }
+  },
+  /** @returns {HmrContext | null} */
+  getHMRContext() {
+    const { globalData } = getGlobalContext();
+    return globalData.get(__HMR_SYMBOLS.HMRContextKey);
+  },
+};
