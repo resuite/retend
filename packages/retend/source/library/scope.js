@@ -230,19 +230,17 @@ export function createScope(name) {
 
       const activeScopeSnapshot = getScopeSnapshot();
       const renderer = getActiveRenderer();
-      const hasPreviousValue = activeScopeSnapshot.scopes.has(Scope);
-      const previous = hasPreviousValue
-        ? activeScopeSnapshot.scopes.get(Scope)
-        : undefined;
-      activeScopeSnapshot.scopes.set(Scope, props.value);
+      const previousState = activeScopeSnapshot.scopes;
+      const nextState = new Map(activeScopeSnapshot.scopes);
+      nextState.set(Scope, props.value);
+      activeScopeSnapshot.scopes = nextState;
       try {
         if ('h' in props && !props.h) {
           return createNodesFromTemplate(renderFn, renderer);
         }
         return normalizeJsxChild(renderFn, renderer);
       } finally {
-        if (hasPreviousValue) activeScopeSnapshot.scopes.set(Scope, previous);
-        else activeScopeSnapshot.scopes.delete(Scope);
+        activeScopeSnapshot.scopes = previousState;
       }
     },
   };
@@ -330,7 +328,7 @@ export function createScopeSnapshot() {
   const { scopes, node } = getScopeSnapshot();
   const branched = node.branch();
   return {
-    scopes: new Map(scopes),
+    scopes,
     node: branched,
     renderer: getActiveRenderer(),
   };
