@@ -15,7 +15,7 @@ import { getGlobalContext } from '../context/index.js';
 
 /**
  * @typedef AwaitContext
- * @property {(cell: AsyncCell<any>) => void} waitUntil
+ * @property {(cell: AsyncCell<any>) => Promise<void>} waitUntil
  */
 
 /**
@@ -59,24 +59,25 @@ export function Await(props) {
     await Promise.all([...get(asyncCells).values()].map(get));
   });
   /** @type {Promise<void>} */
-  const promise = new Promise((resolve) => {
+  const waitingPromise = new Promise((resolve) => {
     initialStateDone.listen(() => {
       resolve();
-      asyncHolders.delete(promise);
+      asyncHolders.delete(waitingPromise);
     });
   });
-  asyncHolders.add(promise);
+  asyncHolders.add(waitingPromise);
 
   /** @type {AwaitContext} */
   const value = {
     waitUntil(promise) {
-      if (initialStateDone.get()) return;
+      if (initialStateDone.get()) return waitingPromise;
       const set = asyncCells.peek();
       if (!set.has(promise)) {
         const newSet = new Set(set);
         newSet.add(promise);
         asyncCells.set(newSet);
       }
+      return waitingPromise;
     },
   };
 
