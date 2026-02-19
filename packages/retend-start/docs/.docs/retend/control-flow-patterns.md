@@ -35,7 +35,8 @@ return (
 
 **Explicit Anti-Pattern**:
 ```tsx
-// ❌ WRONG - React patternseturn (
+// ❌ WRONG - React patterns
+return (
   <div>
     {isVisible.get() ? <Modal /> : null}  {/* Ternary */}
     {isVisible && <Modal />}               {/* Logical && */}
@@ -289,12 +290,15 @@ const view = Cell.source('home');
 // ✅ CORRECT - Switch for multiple cases
 return (
   <div>
-    {Switch(view, {
-      home: () => <Home />,
-      about: () => <About />,
-      contact: () => <Contact />,
-      default: () => <NotFound />
-    })}
+    {Switch(
+      view,
+      {
+        home: () => <Home />,
+        about: () => <About />,
+        contact: () => <Contact />
+      },
+      () => <NotFound />
+    )}
   </div>
 );
 ```
@@ -331,12 +335,16 @@ const user = Cell.source({ role: 'admin', name: 'Alice' });
 // ✅ CORRECT - switch on property
 return (
   <div>
-    {Switch.OnProperty(user, 'role', {
-      admin: () => <AdminDashboard />,
-      editor: () => <EditorPanel />,
-      viewer: () => <ViewerInterface />,
-      default: () => <GuestView />
-    })}
+    {Switch.OnProperty(
+      user,
+      'role',
+      {
+        admin: () => <AdminDashboard />,
+        editor: () => <EditorPanel />,
+        viewer: () => <ViewerInterface />
+      },
+      () => <GuestView />
+    )}
   </div>
 );
 ```
@@ -435,7 +443,7 @@ return (
 ```
 CONDITIONAL RENDERING?
 ├─ 2 branches (true/false) → If(condition, { true: ..., false: ... })
-├─ 3+ branches → Switch(value, { case1: ..., case2: ..., default: ... })
+├─ 3+ branches → Switch(value, { case1: ..., case2: ... }, defaultCase)
 └─ Switch on object prop → Switch.OnProperty(obj, 'prop', { ... })
 
 LIST RENDERING?

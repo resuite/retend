@@ -122,7 +122,17 @@ function TodoList() {
 }
 ```
 
-**Note:** Retend automatically uses the first property (usually `id`) as the key for objects.
+**Note:** Retend auto-keys objects using an internal identity map. This only stays stable when the same object instances are reused. For data that can be recreated or reordered, pass an explicit key (recommended).
+
+**Preferred (Explicit Key):**
+```tsx
+{For(todos, (todo) => (
+  <li>
+    <input type="checkbox" checked={todo.done} />
+    {todo.text}
+  </li>
+), { key: 'id' })}
+```
 
 ### With Index
 
@@ -132,11 +142,14 @@ function IndexedList() {
 
   return (
     <ul>
-      {For(items, (item, index) => (
-        <li>
-          {index + 1}. {item}
-        </li>
-      ))}
+      {For(items, (item, index) => {
+        const position = Cell.derived(() => index.get() + 1);
+        return (
+          <li>
+            {position}. {item}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -232,6 +245,24 @@ function ColorIndicator() {
     },
     () => <div style={{ background: 'gray' }}>Unknown color</div>
   );
+}
+```
+
+### Switch.OnProperty
+
+Switch on a specific property of an object or Cell.
+
+```tsx
+import { Cell, Switch } from 'retend';
+
+function RoleBadge() {
+  const user = Cell.source({ role: 'admin', name: 'Ada' });
+
+  return Switch.OnProperty(user, 'role', {
+    admin: () => <span class="badge badge-admin">Admin</span>,
+    editor: () => <span class="badge badge-editor">Editor</span>,
+    viewer: () => <span class="badge badge-viewer">Viewer</span>
+  }, () => <span class="badge">Unknown</span>);
 }
 ```
 
@@ -425,3 +456,10 @@ function ViewSwitcher() {
   );
 }
 ```
+
+## Source Reference
+
+- `packages/retend/source/library/if.js`
+- `packages/retend/source/library/for.js`
+- `packages/retend/source/library/switch.js`
+- `packages/retend/source/library/observer.js`

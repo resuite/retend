@@ -44,14 +44,17 @@
 ### Valid
 
 ```tsx
-// VALID - clean Switch with object syntax
+// VALID - clean Switch with explicit default
 <div>
-  {Switch(view, {
-    home: () => <Home />,
-    about: () => <About />,
-    contact: () => <Contact />,
-    default: () => <NotFound />
-  })}
+  {Switch(
+    view,
+    {
+      home: () => <Home />,
+      about: () => <About />,
+      contact: () => <Contact />
+    },
+    () => <NotFound />
+  )}
 </div>
 
 // VALID - Switch with separate default handler
@@ -81,12 +84,16 @@ Switch on specific object properties:
 
 ```tsx
 function UserView({ user }) {
-  return Switch.OnProperty(user, 'role', {
-    admin: () => <AdminDashboard />,
-    editor: () => <EditorPanel />,
-    viewer: () => <ViewerInterface />,
-    default: () => <GuestView />
-  });
+  return Switch.OnProperty(
+    user,
+    'role',
+    {
+      admin: () => <AdminDashboard />,
+      editor: () => <EditorPanel />,
+      viewer: () => <ViewerInterface />
+    },
+    () => <GuestView />
+  );
 }
 ```
 
@@ -99,10 +106,13 @@ const currentView = Cell.source('home');
 
 // Automatically updates when currentView changes
 <div>
-  {Switch(currentView, {
-    home: () => <Home />,
-    about: () => <About />,
-    default: () => <NotFound />
-  })}
+  {Switch(
+    currentView,
+    {
+      home: () => <Home />,
+      about: () => <About />
+    },
+    () => <NotFound />
+  )}
 </div>
 ```

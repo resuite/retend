@@ -22,10 +22,14 @@ function Navigation() {
     router.navigate('/search?q=retend&sort=recent');
   };
 
+  const handleGoToUser = () => {
+    goToUser(123);
+  };
+
   return (
     <div>
       <button onClick={goToAbout}>About</button>
-      <button onClick={() => goToUser(123)}>User 123</button>
+      <button onClick={handleGoToUser}>User 123</button>
       <button onClick={goToSearch}>Search</button>
     </div>
   );
@@ -136,3 +140,9 @@ function RouteInfo() {
   );
 }
 ```
+
+## Source Reference
+
+- `packages/retend/source/router/router.js`
+- `packages/retend/source/router/query.js`
+- `packages/retend/source/router/events.js`

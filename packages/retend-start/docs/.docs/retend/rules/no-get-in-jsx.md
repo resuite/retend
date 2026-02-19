@@ -14,6 +14,17 @@
 - `.get()` returns a static snapshot that won't update when the cell changes
 - This is the #1 mistake when migrating from React
 
+## Detection
+
+**Triggers**:
+- JSX expression contains `.get()` (for example `{cell.get()}`)
+- JSX attribute uses `.get()` (for example `value={cell.get()}`)
+
+## Auto-Fix
+
+- Replace `cell.get()` in JSX with `cell`
+- If a transformed value is needed, create a `Cell.derived()` in the component body and pass that Cell into JSX
+
 ## Examples
 
 ### Invalid
@@ -66,3 +77,8 @@ function Counter() {
   );
 }
 ```
+
+## Related Rules
+
+- `pass-cells-directly`
+- `jsx-reactivity-patterns`

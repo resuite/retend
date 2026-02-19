@@ -207,6 +207,22 @@ const sum2 = Cell.derived(() => {
 position.set({ x: 5, y: 10 });
 ```
 
+### Cell.batch()
+
+Groups multiple updates so dependent cells recompute once after the batch.
+
+```tsx
+const x = Cell.source(0);
+const y = Cell.source(0);
+const sum = Cell.derived(() => x.get() + y.get());
+
+Cell.batch(() => {
+  x.set(5);
+  y.set(10);
+});
+// sum recomputes once after the batch
+```
+
 ### Combining with Arrays
 
 ```tsx
@@ -584,3 +600,8 @@ operations.pending.listen((isPending) => {
   console.log('Any operation in progress:', isPending);
 });
 ```
+
+## Source Reference
+
+- `packages/retend/source/library/index.js` (re-exports from `@adbl/cells`)
+- `@adbl/cells` (upstream Cells implementation)

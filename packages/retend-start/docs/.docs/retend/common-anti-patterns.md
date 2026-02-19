@@ -356,7 +356,7 @@ const goToHome = () => {
 };
 
 // In JSX:
-<Link to="/about">About</Link>  {/* Client-side */}
+<Link href="/about">About</Link>  {/* Client-side */}
 ```
 
 **Detection**: Look for `window.location`, `history.pushState`, or `<a href="/internal">`.
@@ -584,6 +584,17 @@ function Component() { ... }
 **Detection**: Look for `htmlFor` in label elements.
 
 ---
+
+## Decision Tree: React Habit Regression
+
+```
+Does the JSX contain React patterns?
+├─ .get() inside JSX → remove and pass Cell
+├─ Ternary/logical operators → use If()
+├─ .map() in JSX → use For()
+├─ React hooks/imports → use Cells/onSetup/listen
+└─ window.location → use router.navigate()
+```
 
 ## Quick Detection Checklist
 

@@ -74,10 +74,10 @@ import { Link } from 'retend/router';
 function Navigation() {
   return (
     <nav>
-      <Link to="/">Home</Link>
-      <Link to="/about">About</Link>
-      <Link to="/users">Users</Link>
-      <Link to="/contact">Contact</Link>
+      <Link href="/">Home</Link>
+      <Link href="/about">About</Link>
+      <Link href="/users">Users</Link>
+      <Link href="/contact">Contact</Link>
     </nav>
   );
 }
@@ -116,39 +116,19 @@ function Navigation() {
 
 **Explicit Pattern**:
 ```tsx
-import { createRouter, Link } from 'retend/router';
-import { render } from 'retend-web';
+import { Router, Link, createRouterRoot } from 'retend/router';
+import { setActiveRenderer } from 'retend';
+import { DOMRenderer } from 'retend-web';
 
-// Define routes
-const routes = [
-  { path: '/', component: HomePage },
-  { path: '/about', component: AboutPage },
-  { 
-    path: '/users', 
-    component: UsersLayout,
-    children: [
-      { path: '', component: UserList },
-      { path: ':id', component: UserDetail }
-    ]
-  },
-  { path: '*', component: NotFoundPage } // 404 catch-all
-];
-
-// Create router
-const router = new Router({
-  routes
-});
-
-// App component with router outlet
 import { Outlet } from 'retend/router';
 
-function App() {
+function AppLayout() {
   return (
     <div>
       <nav>
-        <Link to="/">Home</Link>
-        <Link to="/about">About</Link>
-        <Link to="/users">Users</Link>
+        <Link href="/">Home</Link>
+        <Link href="/about">About</Link>
+        <Link href="/users">Users</Link>
       </nav>
       <main>
         <Outlet /> {/* Renders matched route */}
@@ -157,8 +137,35 @@ function App() {
   );
 }
 
+// Define routes
+const routes = [
+  {
+    path: '/',
+    component: AppLayout,
+    children: [
+      { path: '', component: HomePage },
+      { path: 'about', component: AboutPage },
+      {
+        path: 'users',
+        component: UsersLayout,
+        children: [
+          { path: '', component: UserList },
+          { path: ':id', component: UserDetail }
+        ]
+      }
+    ]
+  },
+  { path: '*', component: NotFoundPage } // 404 catch-all
+];
+
+// Create router
+const router = new Router({ routes });
+
+const renderer = new DOMRenderer(window);
+setActiveRenderer(renderer);
+
 // Render
-render(<App />, document.body);
+document.body.append(createRouterRoot(router));
 ```
 
 ---
@@ -300,7 +307,7 @@ function PostDetail() {
   return (
     <article>
       {If(post.pending, { true: () => <div>Loading...</div> })}
-      {If(post.error, { true: () => <div>Error: {post.error.get()?.message}</div> })}
+      {If(post.error, { true: (err) => <div>Error: {err.message}</div> })}
       {If(post, { true: () => <h1>{title}</h1> })}
     </article>
   );
@@ -478,7 +485,7 @@ function PageComponent() {
 
 ```
 NEED TO NAVIGATE?
-├─ Click/link → <Link to="/path">Text</Link>
+├─ Click/link → <Link href="/path">Text</Link>
 ├─ Programmatic → router.navigate('/path')
 └─ External → <Link href="https://...">Text</Link> (Link auto-detects external URLs)
 

@@ -14,6 +14,23 @@
 - Stylistic inconsistencies (works but messy)
 - React habit regressions (works but not idiomatic)
 
+## Standard Rule Format (Docs)
+
+All rule docs should follow a consistent structure so humans and tools can parse them reliably.
+
+**Required Sections:**
+
+1. Header table with: `title`, `impact`, `impactDescription`, `tags`
+2. `# {Title}`
+3. `**Context**` and `**Rule**`
+4. `## Detection` (link or reference to `rules/_index.md`)
+5. `## Examples` (Invalid + Valid)
+6. `## Auto-Fix` (if applicable; otherwise note manual fix)
+7. `## Related Rules`
+
+**Canonical Detection Index:**
+- Detection patterns live in `rules/_index.md` for centralized updates.
+
 ## Architecture: Standalone AST Analyzer
 
 ```typescript

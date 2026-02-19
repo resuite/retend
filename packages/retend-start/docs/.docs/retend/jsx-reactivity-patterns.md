@@ -371,6 +371,19 @@ const dynamicValue = Cell.source('Hello');
 
 ---
 
+## Decision Tree: Using Cells in JSX
+
+```
+Need a Cell value?
+├─ Inside JSX → pass the Cell directly
+├─ Inside Cell.derived() → use .get()
+├─ Inside Cell.derivedAsync() → use get(cell)
+├─ Inside handler/listener → use .get()
+└─ Need no dependency → use .peek()
+```
+
+---
+
 ## Quick Decision Reference
 
 | Situation | What to Use |

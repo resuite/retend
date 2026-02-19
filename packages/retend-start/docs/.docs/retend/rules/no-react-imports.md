@@ -15,6 +15,18 @@
 - Mixing React and Retend causes conflicts and errors
 - They are completely different architectural approaches
 
+## Detection
+
+**Triggers**:
+- `from 'react'`, `from 'react-dom'`, `from 'react-dom/client'`
+- React types like `FC`, `ReactNode`, `PropsWithChildren`
+
+## Auto-Fix
+
+- Remove React imports and replace with Retend equivalents
+- Use `Cell`, `If`, `For`, `Switch`, `onSetup`, `useObserver` from `retend`
+- Use `DOMRenderer` + `setActiveRenderer` from `retend-web`
+
 ## Examples
 
 ### Invalid
@@ -33,8 +45,8 @@ import type { FC, ReactNode } from 'react';
 
 ```tsx
 // VALID - Retend imports
-import { Cell, onSetup } from 'retend';
-import { render, DomRenderer } from 'retend-web';
+import { Cell, runPendingSetupEffects, setActiveRenderer } from 'retend';
+import { DOMRenderer } from 'retend-web';
 import { Router } from 'retend/router';
 
 // VALID - Retend types
@@ -67,17 +79,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
 
 **Retend Version:**
 ```tsx
-import { Cell, onSetup } from 'retend';
-import { DomRenderer } from 'retend-web';
+import { Cell, setActiveRenderer } from 'retend';
+import { DOMRenderer } from 'retend-web';
 
 function App() {
   const count = Cell.source(0);
   
-  onSetup(() => {
-    const unsubscribe = count.listen((newCount) => {
-      document.title = `Count: ${newCount}`;
-    });
-    return unsubscribe;
+  document.title = `Count: ${count.get()}`;
+  count.listen((newCount) => {
+    document.title = `Count: ${newCount}`;
   });
   
   return (
@@ -87,8 +97,11 @@ function App() {
   );
 }
 
-const renderer = new DomRenderer(document.body);
-renderer.render(<App />);
+const renderer = new DOMRenderer(window);
+setActiveRenderer(renderer);
+const root = renderer.render(<App />);
+document.body.append(...(Array.isArray(root) ? root : [root]));
+runPendingSetupEffects();
 ```
 
 ## Package.json
@@ -104,3 +117,8 @@ Remove React dependencies and add Retend:
   }
 }
 ```
+
+## Related Rules
+
+- `no-react-hooks`
+- `no-usememo-usecallback`

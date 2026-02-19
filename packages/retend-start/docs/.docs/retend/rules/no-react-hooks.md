@@ -14,6 +14,21 @@
 - React hooks don't exist in the Retend API
 - Using React hooks will cause runtime errors
 
+## Detection
+
+**Triggers**:
+- Imports from `react` or `react-dom`
+- Identifiers: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useContext`
+
+## Auto-Fix
+
+- Replace `useState` with `Cell.source()`
+- Replace `useEffect` with `onSetup()` (one-time) or `cell.listen()` (reactive)
+- Replace `useMemo` with `Cell.derived()`
+- Replace `useCallback` with a plain function
+- Replace `useRef` with `Cell.source(null)`
+- Replace `useContext` with `createScope()` + `useScopeContext()`
+
 ## Examples
 
 ### Invalid
@@ -63,3 +78,10 @@ function Counter() {
 | `useCallback` | Plain function |
 | `useRef` | `Cell.source(null)` |
 | `useContext` | `createScope()` + `useScopeContext()` |
+
+## Related Rules
+
+- `no-react-imports`
+- `no-usememo-usecallback`
+- `no-dependency-arrays`
+- `no-re-render-optimization`

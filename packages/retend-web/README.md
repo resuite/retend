@@ -49,19 +49,21 @@ const MyModal = () => (
 
 ### ShadowRoot
 
-The `<Shadowroot />` component allows you to attach a shadow root to a parent element.
+The `<ShadowRoot />` component allows you to attach a shadow root to a parent element.
 
 ```jsx
-import { Shadowroot } from 'retend-web';
+import { ShadowRoot } from 'retend-web';
 
 const MyComponent = () => (
   <div class="host">
-    <Shadowroot mode="open">
+    <ShadowRoot>
       <style>{`.text { color: red; }`}</style>
       <span class="text">I am in the shadow DOM!</span>
-    </Shadowroot>
+    </ShadowRoot>
   </div>
 );
+
+// Note: ShadowRoot always uses open mode; `mode` is not supported.
 ```
 
 ## License

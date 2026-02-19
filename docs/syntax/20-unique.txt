@@ -533,7 +533,7 @@ import { createUnique } from 'retend';
 import { ShadowRoot } from 'retend-web';
 
 const ShadowComponent = createUnique(() => (
-  <ShadowRoot mode="open">
+  <ShadowRoot>
     {() => (
       <div>
         <style>
@@ -544,7 +544,7 @@ const ShadowComponent = createUnique(() => (
     )}
   </ShadowRoot>
 ));
-@Note ShadowRoot is preserved when unique component moves.
+@Note ShadowRoot always uses open mode; it is preserved when the unique component moves.
 
 ---
 
