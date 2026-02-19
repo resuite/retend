@@ -440,7 +440,7 @@ const runTests = () => {
 
     it('should handle empty snapshots', () => {
       const emptySnapshot = createScopeSnapshot();
-      expect(emptySnapshot.scopes.size).toBe(0);
+      expect(emptySnapshot.scopes).toBeNull();
       const result = withScopeSnapshot(emptySnapshot, () => {
         return 'test-result';
       });

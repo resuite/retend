@@ -42,8 +42,15 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
  */
 
 /**
+ * @typedef ScopeLink
+ * @property {Scope} scope
+ * @property {any} value
+ * @property {ScopeLink | null} parent
+ */
+
+/**
  * @typedef ScopeSnapshot
- * @property {Map<Scope, any>} scopes
+ * @property {ScopeLink | null} scopes
  * @property {EffectNode} node
  * @property {Renderer<any> | undefined} renderer
  */
@@ -230,17 +237,19 @@ export function createScope(name) {
 
       const activeScopeSnapshot = getScopeSnapshot();
       const renderer = getActiveRenderer();
-      const previousState = activeScopeSnapshot.scopes;
-      const nextState = new Map(activeScopeSnapshot.scopes);
-      nextState.set(Scope, props.value);
-      activeScopeSnapshot.scopes = nextState;
+      const previousScopes = activeScopeSnapshot.scopes;
+      activeScopeSnapshot.scopes = {
+        scope: Scope,
+        value: props.value,
+        parent: previousScopes,
+      };
       try {
         if ('h' in props && !props.h) {
           return createNodesFromTemplate(renderFn, renderer);
         }
         return normalizeJsxChild(renderFn, renderer);
       } finally {
-        activeScopeSnapshot.scopes = previousState;
+        activeScopeSnapshot.scopes = previousScopes;
       }
     },
   };
@@ -266,7 +275,15 @@ export function createScope(name) {
  */
 export function useScopeContext(Scope, snapshot) {
   const snapshotCtx = snapshot || getScopeSnapshot();
-  const relatedScopeData = snapshotCtx.scopes.get(Scope);
+  let relatedScopeData;
+  let link = snapshotCtx.scopes;
+  while (link) {
+    if (link.scope === Scope) {
+      relatedScopeData = link.value;
+      break;
+    }
+    link = link.parent;
+  }
 
   if (!relatedScopeData) {
     // @ts-expect-error: Vite types is not ingrained.
@@ -305,8 +322,7 @@ export function useScopeContext(Scope, snapshot) {
  * This can be used to "save" the scope state at a particular point in time,
  * which can then be restored later using `withScopeSnapshot`.
  *
- * @returns {ScopeSnapshot} A Map where keys are scope providers and values are the
- *   currently active data for that scope.
+ * @returns {ScopeSnapshot} A snapshot containing the current scope chain and effect node.
  *
  * @example
  * ```js
@@ -337,16 +353,14 @@ export function createScopeSnapshot() {
 /**
  * Returns a snapshot of the current scope state.
  *
- * @returns {ScopeSnapshot} A Map where keys are scope providers and values are the
- *   currently active data for that scope.
+ * @returns {ScopeSnapshot} A snapshot containing the current scope chain and effect node.
  */
 function getScopeSnapshot() {
   const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
     const node = new RootEffectNode();
-    const scopes = new Map();
     const renderer = getActiveRenderer();
-    globalData.set(SNAPSHOT_KEY, { scopes, node, renderer });
+    globalData.set(SNAPSHOT_KEY, { scopes: null, node, renderer });
   }
   return globalData.get(SNAPSHOT_KEY);
 }
