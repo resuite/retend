@@ -100,8 +100,8 @@ async function renderPath(options) {
   const teleportIdCounter = { value: 0 };
   const globalData = new Map();
   globalData.set('env:ssr', true);
-  retendModule.setActiveRenderer(renderer, globalData);
   const globalContextStore = {
+    renderer,
     path,
     teleportIdCounter,
     globalData,

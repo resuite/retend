@@ -348,7 +348,7 @@ async function stringifyArtifact(
     }
   }
 
-  const source = await stringify();
+  const source = stringify();
   return source;
 }
 
@@ -371,6 +371,16 @@ async function defineSharedGlobalContext(sharedData, setGlobalContext) {
       const store = asyncLocalStorage.getStore();
       if (!store) throw new Error('No store found');
       return store.globalData;
+    },
+    get renderer() {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      return store.renderer;
+    },
+    set renderer(renderer) {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      store.renderer = renderer;
     },
   };
   setGlobalContext(context);

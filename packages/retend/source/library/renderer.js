@@ -3,10 +3,9 @@
 /** @import { ScopeSnapshot } from '../library/scope.js'; */
 /** @import { Cell } from '@adbl/cells'; */
 /** @import { Observer } from './observer.js'; */
+/** @import { Environments } from '../context/index.js'; */
 
 import { getGlobalContext } from '../context/index.js';
-// This should be a symbol for better security, but it breaks randomly in SSR.
-const RendererKey = 'retend:Renderer';
 
 /**
  * A registry of concrete types specific to a renderer implementation.
@@ -194,9 +193,8 @@ const RendererKey = 'retend:Renderer';
  * The renderer instance responsible for the current execution cycle.
  */
 export function getActiveRenderer() {
-  const { globalData } = getGlobalContext();
-  const renderer = globalData.get(RendererKey);
-  return renderer;
+  const { renderer } = getGlobalContext();
+  return /** @type {Renderer<any>} */ (renderer);
 }
 
 /**
@@ -205,13 +203,13 @@ export function getActiveRenderer() {
  * @template {RendererTypes} Types
  * @param {Renderer<Types>} renderer
  * The renderer instance to be used for subsequent rendering operations.
- * @param {Map<PropertyKey, any>} [globalData]
+ * @param {Environments} [context]
  */
-export function setActiveRenderer(renderer, globalData) {
-  if (globalData) {
-    globalData.set(RendererKey, renderer);
+export function setActiveRenderer(renderer, context) {
+  if (context) {
+    context.renderer = renderer;
   } else {
-    const { globalData } = getGlobalContext();
-    globalData.set(RendererKey, renderer);
+    const context = getGlobalContext();
+    context.renderer = renderer;
   }
 }

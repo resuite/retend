@@ -1,5 +1,6 @@
 // @ts-nocheck: globalThis is not typed.
 /** @import { Observer } from '../library/observer.js' */
+/** @import { Renderer } from '../library/renderer.js' */
 
 /** @type {typeof globalThis.CustomEvent} */
 export const CustomEvent =
@@ -29,20 +30,12 @@ export const CustomEvent =
  *    teleportIdCounter: { value: number }
  *    observer?: Observer
  *    globalData: Map<PropertyKey, any>
+ *    renderer?: Renderer<any>
  * }} Environments
  */
 
 export function resetGlobalContext() {
-  const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
   globalThis.__RETEND_GLOBAL_CONTEXT__ = {};
-}
-
-if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
-  globalThis.__RETEND_GLOBAL_CONTEXT__ = {
-    window: globalThis.window,
-    globalData: new Map(),
-    teleportIdCounter: { value: 0 },
-  };
 }
 
 /**
@@ -52,7 +45,6 @@ if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
  * @param {Environments} newContext - New environment configuration
  */
 export function setGlobalContext(newContext) {
-  const oldContext = globalThis.__RETEND_GLOBAL_CONTEXT__;
   globalThis.__RETEND_GLOBAL_CONTEXT__ = newContext;
 }
 
