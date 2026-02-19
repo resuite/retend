@@ -2,11 +2,11 @@ import { Cell } from 'retend';
 import { For, If, Switch } from 'retend';
 import {
   createScope,
-  createScopeSnapshot,
+  createStateSnapshot,
   getActiveRenderer,
   setActiveRenderer,
   useScopeContext,
-  withScopeSnapshot,
+  withStateSnapshot,
 } from 'retend';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, getTextContent, vDomSetup } from '../setup.tsx';
@@ -382,18 +382,18 @@ const runTests = () => {
     });
   });
 
-  describe('createScopeSnapshot and withScopeSnapshot', () => {
+  describe('createStateSnapshot and withStateSnapshot', () => {
     it('should restore scope values from snapshot', () => {
       const CounterScope = createScope<number>();
-      let snapshot: ReturnType<typeof createScopeSnapshot>;
+      let snapshot: ReturnType<typeof createStateSnapshot>;
       const testResults: number[] = [];
 
       const Recorder = () => {
         // Record the current value
         const currentValue = useScopeContext(CounterScope);
         testResults.push(currentValue);
-        // Test withScopeSnapshot
-        const restoredValue = withScopeSnapshot(snapshot, () => {
+        // Test withStateSnapshot
+        const restoredValue = withStateSnapshot(snapshot, () => {
           return useScopeContext(CounterScope);
         });
         testResults.push(restoredValue);
@@ -407,7 +407,7 @@ const runTests = () => {
       );
 
       const OuterProvider = () => {
-        snapshot = createScopeSnapshot();
+        snapshot = createStateSnapshot();
         return <InnerProvider />;
       };
       const renderer = getActiveRenderer();
@@ -425,13 +425,13 @@ const runTests = () => {
       const mockRenderer = { name: 'mock' } as any;
 
       setActiveRenderer(mockRenderer);
-      const snapshot = createScopeSnapshot();
+      const snapshot = createStateSnapshot();
       expect(snapshot.renderer).toBe(mockRenderer);
 
       setActiveRenderer(initialRenderer);
       expect(getActiveRenderer()).toBe(initialRenderer);
 
-      withScopeSnapshot(snapshot, () => {
+      withStateSnapshot(snapshot, () => {
         expect(getActiveRenderer()).toBe(mockRenderer);
       });
 
@@ -439,9 +439,9 @@ const runTests = () => {
     });
 
     it('should handle empty snapshots', () => {
-      const emptySnapshot = createScopeSnapshot();
+      const emptySnapshot = createStateSnapshot();
       expect(emptySnapshot.scopes).toBeNull();
-      const result = withScopeSnapshot(emptySnapshot, () => {
+      const result = withStateSnapshot(emptySnapshot, () => {
         return 'test-result';
       });
       expect(result).toBe('test-result');

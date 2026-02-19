@@ -1,5 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { ScopeSnapshot } from '../library/scope.js'; */
+/** @import { StateSnapshot } from '../library/scope.js'; */
 /** @import { Renderer } from '../library/renderer.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
@@ -9,9 +9,9 @@ import { useObserver } from '../library/observer.js';
 import { getActiveRenderer } from '../library/renderer.js';
 import {
   __HMR_SYMBOLS,
-  createScopeSnapshot,
+  createStateSnapshot,
   onSetup,
-  withScopeSnapshot,
+  withStateSnapshot,
 } from '../library/scope.js';
 import { linkNodes } from '../library/utils.js';
 
@@ -19,7 +19,7 @@ import { linkNodes } from '../library/utils.js';
  * @typedef UniqueStash
  * @property {Map<string | Function, { data: any }>} instances
  * @property {Map<string | Function, Cell<unknown | null>>} refs
- * @property {Map<string | Function, ScopeSnapshot>} scopes
+ * @property {Map<string | Function, StateSnapshot>} scopes
  * @property {Map<string | Function, SourceCell<any>>} props
  * @property {Set<() => void>} pendingTeardowns
  * @property {Map<string | Function, { node: unknown, props: any }[]>} stack
@@ -349,9 +349,9 @@ export function createUnique(renderFn, options = {}) {
     } else {
       renderer.setProperty(retendUniqueInstance, 'state', 'new');
       childNodes = (() => {
-        const scopeSnapshot = createScopeSnapshot();
-        stash.scopes.set(id, scopeSnapshot);
-        return withScopeSnapshot(scopeSnapshot, () =>
+        const stateSnapshot = createStateSnapshot();
+        stash.scopes.set(id, stateSnapshot);
+        return withStateSnapshot(stateSnapshot, () =>
           renderer.handleComponent(renderFn, [propSource])
         );
       })();

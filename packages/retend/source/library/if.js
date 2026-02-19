@@ -2,7 +2,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import { createStateSnapshot, withStateSnapshot } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -80,12 +80,12 @@ export function If(value, fnOrObject, elseFn) {
       return;
     }
 
-    const scopeSnapshot = createScopeSnapshot();
+    const stateSnapshot = createStateSnapshot();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {T} _value */
     const callback = (_value) => {
-      return withScopeSnapshot(scopeSnapshot, () => {
+      return withStateSnapshot(stateSnapshot, () => {
         if (typeof fnOrObject === 'function') {
           if (_value) {
             const newNodes = renderer.handleComponent(fnOrObject, [_value]);
@@ -127,10 +127,10 @@ export function If(value, fnOrObject, elseFn) {
      * @param {T} nextValue
      */
     const processValueChange = (nextValue) => {
-      scopeSnapshot.node.dispose();
+      stateSnapshot.node.dispose();
       const results = callback(nextValue);
       renderer.write(handle, results);
-      scopeSnapshot.node.activate();
+      stateSnapshot.node.activate();
     };
 
     // It is important that the listener is registered first.

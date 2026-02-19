@@ -2,7 +2,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import { createStateSnapshot, withStateSnapshot } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -68,12 +68,12 @@ export function Switch(value, cases, defaultCase) {
       return undefined;
     }
 
-    const snapshot = createScopeSnapshot();
+    const snapshot = createStateSnapshot();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {any} value */
     const callback = (value) => {
-      return withScopeSnapshot(snapshot, () => {
+      return withStateSnapshot(snapshot, () => {
         const caseCaller = cases[value];
         if (caseCaller) {
           const newNodes = renderer.handleComponent(caseCaller, [value]);
@@ -164,12 +164,12 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
       return undefined;
     }
 
-    const snapshot = createScopeSnapshot();
+    const snapshot = createStateSnapshot();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {any} cellValue */
     const callback = (cellValue) => {
-      return withScopeSnapshot(snapshot, () => {
+      return withStateSnapshot(snapshot, () => {
         const discriminant = cellValue[key];
 
         const caseCaller = cases[discriminant];

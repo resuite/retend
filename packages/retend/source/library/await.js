@@ -6,10 +6,10 @@ import { AsyncCell, Cell } from '@adbl/cells';
 import { If, createNodesFromTemplate, getActiveRenderer } from './index.js';
 import {
   createScope,
-  createScopeSnapshot,
+  createStateSnapshot,
   onSetup,
   useScopeContext,
-  withScopeSnapshot,
+  withStateSnapshot,
 } from './scope.js';
 import { getGlobalContext } from '../context/index.js';
 
@@ -81,10 +81,10 @@ export function Await(props) {
     },
   };
 
-  const snapshot = createScopeSnapshot();
+  const snapshot = createStateSnapshot();
   snapshot.node.suspend();
 
-  const render = withScopeSnapshot(snapshot, () => {
+  const render = withStateSnapshot(snapshot, () => {
     const template = AwaitScope.Provider({ value, children });
     return createNodesFromTemplate(template, renderer);
   });

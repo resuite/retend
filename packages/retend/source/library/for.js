@@ -1,9 +1,9 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { ScopeSnapshot } from './scope.js' */
+/** @import { StateSnapshot } from './scope.js' */
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
+import { createStateSnapshot, withStateSnapshot } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -98,7 +98,7 @@ export function For(list, fn, options) {
     // REACTIVE LISTS
     // -----------------------------------------------
     const { key, onBeforeNodeRemove, onBeforeNodesMove } = options ?? {};
-    /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: ScopeSnapshot }>} */
+    /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: StateSnapshot }>} */
     let cacheFromLastRun = new Map();
     const autoKeys = new WeakMap();
 
@@ -168,13 +168,13 @@ export function For(list, fn, options) {
         if (cachedResult === undefined) {
           const i = Cell.source(index);
           const parameters = [item, i, list];
-          /** @type {ScopeSnapshot} */
+          /** @type {StateSnapshot} */
           const snapshot = {
             scopes: base.scopes,
             node: base.node.branch(),
             renderer: base.renderer,
           };
-          const newNodes = withScopeSnapshot(snapshot, () => {
+          const newNodes = withStateSnapshot(snapshot, () => {
             return renderer.handleComponent(fn, parameters);
           });
           effectNodesToActivate.push(snapshot.node);
@@ -224,7 +224,7 @@ export function For(list, fn, options) {
     let i = 0;
     // We get a snapshot of all current scopes to reuse when new
     // component instances are created.
-    const base = createScopeSnapshot();
+    const base = createStateSnapshot();
     const _list = list.get();
 
     if (_list instanceof Promise) {
@@ -245,13 +245,13 @@ export function For(list, fn, options) {
         const parameters = [item, index, list];
         // We have to split the snapshot so that each For item render
         // can have its own effect context without polluting the others.
-        /** @type {ScopeSnapshot} */
+        /** @type {StateSnapshot} */
         const snapshot = {
           scopes: base.scopes,
           node: base.node.branch(),
           renderer: base.renderer,
         };
-        const newNodes = withScopeSnapshot(snapshot, () =>
+        const newNodes = withStateSnapshot(snapshot, () =>
           renderer.handleComponent(fn, parameters)
         );
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];

@@ -3,9 +3,9 @@ import {
   CellUpdateError,
   __HMR_SYMBOLS,
   createNodesFromTemplate,
-  createScopeSnapshot,
+  createStateSnapshot,
   onSetup,
-  withScopeSnapshot,
+  withStateSnapshot,
 } from 'retend';
 import { getGlobalContext } from 'retend/context';
 import { routeToComponent } from 'retend/router';
@@ -213,7 +213,7 @@ export function runInvalidatorWithHMRBoundaries(
   completeProps,
   renderer
 ) {
-  const snapshot = createScopeSnapshot();
+  const snapshot = createStateSnapshot();
 
   /** @returns {Node[]} */
   const nextComponentRender = () => {
@@ -230,7 +230,7 @@ export function runInvalidatorWithHMRBoundaries(
     );
   };
 
-  let nodes = withScopeSnapshot(snapshot, nextComponentRender);
+  let nodes = withStateSnapshot(snapshot, nextComponentRender);
 
   /** @type {ReactiveCellFunction<Function, Node, void>} */
   const refresh = function (fn) {
@@ -287,7 +287,7 @@ export function runInvalidatorWithHMRBoundaries(
       });
       return true;
     };
-    const updated = withScopeSnapshot(snapshot, swap);
+    const updated = withStateSnapshot(snapshot, swap);
     if (updated) snapshot.node.activate();
   };
 

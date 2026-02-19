@@ -1,6 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/index.js'; */
 /** @import { __HMR_UpdatableFn } from '../library/index.js'; */
-/** @import { ScopeSnapshot } from '../library/scope.js'; */
+/** @import { StateSnapshot } from '../library/scope.js'; */
 /** @import { Cell } from '@adbl/cells'; */
 /** @import { Observer } from './observer.js'; */
 /** @import { Environments } from '../context/index.js'; */
@@ -155,7 +155,7 @@ import { getGlobalContext } from '../context/index.js';
 
 /**
  * @template Node
- * @typedef {{ index: Cell<number>,  nodes: Node[], snapshot: ScopeSnapshot }} ForCachedData
+ * @typedef {{ index: Cell<number>,  nodes: Node[], snapshot: StateSnapshot }} ForCachedData
  */
 
 /**

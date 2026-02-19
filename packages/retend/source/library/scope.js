@@ -49,7 +49,7 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
  */
 
 /**
- * @typedef ScopeSnapshot
+ * @typedef StateSnapshot
  * @property {ScopeLink | null} scopes
  * @property {EffectNode} node
  * @property {Renderer<any> | undefined} renderer
@@ -235,10 +235,10 @@ export function createScope(name) {
     Provider: (props) => {
       const renderFn = 'children' in props ? props.children : () => {};
 
-      const activeScopeSnapshot = getScopeSnapshot();
+      const activeStateSnapshot = getStateSnapshot();
       const renderer = getActiveRenderer();
-      const previousScopes = activeScopeSnapshot.scopes;
-      activeScopeSnapshot.scopes = {
+      const previousScopes = activeStateSnapshot.scopes;
+      activeStateSnapshot.scopes = {
         scope: Scope,
         value: props.value,
         parent: previousScopes,
@@ -249,7 +249,7 @@ export function createScope(name) {
         }
         return normalizeJsxChild(renderFn, renderer);
       } finally {
-        activeScopeSnapshot.scopes = previousScopes;
+        activeStateSnapshot.scopes = previousScopes;
       }
     },
   };
@@ -269,12 +269,12 @@ export function createScope(name) {
  *
  * @template [T=unknown] The expected type of the scope data.
  * @param {Scope<T>} Scope The scope provider component returned by `createScope`.
- * @param {ScopeSnapshot} [snapshot] An optional snapshot of the current environment
+ * @param {StateSnapshot} [snapshot] An optional snapshot of the current environment
  * @returns {T} The data stored in the specified scope.
  * @throws {Error} If no parent scope is found for the given provider, indicating it was not used to provide the scope.
  */
 export function useScopeContext(Scope, snapshot) {
-  const snapshotCtx = snapshot || getScopeSnapshot();
+  const snapshotCtx = snapshot || getStateSnapshot();
   let relatedScopeData;
   let link = snapshotCtx.scopes;
   while (link) {
@@ -320,28 +320,28 @@ export function useScopeContext(Scope, snapshot) {
 /**
  * Captures a snapshot of the current values of all active scopes.
  * This can be used to "save" the scope state at a particular point in time,
- * which can then be restored later using `withScopeSnapshot`.
+ * which can then be restored later using `withStateSnapshot`.
  *
- * @returns {ScopeSnapshot} A snapshot containing the current scope chain and effect node.
+ * @returns {StateSnapshot} A snapshot containing the current scope chain and effect node.
  *
  * @example
  * ```js
  * // Assuming 'ThemeScope' is a scope created with createScope()
  * // and a value has been provided to it.
- * const initialSnapshot = createScopeSnapshot();
+ * const initialSnapshot = createStateSnapshot();
  *
  * // ... some operations that might push new values onto scopes ...
  *
  * // To restore the state later:
- * withScopeSnapshot(initialSnapshot, () => {
+ * withStateSnapshot(initialSnapshot, () => {
  *   // Inside this callback, the scopes are temporarily restored
  *   // to the state captured in 'initialSnapshot'.
  *   console.log('Scopes inside callback are restored to the snapshot.');
  * });
  * ```
  */
-export function createScopeSnapshot() {
-  const { scopes, node } = getScopeSnapshot();
+export function createStateSnapshot() {
+  const { scopes, node } = getStateSnapshot();
   const branched = node.branch();
   return {
     scopes,
@@ -353,9 +353,9 @@ export function createScopeSnapshot() {
 /**
  * Returns a snapshot of the current scope state.
  *
- * @returns {ScopeSnapshot} A snapshot containing the current scope chain and effect node.
+ * @returns {StateSnapshot} A snapshot containing the current scope chain and effect node.
  */
-function getScopeSnapshot() {
+function getStateSnapshot() {
   const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
     const node = new RootEffectNode();
@@ -366,15 +366,15 @@ function getScopeSnapshot() {
 }
 
 /**
- * @param {ScopeSnapshot} snapshot
+ * @param {StateSnapshot} snapshot
  */
-function setScopeSnapshot(snapshot) {
+function setStateSnapshot(snapshot) {
   const { globalData } = getGlobalContext();
   globalData.set(SNAPSHOT_KEY, snapshot);
 }
 
 /**
- * Executes a callback with the application's scope state temporarily restored
+ * Executes a callback with the application's state temporarily restored
  * to a previously captured snapshot.
  *
  * This function is useful for scenarios like server-side rendering or testing,
@@ -382,8 +382,8 @@ function setScopeSnapshot(snapshot) {
  * affecting the global state after the operation completes.
  *
  * @template T
- * @param {ScopeSnapshot} snapshot A `ScopeSnapshot` object, typically obtained
- *   from `createScopeSnapshot()`, representing the desired state of scopes to
+ * @param {StateSnapshot} snapshot A `StateSnapshot` object, typically obtained
+ *   from `createStateSnapshot()`, representing the desired state of scopes to
  *   restore.
  * @param {() => T} callback A function to execute within the context of
  *   the restored scope snapshot. Any `useScopeContext` calls made inside this
@@ -397,12 +397,12 @@ function setScopeSnapshot(snapshot) {
  * // Assume some initial values have been provided for ThemeScope and UserScope.
  *
  * // Capture the initial state of all active scopes
- * const initialSnapshot = createScopeSnapshot();
+ * const initialSnapshot = createStateSnapshot();
  *
  * // Assume some operations happen that change the values in the scopes.
  *
  * // Now, restore the scopes to the 'initialSnapshot' state for a specific operation
- * withScopeSnapshot(initialSnapshot, () => {
+ * withStateSnapshot(initialSnapshot, () => {
  *   // Inside this callback, any useScopeContext calls will retrieve values
  *   // as they were when 'initialSnapshot' was captured.
  *   console.log('Theme inside callback:', useScopeContext(ThemeScope));
@@ -412,22 +412,22 @@ function setScopeSnapshot(snapshot) {
  * // After the callback finishes, the original scope state is restored.
  * ```
  */
-export function withScopeSnapshot(snapshot, callback) {
-  /** @type {ScopeSnapshot | null} */
+export function withStateSnapshot(snapshot, callback) {
+  /** @type {StateSnapshot | null} */
   let previousSnapshot = null;
   const previousRenderer = getActiveRenderer();
 
   try {
-    previousSnapshot = getScopeSnapshot();
-    setScopeSnapshot(snapshot);
+    previousSnapshot = getStateSnapshot();
+    setStateSnapshot(snapshot);
     if (snapshot.renderer) {
       setActiveRenderer(snapshot.renderer);
     }
     return Cell.runWithContext(snapshot.node.localContext, callback);
   } finally {
     setActiveRenderer(previousRenderer);
-    if (getScopeSnapshot() === snapshot) {
-      if (previousSnapshot) setScopeSnapshot(previousSnapshot);
+    if (getStateSnapshot() === snapshot) {
+      if (previousSnapshot) setStateSnapshot(previousSnapshot);
     }
   }
 }
@@ -480,7 +480,7 @@ export function withScopeSnapshot(snapshot, callback) {
  * @see {@link useObserver} for DOM-based lifecycle effects.
  */
 export function onSetup(callback) {
-  const { node } = getScopeSnapshot();
+  const { node } = getStateSnapshot();
   node.add(callback);
 }
 
@@ -505,7 +505,7 @@ export function onSetup(callback) {
  * @see {@link onSetup} for registering effects that will be run by this function.
  */
 export async function runPendingSetupEffects() {
-  const { node } = getScopeSnapshot();
+  const { node } = getStateSnapshot();
   if (!(node instanceof RootEffectNode)) {
     const message =
       'runPendingSetupEffects() can only be called at the root level of a component tree.';
