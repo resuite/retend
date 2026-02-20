@@ -36,7 +36,9 @@ import { getGlobalContext } from '../context/index.js';
  *
  * @property {any} SavedNodeState
  * A serializable or structured representation of a node's state, used for preservation and restoration.
- *//**
+ */
+
+/**
  * A collection of flags defining the feature set and constraints of a renderer.
  * These are used by the framework to conditionally enable optimizations or
  * alternative execution paths based on what the host environment supports.

@@ -269,12 +269,11 @@ export function createScope(name) {
  *
  * @template [T=unknown] The expected type of the scope data.
  * @param {Scope<T>} Scope The scope provider component returned by `createScope`.
- * @param {StateSnapshot} [snapshot] An optional snapshot of the current environment
  * @returns {T} The data stored in the specified scope.
  * @throws {Error} If no parent scope is found for the given provider, indicating it was not used to provide the scope.
  */
-export function useScopeContext(Scope, snapshot) {
-  const snapshotCtx = snapshot || getStateSnapshot();
+export function useScopeContext(Scope) {
+  const snapshotCtx = getStateSnapshot();
   let relatedScopeData;
   let link = snapshotCtx.scopes;
   while (link) {
@@ -294,7 +293,7 @@ export function useScopeContext(Scope, snapshot) {
       const latestInstance = Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy);
       if (latestInstance && latestInstance !== Scope) {
         // Scope was previously invalidated by HMR.
-        return useScopeContext(latestInstance, snapshot);
+        return useScopeContext(latestInstance);
       }
       const { globalData } = getGlobalContext();
       const hmrContext = globalData.get(__HMR_SYMBOLS.HMRContextKey);
@@ -304,7 +303,7 @@ export function useScopeContext(Scope, snapshot) {
         const latestInstance = activeScopes.get(hmrId);
         if (latestInstance && latestInstance !== Scope) {
           Reflect.set(Scope, __HMR_SYMBOLS.OverwrittenBy, latestInstance);
-          return useScopeContext(latestInstance, snapshot);
+          return useScopeContext(latestInstance);
         }
       }
     }
@@ -426,9 +425,7 @@ export function withStateSnapshot(snapshot, callback) {
     return Cell.runWithContext(snapshot.node.localContext, callback);
   } finally {
     setActiveRenderer(previousRenderer);
-    if (getStateSnapshot() === snapshot) {
-      if (previousSnapshot) setStateSnapshot(previousSnapshot);
-    }
+    if (previousSnapshot) setStateSnapshot(previousSnapshot);
   }
 }
 
