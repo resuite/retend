@@ -3,7 +3,7 @@ import {
   CellUpdateError,
   __HMR_SYMBOLS,
   createNodesFromTemplate,
-  createStateSnapshot,
+  branchState,
   onSetup,
   withStateSnapshot,
 } from 'retend';
@@ -213,7 +213,7 @@ export function runInvalidatorWithHMRBoundaries(
   completeProps,
   renderer
 ) {
-  const snapshot = createStateSnapshot();
+  const snapshot = branchState();
 
   /** @returns {Node[]} */
   const nextComponentRender = () => {

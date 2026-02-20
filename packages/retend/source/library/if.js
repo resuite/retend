@@ -2,7 +2,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { createStateSnapshot, withStateSnapshot } from './scope.js';
+import { branchState, withStateSnapshot } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -80,7 +80,7 @@ export function If(value, fnOrObject, elseFn) {
       return;
     }
 
-    const stateSnapshot = createStateSnapshot();
+    const stateSnapshot = branchState();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {T} _value */

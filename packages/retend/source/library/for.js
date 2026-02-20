@@ -3,7 +3,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { createStateSnapshot, withStateSnapshot } from './scope.js';
+import { branchState, withStateSnapshot } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -224,7 +224,7 @@ export function For(list, fn, options) {
     let i = 0;
     // We get a snapshot of all current scopes to reuse when new
     // component instances are created.
-    const base = createStateSnapshot();
+    const base = branchState();
     const _list = list.get();
 
     if (_list instanceof Promise) {

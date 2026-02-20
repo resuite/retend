@@ -317,17 +317,22 @@ export function useScopeContext(Scope) {
 }
 
 /**
- * Captures a snapshot of the current values of all active scopes.
- * This can be used to "save" the scope state at a particular point in time,
- * which can then be restored later using `withStateSnapshot`.
+ * Creates a new branch of the active application state, inheriting the
+ * current values of all active scopes and appending a new 
+ * effect lifecycle node to the currently active node tree.
+ * 
+ * This function is used to create an isolated execution branch for components,
+ * which can then be resumed or isolated using `withStateSnapshot`. Because
+ * this eagerly branches the effect lifecycle tree, the newly created nodes
+ * should eventually be activated or disposed to avoid memory leaks.
  *
- * @returns {StateSnapshot} A snapshot containing the current scope chain and effect node.
+ * @returns {StateSnapshot} A state branch containing the current scope chain and a newly forked effect node.
  *
  * @example
  * ```js
  * // Assuming 'ThemeScope' is a scope created with createScope()
  * // and a value has been provided to it.
- * const initialSnapshot = createStateSnapshot();
+ * const initialSnapshot = branchState();
  *
  * // ... some operations that might push new values onto scopes ...
  *
@@ -339,7 +344,7 @@ export function useScopeContext(Scope) {
  * });
  * ```
  */
-export function createStateSnapshot() {
+export function branchState() {
   const { scopes, node } = getStateSnapshot();
   const branched = node.branch();
   return {
@@ -373,19 +378,19 @@ function setStateSnapshot(snapshot) {
 }
 
 /**
- * Executes a callback with the application's state temporarily restored
- * to a previously captured snapshot.
+ * Executes a callback within a previously created state branch.
  *
- * This function is useful for scenarios like server-side rendering or testing,
- * where you need to isolate or restore a specific set of scope values without
- * affecting the global state after the operation completes.
+ * This function is useful for scenarios like component rendering,
+ * server-side rendering or testing, where you need to isolate or run
+ * within a specific set of scope values and their effect lifecycles without
+ * affecting the global active execution branch after the operation completes.
  *
  * @template T
  * @param {StateSnapshot} snapshot A `StateSnapshot` object, typically obtained
- *   from `createStateSnapshot()`, representing the desired state of scopes to
- *   restore.
+ *   from `branchState()`, representing the desired state branch to
+ *   execute within.
  * @param {() => T} callback A function to execute within the context of
- *   the restored scope snapshot. Any `useScopeContext` calls made inside this
+ *   the restored scope branch. Any `useScopeContext` calls made inside this
  *   callback will return the values from the provided `snapshot`.
  *
  * @example
@@ -396,7 +401,7 @@ function setStateSnapshot(snapshot) {
  * // Assume some initial values have been provided for ThemeScope and UserScope.
  *
  * // Capture the initial state of all active scopes
- * const initialSnapshot = createStateSnapshot();
+ * const initialSnapshot = branchState();
  *
  * // Assume some operations happen that change the values in the scopes.
  *

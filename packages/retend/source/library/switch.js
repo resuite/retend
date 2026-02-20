@@ -2,7 +2,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { createStateSnapshot, withStateSnapshot } from './scope.js';
+import { branchState, withStateSnapshot } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -68,7 +68,7 @@ export function Switch(value, cases, defaultCase) {
       return undefined;
     }
 
-    const snapshot = createStateSnapshot();
+    const snapshot = branchState();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {any} value */
@@ -164,7 +164,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
       return undefined;
     }
 
-    const snapshot = createStateSnapshot();
+    const snapshot = branchState();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
 
     /** @param {any} cellValue */

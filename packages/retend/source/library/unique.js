@@ -9,7 +9,7 @@ import { useObserver } from '../library/observer.js';
 import { getActiveRenderer } from '../library/renderer.js';
 import {
   __HMR_SYMBOLS,
-  createStateSnapshot,
+  branchState,
   onSetup,
   withStateSnapshot,
 } from '../library/scope.js';
@@ -349,7 +349,7 @@ export function createUnique(renderFn, options = {}) {
     } else {
       renderer.setProperty(retendUniqueInstance, 'state', 'new');
       childNodes = (() => {
-        const stateSnapshot = createStateSnapshot();
+        const stateSnapshot = branchState();
         stash.scopes.set(id, stateSnapshot);
         return withStateSnapshot(stateSnapshot, () =>
           renderer.handleComponent(renderFn, [propSource])

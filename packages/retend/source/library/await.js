@@ -6,7 +6,7 @@ import { AsyncCell, Cell } from '@adbl/cells';
 import { If, createNodesFromTemplate, getActiveRenderer } from './index.js';
 import {
   createScope,
-  createStateSnapshot,
+  branchState,
   onSetup,
   useScopeContext,
   withStateSnapshot,
@@ -81,7 +81,7 @@ export function Await(props) {
     },
   };
 
-  const snapshot = createStateSnapshot();
+  const snapshot = branchState();
   snapshot.node.suspend();
 
   const render = withStateSnapshot(snapshot, () => {

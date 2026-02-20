@@ -2,7 +2,7 @@ import { Cell } from 'retend';
 import { For, If, Switch } from 'retend';
 import {
   createScope,
-  createStateSnapshot,
+  branchState,
   getActiveRenderer,
   setActiveRenderer,
   useScopeContext,
@@ -382,10 +382,10 @@ const runTests = () => {
     });
   });
 
-  describe('createStateSnapshot and withStateSnapshot', () => {
+  describe('branchState and withStateSnapshot', () => {
     it('should restore scope values from snapshot', () => {
       const CounterScope = createScope<number>();
-      let snapshot: ReturnType<typeof createStateSnapshot>;
+      let snapshot: ReturnType<typeof branchState>;
       const testResults: number[] = [];
 
       const Recorder = () => {
@@ -407,7 +407,7 @@ const runTests = () => {
       );
 
       const OuterProvider = () => {
-        snapshot = createStateSnapshot();
+        snapshot = branchState();
         return <InnerProvider />;
       };
       const renderer = getActiveRenderer();
@@ -425,7 +425,7 @@ const runTests = () => {
       const mockRenderer = { name: 'mock' } as any;
 
       setActiveRenderer(mockRenderer);
-      const snapshot = createStateSnapshot();
+      const snapshot = branchState();
       expect(snapshot.renderer).toBe(mockRenderer);
 
       setActiveRenderer(initialRenderer);
@@ -439,7 +439,7 @@ const runTests = () => {
     });
 
     it('should handle empty snapshots', () => {
-      const emptySnapshot = createStateSnapshot();
+      const emptySnapshot = branchState();
       expect(emptySnapshot.scopes).toBeNull();
       const result = withStateSnapshot(emptySnapshot, () => {
         return 'test-result';
