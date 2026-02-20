@@ -93,6 +93,10 @@ export function Await(props) {
     initialStateDone.set(true);
   });
 
+  onSetup(() => {
+    return () => asyncHolders.delete(waitingPromise);
+  });
+
   return If(initialStateDone, {
     true: () => {
       snapshot.node.unsuspend();
