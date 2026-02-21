@@ -1,10 +1,10 @@
-/** @import { Renderer, ReconcilerOptions, __HMR_UpdatableFn } from "retend"; */
+/** @import { Renderer, ReconcilerOptions, __HMR_UpdatableFn, StateSnapshot } from "retend"; */
 /** @import * as VDom from './index.js' */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 
 import { Cell, createNodesFromTemplate, normalizeJsxChild } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
-import { VComment, VDocumentFragment, VText } from './index.js';
+import { VComment, VDocumentFragment, VNode, VText } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
@@ -42,7 +42,18 @@ export class VDOMRenderer {
   observer = null;
   staticStyleIds = new Set();
   markDynamicNodes = false;
-  #dynamicNodeMarker = 0;
+
+  /**
+   * Map of encountered control flow branches during rendering,
+   * to the number of nodes generated within them.
+   * @type {Map<StateSnapshot, number>}
+   */
+  #branches = new Map();
+  /**
+   * Current control flow branch being rendered.
+   * @type {StateSnapshot | null}
+   */
+  #currentBranch = null;
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
@@ -133,8 +144,14 @@ export class VDOMRenderer {
   /**
    * @param {__HMR_UpdatableFn} tagname
    * @param {any} props
+   * @param {StateSnapshot} [snapshot]
    */
-  handleComponent(tagname, props) {
+  handleComponent(tagname, props, snapshot) {
+    if (snapshot && this.markDynamicNodes) {
+      this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
+      this.#currentBranch = snapshot;
+    }
+
     const component = tagname(...props);
     /** @type {VDom.VNode[]} */
     const nodes = createNodesFromTemplate(component, this);
@@ -216,11 +233,11 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {Node} node
-   * @returns {node is VDom.VDocumentFragment}
+   * @param {VNode} node
+   * @returns {node is VDocumentFragment}
    */
   isGroup(node) {
-    return node instanceof this.host.DocumentFragment;
+    return node instanceof VDocumentFragment;
   }
 
   /**
@@ -228,9 +245,7 @@ export class VDOMRenderer {
    * @returns {child is VDom.VNode}
    */
   isNode(child) {
-    return (
-      child instanceof this.host.Node || child instanceof Ops.ShadowRootFragment
-    );
+    return child instanceof VNode || child instanceof Ops.ShadowRootFragment;
   }
 
   /**

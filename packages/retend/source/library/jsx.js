@@ -40,17 +40,22 @@ export function h(
 
   if (typeof tagOrFn === 'function') {
     const completeProps = typeof props === 'object' ? [props] : [];
-    const _renderComponent = () => {
-      return renderer.handleComponent(tagOrFn, completeProps, fileData);
+    const __renderComponent = () => {
+      return renderer.handleComponent(
+        tagOrFn,
+        completeProps,
+        undefined,
+        fileData
+      );
     };
-    return _renderComponent;
+    return __renderComponent;
   }
 
   if (typeof props !== 'object') {
     throw new Error('JSX props for native elements must be an object.');
   }
 
-  const _renderElement = () => {
+  const __renderElement = () => {
     props.children = createNodesFromTemplate(props.children, renderer);
     let container = renderer.createContainer(tagOrFn, props);
     for (const key in props) {
@@ -61,7 +66,7 @@ export function h(
 
     return linkNodes(container, props.children, renderer);
   };
-  return _renderElement;
+  return __renderElement;
 }
 
 export class FragmentPlaceholder {}

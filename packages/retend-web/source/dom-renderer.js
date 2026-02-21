@@ -1,4 +1,4 @@
-/** @import { Observer, ReconcilerOptions, Renderer, __HMR_UpdatableFn } from "retend"; */
+/** @import { Observer, ReconcilerOptions, Renderer, __HMR_UpdatableFn, StateSnapshot } from "retend"; */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
@@ -45,7 +45,7 @@ import {
  * @implements {DOMRendererInterface}
  */
 export class DOMRenderer {
-  /** @type {Window & globalThis} */
+  /** @type {Window} */
   host;
   observer = null;
   staticStyleIds = new Set();
@@ -65,7 +65,7 @@ export class DOMRenderer {
   #hydrationTable = [];
   #hydrationDynamicNodeCursor = 0;
 
-  /** @param {Window & globalThis} host */
+  /** @param {Window} host */
   constructor(host) {
     this.host = host;
     Ops.writeStaticStyles(this);
@@ -92,7 +92,7 @@ export class DOMRenderer {
 
   /** @param {() => void} processor  */
   onViewChange(processor) {
-    const mutObserver = new this.host.MutationObserver(processor);
+    const mutObserver = new MutationObserver(processor);
     mutObserver.observe(window.document.body, {
       subtree: true,
       childList: true,
@@ -177,9 +177,11 @@ export class DOMRenderer {
   /**
    * @param {__HMR_UpdatableFn} tagname
    * @param {any} props
+   * @param {StateSnapshot} [snapshot]
    * @param {JSX.JSXDevFileData} [fileData]
    */
-  handleComponent(tagname, props, fileData) {
+  handleComponent(tagname, props, snapshot, fileData) {
+    snapshot;
     // @ts-expect-error: Vite types are not ingrained
     if (import.meta.env?.DEV) {
       return withHMRBoundaries(tagname, props, fileData, this);
@@ -216,7 +218,7 @@ export class DOMRenderer {
     // This will lead to a loss of interactivity, but idk, you win and you lose.
     if (
       (tagname === 'svg' || tagname === 'math') &&
-      childNode instanceof this.host.HTMLElement
+      childNode instanceof HTMLElement
     ) {
       const elementNamespace =
         parentNode.namespaceURI ?? 'http://www.w3.org/1999/xhtml';
@@ -325,7 +327,7 @@ export class DOMRenderer {
    * @returns {node is DocumentFragment}
    */
   isGroup(node) {
-    return node instanceof this.host.DocumentFragment;
+    return node instanceof DocumentFragment;
   }
 
   /**
@@ -335,7 +337,7 @@ export class DOMRenderer {
   isNode(child) {
     return (
       (this.#isHydrating && child instanceof Skip) ||
-      child instanceof this.host.Node ||
+      child instanceof Node ||
       child instanceof Ops.ShadowRootFragment
     );
   }

@@ -145,7 +145,7 @@ import { getGlobalContext } from '../context/index.js';
  * @property {(node: Node) => Output} finalize
  * Performs the final transformation on the produced output before returning it to the user.
  *
- * @property {(tagnameOrFunction: __HMR_UpdatableFn, props: any, fileData?: JSX.JSXDevFileData) => Node | Node[]} handleComponent
+ * @property {(tagnameOrFunction: __HMR_UpdatableFn, props: any, snapshot?: StateSnapshot, fileData?: JSX.JSXDevFileData) => Node | Node[]} handleComponent
  * Orchestrates the execution of components.
  *
  * @property {(node: Container, customData: unknown) => SavedNodeState} saveContainerState

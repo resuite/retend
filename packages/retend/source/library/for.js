@@ -175,7 +175,7 @@ export function For(list, fn, options) {
             renderer: base.renderer,
           };
           const newNodes = withStateSnapshot(snapshot, () => {
-            return renderer.handleComponent(fn, parameters);
+            return renderer.handleComponent(fn, parameters, snapshot);
           });
           effectNodesToActivate.push(snapshot.node);
           const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
@@ -252,7 +252,7 @@ export function For(list, fn, options) {
           renderer: base.renderer,
         };
         const newNodes = withStateSnapshot(snapshot, () =>
-          renderer.handleComponent(fn, parameters)
+          renderer.handleComponent(fn, parameters, snapshot)
         );
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
         trackNodes(nodes);

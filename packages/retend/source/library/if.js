@@ -88,11 +88,19 @@ export function If(value, fnOrObject, elseFn) {
       return withStateSnapshot(stateSnapshot, () => {
         if (typeof fnOrObject === 'function') {
           if (_value) {
-            const newNodes = renderer.handleComponent(fnOrObject, [_value]);
+            const newNodes = renderer.handleComponent(
+              fnOrObject,
+              [_value],
+              stateSnapshot
+            );
             return Array.isArray(newNodes) ? newNodes : [newNodes];
           }
           if (elseFn) {
-            const newNodes = renderer.handleComponent(elseFn, []);
+            const newNodes = renderer.handleComponent(
+              elseFn,
+              [],
+              stateSnapshot
+            );
             return Array.isArray(newNodes) ? newNodes : [newNodes];
           }
           return [];
@@ -100,14 +108,20 @@ export function If(value, fnOrObject, elseFn) {
 
         if (typeof fnOrObject === 'object') {
           if (_value && 'true' in fnOrObject) {
-            const newNodes = renderer.handleComponent(fnOrObject.true, [
-              _value,
-            ]);
+            const newNodes = renderer.handleComponent(
+              fnOrObject.true,
+              [_value],
+              stateSnapshot
+            );
             return Array.isArray(newNodes) ? newNodes : [newNodes];
           }
 
           if (!_value && 'false' in fnOrObject) {
-            const newNodes = renderer.handleComponent(fnOrObject.false, []);
+            const newNodes = renderer.handleComponent(
+              fnOrObject.false,
+              [],
+              stateSnapshot
+            );
             return Array.isArray(newNodes) ? newNodes : [newNodes];
           }
 

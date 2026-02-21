@@ -40,6 +40,7 @@ import { useAwait } from './await.js';
  * @param {(value: Discriminant) => JSX.Template} defaultCase - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  *
+ * @template {string | number | symbol} Discriminant
  * @overload
  * @param {AsyncCell<Discriminant | null | undefined> | Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Record<Discriminant, () => JSX.Template>} cases - An object mapping possible values to template-generating functions.
@@ -76,12 +77,20 @@ export function Switch(value, cases, defaultCase) {
       return withStateSnapshot(snapshot, () => {
         const caseCaller = cases[value];
         if (caseCaller) {
-          const newNodes = renderer.handleComponent(caseCaller, [value]);
+          const newNodes = renderer.handleComponent(
+            caseCaller,
+            [value],
+            snapshot
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
 
         if (defaultCase) {
-          const newNodes = renderer.handleComponent(defaultCase, [value]);
+          const newNodes = renderer.handleComponent(
+            defaultCase,
+            [value],
+            snapshot
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
         return [];
@@ -174,12 +183,20 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
         const caseCaller = cases[discriminant];
         if (caseCaller) {
-          const newNodes = renderer.handleComponent(caseCaller, [cellValue]);
+          const newNodes = renderer.handleComponent(
+            caseCaller,
+            [cellValue],
+            snapshot
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
 
         if (defaultCase) {
-          const newNodes = renderer.handleComponent(defaultCase, [cellValue]);
+          const newNodes = renderer.handleComponent(
+            defaultCase,
+            [cellValue],
+            snapshot
+          );
           return Array.isArray(newNodes) ? newNodes : [newNodes];
         }
 
