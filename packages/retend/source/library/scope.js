@@ -64,15 +64,26 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
  * Allows enabling/disabling, forking child nodes, and disposing by cleaning effects and children.
  */
 class EffectNode {
-  /** @type {Array<SetupFn>} */ #setupFns = [];
-  /** @type {Array<() => (Promise<void> | void)>} */ #disposeFns = [];
-  /** @type {Array<EffectNode>} */ #children = [];
+  #id = '0';
+
+  /** @type {Array<SetupFn>} */
+  #setupFns = [];
+  /** @type {Array<() => (Promise<void> | void)>} */
+  #disposeFns = [];
+  /** @type {Array<EffectNode>} */
+  #children = [];
+
   #enabled = false;
   #suspended = false;
   #active = false;
   localContext = Cell.context();
   /** @type {Renderer<any>} | undefined */
   renderer = getActiveRenderer();
+
+  /** The hierarchical ID of this node (e.g., "0.1.2") */
+  get id() {
+    return this.#id;
+  }
 
   enable() {
     if (this.renderer?.capabilities.supportsSetupEffects) {
@@ -104,6 +115,7 @@ class EffectNode {
   branch() {
     const newNode = new EffectNode();
     newNode.#enabled = this.#enabled;
+    newNode.#id = `${this.#id}.${this.#children.length}`;
     this.#children.push(newNode);
     return newNode;
   }
@@ -318,9 +330,9 @@ export function useScopeContext(Scope) {
 
 /**
  * Creates a new branch of the active application state, inheriting the
- * current values of all active scopes and appending a new 
+ * current values of all active scopes and appending a new
  * effect lifecycle node to the currently active node tree.
- * 
+ *
  * This function is used to create an isolated execution branch for components,
  * which can then be resumed or isolated using `withStateSnapshot`. Because
  * this eagerly branches the effect lifecycle tree, the newly created nodes

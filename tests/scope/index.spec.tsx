@@ -1,8 +1,8 @@
 import { Cell } from 'retend';
 import { For, If, Switch } from 'retend';
 import {
-  createScope,
   branchState,
+  createScope,
   getActiveRenderer,
   setActiveRenderer,
   useScopeContext,
@@ -445,6 +445,39 @@ const runTests = () => {
         return 'test-result';
       });
       expect(result).toBe('test-result');
+    });
+  });
+
+  describe('EffectNode ID', () => {
+    it('should assign hierarchical IDs to branched nodes', () => {
+      const snapshot1 = branchState();
+      const snapshot2 = branchState();
+      const snapshot3 = branchState();
+
+      expect(snapshot1.node.id).toBe('0.0');
+      expect(snapshot2.node.id).toBe('0.1');
+      expect(snapshot3.node.id).toBe('0.2');
+    });
+
+    it('should create nested hierarchical IDs', () => {
+      const parent = branchState();
+
+      const child1 = withStateSnapshot(parent, () => branchState());
+      const child2 = withStateSnapshot(parent, () => branchState());
+
+      expect(parent.node.id).toBe('0.0');
+      expect(child1.node.id).toBe('0.0.0');
+      expect(child2.node.id).toBe('0.0.1');
+    });
+
+    it('should support deeply nested branches', () => {
+      const level1 = branchState();
+      const level2 = withStateSnapshot(level1, () => branchState());
+      const level3 = withStateSnapshot(level2, () => branchState());
+
+      expect(level1.node.id).toBe('0.0');
+      expect(level2.node.id).toBe('0.0.0');
+      expect(level3.node.id).toBe('0.0.0.0');
     });
   });
 
