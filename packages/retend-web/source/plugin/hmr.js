@@ -5,7 +5,7 @@ import {
   createNodesFromTemplate,
   branchState,
   onSetup,
-  withStateSnapshot,
+  withState,
 } from 'retend';
 import { getGlobalContext } from 'retend/context';
 import { routeToComponent } from 'retend/router';
@@ -177,7 +177,6 @@ export function withHMRBoundaries(tagname, props, fileData, renderer) {
  * @param {DOMRenderer} renderer
  */
 function stabilizeNodes(nodes, renderer) {
-  const { host: window } = renderer;
   // We can be smarter about whether or not to create a comment pair, so we
   // don't end up with a cluttered DOM tree.
   // NOTE TO FUTURE SELF: This optimization is only possible because
@@ -190,8 +189,8 @@ function stabilizeNodes(nodes, renderer) {
     const endNode = nodes[nodes.length - 1];
     const isAlreadyStable =
       nodes.length > 1 &&
-      startNode instanceof window.Comment &&
-      endNode instanceof window.Comment &&
+      startNode instanceof Comment &&
+      endNode instanceof Comment &&
       isMatchingCommentPair(startNode, endNode);
 
     if (isAlreadyStable) return nodes;
@@ -230,7 +229,7 @@ export function runInvalidatorWithHMRBoundaries(
     );
   };
 
-  let nodes = withStateSnapshot(snapshot, nextComponentRender);
+  let nodes = withState(snapshot, nextComponentRender);
 
   /** @type {ReactiveCellFunction<Function, Node, void>} */
   const refresh = function (fn) {
@@ -287,7 +286,7 @@ export function runInvalidatorWithHMRBoundaries(
       });
       return true;
     };
-    const updated = withStateSnapshot(snapshot, swap);
+    const updated = withState(snapshot, swap);
     if (updated) snapshot.node.activate();
   };
 

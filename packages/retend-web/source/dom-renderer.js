@@ -2,7 +2,12 @@
 /** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
-import { Cell, createNodesFromTemplate, normalizeJsxChild } from 'retend';
+import {
+  getState,
+  Cell,
+  createNodesFromTemplate,
+  normalizeJsxChild,
+} from 'retend';
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugin/hmr.js';
 import {
@@ -51,23 +56,24 @@ export class DOMRenderer {
   staticStyleIds = new Set();
 
   #isHydrating = false;
+
   /** @type {Promise<void> | null} */
   #readyToHydrateChildren = null;
   /** @type {null | ((value: void) => void)} */
   #startHydratingChildren = null;
   /** @type {Array<() => Promise<*>>} */
   #scheduledHydrationTeleports = [];
-  /**
-   * @type {JsxElement[]}
-   * A list of all the dynamic elements
-   * that need to be hydrated.
-   */
-  #hydrationTable = [];
-  #hydrationDynamicNodeCursor = 0;
+  /** @type {Map<StateSnapshot, number>} */
+  #branches = new Map();
+  /** @type {StateSnapshot} */
+  #currentBranch;
+  /** @type {Map<string, JsxElement>} */
+  #table = new Map();
 
   /** @param {Window} host */
   constructor(host) {
     this.host = host;
+    this.#currentBranch = getState();
     Ops.writeStaticStyles(this);
     this.capabilities = {
       supportsSetupEffects: true,
@@ -181,15 +187,36 @@ export class DOMRenderer {
    * @param {JSX.JSXDevFileData} [fileData]
    */
   handleComponent(tagname, props, snapshot, fileData) {
-    snapshot;
-    // @ts-expect-error: Vite types are not ingrained
-    if (import.meta.env?.DEV) {
-      return withHMRBoundaries(tagname, props, fileData, this);
+    if (!this.#isHydrating) {
+      // @ts-expect-error: Vite types are not ingrained
+      if (import.meta.env?.DEV) {
+        return withHMRBoundaries(tagname, props, fileData, this);
+      }
+      const template = tagname(...props);
+      /** @type {Node[]} */
+      const nodes = createNodesFromTemplate(template, this);
+      return nodes.length === 1 ? nodes[0] : nodes;
     }
-    const template = tagname(...props);
-    /** @type {Node[]} */
-    const nodes = createNodesFromTemplate(template, this);
-    return nodes.length === 1 ? nodes[0] : nodes;
+
+    if (snapshot !== undefined) {
+      const previousBranch = this.#currentBranch;
+      this.#currentBranch = snapshot;
+      this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
+      try {
+        // @ts-expect-error: Vite types are not ingrained
+        if (import.meta.env?.DEV) {
+          return withHMRBoundaries(tagname, props, fileData, this);
+        }
+        const template = tagname(...props);
+        /** @type {Node[]} */
+        const nodes = createNodesFromTemplate(template, this);
+        return nodes.length === 1 ? nodes[0] : nodes;
+      } finally {
+        this.#currentBranch = previousBranch;
+      }
+    }
+
+    return [];
   }
 
   /**
@@ -287,10 +314,15 @@ export class DOMRenderer {
   createContainer(tagname, props) {
     if (this.#isHydrating) {
       if (containerIsDynamic(tagname, props, isReactiveChild)) {
-        const index = this.#hydrationDynamicNodeCursor++;
-        const staticNode = this.#hydrationTable[index];
-        this.#hydrateNode(staticNode, props);
-        return staticNode;
+        const branchCursor = this.#branches.get(this.#currentBranch) || 0;
+        const index = `${this.#currentBranch.node.id}.${branchCursor}`;
+        this.#branches.set(this.#currentBranch, branchCursor + 1);
+
+        const staticNode = this.#table.get(index);
+        if (staticNode) {
+          this.#hydrateNode(staticNode, props);
+          return staticNode;
+        }
       }
       // @ts-expect-error: The types are different in hydration mode.
       return new Skip(tagname);
@@ -358,23 +390,24 @@ export class DOMRenderer {
   }
 
   enableHydrationMode() {
-    /** @type {JsxElement[]} */
-    const dynamicNodeTable = [];
+    /** @type {Map<string, JsxElement>} */
+    const dynamicNodeTable = new Map();
     /** @type {ParentNode[]} */
     const roots = [document];
 
     while (roots.length > 0) {
       const root = /** @type {ParentNode} */ (roots.pop());
-      const dynamicNodes = root.querySelectorAll('[data-dyn]');
+      const dynamicNodes = /** @type {NodeListOf<JsxElement>} */ (
+        root.querySelectorAll('[data-dyn]')
+      );
       for (const node of dynamicNodes) {
-        // @ts-expect-error: no need for stringifying.
-        dynamicNodeTable[node.getAttribute('data-dyn')] = node;
+        dynamicNodeTable.set(String(node.getAttribute('data-dyn')), node);
         if (node.shadowRoot) roots.push(node.shadowRoot);
       }
     }
 
     this.#isHydrating = true;
-    this.#hydrationTable = dynamicNodeTable;
+    this.#table = dynamicNodeTable;
     this.#readyToHydrateChildren = new Promise((resolve) => {
       this.#startHydratingChildren = resolve;
     });
@@ -548,7 +581,7 @@ export class DOMRenderer {
       await mount();
     }
     this.#isHydrating = false;
-    this.#hydrationTable = [];
+    this.#table = new Map();
     this.#readyToHydrateChildren = null;
     this.#startHydratingChildren = null;
     this.#scheduledHydrationTeleports = [];

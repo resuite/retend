@@ -11,7 +11,7 @@ import {
   __HMR_SYMBOLS,
   branchState,
   onSetup,
-  withStateSnapshot,
+  withState,
 } from '../library/scope.js';
 import { linkNodes } from '../library/utils.js';
 
@@ -351,7 +351,7 @@ export function createUnique(renderFn, options = {}) {
       childNodes = (() => {
         const stateSnapshot = branchState();
         stash.scopes.set(id, stateSnapshot);
-        return withStateSnapshot(stateSnapshot, () =>
+        return withState(stateSnapshot, () =>
           renderer.handleComponent(renderFn, [propSource], stateSnapshot)
         );
       })();

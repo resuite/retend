@@ -9,7 +9,7 @@ import {
   branchState,
   onSetup,
   useScopeContext,
-  withStateSnapshot,
+  withState,
 } from './scope.js';
 import { getGlobalContext } from '../context/index.js';
 
@@ -84,7 +84,7 @@ export function Await(props) {
   const snapshot = branchState();
   snapshot.node.suspend();
 
-  const render = withStateSnapshot(snapshot, () => {
+  const render = withState(snapshot, () => {
     const template = AwaitScope.Provider({ value, children });
     return createNodesFromTemplate(template, renderer);
   });

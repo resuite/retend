@@ -2,7 +2,12 @@
 /** @import * as VDom from './index.js' */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 
-import { Cell, createNodesFromTemplate, normalizeJsxChild } from 'retend';
+import {
+  Cell,
+  createNodesFromTemplate,
+  normalizeJsxChild,
+  getState,
+} from 'retend';
 import * as Ops from 'retend-web/dom-ops';
 import { VComment, VDocumentFragment, VNode, VText } from './index.js';
 
@@ -51,14 +56,15 @@ export class VDOMRenderer {
   #branches = new Map();
   /**
    * Current control flow branch being rendered.
-   * @type {StateSnapshot | null}
+   * @type {StateSnapshot}
    */
-  #currentBranch = null;
+  #currentBranch;
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
     this.host = host;
     this.markDynamicNodes = markDynamicNodes;
+    this.#currentBranch = getState();
     // @ts-expect-error: all static styles need is staticStyleIds set and a window
     Ops.writeStaticStyles(this);
     this.capabilities = {
@@ -148,10 +154,20 @@ export class VDOMRenderer {
    */
   handleComponent(tagname, props, snapshot) {
     if (snapshot && this.markDynamicNodes) {
+      const previousBranch = this.#currentBranch;
       this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
       this.#currentBranch = snapshot;
+      try {
+        const component = tagname(...props);
+        /** @type {VDom.VNode[]} */
+        const nodes = createNodesFromTemplate(component, this);
+        return nodes.length === 1 ? nodes[0] : nodes;
+      } finally {
+        this.#currentBranch = previousBranch;
+      }
     }
 
+    // Repeated for performance.
     const component = tagname(...props);
     /** @type {VDom.VNode[]} */
     const nodes = createNodesFromTemplate(component, this);
@@ -220,7 +236,10 @@ export class VDOMRenderer {
       this.markDynamicNodes &&
       Ops.containerIsDynamic(tagname, props, isReactiveChild)
     ) {
-      element.setAttribute('data-dyn', String(this.#dynamicNodeMarker++));
+      const index = this.#branches.get(this.#currentBranch) || 0;
+      const id = `${this.#currentBranch.node.id}.${index}`;
+      element.setAttribute('data-dyn', id);
+      this.#branches.set(this.#currentBranch, index + 1);
     }
     return element;
   }

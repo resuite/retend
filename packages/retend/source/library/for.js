@@ -3,7 +3,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { branchState, withStateSnapshot } from './scope.js';
+import { branchState, withState } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -174,7 +174,7 @@ export function For(list, fn, options) {
             node: base.node.branch(),
             renderer: base.renderer,
           };
-          const newNodes = withStateSnapshot(snapshot, () => {
+          const newNodes = withState(snapshot, () => {
             return renderer.handleComponent(fn, parameters, snapshot);
           });
           effectNodesToActivate.push(snapshot.node);
@@ -251,7 +251,7 @@ export function For(list, fn, options) {
           node: base.node.branch(),
           renderer: base.renderer,
         };
-        const newNodes = withStateSnapshot(snapshot, () =>
+        const newNodes = withState(snapshot, () =>
           renderer.handleComponent(fn, parameters, snapshot)
         );
         const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];

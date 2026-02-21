@@ -6,7 +6,7 @@ import {
   getActiveRenderer,
   setActiveRenderer,
   useScopeContext,
-  withStateSnapshot,
+  withState,
 } from 'retend';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, getTextContent, vDomSetup } from '../setup.tsx';
@@ -382,7 +382,7 @@ const runTests = () => {
     });
   });
 
-  describe('branchState and withStateSnapshot', () => {
+  describe('branchState and withState', () => {
     it('should restore scope values from snapshot', () => {
       const CounterScope = createScope<number>();
       let snapshot: ReturnType<typeof branchState>;
@@ -392,8 +392,8 @@ const runTests = () => {
         // Record the current value
         const currentValue = useScopeContext(CounterScope);
         testResults.push(currentValue);
-        // Test withStateSnapshot
-        const restoredValue = withStateSnapshot(snapshot, () => {
+        // Test withState
+        const restoredValue = withState(snapshot, () => {
           return useScopeContext(CounterScope);
         });
         testResults.push(restoredValue);
@@ -431,7 +431,7 @@ const runTests = () => {
       setActiveRenderer(initialRenderer);
       expect(getActiveRenderer()).toBe(initialRenderer);
 
-      withStateSnapshot(snapshot, () => {
+      withState(snapshot, () => {
         expect(getActiveRenderer()).toBe(mockRenderer);
       });
 
@@ -441,7 +441,7 @@ const runTests = () => {
     it('should handle empty snapshots', () => {
       const emptySnapshot = branchState();
       expect(emptySnapshot.scopes).toBeNull();
-      const result = withStateSnapshot(emptySnapshot, () => {
+      const result = withState(emptySnapshot, () => {
         return 'test-result';
       });
       expect(result).toBe('test-result');
@@ -462,8 +462,8 @@ const runTests = () => {
     it('should create nested hierarchical IDs', () => {
       const parent = branchState();
 
-      const child1 = withStateSnapshot(parent, () => branchState());
-      const child2 = withStateSnapshot(parent, () => branchState());
+      const child1 = withState(parent, () => branchState());
+      const child2 = withState(parent, () => branchState());
 
       expect(parent.node.id).toBe('0.0');
       expect(child1.node.id).toBe('0.0.0');
@@ -472,8 +472,8 @@ const runTests = () => {
 
     it('should support deeply nested branches', () => {
       const level1 = branchState();
-      const level2 = withStateSnapshot(level1, () => branchState());
-      const level3 = withStateSnapshot(level2, () => branchState());
+      const level2 = withState(level1, () => branchState());
+      const level3 = withState(level2, () => branchState());
 
       expect(level1.node.id).toBe('0.0');
       expect(level2.node.id).toBe('0.0.0');

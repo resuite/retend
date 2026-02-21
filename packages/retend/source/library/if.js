@@ -2,7 +2,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { branchState, withStateSnapshot } from './scope.js';
+import { branchState, withState } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -85,7 +85,7 @@ export function If(value, fnOrObject, elseFn) {
 
     /** @param {T} _value */
     const callback = (_value) => {
-      return withStateSnapshot(stateSnapshot, () => {
+      return withState(stateSnapshot, () => {
         if (typeof fnOrObject === 'function') {
           if (_value) {
             const newNodes = renderer.handleComponent(

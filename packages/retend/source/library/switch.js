@@ -2,7 +2,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 import { getActiveRenderer } from './renderer.js';
-import { branchState, withStateSnapshot } from './scope.js';
+import { branchState, withState } from './scope.js';
 import { useAwait } from './await.js';
 
 /**
@@ -74,7 +74,7 @@ export function Switch(value, cases, defaultCase) {
 
     /** @param {any} value */
     const callback = (value) => {
-      return withStateSnapshot(snapshot, () => {
+      return withState(snapshot, () => {
         const caseCaller = cases[value];
         if (caseCaller) {
           const newNodes = renderer.handleComponent(
@@ -178,7 +178,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
 
     /** @param {any} cellValue */
     const callback = (cellValue) => {
-      return withStateSnapshot(snapshot, () => {
+      return withState(snapshot, () => {
         const discriminant = cellValue[key];
 
         const caseCaller = cases[discriminant];

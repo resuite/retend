@@ -247,7 +247,7 @@ export function createScope(name) {
     Provider: (props) => {
       const renderFn = 'children' in props ? props.children : () => {};
 
-      const activeStateSnapshot = getStateSnapshot();
+      const activeStateSnapshot = getState();
       const renderer = getActiveRenderer();
       const previousScopes = activeStateSnapshot.scopes;
       activeStateSnapshot.scopes = {
@@ -285,7 +285,7 @@ export function createScope(name) {
  * @throws {Error} If no parent scope is found for the given provider, indicating it was not used to provide the scope.
  */
 export function useScopeContext(Scope) {
-  const snapshotCtx = getStateSnapshot();
+  const snapshotCtx = getState();
   let relatedScopeData;
   let link = snapshotCtx.scopes;
   while (link) {
@@ -334,7 +334,7 @@ export function useScopeContext(Scope) {
  * effect lifecycle node to the currently active node tree.
  *
  * This function is used to create an isolated execution branch for components,
- * which can then be resumed or isolated using `withStateSnapshot`. Because
+ * which can then be resumed or isolated using `withState`. Because
  * this eagerly branches the effect lifecycle tree, the newly created nodes
  * should eventually be activated or disposed to avoid memory leaks.
  *
@@ -349,7 +349,7 @@ export function useScopeContext(Scope) {
  * // ... some operations that might push new values onto scopes ...
  *
  * // To restore the state later:
- * withStateSnapshot(initialSnapshot, () => {
+ * withState(initialSnapshot, () => {
  *   // Inside this callback, the scopes are temporarily restored
  *   // to the state captured in 'initialSnapshot'.
  *   console.log('Scopes inside callback are restored to the snapshot.');
@@ -357,7 +357,7 @@ export function useScopeContext(Scope) {
  * ```
  */
 export function branchState() {
-  const { scopes, node } = getStateSnapshot();
+  const { scopes, node } = getState();
   const branched = node.branch();
   return {
     scopes,
@@ -367,11 +367,11 @@ export function branchState() {
 }
 
 /**
- * Returns a snapshot of the current scope state.
+ * Returns the current scope state.
  *
  * @returns {StateSnapshot} A snapshot containing the current scope chain and effect node.
  */
-function getStateSnapshot() {
+export function getState() {
   const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
     const node = new RootEffectNode();
@@ -384,7 +384,7 @@ function getStateSnapshot() {
 /**
  * @param {StateSnapshot} snapshot
  */
-function setStateSnapshot(snapshot) {
+function setState(snapshot) {
   const { globalData } = getGlobalContext();
   globalData.set(SNAPSHOT_KEY, snapshot);
 }
@@ -418,7 +418,7 @@ function setStateSnapshot(snapshot) {
  * // Assume some operations happen that change the values in the scopes.
  *
  * // Now, restore the scopes to the 'initialSnapshot' state for a specific operation
- * withStateSnapshot(initialSnapshot, () => {
+ * withState(initialSnapshot, () => {
  *   // Inside this callback, any useScopeContext calls will retrieve values
  *   // as they were when 'initialSnapshot' was captured.
  *   console.log('Theme inside callback:', useScopeContext(ThemeScope));
@@ -428,21 +428,21 @@ function setStateSnapshot(snapshot) {
  * // After the callback finishes, the original scope state is restored.
  * ```
  */
-export function withStateSnapshot(snapshot, callback) {
+export function withState(snapshot, callback) {
   /** @type {StateSnapshot | null} */
   let previousSnapshot = null;
   const previousRenderer = getActiveRenderer();
 
   try {
-    previousSnapshot = getStateSnapshot();
-    setStateSnapshot(snapshot);
+    previousSnapshot = getState();
+    setState(snapshot);
     if (snapshot.renderer) {
       setActiveRenderer(snapshot.renderer);
     }
     return Cell.runWithContext(snapshot.node.localContext, callback);
   } finally {
     setActiveRenderer(previousRenderer);
-    if (previousSnapshot) setStateSnapshot(previousSnapshot);
+    if (previousSnapshot) setState(previousSnapshot);
   }
 }
 
@@ -494,7 +494,7 @@ export function withStateSnapshot(snapshot, callback) {
  * @see {@link useObserver} for DOM-based lifecycle effects.
  */
 export function onSetup(callback) {
-  const { node } = getStateSnapshot();
+  const { node } = getState();
   node.add(callback);
 }
 
@@ -519,7 +519,7 @@ export function onSetup(callback) {
  * @see {@link onSetup} for registering effects that will be run by this function.
  */
 export async function runPendingSetupEffects() {
-  const { node } = getStateSnapshot();
+  const { node } = getState();
   if (!(node instanceof RootEffectNode)) {
     const message =
       'runPendingSetupEffects() can only be called at the root level of a component tree.';

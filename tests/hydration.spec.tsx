@@ -35,6 +35,8 @@ const setupHydration = async (templateFn: () => JSX.Template) => {
   await serverWindow.document.mountAllTeleports();
   const html = renderToString(serverWindow.document.body, serverWindow);
 
+  console.log({ html });
+
   // 2. Client Setup Phase
   document.body.setHTMLUnsafe(`<div id="app">${html}</div>`);
   const root = document.querySelector('#app') as HTMLElement;
