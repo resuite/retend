@@ -13,6 +13,7 @@ import {
 import { renderToString } from 'retend-server/client';
 import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
 import { DOMRenderer, ShadowRoot, Teleport } from 'retend-web';
+import { setGlobalContext } from 'retend/context';
 import type { JSX } from 'retend/jsx-runtime';
 import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, getTextContent } from './setup.tsx';
@@ -23,6 +24,13 @@ const setupHydration = async (templateFn: () => JSX.Template) => {
     host: clientWindow,
     host: { document },
   } = currentRenderer;
+
+  // Server render and client hydration run in separate processes in real apps.
+  // Keep their global contexts isolated in tests so snapshot branch IDs line up.
+  setGlobalContext({
+    globalData: new Map(),
+    teleportIdCounter: { value: 0 },
+  });
 
   const serverWindow = new VWindow();
   const serverRenderer = new VDOMRenderer(serverWindow, {
@@ -35,13 +43,15 @@ const setupHydration = async (templateFn: () => JSX.Template) => {
   await serverWindow.document.mountAllTeleports();
   const html = renderToString(serverWindow.document.body, serverWindow);
 
-  console.log({ html });
-
   // 2. Client Setup Phase
   document.body.setHTMLUnsafe(`<div id="app">${html}</div>`);
   const root = document.querySelector('#app') as HTMLElement;
 
-  // 3. Client Hydration Initiation
+  setGlobalContext({
+    globalData: new Map(),
+    teleportIdCounter: { value: 0 },
+  });
+
   const clientRenderer = new DOMRenderer(clientWindow);
   setActiveRenderer(clientRenderer);
   clientRenderer.enableHydrationMode();

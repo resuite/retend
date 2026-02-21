@@ -187,7 +187,7 @@ export class DOMRenderer {
    * @param {JSX.JSXDevFileData} [fileData]
    */
   handleComponent(tagname, props, snapshot, fileData) {
-    if (!this.#isHydrating) {
+    const renderComponent = () => {
       // @ts-expect-error: Vite types are not ingrained
       if (import.meta.env?.DEV) {
         return withHMRBoundaries(tagname, props, fileData, this);
@@ -196,27 +196,24 @@ export class DOMRenderer {
       /** @type {Node[]} */
       const nodes = createNodesFromTemplate(template, this);
       return nodes.length === 1 ? nodes[0] : nodes;
+    };
+
+    if (!this.#isHydrating) {
+      return renderComponent();
     }
 
-    if (snapshot !== undefined) {
-      const previousBranch = this.#currentBranch;
-      this.#currentBranch = snapshot;
-      this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
-      try {
-        // @ts-expect-error: Vite types are not ingrained
-        if (import.meta.env?.DEV) {
-          return withHMRBoundaries(tagname, props, fileData, this);
-        }
-        const template = tagname(...props);
-        /** @type {Node[]} */
-        const nodes = createNodesFromTemplate(template, this);
-        return nodes.length === 1 ? nodes[0] : nodes;
-      } finally {
-        this.#currentBranch = previousBranch;
-      }
+    if (snapshot === undefined) {
+      return renderComponent();
     }
 
-    return [];
+    const previousBranch = this.#currentBranch;
+    this.#currentBranch = snapshot;
+    this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
+    try {
+      return renderComponent();
+    } finally {
+      this.#currentBranch = previousBranch;
+    }
   }
 
   /**
