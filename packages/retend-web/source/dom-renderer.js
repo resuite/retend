@@ -55,16 +55,19 @@ export class DOMRenderer {
   observer = null;
   staticStyleIds = new Set();
 
-  #isHydrating = false;
+  #isHydrationModeEnabled = false;
 
   /** @type {Promise<void> | null} */
   #readyToHydrateChildren = null;
   /** @type {null | ((value: void) => void)} */
   #startHydratingChildren = null;
-  /** @type {Array<() => Promise<*>>} */
+  /** @type {Array<{ callback: () => Promise<*> }>} */
   #scheduledHydrationTeleports = [];
-  /** @type {Map<StateSnapshot, number>} */
-  #branches = new Map();
+  /** @type {Set<Promise<void>>} */
+  #pendingHydrationTasks = new Set();
+  /** @type {Map<StateSnapshot, { cursor: number, renderDepth: number, pendingHydrations: number, hydrating: boolean }>} */
+  #hydrationBranches = new Map();
+  #hydratingBranchCount = 0;
   /** @type {StateSnapshot} */ // @ts-expect-error: see vdomrenderer.
   #currentBranch;
   /** @type {Map<string, JsxElement>} */
@@ -85,8 +88,18 @@ export class DOMRenderer {
    * @returns {Node | Node[]}
    */
   render(app) {
-    this.#currentBranch = getState();
-    return normalizeJsxChild(app, this);
+    const rootBranch = getState();
+    this.#currentBranch = rootBranch;
+    if (!this.#isHydrationModeEnabled) {
+      return normalizeJsxChild(app, this);
+    }
+
+    this.#enterHydrationBranch(rootBranch);
+    try {
+      return normalizeJsxChild(app, this);
+    } finally {
+      this.#leaveHydrationBranch(rootBranch);
+    }
   }
 
   /**
@@ -127,7 +140,7 @@ export class DOMRenderer {
    * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
-    if (this.#isHydrating) {
+    if (this.#isCurrentBranchHydrating()) {
       /** @type {DeferredHandleSymbol[]} */ // @ts-expect-error
       const array = fragment;
       const symbol = new DeferredHandleSymbol(array);
@@ -144,7 +157,7 @@ export class DOMRenderer {
    * @param {Node[]} newContent
    */
   write(segment, newContent) {
-    if (this.#isHydrating) {
+    if (this.#isCurrentBranchHydrating()) {
       //@ts-expect-error
       segment.splice(1, segment.length - 2, ...newContent);
       return segment;
@@ -171,7 +184,7 @@ export class DOMRenderer {
     // Allow retend:collection even for Skip objects during hydration,
     // so the For cache can be updated when Skip is resolved to real DOM.
     if (
-      this.#isHydrating &&
+      this.#isCurrentBranchHydrating() &&
       node instanceof Skip &&
       key !== 'retend:collection'
     ) {
@@ -198,20 +211,19 @@ export class DOMRenderer {
       return nodes.length === 1 ? nodes[0] : nodes;
     };
 
-    if (!this.#isHydrating) {
+    if (!this.#isHydrationModeEnabled) {
       return renderComponent();
     }
 
-    if (snapshot === undefined) {
-      return renderComponent();
-    }
-
+    const branch = snapshot ?? this.#currentBranch;
+    if (!branch) return renderComponent();
     const previousBranch = this.#currentBranch;
-    this.#currentBranch = snapshot;
-    this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
+    this.#currentBranch = branch;
+    this.#enterHydrationBranch(branch);
     try {
       return renderComponent();
     } finally {
+      this.#leaveHydrationBranch(branch);
       this.#currentBranch = previousBranch;
     }
   }
@@ -222,7 +234,7 @@ export class DOMRenderer {
    */
   append(_parentNode, childNode) {
     const parentNode = /** @type {Element} */ (_parentNode);
-    if (this.#isHydrating) return parentNode;
+    if (this.#isCurrentBranchHydrating()) return parentNode;
 
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
     if (shadowRoot) return shadowRoot;
@@ -282,7 +294,7 @@ export class DOMRenderer {
    * @returns {DocumentFragment}
    */
   createGroup(input) {
-    if (this.#isHydrating) {
+    if (this.#isCurrentBranchHydrating()) {
       if (input) {
         // @ts-expect-error
         if (Array.isArray(input)) return input;
@@ -309,15 +321,21 @@ export class DOMRenderer {
    * @returns {JsxElement}
    */
   createContainer(tagname, props) {
-    if (this.#isHydrating) {
+    if (this.#isCurrentBranchHydrating()) {
       if (containerIsDynamic(tagname, props, isReactiveChild)) {
-        const branchCursor = this.#branches.get(this.#currentBranch) || 0;
+        const activeBranch = this.#currentBranch;
+        const branchState =
+          activeBranch && this.#ensureHydrationBranch(activeBranch);
+        const branchCursor = branchState?.cursor ?? 0;
         const index = `${this.#currentBranch.node.id}.${branchCursor}`;
-        this.#branches.set(this.#currentBranch, branchCursor + 1);
+        if (branchState) branchState.cursor += 1;
 
         const staticNode = this.#table.get(index);
         if (staticNode) {
-          this.#hydrateNode(staticNode, props);
+          const hydrationTask = this.#hydrateNode(staticNode, props);
+          if (activeBranch) {
+            this.#trackHydrationTask(activeBranch, hydrationTask);
+          }
           return staticNode;
         }
       }
@@ -344,7 +362,7 @@ export class DOMRenderer {
    * @param {string | Cell<any>} text
    */
   createText(text) {
-    if (this.#isHydrating) {
+    if (this.#isCurrentBranchHydrating()) {
       if (Cell.isCell(text)) return text;
       return new Skip(text);
     }
@@ -365,7 +383,7 @@ export class DOMRenderer {
    */
   isNode(child) {
     return (
-      (this.#isHydrating && child instanceof Skip) ||
+      (this.#isCurrentBranchHydrating() && child instanceof Skip) ||
       child instanceof Node ||
       child instanceof Ops.ShadowRootFragment
     );
@@ -376,8 +394,31 @@ export class DOMRenderer {
    * @param {Observer} observer
    */
   scheduleTeleport(callback, observer) {
-    if (this.#isHydrating) {
-      this.#scheduledHydrationTeleports.push(callback);
+    if (this.#isCurrentBranchHydrating()) {
+      const branch = this.#currentBranch;
+      if (branch) {
+        let resolveTask = () => {};
+        const pendingTask = new Promise((resolve) => {
+          resolveTask = () => resolve(undefined);
+        });
+        this.#trackHydrationTask(branch, pendingTask);
+        this.#scheduledHydrationTeleports.push({
+          callback: async () => {
+            const previousBranch = this.#currentBranch;
+            this.#currentBranch = branch;
+            this.#enterHydrationBranch(branch);
+            try {
+              return await callback();
+            } finally {
+              this.#leaveHydrationBranch(branch);
+              this.#currentBranch = previousBranch;
+              resolveTask();
+            }
+          },
+        });
+      } else {
+        this.#scheduledHydrationTeleports.push({ callback });
+      }
       return new Skip('teleport');
     }
     const anchorNode = this.host.document.createComment('teleport-anchor');
@@ -403,7 +444,10 @@ export class DOMRenderer {
       }
     }
 
-    this.#isHydrating = true;
+    this.#isHydrationModeEnabled = true;
+    this.#hydrationBranches.clear();
+    this.#pendingHydrationTasks.clear();
+    this.#hydratingBranchCount = 0;
     this.#table = dynamicNodeTable;
     this.#readyToHydrateChildren = new Promise((resolve) => {
       this.#startHydratingChildren = resolve;
@@ -575,12 +619,95 @@ export class DOMRenderer {
 
   async endHydration() {
     for (const mount of this.#scheduledHydrationTeleports) {
-      await mount();
+      await mount.callback();
     }
-    this.#isHydrating = false;
+    await Promise.all([...this.#pendingHydrationTasks]);
+    this.#isHydrationModeEnabled = false;
     this.#table = new Map();
+    this.#hydrationBranches = new Map();
+    this.#hydratingBranchCount = 0;
     this.#readyToHydrateChildren = null;
     this.#startHydratingChildren = null;
     this.#scheduledHydrationTeleports = [];
+    this.#pendingHydrationTasks.clear();
+  }
+
+  /**
+   * @param {StateSnapshot} branch
+   */
+  #ensureHydrationBranch(branch) {
+    const existing = this.#hydrationBranches.get(branch);
+    if (existing) return existing;
+    const next = {
+      cursor: 0,
+      renderDepth: 0,
+      pendingHydrations: 0,
+      hydrating: true,
+    };
+    this.#hydrationBranches.set(branch, next);
+    this.#hydratingBranchCount += 1;
+    return next;
+  }
+
+  /**
+   * @param {StateSnapshot} branch
+   */
+  #enterHydrationBranch(branch) {
+    if (!this.#isHydrationModeEnabled) return;
+    const state = this.#ensureHydrationBranch(branch);
+    state.renderDepth += 1;
+  }
+
+  /**
+   * @param {StateSnapshot} branch
+   */
+  #leaveHydrationBranch(branch) {
+    if (!this.#isHydrationModeEnabled) return;
+    const state = this.#hydrationBranches.get(branch);
+    if (!state) return;
+    state.renderDepth = Math.max(0, state.renderDepth - 1);
+    this.#maybeCompleteHydrationBranch(state);
+  }
+
+  /**
+   * @param {StateSnapshot} branch
+   * @param {Promise<void>} task
+   */
+  #trackHydrationTask(branch, task) {
+    if (!this.#isHydrationModeEnabled) return;
+    const state = this.#ensureHydrationBranch(branch);
+    state.pendingHydrations += 1;
+    this.#pendingHydrationTasks.add(task);
+    task.finally(() => {
+      this.#pendingHydrationTasks.delete(task);
+      const activeState = this.#hydrationBranches.get(branch);
+      if (!activeState) return;
+      activeState.pendingHydrations = Math.max(
+        0,
+        activeState.pendingHydrations - 1
+      );
+      this.#maybeCompleteHydrationBranch(activeState);
+    });
+  }
+
+  /**
+   * @param {{ cursor: number, renderDepth: number, pendingHydrations: number, hydrating: boolean }} state
+   */
+  #maybeCompleteHydrationBranch(state) {
+    if (!state.hydrating) return;
+    const branchIsIdle =
+      state.renderDepth === 0 && state.pendingHydrations === 0;
+    if (!branchIsIdle) return;
+    state.hydrating = false;
+    this.#hydratingBranchCount = Math.max(0, this.#hydratingBranchCount - 1);
+  }
+
+  #isCurrentBranchHydrating() {
+    if (!this.#isHydrationModeEnabled) return false;
+    const branch = this.#currentBranch;
+    if (!branch) return this.#hydratingBranchCount > 0;
+    const state = this.#hydrationBranches.get(branch);
+    if (!state) return true;
+    return state.hydrating;
   }
 }

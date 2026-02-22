@@ -207,7 +207,7 @@ async function restoreContext(context, routerCreateFn) {
   const observer = useObserver();
   createRouterRoot(router);
   await renderer.hydrateChildrenWhenResolved(router.navigate(path));
-  renderer.endHydration();
+  await renderer.endHydration();
   router.attachWindowListeners(window);
 
   const preloadedLinks = window.document.head.querySelectorAll(
