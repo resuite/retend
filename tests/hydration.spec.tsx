@@ -1989,4 +1989,163 @@ describe('Hydration', () => {
 
     expect(mi?.textContent).toBe('y');
   });
+
+  it('should hydrate If control flow next to static siblings without cursor misalignment', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const show = Cell.source(false);
+    const items = Cell.source([{ id: 1, name: 'Item 1' }]);
+
+    const template = () => (
+      <div id="mixed-if-root">
+        <div id="if-section">
+          <h3>Section Title</h3>
+          {If(show, () => (
+            <div id="conditional-content">Shown</div>
+          ))}
+        </div>
+        <div id="list-section">
+          <ul id="list-container">
+            {For(items, (item) => (
+              <li class="list-item">{item.name}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+
+    expect(document.querySelector('#if-section')).not.toBeNull();
+    expect(document.querySelector('#list-section')).not.toBeNull();
+    expect(document.querySelector('#conditional-content')).toBeNull();
+    expect(document.querySelectorAll('.list-item').length).toBe(1);
+
+    // Verify no hydration errors occurred (cursor misalignment would cause errors).
+    const errorCalls = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('Hydration error')
+    );
+    expect(errorCalls.length).toBe(0);
+
+    // Toggle the If condition and verify interactivity.
+    show.set(true);
+    expect(document.querySelector('#conditional-content')).not.toBeNull();
+
+    // Modify the For list and verify interactivity.
+    items.set([
+      { id: 1, name: 'Item 1' },
+      { id: 2, name: 'Item 2' },
+    ]);
+    expect(document.querySelectorAll('.list-item').length).toBe(2);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should hydrate Cells with empty initial values without errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const emptyText = Cell.source('');
+    const emptyNumber = Cell.source(0);
+    const populated = Cell.source('Hello');
+
+    const template = () => (
+      <div id="empty-cell-root">
+        <p id="empty-text-container">Label: {emptyText}</p>
+        <p id="number-container">Count: {emptyNumber}</p>
+        <p id="populated-container">Value: {populated}</p>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+
+    const emptyTextP = document.querySelector('#empty-text-container');
+    const numberP = document.querySelector('#number-container');
+    const populatedP = document.querySelector('#populated-container');
+
+    expect(emptyTextP).not.toBeNull();
+    expect(numberP).not.toBeNull();
+    expect(populatedP).not.toBeNull();
+
+    // Verify no hydration errors.
+    const errorCalls = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('Hydration error')
+    );
+    expect(errorCalls.length).toBe(0);
+
+    // Update the empty cell and verify reactivity.
+    emptyText.set('Now has content');
+    expect(emptyTextP?.textContent).toContain('Now has content');
+
+    // Update number cell.
+    emptyNumber.set(42);
+    expect(numberP?.textContent).toContain('42');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should hydrate Scope Providers with Fragment children without losing content', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const TestScope = createScope<{ count: SourceCell<number> }>();
+
+    const InnerComponent = () => {
+      const ctx = useScopeContext(TestScope);
+      return (
+        <button
+          id="scope-btn"
+          type="button"
+          onClick={() => ctx.count.set(ctx.count.get() + 1)}
+        >
+          Increment
+        </button>
+      );
+    };
+
+    const ProviderWrapper = ({
+      children,
+    }: {
+      children: () => JSX.Template;
+    }) => {
+      const count = Cell.source(0);
+      return (
+        <TestScope.Provider value={{ count }}>
+          {() => (
+            <>
+              the count: {count}
+              {children()}
+            </>
+          )}
+        </TestScope.Provider>
+      );
+    };
+
+    const template = () => (
+      <div id="scope-provider-root">
+        <ProviderWrapper>{() => <InnerComponent />}</ProviderWrapper>
+        <div id="sibling-element">Sibling</div>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+
+    const root = document.querySelector('#scope-provider-root');
+    const btn = document.querySelector('#scope-btn') as HTMLButtonElement;
+    const sibling = document.querySelector('#sibling-element');
+
+    // All content from the Provider's Fragment must be present.
+    expect(root).not.toBeNull();
+    expect(btn).not.toBeNull();
+    expect(sibling).not.toBeNull();
+    expect(root?.textContent).toContain('the count:');
+    expect(root?.textContent).toContain('Sibling');
+
+    // Verify no hydration errors.
+    const errorCalls = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('Hydration error')
+    );
+    expect(errorCalls.length).toBe(0);
+
+    // Verify interactivity through the scope.
+    btn.click();
+    expect(root?.textContent).toContain('1');
+
+    consoleSpy.mockRestore();
+  });
 });

@@ -205,8 +205,11 @@ async function restoreContext(context, routerCreateFn) {
   const router = routerCreateFn();
   renderer.enableHydrationMode();
   const observer = useObserver();
+  // Preload the route before the first hydration render so outlet placeholders
+  // and server markup stay aligned.
+  await router.navigate(path);
   createRouterRoot(router);
-  await renderer.hydrateChildrenWhenResolved(router.navigate(path));
+  await renderer.hydrateChildrenWhenResolved(Promise.resolve());
   await renderer.endHydration();
   router.attachWindowListeners(window);
 

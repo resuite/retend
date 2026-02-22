@@ -65,6 +65,8 @@ export class DOMRenderer {
   #scheduledHydrationTeleports = [];
   /** @type {Set<Promise<void>>} */
   #pendingHydrationTasks = new Set();
+  /** @type {Set<any[]>} */
+  #deferredHydrationHandles = new Set();
   /** @type {Map<StateSnapshot, { cursor: number, renderDepth: number, pendingHydrations: number, hydrating: boolean }>} */
   #hydrationBranches = new Map();
   #hydratingBranchCount = 0;
@@ -143,9 +145,10 @@ export class DOMRenderer {
     if (this.#isCurrentBranchHydrating()) {
       /** @type {DeferredHandleSymbol[]} */ // @ts-expect-error
       const array = fragment;
-      const symbol = new DeferredHandleSymbol(array);
+      const symbol = new DeferredHandleSymbol([]);
       array.splice(0, 0, symbol);
       array.push(symbol);
+      this.#deferredHydrationHandles.add(array);
       // @ts-expect-error
       return array;
     }
@@ -234,7 +237,19 @@ export class DOMRenderer {
    */
   append(_parentNode, childNode) {
     const parentNode = /** @type {Element} */ (_parentNode);
-    if (this.#isCurrentBranchHydrating()) return parentNode;
+    if (this.#isCurrentBranchHydrating()) {
+      // During hydration, groups are represented as plain arrays.
+      // We must still collect children into them so that
+      // normalizeJsxChild can build up fragment content.
+      if (Array.isArray(_parentNode)) {
+        if (Array.isArray(childNode)) {
+          _parentNode.push(...childNode);
+        } else if (childNode) {
+          _parentNode.push(childNode);
+        }
+      }
+      return parentNode;
+    }
 
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
     if (shadowRoot) return shadowRoot;
@@ -585,17 +600,35 @@ export class DOMRenderer {
         continue;
       }
 
-      if (Cell.isCell(node) && domNode instanceof Text) {
+      if (Cell.isCell(node)) {
+        /** @type {Text} */
+        let textNode;
+        if (domNode instanceof Text) {
+          textNode = domNode;
+          domIndex++;
+        } else {
+          // The Cell's value was empty during SSR, so no text node was
+          // created by the browser. Create one now and insert it.
+          textNode = this.host.document.createTextNode('');
+          if (domNode) {
+            staticNode.insertBefore(textNode, domNode);
+          } else {
+            staticNode.appendChild(textNode);
+          }
+        }
         const expectedValue = node.get();
         if (!(expectedValue instanceof Promise)) {
           const expectedText = String(expectedValue);
-          if (domNode.textContent !== expectedText) {
-            console.error(
-              'Hydration error: Expected text',
-              expectedText,
-              'but got',
-              domNode.textContent
-            );
+          if (textNode.textContent !== expectedText) {
+            if (domNode instanceof Text) {
+              console.error(
+                'Hydration error: Expected text',
+                expectedText,
+                'but got',
+                textNode.textContent
+              );
+            }
+            textNode.textContent = expectedText;
           }
         }
         /**
@@ -605,9 +638,8 @@ export class DOMRenderer {
         function listener(value) {
           updateText(value, this);
         }
-        addCellListener(domNode, node, listener, false);
+        addCellListener(textNode, node, listener, false);
         nodeIndex++;
-        domIndex++;
         continue;
       }
 
@@ -622,6 +654,9 @@ export class DOMRenderer {
       await mount.callback();
     }
     await Promise.all([...this.#pendingHydrationTasks]);
+    for (const handle of this.#deferredHydrationHandles) {
+      Ops.finalizeHydrationHandleSegment(handle);
+    }
     this.#isHydrationModeEnabled = false;
     this.#table = new Map();
     this.#hydrationBranches = new Map();
@@ -630,6 +665,7 @@ export class DOMRenderer {
     this.#startHydratingChildren = null;
     this.#scheduledHydrationTeleports = [];
     this.#pendingHydrationTasks.clear();
+    this.#deferredHydrationHandles.clear();
   }
 
   /**
