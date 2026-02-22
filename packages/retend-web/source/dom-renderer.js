@@ -65,7 +65,7 @@ export class DOMRenderer {
   #scheduledHydrationTeleports = [];
   /** @type {Map<StateSnapshot, number>} */
   #branches = new Map();
-  /** @type {StateSnapshot} */
+  /** @type {StateSnapshot} */ // @ts-expect-error: see vdomrenderer.
   #currentBranch;
   /** @type {Map<string, JsxElement>} */
   #table = new Map();
@@ -73,7 +73,6 @@ export class DOMRenderer {
   /** @param {Window} host */
   constructor(host) {
     this.host = host;
-    this.#currentBranch = getState();
     Ops.writeStaticStyles(this);
     this.capabilities = {
       supportsSetupEffects: true,
@@ -86,6 +85,7 @@ export class DOMRenderer {
    * @returns {Node | Node[]}
    */
   render(app) {
+    this.#currentBranch = getState();
     return normalizeJsxChild(app, this);
   }
 

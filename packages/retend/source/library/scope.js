@@ -379,15 +379,6 @@ export function getState() {
     globalData.set(SNAPSHOT_KEY, { scopes: null, node, renderer });
   }
   const snapshot = globalData.get(SNAPSHOT_KEY);
-  const renderer = getActiveRenderer();
-
-  // In some flows (e.g. renderer construction), the snapshot can be created
-  // before an active renderer is registered. Rebind it when available so
-  // root setup effects can be enabled correctly.
-  if (renderer) {
-    snapshot.renderer = renderer;
-    snapshot.node.renderer = renderer;
-  }
   return snapshot;
 }
 

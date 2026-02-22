@@ -57,14 +57,14 @@ export class VDOMRenderer {
   /**
    * Current control flow branch being rendered.
    * @type {StateSnapshot}
-   */
+   *
+   */ // @ts-expect-error: It is asigned before render() intentionally. Assigning in the contructor breaks the order of many things.
   #currentBranch;
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
     this.host = host;
     this.markDynamicNodes = markDynamicNodes;
-    this.#currentBranch = getState();
     // @ts-expect-error: all static styles need is staticStyleIds set and a window
     Ops.writeStaticStyles(this);
     this.capabilities = {
@@ -80,6 +80,7 @@ export class VDOMRenderer {
    * @returns {VDom.VNode | VDom.VNode[]} The rendered virtual DOM tree.
    */
   render(app) {
+    this.#currentBranch = getState();
     return normalizeJsxChild(app, this);
   }
 

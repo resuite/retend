@@ -977,13 +977,8 @@ export function defineRoute(route) {
  * @returns {any} The root router component, typically an instance of `RouterProvider` wrapping an `Outlet`.
  */
 export function createRouterRoot(router) {
-  const rootOutlet = RouterProvider({ router, children: Outlet });
-  if (Array.isArray(rootOutlet)) {
-    const renderer = getActiveRenderer();
-    const group = renderer.createGroup(rootOutlet);
-    return group;
-  }
-  return rootOutlet;
+  const renderer = getActiveRenderer();
+  return renderer.render(() => RouterProvider({ router, children: Outlet }));
 }
 
 // Type Re-exports
