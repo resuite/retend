@@ -70,8 +70,6 @@ export class DOMRenderer {
   /** @type {Map<StateSnapshot, { cursor: number, renderDepth: number, pendingHydrations: number, hydrating: boolean }>} */
   #hydrationBranches = new Map();
   #hydratingBranchCount = 0;
-  /** @type {StateSnapshot} */ // @ts-expect-error: see vdomrenderer.
-  #currentBranch;
   /** @type {Map<string, JsxElement>} */
   #table = new Map();
 
@@ -91,7 +89,6 @@ export class DOMRenderer {
    */
   render(app) {
     const rootBranch = getState();
-    this.#currentBranch = rootBranch;
     if (!this.#isHydrationModeEnabled) {
       return normalizeJsxChild(app, this);
     }
@@ -218,16 +215,13 @@ export class DOMRenderer {
       return renderComponent();
     }
 
-    const branch = snapshot ?? this.#currentBranch;
+    const branch = snapshot ?? getState();
     if (!branch) return renderComponent();
-    const previousBranch = this.#currentBranch;
-    this.#currentBranch = branch;
     this.#enterHydrationBranch(branch);
     try {
       return renderComponent();
     } finally {
       this.#leaveHydrationBranch(branch);
-      this.#currentBranch = previousBranch;
     }
   }
 
@@ -338,11 +332,11 @@ export class DOMRenderer {
   createContainer(tagname, props) {
     if (this.#isCurrentBranchHydrating()) {
       if (containerIsDynamic(tagname, props, isReactiveChild)) {
-        const activeBranch = this.#currentBranch;
+        const activeBranch = getState();
         const branchState =
           activeBranch && this.#ensureHydrationBranch(activeBranch);
         const branchCursor = branchState?.cursor ?? 0;
-        const index = `${this.#currentBranch.node.id}.${branchCursor}`;
+        const index = `${activeBranch.node.id}.${branchCursor}`;
         if (branchState) branchState.cursor += 1;
 
         const staticNode = this.#table.get(index);
@@ -410,7 +404,7 @@ export class DOMRenderer {
    */
   scheduleTeleport(callback, observer) {
     if (this.#isCurrentBranchHydrating()) {
-      const branch = this.#currentBranch;
+      const branch = getState();
       if (branch) {
         let resolveTask = () => {};
         const pendingTask = new Promise((resolve) => {
@@ -419,14 +413,11 @@ export class DOMRenderer {
         this.#trackHydrationTask(branch, pendingTask);
         this.#scheduledHydrationTeleports.push({
           callback: async () => {
-            const previousBranch = this.#currentBranch;
-            this.#currentBranch = branch;
             this.#enterHydrationBranch(branch);
             try {
               return await callback();
             } finally {
               this.#leaveHydrationBranch(branch);
-              this.#currentBranch = previousBranch;
               resolveTask();
             }
           },
@@ -740,7 +731,7 @@ export class DOMRenderer {
 
   #isCurrentBranchHydrating() {
     if (!this.#isHydrationModeEnabled) return false;
-    const branch = this.#currentBranch;
+    const branch = getState();
     if (!branch) return this.#hydratingBranchCount > 0;
     const state = this.#hydrationBranches.get(branch);
     if (!state) return true;

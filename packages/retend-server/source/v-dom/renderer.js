@@ -54,12 +54,6 @@ export class VDOMRenderer {
    * @type {Map<StateSnapshot, number>}
    */
   #branches = new Map();
-  /**
-   * Current control flow branch being rendered.
-   * @type {StateSnapshot}
-   *
-   */ // @ts-expect-error: It is asigned before render() intentionally. Assigning in the contructor breaks the order of many things.
-  #currentBranch;
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
@@ -80,7 +74,6 @@ export class VDOMRenderer {
    * @returns {VDom.VNode | VDom.VNode[]} The rendered virtual DOM tree.
    */
   render(app) {
-    this.#currentBranch = getState();
     return normalizeJsxChild(app, this);
   }
 
@@ -155,17 +148,11 @@ export class VDOMRenderer {
    */
   handleComponent(tagname, props, snapshot) {
     if (snapshot && this.markDynamicNodes) {
-      const previousBranch = this.#currentBranch;
       this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
-      this.#currentBranch = snapshot;
-      try {
-        const component = tagname(...props);
-        /** @type {VDom.VNode[]} */
-        const nodes = createNodesFromTemplate(component, this);
-        return nodes.length === 1 ? nodes[0] : nodes;
-      } finally {
-        this.#currentBranch = previousBranch;
-      }
+      const component = tagname(...props);
+      /** @type {VDom.VNode[]} */
+      const nodes = createNodesFromTemplate(component, this);
+      return nodes.length === 1 ? nodes[0] : nodes;
     }
 
     // Repeated for performance.
@@ -237,10 +224,11 @@ export class VDOMRenderer {
       this.markDynamicNodes &&
       Ops.containerIsDynamic(tagname, props, isReactiveChild)
     ) {
-      const index = this.#branches.get(this.#currentBranch) || 0;
-      const id = `${this.#currentBranch.node.id}.${index}`;
+      const currentBranch = getState();
+      const index = this.#branches.get(currentBranch) || 0;
+      const id = `${currentBranch.node.id}.${index}`;
       element.setAttribute('data-dyn', id);
-      this.#branches.set(this.#currentBranch, index + 1);
+      this.#branches.set(currentBranch, index + 1);
     }
     return element;
   }
