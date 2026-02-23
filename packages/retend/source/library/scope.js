@@ -53,6 +53,7 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
  * @property {ScopeLink | null} scopes
  * @property {EffectNode} node
  * @property {Renderer<any> | undefined} renderer
+ * @property {any} [data]
  */
 
 /**
