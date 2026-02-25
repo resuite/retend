@@ -20,7 +20,7 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm exec playwright install chromium
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter retend-test-suite exec playwright install chromium
       - run: pnpm run build
       - run: pnpm run test
