@@ -4,13 +4,11 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "retend": "workspace:*",
+    "retend-utils": "workspace:*",
+    "retend-server": "workspace:*",
+    "retend-web": "workspace:*",
     "vitest": "^3.2.4"
-  },
-  "peerDependencies": {
-    "retend": "*",
-    "retend-utils": "*",
-    "retend-server": "*",
-    "retend-web": "*"
   },
   "devDependencies": {
     "@vitest/browser": "^3.2.4",

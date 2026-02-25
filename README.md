@@ -55,7 +55,7 @@ runPendingSetupEffects();
 
 ## Installation
 
-> `NOTE`: This section assumes you already have Node.js and npm installed on your machine. If you don't, you can download them from the official [Node.js website](https://nodejs.org/en/).
+> `NOTE`: This section assumes you already have Node.js and pnpm installed on your machine. If you don't, install Node.js from the official [Node.js website](https://nodejs.org/en/) and then run `corepack enable pnpm`.
 
 To get started with Retend, you'll need to create a new project using the scaffolding tool.
 
@@ -108,7 +108,7 @@ This will set up the basic project structure for you. Then, you'll need to insta
   Run the following command to install all the required packages for your project:
 
   ```bash
-  npm install
+  pnpm install
   ```
 
 - **Start the development server:**
@@ -116,7 +116,7 @@ This will set up the basic project structure for you. Then, you'll need to insta
   Finally, start the development server using this command in the same directory:
 
   ```bash
-  npm run dev
+  pnpm run dev
   ```
 
   This command will start a local development server, and you'll be able to see your application at `http://localhost:5229` in your browser.

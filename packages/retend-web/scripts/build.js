@@ -21,4 +21,4 @@ console.log('Adding stub index.js for jsx-runtime...');
 fs.writeFileSync('dist/jsx-runtime/index.js', 'export {}');
 
 console.log('Building types...');
-execSync('bunx tsc --project tsconfig.json', { stdio: 'inherit' });
+execSync('pnpm exec tsc --project tsconfig.json', { stdio: 'inherit' });

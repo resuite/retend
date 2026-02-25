@@ -14,6 +14,8 @@ import CONFIG from './config.json' with { type: 'json' };
 
 const isBun =
   typeof process !== 'undefined' && process.versions && process.versions.bun;
+const npmUserAgent = process.env.npm_config_user_agent ?? '';
+const isPnpm = npmUserAgent.startsWith('pnpm/');
 
 const args = process.argv.slice(2);
 
@@ -753,21 +755,25 @@ async function createDocsFiles(projectDir, answers) {
  * @param {string} projectName
  */
 function displayCompletionMessage(projectName) {
+  const installCommand = isBun ? 'bun install' : isPnpm ? 'pnpm install' : 'npm install';
+  const devCommand = isBun ? 'bun run dev' : isPnpm ? 'pnpm run dev' : 'npm run dev';
+  const buildCommand = isBun ? 'bun run build' : isPnpm ? 'pnpm run build' : 'npm run build';
+
   console.log(chalk.green('\n✨ Your project is ready! ✨'));
   console.log(chalk.yellow('\nNext steps:'));
   console.log(chalk.cyan('1. Navigate to your project folder:'));
   console.log(chalk.white(`   cd ${projectName}`));
   console.log(chalk.cyan('2. Install project dependencies:'));
-  console.log(chalk.white(`   ${isBun ? 'bun install' : 'npm install'}`));
+  console.log(chalk.white(`   ${installCommand}`));
   console.log(chalk.cyan('3. Start the development server:'));
-  console.log(chalk.white(`   ${isBun ? 'bun run dev' : 'npm run dev'}`));
+  console.log(chalk.white(`   ${devCommand}`));
   console.log(chalk.cyan('4. Open your browser and visit:'));
   console.log(chalk.white('   http://localhost:5529'));
   console.log(
     chalk.cyan(`5. Begin editing your project files in the 'source' directory`)
   );
   console.log(chalk.cyan('6. To build for production, run:'));
-  console.log(chalk.white(`${isBun ? 'bun run build' : 'npm run build'}`));
+  console.log(chalk.white(buildCommand));
   console.log(chalk.blue('\nHappy coding! 🚀'));
 }
 

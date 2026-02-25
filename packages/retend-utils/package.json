@@ -7,7 +7,7 @@
   "module": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "bunx tsc --project tsconfig.json"
+    "build": "pnpm exec tsc --project tsconfig.json"
   },
   "keywords": [
     "web",
@@ -36,6 +36,8 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "retend": "workspace:*",
+    "retend-web": "workspace:*",
     "typescript": "^5.8.2",
     "vite": "^5.4.14"
   },

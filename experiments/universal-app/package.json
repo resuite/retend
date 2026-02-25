@@ -5,15 +5,15 @@
   "type": "module",
   "scripts": {
     "canvas-dev": "vite --port 5229",
-    "terminal-dev": "bun source/renderers/terminal/entry.ts",
+    "terminal-dev": "tsx source/renderers/terminal/entry.ts",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "retend": "file:../../packages/retend",
-    "retend-web": "file:../../packages/retend-web",
-    "retend-server": "file:../../packages/retend-server",
-    "retend-utils": "file:../../packages/retend-utils",
+    "retend": "workspace:*",
+    "retend-web": "workspace:*",
+    "retend-server": "workspace:*",
+    "retend-utils": "workspace:*",
     "blessed": "^0.1.81",
     "@types/blessed": "^0.1.25"
   },
