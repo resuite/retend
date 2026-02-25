@@ -59,6 +59,7 @@ export function h(
     props.children = createNodesFromTemplate(props.children, renderer);
     let container = renderer.createContainer(tagOrFn, props);
     for (const key in props) {
+      if (key === 'children') continue;
       const value = props[key];
       if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
       container = renderer.setProperty(container, key, value);

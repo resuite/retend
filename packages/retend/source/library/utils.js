@@ -8,33 +8,47 @@
  * @returns {Data['Node'][]}
  */
 export function createNodesFromTemplate(children, renderer) {
-  if (
-    typeof children === 'string' ||
-    typeof children === 'number' ||
-    typeof children === 'boolean'
-  ) {
-    return [renderer.createText(String(children))];
+  /** @type {Data['Node'][]} */
+  const nodes = [];
+  const stack = [children];
+
+  while (stack.length > 0) {
+    const child = stack.pop();
+    if (
+      typeof child === 'string' ||
+      typeof child === 'number' ||
+      typeof child === 'boolean'
+    ) {
+      nodes.push(renderer.createText(String(child)));
+      continue;
+    }
+
+    if (renderer.isGroup(child)) {
+      nodes.push(...renderer.unwrapGroup(child));
+      continue;
+    }
+
+    if (renderer.isNode(child)) {
+      nodes.push(child);
+      continue;
+    }
+
+    if (Array.isArray(child)) {
+      for (let i = child.length - 1; i >= 0; i -= 1) {
+        stack.push(child[i]);
+      }
+      continue;
+    }
+
+    if (typeof child === 'function') {
+      stack.push(child());
+      continue;
+    }
+
+    if (child) nodes.push(child);
   }
 
-  if (renderer.isGroup(children)) {
-    return renderer.unwrapGroup(children);
-  }
-
-  if (renderer.isNode(children)) {
-    return [children];
-  }
-
-  if (Array.isArray(children)) {
-    return children.flatMap((child) =>
-      createNodesFromTemplate(child, renderer)
-    );
-  }
-
-  if (typeof children === 'function') {
-    return createNodesFromTemplate(children(), renderer);
-  }
-
-  return [children].filter(Boolean);
+  return nodes;
 }
 
 /**
@@ -49,19 +63,25 @@ export function createNodesFromTemplate(children, renderer) {
  * @returns {Data['Node']}
  */
 export function linkNodes(first, second, renderer) {
-  let _first = first;
+  let parent = first;
+  if (!second) return parent;
 
-  if (Array.isArray(second)) {
-    for (const childNode of second) {
-      _first = linkNodes(_first, childNode, renderer);
+  const stack = [second];
+  while (stack.length > 0) {
+    const childNode = stack.pop();
+    if (Array.isArray(childNode)) {
+      for (let i = childNode.length - 1; i >= 0; i -= 1) {
+        stack.push(childNode[i]);
+      }
+      continue;
     }
-    return _first;
+    if (!childNode) continue;
+
+    const normalized = normalizeJsxChild(childNode, renderer);
+    parent = renderer.append(parent, normalized);
   }
 
-  if (!second) return _first;
-
-  const childNode = normalizeJsxChild(second, renderer);
-  return renderer.append(_first, childNode);
+  return parent;
 }
 
 /**
@@ -76,9 +96,33 @@ export function normalizeJsxChild(child, renderer) {
 
   if (Array.isArray(child)) {
     const group = renderer.createGroup();
-    for (const subchild of child) {
-      const childNodes = normalizeJsxChild(subchild, renderer);
-      renderer.append(group, childNodes);
+    /** @type {any[]} */
+    const stack = [];
+    for (let i = child.length - 1; i >= 0; i -= 1) {
+      stack.push(child[i]);
+    }
+
+    while (stack.length > 0) {
+      const subchild = stack.pop();
+      if (Array.isArray(subchild)) {
+        for (let i = subchild.length - 1; i >= 0; i -= 1) {
+          stack.push(subchild[i]);
+        }
+        continue;
+      }
+
+      if (typeof subchild === 'function') {
+        stack.push(subchild());
+        continue;
+      }
+
+      const normalized =
+        subchild === null || subchild === undefined
+          ? renderer.createText('')
+          : renderer.isNode(subchild)
+            ? subchild
+            : renderer.createText(subchild);
+      renderer.append(group, normalized);
     }
     return group;
   }
