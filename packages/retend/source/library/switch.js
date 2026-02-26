@@ -113,9 +113,22 @@ export function Switch(value, cases, defaultCase) {
       else processValueChange(nextValue);
     });
 
-    const initialResults = callback(value.get());
-    const group = renderer.createGroup(initialResults);
-    const handle = renderer.createGroupHandle(group);
+    const initialValue = value.get();
+    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+    let handle;
+    /** @type {ReturnType<typeof renderer.createGroup>} */
+    let group;
+
+    if (initialValue instanceof Promise) {
+      group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
+      initialValue.then((resolved) => processValueChange(resolved));
+      return group;
+    }
+
+    const initialResults = callback(initialValue);
+    group = renderer.createGroup(initialResults);
+    handle = renderer.createGroupHandle(group);
     return group;
   };
 }
@@ -220,9 +233,22 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
       else processValueChange(nextValue);
     });
 
-    const initialResults = callback(value.get());
-    const group = renderer.createGroup(initialResults);
-    const handle = renderer.createGroupHandle(group);
+    const initialValue = value.get();
+    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+    let handle;
+    /** @type {ReturnType<typeof renderer.createGroup>} */
+    let group;
+
+    if (initialValue instanceof Promise) {
+      group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
+      initialValue.then((resolved) => processValueChange(resolved));
+      return group;
+    }
+
+    const initialResults = callback(initialValue);
+    group = renderer.createGroup(initialResults);
+    handle = renderer.createGroupHandle(group);
     return group;
   };
 };
