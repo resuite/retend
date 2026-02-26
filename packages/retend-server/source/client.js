@@ -3,7 +3,13 @@
 /** @import { Router } from 'retend/router' */
 /** @import { ServerContext } from './types.js' */
 
-import { runPendingSetupEffects, useObserver, setActiveRenderer } from 'retend';
+import {
+  branchState,
+  runPendingSetupEffects,
+  setActiveRenderer,
+  useObserver,
+  withState,
+} from 'retend';
 import { createRouterRoot } from 'retend/router';
 import { setGlobalContext } from 'retend/context';
 import { addMetaListener } from './meta.js';
@@ -208,7 +214,8 @@ async function restoreContext(context, routerCreateFn) {
   // Preload the route before the first hydration render so outlet placeholders
   // and server markup stay aligned.
   await router.navigate(path);
-  createRouterRoot(router);
+  const hydrationRoot = branchState();
+  withState(hydrationRoot, () => createRouterRoot(router));
   await renderer.hydrateChildrenWhenResolved(Promise.resolve());
   await renderer.endHydration();
   router.attachWindowListeners(window);

@@ -1,4 +1,12 @@
-import { Cell, For, If, type SourceCell, setActiveRenderer } from 'retend';
+import {
+  Await,
+  Cell,
+  For,
+  If,
+  type SourceCell,
+  setActiveRenderer,
+  waitForAsyncBoundaries,
+} from 'retend';
 import { Router, createRouterRoot } from 'retend/router';
 import { setGlobalContext } from 'retend/context';
 import { hydrate, renderToString } from 'retend-server/client';
@@ -106,8 +114,15 @@ describe('Hydration router + unique transition', () => {
 
     const serverRouter = createRouter();
     await serverRouter.navigate('/');
-    const serverRoot = createRouterRoot(serverRouter);
-    serverWindow.document.body.append(serverRoot);
+    const serverRoot = serverRenderer.render(() =>
+      Await({
+        fallback: null,
+        children: () => createRouterRoot(serverRouter),
+      })
+    );
+    const serverNodes = Array.isArray(serverRoot) ? serverRoot : [serverRoot];
+    serverWindow.document.body.append(...serverNodes);
+    await waitForAsyncBoundaries();
     const html = renderToString(serverWindow.document.body, serverWindow);
 
     window.document.body.setHTMLUnsafe(

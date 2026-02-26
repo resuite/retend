@@ -133,7 +133,14 @@ async function renderPath(options) {
       console.warn('appElement not found while rendering', path);
       return;
     }
-    appElement.replaceChildren(retendRouterModule.createRouterRoot(router));
+    const renderedRoot = renderer.render(() =>
+      retendModule.Await({
+        fallback: null,
+        children: () => retendRouterModule.createRouterRoot(router),
+      })
+    );
+    const nodes = Array.isArray(renderedRoot) ? renderedRoot : [renderedRoot];
+    appElement.replaceChildren(...nodes);
 
     await router.navigate(path);
     await retendModule.waitForAsyncBoundaries();

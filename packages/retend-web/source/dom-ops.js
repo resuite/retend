@@ -57,12 +57,17 @@ export function reconcile(segment, options, renderer) {
   let i = 0;
   const batchAdd = renderer.host.document.createDocumentFragment();
   const batchAddLike = /** @type {*} */ (batchAdd);
+  /** @type {ChildNode | null} */
+  let batchTail = null;
   for (const item of newList) {
     // @ts-ignore: Invariant: nodes is always defined.
     const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
     const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
     if (isAlreadyInPosition) {
-      if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
+      if (batchTail) {
+        lastInserted.after(batchAddLike);
+        batchTail = null;
+      }
       lastInserted = nodes[nodes.length - 1];
       i++;
       continue;
@@ -99,7 +104,10 @@ export function reconcile(segment, options, renderer) {
           // recheck sequential correctness.
           const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
           if (isAlreadyInPosition) {
-            if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+            if (batchTail) {
+              lastInserted.after(batchAddLike);
+              batchTail = null;
+            }
             lastInserted = nodes[nodes.length - 1];
             i++;
             continue;
@@ -111,16 +119,20 @@ export function reconcile(segment, options, renderer) {
     const isNewItemInstance = !nodes[0]?.parentNode;
     if (isNewItemInstance) {
       batchAddLike.append(...nodes);
+      batchTail =
+        /** @type {ChildNode | undefined} */ (nodes[nodes.length - 1]) ??
+        batchTail;
       i++;
       continue;
     }
 
-    if (batchAdd.childNodes.length === 0) {
+    if (!batchTail) {
       onBeforeNodeMove?.(nodes);
       lastInserted.after(.../** @type {*} */ (nodes));
     } else {
-      const newPtr = batchAdd.childNodes[batchAdd.childNodes.length - 1];
+      const newPtr = batchTail;
       lastInserted.after(batchAddLike);
+      batchTail = null;
       onBeforeNodeMove?.(nodes);
       newPtr.after(.../** @type {*} */ (nodes));
     }
@@ -128,7 +140,7 @@ export function reconcile(segment, options, renderer) {
     i++;
   }
 
-  if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+  if (batchTail) lastInserted.after(batchAddLike);
 }
 
 /**
@@ -354,8 +366,8 @@ function synthesizeRangeAnchors(segment) {
 
   const deferred = segment.find((value) => isDeferredMarker(value));
   const symbol = deferred?.symbol ?? Symbol();
-  const start = first.ownerDocument.createComment('----');
-  const end = first.ownerDocument.createComment('----');
+  const start = first.ownerDocument.createComment('[');
+  const end = first.ownerDocument.createComment(']');
   Reflect.set(start, '__commentRangeSymbol', symbol);
   Reflect.set(end, '__commentRangeSymbol', symbol);
 

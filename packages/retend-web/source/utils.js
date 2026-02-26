@@ -33,8 +33,8 @@ import { ShadowRootFragment } from './dom-ops.js';
  */
 export function createCommentPair(renderer) {
   const symbol = Symbol();
-  const rangeStart = renderer.host.document.createComment('----');
-  const rangeEnd = renderer.host.document.createComment('----');
+  const rangeStart = renderer.host.document.createComment('[');
+  const rangeEnd = renderer.host.document.createComment(']');
   Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
   Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 

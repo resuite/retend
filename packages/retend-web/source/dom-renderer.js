@@ -19,6 +19,10 @@ import {
   isReactiveChild,
 } from './utils.js';
 
+const COMMENT_NODE = 8;
+const TEXT_NODE = 3;
+const DOCUMENT_FRAGMENT_NODE = 11;
+
 /**
  * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
@@ -71,6 +75,7 @@ export class DOMRenderer {
   #hydratingBranchCount = 0;
   /** @type {Map<string, JsxElement>} */
   #table = new Map();
+  #hydratedNodes = new WeakSet();
 
   /** @param {Window} host */
   constructor(host) {
@@ -138,7 +143,7 @@ export class DOMRenderer {
    * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
-    if (this.#getHydrationState()) {
+    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       /** @type {DeferredHandleSymbol[]} */ // @ts-expect-error
       const array = fragment;
       const symbol = new DeferredHandleSymbol([]);
@@ -156,7 +161,7 @@ export class DOMRenderer {
    * @param {Node[]} newContent
    */
   write(segment, newContent) {
-    if (this.#getHydrationState()) {
+    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       //@ts-expect-error
       segment.splice(1, segment.length - 2, ...newContent);
       return segment;
@@ -169,6 +174,20 @@ export class DOMRenderer {
    * @param {ReconcilerOptions<Node>} options
    */
   reconcile(segment, options) {
+    // On first reconcile pass, a range may already contain untracked nodes
+    // (e.g. server-rendered content before first async client resolve).
+    // Clear them once so reconcile does not duplicate content.
+    const cacheFromLastRun = options.cacheFromLastRun;
+    if (cacheFromLastRun && cacheFromLastRun.size === 0) {
+      const start = segment[0];
+      const end = segment[1];
+      let cursor = start?.nextSibling;
+      while (cursor && cursor !== end) {
+        const next = cursor.nextSibling;
+        cursor.remove();
+        cursor = next;
+      }
+    }
     return Ops.reconcile(segment, options, this);
   }
 
@@ -180,6 +199,9 @@ export class DOMRenderer {
    * @returns {N}
    */
   setProperty(node, key, value) {
+    if (!this.#isHydrationModeEnabled) {
+      return Ops.setProperty(node, key, value);
+    }
     // Allow retend:collection even for Skip objects during hydration,
     // so the For cache can be updated when Skip is resolved to real DOM.
     if (
@@ -230,7 +252,7 @@ export class DOMRenderer {
    */
   append(_parentNode, childNode) {
     const parentNode = /** @type {Element} */ (_parentNode);
-    if (this.#getHydrationState()) {
+    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       // During hydration, groups are represented as plain arrays.
       // We must still collect children into them so that
       // normalizeJsxChild can build up fragment content.
@@ -302,7 +324,7 @@ export class DOMRenderer {
    * @returns {DocumentFragment}
    */
   createGroup(input) {
-    if (this.#getHydrationState()) {
+    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       if (input) {
         // @ts-expect-error
         if (Array.isArray(input)) return input;
@@ -329,23 +351,30 @@ export class DOMRenderer {
    * @returns {JsxElement}
    */
   createContainer(tagname, props) {
-    const hydration = this.#getHydrationState();
-    if (hydration) {
-      if (containerIsDynamic(tagname, props, isReactiveChild)) {
-        const branchCursor = hydration.cursor;
-        const activeBranch = getState();
-        const index = `${activeBranch.node.id}.${branchCursor}`;
-        hydration.cursor += 1;
+    if (this.#isHydrationModeEnabled) {
+      const hydration = this.#getHydrationState();
+      if (hydration) {
+        if (containerIsDynamic(tagname, props, isReactiveChild)) {
+          const branchCursor = hydration.cursor;
+          const activeBranch = getState();
+          const index = `${activeBranch.node.id}.${branchCursor}`;
+          hydration.cursor += 1;
 
-        const staticNode = this.#table.get(index);
-        if (staticNode) {
-          const hydrationTask = this.#hydrateNode(staticNode, props);
-          this.#trackHydrationTask(activeBranch, hydrationTask);
-          return staticNode;
+          const staticNode = this.#table.get(index);
+          const hydrationNode =
+            staticNode && !this.#hydratedNodes.has(staticNode)
+              ? staticNode
+              : null;
+          if (hydrationNode) {
+            this.#hydratedNodes.add(hydrationNode);
+            const hydrationTask = this.#hydrateNode(hydrationNode, props);
+            this.#trackHydrationTask(activeBranch, hydrationTask);
+            return hydrationNode;
+          }
         }
+        // @ts-expect-error: The types are different in hydration mode.
+        return new Skip(tagname);
       }
-      // @ts-expect-error: The types are different in hydration mode.
-      return new Skip(tagname);
     }
 
     const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
@@ -367,7 +396,7 @@ export class DOMRenderer {
    * @param {string | Cell<any>} text
    */
   createText(text) {
-    if (this.#getHydrationState()) {
+    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       if (Cell.isCell(text)) return text;
       return new Skip(text);
     }
@@ -379,7 +408,7 @@ export class DOMRenderer {
    * @returns {node is DocumentFragment}
    */
   isGroup(node) {
-    return node instanceof DocumentFragment;
+    return node?.nodeType === DOCUMENT_FRAGMENT_NODE;
   }
 
   /**
@@ -387,11 +416,13 @@ export class DOMRenderer {
    * @returns {child is Node}
    */
   isNode(child) {
-    return (
-      (this.#getHydrationState() && child instanceof Skip) ||
-      child instanceof Node ||
-      child instanceof Ops.ShadowRootFragment
-    );
+    if (child instanceof Node || child instanceof Ops.ShadowRootFragment) {
+      return true;
+    }
+    if (!(child instanceof Skip) || !this.#isHydrationModeEnabled) {
+      return false;
+    }
+    return this.#getHydrationState() !== null;
   }
 
   /**
@@ -399,11 +430,12 @@ export class DOMRenderer {
    * @param {Observer} observer
    */
   scheduleTeleport(callback, observer) {
-    if (this.#getHydrationState()) {
+    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       const branch = getState();
       let resolveTask = () => {};
+      /** @type {Promise<void>} */
       const pendingTask = new Promise((resolve) => {
-        resolveTask = () => resolve(undefined);
+        resolveTask = () => resolve();
       });
       this.#trackHydrationTask(branch, pendingTask);
       this.#scheduledHydrationTeleports.push({
@@ -445,6 +477,7 @@ export class DOMRenderer {
     this.#isHydrationModeEnabled = true;
     this.#pendingHydrationTasks.clear();
     this.#hydratingBranchCount = 0;
+    this.#hydratedNodes = new WeakSet();
     this.#table = dynamicNodeTable;
     this.#readyToHydrateChildren = new Promise((resolve) => {
       this.#startHydratingChildren = resolve;
@@ -473,10 +506,10 @@ export class DOMRenderer {
     await this.#readyToHydrateChildren;
     const { updateText } = this;
     const { children } = props;
+    const staticIsElement = staticNode instanceof Element;
 
     const isShadowRoot =
-      children instanceof Ops.ShadowRootFragment &&
-      staticNode instanceof Element;
+      children instanceof Ops.ShadowRootFragment && staticIsElement;
 
     if (isShadowRoot) {
       const root =
@@ -487,7 +520,7 @@ export class DOMRenderer {
 
     if (Cell.isCell(children)) {
       const textNode = staticNode.firstChild;
-      if (!(textNode instanceof Text)) {
+      if (!textNode || textNode.nodeType !== TEXT_NODE) {
         console.error('Hydration error: Expected text node but got', textNode);
         return;
       }
@@ -514,25 +547,31 @@ export class DOMRenderer {
           });
         } else updateText(value, this);
       }
-      addCellListener(textNode, children, listener, false);
+      addCellListener(
+        /** @type {Text} */ (textNode),
+        children,
+        listener,
+        false
+      );
       return;
     }
     if (!Array.isArray(children)) return;
     const resolvedChildren = flattenJSXChildren(children);
+    const domChildren = staticNode.childNodes;
     let nodeIndex = 0;
     let domIndex = 0;
 
     while (true) {
       const node = resolvedChildren[nodeIndex];
-      const domNode = staticNode.childNodes[domIndex];
-      if (domNode instanceof Comment && domNode.textContent === '@@') {
+      const domNode = domChildren[domIndex];
+      if (domNode?.nodeType === COMMENT_NODE && domNode.textContent === '@@') {
         // Skip HTML separators added by the serializer.
         domNode.remove();
         continue;
       }
 
       const isShadowRoot =
-        node instanceof Ops.ShadowRootFragment && staticNode instanceof Element;
+        node instanceof Ops.ShadowRootFragment && staticIsElement;
 
       if (isShadowRoot) {
         const root =
@@ -543,11 +582,12 @@ export class DOMRenderer {
       }
 
       if (!node) break;
+      const nodeType = typeof node;
       const skip =
         node === domNode ||
         node instanceof Skip ||
-        typeof node === 'string' ||
-        typeof node === 'number';
+        nodeType === 'string' ||
+        nodeType === 'number';
 
       if (skip) {
         // When a Skip node is encountered during hydration, we need to update
@@ -567,9 +607,35 @@ export class DOMRenderer {
         continue;
       }
 
-      if (node instanceof DeferredHandleSymbol && domNode instanceof Comment) {
+      if (
+        node instanceof DeferredHandleSymbol &&
+        domNode?.nodeType === COMMENT_NODE
+      ) {
+        const nextNode = resolvedChildren[nodeIndex + 1];
+        const isEmptyLiveRange =
+          nextNode instanceof DeferredHandleSymbol && nextNode === node;
+
+        // If live range is unresolved (only `[` and `]`) but server DOM still
+        // contains content inside the serialized range, skip that static range
+        // while hydrating the parent and bind both boundary comments now.
+        if (isEmptyLiveRange && domNode.textContent === '[') {
+          const range = this.#findSerializedRangeCloseComment(
+            /** @type {Comment} */ (domNode)
+          );
+          if (range) {
+            const { close: closingComment, offset } = range;
+            Reflect.set(domNode, '__commentRangeSymbol', node.symbol);
+            Reflect.set(closingComment, '__commentRangeSymbol', node.symbol);
+            node.sourceArray.length = 0;
+            node.sourceArray.push(domNode, closingComment);
+            nodeIndex += 2;
+            domIndex += offset + 1;
+            continue;
+          }
+        }
+
         Reflect.set(domNode, '__commentRangeSymbol', node.symbol);
-        if (node.sourceArray[0] instanceof Comment) {
+        if (node.sourceArray[0]?.nodeType === COMMENT_NODE) {
           // This is end comment marker.
           node.sourceArray.push(domNode);
         } else {
@@ -585,8 +651,9 @@ export class DOMRenderer {
       if (Cell.isCell(node)) {
         /** @type {Text} */
         let textNode;
-        if (domNode instanceof Text) {
-          textNode = domNode;
+        const domNodeIsText = domNode?.nodeType === TEXT_NODE;
+        if (domNodeIsText) {
+          textNode = /** @type {Text} */ (domNode);
           domIndex++;
         } else {
           // The Cell's value was empty during SSR, so no text node was
@@ -602,7 +669,7 @@ export class DOMRenderer {
         if (!(expectedValue instanceof Promise)) {
           const expectedText = String(expectedValue);
           if (textNode.textContent !== expectedText) {
-            if (domNode instanceof Text) {
+            if (domNodeIsText) {
               console.error(
                 'Hydration error: Expected text',
                 expectedText,
@@ -614,11 +681,15 @@ export class DOMRenderer {
           }
         }
         /**
-         * @param {string} value
+         * @param {any} value
          * @this {Text}
          */
         function listener(value) {
-          updateText(value, this);
+          if (value instanceof Promise) {
+            value.then((resolvedValue) => updateText(resolvedValue, this));
+          } else {
+            updateText(value, this);
+          }
         }
         addCellListener(textNode, node, listener, false);
         nodeIndex++;
@@ -631,6 +702,30 @@ export class DOMRenderer {
     }
   }
 
+  /**
+   * @param {Comment} startComment
+   * @returns {{ close: Comment, offset: number } | null}
+   */
+  #findSerializedRangeCloseComment(startComment) {
+    if (startComment.textContent !== '[') return null;
+    let depth = 1;
+    let cursor = startComment.nextSibling;
+    let offset = 1;
+    while (cursor) {
+      if (cursor.nodeType === COMMENT_NODE) {
+        if (cursor.textContent === '[') depth += 1;
+        else if (cursor.textContent === ']') {
+          depth -= 1;
+          if (depth === 0)
+            return { close: /** @type {Comment} */ (cursor), offset };
+        }
+      }
+      cursor = cursor.nextSibling;
+      offset += 1;
+    }
+    return null;
+  }
+
   async endHydration() {
     for (const mount of this.#scheduledHydrationTeleports) {
       await mount.callback();
@@ -641,6 +736,7 @@ export class DOMRenderer {
     }
     this.#isHydrationModeEnabled = false;
     this.#table = new Map();
+    this.#hydratedNodes = new WeakSet();
     this.#hydratingBranchCount = 0;
     this.#readyToHydrateChildren = null;
     this.#startHydratingChildren = null;
