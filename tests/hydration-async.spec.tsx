@@ -1,90 +1,33 @@
 import {
-  Await,
-  branchState,
   Cell,
   For,
   If,
   Switch,
-  getActiveRenderer,
-  setActiveRenderer,
-  waitForAsyncBoundaries,
-  withState,
 } from 'retend';
-import { renderToString } from 'retend-server/client';
-import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
-import { DOMRenderer } from 'retend-web';
-import { setGlobalContext } from 'retend/context';
 import type { JSX } from 'retend/jsx-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createHydrationClientRenderer,
+  renderHydrationServerHtml,
+  startHydration,
+} from './hydration-helpers.tsx';
 import { browserSetup, timeout } from './setup.tsx';
 
-const renderServerHtml = async (templateFn: () => JSX.Template) => {
-  const shouldRestoreFakeTimers = vi.isFakeTimers();
-  if (shouldRestoreFakeTimers) vi.useRealTimers();
-
-  try {
-    setGlobalContext({
-      globalData: new Map(),
-      teleportIdCounter: { value: 0 },
-    });
-
-    const serverWindow = new VWindow();
-    const serverRenderer = new VDOMRenderer(serverWindow, {
-      markDynamicNodes: true,
-    });
-    setActiveRenderer(serverRenderer);
-
-    const serverRoot = serverRenderer.render(() =>
-      Await({
-        fallback: null,
-        children: templateFn,
-      })
-    ) as VNode | VNode[];
-    const nodes = Array.isArray(serverRoot) ? serverRoot : [serverRoot];
-    serverWindow.document.body.append(...nodes);
-    await waitForAsyncBoundaries();
-    await serverWindow.document.mountAllTeleports();
-
-    return renderToString(serverWindow.document.body, serverWindow);
-  } finally {
-    if (shouldRestoreFakeTimers) vi.useFakeTimers();
-  }
-};
-
 const setupServerRender = async (templateFn: () => JSX.Template) => {
-  return renderServerHtml(templateFn);
+  return renderHydrationServerHtml(templateFn, {
+    wrapInAwait: true,
+    waitForAwaitBoundaries: true,
+  });
 };
 
 const setupHydration = async (templateFn: () => JSX.Template) => {
-  const currentRenderer = getActiveRenderer() as DOMRenderer;
-  const {
-    host: clientWindow,
-    host: { document },
-  } = currentRenderer;
-
-  // Server render and client hydration run in separate processes in real apps.
-  // Keep their global contexts isolated in tests so snapshot branch IDs line up.
-  setGlobalContext({
-    globalData: new Map(),
-    teleportIdCounter: { value: 0 },
+  const html = await renderHydrationServerHtml(templateFn, {
+    wrapInAwait: true,
+    waitForAwaitBoundaries: true,
   });
-
-  const html = await renderServerHtml(templateFn);
-
-  document.body.setHTMLUnsafe(`<div id="app">${html}</div>`);
-
-  setGlobalContext({
-    globalData: new Map(),
-    teleportIdCounter: { value: 0 },
-  });
-
-  const clientRenderer = new DOMRenderer(clientWindow);
-  setActiveRenderer(clientRenderer);
-  clientRenderer.enableHydrationMode();
-
-  await clientRenderer.hydrateChildrenWhenResolved(Promise.resolve());
-  const hydrationRoot = branchState();
-  withState(hydrationRoot, () => clientRenderer.render(templateFn));
+  const { renderer: clientRenderer, document } =
+    createHydrationClientRenderer(html);
+  startHydration(clientRenderer, templateFn, { renderInHydrationBranch: true });
   await clientRenderer.endHydration();
 
   return {

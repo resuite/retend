@@ -6,66 +6,30 @@ import {
   Switch,
   createScope,
   createUnique,
-  getActiveRenderer,
-  setActiveRenderer,
   useScopeContext,
 } from 'retend';
-import { renderToString } from 'retend-server/client';
-import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
-import { DOMRenderer, ShadowRoot, Teleport } from 'retend-web';
-import { setGlobalContext } from 'retend/context';
+import { ShadowRoot, Teleport } from 'retend-web';
 import type { JSX } from 'retend/jsx-runtime';
 import { describe, expect, it, vi } from 'vitest';
+import {
+  createHydrationClientRenderer,
+  renderHydrationServerHtml,
+  startHydration,
+} from './hydration-helpers.tsx';
 import { browserSetup, getTextContent } from './setup.tsx';
 
 const setupHydration = async (templateFn: () => JSX.Template) => {
-  const currentRenderer = getActiveRenderer() as DOMRenderer;
-  const {
-    host: clientWindow,
-    host: { document },
-  } = currentRenderer;
-
-  // Server render and client hydration run in separate processes in real apps.
-  // Keep their global contexts isolated in tests so snapshot branch IDs line up.
-  setGlobalContext({
-    globalData: new Map(),
-    teleportIdCounter: { value: 0 },
-  });
-
-  const serverWindow = new VWindow();
-  const serverRenderer = new VDOMRenderer(serverWindow, {
-    markDynamicNodes: true,
-  });
-  setActiveRenderer(serverRenderer);
-
-  const serverRoot = serverRenderer.render(templateFn) as VNode;
-  serverWindow.document.body.append(serverRoot);
-  await serverWindow.document.mountAllTeleports();
-  const html = renderToString(serverWindow.document.body, serverWindow);
-
-  // 2. Client Setup Phase
-  document.body.setHTMLUnsafe(`<div id="app">${html}</div>`);
-  const root = document.querySelector('#app') as HTMLElement;
-
-  setGlobalContext({
-    globalData: new Map(),
-    teleportIdCounter: { value: 0 },
-  });
-
-  const clientRenderer = new DOMRenderer(clientWindow);
-  setActiveRenderer(clientRenderer);
-  clientRenderer.enableHydrationMode();
-
-  await clientRenderer.hydrateChildrenWhenResolved(Promise.resolve());
-  clientRenderer.render(templateFn);
-  await clientRenderer.endHydration();
+  const html = await renderHydrationServerHtml(templateFn);
+  const { renderer, document, root, window } = createHydrationClientRenderer(html);
+  startHydration(renderer, templateFn);
+  await renderer.endHydration();
 
   return {
     html,
-    window: clientWindow,
+    window,
     document,
     root,
-    renderer: clientRenderer,
+    renderer,
   };
 };
 
@@ -1608,32 +1572,12 @@ describe('Hydration', () => {
       </div>
     );
 
-    const currentRenderer = getActiveRenderer() as DOMRenderer;
-    const {
-      host: clientWindow,
-      host: { document },
-    } = currentRenderer;
-
-    const serverWindow = new VWindow();
-    const serverRenderer = new VDOMRenderer(serverWindow, {
-      markDynamicNodes: true,
-    });
-    setActiveRenderer(serverRenderer);
-
-    const serverRoot = serverRenderer.render(template) as VNode;
-    serverWindow.document.body.append(serverRoot);
-    await serverWindow.document.mountAllTeleports();
-    const html = renderToString(serverWindow.document.body, serverWindow);
+    const html = await renderHydrationServerHtml(template);
 
     const corruptedHtml = html.replace('Expected Content', 'Different Content');
-    document.body.setHTMLUnsafe(`<div id="app">${corruptedHtml}</div>`);
-
-    const clientRenderer = new DOMRenderer(clientWindow);
-    setActiveRenderer(clientRenderer);
-    clientRenderer.enableHydrationMode();
-
-    await clientRenderer.hydrateChildrenWhenResolved(Promise.resolve());
-    clientRenderer.render(template);
+    const { renderer: clientRenderer } =
+      createHydrationClientRenderer(corruptedHtml);
+    startHydration(clientRenderer, template);
     await clientRenderer.endHydration();
 
     expect(consoleSpy).toHaveBeenCalled();
@@ -1706,38 +1650,19 @@ describe('Hydration', () => {
       </div>
     );
 
-    const currentRenderer = getActiveRenderer() as DOMRenderer;
-    const {
-      host: clientWindow,
-      host: { document },
-    } = currentRenderer;
+    const html = await renderHydrationServerHtml(template);
 
-    const serverWindow = new VWindow();
-    const serverRenderer = new VDOMRenderer(serverWindow, {
-      markDynamicNodes: true,
-    });
-    setActiveRenderer(serverRenderer);
-
-    const serverRoot = serverRenderer.render(template) as VNode;
-    serverWindow.document.body.append(serverRoot);
-    await serverWindow.document.mountAllTeleports();
-    const html = renderToString(serverWindow.document.body, serverWindow);
-
-    const tempDiv = document.createElement('div');
+    const tempDiv = window.document.createElement('div');
     tempDiv.innerHTML = html;
     const dynamicSpan = tempDiv.querySelector('#unexpected-dynamic');
-    const unexpectedSpan = document.createElement('span');
+    const unexpectedSpan = window.document.createElement('span');
     unexpectedSpan.id = 'unexpected-injected';
     unexpectedSpan.textContent = 'Injected';
     dynamicSpan?.before(unexpectedSpan);
-    document.body.setHTMLUnsafe(`<div id="app">${tempDiv.innerHTML}</div>`);
-
-    const clientRenderer = new DOMRenderer(clientWindow);
-    setActiveRenderer(clientRenderer);
-    clientRenderer.enableHydrationMode();
-
-    await clientRenderer.hydrateChildrenWhenResolved(Promise.resolve());
-    clientRenderer.render(template);
+    const { renderer: clientRenderer, document } = createHydrationClientRenderer(
+      tempDiv.innerHTML
+    );
+    startHydration(clientRenderer, template);
     await clientRenderer.endHydration();
 
     const root = document.querySelector('#unexpected-node-root');

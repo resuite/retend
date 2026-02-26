@@ -7,7 +7,6 @@ import {
   branchState,
   runPendingSetupEffects,
   setActiveRenderer,
-  useObserver,
   withState,
 } from 'retend';
 import { createRouterRoot } from 'retend/router';
@@ -210,13 +209,11 @@ async function restoreContext(context, routerCreateFn) {
 
   const router = routerCreateFn();
   renderer.enableHydrationMode();
-  const observer = useObserver();
   // Preload the route before the first hydration render so outlet placeholders
   // and server markup stay aligned.
   await router.navigate(path);
   const hydrationRoot = branchState();
   withState(hydrationRoot, () => createRouterRoot(router));
-  await renderer.hydrateChildrenWhenResolved(Promise.resolve());
   await renderer.endHydration();
   router.attachWindowListeners(window);
 
@@ -226,7 +223,6 @@ async function restoreContext(context, routerCreateFn) {
   for (const element of preloadedLinks) {
     element.remove();
   }
-  observer.processMountedNodes();
   await runPendingSetupEffects();
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
 

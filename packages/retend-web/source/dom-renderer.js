@@ -56,15 +56,12 @@ const DOCUMENT_FRAGMENT_NODE = 11;
 export class DOMRenderer {
   /** @type {Window} */
   host;
+  /** @type {Observer | null} */
   observer = null;
   staticStyleIds = new Set();
 
   #isHydrationModeEnabled = false;
 
-  /** @type {Promise<void> | null} */
-  #readyToHydrateChildren = null;
-  /** @type {null | ((value: void) => void)} */
-  #startHydratingChildren = null;
   /** @type {Array<{ callback: () => Promise<*> }>} */
   #scheduledHydrationTeleports = [];
   /** @type {Set<Promise<void>>} */
@@ -479,18 +476,6 @@ export class DOMRenderer {
     this.#hydratingBranchCount = 0;
     this.#hydratedNodes = new WeakSet();
     this.#table = dynamicNodeTable;
-    this.#readyToHydrateChildren = new Promise((resolve) => {
-      this.#startHydratingChildren = resolve;
-    });
-  }
-
-  /**
-   * @param {Promise<any>} promise
-   * @returns {Promise<void>}
-   */
-  async hydrateChildrenWhenResolved(promise) {
-    await promise;
-    this.#startHydratingChildren?.();
   }
 
   /**
@@ -503,7 +488,6 @@ export class DOMRenderer {
       if (key !== 'children') this.setProperty(staticNode, key, props[key]);
     }
 
-    await this.#readyToHydrateChildren;
     const { updateText } = this;
     const { children } = props;
     const staticIsElement = staticNode instanceof Element;
@@ -729,8 +713,10 @@ export class DOMRenderer {
   async endHydration() {
     for (const mount of this.#scheduledHydrationTeleports) {
       await mount.callback();
+      this.#flushObserverMountedNodes();
     }
     await Promise.all([...this.#pendingHydrationTasks]);
+    this.#flushObserverMountedNodes();
     for (const handle of this.#deferredHydrationHandles) {
       Ops.finalizeHydrationHandleSegment(handle);
     }
@@ -738,11 +724,10 @@ export class DOMRenderer {
     this.#table = new Map();
     this.#hydratedNodes = new WeakSet();
     this.#hydratingBranchCount = 0;
-    this.#readyToHydrateChildren = null;
-    this.#startHydratingChildren = null;
     this.#scheduledHydrationTeleports = [];
     this.#pendingHydrationTasks.clear();
     this.#deferredHydrationHandles.clear();
+    this.#flushObserverMountedNodes();
   }
 
   /**
@@ -778,6 +763,9 @@ export class DOMRenderer {
     const state = branch.data;
     if (!state) return;
     state.renderDepth = Math.max(0, state.renderDepth - 1);
+    if (state.renderDepth === 0) {
+      this.#flushObserverMountedNodes();
+    }
     this.#maybeCompleteHydrationBranch(state);
   }
 
@@ -799,7 +787,12 @@ export class DOMRenderer {
         activeState.pendingHydrations - 1
       );
       this.#maybeCompleteHydrationBranch(activeState);
+      this.#flushObserverMountedNodes();
     });
+  }
+
+  #flushObserverMountedNodes() {
+    this.observer?.processMountedNodes();
   }
 
   /**
