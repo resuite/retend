@@ -14,25 +14,10 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createHydrationClientRenderer,
   renderHydrationServerHtml,
+  setupHydration,
   startHydration,
 } from './hydration-helpers.tsx';
 import { browserSetup, getTextContent } from '../setup.tsx';
-
-const setupHydration = async (templateFn: () => JSX.Template) => {
-  const html = await renderHydrationServerHtml(templateFn);
-  const { renderer, document, root, window } =
-    createHydrationClientRenderer(html);
-  startHydration(renderer, templateFn);
-  await renderer.endHydration();
-
-  return {
-    html,
-    window,
-    document,
-    root,
-    renderer,
-  };
-};
 
 describe('Hydration', () => {
   browserSetup();

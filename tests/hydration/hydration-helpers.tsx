@@ -14,19 +14,6 @@ import { vi } from 'vitest';
 
 type TemplateFn = () => JSX.Template;
 
-export type HydrationServerRenderOptions = {
-  wrapInAwait?: boolean;
-  waitForAwaitBoundaries?: boolean;
-};
-
-export type HydrationClientInitOptions = {
-  htmlShell?: (html: string) => string;
-};
-
-export type HydrationStartOptions = {
-  renderInHydrationBranch?: boolean;
-};
-
 const resetHydrationContext = () => {
   setGlobalContext({
     globalData: new Map(),
@@ -49,17 +36,16 @@ async function maybeWithRealTimers<T>(
 
 export const renderHydrationServerHtml = async (
   templateFn: TemplateFn,
-  options: HydrationServerRenderOptions = {}
+  isAsync = false
 ) => {
-  const { wrapInAwait = false, waitForAwaitBoundaries = false } = options;
-  return maybeWithRealTimers(waitForAwaitBoundaries, async () => {
+  return maybeWithRealTimers(isAsync, async () => {
     resetHydrationContext();
     const serverWindow = new VWindow();
     const serverRenderer = new VDOMRenderer(serverWindow, {
       markDynamicNodes: true,
     });
     setActiveRenderer(serverRenderer);
-    const serverTemplate = wrapInAwait
+    const serverTemplate = isAsync
       ? () =>
           Await({
             fallback: null,
@@ -69,7 +55,7 @@ export const renderHydrationServerHtml = async (
     const serverRoot = serverRenderer.render(serverTemplate) as VNode | VNode[];
     const nodes = Array.isArray(serverRoot) ? serverRoot : [serverRoot];
     serverWindow.document.body.append(...nodes);
-    if (waitForAwaitBoundaries) {
+    if (isAsync) {
       await waitForAsyncBoundaries();
     }
     await serverWindow.document.mountAllTeleports();
@@ -77,12 +63,8 @@ export const renderHydrationServerHtml = async (
   });
 };
 
-export const createHydrationClientRenderer = (
-  html: string,
-  options: HydrationClientInitOptions = {}
-) => {
-  const { htmlShell } = options;
-  const shell = htmlShell ? htmlShell(html) : `<div id="app">${html}</div>`;
+export const createHydrationClientRenderer = (html: string) => {
+  const shell = `<div id="app">${html}</div>`;
   window.document.body.setHTMLUnsafe(shell);
   resetHydrationContext();
   const renderer = new DOMRenderer(window);
@@ -100,13 +82,25 @@ export const createHydrationClientRenderer = (
 export const startHydration = (
   renderer: DOMRenderer,
   templateFn: TemplateFn,
-  options: HydrationStartOptions = {}
+  isAsync = false
 ) => {
-  const { renderInHydrationBranch = false } = options;
-  if (renderInHydrationBranch) {
+  if (isAsync) {
     const hydrationRoot = branchState();
     withState(hydrationRoot, () => renderer.render(templateFn));
     return;
   }
   renderer.render(templateFn);
+};
+
+export const setupHydration = async (
+  templateFn: TemplateFn,
+  isAsync = false
+) => {
+  const html = await renderHydrationServerHtml(templateFn, isAsync);
+  const { renderer, document, root, window } =
+    createHydrationClientRenderer(html);
+  startHydration(renderer, templateFn, isAsync);
+  await renderer.endHydration();
+
+  return { html, window, document, root, renderer };
 };

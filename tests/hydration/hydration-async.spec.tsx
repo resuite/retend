@@ -2,34 +2,16 @@ import { Cell, For, If, Switch } from 'retend';
 import type { JSX } from 'retend/jsx-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  createHydrationClientRenderer,
   renderHydrationServerHtml,
-  startHydration,
+  setupHydration as setupAsyncHydrationHelper,
 } from './hydration-helpers.tsx';
 import { browserSetup, timeout } from '../setup.tsx';
 
-const setupServerRender = async (templateFn: () => JSX.Template) => {
-  return renderHydrationServerHtml(templateFn, {
-    wrapInAwait: true,
-    waitForAwaitBoundaries: true,
-  });
-};
+const setupHydration = (templateFn: () => JSX.Template) =>
+  setupAsyncHydrationHelper(templateFn, true);
 
-const setupHydration = async (templateFn: () => JSX.Template) => {
-  const html = await renderHydrationServerHtml(templateFn, {
-    wrapInAwait: true,
-    waitForAwaitBoundaries: true,
-  });
-  const { renderer: clientRenderer, document } =
-    createHydrationClientRenderer(html);
-  startHydration(clientRenderer, templateFn, { renderInHydrationBranch: true });
-  await clientRenderer.endHydration();
-
-  return {
-    html,
-    document,
-  };
-};
+const setupServerRender = (templateFn: () => JSX.Template) =>
+  renderHydrationServerHtml(templateFn, true);
 
 const getCommentNodes = (root: Node) => {
   const owner = root.ownerDocument ?? (root as Document);
