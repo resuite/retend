@@ -5,7 +5,7 @@ import { hydrate, renderToString } from 'retend-server/client';
 import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import { createUniqueTransition } from 'retend-utils/components';
 import { describe, expect, it, vi } from 'vitest';
-import { browserSetup, timeout } from './setup.tsx';
+import { browserSetup, timeout } from '../setup.tsx';
 
 const items = [
   { id: 1, name: 'Item 1', description: 'Description of Item 1' },

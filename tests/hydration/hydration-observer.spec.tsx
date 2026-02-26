@@ -7,7 +7,7 @@ import {
   renderHydrationServerHtml,
   startHydration as startHydrationFlow,
 } from './hydration-helpers.tsx';
-import { browserSetup, timeout } from './setup.tsx';
+import { browserSetup, timeout } from '../setup.tsx';
 
 type Deferred<T> = {
   promise: Promise<T>;

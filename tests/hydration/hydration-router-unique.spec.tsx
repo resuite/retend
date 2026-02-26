@@ -14,7 +14,7 @@ import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import { createUniqueTransition } from 'retend-utils/components';
 import { describe, expect, it, vi } from 'vitest';
 import type { JSX } from 'retend/jsx-runtime';
-import { browserSetup } from './setup.tsx';
+import { browserSetup } from '../setup.tsx';
 
 const appStyles: JSX.StyleValue = {
   display: 'flex',
@@ -75,7 +75,13 @@ const Container = (props: {
   const { index, selected } = props;
   const isSelected = Cell.derived(() => index.get() === selected.get());
 
-  return <button type="button" style={buttonStyles}>{If(isSelected, () => <Box />)}</button>;
+  return (
+    <button type="button" style={buttonStyles}>
+      {If(isSelected, () => (
+        <Box />
+      ))}
+    </button>
+  );
 };
 
 const App = () => {

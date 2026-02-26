@@ -1,9 +1,4 @@
-import {
-  Cell,
-  For,
-  If,
-  Switch,
-} from 'retend';
+import { Cell, For, If, Switch } from 'retend';
 import type { JSX } from 'retend/jsx-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -11,7 +6,7 @@ import {
   renderHydrationServerHtml,
   startHydration,
 } from './hydration-helpers.tsx';
-import { browserSetup, timeout } from './setup.tsx';
+import { browserSetup, timeout } from '../setup.tsx';
 
 const setupServerRender = async (templateFn: () => JSX.Template) => {
   return renderHydrationServerHtml(templateFn, {
@@ -149,14 +144,18 @@ describe('Hydration async', () => {
       const { document } = await setupHydration(template);
       const container = document.querySelector('#range-container');
       const openComment = Array.from(container?.childNodes ?? []).find(
-        (node) => node.nodeType === Node.COMMENT_NODE && node.textContent === '['
+        (node) =>
+          node.nodeType === Node.COMMENT_NODE && node.textContent === '['
       );
       const closeComment = Array.from(container?.childNodes ?? []).find(
-        (node) => node.nodeType === Node.COMMENT_NODE && node.textContent === ']'
+        (node) =>
+          node.nodeType === Node.COMMENT_NODE && node.textContent === ']'
       );
 
       expect(container).not.toBeNull();
-      expect(document.querySelector('#range-payload')?.textContent).toBe('Payload');
+      expect(document.querySelector('#range-payload')?.textContent).toBe(
+        'Payload'
+      );
       expect(openComment).not.toBeUndefined();
       expect(closeComment).not.toBeUndefined();
 
@@ -206,9 +205,9 @@ describe('Hydration async', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { document } = await setupHydration(template);
-      const button = document.querySelector('#pending-before-btn') as
-        | HTMLButtonElement
-        | null;
+      const button = document.querySelector(
+        '#pending-before-btn'
+      ) as HTMLButtonElement | null;
       const count = document.querySelector('#pending-before-count');
 
       expect(button).not.toBeNull();
@@ -279,9 +278,9 @@ describe('Hydration async', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { document } = await setupHydration(template);
-      const button = document.querySelector('#nested-interaction-btn') as
-        | HTMLButtonElement
-        | null;
+      const button = document.querySelector(
+        '#nested-interaction-btn'
+      ) as HTMLButtonElement | null;
       const count = document.querySelector('#nested-interaction-count');
 
       expect(button).not.toBeNull();
@@ -358,7 +357,9 @@ describe('Hydration async', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { document } = await setupHydration(template);
-      const button = document.querySelector('#root-if-btn') as HTMLButtonElement;
+      const button = document.querySelector(
+        '#root-if-btn'
+      ) as HTMLButtonElement;
       const count = document.querySelector('#root-if-count');
 
       expect(document.querySelectorAll('.root-if-item').length).toBe(2);
@@ -498,7 +499,9 @@ describe('Hydration async', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { document } = await setupHydration(template);
-      const button = document.querySelector('#root-for-btn') as HTMLButtonElement;
+      const button = document.querySelector(
+        '#root-for-btn'
+      ) as HTMLButtonElement;
       const count = document.querySelector('#root-for-count');
 
       expect(document.querySelectorAll('.root-for-item').length).toBe(2);
@@ -648,9 +651,9 @@ describe('Hydration async', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { document } = await setupHydration(template);
-      const button = document.querySelector('#out-of-order-btn') as
-        | HTMLButtonElement
-        | null;
+      const button = document.querySelector(
+        '#out-of-order-btn'
+      ) as HTMLButtonElement | null;
       const count = document.querySelector('#out-of-order-count');
 
       button?.click();
@@ -751,9 +754,9 @@ describe('Hydration async', () => {
       expect(document.querySelectorAll('.queued-item').length).toBe(1);
 
       await vi.advanceTimersByTimeAsync(40);
-      expect(document.querySelectorAll('.queued-item').length).toBeGreaterThanOrEqual(
-        3
-      );
+      expect(
+        document.querySelectorAll('.queued-item').length
+      ).toBeGreaterThanOrEqual(3);
       expect(document.querySelector('#queued-gate-true')).not.toBeNull();
 
       await vi.advanceTimersByTimeAsync(40);
@@ -819,7 +822,9 @@ describe('Hydration async', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { document } = await setupHydration(template);
-      const field = document.querySelector('#staggered-input') as HTMLInputElement;
+      const field = document.querySelector(
+        '#staggered-input'
+      ) as HTMLInputElement;
       const mirror = document.querySelector('#staggered-mirror');
 
       field.value = 'two';
@@ -836,7 +841,9 @@ describe('Hydration async', () => {
 
       await vi.advanceTimersByTimeAsync(80);
       expect(document.querySelector('#staggered-alpha')).toBeNull();
-      expect(document.querySelector('#staggered-beta')?.textContent).toBe('Beta');
+      expect(document.querySelector('#staggered-beta')?.textContent).toBe(
+        'Beta'
+      );
 
       outer.set(false);
       await vi.advanceTimersByTimeAsync(50);
@@ -894,10 +901,12 @@ describe('Hydration async', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const { document } = await setupHydration(template);
-      const preHydrationInside = document.querySelector('#inside-btn') as
-        | HTMLButtonElement
-        | null;
-      const outside = document.querySelector('#outside-btn') as HTMLButtonElement;
+      const preHydrationInside = document.querySelector(
+        '#inside-btn'
+      ) as HTMLButtonElement | null;
+      const outside = document.querySelector(
+        '#outside-btn'
+      ) as HTMLButtonElement;
       const insideCount = document.querySelector('#inside-count');
       const outsideCount = document.querySelector('#outside-count');
 
@@ -907,9 +916,9 @@ describe('Hydration async', () => {
       expect(outsideCount?.textContent).toBe('1');
 
       await vi.advanceTimersByTimeAsync(80);
-      const hydratedInside = document.querySelector('#inside-btn') as
-        | HTMLButtonElement
-        | null;
+      const hydratedInside = document.querySelector(
+        '#inside-btn'
+      ) as HTMLButtonElement | null;
       hydratedInside?.click();
       outside.click();
       expect(insideCount?.textContent).toBe('1');
@@ -1036,7 +1045,11 @@ describe('Hydration async', () => {
         return `User ${value}`;
       });
 
-      return <p id="async-title" title={title}>Profile</p>;
+      return (
+        <p id="async-title" title={title}>
+          Profile
+        </p>
+      );
     };
 
     const { document } = await setupHydration(template);
@@ -1062,7 +1075,11 @@ describe('Hydration async', () => {
         return `state-${value}`;
       });
 
-      return <p id="async-class" class={className}>Status</p>;
+      return (
+        <p id="async-class" class={className}>
+          Status
+        </p>
+      );
     };
 
     const { document } = await setupHydration(template);
