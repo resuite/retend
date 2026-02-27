@@ -91,6 +91,7 @@ describe('Router Redirects', () => {
       .mockImplementation(() => {});
 
     const router = new Router({
+      maxRedirects: 3,
       routes: defineRoutes([
         { path: '/a', name: 'a', redirect: '/b', component: () => 'A' },
         { path: '/b', name: 'b', redirect: '/a', component: () => 'B' },

@@ -106,6 +106,7 @@ export class Router extends EventTarget {
     super();
     this.#routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
     this.#stackMode = routeOptions.stackMode ?? false;
+    this.#maxRedirects = routeOptions.maxRedirects ?? 0;
     this.useViewTransitions = routeOptions.useViewTransitions ?? false;
     this.#middlewares = routeOptions.middlewares ?? [];
     this.#internalState = { metadata: new Map(), routeChain: Cell.source([]) };
