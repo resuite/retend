@@ -1,4 +1,5 @@
 import { Await, Cell, For, If, Switch } from 'retend';
+import { Teleport, ShadowRoot } from 'retend-web';
 import type { JSX } from 'retend/jsx-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { browserSetup, timeout } from '../setup.tsx';
@@ -86,9 +87,7 @@ describe('Hydration Await', () => {
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      const { html, document } = await setupAwaitHydration(template);
-      console.log('=== PASSING TEST SERVER HTML ===');
-      console.log(html);
+      const { document } = await setupAwaitHydration(template);
 
       expect(document.querySelector('#await-fallback')).toBeNull();
       expect(document.querySelector('#await-text')?.textContent).toBe('Loaded');
@@ -382,6 +381,164 @@ describe('Hydration Await', () => {
 
       await vi.advanceTimersByTimeAsync(20);
       expect(document.querySelector('#await-text')?.textContent).toBe('Second');
+
+      expect(getHydrationErrors(errorSpy).length).toBe(0);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('handles Await nested within For during hydration', async () => {
+    const template = () => {
+      const items = Cell.source(['A', 'B']);
+      return (
+        <div id="list">
+          {For(items, (item) => (
+            <Await fallback={<span class="loading">Loading {item}</span>}>
+              <span class="item">{item}</span>
+            </Await>
+          ))}
+        </div>
+      );
+    };
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { document } = await setupAwaitHydration(template);
+
+      expect(document.querySelectorAll('.loading').length).toBe(0);
+      const items = document.querySelectorAll('.item');
+      expect(items.length).toBe(2);
+      expect(items[0]?.textContent).toBe('A');
+      expect(items[1]?.textContent).toBe('B');
+
+      expect(getHydrationErrors(errorSpy).length).toBe(0);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('handles Await nested within If during hydration', async () => {
+    const template = () => {
+      const condition = Cell.source(true);
+      return (
+        <div id="container">
+          {If(condition, () => (
+            <Await fallback={<span id="loading">Loading...</span>}>
+              <span id="content">Content</span>
+            </Await>
+          ))}
+        </div>
+      );
+    };
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { document } = await setupAwaitHydration(template);
+
+      expect(document.querySelector('#loading')).toBeNull();
+      expect(document.querySelector('#content')?.textContent).toBe('Content');
+
+      expect(getHydrationErrors(errorSpy).length).toBe(0);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('handles refs within Await during hydration', async () => {
+    const ref = Cell.source<HTMLElement | null>(null);
+    const template = () => {
+      const asyncText = Cell.derivedAsync(async () => {
+        await timeout(10);
+        return 'Loaded';
+      });
+      return (
+        <Await fallback={<span>Loading</span>}>
+          <div id="content" ref={ref}>
+            {asyncText}
+          </div>
+        </Await>
+      );
+    };
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { document } = await setupAwaitHydration(template);
+
+      expect(document.querySelector('#content')?.textContent).toBe('Loaded');
+      expect(ref.get()).not.toBeNull();
+      expect(ref.get()?.id).toBe('content');
+
+      expect(getHydrationErrors(errorSpy).length).toBe(0);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('handles Teleport within Await during hydration', async () => {
+    const template = () => {
+      const asyncText = Cell.derivedAsync(async () => {
+        await timeout(10);
+        return 'Teleported';
+      });
+      return (
+        <div>
+          <div id="target"></div>
+          <Await fallback={<span>Loading</span>}>
+            <Teleport to="#target">
+              <span id="teleported-content">{asyncText}</span>
+            </Teleport>
+          </Await>
+        </div>
+      );
+    };
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { document } = await setupAwaitHydration(template);
+
+      await vi.advanceTimersByTimeAsync(20);
+
+      const teleported = document.querySelector('#teleported-content');
+      expect(teleported).not.toBeNull();
+      expect(teleported?.textContent).toBe('Teleported');
+      expect(document.querySelector('#target')?.contains(teleported!)).toBe(
+        true
+      );
+
+      expect(getHydrationErrors(errorSpy).length).toBe(0);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('handles ShadowRoot within Await during hydration', async () => {
+    const template = () => {
+      const asyncText = Cell.derivedAsync(async () => {
+        await timeout(10);
+        return 'In Shadow';
+      });
+      return (
+        <Await fallback={<span>Loading</span>}>
+          <div id="shadow-host">
+            <ShadowRoot>
+              <span id="shadow-content">{asyncText}</span>
+            </ShadowRoot>
+          </div>
+        </Await>
+      );
+    };
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { document } = await setupAwaitHydration(template);
+
+      const host = document.querySelector('#shadow-host');
+      expect(host).not.toBeNull();
+      expect(host?.shadowRoot).not.toBeNull();
+      const shadowContent = host?.shadowRoot?.querySelector('#shadow-content');
+      expect(shadowContent).not.toBeNull();
+      expect(shadowContent?.textContent).toBe('In Shadow');
 
       expect(getHydrationErrors(errorSpy).length).toBe(0);
     } finally {
