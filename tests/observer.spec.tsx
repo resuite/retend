@@ -38,7 +38,7 @@ describe('useObserver', () => {
     window.document.body.append(node);
 
     // MutationObserver is async
-    await timeout(50);
+    await timeout(0);
 
     expect(callback).toHaveBeenCalledWith(node);
     expect(callback).toHaveBeenCalledTimes(1);
@@ -59,11 +59,11 @@ describe('useObserver', () => {
     useObserver().onConnected(nodeRef, callback);
     expect(callback).toHaveBeenCalled();
     // Wait for the async #mount to finish and register cleanups
-    await timeout(10);
+    await timeout(0);
 
     node.remove();
 
-    await timeout(50);
+    await timeout(0);
 
     expect(cleanup).toHaveBeenCalled();
   });
@@ -84,14 +84,14 @@ describe('useObserver', () => {
 
     window.document.body.append(node);
 
-    await timeout(50);
+    await timeout(0);
 
     expect(callback1).toHaveBeenCalled();
     expect(callback2).toHaveBeenCalled();
 
     node.remove();
 
-    await timeout(50);
+    await timeout(0);
 
     expect(cleanup1).toHaveBeenCalled();
     expect(cleanup2).toHaveBeenCalled();
@@ -115,11 +115,11 @@ describe('useObserver', () => {
 
     useObserver().onConnected(nodeRef, callback);
 
-    await timeout(50);
+    await timeout(20);
     expect(resolved).toBe(true);
 
     node.remove();
-    await timeout(50);
+    await timeout(0);
 
     expect(cleanup).toHaveBeenCalled();
   });
@@ -138,7 +138,7 @@ describe('useObserver', () => {
 
     window.document.body.append(node);
 
-    await timeout(50);
+    await timeout(0);
 
     expect(callback).toHaveBeenCalledWith(node);
     expect(callback).toHaveBeenCalledTimes(1);
