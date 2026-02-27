@@ -2058,4 +2058,498 @@ describe('Hydration', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('should hydrate derived cells as reactive text and attributes', async () => {
+    const first = Cell.source('Hello');
+    const last = Cell.source('World');
+    const fullName = Cell.derived(() => `${first.get()} ${last.get()}`);
+    const nameClass = Cell.derived(() =>
+      fullName.get().length > 8 ? 'long-name' : 'short-name'
+    );
+
+    const template = () => (
+      <div id="derived-root">
+        <span id="derived-text" class={nameClass}>
+          {fullName}
+        </span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const span = document.querySelector('#derived-text') as HTMLElement;
+
+    expect(span.textContent).toBe('Hello World');
+    expect(span.className).toBe('long-name');
+
+    first.set('Hi');
+
+    expect(span.textContent).toBe('Hi World');
+    expect(span.className).toBe('short-name');
+
+    last.set('Everyone');
+
+    expect(span.textContent).toBe('Hi Everyone');
+    expect(span.className).toBe('long-name');
+  });
+
+  it('should hydrate For with keyed objects and support reordering', async () => {
+    const items = Cell.source([
+      { id: 'a', label: 'Alpha' },
+      { id: 'b', label: 'Beta' },
+      { id: 'c', label: 'Gamma' },
+    ]);
+
+    const template = () => (
+      <ul id="keyed-list">
+        {For(
+          items,
+          (item) => (
+            <li class="keyed-item" id={`key-${item.id}`}>
+              {item.label}
+            </li>
+          ),
+          (item) => item.id
+        )}
+      </ul>
+    );
+
+    const { document } = await setupHydration(template);
+    const list = document.querySelector('#keyed-list');
+
+    expect(list?.querySelectorAll('.keyed-item').length).toBe(3);
+    expect(list?.children[0]?.id).toBe('key-a');
+    expect(list?.children[1]?.id).toBe('key-b');
+    expect(list?.children[2]?.id).toBe('key-c');
+
+    items.set([
+      { id: 'c', label: 'Gamma' },
+      { id: 'a', label: 'Alpha' },
+      { id: 'b', label: 'Beta' },
+    ]);
+
+    expect(list?.children[0]?.id).toBe('key-c');
+    expect(list?.children[1]?.id).toBe('key-a');
+    expect(list?.children[2]?.id).toBe('key-b');
+
+    items.set([{ id: 'b', label: 'Beta Updated' }]);
+
+    expect(list?.querySelectorAll('.keyed-item').length).toBe(1);
+    expect(list?.children[0]?.textContent).toBe('Beta Updated');
+  });
+
+  it('should hydrate multiple interleaved reactive text nodes in a single parent', async () => {
+    const a = Cell.source('A');
+    const b = Cell.source('B');
+    const c = Cell.source('C');
+
+    const template = () => (
+      <p id="interleaved">
+        [{a}]-[{b}]-[{c}]
+      </p>
+    );
+
+    const { document } = await setupHydration(template);
+    const p = document.querySelector('#interleaved') as HTMLElement;
+
+    expect(p.textContent).toBe('[A]-[B]-[C]');
+
+    a.set('X');
+    expect(p.textContent).toBe('[X]-[B]-[C]');
+
+    b.set('Y');
+    expect(p.textContent).toBe('[X]-[Y]-[C]');
+
+    c.set('Z');
+    expect(p.textContent).toBe('[X]-[Y]-[Z]');
+  });
+
+  it('should hydrate boolean attributes reactively', async () => {
+    const isDisabled = Cell.source(true);
+    const isHidden = Cell.source(false);
+
+    const template = () => (
+      <div id="bool-root">
+        <button id="bool-btn" type="button" disabled={isDisabled}>
+          Action
+        </button>
+        <span id="bool-span" hidden={isHidden}>
+          Content
+        </span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const btn = document.querySelector('#bool-btn') as HTMLButtonElement;
+    const span = document.querySelector('#bool-span') as HTMLElement;
+
+    expect(btn.disabled).toBe(true);
+    expect(span.hidden).toBe(false);
+
+    isDisabled.set(false);
+    expect(btn.disabled).toBe(false);
+
+    isHidden.set(true);
+    expect(span.hidden).toBe(true);
+  });
+
+  it('should hydrate a deeply nested component hierarchy with independent state and control flow', async () => {
+    const level1Show = Cell.source(true);
+    const level2Items = Cell.source(['X', 'Y']);
+    const level3Mode = Cell.source('a');
+
+    const Level3 = (props: { mode: Cell<string> }) => (
+      <div id="level3">
+        {Switch(props.mode, {
+          a: () => <span id="l3-a">Mode A</span>,
+          b: () => <span id="l3-b">Mode B</span>,
+          default: () => <span id="l3-default">Default</span>,
+        })}
+      </div>
+    );
+
+    const Level2 = (props: { items: Cell<string[]>; mode: Cell<string> }) => (
+      <div id="level2">
+        <ul id="l2-list">
+          {For(props.items, (item) => (
+            <li class="l2-item">{item}</li>
+          ))}
+        </ul>
+        <Level3 mode={props.mode} />
+      </div>
+    );
+
+    const template = () => (
+      <div id="level1">
+        {If(level1Show, {
+          true: () => <Level2 items={level2Items} mode={level3Mode} />,
+          false: () => <div id="l1-hidden">Level 1 Hidden</div>,
+        })}
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+
+    expect(document.querySelector('#level2')).not.toBeNull();
+    expect(document.querySelectorAll('.l2-item').length).toBe(2);
+    expect(document.querySelector('#l3-a')).not.toBeNull();
+
+    level3Mode.set('b');
+    expect(document.querySelector('#l3-a')).toBeNull();
+    expect(document.querySelector('#l3-b')).not.toBeNull();
+
+    level2Items.set(['X', 'Y', 'Z']);
+    expect(document.querySelectorAll('.l2-item').length).toBe(3);
+
+    level1Show.set(false);
+    expect(document.querySelector('#level2')).toBeNull();
+    expect(document.querySelector('#l1-hidden')).not.toBeNull();
+
+    level1Show.set(true);
+    expect(document.querySelector('#level2')).not.toBeNull();
+    expect(document.querySelector('#l3-b')).not.toBeNull();
+  });
+
+  it('should hydrate Scope + Teleport + control flow combined', async () => {
+    const ThemeScope = createScope<{ color: Cell<string> }>();
+    const color = Cell.source('red');
+    const show = Cell.source(true);
+
+    const ThemedContent = () => {
+      const ctx = useScopeContext(ThemeScope);
+      return (
+        <span id="themed-text" style={{ color: ctx.color }}>
+          Themed
+        </span>
+      );
+    };
+
+    const template = () => (
+      <ThemeScope.Provider value={{ color }}>
+        <div id="scope-teleport-root">
+          <div id="scope-teleport-target" />
+          <Teleport to="#scope-teleport-target">
+            {If(show, {
+              true: () => <ThemedContent />,
+              false: () => <div id="fallback">No theme</div>,
+            })}
+          </Teleport>
+        </div>
+      </ThemeScope.Provider>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#scope-teleport-target');
+    const themed = target?.querySelector('#themed-text') as HTMLElement;
+
+    expect(themed).not.toBeNull();
+    expect(themed?.style.color).toBe('red');
+
+    color.set('blue');
+    expect(themed?.style.color).toBe('blue');
+
+    show.set(false);
+    expect(target?.querySelector('#themed-text')).toBeNull();
+    expect(target?.querySelector('#fallback')).not.toBeNull();
+
+    show.set(true);
+    expect(target?.querySelector('#themed-text')).not.toBeNull();
+  });
+
+  it('should hydrate Teleport inside nested providers of the same scope using innermost value', async () => {
+    const ColorScope = createScope<{ color: string }>();
+
+    const ColorConsumer = (props: { id: string }) => {
+      const ctx = useScopeContext(ColorScope);
+      return <span id={props.id}>{ctx.color}</span>;
+    };
+
+    const template = () => (
+      <ColorScope.Provider value={{ color: 'red' }}>
+        <div id="nested-scope-root">
+          <div id="nested-scope-target" />
+          <ColorScope.Provider value={{ color: 'blue' }}>
+            <Teleport to="#nested-scope-target">
+              <ColorConsumer id="inner-consumer" />
+            </Teleport>
+          </ColorScope.Provider>
+        </div>
+      </ColorScope.Provider>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#nested-scope-target');
+    const consumer = target?.querySelector('#inner-consumer');
+
+    expect(consumer?.textContent).toBe('blue');
+  });
+
+  it('should hydrate Teleports at different scope nesting depths each seeing correct value', async () => {
+    const LevelScope = createScope<{ level: string }>();
+
+    const LevelConsumer = (props: { id: string }) => {
+      const ctx = useScopeContext(LevelScope);
+      return <span id={props.id}>{ctx.level}</span>;
+    };
+
+    const template = () => (
+      <LevelScope.Provider value={{ level: 'outer' }}>
+        <div id="depth-scope-root">
+          <div id="outer-target" />
+          <div id="inner-target" />
+          <Teleport to="#outer-target">
+            <LevelConsumer id="outer-consumer" />
+          </Teleport>
+          <LevelScope.Provider value={{ level: 'inner' }}>
+            <Teleport to="#inner-target">
+              <LevelConsumer id="inner-consumer" />
+            </Teleport>
+          </LevelScope.Provider>
+        </div>
+      </LevelScope.Provider>
+    );
+
+    const { document } = await setupHydration(template);
+    const outerConsumer = document.querySelector('#outer-consumer');
+    const innerConsumer = document.querySelector('#inner-consumer');
+
+    expect(outerConsumer?.textContent).toBe('outer');
+    expect(innerConsumer?.textContent).toBe('inner');
+  });
+
+  it('should survive rapid batched state mutations immediately after hydration', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const count = Cell.source(0);
+    const label = Cell.source('init');
+    const items = Cell.source(['A']);
+    const show = Cell.source(true);
+
+    const template = () => (
+      <div id="batch-root">
+        <span id="batch-count">{count}</span>
+        <span id="batch-label">{label}</span>
+        <ul id="batch-list">
+          {For(items, (item) => (
+            <li class="batch-item">{item}</li>
+          ))}
+        </ul>
+        {If(show, {
+          true: () => <div id="batch-visible">Visible</div>,
+          false: () => <div id="batch-hidden">Hidden</div>,
+        })}
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+
+    count.set(1);
+    count.set(2);
+    count.set(3);
+    label.set('updated');
+    items.set(['A', 'B', 'C']);
+    show.set(false);
+    show.set(true);
+    show.set(false);
+
+    expect(document.querySelector('#batch-count')?.textContent).toBe('3');
+    expect(document.querySelector('#batch-label')?.textContent).toBe('updated');
+    expect(document.querySelectorAll('.batch-item').length).toBe(3);
+    expect(document.querySelector('#batch-visible')).toBeNull();
+    expect(document.querySelector('#batch-hidden')).not.toBeNull();
+
+    const errorCalls = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('Hydration error')
+    );
+    expect(errorCalls.length).toBe(0);
+    consoleSpy.mockRestore();
+  });
+
+  it('should hydrate For items that are components with internal state and control flow', async () => {
+    const entries = Cell.source([
+      { id: 1, expanded: false },
+      { id: 2, expanded: true },
+      { id: 3, expanded: false },
+    ]);
+
+    const EntryCard = (props: {
+      entry: { id: number; expanded: boolean };
+    }) => {
+      const { entry } = props;
+      const expanded = Cell.source(entry.expanded);
+      return (
+        <div class="entry-card" id={`entry-${entry.id}`}>
+          <button
+            class="toggle"
+            type="button"
+            onClick={() => expanded.set(!expanded.get())}
+          >
+            Toggle
+          </button>
+          {If(expanded, {
+            true: () => (
+              <div class="entry-detail">Detail for {String(entry.id)}</div>
+            ),
+            false: () => <div class="entry-summary">Summary</div>,
+          })}
+        </div>
+      );
+    };
+
+    const template = () => (
+      <div id="for-components-root">
+        {For(
+          entries,
+          (entry) => <EntryCard entry={entry} />,
+          (e) => e.id
+        )}
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+
+    expect(document.querySelectorAll('.entry-card').length).toBe(3);
+    expect(
+      document.querySelector('#entry-2')?.querySelector('.entry-detail')
+    ).not.toBeNull();
+    expect(
+      document.querySelector('#entry-1')?.querySelector('.entry-summary')
+    ).not.toBeNull();
+
+    const toggleBtn = document
+      .querySelector('#entry-1')
+      ?.querySelector('.toggle') as HTMLButtonElement;
+    toggleBtn.click();
+    expect(
+      document.querySelector('#entry-1')?.querySelector('.entry-detail')
+    ).not.toBeNull();
+
+    entries.set([
+      { id: 2, expanded: true },
+      { id: 3, expanded: false },
+    ]);
+    expect(document.querySelectorAll('.entry-card').length).toBe(2);
+    expect(document.querySelector('#entry-1')).toBeNull();
+  });
+
+  it('should hydrate Switch that cycles through all cases including default fallback', async () => {
+    const status = Cell.source<'loading' | 'success' | 'error' | 'unknown'>(
+      'loading'
+    );
+
+    const template = () => (
+      <div id="switch-cycle-root">
+        {Switch(
+          status,
+          {
+            loading: () => <div id="status-loading">Loading...</div>,
+            success: () => <div id="status-success">Done!</div>,
+            error: () => <div id="status-error">Failed!</div>,
+          },
+          () => <div id="status-unknown">Unknown state</div>
+        )}
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    expect(document.querySelector('#status-loading')).not.toBeNull();
+
+    status.set('success');
+    expect(document.querySelector('#status-loading')).toBeNull();
+    expect(document.querySelector('#status-success')).not.toBeNull();
+
+    status.set('error');
+    expect(document.querySelector('#status-success')).toBeNull();
+    expect(document.querySelector('#status-error')).not.toBeNull();
+
+    status.set('unknown');
+    expect(document.querySelector('#status-error')).toBeNull();
+    expect(document.querySelector('#status-unknown')).not.toBeNull();
+
+    status.set('loading');
+    expect(document.querySelector('#status-unknown')).toBeNull();
+    expect(document.querySelector('#status-loading')).not.toBeNull();
+  });
+
+  it('should hydrate Teleport-from-ShadowRoot targeting external light DOM with reactive content', async () => {
+    const count = Cell.source(0);
+    const label = Cell.source('Label');
+
+    const template = () => (
+      <div id="shadow-external-root">
+        <div id="external-portal-target" />
+        <div id="shadow-host">
+          <ShadowRoot>
+            <div id="shadow-internal">Internal</div>
+            <Teleport to="#external-portal-target">
+              <div id="portal-from-shadow">
+                <span id="portal-label">{label}</span>
+                <button
+                  id="portal-btn"
+                  type="button"
+                  onClick={() => count.set(count.get() + 1)}
+                >
+                  Count: {count}
+                </button>
+              </div>
+            </Teleport>
+          </ShadowRoot>
+        </div>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const target = document.querySelector('#external-portal-target');
+    const portalContent = target?.querySelector('#portal-from-shadow');
+    const btn = target?.querySelector('#portal-btn') as HTMLButtonElement;
+    const labelEl = target?.querySelector('#portal-label');
+
+    expect(portalContent).not.toBeNull();
+    expect(btn.textContent).toBe('Count: 0');
+    expect(labelEl?.textContent).toBe('Label');
+
+    btn.click();
+    expect(btn.textContent).toBe('Count: 1');
+
+    label.set('Updated Label');
+    expect(labelEl?.textContent).toBe('Updated Label');
+  });
 });

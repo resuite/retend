@@ -261,7 +261,17 @@ export class VDOMRenderer {
    */
   scheduleTeleport(callback) {
     const anchorNode = this.host.document.createComment('teleport-anchor');
-    this.host.document.teleportMounts.push(() => callback(anchorNode));
+    const capturedScopes = getState().scopes;
+    this.host.document.teleportMounts.push(() => {
+      const state = getState();
+      const previousScopes = state.scopes;
+      state.scopes = capturedScopes;
+      try {
+        return callback(anchorNode);
+      } finally {
+        state.scopes = previousScopes;
+      }
+    });
     anchorNode.__isTeleportAnchor = true;
     return anchorNode;
   }

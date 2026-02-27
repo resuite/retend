@@ -17,6 +17,10 @@
     "oxc-walker": "^0.2.5"
   },
   "exports": {
+    ".": {
+      "import": "./dist/client-only.js",
+      "types": "./dist/client-only.d.ts"
+    },
     "./server": {
       "import": "./dist/server.js",
       "types": "./dist/server.d.ts"

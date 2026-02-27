@@ -443,6 +443,7 @@ export class DOMRenderer {
   scheduleTeleport(callback) {
     if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       const branch = getState();
+      const capturedScopes = branch.scopes;
       let resolveTask = () => {};
       /** @type {Promise<void>} */
       const pendingTask = new Promise((resolve) => {
@@ -451,11 +452,14 @@ export class DOMRenderer {
       this.#trackHydrationTask(branch, pendingTask);
       this.#scheduledHydrationTeleports.push({
         callback: async () => {
+          const previousScopes = branch.scopes;
+          branch.scopes = capturedScopes;
           this.#enterHydrationBranch(branch);
           try {
             return await callback();
           } finally {
             this.#leaveHydrationBranch(branch);
+            branch.scopes = previousScopes;
             resolveTask();
           }
         },
