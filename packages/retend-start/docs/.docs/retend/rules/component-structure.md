@@ -9,7 +9,7 @@
 1. **Prop Destructuring**: `const { ... } = props;`
 2. **Constants, Hooks, and Local Cells**: `const count = Cell.source(0);`
 3. **Event Handlers and Inline Functions**: `const handleClick = ...`
-4. **Effects**: `Cell.listen`, `onSetup`, and `useObserver` MUST come last, just before the return.
+4. **Effects**: `Cell.listen`, `onSetup`, and `onConnected` MUST come last, just before the return.
 5. **JSX Return**: `return ( ... );`
 
 **Why**:

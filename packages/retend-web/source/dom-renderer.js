@@ -10,6 +10,7 @@ import {
   getState,
   normalizeJsxChild,
   withState,
+  onConnected,
 } from 'retend';
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugin/hmr.js';
@@ -438,9 +439,8 @@ export class DOMRenderer {
 
   /**
    * @param {(node?: Node) => Promise<*>} callback
-   * @param {Observer} observer
    */
-  scheduleTeleport(callback, observer) {
+  scheduleTeleport(callback) {
     if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       const branch = getState();
       let resolveTask = () => {};
@@ -464,7 +464,7 @@ export class DOMRenderer {
     }
     const anchorNode = this.host.document.createComment('teleport-anchor');
     const ref = Cell.source(anchorNode);
-    observer.onConnected(ref, callback);
+    onConnected(ref, callback);
     return anchorNode;
   }
 

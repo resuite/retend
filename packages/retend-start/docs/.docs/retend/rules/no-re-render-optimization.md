@@ -79,6 +79,6 @@ Only optimize actual measured bottlenecks:
 
 1. **Expensive derived calculations** - Use peek() or batch updates
 2. **Large lists** - Use For with proper keying
-3. **Heavy DOM operations** - Use useObserver to defer work
+3. **Heavy DOM operations** - Use onConnected to defer work
 
 Don't prematurely optimize - Retend is already fast by design.

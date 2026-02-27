@@ -62,7 +62,7 @@ export class Observer {
    * @param {Cell<T | null>} ref - A `Cell` containing the node to observe
    * @param {MountFn<T>} callback - A function that will be called when the node is connected
    */
-  onConnected(ref, callback) {
+  register(ref, callback) {
     const currentValue = ref.peek();
     if (currentValue && this.#renderer?.isActive(currentValue)) {
       this.#mount(currentValue, callback);
@@ -101,26 +101,38 @@ export class Observer {
 }
 
 /**
- * Returns the singleton instance of the `Observer` class,
+ * Returns the instance of the `Observer` class,
  * which is responsible for observing the host environment and managing the lifecycle of mounted nodes.
+ *
+ * @returns {Observer} The instance of the `Observer` class
+ */
+function useObserver() {
+  const renderer = getActiveRenderer();
+  if (!renderer.observer) {
+    renderer.observer = new Observer(renderer);
+  }
+  return renderer.observer;
+}
+
+/**
+ * Registers a callback to be called when the node referenced by the provided `ref` is connected to the host environment.
+ * If the node is already connected, the callback is called immediately.
+ * The callback can return a cleanup function that will be called when the node is disconnected.
  *
  * @example
  * // Mount a callback when a node is connected to the DOM
- * const observer = useObserver()
  * const nodeRef = Cell.source<HTMLDivElement | null>(null);
- * observer.onConnected(nodeRef, (node) => {
+ * onConnected(nodeRef, (node) => {
  *   console.log('Node connected:', node);
  *   return () => console.log('Node disconnected:', node);
  * });
  *
  * const node = <div ref={nodeRef}>Hello, world!</div>;
  *
- * @returns {Observer} The singleton instance of the `Observer` class
+ * @template T
+ * @param {import('@adbl/cells').Cell<T | null>} ref - A `Cell` containing the node to observe
+ * @param {MountFn<T>} callback - A function that will be called when the node is connected
  */
-export function useObserver() {
-  const renderer = getActiveRenderer();
-  if (!renderer.observer) {
-    renderer.observer = new Observer(renderer);
-  }
-  return renderer.observer;
+export function onConnected(ref, callback) {
+  useObserver().register(ref, callback);
 }

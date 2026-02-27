@@ -4,7 +4,7 @@
 
 # Hoist Handlers
 
-**Rule**: Event handlers and listener definitions should be declared BEFORE they are used (e.g. in `useObserver` or JSX), and preferably outside inline JSX.
+**Rule**: Event handlers and listener definitions should be declared BEFORE they are used (e.g. in `onConnected` or JSX), and preferably outside inline JSX.
 
 **Why**:
 

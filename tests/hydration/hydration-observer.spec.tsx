@@ -1,4 +1,4 @@
-import { Cell, If, useObserver } from "retend";
+import { Cell, If, onConnected } from "retend";
 import { type DOMRenderer, Teleport } from "retend-web";
 import type { JSX } from "retend/jsx-runtime";
 import { describe, expect, it, vi } from "vitest";
@@ -21,15 +21,14 @@ const startHydration = (
 	startHydrationFlow(renderer, templateFn);
 };
 
-describe("Hydration observer flushing", () => {
+describe("Hydration onConnected flushing", () => {
 	browserSetup();
 
-	it("flushes root observer callbacks before child hydration gate resolves", async () => {
+	it("flushes root onConnected callbacks before child hydration gate resolves", async () => {
 		const mounted = vi.fn();
 		const template = () => {
 			const ref = Cell.source<HTMLElement | null>(null);
-			const observer = useObserver();
-			observer.onConnected(ref, mounted);
+			onConnected(ref, mounted);
 			return (
 				<div id="root-observer">
 					<button id="root-observer-btn" ref={ref} type="button">
@@ -54,9 +53,8 @@ describe("Hydration observer flushing", () => {
 		const template = () => {
 			const firstRef = Cell.source<HTMLElement | null>(null);
 			const secondRef = Cell.source<HTMLElement | null>(null);
-			const observer = useObserver();
-			observer.onConnected(firstRef, mountedA);
-			observer.onConnected(secondRef, mountedB);
+			onConnected(firstRef, mountedA);
+			onConnected(secondRef, mountedB);
 			return (
 				<section id="multi-observer">
 					<button id="multi-a" ref={firstRef} type="button">
@@ -83,7 +81,7 @@ describe("Hydration observer flushing", () => {
 		const mounted = vi.fn();
 		const Child = () => {
 			const ref = Cell.source<HTMLElement | null>(null);
-			useObserver().onConnected(ref, mounted);
+			onConnected(ref, mounted);
 			return (
 				<div id="nested-observer-node" ref={ref}>
 					Child
@@ -113,7 +111,7 @@ describe("Hydration observer flushing", () => {
 				{If(show, {
 					true: () => {
 						const ref = Cell.source<HTMLElement | null>(null);
-						useObserver().onConnected(ref, mounted);
+						onConnected(ref, mounted);
 						return (
 							<p id="if-observer-node" ref={ref}>
 								Visible
@@ -138,7 +136,7 @@ describe("Hydration observer flushing", () => {
 		const mounted = vi.fn();
 		const TeleportedContent = () => {
 			const ref = Cell.source<HTMLElement | null>(null);
-			useObserver().onConnected(ref, mounted);
+			onConnected(ref, mounted);
 			return (
 				<button id="teleport-observer-node" ref={ref} type="button">
 					Teleported
@@ -168,7 +166,7 @@ describe("Hydration observer flushing", () => {
 		const callOrder: string[] = [];
 		const FirstTeleported = () => {
 			const ref = Cell.source<HTMLElement | null>(null);
-			useObserver().onConnected(ref, () => {
+			onConnected(ref, () => {
 				callOrder.push("first");
 			});
 			return (
@@ -179,7 +177,7 @@ describe("Hydration observer flushing", () => {
 		};
 		const SecondTeleported = () => {
 			const ref = Cell.source<HTMLElement | null>(null);
-			useObserver().onConnected(ref, () => {
+			onConnected(ref, () => {
 				callOrder.push("second");
 			});
 			return (
@@ -220,7 +218,7 @@ describe("Hydration observer flushing", () => {
 
 		const ref = Cell.source<HTMLElement | null>(null);
 		const mounted = vi.fn();
-		useObserver().onConnected(ref, mounted);
+		onConnected(ref, mounted);
 		ref.set(document.querySelector("#final-flush-target"));
 		await timeout(0);
 		expect(mounted).toHaveBeenCalledTimes(0);
@@ -233,7 +231,7 @@ describe("Hydration observer flushing", () => {
 		const mounted = vi.fn();
 		const template = () => {
 			const ref = Cell.source<HTMLElement | null>(null);
-			useObserver().onConnected(ref, mounted);
+			onConnected(ref, mounted);
 			return (
 				<div id="dedupe-root">
 					<button id="dedupe-node" ref={ref} type="button">
@@ -256,7 +254,7 @@ describe("Hydration observer flushing", () => {
 		const mounted = vi.fn();
 		const TeleportedContent = () => {
 			const ref = Cell.source<HTMLElement | null>(null);
-			useObserver().onConnected(ref, mounted);
+			onConnected(ref, mounted);
 			return (
 				<button id="teleport-dedupe-node" ref={ref} type="button">
 					Teleported

@@ -5,7 +5,7 @@
 import { Cell, SourceCell } from '@adbl/cells';
 import { getGlobalContext } from '../context/index.js';
 import h from '../library/jsx.js';
-import { useObserver } from '../library/observer.js';
+import { onConnected } from '../library/observer.js';
 import { getActiveRenderer } from '../library/renderer.js';
 import {
   __HMR_SYMBOLS,
@@ -211,7 +211,6 @@ export function createUnique(renderFn, options = {}) {
     } else {
       propSource.set(props);
     }
-    const observer = useObserver();
 
     const retendUniqueInstance = h(elementName, container, ...hArgs)();
     let previous = stash.instances.get(id);
@@ -281,7 +280,7 @@ export function createUnique(renderFn, options = {}) {
       stash.pendingTeardowns.delete(teardown);
     };
 
-    observer.onConnected(ref, (node) => {
+    onConnected(ref, (node) => {
       restoreState(node);
       const scope = stash.scopes.get(id);
       if (scope) scope.node.enable();

@@ -39,7 +39,7 @@ description: Quick, AI-friendly reference for core Retend patterns and imports.
 
 ```tsx
 // Core
-import { Cell, If, For, Switch, onSetup, useObserver, setActiveRenderer } from 'retend';
+import { Cell, If, For, Switch, onSetup, onConnected, setActiveRenderer } from 'retend';
 
 // Router
 import { Router, Link, Outlet, createRouterRoot, useRouter, useCurrentRoute } from 'retend/router';

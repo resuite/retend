@@ -11,7 +11,7 @@ These consolidated files organize all rules by topic for easier consumption by L
 1. **`.docs/retend/react-migration-patterns.md`** - **[START HERE]** Critical patterns for React developers. Prevents the most common mistakes when reverting to React patterns.
 2. **`.docs/retend/jsx-reactivity-patterns.md`** - Core reactivity rules. How to use Cells in JSX correctly.
 3. **`.docs/retend/derived-cells-complete-guide.md`** - Complete guide to Cell.derived() and Cell.derivedAsync().
-4. **`.docs/retend/control-flow-patterns.md`** - If, For, Switch, and Observer patterns.
+4. **`.docs/retend/control-flow-patterns.md`** - If, For, Switch, and onConnected patterns.
 5. **`.docs/retend/component-structure-patterns.md`** - Component organization, naming, and structure.
 6. **`.docs/retend/routing-patterns.md`** - Router setup, navigation, and route configuration.
 7. **`.docs/retend/common-anti-patterns.md`** - What NOT to do and why. Essential for avoiding mistakes.
@@ -34,7 +34,7 @@ Each consolidated file includes decision trees for common scenarios. Look for "Q
 Use these for detailed API information and edge cases.
 
 - `.docs/retend/references/cells-api.md` - Complete Cell API reference with all methods and patterns
-- `.docs/retend/references/control-flow.md` - Detailed guide to If/For/Switch/Observer with examples
+- `.docs/retend/references/control-flow.md` - Detailed guide to If/For/Switch/onConnected with examples
 - `.docs/retend/references/routing/setup.md` - Router initialization, lazy loading, subtrees, and 404s
 - `.docs/retend/references/routing/navigation.md` - Navigation hooks, Link component, and Active state
 - `.docs/retend/references/routing/data.md` - Dynamic route params and query parameters
@@ -108,7 +108,7 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/lowercase-event-names.md` - Use camelCase event names (onClick not onclick).
 - `.docs/retend/rules/no-re-render-optimization.md` - Don't optimize for "re-renders" - components don't re-render.
 - `.docs/retend/rules/query-mutations-are-async.md` - Route query mutations are async and trigger navigation.
-- `.docs/retend/rules/useobserver-not-layouteffect.md` - Use useObserver for DOM connection awareness.
+- `.docs/retend/rules/onconnected-not-layouteffect.md` - Use onConnected for DOM connection awareness.
 - `.docs/retend/rules/no-react-imports.md` - Don't import from 'react' or 'react-dom'.
 - `.docs/retend/rules/prefer-switch-for-multiple-cases.md` - Use Switch() for multiple conditional branches.
 - `.docs/retend/rules/prefer-if-object-syntax.md` - Use object syntax for If when both branches exist.

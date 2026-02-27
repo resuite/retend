@@ -53,7 +53,7 @@ function navigation_menu() { ... }
 2. State Cells (`Cell.source()`)
 3. Derived Cells (`Cell.derived()`, `Cell.derivedAsync()`)
 4. Event handlers (hoisted functions)
-5. Effects (`onSetup()`, `useObserver()`)
+5. Effects (`onSetup()`, `onConnected()`)
 6. Return JSX
 
 **Explicit Pattern**:

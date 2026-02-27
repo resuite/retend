@@ -1,9 +1,9 @@
-import { Cell, getActiveRenderer, useObserver } from 'retend';
+import { Cell, getActiveRenderer, onConnected } from 'retend';
 import type { DOMRenderer } from 'retend-web';
 import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, timeout, vDomSetup } from './setup.tsx';
 
-describe('useObserver', () => {
+describe('onConnected', () => {
   browserSetup();
 
   it('should call callback immediately if node is already connected', async () => {
@@ -15,7 +15,7 @@ describe('useObserver', () => {
     const nodeRef = Cell.source<HTMLElement | null>(node);
     const callback = vi.fn();
 
-    useObserver().onConnected(nodeRef, callback);
+    onConnected(nodeRef, callback);
 
     // It should be called immediately because it's already connected
     expect(callback).toHaveBeenCalledWith(node);
@@ -31,7 +31,7 @@ describe('useObserver', () => {
     const nodeRef = Cell.source<HTMLElement | null>(node);
     const callback = vi.fn();
 
-    useObserver().onConnected(nodeRef, callback);
+    onConnected(nodeRef, callback);
 
     expect(callback).not.toHaveBeenCalled();
 
@@ -56,7 +56,7 @@ describe('useObserver', () => {
     const cleanup = vi.fn();
     const callback = vi.fn(() => cleanup);
 
-    useObserver().onConnected(nodeRef, callback);
+    onConnected(nodeRef, callback);
     expect(callback).toHaveBeenCalled();
     // Wait for the async #mount to finish and register cleanups
     await timeout(0);
@@ -79,8 +79,8 @@ describe('useObserver', () => {
     const callback1 = vi.fn(() => cleanup1);
     const callback2 = vi.fn(() => cleanup2);
 
-    useObserver().onConnected(nodeRef, callback1);
-    useObserver().onConnected(nodeRef, callback2);
+    onConnected(nodeRef, callback1);
+    onConnected(nodeRef, callback2);
 
     window.document.body.append(node);
 
@@ -113,7 +113,7 @@ describe('useObserver', () => {
       return cleanup;
     };
 
-    useObserver().onConnected(nodeRef, callback);
+    onConnected(nodeRef, callback);
 
     await timeout(20);
     expect(resolved).toBe(true);
@@ -131,7 +131,7 @@ describe('useObserver', () => {
     const nodeRef = Cell.source<HTMLElement | null>(null);
     const callback = vi.fn();
 
-    useObserver().onConnected(nodeRef, callback);
+    onConnected(nodeRef, callback);
 
     // Change ref value
     nodeRef.set(node);

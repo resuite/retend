@@ -1,5 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { useObserver, CleanupFn } from './observer.js' */
+/** @import { onConnected, CleanupFn } from './observer.js' */
 /** @import { Renderer } from './renderer.js'; */
 import { Cell } from '@adbl/cells';
 
@@ -490,10 +490,10 @@ export function withState(snapshot, callback) {
  *
  * @remarks
  * - This hook runs only once per component instance, similar to `useEffect(..., [])` in React. It does not re-run on updates.
- * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `useObserver` instead.
+ * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `onConnected` instead.
  *
  * @see {@link onSetup} for registering effects that will be run by this function.
- * @see {@link useObserver} for DOM-based lifecycle effects.
+ * @see {@link onConnected} for DOM-based lifecycle effects.
  */
 export function onSetup(callback) {
   const { node } = getState();

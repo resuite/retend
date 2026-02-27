@@ -71,7 +71,7 @@ This index centralizes detection hints so rule files can stay concise.
 | self-closing-tags | STYLE | rules/self-closing-tags.md | `<div></div>` with no children | use `<div />` |
 | svg-xmlns | WARNING | rules/svg-xmlns.md | `<svg>` without `xmlns` | add `xmlns` on svg and children |
 | refs-on-elements | WARNING | rules/refs-on-elements.md | `ref` used without Cell | use `Cell<HTMLElement | null>` |
-| useobserver-not-layouteffect | WARNING | rules/useobserver-not-layouteffect.md | layout effect patterns | use `useObserver()` |
+| onconnected-not-layouteffect | WARNING | rules/onconnected-not-layouteffect.md | layout effect patterns | use `onConnected()` |
 | prefer-input-component | WARNING | rules/prefer-input-component.md | manual input binding | use `Input` component |
 | prefer-event-modifiers | WARNING | rules/prefer-event-modifiers.md | manual `event.preventDefault()` in handler | use event modifiers |
 

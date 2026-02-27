@@ -295,7 +295,7 @@ const updateFirstName = (value) => {
 1. State Cells (`Cell.source()`)
 2. Derived Cells (`Cell.derived()`, `Cell.derivedAsync()`)
 3. Event handlers
-4. Effects (`onSetup()`, `useObserver()`)
+4. Effects (`onSetup()`, `onConnected()`)
 5. Return JSX
 
 **Explicit Pattern**:

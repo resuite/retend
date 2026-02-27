@@ -1238,14 +1238,14 @@ elementRef.get() === div; // elementRef is now the div element
 While you could use `document.querySelector()` to get an HTML element directly, refs offer a more straightforward and reliable way of handling your UI interactions, specially in a reactive web app where the webpage may update and change a lot, unlike traditional apps that change less often:
 
 - **Direct Connection:** With refs, you're creating a direct link to your HTML element in your JSX code, so it is much more reliable and predictable than having to query for it by id or classes, for instance, where those attributes may change over time with edits.
-- **Reacts to Node Changes**: The ref `Cell` object are reactive, so when used in conjunction with [`useObserver`](#life-cycles) or other related patterns, can be used to react whenever a related Node disappears or becomes available again.
+- **Reacts to Node Changes**: The ref `Cell` object are reactive, so when used in conjunction with [`onConnected`](#dom-lifecycle-with-onconnected) or other related patterns, can be used to react whenever a related Node disappears or becomes available again.
 - **Better Code Structure**: Using refs often keeps the logic local to your component code instead of relying on a global selector-based lookup, making your code easier to read and maintain.
 
 ---
 
-## DOM Lifecycle with `useObserver`
+## DOM Lifecycle with `onConnected`
 
-The `useObserver()` function provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes. This is useful for effects that are tied to a specific DOM element's presence on screen (like measuring its size).
+The `onConnected()` function provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes. This is useful for effects that are tied to a specific DOM element's presence on screen (like measuring its size).
 
 ### Understanding Connection and Disconnection
 
@@ -1253,20 +1253,19 @@ The `useObserver()` function provides a way to trigger code based on the _connec
 
 - **Disconnection:** A node is "disconnected" when it is removed from the DOM tree. This happens when you remove or replace the element directly from Javascript, or when a parent of that node gets removed from the DOM.
 
-The `useObserver()` function returns a `Observer` object, which is a wrapper around the browser's `MutationObserver` API. Its main method, `onConnected`, allows you to run a callback function when a node is connected to the DOM.
+The `onConnected()` function allows you to run a callback function when a node is connected to the DOM.
 
 ### Executing Code on Connection
 
-Here's how to use `useObserver` to run a setup action as a reaction to html:
+Here's how to use `onConnected` to run a setup action as a reaction to html:
 
 ```jsx
-import { Cell, useObserver } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(divRef, (element) => {
+  onConnected(divRef, (element) => {
     console.log('This HTML element has connected:', element);
     element.setAttribute('data-connected', 'true');
   });
@@ -1280,20 +1279,19 @@ document.body.append(<MyComponent />);
 In this code:
 
 1. We've created a ref using `const divRef = Cell.source(null)`.
-2. When the `div` appears in the DOM, the callback function is automatically run.It logs a message to the console and adds a `data-connected` attribute to the element.
+2. When the `div` appears in the DOM, the callback function is automatically run. It logs a message to the console and adds a `data-connected` attribute to the element.
 
 ### Executing Code on Disconnection
 
-The `onConnected` method also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
+The `onConnected` hook also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
 
 ```jsx
-import { Cell, useObserver } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(divRef, (element) => {
+  onConnected(divRef, (element) => {
     element.setAttribute('data-connected', 'true');
 
     // here we return a cleanup function that runs automatically on disconnection
@@ -1317,7 +1315,7 @@ In this example, the `onConnected` hook now:
 
 ### Differences From Other Frameworks
 
-- **Node-Centric**: `useObserver` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
+- **Node-Centric**: `onConnected` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
 - **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
 
 ---
@@ -1352,10 +1350,10 @@ function LiveClock() {
 }
 ```
 
-### `onSetup` vs `useObserver`
+### `onSetup` vs `onConnected`
 
 - Use `onSetup` for component lifecycle logic that isn't tied to a specific DOM element.
-- Use `useObserver` for effects that need to run when a specific DOM element is connected or disconnected from the DOM.
+- Use `onConnected` for effects that need to run when a specific DOM element is connected or disconnected from the DOM.
 
 ---
 

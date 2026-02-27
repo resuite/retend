@@ -55,7 +55,7 @@ import { useRouter } from 'retend/router';
 function LockNotifier() {
   const router = useRouter();
 
-  // Setup listener (e.g., in component setup or useObserver)
+  // Setup listener (e.g., in component setup or onConnected)
   const listener = (event) => {
     alert(`Navigation to ${event.detail.attemptedPath} was blocked! Save changes first.`);
   };

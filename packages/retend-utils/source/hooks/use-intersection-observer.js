@@ -1,4 +1,4 @@
-import { Cell, useObserver } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 /**
  * @typedef {Cell<HTMLElement | null> | Cell<HTMLElement | null>[]} ObserverTarget
@@ -85,7 +85,6 @@ import { Cell, useObserver } from 'retend';
  * ```
  */
 export function useIntersectionObserver(target, callback, options) {
-  const observer = useObserver();
   /** @type {IntersectionObserver | null} */
   let intersectionObserver = null;
   let observedCount = 0;
@@ -93,7 +92,7 @@ export function useIntersectionObserver(target, callback, options) {
   const elements = Array.isArray(target) ? target : [target];
 
   for (const elementCell of elements) {
-    observer.onConnected(elementCell, (element) => {
+    onConnected(elementCell, (element) => {
       if (!intersectionObserver) {
         intersectionObserver = new IntersectionObserver(callback, options?.());
       }

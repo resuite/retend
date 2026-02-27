@@ -1,12 +1,12 @@
 ---
-description: Control flow patterns for If, For, Switch, and Observer. Covers keyed lists, conditional rendering, and proper reactivity.
+description: Control flow patterns for If, For, Switch, and onConnected. Covers keyed lists, conditional rendering, and proper reactivity.
 ---
 
 # Control Flow Patterns
 
 **Purpose**: Properly render lists and conditional content with fine-grained reactivity.
 
-**CRITICAL PRINCIPLE**: Use Retend's built-in control flow helpers (`If`, `For`, `Switch`, `Observer`) instead of React patterns like ternary operators or `.map()`.
+**CRITICAL PRINCIPLE**: Use Retend's built-in control flow helpers (`If`, `For`, `Switch`, `onConnected`) instead of React patterns like ternary operators or `.map()`.
 
 ---
 
@@ -351,22 +351,21 @@ return (
 
 ---
 
-## [WARNING] Use useObserver for DOM Connection
+## [WARNING] Use onConnected for DOM Connection
 
 **Applies to**: Detecting when elements connect/disconnect from DOM
 
-**Rule**: Use `useObserver()` hook instead of useLayoutEffect patterns.
+**Rule**: Use `onConnected()` instead of useLayoutEffect patterns.
 
 **Explicit Pattern**:
 ```tsx
-import { useObserver } from 'retend';
+import { onConnected } from 'retend';
 
 function MeasuredComponent() {
   const elementRef = Cell.source(null);
-  const observer = useObserver();
   
-  // ✅ CORRECT - useObserver for DOM connection
-  observer.onConnected(elementRef, (el) => {
+  // ✅ CORRECT - onConnected for DOM connection
+  onConnected(elementRef, (el) => {
     console.log('Element mounted:', el);
     // Initialize something (measure, attach external lib, etc.)
     
@@ -380,7 +379,7 @@ function MeasuredComponent() {
 }
 ```
 
-**Why**: `useObserver` fires when nodes are actually connected to the DOM, not just when refs are assigned.
+**Why**: `onConnected` fires when nodes are actually connected to the DOM, not just when refs are assigned.
 
 ---
 
@@ -453,5 +452,5 @@ LIST RENDERING?
 └─ Need index → index is Cell<number>, use index.get()
 
 DOM CONNECTION DETECTION?
-└→ const observer = useObserver(); observer.onConnected(ref, callback)
+└→ onConnected(ref, callback)
 ```

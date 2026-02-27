@@ -24,7 +24,7 @@
 ## Auto-Fix
 
 - Remove React imports and replace with Retend equivalents
-- Use `Cell`, `If`, `For`, `Switch`, `onSetup`, `useObserver` from `retend`
+- Use `Cell`, `If`, `For`, `Switch`, `onSetup`, `onConnected` from `retend`
 - Use `DOMRenderer` + `setActiveRenderer` from `retend-web`
 
 ## Examples

@@ -1,18 +1,18 @@
 | title                | impact | impactDescription                                      | tags                        |
 | :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| useObserver Not LayoutEffect | High | Ensures correct DOM timing and prevents bugs.          | lifecycle, dom, observer    |
+| onConnected Not LayoutEffect | High | Ensures correct DOM timing and prevents bugs.          | lifecycle, dom, connection  |
 
-# useObserver Not LayoutEffect
+# onConnected Not LayoutEffect
 
 **Context**: Measuring or manipulating DOM nodes.
 
-**Rule**: Use `useObserver()` for DOM connection awareness, not `onSetup`.
+**Rule**: Use `onConnected()` for DOM connection awareness, not `onSetup`.
 
 **Why**:
 
 - `onSetup` runs immediately after component creation
 - DOM nodes may not be in the document yet
-- `useObserver` fires when nodes are actually connected to the DOM
+- `onConnected` fires when nodes are actually connected to the DOM
 - Provides proper cleanup callbacks when nodes disconnect
 
 ## Examples
@@ -39,12 +39,11 @@ function MeasureComponent() {
 ### Valid
 
 ```tsx
-// VALID - useObserver guarantees DOM connection
+// VALID - onConnected guarantees DOM connection
 function MeasureComponent() {
   const ref = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(ref, (node) => {
+  onConnected(ref, (node) => {
     // Guaranteed to be in the DOM
     const rect = node.getBoundingClientRect();
     console.log('Size:', rect.width, rect.height);
@@ -61,10 +60,9 @@ function MeasureComponent() {
 // VALID - Reactive measurements
 function ResponsiveComponent() {
   const ref = Cell.source(null);
-  const observer = useObserver();
   const windowSize = useWindowSize();
 
-  observer.onConnected(ref, (node) => {
+  onConnected(ref, (node) => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         console.log('Resized:', entry.contentRect);
@@ -82,23 +80,16 @@ function ResponsiveComponent() {
 }
 ```
 
-## useObserver API
+## onConnected API
 
 ```tsx
-const observer = useObserver();
-
 // Watch when a ref connects to the DOM
-observer.onConnected(refCell, (node) => {
+onConnected(refCell, (node) => {
   // node is guaranteed to be in the DOM
 
   return () => {
     // Optional cleanup when node disconnects
   };
-});
-
-// Watch when a ref disconnects from the DOM
-observer.onDisconnected(refCell, (node) => {
-  // Node was removed from DOM
 });
 ```
 

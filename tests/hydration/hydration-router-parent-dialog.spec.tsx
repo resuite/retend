@@ -1,4 +1,4 @@
-import { useObserver, Cell, For, If, setActiveRenderer } from 'retend';
+import { onConnected, Cell, For, If, setActiveRenderer } from 'retend';
 import { Router, createRouterRoot } from 'retend/router';
 import { setGlobalContext } from 'retend/context';
 import { hydrate, renderToString } from 'retend-server/client';
@@ -52,11 +52,10 @@ function WithParentTransitions() {
 
       {If(selectedItemId, (itemId) => {
         const item = items.find((candidate) => candidate.id === itemId);
-        const observer = useObserver();
         const ref = Cell.source<HTMLDialogElement | null>(null);
         if (!item) return null;
 
-        observer.onConnected(ref, (dialog) => {
+        onConnected(ref, (dialog) => {
           dialog.showModal();
         });
 

@@ -332,19 +332,18 @@ function Timer() {
 }
 ```
 
-### useObserver
+### onConnected
 
 Used to observe the lifecycle of DOM elements (connected/disconnected).
 
 ```tsx
-import { Cell, useObserver } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 function AutoFocusInput() {
   const inputRef = Cell.source(null);
-  const observer = useObserver();
 
   // Run when element is connected to DOM
-  observer.onConnected(inputRef, (element) => {
+  onConnected(inputRef, (element) => {
     element.focus();
 
     return () => {

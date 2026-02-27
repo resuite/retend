@@ -2,7 +2,6 @@
 
 import { getGlobalContext } from 'retend/context';
 import {
-  useObserver,
   getActiveRenderer,
   linkNodes,
   createNodesFromTemplate,
@@ -50,7 +49,6 @@ import { DOMRenderer } from './dom-renderer.js';
  */
 export function Teleport(props) {
   const { to: target, ...rest } = props;
-  const observer = useObserver();
   const { teleportIdCounter } = getGlobalContext();
   const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   /** @type {string | undefined} */
@@ -85,5 +83,5 @@ export function Teleport(props) {
     return () => newInstance.remove();
   };
 
-  return renderer.scheduleTeleport(mountTeleportedNodes, observer);
+  return renderer.scheduleTeleport(mountTeleportedNodes);
 }
