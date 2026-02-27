@@ -21,46 +21,36 @@ const resetHydrationContext = () => {
   });
 };
 
-async function maybeWithRealTimers<T>(
-  shouldUseRealTimers: boolean,
-  callback: () => Promise<T>
-) {
-  const shouldRestoreFakeTimers = shouldUseRealTimers && vi.isFakeTimers();
-  if (shouldRestoreFakeTimers) vi.useRealTimers();
-  try {
-    return await callback();
-  } finally {
-    if (shouldRestoreFakeTimers) vi.useFakeTimers();
-  }
-}
-
 export const renderHydrationServerHtml = async (
   templateFn: TemplateFn,
   isAsync = false
 ) => {
-  return maybeWithRealTimers(isAsync, async () => {
-    resetHydrationContext();
-    const serverWindow = new VWindow();
-    const serverRenderer = new VDOMRenderer(serverWindow, {
-      markDynamicNodes: true,
-    });
-    setActiveRenderer(serverRenderer);
-    const serverTemplate = isAsync
-      ? () =>
-          Await({
-            fallback: null,
-            children: templateFn,
-          })
-      : templateFn;
-    const serverRoot = serverRenderer.render(serverTemplate) as VNode | VNode[];
-    const nodes = Array.isArray(serverRoot) ? serverRoot : [serverRoot];
-    serverWindow.document.body.append(...nodes);
-    if (isAsync) {
-      await waitForAsyncBoundaries();
-    }
-    await serverWindow.document.mountAllTeleports();
-    return renderToString(serverWindow.document.body, serverWindow);
+  resetHydrationContext();
+  const serverWindow = new VWindow();
+  const serverRenderer = new VDOMRenderer(serverWindow, {
+    markDynamicNodes: true,
   });
+  setActiveRenderer(serverRenderer);
+  const serverTemplate = isAsync
+    ? () =>
+        Await({
+          fallback: null,
+          children: templateFn,
+        })
+    : templateFn;
+  const serverRoot = serverRenderer.render(serverTemplate) as VNode | VNode[];
+  const nodes = Array.isArray(serverRoot) ? serverRoot : [serverRoot];
+  serverWindow.document.body.append(...nodes);
+  if (isAsync) {
+    const waitForBoundaries = waitForAsyncBoundaries();
+    if (vi.isFakeTimers()) {
+      // In fake-timer mode this flushes scheduled async-cell delays instantly.
+      await vi.runAllTimersAsync();
+    }
+    await waitForBoundaries;
+  }
+  await serverWindow.document.mountAllTeleports();
+  return renderToString(serverWindow.document.body, serverWindow);
 };
 
 export const createHydrationClientRenderer = (html: string) => {

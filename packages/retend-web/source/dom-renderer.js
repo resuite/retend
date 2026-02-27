@@ -7,6 +7,9 @@ import {
   Cell,
   createNodesFromTemplate,
   normalizeJsxChild,
+  Await,
+  withState,
+  branchState,
 } from 'retend';
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugin/hmr.js';
@@ -18,6 +21,7 @@ import {
   flattenJSXChildren,
   isReactiveChild,
 } from './utils.js';
+import { If } from 'retend';
 
 const COMMENT_NODE = 8;
 const TEXT_NODE = 3;
@@ -214,11 +218,12 @@ export class DOMRenderer {
   /**
    * @param {__HMR_UpdatableFn} tagname
    * @param {any} props
-   * @param {StateSnapshot} [snapshot]
+   * @param {StateSnapshot} [_]
    * @param {JSX.JSXDevFileData} [fileData]
+   * @returns {Node | Node[]}
    */
-  handleComponent(tagname, props, snapshot, fileData) {
-    const renderComponent = () => {
+  handleComponent(tagname, props, _, fileData) {
+    if (!this.#isHydrationModeEnabled) {
       // @ts-expect-error: Vite types are not ingrained
       if (import.meta.env?.DEV) {
         return withHMRBoundaries(tagname, props, fileData, this);
@@ -227,17 +232,29 @@ export class DOMRenderer {
       /** @type {Node[]} */
       const nodes = createNodesFromTemplate(template, this);
       return nodes.length === 1 ? nodes[0] : nodes;
-    };
-
-    if (!this.#isHydrationModeEnabled) {
-      return renderComponent();
     }
 
-    const branch = snapshot ?? getState();
-    if (!branch) return renderComponent();
+    const branch = getState();
     this.#enterHydrationBranch(branch);
     try {
-      return renderComponent();
+      if (tagname === Await) {
+        return withState(branchState(), () => {
+          const template = If(true, () =>
+            createNodesFromTemplate(props[0]?.children, this)
+          );
+          /** @type {Node[]} */
+          const nodes = createNodesFromTemplate(template, this);
+          return nodes.length === 1 ? nodes[0] : nodes;
+        });
+      }
+      // @ts-expect-error: Vite types are not ingrained
+      if (import.meta.env?.DEV) {
+        return withHMRBoundaries(tagname, props, fileData, this);
+      }
+      const template = tagname(...props);
+      /** @type {Node[]} */
+      const nodes = createNodesFromTemplate(template, this);
+      return nodes.length === 1 ? nodes[0] : nodes;
     } finally {
       this.#leaveHydrationBranch(branch);
     }
