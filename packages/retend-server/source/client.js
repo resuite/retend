@@ -173,6 +173,10 @@ export async function hydrate(routerFn) {
 
 /** @param {() => Router} routerFn  */
 async function defaultToSpaMode(routerFn) {
+  setGlobalContext({
+    teleportIdCounter: { value: 0 },
+    globalData: new Map(),
+  });
   const renderer = new DOMRenderer(window);
   setActiveRenderer(renderer);
   const router = routerFn();
