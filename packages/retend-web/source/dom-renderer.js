@@ -3,13 +3,13 @@
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
 import {
-  getState,
-  Cell,
-  createNodesFromTemplate,
-  normalizeJsxChild,
   Await,
-  withState,
+  Cell,
   branchState,
+  createNodesFromTemplate,
+  getState,
+  normalizeJsxChild,
+  withState,
 } from 'retend';
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugin/hmr.js';
@@ -21,7 +21,6 @@ import {
   flattenJSXChildren,
   isReactiveChild,
 } from './utils.js';
-import { If } from 'retend';
 
 const COMMENT_NODE = 8;
 const TEXT_NODE = 3;
@@ -239,12 +238,10 @@ export class DOMRenderer {
     try {
       if (tagname === Await) {
         return withState(branchState(), () => {
-          const template = If(true, () =>
-            createNodesFromTemplate(props[0]?.children, this)
-          );
-          /** @type {Node[]} */
-          const nodes = createNodesFromTemplate(template, this);
-          return nodes.length === 1 ? nodes[0] : nodes;
+          const nodes = createNodesFromTemplate(props[0]?.children, this);
+          const group = this.createGroup(nodes);
+          this.createGroupHandle(group);
+          return group;
         });
       }
       // @ts-expect-error: Vite types are not ingrained
@@ -554,6 +551,11 @@ export class DOMRenderer {
         listener,
         false
       );
+      if (expectedValue instanceof Promise) {
+        Promise.resolve(children.get()).then((resolvedValue) => {
+          updateText(resolvedValue, textNode);
+        });
+      }
       return;
     }
     if (!Array.isArray(children)) return;
@@ -693,6 +695,11 @@ export class DOMRenderer {
           }
         }
         addCellListener(textNode, node, listener, false);
+        if (expectedValue instanceof Promise) {
+          Promise.resolve(node.get()).then((resolvedValue) => {
+            updateText(resolvedValue, textNode);
+          });
+        }
         nodeIndex++;
         continue;
       }

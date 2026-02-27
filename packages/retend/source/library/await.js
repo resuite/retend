@@ -3,7 +3,7 @@
 /** @import { SourceCell } from '@adbl/cells'; */
 
 import { AsyncCell, Cell } from '@adbl/cells';
-import { If, createNodesFromTemplate, getActiveRenderer } from './index.js';
+import { If } from './index.js';
 import {
   createScope,
   branchState,
@@ -48,7 +48,6 @@ const AsyncKey = Symbol('retend:Await');
  */
 export function Await(props) {
   const { children, fallback } = props;
-  const renderer = getActiveRenderer();
   const { globalData } = getGlobalContext();
   const asyncHolders = globalData.get(AsyncKey) ?? new Set();
   globalData.set(AsyncKey, asyncHolders);
@@ -85,12 +84,11 @@ export function Await(props) {
   snapshot.node.suspend();
 
   const render = withState(snapshot, () => {
-    const template = AwaitScope.Provider({ value, children });
-    return createNodesFromTemplate(template, renderer);
+    return AwaitScope.Provider({ value, children });
   });
 
-  awaitList.pending.listen(() => {
-    initialStateDone.set(true);
+  awaitList.pending.listen((isPending) => {
+    if (!isPending) initialStateDone.set(true);
   });
 
   onSetup(() => {

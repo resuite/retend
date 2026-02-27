@@ -1,4 +1,10 @@
-import { Await, Cell, If, getActiveRenderer, waitForAsyncBoundaries } from 'retend';
+import {
+  Await,
+  Cell,
+  If,
+  getActiveRenderer,
+  waitForAsyncBoundaries,
+} from 'retend';
 import { renderToString } from 'retend-server/client';
 import type { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -209,5 +215,48 @@ describe('Await Serialization', () => {
     await waitForAsyncBoundaries();
     const elapsed = performance.now() - start;
     expect(elapsed).toBeLessThan(5);
+  });
+
+  it('should serialize nested Await instances', async () => {
+    const isCompleted = Cell.derivedAsync(async () => {
+      await timeout(10);
+      return 'Done';
+    });
+
+    const Component = () => (
+      <div>
+        <Await fallback={<span>Loading inner</span>}>
+          <div>
+            {If(isCompleted, {
+              true: () => 'Done',
+              false: () => 'Pending...',
+            })}
+          </div>
+        </Await>
+      </div>
+    );
+
+    const App = () => {
+      return (
+        <Await fallback={<span>Loading outer</span>}>
+          <Component />
+        </Await>
+      );
+    };
+
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const rendered = renderer.render(App);
+
+    // Resolve both the outer gate and the inner async data.
+    await vi.advanceTimersByTimeAsync(30);
+    await waitForAsyncBoundaries();
+
+    const result = renderToString(
+      rendered,
+      renderer.host as unknown as Parameters<typeof renderToString>[1]
+    );
+    expect(result).toContain('Done');
+    expect(result).not.toContain('Loading');
+    expect(result).not.toContain('Pending');
   });
 });
