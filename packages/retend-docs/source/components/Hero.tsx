@@ -1,13 +1,15 @@
+import { ArrowRightIcon, ExternalLinkIcon } from "@/icons";
 import { Link } from "retend/router";
 import { CodeBlock } from "./CodeBlock";
-import { ArrowRightIcon, ExternalLinkIcon } from "../icons";
 
 const heroCode = `import { Cell } from "retend";
 
 function Counter() {
   const count = Cell.source(0);
+  const increment = () => count.set(count.get() + 1);
+
   return (
-    <button onClick={() => count.set(count.get() + 1)}>
+    <button type="button" onClick={increment}>
       Count is {count}
     </button>
   );
@@ -18,11 +20,14 @@ export function Hero() {
 		<section class="grid grid-cols-1 items-center gap-15 py-10 md:grid-cols-[1.1fr_0.9fr] md:gap-20 md:py-20">
 			<div>
 				<h1 class="mb-6 text-[2.5rem] leading-tight tracking-tight text-fg">
-					The framework for<br />fluid user interfaces.
+					The framework for
+					<br />
+					fluid user interfaces.
 				</h1>
 				<p class="text-lg text-fg-muted">
-					Retend is a toolkit for creating interactive applications and user interfaces.
-					It manages complex application logic, allowing you to build fast, smooth sites declaratively.
+					Retend is a toolkit for creating interactive applications and user
+					interfaces. It manages complex application logic, allowing you to
+					build fast, smooth sites declaratively.
 				</p>
 
 				<div class="mt-12 flex gap-6">

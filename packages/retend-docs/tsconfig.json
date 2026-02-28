@@ -15,7 +15,11 @@
 		"noFallthroughCasesInSwitch": true,
 		"jsx": "react-jsx",
 		"jsxImportSource": "retend",
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./source/*"]
+		}
 	},
 	"include": ["source"]
 }

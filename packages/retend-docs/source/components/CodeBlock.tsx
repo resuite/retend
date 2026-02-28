@@ -1,5 +1,6 @@
 import { Cell } from 'retend';
 import { createHighlighter } from 'shiki';
+import { Card } from './Card';
 
 const highlighterPromise = createHighlighter({
   themes: ['github-light'],
@@ -21,11 +22,11 @@ export function CodeBlock(props: CodeBlockProps) {
   });
 
   return (
-    <aside
-      class={['rounded-xl border border-border bg-white p-5 shadow-[-3px_3px_0px_0px_rgba(15,23,42,0.25)]', className]}
+    <Card
+      class={['p-5', className]}
       aria-label="Code sample"
     >
       <div class="[&_.shiki]:overflow-x-auto [&_.shiki]:!bg-transparent [&_pre]:!bg-transparent [&_code]:font-mono [&_code]:text-[0.8rem] [&_code]:leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
-    </aside>
+    </Card>
   );
 }

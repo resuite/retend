@@ -1,8 +1,8 @@
+import { MainLayout } from "@/layouts/MainLayout";
+import { FeaturesPage } from "@/routes/FeaturesPage";
+import { Home } from "@/routes/Home";
+import { QuickstartPage } from "@/routes/QuickstartPage";
 import { Router } from "retend/router";
-import { MainLayout } from "./layouts/MainLayout";
-import { Home } from "./routes/Home";
-import { FeaturesPage } from "./routes/FeaturesPage";
-import { QuickstartPage } from "./routes/QuickstartPage";
 
 export function createRouter() {
 	const router = new Router({
