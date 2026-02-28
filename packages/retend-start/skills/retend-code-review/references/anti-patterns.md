@@ -6,6 +6,7 @@
 - **Dependency Arrays**: No dependency arrays for `Cell.derived()`, `Cell.derivedAsync()`, or `onSetup()`.
 - **Ternary Operators in JSX**: Never use `? :` for conditional rendering in JSX. Use `If()` or `Switch()`.
 - **Logical Operators in JSX**: Never use `&&` or `||` for conditional rendering in JSX. Use `If()`.
+- **Expression for Static Classes**: Never use Array/Object syntax (`class={['a', 'b']}`) for purely static classes. Use simple strings (`class="a b"`).
 - **.map() for Lists**: Never use `.map()` in JSX. Use `For()`.
 - **No Keys in For with Objects**: Always provide a `key` for `For()` with object arrays.
 - **derivedAsync Without get Parameter**: Never use `.get()` directly inside `Cell.derivedAsync()`.
@@ -16,7 +17,7 @@
 - **svg Without xmlns**: All elements within an SVG must have `xmlns`.
 - **.listen() Inside onSetup()**: Call `.listen()` directly in component body.
 - **Query mutations not awaited**: Query mutations are async and must be awaited.
-
+- **Manual .then() + .set()**: Never use `promise.then(v => cell.set(v))`. Use `Cell.derivedAsync()` instead.
 ## React Migration Checklist
 - [ ] Replaced `useState` with `Cell.source()`
 - [ ] Replaced `useEffect` with `.listen()` or `onSetup()`
@@ -25,6 +26,7 @@
 - [ ] Replaced `? :` and `&&` with `If()`
 - [ ] Replaced `.map()` with `For()`
 - [ ] Replaced `htmlFor` with `for`
+- [ ] Replaced expressions for static classes with simple strings
 - [ ] Replaced `window.location` with `router.navigate()`
 - [ ] Ensured component functions only run once
 - [ ] Verified `.get()` is not called inside JSX

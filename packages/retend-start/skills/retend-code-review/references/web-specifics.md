@@ -1,9 +1,11 @@
 # Web Specifics
 
 ## Rules
-- **Class Attribute Syntax**: Use Array or Object syntax for dynamic classes. Never use string concatenation or ternaries.
-  - ✅ `<div class={['btn', variant, { 'is-active': isActive }]} />`
-  - ❌ `<div class={'btn ' + variant} />`
+- **Class Attribute Syntax**: Use simple strings for static classes. Use Array or Object syntax for dynamic classes. Never use expressions (like `{['a', 'b']}`) for static classes, and never use string concatenation or ternaries.
+  - ✅ `<div class="btn btn-primary" />` (static)
+  - ✅ `<div class={['btn', variant, { 'is-active': isActive }]} />` (dynamic)
+  - ❌ `<div class={['btn', 'btn-primary']} />` (static array)
+  - ❌ `<div class={'btn ' + variant} />` (string concat)
 - **Event Naming**: Use camelCase event names (e.g., `onClick`, `onMouseEnter`). Standard HTML lowercase events won't work.
 - **Event Modifiers**: Use `--` chained modifiers for common event patterns.
   - ✅ `onClick--prevent={handleClick}` (calls `event.preventDefault()`)

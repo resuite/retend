@@ -366,6 +366,14 @@ export class VElement extends VNode {
     return this.#hiddenAttributes;
   }
 
+  get innerHTML() {
+    const markupChild = this.childNodes.find(
+      (node) => node instanceof MarkupContainerNode
+    );
+    if (markupChild) return markupChild.html;
+    return '';
+  }
+
   /** @param {string} html */
   set innerHTML(html) {
     for (const node of this.childNodes) {

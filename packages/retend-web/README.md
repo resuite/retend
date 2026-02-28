@@ -6,10 +6,10 @@ The official DOM renderer for [Retend](https://github.com/adebola-io/retend).
 
 ## Key Features
 
-- **Components are DOM Elements:** In `retend-web`, components are just functions that return standard DOM elements. Changes are applied directly to the DOM for maximum performance and interoperability.
-- **Teleport:** Render children into a different part of the DOM tree, useful for modals, tooltips, and global overlays.
-- **Shadow Root Support:** Easily encapsulate styles and structure using native Shadow DOM.
-- **Optimized DOM Operations:** Efficiently handles updates, attributes, and events using specialized reconciliation.
+- Components are DOM Elements: In `retend-web`, components are just functions that return standard DOM elements. Changes are applied directly to the DOM for maximum performance and interoperability.
+- Teleport: Render children into a different part of the DOM tree, useful for modals, tooltips, and global overlays.
+- Shadow Root Support: Easily encapsulate styles and structure using native Shadow DOM.
+- Optimized DOM Operations: Efficiently handles updates, attributes, and events using specialized reconciliation.
 
 ## Installation
 

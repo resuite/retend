@@ -20,8 +20,8 @@ import { getGlobalContext } from '../context/index.js';
 
 /**
  * @typedef AwaitProps
- * @property {JSX.Template} fallback
- * @property {JSX.Template} children
+ * @property {JSX.Template} [fallback]
+ * @property {JSX.Children} children
  */
 
 /** @type {Scope<AwaitContext>} */

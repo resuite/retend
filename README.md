@@ -1,6 +1,6 @@
 # retend
 
-> **Retend is not ready for any production use. Implement it at your own discretion.**
+> Retend is not ready for any production use. Implement it at your own discretion.
 
 Retend is a experimental framework for building fluid web apps. Like React, it allows you to use JSX to create dynamic user interfaces.
 
@@ -29,13 +29,13 @@ renderToDOM(document.body, App);
 
 ## Key Features
 
-- **Lightweight:** Retend has a small footprint, which means it loads quickly without extra overhead.
+- Lightweight: Retend has a small footprint, which means it loads quickly without extra overhead.
 
-- **JSX Support:** You can use JSX to define your user interfaces. This allows you embed HTML-like structures directly into JavaScript.
+- JSX Support: You can use JSX to define your user interfaces. This allows you embed HTML-like structures directly into JavaScript.
 
-- **Built-in Reactivity:** [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
+- Built-in Reactivity: [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
 
-- **Components are DOM Elements:** Components in Retend are just functions that return elements.
+- Components are DOM Elements: Components in Retend are just functions that return elements.
 
   - There is no extra layer.
   - There is no Virtual DOM.
@@ -43,11 +43,11 @@ renderToDOM(document.body, App);
 
   This gives you a high level of control and interoperability with existing DOM APIs.
 
-- **Built-in Router:** Retend includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
+- Built-in Router: Retend includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
 
-- **(Experimental) HMR Support:** Retend supports hot module reloads, which allow you to see changes instantly without refreshing the page. This speeds up development by letting you focus more on your application.
+- (Experimental) HMR Support: Retend supports hot module reloads, which allow you to see changes instantly without refreshing the page. This speeds up development by letting you focus more on your application.
 
-- **(Experimental) SSG support:** Retends supports statically generating a select group of paths of your application.
+- (Experimental) SSG support: Retends supports statically generating a select group of paths of your application.
 
 ## Installation
 
@@ -57,7 +57,7 @@ To get started with Retend, you'll need to create a new project using the scaffo
 
 This will set up the basic project structure for you. Then, you'll need to install dependencies and start the development server.
 
-- **Create a new project:**
+- Create a new project:
 
   Open your terminal in your documents directory, and run the following command:
 
@@ -91,7 +91,7 @@ This will set up the basic project structure for you. Then, you'll need to insta
 
   This command will create a new project named `my-app` with the default options (no Tailwind CSS, CSS, JavaScript, and no SSG).
 
-- **Navigate to your project directory:**
+- Navigate to your project directory:
 
   After creating the project, navigate into the project by using `cd` and the name you used:
 
@@ -99,7 +99,7 @@ This will set up the basic project structure for you. Then, you'll need to insta
   cd your-project-name
   ```
 
-- **Install dependencies:**
+- Install dependencies:
 
   Run the following command to install all the required packages for your project:
 
@@ -107,7 +107,7 @@ This will set up the basic project structure for you. Then, you'll need to insta
   pnpm install
   ```
 
-- **Start the development server:**
+- Start the development server:
 
   Finally, start the development server using this command in the same directory:
 

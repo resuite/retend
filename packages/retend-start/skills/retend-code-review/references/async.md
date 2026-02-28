@@ -1,7 +1,9 @@
 # Async
 
 ## Rules
-- **Prefer Primitives over Manual State**: NEVER manually manage `isLoading`, `data`, and `error` cells. Use `Cell.derivedAsync()` (GET) or `Cell.task()` (POST/actions).
+- **All Async Through Primitives**: ANY async operation (fetching, computation, initialization) MUST use `Cell.derivedAsync()` or `Cell.task()`. NEVER use manual `Cell.source()` + `.then()` patterns.
+  - ✅ `const html = Cell.derivedAsync(async () => highlight(code))`
+  - ❌ `const html = Cell.source(''); doAsync().then(v => html.set(v))`
 - **Use <Await /> for Coordination**: Use `<Await />` to pause rendering of a subtree until all nested async cells have resolved.
 - **derivedAsync get() parameter**: Always use `get` function from first parameter. Never call `.get()` directly.
   - ✅ `Cell.derivedAsync(async (get) => fetchUser(get(userId)))`
@@ -18,5 +20,5 @@
 
 ## Decisions
 - **Coordinate multiple subtrees?** -> `<Await fallback={...}>`
-- **Data fetching (auto-refresh)?** -> `Cell.derivedAsync(async (get, signal) => ...)`
-- **User Action (POST/PUT/DELETE)?** -> `Cell.task(async (input, signal) => ...)`
+- **Any async computation (pure)?** -> `Cell.derivedAsync(async (get, signal) => ...)`
+- **User Action (mutations/side effects)?** -> `Cell.task(async (input, signal) => ...)`

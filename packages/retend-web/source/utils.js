@@ -674,10 +674,26 @@ export function setAttribute(
     key === 'dangerouslySetInnerHTML' &&
     typeof value === 'object' &&
     value !== null &&
-    '__html' in value &&
-    typeof value.__html === 'string'
+    '__html' in value
   ) {
-    element.innerHTML = value.__html;
+    const html = value.__html;
+    if (Cell.isCell(html)) {
+      if (html instanceof AsyncCell) useAwait()?.waitUntil(html);
+      /**
+       * @this {Element}
+       * @param {string | Promise<string>} newValue
+       */
+      function applyInnerHTML(newValue) {
+        if (newValue instanceof Promise) {
+          newValue.then((resolved) => applyInnerHTML.bind(this)(resolved));
+        } else {
+          this.innerHTML = newValue;
+        }
+      }
+      addCellListener(element, html, applyInnerHTML);
+    } else if (typeof html === 'string') {
+      element.innerHTML = html;
+    }
     return;
   }
 

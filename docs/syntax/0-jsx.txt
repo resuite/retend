@@ -228,8 +228,8 @@
 ---
 
 @Example 35
-@Input Paragraph with strong tag.
-<p>This is <strong>important</strong> text.</p>
+@Input Paragraph with span tag.
+<p>This is <span>important</span> text.</p>
 
 ---
 

@@ -59,6 +59,11 @@ RULES = [
     ),
     (r"\bhtmlFor\s*=", "Style: Use 'for' instead of 'htmlFor'.", "STYLE"),
     (
+        r'class\s*=\s*\{\s*\[\s*(?:(?:["\'][^"\']*?["\'])\s*(?:,\s*["\'][^"\']*?["\']\s*)*)\s*\]\s*\}',
+        "Style: Array syntax for static classes. Use simple string (class=\"a b\").",
+        "STYLE",
+    ),
+    (
         r"<button\b(?![^>]*\btype\s*=)[^>]*>",
         "Warning: <button> missing 'type' attribute.",
         "WARNING",

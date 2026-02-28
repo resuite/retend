@@ -2,21 +2,21 @@
 
 [![npm version](https://img.shields.io/npm/v/retend?color=blue)](https://www.npmjs.com/package/retend)
 
-> **Retend is experimental and not ready for production use.**
+> Retend is experimental and not ready for production use.
 
 The core reactive framework for building user interfaces with JSX. Retend provides a renderer-agnostic foundation with fine-grained reactivity and built-in routing.
 
 ## What is Retend?
 
-Retend is a **renderer-agnostic reactive UI framework**. It provides the building blocks for creating dynamic interfaces while remaining decoupled from any specific platform through an abstract `Renderer` interface.
+Retend is a renderer-agnostic reactive UI framework. It provides the building blocks for creating dynamic interfaces while remaining decoupled from any specific platform through an abstract `Renderer` interface.
 
-For browser applications, use it with [**`retend-web`**](https://github.com/adebola-io/retend/tree/main/packages/retend-web) (the DOM renderer).
+For browser applications, use it with [`retend-web`](https://github.com/adebola-io/retend/tree/main/packages/retend-web) (the DOM renderer).
 
 ## Key Concepts
 
-- **Fine-grained Reactivity**: Changes propagate automatically to only the affected DOM nodes — no Virtual DOM diffing or full component re-renders
-- **Components are Functions**: No component instances or reconciliation layers — just direct node creation and surgical updates
-- **Renderer-Agnostic**: Works across environments (DOM, SSR, etc.) by swapping the renderer implementation
+- Fine-grained Reactivity: Changes propagate automatically to only the affected DOM nodes — no Virtual DOM diffing or full component re-renders
+- Components are Functions: No component instances or reconciliation layers — just direct node creation and surgical updates
+- Renderer-Agnostic: Works across environments (DOM, SSR, etc.) by swapping the renderer implementation
 
 ## Installation
 

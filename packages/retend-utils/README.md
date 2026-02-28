@@ -40,7 +40,7 @@ Tracks the bounding rectangle (size and position) of an HTML element reactively.
 
 Provides a `BoundingRect` object where each property is a reactive `Cell`. These cells update automatically whenever the element's size or position changes.
 
-**Parameters:**
+Parameters:
 
 - `elementRef`: A `Cell<HTMLElement | null>` containing a reference to the HTML element to track.
 - `options` (optional): An object with the following properties:
@@ -49,11 +49,11 @@ Provides a `BoundingRect` object where each property is a reactive `Cell`. These
   - `windowScroll` (boolean, default: `true`): Update when the window is scrolled.
   - `updateTiming` ('sync' | 'next-frame', default: `'sync'`): Timing for updates.
 
-**Returns:**
+Returns:
 
 - `BoundingRect`: An object containing reactive cells for each dimension (`width`, `height`, `x`, `y`, `top`, `right`, `bottom`, `left`).
 
-**Example:**
+Example:
 
 ```tsx
 import { Cell } from 'retend';
@@ -86,15 +86,15 @@ function PositionTracker() {
 
 Tracks the current system date and time reactively.
 
-**Parameters:**
+Parameters:
 
 - `interval` (optional, number, default: `1000`): How often to update the date and time, in milliseconds.
 
-**Returns:**
+Returns:
 
 - `Cell<Date>`: A Cell containing the current date and time.
 
-**Example:**
+Example:
 
 ```tsx
 import { Cell } from 'retend';
@@ -113,17 +113,17 @@ function CurrentDateDisplay() {
 
 Returns an object containing reactive cells that track the current window size.
 
-**Parameters:**
+Parameters:
 
 - None
 
-**Returns:**
+Returns:
 
 - An object with two properties:
   - `width`: A Cell containing the current window width.
   - `height`: A Cell containing the current window height.
 
-**Example:**
+Example:
 
 ```tsx
 import { Cell } from 'retend';
@@ -144,15 +144,15 @@ function AdaptiveLayout() {
 
 Tracks the network connection status and provides a reactive cell indicating whether the user is currently online.
 
-**Parameters:**
+Parameters:
 
 - None
 
-**Returns:**
+Returns:
 
 - `Cell<boolean>`: A cell that contains a boolean indicating whether the network connection is currently online.
 
-**Example:**
+Example:
 
 ```tsx
 import { useOnlineStatus } from 'retend-utils/hooks';
@@ -176,16 +176,16 @@ function NetworkStatusDisplay() {
 
 Creates a reactive cell synchronized with localStorage.
 
-**Parameters:**
+Parameters:
 
 - `key` (string): The key to use for storing the value in localStorage.
 - `initialValue` (JSONSerializable): The initial value of the cell. Must be a JSON-serializable value.
 
-**Returns:**
+Returns:
 
 - `Cell<JSONSerializable>`: A cell that contains the current value stored in localStorage.
 
-**Example:**
+Example:
 
 ```tsx
 import { useLocalStorage } from 'retend-utils/hooks';
@@ -210,16 +210,16 @@ function ThemeSwitcher() {
 
 Creates a reactive cell synchronized with sessionStorage.
 
-**Parameters:**
+Parameters:
 
 - `key` (string): The key to use for storing the value in sessionStorage.
 - `initialValue` (JSONSerializable): The initial value of the cell. Must be a JSON-serializable value.
 
-**Returns:**
+Returns:
 
 - `Cell<JSONSerializable>`: A cell that contains the current value stored in sessionStorage.
 
-**Example:**
+Example:
 
 ```tsx
 import { useSessionStorage } from 'retend-utils/hooks';
@@ -244,15 +244,15 @@ function SessionCounter() {
 
 Creates a derived cell from either a static value or another cell. The returned cell will automatically update when the input cell changes, or remain constant if the input is a static value.
 
-**Parameters:**
+Parameters:
 
 - `property` (Cell<T> | T): The input value or cell to derive from
 
-**Returns:**
+Returns:
 
 - `Cell<T>`: A derived cell that reflects the current value of the input
 
-**Example:**
+Example:
 
 ```tsx
 import { Cell } from 'retend';
@@ -270,15 +270,15 @@ function ExampleComponent(props) {
 
 Creates a reactive cell that tracks the result of a media query.
 
-**Parameters:**
+Parameters:
 
 - `query` (string): The media query to match (e.g., `(min-width: 768px)`).
 
-**Returns:**
+Returns:
 
 - `Cell<boolean>`: A cell that contains a boolean indicating whether the media query matches.
 
-**Example:**
+Example:
 
 ```tsx
 import { Cell } from 'retend';
@@ -297,15 +297,15 @@ function MyComponent() {
 
 Tracks the cursor position within the window.
 
-**Parameters:**
+Parameters:
 
 - None
 
-**Returns:**
+Returns:
 
 - `CursorPosition`: An object containing reactive cells for the x and y coordinates of the cursor (`x`, `y`).
 
-**Example:**
+Example:
 
 ```tsx
 import { useCursorPosition } from 'retend-utils/hooks';
@@ -327,14 +327,14 @@ function MyComponent() {
 
 A reactive input component with two-way data binding support for various HTML input types.
 
-**Props:**
+Props:
 
 - `type` (string): The HTML input type (e.g., "text", "number", "password", "checkbox", "date").
 - `model` (Cell<string | number | boolean | Date | File[]>): A reactive cell for two-way data binding. The type of the cell should match the input type.
 - `ref` (Cell<HTMLInputElement | null>): Optional reference to the input element.
 - `...rest`: Other standard HTML input attributes.
 
-**Example:**
+Example:
 
 ```tsx
 import { Cell } from 'retend';
@@ -356,11 +356,11 @@ function InputExample() {
 
 Renders a list with dynamic sizing, staggered animations, and flexible layouts, handling transitions automatically.
 
-**Props:**
+Props:
 
-- `items`: **Required**. Reactive cell containing the array of items to render.
-- `Template`: **Required**. Function returning JSX for each item. Receives `{ item, index, previousIndex, list }`.
-- `itemKey`: **Required** for object items. Unique key for each item.
+- `items`: Required. Reactive cell containing the array of items to render.
+- `Template`: Required. Function returning JSX for each item. Receives `{ item, index, previousIndex, list }`.
+- `itemKey`: Required for object items. Unique key for each item.
 - `ref`: Optional. Cell for the `<ul>` element reference.
 - `style`: Optional. Custom styles for the `<ul>` container.
 - `direction`: Optional. Item flow direction (`'block'`=horizontal, `'inline'`=vertical). Default: `'block'`.
@@ -375,7 +375,7 @@ Renders a list with dynamic sizing, staggered animations, and flexible layouts, 
 - `maxRows`: Optional. Max rows before wrapping (for `direction: 'block'`).
 - `...rest`: Other standard `<ul>` attributes.
 
-**Example:**
+Example:
 
 ```tsx
 import { Cell } from 'retend';
@@ -425,10 +425,10 @@ function MyComponent() {
 
 A factory function that creates unique components with smooth [FLIP](https://aerotwist.com/blog/flip-your-animations/) animations. When an element created with `createUniqueTransition` moves between different positions in the DOM tree, it automatically animates from its previous position and size to its new position and size using CSS transforms.
 
-**Parameters:**
+Parameters:
 
-- `renderFn`: **Required**. A function that returns the JSX to be rendered. Receives props as a reactive Cell.
-- `options`: **Required**. An object with transition configuration:
+- `renderFn`: Required. A function that returns the JSX to be rendered. Receives props as a reactive Cell.
+- `options`: Required. An object with transition configuration:
   - `transitionDuration`: The duration of the transition (e.g., `'300ms'`, `'0.5s'`).
   - `transitionTimingFunction`: Optional. The easing function for the transition (e.g., `'ease-in-out'`). Default: `'ease'`.
   - `maintainWidthDuringTransition`: Optional. If true, disables horizontal scaling during transitions.
@@ -437,11 +437,11 @@ A factory function that creates unique components with smooth [FLIP](https://aer
   - `onRestore`: Optional. A callback function `(element: HTMLElement, data: CustomData) => void` that runs after the element arrives at its new location. It receives the element and the data returned from `onSave`.
   - `container`: Optional. Attributes to apply to the wrapper element.
 
-**Returns:**
+Returns:
 
 - A unique component that can be used like any other component. Pass an `id` prop to distinguish multiple instances.
 
-**Example: Persistent Video Player**
+Example: Persistent Video Player
 
 A video player that smoothly animates when moving between a sidebar and a main content area.
 
@@ -465,7 +465,7 @@ function App() {
 }
 ```
 
-**Example: Picture-in-Picture Transition**
+Example: Picture-in-Picture Transition
 
 A video that animates between a main view and a picture-in-picture corner.
 
@@ -517,7 +517,7 @@ function App() {
 }
 ```
 
-**Example: Preserving State**
+Example: Preserving State
 
 An item card that animates between a grid and a detail view while preserving its scroll position.
 
