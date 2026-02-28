@@ -17,6 +17,7 @@ description: Critical rules for using Cells in JSX. These are the most common mi
 **Rule**: Pass the Cell object directly to JSX expressions and attributes. Never call `.get()` inside JSX.
 
 **Explicit Pattern - ALWAYS DO THIS**:
+
 ```tsx
 const count = Cell.source(0);
 const name = Cell.source('Alice');
@@ -24,16 +25,17 @@ const name = Cell.source('Alice');
 // ✅ CORRECT - Pass cells directly
 return (
   <div>
-    <p>{count}</p>                    {/* Cell in text */}
-    <p>{name}</p>                     {/* Cell in text */}
-    <input value={name} />            {/* Cell in attribute */}
-    <div class={name} />              {/* Cell in class */}
-    <div style={{ color: name }} />   {/* Cell in style */}
+    <p>{count}</p> {/* Cell in text */}
+    <p>{name}</p> {/* Cell in text */}
+    <input value={name} /> {/* Cell in attribute */}
+    <div class={name} /> {/* Cell in class */}
+    <div style={{ color: name }} /> {/* Cell in style */}
   </div>
 );
 ```
 
 **Explicit Anti-Pattern - NEVER DO THIS**:
+
 ```tsx
 const count = Cell.source(0);
 const name = Cell.source('Alice');
@@ -41,11 +43,11 @@ const name = Cell.source('Alice');
 // ❌ WRONG - .get() breaks reactivity
 return (
   <div>
-    <p>{count.get()}</p>                    {/* Static value! */}
-    <p>{name.get()}</p>                     {/* Never updates */}
-    <input value={name.get()} />            {/* Frozen value */}
-    <div class={name.get()} />              {/* No reactivity */}
-    <div style={{ color: name.get() }} />   {/* Stays at initial value */}
+    <p>{count.get()}</p> {/* Static value! */}
+    <p>{name.get()}</p> {/* Never updates */}
+    <input value={name.get()} /> {/* Frozen value */}
+    <div class={name.get()} /> {/* No reactivity */}
+    <div style={{ color: name.get() }} /> {/* Stays at initial value */}
   </div>
 );
 ```
@@ -53,6 +55,7 @@ return (
 **Why This Breaks**: When you call `.get()`, you get the current value as a static snapshot. The JSX expression never updates because there's no subscription to the Cell.
 
 **When to Use .get()** (Outside JSX):
+
 ```tsx
 // ✅ CORRECT - Use .get() outside JSX
 const count = Cell.source(0);
@@ -81,6 +84,7 @@ count.listen((newValue) => {
 **Rule**: Inside `Cell.derived()` or `Cell.derivedAsync()`, use `.get()` to establish reactive dependencies.
 
 **Explicit Pattern**:
+
 ```tsx
 const firstName = Cell.source('John');
 const lastName = Cell.source('Doe');
@@ -98,6 +102,7 @@ firstName.set('Jane'); // fullName now returns 'Jane Doe'
 **How It Works**: Retend tracks which Cells you call `.get()` on during the derived computation. Those become the dependencies.
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 const firstName = Cell.source('John');
 const lastName = Cell.source('Doe');
@@ -118,6 +123,7 @@ const fullName = Cell.derived(() => {
 **Rule**: Use `.peek()` when you need the current value but don't want to track it as a dependency.
 
 **Explicit Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 const multiplier = Cell.source(2);
@@ -133,6 +139,7 @@ const result = Cell.derived(() => {
 ```
 
 **Use Cases for .peek()**:
+
 - Conditional dependency tracking
 - Side effects without subscription
 - Performance optimization (avoid unnecessary updates)
@@ -147,19 +154,17 @@ const result = Cell.derived(() => {
 **Rule**: Never call `.set()` on a Cell inside JSX. It won't work and causes confusion.
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 
 // ❌ WRONG - .set() in JSX
-return (
-  <button onClick={() => count.set(count.get() + 1)}>
-    Increment
-  </button>
-);
+return <button onClick={() => count.set(count.get() + 1)}>Increment</button>;
 // ^ Inline arrow function with .set() - works but messy
 ```
 
 **Explicit Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 
@@ -168,11 +173,7 @@ const handleIncrement = () => {
   count.set(count.get() + 1);
 };
 
-return (
-  <button onClick={handleIncrement}>
-    Increment
-  </button>
-);
+return <button onClick={handleIncrement}>Increment</button>;
 ```
 
 ---
@@ -184,6 +185,7 @@ return (
 **Rule**: Never call `.set()` on a derived Cell. They are computed, not stored.
 
 **Explicit Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 const doubled = Cell.derived(() => count.get() * 2);
@@ -208,6 +210,7 @@ doubled.set(100); // Error! Cannot set derived cells
 **Rule**: In event handlers, use `.get()` to read the current value and `.set()` to update it.
 
 **Explicit Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 const name = Cell.source('');
@@ -229,14 +232,14 @@ const handleReset = () => {
 return (
   <div>
     <p>Count: {count}</p>
-    <button type="button" onClick={handleIncrement}>+1</button>
-    <button type="button" onClick={handleReset}>Reset</button>
-    
-    <input 
-      type="text" 
-      value={name}
-      onInput={handleNameChange}
-    />
+    <button type="button" onClick={handleIncrement}>
+      +1
+    </button>
+    <button type="button" onClick={handleReset}>
+      Reset
+    </button>
+
+    <input type="text" value={name} onInput={handleNameChange} />
   </div>
 );
 ```
@@ -252,6 +255,7 @@ return (
 **Rule**: Create separate Cells for independent values. Don't bundle unrelated state into one object Cell.
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - monolithic state
 const formState = Cell.source({
@@ -259,7 +263,7 @@ const formState = Cell.source({
   lastName: '',
   email: '',
   age: 0,
-  isSubscribed: false
+  isSubscribed: false,
 });
 
 // Updating one field updates the whole object
@@ -269,6 +273,7 @@ const updateFirstName = (value) => {
 ```
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - granular cells
 const firstName = Cell.source('');
@@ -292,6 +297,7 @@ const updateFirstName = (value) => {
 **Applies to**: All component definitions
 
 **Rule**: Organize components in this order:
+
 1. State Cells (`Cell.source()`)
 2. Derived Cells (`Cell.derived()`, `Cell.derivedAsync()`)
 3. Event handlers
@@ -299,6 +305,7 @@ const updateFirstName = (value) => {
 5. Return JSX
 
 **Explicit Pattern**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number> }) {
   // 1. State
@@ -327,12 +334,14 @@ function UserProfile(props: { userId: Cell<number> }) {
       // Cleanup
     };
   });
-  
+
   // 5. JSX
   return (
     <div>
       <h1>{displayName}</h1>
-      <button type="button" onClick={handleUpdate}>Update</button>
+      <button type="button" onClick={handleUpdate}>
+        Update
+      </button>
     </div>
   );
 }
@@ -347,13 +356,14 @@ function UserProfile(props: { userId: Cell<number> }) {
 **Rule**: Use `JSX.ValueOrCell<T>` type for props that can be either static or reactive.
 
 **Explicit Pattern**:
+
 ```tsx
 import type { JSX } from 'retend';
 
 // Component accepts static or Cell
 function Display(props: { value: JSX.ValueOrCell<string> }) {
   const { value } = props;
-  
+
   // If value is a Cell, use it directly in JSX
   // If value is static, it also works (no reactivity)
   return <div>{value}</div>;
@@ -386,15 +396,15 @@ Need a Cell value?
 
 ## Quick Decision Reference
 
-| Situation | What to Use |
-|-----------|-------------|
-| Cell in JSX (text) | `{cellName}` - pass directly |
-| Cell in JSX (attribute) | `attr={cellName}` - pass directly |
-| Read Cell in `Cell.derived()` | `cellName.get()` - tracks dependency |
-| Read Cell in `Cell.derivedAsync()` | `get(cellName)` - tracks dependency |
-| Read Cell in event handler | `cellName.get()` - current value |
-| Read Cell without tracking | `cellName.peek()` - no subscription |
-| Update Cell value | `cellName.set(newValue)` |
-| Listen to changes | `cellName.listen(callback)` |
-| Conditional rendering | `If(condition, { true: () => ... })` |
-| List rendering | `For(items, (item) => ...)` |
+| Situation                          | What to Use                          |
+| ---------------------------------- | ------------------------------------ |
+| Cell in JSX (text)                 | `{cellName}` - pass directly         |
+| Cell in JSX (attribute)            | `attr={cellName}` - pass directly    |
+| Read Cell in `Cell.derived()`      | `cellName.get()` - tracks dependency |
+| Read Cell in `Cell.derivedAsync()` | `get(cellName)` - tracks dependency  |
+| Read Cell in event handler         | `cellName.get()` - current value     |
+| Read Cell without tracking         | `cellName.peek()` - no subscription  |
+| Update Cell value                  | `cellName.set(newValue)`             |
+| Listen to changes                  | `cellName.listen(callback)`          |
+| Conditional rendering              | `If(condition, { true: () => ... })` |
+| List rendering                     | `For(items, (item) => ...)`          |

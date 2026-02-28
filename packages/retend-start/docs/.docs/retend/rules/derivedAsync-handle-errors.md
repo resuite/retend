@@ -1,6 +1,6 @@
-| title | impact | impactDescription | tags |
-| :---------------- | :------- | :------------------------------------------ | :--------------------------------- |
-| Handle derivedAsync Errors | HIGH | Prevents unhandled promise rejections and silent failures. | cells, derivedAsync, errors, reliability |
+| title                      | impact | impactDescription                                          | tags                                     |
+| :------------------------- | :----- | :--------------------------------------------------------- | :--------------------------------------- |
+| Handle derivedAsync Errors | HIGH   | Prevents unhandled promise rejections and silent failures. | cells, derivedAsync, errors, reliability |
 
 # Handle Errors in derivedAsync
 
@@ -9,6 +9,7 @@
 **Why**: Unhandled errors leave UI in broken states. The `.error` cell provides error recovery.
 
 **Invalid**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number> }) {
   const { userId } = props;
@@ -21,6 +22,7 @@ function UserProfile(props: { userId: Cell<number> }) {
 ```
 
 **Valid**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number> }) {
   const { userId } = props;
@@ -32,11 +34,13 @@ function UserProfile(props: { userId: Cell<number> }) {
     return (await get(user))?.name ?? '';
   });
   const hasUser = Cell.derived(() => user.get() !== null);
-  
+
   return (
     <div>
       {If(user.error, { true: (err) => <ErrorMessage error={err} /> })}
-      {If(hasUser, () => <h1>{userName}</h1>)}
+      {If(hasUser, () => (
+        <h1>{userName}</h1>
+      ))}
     </div>
   );
 }

@@ -2,7 +2,8 @@
 /** @import { Scope } from './scope.js'; */
 /** @import { SourceCell } from '@adbl/cells'; */
 
-import { AsyncCell, Cell } from '@adbl/cells';
+/** @import { AsyncCell } from '@adbl/cells'; */
+import { Cell } from '@adbl/cells';
 import { If } from './index.js';
 import {
   createScope,
@@ -141,6 +142,6 @@ export async function waitForAsyncBoundaries() {
   const holders = globalData.get(AsyncKey);
   if (!holders?.size) return;
   while (holders.size) {
-    await Promise.all([...holders]);
+    await Promise.all(holders);
   }
 }

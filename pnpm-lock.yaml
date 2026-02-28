@@ -6,7 +6,14 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      oxfmt:
+        specifier: ^0.35.0
+        version: 0.35.0
+      oxlint:
+        specifier: ^1.50.0
+        version: 1.50.0
 
   experiments/universal-app:
     dependencies:
@@ -82,12 +89,6 @@ importers:
       '@types/node':
         specifier: ^22.7.5
         version: 22.19.11
-      oxfmt:
-        specifier: ^0.35.0
-        version: 0.35.0
-      oxlint:
-        specifier: ^1.50.0
-        version: 1.50.0
       typescript:
         specifier: ^5.8.2
         version: 5.9.3

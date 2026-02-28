@@ -1,5 +1,5 @@
-| title | impact | impactDescription | tags |
-| :------------------ | :------- | :------------------------------------------------ | :-------------------------------------- |
+| title              | impact   | impactDescription                                      | tags                                     |
+| :----------------- | :------- | :----------------------------------------------------- | :--------------------------------------- |
 | Pure Async Derived | CRITICAL | Prevents side-effect loops and unpredictable behavior. | cells, derivedAsync, correctness, purity |
 
 # Keep derivedAsync Pure
@@ -9,6 +9,7 @@
 **Why**: Derived cells may run multiple times. Side effects belong in listeners.
 
 **Invalid**:
+
 ```tsx
 const data = Cell.derivedAsync(async (get) => {
   console.log('Fetching...'); // Side effect!
@@ -18,6 +19,7 @@ const data = Cell.derivedAsync(async (get) => {
 ```
 
 **Valid**:
+
 ```tsx
 const data = Cell.derivedAsync(async (get) => {
   return await fetchData(get(id)); // Pure computation only

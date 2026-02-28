@@ -21,7 +21,7 @@ function PreventSubmitForm() {
   const handleSubmit = (event) => {
     alert('Form submit prevented!');
   };
-  
+
   return (
     <form onSubmit--prevent={handleSubmit}>
       <button type="submit">Submit</button>
@@ -31,6 +31,7 @@ function PreventSubmitForm() {
 ```
 
 **Common use cases:**
+
 - Preventing form submission
 - Preventing link navigation
 - Preventing context menu
@@ -44,11 +45,11 @@ function StopBubbling() {
   const handleParentClick = () => {
     alert('Parent div clicked');
   };
-  
+
   const handleChildClick = () => {
     alert('Child button clicked, bubbling stopped');
   };
-  
+
   return (
     <div onClick={handleParentClick}>
       <button onClick--stop={handleChildClick}>Click Child</button>
@@ -66,12 +67,12 @@ import { Cell } from 'retend';
 
 function OnceClickButton() {
   const clickCount = Cell.source(0);
-  
+
   const handleClickOnce = () => {
     clickCount.set(clickCount.get() + 1);
     alert('Clicked once!');
   };
-  
+
   return (
     <div>
       <button onClick--once={handleClickOnce}>Click Once</button>
@@ -90,11 +91,11 @@ function SelfModifierDiv() {
   const handleDivClick = () => {
     alert('Div clicked directly');
   };
-  
+
   const handleChildClick = () => {
     alert('Child button clicked');
   };
-  
+
   return (
     <div onClick--self={handleDivClick}>
       <button onClick={handleChildClick}>Click Child</button>
@@ -112,10 +113,10 @@ function PassiveScrollDiv() {
   const handleScroll = (event) => {
     console.log('Passive scroll event', event);
   };
-  
+
   return (
-    <div 
-      onScroll--passive={handleScroll} 
+    <div
+      onScroll--passive={handleScroll}
       style={{ overflow: 'auto', height: '100px' }}
     >
       <p style={{ height: '200px' }}>Scrollable content</p>
@@ -137,7 +138,7 @@ function PreventAndStopSubmitForm() {
   const handleSubmit = (event) => {
     alert('Form submit prevented and bubbling stopped!');
   };
-  
+
   return (
     <form onSubmit--prevent--stop={handleSubmit}>
       <button type="submit">Submit</button>
@@ -153,7 +154,7 @@ function OncePreventLink() {
   const handleClickOncePrevent = (event) => {
     alert('Link clicked once, default prevented!');
   };
-  
+
   return (
     <a href="#" onClick--once--prevent={handleClickOncePrevent}>
       Click Once, Prevent Default
@@ -169,15 +170,15 @@ function SelfAndStopDiv() {
   const handleDivClickSelfStop = () => {
     alert('Div clicked directly, propagation stopped');
   };
-  
+
   const handleParentClick = () => {
     alert('Parent div clicked (should not happen)');
   };
-  
+
   return (
     <div onClick={handleParentClick}>
-      <div 
-        onClick--self--stop={handleDivClickSelfStop} 
+      <div
+        onClick--self--stop={handleDivClickSelfStop}
         style={{ padding: '20px', backgroundColor: 'lightgray' }}
       >
         Click here
@@ -197,10 +198,10 @@ function PassivePreventScrollDiv() {
     event.preventDefault(); // This will be IGNORED due to passive
     alert('Scroll event - preventDefault will not work due to passive');
   };
-  
+
   return (
-    <div 
-      onScroll--passive--prevent={handleScroll} 
+    <div
+      onScroll--passive--prevent={handleScroll}
       style={{ overflow: 'auto', height: '100px' }}
     >
       <p style={{ height: '200px' }}>Scrollable content</p>
@@ -221,7 +222,7 @@ function LoginForm() {
     const password = formData.get('password');
     console.log('Login:', username, password);
   };
-  
+
   return (
     <form onSubmit--prevent={handleSubmit}>
       <input type="text" name="username" placeholder="Username" />
@@ -239,10 +240,10 @@ function PreventContextMenu() {
   const handleContextMenu = (event) => {
     alert('Context menu prevented!');
   };
-  
+
   return (
-    <div 
-      onContextMenu--prevent={handleContextMenu} 
+    <div
+      onContextMenu--prevent={handleContextMenu}
       style={{ padding: '20px', backgroundColor: 'lightyellow' }}
     >
       Right-click here (context menu prevented)
@@ -258,17 +259,17 @@ function StopKeydownPropagation() {
   const handleParentKeydown = () => {
     alert('Parent keydown handler (should not trigger)');
   };
-  
+
   const handleInputKeydownStop = () => {
     alert('Input keydown handler, propagation stopped');
   };
-  
+
   return (
     <div onKeyDown={handleParentKeydown}>
-      <input 
-        type="text" 
-        onKeyDown--stop={handleInputKeydownStop} 
-        placeholder="Type here (keydown stopped)" 
+      <input
+        type="text"
+        onKeyDown--stop={handleInputKeydownStop}
+        placeholder="Type here (keydown stopped)"
       />
     </div>
   );
@@ -282,18 +283,18 @@ import { Cell } from 'retend';
 
 function OnceFocusInput() {
   const focusCount = Cell.source(0);
-  
+
   const handleFocusOnce = () => {
     focusCount.set(focusCount.get() + 1);
     alert('Input focused once!');
   };
-  
+
   return (
     <div>
-      <input 
-        type="text" 
-        onFocus--once={handleFocusOnce} 
-        placeholder="Focus me once" 
+      <input
+        type="text"
+        onFocus--once={handleFocusOnce}
+        placeholder="Focus me once"
       />
       <p>Focus Count: {focusCount}</p>
     </div>
@@ -308,15 +309,13 @@ function PassiveWheelDiv() {
   const handleWheel = (event) => {
     console.log('Passive wheel event', event);
   };
-  
+
   return (
-    <div 
-      onWheel--passive={handleWheel} 
+    <div
+      onWheel--passive={handleWheel}
       style={{ overflow: 'auto', height: '100px' }}
     >
-      <p style={{ height: '200px' }}>
-        Scrollable content with wheel event
-      </p>
+      <p style={{ height: '200px' }}>Scrollable content with wheel event</p>
     </div>
   );
 }
@@ -329,17 +328,14 @@ function SelfButtonInForm() {
   const handleFormClick = () => {
     alert('Form clicked (should not trigger when button is clicked)');
   };
-  
+
   const handleButtonClickSelf = () => {
     alert('Button clicked directly');
   };
-  
+
   return (
     <form onClick={handleFormClick}>
-      <button 
-        type="button" 
-        onClick--self={handleButtonClickSelf}
-      >
+      <button type="button" onClick--self={handleButtonClickSelf}>
         Click Button (self)
       </button>
     </form>
@@ -354,16 +350,16 @@ import { Cell } from 'retend';
 
 function OnceMouseoverDiv() {
   const hoverCount = Cell.source(0);
-  
+
   const handleMouseOverOnce = () => {
     hoverCount.set(hoverCount.get() + 1);
     alert('Mouse over triggered once!');
   };
-  
+
   return (
     <div>
-      <div 
-        onMouseOver--once={handleMouseOverOnce} 
+      <div
+        onMouseOver--once={handleMouseOverOnce}
         style={{ padding: '20px', backgroundColor: 'lightblue' }}
       >
         Hover me once
@@ -379,6 +375,7 @@ function OnceMouseoverDiv() {
 Event modifiers work with all standard DOM events:
 
 ### Mouse Events
+
 - `onClick`, `onDblClick`
 - `onMouseDown`, `onMouseUp`
 - `onMouseEnter`, `onMouseLeave`
@@ -387,22 +384,27 @@ Event modifiers work with all standard DOM events:
 - `onContextMenu`
 
 ### Keyboard Events
+
 - `onKeyDown`, `onKeyUp`, `onKeyPress`
 
 ### Form Events
+
 - `onSubmit`
 - `onChange`, `onInput`
 - `onFocus`, `onBlur`
 
 ### Touch Events
+
 - `onTouchStart`, `onTouchEnd`
 - `onTouchMove`, `onTouchCancel`
 
 ### Scroll/Wheel Events
+
 - `onScroll`
 - `onWheel`
 
 ### Drag Events
+
 - `onDrag`, `onDragStart`, `onDragEnd`
 - `onDragEnter`, `onDragLeave`, `onDragOver`
 - `onDrop`
@@ -412,22 +414,26 @@ Event modifiers work with all standard DOM events:
 ### When to Use --passive
 
 Use `--passive` for:
+
 - Scroll listeners
 - Wheel listeners
 - Touch listeners (touchstart, touchmove)
 
 **Benefits:**
+
 - Browser can optimize scrolling
 - Prevents main thread blocking
 - Better performance on mobile
 
 **Don't use --passive if:**
+
 - You need to call `preventDefault()`
 - You're conditionally preventing default behavior
 
 ### When to Use --once
 
 Use `--once` for:
+
 - One-time initialization handlers
 - Confirmation dialogs that should only appear once
 - Tutorial/onboarding tooltips

@@ -1,6 +1,6 @@
-| title               | impact | impactDescription              | tags              |
-| :------------------ | :----- | :----------------------------- | :---------------- |
-| Derived Outside JSX | LOW    | Keeps templates clean.         | components, style |
+| title               | impact | impactDescription      | tags              |
+| :------------------ | :----- | :--------------------- | :---------------- |
+| Derived Outside JSX | LOW    | Keeps templates clean. | components, style |
 
 # Derived Outside JSX
 

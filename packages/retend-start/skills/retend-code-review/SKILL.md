@@ -1,11 +1,12 @@
 ---
 name: retend-code-review
-description: "Review, audit, or refactor Retend code. Triggers: (1) Reactivity correctness (Cells), (2) React anti-patterns (hooks, .map(), .get() in JSX), (3) Component structure/props, (4) Control flow (If, For, Switch, Await), (5) Routing patterns."
+description: 'Review, audit, or refactor Retend code. Triggers: (1) Reactivity correctness (Cells), (2) React anti-patterns (hooks, .map(), .get() in JSX), (3) Component structure/props, (4) Control flow (If, For, Switch, Await), (5) Routing patterns.'
 ---
 
 # Retend Code Review
 
 ## Quick Audit
+
 1. **Reactivity**: No `.get()` in JSX. Pass Cells directly.
 2. **Async**: Use `derivedAsync`/`task`/`<Await />` for ALL async. No manual `.then()` + `.set()` patterns.
 3. **Control Flow**: Use `If`/`For`/`Switch`. No ternaries or `&&` in JSX.
@@ -14,6 +15,7 @@ description: "Review, audit, or refactor Retend code. Triggers: (1) Reactivity c
 6. **Web**: camelCase events (`onClick`), prefer strings for static classes. Array/Object for dynamic.
 
 ## Patterns
+
 - `\{[^}]*\.get\(` - `.get()` in JSX (Critical)
 - `\{[^}]*(\?|&&|\|\|)` - Inline logic (Critical)
 - `class=\{\[[^}]*\]\}` - Array syntax for classes (Review if static)
@@ -24,14 +26,17 @@ description: "Review, audit, or refactor Retend code. Triggers: (1) Reactivity c
 - `\buse(State|Effect|Memo|Callback|Ref|Context)\b` - React hooks (Critical)
 
 ## Automated Audit Script
+
 The skill includes a `scripts/audit.py` tool to automate these checks across a file or directory.
 
 **Usage:**
+
 ```bash
 python3 scripts/audit.py <path/to/src>
 ```
 
 ## References
+
 - **[Reactivity](references/reactivity.md)**: Cells, derived.
 - **[Async](references/async.md)**: `derivedAsync`, `task`, `composite`, `<Await />`.
 - **[Components](references/components.md)**: Structure, props, naming.

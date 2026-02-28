@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Teleport Selector Limitations | Medium | Prevents runtime errors from invalid selectors.        | teleport, web, dom          |
+| title                         | impact | impactDescription                               | tags               |
+| :---------------------------- | :----- | :---------------------------------------------- | :----------------- |
+| Teleport Selector Limitations | Medium | Prevents runtime errors from invalid selectors. | teleport, web, dom |
 
 # Teleport Selector Limitations
 
@@ -64,7 +64,7 @@ Always use ID selectors for reliability:
   <div id="app"></div>
   <div id="modal-root"></div>
   <div id="toast-root"></div>
-</body>
+</body>;
 
 // In your components
 function App() {
@@ -73,11 +73,11 @@ function App() {
       <RouterProvider router={router}>
         <Outlet />
       </RouterProvider>
-      
+
       <Teleport to="#modal-root">
         <ModalOutlet />
       </Teleport>
-      
+
       <Teleport to="#toast-root">
         <ToastOutlet />
       </Teleport>

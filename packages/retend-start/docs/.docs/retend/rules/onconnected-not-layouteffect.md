@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| onConnected Not LayoutEffect | High | Ensures correct DOM timing and prevents bugs.          | lifecycle, dom, connection  |
+| title                        | impact | impactDescription                             | tags                       |
+| :--------------------------- | :----- | :-------------------------------------------- | :------------------------- |
+| onConnected Not LayoutEffect | High   | Ensures correct DOM timing and prevents bugs. | lifecycle, dom, connection |
 
 # onConnected Not LayoutEffect
 

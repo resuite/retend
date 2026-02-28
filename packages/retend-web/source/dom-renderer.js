@@ -746,7 +746,7 @@ export class DOMRenderer {
       await mount.callback();
       this.#flushObserverMountedNodes();
     }
-    await Promise.all([...this.#pendingHydrationTasks]);
+    await Promise.all(this.#pendingHydrationTasks);
     this.#flushObserverMountedNodes();
     for (const handle of this.#deferredHydrationHandles) {
       Ops.finalizeHydrationHandleSegment(handle);

@@ -1,6 +1,4 @@
 import { Cell } from 'retend';
-import { getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, render, timeout, vDomSetup } from './setup.tsx';
 
@@ -11,8 +9,8 @@ const runTests = () => {
   });
 
   it('should handle multiple classes string', () => {
-    const element = render(<div class="container main-content" />);
-    expect(element.getAttribute('class')).toBe('container main-content');
+    const element = render(<div class="main-content container" />);
+    expect(element.getAttribute('class')).toBe('main-content container');
   });
 
   it('should handle class as array of strings', () => {

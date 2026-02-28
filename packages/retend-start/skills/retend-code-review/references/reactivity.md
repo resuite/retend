@@ -1,6 +1,7 @@
 # Reactivity
 
 ## Rules
+
 - **Pass Cells Directly**: Never call `.get()` inside JSX curly braces.
   - ✅ `<div>{count}</div>`
   - ❌ `<div>{count.get()}</div>` (static snapshot, breaks reactivity)
@@ -11,6 +12,7 @@
 - **Batching**: Use `Cell.batch(() => { ... })` for multiple updates.
 
 ## Common Patterns
+
 - **Toggle**: `isOpen.set(!isOpen.get())`
 - **Counter**: `count.set(count.get() + 1)`
 - **Derived Filtering**: `const filtered = Cell.derived(() => items.get().filter(...))`

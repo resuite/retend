@@ -1,6 +1,7 @@
 # Routing
 
 ## Rules
+
 - **Always Use Router Navigation**: Always use `router.navigate()`, `router.replace()`, or `router.back()`. Never use `window.location` or `window.history` directly.
   - ✅ `const router = useRouter(); router.navigate('/home');`
   - ❌ `window.location.href = '/home';` (full page reload, wipes application state)
@@ -19,6 +20,7 @@
 - **Dynamic Route Params**: Use `:paramName` syntax in path definitions and access via `useCurrentRoute().get().params.get('paramName')`.
 
 ## Patterns
+
 - **Outlet**: Use `<Outlet />` to render matched child routes in parent components.
 - **Lazy Loading**: Lazy load route components for performance.
 - **Wildcard Routes**: Use `*` to match any path (typically for 404 pages).

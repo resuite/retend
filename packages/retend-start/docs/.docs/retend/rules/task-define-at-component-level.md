@@ -1,5 +1,5 @@
-| title | impact | impactDescription | tags |
-| :--------------------------- | :------- | :--------------------------------------------------- | :------------------------------------ |
+| title                           | impact | impactDescription                                      | tags                               |
+| :------------------------------ | :----- | :----------------------------------------------------- | :--------------------------------- |
 | Define Tasks at Component Level | MEDIUM | Maintains stable references and proper state tracking. | cells, task, components, structure |
 
 # Define Cell.task() at component level
@@ -9,6 +9,7 @@
 **Why**: Creating tasks inside handlers loses reference stability and creates a new task on each invocation, making it impossible to track `.pending` and `.error` states properly.
 
 **Invalid**:
+
 ```tsx
 function SubmitForm() {
   const handleClick = () => {
@@ -18,28 +19,29 @@ function SubmitForm() {
     });
     task.runWith(formData);
   };
-  
+
   return <button onClick={handleClick}>Submit</button>;
 }
 ```
 
 **Valid**:
+
 ```tsx
 function SubmitForm() {
   // GOOD: Task defined at component level
   const submitTask = Cell.task(async (data: FormData, signal) => {
     return await submitForm(data, signal);
   });
-  
+
   const handleClick = () => {
     submitTask.runWith(formData);
   };
-  
+
   return (
     <button onClick={handleClick} disabled={submitTask.pending}>
       {If(submitTask.pending, {
         true: () => 'Submitting...',
-        false: () => 'Submit'
+        false: () => 'Submit',
       })}
     </button>
   );

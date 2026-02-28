@@ -132,7 +132,7 @@ const runTests = () => {
     window.document.body.append(result as unknown as Node & VNode);
     const firstSpans = Array.from(result.querySelectorAll('span'));
 
-    items.set([...items.get()].reverse());
+    items.set([...items.get()].toReversed());
     const secondSpans = Array.from(result.querySelectorAll('span'));
 
     // The DOM nodes should be the same but reordered
@@ -423,7 +423,7 @@ const runTests = () => {
       <div>
         {For(
           items,
-          (item, index) => (
+          (item) => (
             <span>{item}</span>
           ),
           { key: (item) => item.toUpperCase() }

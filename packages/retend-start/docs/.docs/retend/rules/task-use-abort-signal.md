@@ -1,5 +1,5 @@
-| title | impact | impactDescription | tags |
-| :------------------ | :------- | :-------------------------------------------------- | :----------------------------------------- |
+| title           | impact | impactDescription                                    | tags                                  |
+| :-------------- | :----- | :--------------------------------------------------- | :------------------------------------ |
 | Use AbortSignal | MEDIUM | Prevents race conditions and cancels stale requests. | cells, task, performance, correctness |
 
 # Use AbortSignal in Cell.task()
@@ -9,23 +9,25 @@
 **Why**: Without cancellation, stale requests can complete after newer ones, causing inconsistent state.
 
 **Invalid**:
+
 ```tsx
 const submitTask = Cell.task(async (formData) => {
   const response = await fetch('/api/submit', {
     method: 'POST',
-    body: formData
+    body: formData,
   }); // No cancellation!
   return response.json();
 });
 ```
 
 **Valid**:
+
 ```tsx
 const submitTask = Cell.task(async (formData, signal) => {
   const response = await fetch('/api/submit', {
     method: 'POST',
     body: formData,
-    signal
+    signal,
   });
   return response.json();
 });

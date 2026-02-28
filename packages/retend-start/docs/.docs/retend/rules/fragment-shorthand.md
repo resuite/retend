@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Fragment Shorthand   | Low    | Keeps code concise and consistent.                     | jsx, syntax, fragments      |
+| title              | impact | impactDescription                  | tags                   |
+| :----------------- | :----- | :--------------------------------- | :--------------------- |
+| Fragment Shorthand | Low    | Keeps code concise and consistent. | jsx, syntax, fragments |
 
 # Fragment Shorthand
 
@@ -52,7 +52,7 @@ function List() {
 <>
   <Item key="1" />
   <Item key="2" />
-</>
+</>;
 ```
 
 ## Common Use Cases
@@ -61,21 +61,27 @@ function List() {
 // Table rows need wrapper
 <table>
   <>
-    <tr><td>Row 1</td></tr>
-    <tr><td>Row 2</td></tr>
+    <tr>
+      <td>Row 1</td>
+    </tr>
+    <tr>
+      <td>Row 2</td>
+    </tr>
   </>
-</table>
+</table>;
 
 // Conditional rendering with multiple elements
-{If(showDetails, {
-  true: () => (
-    <>
-      <h3>Details</h3>
-      <p>Description here</p>
-      <button>Action</button>
-    </>
-  )
-})}
+{
+  If(showDetails, {
+    true: () => (
+      <>
+        <h3>Details</h3>
+        <p>Description here</p>
+        <button>Action</button>
+      </>
+    ),
+  });
+}
 
 // Return multiple elements from component
 function Pair() {
@@ -91,6 +97,7 @@ function Pair() {
 ## When NOT to Use
 
 Don't use fragments when:
+
 - You need a real wrapper element for styling
 - You need to attach refs or event handlers to the wrapper
 - The parent has specific child requirements (e.g., `<select>` only accepts `<option>`)

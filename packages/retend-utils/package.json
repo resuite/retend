@@ -1,40 +1,43 @@
 {
   "name": "retend-utils",
   "version": "0.0.24",
-  "description": "A collection of utility functions for Retend.",
   "private": false,
-  "type": "module",
-  "module": "dist/index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "pnpm exec tsc --project tsconfig.json"
-  },
+  "description": "A collection of utility functions for Retend.",
   "keywords": [
-    "web",
     "javascript",
+    "jsx",
     "pwa",
-    "jsx"
+    "web"
   ],
-  "exports": {
-    "./hooks": {
-      "import": "./dist/hooks/index.js",
-      "types": "./dist/hooks/index.d.ts"
-    },
-    "./components": {
-      "import": "./dist/components/index.js",
-      "types": "./dist/components/index.d.ts"
-    }
-  },
   "homepage": "https://github.com/adebola-io/retend#readme",
   "bugs": {
     "url": "https://github.com/adebola-io/retend/issues"
   },
+  "license": "MIT",
   "author": "Adebola Akomolafe",
   "repository": {
-    "directory": "github.com/adebola-io/retend",
-    "type": "git"
+    "type": "git",
+    "directory": "github.com/adebola-io/retend"
   },
-  "license": "MIT",
+  "type": "module",
+  "module": "dist/index.js",
+  "exports": {
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "pnpm exec tsc --project tsconfig.json"
+  },
   "devDependencies": {
     "retend": "workspace:*",
     "retend-web": "workspace:*",
@@ -44,8 +47,5 @@
   "peerDependencies": {
     "retend": "*",
     "retend-web": "*"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

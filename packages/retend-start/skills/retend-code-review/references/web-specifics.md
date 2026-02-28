@@ -1,6 +1,7 @@
 # Web Specifics
 
 ## Rules
+
 - **Class Attribute Syntax**: Use simple strings for static classes. Use Array or Object syntax for dynamic classes. Never use expressions (like `{['a', 'b']}`) for static classes, and never use string concatenation or ternaries.
   - ✅ `<div class="btn btn-primary" />` (static)
   - ✅ `<div class={['btn', variant, { 'is-active': isActive }]} />` (dynamic)
@@ -26,6 +27,7 @@
 - **SVG xmlns**: All elements within an SVG must have the `xmlns` attribute.
 
 ## Components & Hooks (retend-utils)
+
 - **FluidList**: Renders an animated list with dynamic sizing, staggered animations, and flexible layouts.
 - **createUniqueTransition**: Persistent components with smooth FLIP animations across DOM moves.
 - **useElementBounding**: Tracks size and position reactively.
@@ -34,5 +36,6 @@
 - **useMatchMedia**: Reactive cell that tracks media query result.
 
 ## Setup & Hydration
+
 - **Hydration Mode**: Call `renderer.enableHydrationMode()` before `renderer.render(<App />)` to match server-rendered nodes.
 - **activeRenderer**: Configure with `setActiveRenderer(new DOMRenderer(window))`.

@@ -1,5 +1,5 @@
-| title | impact | impactDescription | tags |
-| :------------------ | :------- | :------------------------------------------------ | :-------------------------------------- |
+| title               | impact   | impactDescription                                                | tags                                         |
+| :------------------ | :------- | :--------------------------------------------------------------- | :------------------------------------------- |
 | Use `get` Parameter | CRITICAL | Ensures reactive dependencies are tracked in async computations. | cells, derivedAsync, reactivity, correctness |
 
 # Use `get` Parameter in derivedAsync
@@ -9,6 +9,7 @@
 **Why**: The `get` parameter establishes reactive dependencies. Direct `.get()` calls are not tracked.
 
 **Invalid**:
+
 ```tsx
 const userData = Cell.derivedAsync(async () => {
   const id = userId.get(); // No tracking!
@@ -17,6 +18,7 @@ const userData = Cell.derivedAsync(async () => {
 ```
 
 **Valid**:
+
 ```tsx
 const userData = Cell.derivedAsync(async (get) => {
   const id = get(userId); // Tracked dependency

@@ -413,10 +413,8 @@ const dynamicTests = () => {
     const size = 100;
     const element = (
       <div>
-        {Array.from({ length: size }).map((_, i) => (
-          <div key={i} onClick={() => {}}>
-            {i}
-          </div>
+        {For(Array.from({ length: size }), (i) => (
+          <div onClick={() => {}}>{i}</div>
         ))}
       </div>
     );
@@ -551,7 +549,7 @@ const multiDimensionalMarkerTests = () => {
     const items = Cell.source(['Item 1', 'Item 2', 'Item 3']);
     const element = (
       <div>
-        {For(items, (item, index) => (
+        {For(items, (item, _index) => (
           <button key={item} type="button" onClick={() => {}}>
             {item}
           </button>

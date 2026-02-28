@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| No React Hooks       | High   | Enforces proper Retend patterns and prevents errors.   | react-migration, hooks, api |
+| title          | impact | impactDescription                                    | tags                        |
+| :------------- | :----- | :--------------------------------------------------- | :-------------------------- |
+| No React Hooks | High   | Enforces proper Retend patterns and prevents errors. | react-migration, hooks, api |
 
 # No React Hooks
 
@@ -17,6 +17,7 @@
 ## Detection
 
 **Triggers**:
+
 - Imports from `react` or `react-dom`
 - Identifiers: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useContext`
 
@@ -70,14 +71,14 @@ function Counter() {
 
 ## Migration Guide
 
-| React Hook | Retend Equivalent |
-|------------|-------------------|
-| `useState` | `Cell.source()` |
-| `useEffect` | `onSetup()` (runs once) + `cell.listen()` for reactivity |
-| `useMemo` | `Cell.derived()` |
-| `useCallback` | Plain function |
-| `useRef` | `Cell.source(null)` |
-| `useContext` | `createScope()` + `useScopeContext()` |
+| React Hook    | Retend Equivalent                                        |
+| ------------- | -------------------------------------------------------- |
+| `useState`    | `Cell.source()`                                          |
+| `useEffect`   | `onSetup()` (runs once) + `cell.listen()` for reactivity |
+| `useMemo`     | `Cell.derived()`                                         |
+| `useCallback` | Plain function                                           |
+| `useRef`      | `Cell.source(null)`                                      |
+| `useContext`  | `createScope()` + `useScopeContext()`                    |
 
 ## Related Rules
 

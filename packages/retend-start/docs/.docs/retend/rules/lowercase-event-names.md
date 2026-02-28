@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Lowercase Event Names | Low | Prevents invalid event handlers.                       | events, web, jsx            |
+| title                 | impact | impactDescription                | tags             |
+| :-------------------- | :----- | :------------------------------- | :--------------- |
+| Lowercase Event Names | Low    | Prevents invalid event handlers. | events, web, jsx |
 
 # Lowercase Event Names
 
@@ -39,23 +39,23 @@
 ## Common Event Names
 
 | Invalid (HTML) | Valid (Retend/JSX) |
-|----------------|-------------------|
-| onclick | onClick |
-| onmousedown | onMouseDown |
-| onmouseup | onMouseUp |
-| onmousemove | onMouseMove |
-| onmouseenter | onMouseEnter |
-| onmouseleave | onMouseLeave |
-| onmouseover | onMouseOver |
-| onmouseout | onMouseOut |
-| onkeydown | onKeyDown |
-| onkeyup | onKeyUp |
-| onkeypress | onKeyPress |
-| onsubmit | onSubmit |
-| onchange | onChange |
-| oninput | onInput |
-| onfocus | onFocus |
-| onblur | onBlur |
+| -------------- | ------------------ |
+| onclick        | onClick            |
+| onmousedown    | onMouseDown        |
+| onmouseup      | onMouseUp          |
+| onmousemove    | onMouseMove        |
+| onmouseenter   | onMouseEnter       |
+| onmouseleave   | onMouseLeave       |
+| onmouseover    | onMouseOver        |
+| onmouseout     | onMouseOut         |
+| onkeydown      | onKeyDown          |
+| onkeyup        | onKeyUp            |
+| onkeypress     | onKeyPress         |
+| onsubmit       | onSubmit           |
+| onchange       | onChange           |
+| oninput        | onInput            |
+| onfocus        | onFocus            |
+| onblur         | onBlur             |
 
 ## With Modifiers
 

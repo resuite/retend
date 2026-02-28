@@ -1,12 +1,12 @@
 {
   "name": "retend-test-suite",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "module": "index.ts",
   "dependencies": {
     "retend": "workspace:*",
-    "retend-utils": "workspace:*",
     "retend-server": "workspace:*",
+    "retend-utils": "workspace:*",
     "retend-web": "workspace:*",
     "vitest": "^3.2.4"
   },

@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| No React Imports     | High   | Prevents mixing React and Retend frameworks.           | react-migration, imports    |
+| title            | impact | impactDescription                            | tags                     |
+| :--------------- | :----- | :------------------------------------------- | :----------------------- |
+| No React Imports | High   | Prevents mixing React and Retend frameworks. | react-migration, imports |
 
 # No React Imports
 
@@ -18,6 +18,7 @@
 ## Detection
 
 **Triggers**:
+
 - `from 'react'`, `from 'react-dom'`, `from 'react-dom/client'`
 - React types like `FC`, `ReactNode`, `PropsWithChildren`
 
@@ -56,44 +57,40 @@ import type { JSX } from 'retend';
 ## Complete Migration Example
 
 **React Version:**
+
 ```tsx
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
 function App() {
   const [count, setCount] = useState(0);
-  
+
   useEffect(() => {
     document.title = `Count: ${count}`;
   }, [count]);
-  
-  return (
-    <button onClick={() => setCount(c => c + 1)}>
-      Count: {count}
-    </button>
-  );
+
+  return <button onClick={() => setCount((c) => c + 1)}>Count: {count}</button>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
 ```
 
 **Retend Version:**
+
 ```tsx
 import { Cell, setActiveRenderer } from 'retend';
 import { DOMRenderer } from 'retend-web';
 
 function App() {
   const count = Cell.source(0);
-  
+
   document.title = `Count: ${count.get()}`;
   count.listen((newCount) => {
     document.title = `Count: ${newCount}`;
   });
-  
+
   return (
-    <button onClick={() => count.set(count.get() + 1)}>
-      Count: {count}
-    </button>
+    <button onClick={() => count.set(count.get() + 1)}>Count: {count}</button>
   );
 }
 

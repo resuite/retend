@@ -364,11 +364,14 @@ export function FluidList(props) {
       '--list-item-row': listItemRow,
     };
 
-    nodeRef.listen((itemNode) => {
-      const el = /** @type {AnimatedListElement} */ (itemNode);
-      el._previousIndex = previousIdx;
-      el._currentIndex = idx;
-    }, { once: true });
+    nodeRef.listen(
+      (itemNode) => {
+        const el = /** @type {AnimatedListElement} */ (itemNode);
+        el._previousIndex = previousIdx;
+        el._currentIndex = idx;
+      },
+      { once: true }
+    );
 
     return (
       <li ref={nodeRef} class="retendFluidListItem" style={styles}>

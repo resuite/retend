@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+#!/usr/bin / env node
+/* oxlint-disable no-console */
 /// <reference types="node" />
 
 import { execSync } from 'node:child_process';
@@ -740,7 +741,7 @@ async function createDocsFiles(projectDir, answers) {
     await fs.cp(docsDir, path.join(projectDir, '.docs'), { recursive: true });
     // Copy AGENTS.md file to project
     await fs.cp(agentsFile, path.join(projectDir, 'AGENTS.md'));
-  } catch (error) {
+  } catch {
     console.warn(
       chalk.yellow(
         'Failed to copy documentation files. You can add them manually later.'

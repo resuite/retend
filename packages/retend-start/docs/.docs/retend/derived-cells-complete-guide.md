@@ -17,6 +17,7 @@ description: Complete guide to Cell.derived() and Cell.derivedAsync(). Covers de
 **Rule**: Use `Cell.derived()` for computed values that depend on other Cells.
 
 **Explicit Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 const multiplier = Cell.source(2);
@@ -32,12 +33,14 @@ const multiplied = Cell.derived(() => {
 ```
 
 **How Dependency Tracking Works**:
+
 1. When the derived callback runs, Retend records every `.get()` call
 2. Those Cells become dependencies
 3. When any dependency changes, the derived cell recomputes
 4. Lazy evaluation - only computes when read
 
 **Explicit Anti-Patterns**:
+
 ```tsx
 const count = Cell.source(0);
 
@@ -59,14 +62,15 @@ doubled.set(100); // Error! Derived cells are read-only
 **Rule**: Define `Cell.derived()` in the component body, never inline in JSX.
 
 **Explicit Pattern**:
+
 ```tsx
 function Display() {
   const count = Cell.source(0);
-  
+
   // ✅ CORRECT - define in body
   const doubled = Cell.derived(() => count.get() * 2);
   const tripled = Cell.derived(() => count.get() * 3);
-  
+
   return (
     <div>
       {doubled}
@@ -77,10 +81,11 @@ function Display() {
 ```
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 function Display() {
   const count = Cell.source(0);
-  
+
   return (
     <div>
       {/* ❌ WRONG - inline definition */}
@@ -101,6 +106,7 @@ function Display() {
 **Rule**: Always use the `get` parameter function to read dependencies. Never use `.get()` directly inside `derivedAsync`.
 
 **Explicit Pattern**:
+
 ```tsx
 const userId = Cell.source(1);
 
@@ -113,6 +119,7 @@ const userData = Cell.derivedAsync(async (get) => {
 ```
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 const userId = Cell.source(1);
 
@@ -135,6 +142,7 @@ const userData = Cell.derivedAsync(async () => {
 **Rule**: Always handle the pending/loading state. derivedAsync returns a cell with `.pending` property.
 
 **Explicit Pattern**:
+
 ```tsx
 const userId = Cell.source(1);
 const userData = Cell.derivedAsync(async (get) => {
@@ -151,16 +159,17 @@ return (
         <div>
           {If(userData.error, {
             true: () => <div>Error: {userData.error.message}</div>,
-            false: () => <div>User: {userData.get()}</div>
+            false: () => <div>User: {userData.get()}</div>,
           })}
         </div>
-      )
+      ),
     })}
   </div>
 );
 ```
 
 **Understanding derivedAsync Return**:
+
 ```tsx
 const asyncCell = Cell.derivedAsync(async (get) => { ... });
 
@@ -180,6 +189,7 @@ asyncCell.promise      // The actual promise
 **Rule**: Always handle errors from derivedAsync. Check the `.error` cell.
 
 **Explicit Pattern**:
+
 ```tsx
 const userData = Cell.derivedAsync(async (get) => {
   const id = get(userId);
@@ -191,11 +201,9 @@ return (
   <div>
     {If(userData.error, {
       true: () => (
-        <div class="error">
-          Failed to load: {userData.error.get().message}
-        </div>
+        <div class="error">Failed to load: {userData.error.get().message}</div>
       ),
-      false: () => <div>{userData}</div>
+      false: () => <div>{userData}</div>,
     })}
   </div>
 );
@@ -210,18 +218,19 @@ return (
 **Rule**: Pass the AbortSignal to fetch/cancellable operations for cleanup.
 
 **Explicit Pattern**:
+
 ```tsx
 const searchQuery = Cell.source('');
 
 const searchResults = Cell.derivedAsync(async (get, signal) => {
   const query = get(searchQuery);
   if (!query) return [];
-  
+
   // ✅ CORRECT - pass signal for cancellation
   const response = await fetch(`/api/search?q=${query}`, {
-    signal // Cancels when dependencies change
+    signal, // Cancels when dependencies change
   });
-  
+
   return response.json();
 });
 ```
@@ -237,18 +246,20 @@ const searchResults = Cell.derivedAsync(async (get, signal) => {
 **Rule**: Keep derivedAsync callbacks pure. No side effects. Only computation and async fetching.
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - side effects in derivedAsync
 const userData = Cell.derivedAsync(async (get) => {
   console.log('Fetching...'); // Side effect!
   analytics.track('fetch_user'); // Side effect!
-  
+
   const id = get(userId);
   return await fetchUser(id);
 });
 ```
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - pure function
 const userData = Cell.derivedAsync(async (get) => {
@@ -272,6 +283,7 @@ userData.listen(() => {
 **Rule**: Derive from derivedAsync cells using `derivedAsync`, not `derived`.
 
 **Explicit Pattern**:
+
 ```tsx
 const userId = Cell.source(1);
 
@@ -298,6 +310,7 @@ const userPosts = Cell.derivedAsync(async (get) => {
 **Rule**: Keep derived callbacks pure. No side effects. Only computation.
 
 **Explicit Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 
@@ -319,12 +332,13 @@ count.listen((value) => {
 **Rule**: Components don't "re-render" in Retend. Don't apply React optimization patterns.
 
 **Explicit Understanding**:
+
 ```tsx
 function Counter() {
   const count = Cell.source(0);
-  
+
   console.log('This runs ONCE');
-  
+
   return (
     <div>
       {count} {/* This updates without re-running Counter() */}
@@ -334,6 +348,7 @@ function Counter() {
 ```
 
 **React patterns that DON'T apply**:
+
 - ❌ `useMemo` - Not needed, use `Cell.derived()`
 - ❌ `useCallback` - Not needed, functions don't need memoization
 - ❌ `React.memo` - Not needed, components don't re-render

@@ -4,10 +4,7 @@ import { retend } from 'retend-web/plugin';
 
 export default defineConfig({
   resolve: {
-    alias: { '@': path.resolve(__dirname, './source') }
+    alias: { '@': path.resolve(__dirname, './source') },
   },
-  plugins: [
-    retend(),
-    
-   ],
- });
+  plugins: [retend()],
+});

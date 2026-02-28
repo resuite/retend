@@ -240,12 +240,15 @@ class BoxNode extends BaseNode implements CanvasContainerNode {
     const columnGap = resolveDimension(style.columnGap, this.width) || 0;
     const rowGap = resolveDimension(style.rowGap, this.height) || 0;
     const gap = flexDirection === 'row' ? columnGap : rowGap;
-    const totalGaps = flowChildren.length > 1 ? (flowChildren.length - 1) * gap : 0;
+    const totalGaps =
+      flowChildren.length > 1 ? (flowChildren.length - 1) * gap : 0;
 
     if (flexDirection === 'column') {
-      totalChildExtent = flowChildren.reduce((acc, c) => acc + c.height, 0) + totalGaps;
+      totalChildExtent =
+        flowChildren.reduce((acc, c) => acc + c.height, 0) + totalGaps;
     } else {
-      totalChildExtent = flowChildren.reduce((acc, c) => acc + c.width, 0) + totalGaps;
+      totalChildExtent =
+        flowChildren.reduce((acc, c) => acc + c.width, 0) + totalGaps;
     }
 
     let startOffset = 0;

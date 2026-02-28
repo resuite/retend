@@ -20,6 +20,7 @@ These consolidated files organize all rules by topic for easier consumption by L
 ---
 
 **Severity Levels:**
+
 - **[CRITICAL]** - Will cause bugs or errors. Must follow.
 - **[WARNING]** - Suboptimal or error-prone. Should follow.
 - **[STYLE]** - Consistency and readability. Recommended.
@@ -50,6 +51,7 @@ Use these for detailed API information and edge cases.
 These individual rule files are now organized in the consolidated guides above. Refer to those first.
 
 **Core Rules:**
+
 - `.docs/retend/rules/key-for-items.md` - Always provide explicit keys for For component with objects.
 - `.docs/retend/rules/prefer-subtrees.md` - Use `subtree` for large route trees.
 - `.docs/retend/rules/headless-routes.md` - Use headless routes for grouping.
@@ -117,10 +119,12 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend/rules/no-manual-keys-on-for-children.md` - Don't add manual key props to For children.
 
 ### retend-web
+
 - **Path**: `.docs/retend-web/`
 - **Description**: Web-specific features for Retend. Use when building web applications with Retend.
 
 **References:**
+
 - `.docs/retend-web/references/setup.md` - Renderer initialization and configuration.
 - `.docs/retend-web/references/attributes-and-events.md` - Guide to classes, styles, and event handling.
 - `.docs/retend-web/references/event-modifiers.md` - Detailed reference for all event modifiers.
@@ -128,5 +132,6 @@ These individual rule files are now organized in the consolidated guides above. 
 - `.docs/retend-web/references/hydration.md` - Enabling and managing hydration.
 
 **Rules:**
+
 - `.docs/retend-web/rules/class-attribute-syntax.md` - No string concat or ternaries for classes.
 - `.docs/retend-web/rules/component-class-merging.md` - Merge classes with props correctly.

@@ -34,19 +34,17 @@ npx retend-start
 
 ```tsx
 import { Cell } from 'retend';
-import { renderToDOM  } from 'retend-web';
+import { renderToDOM } from 'retend-web';
 
 const Counter = () => {
   const count = Cell.source(0);
   return (
-    <button onClick={() => count.set(count.get() + 1)}>
-      Count: {count}
-    </button>
+    <button onClick={() => count.set(count.get() + 1)}>Count: {count}</button>
   );
 };
 
 // Initialize the renderer
-renderToDOM(document.body, App)
+renderToDOM(document.body, App);
 ```
 
 ## Module Exports

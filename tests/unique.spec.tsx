@@ -292,7 +292,7 @@ describe('Unique', () => {
       const restoreFn = vi.fn();
       const setupFn = vi.fn();
 
-      const saveState = (el: HTMLElement) => {
+      const saveState = (_el: HTMLElement) => {
         saveFn();
         return { name: 'John Doe' };
       };
@@ -676,7 +676,6 @@ describe('Unique', () => {
     it('should preserve and update attributes on the Unique wrapper', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
-      const uuid = crypto.randomUUID();
       const className = Cell.source('initial-class');
 
       const { body } = window.document;

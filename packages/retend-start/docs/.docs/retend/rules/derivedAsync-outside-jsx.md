@@ -1,6 +1,6 @@
-| title | impact | impactDescription | tags |
-| :------------------- | :------- | :----------------------------- | :---------------- |
-| derivedAsync Outside JSX | LOW | Keeps templates clean. | components, style |
+| title                    | impact | impactDescription      | tags              |
+| :----------------------- | :----- | :--------------------- | :---------------- |
+| derivedAsync Outside JSX | LOW    | Keeps templates clean. | components, style |
 
 # Define derivedAsync Outside JSX
 
@@ -9,6 +9,7 @@
 **Why**: Cleaner templates. Separates logic from presentation.
 
 **Invalid**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number> }) {
   const { userId } = props;
@@ -23,6 +24,7 @@ function UserProfile(props: { userId: Cell<number> }) {
 ```
 
 **Valid**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number> }) {
   const { userId } = props;
@@ -32,6 +34,10 @@ function UserProfile(props: { userId: Cell<number> }) {
   const userName = Cell.derivedAsync(async (get) => {
     return (await get(user))?.name ?? '';
   });
-  return <div><h1>{userName}</h1></div>;
+  return (
+    <div>
+      <h1>{userName}</h1>
+    </div>
+  );
 }
 ```

@@ -1,5 +1,5 @@
-import { getActiveRenderer, onSetup } from "retend";
-import { DOMRenderer } from "retend-web";
+import { getActiveRenderer, onSetup } from 'retend';
+import { DOMRenderer } from 'retend-web';
 
 /**
  * Adds an event listener to the window with automatic cleanup.
@@ -20,17 +20,17 @@ import { DOMRenderer } from "retend-web";
  * useWindowEventListener('scroll', handleScroll, { passive: true });
  */
 export const useWindowEventListener = (eventName, eventCallback, options) => {
-	const renderer = getActiveRenderer();
+  const renderer = getActiveRenderer();
 
-	if (!(renderer instanceof DOMRenderer)) return;
+  if (!(renderer instanceof DOMRenderer)) return;
 
-	const { host: window } = renderer;
+  const { host: window } = renderer;
 
-	window.addEventListener(eventName, eventCallback, options);
+  window.addEventListener(eventName, eventCallback, options);
 
-	onSetup(() => {
-		return () => {
-			window.removeEventListener(eventName, eventCallback, options);
-		};
-	});
+  onSetup(() => {
+    return () => {
+      window.removeEventListener(eventName, eventCallback, options);
+    };
+  });
 };

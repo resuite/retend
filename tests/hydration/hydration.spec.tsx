@@ -1607,7 +1607,6 @@ describe('Hydration', () => {
 
   it('should handle missing DOM nodes during hydration gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const text = Cell.source('Dynamic Content');
     const template = () => (
       <div id="missing-node-root">
         <span id="missing-static">Static</span>
@@ -1863,7 +1862,6 @@ describe('Hydration', () => {
     const svg = document.querySelector('#nested-svg');
     const group = document.querySelector('#svg-group');
     const path = document.querySelector('#svg-path');
-    const ellipse = document.querySelector('#svg-ellipse');
 
     expect(svg?.namespaceURI).toBe('http://www.w3.org/2000/svg');
     expect(group?.namespaceURI).toBe('http://www.w3.org/2000/svg');
@@ -2410,9 +2408,7 @@ describe('Hydration', () => {
       { id: 3, expanded: false },
     ]);
 
-    const EntryCard = (props: {
-      entry: { id: number; expanded: boolean };
-    }) => {
+    const EntryCard = (props: { entry: { id: number; expanded: boolean } }) => {
       const { entry } = props;
       const expanded = Cell.source(entry.expanded);
       return (
@@ -2438,7 +2434,9 @@ describe('Hydration', () => {
       <div id="for-components-root">
         {For(
           entries,
-          (entry) => <EntryCard entry={entry} />,
+          (entry) => (
+            <EntryCard entry={entry} />
+          ),
           (e) => e.id
         )}
       </div>
@@ -2484,7 +2482,9 @@ describe('Hydration', () => {
             success: () => <div id="status-success">Done!</div>,
             error: () => <div id="status-error">Failed!</div>,
           },
-          () => <div id="status-unknown">Unknown state</div>
+          () => (
+            <div id="status-unknown">Unknown state</div>
+          )
         )}
       </div>
     );

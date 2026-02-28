@@ -16,7 +16,11 @@ export type CanvasNode = {
   height: number;
   props: CanvasNodeProps;
   draw(ctx: CanvasRenderingContext2D): void;
-  measure(ctx: CanvasRenderingContext2D, availableWidth?: number, availableHeight?: number): void;
+  measure(
+    ctx: CanvasRenderingContext2D,
+    availableWidth?: number,
+    availableHeight?: number
+  ): void;
 };
 
 export type CanvasTextNode = CanvasNode & {

@@ -1,5 +1,5 @@
-import "retend-web/jsx-runtime";
-import { App } from "@/App";
-import { renderToDOM } from "retend-web";
+import 'retend-web/jsx-runtime';
+import { App } from '@/App';
+import { renderToDOM } from 'retend-web';
 
-renderToDOM(document.getElementById("root")!, App);
+renderToDOM(document.getElementById('root')!, App);

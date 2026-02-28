@@ -1,5 +1,5 @@
-| title | impact | impactDescription | tags |
-| :---------------------------------- | :------- | :----------------------------------------------------- | :--------------------------------------- |
+| title                          | impact   | impactDescription                                           | tags                                         |
+| :----------------------------- | :------- | :---------------------------------------------------------- | :------------------------------------------- |
 | derivedAsync From derivedAsync | CRITICAL | Prevents race conditions and ensures proper async chaining. | cells, derivedAsync, reactivity, correctness |
 
 # Derive Async Cells from Async Cells
@@ -9,6 +9,7 @@
 **Why**: `Cell.derived()` expects sync values. Async cells return Promises.
 
 **Invalid**:
+
 ```tsx
 const user = Cell.derivedAsync(async () => {
   return await fetchUser();
@@ -17,6 +18,7 @@ const userName = Cell.derived(() => user.get()?.name); // Returns Promise, not d
 ```
 
 **Valid**:
+
 ```tsx
 const user = Cell.derivedAsync(async () => {
   return await fetchUser();

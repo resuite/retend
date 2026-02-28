@@ -349,13 +349,13 @@ const userData = Cell.derivedAsync(async (get, signal) => {
 
 **Returns:** `AsyncDerivedCell<U>` with these properties:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `.get()` | `() => Promise<T \| null>` | Returns a promise that resolves to the async value |
-| `.peek()` | `() => Promise<T \| null>` | Same as get() but without registering dependencies |
-| `.pending` | `SourceCell<boolean>` | `true` while the async computation is running |
-| `.error` | `SourceCell<Error \| null>` | Holds any error thrown during computation |
-| `.revalidate()` | `() => void` | Manually re-runs the async computation |
+| Property        | Type                        | Description                                        |
+| --------------- | --------------------------- | -------------------------------------------------- |
+| `.get()`        | `() => Promise<T \| null>`  | Returns a promise that resolves to the async value |
+| `.peek()`       | `() => Promise<T \| null>`  | Same as get() but without registering dependencies |
+| `.pending`      | `SourceCell<boolean>`       | `true` while the async computation is running      |
+| `.error`        | `SourceCell<Error \| null>` | Holds any error thrown during computation          |
+| `.revalidate()` | `() => void`                | Manually re-runs the async computation             |
 
 **Example with loading and error states:**
 
@@ -383,7 +383,9 @@ function UserProfile(props: { userId: Cell<number> }) {
       {If(user.error, {
         true: (err) => <ErrorMessage error={err} />,
       })}
-      {If(hasUser, () => <h1>{userName}</h1>)}
+      {If(hasUser, () => (
+        <h1>{userName}</h1>
+      ))}
     </div>
   );
 }
@@ -415,15 +417,17 @@ Creates an **async task cell** for one-time operations that only execute when ex
 ```tsx
 import { Cell } from 'retend';
 
-const submitTask = Cell.task(async (formData: FormData, signal: AbortSignal) => {
-  const response = await fetch('/api/submit', {
-    method: 'POST',
-    body: formData,
-    signal
-  });
-  if (!response.ok) throw new Error('Submission failed');
-  return response.json();
-});
+const submitTask = Cell.task(
+  async (formData: FormData, signal: AbortSignal) => {
+    const response = await fetch('/api/submit', {
+      method: 'POST',
+      body: formData,
+      signal,
+    });
+    if (!response.ok) throw new Error('Submission failed');
+    return response.json();
+  }
+);
 ```
 
 **Parameters:**
@@ -434,12 +438,12 @@ const submitTask = Cell.task(async (formData: FormData, signal: AbortSignal) => 
 
 **Returns:** `AsyncTaskCell<Input, Output>` with these properties:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `.runWith(input)` | `(input: Input) => Promise<Output \| null>` | Executes the task with the given input |
-| `.pending` | `SourceCell<boolean>` | `true` while the task is running (starts as `false`) |
-| `.error` | `SourceCell<Error \| null>` | Holds any error thrown during execution |
-| `.get()` | `() => Promise<Output \| null>` | Returns the promise for the last/current execution |
+| Property          | Type                                        | Description                                          |
+| ----------------- | ------------------------------------------- | ---------------------------------------------------- |
+| `.runWith(input)` | `(input: Input) => Promise<Output \| null>` | Executes the task with the given input               |
+| `.pending`        | `SourceCell<boolean>`                       | `true` while the task is running (starts as `false`) |
+| `.error`          | `SourceCell<Error \| null>`                 | Holds any error thrown during execution              |
+| `.get()`          | `() => Promise<Output \| null>`             | Returns the promise for the last/current execution   |
 
 **Example with loading and error states:**
 
@@ -449,7 +453,7 @@ function SubmitForm() {
     const response = await fetch('/api/submit', {
       method: 'POST',
       body: formData,
-      signal
+      signal,
     });
     return response.json();
   });
@@ -467,10 +471,12 @@ function SubmitForm() {
       <button type="submit" disabled={submitTask.pending}>
         {If(submitTask.pending, {
           true: () => 'Submitting...',
-          false: () => 'Submit'
+          false: () => 'Submit',
         })}
       </button>
-      {If(submitTask.error, (err) => <p class="error">{err.message}</p>)}
+      {If(submitTask.error, (err) => (
+        <p class="error">{err.message}</p>
+      ))}
     </form>
   );
 }
@@ -478,13 +484,13 @@ function SubmitForm() {
 
 **When to use Cell.task() vs Cell.derivedAsync():**
 
-| Use Case | Cell.task() | Cell.derivedAsync() |
-|----------|-------------|---------------------|
-| Form submissions | ✅ | ❌ |
-| Button click actions | ✅ | ❌ |
-| POST/PUT/DELETE requests | ✅ | ❌ |
-| Data that should auto-refresh | ❌ | ✅ |
-| Dependent on reactive state | ❌ | ✅ |
+| Use Case                      | Cell.task() | Cell.derivedAsync() |
+| ----------------------------- | ----------- | ------------------- |
+| Form submissions              | ✅          | ❌                  |
+| Button click actions          | ✅          | ❌                  |
+| POST/PUT/DELETE requests      | ✅          | ❌                  |
+| Data that should auto-refresh | ❌          | ✅                  |
+| Dependent on reactive state   | ❌          | ✅                  |
 
 ### Cell.composite()
 
@@ -517,12 +523,12 @@ const userDashboard = Cell.composite({ user, notifications });
 
 **Returns:** `Composite<CellData>` with these properties:
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `.values` | Object | Each original cell wrapped as `AsyncDerivedCell`, synchronized by a barrier |
-| `.pending` | `Cell<boolean>` | `true` if ANY input cell is pending |
-| `.loaded` | `Cell<boolean>` | `true` after the first successful load (good for showing content without flickering) |
-| `.error` | `Cell<Error \| null>` | First error found in any input cell |
+| Property   | Type                  | Description                                                                          |
+| ---------- | --------------------- | ------------------------------------------------------------------------------------ |
+| `.values`  | Object                | Each original cell wrapped as `AsyncDerivedCell`, synchronized by a barrier          |
+| `.pending` | `Cell<boolean>`       | `true` if ANY input cell is pending                                                  |
+| `.loaded`  | `Cell<boolean>`       | `true` after the first successful load (good for showing content without flickering) |
+| `.error`   | `Cell<Error \| null>` | First error found in any input cell                                                  |
 
 **Note:** Each property above is a Cell, so you can use `.get()` and `.listen()` on them individually.
 
@@ -535,8 +541,12 @@ function Dashboard() {
 
   return (
     <div>
-      {If(dashboard.pending, () => <LoadingSpinner />)}
-      {If(dashboard.error, (err) => <ErrorMessage error={err} />)}
+      {If(dashboard.pending, () => (
+        <LoadingSpinner />
+      ))}
+      {If(dashboard.error, (err) => (
+        <ErrorMessage error={err} />
+      ))}
       {If(isReady, () => (
         <>
           <UserProfile user={dashboard.values.user} />
@@ -559,8 +569,12 @@ function Dashboard() {
 
   return (
     <div>
-      {If(dashboard.pending, () => <LoadingSpinner />)}
-      {If(dashboard.error, (err) => <ErrorMessage error={err} />)}
+      {If(dashboard.pending, () => (
+        <LoadingSpinner />
+      ))}
+      {If(dashboard.error, (err) => (
+        <ErrorMessage error={err} />
+      ))}
       {If(dashboard.loaded, () => (
         <>
           {/* Content stays visible during refresh, only showing spinner above */}
@@ -592,7 +606,7 @@ const deleteTask = Cell.task(async (id: string, signal) => {
 
 const operations = Cell.composite({
   upload: uploadTask,
-  delete: deleteTask
+  delete: deleteTask,
 });
 
 // Track overall pending state for all operations

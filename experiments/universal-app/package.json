@@ -1,7 +1,7 @@
 {
   "name": "canvas-renderer-poc",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "canvas-dev": "vite --port 5229",
@@ -10,17 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/blessed": "^0.1.25",
+    "blessed": "^0.1.81",
     "retend": "workspace:*",
-    "retend-web": "workspace:*",
     "retend-server": "workspace:*",
     "retend-utils": "workspace:*",
-    "blessed": "^0.1.81",
-    "@types/blessed": "^0.1.25"
+    "retend-web": "workspace:*"
   },
   "devDependencies": {
-    "vite": "^6.2.1",
+    "@types/node": "latest",
     "tsx": "^4.7.1",
     "typescript": "^5.5.2",
-    "@types/node": "latest"
+    "vite": "^6.2.1"
   }
 }

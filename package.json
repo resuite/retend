@@ -22,6 +22,9 @@
     "build-web": "pnpm --filter retend-web run build",
     "build-ssg": "pnpm --filter retend-server run build",
     "build-utils": "pnpm --filter retend-utils run build",
+    "lint": "oxlint packages tests experiments",
+    "format": "oxfmt --write packages tests experiments",
+    "format:check": "oxfmt --check packages tests experiments",
     "publish-core": "pnpm --filter retend run build && pnpm --filter retend publish --access public",
     "publish-web": "pnpm --filter retend-web run build && pnpm --filter retend-web publish --access public",
     "publish-ssg": "pnpm --filter retend-server run build && pnpm --filter retend-server publish --access public",
@@ -35,5 +38,9 @@
     "packages/*",
     "tests",
     "experiments/*"
-  ]
+  ],
+  "devDependencies": {
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0"
+  }
 }

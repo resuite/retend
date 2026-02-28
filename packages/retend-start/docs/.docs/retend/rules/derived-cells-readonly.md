@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Derived Cells Read-Only | Medium | Prevents runtime errors from invalid operations.       | cells, derived, api         |
+| title                   | impact | impactDescription                                | tags                |
+| :---------------------- | :----- | :----------------------------------------------- | :------------------ |
+| Derived Cells Read-Only | Medium | Prevents runtime errors from invalid operations. | cells, derived, api |
 
 # Derived Cells Read-Only
 

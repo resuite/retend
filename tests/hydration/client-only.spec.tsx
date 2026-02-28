@@ -90,9 +90,9 @@ describe('ClientOnly', () => {
       await runPendingSetupEffects();
 
       expect(document.querySelector('#client-only-content')).not.toBeNull();
-      expect(
-        document.querySelector('#client-only-content')?.textContent
-      ).toBe('Visible');
+      expect(document.querySelector('#client-only-content')?.textContent).toBe(
+        'Visible'
+      );
     });
 
     it('should hydrate without errors', async () => {

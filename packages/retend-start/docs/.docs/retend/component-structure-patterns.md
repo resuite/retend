@@ -17,6 +17,7 @@ description: Component organization, naming conventions, and structure patterns 
 **Rule**: Component names MUST be PascalCase. Lowercase names are treated as HTML elements.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - PascalCase
 function UserProfile() { ... }
@@ -30,6 +31,7 @@ function TodoItem() { ... }
 ```
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - lowercase
 function userProfile() { ... }
@@ -49,6 +51,7 @@ function navigation_menu() { ... }
 **Applies to**: All component definitions
 
 **Rule**: Organize components in this strict order:
+
 1. Destructure props
 2. State Cells (`Cell.source()`)
 3. Derived Cells (`Cell.derived()`, `Cell.derivedAsync()`)
@@ -57,39 +60,40 @@ function navigation_menu() { ... }
 6. Return JSX
 
 **Explicit Pattern**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number>; class?: string }) {
   // 1. Destructure props
   const { userId, class: className } = props;
-  
+
   // 2. State Cells
   const isExpanded = Cell.source(false);
   const editMode = Cell.source(false);
-  
+
   // 3. Derived Cells
   const user = Cell.derivedAsync(async (get) => {
     return await fetchUser(get(userId));
   });
-  
+
   const displayName = Cell.derived(() => {
     const u = user.get();
     return u?.name ?? 'Anonymous';
   });
-  
+
   // 4. Event Handlers (all hoisted)
   const handleExpand = () => {
     isExpanded.set(!isExpanded.get());
   };
-  
+
   const handleEdit = () => {
     editMode.set(true);
   };
-  
+
   const handleSave = () => {
     editMode.set(false);
     // Save logic...
   };
-  
+
   // 5. Effects
   onSetup(() => {
     console.log('Component initialized');
@@ -97,17 +101,21 @@ function UserProfile(props: { userId: Cell<number>; class?: string }) {
       console.log('Component cleanup');
     };
   });
-  
+
   // 6. Return JSX
   return (
     <div class={className}>
       <h1>{displayName}</h1>
       {If(isExpanded, {
-        true: () => <UserDetails user={user} />
+        true: () => <UserDetails user={user} />,
       })}
       {If(editMode, {
         true: () => <EditForm onSave={handleSave} />,
-        false: () => <button type="button" onClick={handleEdit}>Edit</button>
+        false: () => (
+          <button type="button" onClick={handleEdit}>
+            Edit
+          </button>
+        ),
       })}
       <button type="button" onClick={handleExpand}>
         {If(isExpanded, { true: () => 'Collapse', false: () => 'Expand' })}
@@ -126,19 +134,35 @@ function UserProfile(props: { userId: Cell<number>; class?: string }) {
 **Rule**: Destructure props in the function body, not in the parameter list.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - destructure in body
 function Button(props: { onClick: () => void; children: JSX.Children }) {
   const { onClick, children } = props;
-  
-  return <button type="button" onClick={onClick}>{children}</button>;
+
+  return (
+    <button type="button" onClick={onClick}>
+      {children}
+    </button>
+  );
 }
 ```
 
 **Alternative** (also acceptable):
+
 ```tsx
-function Button({ onClick, children }: { onClick: () => void; children: JSX.Children }) {
-  return <button type="button" onClick={onClick}>{children}</button>;
+function Button({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: JSX.Children;
+}) {
+  return (
+    <button type="button" onClick={onClick}>
+      {children}
+    </button>
+  );
 }
 ```
 
@@ -153,45 +177,49 @@ function Button({ onClick, children }: { onClick: () => void; children: JSX.Chil
 **Rule**: Define event handlers as named functions before JSX. Avoid inline arrow functions.
 
 **Explicit Pattern**:
+
 ```tsx
 function Form() {
   const name = Cell.source('');
   const email = Cell.source('');
-  
+
   // ✅ CORRECT - hoisted handlers
   const handleNameChange = (event: Event) => {
     name.set((event.target as HTMLInputElement).value);
   };
-  
+
   const handleEmailChange = (event: Event) => {
     email.set((event.target as HTMLInputElement).value);
   };
-  
+
   const handleSubmit = () => {
     console.log('Submit:', name.get(), email.get());
   };
-  
+
   return (
     <form>
       <input type="text" onInput={handleNameChange} />
       <input type="email" onInput={handleEmailChange} />
-      <button type="button" onClick={handleSubmit}>Submit</button>
+      <button type="button" onClick={handleSubmit}>
+        Submit
+      </button>
     </form>
   );
 }
 ```
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - inline handlers
 return (
   <form>
-    <input 
-      type="text" 
+    <input
+      type="text"
       onInput={(e) => name.set(e.target.value)}  {/* Inline */}
     />
-    <button 
-      type="button" 
+    <button
+      type="button"
       onClick={() => {  {/* Inline */
         console.log(name.get());
       }}
@@ -211,6 +239,7 @@ return (
 **Rule**: Use self-closing tags for void elements (`div`, `span`, `input`, etc.) when they have no children.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - self-closing
 <div class="container" />
@@ -222,6 +251,7 @@ return (
 ```
 
 **Explicit Pattern** (with children):
+
 ```tsx
 // ✅ CORRECT - closing tags with children
 <div class="container">
@@ -239,11 +269,12 @@ return (
 **Rule**: Use `JSX.Children` type for components that accept children.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - explicit children type
 function Card(props: { title: string; children: JSX.Children }) {
   const { title, children } = props;
-  
+
   return (
     <div class="card">
       <h2>{title}</h2>
@@ -256,7 +287,7 @@ function Card(props: { title: string; children: JSX.Children }) {
 <Card title="Welcome">
   <p>This is the card content</p>
   <button>Action</button>
-</Card>
+</Card>;
 ```
 
 ---
@@ -268,6 +299,7 @@ function Card(props: { title: string; children: JSX.Children }) {
 **Rule**: Always specify the `type` attribute on buttons.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - explicit button types
 <button type="button" onClick={handleClick}>Click me</button>
@@ -286,6 +318,7 @@ function Card(props: { title: string; children: JSX.Children }) {
 **Rule**: Use `for` attribute in Retend JSX, not `htmlFor`.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - 'for' in Retend
 <label for="inputId">Label Text</label>
@@ -293,6 +326,7 @@ function Card(props: { title: string; children: JSX.Children }) {
 ```
 
 **React Difference**:
+
 ```tsx
 // React uses htmlFor
 <label htmlFor="inputId">Label Text</label>
@@ -309,6 +343,7 @@ function Card(props: { title: string; children: JSX.Children }) {
 **Rule**: Never use `any` type. Use proper types or `unknown`.
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - any type
 function process(data: any) { ... }
@@ -316,6 +351,7 @@ const value: any = getValue();
 ```
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - proper types
 function process(data: UserData) { ... }
@@ -338,16 +374,17 @@ if (typeof value === 'string') {
 **Rule**: Use `JSX.ValueOrCell<T>` for props that can be static or reactive.
 
 **Explicit Pattern**:
+
 ```tsx
 import type { JSX } from 'retend';
 
 // ✅ CORRECT - accepts static or Cell
-function Label(props: { 
+function Label(props: {
   text: JSX.ValueOrCell<string>;
   class?: JSX.ValueOrCell<string>;
 }) {
   const { text, class: className } = props;
-  
+
   return <span class={className}>{text}</span>;
 }
 
@@ -368,21 +405,23 @@ const dynamicText = Cell.source('Hello');
 **Why**: Retend automatically binds listeners to the component lifecycle and handles cleanup.
 
 **Explicit Pattern**:
+
 ```tsx
 function StatusIndicator() {
   const status = Cell.source('idle');
-  
+
   // ✅ CORRECT - call directly in component body
   status.listen((newStatus) => {
     console.log('Status changed:', newStatus);
   });
   // Automatic cleanup - no manual unsubscribe needed
-  
+
   return <div class={status}>{status}</div>;
 }
 ```
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - don't wrap in onSetup
 onSetup(() => {
@@ -400,11 +439,18 @@ onSetup(() => {
 **Rule**: SVG elements and children must have `xmlns` attribute.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - xmlns on SVG
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
   <rect xmlns="http://www.w3.org/2000/svg" width="100" height="50" fill="red" />
-  <circle xmlns="http://www.w3.org/2000/svg" cx="50" cy="50" r="40" fill="blue" />
+  <circle
+    xmlns="http://www.w3.org/2000/svg"
+    cx="50"
+    cy="50"
+    r="40"
+    fill="blue"
+  />
 </svg>
 ```
 
@@ -419,30 +465,33 @@ onSetup(() => {
 **Rule**: Extend `JSX.IntrinsicElements` interfaces instead of manually redefining standard attributes like `onClick`, `class`, `disabled`, etc.
 
 **Why**:
+
 - **Type safety**: Standard interfaces are complete and maintained
 - **Reactivity**: Spread operator `{...rest}` preserves Cells for reactive props
 - **Flexibility**: Consumers can use any standard HTML attribute
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - manually redefining standard props
 interface ButtonProps {
   children: JSX.Children;
   variant?: 'primary' | 'secondary';
-  type?: 'button' | 'submit' | 'reset';     // Don't redefine!
-  disabled?: boolean;                       // Don't redefine!
-  onClick?: () => void;                     // Don't redefine!
-  class?: string;                           // Don't redefine!
+  type?: 'button' | 'submit' | 'reset'; // Don't redefine!
+  disabled?: boolean; // Don't redefine!
+  onClick?: () => void; // Don't redefine!
+  class?: string; // Don't redefine!
 }
 ```
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - extend standard interface
 type NativeButtonProps = JSX.IntrinsicElements['button'];
 
 interface ButtonProps extends NativeButtonProps {
-  variant?: 'primary' | 'secondary';  // Only add YOUR custom props
+  variant?: 'primary' | 'secondary'; // Only add YOUR custom props
 }
 
 const Button = (props: ButtonProps) => {
@@ -450,13 +499,13 @@ const Button = (props: ButtonProps) => {
     children,
     variant = 'primary',
     class: className,
-    ...rest  // Captures onClick, type, disabled, aria-*, etc.
+    ...rest // Captures onClick, type, disabled, aria-*, etc.
   } = props;
 
   return (
     <button
       class={['btn', `btn-${variant}`, className]}
-      {...rest}  // Spread standard props - preserves reactivity!
+      {...rest} // Spread standard props - preserves reactivity!
     >
       {children}
     </button>
@@ -466,7 +515,7 @@ const Button = (props: ButtonProps) => {
 // Usage:
 <Button variant="primary" onClick={handleClick} disabled={isDisabled}>
   Click me
-</Button>
+</Button>;
 ```
 
 ---
@@ -478,6 +527,7 @@ const Button = (props: ButtonProps) => {
 **Rule**: Use `<></>` shorthand for fragments.
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - fragment shorthand
 return (

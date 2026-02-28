@@ -1,6 +1,7 @@
 # Components
 
 ## Rules
+
 - **PascalCase Names**: Components MUST be PascalCase. Lowercase is treated as HTML.
 - **Prop Destructuring**: Always destructure props in the function body, not in parameter list.
   - ✅ `function Button(props) { const { children, onClick } = props; ... }`
@@ -28,6 +29,7 @@
   - ✅ `<div class={['base-class', props.class]}>...</div>`
 
 ## Patterns
+
 - **onConnected**: Use `onConnected(ref, (node) => { ... })` for DOM connection awareness, not `onSetup`.
 - **Top-Level Hooks**: Call hooks at the top level of your component function.
 - **Lifecycle**: Components run exactly ONCE. State updates do not re-run the component function.

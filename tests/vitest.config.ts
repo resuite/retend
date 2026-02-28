@@ -15,7 +15,6 @@ export default defineConfig({
       headless: true,
       instances: [{ browser: 'chromium' }],
       isolate: true,
-
     },
   },
 });

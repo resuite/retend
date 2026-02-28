@@ -1,6 +1,7 @@
 # Anti-Patterns & Migration
 
 ## CRITICAL Anti-Patterns
+
 - **.get() in JSX**: Never call `.get()` in JSX curly braces. Use Cell directly.
 - **React Hooks**: No `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useContext`.
 - **Dependency Arrays**: No dependency arrays for `Cell.derived()`, `Cell.derivedAsync()`, or `onSetup()`.
@@ -18,7 +19,9 @@
 - **.listen() Inside onSetup()**: Call `.listen()` directly in component body.
 - **Query mutations not awaited**: Query mutations are async and must be awaited.
 - **Manual .then() + .set()**: Never use `promise.then(v => cell.set(v))`. Use `Cell.derivedAsync()` instead.
+
 ## React Migration Checklist
+
 - [ ] Replaced `useState` with `Cell.source()`
 - [ ] Replaced `useEffect` with `.listen()` or `onSetup()`
 - [ ] Replaced `useMemo` with `Cell.derived()`

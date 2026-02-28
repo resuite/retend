@@ -1,7 +1,6 @@
-import { Cell, getActiveRenderer } from 'retend';
+import { Cell } from 'retend';
 import { describe, expect, it } from 'vitest';
 import { browserSetup, render, vDomSetup } from './setup.tsx';
-import type { JSX } from 'retend/jsx-runtime';
 
 const runTests = () => {
   it('should set an attribute on an element', () => {

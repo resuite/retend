@@ -17,6 +17,7 @@ description: Routing patterns for Retend Router. Covers navigation, route struct
 **Rule**: Use the Router's `navigate()` method. Never use `window.location` or `window.history` directly.
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - causes full page reload
 const goToHome = () => {
@@ -27,30 +28,35 @@ const goToHome = () => {
 ```
 
 **Explicit Pattern**:
+
 ```tsx
 import { useRouter } from 'retend/router';
 
 // ✅ CORRECT - client-side navigation
 function Navigation() {
   const router = useRouter();
-  
+
   const goToHome = () => {
     router.navigate('/home');
   };
-  
+
   const goToUser = (userId: number) => {
     router.navigate(`/users/${userId}`);
   };
-  
+
   // Event handlers should be hoisted, not inline
   const handleGoToUser = () => {
     goToUser(123);
   };
-  
+
   return (
     <nav>
-      <button type="button" onClick={goToHome}>Home</button>
-      <button type="button" onClick={handleGoToUser}>User 123</button>
+      <button type="button" onClick={goToHome}>
+        Home
+      </button>
+      <button type="button" onClick={handleGoToUser}>
+        User 123
+      </button>
     </nav>
   );
 }
@@ -67,6 +73,7 @@ function Navigation() {
 **Rule**: Use the `Link` component from `retend/router` instead of `<a>` tags for internal navigation.
 
 **Explicit Pattern**:
+
 ```tsx
 import { Link } from 'retend/router';
 
@@ -84,6 +91,7 @@ function Navigation() {
 ```
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - regular anchor causes reload
 <nav>
@@ -93,6 +101,7 @@ function Navigation() {
 ```
 
 **External Links**:
+
 ```tsx
 // ✅ CORRECT - use <a> for external
 <a href="https://example.com" target="_blank" rel="noopener">
@@ -101,6 +110,7 @@ function Navigation() {
 ```
 
 **Link Component Benefits**:
+
 - Client-side navigation (no reload)
 - Active state handling
 - Preserves application state
@@ -115,6 +125,7 @@ function Navigation() {
 **Rule**: Set up the router with routes and render the Router outlet.
 
 **Explicit Pattern**:
+
 ```tsx
 import { Router, Link, createRouterRoot } from 'retend/router';
 import { setActiveRenderer } from 'retend';
@@ -150,12 +161,12 @@ const routes = [
         component: UsersLayout,
         children: [
           { path: '', component: UserList },
-          { path: ':id', component: UserDetail }
-        ]
-      }
-    ]
+          { path: ':id', component: UserDetail },
+        ],
+      },
+    ],
   },
-  { path: '*', component: NotFoundPage } // 404 catch-all
+  { path: '*', component: NotFoundPage }, // 404 catch-all
 ];
 
 // Create router
@@ -177,6 +188,7 @@ document.body.append(createRouterRoot(router));
 **Rule**: Use headless routes (routes with `children` but no `component`) to group related routes.
 
 **Explicit Pattern**:
+
 ```tsx
 const routes = [
   {
@@ -185,9 +197,9 @@ const routes = [
     children: [
       { path: 'profile', component: ProfileSettings },
       { path: 'security', component: SecuritySettings },
-      { path: 'notifications', component: NotificationSettings }
-    ]
-  }
+      { path: 'notifications', component: NotificationSettings },
+    ],
+  },
 ];
 
 // Results in:
@@ -196,7 +208,8 @@ const routes = [
 // /settings/notifications
 ```
 
-**Why**: 
+**Why**:
+
 - Logical grouping of related routes
 - Avoids repeating parent paths
 - Cleaner route definitions
@@ -210,6 +223,7 @@ const routes = [
 **Rule**: Use `subtree` with `defineRoute` and `lazy` to split routes into separate modules.
 
 **Explicit Pattern**:
+
 ```tsx
 import { Router, lazy } from 'retend/router';
 
@@ -217,13 +231,13 @@ import { Router, lazy } from 'retend/router';
 const router = new Router({
   routes: [
     { path: '/', component: HomePage },
-    
+
     // Lazy-loaded subtree
     {
       path: '/admin',
       subtree: lazy(() => import('./routes/admin'))
     },
-    
+
     { path: '*', component: NotFoundPage }
   ]
 });
@@ -241,6 +255,7 @@ export default defineRoute({
 ```
 
 **Benefits**:
+
 - Code splitting and lazy loading
 - Better organization
 - Smaller initial bundle
@@ -254,12 +269,14 @@ export default defineRoute({
 **Rule**: Navigate by path, not by route name.
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - fragile string names
 router.navigate({ name: 'user-edit', params: { id: 1 } });
 ```
 
 **Explicit Pattern**:
+
 ```tsx
 // ✅ CORRECT - navigate by path
 router.navigate('/users/1/edit');
@@ -280,13 +297,14 @@ router.navigate(`/users/${userId}/edit`);
 **Rule**: Use `:paramName` syntax for dynamic segments. Access via `useCurrentRoute()`.
 
 **Explicit Pattern**:
+
 ```tsx
 // Route definition
 const routes = [
-  { 
-    path: '/users/:userId/posts/:postId', 
-    component: PostDetail 
-  }
+  {
+    path: '/users/:userId/posts/:postId',
+    component: PostDetail,
+  },
 ];
 
 // Component using params
@@ -294,16 +312,16 @@ import { useCurrentRoute } from 'retend/router';
 
 function PostDetail() {
   const route = useCurrentRoute();
-  
+
   const post = Cell.derivedAsync(async (get) => {
     const params = route.get().params;
     const userId = params.get('userId');
     const postId = params.get('postId');
     return await fetchPost(userId, postId);
   });
-  
+
   const title = Cell.derived(() => post.get()?.title ?? '');
-  
+
   return (
     <article>
       {If(post.pending, { true: () => <div>Loading...</div> })}
@@ -325,29 +343,30 @@ function PostDetail() {
 **Rule**: Query mutations (`set`, `append`, `delete`, `clear`) return Promises. Always await them.
 
 **Explicit Pattern**:
+
 ```tsx
 import { useRouteQuery } from 'retend/router';
 
 function FilterComponent() {
   const query = useRouteQuery();
-  
+
   // ✅ CORRECT - await query mutations
   const handleFilterChange = async (value: string) => {
     await query.set('filter', value);
     // Now safe to fetch with new params
     fetchData();
   };
-  
+
   const handleClearFilters = async () => {
     await query.clear();
     fetchData();
   };
-  
+
   const handleSelectChange = (e: Event) => {
     const value = (e.target as HTMLSelectElement).value;
     handleFilterChange(value);
   };
-  
+
   return (
     <select onChange={handleSelectChange}>
       <option value="">All</option>
@@ -358,6 +377,7 @@ function FilterComponent() {
 ```
 
 **Explicit Anti-Pattern**:
+
 ```tsx
 // ❌ WRONG - not awaiting
 const handleChange = (value: string) => {
@@ -367,18 +387,19 @@ const handleChange = (value: string) => {
 ```
 
 **Query API Reference**:
+
 ```tsx
 const query = useRouteQuery();
 
 // All mutations return Promise<void>
-await query.set('key', 'value');      // Set/replace value
-await query.append('key', 'value');   // Add to array
-await query.delete('key');            // Remove parameter
-await query.clear();                  // Remove all
+await query.set('key', 'value'); // Set/replace value
+await query.append('key', 'value'); // Add to array
+await query.delete('key'); // Remove parameter
+await query.clear(); // Remove all
 
 // Reads return Cells (reactive)
-const value = query.get('key');       // Cell<string | null>
-const exists = query.has('key');      // Cell<boolean>
+const value = query.get('key'); // Cell<string | null>
+const exists = query.has('key'); // Cell<boolean>
 const allParams = query.getAll('key'); // Cell<string[]>
 ```
 
@@ -391,21 +412,22 @@ const allParams = query.getAll('key'); // Cell<string[]>
 **Rule**: Use Cells returned from `query.get()` for reactive data fetching.
 
 **Explicit Pattern**:
+
 ```tsx
 function ProductList() {
   const query = useRouteQuery();
-  
+
   // Get reactive Cell for query param
   const categoryFilter = query.get('category');
   const sortOrder = query.get('sort');
-  
+
   // ✅ CORRECT - reactive derived cell
   const products = Cell.derivedAsync(async (get) => {
     const category = get(categoryFilter);
     const sort = get(sortOrder);
     return await fetchProducts({ category, sort });
   });
-  
+
   return (
     <div>
       {If(products.pending, { true: () => <div>Loading...</div> })}
@@ -430,6 +452,7 @@ function ProductList() {
 **Rule**: Use middleware for authentication, logging, or redirects.
 
 **Explicit Pattern**:
+
 ```tsx
 import { Router, defineRouterMiddleware, redirect } from 'retend/router';
 
@@ -447,7 +470,7 @@ const loggingMiddleware = defineRouterMiddleware(({ to }) => {
 
 const router = new Router({
   routes,
-  middlewares: [authMiddleware, loggingMiddleware]
+  middlewares: [authMiddleware, loggingMiddleware],
 });
 ```
 
@@ -460,20 +483,18 @@ const router = new Router({
 **Rule**: Use router hooks for navigation awareness.
 
 **Explicit Pattern**:
+
 ```tsx
-import { 
-  useCurrentRoute, 
-  useRouter
-} from 'retend/router';
+import { useCurrentRoute, useRouter } from 'retend/router';
 
 function PageComponent() {
   const route = useCurrentRoute();
   const router = useRouter();
-  
+
   // Current route info (access via .get() since route is a Cell)
-  const path = route.get().path;     // string
+  const path = route.get().path; // string
   const params = route.get().params; // Map<string, string>
-  
+
   return <div>Current path: {path}</div>;
 }
 ```

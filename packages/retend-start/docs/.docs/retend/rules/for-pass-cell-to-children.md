@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Pass Cell to Children in For | High | Ensures reactive updates in keyed For loops.           | for, keyed, reactivity      |
+| title                        | impact | impactDescription                            | tags                   |
+| :--------------------------- | :----- | :------------------------------------------- | :--------------------- |
+| Pass Cell to Children in For | High   | Ensures reactive updates in keyed For loops. | for, keyed, reactivity |
 
 # Pass Cell to Children in For
 
@@ -21,13 +21,13 @@
 // Keyed For with user data
 const users = Cell.source([
   { id: 1, firstName: 'John', lastName: 'Doe' },
-  { id: 2, firstName: 'Jane', lastName: 'Smith' }
+  { id: 2, firstName: 'Jane', lastName: 'Smith' },
 ]);
 
 // When you update a user's data:
 users.set([
   { id: 1, firstName: 'Johnny', lastName: 'Doe' }, // Changed firstName!
-  { id: 2, firstName: 'Jane', lastName: 'Smith' }
+  { id: 2, firstName: 'Jane', lastName: 'Smith' },
 ]);
 
 // With key='id', the UserCard for id:1 is REUSED
@@ -40,9 +40,13 @@ users.set([
 
 ```tsx
 // INVALID - passes static user, child can't react to data changes
-For(users, (user) => {
-  return <UserCard user={user} />; // user is frozen snapshot
-}, { key: 'id' })
+For(
+  users,
+  (user) => {
+    return <UserCard user={user} />; // user is frozen snapshot
+  },
+  { key: 'id' }
+);
 
 // In UserCard - won't see updates
 function UserCard(props: { user: User }) {
@@ -56,10 +60,14 @@ function UserCard(props: { user: User }) {
 
 ```tsx
 // VALID - passes reactive cell, child can derive reactive values
-For(users, (user, index) => {
-  const userCell = Cell.derived(() => users.get()[index.get()]);
-  return <UserCard user={userCell} />; // Pass Cell<User>
-}, { key: 'id' })
+For(
+  users,
+  (user, index) => {
+    const userCell = Cell.derived(() => users.get()[index.get()]);
+    return <UserCard user={userCell} />; // Pass Cell<User>
+  },
+  { key: 'id' }
+);
 
 // Child component receives Cell and creates reactive derived values
 function UserCard(props: { user: Cell<User> }) {
@@ -67,7 +75,7 @@ function UserCard(props: { user: Cell<User> }) {
     const u = props.user.get();
     return `${u.firstName} ${u.lastName}`;
   });
-  
+
   return <div>{fullName}</div>; // Updates when data changes
 }
 ```
@@ -77,17 +85,21 @@ function UserCard(props: { user: Cell<User> }) {
 Pass the entire list and index:
 
 ```tsx
-For(users, (user, index) => {
-  return <UserCard users={users} index={index} />;
-}, { key: 'id' })
+For(
+  users,
+  (user, index) => {
+    return <UserCard users={users} index={index} />;
+  },
+  { key: 'id' }
+);
 
-function UserCard(props: { users: Cell<User[]>, index: Cell<number> }) {
+function UserCard(props: { users: Cell<User[]>; index: Cell<number> }) {
   const user = Cell.derived(() => props.users.get()[props.index.get()]);
   const fullName = Cell.derived(() => {
     const u = user.get();
     return `${u.firstName} ${u.lastName}`;
   });
-  
+
   return <div>{fullName}</div>;
 }
 ```
@@ -95,12 +107,14 @@ function UserCard(props: { users: Cell<User[]>, index: Cell<number> }) {
 ## When This Matters
 
 This pattern is critical when:
+
 - Using keyed For (`{ key: 'id' }`)
 - Child components derive values from item data
 - Item data can change independently of list structure
 - You need fine-grained reactivity within list items
 
 Not needed when:
+
 - Rendering simple, static content
 - List items never change (only added/removed)
 - Using unkeyed For (though explicit keys are preferred)

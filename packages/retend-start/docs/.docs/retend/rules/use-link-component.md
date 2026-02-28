@@ -15,6 +15,7 @@
 ## Detection
 
 **Triggers**:
+
 - Internal anchors like `<a href="/path">` (no protocol)
 - Manual `window.location` navigation in click handlers
 

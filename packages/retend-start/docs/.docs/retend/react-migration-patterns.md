@@ -17,6 +17,7 @@ description: Critical rules for React developers migrating to Retend. Prevents t
 **Rule**: Do NOT import or use any React hooks. They do not exist in Retend.
 
 **DO NOT use**:
+
 - `useState` → Use `Cell.source()`
 - `useEffect` → Use `onSetup()` (runs once) or `cell.listen()`
 - `useMemo` → Use `Cell.derived()`
@@ -25,12 +26,15 @@ description: Critical rules for React developers migrating to Retend. Prevents t
 - `useContext` → Use `createScope()` + `useScopeContext()`
 
 **Correct Pattern**:
+
 ```tsx
 // WRONG - React hooks
 import { useState, useEffect } from 'react';
 function Counter() {
   const [count, setCount] = useState(0);
-  useEffect(() => { console.log(count); }, [count]);
+  useEffect(() => {
+    console.log(count);
+  }, [count]);
   return <div>{count}</div>;
 }
 
@@ -38,13 +42,13 @@ function Counter() {
 import { Cell } from 'retend';
 function Counter() {
   const count = Cell.source(0);
-  
+
   // Listeners are called directly in component body
   // Automatic cleanup - no onSetup wrapper needed
   count.listen((value) => {
     console.log('Count:', value);
   });
-  
+
   return <div>{count}</div>; // Pass Cell directly
 }
 ```
@@ -60,6 +64,7 @@ function Counter() {
 **Rule**: Pass Cell objects directly to JSX. Never call `.get()` in JSX.
 
 **Decision Tree**:
+
 ```
 USING A CELL VALUE IN JSX?
 ├─ YES → Pass cell directly: {cellName}
@@ -71,13 +76,14 @@ USING A CELL VALUE IN JSX?
 ```
 
 **Correct Pattern**:
+
 ```tsx
 function Display() {
   const count = Cell.source(0);
-  
+
   // WRONG - breaks reactivity
   return <div>{count.get()}</div>; // Static snapshot, never updates
-  
+
   // CORRECT - reactive updates
   return <div>{count}</div>; // Framework subscribes to changes
 }
@@ -94,6 +100,7 @@ function Display() {
 **Rule**: Retend tracks dependencies automatically. Never provide dependency arrays.
 
 **Correct Pattern**:
+
 ```tsx
 const count = Cell.source(0);
 
@@ -121,21 +128,24 @@ onSetup(() => {
 **Rule**: Component functions run exactly ONE TIME. State updates do NOT re-run the component.
 
 **Correct Pattern**:
+
 ```tsx
 function Counter() {
   console.log('This runs ONCE'); // Only logs on initial render
-  
+
   const count = Cell.source(0);
-  
+
   const handleClick = () => {
     count.set(count.get() + 1); // Updates the Cell value
     // Component function does NOT re-run
   };
-  
+
   return (
     <div>
       {count} {/* This updates automatically via Cell subscription */}
-      <button type="button" onClick={handleClick}>Increment</button>
+      <button type="button" onClick={handleClick}>
+        Increment
+      </button>
     </div>
   );
 }
@@ -152,6 +162,7 @@ function Counter() {
 **Rule**: Use `If()` component. Never use `? :` or `&&` in JSX.
 
 **Correct Pattern**:
+
 ```tsx
 const isVisible = Cell.source(true);
 
@@ -164,11 +175,7 @@ return (
 );
 
 // CORRECT - Retend pattern
-return (
-  <div>
-    {If(isVisible, { true: () => <Modal /> })}
-  </div>
-);
+return <div>{If(isVisible, { true: () => <Modal /> })}</div>;
 ```
 
 **Why this matters**: Ternary/logical operators break reactivity patterns. `If()` handles Cells properly.
@@ -182,20 +189,25 @@ return (
 **Rule**: Use `For()` helper. Never use `.map()` on Cell values.
 
 **Correct Pattern**:
+
 ```tsx
 const items = Cell.source(['a', 'b', 'c']);
 
 // WRONG - React pattern, full re-render on any change
 return (
   <ul>
-    {items.get().map((item) => <li>{item}</li>)}
+    {items.get().map((item) => (
+      <li>{item}</li>
+    ))}
   </ul>
 );
 
 // CORRECT - Retend pattern, granular updates
 return (
   <ul>
-    {For(items, (item) => <li>{item}</li>)}
+    {For(items, (item) => (
+      <li>{item}</li>
+    ))}
   </ul>
 );
 ```
@@ -211,16 +223,17 @@ return (
 **Rule**: Define derived cells in component body, not inline in JSX.
 
 **Correct Pattern**:
+
 ```tsx
 function Display() {
   const count = Cell.source(0);
-  
+
   // CORRECT - defined in body
   const doubled = Cell.derived(() => count.get() * 2);
   const userData = Cell.derivedAsync(async (get) => {
     return await fetchUser(get(userId));
   });
-  
+
   return (
     <div>
       {doubled}
@@ -241,6 +254,7 @@ function Display() {
 **Rule**: Always use the `get` parameter function to read dependencies. Never call `.get()` directly inside `derivedAsync`.
 
 **Correct Pattern**:
+
 ```tsx
 const userId = Cell.source(1);
 
@@ -268,18 +282,17 @@ const user = Cell.derivedAsync(async (get) => {
 **Rule**: Define handlers as named functions before JSX. Avoid inline arrow functions in JSX.
 
 **Correct Pattern**:
+
 ```tsx
 function Form() {
   const name = Cell.source('');
-  
+
   // CORRECT - hoisted handler
   const handleChange = (event) => {
     name.set(event.target.value);
   };
-  
-  return (
-    <input type="text" onInput={handleChange} />
-  );
+
+  return <input type="text" onInput={handleChange} />;
 }
 ```
 
@@ -289,22 +302,22 @@ function Form() {
 
 ## Quick Reference: React vs Retend
 
-| React | Retend | Notes |
-|-------|--------|-------|
-| `useState(initial)` | `Cell.source(initial)` | Initialize once, use throughout |
-| `useEffect(fn, [])` | `onSetup(fn)` | Runs once, no deps array |
-| `useEffect(fn, [dep])` | `cell.listen(fn)` | Reactive updates |
-| `useMemo(() => compute, [dep])` | `Cell.derived(() => compute)` | Auto-tracking, no deps |
-| `useCallback(fn, [dep])` | Plain function `fn` | No memoization needed |
-| `useRef(initial)` | `Cell.source(initial)` | Same pattern |
-| `useContext(Context)` | `useScopeContext(Scope)` | Similar API |
-| `createContext()` | `createScope()` | Similar API |
-| `props.value` | `props.value` | Same for static |
-| `condition ? A : B` | `If(condition, { true: () => A, false: () => B })` | Use If helper |
-| `array.map(...)` | `For(array, ...)` | Use For helper |
-| `key={id}` | `{ key: 'id' }` | 3rd param to For |
-| `onChange={fn}` | `onInput={fn}` | Use onInput for text |
-| `value={x}` + `onChange` | `Input` from retend-utils | Or manual binding |
+| React                           | Retend                                             | Notes                           |
+| ------------------------------- | -------------------------------------------------- | ------------------------------- |
+| `useState(initial)`             | `Cell.source(initial)`                             | Initialize once, use throughout |
+| `useEffect(fn, [])`             | `onSetup(fn)`                                      | Runs once, no deps array        |
+| `useEffect(fn, [dep])`          | `cell.listen(fn)`                                  | Reactive updates                |
+| `useMemo(() => compute, [dep])` | `Cell.derived(() => compute)`                      | Auto-tracking, no deps          |
+| `useCallback(fn, [dep])`        | Plain function `fn`                                | No memoization needed           |
+| `useRef(initial)`               | `Cell.source(initial)`                             | Same pattern                    |
+| `useContext(Context)`           | `useScopeContext(Scope)`                           | Similar API                     |
+| `createContext()`               | `createScope()`                                    | Similar API                     |
+| `props.value`                   | `props.value`                                      | Same for static                 |
+| `condition ? A : B`             | `If(condition, { true: () => A, false: () => B })` | Use If helper                   |
+| `array.map(...)`                | `For(array, ...)`                                  | Use For helper                  |
+| `key={id}`                      | `{ key: 'id' }`                                    | 3rd param to For                |
+| `onChange={fn}`                 | `onInput={fn}`                                     | Use onInput for text            |
+| `value={x}` + `onChange`        | `Input` from retend-utils                          | Or manual binding               |
 
 ---
 

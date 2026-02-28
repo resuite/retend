@@ -1,12 +1,8 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 
 import { getGlobalContext } from 'retend/context';
-import {
-  getActiveRenderer,
-  linkNodes,
-  createNodesFromTemplate,
-} from 'retend';
-import { DOMRenderer } from './dom-renderer.js';
+import { getActiveRenderer, linkNodes, createNodesFromTemplate } from 'retend';
+/** @import { DOMRenderer } from './dom-renderer.js' */
 
 /**
  * @typedef TeleportOnlyProps

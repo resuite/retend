@@ -1,30 +1,25 @@
 {
-	"name": "retend-docs",
-	"version": "0.0.0",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"dev": "vite --port 3000",
-		"build": "vite build",
-		"preview": "vite preview",
-		"lint": "oxlint source",
-		"format": "oxfmt --write source",
-		"format:check": "oxfmt --check source"
-	},
-	"dependencies": {
-		"@tailwindcss/vite": "^4.2.1",
-		"retend": "workspace:*",
-		"retend-server": "workspace:*",
-		"retend-utils": "workspace:*",
-		"retend-web": "workspace:*",
-		"shiki": "^4.0.0",
-		"tailwindcss": "^4.2.1"
-	},
-	"devDependencies": {
-		"@types/node": "^22.7.5",
-		"oxfmt": "^0.35.0",
-		"oxlint": "^1.50.0",
-		"typescript": "^5.8.2",
-		"vite": "^6.2.1"
-	}
+  "name": "retend-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "retend": "workspace:*",
+    "retend-server": "workspace:*",
+    "retend-utils": "workspace:*",
+    "retend-web": "workspace:*",
+    "shiki": "^4.0.0",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.1"
+  }
 }

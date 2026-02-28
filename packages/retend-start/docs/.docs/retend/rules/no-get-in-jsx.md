@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| No .get() in JSX     | Critical | Breaks reactivity and causes static renders.         | reactivity, jsx, cells      |
+| title            | impact   | impactDescription                            | tags                   |
+| :--------------- | :------- | :------------------------------------------- | :--------------------- |
+| No .get() in JSX | Critical | Breaks reactivity and causes static renders. | reactivity, jsx, cells |
 
 # No .get() in JSX
 
@@ -17,6 +17,7 @@
 ## Detection
 
 **Triggers**:
+
 - JSX expression contains `.get()` (for example `{cell.get()}`)
 - JSX attribute uses `.get()` (for example `value={cell.get()}`)
 
@@ -33,7 +34,7 @@
 // INVALID - breaks reactivity
 function Counter() {
   const count = Cell.source(0);
-  
+
   return <div>{count.get()}</div>; // Static value, won't update
 }
 ```
@@ -44,7 +45,7 @@ function Counter() {
 // VALID - reactive updates
 function Counter() {
   const count = Cell.source(0);
-  
+
   return <div>{count}</div>; // Updates automatically when count changes
 }
 ```
@@ -58,16 +59,16 @@ function Counter() {
 ```tsx
 function Counter() {
   const count = Cell.source(0);
-  
+
   // Outside JSX - use .get()
   const doubled = Cell.derived(() => count.get() * 2);
-  
+
   // In callback - use .get()
   const handleClick = () => {
     console.log(count.get());
     count.set(count.get() + 1);
   };
-  
+
   // In JSX - pass cell directly
   return (
     <div>

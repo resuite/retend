@@ -1,6 +1,7 @@
 # Async
 
 ## Rules
+
 - **All Async Through Primitives**: ANY async operation (fetching, computation, initialization) MUST use `Cell.derivedAsync()` or `Cell.task()`. NEVER use manual `Cell.source()` + `.then()` patterns.
   - ✅ `const html = Cell.derivedAsync(async () => highlight(code))`
   - ❌ `const html = Cell.source(''); doAsync().then(v => html.set(v))`
@@ -19,6 +20,7 @@
   - `.loaded`: `true` after first success (stays true during refresh, better for "stale-while-revalidate" UI).
 
 ## Decisions
+
 - **Coordinate multiple subtrees?** -> `<Await fallback={...}>`
 - **Any async computation (pure)?** -> `Cell.derivedAsync(async (get, signal) => ...)`
 - **User Action (mutations/side effects)?** -> `Cell.task(async (input, signal) => ...)`

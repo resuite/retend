@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Prefer Switch for Multiple Cases | Low | Improves readability for multiple branches.            | control-flow, switch        |
+| title                            | impact | impactDescription                           | tags                 |
+| :------------------------------- | :----- | :------------------------------------------ | :------------------- |
+| Prefer Switch for Multiple Cases | Low    | Improves readability for multiple branches. | control-flow, switch |
 
 # Prefer Switch for Multiple Cases
 
@@ -30,7 +30,7 @@
 
 // INVALID - unreadable nested ternary
 <div>
-  {view === 'home' 
+  {view === 'home'
     ? <Home />
     : view === 'about'
       ? <About />
@@ -70,11 +70,13 @@
 ## When to Use Switch
 
 Use `Switch` when:
+
 - You have 3+ conditions
 - Conditions are mutually exclusive
 - You want a default/fallback case
 
 Use `If` when:
+
 - You have only 2 conditions (true/false)
 - Simple binary logic
 
@@ -90,7 +92,7 @@ function UserView({ user }) {
     {
       admin: () => <AdminDashboard />,
       editor: () => <EditorPanel />,
-      viewer: () => <ViewerInterface />
+      viewer: () => <ViewerInterface />,
     },
     () => <GuestView />
   );
@@ -110,9 +112,11 @@ const currentView = Cell.source('home');
     currentView,
     {
       home: () => <Home />,
-      about: () => <About />
+      about: () => <About />,
     },
-    () => <NotFound />
+    () => (
+      <NotFound />
+    )
   )}
-</div>
+</div>;
 ```

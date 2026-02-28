@@ -16,6 +16,7 @@
 ## Detection
 
 **Triggers**:
+
 - JSX expressions containing `.get()` (for example `{cell.get()}`)
 - JSX attributes using `.get()` (for example `value={cell.get()}`)
 

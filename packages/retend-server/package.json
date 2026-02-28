@@ -1,9 +1,38 @@
 {
   "name": "retend-server",
   "version": "0.0.24",
-  "description": "Static site generation for the retend UI framework.",
   "private": false,
+  "description": "Static site generation for the retend UI framework.",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/client-only.d.ts",
+      "import": "./dist/client-only.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    },
+    "./plugin": {
+      "types": "./dist/plugin.d.ts",
+      "import": "./dist/plugin.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./v-dom": {
+      "types": "./dist/v-dom/index.d.ts",
+      "import": "./dist/v-dom/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "node scripts/build.js"
   },
@@ -16,32 +45,6 @@
     "oxc-parser": "^0.115.0",
     "oxc-walker": "^0.2.5"
   },
-  "exports": {
-    ".": {
-      "import": "./dist/client-only.js",
-      "types": "./dist/client-only.d.ts"
-    },
-    "./server": {
-      "import": "./dist/server.js",
-      "types": "./dist/server.d.ts"
-    },
-    "./client": {
-      "import": "./dist/client.js",
-      "types": "./dist/client.d.ts"
-    },
-    "./plugin": {
-      "import": "./dist/plugin.js",
-      "types": "./dist/plugin.d.ts"
-    },
-    "./types": {
-      "import": "./dist/types.js",
-      "types": "./dist/types.d.ts"
-    },
-    "./v-dom": {
-      "import": "./dist/v-dom/index.js",
-      "types": "./dist/v-dom/index.d.ts"
-    }
-  },
   "devDependencies": {
     "@types/node": "^22.7.5",
     "retend": "workspace:*",
@@ -53,8 +56,5 @@
     "retend": "*",
     "retend-web": "*",
     "vite": "*"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

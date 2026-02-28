@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| No Dependency Arrays | High   | Prevents unnecessary complexity and confusion.         | cells, effects, reactivity  |
+| title                | impact | impactDescription                              | tags                       |
+| :------------------- | :----- | :--------------------------------------------- | :------------------------- |
+| No Dependency Arrays | High   | Prevents unnecessary complexity and confusion. | cells, effects, reactivity |
 
 # No Dependency Arrays
 

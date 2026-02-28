@@ -1,5 +1,5 @@
-| title                      | impact | impactDescription                                      | tags                           |
-| :------------------------- | :----- | :----------------------------------------------------- | :----------------------------- |
+| title                    | impact   | impactDescription                                                          | tags                             |
+| :----------------------- | :------- | :------------------------------------------------------------------------- | :------------------------------- |
 | No onSetup for Listeners | CRITICAL | Listeners must be called directly in component body for automatic cleanup. | reactivity, listeners, lifecycle |
 
 # NEVER Wrap .listen() in onSetup
@@ -87,11 +87,11 @@ NEED CLEANUP?
 
 ## Common Mistakes
 
-| Mistake | Why It's Wrong | Correct Approach |
-|---------|---------------|------------------|
-| `onSetup(() => cell.listen(...))` | Unnecessary wrapper, manual cleanup | `cell.listen(...)` directly |
-| `useEffect(() => cell.listen(...), [])` | React pattern doesn't apply | `cell.listen(...)` directly |
-| `const unsub = cell.listen(); return unsub` | Manual cleanup not needed | Just `cell.listen(...)` |
+| Mistake                                     | Why It's Wrong                      | Correct Approach            |
+| ------------------------------------------- | ----------------------------------- | --------------------------- |
+| `onSetup(() => cell.listen(...))`           | Unnecessary wrapper, manual cleanup | `cell.listen(...)` directly |
+| `useEffect(() => cell.listen(...), [])`     | React pattern doesn't apply         | `cell.listen(...)` directly |
+| `const unsub = cell.listen(); return unsub` | Manual cleanup not needed           | Just `cell.listen(...)`     |
 
 ## Quick Reference
 

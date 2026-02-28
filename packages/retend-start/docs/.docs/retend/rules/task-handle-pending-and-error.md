@@ -1,5 +1,5 @@
-| title | impact | impactDescription | tags |
-| :------------------------ | :------- | :--------------------------------------------------- | :------------------------------- |
+| title              | impact | impactDescription                               | tags                             |
+| :----------------- | :----- | :---------------------------------------------- | :------------------------------- |
 | Handle Task States | MEDIUM | Provides user feedback during async operations. | cells, task, ux, loading, errors |
 
 # Handle pending and error states from Cell.task()
@@ -9,30 +9,28 @@
 **Why**: Users need visual feedback while operations are in progress and clear error messages when things fail.
 
 **Invalid**:
+
 ```tsx
 function DeleteButton(props: { id: Cell<string> }) {
   const { id } = props;
   const deleteTask = Cell.task(async (itemId: string, signal) => {
     return await deleteItem(itemId, signal);
   });
-  
+
   // BAD: No loading or error feedback
-  return (
-    <button onClick={() => deleteTask.runWith(id.get())}>
-      Delete
-    </button>
-  );
+  return <button onClick={() => deleteTask.runWith(id.get())}>Delete</button>;
 }
 ```
 
 **Valid**:
+
 ```tsx
 function DeleteButton(props: { id: Cell<string> }) {
   const { id } = props;
   const deleteTask = Cell.task(async (itemId: string, signal) => {
     return await deleteItem(itemId, signal);
   });
-  
+
   return (
     <>
       <button
@@ -41,7 +39,7 @@ function DeleteButton(props: { id: Cell<string> }) {
       >
         {If(deleteTask.pending, {
           true: () => 'Deleting...',
-          false: () => 'Delete'
+          false: () => 'Delete',
         })}
       </button>
       {If(deleteTask.error, (err) => (

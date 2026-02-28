@@ -1,4 +1,5 @@
-import { Cell, SourceCell, getActiveRenderer, onSetup } from 'retend';
+/** @import { SourceCell } from 'retend' */
+import { Cell, getActiveRenderer, onSetup } from 'retend';
 import { getGlobalContext } from 'retend/context';
 
 const MATCH_MEDIA_CACHE_KEY = Symbol('hooks:useMatchMedia:queriesCache');

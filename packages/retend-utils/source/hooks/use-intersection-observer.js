@@ -1,4 +1,5 @@
-import { Cell, onConnected } from 'retend';
+/** @import { Cell } from 'retend' */
+import { onConnected } from 'retend';
 
 /**
  * @typedef {Cell<HTMLElement | null> | Cell<HTMLElement | null>[]} ObserverTarget
@@ -13,7 +14,7 @@ import { Cell, onConnected } from 'retend';
  * @param {IntersectionObserverCallback} callback
  * A function that will be called when the intersection of any of the target elements with the root changes.
  *
- * @param {function(): IntersectionObserverInit} [options]
+ * @param {() => IntersectionObserverInit} [options]
  * An optional function that returns an `IntersectionObserverInit` object to configure the observer.
  *
  * @example

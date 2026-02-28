@@ -1,6 +1,7 @@
 # Control Flow
 
 ## Rules
+
 - **Use Built-in Flow**: Always use `If()`, `For()`, and `Switch()` instead of inline ternaries, logical operators (`&&`, `||`), or `.map()` in JSX.
   - ✅ `<div>{If(isVisible, { true: () => <Modal /> })}</div>`
   - ❌ `<div>{isVisible && <Modal />}</div>`
@@ -21,6 +22,7 @@
 - **Pure Render Callbacks**: Functions passed to `If`, `For`, or `Switch` must be pure and return JSX. No side effects.
 
 ## Patterns
+
 - **Switch for 3+ cases**: Use `Switch()` instead of nested `If` statements.
 - **Switch.OnProperty**: Switch on specific object properties reactively.
 - **If Object Syntax**: Always use the `{ true: ..., false: ... }` object literal for `If()` when both branches are provided.

@@ -17,13 +17,14 @@ description: Common mistakes and anti-patterns to avoid when writing Retend code
 **Why It's Wrong**: `.get()` returns a static snapshot. The value never updates because there's no subscription to the Cell.
 
 **Wrong**:
+
 ```tsx
 function Counter() {
   const count = Cell.source(0);
 
   return (
     <div>
-      <p>{count.get()}</p>  {/* Static! Never updates! */}
+      <p>{count.get()}</p> {/* Static! Never updates! */}
       <button onClick={() => count.set(count.get() + 1)}>+</button>
     </div>
   );
@@ -31,13 +32,14 @@ function Counter() {
 ```
 
 **Correct**:
+
 ```tsx
 function Counter() {
   const count = Cell.source(0);
 
   return (
     <div>
-      <p>{count}</p>  {/* Reactive! Subscribes to changes */}
+      <p>{count}</p> {/* Reactive! Subscribes to changes */}
       <button onClick={() => count.set(count.get() + 1)}>+</button>
     </div>
   );
@@ -55,13 +57,15 @@ function Counter() {
 **Why It's Wrong**: React hooks don't exist in Retend. They will cause runtime errors.
 
 **Wrong**:
+
 ```tsx
-import { useState, useEffect } from 'retend';  // These don't exist!
+import { useState, useEffect } from 'retend'; // These don't exist!
 
 function Counter() {
-  const [count, setCount] = useState(0);  // ERROR!
+  const [count, setCount] = useState(0); // ERROR!
 
-  useEffect(() => {  // ERROR!
+  useEffect(() => {
+    // ERROR!
     console.log(count);
   }, [count]);
 
@@ -70,6 +74,7 @@ function Counter() {
 ```
 
 **Correct**:
+
 ```tsx
 import { Cell } from 'retend';
 
@@ -97,17 +102,19 @@ function Counter() {
 **Why It's Wrong**: Retend tracks dependencies automatically. Dependency arrays cause errors or unexpected behavior.
 
 **Wrong**:
+
 ```tsx
-const doubled = Cell.derived(() => count.get() * 2, [count]);  // ERROR!
+const doubled = Cell.derived(() => count.get() * 2, [count]); // ERROR!
 
 onSetup(() => {
   console.log(count.get());
-}, [count]);  // ERROR - no second parameter!
+}, [count]); // ERROR - no second parameter!
 ```
 
 **Correct**:
+
 ```tsx
-const doubled = Cell.derived(() => count.get() * 2);  // Auto-tracking
+const doubled = Cell.derived(() => count.get() * 2); // Auto-tracking
 
 // For one-time setup (non-reactive)
 onSetup(() => {
@@ -131,26 +138,24 @@ count.listen((v) => {
 **Why It's Wrong**: Ternary operators don't handle reactive Cells properly and bypass framework optimizations.
 
 **Wrong**:
+
 ```tsx
 const isVisible = Cell.source(true);
 
 return (
   <div>
-    {isVisible.get() ? <Modal /> : null}  {/* React pattern */}
-    {isVisible ? <Modal /> : null}        {/* Also wrong - uses truthiness */}
+    {isVisible.get() ? <Modal /> : null} {/* React pattern */}
+    {isVisible ? <Modal /> : null} {/* Also wrong - uses truthiness */}
   </div>
 );
 ```
 
 **Correct**:
+
 ```tsx
 const isVisible = Cell.source(true);
 
-return (
-  <div>
-    {If(isVisible, { true: () => <Modal /> })}
-  </div>
-);
+return <div>{If(isVisible, { true: () => <Modal /> })}</div>;
 ```
 
 **Detection**: Look for `?` and `:` inside JSX curly braces.
@@ -164,19 +169,21 @@ return (
 **Why It's Wrong**: Logical operators don't handle reactive Cells properly.
 
 **Wrong**:
+
 ```tsx
 const hasError = Cell.source(false);
 const isLoading = Cell.source(true);
 
 return (
   <div>
-    {hasError && <ErrorMessage />}        {/* Wrong */}
-    {isLoading || <Content />}            {/* Wrong */}
+    {hasError && <ErrorMessage />} {/* Wrong */}
+    {isLoading || <Content />} {/* Wrong */}
   </div>
 );
 ```
 
 **Correct**:
+
 ```tsx
 const hasError = Cell.source(false);
 const isLoading = Cell.source(true);
@@ -200,6 +207,7 @@ return (
 **Why It's Wrong**: `.map()` re-renders the entire list when any item changes. `For()` provides granular updates.
 
 **Wrong**:
+
 ```tsx
 const items = Cell.source(['a', 'b', 'c']);
 
@@ -213,6 +221,7 @@ return (
 ```
 
 **Correct**:
+
 ```tsx
 const items = Cell.source(['a', 'b', 'c']);
 
@@ -236,6 +245,7 @@ return (
 **Why It's Wrong**: Without keys, For can't efficiently track items for updates, reordering, or removal.
 
 **Wrong**:
+
 ```tsx
 const users = Cell.source([
   { id: 1, name: 'Alice' },
@@ -252,17 +262,23 @@ return (
 ```
 
 **Correct**:
+
 ```tsx
 const users = Cell.source([
   { id: 1, name: 'Alice' },
-  { id: 2, name: 'Bob' }
+  { id: 2, name: 'Bob' },
 ]);
 
 return (
   <ul>
-    {For(users, (user) => (
-      <li>{user.name}</li>
-    ), { key: 'id' })}  {/* Proper key */}
+    {For(
+      users,
+      (user) => (
+        <li>{user.name}</li>
+      ),
+      { key: 'id' }
+    )}{' '}
+    {/* Proper key */}
   </ul>
 );
 ```
@@ -278,21 +294,23 @@ return (
 **Why It's Wrong**: Direct `.get()` is not tracked as a dependency in async contexts.
 
 **Wrong**:
+
 ```tsx
 const userId = Cell.source(1);
 
 const user = Cell.derivedAsync(async () => {
-  const id = userId.get();  // NOT tracked!
+  const id = userId.get(); // NOT tracked!
   return await fetchUser(id);
 });
 ```
 
 **Correct**:
+
 ```tsx
 const userId = Cell.source(1);
 
 const user = Cell.derivedAsync(async (get) => {
-  const id = get(userId);  // Tracked dependency
+  const id = get(userId); // Tracked dependency
   return await fetchUser(id);
 });
 ```
@@ -308,21 +326,23 @@ const user = Cell.derivedAsync(async (get) => {
 **Why It's Wrong**: Derived cells are computed from other cells. They are read-only.
 
 **Wrong**:
+
 ```tsx
 const count = Cell.source(0);
 const doubled = Cell.derived(() => count.get() * 2);
 
 // Later...
-doubled.set(100);  // ERROR! Cannot set derived cells
+doubled.set(100); // ERROR! Cannot set derived cells
 ```
 
 **Correct**:
+
 ```tsx
 const count = Cell.source(0);
 const doubled = Cell.derived(() => count.get() * 2);
 
 // Update the source
-count.set(50);  // doubled automatically becomes 100
+count.set(50); // doubled automatically becomes 100
 ```
 
 **Detection**: Look for `.set()` called on variables created with `Cell.derived()`.
@@ -336,6 +356,7 @@ count.set(50);  // doubled automatically becomes 100
 **Why It's Wrong**: Causes full page reloads, destroying application state.
 
 **Wrong**:
+
 ```tsx
 const goToHome = () => {
   window.location.href = '/home';
@@ -347,6 +368,7 @@ const goToHome = () => {
 ```
 
 **Correct**:
+
 ```tsx
 import { useRouter, Link } from 'retend/router';
 
@@ -370,6 +392,7 @@ const goToHome = () => {
 **Why It's Wrong**: Clutters JSX and makes code harder to read and maintain.
 
 **Wrong**:
+
 ```tsx
 return (
   <button
@@ -385,6 +408,7 @@ return (
 ```
 
 **Correct**:
+
 ```tsx
 const handleIncrement = () => {
   count.set(count.get() + 1);
@@ -409,13 +433,14 @@ return (
 **Why It's Wrong**: Updating one field updates the whole object, triggering unnecessary reactions.
 
 **Wrong**:
+
 ```tsx
 const formState = Cell.source({
   firstName: '',
   lastName: '',
   email: '',
   age: 0,
-  isSubscribed: false
+  isSubscribed: false,
 });
 
 // Updating one field updates everything
@@ -425,6 +450,7 @@ const updateFirstName = (value) => {
 ```
 
 **Correct**:
+
 ```tsx
 const firstName = Cell.source('');
 const lastName = Cell.source('');
@@ -434,7 +460,7 @@ const isSubscribed = Cell.source(false);
 
 // Update only what changed
 const updateFirstName = (value) => {
-  firstName.set(value);  // Only firstName subscribers update
+  firstName.set(value); // Only firstName subscribers update
 };
 ```
 
@@ -449,18 +475,20 @@ const updateFirstName = (value) => {
 **Why It's Wrong**: Query mutations are async. Code after them may run before navigation completes.
 
 **Wrong**:
+
 ```tsx
 const handleFilter = (value) => {
-  query.set('filter', value);  // Returns Promise!
-  fetchData();  // Uses old query params
+  query.set('filter', value); // Returns Promise!
+  fetchData(); // Uses old query params
 };
 ```
 
 **Correct**:
+
 ```tsx
 const handleFilter = async (value) => {
   await query.set('filter', value);
-  fetchData();  // Uses updated query params
+  fetchData(); // Uses updated query params
 };
 ```
 
@@ -475,10 +503,15 @@ const handleFilter = async (value) => {
 **Why It's Wrong**: In keyed For, the callback isn't re-invoked when data changes (items are cached). Children need reactive access.
 
 **Wrong**:
+
 ```tsx
-For(users, (user) => {
-  return <UserCard user={user} />;  // user is frozen snapshot!
-}, { key: 'id' })
+For(
+  users,
+  (user) => {
+    return <UserCard user={user} />; // user is frozen snapshot!
+  },
+  { key: 'id' }
+);
 
 function UserCard({ user }) {
   // user never updates even when users array changes
@@ -487,15 +520,20 @@ function UserCard({ user }) {
 ```
 
 **Correct**:
+
 ```tsx
-For(users, (user, index) => {
-  const userCell = Cell.derived(() => users.get()[index.get()]);
-  return <UserCard user={userCell} />;  // Pass Cell
-}, { key: 'id' })
+For(
+  users,
+  (user, index) => {
+    const userCell = Cell.derived(() => users.get()[index.get()]);
+    return <UserCard user={userCell} />; // Pass Cell
+  },
+  { key: 'id' }
+);
 
 function UserCard({ user }) {
   const name = Cell.derived(() => user.get().name);
-  return <div>{name}</div>;  // Updates reactively
+  return <div>{name}</div>; // Updates reactively
 }
 ```
 
@@ -510,6 +548,7 @@ function UserCard({ user }) {
 **Why It's Wrong**: JSX treats lowercase as HTML elements. Component won't render correctly.
 
 **Wrong**:
+
 ```tsx
 function userProfile() {  // lowercase!
   return <div>User</div>;
@@ -520,6 +559,7 @@ function userProfile() {  // lowercase!
 ```
 
 **Correct**:
+
 ```tsx
 function UserProfile() {  // PascalCase
   return <div>User</div>;
@@ -540,6 +580,7 @@ function UserProfile() {  // PascalCase
 **Why It's Wrong**: These React patterns don't apply. Components don't "re-render" in Retend.
 
 **Wrong**:
+
 ```tsx
 // Trying to optimize "re-renders"
 const memoizedValue = useMemo(() => compute(value), [value]);
@@ -550,6 +591,7 @@ const MemoComponent = React.memo(Component);
 ```
 
 **Correct**:
+
 ```tsx
 // Use derived cells instead
 const computed = Cell.derived(() => compute(value.get()));
@@ -572,11 +614,13 @@ function Component() { ... }
 **Why It's Wrong**: Retend uses standard HTML attribute names, not React's camelCase versions.
 
 **Wrong**:
+
 ```tsx
 <label htmlFor="inputId">Label</label>  {/* React syntax */}
 ```
 
 **Correct**:
+
 ```tsx
 <label for="inputId">Label</label>  {/* Standard HTML */}
 ```

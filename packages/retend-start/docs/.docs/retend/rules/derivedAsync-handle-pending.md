@@ -1,5 +1,5 @@
-| title | impact | impactDescription | tags |
-| :------------------- | :------- | :--------------------------------------------------- | :--------------------------------------- |
+| title                | impact | impactDescription                                  | tags                             |
+| :------------------- | :----- | :------------------------------------------------- | :------------------------------- |
 | Handle Pending State | MEDIUM | Shows loading feedback and prevents blank screens. | cells, derivedAsync, ux, loading |
 
 # Handle Pending State in derivedAsync
@@ -9,6 +9,7 @@
 **Why**: Users need feedback while waiting for async data.
 
 **Invalid**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number> }) {
   const { userId } = props;
@@ -20,6 +21,7 @@ function UserProfile(props: { userId: Cell<number> }) {
 ```
 
 **Valid**:
+
 ```tsx
 function UserProfile(props: { userId: Cell<number> }) {
   const { userId } = props;
@@ -30,11 +32,13 @@ function UserProfile(props: { userId: Cell<number> }) {
     return (await get(user))?.name ?? '';
   });
   const hasUser = Cell.derived(() => user.get() !== null);
-  
+
   return (
     <div>
       {If(user.pending, { true: () => <Spinner /> })}
-      {If(hasUser, () => <h1>{userName}</h1>)}
+      {If(hasUser, () => (
+        <h1>{userName}</h1>
+      ))}
     </div>
   );
 }
