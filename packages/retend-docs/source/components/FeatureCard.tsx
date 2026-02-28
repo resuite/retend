@@ -27,9 +27,7 @@ export function FeatureCard(props: FeatureCardProps) {
 			{If(hasId, () => (
 				<span class="mb-3 block font-mono text-[0.8rem] text-brand">{id}</span>
 			))}
-			<h3 class="mb-3 text-[1.2rem] tracking-tight text-fg">
-				{title}
-			</h3>
+			<h3 class="mb-3 text-[1.2rem] tracking-tight text-fg">{title}</h3>
 			<p class="text-fg-muted leading-relaxed">{description}</p>
 		</div>
 	);

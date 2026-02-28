@@ -1,6 +1,6 @@
-import { Card } from './Card';
-import { FeatureCard } from './FeatureCard';
-import { SectionHeader } from './SectionHeader';
+import { Card } from "./Card";
+import { FeatureCard } from "./FeatureCard";
+import { SectionHeader } from "./SectionHeader";
 
 export function ValueProp() {
 	return (

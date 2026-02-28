@@ -1,4 +1,3 @@
-
 import type { JSX } from "retend/jsx-runtime";
 
 export interface SectionHeaderProps {
