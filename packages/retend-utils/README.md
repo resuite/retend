@@ -155,7 +155,8 @@ Tracks the network connection status and provides a reactive cell indicating whe
 **Example:**
 
 ```tsx
-import { useOnlineStatus, If } from 'retend-utils/hooks';
+import { useOnlineStatus } from 'retend-utils/hooks';
+import { If } from 'retend';
 
 function NetworkStatusDisplay() {
   const isOnline = useOnlineStatus();

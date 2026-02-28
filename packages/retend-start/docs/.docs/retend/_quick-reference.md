@@ -32,7 +32,7 @@ description: Quick, AI-friendly reference for core Retend patterns and imports.
 | Navigate | `router.navigate('/path')` |
 | Replace | `router.replace('/path')` |
 | Link | `<Link href="/path">` |
-| Params | `useRouteParams()` (Cells) |
+| Params | `useCurrentRoute().get().params.get('key')` |
 | Query | `useRouteQuery()` (mutations are async) |
 
 ## Imports

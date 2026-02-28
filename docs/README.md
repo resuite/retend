@@ -1596,7 +1596,7 @@ The library includes a routing system for single-page applications.
 
 ```jsx
 import { Router, type RouteRecords, createRouterRoot } from 'retend/router';
-import { render } from 'retend-web';
+import { renderToDOM } from 'retend-web';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -1615,7 +1615,7 @@ const routes: RouteRecords = [
 ];
 
 const router = new Router({ routes });
-render(createRouterRoot(router), document.body);
+renderToDOM(createRouterRoot(router), document.body);
 ```
 
 ### Implementing the Router
@@ -1752,9 +1752,9 @@ Navigate programmatically using the `navigate` method:
 
 ```jsx
 const ProfileButton = () => {
-  const { navigate } = useRouter();
+  const router = useRouter();
   const goToProfile = () => {
-    navigate('/profile/123');
+    router.navigate('/profile/123');
   };
 
   return <button onClick={goToProfile}>View Profile</button>;
@@ -1772,9 +1772,11 @@ Define and access dynamic route parameters:
   component: lazy(() => import('./Profile')),
 }
 
+import { useCurrentRoute } from 'retend/router';
+
 const Profile = () => {
-  const router = useRouter();
-  const id = router.params.get('id');
+  const route = useCurrentRoute();
+  const id = route.get().params.get('id');
 
   return <h1>Profile ID: {id}</h1>;
 };

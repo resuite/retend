@@ -344,14 +344,14 @@ function UserProfile(props: { userId: Cell<number> }) {
 
 **Applies to**: Component props that accept Cells or static values
 
-**Rule**: Use `ValueOrCell<T>` type for props that can be either static or reactive.
+**Rule**: Use `JSX.ValueOrCell<T>` type for props that can be either static or reactive.
 
 **Explicit Pattern**:
 ```tsx
-import type { ValueOrCell } from 'retend';
+import type { JSX } from 'retend';
 
 // Component accepts static or Cell
-function Display(props: { value: ValueOrCell<string> }) {
+function Display(props: { value: JSX.ValueOrCell<string> }) {
   const { value } = props;
   
   // If value is a Cell, use it directly in JSX

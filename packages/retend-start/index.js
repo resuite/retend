@@ -416,18 +416,16 @@ hydrate(createRouter)
     : `
 /// <reference types="vite/client" />
 /// <reference types="retend-web/jsx-runtime" />
-import { runPendingSetupEffects, setActiveRenderer } from 'retend';
 import { createRouterRoot } from 'retend/router';
-import { DOMRenderer } from 'retend-web';
 import { createRouter } from './router';
+import { renderToDOM } from 'retend-web';
 
-setActiveRenderer(new DOMRenderer(window));
 const router = createRouter();
 router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
-root?.append(createRouterRoot(router));
-runPendingSetupEffects();
+renderToDOM(root, createRouterRoot(router));
+
 `;
 
   await fs.writeFile(
@@ -755,9 +753,21 @@ async function createDocsFiles(projectDir, answers) {
  * @param {string} projectName
  */
 function displayCompletionMessage(projectName) {
-  const installCommand = isBun ? 'bun install' : isPnpm ? 'pnpm install' : 'npm install';
-  const devCommand = isBun ? 'bun run dev' : isPnpm ? 'pnpm run dev' : 'npm run dev';
-  const buildCommand = isBun ? 'bun run build' : isPnpm ? 'pnpm run build' : 'npm run build';
+  const installCommand = isBun
+    ? 'bun install'
+    : isPnpm
+      ? 'pnpm install'
+      : 'npm install';
+  const devCommand = isBun
+    ? 'bun run dev'
+    : isPnpm
+      ? 'pnpm run dev'
+      : 'npm run dev';
+  const buildCommand = isBun
+    ? 'bun run build'
+    : isPnpm
+      ? 'pnpm run build'
+      : 'npm run build';
 
   console.log(chalk.green('\n✨ Your project is ready! ✨'));
   console.log(chalk.yellow('\nNext steps:'));

@@ -335,16 +335,16 @@ if (typeof value === 'string') {
 
 **Applies to**: Component props that accept Cells or static values
 
-**Rule**: Use `ValueOrCell<T>` for props that can be static or reactive.
+**Rule**: Use `JSX.ValueOrCell<T>` for props that can be static or reactive.
 
 **Explicit Pattern**:
 ```tsx
-import type { ValueOrCell } from 'retend';
+import type { JSX } from 'retend';
 
 // ✅ CORRECT - accepts static or Cell
 function Label(props: { 
-  text: ValueOrCell<string>;
-  class?: ValueOrCell<string>;
+  text: JSX.ValueOrCell<string>;
+  class?: JSX.ValueOrCell<string>;
 }) {
   const { text, class: className } = props;
   

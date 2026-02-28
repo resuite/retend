@@ -277,7 +277,7 @@ router.navigate(`/users/${userId}/edit`);
 
 **Applies to**: Routes with variable segments
 
-**Rule**: Use `:paramName` syntax for dynamic segments. Access via `useRouteParams()`.
+**Rule**: Use `:paramName` syntax for dynamic segments. Access via `useCurrentRoute()`.
 
 **Explicit Pattern**:
 ```tsx
@@ -290,15 +290,15 @@ const routes = [
 ];
 
 // Component using params
-import { useRouteParams } from 'retend/router';
+import { useCurrentRoute } from 'retend/router';
 
 function PostDetail() {
-  const params = useRouteParams();
-  // params.userId and params.postId are Cells
+  const route = useCurrentRoute();
   
   const post = Cell.derivedAsync(async (get) => {
-    const userId = get(params.userId);
-    const postId = get(params.postId);
+    const params = route.get().params;
+    const userId = params.get('userId');
+    const postId = params.get('postId');
     return await fetchPost(userId, postId);
   });
   
@@ -314,7 +314,7 @@ function PostDetail() {
 }
 ```
 
-**Key Point**: Route params are Cells. Use them reactively.
+**Key Point**: Access params via `useCurrentRoute().get().params.get('paramName')`.
 
 ---
 
@@ -379,7 +379,7 @@ await query.clear();                  // Remove all
 // Reads return Cells (reactive)
 const value = query.get('key');       // Cell<string | null>
 const exists = query.has('key');      // Cell<boolean>
-const allParams = query.entries();    // Cell<Record<string, string>>
+const allParams = query.getAll('key'); // Cell<string[]>
 ```
 
 ---
@@ -463,17 +463,16 @@ const router = new Router({
 ```tsx
 import { 
   useCurrentRoute, 
-  useRouter, 
-  useBeforeLeave 
+  useRouter
 } from 'retend/router';
 
 function PageComponent() {
   const route = useCurrentRoute();
   const router = useRouter();
   
-  // Current route info (as Cells)
-  const path = route.path;     // Cell<string>
-  const params = route.params; // Cell<Record<string, string>>
+  // Current route info (access via .get() since route is a Cell)
+  const path = route.get().path;     // string
+  const params = route.get().params; // Map<string, string>
   
   return <div>Current path: {path}</div>;
 }
@@ -491,7 +490,7 @@ NEED TO NAVIGATE?
 
 NEED DYNAMIC SEGMENTS?
 ├─ Route definition → path: '/users/:userId'
-└─ Access params → useRouteParams() → params.userId (Cell)
+└─ Access params → useCurrentRoute().get().params.get('userId')
 
 NEED QUERY PARAMS?
 ├─ Read → query.get('key') returns Cell
