@@ -10,6 +10,17 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Google+Sans+Code:wght@300..800&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function () {
+        var theme = localStorage.getItem('retend-theme');
+        if (
+          theme === '"dark"' ||
+          (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        ) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

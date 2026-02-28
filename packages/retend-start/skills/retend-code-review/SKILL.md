@@ -19,6 +19,7 @@ description: 'Review, audit, or refactor Retend code. Triggers: (1) Reactivity c
    - **Object** for conditional toggling (Vue-style): `class={{ 'is-active': isActive }}`
    - **Mixed** for complex cases: `class={['btn', variant, { 'is-active': isActive }]}`
    - ❌ Never use string concatenation, ternaries, or `Cell.derived()` that returns class strings.
+8. **Side Effects**: `Cell.derived` is for deriving values, not side effects. Use `cell.listen()` for DOM mutations, logging, storage sync, etc.
 
 ## Patterns
 
@@ -33,6 +34,7 @@ description: 'Review, audit, or refactor Retend code. Triggers: (1) Reactivity c
 - `Cell\.source\((true|false|null)\)[\s\S]*fetch\(` - Manual loading cells (Warning)
 - `\.then\([^)]*\.set\(` - Manual `.then()` + `.set()` (Critical -> `derivedAsync`)
 - `\buse(State|Effect|Memo|Callback|Ref|Context)\b` - React hooks (Critical)
+- `Cell\.derived\(` with DOM manipulation or `.set\(` inside - Side effect in derived (Critical -> use `cell.listen()`)
 
 ## Automated Audit Script
 

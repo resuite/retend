@@ -1,5 +1,7 @@
-import { ArrowRightIcon, ExternalLinkIcon } from '@/icons';
 import { Link } from 'retend/router';
+
+import { ArrowRightIcon, ExternalLinkIcon } from '@/icons';
+
 import { CodeBlock } from './CodeBlock';
 
 const heroCode = `import { Cell } from "retend";
@@ -33,14 +35,14 @@ export function Hero() {
         <div class="mt-12 flex gap-6">
           <Link
             href="/quickstart"
-            class="bg-brand hover:bg-brand-dark inline-flex items-center gap-2.5 rounded-lg px-7 py-3 text-white transition-all hover:-translate-y-0.5"
+            class="bg-brand hover:bg-brand-dark inline-flex items-center gap-2.5 rounded-lg px-7 py-3 text-white hover:-translate-y-0.5"
           >
             Get Started
             <ArrowRightIcon />
           </Link>
           <a
             href="https://github.com/adebola-io/retend"
-            class="border-surface-alt bg-surface-alt text-fg hover:bg-surface-alt-hover hover:border-surface-alt-hover inline-flex items-center gap-2.5 rounded-lg border px-7 py-3 transition-all"
+            class="border-surface-alt bg-surface-alt text-fg hover:bg-surface-alt-hover hover:border-surface-alt-hover inline-flex items-center gap-2.5 rounded-lg border px-7 py-3"
             target="_blank"
             rel="noreferrer"
           >

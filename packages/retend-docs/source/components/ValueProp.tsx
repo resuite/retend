@@ -12,19 +12,19 @@ export function ValueProp() {
       />
 
       <div class="mt-16 grid grid-cols-1 gap-y-15 md:grid-cols-3 md:gap-x-12 md:gap-y-16">
-        <Card interactive class="p-8">
+        <Card class="p-8">
           <FeatureCard
             title="Fine-grained"
             description="Updates target specific nodes, not component trees."
           />
         </Card>
-        <Card interactive class="p-8">
+        <Card class="p-8">
           <FeatureCard
             title="Declarative"
             description="Express complex logic through pure functional primitives."
           />
         </Card>
-        <Card interactive class="p-8">
+        <Card class="p-8">
           <FeatureCard
             title="Lightweight"
             description="A small runtime that stays out of your way."

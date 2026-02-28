@@ -4,18 +4,18 @@ export const retendTheme: ThemeInput = {
   name: 'retend-theme',
   type: 'light',
   colors: {
-    'editor.foreground': '#0f172a',
-    'editor.background': '#ffffff',
-    'editor.selectionBackground': '#e2e8f0',
-    'editor.lineHighlightBackground': '#fafaf9',
-    'editorCursor.foreground': '#9a3412',
-    'editorWhitespace.foreground': '#bababa',
+    'editor.foreground': 'var(--color-retend-fg)',
+    'editor.background': 'transparent', // Let the Card handle background
+    'editor.selectionBackground': 'var(--color-retend-surface-alt-hover)',
+    'editor.lineHighlightBackground': 'var(--color-retend-surface-alt)',
+    'editorCursor.foreground': 'var(--color-retend-brand)',
+    'editorWhitespace.foreground': 'var(--color-retend-border)',
   },
   settings: [
     {
       scope: ['comment', 'punctuation.definition.comment', 'string.comment'],
       settings: {
-        foreground: '#64748b',
+        foreground: 'var(--color-retend-fg-muted)',
         fontStyle: 'italic',
       },
     },
@@ -28,37 +28,37 @@ export const retendTheme: ThemeInput = {
         'variable.language',
       ],
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: ['entity', 'entity.name'],
       settings: {
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: 'variable.parameter.function',
       settings: {
-        foreground: '#0f172a', // fg
+        foreground: 'var(--color-retend-fg)',
       },
     },
     {
       scope: 'entity.name.tag',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'keyword',
       settings: {
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: ['storage', 'storage.type'],
       settings: {
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
@@ -68,7 +68,7 @@ export const retendTheme: ThemeInput = {
         'storage.type.java',
       ],
       settings: {
-        foreground: '#0f172a', // fg
+        foreground: 'var(--color-retend-fg)',
       },
     },
     {
@@ -78,85 +78,85 @@ export const retendTheme: ThemeInput = {
         'string punctuation.section.embedded source',
       ],
       settings: {
-        foreground: '#64748b', // fg-muted
+        foreground: 'var(--color-retend-fg-muted)',
       },
     },
     {
       scope: 'support',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'meta.property-name',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'variable',
       settings: {
-        foreground: '#0f172a', // fg
+        foreground: 'var(--color-retend-fg)',
       },
     },
     {
       scope: 'variable.other',
       settings: {
-        foreground: '#0f172a', // fg
+        foreground: 'var(--color-retend-fg)',
       },
     },
     {
       scope: 'invalid.broken',
       settings: {
         fontStyle: 'italic',
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: 'invalid.deprecated',
       settings: {
         fontStyle: 'italic',
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: 'invalid.illegal',
       settings: {
         fontStyle: 'italic',
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: 'invalid.unimplemented',
       settings: {
         fontStyle: 'italic',
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: 'carriage-return',
       settings: {
         fontStyle: 'italic underline',
-        background: '#7c2d12', // brand-dark
-        foreground: '#ffffff',
+        background: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-bg)',
       },
     },
     {
       scope: 'message.error',
       settings: {
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: 'string variable',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: ['source.regexp', 'string.regexp'],
       settings: {
-        foreground: '#64748b', // fg-muted
+        foreground: 'var(--color-retend-fg-muted)',
       },
     },
     {
@@ -167,62 +167,62 @@ export const retendTheme: ThemeInput = {
         'string.regexp string.regexp.arbitrary-repitition',
       ],
       settings: {
-        foreground: '#64748b', // fg-muted
+        foreground: 'var(--color-retend-fg-muted)',
       },
     },
     {
       scope: 'string.regexp constant.character.escape',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'support.constant',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'support.variable',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'meta.module-reference',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'punctuation.definition.list.begin.markdown',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: ['markup.heading', 'markup.heading entity.name'],
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'markup.quote',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'markup.italic',
       settings: {
         fontStyle: 'italic',
-        foreground: '#0f172a', // fg
+        foreground: 'var(--color-retend-fg)',
       },
     },
     {
       scope: 'markup.bold',
       settings: {
-        foreground: '#0f172a', // fg
+        foreground: 'var(--color-retend-fg)',
       },
     },
     {
@@ -240,7 +240,7 @@ export const retendTheme: ThemeInput = {
     {
       scope: 'markup.inline.raw',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
@@ -250,8 +250,8 @@ export const retendTheme: ThemeInput = {
         'punctuation.definition.deleted',
       ],
       settings: {
-        background: '#fff7ed', // brand-soft
-        foreground: '#7c2d12', // brand-dark
+        background: 'var(--color-retend-brand-soft)',
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
@@ -261,46 +261,46 @@ export const retendTheme: ThemeInput = {
         'punctuation.definition.inserted',
       ],
       settings: {
-        background: '#f1f5f9', // surface-alt
-        foreground: '#64748b', // fg-muted
+        background: 'var(--color-retend-surface-alt)',
+        foreground: 'var(--color-retend-fg-muted)',
       },
     },
     {
       scope: ['markup.changed', 'punctuation.definition.changed'],
       settings: {
-        background: '#fff7ed', // brand-soft
-        foreground: '#9a3412', // brand
+        background: 'var(--color-retend-brand-soft)',
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: ['markup.ignored', 'markup.untracked'],
       settings: {
-        foreground: '#fafaf9', // surface
-        background: '#64748b', // fg-muted
+        foreground: 'var(--color-retend-surface)',
+        background: 'var(--color-retend-fg-muted)',
       },
     },
     {
       scope: 'meta.diff.range',
       settings: {
-        foreground: '#64748b', // fg-muted
+        foreground: 'var(--color-retend-fg-muted)',
       },
     },
     {
       scope: 'meta.diff.header',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'meta.separator',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
       scope: 'meta.output',
       settings: {
-        foreground: '#9a3412', // brand
+        foreground: 'var(--color-retend-brand)',
       },
     },
     {
@@ -313,19 +313,19 @@ export const retendTheme: ThemeInput = {
         'brackethighlighter.quote',
       ],
       settings: {
-        foreground: '#64748b', // fg-muted
+        foreground: 'var(--color-retend-fg-muted)',
       },
     },
     {
       scope: 'brackethighlighter.unmatched',
       settings: {
-        foreground: '#7c2d12', // brand-dark
+        foreground: 'var(--color-retend-brand-dark)',
       },
     },
     {
       scope: ['constant.other.reference.link', 'string.other.link'],
       settings: {
-        foreground: '#64748b', // fg-muted
+        foreground: 'var(--color-retend-fg-muted)',
         fontStyle: 'underline',
       },
     },

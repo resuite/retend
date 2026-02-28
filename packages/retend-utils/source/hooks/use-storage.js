@@ -1,7 +1,8 @@
 /** @import { SourceCell } from 'retend' */
 
-import { createSharedHook } from '../internal/create-shared-hook.js';
 import { Cell, getActiveRenderer } from 'retend';
+
+import { createSharedHook } from '../internal/create-shared-hook.js';
 
 const LOCAL_STORAGE_CACHE_KEY = Symbol('hooks:useLocalStorage:cache');
 const SESSION_STORAGE_CACHE_KEY = Symbol('hooks:useSessionStorage:cache');

@@ -1,19 +1,50 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-bg: #ffffff;
-  --color-fg: #0f172a;
-  --color-fg-muted: #64748b;
-  --color-brand: #9a3412;
-  --color-brand-dark: #7c2d12;
-  --color-brand-soft: #fff7ed;
-  --color-surface: #fafaf9;
-  --color-surface-alt: #f1f5f9;
-  --color-surface-alt-hover: #e2e8f0;
-  --color-border: #bababa;
+  --color-bg: var(--color-retend-bg);
+  --color-fg: var(--color-retend-fg);
+  --color-fg-muted: var(--color-retend-fg-muted);
+  --color-brand: var(--color-retend-brand);
+  --color-brand-dark: var(--color-retend-brand-dark);
+  --color-brand-soft: var(--color-retend-brand-soft);
+  --color-surface: var(--color-retend-surface);
+  --color-surface-alt: var(--color-retend-surface-alt);
+  --color-surface-alt-hover: var(--color-retend-surface-alt-hover);
+  --color-border: var(--color-retend-border);
+  --color-card-shadow: var(--color-retend-card-shadow);
 
   --font-main: 'Inter', sans-serif;
   --font-mono: 'Google Sans Code', monospace;
+}
+
+:root {
+  --color-retend-bg: #ffffff;
+  --color-retend-fg: #0f172a;
+  --color-retend-fg-muted: #64748b;
+  --color-retend-brand: #9a3412;
+  --color-retend-brand-dark: #7c2d12;
+  --color-retend-brand-soft: #fff7ed;
+  --color-retend-surface: #ffffff;
+  --color-retend-surface-alt: #f1f5f9;
+  --color-retend-surface-alt-hover: #e2e8f0;
+  --color-retend-border: #151515;
+  --color-retend-dots: #94a3b8;
+  --color-retend-card-shadow: #c5c5c5;
+}
+
+.dark {
+  --color-retend-bg: #1c1917;
+  --color-retend-fg: #fafaf9;
+  --color-retend-fg-muted: #a8a29e;
+  --color-retend-brand: #f97316;
+  --color-retend-brand-dark: #fb923c;
+  --color-retend-brand-soft: #431407;
+  --color-retend-surface: #292524;
+  --color-retend-surface-alt: #44403c;
+  --color-retend-surface-alt-hover: #57534e;
+  --color-retend-border: #44403c;
+  --color-retend-dots: #44403c;
+  --color-retend-card-shadow: #121212;
 }
 
 @layer base {
@@ -25,7 +56,10 @@
 
   body {
     background-color: var(--color-bg);
-    background-image: radial-gradient(#94a3b8 1.2px, transparent 1.2px);
+    background-image: radial-gradient(
+      var(--color-retend-dots) 1.2px,
+      transparent 1.2px
+    );
     background-size: 24px 24px;
     color: var(--color-fg);
     font-family: var(--font-main);
@@ -57,3 +91,5 @@
     transition: all 0.2s ease;
   }
 }
+
+@custom-variant dark (&:where(html.dark, html.dark *));
