@@ -33,8 +33,8 @@ npx retend-start
 ## Quick Example
 
 ```tsx
-import { Cell, runPendingSetupEffects, setActiveRenderer } from 'retend';
-import { DOMRenderer } from 'retend-web';
+import { Cell } from 'retend';
+import { renderToDOM  } from 'retend-web';
 
 const Counter = () => {
   const count = Cell.source(0);
@@ -46,11 +46,7 @@ const Counter = () => {
 };
 
 // Initialize the renderer
-const renderer = new DOMRenderer(window);
-setActiveRenderer(renderer);
-const root = renderer.render(<Counter />);
-document.body.append(...(Array.isArray(root) ? root : [root]));
-runPendingSetupEffects();
+renderToDOM(document.body, App)
 ```
 
 ## Module Exports

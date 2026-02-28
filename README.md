@@ -8,8 +8,8 @@ If you've worked with HTML, CSS, and JavaScript, Retend should be easy to pick u
 
 ## At a Glance:
 ```tsx
-import { Cell, runPendingSetupEffects, setActiveRenderer } from 'retend';
-import { DOMRenderer } from 'retend-web';
+import { Cell } from 'retend';
+import { renderToDOM } from 'retend-web';
 
 const App = () => {
   const count = Cell.source(0);
@@ -24,11 +24,7 @@ const App = () => {
   );
 };
 
-const renderer = new DOMRenderer(window);
-setActiveRenderer(renderer);
-const root = renderer.render(<App />);
-document.body.append(...(Array.isArray(root) ? root : [root]));
-runPendingSetupEffects();
+renderToDOM(document.body, App);
 ```
 
 ## Key Features

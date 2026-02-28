@@ -11,6 +11,8 @@ import {
   normalizeJsxChild,
   withState,
   onConnected,
+  setActiveRenderer,
+  runPendingSetupEffects,
 } from 'retend';
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugin/hmr.js';
@@ -22,6 +24,7 @@ import {
   flattenJSXChildren,
   isReactiveChild,
 } from './utils.js';
+import { getGlobalContext, setGlobalContext } from 'retend/context';
 
 const COMMENT_NODE = 8;
 const TEXT_NODE = 3;
@@ -848,4 +851,27 @@ export class DOMRenderer {
     }
     return hydration.hydrating ? hydration : null;
   }
+}
+
+/**
+ * Renders the provided JSX application to the specified DOM element.
+ *
+ * Initializes the DOM renderer context, renders the application tree, appends the resulting
+ * nodes to the target element, and executes any pending setup effects.
+ *
+ * @param {HTMLElement} element - The target DOM element to mount the application into.
+ * @param {() => JSX.Template} App - A function that returns the template to be rendered.
+ */
+export function renderToDOM(element, App) {
+  setGlobalContext(
+    getGlobalContext() ?? {
+      teleportIdCounter: { value: 0 },
+      globalData: new Map(),
+    }
+  );
+  const renderer = new DOMRenderer(window);
+  setActiveRenderer(renderer);
+  const root = renderer.render(App);
+  element.append(...(Array.isArray(root) ? root : [root]));
+  runPendingSetupEffects();
 }

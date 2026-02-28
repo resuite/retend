@@ -12,7 +12,7 @@ import {
 import { createRouterRoot } from 'retend/router';
 import { setGlobalContext } from 'retend/context';
 import { addMetaListener } from './meta.js';
-import { DOMRenderer } from 'retend-web';
+import { DOMRenderer, renderToDOM } from 'retend-web';
 
 export * from './render-to-string.js';
 
@@ -173,16 +173,11 @@ export async function hydrate(routerFn) {
 
 /** @param {() => Router} routerFn  */
 async function defaultToSpaMode(routerFn) {
-  setGlobalContext({
-    teleportIdCounter: { value: 0 },
-    globalData: new Map(),
-  });
-  const renderer = new DOMRenderer(window);
-  setActiveRenderer(renderer);
   const router = routerFn();
   router.attachWindowListeners(window);
-  const root = document.querySelector('#app');
-  root?.append(/** @type {Node} */ (createRouterRoot(router)));
+  const root = document.getElementById('app');
+  if (!root) throw new Error('No root element found');
+  renderToDOM(root, createRouterRoot(router));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
   addMetaListener(router, document);
   await runPendingSetupEffects();
