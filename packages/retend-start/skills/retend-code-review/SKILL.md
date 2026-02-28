@@ -12,13 +12,22 @@ description: 'Review, audit, or refactor Retend code. Triggers: (1) Reactivity c
 3. **Control Flow**: Use `If`/`For`/`Switch`. No ternaries or `&&` in JSX.
 4. **Anti-Patterns**: No React hooks or dependency arrays.
 5. **Structure**: PascalCase, destructured props, hoisted handlers.
-6. **Web**: camelCase events (`onClick`), prefer strings for static classes. Array/Object for dynamic.
+6. **Web**: camelCase events (`onClick`).
+7. **Class Attribute**: Choose the right syntax for the situation:
+   - **String** for fully static classes: `class="btn btn-primary"`
+   - **Array** when combining multiple sources: `class={['btn', variant]}`
+   - **Object** for conditional toggling (Vue-style): `class={{ 'is-active': isActive }}`
+   - **Mixed** for complex cases: `class={['btn', variant, { 'is-active': isActive }]}`
+   - ❌ Never use string concatenation, ternaries, or `Cell.derived()` that returns class strings.
 
 ## Patterns
 
-- `\{[^}]*\.get\(` - `.get()` in JSX (Critical)
+- `\.get\(` in JSX - `.get()` in JSX (Critical)
 - `\{[^}]*(\?|&&|\|\|)` - Inline logic (Critical)
-- `class=\{\[[^}]*\]\}` - Array syntax for classes (Review if static)
+- `class=\{['"][^}]*\+` - String concatenation for classes (Critical)
+- `class=\{[^}]*\?[^}]*:` - Ternary for classes (Critical)
+- `Cell\.derived.*class` - Derived Cell returning class string (Warning -> use object syntax)
+- `class=\{\[[^\]]*\]\}` where all items are string literals - Static array (Warning -> use plain string)
 - `\.map\(` - `.map()` in JSX (Critical -> `For()`)
 - `derivedAsync\([^)]*\)\s*=>[\s\S]*\.get\(` - direct `.get()` in `derivedAsync` (Critical -> `get(cell)`)
 - `Cell\.source\((true|false|null)\)[\s\S]*fetch\(` - Manual loading cells (Warning)

@@ -5,7 +5,7 @@ import { QuickstartPage } from '@/routes/QuickstartPage';
 import { Router } from 'retend/router';
 
 export function createRouter() {
-  const router = new Router({
+  return new Router({
     routes: [
       {
         path: '/',
@@ -27,10 +27,4 @@ export function createRouter() {
       },
     ],
   });
-
-  if (typeof window !== 'undefined') {
-    router.attachWindowListeners(window);
-  }
-
-  return router;
 }

@@ -1,4 +1,12 @@
 {
+  "language_servers": [
+    "!tsgo",
+    "vtsls",
+    "!biome",
+    "oxfmt",
+    "oxlint",
+    "tailwindcss-language-server"
+  ],
   "lsp": {
     "oxlint": {
       "initialization_options": {

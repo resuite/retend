@@ -1089,10 +1089,7 @@ declare module 'retend/jsx-runtime' {
       ref?: import('retend').Cell<unknown>;
       children?: Children;
       dangerouslySetInnerHTML?: {
-        __html:
-          | string
-          | import('retend').Cell<string>
-          | import('retend').AsyncCell<string>;
+        __html: JSX.ValueOrCellOrPromise<string>;
       };
       xmlns?: string;
     }

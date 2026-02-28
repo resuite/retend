@@ -150,10 +150,10 @@ export * from './render-to-string.js';
  *  });
  * ```
  */
-export async function hydrate(routerFn) {
+export async function hydrate(routerFn, { rootId = 'app' } = {}) {
   if (import.meta.env.DEV) {
     // In dev mode, we default to an SPA.
-    return defaultToSpaMode(routerFn);
+    return defaultToSpaMode(routerFn, rootId);
   }
 
   const contextScript = document.querySelector('script[data-server-context]');
@@ -161,7 +161,7 @@ export async function hydrate(routerFn) {
     console.warn(
       '[retend-server] No server-side context found. Falling back to SPA mode.'
     );
-    const router = await defaultToSpaMode(routerFn);
+    const router = await defaultToSpaMode(routerFn, rootId);
     return router;
   }
 
@@ -171,13 +171,16 @@ export async function hydrate(routerFn) {
   return router;
 }
 
-/** @param {() => Router} routerFn  */
-async function defaultToSpaMode(routerFn) {
+/**
+ * @param {() => Router} routerFn
+ * @param {string} rootId
+ */
+async function defaultToSpaMode(routerFn, rootId = 'app') {
   const router = routerFn();
   router.attachWindowListeners(window);
-  const root = document.getElementById('app');
+  const root = document.getElementById(rootId);
   if (!root) throw new Error('No root element found');
-  renderToDOM(root, createRouterRoot(router));
+  renderToDOM(root, () => createRouterRoot(router));
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
   addMetaListener(router, document);
   await runPendingSetupEffects();

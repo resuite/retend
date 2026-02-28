@@ -1,5 +1,6 @@
 import 'retend-web/jsx-runtime';
-import { App } from '@/App';
-import { renderToDOM } from 'retend-web';
+import { createRouter } from '@/router';
+import { hydrate } from 'retend-server/client';
+import './index.css';
 
-renderToDOM(document.getElementById('root')!, App);
+hydrate(createRouter, { rootId: 'root' });
