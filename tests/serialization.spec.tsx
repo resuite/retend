@@ -114,6 +114,24 @@ const runTests = () => {
     );
   });
 
+  it('should not escape raw text inside script and style tags', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const scriptContent =
+      '(function(){var theme=localStorage.getItem(\'retend-theme\');if(theme === \'\\"dark\\"\' || (!theme && window.matchMedia(\'(prefers-color-scheme: dark)\').matches)){document.documentElement.classList.add(\'dark\');}})();';
+    const styleContent = `.test::before{content:"<>&'";}`;
+    const element = (
+      <div>
+        <script>{scriptContent}</script>
+        <style>{styleContent}</style>
+      </div>
+    );
+    const result = toString(element, window);
+    expect(result).toBe(
+      `<div><script>${scriptContent}</script><style>${styleContent}</style></div>`
+    );
+  });
+
   it('should handle elements with boolean attributes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;

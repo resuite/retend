@@ -19,6 +19,7 @@ const voidElements = new Set([
 ]);
 
 const SPLIT_TEXT_MARKER = '<!--@@-->';
+const rawTextElements = new Set(['SCRIPT', 'STYLE']);
 
 /**
  * Renders a JSX template to a string.
@@ -38,8 +39,11 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  * const renderedString = renderToString(jsxTemplate);
  * console.log(renderedString); // Outputs: <div>Hello, world!</div>
  */
-export function renderToString(template, window) {
+export function renderToString(template, window, inRawTextElement = false) {
   if (/string|number|boolean/.test(typeof template)) {
+    if (inRawTextElement) {
+      return String(template);
+    }
     return escapeHTML(template);
   }
 
@@ -57,6 +61,9 @@ export function renderToString(template, window) {
      * even when the nodeType is Node.TEXT_NODE
      */
     if (template.nodeType === window.Node.TEXT_NODE) {
+      if (inRawTextElement) {
+        return template.textContent ?? '';
+      }
       return escapeHTML(template.textContent ?? '');
     }
 
@@ -67,7 +74,7 @@ export function renderToString(template, window) {
     if (template instanceof window.ShadowRoot) {
       let text = '<template shadowrootmode="open">';
       for (const child of template.childNodes) {
-        text += renderToString(child, window);
+        text += renderToString(child, window, false);
       }
       text += '</template>';
       return text;
@@ -76,13 +83,14 @@ export function renderToString(template, window) {
     if (template instanceof window.DocumentFragment) {
       let textContent = '';
       for (const child of template.childNodes) {
-        textContent += renderToString(child, window);
+        textContent += renderToString(child, window, inRawTextElement);
       }
       return textContent;
     }
 
     if (template instanceof window.Element) {
       const tagName = template.tagName.toLowerCase();
+      const isRawTextElement = rawTextElements.has(template.tagName);
 
       let text = `<${tagName}`;
 
@@ -95,7 +103,7 @@ export function renderToString(template, window) {
         text += '>';
 
         if (template.shadowRoot) {
-          text += renderToString(template.shadowRoot, window);
+          text += renderToString(template.shadowRoot, window, false);
         }
 
         let precededByTextNode = false;
@@ -103,14 +111,15 @@ export function renderToString(template, window) {
           // Insert marker between consecutive text nodes to preserve whitespace
           // This prevents text node merging during HTML parsing
           const shouldSplit =
+            !isRawTextElement &&
             precededByTextNode &&
             child.nodeType === window.Node.TEXT_NODE &&
             (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
 
           if (shouldSplit) {
-            text += `${SPLIT_TEXT_MARKER}${renderToString(child, window)}`;
+            text += `${SPLIT_TEXT_MARKER}${renderToString(child, window, false)}`;
           } else {
-            text += renderToString(child, window);
+            text += renderToString(child, window, isRawTextElement);
           }
           precededByTextNode =
             child.nodeType === window.Node.TEXT_NODE &&
@@ -126,14 +135,14 @@ export function renderToString(template, window) {
     }
 
     if (template instanceof window.Document) {
-      return renderToString(template.documentElement, window);
+      return renderToString(template.documentElement, window, false);
     }
   }
 
   if (Array.isArray(template)) {
     let textContent = '';
     for (const child of template) {
-      textContent += renderToString(child, window);
+      textContent += renderToString(child, window, inRawTextElement);
     }
     return textContent;
   }
