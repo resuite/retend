@@ -21,30 +21,48 @@
   --color-retend-bg: #ffffff;
   --color-retend-fg: #0f172a;
   --color-retend-fg-muted: #64748b;
-  --color-retend-brand: #9a3412;
-  --color-retend-brand-dark: #7c2d12;
-  --color-retend-brand-soft: #fff7ed;
+  --color-retend-brand: #2b4aa8;
+  --color-retend-brand-dark: #1f377f;
+  --color-retend-brand-soft: #e1ebff;
   --color-retend-surface: #ffffff;
   --color-retend-surface-alt: #f1f5f9;
   --color-retend-surface-alt-hover: #e2e8f0;
   --color-retend-border: #151515;
   --color-retend-dots: #94a3b8;
   --color-retend-card-shadow: #c5c5c5;
+  --color-retend-selection-bg: #e2e8f0;
+  --color-retend-selection-fg: #1e293b;
+  --color-retend-code-keyword: #334155;
+  --color-retend-code-function: #0e7490;
+  --color-retend-code-string: #0f766e;
+  --color-retend-code-number: #a16207;
+  --color-retend-code-property: #1e40af;
+  --color-retend-code-type: #64748b;
+  --color-retend-code-comment: #94a3b8;
 }
 
 .dark {
   --color-retend-bg: #1c1917;
   --color-retend-fg: #fafaf9;
   --color-retend-fg-muted: #a8a29e;
-  --color-retend-brand: #f97316;
-  --color-retend-brand-dark: #fb923c;
-  --color-retend-brand-soft: #431407;
+  --color-retend-brand: #3d7dd1;
+  --color-retend-brand-dark: #2b5aa5;
+  --color-retend-brand-soft: #0b1223;
   --color-retend-surface: #292524;
   --color-retend-surface-alt: #44403c;
   --color-retend-surface-alt-hover: #57534e;
   --color-retend-border: #44403c;
   --color-retend-dots: #44403c;
   --color-retend-card-shadow: #121212;
+  --color-retend-selection-bg: #57534e;
+  --color-retend-selection-fg: #f8fafc;
+  --color-retend-code-keyword: #e2e8f0;
+  --color-retend-code-function: #7dd3fc;
+  --color-retend-code-string: #5eead4;
+  --color-retend-code-number: #fbbf24;
+  --color-retend-code-property: #93c5fd;
+  --color-retend-code-type: #94a3b8;
+  --color-retend-code-comment: #78716c;
 }
 
 @layer base {
@@ -66,6 +84,11 @@
     font-weight: 400;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-retend-selection-bg);
+    color: var(--color-retend-selection-fg);
   }
 
   h1,

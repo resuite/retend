@@ -1,8 +1,7 @@
-import { Link } from 'retend/router';
-
 import { ArrowRightIcon, ExternalLinkIcon } from '@/icons';
 
 import { CodeBlock } from './CodeBlock';
+import { Button } from './Button';
 
 const heroCode = `import { Cell } from "retend";
 
@@ -19,36 +18,32 @@ function Counter() {
 
 export function Hero() {
   return (
-    <section class="grid grid-cols-1 items-center gap-15 py-10 md:grid-cols-[1.1fr_0.9fr] md:gap-20 md:py-20">
+    <section class="grid grid-cols-1 items-center gap-10 py-8 sm:gap-12 md:grid-cols-[1.1fr_0.9fr] md:gap-20 md:py-20">
       <div>
-        <h1 class="text-fg mb-6 text-[2.5rem] leading-tight tracking-tight">
+        <h1 class="text-fg mb-5 text-[2rem] leading-tight tracking-tight sm:text-[2.4rem] md:text-[2.6rem]">
           The framework for
           <br />
           fluid user interfaces.
         </h1>
-        <p class="text-fg-muted text-lg">
+        <p class="text-fg-muted text-base sm:text-lg">
           Retend is a toolkit for creating interactive applications and user
           interfaces. It manages complex application logic, allowing you to
           build fast, smooth sites declaratively.
         </p>
 
-        <div class="mt-12 flex gap-6">
-          <Link
-            href="/quickstart"
-            class="bg-brand hover:bg-brand-dark inline-flex items-center gap-2.5 rounded-lg px-7 py-3 text-white hover:-translate-y-0.5"
-          >
+        <div class="mt-8 flex flex-col gap-4 sm:mt-10 sm:flex-row sm:gap-6">
+          <Button href="/quickstart" variant="primary">
             Get Started
             <ArrowRightIcon />
-          </Link>
-          <a
+          </Button>
+          <Button
             href="https://github.com/adebola-io/retend"
-            class="border-surface-alt bg-surface-alt text-fg hover:bg-surface-alt-hover hover:border-surface-alt-hover inline-flex items-center gap-2.5 rounded-lg border px-7 py-3"
-            target="_blank"
-            rel="noreferrer"
+            variant="secondary"
+            external
           >
             View Github
             <ExternalLinkIcon />
-          </a>
+          </Button>
         </div>
       </div>
 

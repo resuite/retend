@@ -30,11 +30,11 @@ export function FeaturesPage() {
         description="A specialized toolkit designed for building performance-critical user interfaces."
       />
 
-      <div class="grid grid-cols-1 gap-y-15 md:grid-cols-3 md:gap-x-12 md:gap-y-16">
+      <div class="grid grid-cols-1 gap-y-10 sm:gap-y-12 md:grid-cols-3 md:gap-x-12 md:gap-y-16">
         {For(
           FEATURES,
           (feature) => (
-            <Card interactive class="p-8">
+            <Card class="p-6 md:p-8">
               <FeatureCard
                 icon={icons[feature.id]}
                 title={feature.title}

@@ -13,17 +13,17 @@ export function QuickstartPage() {
         description="Onboarding is fast. Retend stays close to modern TypeScript workflows."
       />
 
-      <div class="grid grid-cols-1 gap-y-15 md:grid-cols-3 md:gap-x-12 md:gap-y-16">
+      <div class="grid grid-cols-1 gap-y-10 sm:gap-y-12 md:grid-cols-3 md:gap-x-12 md:gap-y-16">
         {For(
           QUICKSTART_STEPS,
           (step) => (
-            <Card interactive class="p-8">
+            <Card class="p-6 md:p-8">
               <FeatureCard
                 id={step.id}
                 title={step.title}
                 description={step.detail}
               />
-              <code class="border-brand text-fg mt-6 border-l-2 pl-4 font-mono text-xs">
+              <code class="border-brand text-fg mt-5 border-l-2 pl-4 font-mono text-[0.7rem] sm:mt-6 sm:text-xs">
                 {step.command}
               </code>
             </Card>

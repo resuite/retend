@@ -15,7 +15,7 @@ export const retendTheme: ThemeInput = {
     {
       scope: ['comment', 'punctuation.definition.comment', 'string.comment'],
       settings: {
-        foreground: 'var(--color-retend-fg-muted)',
+        foreground: 'var(--color-retend-code-comment)',
         fontStyle: 'italic',
       },
     },
@@ -28,13 +28,13 @@ export const retendTheme: ThemeInput = {
         'variable.language',
       ],
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-number)',
       },
     },
     {
       scope: ['entity', 'entity.name'],
       settings: {
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-type)',
       },
     },
     {
@@ -46,19 +46,19 @@ export const retendTheme: ThemeInput = {
     {
       scope: 'entity.name.tag',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-property)',
       },
     },
     {
       scope: 'keyword',
       settings: {
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: ['storage', 'storage.type'],
       settings: {
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-type)',
       },
     },
     {
@@ -78,19 +78,19 @@ export const retendTheme: ThemeInput = {
         'string punctuation.section.embedded source',
       ],
       settings: {
-        foreground: 'var(--color-retend-fg-muted)',
+        foreground: 'var(--color-retend-code-string)',
       },
     },
     {
       scope: 'support',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-function)',
       },
     },
     {
       scope: 'meta.property-name',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-property)',
       },
     },
     {
@@ -109,54 +109,54 @@ export const retendTheme: ThemeInput = {
       scope: 'invalid.broken',
       settings: {
         fontStyle: 'italic',
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'invalid.deprecated',
       settings: {
         fontStyle: 'italic',
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'invalid.illegal',
       settings: {
         fontStyle: 'italic',
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'invalid.unimplemented',
       settings: {
         fontStyle: 'italic',
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'carriage-return',
       settings: {
         fontStyle: 'italic underline',
-        background: 'var(--color-retend-brand-dark)',
+        background: 'var(--color-retend-code-keyword)',
         foreground: 'var(--color-retend-bg)',
       },
     },
     {
       scope: 'message.error',
       settings: {
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'string variable',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-string)',
       },
     },
     {
       scope: ['source.regexp', 'string.regexp'],
       settings: {
-        foreground: 'var(--color-retend-fg-muted)',
+        foreground: 'var(--color-retend-code-string)',
       },
     },
     {
@@ -167,49 +167,49 @@ export const retendTheme: ThemeInput = {
         'string.regexp string.regexp.arbitrary-repitition',
       ],
       settings: {
-        foreground: 'var(--color-retend-fg-muted)',
+        foreground: 'var(--color-retend-code-string)',
       },
     },
     {
       scope: 'string.regexp constant.character.escape',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-number)',
       },
     },
     {
       scope: 'support.constant',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-number)',
       },
     },
     {
       scope: 'support.variable',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-property)',
       },
     },
     {
       scope: 'meta.module-reference',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-property)',
       },
     },
     {
       scope: 'punctuation.definition.list.begin.markdown',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: ['markup.heading', 'markup.heading entity.name'],
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'markup.quote',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-comment)',
       },
     },
     {
@@ -222,6 +222,7 @@ export const retendTheme: ThemeInput = {
     {
       scope: 'markup.bold',
       settings: {
+        fontStyle: 'normal',
         foreground: 'var(--color-retend-fg)',
       },
     },
@@ -240,7 +241,7 @@ export const retendTheme: ThemeInput = {
     {
       scope: 'markup.inline.raw',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-function)',
       },
     },
     {
@@ -251,7 +252,7 @@ export const retendTheme: ThemeInput = {
       ],
       settings: {
         background: 'var(--color-retend-brand-soft)',
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
@@ -262,14 +263,14 @@ export const retendTheme: ThemeInput = {
       ],
       settings: {
         background: 'var(--color-retend-surface-alt)',
-        foreground: 'var(--color-retend-fg-muted)',
+        foreground: 'var(--color-retend-code-comment)',
       },
     },
     {
       scope: ['markup.changed', 'punctuation.definition.changed'],
       settings: {
         background: 'var(--color-retend-brand-soft)',
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-number)',
       },
     },
     {
@@ -288,19 +289,19 @@ export const retendTheme: ThemeInput = {
     {
       scope: 'meta.diff.header',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'meta.separator',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
       scope: 'meta.output',
       settings: {
-        foreground: 'var(--color-retend-brand)',
+        foreground: 'var(--color-retend-code-keyword)',
       },
     },
     {
@@ -313,19 +314,19 @@ export const retendTheme: ThemeInput = {
         'brackethighlighter.quote',
       ],
       settings: {
-        foreground: 'var(--color-retend-fg-muted)',
+        foreground: 'var(--color-retend-code-type)',
       },
     },
     {
       scope: 'brackethighlighter.unmatched',
       settings: {
-        foreground: 'var(--color-retend-brand-dark)',
+        foreground: 'var(--color-retend-code-number)',
       },
     },
     {
       scope: ['constant.other.reference.link', 'string.other.link'],
       settings: {
-        foreground: 'var(--color-retend-fg-muted)',
+        foreground: 'var(--color-retend-code-property)',
         fontStyle: 'underline',
       },
     },
