@@ -1,6 +1,9 @@
-import { Cell } from 'retend';
-import { useHighlighter } from '@/scopes/highlighter';
 import type { JSX } from 'retend/jsx-runtime';
+
+import { Cell } from 'retend';
+
+import { useHighlighter } from '@/scopes/highlighter';
+
 import { Card } from './Card';
 
 type CodeBlockContainerProps = JSX.BaseContainerProps & {
@@ -42,7 +45,7 @@ export function CodeBlock(props: CodeBlockProps) {
       {...restContainerProps}
     >
       <div
-        class="[&_.shiki]:overflow-x-auto [&_.shiki]:!bg-transparent [&_code]:font-mono [&_code]:text-[0.75rem] [&_code]:leading-relaxed [&_pre]:!bg-transparent sm:[&_code]:text-[0.8rem]"
+        class="[&_.shiki]:overflow-x-auto [&_.shiki]:!bg-transparent [&_code]:font-mono [&_code]:text-[0.75rem] [&_code]:leading-relaxed sm:[&_code]:text-[0.8rem] [&_pre]:!bg-transparent"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </Container>

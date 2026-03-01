@@ -1,7 +1,7 @@
+import { execSync } from 'node:child_process';
 /* oxlint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 
 // Function to recursively find all files with a specific extension
 function findFiles(dir, ext, fileList = []) {

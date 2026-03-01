@@ -1,3 +1,11 @@
+import blessed from 'blessed';
+import {
+  createNodesFromTemplate,
+  Cell,
+  type Renderer,
+  type __HMR_UpdatableFn,
+} from 'retend';
+
 import type {
   TerminalNode,
   TerminalTextNode,
@@ -6,13 +14,7 @@ import type {
   TerminalNodeProps,
   TerminalRendererTypes,
 } from './types';
-import {
-  createNodesFromTemplate,
-  Cell,
-  type Renderer,
-  type __HMR_UpdatableFn,
-} from 'retend';
-import blessed from 'blessed';
+
 import { getValue, resolveForTerminal } from '../shared/units';
 
 // --- Color Helpers ---

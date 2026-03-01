@@ -1,3 +1,7 @@
+import type { ReconcilerOptions } from 'retend';
+
+import { createNodesFromTemplate, Cell } from 'retend';
+
 import type {
   CanvasRendererTypes,
   CanvasNode,
@@ -6,8 +10,7 @@ import type {
   CanvasHandle,
   CanvasNodeProps,
 } from './types';
-import { createNodesFromTemplate, Cell } from 'retend';
-import type { ReconcilerOptions } from 'retend';
+
 import { getValue, resolveForCanvas } from '../shared/units';
 
 /**

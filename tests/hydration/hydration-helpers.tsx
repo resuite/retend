@@ -1,3 +1,5 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import {
   Await,
   branchState,
@@ -5,11 +7,10 @@ import {
   waitForAsyncBoundaries,
   withState,
 } from 'retend';
-import { setGlobalContext } from 'retend/context';
-import type { JSX } from 'retend/jsx-runtime';
 import { renderToString } from 'retend-server/client';
 import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
 import { DOMRenderer } from 'retend-web';
+import { setGlobalContext } from 'retend/context';
 import { vi } from 'vitest';
 
 type TemplateFn = () => JSX.Template;

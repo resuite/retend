@@ -1,3 +1,5 @@
+import type { VDOMRenderer } from 'retend-server/v-dom';
+
 import {
   Await,
   Cell,
@@ -6,8 +8,8 @@ import {
   waitForAsyncBoundaries,
 } from 'retend';
 import { renderToString } from 'retend-server/client';
-import type { VDOMRenderer } from 'retend-server/v-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { vDomSetup, timeout } from '../setup.tsx';
 
 describe('Await Serialization', () => {

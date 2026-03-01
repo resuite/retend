@@ -1,7 +1,7 @@
-import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
-import { retend } from 'retend-web/plugin';
+import path from 'node:path';
 import { retendSSG } from 'retend-server/plugin';
+import { retend } from 'retend-web/plugin';
 import { defineConfig } from 'vite';
 
 export default defineConfig({

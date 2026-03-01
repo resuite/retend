@@ -1,9 +1,11 @@
+import type { DOMRenderer } from 'retend-web';
+
+import { getActiveRenderer } from 'retend';
+import { runPendingSetupEffects } from 'retend';
 import { useLocalStorage, useSessionStorage } from 'retend-utils/hooks';
 import { describe, expect, it } from 'vitest';
+
 import { vDomSetup, browserSetup } from '../setup';
-import { getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
-import { runPendingSetupEffects } from 'retend';
 
 const localStorageKey = 'test-local-storage';
 const sessionStorageKey = 'test-session-storage';

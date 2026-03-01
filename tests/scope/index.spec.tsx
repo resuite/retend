@@ -9,6 +9,7 @@ import {
   withState,
 } from 'retend';
 import { describe, expect, it } from 'vitest';
+
 import { browserSetup, getTextContent, vDomSetup } from '../setup.tsx';
 
 const runTests = () => {

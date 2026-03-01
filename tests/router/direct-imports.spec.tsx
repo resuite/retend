@@ -1,5 +1,6 @@
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { getActiveRenderer } from 'retend';
 import {
   Link,
   Outlet,
@@ -9,6 +10,7 @@ import {
   defineRoutes,
 } from 'retend/router';
 import { describe, expect, it } from 'vitest';
+
 import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Direct Imports', () => {

@@ -4,6 +4,8 @@
 
 /** @import { AsyncCell } from '@adbl/cells'; */
 import { Cell } from '@adbl/cells';
+
+import { getGlobalContext } from '../context/index.js';
 import { If } from './index.js';
 import {
   createScope,
@@ -12,7 +14,6 @@ import {
   useScopeContext,
   withState,
 } from './scope.js';
-import { getGlobalContext } from '../context/index.js';
 
 /**
  * @typedef AwaitContext

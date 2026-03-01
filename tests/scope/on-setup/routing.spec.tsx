@@ -1,5 +1,6 @@
-import { getActiveRenderer, onSetup, runPendingSetupEffects } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { getActiveRenderer, onSetup, runPendingSetupEffects } from 'retend';
 import {
   Outlet,
   Router,
@@ -8,6 +9,7 @@ import {
   useRouter,
 } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
+
 import { getTextContent, routerSetupBrowser } from '../../setup.tsx';
 
 describe('onSetup with routing', () => {

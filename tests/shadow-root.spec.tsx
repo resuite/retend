@@ -1,8 +1,10 @@
-import { Cell, getActiveRenderer } from 'retend';
 import type { VElement, VNode } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, getActiveRenderer } from 'retend';
 import { ShadowRoot } from 'retend-web';
 import { assert, describe, expect, it } from 'vitest';
+
 import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
 
 const runTests = () => {

@@ -6,6 +6,7 @@ import {
   runPendingSetupEffects,
 } from 'retend';
 import { describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, getTextContent, timeout } from '../../setup.tsx';
 
 describe('onSetup with For', () => {

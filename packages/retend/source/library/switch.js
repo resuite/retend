@@ -1,9 +1,10 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 
 import { Cell, AsyncCell } from '@adbl/cells';
+
+import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
-import { useAwait } from './await.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.

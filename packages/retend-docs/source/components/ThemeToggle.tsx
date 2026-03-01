@@ -1,6 +1,8 @@
 import type { JSX } from 'retend/jsx-runtime';
-import { useThemeContext } from '@/scopes/theme';
+
 import { Cell } from 'retend';
+
+import { useThemeContext } from '@/scopes/theme';
 
 type NativeButtonProps = JSX.IntrinsicElements['button'];
 interface ThemeToggleProps extends NativeButtonProps {}

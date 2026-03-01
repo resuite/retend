@@ -1,5 +1,6 @@
 import { Cell, If } from 'retend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   type NodeLike,
   browserSetup,

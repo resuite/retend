@@ -1,7 +1,7 @@
 import { ArrowRightIcon, ExternalLinkIcon } from '@/icons';
 
-import { CodeBlock } from './CodeBlock';
 import { Button } from './Button';
+import { CodeBlock } from './CodeBlock';
 
 const heroCode = `import { Cell } from "retend";
 

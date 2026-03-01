@@ -8,10 +8,11 @@
 /** @import { ChildNode } from 'domhandler' */
 /** @import { VWindow, VDOMRenderer } from './v-dom/index.js'; */
 
-import { promises as fs } from 'node:fs';
-import { resolve } from 'node:path';
 import { Comment, Element, Text } from 'domhandler';
 import { parseDocument } from 'htmlparser2';
+import { promises as fs } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { addMetaListener } from './meta.js';
 import { renderToString } from './render-to-string.js';
 

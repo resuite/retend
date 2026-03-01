@@ -1,3 +1,5 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import {
   Await,
   Cell,
@@ -7,13 +9,13 @@ import {
   setActiveRenderer,
   waitForAsyncBoundaries,
 } from 'retend';
-import { Router, createRouterRoot } from 'retend/router';
-import { setGlobalContext } from 'retend/context';
 import { hydrate, renderToString } from 'retend-server/client';
 import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import { createUniqueTransition } from 'retend-utils/components';
+import { setGlobalContext } from 'retend/context';
+import { Router, createRouterRoot } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
-import type { JSX } from 'retend/jsx-runtime';
+
 import { browserSetup } from '../setup.tsx';
 
 const appStyles: JSX.StyleValue = {

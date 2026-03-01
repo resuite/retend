@@ -1,9 +1,10 @@
 /** @import { JSX } from '../jsx-runtime/index.js'; */
 /** @import { Renderer } from './renderer.js'; */
 import { AsyncCell } from '@adbl/cells';
+
+import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { createNodesFromTemplate, linkNodes } from './utils.js';
-import { useAwait } from './await.js';
 
 /**
  * @param {string | Function | undefined} tagOrFn

@@ -1,7 +1,9 @@
-import { Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, getActiveRenderer } from 'retend';
 import { Teleport } from 'retend-web';
 import { assert, describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, getTextContent, timeout } from './setup.tsx';
 
 describe('Teleport', () => {

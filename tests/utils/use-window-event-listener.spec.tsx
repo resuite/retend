@@ -1,6 +1,8 @@
-import { Cell, If, getActiveRenderer, runPendingSetupEffects } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, If, getActiveRenderer, runPendingSetupEffects } from 'retend';
 import { describe, expect, it, vi } from 'vitest';
+
 import { useWindowEventListener } from '../../packages/retend-utils/source/hooks';
 import { browserSetup } from '../setup.tsx';
 

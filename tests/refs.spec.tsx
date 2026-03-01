@@ -1,7 +1,9 @@
-import { Cell, getActiveRenderer } from 'retend';
 import type { VNode } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, getActiveRenderer } from 'retend';
 import { describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, vDomSetup } from './setup.tsx';
 
 const runTests = () => {

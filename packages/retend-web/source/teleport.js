@@ -1,7 +1,7 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 
-import { getGlobalContext } from 'retend/context';
 import { getActiveRenderer, linkNodes, createNodesFromTemplate } from 'retend';
+import { getGlobalContext } from 'retend/context';
 /** @import { DOMRenderer } from './dom-renderer.js' */
 
 /**

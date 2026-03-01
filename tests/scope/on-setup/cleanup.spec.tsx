@@ -6,6 +6,7 @@ import {
   runPendingSetupEffects,
 } from 'retend';
 import { describe, expect, it } from 'vitest';
+
 import { browserSetup, vDomSetup } from '../../setup.tsx';
 
 const runTests = () => {

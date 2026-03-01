@@ -2,9 +2,10 @@
 /** @import { StateSnapshot } from './scope.js' */
 
 import { Cell, AsyncCell } from '@adbl/cells';
+
+import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
-import { useAwait } from './await.js';
 
 /**
  * Extracts the item type from a list value.

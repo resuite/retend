@@ -4,11 +4,12 @@
 /** @import { AsyncStorage } from './types.js' */
 /** @import { Router } from 'retend/router' */
 
-import { buildPath, RedirectOutputArtifact } from './server.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
 /** @import { HtmlOutputArtifact } from './server.js' */
 import path, { resolve } from 'node:path';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { resolveConfig, createRunnableDevEnvironment } from 'vite';
+
+import { buildPath, RedirectOutputArtifact } from './server.js';
 
 /**
  * @typedef {object} SharedData

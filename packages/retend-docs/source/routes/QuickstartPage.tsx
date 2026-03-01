@@ -1,8 +1,9 @@
+import { For } from 'retend';
+
 import { Card } from '@/components/Card';
 import { FeatureCard } from '@/components/FeatureCard';
 import { SectionHeader } from '@/components/SectionHeader';
 import { QUICKSTART_STEPS } from '@/constants/data';
-import { For } from 'retend';
 
 export function QuickstartPage() {
   return (

@@ -1,7 +1,9 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import { Cell, If, onConnected } from 'retend';
 import { type DOMRenderer, Teleport } from 'retend-web';
-import type { JSX } from 'retend/jsx-runtime';
 import { describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, timeout } from '../setup.tsx';
 import {
   createHydrationClientRenderer,

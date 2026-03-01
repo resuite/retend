@@ -19,6 +19,7 @@
  */
 
 import { Cell } from '@adbl/cells';
+
 import { IgnoredHProps } from '../_internals.js';
 import { If } from '../library/if.js';
 import h from '../library/jsx.js';

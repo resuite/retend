@@ -1,5 +1,6 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 import { createNodesFromTemplate, getActiveRenderer } from 'retend';
+
 import { ShadowRootFragment } from './dom-ops.js';
 
 /**

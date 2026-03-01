@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { vDomSetup } from '../setup.tsx';
+import type { DOMRenderer } from 'retend-web';
+
 import { getActiveRenderer } from 'retend';
 import {
   type RouterMiddleware,
@@ -8,7 +8,9 @@ import {
   defineRoutes,
   redirect,
 } from 'retend/router';
-import type { DOMRenderer } from 'retend-web';
+import { describe, it, expect, vi } from 'vitest';
+
+import { vDomSetup } from '../setup.tsx';
 
 describe('Router Middlewares', () => {
   vDomSetup();

@@ -1,7 +1,9 @@
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { getActiveRenderer } from 'retend';
 import { Router, createRouterRoot, defineRoutes } from 'retend/router';
 import { describe, expect, it } from 'vitest';
+
 import { vDomSetup } from '../setup.tsx';
 
 describe('Router Title Updates', () => {

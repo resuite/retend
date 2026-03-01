@@ -1,5 +1,6 @@
 import { Cell } from 'retend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, render, timeout, vDomSetup } from '../setup.tsx';
 
 beforeEach(() => {

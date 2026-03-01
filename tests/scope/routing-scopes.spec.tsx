@@ -1,8 +1,10 @@
-import { createScope, getActiveRenderer, useScopeContext } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { createScope, getActiveRenderer, useScopeContext } from 'retend';
 import { resetGlobalContext } from 'retend/context';
 import { Router, createRouterRoot, useRouter } from 'retend/router';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+
 import { getTextContent, routerSetup } from '../setup.tsx';
 
 describe('Scopes in Routing', () => {

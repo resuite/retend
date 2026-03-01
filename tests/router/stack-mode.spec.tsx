@@ -1,7 +1,9 @@
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { getActiveRenderer } from 'retend';
 import { Router, createRouterRoot, useRouter } from 'retend/router';
 import { beforeEach, describe, expect, test } from 'vitest';
+
 import { getTextContent, vDomSetup } from '../setup.tsx';
 
 const runFlatTests = () => {

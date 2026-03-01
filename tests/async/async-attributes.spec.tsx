@@ -1,5 +1,6 @@
 import { Await, Cell, getActiveRenderer } from 'retend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, getTextContent, timeout, vDomSetup } from '../setup.tsx';
 
 beforeEach(() => {

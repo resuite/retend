@@ -1,5 +1,6 @@
 import { Cell } from 'retend';
 import { describe, expect, it } from 'vitest';
+
 import { browserSetup, render, vDomSetup } from './setup.tsx';
 
 const runTests = () => {

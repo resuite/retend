@@ -1,11 +1,12 @@
 import { Cell, runPendingSetupEffects } from 'retend';
-import { describe, expect, it, vi } from 'vitest';
 import { ClientOnly } from 'retend-server';
+import { describe, expect, it, vi } from 'vitest';
+
+import { browserSetup, render, vDomSetup } from '../setup.tsx';
 import {
   renderHydrationServerHtml,
   setupHydration,
 } from './hydration-helpers.tsx';
-import { browserSetup, render, vDomSetup } from '../setup.tsx';
 
 describe('ClientOnly', () => {
   describe('SSR (serialization)', () => {

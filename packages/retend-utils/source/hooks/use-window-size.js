@@ -1,4 +1,5 @@
 import { Cell, getActiveRenderer } from 'retend';
+
 import { createSharedHook } from '../internal/create-shared-hook.js';
 
 /**

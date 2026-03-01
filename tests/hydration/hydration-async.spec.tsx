@@ -1,6 +1,8 @@
-import { Cell, For, If, Switch } from 'retend';
 import type { JSX } from 'retend/jsx-runtime';
+
+import { Cell, For, If, Switch } from 'retend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, timeout } from '../setup.tsx';
 import {
   renderHydrationServerHtml,

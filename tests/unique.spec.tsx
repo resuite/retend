@@ -1,3 +1,5 @@
+import type { DOMRenderer } from 'retend-web';
+
 import {
   Cell,
   If,
@@ -7,9 +9,9 @@ import {
   onSetup,
   runPendingSetupEffects,
 } from 'retend';
-import type { DOMRenderer } from 'retend-web';
 import { ShadowRoot } from 'retend-web';
 import { describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, getTextContent, render, vDomSetup } from './setup';
 
 const runTests = () => {

@@ -14,6 +14,8 @@ import {
   setActiveRenderer,
   runPendingSetupEffects,
 } from 'retend';
+import { getGlobalContext, setGlobalContext } from 'retend/context';
+
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugin/hmr.js';
 import {
@@ -24,7 +26,6 @@ import {
   flattenJSXChildren,
   isReactiveChild,
 } from './utils.js';
-import { getGlobalContext, setGlobalContext } from 'retend/context';
 
 const COMMENT_NODE = 8;
 const TEXT_NODE = 3;

@@ -1,6 +1,7 @@
+import type { DOMRenderer } from 'retend-web';
+
 import { getActiveRenderer } from 'retend';
 import { Cell } from 'retend';
-import type { DOMRenderer } from 'retend-web';
 import {
   type RouteComponent,
   Router,
@@ -10,6 +11,7 @@ import {
   useRouter,
 } from 'retend/router';
 import { describe, expect, it } from 'vitest';
+
 import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Metadata', () => {

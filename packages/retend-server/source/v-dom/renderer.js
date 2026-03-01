@@ -9,6 +9,7 @@ import {
   getState,
 } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
+
 import { VComment, VDocumentFragment, VNode, VText } from './index.js';
 
 /**

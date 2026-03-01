@@ -9,10 +9,11 @@ import {
   setActiveRenderer,
   withState,
 } from 'retend';
-import { createRouterRoot } from 'retend/router';
-import { setGlobalContext } from 'retend/context';
-import { addMetaListener } from './meta.js';
 import { DOMRenderer, renderToDOM } from 'retend-web';
+import { setGlobalContext } from 'retend/context';
+import { createRouterRoot } from 'retend/router';
+
+import { addMetaListener } from './meta.js';
 
 export * from './render-to-string.js';
 

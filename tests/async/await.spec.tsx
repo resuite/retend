@@ -1,5 +1,6 @@
 import { Await, Cell, For, If, Switch, getActiveRenderer } from 'retend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   type NodeLike,
   browserSetup,

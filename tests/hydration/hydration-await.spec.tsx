@@ -1,7 +1,9 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import { Await, Cell, For, If, Switch } from 'retend';
 import { Teleport, ShadowRoot } from 'retend-web';
-import type { JSX } from 'retend/jsx-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, timeout } from '../setup.tsx';
 import { setupHydration } from './hydration-helpers.tsx';
 

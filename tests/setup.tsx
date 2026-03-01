@@ -1,12 +1,12 @@
 import 'retend-web/jsx-runtime';
-import { beforeEach, afterEach } from 'vitest';
-import { setGlobalContext, resetGlobalContext } from 'retend/context';
-import { type VNode, VWindow, isVNode } from 'retend-server/v-dom';
-import { setActiveRenderer, getActiveRenderer } from 'retend';
-
-import { DOMRenderer } from 'retend-web';
-import { VDOMRenderer } from 'retend-server/v-dom';
 import type { JSX } from 'retend/jsx-runtime';
+
+import { setActiveRenderer, getActiveRenderer } from 'retend';
+import { type VNode, VWindow, isVNode } from 'retend-server/v-dom';
+import { VDOMRenderer } from 'retend-server/v-dom';
+import { DOMRenderer } from 'retend-web';
+import { setGlobalContext, resetGlobalContext } from 'retend/context';
+import { beforeEach, afterEach } from 'vitest';
 
 export type NodeLike = VNode | Node;
 

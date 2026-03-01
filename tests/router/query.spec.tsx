@@ -1,5 +1,6 @@
-import { Cell, For, If, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, For, If, getActiveRenderer } from 'retend';
 import {
   type AsyncRouteQuery,
   Router,
@@ -7,6 +8,7 @@ import {
   useRouteQuery,
 } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
+
 import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('useRouteQuery', () => {

@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 
 import { runPendingSetupEffects, setActiveRenderer } from 'retend';
-import { CanvasRenderer } from './renderer';
+
 import App from '../../App';
+import { CanvasRenderer } from './renderer';
 
 const canvas = document.getElementById('canvas-root') as HTMLCanvasElement;
 if (!canvas) {

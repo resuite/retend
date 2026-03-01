@@ -1,6 +1,8 @@
-import { Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, getActiveRenderer } from 'retend';
 import { describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, render } from './setup.tsx';
 
 describe('Event Modifiers', () => {

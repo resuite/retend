@@ -7,6 +7,7 @@ import {
 } from 'retend';
 import { resetGlobalContext } from 'retend/context';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, getTextContent, timeout } from '../../setup.tsx';
 
 describe('onSetup with Switch', () => {

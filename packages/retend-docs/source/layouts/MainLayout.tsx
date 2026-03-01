@@ -27,8 +27,14 @@ export function MainLayout() {
               >
                 retend
               </Link>
-              <div class="flex flex-wrap items-center gap-6 md:gap-10" aria-label="Primary">
-                <Link class="text-fg-muted text-sm md:text-[0.95rem]" href="/features">
+              <div
+                class="flex flex-wrap items-center gap-6 md:gap-10"
+                aria-label="Primary"
+              >
+                <Link
+                  class="text-fg-muted text-sm md:text-[0.95rem]"
+                  href="/features"
+                >
                   Features
                 </Link>
                 <Link

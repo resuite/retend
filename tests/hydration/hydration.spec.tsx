@@ -1,3 +1,5 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import {
   Cell,
   For,
@@ -9,15 +11,15 @@ import {
   useScopeContext,
 } from 'retend';
 import { ShadowRoot, Teleport } from 'retend-web';
-import type { JSX } from 'retend/jsx-runtime';
 import { describe, expect, it, vi } from 'vitest';
+
+import { browserSetup, getTextContent } from '../setup.tsx';
 import {
   createHydrationClientRenderer,
   renderHydrationServerHtml,
   setupHydration,
   startHydration,
 } from './hydration-helpers.tsx';
-import { browserSetup, getTextContent } from '../setup.tsx';
 
 describe('Hydration', () => {
   browserSetup();

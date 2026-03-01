@@ -1,3 +1,5 @@
+import { For } from 'retend';
+
 import { Card } from '@/components/Card';
 import { FeatureCard } from '@/components/FeatureCard';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -10,7 +12,6 @@ import {
   RoutingIcon,
   TypescriptIcon,
 } from '@/icons';
-import { For } from 'retend';
 
 export function FeaturesPage() {
   const icons: Record<string, ReturnType<typeof ComposableIcon>> = {

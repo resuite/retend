@@ -1,4 +1,5 @@
 import type { JSX } from 'retend/jsx-runtime';
+
 import { Link } from 'retend/router';
 
 export type ButtonVariant = 'primary' | 'secondary';

@@ -7,6 +7,7 @@ import {
   runPendingSetupEffects,
 } from 'retend';
 import { describe, expect, it } from 'vitest';
+
 import { browserSetup, getTextContent, timeout } from '../../setup.tsx';
 
 describe('nested onSetup', () => {

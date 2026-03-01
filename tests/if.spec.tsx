@@ -1,7 +1,9 @@
-import { Cell, If, getActiveRenderer } from 'retend';
 import type { VNode } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, If, getActiveRenderer } from 'retend';
 import { describe, expect, it } from 'vitest';
+
 import {
   type NodeLike,
   browserSetup,

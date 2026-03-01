@@ -2,15 +2,15 @@
 /* oxlint-disable no-console */
 /// <reference types="node" />
 
+import chalk from 'chalk';
+import { createPromptModule } from 'inquirer';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-
-import chalk from 'chalk';
-import { createPromptModule } from 'inquirer';
 import ora from 'ora';
 import semver from 'semver';
+
 import CONFIG from './config.json' with { type: 'json' };
 
 const isBun =

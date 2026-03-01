@@ -1,10 +1,12 @@
-import { Cell, For, If, getActiveRenderer } from 'retend';
-import { renderToString } from 'retend-server/client';
 import type { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
-import { ShadowRoot } from 'retend-web';
 import type { JSX } from 'retend/jsx-runtime';
+
+import { Cell, For, If, getActiveRenderer } from 'retend';
+import { renderToString } from 'retend-server/client';
+import { ShadowRoot } from 'retend-web';
 import { describe, expect, it } from 'vitest';
+
 import { browserSetup, vDomSetup } from './setup.tsx';
 
 const toString = (template: JSX.Template, window: Window | VWindow) => {

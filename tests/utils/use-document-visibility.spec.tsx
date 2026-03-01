@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { browserSetup } from '../setup.tsx';
-import { useDocumentVisibility } from '../../packages/retend-utils/source/hooks';
-import { runPendingSetupEffects, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { runPendingSetupEffects, getActiveRenderer } from 'retend';
+import { describe, it, expect } from 'vitest';
+
+import { useDocumentVisibility } from '../../packages/retend-utils/source/hooks';
+import { browserSetup } from '../setup.tsx';
 
 describe('useDocumentVisibility', () => {
   browserSetup();

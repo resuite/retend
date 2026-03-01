@@ -1,6 +1,6 @@
+import { execSync } from 'node:child_process';
 /* oxlint-disable no-console */
 import fs from 'node:fs';
-import { execSync } from 'node:child_process';
 
 if (fs.existsSync('dist')) {
   console.log('Removing dist directory...');

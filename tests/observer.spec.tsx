@@ -1,6 +1,8 @@
-import { Cell, getActiveRenderer, onConnected } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, getActiveRenderer, onConnected } from 'retend';
 import { describe, expect, it, vi } from 'vitest';
+
 import { browserSetup, timeout } from './setup.tsx';
 
 describe('onConnected', () => {
