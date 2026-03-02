@@ -10,9 +10,6 @@ export type ButtonProps = JSX.IntrinsicElements['button'] & {
   variant?: ButtonVariant;
 };
 
-const baseClass =
-  'inline-flex w-full items-center justify-center gap-2.5 rounded-lg px-7 py-3 transition sm:w-auto';
-
 const variantClass: Record<ButtonVariant, string> = {
   primary: 'bg-brand text-white',
   secondary: 'border-brand bg-white text-fg border dark:bg-surface',
@@ -30,7 +27,12 @@ export function Button(props: ButtonProps) {
     ...rest
   } = props;
 
-  const classNames = [baseClass, variantClass[variant], className];
+  const classNames = [
+    'inline-flex w-full items-center justify-center gap-2.5 rounded-lg px-7 py-3 sm:w-auto',
+    'dark:shadow-[-4px_4px_0_var(--color-card-shadow)]',
+    variantClass[variant],
+    className,
+  ];
 
   if (href && external) {
     return (

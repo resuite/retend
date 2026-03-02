@@ -1,5 +1,7 @@
-import { Features } from '@/components/Features';
+import { CallToAction } from '@/components/CallToAction';
+import { Ecosystem } from '@/components/Ecosystem';
 import { Hero } from '@/components/Hero';
+import { RunsOnce } from '@/components/RunsOnce';
 import { ValueProp } from '@/components/ValueProp';
 
 export function Home() {
@@ -7,7 +9,9 @@ export function Home() {
     <>
       <Hero />
       <ValueProp />
-      <Features />
+      <RunsOnce />
+      <Ecosystem />
+      <CallToAction />
     </>
   );
 }

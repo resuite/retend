@@ -1,7 +1,6 @@
 import { Router } from 'retend/router';
 
 import { MainLayout } from '@/layouts/MainLayout';
-import { FeaturesPage } from '@/routes/FeaturesPage';
 import { Home } from '@/routes/Home';
 import { QuickstartPage } from '@/routes/QuickstartPage';
 
@@ -15,10 +14,6 @@ export function createRouter() {
           {
             path: '/',
             component: Home,
-          },
-          {
-            path: '/features',
-            component: FeaturesPage,
           },
           {
             path: '/quickstart',

@@ -23,12 +23,12 @@ export function FeatureCard(props: FeatureCardProps) {
   return (
     <div class={['flex flex-col', className]} {...rest}>
       {If(hasIcon, () => (
-        <div class="text-brand mb-5 md:mb-6 [&_svg]:h-7 [&_svg]:w-7 md:[&_svg]:h-8 md:[&_svg]:w-8">
+        <div class="text-fg mb-5 md:mb-6 [&_svg]:h-7 [&_svg]:w-7 md:[&_svg]:h-8 md:[&_svg]:w-8">
           {icon}
         </div>
       ))}
       {If(hasId, () => (
-        <span class="text-brand mb-2 block font-mono text-[0.75rem] md:mb-3 md:text-[0.8rem]">
+        <span class="text-fg mb-2 block font-mono text-[0.75rem] md:mb-3 md:text-[0.8rem]">
           {id}
         </span>
       ))}
