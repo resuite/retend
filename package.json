@@ -32,7 +32,8 @@
     "publish-utils": "pnpm --filter retend-utils run build && pnpm --filter retend-utils publish --access public",
     "publish-all": "pnpm run publish-core && pnpm run publish-web && pnpm run publish-ssg && pnpm run publish-start && pnpm run publish-utils",
     "pack-all": "chmod +x ./scripts/pack.sh && ./scripts/pack.sh",
-    "previews": "cp README.md packages/retend/README.md && pnpm dlx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-server' './packages/retend-start' './packages/retend-utils'"
+    "previews": "cp README.md packages/retend/README.md && pnpm dlx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-server' './packages/retend-start' './packages/retend-utils'",
+    "prepare": "husky"
   },
   "workspaces": [
     "packages/*",
@@ -40,6 +41,7 @@
     "experiments/*"
   ],
   "devDependencies": {
+    "husky": "^9.1.7",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.50.0"
   }
