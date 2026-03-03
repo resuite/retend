@@ -84,7 +84,12 @@ function isUppercaseLetterCode(code: number): boolean {
   return code >= 65 && code <= 90;
 }
 
-function pushEscaped(out: string[], source: string, start: number, end: number): void {
+function pushEscaped(
+  out: string[],
+  source: string,
+  start: number,
+  end: number
+): void {
   let cursor = start;
   for (let i = start; i < end; i += 1) {
     const code = source.charCodeAt(i);
@@ -105,7 +110,7 @@ function pushWrappedToken(
   className: string,
   source: string,
   start: number,
-  end: number,
+  end: number
 ): void {
   out.push('<span class="', className, '">');
   pushEscaped(out, source, start, end);
@@ -118,7 +123,11 @@ function escapeHtml(source: string): string {
   return out.join('');
 }
 
-function findStringEnd(source: string, start: number, quoteCode: number): number {
+function findStringEnd(
+  source: string,
+  start: number,
+  quoteCode: number
+): number {
   let i = start + 1;
   while (i < source.length) {
     const code = source.charCodeAt(i);

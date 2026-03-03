@@ -118,7 +118,7 @@ const runTests = () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const scriptContent =
-      '(function(){var theme=localStorage.getItem(\'retend-theme\');if(theme === \'\\"dark\\"\' || (!theme && window.matchMedia(\'(prefers-color-scheme: dark)\').matches)){document.documentElement.classList.add(\'dark\');}})();';
+      "(function(){var theme=localStorage.getItem('retend-theme');if(theme === '\\\"dark\\\"' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}})();";
     const styleContent = `.test::before{content:"<>&'";}`;
     const element = (
       <div>
