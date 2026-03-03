@@ -12,9 +12,9 @@ export function CallToAction() {
       <h2 class="text-fg mb-5 text-[1.6rem] leading-tight tracking-tight sm:text-[1.9rem] md:text-[2.2rem]">
         Start building today.
       </h2>
-      <p class="text-fg-muted mb-10 max-w-[520px] text-base sm:text-lg">
-        One command to scaffold a new project. TypeScript, routing,
-        and dev server — all configured and ready.
+      <p class="text-fg-muted mb-10 max-w-130 text-base sm:text-lg">
+        One command to scaffold a new project. TypeScript, routing, and dev
+        server — all configured and ready.
       </p>
 
       <Card class="mb-10 inline-flex items-center gap-4 px-6 py-4 sm:px-8">

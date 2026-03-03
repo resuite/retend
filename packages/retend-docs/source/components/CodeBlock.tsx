@@ -1,23 +1,17 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { Cell } from 'retend';
-
-import { useHighlighter } from '@/scopes/highlighter';
+import { highlightCode } from '@/utils/tsxHighlighter';
 
 import { Card } from './Card';
 
-type CodeBlockContainerProps = JSX.BaseContainerProps & {
-  class?: string | string[] | object;
-};
-
-type CodeBlockContainer = (props: CodeBlockContainerProps) => JSX.Element;
+type CodeBlockContainer = (props: JSX.BaseContainerProps) => JSX.Element;
 
 interface CodeBlockProps {
   code: string;
   lang: string;
   class?: string | string[] | object;
   container?: CodeBlockContainer;
-  containerProps?: CodeBlockContainerProps;
+  containerProps?: JSX.BaseContainerProps;
 }
 
 export function CodeBlock(props: CodeBlockProps) {
@@ -28,12 +22,7 @@ export function CodeBlock(props: CodeBlockProps) {
     container: Container = Card,
     containerProps,
   } = props;
-  const highlighterPromise = useHighlighter();
-
-  const html = Cell.derivedAsync(async () => {
-    const highlighter = await highlighterPromise;
-    return highlighter.codeToHtml(code, { lang, theme: 'retend-theme' });
-  });
+  const html = highlightCode(code, lang);
 
   const { class: containerClassName, ...restContainerProps } =
     containerProps ?? {};
@@ -44,10 +33,14 @@ export function CodeBlock(props: CodeBlockProps) {
       aria-label="Code sample"
       {...restContainerProps}
     >
-      <div
-        class="[&_.shiki]:overflow-x-auto [&_.shiki]:bg-transparent! [&_code]:font-mono [&_code]:text-[0.75rem] [&_code]:leading-relaxed sm:[&_code]:text-[0.8rem] [&_pre]:bg-transparent!"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      <div class="overflow-x-auto">
+        <pre class="rt-code-block rt-code-pre">
+          <code
+            class="rt-code-content"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        </pre>
+      </div>
     </Container>
   );
 }

@@ -14,7 +14,6 @@
     "retend-server": "workspace:*",
     "retend-utils": "workspace:*",
     "retend-web": "workspace:*",
-    "shiki": "^4.0.0",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {

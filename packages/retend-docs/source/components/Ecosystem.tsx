@@ -1,16 +1,16 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import { Card } from './Card';
-import { FeatureCard } from './FeatureCard';
-import { SectionHeader } from './SectionHeader';
 import {
   AwaitIllustration,
   HmrIllustration,
-  MicrofrontendIllustration,
   RouterIllustration,
+  ScopedContextIllustration,
   SsrIllustration,
-  TypeSafetyIllustration,
+  UniversalRenderingIllustration,
 } from './EcosystemIllustrations';
+import { FeatureCard } from './FeatureCard';
+import { SectionHeader } from './SectionHeader';
 
 function EcosystemCard(props: {
   title: string;
@@ -18,15 +18,12 @@ function EcosystemCard(props: {
   illustration: () => JSX.Element;
 }) {
   return (
-    <Card class="group flex flex-col overflow-hidden transition-colors hover:border-brand/40">
-      <div class="relative flex h-48 w-full items-center justify-center overflow-hidden border-b border-border bg-surface-alt/30 transition-colors group-hover:bg-brand/[0.02]">
+    <Card class="group hover:border-brand/40 flex min-w-0 flex-col overflow-hidden transition-colors">
+      <div class="border-border/65 dark:border-border bg-surface-alt/30 group-hover:bg-brand/[0.02] relative flex h-48 w-full items-center justify-center overflow-hidden border-b transition-colors">
         <props.illustration />
       </div>
       <div class="flex-1 p-6 md:p-8">
-        <FeatureCard
-          title={props.title}
-          description={props.description}
-        />
+        <FeatureCard title={props.title} description={props.description} />
       </div>
     </Card>
   );
@@ -70,30 +67,30 @@ export function Ecosystem() {
           title="Instant HMR"
           description={
             <>
-              Experience lightning-fast Hot Module Replacement.
-              State is preserved across updates so you never lose
-              your place while iterating on complex UIs.
+              Experience lightning-fast Hot Module Replacement. State is
+              preserved across updates so you never lose your place while
+              iterating on complex UIs.
             </>
           }
           illustration={HmrIllustration}
         />
 
         <EcosystemCard
-          title="Microfrontends"
+          title="Scoped Context"
           description={
             <>
-              Deploy independent Retend applications and stitch them
-              together at runtime. True architectural decoupling powered
-              by Webpack Module Federation and zero-cost hydration.
+              Type-safe dependency injection scoped to component subtrees.
+              Create isolated contexts that automatically clean up, with no prop
+              drilling or global singletons required.
             </>
           }
-          illustration={MicrofrontendIllustration}
+          illustration={ScopedContextIllustration}
         />
 
         <EcosystemCard
-          title="Strictly Typed"
-          description="Built entirely in TypeScript. Enjoy end-to-end type safety across components, context boundaries, router parameters, and API responses."
-          illustration={TypeSafetyIllustration}
+          title="Universal Rendering"
+          description="Write components once and render them anywhere. The same code runs in the browser, on the server, or in tests — powered by a pluggable renderer architecture."
+          illustration={UniversalRenderingIllustration}
         />
       </div>
     </section>

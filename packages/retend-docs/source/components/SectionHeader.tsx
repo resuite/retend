@@ -11,7 +11,7 @@ export function SectionHeader(props: SectionHeaderProps) {
   const { label, title, description, class: className, ...rest } = props;
 
   return (
-    <div class={['mb-8 max-w-[640px] md:mb-12', className]} {...rest}>
+    <div class={['mb-8 max-w-160 md:mb-12', className]} {...rest}>
       <span class="text-brand mb-3 block font-mono text-xs tracking-widest uppercase md:mb-4">
         {label}
       </span>

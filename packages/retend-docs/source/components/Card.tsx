@@ -10,6 +10,7 @@ export function Card(props: CardProps) {
       class={[
         'border-border bg-surface rounded-xl border shadow-[-3px_3px_0_var(--color-card-shadow)]',
         'dark:shadow-[-7px_7px_0_var(--color-card-shadow)]',
+        'min-w-0',
         className,
       ]}
       {...rest}

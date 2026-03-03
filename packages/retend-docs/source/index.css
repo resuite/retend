@@ -13,8 +13,8 @@
   --color-border: var(--color-retend-border);
   --color-card-shadow: var(--color-retend-card-shadow);
 
-  --font-main: 'Inter', sans-serif;
-  --font-mono: 'Google Sans Code', monospace;
+  --font-main: system-ui, ui-sans-serif, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 }
 
 :root {
@@ -115,3 +115,52 @@
 }
 
 @custom-variant dark (&:where(html.dark, html.dark *));
+
+.rt-code-block {
+  margin: 0;
+  background: transparent;
+}
+
+.rt-code-pre {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+@media (width >= 40rem) {
+  .rt-code-pre {
+    font-size: 0.8rem;
+  }
+}
+
+.rt-code-content {
+  color: var(--color-fg);
+}
+
+.rt-code-keyword {
+  color: var(--color-retend-code-keyword);
+}
+
+.rt-code-function {
+  color: var(--color-retend-code-function);
+}
+
+.rt-code-string {
+  color: var(--color-retend-code-string);
+}
+
+.rt-code-number {
+  color: var(--color-retend-code-number);
+}
+
+.rt-code-property {
+  color: var(--color-retend-code-property);
+}
+
+.rt-code-type,
+.rt-code-tag {
+  color: var(--color-retend-code-type);
+}
+
+.rt-code-comment {
+  color: var(--color-retend-code-comment);
+}

@@ -5,26 +5,26 @@ import { CodeBlock } from './CodeBlock';
 
 const heroCode = `function Counter() {
   const count = Cell.source(0);
-  const increment = () => count.set(count.get() + 1);
+  const inc = () => count.set(count.get() + 1);
 
   return (
     <div>
       <h2>Current count: {count}</h2>
-      <button type="button" onClick={increment}>Increment</button>
+      <button type="button" onClick={inc}>Increase</button>
     </div>
   );
 }`;
 
 export function Hero() {
   return (
-    <section class="grid grid-cols-1 items-center gap-10 py-8 sm:gap-12 md:grid-cols-[1.1fr_0.9fr] md:gap-20 md:py-20">
-      <div>
+    <section class="grid grid-cols-1 items-center gap-10 py-8 sm:gap-12 md:grid-cols-[0.8fr_1fr] md:gap-20 md:py-20">
+      <div class="min-w-0">
         <h1 class="text-fg mb-5 text-[2rem] leading-tight tracking-tight sm:text-[2.4rem] md:text-[2.6rem]">
           The toolkit for
           <br />
           fluid user interfaces.
         </h1>
-        <p class="text-fg-muted text-base sm:text-lg">
+        <p class="text-fg-muted text-base text-pretty sm:text-lg">
           Retend is a framework for creating interactive applications and user
           interfaces. It manages complex application logic, allowing you to
           build fast, smooth sites declaratively.
@@ -46,7 +46,7 @@ export function Hero() {
         </div>
       </div>
 
-      <CodeBlock code={heroCode} lang="tsx" />
+      <CodeBlock code={heroCode} lang="tsx" class="min-w-0" />
     </section>
   );
 }
