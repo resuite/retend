@@ -1,0 +1,16 @@
+.button {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background-color: black;
+  border: 2px solid white;
+  cursor: pointer;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+
+  &:hover {
+    border-color: lightblue;
+    transform: scale(0.9);
+  }
+}
