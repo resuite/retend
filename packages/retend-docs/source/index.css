@@ -164,3 +164,9 @@
 .rt-code-comment {
   color: var(--color-retend-code-comment);
 }
+
+.docs-on-this-page {
+  border-left: 1px solid
+    color-mix(in srgb, var(--color-border) 40%, transparent);
+  padding-left: 1rem;
+}

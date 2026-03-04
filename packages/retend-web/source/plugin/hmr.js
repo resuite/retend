@@ -219,7 +219,6 @@ export function runInvalidatorWithHMRBoundaries(
   const nextComponentRender = () => {
     const ancestry = __HMR_SYMBOLS.useComponentAncestry();
     const template = __HMR_SYMBOLS.RetendComponentTree.Provider({
-      // @ts-expect-error: if not, it recurses.
       h: false,
       value: [...ancestry, value.peek()],
       children: () => value.peek()(...completeProps, { createdByJsx: true }),

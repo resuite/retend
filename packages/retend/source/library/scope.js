@@ -24,14 +24,10 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
 
 /**
  * @template [T=unknown]
- * @typedef ScopePropsWithChildren
+ * @typedef ScopeProps
  * @property {JSX.Children} children
  * @property {T} value
- */
-
-/**
- * @template [T=unknown]
- * @typedef {ScopePropsWithChildren<T>} ScopeProps
+ * @property {boolean} [h]
  */
 
 /**

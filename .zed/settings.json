@@ -5,6 +5,7 @@
     "!biome",
     "oxfmt",
     "oxlint",
+    "stylelint",
     "tailwindcss-language-server"
   ],
   "lsp": {

@@ -10,40 +10,52 @@ export function MainLayout() {
   return (
     <ThemeScope.Provider value={themeData}>
       <Await>
-        <div class="mx-auto max-w-285 px-5 sm:px-6 md:px-10">
-          <nav class="flex flex-col gap-6 py-8 md:flex-row md:items-center md:justify-between md:py-12">
-            <Link
-              class="text-fg text-xl tracking-tight"
-              href="/"
-              aria-label="Retend home"
-            >
-              retend
-            </Link>
-            <div
-              class="flex flex-wrap items-center gap-6 md:gap-10"
-              aria-label="Primary"
-            >
+        <header class="bg-bg fixed top-0 right-0 left-0 z-50">
+          <div class="mx-auto max-w-300 px-5 sm:px-6 md:px-10">
+            <nav class="flex flex-col gap-6 py-8 md:flex-row md:items-center md:justify-between md:py-12">
               <Link
-                class="text-fg-muted text-sm md:text-[0.95rem]"
-                href="/quickstart"
+                class="text-fg text-xl tracking-tight"
+                href="/"
+                aria-label="Retend home"
               >
-                Quickstart
+                retend
               </Link>
-              <a
-                class="text-fg-muted text-sm md:text-[0.95rem]"
-                href="https://github.com/adebola-io/retend"
-                target="_blank"
-                rel="noreferrer"
+              <div
+                class="flex flex-wrap items-center gap-6 md:gap-10"
+                aria-label="Primary"
               >
-                Github
-              </a>
-              <ThemeToggle />
-            </div>
-          </nav>
+                <Link
+                  class="text-fg-muted text-sm md:text-[0.95rem]"
+                  href="/quickstart"
+                >
+                  Quickstart
+                </Link>
+                <Link
+                  class="text-fg-muted text-sm md:text-[0.95rem]"
+                  href="/docs"
+                >
+                  Docs
+                </Link>
+                <a
+                  class="text-fg-muted text-sm md:text-[0.95rem]"
+                  href="https://github.com/adebola-io/retend"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Github
+                </a>
+                <ThemeToggle />
+              </div>
+            </nav>
+          </div>
+        </header>
 
-          <main class="flex flex-col gap-20 pb-10 md:gap-35">
-            <Outlet />
-          </main>
+        <div class="pt-32 md:pt-40">
+          <div class="mx-auto max-w-300 px-5 sm:px-6 md:px-10">
+            <main class="flex flex-col gap-20 pb-10 md:gap-35">
+              <Outlet />
+            </main>
+          </div>
         </div>
 
         <footer class="relative mt-10 flex flex-col pt-32 sm:mt-20">
@@ -131,7 +143,7 @@ export function MainLayout() {
           <div class="relative z-10 mt-20 flex justify-center overflow-hidden px-4 sm:mt-32">
             <h1
               class="from-fg/90 to-fg/5 bg-gradient-to-b bg-clip-text text-center text-[24vw] leading-none font-medium tracking-tighter text-transparent select-none"
-              style="margin-bottom: -6.5vw;"
+              style={{ marginBottom: '-6.5vw' }}
             >
               retend
             </h1>
