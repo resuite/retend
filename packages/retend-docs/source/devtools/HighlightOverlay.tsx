@@ -64,12 +64,14 @@ export function HighlightOverlay(props: HighlightOverlayProps) {
           }
         }
       }
-      worker.postMessage({ type: 'target', rect, label }, []);
+      const animate = !devRenderer.disableHighlightTransition.get();
+      worker.postMessage({ type: 'target', rect, label, animate }, []);
     };
 
     updateViewport();
     updateTarget();
     devRenderer.hoveredNode.listen(updateTarget, { weak: true });
+    devRenderer.disableHighlightTransition.listen(updateTarget, { weak: true });
     window.addEventListener('resize', updateViewport);
     window.addEventListener('resize', updateTarget);
     window.addEventListener('scroll', updateTarget, true);

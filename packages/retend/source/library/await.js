@@ -6,7 +6,7 @@
 import { Cell } from '@adbl/cells';
 
 import { getGlobalContext } from '../context/index.js';
-import { If } from './index.js';
+import { getActiveRenderer, If, normalizeJsxChild } from './index.js';
 import {
   createScope,
   branchState,
@@ -51,6 +51,7 @@ const AsyncKey = Symbol('retend:Await');
 export function Await(props) {
   const { children, fallback } = props;
   const { globalData } = getGlobalContext();
+  const renderer = getActiveRenderer();
   const asyncHolders = globalData.get(AsyncKey) ?? new Set();
   globalData.set(AsyncKey, asyncHolders);
   const initialStateDone = Cell.source(false);
@@ -85,8 +86,15 @@ export function Await(props) {
   const snapshot = branchState();
   snapshot.node.suspend();
 
-  const render = withState(snapshot, () => {
+  const AwaitContent = () => {
     return AwaitScope.Provider({ value, children });
+  };
+
+  const render = withState(snapshot, () => {
+    return normalizeJsxChild(
+      renderer.handleComponent(AwaitContent, [], snapshot),
+      renderer
+    );
   });
 
   awaitList.pending.listen((isPending) => {
@@ -97,23 +105,21 @@ export function Await(props) {
     return () => asyncHolders.delete(waitingPromise);
   });
 
-  const AwaitContent = () => {
-    snapshot.node.unsuspend();
-    snapshot.node.enable();
-    onSetup(() => {
-      asyncCells.set(new Set());
-      // will dispose automatically from parent scope.
-      snapshot.node.activate();
-    });
-    return render;
-  };
-
   const AwaitFallback = () => fallback || null;
   Object.defineProperty(AwaitFallback, 'name', { value: 'Await.Fallback' });
   Object.defineProperty(AwaitContent, 'name', { value: 'Await.Content' });
 
   return If(initialStateDone, {
-    true: AwaitContent,
+    true: () => {
+      snapshot.node.unsuspend();
+      snapshot.node.enable();
+      onSetup(() => {
+        asyncCells.set(new Set());
+        // will dispose automatically from parent scope.
+        snapshot.node.activate();
+      });
+      return render;
+    },
     false: AwaitFallback,
   });
 }

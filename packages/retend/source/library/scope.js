@@ -238,9 +238,10 @@ const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
  * ```
  */
 export function createScope(name) {
+  const key = name ?? 'Scope';
   /** @type {Scope<T>} */
   const Scope = {
-    key: Symbol(name ?? 'Scope'),
+    key: Symbol(key),
     Provider: (props) => {
       const renderFn = 'children' in props ? props.children : () => {};
 
@@ -262,6 +263,8 @@ export function createScope(name) {
       }
     },
   };
+
+  Object.defineProperty(Scope.Provider, 'name', { value: `${key}.Provider` });
 
   /// @ts-expect-error: Vite types are not ingrained.
   if (import.meta.env?.DEV) {

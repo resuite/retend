@@ -125,6 +125,21 @@ self.onmessage = (event) => {
   if (message.type === 'target') {
     targetRect = message.rect;
     label = message.label;
+    if (!message.animate) {
+      if (!targetRect) {
+        currentRect = null;
+      } else {
+        currentRect = {
+          x: targetRect.x,
+          y: targetRect.y,
+          width: targetRect.width,
+          height: targetRect.height,
+        };
+      }
+      stopLoop();
+      drawFrame();
+      return;
+    }
     startLoop();
     return;
   }

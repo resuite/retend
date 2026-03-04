@@ -33,6 +33,7 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   rootNode: SourceCell<ComponentTreeNode | null> = Cell.source(null);
   hoveredNode: SourceCell<ComponentTreeNode | null> = Cell.source(null);
   focusedNode: SourceCell<ComponentTreeNode | null> = Cell.source(null);
+  disableHighlightTransition: SourceCell<boolean> = Cell.source(false);
   parentMap: Map<ComponentTreeNode, ComponentTreeNode> = new Map();
   childrenMap: Map<ComponentTreeNode, SourceCell<Array<ComponentTreeNode>>> =
     new Map();
@@ -46,6 +47,34 @@ export class DevToolsDOMRenderer extends DOMRenderer {
     return cell;
   }
 
+  attachTreeNode(
+    treeNode: ComponentTreeNode,
+    parentInTree: ComponentTreeNode | undefined
+  ) {
+    if (parentInTree) {
+      this.parentMap.set(treeNode, parentInTree);
+      const siblingsCell = this.getChildren(parentInTree);
+      siblingsCell.set([...siblingsCell.get(), treeNode]);
+      return;
+    }
+    this.rootNode.set(treeNode);
+  }
+
+  detachTreeNode(treeNode: ComponentTreeNode) {
+    const currentParent = this.parentMap.get(treeNode);
+    this.parentMap.delete(treeNode);
+    this.childrenMap.delete(treeNode);
+    if (currentParent) {
+      const siblingsCell = this.childrenMap.get(currentParent);
+      if (siblingsCell) {
+        const siblings = siblingsCell.get();
+        siblingsCell.set(siblings.filter((child) => child !== treeNode));
+      }
+    }
+    if (treeNode === this.rootNode.get()) this.rootNode.set(null);
+    if (treeNode === this.focusedNode.get()) this.focusedNode.set(null);
+  }
+
   override handleComponent(
     tagname: __HMR_UpdatableFn,
     props: any,
@@ -54,33 +83,18 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   ): Node | Node[] {
     const componentName = getComponentName(tagname);
     if (componentName === 'true' || componentName === 'false') {
+      // skip If() branches.
       return super.handleComponent(tagname, props, _, fileData);
     }
 
     const treeNode: ComponentTreeNode = { component: tagname, props, fileData };
     const parent = useParentTreeNode();
+    const parentInTree = parent;
 
     onSetup(() => {
-      if (parent) {
-        this.parentMap.set(treeNode, parent);
-        const siblingsCell = this.getChildren(parent);
-        siblingsCell.set([...siblingsCell.get(), treeNode]);
-      } else {
-        this.rootNode.set(treeNode);
-      }
+      this.attachTreeNode(treeNode, parentInTree);
       return () => {
-        this.parentMap.delete(treeNode);
-        this.childrenMap.delete(treeNode);
-        if (parent) {
-          const siblingsCell = this.childrenMap.get(parent);
-          if (siblingsCell) {
-            siblingsCell.set(
-              siblingsCell.get().filter((child) => child !== treeNode)
-            );
-          }
-        }
-        if (treeNode === this.rootNode.get()) this.rootNode.set(null);
-        if (treeNode === this.focusedNode.get()) this.focusedNode.set(null);
+        this.detachTreeNode(treeNode);
       };
     });
 

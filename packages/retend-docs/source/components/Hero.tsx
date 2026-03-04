@@ -1,3 +1,5 @@
+import { Cell } from 'retend';
+
 import { ArrowRightIcon, ExternalLinkIcon } from '@/icons';
 
 import { Button } from './Button';
@@ -16,13 +18,20 @@ const heroCode = `function Counter() {
 }`;
 
 export function Hero() {
+  const cell = Cell.derivedAsync(async () => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve('Hello World');
+      }, 5000);
+    });
+  });
   return (
     <section class="grid grid-cols-1 items-center gap-10 py-8 sm:gap-12 md:grid-cols-[0.8fr_1fr] md:gap-20 md:py-20">
       <div class="min-w-0">
         <h1 class="text-fg mb-5 text-[2rem] leading-tight tracking-tight sm:text-[2.4rem] md:text-[2.6rem]">
           The toolkit for
           <br />
-          fluid user interfaces.
+          fluid user interfaces. {cell}
         </h1>
         <p class="text-fg-muted text-base text-pretty sm:text-lg">
           Retend is a framework for creating interactive applications and user
