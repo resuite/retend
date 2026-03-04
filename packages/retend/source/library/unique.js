@@ -190,7 +190,6 @@ export function createUnique(renderFn, options = {}) {
       undefined,
       undefined,
       undefined,
-      undefined,
       renderer,
     ]);
     const { onSave, onRestore, container = {} } = options;

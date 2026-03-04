@@ -11,7 +11,6 @@ import { createNodesFromTemplate, linkNodes } from './utils.js';
  * @param {*} props
  * @param {*} [_]
  * @param {*} [__]
- * @param {*} [___]
  * @param {JSX.JSXDevFileData} [fileData]
  * @param {Renderer<any>} renderer
  * @returns {any}
@@ -21,7 +20,6 @@ export function h(
   props,
   _,
   __,
-  ___,
   fileData,
   renderer = getActiveRenderer()
 ) {

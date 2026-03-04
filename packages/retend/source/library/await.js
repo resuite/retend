@@ -97,18 +97,24 @@ export function Await(props) {
     return () => asyncHolders.delete(waitingPromise);
   });
 
+  const AwaitContent = () => {
+    snapshot.node.unsuspend();
+    snapshot.node.enable();
+    onSetup(() => {
+      asyncCells.set(new Set());
+      // will dispose automatically from parent scope.
+      snapshot.node.activate();
+    });
+    return render;
+  };
+
+  const AwaitFallback = () => fallback || null;
+  Object.defineProperty(AwaitFallback, 'name', { value: 'Await.Fallback' });
+  Object.defineProperty(AwaitContent, 'name', { value: 'Await.Content' });
+
   return If(initialStateDone, {
-    true: () => {
-      snapshot.node.unsuspend();
-      snapshot.node.enable();
-      onSetup(() => {
-        asyncCells.set(new Set());
-        // will dispose automatically from parent scope.
-        snapshot.node.activate();
-      });
-      return render;
-    },
-    false: () => fallback || null,
+    true: AwaitContent,
+    false: AwaitFallback,
   });
 }
 

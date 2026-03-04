@@ -847,7 +847,7 @@ export function Outlet(props) {
   });
   const path = Cell.derived(() => currentLevel.get()?.path);
   Reflect.set(rawProps, 'data-path', path);
-  rawProps.children = If(path, () => {
+  const OutletContent = () => {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
       value: { ...routerData, depth: routerData.depth + 1 },
@@ -858,7 +858,9 @@ export function Outlet(props) {
         renderer
       ),
     });
-  });
+  };
+  Object.defineProperty(OutletContent, 'name', { value: 'Outlet.Content' });
+  rawProps.children = If(path, OutletContent);
 
   return h('retend-router-outlet', rawProps, ...IgnoredHProps, renderer);
 }

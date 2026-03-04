@@ -1,0 +1,67 @@
+.tree {
+  font-family: 'Monaco', 'Menlo', 'Cascadia Code', monospace;
+  font-size: 0.75rem;
+  color: #e0e0e0;
+  overflow-y: auto;
+  max-height: 100%;
+  padding: 0.625rem 0;
+  user-select: none;
+}
+
+.node {
+  padding-left: calc(var(--depth) * 0.1875rem);
+}
+
+.nodeHeader {
+  display: grid;
+  grid-template-columns: 0.875rem 1fr;
+  align-items: center;
+  padding: 0.1875rem 0.375rem;
+  border-radius: 0.1875rem;
+  cursor: default;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(124, 172, 248, 0.12);
+  }
+
+  &[data-active='true'] {
+    background: rgba(124, 172, 248, 0.22);
+  }
+}
+
+.chevron {
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.5625rem;
+  color: #888;
+  cursor: pointer;
+}
+
+.leafDot {
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.625rem;
+  color: #555;
+}
+
+.componentName {
+  color: #7cacf8;
+  font-weight: 500;
+}
+
+.internalCore {
+  color: #9ba8be;
+  font-weight: 450;
+}
+
+.anonymous {
+  color: #888;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.children {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  margin-left: 0.6875rem;
+}
