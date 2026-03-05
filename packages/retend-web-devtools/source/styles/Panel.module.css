@@ -485,7 +485,10 @@
   font-size: var(--retend-devtools-font-size-lg);
   flex-shrink: 0;
   opacity: 0.4;
-  transition: opacity 0.2s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 
   &:hover,
   &.buttonOpen {

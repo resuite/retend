@@ -32,11 +32,8 @@ export function PickerButton() {
 
     pickerMoveHandler = (event: PointerEvent) => {
       event.stopPropagation();
-      const hoveredElement = document.elementFromPoint(
-        event.clientX,
-        event.clientY
-      );
-      if (!hoveredElement) {
+      const hoveredElement = event.target as Element | null;
+      if (!hoveredElement || !(hoveredElement instanceof Element)) {
         devRenderer.hoveredNode.set(null);
         return;
       }
