@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-import { Cell, onConnected } from 'retend';
 import { useCurrentRoute } from 'retend/router';
 
 import { createMDXComponents } from '@/components/MDXComponents';
@@ -8,12 +7,8 @@ import { docPages } from './docs/docsData';
 import { DocsOnThisPage } from './docs/DocsOnThisPage';
 import { DocsSidebar } from './docs/DocsSidebar';
 
-type DocsHeading = { id: string; label: string; depth: number };
-
 export function DocsPage() {
   const currentRoute = useCurrentRoute();
-  const articleRef = Cell.source<HTMLElement | null>(null);
-  const sectionHeadings = Cell.source<DocsHeading[]>([]);
 
   let activePath = currentRoute.get().fullPath;
   activePath = activePath.split('?')[0];
@@ -37,57 +32,25 @@ export function DocsPage() {
   }
 
   const ActivePage = activePage.Component;
-
-  onConnected(articleRef, (articleNode) => {
-    const collectHeadings = () => {
-      const headingElements = articleNode.querySelectorAll('h2, h3');
-      const headingIdCount = new Map<string, number>();
-      const nextHeadings: DocsHeading[] = [];
-
-      for (const headingElement of headingElements) {
-        const headingLabel = headingElement.textContent?.trim();
-        if (!headingLabel) {
-          continue;
+  const sectionHeadings = activePage.headings;
+  let headingCursor = 0;
+  const components = createMDXComponents({
+    nextHeadingId(depth) {
+      while (headingCursor < sectionHeadings.length) {
+        const heading = sectionHeadings[headingCursor];
+        headingCursor += 1;
+        if (heading.depth === depth) {
+          return heading.id;
         }
-
-        let headingId = headingLabel
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/gu, '')
-          .trim()
-          .replace(/\s+/gu, '-');
-        if (headingId === '') {
-          continue;
-        }
-
-        const seenCount = headingIdCount.get(headingId) ?? 0;
-        headingIdCount.set(headingId, seenCount + 1);
-        if (seenCount > 0) {
-          headingId = `${headingId}-${seenCount}`;
-        }
-
-        headingElement.id = headingId;
-        let depth = 2;
-        if (headingElement.tagName === 'H3') {
-          depth = 3;
-        }
-
-        nextHeadings.push({ id: headingId, label: headingLabel, depth });
       }
-
-      sectionHeadings.set(nextHeadings);
-    };
-
-    collectHeadings();
-    queueMicrotask(collectHeadings);
+    },
   });
-
-  const components = createMDXComponents();
 
   return (
     <section class="grid grid-cols-1 gap-10 text-balance lg:grid-cols-[220px_minmax(0,1fr)_200px] lg:gap-10">
       <DocsSidebar />
 
-      <article ref={articleRef} class="docs-markdown min-w-0">
+      <article class="docs-markdown min-w-0">
         <ActivePage components={components} />
       </article>
 

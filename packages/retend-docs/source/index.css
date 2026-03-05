@@ -170,3 +170,26 @@
     color-mix(in srgb, var(--color-border) 40%, transparent);
   padding-left: 1rem;
 }
+
+.rt-code-number {
+  color: var(--color-retend-code-number);
+}
+
+.rt-code-property {
+  color: var(--color-retend-code-property);
+}
+
+.rt-code-type,
+.rt-code-tag {
+  color: var(--color-retend-code-type);
+}
+
+.rt-code-comment {
+  color: var(--color-retend-code-comment);
+}
+
+.docs-on-this-page {
+  border-left: 1px solid
+    color-mix(in srgb, var(--color-border) 40%, transparent);
+  padding-left: 1rem;
+}

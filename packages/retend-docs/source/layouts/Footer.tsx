@@ -21,64 +21,86 @@ export function Footer() {
           <div class="grid grid-cols-2 gap-8 sm:grid-cols-4 sm:gap-16">
             <div class="flex flex-col gap-4">
               <h4 class="text-fg-muted text-sm font-medium">Framework</h4>
-              <Link
-                href="/quickstart"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                Quickstart
-              </Link>
-              <Link
-                href="/concepts"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                Concepts
-              </Link>
-              <Link
-                href="/api"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                API Reference
-              </Link>
+              <ul class="flex flex-col gap-4">
+                <li>
+                  <Link
+                    href="/quickstart"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    Quickstart
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/concepts"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    Concepts
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/api"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    API Reference
+                  </Link>
+                </li>
+              </ul>
             </div>
             <div class="flex flex-col gap-4">
               <h4 class="text-fg-muted text-sm font-medium">Ecosystem</h4>
-              <Link
-                href="/router"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                Router
-              </Link>
-              <Link
-                href="/server"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                Server
-              </Link>
-              <Link
-                href="/utils"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                Utils
-              </Link>
+              <ul class="flex flex-col gap-4">
+                <li>
+                  <Link
+                    href="/router"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    Router
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/server"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    Server
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/utils"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    Utils
+                  </Link>
+                </li>
+              </ul>
             </div>
             <div class="flex flex-col gap-4">
               <h4 class="text-fg-muted text-sm font-medium">Resources</h4>
-              <a
-                href="https://github.com/adebola-io/retend"
-                target="_blank"
-                rel="noreferrer"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                GitHub
-              </a>
-              <a
-                href="https://npmjs.com/package/retend"
-                target="_blank"
-                rel="noreferrer"
-                class="text-fg hover:text-brand text-sm transition-colors"
-              >
-                NPM
-              </a>
+              <ul class="flex flex-col gap-4">
+                <li>
+                  <a
+                    href="https://github.com/adebola-io/retend"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    GitHub
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://npmjs.com/package/retend"
+                    target="_blank"
+                    rel="noreferrer"
+                    class="text-fg hover:text-brand text-sm transition-colors"
+                  >
+                    NPM
+                  </a>
+                </li>
+              </ul>
             </div>
           </div>
         </div>

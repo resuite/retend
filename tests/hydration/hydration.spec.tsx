@@ -13,7 +13,7 @@ import {
 import { ShadowRoot, Teleport } from 'retend-web';
 import { describe, expect, it, vi } from 'vitest';
 
-import { browserSetup, getTextContent } from '../setup.tsx';
+import { browserSetup, getTextContent, timeout } from '../setup.tsx';
 import {
   createHydrationClientRenderer,
   renderHydrationServerHtml,
@@ -996,6 +996,55 @@ describe('Hydration', () => {
     items.set(['X', 'Y', 'Z']);
 
     expect(list?.querySelectorAll('.removal-item').length).toBe(3);
+  });
+
+  it('should handle keyed For updates during hydration without after errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const sectionHeadings = Cell.source<{ id: string; label: string }[]>([]);
+    const SeedHeadings = () => {
+      if (sectionHeadings.get().length === 0) {
+        sectionHeadings.set([
+          { id: 'installation', label: 'Installation' },
+          { id: 'routing', label: 'Routing' },
+        ]);
+      }
+      return null;
+    };
+
+    const template = () => (
+      <section>
+        <article>
+          <h2>Installation</h2>
+        </article>
+        <nav>
+          {For(
+            sectionHeadings,
+            (heading) => (
+              <a class="docs-like-link" href={`#${heading.id}`}>
+                {heading.label}
+              </a>
+            ),
+            { key: 'id' }
+          )}
+        </nav>
+        <SeedHeadings />
+      </section>
+    );
+
+    const html = await renderHydrationServerHtml(template);
+    const { renderer, document } = createHydrationClientRenderer(html);
+    startHydration(renderer, template);
+    await renderer.endHydration();
+    await timeout(0);
+
+    const hadAfterError = consoleSpy.mock.calls.some((call) =>
+      String(call[0]).includes('after is not a function')
+    );
+    const links = document.querySelectorAll('.docs-like-link');
+    consoleSpy.mockRestore();
+
+    expect(hadAfterError).toBe(false);
+    expect(links.length).toBe(2);
   });
 
   it('should hydrate shadowroots', async () => {

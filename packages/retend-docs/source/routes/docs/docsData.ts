@@ -3,6 +3,7 @@ import type { JSX } from 'retend/jsx-runtime';
 /// <reference types="vite/client" />
 
 export type DocPage = {
+  headings: { id: string; label: string; depth: number }[];
   href: string;
   slug: string;
   label: string;
@@ -21,7 +22,13 @@ export type DocSectionData = {
 
 const docModules = import.meta.glob('../../../content/**/*.mdx', {
   eager: true,
-}) as Record<string, { default: DocPage['Component'] }>;
+}) as Record<
+  string,
+  {
+    default: DocPage['Component'];
+  }
+>;
+declare const __DOC_HEADINGS__: Record<string, DocPage['headings']>;
 
 const labelOverrides = new Map<string, string>([
   ['ssr-and-ssg', 'SSR and SSG'],
@@ -192,7 +199,14 @@ for (const [filePath, mdxModule] of Object.entries(docModules)) {
     label = labelOverride;
   }
 
+  let headings: DocPage['headings'] = [];
+  const pageHeadings = __DOC_HEADINGS__[filePath];
+  if (Array.isArray(pageHeadings)) {
+    headings = pageHeadings;
+  }
+
   docPages.push({
+    headings,
     href,
     slug: labelSource,
     label,

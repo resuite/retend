@@ -179,6 +179,9 @@ export class DOMRenderer {
    * @param {ReconcilerOptions<Node>} options
    */
   reconcile(segment, options) {
+    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
+      Ops.finalizeHydrationHandleSegment(segment);
+    }
     // On first reconcile pass, a range may already contain untracked nodes
     // (e.g. server-rendered content before first async client resolve).
     // Clear them once so reconcile does not duplicate content.

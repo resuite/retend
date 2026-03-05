@@ -3,7 +3,13 @@ import { JSX } from 'retend/jsx-runtime';
 import { CodeBlock } from '@/components/CodeBlock';
 import { InlineCode } from '@/components/InlineCode';
 
-export function createMDXComponents() {
+type MdxComponentOptions = {
+  nextHeadingId?: (depth: 2 | 3) => string | undefined;
+};
+
+export function createMDXComponents(options: MdxComponentOptions = {}) {
+  const { nextHeadingId } = options;
+
   return {
     code: (props: JSX.IntrinsicElements['code']) => {
       const text = props.children as string;
@@ -27,16 +33,44 @@ export function createMDXComponents() {
         {props.children}
       </h1>
     ),
-    h2: (props: JSX.IntrinsicElements['h2']) => (
-      <h2 class="text-fg mt-10 mb-4 scroll-mt-24 text-3xl tracking-tight">
-        {props.children}
-      </h2>
-    ),
-    h3: (props: JSX.IntrinsicElements['h3']) => (
-      <h3 class="text-fg mt-8 mb-3 scroll-mt-24 text-2xl tracking-tight">
-        {props.children}
-      </h3>
-    ),
+    h2: (props: JSX.IntrinsicElements['h2']) => {
+      const { class: className, children, ...rest } = props;
+      let headingId: string | undefined;
+      if (nextHeadingId) {
+        headingId = nextHeadingId(2);
+      }
+      return (
+        <h2
+          id={headingId}
+          class={[
+            'text-fg mt-10 mb-4 scroll-mt-24 text-3xl tracking-tight',
+            className,
+          ]}
+          {...rest}
+        >
+          {children}
+        </h2>
+      );
+    },
+    h3: (props: JSX.IntrinsicElements['h3']) => {
+      const { class: className, children, ...rest } = props;
+      let headingId: string | undefined;
+      if (nextHeadingId) {
+        headingId = nextHeadingId(3);
+      }
+      return (
+        <h3
+          id={headingId}
+          class={[
+            'text-fg mt-8 mb-3 scroll-mt-24 text-2xl tracking-tight',
+            className,
+          ]}
+          {...rest}
+        >
+          {children}
+        </h3>
+      );
+    },
     h4: (props: JSX.IntrinsicElements['h4']) => (
       <h4 class="text-fg mt-7 mb-2 text-xl tracking-tight">{props.children}</h4>
     ),

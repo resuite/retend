@@ -14,29 +14,40 @@ export function Header() {
           >
             retend
           </Link>
-          <div
+          <ul
             class="flex flex-wrap items-center gap-6 md:gap-10"
             aria-label="Primary"
           >
-            <Link
-              class="text-fg-muted text-sm md:text-[0.95rem]"
-              href="/quickstart"
-            >
-              Quickstart
-            </Link>
-            <Link class="text-fg-muted text-sm md:text-[0.95rem]" href="/docs">
-              Docs
-            </Link>
-            <a
-              class="text-fg-muted text-sm md:text-[0.95rem]"
-              href="https://github.com/adebola-io/retend"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Github
-            </a>
-            <ThemeToggle />
-          </div>
+            <li>
+              <Link
+                class="text-fg-muted text-sm md:text-[0.95rem]"
+                href="/quickstart"
+              >
+                Quickstart
+              </Link>
+            </li>
+            <li>
+              <Link
+                class="text-fg-muted text-sm md:text-[0.95rem]"
+                href="/docs"
+              >
+                Docs
+              </Link>
+            </li>
+            <li>
+              <a
+                class="text-fg-muted text-sm md:text-[0.95rem]"
+                href="https://github.com/adebola-io/retend"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Github
+              </a>
+            </li>
+            <li>
+              <ThemeToggle />
+            </li>
+          </ul>
         </nav>
       </div>
     </header>
