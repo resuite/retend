@@ -28,6 +28,7 @@
   --retend-devtools-chevron: #888;
   --retend-devtools-leaf-dot: #555;
   --retend-devtools-internal-core: #9ccad6;
+  --retend-devtools-web-core: #64d2ff;
   --retend-devtools-children-border: rgba(255, 255, 255, 0.06);
   --retend-devtools-palette-blue: #4299e1;
   --retend-devtools-palette-pink: #ec4899;
@@ -62,6 +63,7 @@
     --retend-devtools-chevron: #7b8798;
     --retend-devtools-leaf-dot: #97a1af;
     --retend-devtools-internal-core: #2c7c9f;
+    --retend-devtools-web-core: #0ea5e9;
     --retend-devtools-children-border: rgba(15, 23, 42, 0.1);
     --retend-devtools-palette-border: rgba(15, 23, 42, 0.2);
     --retend-devtools-inspector-bg: rgba(15, 23, 42, 0.02);

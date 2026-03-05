@@ -16,6 +16,7 @@ interface RetendDevToolsProps {
 }
 
 export function RetendDevTools(props: RetendDevToolsProps) {
+  console.log('RetendDevTools');
   const { children, initialPosition } = props;
   const mainRenderer = getActiveRenderer() as DOMRenderer;
   const devRenderer = new DevToolsDOMRenderer(mainRenderer.host);

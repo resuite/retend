@@ -5,14 +5,15 @@ import { MainLayout } from '@/layouts/MainLayout';
 import { DocsPage } from '@/routes/DocsPage';
 import { Home } from '@/routes/Home';
 import { QuickstartPage } from '@/routes/QuickstartPage';
-
-import { RetendDevTools } from './devtools/RetendDevTools';
+import { RetendDevTools } from 'retend-web-devtools';
 
 const Root = () => {
   if (import.meta.env.DEV) {
     return (
-      <RetendDevTools>
-        <MainLayout />
+      <RetendDevTools initialPosition="top-left">
+        <RetendDevTools>
+          <MainLayout />
+        </RetendDevTools>
       </RetendDevTools>
     );
   }

@@ -134,6 +134,11 @@
   font-weight: 450;
 }
 
+.webCore {
+  color: var(--retend-devtools-web-core);
+  font-weight: 550;
+}
+
 .anonymous {
   color: var(--retend-devtools-chevron);
   font-style: italic;

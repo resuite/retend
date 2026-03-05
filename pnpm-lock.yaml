@@ -85,6 +85,9 @@ importers:
       retend-web:
         specifier: workspace:*
         version: link:../retend-web
+      retend-web-devtools:
+        specifier: workspace:*
+        version: link:../retend-web-devtools
       tailwindcss:
         specifier: ^4.2.1
         version: 4.2.1
@@ -187,6 +190,22 @@ importers:
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
+
+  packages/retend-web-devtools:
+    dependencies:
+      retend:
+        specifier: workspace:*
+        version: link:../retend
+      retend-web:
+        specifier: workspace:*
+        version: link:../retend-web
+    devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.2.1
+        version: 6.4.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
 
   tests:
     dependencies:

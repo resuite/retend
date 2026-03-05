@@ -7,6 +7,7 @@ import {
   createNodesFromTemplate,
 } from 'retend';
 import { Link, Outlet } from 'retend/router';
+import { ShadowRoot, Teleport } from 'retend-web';
 
 import type { ComponentTreeNode } from '../core/devtools-renderer';
 
@@ -16,6 +17,7 @@ import { ComponentName } from './ComponentName';
 import { ChevronDownIcon, ChevronRightIcon, DotIcon } from './icons';
 
 const specialComponents = new Set<__HMR_UpdatableFn>([Await, Link, Outlet]);
+const webSpecialComponents = new Set<__HMR_UpdatableFn>([Teleport, ShadowRoot]);
 
 export interface TreeNodeProps {
   node: ComponentTreeNode;
@@ -42,6 +44,7 @@ export function TreeNode(props: TreeNodeProps) {
 
   const isAnonymous = name === '[Anonymous]';
   const isSpecial = specialComponents.has(node.component);
+  const isWebSpecial = webSpecialComponents.has(node.component);
 
   const onNodeClick = () => {
     devRenderer.selectedNode.set(node);
@@ -106,6 +109,7 @@ export function TreeNode(props: TreeNodeProps) {
             {
               [classes.anonymous]: isAnonymous,
               [classes.internalCore]: isSpecial,
+              [classes.webCore]: isWebSpecial,
             },
           ]}
         >
