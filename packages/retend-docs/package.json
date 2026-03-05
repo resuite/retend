@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter retend-web-devtools run build && vite --port 3000",
-    "build": "pnpm --filter retend-web-devtools run build && vite build",
+    "dev": "vite --port 3000",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {

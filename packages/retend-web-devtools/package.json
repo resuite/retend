@@ -13,7 +13,9 @@
   "exports": {
     ".": {
       "types": "./dist/RetendDevTools.d.ts",
-      "import": "./dist/index.js"
+      "development": "./dist/index.js",
+      "import": "./dist/prod.js",
+      "default": "./dist/prod.js"
     }
   },
   "publishConfig": {
@@ -28,8 +30,9 @@
     "retend-web": "workspace:*"
   },
   "devDependencies": {
+    "esm-env": "^1.2.2",
     "typescript": "^5.8.2",
-    "vite": "^6.2.1"
+    "vite": "*"
   },
   "peerDependencies": {
     "retend": "*",

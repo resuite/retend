@@ -10,21 +10,35 @@ export default defineConfig({
         const entry = bundle['index.js'];
         if (entry) {
           if (entry.type === 'chunk') {
-            entry.code = `import "./index.css";\n${entry.code}`;
+            entry.code = `import "./retend-web-devtools.css";\n${entry.code}`;
           }
         }
       },
     },
   ],
+
   build: {
     emptyOutDir: true,
+    minify: false,
     lib: {
-      entry: path.resolve(__dirname, 'source/RetendDevTools.tsx'),
-      fileName: 'index',
+      entry: {
+        index: path.resolve(__dirname, 'source/RetendDevTools.tsx'),
+        prod: path.resolve(
+          __dirname,
+          'source/RetendDevToolsProductionEntry.tsx'
+        ),
+      },
+      fileName: (_format, entryName) => `${entryName}.js`,
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['retend', 'retend/jsx-runtime', 'retend/router', 'retend-web'],
+      external: [
+        'retend',
+        'retend/jsx-runtime',
+        'retend/router',
+        'retend-web',
+        'esm-env',
+      ],
     },
     sourcemap: false,
   },

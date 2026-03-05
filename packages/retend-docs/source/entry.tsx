@@ -1,8 +1,13 @@
 import 'retend-web/jsx-runtime';
 import { hydrate } from 'retend-server/client';
-
-import { createRouter } from '@/router';
+import { RetendDevTools } from 'retend-web-devtools';
 
 import './index.css';
+import { createRouter } from '@/router';
 
-hydrate(createRouter, { rootId: 'root' });
+hydrate(createRouter, {
+  rootId: 'root',
+  wrap(root) {
+    return <RetendDevTools>{root}</RetendDevTools>;
+  },
+});

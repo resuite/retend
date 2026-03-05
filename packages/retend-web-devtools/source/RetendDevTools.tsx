@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { __HMR_UpdatableFn, getActiveRenderer } from 'retend';
 import { DOMRenderer } from 'retend-web';
 import { JSX } from 'retend/jsx-runtime';
@@ -16,7 +17,6 @@ interface RetendDevToolsProps {
 }
 
 export function RetendDevTools(props: RetendDevToolsProps) {
-  console.log('RetendDevTools');
   const { children, initialPosition } = props;
   const mainRenderer = getActiveRenderer() as DOMRenderer;
   const devRenderer = new DevToolsDOMRenderer(mainRenderer.host);

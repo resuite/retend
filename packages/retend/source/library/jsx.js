@@ -23,6 +23,7 @@ export function h(
   fileData,
   renderer = getActiveRenderer()
 ) {
+  if (!renderer?.handleComponent) renderer = getActiveRenderer();
   if (tagOrFn === undefined) return [];
 
   if (Object.is(tagOrFn, FragmentPlaceholder)) {

@@ -8,8 +8,14 @@ import ts from 'typescript';
  * @returns A Vite plugin object with a `name` property and `transform` hook.
  */
 export const retend = () => {
+  let command = 'serve';
+
   return {
     name: 'vite-plugin-retend',
+    /** @param {{ command: string }} config */
+    configResolved(config) {
+      command = config.command;
+    },
 
     /**
      * @param {string} code - The source code of the module being transformed.
@@ -18,6 +24,10 @@ export const retend = () => {
      * and a null source map, or `null` if the module should not be transformed.
      */
     transform(code, id) {
+      if (command === 'build') {
+        return null;
+      }
+
       if (id.includes('node_modules')) {
         return null;
       }
