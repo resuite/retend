@@ -2,6 +2,7 @@ import { Cell, createNodesFromTemplate, onConnected } from 'retend';
 
 import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
 import classes from '../styles/HighlightOverlay.module.css';
+import HighlightOverlayWorker from '../workers/HighlightOverlay.worker?worker';
 
 export function HighlightOverlay() {
   const devRenderer = useDevToolsRenderer();
@@ -61,9 +62,7 @@ export function HighlightOverlay() {
 
   onConnected(canvasRef, async (canvas) => {
     const offscreenCanvas = canvas.transferControlToOffscreen();
-    const HighlightOverlayWorker = (
-      await import('../workers/HighlightOverlay.worker.ts?worker')
-    ).default;
+
     worker = new HighlightOverlayWorker();
     worker.postMessage(
       {

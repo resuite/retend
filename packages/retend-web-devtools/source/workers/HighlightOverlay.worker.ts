@@ -319,3 +319,5 @@ self.addEventListener('message', (event) => {
     self.close();
   }
 });
+
+export default {};
