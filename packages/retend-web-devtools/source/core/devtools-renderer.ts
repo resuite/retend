@@ -39,7 +39,6 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   rootNode = Cell.source<ComponentTreeNode | null>(null);
   hoveredNode = Cell.source<ComponentTreeNode | null>(null);
   selectedNode = Cell.source<ComponentTreeNode | null>(null);
-  disableHighlightTransition = Cell.source(false);
   highlightColor = Cell.source<HighlightColor>('blue');
   panelPosition = Cell.source<PanelPosition>('bottom-right');
   parentMap = new Map<ComponentTreeNode, ComponentTreeNode>();

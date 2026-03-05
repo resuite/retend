@@ -24,13 +24,11 @@ export function PickerButton() {
       ancestorHoverTimer = null;
     }
     ancestorHoverFrom = null;
-    devRenderer.disableHighlightTransition.set(false);
     document.documentElement.style.cursor = '';
   };
 
   const startPicker = () => {
     if (pickerMoveHandler) return;
-    devRenderer.disableHighlightTransition.set(true);
 
     pickerMoveHandler = (event: PointerEvent) => {
       event.stopPropagation();

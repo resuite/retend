@@ -54,7 +54,7 @@ export function Panel() {
         <HighlightOverlay />
         <button
           type="button"
-          class={classes.button}
+          class={[classes.button, { [classes.buttonOpen]: panel.panelIsOpen }]}
           onClick={panel.togglePanel}
         >
           RT

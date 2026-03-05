@@ -52,13 +52,11 @@ export function HighlightOverlay() {
         } catch {}
       }
     }
-    const animate = !devRenderer.disableHighlightTransition.get();
     const color = devRenderer.highlightColor.get();
-    worker.postMessage({ type: 'target', rect, label, animate, color }, []);
+    worker.postMessage({ type: 'target', rect, label, color }, []);
   };
 
   devRenderer.hoveredNode.listen(updateTarget);
-  devRenderer.disableHighlightTransition.listen(updateTarget);
   devRenderer.highlightColor.listen(updateTarget);
 
   onConnected(canvasRef, async (canvas) => {
