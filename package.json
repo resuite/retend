@@ -28,12 +28,13 @@
     "format:check": "oxfmt --check packages tests experiments",
     "publish-core": "pnpm --filter retend run build && pnpm --filter retend publish --access public",
     "publish-web": "pnpm --filter retend-web run build && pnpm --filter retend-web publish --access public",
+    "publish-web-devtools": "pnpm --filter retend-web-devtools run build && pnpm --filter retend-web-devtools publish --access public",
     "publish-ssg": "pnpm --filter retend-server run build && pnpm --filter retend-server publish --access public",
     "publish-start": "pnpm --filter retend-start publish --access public",
     "publish-utils": "pnpm --filter retend-utils run build && pnpm --filter retend-utils publish --access public",
-    "publish-all": "pnpm run publish-core && pnpm run publish-web && pnpm run publish-ssg && pnpm run publish-start && pnpm run publish-utils",
+    "publish-all": "pnpm run publish-core && pnpm run publish-web && pnpm run publish-web-devtools && pnpm run publish-ssg && pnpm run publish-start && pnpm run publish-utils",
     "pack-all": "chmod +x ./scripts/pack.sh && ./scripts/pack.sh",
-    "previews": "cp README.md packages/retend/README.md && pnpm dlx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-server' './packages/retend-start' './packages/retend-utils'",
+    "previews": "cp README.md packages/retend/README.md && pnpm dlx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-web-devtools' './packages/retend-server' './packages/retend-start' './packages/retend-utils'",
     "prepare": "husky"
   },
   "workspaces": [
