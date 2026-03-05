@@ -20,6 +20,7 @@
     "directory": "github.com/adebola-io/retend"
   },
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

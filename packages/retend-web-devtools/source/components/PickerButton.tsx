@@ -72,10 +72,22 @@ export function PickerButton() {
         }
 
         if (!renderedNode.output) continue;
-        const renderedNodes = createNodesFromTemplate(
+        let renderedNodes = createNodesFromTemplate(
           renderedNode.output,
           devRenderer
         );
+        if (renderedNodes.length === 1) {
+          const anchorNode = renderedNodes[0];
+          if (anchorNode instanceof Comment) {
+            const teleportedContainer = Reflect.get(
+              anchorNode,
+              '__retendTeleportedContainer'
+            );
+            if (teleportedContainer instanceof Element) {
+              renderedNodes = [teleportedContainer];
+            }
+          }
+        }
         let nodeMatches = false;
         for (let i = 0; i < renderedNodes.length; i += 1) {
           const concreteNode = renderedNodes[i];

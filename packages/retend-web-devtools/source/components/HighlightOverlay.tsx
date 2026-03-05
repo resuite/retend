@@ -27,7 +27,19 @@ export function HighlightOverlay() {
 
     if (node && node.output) {
       label = node.component.name;
-      const flatNodes = createNodesFromTemplate(node.output, devRenderer);
+      let flatNodes = createNodesFromTemplate(node.output, devRenderer);
+      if (flatNodes.length === 1) {
+        const anchorNode = flatNodes[0];
+        if (anchorNode instanceof Comment) {
+          const teleportedContainer = Reflect.get(
+            anchorNode,
+            '__retendTeleportedContainer'
+          );
+          if (teleportedContainer instanceof Element) {
+            flatNodes = [teleportedContainer];
+          }
+        }
+      }
       if (flatNodes.length > 0) {
         try {
           const first = flatNodes[0];

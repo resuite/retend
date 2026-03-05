@@ -6,8 +6,8 @@ import {
   If,
   createNodesFromTemplate,
 } from 'retend';
-import { Link, Outlet } from 'retend/router';
 import { ShadowRoot, Teleport } from 'retend-web';
+import { Link, Outlet } from 'retend/router';
 
 import type { ComponentTreeNode } from '../core/devtools-renderer';
 
@@ -50,7 +50,24 @@ export function TreeNode(props: TreeNodeProps) {
     devRenderer.selectedNode.set(node);
     if (node.output) {
       const renderedNodes = createNodesFromTemplate(node.output, devRenderer);
-      const firstNode = renderedNodes[0];
+      let firstNode = renderedNodes[0];
+      if (renderedNodes.length === 1) {
+        const anchorNode = renderedNodes[0];
+        if (anchorNode instanceof Comment) {
+          const teleportedContainer = Reflect.get(
+            anchorNode,
+            '__retendTeleportedContainer'
+          );
+          if (teleportedContainer instanceof Element) {
+            const teleportedFirstNode = teleportedContainer.firstChild;
+            if (teleportedFirstNode) {
+              firstNode = teleportedFirstNode;
+            } else {
+              firstNode = teleportedContainer;
+            }
+          }
+        }
+      }
       const options: ScrollIntoViewOptions = {
         block: 'center',
         inline: 'nearest',

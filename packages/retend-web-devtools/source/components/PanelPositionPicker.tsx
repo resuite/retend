@@ -81,7 +81,7 @@ export function PanelPositionPicker() {
                 ]}
                 onClick={() => selectPosition(option.value)}
               >
-                <span>{option.label}</span>
+                {option.label}
                 {If(isSelected, () => (
                   <span class={classes.positionOptionMark}>
                     <CheckIcon />

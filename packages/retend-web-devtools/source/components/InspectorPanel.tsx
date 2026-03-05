@@ -33,10 +33,13 @@ export function InspectorPanel(props: InspectorPanelProps) {
       </div>
       <div class={classes.sideInspectorSection}>
         <div class={classes.sideInspectorLabel}>Component</div>
-        <div class={classes.sideInspectorValue}>
-          <span class={classes.sideInspectorComponentName}>
-            <ComponentName component={selectedNode.component} />
-          </span>
+        <div
+          class={[
+            classes.sideInspectorValue,
+            classes.sideInspectorComponentName,
+          ]}
+        >
+          <ComponentName component={selectedNode.component} />
         </div>
       </div>
       <div class={classes.sideInspectorSection}>
@@ -89,14 +92,12 @@ export function InspectorPanel(props: InspectorPanelProps) {
                       ]}
                       style={{ '--indent': `${item.index * 0.75}rem` }}
                     >
-                      <div class={classes.renderedByPill}>
-                        <span class={classes.renderedByIcon}>
-                          <ChevronRightIcon />
-                        </span>
-                        <span class={classes.renderedByName}>
-                          {item.componentName}
-                        </span>
-                      </div>
+                      <span class={classes.renderedByIcon}>
+                        <ChevronRightIcon />
+                      </span>
+                      <span class={classes.renderedByName}>
+                        {item.componentName}
+                      </span>
                     </div>
                   );
                 })}

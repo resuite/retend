@@ -192,5 +192,35 @@ describe('Teleport', () => {
       assert(teleported);
       expect(getTextContent(teleported)).toBe('Scoped value');
     });
+
+    it('should link teleport anchor comment to teleported container', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+
+      const target = window.document.createElement('div');
+      target.id = 'anchor-target';
+      window.document.body.append(target);
+
+      const App = () => (
+        <div>
+          <Teleport to="#anchor-target">
+            <span>Anchored content</span>
+          </Teleport>
+        </div>
+      );
+      const result = renderer.render(App) as HTMLElement;
+      window.document.body.append(result);
+
+      const anchor = result.childNodes[0];
+      expect(anchor.nodeType).toBe(window.Node.COMMENT_NODE);
+
+      await timeout();
+
+      const teleported = target.querySelector('retend-teleport');
+      assert(teleported);
+      expect(Reflect.get(anchor, '__retendTeleportedContainer')).toBe(
+        teleported
+      );
+    });
   });
 });

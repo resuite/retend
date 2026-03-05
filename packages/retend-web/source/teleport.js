@@ -69,6 +69,9 @@ export function Teleport(props) {
       if (key === 'children') continue;
       renderer.setProperty(newInstance, key, value);
     }
+    if (anchor) {
+      Reflect.set(anchor, '__retendTeleportedContainer', newInstance);
+    }
 
     const children = createNodesFromTemplate(props.children, renderer);
     for (const child of children) {
@@ -76,7 +79,12 @@ export function Teleport(props) {
     }
 
     renderer.append(parent, newInstance);
-    return () => newInstance.remove();
+    return () => {
+      if (anchor) {
+        Reflect.deleteProperty(anchor, '__retendTeleportedContainer');
+      }
+      newInstance.remove();
+    };
   };
 
   return renderer.scheduleTeleport(mountTeleportedNodes);

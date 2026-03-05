@@ -429,22 +429,19 @@
 .renderedByItem {
   display: flex;
   align-items: center;
-  position: relative;
-  padding-left: var(--indent, 0px);
-}
-
-.renderedByPill {
-  display: flex;
-  align-items: center;
   gap: 0.375rem;
   background: color-mix(in srgb, var(--retend-devtools-accent) 8%, transparent);
   border: 1px solid
     color-mix(in srgb, var(--retend-devtools-accent) 20%, transparent);
   padding: 0.25rem 0.625rem 0.25rem 0.375rem;
   border-radius: 1rem;
+  position: relative;
+  margin-left: var(--indent, 0px);
+  width: max-content;
+  min-width: 7rem;
 }
 
-.renderedByItemLast .renderedByPill {
+.renderedByItemLast {
   background: color-mix(
     in srgb,
     var(--retend-devtools-accent) 15%,
