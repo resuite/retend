@@ -103,7 +103,7 @@ const runTests = () => {
   });
 
   describe('Scope.Provider children component syntax', () => {
-    it('should create and consume a basic scope using children', () => {
+    it('should create and consume a basic scope using Fragment children', () => {
       const userData = { name: 'Alice', age: 30 };
       const UserScope = createScope<typeof userData>();
 
@@ -119,7 +119,9 @@ const runTests = () => {
       const renderer = getActiveRenderer();
       const result = renderer.render(
         <UserScope.Provider value={userData}>
-          <ChildComponent />
+          <>
+            <ChildComponent />
+          </>
         </UserScope.Provider>
       ) as HTMLElement;
 

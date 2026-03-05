@@ -1,6 +1,6 @@
 import type { DOMRenderer } from 'retend-web';
 
-import { Cell, getActiveRenderer } from 'retend';
+import { Cell, createScope, getActiveRenderer, useScopeContext } from 'retend';
 import { Teleport } from 'retend-web';
 import { assert, describe, expect, it, vi } from 'vitest';
 
@@ -157,6 +157,40 @@ describe('Teleport', () => {
       expect(teleports.length).toBe(2);
       expect(getTextContent(teleports[0])).toBe('First teleport');
       expect(getTextContent(teleports[1])).toBe('Second teleport');
+    });
+
+    it('should preserve scope context for teleported children', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+
+      const target = window.document.createElement('div');
+      target.id = 'scope-target';
+      window.document.body.append(target);
+
+      const Scoped = createScope<string>('TeleportScopedValue');
+      const ScopedText = () => {
+        const value = useScopeContext(Scoped);
+        return <span>{value}</span>;
+      };
+
+      const App = () => (
+        <Scoped.Provider value="Scoped value">
+          <div>
+            <Teleport to="#scope-target">
+              <ScopedText />
+            </Teleport>
+          </div>
+        </Scoped.Provider>
+      );
+
+      const result = renderer.render(App) as HTMLElement;
+      window.document.body.append(result);
+
+      await timeout();
+
+      const teleported = target.querySelector('retend-teleport');
+      assert(teleported);
+      expect(getTextContent(teleported)).toBe('Scoped value');
     });
   });
 });

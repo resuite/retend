@@ -472,7 +472,8 @@ export class DOMRenderer {
     }
     const anchorNode = this.host.document.createComment('teleport-anchor');
     const ref = Cell.source(anchorNode);
-    onConnected(ref, callback);
+    const snapshot = branchState();
+    onConnected(ref, (node) => withState(snapshot, () => callback(node)));
     return anchorNode;
   }
 
