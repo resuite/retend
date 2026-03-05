@@ -26,20 +26,24 @@ export function h(
   if (tagOrFn === undefined) return [];
 
   if (Object.is(tagOrFn, FragmentPlaceholder)) {
-    const childList =
-      typeof props === 'object'
-        ? props.children
-          ? Array.isArray(props.children)
-            ? props.children
-            : [props.children]
-          : []
-        : [];
-    return renderer.createGroup(childList);
+    const Fragment = () => {
+      const childList =
+        typeof props === 'object'
+          ? props.children
+            ? Array.isArray(props.children)
+              ? props.children
+              : [props.children]
+            : []
+          : [];
+      return renderer.createGroup(childList);
+    };
+    Object.defineProperty(Fragment, 'name', { value: '{Fragment}' });
+    return Fragment;
   }
 
   if (typeof tagOrFn === 'function') {
     const completeProps = typeof props === 'object' ? [props] : [];
-    const __renderComponent = () => {
+    const comp = () => {
       return renderer.handleComponent(
         tagOrFn,
         completeProps,
@@ -47,7 +51,8 @@ export function h(
         fileData
       );
     };
-    return __renderComponent;
+    Object.defineProperty(comp, 'name', { value: `{${tagOrFn.name}}` });
+    return comp;
   }
 
   if (typeof props !== 'object') {
@@ -66,6 +71,7 @@ export function h(
 
     return linkNodes(container, props.children, renderer);
   };
+  Object.defineProperty(__renderElement, 'name', { value: `{${tagOrFn}}` });
   return __renderElement;
 }
 

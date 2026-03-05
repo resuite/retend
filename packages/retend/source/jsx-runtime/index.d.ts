@@ -18,7 +18,7 @@ export namespace JSX {
     lineNumber: number;
   }
 
-  export type Children = unknown;
+  export type Children = any;
   interface BaseContainerProps extends IntrinsicAttributes {}
   interface LinkElementProps extends IntrinsicAttributes {
     href?: JSX.ValueOrCell<string>;

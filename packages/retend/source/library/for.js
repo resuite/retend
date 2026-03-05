@@ -66,6 +66,7 @@ import { branchState, withState } from './scope.js';
 export function For(list, fn, options) {
   return () => {
     const renderer = getActiveRenderer();
+    if (!fn.name) Object.defineProperty(fn, 'name', { value: 'For.Item' });
 
     // -----------------------------------------------
     // STATIC LISTS

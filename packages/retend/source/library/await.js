@@ -89,6 +89,7 @@ export function Await(props) {
   const AwaitContent = () => {
     return AwaitScope.Provider({ value, children });
   };
+  Object.defineProperty(AwaitContent, 'name', { value: 'Await.Content' });
 
   const render = withState(snapshot, () => {
     return normalizeJsxChild(
@@ -105,10 +106,6 @@ export function Await(props) {
     return () => asyncHolders.delete(waitingPromise);
   });
 
-  const AwaitFallback = () => fallback || null;
-  Object.defineProperty(AwaitFallback, 'name', { value: 'Await.Fallback' });
-  Object.defineProperty(AwaitContent, 'name', { value: 'Await.Content' });
-
   return If(initialStateDone, {
     true: () => {
       snapshot.node.unsuspend();
@@ -120,7 +117,7 @@ export function Await(props) {
       });
       return render;
     },
-    false: AwaitFallback,
+    false: () => fallback || null,
   });
 }
 

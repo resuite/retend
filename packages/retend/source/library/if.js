@@ -56,6 +56,9 @@ export function If(value, fnOrObject, elseFn) {
     const renderer = getActiveRenderer();
     if (!Cell.isCell(value)) {
       if (typeof fnOrObject === 'function') {
+        if (!fnOrObject.name) {
+          Object.defineProperty(fnOrObject, 'name', { value: 'If.True' });
+        }
         if (value) {
           return renderer.handleComponent(fnOrObject, [value]);
         }
@@ -83,6 +86,10 @@ export function If(value, fnOrObject, elseFn) {
 
     const stateSnapshot = branchState();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+
+    if (typeof fnOrObject === 'function' && !fnOrObject.name) {
+      Object.defineProperty(fnOrObject, 'name', { value: 'If.True' });
+    }
 
     /** @param {T} _value */
     const callback = (_value) => {

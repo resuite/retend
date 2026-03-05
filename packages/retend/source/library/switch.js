@@ -56,6 +56,13 @@ import { branchState, withState } from './scope.js';
 export function Switch(value, cases, defaultCase) {
   return () => {
     const renderer = getActiveRenderer();
+
+    for (const fn of Object.values(cases)) {
+      if (typeof fn === 'function' && !fn.name) {
+        Object.defineProperty(fn, 'name', { value: 'Switch.Case' });
+      }
+    }
+
     if (!Cell.isCell(value)) {
       if (value in cases && cases[value]) {
         const nodes = renderer.handleComponent(cases[value], []);
@@ -171,6 +178,13 @@ export function Switch(value, cases, defaultCase) {
 Switch.OnProperty = (value, key, cases, defaultCase) => {
   return () => {
     const renderer = getActiveRenderer();
+
+    for (const fn of Object.values(cases)) {
+      if (typeof fn === 'function' && !fn.name) {
+        Object.defineProperty(fn, 'name', { value: 'Switch.Case' });
+      }
+    }
+
     if (!Cell.isCell(value)) {
       const discriminant = value[key];
 

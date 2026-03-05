@@ -264,7 +264,9 @@ export function createScope(name) {
     },
   };
 
-  Object.defineProperty(Scope.Provider, 'name', { value: `${key}.Provider` });
+  Object.defineProperty(Scope.Provider, 'name', {
+    value: `Scope(${key}).Provider`,
+  });
 
   /// @ts-expect-error: Vite types are not ingrained.
   if (import.meta.env?.DEV) {
