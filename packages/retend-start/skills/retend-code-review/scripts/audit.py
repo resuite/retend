@@ -5,7 +5,7 @@ import sys
 import argparse
 
 JSX_ATTR_PATTERN = r"<\w[^>]*?\s\w+\s*=\s*\{"
-JSX_CHILD_PATTERN = r"\w>\s*\{"
+JSX_CHILD_PATTERN = r"</?\w[^>]*>\s*\{"
 
 RULES = [
     (

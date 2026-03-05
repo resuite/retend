@@ -2,9 +2,8 @@ import type { JSX } from 'retend/jsx-runtime';
 
 export type CardProps = {
   class?: JSX.ValueOrCell<string | string[] | object>;
-  children?: unknown;
+  children?: JSX.Template;
   as?: keyof JSX.IntrinsicElements;
-  [key: string]: unknown;
 };
 
 export function Card(props: CardProps) {

@@ -1,0 +1,73 @@
+:root {
+  --retend-devtools-font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  --retend-devtools-font-mono:
+    'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', 'SFMono', Menlo,
+    Consolas, 'Cascadia Code', 'Liberation Mono', monospace;
+  --retend-devtools-font-size-xs: 0.6875rem; /* 11px */
+  --retend-devtools-font-size-sm: 0.75rem; /* 12px */
+  --retend-devtools-font-size-base: 0.8125rem; /* 13px */
+  --retend-devtools-font-size-lg: 0.875rem; /* 14px */
+
+  --retend-devtools-panel-bg: #1a1a1a;
+  --retend-devtools-panel-border: #333;
+  --retend-devtools-panel-shadow: rgba(0, 0, 0, 0.5);
+  --retend-devtools-resize-handle: #555;
+  --retend-devtools-title-text: #999;
+  --retend-devtools-fab-bg: black;
+  --retend-devtools-fab-border: white;
+  --retend-devtools-fab-hover-border: lightblue;
+  --retend-devtools-header-button-border: #3a3a3a;
+  --retend-devtools-header-button-text: #8b8b8b;
+  --retend-devtools-accent: #7cacf8;
+  --retend-devtools-tree-text: #e0e0e0;
+  --retend-devtools-tree-muted: #4f4f4f;
+  --retend-devtools-row-hover: rgba(124, 172, 248, 0.12);
+  --retend-devtools-row-active: rgba(124, 172, 248, 0.22);
+  --retend-devtools-chevron: #888;
+  --retend-devtools-leaf-dot: #555;
+  --retend-devtools-internal-core: #9ccad6;
+  --retend-devtools-children-border: rgba(255, 255, 255, 0.06);
+  --retend-devtools-palette-blue: #4299e1;
+  --retend-devtools-palette-pink: #ec4899;
+  --retend-devtools-palette-green: #22c55e;
+  --retend-devtools-palette-red: #ef4444;
+  --retend-devtools-palette-amber: #f59e0b;
+  --retend-devtools-palette-border: rgba(255, 255, 255, 0.2);
+  --retend-devtools-inspector-bg: rgba(255, 255, 255, 0.02);
+  --retend-devtools-inspector-border: rgba(255, 255, 255, 0.06);
+  --retend-devtools-inspector-code-bg: rgba(0, 0, 0, 0.22);
+  --retend-devtools-inspector-text: #c9d4e8;
+  --retend-devtools-inspector-title: #9aa6c4;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not(.dark):not([data-theme='dark']) {
+    --retend-devtools-panel-bg: #ffffff;
+    --retend-devtools-panel-border: #d4d9e1;
+    --retend-devtools-panel-shadow: rgba(15, 23, 42, 0.16);
+    --retend-devtools-resize-handle: #a0a9b8;
+    --retend-devtools-title-text: #5f6b7c;
+    --retend-devtools-fab-bg: #ffffff;
+    --retend-devtools-fab-border: #1f2937;
+    --retend-devtools-fab-hover-border: #2563eb;
+    --retend-devtools-header-button-border: #c8d0dc;
+    --retend-devtools-header-button-text: #5f6b7c;
+    --retend-devtools-accent: #2563eb;
+    --retend-devtools-tree-text: #1f2937;
+    --retend-devtools-tree-muted: #8a95a8;
+    --retend-devtools-row-hover: rgba(37, 99, 235, 0.1);
+    --retend-devtools-row-active: rgba(37, 99, 235, 0.18);
+    --retend-devtools-chevron: #7b8798;
+    --retend-devtools-leaf-dot: #97a1af;
+    --retend-devtools-internal-core: #2c7c9f;
+    --retend-devtools-children-border: rgba(15, 23, 42, 0.1);
+    --retend-devtools-palette-border: rgba(15, 23, 42, 0.2);
+    --retend-devtools-inspector-bg: rgba(15, 23, 42, 0.02);
+    --retend-devtools-inspector-border: rgba(15, 23, 42, 0.12);
+    --retend-devtools-inspector-code-bg: #f6f8fb;
+    --retend-devtools-inspector-text: #1f2937;
+    --retend-devtools-inspector-title: #5f6b7c;
+  }
+}

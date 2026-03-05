@@ -17,28 +17,47 @@ export interface ComponentTreeNode {
   output?: JSX.Template;
 }
 
-// using this instead of useComponentAncestry so we can
-// track multiple chains of the same function.
-const ParentNodeScope = createScope<ComponentTreeNode>();
+export type HighlightColor = 'blue' | 'pink' | 'green' | 'red' | 'amber';
+export type PanelPosition =
+  | 'bottom-right'
+  | 'bottom-left'
+  | 'top-right'
+  | 'top-left';
 
-function useParentTreeNode() {
-  try {
-    return useScopeContext(ParentNodeScope);
-  } catch {
-    return undefined;
-  }
-}
+const controlFlowNames = new Set([
+  'true',
+  'false',
+  'For.Item',
+  'If.True',
+  'If.False',
+  'Switch.Case',
+  'Outlet.Content',
+  'Await.Content',
+]);
 
 export class DevToolsDOMRenderer extends DOMRenderer {
-  rootNode: SourceCell<ComponentTreeNode | null> = Cell.source(null);
-  hoveredNode: SourceCell<ComponentTreeNode | null> = Cell.source(null);
-  focusedNode: SourceCell<ComponentTreeNode | null> = Cell.source(null);
-  disableHighlightTransition: SourceCell<boolean> = Cell.source(false);
-  parentMap: Map<ComponentTreeNode, ComponentTreeNode> = new Map();
-  childrenMap: Map<ComponentTreeNode, SourceCell<Array<ComponentTreeNode>>> =
-    new Map();
+  rootNode = Cell.source<ComponentTreeNode | null>(null);
+  hoveredNode = Cell.source<ComponentTreeNode | null>(null);
+  selectedNode = Cell.source<ComponentTreeNode | null>(null);
+  disableHighlightTransition = Cell.source(false);
+  highlightColor = Cell.source<HighlightColor>('blue');
+  panelPosition = Cell.source<PanelPosition>('bottom-right');
+  parentMap = new Map<ComponentTreeNode, ComponentTreeNode>();
+  childrenMap = new Map<
+    ComponentTreeNode,
+    SourceCell<Array<ComponentTreeNode>>
+  >();
+  parentNodeScope = createScope<ComponentTreeNode>();
 
-  getChildren(node: ComponentTreeNode) {
+  useParentNode() {
+    try {
+      return useScopeContext(this.parentNodeScope);
+    } catch {
+      return undefined;
+    }
+  }
+
+  getNodeChildren(node: ComponentTreeNode) {
     let cell = this.childrenMap.get(node);
     if (!cell) {
       cell = Cell.source<Array<ComponentTreeNode>>([]);
@@ -53,7 +72,7 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   ) {
     if (parentInTree) {
       this.parentMap.set(treeNode, parentInTree);
-      const siblingsCell = this.getChildren(parentInTree);
+      const siblingsCell = this.getNodeChildren(parentInTree);
       siblingsCell.set([...siblingsCell.get(), treeNode]);
       return;
     }
@@ -72,7 +91,7 @@ export class DevToolsDOMRenderer extends DOMRenderer {
       }
     }
     if (treeNode === this.rootNode.get()) this.rootNode.set(null);
-    if (treeNode === this.focusedNode.get()) this.focusedNode.set(null);
+    if (treeNode === this.selectedNode.get()) this.selectedNode.set(null);
   }
 
   override handleComponent(
@@ -81,24 +100,28 @@ export class DevToolsDOMRenderer extends DOMRenderer {
     _?: StateSnapshot,
     fileData?: JSX.JSXDevFileData
   ): Node | Node[] {
-    const componentName = getComponentName(tagname);
-    if (componentName === 'true' || componentName === 'false') {
-      // skip If() branches.
+    const componentName = tagname.name;
+    if (controlFlowNames.has(componentName)) {
       return super.handleComponent(tagname, props, _, fileData);
     }
 
-    const treeNode: ComponentTreeNode = { component: tagname, props, fileData };
-    const parent = useParentTreeNode();
-    const parentInTree = parent;
+    const definitionFileData = Reflect.get(tagname, '__retendDefinition') as
+      | JSX.JSXDevFileData
+      | undefined;
+
+    const treeNode: ComponentTreeNode = {
+      component: tagname,
+      props,
+      fileData: definitionFileData,
+    };
+    const parentInTree = this.useParentNode();
 
     onSetup(() => {
       this.attachTreeNode(treeNode, parentInTree);
-      return () => {
-        this.detachTreeNode(treeNode);
-      };
+      return () => this.detachTreeNode(treeNode);
     });
 
-    return ParentNodeScope.Provider({
+    return this.parentNodeScope.Provider({
       h: false,
       value: treeNode,
       children: () => {
@@ -108,8 +131,4 @@ export class DevToolsDOMRenderer extends DOMRenderer {
       },
     }) as Node | Node[];
   }
-}
-
-export function getComponentName(fn: __HMR_UpdatableFn) {
-  return Reflect.get(fn, 'displayName') || fn.name || '[Anonymous]';
 }

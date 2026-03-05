@@ -6,7 +6,7 @@ import { DocsPage } from '@/routes/DocsPage';
 import { Home } from '@/routes/Home';
 import { QuickstartPage } from '@/routes/QuickstartPage';
 
-import { RetendDevTools } from './devtools/devtools';
+import { RetendDevTools } from './devtools/RetendDevTools';
 
 const Root = () => {
   if (import.meta.env.DEV) {

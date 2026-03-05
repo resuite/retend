@@ -2,7 +2,7 @@ import { createScope, useScopeContext } from 'retend';
 import { Cell } from 'retend';
 import { useLocalStorage, useMatchMedia } from 'retend-utils/hooks';
 
-export const ThemeScope = createScope<ThemeContext>('docs:Theme');
+export const ThemeScope = createScope<ThemeContext>('ThemeScope');
 export type Theme = 'light' | 'dark';
 
 export interface ThemeContext {

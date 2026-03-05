@@ -1,34 +1,23 @@
 import { Cell, createNodesFromTemplate, onSetup } from 'retend';
 
-import type {
-  ComponentTreeNode,
-  DevToolsDOMRenderer,
-} from './devtools-renderer';
+import type { ComponentTreeNode } from '../core/devtools-renderer';
 
-import classes from './Panel.module.css';
+import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
+import classes from '../styles/PickerButton.module.css';
+import { PickerIcon } from './icons';
 
-interface PickerButtonProps {
-  devRenderer: DevToolsDOMRenderer;
-}
-
-export function PickerButton(props: PickerButtonProps) {
-  const { devRenderer } = props;
+export function PickerButton() {
+  const devRenderer = useDevToolsRenderer();
   const pickerIsOpen = Cell.source(false);
 
   let pickerMoveHandler: ((event: PointerEvent) => void) | undefined;
-  let pickerDownHandler: ((event: PointerEvent) => void) | undefined;
   let ancestorHoverTimer: number | null = null;
   let ancestorHoverFrom: ComponentTreeNode | null = null;
-  let forceImmediateHover = false;
 
   const stopPicker = () => {
     if (pickerMoveHandler) {
       window.removeEventListener('pointermove', pickerMoveHandler, true);
       pickerMoveHandler = undefined;
-    }
-    if (pickerDownHandler) {
-      window.removeEventListener('pointerdown', pickerDownHandler, true);
-      pickerDownHandler = undefined;
     }
     if (ancestorHoverTimer !== null) {
       window.clearTimeout(ancestorHoverTimer);
@@ -142,7 +131,7 @@ export function PickerButton(props: PickerButtonProps) {
           current = parent;
         }
 
-        if (matchedIsAncestor && !forceImmediateHover) {
+        if (matchedIsAncestor) {
           ancestorHoverFrom = currentHovered;
           if (ancestorHoverTimer !== null) {
             window.clearTimeout(ancestorHoverTimer);
@@ -169,31 +158,7 @@ export function PickerButton(props: PickerButtonProps) {
       }
     };
 
-    pickerDownHandler = (event: PointerEvent) => {
-      const hoveredElement = document.elementFromPoint(
-        event.clientX,
-        event.clientY
-      );
-      if (hoveredElement && hoveredElement.closest('[data-retend-devtools]')) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      forceImmediateHover = true;
-      if (pickerMoveHandler) {
-        pickerMoveHandler(event);
-      }
-      forceImmediateHover = false;
-      const hoveredNode = devRenderer.hoveredNode.get();
-      if (hoveredNode) {
-        devRenderer.focusedNode.set(hoveredNode);
-      }
-      pickerIsOpen.set(false);
-      stopPicker();
-    };
-
     window.addEventListener('pointermove', pickerMoveHandler, true);
-    window.addEventListener('pointerdown', pickerDownHandler, true);
     document.documentElement.style.cursor = 'crosshair';
   };
 
@@ -224,7 +189,7 @@ export function PickerButton(props: PickerButtonProps) {
       aria-label="Pick component from page"
       title="Pick component from page"
     >
-      ⌖
+      <PickerIcon />
     </button>
   );
 }

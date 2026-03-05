@@ -3,20 +3,21 @@ import type { JSX } from 'retend/jsx-runtime';
 import { getActiveRenderer, setActiveRenderer } from 'retend';
 import { DOMRenderer } from 'retend-web';
 
-import type { DevToolsDOMRenderer } from './devtools-renderer';
+import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
 
 interface MainContentProps {
-  devRenderer: DevToolsDOMRenderer;
   children: JSX.Children;
 }
 
 export function MainContent(props: MainContentProps) {
-  const { children, devRenderer } = props;
+  const { children } = props;
+  const devRenderer = useDevToolsRenderer();
 
   const mainRenderer = getActiveRenderer() as DOMRenderer;
   setActiveRenderer(devRenderer);
   try {
-    return <>{children}</>;
+    const renderOutput = devRenderer.render(children as JSX.Element);
+    return renderOutput;
   } finally {
     setActiveRenderer(mainRenderer);
   }

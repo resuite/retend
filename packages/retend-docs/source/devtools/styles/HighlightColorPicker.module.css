@@ -1,0 +1,41 @@
+.palette {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding-right: 0.5rem;
+}
+
+.paletteColor {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--retend-devtools-palette-border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.paletteColorActive {
+  box-shadow:
+    0 0 0 1px var(--retend-devtools-panel-bg),
+    0 0 0 2px var(--retend-devtools-accent);
+}
+
+.paletteBlue {
+  background: var(--retend-devtools-palette-blue);
+}
+
+.palettePink {
+  background: var(--retend-devtools-palette-pink);
+}
+
+.paletteGreen {
+  background: var(--retend-devtools-palette-green);
+}
+
+.paletteRed {
+  background: var(--retend-devtools-palette-red);
+}
+
+.paletteAmber {
+  background: var(--retend-devtools-palette-amber);
+}

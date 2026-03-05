@@ -1,21 +1,23 @@
 import { JSX } from 'retend/jsx-runtime';
 
+import { CodeBlock } from '@/components/CodeBlock';
 import { InlineCode } from '@/components/InlineCode';
 
 export function createMDXComponents() {
   return {
     code: (props: JSX.IntrinsicElements['code']) => {
+      const text = props.children as string;
       if (props.class) {
         const className = String(props.class);
         if (className.includes('language-')) {
-          return <code class={props.class}>{props.children}</code>;
+          return <CodeBlock code={text} lang={className.split('-')[1]} />;
         }
       }
       const mdxClassName = Reflect.get(props, 'className');
       if (mdxClassName) {
         const className = String(mdxClassName);
         if (className.includes('language-')) {
-          return <code class={mdxClassName}>{props.children}</code>;
+          return <CodeBlock code={text} lang={className.split('-')[1]} />;
         }
       }
       return <InlineCode class={props.class}>{props.children}</InlineCode>;
