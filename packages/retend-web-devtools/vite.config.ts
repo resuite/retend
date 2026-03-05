@@ -32,13 +32,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: [
-        'retend',
-        'retend/jsx-runtime',
-        'retend/router',
-        'retend-web',
-        'esm-env',
-      ],
+      external: ['retend', 'retend/jsx-runtime', 'retend/router', 'retend-web'],
     },
     sourcemap: false,
   },
