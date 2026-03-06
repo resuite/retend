@@ -36,15 +36,15 @@ description: 'Review, audit, or refactor Retend code. Triggers: (1) Reactivity c
 - `\buse(State|Effect|Memo|Callback|Ref|Context)\b` - React hooks (Critical)
 - `Cell\.derived\(` with DOM manipulation or `.set\(` inside - Side effect in derived (Critical -> use `cell.listen()`)
 
-## Automated Audit Script
-
-The skill includes a `scripts/audit.py` tool to automate these checks across a file or directory.
+## Automated Audit
 
 **Usage:**
 
 ```bash
-python3 scripts/audit.py <path/to/src>
+pnpm exec oxlint . --config .oxlintrc.json
 ```
+
+For Retend-specific semantic rules, use a local JS plugin loaded through `jsPlugins` in `.oxlintrc.json`. Start with AST-based rules that are syntactic but framework-specific, such as `.get()` inside JSX.
 
 ## References
 

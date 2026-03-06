@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "vite": "^6.2.1",
+    "oxlint": "^1.50.0",
     "typescript": "^5.5.2",
     "tailwindcss": "^4.1.8",
     "@tailwindcss/vite": "^4.1.5"

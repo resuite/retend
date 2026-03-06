@@ -623,11 +623,13 @@ async function createPackageJson(projectDir, answers) {
       dev: 'vite --port 5229',
       build: 'vite build',
       preview: 'vite preview',
+      lint: 'oxlint .',
     },
     dependencies: getRetendDependencies(commitHash, Boolean(answers.useSSG)),
     /** @type {Record<string, string>} */
     devDependencies: {
       vite: CONFIG.devDependencies.vite,
+      oxlint: CONFIG.devDependencies.oxlint,
     },
   };
 
@@ -685,10 +687,85 @@ async function createConfigFile(projectDir, answers) {
     content.compilerOptions.skipLibCheck = true;
   }
 
-  await fs.writeFile(
-    path.join(projectDir, fileName),
-    JSON.stringify(content, null, 2)
-  );
+  await Promise.all([
+    fs.writeFile(
+      path.join(projectDir, fileName),
+      JSON.stringify(content, null, 2)
+    ),
+    fs.writeFile(
+      path.join(projectDir, '.oxlintrc.json'),
+      JSON.stringify(
+        {
+          $schema: './node_modules/oxlint/configuration_schema.json',
+          jsPlugins: ['./retend-oxlint-plugin.mjs'],
+          rules: {
+            'retend/no-get-in-jsx': 'error',
+          },
+        },
+        null,
+        2
+      )
+    ),
+    fs.writeFile(
+      path.join(projectDir, 'retend-oxlint-plugin.mjs'),
+      `const noGetInJsx = {
+  meta: {
+    docs: {
+      description: 'disallow .get() in JSX expressions',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Calling .get() in JSX returns a static snapshot. Pass the Cell directly.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (node.callee.type !== 'MemberExpression' || node.callee.computed) {
+          return;
+        }
+
+        if (
+          node.callee.property.type !== 'Identifier' ||
+          node.callee.property.name !== 'get'
+        ) {
+          return;
+        }
+
+        let parent = node.parent;
+        while (parent) {
+          if (parent.type === 'JSXExpressionContainer') {
+            context.report({ node: node.callee.property, messageId: 'unexpected' });
+            return;
+          }
+
+          if (
+            parent.type === 'ArrowFunctionExpression' ||
+            parent.type === 'FunctionDeclaration' ||
+            parent.type === 'FunctionExpression'
+          ) {
+            return;
+          }
+
+          parent = parent.parent;
+        }
+      },
+    };
+  },
+};
+
+export default {
+  meta: {
+    name: 'retend',
+  },
+  rules: {
+    'no-get-in-jsx': noGetInJsx,
+  },
+};
+`
+    ),
+  ]);
 }
 
 /**
