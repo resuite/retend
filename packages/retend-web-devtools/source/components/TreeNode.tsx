@@ -1,11 +1,4 @@
-import {
-  __HMR_UpdatableFn,
-  Await,
-  Cell,
-  For,
-  If,
-  onConnected,
-} from 'retend';
+import { __HMR_UpdatableFn, Await, Cell, For, If, onConnected } from 'retend';
 import { ShadowRoot, Teleport } from 'retend-web';
 import { Link, Outlet } from 'retend/router';
 

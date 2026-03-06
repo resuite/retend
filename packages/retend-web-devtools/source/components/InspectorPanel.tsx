@@ -26,6 +26,11 @@ export function InspectorPanel() {
     return inspector.renderedByItems.get().length > 0;
   });
 
+  const reversedRenderedByItems = Cell.derived(() => {
+    return inspector.renderedByItems.get().slice().reverse();
+  });
+  const totalParents = Cell.derived(() => reversedRenderedByItems.get().length);
+
   return (
     <div class={classes.sideInspector}>
       <div class={classes.sideInspectorHeader}>
@@ -63,20 +68,28 @@ export function InspectorPanel() {
             <div class={classes.sideInspectorLabel}>Rendered by</div>
             <div class={classes.sideInspectorValue}>
               <div class={classes.renderedByList}>
-                {For(inspector.renderedByItems, (item) => {
+                {For(reversedRenderedByItems, (item) => {
+                  const isFirstVisual = item.isLast;
                   return (
                     <div
                       class={[
                         classes.renderedByItem,
                         {
-                          [classes.renderedByItemLast]: item.isLast,
+                          [classes.renderedByItemFirst]: isFirstVisual,
                         },
                       ]}
-                      style={{ '--indent': `${item.index * 0.75}rem` }}
+                      style={{
+                        opacity: `max(0.3, ${item.index + 1} / ${totalParents.get()})`,
+                      }}
                     >
-                      <span class={classes.renderedByIcon}>
-                        <ChevronRightIcon />
-                      </span>
+                      {If(!isFirstVisual, () => (
+                        <span
+                          class={classes.renderedBySeparator}
+                          style="transform: rotate(180deg)"
+                        >
+                          <ChevronRightIcon />
+                        </span>
+                      ))}
                       <span class={classes.renderedByName}>
                         {item.componentName}
                       </span>
