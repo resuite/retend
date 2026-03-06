@@ -48,33 +48,6 @@ export function InspectorPanel(props: InspectorPanelProps) {
           <InspectorPropsTable node={selectedNode} />
         </div>
       </div>
-      {If(inspector.showDefinitionLocation, () => (
-        <div class={classes.sideInspectorSection}>
-          <div class={classes.sideInspectorLabel}>Definition location</div>
-          <div
-            class={[
-              classes.sideInspectorValue,
-              classes.sideInspectorFileLocation,
-            ]}
-            title={inspector.definitionLocation}
-          >
-            <span>{inspector.definitionLocationStart}</span>
-            {If(inspector.definitionLocationMiddle !== '', () => (
-              <span class={classes.sideInspectorLocationEllipsis}>
-                {inspector.definitionLocationMiddle}
-              </span>
-            ))}
-            <span>{inspector.definitionLocationEnd}</span>
-          </div>
-          <button
-            type="button"
-            class={classes.openInEditorButton}
-            onClick={inspector.openInEditor}
-          >
-            Open in Editor
-          </button>
-        </div>
-      ))}
       {If(hasRenderedBy, () => {
         return (
           <div class={classes.sideInspectorSection}>

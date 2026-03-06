@@ -25,8 +25,12 @@ export function HighlightOverlay() {
     let rect: DOMRect | null = null;
     let label = '';
     const node = devRenderer.hoveredNode.get();
+    const hoveredElement = devRenderer.pickerHoveredElement.get();
 
-    if (node && node.output) {
+    if (node && hoveredElement) {
+      label = `${node.component.name}.${hoveredElement.tagName.toLowerCase()}`;
+      rect = hoveredElement.getBoundingClientRect();
+    } else if (node && node.output) {
       label = node.component.name;
       let flatNodes = createNodesFromTemplate(node.output, devRenderer);
       if (flatNodes.length === 1) {
@@ -57,8 +61,17 @@ export function HighlightOverlay() {
     worker.postMessage({ type: 'target', rect, label, color }, []);
   };
 
+  const updateCursorPosition = () => {
+    const cursorPosition = devRenderer.pickerCursorPosition.get();
+    const color = devRenderer.highlightColor.get();
+    worker.postMessage({ type: 'cursor', position: cursorPosition, color }, []);
+  };
+
   devRenderer.hoveredNode.listen(updateTarget);
   devRenderer.highlightColor.listen(updateTarget);
+  devRenderer.pickerHoveredElement.listen(updateTarget);
+  devRenderer.highlightColor.listen(updateCursorPosition);
+  devRenderer.pickerCursorPosition.listen(updateCursorPosition);
 
   onConnected(canvasRef, async (canvas) => {
     const offscreenCanvas = canvas.transferControlToOffscreen();

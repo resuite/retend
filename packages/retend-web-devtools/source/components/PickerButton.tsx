@@ -25,6 +25,8 @@ export function PickerButton() {
     }
     ancestorHoverFrom = null;
     document.documentElement.style.cursor = '';
+    devRenderer.pickerCursorPosition.set(null);
+    devRenderer.pickerHoveredElement.set(null);
   };
 
   const startPicker = () => {
@@ -32,14 +34,22 @@ export function PickerButton() {
 
     pickerMoveHandler = (event: PointerEvent) => {
       event.stopPropagation();
+
+      devRenderer.pickerCursorPosition.set({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
       const hoveredElement = event.target as Element | null;
       if (!hoveredElement || !(hoveredElement instanceof Element)) {
         devRenderer.hoveredNode.set(null);
+        devRenderer.pickerHoveredElement.set(null);
         return;
       }
       if (hoveredElement.closest('[data-retend-devtools]')) {
         return;
       }
+      devRenderer.pickerHoveredElement.set(hoveredElement);
 
       let matchedNode: ComponentTreeNode | null = null;
       const rootNode = devRenderer.rootNode.get();

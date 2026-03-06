@@ -24,6 +24,11 @@ export type PanelPosition =
   | 'top-right'
   | 'top-left';
 
+export interface CursorPosition {
+  x: number;
+  y: number;
+}
+
 const controlFlowNames = new Set([
   'true',
   'false',
@@ -41,6 +46,8 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   selectedNode = Cell.source<ComponentTreeNode | null>(null);
   highlightColor = Cell.source<HighlightColor>('blue');
   panelPosition = Cell.source<PanelPosition>('bottom-right');
+  pickerCursorPosition = Cell.source<CursorPosition | null>(null);
+  pickerHoveredElement = Cell.source<Element | null>(null);
   parentMap = new Map<ComponentTreeNode, ComponentTreeNode>();
   childrenMap = new Map<
     ComponentTreeNode,
@@ -104,14 +111,9 @@ export class DevToolsDOMRenderer extends DOMRenderer {
       return super.handleComponent(tagname, props, _, fileData);
     }
 
-    const definitionFileData = Reflect.get(tagname, '__retendDefinition') as
-      | JSX.JSXDevFileData
-      | undefined;
-
     const treeNode: ComponentTreeNode = {
       component: tagname,
       props,
-      fileData: definitionFileData,
     };
     const parentInTree = this.useParentNode();
 

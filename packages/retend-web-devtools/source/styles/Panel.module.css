@@ -48,7 +48,6 @@
 
 .content {
   background: var(--retend-devtools-panel-bg);
-  backdrop-filter: blur(7px);
   border: 1px solid var(--retend-devtools-panel-border);
   border-radius: 0.5rem;
   width: 25rem;

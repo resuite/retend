@@ -7,6 +7,11 @@ interface Rect {
 
 type HighlightColor = 'blue' | 'pink' | 'green' | 'red' | 'amber';
 
+interface CursorPosition {
+  x: number;
+  y: number;
+}
+
 interface InitMessage {
   type: 'init';
   canvas: OffscreenCanvas;
@@ -29,6 +34,12 @@ interface TargetMessage {
   color: HighlightColor;
 }
 
+interface CursorMessage {
+  type: 'cursor';
+  position: CursorPosition | null;
+  color: HighlightColor;
+}
+
 interface DisposeMessage {
   type: 'dispose';
 }
@@ -37,6 +48,7 @@ type WorkerMessage =
   | InitMessage
   | ResizeMessage
   | TargetMessage
+  | CursorMessage
   | DisposeMessage;
 
 let canvas: OffscreenCanvas | null = null;
@@ -49,6 +61,8 @@ let currentRect: Rect | null = null;
 let label = '';
 let timer: ReturnType<typeof setInterval> | 0 = 0;
 let color: HighlightColor = 'blue';
+let cursorPosition: CursorPosition | null = null;
+let cursorColor: HighlightColor = 'blue';
 
 function syncCanvasSize() {
   if (!canvas) return;
@@ -62,9 +76,50 @@ function drawFrame() {
   if (!context) return;
   context.clearRect(0, 0, width, height);
 
+  // Draw crosshair lines first (when picker is active, even if no target)
+  if (cursorPosition) {
+    let cursorStrokeStyle = 'rgba(66, 153, 225, 0.5)';
+
+    if (cursorColor === 'pink') {
+      cursorStrokeStyle = 'rgba(236, 72, 153, 0.5)';
+    }
+
+    if (cursorColor === 'green') {
+      cursorStrokeStyle = 'rgba(34, 197, 94, 0.5)';
+    }
+
+    if (cursorColor === 'red') {
+      cursorStrokeStyle = 'rgba(239, 68, 68, 0.5)';
+    }
+
+    if (cursorColor === 'amber') {
+      cursorStrokeStyle = 'rgba(245, 158, 11, 0.5)';
+    }
+
+    context.strokeStyle = cursorStrokeStyle;
+    context.lineWidth = 1.1;
+
+    // Horizontal line (full width at cursor Y position)
+    context.beginPath();
+    context.moveTo(0, cursorPosition.y);
+    context.lineTo(width, cursorPosition.y);
+    context.stroke();
+
+    // Vertical line (full height at cursor X position)
+    context.beginPath();
+    context.moveTo(cursorPosition.x, 0);
+    context.lineTo(cursorPosition.x, height);
+    context.stroke();
+
+    context.lineWidth = 1;
+  }
+
   if (!targetRect) {
     currentRect = null;
-    stopLoop();
+    // Keep loop running if cursor position exists (picker active)
+    if (!cursorPosition) {
+      stopLoop();
+    }
     return;
   }
 
@@ -326,6 +381,16 @@ self.addEventListener('message', (event) => {
     label = message.label;
     color = message.color;
     startLoop();
+    return;
+  }
+
+  if (message.type === 'cursor') {
+    cursorPosition = message.position;
+    cursorColor = message.color;
+    if (cursorPosition) {
+      startLoop();
+    }
+    drawFrame();
     return;
   }
 
