@@ -18,6 +18,19 @@ export function Panel() {
   const inspectorIsOpen = Cell.derived(
     () => devRenderer.selectedNode.get() !== null
   );
+  const togglePanel = () => {
+    const nextState = !panel.panelIsOpen.get();
+    panel.togglePanel();
+    if (!nextState) {
+      Cell.batch(() => {
+        devRenderer.hoveredNode.set(null);
+        devRenderer.selectedNode.set(null);
+        devRenderer.pickerCursorPosition.set(null);
+        devRenderer.pickerHoveredElement.set(null);
+        devRenderer.isPickerActive.set(false);
+      });
+    }
+  };
 
   onConnected(divRef, (div) => {
     requestAnimationFrame(() => {
@@ -70,7 +83,7 @@ export function Panel() {
                 classes.button,
                 { [classes.buttonOpen]: panel.panelIsOpen },
               ]}
-              onClick={panel.togglePanel}
+              onClick={togglePanel}
             >
               RT
             </button>
