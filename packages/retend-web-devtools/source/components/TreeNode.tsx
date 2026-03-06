@@ -33,16 +33,13 @@ export function TreeNode(props: TreeNodeProps) {
     props;
   const devRenderer = useDevToolsRenderer();
   const expanded = Cell.source(depth < 6);
-  const name = node.component.name;
+  const { name } = node.component;
 
   const children = devRenderer.getNodeChildren(node);
   const hasChildren = Cell.derived(() => children.get().length > 0);
   const isVisible = Cell.derived(() => visibleNodes.get().has(node));
   const isExpanded = Cell.derived(() => {
-    if (forceExpanded.get()) {
-      return true;
-    }
-    return expanded.get();
+    return forceExpanded.get() || expanded.get();
   });
 
   const shouldCollapseAsProvider = Cell.derived(() => {
@@ -59,9 +56,10 @@ export function TreeNode(props: TreeNodeProps) {
   const isScopeProvider = Reflect.has(node.component, '__isScopeProviderOf');
 
   const onNodeClick = (event: MouseEvent) => {
+    const hasPreviouslySelected = devRenderer.selectedNode.get() !== null;
     devRenderer.selectedNode.set(node);
     const currentTarget = event.currentTarget;
-    if (currentTarget instanceof HTMLElement) {
+    if (!hasPreviouslySelected && currentTarget instanceof HTMLElement) {
       currentTarget.scrollIntoView({
         block: 'start',
         inline: 'nearest',
