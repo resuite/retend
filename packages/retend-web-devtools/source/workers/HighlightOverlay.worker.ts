@@ -87,41 +87,56 @@ function drawFrame() {
 
   let fillStyle = 'rgba(66, 153, 225, 0.4)';
   let strokeStyle = 'rgba(66, 153, 225, 0.8)';
+  let outerStrokeStyle = 'rgba(30, 90, 160, 0.95)';
   let labelFillStyle = 'rgba(66, 153, 225, 0.95)';
 
   if (color === 'pink') {
     fillStyle = 'rgba(236, 72, 153, 0.35)';
     strokeStyle = 'rgba(236, 72, 153, 0.85)';
+    outerStrokeStyle = 'rgba(160, 40, 100, 0.95)';
     labelFillStyle = 'rgba(236, 72, 153, 0.95)';
   }
 
   if (color === 'green') {
     fillStyle = 'rgba(34, 197, 94, 0.32)';
     strokeStyle = 'rgba(34, 197, 94, 0.82)';
+    outerStrokeStyle = 'rgba(16, 120, 56, 0.95)';
     labelFillStyle = 'rgba(34, 197, 94, 0.95)';
   }
 
   if (color === 'red') {
     fillStyle = 'rgba(239, 68, 68, 0.34)';
     strokeStyle = 'rgba(239, 68, 68, 0.85)';
+    outerStrokeStyle = 'rgba(160, 30, 30, 0.95)';
     labelFillStyle = 'rgba(239, 68, 68, 0.95)';
   }
 
   if (color === 'amber') {
     fillStyle = 'rgba(245, 158, 11, 0.34)';
     strokeStyle = 'rgba(245, 158, 11, 0.85)';
+    outerStrokeStyle = 'rgba(160, 100, 5, 0.95)';
     labelFillStyle = 'rgba(245, 158, 11, 0.95)';
   }
 
   context.fillStyle = fillStyle;
-  context.strokeStyle = strokeStyle;
   context.lineWidth = 1;
+
   context.fillRect(
     currentRect.x,
     currentRect.y,
     currentRect.width,
     currentRect.height
   );
+
+  context.strokeStyle = outerStrokeStyle;
+  context.strokeRect(
+    currentRect.x - 1,
+    currentRect.y - 1,
+    currentRect.width + 2,
+    currentRect.height + 2
+  );
+
+  context.strokeStyle = strokeStyle;
   context.strokeRect(
     currentRect.x,
     currentRect.y,

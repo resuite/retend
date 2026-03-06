@@ -10,7 +10,7 @@
   --retend-devtools-font-size-base: 0.8125rem; /* 13px */
   --retend-devtools-font-size-lg: 0.875rem; /* 14px */
 
-  --retend-devtools-panel-bg: #1a1a1a;
+  --retend-devtools-panel-bg: #1a1a1aeb;
   --retend-devtools-panel-border: #333;
   --retend-devtools-panel-shadow: rgba(0, 0, 0, 0.5);
   --retend-devtools-resize-handle: #555;
@@ -30,6 +30,7 @@
   --retend-devtools-internal-core: #9ccad6;
   --retend-devtools-web-core: #64d2ff;
   --retend-devtools-children-border: rgba(255, 255, 255, 0.06);
+  --retend-devtools-scope-provider: #9997ba;
   --retend-devtools-palette-blue: #4299e1;
   --retend-devtools-palette-pink: #ec4899;
   --retend-devtools-palette-green: #22c55e;
@@ -65,6 +66,7 @@
     --retend-devtools-internal-core: #2c7c9f;
     --retend-devtools-web-core: #0ea5e9;
     --retend-devtools-children-border: rgba(15, 23, 42, 0.1);
+    --retend-devtools-scope-provider: #9997ba;
     --retend-devtools-palette-border: rgba(15, 23, 42, 0.2);
     --retend-devtools-inspector-bg: rgba(15, 23, 42, 0.02);
     --retend-devtools-inspector-border: rgba(15, 23, 42, 0.12);

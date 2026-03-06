@@ -15,6 +15,7 @@ import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
 import classes from '../styles/ComponentTree.module.css';
 import { ComponentName } from './ComponentName';
 import { ChevronDownIcon, ChevronRightIcon, DotIcon } from './icons';
+import { isProviderNode, ProviderChain } from './ProviderChain';
 
 const specialComponents = new Set<__HMR_UpdatableFn>([Await, Link, Outlet]);
 const webSpecialComponents = new Set<__HMR_UpdatableFn>([Teleport, ShadowRoot]);
@@ -24,10 +25,12 @@ export interface TreeNodeProps {
   depth: number;
   forceExpanded: Cell<boolean>;
   visibleNodes: Cell<Set<ComponentTreeNode>>;
+  bypassProviderCollapse?: boolean;
 }
 
 export function TreeNode(props: TreeNodeProps) {
-  const { node, depth, forceExpanded, visibleNodes } = props;
+  const { node, depth, forceExpanded, visibleNodes, bypassProviderCollapse } =
+    props;
   const devRenderer = useDevToolsRenderer();
   const expanded = Cell.source(depth < 6);
   const name = node.component.name;
@@ -42,9 +45,18 @@ export function TreeNode(props: TreeNodeProps) {
     return expanded.get();
   });
 
+  const shouldCollapseAsProvider = Cell.derived(() => {
+    if (bypassProviderCollapse) return false;
+    if (!isProviderNode(node)) return false;
+    const nodeChildren = children.get();
+    if (nodeChildren.length !== 1) return false;
+    return isProviderNode(nodeChildren[0]);
+  });
+
   const isAnonymous = name === '[Anonymous]';
   const isSpecial = specialComponents.has(node.component);
   const isWebSpecial = webSpecialComponents.has(node.component);
+  const isScopeProvider = Reflect.has(node.component, '__isScopeProviderOf');
 
   const onNodeClick = () => {
     devRenderer.selectedNode.set(node);
@@ -97,56 +109,69 @@ export function TreeNode(props: TreeNodeProps) {
     return undefined;
   });
 
-  return If(isVisible, () => (
-    <div class={classes.node} style={{ '--depth': depth }}>
-      <div
-        class={classes.nodeHeader}
-        onClick={onNodeClick}
-        onPointerEnter={onPointerEnter}
-        data-selected={selectedState}
-      >
-        {If(hasChildren, {
-          true: () => (
-            <span class={classes.chevron} onClick={onChevronClick}>
-              {If(isExpanded, {
-                true: () => <ChevronDownIcon />,
-                false: () => <ChevronRightIcon />,
-              })}
+  return If(isVisible, () =>
+    If(shouldCollapseAsProvider, {
+      true: () => (
+        <ProviderChain
+          node={node}
+          depth={depth}
+          forceExpanded={forceExpanded}
+          visibleNodes={visibleNodes}
+        />
+      ),
+      false: () => (
+        <div class={classes.node}>
+          <div
+            class={classes.nodeHeader}
+            onClick={onNodeClick}
+            onPointerEnter={onPointerEnter}
+            data-selected={selectedState}
+          >
+            {If(hasChildren, {
+              true: () => (
+                <span class={classes.chevron} onClick={onChevronClick}>
+                  {If(isExpanded, {
+                    true: () => <ChevronDownIcon />,
+                    false: () => <ChevronRightIcon />,
+                  })}
+                </span>
+              ),
+              false: () => (
+                <span class={classes.leafDot}>
+                  <DotIcon />
+                </span>
+              ),
+            })}
+            <span
+              class={[
+                classes.componentName,
+                {
+                  [classes.anonymous]: isAnonymous,
+                  [classes.internalCore]: isSpecial,
+                  [classes.webCore]: isWebSpecial,
+                  [classes.scopeProvider]: isScopeProvider,
+                },
+              ]}
+            >
+              <ComponentName component={node.component} />
             </span>
-          ),
-          false: () => (
-            <span class={classes.leafDot}>
-              <DotIcon />
-            </span>
-          ),
-        })}
-        <span
-          class={[
-            classes.componentName,
-            {
-              [classes.anonymous]: isAnonymous,
-              [classes.internalCore]: isSpecial,
-              [classes.webCore]: isWebSpecial,
-            },
-          ]}
-        >
-          <ComponentName component={node.component} />
-        </span>
-      </div>
-      {If(hasChildren, () => (
-        <div class={classes.children}>
-          {If(isExpanded, () =>
-            For(children, (child) => (
-              <TreeNode
-                node={child}
-                depth={depth + 1}
-                forceExpanded={forceExpanded}
-                visibleNodes={visibleNodes}
-              />
-            ))
-          )}
+          </div>
+          {If(hasChildren, () => (
+            <div class={classes.children}>
+              {If(isExpanded, () =>
+                For(children, (child) => (
+                  <TreeNode
+                    node={child}
+                    depth={depth + 1}
+                    forceExpanded={forceExpanded}
+                    visibleNodes={visibleNodes}
+                  />
+                ))
+              )}
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
-  ));
+      ),
+    })
+  );
 }

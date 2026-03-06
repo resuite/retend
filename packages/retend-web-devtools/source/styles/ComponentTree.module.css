@@ -88,7 +88,7 @@
 }
 
 .node {
-  padding-left: calc(var(--depth) * 0.1875rem);
+  width: max-content;
 }
 
 .nodeHeader {
@@ -99,6 +99,7 @@
   border-radius: 0.1875rem;
   cursor: default;
   white-space: nowrap;
+  width: max-content;
 
   &:hover {
     background: var(--retend-devtools-row-hover);
@@ -145,7 +146,49 @@
   font-weight: 400;
 }
 
+.scopeProvider {
+  color: var(--retend-devtools-scope-provider);
+  opacity: 0.85;
+}
+
 .children {
   border-left: 1px solid var(--retend-devtools-children-border);
+  margin-left: 1rem;
+}
+
+.providerChainHeader {
+  cursor: pointer;
+}
+
+.providerBadge {
+  font-family: var(--retend-devtools-font-mono);
+  font-size: var(--retend-devtools-font-size-xs);
+  color: var(--retend-devtools-tree-muted);
+  font-style: italic;
+}
+
+.providerChainList {
   margin-left: 0.6875rem;
+  border-left: 1px solid var(--retend-devtools-children-border);
+  padding: 0.125rem 0;
+}
+
+.providerChainItem {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  padding: 0.125rem 0.375rem 0.125rem 0.625rem;
+  border-radius: 0.1875rem;
+  cursor: default;
+  white-space: nowrap;
+  opacity: 0.65;
+
+  &:hover {
+    background: var(--retend-devtools-row-hover);
+    opacity: 1;
+  }
+}
+
+.providerContinuation {
+  width: max-content;
 }
