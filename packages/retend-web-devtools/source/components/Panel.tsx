@@ -15,7 +15,9 @@ export function Panel() {
   const devRenderer = useDevToolsRenderer();
   const panel = usePanelState();
   const divRef = Cell.source<HTMLElement | null>(null);
-  const inspectorIsOpen = Cell.derived(() => devRenderer.selectedNode.get() !== null);
+  const inspectorIsOpen = Cell.derived(
+    () => devRenderer.selectedNode.get() !== null
+  );
 
   onConnected(divRef, (div) => {
     requestAnimationFrame(() => {
@@ -55,7 +57,9 @@ export function Panel() {
                   <div class={classes.body}>
                     <ComponentTree />
                   </div>
-                  {If(inspectorIsOpen, () => <InspectorPanel />)}
+                  {If(inspectorIsOpen, () => (
+                    <InspectorPanel />
+                  ))}
                 </div>
               </div>
             ))}
