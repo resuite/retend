@@ -42,12 +42,15 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   highlightColor = Cell.source<HighlightColor>('blue');
   pickerCursorPosition = Cell.source<CursorPosition | null>(null);
   pickerHoveredElement = Cell.source<Element | null>(null);
+  isPickerActive = Cell.source<boolean>(false);
   parentMap = new Map<ComponentTreeNode, ComponentTreeNode>();
   childrenMap = new Map<
     ComponentTreeNode,
     SourceCell<Array<ComponentTreeNode>>
   >();
   parentNodeScope = createScope<ComponentTreeNode>();
+
+  outputs = new WeakMap<Node, ComponentTreeNode>();
 
   useParentNode() {
     try {
@@ -122,6 +125,15 @@ export class DevToolsDOMRenderer extends DOMRenderer {
       children: () => {
         const output = super.handleComponent(tagname, props, _, fileData);
         treeNode.output = output;
+        if (Array.isArray(output)) {
+          for (const node of output) {
+            if (!this.outputs.has(node)) {
+              this.outputs.set(node, treeNode);
+            }
+          }
+        } else if (!this.outputs.has(output)) {
+          this.outputs.set(output, treeNode);
+        }
         return output;
       },
     }) as Node | Node[];

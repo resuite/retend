@@ -1,13 +1,10 @@
-import { Cell, onSetup } from 'retend';
-
 import { PickerIcon } from '@/components/icons';
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import classes from '@/styles/PickerButton.module.css';
-import { findMatchingComponentNode } from '@/utils/componentMatching';
+import { matchToComponentNode } from '@/utils/componentMatching';
 
 export function PickerButton() {
   const devRenderer = useDevToolsRenderer();
-  const pickerIsOpen = Cell.source(false);
 
   let pickerMoveHandler: ((event: PointerEvent) => void) | undefined;
 
@@ -19,10 +16,12 @@ export function PickerButton() {
     document.documentElement.style.cursor = '';
     devRenderer.pickerCursorPosition.set(null);
     devRenderer.pickerHoveredElement.set(null);
+    devRenderer.isPickerActive.set(false);
   };
 
   const startPicker = () => {
     if (pickerMoveHandler) return;
+    devRenderer.isPickerActive.set(true);
 
     pickerMoveHandler = (event: PointerEvent) => {
       event.stopPropagation();
@@ -32,14 +31,14 @@ export function PickerButton() {
         y: event.clientY,
       });
 
-      const hoveredElement = event.target as Element | null;
-      if (!hoveredElement || !(hoveredElement instanceof Element)) {
+      const target = event.target as Element | null;
+      if (!target || !(target instanceof Element)) {
         devRenderer.hoveredNode.set(null);
         devRenderer.pickerHoveredElement.set(null);
         return;
       }
 
-      devRenderer.pickerHoveredElement.set(hoveredElement);
+      devRenderer.pickerHoveredElement.set(target);
 
       const rootNode = devRenderer.rootNode.get();
       if (!rootNode) {
@@ -47,12 +46,14 @@ export function PickerButton() {
         return;
       }
 
+      const cursorX = event.clientX;
+      const cursorY = event.clientY;
+
       // Find the matching component node
-      const { matchedNode } = findMatchingComponentNode({
-        rootNode,
-        hoveredElement,
-        cursorX: event.clientX,
-        cursorY: event.clientY,
+      const matchedNode = matchToComponentNode({
+        target,
+        cursorX,
+        cursorY,
         devRenderer,
       });
 
@@ -67,8 +68,7 @@ export function PickerButton() {
   };
 
   const togglePicker = () => {
-    const nextState = !pickerIsOpen.get();
-    pickerIsOpen.set(nextState);
+    const nextState = !devRenderer.isPickerActive.get();
     if (nextState) {
       startPicker();
       return;
@@ -76,10 +76,8 @@ export function PickerButton() {
     stopPicker();
   };
 
-  onSetup(() => {
-    return () => {
-      stopPicker();
-    };
+  devRenderer.isPickerActive.listen((isActive) => {
+    if (!isActive && pickerMoveHandler) stopPicker();
   });
 
   return (
@@ -87,7 +85,7 @@ export function PickerButton() {
       type="button"
       class={[
         classes.headerButton,
-        { [classes.headerButtonActive]: pickerIsOpen },
+        { [classes.headerButtonActive]: devRenderer.isPickerActive },
       ]}
       onClick={togglePicker}
       aria-label="Pick component from page"

@@ -1,7 +1,9 @@
-import { Cell, createNodesFromTemplate, onConnected } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import classes from '@/styles/HighlightOverlay.module.css';
+import { matchToComponentNode } from '@/utils/componentMatching';
+import { getHighlightInfo } from '@/utils/highlightUtils';
 import HighlightOverlayWorker from '@/workers/HighlightOverlay.worker?worker&inline';
 
 export function HighlightOverlay() {
@@ -21,42 +23,48 @@ export function HighlightOverlay() {
     );
   };
 
+  const intercept = (event: Event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    const { target } = event;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    const cursorX = rect.left + rect.width / 2;
+    const cursorY = rect.top + rect.height / 2;
+    const selectedComponent = matchToComponentNode({
+      target,
+      cursorX,
+      cursorY,
+      devRenderer,
+    });
+    if (selectedComponent) {
+      devRenderer.selectedNode.set(selectedComponent);
+      devRenderer.isPickerActive.set(false);
+      document.removeEventListener('click', intercept, options);
+    }
+  };
+
+  const options = { capture: true };
+
   const updateTarget = () => {
-    let rect: DOMRect | null = null;
-    let label = '';
     const node = devRenderer.hoveredNode.get();
     const hoveredElement = devRenderer.pickerHoveredElement.get();
 
-    if (node && hoveredElement) {
-      label = `${node.component.name}.${hoveredElement.tagName.toLowerCase()}`;
-      rect = hoveredElement.getBoundingClientRect();
-    } else if (node && node.output) {
-      label = node.component.name;
-      let flatNodes = createNodesFromTemplate(node.output, devRenderer);
-      if (flatNodes.length === 1) {
-        const anchorNode = flatNodes[0];
-        if (anchorNode instanceof Comment) {
-          const teleportedContainer = Reflect.get(
-            anchorNode,
-            '__retendTeleportedContainer'
-          );
-          if (teleportedContainer instanceof Element) {
-            flatNodes = [teleportedContainer];
-          }
-        }
-      }
-      if (flatNodes.length > 0) {
-        try {
-          const first = flatNodes[0];
-          const last = flatNodes[flatNodes.length - 1];
-
-          const range = document.createRange();
-          range.setStartBefore(first);
-          range.setEndAfter(last);
-          rect = range.getBoundingClientRect();
-        } catch {}
-      }
+    if (devRenderer.isPickerActive.get()) {
+      if (!node) document?.removeEventListener('click', intercept, options);
+      else document?.addEventListener('click', intercept, options);
     }
+
+    const { rect, label } = getHighlightInfo({
+      node,
+      hoveredElement,
+      devRenderer,
+    });
+
     const color = devRenderer.highlightColor.get();
     worker.postMessage({ type: 'target', rect, label, color }, []);
   };
