@@ -88,7 +88,13 @@ Scalable Vector Graphics (SVGs) are great for crisp icons and illustrations. Whe
 
 ```tsx
 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-  <circle xmlns="http://www.w3.org/2000/svg" cx="10" cy="10" r="10" fill="blue" />
+  <circle
+    xmlns="http://www.w3.org/2000/svg"
+    cx="10"
+    cy="10"
+    r="10"
+    fill="blue"
+  />
 </svg>
 ```
 
@@ -97,7 +103,7 @@ Scalable Vector Graphics (SVGs) are great for crisp icons and illustrations. Whe
 The true power of JSX comes from being able to embed JavaScript directly into your markup. You can do this by wrapping your JavaScript variables or expressions in curly braces `{}`.
 
 ```tsx
-const userName = "Alice";
+const userName = 'Alice';
 const userAge = 28;
 
 const profile = (
@@ -115,10 +121,10 @@ const isError = true;
 
 const alertBox = (
   <div
-    class={isError ? "alert-error" : "alert-success"}
-    style={{ backgroundColor: isError ? "red" : "green", color: "white" }}
+    class={isError ? 'alert-error' : 'alert-success'}
+    style={{ backgroundColor: isError ? 'red' : 'green', color: 'white' }}
   >
-    {isError ? "Something went wrong!" : "All good!"}
+    {isError ? 'Something went wrong!' : 'All good!'}
   </div>
 );
 ```
@@ -154,7 +160,7 @@ function App() {
 
 There is one critical concept to understand about components in Retend: **Component functions only run exactly once.**
 
-When you use a component in your application, Retend calls that function one time to create the initial DOM elements. Retend will *never* call that component function again to update the screen.
+When you use a component in your application, Retend calls that function one time to create the initial DOM elements. Retend will _never_ call that component function again to update the screen.
 
 Instead, dynamic updates are handled independently through a concept called "Cells" (which we will cover in the next section). This run-once architecture is the secret behind Retend's incredible performance, as it avoids unnecessary recalculations.
 
@@ -200,7 +206,7 @@ function StyledBox(props) {
 }
 
 // Usage:
-<StyledBox class="box-primary" title="Important Notice" />
+<StyledBox class="box-primary" title="Important Notice" />;
 ```
 
 #### Passing Elements as Children
@@ -250,7 +256,7 @@ function PrimaryButton(props) {
 // Usage: The 'disabled' and 'id' props will be forwarded directly to the <button>
 <PrimaryButton id="submit-btn" disabled>
   Submit Form
-</PrimaryButton>
+</PrimaryButton>;
 ```
 
 Now that you understand how to build static interfaces with JSX and Components, you're ready to learn how to make them interactive. In the next section, we'll explore **Reactivity and Cells**, the system Retend uses to precisely update your application when your data changes.
