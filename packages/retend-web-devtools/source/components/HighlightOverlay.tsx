@@ -51,22 +51,32 @@ export function HighlightOverlay() {
   const options = { capture: true };
 
   const updateTarget = () => {
-    const node = devRenderer.hoveredNode.get();
+    const hoveredNode = devRenderer.hoveredNode.get();
     const hoveredElement = devRenderer.pickerHoveredElement.get();
+    const selectedNode = devRenderer.selectedNode.get();
 
     if (devRenderer.isPickerActive.get()) {
-      if (!node) document?.removeEventListener('click', intercept, options);
+      if (!hoveredNode)
+        document?.removeEventListener('click', intercept, options);
       else document?.addEventListener('click', intercept, options);
     }
 
     const { rect, label } = getHighlightInfo({
-      node,
+      node: hoveredNode,
       hoveredElement,
+      devRenderer,
+    });
+    const { rect: selectedRect, label: selectedLabel } = getHighlightInfo({
+      node: selectedNode,
+      hoveredElement: null,
       devRenderer,
     });
 
     const color = devRenderer.highlightColor.get();
-    worker.postMessage({ type: 'target', rect, label, color }, []);
+    worker.postMessage(
+      { type: 'target', rect, label, selectedRect, selectedLabel, color },
+      []
+    );
   };
 
   const updateCursorPosition = () => {
@@ -76,6 +86,7 @@ export function HighlightOverlay() {
   };
 
   devRenderer.hoveredNode.listen(updateTarget);
+  devRenderer.selectedNode.listen(updateTarget);
   devRenderer.highlightColor.listen(updateTarget);
   devRenderer.pickerHoveredElement.listen(updateTarget);
   devRenderer.highlightColor.listen(updateCursorPosition);

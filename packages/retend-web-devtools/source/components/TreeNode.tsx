@@ -5,6 +5,7 @@ import {
   For,
   If,
   createNodesFromTemplate,
+  onConnected,
 } from 'retend';
 import { ShadowRoot, Teleport } from 'retend-web';
 import { Link, Outlet } from 'retend/router';
@@ -33,13 +34,28 @@ export function TreeNode(props: TreeNodeProps) {
     props;
   const devRenderer = useDevToolsRenderer();
   const expanded = Cell.source(depth < 6);
+  const headerRef = Cell.source<HTMLElement | null>(null);
   const { name } = node.component;
 
   const children = devRenderer.getNodeChildren(node);
+  const hasSelectedDescendant = Cell.derived(() => {
+    let selectedNode = devRenderer.selectedNode.get();
+    while (selectedNode) {
+      const parent = devRenderer.parentMap.get(selectedNode);
+      if (!parent) {
+        return false;
+      }
+      if (parent === node) {
+        return true;
+      }
+      selectedNode = parent;
+    }
+    return false;
+  });
   const hasChildren = Cell.derived(() => children.get().length > 0);
   const isVisible = Cell.derived(() => visibleNodes.get().has(node));
   const isExpanded = Cell.derived(() => {
-    return forceExpanded.get() || expanded.get();
+    return forceExpanded.get() || expanded.get() || hasSelectedDescendant.get();
   });
 
   const shouldCollapseAsProvider = Cell.derived(() => {
@@ -115,6 +131,25 @@ export function TreeNode(props: TreeNodeProps) {
     return undefined;
   });
 
+  onConnected(headerRef, (header) => {
+    const scrollIntoView = () => {
+      if (devRenderer.selectedNode.get() !== node) {
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        header.scrollIntoView({
+          block: 'nearest',
+          inline: 'nearest',
+          behavior: 'smooth',
+        });
+      });
+    };
+
+    scrollIntoView();
+    return devRenderer.selectedNode.listen(scrollIntoView);
+  });
+
   return If(isVisible, () =>
     If(shouldCollapseAsProvider, {
       true: () => (
@@ -128,6 +163,7 @@ export function TreeNode(props: TreeNodeProps) {
       false: () => (
         <div class={classes.node}>
           <div
+            ref={headerRef}
             class={classes.nodeHeader}
             onClick={onNodeClick}
             onPointerEnter={onPointerEnter}

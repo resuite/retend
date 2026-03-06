@@ -41,8 +41,25 @@ export function ProviderChain(props: TreeNodeProps) {
   const isCollapsible = Cell.derived(() => chainLength.get() >= 2);
 
   const chainExpanded = Cell.source(false);
+  const containsSelectedNode = Cell.derived(() => {
+    let selectedNode = devRenderer.selectedNode.get();
+    while (selectedNode) {
+      for (const provider of chain.get()) {
+        if (selectedNode === provider) {
+          return true;
+        }
+      }
+      const parent = devRenderer.parentMap.get(selectedNode);
+      if (!parent) {
+        return false;
+      }
+      selectedNode = parent;
+    }
+    return false;
+  });
   const isChainExpanded = Cell.derived(() => {
     if (forceExpanded.get()) return true;
+    if (containsSelectedNode.get()) return true;
     return chainExpanded.get();
   });
 

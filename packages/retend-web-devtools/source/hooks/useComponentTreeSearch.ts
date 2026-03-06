@@ -2,6 +2,8 @@ import { Cell } from 'retend';
 
 import type { ComponentTreeNode } from '@/core/devtools-renderer';
 
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+
 interface SearchResult {
   visible: Set<ComponentTreeNode>;
   matchCount: number;
@@ -50,6 +52,7 @@ function fuzzyMatch(name: string, query: string): boolean {
 
 export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
   const { root, getNodeChildren } = args;
+  const devRenderer = useDevToolsRenderer();
   const searchQuery = Cell.source('');
   const normalizedSearchQuery = Cell.derived(() =>
     searchQuery.get().trim().toLowerCase()
@@ -115,10 +118,25 @@ export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
 
   const visibleNodes = Cell.derived(() => {
     const query = normalizedSearchQuery.get();
+    let visibleNodes: Set<ComponentTreeNode>;
+
     if (query === '') {
-      return new Set(collectAllNodes(root, getNodeChildren));
+      visibleNodes = new Set(collectAllNodes(root, getNodeChildren));
+    } else {
+      visibleNodes = new Set(searchResult.get().visible);
     }
-    return searchResult.get().visible;
+
+    let selectedNode = devRenderer.selectedNode.get();
+    while (selectedNode) {
+      visibleNodes.add(selectedNode);
+      const parent = devRenderer.parentMap.get(selectedNode);
+      if (!parent) {
+        break;
+      }
+      selectedNode = parent;
+    }
+
+    return visibleNodes;
   });
 
   const matchCount = Cell.derived(() => {

@@ -30,7 +30,9 @@ interface ResizeMessage {
 interface TargetMessage {
   type: 'target';
   rect: Rect | null;
+  selectedRect: Rect | null;
   label: string;
+  selectedLabel: string;
   color: HighlightColor;
 }
 
@@ -58,7 +60,10 @@ let height = 0;
 let dpr = 1;
 let targetRect: Rect | null = null;
 let currentRect: Rect | null = null;
+let selectedTargetRect: Rect | null = null;
+let selectedCurrentRect: Rect | null = null;
 let label = '';
+let selectedLabel = '';
 let timer: ReturnType<typeof setInterval> | 0 = 0;
 let color: HighlightColor = 'blue';
 let cursorPosition: CursorPosition | null = null;
@@ -116,6 +121,13 @@ function drawFrame() {
 
   if (!targetRect) {
     currentRect = null;
+  }
+
+  if (!selectedTargetRect) {
+    selectedCurrentRect = null;
+  }
+
+  if (!targetRect && !selectedTargetRect) {
     // Keep loop running if cursor position exists (picker active)
     if (!cursorPosition) {
       stopLoop();
@@ -123,14 +135,14 @@ function drawFrame() {
     return;
   }
 
-  if (!currentRect) {
+  if (targetRect && !currentRect) {
     currentRect = {
       x: targetRect.x,
       y: targetRect.y,
       width: targetRect.width,
       height: targetRect.height,
     };
-  } else {
+  } else if (targetRect && currentRect) {
     currentRect = {
       x: currentRect.x + (targetRect.x - currentRect.x) * 0.3,
       y: currentRect.y + (targetRect.y - currentRect.y) * 0.3,
@@ -140,42 +152,207 @@ function drawFrame() {
     };
   }
 
-  let fillStyle = 'rgba(66, 153, 225, 0.4)';
-  let strokeStyle = 'rgba(66, 153, 225, 0.8)';
-  let outerStrokeStyle = 'rgba(30, 90, 160, 0.95)';
-  let labelFillStyle = 'rgba(66, 153, 225, 0.95)';
+  if (selectedTargetRect && !selectedCurrentRect) {
+    selectedCurrentRect = {
+      x: selectedTargetRect.x,
+      y: selectedTargetRect.y,
+      width: selectedTargetRect.width,
+      height: selectedTargetRect.height,
+    };
+  } else if (selectedTargetRect && selectedCurrentRect) {
+    selectedCurrentRect = {
+      x:
+        selectedCurrentRect.x +
+        (selectedTargetRect.x - selectedCurrentRect.x) * 0.3,
+      y:
+        selectedCurrentRect.y +
+        (selectedTargetRect.y - selectedCurrentRect.y) * 0.3,
+      width:
+        selectedCurrentRect.width +
+        (selectedTargetRect.width - selectedCurrentRect.width) * 0.3,
+      height:
+        selectedCurrentRect.height +
+        (selectedTargetRect.height - selectedCurrentRect.height) * 0.3,
+    };
+  }
+
+  let selectionFillStyle = 'rgba(66, 153, 225, 0.4)';
+  let selectionStrokeStyle = 'rgba(66, 153, 225, 0.8)';
+  let selectionOuterStrokeStyle = 'rgba(30, 90, 160, 0.95)';
+  let hoverFillStyle = 'rgba(66, 153, 225, 0.18)';
+  let hoverStrokeStyle = 'rgba(66, 153, 225, 0.55)';
+  let hoverOuterStrokeStyle = 'rgba(30, 90, 160, 0.72)';
+  let selectionLabelFillStyle = 'rgba(66, 153, 225, 0.95)';
+  let hoverLabelFillStyle = 'rgba(66, 153, 225, 0.8)';
 
   if (color === 'pink') {
-    fillStyle = 'rgba(236, 72, 153, 0.35)';
-    strokeStyle = 'rgba(236, 72, 153, 0.85)';
-    outerStrokeStyle = 'rgba(160, 40, 100, 0.95)';
-    labelFillStyle = 'rgba(236, 72, 153, 0.95)';
+    selectionFillStyle = 'rgba(236, 72, 153, 0.35)';
+    selectionStrokeStyle = 'rgba(236, 72, 153, 0.85)';
+    selectionOuterStrokeStyle = 'rgba(160, 40, 100, 0.95)';
+    hoverFillStyle = 'rgba(236, 72, 153, 0.16)';
+    hoverStrokeStyle = 'rgba(236, 72, 153, 0.55)';
+    hoverOuterStrokeStyle = 'rgba(160, 40, 100, 0.72)';
+    selectionLabelFillStyle = 'rgba(236, 72, 153, 0.95)';
+    hoverLabelFillStyle = 'rgba(236, 72, 153, 0.8)';
   }
 
   if (color === 'green') {
-    fillStyle = 'rgba(34, 197, 94, 0.32)';
-    strokeStyle = 'rgba(34, 197, 94, 0.82)';
-    outerStrokeStyle = 'rgba(16, 120, 56, 0.95)';
-    labelFillStyle = 'rgba(34, 197, 94, 0.95)';
+    selectionFillStyle = 'rgba(34, 197, 94, 0.32)';
+    selectionStrokeStyle = 'rgba(34, 197, 94, 0.82)';
+    selectionOuterStrokeStyle = 'rgba(16, 120, 56, 0.95)';
+    hoverFillStyle = 'rgba(34, 197, 94, 0.15)';
+    hoverStrokeStyle = 'rgba(34, 197, 94, 0.52)';
+    hoverOuterStrokeStyle = 'rgba(16, 120, 56, 0.72)';
+    selectionLabelFillStyle = 'rgba(34, 197, 94, 0.95)';
+    hoverLabelFillStyle = 'rgba(34, 197, 94, 0.8)';
   }
 
   if (color === 'red') {
-    fillStyle = 'rgba(239, 68, 68, 0.34)';
-    strokeStyle = 'rgba(239, 68, 68, 0.85)';
-    outerStrokeStyle = 'rgba(160, 30, 30, 0.95)';
-    labelFillStyle = 'rgba(239, 68, 68, 0.95)';
+    selectionFillStyle = 'rgba(239, 68, 68, 0.34)';
+    selectionStrokeStyle = 'rgba(239, 68, 68, 0.85)';
+    selectionOuterStrokeStyle = 'rgba(160, 30, 30, 0.95)';
+    hoverFillStyle = 'rgba(239, 68, 68, 0.16)';
+    hoverStrokeStyle = 'rgba(239, 68, 68, 0.55)';
+    hoverOuterStrokeStyle = 'rgba(160, 30, 30, 0.72)';
+    selectionLabelFillStyle = 'rgba(239, 68, 68, 0.95)';
+    hoverLabelFillStyle = 'rgba(239, 68, 68, 0.8)';
   }
 
   if (color === 'amber') {
-    fillStyle = 'rgba(245, 158, 11, 0.34)';
-    strokeStyle = 'rgba(245, 158, 11, 0.85)';
-    outerStrokeStyle = 'rgba(160, 100, 5, 0.95)';
-    labelFillStyle = 'rgba(245, 158, 11, 0.95)';
+    selectionFillStyle = 'rgba(245, 158, 11, 0.34)';
+    selectionStrokeStyle = 'rgba(245, 158, 11, 0.85)';
+    selectionOuterStrokeStyle = 'rgba(160, 100, 5, 0.95)';
+    hoverFillStyle = 'rgba(245, 158, 11, 0.16)';
+    hoverStrokeStyle = 'rgba(245, 158, 11, 0.55)';
+    hoverOuterStrokeStyle = 'rgba(160, 100, 5, 0.72)';
+    selectionLabelFillStyle = 'rgba(245, 158, 11, 0.95)';
+    hoverLabelFillStyle = 'rgba(245, 158, 11, 0.8)';
   }
 
-  context.fillStyle = fillStyle;
   context.lineWidth = 1;
 
+  if (selectedCurrentRect) {
+    context.fillStyle = selectionFillStyle;
+    context.fillRect(
+      selectedCurrentRect.x,
+      selectedCurrentRect.y,
+      selectedCurrentRect.width,
+      selectedCurrentRect.height
+    );
+
+    context.strokeStyle = selectionOuterStrokeStyle;
+    context.strokeRect(
+      selectedCurrentRect.x - 1,
+      selectedCurrentRect.y - 1,
+      selectedCurrentRect.width + 2,
+      selectedCurrentRect.height + 2
+    );
+
+    context.strokeStyle = selectionStrokeStyle;
+    context.strokeRect(
+      selectedCurrentRect.x,
+      selectedCurrentRect.y,
+      selectedCurrentRect.width,
+      selectedCurrentRect.height
+    );
+
+    const selectedBoxWidth = Math.round(Math.max(0, selectedCurrentRect.width));
+    const selectedBoxHeight = Math.round(
+      Math.max(0, selectedCurrentRect.height)
+    );
+    const selectedSizeText = `${selectedBoxWidth}x${selectedBoxHeight}`;
+    let selectedNameText = selectedLabel;
+
+    context.font = '600 12px system-ui';
+    let selectedNameWidth = 0;
+    if (selectedNameText) {
+      selectedNameWidth = context.measureText(selectedNameText).width;
+    }
+
+    context.font = '500 10px system-ui';
+    const selectedSizeWidth = context.measureText(selectedSizeText).width;
+    let selectedLabelWidth = selectedSizeWidth + 10;
+    if (selectedNameText) {
+      selectedLabelWidth += selectedNameWidth + 8;
+    }
+    const selectedLabelHeight = 18;
+    const edgePadding = 2;
+
+    let selectedLabelLeft = selectedCurrentRect.x;
+    let selectedLabelTop = selectedCurrentRect.y - 18;
+
+    if (selectedLabelTop < edgePadding) {
+      selectedLabelTop = selectedCurrentRect.y + 2;
+    }
+
+    if (selectedLabelLeft < edgePadding) {
+      selectedLabelLeft = edgePadding;
+    }
+
+    const maxSelectedLabelLeft = width - selectedLabelWidth - edgePadding;
+    if (selectedLabelLeft > maxSelectedLabelLeft) {
+      selectedLabelLeft = maxSelectedLabelLeft;
+    }
+
+    if (selectedLabelLeft < edgePadding) {
+      selectedLabelLeft = edgePadding;
+    }
+
+    const maxSelectedLabelTop = height - selectedLabelHeight - edgePadding;
+    if (selectedLabelTop > maxSelectedLabelTop) {
+      selectedLabelTop = maxSelectedLabelTop;
+    }
+
+    if (selectedLabelTop < edgePadding) {
+      selectedLabelTop = edgePadding;
+    }
+
+    context.fillStyle = selectionLabelFillStyle;
+    context.fillRect(
+      selectedLabelLeft,
+      selectedLabelTop,
+      selectedLabelWidth,
+      selectedLabelHeight
+    );
+    let selectedTextX = selectedLabelLeft + 5;
+    if (selectedNameText) {
+      context.font = '600 12px system-ui';
+      context.fillStyle = '#0b1220';
+      context.fillText(selectedNameText, selectedTextX, selectedLabelTop + 12);
+      selectedTextX += selectedNameWidth + 8;
+    }
+    context.font = '500 10px system-ui';
+    context.fillStyle = 'rgba(11, 18, 32, 0.72)';
+    context.fillText(selectedSizeText, selectedTextX, selectedLabelTop + 12);
+  }
+
+  if (!currentRect || !targetRect) {
+    let selectionSettled = !selectedTargetRect;
+    if (selectedTargetRect && selectedCurrentRect) {
+      const dx = Math.abs(selectedTargetRect.x - selectedCurrentRect.x);
+      const dy = Math.abs(selectedTargetRect.y - selectedCurrentRect.y);
+      const dw = Math.abs(selectedTargetRect.width - selectedCurrentRect.width);
+      const dh = Math.abs(
+        selectedTargetRect.height - selectedCurrentRect.height
+      );
+      selectionSettled = dx <= 0.5 && dy <= 0.5 && dw <= 0.5 && dh <= 0.5;
+      if (selectionSettled) {
+        selectedCurrentRect = {
+          x: selectedTargetRect.x,
+          y: selectedTargetRect.y,
+          width: selectedTargetRect.width,
+          height: selectedTargetRect.height,
+        };
+      }
+    }
+
+    if (selectionSettled) {
+      stopLoop();
+    }
+    return;
+  }
+
+  context.fillStyle = hoverFillStyle;
   context.fillRect(
     currentRect.x,
     currentRect.y,
@@ -183,7 +360,7 @@ function drawFrame() {
     currentRect.height
   );
 
-  context.strokeStyle = outerStrokeStyle;
+  context.strokeStyle = hoverOuterStrokeStyle;
   context.strokeRect(
     currentRect.x - 1,
     currentRect.y - 1,
@@ -191,7 +368,7 @@ function drawFrame() {
     currentRect.height + 2
   );
 
-  context.strokeStyle = strokeStyle;
+  context.strokeStyle = hoverStrokeStyle;
   context.strokeRect(
     currentRect.x,
     currentRect.y,
@@ -313,7 +490,7 @@ function drawFrame() {
     labelTop = edgePadding;
   }
 
-  context.fillStyle = labelFillStyle;
+  context.fillStyle = hoverLabelFillStyle;
   context.fillRect(labelLeft, labelTop, labelWidth, labelHeight);
   let textX = labelLeft + 5;
   if (nameText) {
@@ -331,13 +508,42 @@ function drawFrame() {
   const dw = Math.abs(targetRect.width - currentRect.width);
   const dh = Math.abs(targetRect.height - currentRect.height);
 
-  if (dx <= 0.5 && dy <= 0.5 && dw <= 0.5 && dh <= 0.5) {
+  let hoverSettled = dx <= 0.5 && dy <= 0.5 && dw <= 0.5 && dh <= 0.5;
+  if (hoverSettled) {
     currentRect = {
       x: targetRect.x,
       y: targetRect.y,
       width: targetRect.width,
       height: targetRect.height,
     };
+  }
+
+  let selectionSettled = !selectedTargetRect;
+  if (selectedTargetRect && selectedCurrentRect) {
+    const selectedDx = Math.abs(selectedTargetRect.x - selectedCurrentRect.x);
+    const selectedDy = Math.abs(selectedTargetRect.y - selectedCurrentRect.y);
+    const selectedDw = Math.abs(
+      selectedTargetRect.width - selectedCurrentRect.width
+    );
+    const selectedDh = Math.abs(
+      selectedTargetRect.height - selectedCurrentRect.height
+    );
+    selectionSettled =
+      selectedDx <= 0.5 &&
+      selectedDy <= 0.5 &&
+      selectedDw <= 0.5 &&
+      selectedDh <= 0.5;
+    if (selectionSettled) {
+      selectedCurrentRect = {
+        x: selectedTargetRect.x,
+        y: selectedTargetRect.y,
+        width: selectedTargetRect.width,
+        height: selectedTargetRect.height,
+      };
+    }
+  }
+
+  if (hoverSettled && selectionSettled) {
     stopLoop();
   }
 }
@@ -378,7 +584,9 @@ self.addEventListener('message', (event) => {
 
   if (message.type === 'target') {
     targetRect = message.rect;
+    selectedTargetRect = message.selectedRect;
     label = message.label;
+    selectedLabel = message.selectedLabel;
     color = message.color;
     startLoop();
     return;
