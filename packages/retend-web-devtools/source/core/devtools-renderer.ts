@@ -14,7 +14,7 @@ export interface ComponentTreeNode {
   component: __HMR_UpdatableFn;
   props?: Record<string, unknown>;
   fileData?: JSX.JSXDevFileData;
-  output?: JSX.Template;
+  output?: Node | Node[];
 }
 
 export type HighlightColor = 'blue' | 'pink' | 'green' | 'red' | 'amber';

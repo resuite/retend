@@ -1,5 +1,3 @@
-import { createNodesFromTemplate } from 'retend';
-
 import type {
   DevToolsDOMRenderer,
   ComponentTreeNode,
@@ -24,7 +22,7 @@ interface HighlightInfoResult {
 export function getHighlightInfo(
   options: HighlightInfoOptions
 ): HighlightInfoResult {
-  const { node, hoveredElement, devRenderer } = options;
+  const { node, hoveredElement } = options;
 
   let rect: DOMRect | null = null;
   let label = '';
@@ -34,7 +32,12 @@ export function getHighlightInfo(
     rect = hoveredElement.getBoundingClientRect();
   } else if (node && node.output) {
     label = node.component.name;
-    let flatNodes = createNodesFromTemplate(node.output, devRenderer);
+    let flatNodes: Node[];
+    if (Array.isArray(node.output)) {
+      flatNodes = node.output;
+    } else {
+      flatNodes = [node.output];
+    }
     if (flatNodes.length === 1) {
       const anchorNode = flatNodes[0];
       if (anchorNode instanceof Comment) {

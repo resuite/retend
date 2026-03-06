@@ -4,7 +4,6 @@ import {
   Cell,
   For,
   If,
-  createNodesFromTemplate,
   onConnected,
 } from 'retend';
 import { ShadowRoot, Teleport } from 'retend-web';
@@ -83,7 +82,12 @@ export function TreeNode(props: TreeNodeProps) {
       });
     }
     if (node.output) {
-      const renderedNodes = createNodesFromTemplate(node.output, devRenderer);
+      let renderedNodes: Node[];
+      if (Array.isArray(node.output)) {
+        renderedNodes = node.output;
+      } else {
+        renderedNodes = [node.output];
+      }
       let firstNode = renderedNodes[0];
       if (renderedNodes.length === 1) {
         const anchorNode = renderedNodes[0];
