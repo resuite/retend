@@ -1,12 +1,12 @@
-import { If } from 'retend';
+import { Cell, If } from 'retend';
 
-import type { ComponentTreeNode } from '../core/devtools-renderer';
+import type { ComponentTreeNode } from '@/core/devtools-renderer';
 
-import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
-import { useComponentTreeSearch } from '../hooks/useComponentTreeSearch';
-import classes from '../styles/ComponentTree.module.css';
-import { CloseIcon, SearchIcon } from './icons';
-import { TreeNode } from './TreeNode';
+import { CloseIcon, SearchIcon } from '@/components/icons';
+import { TreeNode } from '@/components/TreeNode';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import { useComponentTreeSearch } from '@/hooks/useComponentTreeSearch';
+import classes from '@/styles/ComponentTree.module.css';
 
 interface ComponentTreeSearchProps {
   root: ComponentTreeNode;
@@ -14,6 +14,9 @@ interface ComponentTreeSearchProps {
 
 export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
   const devRenderer = useDevToolsRenderer();
+  const inspectorIsOpen = Cell.derived(() => {
+    return devRenderer.selectedNode.get() !== null;
+  });
   const search = useComponentTreeSearch({
     root: props.root,
     getNodeChildren: devRenderer.getNodeChildren.bind(devRenderer),
@@ -45,7 +48,12 @@ export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
           </div>
         ))}
       </div>
-      <div class={classes.treeContent}>
+      <div
+        class={[
+          classes.treeContent,
+          { [classes.treeContentWithInspector]: inspectorIsOpen },
+        ]}
+      >
         <TreeNode
           node={props.root}
           depth={0}

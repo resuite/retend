@@ -1,21 +1,30 @@
-import { For, If } from 'retend';
+import { Cell, For, If } from 'retend';
 
-import type { ComponentTreeNode } from '../core/devtools-renderer';
+import { CloseIcon, ChevronRightIcon } from '@/components/icons';
+import { InspectorPropsTable } from '@/components/InspectorPropsTable';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import { useInspectorPanelData } from '@/hooks/useInspectorPanelData';
+import classes from '@/styles/InspectorPanel.module.css';
 
-import { useInspectorPanelData } from '../hooks/useInspectorPanelData';
-import classes from '../styles/Panel.module.css';
-import { ComponentName } from './ComponentName';
-import { CloseIcon, ChevronRightIcon } from './icons';
-import { InspectorPropsTable } from './InspectorPropsTable';
+export function InspectorPanel() {
+  const devRenderer = useDevToolsRenderer();
+  const inspector = useInspectorPanelData();
+  const componentName = Cell.derived(() => {
+    const selectedNode = devRenderer.selectedNode.get();
+    if (!selectedNode) {
+      return '[Anonymous]';
+    }
 
-interface InspectorPanelProps {
-  selectedNode: ComponentTreeNode;
-}
+    const name = selectedNode.component.name;
+    if (name === '') {
+      return '[Anonymous]';
+    }
 
-export function InspectorPanel(props: InspectorPanelProps) {
-  const { selectedNode } = props;
-  const inspector = useInspectorPanelData(selectedNode);
-  const hasRenderedBy = inspector.renderedByItems.length > 0;
+    return name;
+  });
+  const hasRenderedBy = Cell.derived(() => {
+    return inspector.renderedByItems.get().length > 0;
+  });
 
   return (
     <div class={classes.sideInspector}>
@@ -39,13 +48,13 @@ export function InspectorPanel(props: InspectorPanelProps) {
             classes.sideInspectorComponentName,
           ]}
         >
-          <ComponentName component={selectedNode.component} />
+          {componentName}
         </div>
       </div>
       <div class={classes.sideInspectorSection}>
         <div class={classes.sideInspectorLabel}>Props</div>
         <div class={classes.sideInspectorValue}>
-          <InspectorPropsTable node={selectedNode} />
+          <InspectorPropsTable />
         </div>
       </div>
       {If(hasRenderedBy, () => {

@@ -1,12 +1,12 @@
 import { Cell, For, If } from 'retend';
 
-import type { ComponentTreeNode } from '../core/devtools-renderer';
+import type { ComponentTreeNode } from '@/core/devtools-renderer';
 
-import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
-import classes from '../styles/ComponentTree.module.css';
-import { ComponentName } from './ComponentName';
-import { ChevronDownIcon, ChevronRightIcon } from './icons';
-import { TreeNode, type TreeNodeProps } from './TreeNode';
+import { ComponentName } from '@/components/ComponentName';
+import { ChevronDownIcon, ChevronRightIcon } from '@/components/icons';
+import { TreeNode, type TreeNodeProps } from '@/components/TreeNode';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import classes from '@/styles/ComponentTree.module.css';
 
 export function isProviderNode(node: ComponentTreeNode): boolean {
   return node.component.name.includes('Provider');

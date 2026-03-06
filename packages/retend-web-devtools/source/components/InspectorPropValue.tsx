@@ -1,6 +1,6 @@
 import { For } from 'retend';
 
-import classes from '../styles/Panel.module.css';
+import classes from '@/styles/InspectorPanel.module.css';
 
 interface InspectorPropValueProps {
   value: unknown;

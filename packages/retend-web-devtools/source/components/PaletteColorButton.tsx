@@ -1,9 +1,9 @@
 import { Cell } from 'retend';
 
-import type { HighlightColor } from '../core/devtools-renderer';
+import type { HighlightColor } from '@/core/devtools-renderer';
 
-import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
-import classes from '../styles/HighlightColorPicker.module.css';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import classes from '@/styles/HighlightColorPicker.module.css';
 
 export interface PaletteColorOption {
   value: HighlightColor;

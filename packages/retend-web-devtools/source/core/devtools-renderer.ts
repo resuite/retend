@@ -18,11 +18,6 @@ export interface ComponentTreeNode {
 }
 
 export type HighlightColor = 'blue' | 'pink' | 'green' | 'red' | 'amber';
-export type PanelPosition =
-  | 'bottom-right'
-  | 'bottom-left'
-  | 'top-right'
-  | 'top-left';
 
 export interface CursorPosition {
   x: number;
@@ -45,7 +40,6 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   hoveredNode = Cell.source<ComponentTreeNode | null>(null);
   selectedNode = Cell.source<ComponentTreeNode | null>(null);
   highlightColor = Cell.source<HighlightColor>('blue');
-  panelPosition = Cell.source<PanelPosition>('bottom-right');
   pickerCursorPosition = Cell.source<CursorPosition | null>(null);
   pickerHoveredElement = Cell.source<Element | null>(null);
   parentMap = new Map<ComponentTreeNode, ComponentTreeNode>();

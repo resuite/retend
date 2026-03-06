@@ -9,13 +9,13 @@ import {
 import { ShadowRoot, Teleport } from 'retend-web';
 import { Link, Outlet } from 'retend/router';
 
-import type { ComponentTreeNode } from '../core/devtools-renderer';
+import type { ComponentTreeNode } from '@/core/devtools-renderer';
 
-import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
-import classes from '../styles/ComponentTree.module.css';
-import { ComponentName } from './ComponentName';
-import { ChevronDownIcon, ChevronRightIcon, DotIcon } from './icons';
-import { isProviderNode, ProviderChain } from './ProviderChain';
+import { ComponentName } from '@/components/ComponentName';
+import { ChevronDownIcon, ChevronRightIcon, DotIcon } from '@/components/icons';
+import { isProviderNode, ProviderChain } from '@/components/ProviderChain';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import classes from '@/styles/ComponentTree.module.css';
 
 const specialComponents = new Set<__HMR_UpdatableFn>([Await, Link, Outlet]);
 const webSpecialComponents = new Set<__HMR_UpdatableFn>([Teleport, ShadowRoot]);
@@ -58,8 +58,16 @@ export function TreeNode(props: TreeNodeProps) {
   const isWebSpecial = webSpecialComponents.has(node.component);
   const isScopeProvider = Reflect.has(node.component, '__isScopeProviderOf');
 
-  const onNodeClick = () => {
+  const onNodeClick = (event: MouseEvent) => {
     devRenderer.selectedNode.set(node);
+    const currentTarget = event.currentTarget;
+    if (currentTarget instanceof HTMLElement) {
+      currentTarget.scrollIntoView({
+        block: 'start',
+        inline: 'nearest',
+        behavior: 'smooth',
+      });
+    }
     if (node.output) {
       const renderedNodes = createNodesFromTemplate(node.output, devRenderer);
       let firstNode = renderedNodes[0];

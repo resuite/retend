@@ -1,9 +1,9 @@
 import { For } from 'retend';
 
-import type { HighlightColor } from '../core/devtools-renderer';
+import type { HighlightColor } from '@/core/devtools-renderer';
 
-import classes from '../styles/HighlightColorPicker.module.css';
-import { PaletteColorButton } from './PaletteColorButton';
+import { PaletteColorButton } from '@/components/PaletteColorButton';
+import classes from '@/styles/HighlightColorPicker.module.css';
 
 const colorOptions: Array<{
   value: HighlightColor;

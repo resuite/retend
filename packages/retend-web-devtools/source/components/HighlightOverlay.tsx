@@ -1,8 +1,8 @@
 import { Cell, createNodesFromTemplate, onConnected } from 'retend';
 
-import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
-import classes from '../styles/HighlightOverlay.module.css';
-import HighlightOverlayWorker from '../workers/HighlightOverlay.worker?worker&inline';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import classes from '@/styles/HighlightOverlay.module.css';
+import HighlightOverlayWorker from '@/workers/HighlightOverlay.worker?worker&inline';
 
 export function HighlightOverlay() {
   const devRenderer = useDevToolsRenderer();

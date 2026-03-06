@@ -3,6 +3,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: './',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'source'),
+    },
+  },
   plugins: [
     {
       name: 'retend-devtools-inject-css-entry',

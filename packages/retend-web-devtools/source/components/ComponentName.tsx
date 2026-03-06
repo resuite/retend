@@ -1,6 +1,6 @@
 import type { __HMR_UpdatableFn } from 'retend';
 
-import classes from '../styles/ComponentTree.module.css';
+import classes from '@/styles/ComponentTree.module.css';
 
 interface ComponentNameProps {
   component: __HMR_UpdatableFn;

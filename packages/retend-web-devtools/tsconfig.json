@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowImportingTsExtensions": true,
+    "baseUrl": ".",
     "isolatedModules": true,
     "jsx": "react-jsx",
     "jsxImportSource": "retend",
@@ -13,6 +14,9 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "paths": {
+      "@/*": ["source/*"]
+    },
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",

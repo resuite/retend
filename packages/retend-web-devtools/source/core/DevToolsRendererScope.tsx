@@ -1,6 +1,6 @@
 import { createScope, useScopeContext } from 'retend';
 
-import type { DevToolsDOMRenderer } from './devtools-renderer';
+import type { DevToolsDOMRenderer } from '@/core/devtools-renderer';
 
 export const DevToolsRendererScope =
   createScope<DevToolsDOMRenderer>('DevToolsRenderer');

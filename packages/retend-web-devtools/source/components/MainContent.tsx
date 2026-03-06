@@ -3,7 +3,7 @@ import type { JSX } from 'retend/jsx-runtime';
 import { getActiveRenderer, setActiveRenderer } from 'retend';
 import { DOMRenderer } from 'retend-web';
 
-import { useDevToolsRenderer } from '../core/DevToolsRendererScope';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 
 interface MainContentProps {
   children: JSX.Children;

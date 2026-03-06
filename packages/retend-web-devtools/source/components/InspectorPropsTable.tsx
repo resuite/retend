@@ -1,50 +1,56 @@
-import { For, If } from 'retend';
+import { Cell, For, If } from 'retend';
 import { Link, Outlet } from 'retend/router';
 
-import type { ComponentTreeNode } from '../core/devtools-renderer';
+import { InspectorPropValue } from '@/components/InspectorPropValue';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import classes from '@/styles/InspectorPanel.module.css';
+export function InspectorPropsTable() {
+  const devRenderer = useDevToolsRenderer();
+  const rows = Cell.derived(() => {
+    const node = devRenderer.selectedNode.get();
+    if (!node) {
+      return [];
+    }
 
-import classes from '../styles/Panel.module.css';
-import { InspectorPropValue } from './InspectorPropValue';
+    const isRouterLink = node.component === Link;
+    const isRouterOutlet = node.component === Outlet;
+    const nextRows: Array<{ key: string; value: unknown }> = [];
 
-interface InspectorPropsTableProps {
-  node: ComponentTreeNode;
-}
-
-export function InspectorPropsTable(props: InspectorPropsTableProps) {
-  const { node } = props;
-  const isRouterLink = node.component === Link;
-  const isRouterOutlet = node.component === Outlet;
-
-  const rows: Array<{ key: string; value: unknown }> = [];
-  if (Array.isArray(node.props)) {
-    const propsData = node.props[0];
-    if (propsData) {
-      const entries = Object.entries(propsData as Record<string, unknown>);
-      for (const [key, value] of entries) {
-        if (key === 'children') {
-          continue;
-        }
-        if (isRouterLink) {
-          if (key === 'onClick') {
+    if (Array.isArray(node.props)) {
+      const propsData = node.props[0];
+      if (propsData) {
+        const entries = Object.entries(propsData as Record<string, unknown>);
+        for (const [key, value] of entries) {
+          if (key === 'children') {
             continue;
           }
-          if (key === 'active') {
-            continue;
+          if (isRouterLink) {
+            if (key === 'onClick') {
+              continue;
+            }
+            if (key === 'active') {
+              continue;
+            }
           }
-        }
-        if (isRouterOutlet) {
-          if (key === 'data-path') {
-            continue;
+          if (isRouterOutlet) {
+            if (key === 'data-path') {
+              continue;
+            }
           }
+          nextRows.push({ key, value });
         }
-        rows.push({ key, value });
       }
     }
-  }
+
+    return nextRows;
+  });
+  const hasRows = Cell.derived(() => {
+    return rows.get().length > 0;
+  });
 
   return (
     <>
-      {If(rows.length > 0, {
+      {If(hasRows, {
         true: () => (
           <table class={classes.propsTable}>
             <tbody>

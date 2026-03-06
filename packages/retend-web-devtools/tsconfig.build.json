@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowImportingTsExtensions": true,
+    "baseUrl": ".",
     "declaration": true,
     "declarationMap": false,
     "emitDeclarationOnly": true,
@@ -15,6 +16,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "outDir": "dist",
+    "paths": {
+      "@/*": ["source/*"]
+    },
     "rootDir": "source",
     "skipLibCheck": true,
     "strict": true,

@@ -10,7 +10,7 @@ Provides an in-app overlay to inspect your application's component tree, view pr
 - **Props Viewer:** Inspect the live props passed to any component in the tree.
 - **DOM Highlighting:** Hover over components in the devtools tree to highlight their corresponding DOM elements on the page.
 - **Component Search:** Quickly find specific components by name within complex trees.
-- **Customizable Interface:** Choose the panel's position (e.g., bottom-right, top-left) and select highlight colors.
+- **Customizable Interface:** Select highlight colors to customize the inspector.
 
 ## Installation
 
@@ -38,7 +38,7 @@ import { App } from './App';
 const root = document.getElementById('root')!;
 
 renderToDOM(root, () => (
-  <RetendDevTools initialPosition="bottom-right">
+  <RetendDevTools>
     <App />
   </RetendDevTools>
 ));
@@ -56,9 +56,7 @@ import { RetendDevTools } from 'retend-web-devtools';
 hydrate(createRouter, {
   rootId: 'root',
   wrap(root) {
-    return (
-      <RetendDevTools initialPosition="bottom-right">{root}</RetendDevTools>
-    );
+    return <RetendDevTools>{root}</RetendDevTools>;
   },
 });
 ```

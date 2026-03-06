@@ -1,6 +1,6 @@
 import { Cell } from 'retend';
 
-import type { ComponentTreeNode } from '../core/devtools-renderer';
+import type { ComponentTreeNode } from '@/core/devtools-renderer';
 
 interface SearchResult {
   visible: Set<ComponentTreeNode>;
