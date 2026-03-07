@@ -9,7 +9,7 @@ import {
   createRouterRoot,
   defineRoutes,
 } from 'retend/router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { getTextContent, vDomSetup } from '../setup.tsx';
 
@@ -166,5 +166,29 @@ describe('Router Direct Imports', () => {
     expect(getTextContent(window.document.body)).toContain('About Page');
     expect(getTextContent(window.document.body)).toContain('App Header');
     expect(getTextContent(window.document.body)).toContain('App Footer');
+  });
+
+  it('should let same-page hash links use native anchor behavior', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        {
+          path: '/article',
+          name: 'article',
+          component: () => <Link href="/article#section">Section</Link>,
+        },
+      ]),
+    });
+    router.attachWindowListeners(window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/article');
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const link = window.document.querySelector('a');
+    link?.dispatchEvent(new Event('click'));
+
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

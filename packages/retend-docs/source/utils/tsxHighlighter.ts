@@ -16,7 +16,6 @@ const KEYWORDS = new Set([
   'enum',
   'export',
   'extends',
-  'false',
   'finally',
   'for',
   'from',
@@ -42,15 +41,40 @@ const KEYWORDS = new Set([
   'switch',
   'this',
   'throw',
-  'true',
   'try',
   'type',
   'typeof',
+  'undefined',
   'var',
   'void',
   'while',
   'with',
   'yield',
+]);
+
+const BOOLEANS = new Set(['true', 'false']);
+
+const BUILTINS = new Set([
+  'console',
+  'Math',
+  'JSON',
+  'document',
+  'window',
+  'process',
+  'global',
+  'Object',
+  'Array',
+  'String',
+  'Number',
+  'Boolean',
+  'Promise',
+  'Set',
+  'Map',
+  'Date',
+  'RegExp',
+  'Error',
+  'BigInt',
+  'Symbol',
 ]);
 
 const MAX_CACHE_ENTRIES = 64;
@@ -165,11 +189,77 @@ function nextNonSpaceCode(source: string, start: number): number {
   return 0;
 }
 
+function isPunctuationCode(code: number): boolean {
+  return (
+    code === 123 ||
+    code === 125 ||
+    code === 91 ||
+    code === 93 ||
+    code === 40 ||
+    code === 41 ||
+    code === 59 ||
+    code === 44 ||
+    code === 46
+  );
+}
+
+function isOperatorCode(code: number): boolean {
+  return (
+    code === 61 ||
+    code === 43 ||
+    code === 45 ||
+    code === 42 ||
+    code === 47 ||
+    code === 37 ||
+    code === 33 ||
+    code === 60 ||
+    code === 62 ||
+    code === 38 ||
+    code === 124 ||
+    code === 94 ||
+    code === 126 ||
+    code === 63 ||
+    code === 58
+  );
+}
+
 function highlightTsxUncached(source: string): string {
   const out: string[] = [];
   const length = source.length;
   let i = 0;
   let previousTokenCode = 0;
+  let previousLexicalToken = '';
+
+  const TYPE_CONTEXTS = new Set([
+    ':',
+    'type',
+    'interface',
+    'class',
+    'extends',
+    'implements',
+    'new',
+    'as',
+    '<',
+    '|',
+    '&',
+    '=',
+    'Omit',
+    'Pick',
+    'Partial',
+    'Required',
+    'Readonly',
+    'Record',
+    'Exclude',
+    'Extract',
+    'NonNullable',
+    'ReturnType',
+    'InstanceType',
+    'Parameters',
+  ]);
+
+  let braceDepth = 0;
+  const templateBraceDepths: number[] = [];
+  let inTemplateString = false;
 
   while (i < length) {
     const code = source.charCodeAt(i);
@@ -189,11 +279,65 @@ function highlightTsxUncached(source: string): string {
       continue;
     }
 
-    if (code === 39 || code === 34 || code === 96) {
+    if (inTemplateString) {
+      let stop = i;
+      while (stop < length) {
+        const charCode = source.charCodeAt(stop);
+        const nextCharCode =
+          stop + 1 < length ? source.charCodeAt(stop + 1) : 0;
+
+        if (charCode === 92) {
+          // backslash escape
+          stop += 2;
+          continue;
+        }
+
+        if (charCode === 36 && nextCharCode === 123) {
+          // ${
+          stop += 2;
+          pushWrappedToken(out, 'rt-code-string', source, i, stop - 2);
+          pushWrappedToken(out, 'rt-code-punctuation', source, stop - 2, stop);
+
+          templateBraceDepths.push(braceDepth);
+          braceDepth += 1;
+          inTemplateString = false;
+          i = stop;
+          break;
+        }
+
+        if (charCode === 96) {
+          // closing `
+          stop += 1;
+          pushWrappedToken(out, 'rt-code-string', source, i, stop);
+          inTemplateString = false;
+          previousTokenCode = 0;
+          previousLexicalToken = 'STRING';
+          i = stop;
+          break;
+        }
+
+        stop += 1;
+      }
+      if (stop >= length && inTemplateString) {
+        pushWrappedToken(out, 'rt-code-string', source, i, stop);
+        i = stop;
+      }
+      if (i > stop || !inTemplateString) continue;
+    }
+
+    if (code === 39 || code === 34) {
       const stop = findStringEnd(source, i, code);
       pushWrappedToken(out, 'rt-code-string', source, i, stop);
       i = stop;
       previousTokenCode = 0;
+      previousLexicalToken = 'STRING';
+      continue;
+    }
+
+    if (code === 96) {
+      inTemplateString = true;
+      pushWrappedToken(out, 'rt-code-string', source, i, i + 1);
+      i += 1;
       continue;
     }
 
@@ -224,6 +368,7 @@ function highlightTsxUncached(source: string): string {
         pushWrappedToken(out, 'rt-code-number', source, i, stop);
         i = stop;
         previousTokenCode = 0;
+        previousLexicalToken = 'NUMBER';
         continue;
       }
     }
@@ -238,13 +383,20 @@ function highlightTsxUncached(source: string): string {
       }
 
       let stop = i;
+      let isComponent = false;
+      if (stop < length && isUppercaseLetterCode(source.charCodeAt(stop))) {
+        isComponent = true;
+      }
+
       while (stop < length && isIdentifierPartCode(source.charCodeAt(stop))) {
         stop += 1;
       }
 
       if (stop > i) {
-        pushWrappedToken(out, 'rt-code-tag', source, i, stop);
+        const className = isComponent ? 'rt-code-component' : 'rt-code-tag';
+        pushWrappedToken(out, className, source, i, stop);
         i = stop;
+        previousLexicalToken = 'TAG';
       }
 
       previousTokenCode = 0;
@@ -259,15 +411,25 @@ function highlightTsxUncached(source: string): string {
 
       const token = source.slice(i, stop);
       const isProperty = previousTokenCode === 46;
-      const isType = isUppercaseLetterCode(code);
+      let isType = isUppercaseLetterCode(code);
       const isFunction = nextNonSpaceCode(source, stop) === 40;
+
+      if (isType) {
+        if (!TYPE_CONTEXTS.has(previousLexicalToken)) {
+          isType = false;
+        }
+      }
 
       if (KEYWORDS.has(token)) {
         pushWrappedToken(out, 'rt-code-keyword', source, i, stop);
-      } else if (isProperty) {
-        pushWrappedToken(out, 'rt-code-property', source, i, stop);
+      } else if (BOOLEANS.has(token)) {
+        pushWrappedToken(out, 'rt-code-boolean', source, i, stop);
+      } else if (BUILTINS.has(token)) {
+        pushWrappedToken(out, 'rt-code-builtin', source, i, stop);
       } else if (isFunction) {
         pushWrappedToken(out, 'rt-code-function', source, i, stop);
+      } else if (isProperty) {
+        pushWrappedToken(out, 'rt-code-property', source, i, stop);
       } else if (isType) {
         pushWrappedToken(out, 'rt-code-type', source, i, stop);
       } else {
@@ -275,14 +437,40 @@ function highlightTsxUncached(source: string): string {
       }
 
       previousTokenCode = source.charCodeAt(stop - 1);
+      previousLexicalToken = token;
       i = stop;
       continue;
     }
 
-    if (code === 38) out.push('&amp;');
-    else if (code === 60) out.push('&lt;');
-    else if (code === 62) out.push('&gt;');
-    else out.push(source[i]);
+    if (isPunctuationCode(code)) {
+      if (code === 123) braceDepth += 1; // {
+      if (code === 125) braceDepth -= 1; // }
+
+      const char = source[i];
+      pushWrappedToken(out, 'rt-code-punctuation', source, i, i + 1);
+      previousLexicalToken = char;
+      i += 1;
+
+      if (code === 125 && templateBraceDepths.length > 0) {
+        if (
+          braceDepth === templateBraceDepths[templateBraceDepths.length - 1]
+        ) {
+          templateBraceDepths.pop();
+          inTemplateString = true;
+        }
+      }
+      continue;
+    } else if (isOperatorCode(code)) {
+      const char = source[i];
+      pushWrappedToken(out, 'rt-code-operator', source, i, i + 1);
+      previousLexicalToken = char;
+    } else {
+      if (code === 38) out.push('&amp;');
+      else if (code === 60) out.push('&lt;');
+      else if (code === 62) out.push('&gt;');
+      else out.push(source[i]);
+      previousLexicalToken = source[i];
+    }
 
     if (!isWhitespaceCode(code)) previousTokenCode = code;
     i += 1;
@@ -307,6 +495,13 @@ export function highlightTsx(source: string): string {
 }
 
 export function highlightCode(source: string, lang: string): string {
-  if (lang.toLowerCase() === 'tsx') return highlightTsx(source);
+  const lowercaseLang = lang.toLowerCase();
+  if (
+    lowercaseLang === 'tsx' ||
+    lowercaseLang === 'jsx' ||
+    lowercaseLang === 'csx'
+  ) {
+    return highlightTsx(source);
+  }
   return escapeHtml(source);
 }

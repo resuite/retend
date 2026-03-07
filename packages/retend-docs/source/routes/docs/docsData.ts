@@ -39,6 +39,7 @@ const labelOverrides = new Map<string, string>([
   ['on-connected', 'OnConnected'],
   ['on-setup', 'OnSetup'],
   ['under-the-hood', 'Core API'],
+  ['getting-started', 'Getting Started'],
 ]);
 
 const sectionOrder = [

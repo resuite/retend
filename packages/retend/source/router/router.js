@@ -468,7 +468,7 @@ export class Router extends EventTarget {
       const fullPath = constructURL(target.path, result);
       this.#currentPath.set({
         name: target.name,
-        path: target.path,
+        path: constructURL(target.path, result, false),
         params: result.params,
         query: result.searchQueryParams,
         fullPath: fullPath,
@@ -914,6 +914,12 @@ export function Link(props = {}) {
     // For valid URLs, the browser will handle the navigation.
     const hrefValue = href.get();
     if (hrefValue && !URL.canParse(hrefValue)) {
+      if (
+        hrefValue.includes('#') &&
+        hrefValue.split('#')[0] === currentRoute.get().fullPath.split('#')[0]
+      ) {
+        return;
+      }
       event.preventDefault();
       const beforeEvent = new RouterNavigationEvent('beforenavigate', {
         detail: { href: hrefValue, replace },

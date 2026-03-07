@@ -1,4 +1,5 @@
-import { For } from 'retend';
+import { Cell, For } from 'retend';
+import { Link, useCurrentRoute } from 'retend/router';
 
 type DocsHeading = { id: string; label: string; depth: number };
 
@@ -18,26 +19,38 @@ export function DocsOnThisPage(props: DocsOnThisPageProps) {
         <ul class="flex flex-col gap-2">
           {For(
             sectionHeadings,
-            (heading) => {
-              let itemClass =
-                'text-fg-muted hover:text-brand text-sm transition-colors';
-              if (heading.depth > 2) {
-                itemClass =
-                  'text-fg-muted hover:text-brand text-sm transition-colors pl-3';
-              }
-
-              return (
-                <li>
-                  <a href={`#${heading.id}`} class={itemClass}>
-                    {heading.label}
-                  </a>
-                </li>
-              );
-            },
+            (heading) => (
+              <HeadingRoute heading={heading} />
+            ),
             { key: 'id' }
           )}
         </ul>
       </nav>
     </aside>
+  );
+}
+
+interface HeadingRouteProps {
+  heading: DocsHeading;
+}
+
+function HeadingRoute(props: HeadingRouteProps) {
+  const { heading } = props;
+  const currentRoute = useCurrentRoute();
+  const href = Cell.derived(() => {
+    return `${currentRoute.get().path}${currentRoute.get().query}#${heading.id}`;
+  });
+
+  let itemClass = 'text-fg-muted hover:text-brand text-sm transition-colors';
+  if (heading.depth > 2) {
+    itemClass = 'text-fg-muted hover:text-brand text-sm transition-colors pl-3';
+  }
+
+  return (
+    <li>
+      <Link href={href} class={itemClass}>
+        {heading.label}
+      </Link>
+    </li>
   );
 }

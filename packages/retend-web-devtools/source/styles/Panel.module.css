@@ -17,6 +17,35 @@
   transform-origin: bottom right;
 }
 
+.positionBottomLeft {
+  bottom: 0.625rem;
+  left: 0.625rem;
+  align-items: flex-start;
+}
+.positionBottomLeft .content {
+  transform-origin: bottom left;
+}
+
+.positionTopRight {
+  top: 0.625rem;
+  right: 0.625rem;
+  align-items: flex-end;
+  flex-direction: column-reverse;
+}
+.positionTopRight .content {
+  transform-origin: top right;
+}
+
+.positionTopLeft {
+  top: 0.625rem;
+  left: 0.625rem;
+  align-items: flex-start;
+  flex-direction: column-reverse;
+}
+.positionTopLeft .content {
+  transform-origin: top left;
+}
+
 .content {
   background: var(--retend-devtools-panel-bg);
   border: 1px solid var(--retend-devtools-panel-border);

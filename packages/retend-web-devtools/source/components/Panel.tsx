@@ -18,6 +18,7 @@ export function Panel() {
   const inspectorIsOpen = Cell.derived(
     () => devRenderer.selectedNode.get() !== null
   );
+
   const togglePanel = () => {
     const nextState = !panel.panelIsOpen.get();
     panel.togglePanel();
@@ -49,7 +50,23 @@ export function Panel() {
       <retend-web-devtools ref={divRef} style={{ display: 'contents' }}>
         <ShadowRoot>
           <div
-            class={[classes.panel, classes.positionBottomRight]}
+            class={[
+              classes.panel,
+              {
+                [classes.positionTopLeft]: Cell.derived(
+                  () => panel.panelPosition.get() === 'top-left'
+                ),
+                [classes.positionTopRight]: Cell.derived(
+                  () => panel.panelPosition.get() === 'top-right'
+                ),
+                [classes.positionBottomLeft]: Cell.derived(
+                  () => panel.panelPosition.get() === 'bottom-left'
+                ),
+                [classes.positionBottomRight]: Cell.derived(
+                  () => panel.panelPosition.get() === 'bottom-right'
+                ),
+              },
+            ]}
             data-retend-devtools
           >
             {If(panel.panelIsOpen, () => (
@@ -65,7 +82,7 @@ export function Panel() {
                 <div class={classes.content}>
                   <div class={classes.header}>
                     <span class={classes.title}>Component Tree</span>
-                    <PanelHeaderTools />
+                    <PanelHeaderTools panel={panel} />
                   </div>
                   <div class={classes.body}>
                     <ComponentTree />

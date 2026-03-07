@@ -23,7 +23,8 @@ export function createRouter() {
           },
           {
             path: '/docs',
-            component: DocsPage,
+            redirect: '/docs/getting-started/introduction',
+            component: () => null,
           },
           {
             path: '/docs/:section',

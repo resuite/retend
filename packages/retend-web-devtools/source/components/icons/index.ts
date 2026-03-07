@@ -5,3 +5,4 @@ export * from '@/components/icons/CloseIcon';
 export * from '@/components/icons/DotIcon';
 export * from '@/components/icons/PickerIcon';
 export * from '@/components/icons/SearchIcon';
+export * from '@/components/icons/PositionIcon';

@@ -29,7 +29,7 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
       return <InlineCode class={props.class}>{props.children}</InlineCode>;
     },
     h1: (props: JSX.IntrinsicElements['h1']) => (
-      <h1 class="text-fg mt-0 mb-5 text-4xl tracking-tight">
+      <h1 class="text-fg mt-0 mb-5 scroll-mt-6 text-4xl tracking-tight">
         {props.children}
       </h1>
     ),
@@ -43,7 +43,7 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
         <h2
           id={headingId}
           class={[
-            'text-fg mt-10 mb-4 scroll-mt-24 text-3xl tracking-tight',
+            'text-fg mt-10 mb-4 scroll-mt-6 scroll-mt-24 text-3xl tracking-tight',
             className,
           ]}
           {...rest}
@@ -62,7 +62,7 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
         <h3
           id={headingId}
           class={[
-            'text-fg mt-8 mb-3 scroll-mt-24 text-2xl tracking-tight',
+            'text-fg mt-8 mb-3 scroll-mt-6 text-2xl tracking-tight',
             className,
           ]}
           {...rest}
@@ -72,7 +72,9 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
       );
     },
     h4: (props: JSX.IntrinsicElements['h4']) => (
-      <h4 class="text-fg mt-7 mb-2 text-xl tracking-tight">{props.children}</h4>
+      <h4 class="text-fg mt-7 mb-2 scroll-mt-6 text-xl tracking-tight">
+        {props.children}
+      </h4>
     ),
     p: (props: JSX.IntrinsicElements['p']) => (
       <p class="text-fg my-4 leading-7">{props.children}</p>

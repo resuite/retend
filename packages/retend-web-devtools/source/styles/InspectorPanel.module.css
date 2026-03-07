@@ -33,8 +33,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding-bottom: 1rem;
+  padding: 1.125rem 1.25rem 1rem;
+  margin: -1.125rem -1.25rem 0;
   border-bottom: 1px solid var(--retend-devtools-inspector-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--retend-devtools-panel-bg);
 }
 
 .sideInspectorTitle {

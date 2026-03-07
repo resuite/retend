@@ -10,8 +10,7 @@ import { DocsSidebar } from './docs/DocsSidebar';
 export function DocsPage() {
   const currentRoute = useCurrentRoute();
 
-  let activePath = currentRoute.get().fullPath;
-  activePath = activePath.split('?')[0];
+  let activePath = currentRoute.get().path;
   if (activePath.endsWith('/')) {
     activePath = activePath.slice(0, -1);
   }
@@ -50,7 +49,7 @@ export function DocsPage() {
     <section class="grid grid-cols-1 gap-10 text-balance lg:grid-cols-[220px_minmax(0,1fr)_200px] lg:gap-10">
       <DocsSidebar />
 
-      <article class="docs-markdown min-w-0">
+      <article class="docs-markdown min-w-0 text-pretty">
         <ActivePage components={components} />
       </article>
 

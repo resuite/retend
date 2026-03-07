@@ -14,7 +14,9 @@
   --color-card-shadow: var(--color-retend-card-shadow);
 
   --font-main: system-ui, ui-sans-serif, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --font-mono:
+    IBM Plex Mono, Monaspace Neon, ui-monospace, SFMono-Regular, 'SF Mono',
+    Menlo, monospace;
 }
 
 :root {
@@ -32,13 +34,19 @@
   --color-retend-card-shadow: #c5c5c5;
   --color-retend-selection-bg: #e2e8f0;
   --color-retend-selection-fg: #1e293b;
-  --color-retend-code-keyword: #334155;
-  --color-retend-code-function: #0e7490;
-  --color-retend-code-string: #0f766e;
-  --color-retend-code-number: #a16207;
-  --color-retend-code-property: #1e40af;
-  --color-retend-code-type: #64748b;
-  --color-retend-code-comment: #94a3b8;
+  --color-retend-code-keyword: #6d28d9;
+  --color-retend-code-function: #1d4ed8;
+  --color-retend-code-string: #047857;
+  --color-retend-code-number: #b45309;
+  --color-retend-code-property: #be185d;
+  --color-retend-code-type: #0e7490;
+  --color-retend-code-tag: #e11d48;
+  --color-retend-code-component: #0284c7;
+  --color-retend-code-comment: #475569;
+  --color-retend-code-boolean: #c2410c;
+  --color-retend-code-operator: #334155;
+  --color-retend-code-punctuation: #1e293b;
+  --color-retend-code-builtin: #b91c1c;
 }
 
 .dark {
@@ -56,13 +64,19 @@
   --color-retend-card-shadow: #121212;
   --color-retend-selection-bg: #57534e;
   --color-retend-selection-fg: #f8fafc;
-  --color-retend-code-keyword: #e2e8f0;
-  --color-retend-code-function: #7dd3fc;
-  --color-retend-code-string: #5eead4;
+  --color-retend-code-keyword: #d8b4fe;
+  --color-retend-code-function: #60a5fa;
+  --color-retend-code-string: #34d399;
   --color-retend-code-number: #fbbf24;
-  --color-retend-code-property: #93c5fd;
-  --color-retend-code-type: #94a3b8;
-  --color-retend-code-comment: #78716c;
+  --color-retend-code-property: #f472b6;
+  --color-retend-code-type: #22d3ee;
+  --color-retend-code-tag: #fb7185;
+  --color-retend-code-component: #38bdf8;
+  --color-retend-code-comment: #9ca3af;
+  --color-retend-code-boolean: #fb923c;
+  --color-retend-code-operator: #d1d5db;
+  --color-retend-code-punctuation: #e5e7eb;
+  --color-retend-code-builtin: #f87171;
 }
 
 @layer base {
@@ -156,36 +170,36 @@
   color: var(--color-retend-code-property);
 }
 
-.rt-code-type,
-.rt-code-tag {
+.rt-code-type {
   color: var(--color-retend-code-type);
+}
+
+.rt-code-tag {
+  color: var(--color-retend-code-tag);
+}
+
+.rt-code-component {
+  color: var(--color-retend-code-component);
 }
 
 .rt-code-comment {
   color: var(--color-retend-code-comment);
 }
 
-.docs-on-this-page {
-  border-left: 1px solid
-    color-mix(in srgb, var(--color-border) 40%, transparent);
-  padding-left: 1rem;
+.rt-code-boolean {
+  color: var(--color-retend-code-boolean);
 }
 
-.rt-code-number {
-  color: var(--color-retend-code-number);
+.rt-code-operator {
+  color: var(--color-retend-code-operator);
 }
 
-.rt-code-property {
-  color: var(--color-retend-code-property);
+.rt-code-punctuation {
+  color: var(--color-retend-code-punctuation);
 }
 
-.rt-code-type,
-.rt-code-tag {
-  color: var(--color-retend-code-type);
-}
-
-.rt-code-comment {
-  color: var(--color-retend-code-comment);
+.rt-code-builtin {
+  color: var(--color-retend-code-builtin);
 }
 
 .docs-on-this-page {

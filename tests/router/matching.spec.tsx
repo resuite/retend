@@ -176,6 +176,7 @@ describe('Router Matching', () => {
     const route = router.getCurrentRoute();
     const params = route.get().params;
     expect(Object.fromEntries(params.entries())).toEqual({ id: '123' });
+    expect(route.get().path).toBe('/users/123');
     expect(route.get().name).toBe('user-detail');
     expect(callback).toHaveBeenCalledWith('123');
     expect(callback).toHaveBeenCalledTimes(1);

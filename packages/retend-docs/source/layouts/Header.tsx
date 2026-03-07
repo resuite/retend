@@ -6,7 +6,7 @@ export function Header() {
   return (
     <header class="bg-bg fixed top-0 right-0 left-0 z-50">
       <div class="mx-auto max-w-300 px-5 sm:px-6 md:px-10">
-        <nav class="flex flex-col gap-6 py-8 md:flex-row md:items-center md:justify-between md:py-12">
+        <nav class="flex flex-col gap-6 py-5 md:flex-row md:items-center md:justify-between md:py-12">
           <Link
             class="text-fg text-xl tracking-tight"
             href="/"
