@@ -1,4 +1,5 @@
 /** @import { Renderer, RendererTypes } from './renderer.js'; */
+import { Block } from './block.js';
 
 /**
  * @template {RendererTypes} Data
@@ -30,6 +31,11 @@ export function createNodesFromTemplate(children, renderer) {
 
     if (renderer.isNode(child)) {
       nodes.push(child);
+      continue;
+    }
+
+    if (child instanceof Block) {
+      stack.push(child.instantiate(renderer));
       continue;
     }
 
@@ -94,6 +100,10 @@ export function linkNodes(first, second, renderer) {
 export function normalizeJsxChild(child, renderer) {
   if (renderer.isNode(child)) return child;
 
+  if (child instanceof Block) {
+    return normalizeJsxChild(child.instantiate(renderer), renderer);
+  }
+
   if (Array.isArray(child)) {
     const group = renderer.createGroup();
     /** @type {any[]} */
@@ -108,6 +118,14 @@ export function normalizeJsxChild(child, renderer) {
         for (let i = subchild.length - 1; i >= 0; i -= 1) {
           stack.push(subchild[i]);
         }
+        continue;
+      }
+
+      if (subchild instanceof Block) {
+        renderer.append(
+          group,
+          normalizeJsxChild(subchild.instantiate(renderer), renderer)
+        );
         continue;
       }
 

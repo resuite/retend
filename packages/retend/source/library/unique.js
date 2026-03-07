@@ -186,12 +186,6 @@ export function createUnique(renderFn, options = {}) {
     const { id = renderFn } = props;
     const { globalData } = getGlobalContext();
     const renderer = getActiveRenderer();
-    const hArgs = /** @type {const} */ ([
-      undefined,
-      undefined,
-      undefined,
-      renderer,
-    ]);
     const { onSave, onRestore, container = {} } = options;
     const ref = Cell.source(null);
 
@@ -212,7 +206,7 @@ export function createUnique(renderFn, options = {}) {
       propSource.set(props);
     }
 
-    const retendUniqueInstance = h(elementName, container, ...hArgs)();
+    const uniqueInstance = h(elementName, container).instantiate(renderer);
     let previous = stash.instances.get(id);
 
     /** @param {unknown} div */
@@ -326,10 +320,7 @@ export function createUnique(renderFn, options = {}) {
 
           const next = journey.at(-1);
           if (next && currentElement !== next.node) {
-            renderer.append(
-              next.node,
-              Array.from(retendUniqueInstance.childNodes)
-            );
+            renderer.append(next.node, Array.from(uniqueInstance.childNodes));
             renderer.setProperty(next.node, 'state', 'restored');
             propSource.set(next.props);
             restoreState(next.node);
@@ -338,15 +329,15 @@ export function createUnique(renderFn, options = {}) {
       };
     });
 
-    if (ref instanceof SourceCell) ref.set(retendUniqueInstance);
+    if (ref instanceof SourceCell) ref.set(uniqueInstance);
     stash.refs.set(id, ref);
 
     let childNodes;
     if (previous) {
-      renderer.setProperty(retendUniqueInstance, 'state', 'restored');
-      renderer.restoreContainerState(retendUniqueInstance, previous);
+      renderer.setProperty(uniqueInstance, 'state', 'restored');
+      renderer.restoreContainerState(uniqueInstance, previous);
     } else {
-      renderer.setProperty(retendUniqueInstance, 'state', 'new');
+      renderer.setProperty(uniqueInstance, 'state', 'new');
       childNodes = (() => {
         const stateSnapshot = branchState();
         stash.scopes.set(id, stateSnapshot);
@@ -354,10 +345,10 @@ export function createUnique(renderFn, options = {}) {
           renderer.handleComponent(renderFn, [propSource], stateSnapshot)
         );
       })();
-      linkNodes(retendUniqueInstance, childNodes, renderer);
+      linkNodes(uniqueInstance, childNodes, renderer);
     }
 
-    return retendUniqueInstance;
+    return uniqueInstance;
   };
   Object.defineProperty(UniqueComponent, 'name', { value: renderFn.name });
   if (!renderFn.name) {

@@ -839,7 +839,6 @@ export function RouterProvider(props) {
  */
 export function Outlet(props) {
   const routerData = useScopeContext(RouterScope);
-  const renderer = getActiveRenderer();
   const { depth, internalState } = routerData;
   const rawProps = props || {};
   const currentLevel = Cell.derived(() => {
@@ -851,18 +850,13 @@ export function Outlet(props) {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
       value: { ...routerData, depth: routerData.depth + 1 },
-      children: h(
-        RenderFn,
-        { metadata: internalState.metadata },
-        ...IgnoredHProps,
-        renderer
-      ),
+      children: h(RenderFn, { metadata: internalState.metadata }),
     });
   };
   Object.defineProperty(OutletContent, 'name', { value: 'Outlet.Content' });
   rawProps.children = If(path, OutletContent);
 
-  return h('retend-router-outlet', rawProps, ...IgnoredHProps, renderer);
+  return h('retend-router-outlet', rawProps, ...IgnoredHProps);
 }
 
 /**
@@ -885,7 +879,6 @@ export function Outlet(props) {
 export function Link(props = {}) {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
-  const renderer = getActiveRenderer();
 
   if (!('href' in props)) {
     console.error('missing to attribute for link component.');
@@ -938,7 +931,7 @@ export function Link(props = {}) {
   };
   props.active = active;
 
-  return h('a', props, ...IgnoredHProps, renderer);
+  return h('a', props, ...IgnoredHProps);
 }
 
 /**
