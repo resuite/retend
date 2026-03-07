@@ -306,9 +306,7 @@ describe('Hydration Await', () => {
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      const { html } = await setupAwaitHydration(template);
-      console.log('=== If TEST SERVER HTML ===');
-      console.log(html);
+      await setupAwaitHydration(template);
 
       expect(document.querySelector('#await-fallback')).toBeNull();
       expect(document.querySelector('#yes')?.textContent).toBe('Yes');
