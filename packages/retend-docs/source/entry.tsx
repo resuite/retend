@@ -8,10 +8,6 @@ import { createRouter } from '@/router';
 hydrate(createRouter, {
   rootId: 'root',
   wrap(root) {
-    return (
-      // <RetendDevTools>
-      <RetendDevTools>{root}</RetendDevTools>
-      // </RetendDevTools>
-    );
+    return <RetendDevTools>{root}</RetendDevTools>;
   },
 });
