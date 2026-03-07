@@ -65,9 +65,7 @@ export function InspectorPropValue(props: InspectorPropValueProps) {
   if (value instanceof Object) {
     if (seen.includes(value)) {
       return (
-        <span class={[classes.propValue, classes.propObject]}>
-          [Circular]
-        </span>
+        <span class={[classes.propValue, classes.propObject]}>[Circular]</span>
       );
     }
     nextSeen = [...seen, value];
