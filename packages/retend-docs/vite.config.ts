@@ -130,7 +130,7 @@ export default defineConfig({
     retend(),
     retendSSG({
       inlineEnvironmentImports: true,
-      pages: ['/', '/quickstart', ...docsPages],
+      pages: ['/', ...docsPages],
       routerModulePath: './source/router.tsx',
       rootSelector: '#root',
     }),

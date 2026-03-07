@@ -30,7 +30,7 @@
   --color-retend-surface-alt: #f1f5f9;
   --color-retend-surface-alt-hover: #e2e8f0;
   --color-retend-border: #151515;
-  --color-retend-dots: #94a3b8;
+  --color-retend-dots: #c7cace;
   --color-retend-card-shadow: #c5c5c5;
   --color-retend-selection-bg: #e2e8f0;
   --color-retend-selection-fg: #1e293b;
@@ -47,6 +47,8 @@
   --color-retend-code-operator: #334155;
   --color-retend-code-punctuation: #1e293b;
   --color-retend-code-builtin: #b91c1c;
+
+  --header-height: 4rem;
 }
 
 .dark {
@@ -184,6 +186,7 @@
 
 .rt-code-comment {
   color: var(--color-retend-code-comment);
+  font-style: italic;
 }
 
 .rt-code-boolean {

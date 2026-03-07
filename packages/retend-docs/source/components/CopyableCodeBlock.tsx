@@ -1,4 +1,4 @@
-import { CodeBlock } from '@/components/CodeBlock';
+import { MDXCodeBlock } from '@/components/MDXCodeBlock';
 
 interface CopyableCodeBlockProps {
   code: string;
@@ -21,7 +21,7 @@ export function CopyableCodeBlock(props: CopyableCodeBlockProps) {
           Copy
         </button>
       </div>
-      <CodeBlock code={code} lang={lang} />
+      <MDXCodeBlock code={code} lang={lang} />
     </div>
   );
 }

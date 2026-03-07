@@ -24,7 +24,7 @@ export function CallToAction() {
       </Card>
 
       <div class="flex flex-col gap-4 sm:flex-row sm:gap-6">
-        <Button href="/quickstart" variant="primary">
+        <Button href="/docs" variant="primary">
           Read the Docs
           <ArrowRightIcon />
         </Button>

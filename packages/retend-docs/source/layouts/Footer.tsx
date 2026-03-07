@@ -24,14 +24,6 @@ export function Footer() {
               <ul class="flex flex-col gap-4">
                 <li>
                   <Link
-                    href="/quickstart"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    Quickstart
-                  </Link>
-                </li>
-                <li>
-                  <Link
                     href="/concepts"
                     class="text-fg hover:text-brand text-sm transition-colors"
                   >
@@ -108,7 +100,7 @@ export function Footer() {
 
       <div class="relative z-10 mt-20 flex justify-center overflow-hidden px-4 sm:mt-32">
         <h1
-          class="from-fg/90 to-fg/5 bg-gradient-to-b bg-clip-text text-center text-[24vw] leading-none font-medium tracking-tighter text-transparent select-none"
+          class="from-fg/90 to-fg/5 bg-linear-to-b bg-clip-text text-center text-[24vw] leading-none font-medium tracking-tighter text-transparent select-none"
           style={{ marginBottom: '-6.5vw' }}
         >
           retend

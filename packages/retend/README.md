@@ -14,7 +14,7 @@ For browser applications, use it with [`retend-web`](https://github.com/adebola-
 
 ## Key Concepts
 
-- Fine-grained Reactivity: Changes propagate automatically to only the affected DOM nodes — no Virtual DOM diffing or full component re-renders
+- Fine-grained Reactivity: Changes propagate automatically to only the affected nodes in the renderer's tree — no Virtual DOM diffing or full component re-renders
 - Components are Functions: No component instances or reconciliation layers — just direct node creation and surgical updates
 - Renderer-Agnostic: Works across environments (DOM, SSR, etc.) by swapping the renderer implementation
 

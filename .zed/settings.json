@@ -9,6 +9,13 @@
     "tailwindcss-language-server"
   ],
   "lsp": {
+    "mdx-analyzer": {
+      "initialization_options": {
+        "typescript": {
+          "enabled": true
+        }
+      }
+    },
     "oxlint": {
       "initialization_options": {
         "settings": {

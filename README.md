@@ -35,13 +35,12 @@ renderToDOM(document.body, App);
 
 - Built-in Reactivity: [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
 
-- Components are DOM Elements: Components in Retend are just functions that return elements.
+- Platform Agnostic by Default: Retend's core reactivity is decoupled from the browser. The default web renderer (`retend-web`) maps components directly to DOM elements.
 
-  - There is no extra layer.
   - There is no Virtual DOM.
   - There is no "re-render".
 
-  This gives you a high level of control and interoperability with existing DOM APIs.
+  This gives you a high level of control and maximizes performance without an extra intermediary layer.
 
 - Built-in Router: Retend includes its own router, which makes it easier to build single-page applications. The router handles navigation between parts of your app without full page reloads.
 

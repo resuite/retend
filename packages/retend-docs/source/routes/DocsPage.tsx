@@ -38,9 +38,7 @@ export function DocsPage() {
       while (headingCursor < sectionHeadings.length) {
         const heading = sectionHeadings[headingCursor];
         headingCursor += 1;
-        if (heading.depth === depth) {
-          return heading.id;
-        }
+        if (heading.depth === depth) return heading.id;
       }
     },
   });

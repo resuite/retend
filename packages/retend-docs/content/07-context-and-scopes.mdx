@@ -1,0 +1,170 @@
+# Context and Scopes
+
+As your application grows, you will often find yourself needing to pass data from a high-level parent component all the way down to deeply nested child components.
+
+When you pass data through many layers of intermediate components that don't actually need the data themselves, it's a structural anti-pattern known as **prop drilling**.
+
+Imagine a nested component structure like this:
+
+```tsx
+function App() {
+  const theme = 'dark';
+  return <Layout theme={theme} />;
+}
+
+// Layout doesn't care about the theme, but it has to accept it
+function Layout(props) {
+  return <Sidebar theme={props.theme} />;
+}
+
+// Sidebar doesn't care about the theme, but it has to pass it along
+function Sidebar(props) {
+  return <Navigation theme={props.theme} />;
+}
+
+// Only the nested Link actually uses the theme!
+function Navigation(props) {
+  return (
+    <Link theme={props.theme} href="/">
+      Home
+    </Link>
+  );
+}
+```
+
+This makes your code incredibly hard to maintain. If you ever need to add a new piece of shared state (like `userRole`), you have to manually update the props of every single component in that chain.
+
+To solve this, Retend provides a powerful feature called **Context Scopes**. Scopes allow you to "broadcast" data from a parent component so that any child component can tune in and read that data directly, completely bypassing the components in the middle.
+
+## Creating a Scope
+
+To share data, you first need to establish a Scope. You do this using the `createScope()` function. It's best practice to create your Scopes in a separate file or outside of your component functions so they can be easily exported and imported wherever they are needed.
+
+```tsx
+import { createScope } from 'retend';
+
+// Create a new Scope and give it a helpful name for debugging
+export const ThemeScope = createScope('Theme');
+```
+
+Calling `createScope` returns a Scope object. This object contains a special `Provider` component that we will use to wrap our application.
+
+## Providing Data
+
+To make data available to the components below, wrap the relevant part of your application in the `<Scope.Provider>` component and pass the data you want to share to its `value` prop.
+
+```tsx
+import { ThemeScope } from './scopes';
+import { MainLayout } from './MainLayout';
+
+function App() {
+  // The data we want to broadcast to the rest of the application
+  const currentTheme = 'dark';
+
+  return (
+    // Any component inside this Provider can access the theme
+    <ThemeScope.Provider value={currentTheme}>
+      <MainLayout />
+    </ThemeScope.Provider>
+  );
+}
+```
+
+## Consuming Data
+
+Now, any component rendered inside that `<ThemeScope.Provider>` can reach up and grab the `value` directly, regardless of how deeply nested it is.
+
+You do this using the `useScopeContext()` hook, passing in the Scope object you originally created.
+
+```tsx
+import { useScopeContext } from 'retend';
+import { ThemeScope } from './scopes';
+
+function ThemedButton() {
+  // We reach directly up to the nearest ThemeScope.Provider
+  // to grab the value, bypassing all the intermediate components!
+  const theme = useScopeContext(ThemeScope);
+
+  return <button class={['btn', `btn-${theme}`]}>Click Me</button>;
+}
+```
+
+### What if there is no Provider?
+
+If a component attempts to call `useScopeContext(ThemeScope)` but there is no `<ThemeScope.Provider>` anywhere above it in the component tree, Retend will throw a helpful error letting you know that the context is missing.
+
+## Global State vs. Scopes
+
+Since Retend components only run once, you might wonder: _"Why do I need a Scope? Why can't I just create a global Cell in a separate file and import it directly into my components?"_
+
+```tsx
+// store.ts
+export const globalUser = Cell.source('Alice');
+
+// Header.tsx
+import { globalUser } from './store';
+```
+
+Passing a Cell into a Scope's `value` instead of using a global variable unlocks two massive architectural benefits: **Isolation** and **Memory Management**.
+
+### 1. Isolation and Reusability
+
+A global variable is a singleton; there is only one instance of it for the entire application.
+
+If you are building a reusable component—like a complex form or a third-party widget—and you depend on a global variable, you can never render two independent instances of that component on the same page. They would both read from and write to the exact same global state, overwriting each other's data.
+
+Because Scopes are tied to their `Provider`, you can render multiple instances of the same component, wrap each one in its own Provider, and they will operate completely independently.
+
+```tsx
+function DocumentationPage() {
+  const lightThemeContext = Cell.source('light');
+  const darkThemeContext = Cell.source('dark');
+
+  return (
+    <div class="side-by-side-preview">
+      {/* First instance: Light Theme */}
+      <ThemeScope.Provider value={lightThemeContext}>
+        <MyThemedComponent />
+      </ThemeScope.Provider>
+
+      {/* Second instance: Dark Theme */}
+      <ThemeScope.Provider value={darkThemeContext}>
+        <MyThemedComponent />
+      </ThemeScope.Provider>
+    </div>
+  );
+}
+```
+
+Each `<MyThemedComponent />` will look _up_ the tree to its nearest `ThemeScope.Provider` and use that specific Cell. The state is strictly isolated to that specific tree.
+
+### 2. Lifecycle and Memory Management
+
+A global variable exists in memory for the entire duration of your application. This is fine for truly global data (like the current user session), but terrible for temporary UI state.
+
+Imagine a complex, multi-step checkout form. If you store the `formData` in a global Cell, that data remains in memory even after the user submits the form and navigates back to the homepage. If they start a new checkout later, they will suddenly see their old, stale form data. You would have to remember to manually reset it.
+
+Scopes tie the lifecycle of your state directly to the lifecycle of the component tree.
+
+```tsx
+const CheckoutScope = createScope();
+
+export function CheckoutFlow() {
+  // This state is only created when CheckoutFlow mounts
+  const formData = Cell.source({ items: [], step: 1 });
+
+  return (
+    // And it is broadcasted to all child steps
+    <CheckoutScope.Provider value={formData}>
+      <CheckoutStep1 />
+      <CheckoutStep2 />
+    </CheckoutScope.Provider>
+  );
+}
+```
+
+When the user navigates away and the `<CheckoutFlow>` component unmounts, the `CheckoutScope.Provider` is destroyed. Because the `formData` Cell is no longer referenced anywhere on the page, the JavaScript engine's garbage collector automatically cleans it up, preventing memory leaks and ensuring a fresh start next time.
+
+By combining **Scopes** and **Cells**, you get an incredibly lightweight, high-performance global state management solution that scales flawlessly.
+
+With Context and Scopes mastered, you know everything required to build stateful Retend applications. Next, we will dive into **Routing** to learn how to manage multiple pages and URLs.

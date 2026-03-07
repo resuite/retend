@@ -4,7 +4,6 @@ import { Router } from 'retend/router';
 import { MainLayout } from '@/layouts/MainLayout';
 import { DocsPage } from '@/routes/DocsPage';
 import { Home } from '@/routes/Home';
-import { QuickstartPage } from '@/routes/QuickstartPage';
 
 export function createRouter() {
   return new Router({
@@ -18,12 +17,8 @@ export function createRouter() {
             component: Home,
           },
           {
-            path: '/quickstart',
-            component: QuickstartPage,
-          },
-          {
             path: '/docs',
-            redirect: '/docs/getting-started/introduction',
+            redirect: '/docs/getting-started',
             component: () => null,
           },
           {

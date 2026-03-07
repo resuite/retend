@@ -1,7 +1,9 @@
 import { JSX } from 'retend/jsx-runtime';
 
-import { CodeBlock } from '@/components/CodeBlock';
 import { InlineCode } from '@/components/InlineCode';
+import { MDXCodeBlock } from '@/components/MDXCodeBlock';
+
+import { NavigableHeading } from './NavigableHeading';
 
 type MdxComponentOptions = {
   nextHeadingId?: (depth: 2 | 3) => string | undefined;
@@ -16,65 +18,57 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
       if (props.class) {
         const className = String(props.class);
         if (className.includes('language-')) {
-          return <CodeBlock code={text} lang={className.split('-')[1]} />;
+          return <MDXCodeBlock code={text} lang={className.split('-')[1]} />;
         }
       }
       const mdxClassName = Reflect.get(props, 'className');
       if (mdxClassName) {
         const className = String(mdxClassName);
         if (className.includes('language-')) {
-          return <CodeBlock code={text} lang={className.split('-')[1]} />;
+          return <MDXCodeBlock code={text} lang={className.split('-')[1]} />;
         }
       }
       return <InlineCode class={props.class}>{props.children}</InlineCode>;
     },
     h1: (props: JSX.IntrinsicElements['h1']) => (
-      <h1 class="text-fg mt-0 mb-5 scroll-mt-6 text-4xl tracking-tight">
+      <h1 class="text-fg mt-0 mb-5 text-4xl tracking-tight">
         {props.children}
       </h1>
     ),
     h2: (props: JSX.IntrinsicElements['h2']) => {
       const { class: className, children, ...rest } = props;
       let headingId: string | undefined;
-      if (nextHeadingId) {
-        headingId = nextHeadingId(2);
-      }
+      if (nextHeadingId) headingId = nextHeadingId(2);
+
       return (
-        <h2
+        <NavigableHeading
+          as="h2"
           id={headingId}
-          class={[
-            'text-fg mt-10 mb-4 scroll-mt-6 scroll-mt-24 text-3xl tracking-tight',
-            className,
-          ]}
+          class={['text-fg mt-10 mb-4 text-3xl tracking-tight', className]}
           {...rest}
         >
           {children}
-        </h2>
+        </NavigableHeading>
       );
     },
     h3: (props: JSX.IntrinsicElements['h3']) => {
       const { class: className, children, ...rest } = props;
       let headingId: string | undefined;
-      if (nextHeadingId) {
-        headingId = nextHeadingId(3);
-      }
+      if (nextHeadingId) headingId = nextHeadingId(3);
+
       return (
-        <h3
+        <NavigableHeading
+          as="h3"
           id={headingId}
-          class={[
-            'text-fg mt-8 mb-3 scroll-mt-6 text-2xl tracking-tight',
-            className,
-          ]}
+          class={['text-fg mt-8 mb-3 text-2xl tracking-tight', className]}
           {...rest}
         >
           {children}
-        </h3>
+        </NavigableHeading>
       );
     },
     h4: (props: JSX.IntrinsicElements['h4']) => (
-      <h4 class="text-fg mt-7 mb-2 scroll-mt-6 text-xl tracking-tight">
-        {props.children}
-      </h4>
+      <h4 class="text-fg mt-7 mb-2 text-xl tracking-tight">{props.children}</h4>
     ),
     p: (props: JSX.IntrinsicElements['p']) => (
       <p class="text-fg my-4 leading-7">{props.children}</p>
