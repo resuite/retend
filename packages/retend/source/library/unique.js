@@ -359,5 +359,9 @@ export function createUnique(renderFn, options = {}) {
 
     return retendUniqueInstance;
   };
+  Object.defineProperty(UniqueComponent, 'name', { value: renderFn.name });
+  if (!renderFn.name) {
+    Object.defineProperty(renderFn, 'name', { value: 'Unique.Content' });
+  }
   return UniqueComponent;
 }

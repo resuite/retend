@@ -33,6 +33,7 @@ const controlFlowNames = new Set([
   'Switch.Case',
   'Outlet.Content',
   'Await.Content',
+  'Unique.Content',
 ]);
 
 export class DevToolsDOMRenderer extends DOMRenderer {
@@ -49,6 +50,10 @@ export class DevToolsDOMRenderer extends DOMRenderer {
     SourceCell<Array<ComponentTreeNode>>
   >();
   parentNodeScope = createScope<ComponentTreeNode>();
+
+  // Caches for component name resolution
+  sourceCache = new Map<string, string>();
+  nameCache = new WeakMap<ComponentTreeNode, string>();
 
   outputs = new WeakMap<Node, ComponentTreeNode>();
 
@@ -111,6 +116,7 @@ export class DevToolsDOMRenderer extends DOMRenderer {
     const treeNode: ComponentTreeNode = {
       component: tagname,
       props,
+      fileData,
     };
     const parentInTree = this.useParentNode();
 

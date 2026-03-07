@@ -4,11 +4,16 @@ import classes from '@/styles/InspectorPanel.module.css';
 
 interface InspectorPropValueProps {
   value: unknown;
+  seen?: object[];
 }
 
 export function InspectorPropValue(props: InspectorPropValueProps) {
   const { value } = props;
   const rawType = Object.prototype.toString.call(value);
+  let seen = props.seen;
+  if (!seen) {
+    seen = [];
+  }
 
   if (value === null) {
     return <span class={[classes.propValue, classes.propNull]}>null</span>;
@@ -54,6 +59,18 @@ export function InspectorPropValue(props: InspectorPropValueProps) {
         {String(value)}
       </span>
     );
+  }
+
+  let nextSeen = seen;
+  if (value instanceof Object) {
+    if (seen.includes(value)) {
+      return (
+        <span class={[classes.propValue, classes.propObject]}>
+          [Circular]
+        </span>
+      );
+    }
+    nextSeen = [...seen, value];
   }
 
   if (typeof value === 'function') {
@@ -102,7 +119,7 @@ export function InspectorPropValue(props: InspectorPropValueProps) {
                 <tr class={classes.propsRow}>
                   <th class={classes.propNestedKey}>{String(index)}</th>
                   <td class={classes.propValueCell}>
-                    <InspectorPropValue value={item} />
+                    <InspectorPropValue value={item} seen={nextSeen} />
                   </td>
                 </tr>
               ))}
@@ -143,7 +160,7 @@ export function InspectorPropValue(props: InspectorPropValueProps) {
     return (
       <>
         <span class={classes.propCellName}>{constructorName}(</span>
-        <InspectorPropValue value={innerValue} />
+        <InspectorPropValue value={innerValue} seen={nextSeen} />
         <span class={classes.propCellName}>)</span>
       </>
     );
@@ -161,7 +178,7 @@ export function InspectorPropValue(props: InspectorPropValueProps) {
     return (
       <>
         <span class={classes.propCellName}>{constructorName}(</span>
-        <InspectorPropValue value={innerValue} />
+        <InspectorPropValue value={innerValue} seen={nextSeen} />
         <span class={classes.propCellName}>)</span>
       </>
     );
@@ -186,7 +203,7 @@ export function InspectorPropValue(props: InspectorPropValueProps) {
               <tr class={classes.propsRow}>
                 <th class={classes.propNestedKey}>{entry[0]}</th>
                 <td class={classes.propValueCell}>
-                  <InspectorPropValue value={entry[1]} />
+                  <InspectorPropValue value={entry[1]} seen={nextSeen} />
                 </td>
               </tr>
             ))}

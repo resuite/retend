@@ -1,6 +1,7 @@
 import { Cell } from 'retend';
 
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import { getComponentName } from '@/utils/sourceMapUtils';
 
 interface RenderedByItem {
   componentName: string;
@@ -29,11 +30,7 @@ export function useInspectorPanelData(): InspectorPanelData {
     const renderedByNames: string[] = [];
     let parent = devRenderer.parentMap.get(selectedNode);
     while (parent) {
-      let componentName = parent.component.name;
-      if (componentName === '') {
-        componentName = '[Anonymous]';
-      }
-      renderedByNames.push(componentName);
+      renderedByNames.push(getComponentName(parent, devRenderer.nameCache));
       parent = devRenderer.parentMap.get(parent);
     }
 

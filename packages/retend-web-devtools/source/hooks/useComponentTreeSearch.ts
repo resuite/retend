@@ -3,6 +3,7 @@ import { Cell } from 'retend';
 import type { ComponentTreeNode } from '@/core/devtools-renderer';
 
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import { getComponentName } from '@/utils/sourceMapUtils';
 
 interface SearchResult {
   visible: Set<ComponentTreeNode>;
@@ -84,7 +85,10 @@ export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
 
     for (let index = order.length - 1; index >= 0; index -= 1) {
       const node = order[index];
-      const normalizedName = node.component.name.toLowerCase();
+      const normalizedName = getComponentName(
+        node,
+        devRenderer.nameCache
+      ).toLowerCase();
       const isDirectMatch = fuzzyMatch(normalizedName, query);
 
       let hasMatch = isDirectMatch;

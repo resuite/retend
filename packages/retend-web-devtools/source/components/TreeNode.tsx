@@ -52,10 +52,10 @@ export function TreeNode(props: TreeNodeProps) {
 
   const shouldCollapseAsProvider = Cell.derived(() => {
     if (bypassProviderCollapse) return false;
-    if (!isProviderNode(node)) return false;
+    if (!isProviderNode(node, devRenderer.nameCache)) return false;
     const nodeChildren = children.get();
     if (nodeChildren.length !== 1) return false;
-    return isProviderNode(nodeChildren[0]);
+    return isProviderNode(nodeChildren[0], devRenderer.nameCache);
   });
 
   const isAnonymous = name === '[Anonymous]';
@@ -192,7 +192,7 @@ export function TreeNode(props: TreeNodeProps) {
                 },
               ]}
             >
-              <ComponentName component={node.component} />
+              <ComponentName node={node} />
             </span>
           </div>
           {If(hasChildren, () => (

@@ -3,6 +3,8 @@ import type {
   ComponentTreeNode,
 } from '@/core/devtools-renderer';
 
+import { getComponentName } from '@/utils/sourceMapUtils';
+
 interface HighlightInfoOptions {
   node: ComponentTreeNode | null;
   hoveredElement: Element | null;
@@ -28,10 +30,10 @@ export function getHighlightInfo(
   let label = '';
 
   if (node && hoveredElement) {
-    label = `${node.component.name}.${hoveredElement.tagName.toLowerCase()}`;
+    label = `${getComponentName(node, options.devRenderer.nameCache)}.${hoveredElement.tagName.toLowerCase()}`;
     rect = hoveredElement.getBoundingClientRect();
   } else if (node && node.output) {
-    label = node.component.name;
+    label = getComponentName(node, options.devRenderer.nameCache);
     let flatNodes: Node[];
     if (Array.isArray(node.output)) {
       flatNodes = node.output;

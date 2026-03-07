@@ -1,14 +1,21 @@
-import type { __HMR_UpdatableFn } from 'retend';
+import { Cell, type __HMR_UpdatableFn } from 'retend';
 
+import { ComponentTreeNode } from '@/core/devtools-renderer';
+import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import classes from '@/styles/ComponentTree.module.css';
+import { resolveComponentName } from '@/utils/sourceMapUtils';
 
 interface ComponentNameProps {
-  component: __HMR_UpdatableFn;
+  node: ComponentTreeNode;
 }
 
 export function ComponentName(props: ComponentNameProps) {
-  const { component } = props;
-  const name = component.name || '[Anonymous]';
+  const { node } = props;
+  const devRenderer = useDevToolsRenderer();
+
+  const name = Cell.derivedAsync(() =>
+    resolveComponentName(node, devRenderer.sourceCache, devRenderer.nameCache)
+  );
 
   return (
     <>

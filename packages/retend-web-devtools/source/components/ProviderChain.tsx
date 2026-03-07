@@ -7,14 +7,19 @@ import { ChevronDownIcon, ChevronRightIcon } from '@/components/icons';
 import { TreeNode, type TreeNodeProps } from '@/components/TreeNode';
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import classes from '@/styles/ComponentTree.module.css';
+import { getComponentName } from '@/utils/sourceMapUtils';
 
-export function isProviderNode(node: ComponentTreeNode): boolean {
-  return node.component.name.includes('Provider');
+export function isProviderNode(
+  node: ComponentTreeNode,
+  nameCache: WeakMap<ComponentTreeNode, string>
+): boolean {
+  return getComponentName(node, nameCache).includes('Provider');
 }
 
 function collectProviderChain(
   startNode: ComponentTreeNode,
-  getChildren: (node: ComponentTreeNode) => Cell<Array<ComponentTreeNode>>
+  getChildren: (node: ComponentTreeNode) => Cell<Array<ComponentTreeNode>>,
+  nameCache: WeakMap<ComponentTreeNode, string>
 ): Array<ComponentTreeNode> {
   const chain: Array<ComponentTreeNode> = [];
   let current = startNode;
@@ -24,7 +29,7 @@ function collectProviderChain(
     const children = getChildren(current).get();
     if (children.length !== 1) break;
     const onlyChild = children[0];
-    if (!isProviderNode(onlyChild)) break;
+    if (!isProviderNode(onlyChild, nameCache)) break;
     current = onlyChild;
   }
 
@@ -36,7 +41,9 @@ export function ProviderChain(props: TreeNodeProps) {
   const devRenderer = useDevToolsRenderer();
   const getChildren = devRenderer.getNodeChildren.bind(devRenderer);
 
-  const chain = Cell.derived(() => collectProviderChain(node, getChildren));
+  const chain = Cell.derived(() =>
+    collectProviderChain(node, getChildren, devRenderer.nameCache)
+  );
   const chainLength = Cell.derived(() => chain.get().length);
   const isCollapsible = Cell.derived(() => chainLength.get() >= 2);
 
@@ -112,7 +119,7 @@ export function ProviderChain(props: TreeNodeProps) {
                   onPointerEnter={() => onProviderPointerEnter(provider)}
                 >
                   <span class={classes.componentName}>
-                    <ComponentName component={provider.component} />
+                    <ComponentName node={provider} />
                   </span>
                 </div>
               ))}

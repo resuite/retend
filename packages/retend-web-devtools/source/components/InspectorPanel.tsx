@@ -1,33 +1,27 @@
 import { Cell, For, If } from 'retend';
 
-import { CloseIcon, ChevronRightIcon } from '@/components/icons';
+import { CloseIcon } from '@/components/icons';
 import { InspectorPropsTable } from '@/components/InspectorPropsTable';
+import { RenderedByItem } from '@/components/RenderedByItem';
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import { useInspectorPanelData } from '@/hooks/useInspectorPanelData';
 import classes from '@/styles/InspectorPanel.module.css';
+import { getComponentName } from '@/utils/sourceMapUtils';
 
 export function InspectorPanel() {
   const devRenderer = useDevToolsRenderer();
   const inspector = useInspectorPanelData();
   const componentName = Cell.derived(() => {
     const selectedNode = devRenderer.selectedNode.get();
-    if (!selectedNode) {
-      return '[Anonymous]';
-    }
-
-    const name = selectedNode.component.name;
-    if (name === '') {
-      return '[Anonymous]';
-    }
-
-    return name;
+    if (!selectedNode) return '[Anonymous]';
+    return getComponentName(selectedNode, devRenderer.nameCache);
   });
   const hasRenderedBy = Cell.derived(() => {
     return inspector.renderedByItems.get().length > 0;
   });
 
   const reversedRenderedByItems = Cell.derived(() => {
-    return inspector.renderedByItems.get().slice().reverse();
+    return inspector.renderedByItems.get().toReversed();
   });
   const totalParents = Cell.derived(() => reversedRenderedByItems.get().length);
 
@@ -62,45 +56,18 @@ export function InspectorPanel() {
           <InspectorPropsTable />
         </div>
       </div>
-      {If(hasRenderedBy, () => {
-        return (
-          <div class={classes.sideInspectorSection}>
-            <div class={classes.sideInspectorLabel}>Rendered by</div>
-            <div class={classes.sideInspectorValue}>
-              <div class={classes.renderedByList}>
-                {For(reversedRenderedByItems, (item) => {
-                  const isFirstVisual = item.isLast;
-                  return (
-                    <div
-                      class={[
-                        classes.renderedByItem,
-                        {
-                          [classes.renderedByItemFirst]: isFirstVisual,
-                        },
-                      ]}
-                      style={{
-                        opacity: `max(0.3, ${item.index + 1} / ${totalParents.get()})`,
-                      }}
-                    >
-                      {If(!isFirstVisual, () => (
-                        <span
-                          class={classes.renderedBySeparator}
-                          style="transform: rotate(180deg)"
-                        >
-                          <ChevronRightIcon />
-                        </span>
-                      ))}
-                      <span class={classes.renderedByName}>
-                        {item.componentName}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+      {If(hasRenderedBy, () => (
+        <div class={classes.sideInspectorSection}>
+          <div class={classes.sideInspectorLabel}>Rendered by</div>
+          <div class={classes.sideInspectorValue}>
+            <div class={classes.renderedByList}>
+              {For(reversedRenderedByItems, (item) => (
+                <RenderedByItem item={item} totalParents={totalParents} />
+              ))}
             </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }
