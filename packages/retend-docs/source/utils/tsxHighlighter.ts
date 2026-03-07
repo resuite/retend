@@ -79,6 +79,7 @@ const BUILTINS = new Set([
 
 const MAX_CACHE_ENTRIES = 64;
 const TSX_CACHE = new Map<string, string>();
+const SHELL_CACHE = new Map<string, string>();
 
 function isWhitespaceCode(code: number): boolean {
   return (
@@ -479,6 +480,145 @@ function highlightTsxUncached(source: string): string {
   return out.join('');
 }
 
+const SHELL_COMMANDS = new Set([
+  'echo',
+  'cd',
+  'ls',
+  'pwd',
+  'mkdir',
+  'rm',
+  'mv',
+  'cp',
+  'cat',
+  'grep',
+  'npm',
+  'pnpm',
+  'yarn',
+  'bun',
+  'npx',
+  'node',
+  'export',
+  'set',
+  'env',
+  'source',
+  'bash',
+  'sh',
+  'zsh',
+  'sudo',
+  'apt',
+  'brew',
+  'git',
+  'docker',
+  'kubectl',
+]);
+
+function highlightShellUncached(source: string): string {
+  const out: string[] = [];
+  const length = source.length;
+  let i = 0;
+
+  while (i < length) {
+    const code = source.charCodeAt(i);
+
+    if (code === 35) {
+      let stop = i + 1;
+      while (stop < length && source.charCodeAt(stop) !== 10) stop += 1;
+      pushWrappedToken(out, 'rt-code-comment', source, i, stop);
+      i = stop;
+      continue;
+    }
+
+    if (code === 34 || code === 39) {
+      const stop = findStringEnd(source, i, code);
+      pushWrappedToken(out, 'rt-code-string', source, i, stop);
+      i = stop;
+      continue;
+    }
+
+    if (code === 36) {
+      let stop = i + 1;
+      if (stop < length && source.charCodeAt(stop) === 123) {
+        while (stop < length && source.charCodeAt(stop) !== 125) stop += 1;
+        if (stop < length) stop += 1;
+      } else {
+        while (stop < length) {
+          const nextCode = source.charCodeAt(stop);
+          if (isIdentifierPartCode(nextCode)) stop += 1;
+          else break;
+        }
+      }
+      pushWrappedToken(out, 'rt-code-property', source, i, stop);
+      i = stop;
+      continue;
+    }
+
+    if (code === 45) {
+      const previousCode = i > 0 ? source.charCodeAt(i - 1) : 32;
+      if (isWhitespaceCode(previousCode)) {
+        let stop = i + 1;
+        while (stop < length) {
+          const nextCode = source.charCodeAt(stop);
+          if (!isWhitespaceCode(nextCode) && nextCode !== 61) stop += 1;
+          else break;
+        }
+        pushWrappedToken(out, 'rt-code-keyword', source, i, stop);
+        i = stop;
+        continue;
+      }
+    }
+
+    if (isIdentifierStartCode(code)) {
+      let stop = i + 1;
+      while (stop < length && isIdentifierPartCode(source.charCodeAt(stop)))
+        stop += 1;
+      const token = source.substring(i, stop);
+
+      let isCommand = false;
+      let j = i - 1;
+      while (j >= 0 && isWhitespaceCode(source.charCodeAt(j))) {
+        if (source.charCodeAt(j) === 10) {
+          isCommand = true;
+          break;
+        }
+        j--;
+      }
+      if (i === 0) isCommand = true;
+
+      if (SHELL_COMMANDS.has(token) || isCommand) {
+        pushWrappedToken(out, 'rt-code-function', source, i, stop);
+      } else {
+        out.push(token);
+      }
+
+      i = stop;
+      continue;
+    }
+
+    if (code === 38) out.push('&amp;');
+    else if (code === 60) out.push('&lt;');
+    else if (code === 62) out.push('&gt;');
+    else out.push(source[i]);
+
+    i += 1;
+  }
+  return out.join('');
+}
+
+export function highlightShell(source: string): string {
+  const cached = SHELL_CACHE.get(source);
+  if (cached !== undefined) return cached;
+
+  const highlighted = highlightShellUncached(source);
+
+  if (SHELL_CACHE.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = SHELL_CACHE.keys().next().value;
+    if (firstKey !== undefined) SHELL_CACHE.delete(firstKey);
+  }
+
+  SHELL_CACHE.set(source, highlighted);
+  return highlighted;
+}
+
 export function highlightTsx(source: string): string {
   const cached = TSX_CACHE.get(source);
   if (cached !== undefined) return cached;
@@ -496,12 +636,25 @@ export function highlightTsx(source: string): string {
 
 export function highlightCode(source: string, lang: string): string {
   const lowercaseLang = lang.toLowerCase();
+
   if (
     lowercaseLang === 'tsx' ||
     lowercaseLang === 'jsx' ||
-    lowercaseLang === 'csx'
+    lowercaseLang === 'csx' ||
+    lowercaseLang === 'ts' ||
+    lowercaseLang === 'js'
   ) {
     return highlightTsx(source);
   }
+
+  if (
+    lowercaseLang === 'sh' ||
+    lowercaseLang === 'shell' ||
+    lowercaseLang === 'bash' ||
+    lowercaseLang === 'zsh'
+  ) {
+    return highlightShell(source);
+  }
+
   return escapeHtml(source);
 }
