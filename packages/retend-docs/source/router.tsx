@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 import { Router } from 'retend/router';
 
+import { DocsLayout } from '@/layouts/DocsLayout';
 import { MainLayout } from '@/layouts/MainLayout';
-import { DocsLayout } from '@/routes/docs/DocsLayout';
 import { DocsPage } from '@/routes/DocsPage';
 import { Home } from '@/routes/Home';
 

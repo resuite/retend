@@ -1,6 +1,6 @@
 import { Outlet } from 'retend/router';
 
-import { DocsSidebar } from './DocsSidebar';
+import { DocsSidebar } from '../routes/docs/DocsSidebar';
 
 export function DocsLayout() {
   return (
