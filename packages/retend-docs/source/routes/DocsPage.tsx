@@ -5,7 +5,6 @@ import { createMDXComponents } from '@/components/MDXComponents';
 
 import { docPages } from './docs/docsData';
 import { DocsOnThisPage } from './docs/DocsOnThisPage';
-import { DocsSidebar } from './docs/DocsSidebar';
 
 export function DocsPage() {
   const currentRoute = useCurrentRoute();
@@ -44,14 +43,12 @@ export function DocsPage() {
   });
 
   return (
-    <section class="grid grid-cols-1 gap-10 text-balance lg:grid-cols-[220px_minmax(0,1fr)_200px] lg:gap-10">
-      <DocsSidebar />
-
+    <>
       <article class="docs-markdown min-w-0 text-pretty">
         <ActivePage components={components} />
       </article>
 
       <DocsOnThisPage sectionHeadings={sectionHeadings} />
-    </section>
+    </>
   );
 }

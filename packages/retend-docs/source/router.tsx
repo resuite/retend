@@ -2,6 +2,7 @@
 import { Router } from 'retend/router';
 
 import { MainLayout } from '@/layouts/MainLayout';
+import { DocsLayout } from '@/routes/docs/DocsLayout';
 import { DocsPage } from '@/routes/DocsPage';
 import { Home } from '@/routes/Home';
 
@@ -19,15 +20,17 @@ export function createRouter() {
           {
             path: '/docs',
             redirect: '/docs/getting-started',
-            component: () => null,
-          },
-          {
-            path: '/docs/:section',
-            component: DocsPage,
-          },
-          {
-            path: '/docs/:section/:page',
-            component: DocsPage,
+            component: DocsLayout,
+            children: [
+              {
+                path: ':section',
+                component: DocsPage,
+              },
+              {
+                path: ':section/:page',
+                component: DocsPage,
+              },
+            ],
           },
         ],
       },

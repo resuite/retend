@@ -1,5 +1,5 @@
 import { Cell, For, If } from 'retend';
-import { Link } from 'retend/router';
+import { Link, useCurrentRoute } from 'retend/router';
 
 import { sectionEntries } from './docsData';
 
@@ -14,32 +14,87 @@ for (const [, sectionData] of sectionEntries) {
   }
 }
 
+type SidebarItem =
+  | { type: 'link'; href: string; label: string }
+  | { type: 'group'; label: string; items: { href: string; label: string }[] };
+
+const sidebarItems: SidebarItem[] = [];
+const groups = [
+  {
+    label: 'Core Concepts',
+    itemLabels: new Set([
+      'Jsx And Components',
+      'Reactivity Cells',
+      'Event Handling',
+    ]),
+    items: [] as { href: string; label: string }[],
+  },
+  {
+    label: 'Routing',
+    itemLabels: new Set([
+      'Defining Routes',
+      'Navigation',
+      'Queries And Params',
+      'Middleware',
+    ]),
+    items: [] as { href: string; label: string }[],
+  },
+  {
+    label: 'Advanced Components',
+    itemLabels: new Set(['Unique', 'Teleport', 'ShadowRoot', 'Await']),
+    items: [] as { href: string; label: string }[],
+  },
+];
+
+for (const doc of flatDocs) {
+  let matchedGroup = false;
+  for (const group of groups) {
+    if (group.itemLabels.has(doc.label)) {
+      group.items.push(doc);
+      if (group.items.length === 1) {
+        sidebarItems.push({
+          type: 'group',
+          label: group.label,
+          items: group.items,
+        });
+      }
+      matchedGroup = true;
+      break;
+    }
+  }
+  if (!matchedGroup) {
+    sidebarItems.push({ type: 'link', href: doc.href, label: doc.label });
+  }
+}
+
 function MobileMenuButton(props: { toggle: () => void }) {
   return (
-    <div class="mb-6 lg:hidden">
-      <button
-        type="button"
-        onClick={props.toggle}
-        class="text-fg flex items-center gap-2 rounded-md border border-[#5c5c5c] px-3 py-2 text-sm"
+    <button
+      type="button"
+      onClick={props.toggle}
+      class={[
+        'mb-6 w-fit lg:hidden',
+        'bg-bg text-fg sticky top-[calc(var(--header-height)+var(--spacing)*6)] z-30 flex items-center gap-2 rounded-md',
+        'border border-[#5c5c5c] px-3 py-2 text-sm shadow-sm',
+      ]}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M4 6h16M4 12h16m-7 6h7"
-          />
-        </svg>
-        Menu
-      </button>
-    </div>
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M4 6h16M4 12h16m-7 6h7"
+        />
+      </svg>
+      Menu
+    </button>
   );
 }
 
@@ -88,7 +143,7 @@ function SidebarHeader(props: { toggle: () => void }) {
   );
 }
 
-function SidebarNav(props: { closeSidebar: () => void }) {
+function SidebarNav() {
   return (
     <nav
       class="flex flex-col gap-7 overflow-y-auto pb-4"
@@ -96,19 +151,64 @@ function SidebarNav(props: { closeSidebar: () => void }) {
     >
       <ul class="flex flex-col gap-3">
         {For(
-          flatDocs,
-          (docPage) => (
-            <li>
-              <Link
-                href={docPage.href}
-                class="text-fg-muted hover:text-brand block py-1 text-sm transition-colors"
-                onClick={props.closeSidebar}
-              >
-                {docPage.label}
-              </Link>
-            </li>
-          ),
-          { key: 'href' }
+          sidebarItems,
+          (item) => {
+            if (item.type === 'link') {
+              return (
+                <li>
+                  <Link
+                    href={item.href}
+                    class="text-fg-muted hover:text-brand block py-1 text-sm transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            }
+
+            return (
+              <li>
+                <details class="group">
+                  <summary class="text-fg-muted hover:text-brand cursor-pointer list-none py-1 text-sm transition-colors [&::-webkit-details-marker]:hidden">
+                    <div class="flex items-center gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="-rotate-90 transition-transform duration-200 group-open:rotate-0"
+                      >
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                      </svg>
+                      {item.label}
+                    </div>
+                  </summary>
+                  <ul class="mt-2 ml-6 flex flex-col gap-2 border-l border-[#5c5c5c] pl-3">
+                    {For(
+                      item.items,
+                      (subItem) => (
+                        <li>
+                          <Link
+                            href={subItem.href}
+                            class="text-fg-muted hover:text-brand block py-1 text-sm transition-colors"
+                          >
+                            {subItem.label}
+                          </Link>
+                        </li>
+                      ),
+                      { key: 'href' }
+                    )}
+                  </ul>
+                </details>
+              </li>
+            );
+          },
+          { key: (item) => (item.type === 'link' ? item.href : item.label) }
         )}
       </ul>
     </nav>
@@ -121,6 +221,8 @@ export function DocsSidebar() {
   const isClosed = Cell.derived(() => !isOpen.get());
   const closeSidebar = () => isOpen.set(false);
 
+  useCurrentRoute().listen(closeSidebar);
+
   return (
     <>
       <MobileMenuButton toggle={toggle} />
@@ -128,8 +230,8 @@ export function DocsSidebar() {
 
       <aside
         class={[
-          'fixed inset-y-0 left-0 z-50 flex w-68 flex-col gap-6 border-r border-[#5c5c5c] p-6 transition-transform duration-200 ease-in-out',
-          'lg:sticky lg:top-[calc(var(--header-height)+var(--spacing)*14)] lg:z-0 lg:h-[calc(100vh-var(--header-height)-var(--spacing)*22)] lg:w-auto lg:translate-x-0',
+          'bg-bg fixed inset-y-0 left-0 z-50 flex w-68 flex-col gap-6 border-r border-[#5c5c5c] p-6 transition-transform duration-200 ease-in-out',
+          'lg:sticky lg:top-[calc(var(--header-height)+var(--spacing)*14)] lg:z-0 lg:h-[calc(100vh-var(--header-height)-var(--spacing)*22)] lg:w-auto lg:translate-x-0 lg:bg-transparent',
           'lg:flex-col lg:overflow-y-auto lg:border-r-0 lg:bg-transparent lg:p-0',
           {
             'translate-x-0': isOpen,
@@ -138,7 +240,7 @@ export function DocsSidebar() {
         ]}
       >
         <SidebarHeader toggle={toggle} />
-        <SidebarNav closeSidebar={closeSidebar} />
+        <SidebarNav />
       </aside>
     </>
   );

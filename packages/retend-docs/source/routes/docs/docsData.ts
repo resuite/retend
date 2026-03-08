@@ -61,7 +61,9 @@ for (const [filePath, mdxModule] of Object.entries(docModules)) {
     if (labelPart === '') continue;
     labelParts[index] = `${labelPart[0].toUpperCase()}${labelPart.slice(1)}`;
   }
-  const label = labelParts.join(' ');
+  let label = labelParts.join(' ');
+  if (label === 'Unique Instances') label = 'Unique';
+  if (label === 'Shadow Root') label = 'ShadowRoot';
 
   docPages.push({
     headings,

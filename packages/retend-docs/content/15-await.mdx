@@ -1,0 +1,108 @@
+# Await
+
+The `<Await>` component acts as an asynchronous boundary for your application tree, allowing you to coordinate multiple loading states across component subtrees.
+
+Unlike standard React suspense, Retend does not use error-throwing to trigger boundaries. Instead, asynchrony is handled through **Async Cells** and integrated **Control Flow** components.
+
+---
+
+## How It Works
+
+When you pass an `AsyncCell` (created via `Cell.derivedAsync`) to one of Retend's control flow components (`If`, `For`, or `Switch`), the component automatically registers its pending state with the nearest parent `<Await>` boundary.
+
+The `<Await>` boundary will:
+
+1. Detect all registered `AsyncCell` dependencies within its subtree during the initial setup.
+2. Render the `fallback` UI while any of these cells are pending.
+3. Replace the fallback with the actual content only after **all** nested async dependencies in the subtree have resolved.
+
+## Basic Usage
+
+To trigger an async boundary, create an `AsyncCell` and pass it to a reactive directive like `If`.
+
+```tsx
+import { Await, If, Cell } from 'retend';
+
+// Create an AsyncCell using Cell.derivedAsync
+const userData = Cell.derivedAsync(async (get) => {
+  const response = await fetch('https://api.example.com/user');
+  return await response.json();
+});
+
+function UserProfile() {
+  return (
+    <div class="user-profile">
+      {/* 
+          Providing an AsyncCell to 'If' automatically triggers 
+          registration with the parent <Await> boundary.
+      */}
+      {If(userData, (user) => (
+        <div>
+          <h2>{user.name}</h2>
+          <p>{user.email}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      {/* 
+          The Await boundary displays the fallback until 'userData'
+          in UserProfile is successfully loaded.
+      */}
+      <Await fallback={<p>Loading user data...</p>}>
+        <UserProfile />
+      </Await>
+    </main>
+  );
+}
+```
+
+## Difference between `Cell` and `AsyncCell`
+
+While a standard `Cell` can hold a `Promise` (e.g., `const c = Cell.source(fetch(...))`), standard Cells do **not** trigger `<Await>` boundaries.
+
+The boundary system is specifically designed to work with `AsyncCell` instances created via `Cell.derivedAsync`. If you want a boundary to wait for a specific operation, ensure it is wrapped in an `AsyncCell`.
+
+## Advanced Usage: `useAwait`
+
+If you are building custom components that handle async logic manually, you can use the `useAwait` hook to manually register dependencies.
+
+```tsx
+import { useAwait } from 'retend';
+
+function CustomAsyncComponent() {
+  const awaitContext = useAwait();
+
+  if (awaitContext) {
+    // Manually register an AsyncCell with the nearest boundary
+    awaitContext.waitUntil(myAsyncCell);
+  }
+
+  return <div>Custom Content</div>;
+}
+```
+
+## Server-Side Rendering (SSR)
+
+`Await` boundaries are critical for Server-Side Rendering. They allow the server to wait for all asynchronous data to resolve before serializing the final HTML string.
+
+If you are implementing a custom SSR pipeline, you should use `waitForAsyncBoundaries()` from the core library:
+
+```tsx
+import { waitForAsyncBoundaries } from 'retend';
+import { renderToString } from 'retend-server';
+
+// 1. Initial render to trigger all async dependencies
+const dom = renderer.render(<App />);
+
+// 2. Wait for all boundaries in the tree to resolve
+await waitForAsyncBoundaries();
+
+// 3. Serialize the fully-loaded DOM to a string
+const html = renderToString(dom, window);
+```

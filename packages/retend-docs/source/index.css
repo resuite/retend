@@ -82,6 +82,25 @@
 }
 
 @layer base {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+
+  details::details-content {
+    opacity: 0;
+    block-size: 0;
+    overflow-y: clip;
+    transition:
+      content-visibility 0.2s allow-discrete,
+      block-size 0.2s ease-out,
+      opacity 0.2s ease-out;
+  }
+
+  details[open]::details-content {
+    opacity: 1;
+    block-size: auto;
+  }
+
   * {
     box-sizing: border-box;
     margin: 0;
