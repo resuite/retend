@@ -151,11 +151,13 @@ function escapeHtml(source: string): string {
 function findStringEnd(
   source: string,
   start: number,
-  quoteCode: number
+  quoteCode: number,
+  allowNewlines: boolean = false
 ): number {
   let i = start + 1;
   while (i < source.length) {
     const code = source.charCodeAt(i);
+    if (!allowNewlines && (code === 10 || code === 13)) return -1;
     if (code === 92) {
       i += 2;
       continue;
@@ -163,7 +165,7 @@ function findStringEnd(
     if (code === quoteCode) return i + 1;
     i += 1;
   }
-  return source.length;
+  return allowNewlines ? source.length : -1;
 }
 
 function findBlockCommentEnd(source: string, start: number): number {
@@ -327,7 +329,14 @@ function highlightTsxUncached(source: string): string {
     }
 
     if (code === 39 || code === 34) {
-      const stop = findStringEnd(source, i, code);
+      const stop = findStringEnd(source, i, code, false);
+      if (stop === -1) {
+        pushWrappedToken(out, 'rt-code-punctuation', source, i, i + 1);
+        previousLexicalToken = String.fromCharCode(code);
+        previousTokenCode = code;
+        i += 1;
+        continue;
+      }
       pushWrappedToken(out, 'rt-code-string', source, i, stop);
       i = stop;
       previousTokenCode = 0;
@@ -529,7 +538,7 @@ function highlightShellUncached(source: string): string {
     }
 
     if (code === 34 || code === 39) {
-      const stop = findStringEnd(source, i, code);
+      const stop = findStringEnd(source, i, code, true);
       pushWrappedToken(out, 'rt-code-string', source, i, stop);
       i = stop;
       continue;
