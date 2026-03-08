@@ -14,11 +14,11 @@ for (const [, sectionData] of sectionEntries) {
   }
 }
 
-type SidebarItem =
+export type SidebarItem =
   | { type: 'link'; href: string; label: string }
   | { type: 'group'; label: string; items: { href: string; label: string }[] };
 
-const sidebarItems: SidebarItem[] = [];
+export const sidebarItems: SidebarItem[] = [];
 const groups = [
   {
     label: 'Core Concepts',
@@ -74,8 +74,8 @@ function MobileMenuButton(props: { toggle: () => void }) {
       onClick={props.toggle}
       class={[
         'mb-6 w-fit lg:hidden',
-        'bg-bg text-fg sticky top-[calc(var(--header-height)+var(--spacing)*6)] z-30 flex items-center gap-2 rounded-md',
-        'border border-[#5c5c5c] px-3 py-2 text-sm shadow-sm',
+        'bg-surface text-fg sticky top-[calc(var(--header-height)+var(--spacing)*6)] z-30 flex items-center gap-2 rounded-xl font-bold',
+        'border-border border px-3 py-2 text-sm shadow-[-3px_3px_0_var(--color-card-shadow)] transition-all active:translate-y-0.5 active:shadow-[0px_0px_0_var(--color-card-shadow)] dark:shadow-[-5px_5px_0_var(--color-card-shadow)]',
       ]}
     >
       <svg
@@ -230,7 +230,7 @@ export function DocsSidebar() {
 
       <aside
         class={[
-          'bg-bg fixed inset-y-0 left-0 z-50 flex w-68 flex-col gap-6 border-r border-[#5c5c5c] p-6 transition-transform duration-200 ease-in-out',
+          'bg-bg border-border fixed inset-y-0 left-0 z-50 flex w-68 flex-col gap-6 border-r p-6 transition-transform duration-200 ease-in-out',
           'lg:sticky lg:top-[calc(var(--header-height)+var(--spacing)*14)] lg:z-0 lg:h-[calc(100vh-var(--header-height)-var(--spacing)*22)] lg:w-auto lg:translate-x-0 lg:bg-transparent',
           'lg:flex-col lg:overflow-y-auto lg:border-r-0 lg:bg-transparent lg:p-0',
           {

@@ -17,7 +17,7 @@ export function NavigableHeading(props: NavigableHeadingProps) {
 
   const scrollIntoView = () => {
     const heading = ref.get();
-    if (heading && hash.get() === heading.id) {
+    if (heading?.id && hash.get() === heading.id) {
       heading.scrollIntoView({ block: 'start' });
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {

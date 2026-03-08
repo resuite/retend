@@ -67,12 +67,14 @@ export function TreeNode(props: TreeNodeProps) {
     const hasPreviouslySelected = devRenderer.selectedNode.get() !== null;
     devRenderer.selectedNode.set(node);
     const currentTarget = event.currentTarget;
+    const options: ScrollIntoViewOptions = {
+      block: 'center',
+      inline: 'nearest',
+      behavior: 'smooth',
+    };
+
     if (!hasPreviouslySelected && currentTarget instanceof HTMLElement) {
-      currentTarget.scrollIntoView({
-        block: 'start',
-        inline: 'nearest',
-        behavior: 'smooth',
-      });
+      currentTarget.scrollIntoView(options);
     }
     if (node.output) {
       let renderedNodes: Node[];
@@ -99,11 +101,7 @@ export function TreeNode(props: TreeNodeProps) {
           }
         }
       }
-      const options: ScrollIntoViewOptions = {
-        block: 'center',
-        inline: 'nearest',
-        behavior: 'smooth',
-      };
+
       if (firstNode instanceof Element) {
         firstNode.scrollIntoView(options);
       } else if (firstNode && firstNode.parentElement) {

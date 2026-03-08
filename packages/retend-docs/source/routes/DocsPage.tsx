@@ -1,10 +1,12 @@
 /// <reference types="vite/client" />
-import { useCurrentRoute } from 'retend/router';
+import { If } from 'retend';
+import { Link, useCurrentRoute } from 'retend/router';
 
 import { createMDXComponents } from '@/components/MDXComponents';
 
 import { docPages } from './docs/docsData';
 import { DocsOnThisPage } from './docs/DocsOnThisPage';
+import { sidebarItems } from './docs/DocsSidebar';
 
 export function DocsPage() {
   const currentRoute = useCurrentRoute();
@@ -42,10 +44,67 @@ export function DocsPage() {
     },
   });
 
+  const flatItems: { href: string; label: string }[] = [];
+  for (const item of sidebarItems) {
+    if (item.type === 'link') {
+      flatItems.push(item);
+    } else if (item.type === 'group') {
+      flatItems.push(...item.items);
+    }
+  }
+
+  let currentIndex = -1;
+  for (let i = 0; i < flatItems.length; i++) {
+    if (flatItems[i].href === activePath) {
+      currentIndex = i;
+      break;
+    }
+  }
+
+  const prevPage = currentIndex > 0 ? flatItems[currentIndex - 1] : null;
+  const nextPage =
+    currentIndex !== -1 && currentIndex < flatItems.length - 1
+      ? flatItems[currentIndex + 1]
+      : null;
+
+  const showPlaceholder = !prevPage && !nextPage;
+
   return (
     <>
       <article class="docs-markdown min-w-0 text-pretty">
         <ActivePage components={components} />
+
+        <div class="border-border mt-16 mb-16 flex flex-col gap-4 border-t pt-8 sm:flex-row sm:justify-between">
+          {If(prevPage, (prevPage) => (
+            <Link
+              href={prevPage.href}
+              class="hover:border-brand/40 group border-border bg-surface flex flex-1 flex-col items-start gap-1 rounded-xl border p-4 shadow-[-3px_3px_0_var(--color-card-shadow)] transition-all hover:-translate-y-0.5 hover:shadow-[-5px_5px_0_var(--color-card-shadow)] dark:shadow-[-7px_7px_0_var(--color-card-shadow)] dark:hover:shadow-[-5px_5px_0_var(--color-card-shadow)]"
+            >
+              <span class="text-fg-muted text-xs font-bold tracking-wider uppercase">
+                Previous
+              </span>
+              <span class="text-fg group-hover:text-brand font-medium transition-colors">
+                ← {prevPage.label}
+              </span>
+            </Link>
+          ))}
+          {If(nextPage, (nextPage) => (
+            <Link
+              href={nextPage.href}
+              class="hover:border-brand/40 group border-border bg-surface flex flex-1 flex-col items-end gap-1 rounded-xl border p-4 text-right shadow-[-3px_3px_0_var(--color-card-shadow)] transition-all hover:-translate-y-0.5 hover:shadow-[-5px_5px_0_var(--color-card-shadow)] dark:shadow-[-7px_7px_0_var(--color-card-shadow)] dark:hover:shadow-[-5px_5px_0_var(--color-card-shadow)]"
+            >
+              <span class="text-fg-muted text-xs font-bold tracking-wider uppercase">
+                Next
+              </span>
+              <span class="text-fg group-hover:text-brand font-medium transition-colors">
+                {nextPage.label} →
+              </span>
+            </Link>
+          ))}
+          {If(showPlaceholder, () => (
+            <div class="flex-1" />
+          ))}
+        </div>
       </article>
 
       <DocsOnThisPage sectionHeadings={sectionHeadings} />

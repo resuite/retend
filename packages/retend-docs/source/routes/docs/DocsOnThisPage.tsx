@@ -1,4 +1,4 @@
-import { Cell, For, If } from 'retend';
+import { Cell, For } from 'retend';
 import { Link, useCurrentRoute } from 'retend/router';
 
 type DocsHeading = { id: string; label: string; depth: number };
@@ -54,20 +54,15 @@ function HeadingRoute(props: HeadingRouteProps) {
 
   return (
     <li class="relative">
-      {If(isActive, {
-        true: () => (
-          <div class="bg-brand absolute top-1/2 -left-[1px] h-4 w-[2px] -translate-y-1/2 rounded-full" />
-        ),
-      })}
       <Link
         href={href}
         class={[
-          'block py-1 transition-colors',
+          'relative block py-1 transition-colors',
           depthPadding,
           fontSize,
           {
-            'text-brand font-medium': isActive,
-            'text-fg-muted hover:text-fg': isNotActive,
+            'text-fg font-bold': isActive,
+            'text-fg-muted hover:text-fg font-medium': isNotActive,
           },
         ]}
       >
