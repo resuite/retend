@@ -1,4 +1,4 @@
-import { __HMR_UpdatableFn, Await, Cell, For, If, onConnected } from 'retend';
+import { __HMR_UpdatableFn, Await, Cell, For, If, onSetup } from 'retend';
 import { ShadowRoot, Teleport } from 'retend-web';
 import { Link, Outlet } from 'retend/router';
 
@@ -21,12 +21,35 @@ export interface TreeNodeProps {
   bypassProviderCollapse?: boolean;
 }
 
+const outputUIScrollOptions: ScrollIntoViewOptions = {
+  block: 'center',
+  inline: 'nearest',
+  behavior: 'smooth',
+};
+const nodeScrollOptions: ScrollIntoViewOptions = {
+  block: 'start',
+  inline: 'nearest',
+  behavior: 'smooth',
+};
+
+function forceScrollIntoView(
+  container: HTMLElement,
+  options: ScrollIntoViewOptions
+) {
+  container.scrollIntoView(options);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      container.scrollIntoView(options);
+    });
+  });
+}
+
 export function TreeNode(props: TreeNodeProps) {
   const { node, depth, forceExpanded, visibleNodes, bypassProviderCollapse } =
     props;
   const devRenderer = useDevToolsRenderer();
   const expanded = Cell.source(depth < 6);
-  const headerRef = Cell.source<HTMLElement | null>(null);
+  const containerRef = Cell.source<HTMLElement | null>(null);
   const { name } = node.component;
 
   const children = devRenderer.getNodeChildren(node);
@@ -62,19 +85,16 @@ export function TreeNode(props: TreeNodeProps) {
   const isSpecial = specialComponents.has(node.component);
   const isWebSpecial = webSpecialComponents.has(node.component);
   const isScopeProvider = Reflect.has(node.component, '__isScopeProviderOf');
+  let wasSelectedByClick = false;
 
   const onNodeClick = (event: MouseEvent) => {
-    const hasPreviouslySelected = devRenderer.selectedNode.get() !== null;
+    let hasPreviouslySelected = devRenderer.selectedNode.get() !== null;
+    wasSelectedByClick = true;
     devRenderer.selectedNode.set(node);
     const currentTarget = event.currentTarget;
-    const options: ScrollIntoViewOptions = {
-      block: 'center',
-      inline: 'nearest',
-      behavior: 'smooth',
-    };
 
     if (!hasPreviouslySelected && currentTarget instanceof HTMLElement) {
-      currentTarget.scrollIntoView(options);
+      forceScrollIntoView(currentTarget, nodeScrollOptions);
     }
     if (node.output) {
       let renderedNodes: Node[];
@@ -103,9 +123,9 @@ export function TreeNode(props: TreeNodeProps) {
       }
 
       if (firstNode instanceof Element) {
-        firstNode.scrollIntoView(options);
+        firstNode.scrollIntoView(outputUIScrollOptions);
       } else if (firstNode && firstNode.parentElement) {
-        firstNode.parentElement?.scrollIntoView(options);
+        firstNode.parentElement?.scrollIntoView(outputUIScrollOptions);
       }
     }
   };
@@ -126,24 +146,20 @@ export function TreeNode(props: TreeNodeProps) {
     return undefined;
   });
 
-  onConnected(headerRef, (header) => {
-    const scrollIntoView = () => {
-      if (devRenderer.selectedNode.get() !== node) {
-        return;
-      }
+  const scrollIntoViewIfActive = () => {
+    const container = containerRef.get();
+    if (!container || devRenderer.selectedNode.get() !== node) {
+      return;
+    }
+    if (wasSelectedByClick) {
+      wasSelectedByClick = false;
+      return;
+    }
+    forceScrollIntoView(container, nodeScrollOptions);
+  };
 
-      requestAnimationFrame(() => {
-        header.scrollIntoView({
-          block: 'nearest',
-          inline: 'nearest',
-          behavior: 'smooth',
-        });
-      });
-    };
-
-    scrollIntoView();
-    return devRenderer.selectedNode.listen(scrollIntoView);
-  });
+  devRenderer.selectedNode.listen(scrollIntoViewIfActive);
+  onSetup(scrollIntoViewIfActive);
 
   return If(isVisible, () =>
     If(shouldCollapseAsProvider, {
@@ -158,7 +174,7 @@ export function TreeNode(props: TreeNodeProps) {
       false: () => (
         <div class={classes.node}>
           <div
-            ref={headerRef}
+            ref={containerRef}
             class={classes.nodeHeader}
             onClick={onNodeClick}
             onPointerEnter={onPointerEnter}

@@ -358,6 +358,8 @@ export function createUnique(renderFn, options = {}) {
 
     return uniqueInstance;
   };
+
+  UniqueComponent.__retendUnique = true;
   Object.defineProperty(UniqueComponent, 'name', { value: renderFn.name });
   if (!renderFn.name) {
     Object.defineProperty(renderFn, 'name', { value: 'Unique.Content' });

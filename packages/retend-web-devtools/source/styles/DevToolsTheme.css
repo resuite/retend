@@ -9,6 +9,7 @@
   --retend-devtools-font-size-sm: 0.75rem; /* 12px */
   --retend-devtools-font-size-base: 0.8125rem; /* 13px */
   --retend-devtools-font-size-lg: 0.875rem; /* 14px */
+  --retend-devtools-panel-height: min(40rem, 82dvh);
 
   --retend-devtools-panel-bg: #1a1a1a;
   --retend-devtools-panel-border: #333;
@@ -22,7 +23,8 @@
   --retend-devtools-header-button-text: #8b8b8b;
   --retend-devtools-accent: #7cacf8;
   --retend-devtools-tree-text: #e0e0e0;
-  --retend-devtools-tree-muted: #4f4f4f;
+  --retend-devtools-tree-muted: #6f6d6d;
+  --retend-devtools-attributes: #779fca;
   --retend-devtools-row-hover: rgba(124, 172, 248, 0.12);
   --retend-devtools-row-active: rgba(124, 172, 248, 0.22);
   --retend-devtools-chevron: #888;
