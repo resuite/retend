@@ -6,3 +6,4 @@ export * from './Async';
 export * from './Typescript';
 export * from './ArrowRight';
 export * from './ExternalLink';
+export * from './Github';

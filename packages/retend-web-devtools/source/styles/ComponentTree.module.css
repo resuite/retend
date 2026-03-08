@@ -2,7 +2,6 @@
   font-family: var(--retend-devtools-font-mono);
   font-size: var(--retend-devtools-font-size-sm);
   color: var(--retend-devtools-tree-text);
-  max-height: 100%;
   display: flex;
   flex-direction: column;
   user-select: none;

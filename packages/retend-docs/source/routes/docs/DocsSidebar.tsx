@@ -30,12 +30,22 @@ const groups = [
     items: [] as { href: string; label: string }[],
   },
   {
+    label: 'Building Blocks',
+    itemLabels: new Set([
+      'Control Flow',
+      'Lifecycle Hooks',
+      'Context And Scopes',
+    ]),
+    items: [] as { href: string; label: string }[],
+  },
+  {
     label: 'Routing',
     itemLabels: new Set([
       'Defining Routes',
       'Navigation',
       'Queries And Params',
       'Middleware',
+      'Lazy Loading',
     ]),
     items: [] as { href: string; label: string }[],
   },

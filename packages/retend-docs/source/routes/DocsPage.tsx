@@ -3,6 +3,7 @@ import { If } from 'retend';
 import { Link, useCurrentRoute } from 'retend/router';
 
 import { createMDXComponents } from '@/components/MDXComponents';
+import { GithubIcon } from '@/icons';
 
 import { docPages } from './docs/docsData';
 import { DocsOnThisPage } from './docs/DocsOnThisPage';
@@ -33,6 +34,7 @@ export function DocsPage() {
 
   const ActivePage = activePage.Component;
   const sectionHeadings = activePage.headings;
+  const editHref = `https://github.com/adebola-io/retend/edit/main/packages/retend-docs/content/${activePage.sortKey}.mdx`;
   let headingCursor = 0;
   const components = createMDXComponents({
     nextHeadingId(depth) {
@@ -73,6 +75,18 @@ export function DocsPage() {
     <>
       <article class="docs-markdown min-w-0 text-pretty">
         <ActivePage components={components} />
+
+        <div class="mt-10">
+          <a
+            href={editHref}
+            target="_blank"
+            rel="noreferrer"
+            class="text-fg-muted hover:text-brand inline-flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            <GithubIcon />
+            Edit this page on GitHub
+          </a>
+        </div>
 
         <div class="border-border mt-16 mb-16 flex flex-col gap-4 border-t pt-8 sm:flex-row sm:justify-between">
           {If(prevPage, (prevPage) => (
