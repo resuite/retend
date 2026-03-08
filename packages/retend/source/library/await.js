@@ -16,8 +16,11 @@ import {
 } from './scope.js';
 
 /**
- * @typedef AwaitContext
- * @property {(cell: AsyncCell<any>) => Promise<void>} waitUntil
+ * @typedef {{
+ *   waitUntil: (cell: AsyncCell<any>) => Promise<void>
+ *   readonly finished: Promise<void>
+ *   readonly done: boolean
+ * }} AwaitContext
  */
 
 /**
@@ -64,6 +67,8 @@ export function Await(props) {
   const waitingPromise = new Promise((resolve) => {
     initialStateDone.listen(() => {
       resolve();
+      // @ts-expect-error: Writable within Await.
+      value.done = true;
       asyncHolders.delete(waitingPromise);
     });
   });
@@ -81,6 +86,8 @@ export function Await(props) {
       }
       return waitingPromise;
     },
+    done: false,
+    finished: waitingPromise,
   };
 
   const snapshot = branchState();

@@ -15,6 +15,7 @@ import {
   withState,
 } from '../library/scope.js';
 import { linkNodes } from '../library/utils.js';
+import { useAwait } from './await.js';
 
 /**
  * @typedef UniqueStash
@@ -186,6 +187,7 @@ export function createUnique(renderFn, options = {}) {
     const { id = renderFn } = props;
     const { globalData } = getGlobalContext();
     const renderer = getActiveRenderer();
+    const awaitCtx = useAwait();
     const { onSave, onRestore, container = {} } = options;
     const ref = Cell.source(null);
 
@@ -335,7 +337,13 @@ export function createUnique(renderFn, options = {}) {
     let childNodes;
     if (previous) {
       renderer.setProperty(uniqueInstance, 'state', 'restored');
-      renderer.restoreContainerState(uniqueInstance, previous);
+      if (awaitCtx && !awaitCtx.done) {
+        awaitCtx.finished.then(() => {
+          renderer.restoreContainerState(uniqueInstance, previous);
+        });
+      } else {
+        renderer.restoreContainerState(uniqueInstance, previous);
+      }
     } else {
       renderer.setProperty(uniqueInstance, 'state', 'new');
       childNodes = (() => {
