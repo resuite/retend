@@ -192,13 +192,6 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {VDom.VNode} node
-   */
-  finalize(node) {
-    return node;
-  }
-
-  /**
    * @param {VDom.VNode | VDom.VNode[]} [input]
    * @returns {VDom.VDocumentFragment}
    */

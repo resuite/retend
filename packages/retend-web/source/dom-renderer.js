@@ -332,13 +332,6 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {Node} node
-   */
-  finalize(node) {
-    return node;
-  }
-
-  /**
    * @param {Node | Node[]} [input]
    * @returns {DocumentFragment}
    */

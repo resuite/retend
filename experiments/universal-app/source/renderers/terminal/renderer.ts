@@ -841,10 +841,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
     return createNodesFromTemplate(c, this) as TerminalNode[];
   }
 
-  // Unused strict methods
-  finalize(n: TerminalNode) {
-    return n;
-  }
   isGroup(n: unknown): n is TerminalNode[] {
     return Array.isArray(n);
   }

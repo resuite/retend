@@ -644,11 +644,6 @@ export class CanvasRenderer {
     this.requestRender();
     return node;
   }
-
-  finalize(node: CanvasNode) {
-    return node;
-  }
-
   createGroup(input?: CanvasNode | CanvasNode[]) {
     if (!input) return [];
     return Array.isArray(input) ? input : [input];

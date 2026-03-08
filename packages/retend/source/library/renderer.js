@@ -142,9 +142,6 @@ import { getGlobalContext } from '../context/index.js';
  * @property {(handle: Handle, options: ReconcilerOptions<Node>) => void} reconcile
  * Efficiently updates the nodes associated with a handle by diffing them against a new list of items.
  *
- * @property {(node: Node) => Output} finalize
- * Performs the final transformation on the produced output before returning it to the user.
- *
  * @property {(tagnameOrFunction: __HMR_UpdatableFn, props: any, snapshot?: StateSnapshot, fileData?: JSX.JSXDevFileData) => Node | Node[]} handleComponent
  * Orchestrates the execution of components.
  *
