@@ -159,6 +159,7 @@ export async function waitForAsyncBoundaries() {
   const holders = globalData.get(AsyncKey);
   if (!holders?.size) return;
   while (holders.size) {
+    await Promise.resolve();
     await Promise.all(holders);
   }
 }
