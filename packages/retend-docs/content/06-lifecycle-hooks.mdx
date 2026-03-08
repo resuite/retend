@@ -1,114 +1,118 @@
 # Lifecycle Hooks
 
-Because Retend components run exactly once to build the initial target output, the component lifecycle is incredibly simple. You don't have to synchronize your code across complex "update" phases.
+Since Retend components run exactly once to create the initial output, the lifecycle model is refreshingly simple. There's no complex re-render cycle to manage, no synchronization headaches across multiple lifecycle phases. Just setup and cleanup.
 
-Components in Retend essentially have only two lifecycle events you need to care about: when they are **created**, and when they are **destroyed**.
+In Retend, you really only need to think about two moments: when a component starts, and when it ends.
 
-## The Two Hooks: `onSetup` and `onConnected`
+## `onSetup` and `onConnected`
 
-Retend provides two primary functions for running side operations outside of the standard rendering path: `onSetup` and `onConnected`. In both cases, the function you pass in runs when the component is initialized, and if you return a function, that function acts as an **unmount cleanup**.
+Retend gives you two hooks for managing side effects and initialization logic: `onSetup` and `onConnected`. Both run when the component initializes, and if you return a cleanup function from either, it runs when the component is destroyed.
 
-To understand which one to use, it's crucial to understand the order in which they execute.
+The key difference is _when_ they run relative to each other:
 
-### The Lifecycle Timeline
+**The Timeline:**
 
-When a component is mounted to the screen, the hooks run in this specific order:
+1. `onConnected` runs first — the moment the physical node attaches to the environment (e.g., the DOM)
+2. `onSetup` runs second — after the entire component tree is initialized
 
-1.  **`onConnected` runs**: Evaluates as soon as the specific target node you are tracking is fully connected to the active environment (e.g. attached to the document body).
-2.  **`onSetup` runs**: Evaluates logically after the initial component tree render completes.
+When the component unmounts, cleanup runs in reverse:
 
-When the component is later removed from the screen (for example, if an `<If>` condition becomes false), their respective cleanup functions run in the exact reverse order:
+1. `onSetup` cleanup runs
+2. `onConnected` cleanup runs
 
-1.  **`onSetup` Cleanup runs**
-2.  **`onConnected` Cleanup runs**
+## Setting Up Logical State
 
-## `onSetup`
-
-`onSetup` is your go-to hook for logical component initialization. It is perfect for tasks like creating global event listeners on the `window`, establishing WebSocket connections, or starting timers.
-
-It runs exactly once when the component instance is set up.
+Use `onSetup` for anything that doesn't need a physical DOM node. This is where you establish WebSocket connections, create timers, set up global event listeners, or initialize any background processes.
 
 ```tsx
 import { onSetup, Cell } from 'retend';
 
 function LiveClock() {
   const time = Cell.source(new Date());
-
-  // 1. Create a derived Cell to format the time smoothly
   const timeString = Cell.derived(() => time.get().toLocaleTimeString());
 
-  // 2. Lifecycle hooks are typically placed just before the return statement
   onSetup(() => {
-    // Initialization
+    // Start updating the time every second
     const timerId = setInterval(() => time.set(new Date()), 1000);
 
-    // Cleanup Function
-    return () => {
-      clearInterval(timerId);
-    };
+    // Clean up when the component unmounts
+    return () => clearInterval(timerId);
   });
 
-  // Because 'timeString' is a Cell, we can pass it directly into the JSX
-  return <p>Current time is: {timeString}</p>;
+  return <p>Current time: {timeString}</p>;
 }
 ```
 
-### Idiomatic Component Organization
+The cleanup function is critical. If you're running background tasks like intervals or event listeners, returning a cleanup function prevents memory leaks and ensures those tasks stop when the component is removed from the screen.
 
-Unlike frameworks that re-run component functions, Retend components are essentially just setup scripts that run once. Because of this, you are free to organize your code however you like.
+## Working with Physical Nodes
 
-However, as a best practice, you should generally order your component functions in the following way:
+Sometimes you need to interact with the actual DOM element — measure it, draw on a canvas, initialize a third-party widget. That's where `onConnected` comes in.
 
-1. **State:** Declare your `Cell.source()` containers at the top.
-2. **Derivations:** Declare your `Cell.derived()` computations next.
-3. **Handlers:** Define your event handler functions (like `handleClick`).
-4. **Lifecycles:** Place your `onSetup` and `onConnected` hooks near the very bottom.
-5. **Return:** End the function by returning your JSX.
-
-Keeping lifecycle hooks at the bottom right before the return statement ensures that all your Cells and handler functions have already been defined and are ready to be used by those background tasks or external initializers.
-
-### The Importance of Cleanup
-
-Always remember to return a cleanup function from `onSetup` if your initialization logic runs ongoing background tasks (like `setInterval` or `addEventListener`). If you neglect this, those background tasks will continue running even after the component is completely removed from the screen, leading to memory leaks and erratic performance.
-
-## `onConnected`
-
-While `onSetup` is for logic that doesn't need physical nodes attached yet, `onConnected` provides you a physical node as an argument, making it perfect for **environment-specific** setup.
-
-You use `onConnected` when your logic explicitly requires a physical node to exist in the host environment. In a browser environment, it is ideal for measuring dimensions (like `getBoundingClientRect()`), drawing to `<canvas>` contexts, or integrating third-party imperative UI libraries (like map or chart widgets).
-
-To use `onConnected`, you must first create a `ref` using `Cell.source(null)` and bind it to your JSX element.
+`onConnected` takes a ref (created with `Cell.source(null)`) and a callback that receives the connected node. This guarantees the node exists in the renderer before your code runs.
 
 ```tsx
 import { onConnected, Cell } from 'retend';
 
 function CanvasDrawer() {
-  // 1. Create a ref to hold our canvas element
   const canvasRef = Cell.source<HTMLCanvasElement | null>(null);
 
-  // 2. Track connection of that specific element
   onConnected(canvasRef, (canvas) => {
     const context = canvas.getContext('2d');
     context.fillStyle = 'blue';
     context.fillRect(10, 10, 150, 100);
 
-    // Optional cleanup when the canvas disconnects
     return () => {
-      console.log('Canvas removed');
+      // Cleanup if needed
+      console.log('Canvas is being removed');
     };
   });
 
+  return <canvas ref={canvasRef} width="200" height="200"></canvas>;
+}
+```
+
+If you tried to read `canvasRef.get()` inside `onSetup`, the node might not be mounted yet. `onConnected` removes that uncertainty — the node is guaranteed to exist.
+
+## Structuring Your Components
+
+Since Retend components are essentially one-time setup scripts, you have freedom in how you organize them. But a sensible pattern helps readability:
+
+1. **State** — Define your `Cell.source()` values at the top
+2. **Derived** — Add `Cell.derived()` computations next
+3. **Handlers** — Write your event handler functions
+4. **Lifecycle** — Place `onSetup` and `onConnected` near the bottom
+5. **Return** — End with your JSX
+
+This ordering ensures all your Cells and handlers are available when lifecycle hooks run.
+
+```tsx
+function TodoItem({ item }) {
+  // State first
+  const isEditing = Cell.source(false);
+
+  // Derived state
+  const displayText = Cell.derived(() => {
+    return isEditing.get() ? 'Editing...' : item.title;
+  });
+
+  // Handlers
+  const toggleEdit = () => isEditing.set(!isEditing.get());
+
+  // Lifecycle last
+  onSetup(() => {
+    console.log('TodoItem created:', item.id);
+    return () => console.log('TodoItem destroyed:', item.id);
+  });
+
+  // JSX return
   return (
     <div>
-      {/* 3. Bind the ref to the element */}
-      <canvas ref={canvasRef} width="200" height="200"></canvas>
+      <span>{displayText}</span>
+      <button onClick={toggleEdit}>Edit</button>
     </div>
   );
 }
 ```
 
-### Why not use `onSetup` for this?
-
-If you tried to read `canvasRef.get()` inside `onSetup`, the physical node might not be fully mounted into the active renderer's tree yet, which means measurements and certain API calls would fail. `onConnected` guarantees the node is physically available.
-
-With state, events, and lifecycle covered, you now have all the tools needed to build standalone components. Next, we will cover how to manage shared application state using **Context and Scopes**.
+The simple rule: always include cleanup functions when you set up anything that runs in the background. Your future self (and your users' browsers) will thank you.

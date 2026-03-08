@@ -1,17 +1,10 @@
 # Event Handling
 
-Interactive applications need to respond to user actions like clicks, typing, and hovering. In Retend, listening to these events and updating your interface is straightforward and feels like writing standard JavaScript.
+When you're building interactive applications, you need to respond when users click buttons, type in inputs, or hover over elements. Retend makes this straightforward—it feels like writing regular JavaScript, just in your JSX.
 
 ## Listening to Events
 
-To listen for an event on a DOM element, you pass a function to a prop named after the event.
-
-Unlike standard HTML which uses lowercase (`onclick`), Retend uses **camelCase** for event names, exactly like the DOM element properties you may be used to in vanilla JavaScript.
-
-- HTML: `onclick="handleClick()"`
-- Retend: `onClick={handleClick}`
-
-Here is a simple example of a button that logs a message when clicked:
+Adding event listeners in Retend is simple: pass a function to an event prop. Use **camelCase** event names (like `onClick`, `onInput`, `onSubmit`) rather than the lowercase HTML style.
 
 ```tsx
 function LoggingButton() {
@@ -27,7 +20,7 @@ function LoggingButton() {
 }
 ```
 
-You can pass a named function like `handleClick`, or you can define an inline arrow function directly inside the JSX:
+You don't have to define the handler separately—you can write it inline with an arrow function:
 
 ```tsx
 <button type="button" onClick={() => console.log('Clicked!')}>
@@ -35,11 +28,11 @@ You can pass a named function like `handleClick`, or you can define an inline ar
 </button>
 ```
 
-## Updating State with Events
+## Updating State from Events
 
-The most common reason to listen for an event is to update the state of your application. In Retend, this means calling the `.set()` method on your Cells.
+The whole point of listening to events is usually to change something. In Retend, that means updating your Cells by calling `.set()`.
 
-Because Retend's component functions only run once, you don't have to worry about the component re-rendering when the handler runs. Retend simply updates the underlying UI elements directly.
+Since your component function only runs once, you don't have to worry about re-renders. Retend just updates the DOM elements directly:
 
 ```tsx
 import { Cell } from 'retend';
@@ -50,8 +43,6 @@ function Counter() {
   return (
     <div>
       <p>Current count: {count}</p>
-
-      {/* Clicking the button updates the Cell's value */}
       <button type="button" onClick={() => count.set(count.get() + 1)}>
         Add +1
       </button>
@@ -60,16 +51,13 @@ function Counter() {
 }
 ```
 
-## The Event Object
+## Working with the Event Object
 
-When your event handler function is called, Retend automatically passes the standard native DOM `Event` object as the first argument.
-
-This gives you full access to everything you need to know about the event, such as the key that was pressed, the coordinates of a mouse click, or the current value of an input field.
+Your handler receives the standard DOM `Event` object, giving you access to whatever details you need: key presses, mouse coordinates, form values, and more.
 
 ```tsx
 function SearchInput() {
   const handleInput = (event: Event) => {
-    // We cast event.target to HTMLInputElement to access .value in TypeScript
     const target = event.target as HTMLInputElement;
     console.log('User typed:', target.value);
   };
@@ -85,28 +73,18 @@ function SearchInput() {
 
 ## Event Modifiers
 
-In standard JavaScript event handling, you often find yourself writing boilerplate code right at the top of your function to manage the event's default behavior or propagation:
-
-```tsx
-// Standard JS boilerplate
-const handleSubmit = (event: Event) => {
-  event.preventDefault(); // Stop the page from reloading
-  // ... actual logic ...
-};
-```
-
-Retend provides **Event Modifiers** to handle these common scenarios directly in your JSX. You can append modifiers to the event name using a double hyphen (`--`).
+Writing `event.preventDefault()` at the top of every form handler gets tedious. Retend lets you attach **modifiers** directly to your event names using double hyphens:
 
 ```tsx
 function Form() {
   const handleSubmit = () => {
-    console.log('Form submitted securely!');
-    // No need to call event.preventDefault() here!
+    console.log('Form submitted!');
+    // preventDefault is handled automatically
   };
 
   return (
     <form onSubmit--prevent={handleSubmit}>
-      <button type="submit">Submit Form</button>
+      <button type="submit">Submit</button>
     </form>
   );
 }
@@ -114,23 +92,21 @@ function Form() {
 
 ### Available Modifiers
 
-You can chain multiple modifiers together if needed (e.g., `onClick--prevent--stop={...}`).
+- **`--prevent`**: Calls `event.preventDefault()`. Essential for forms and links that would normally cause navigation.
+- **`--stop`**: Calls `event.stopPropagation()`. Prevents the event from bubbling to parent elements.
+- **`--once`**: The handler only fires once, then automatically unbinds itself.
+- **`--passive`**: Marks the listener as passive, improving scroll performance on `onScroll` or `onTouchMove` (incompatible with `--prevent`).
 
-- **`--prevent`**: Automatically calls `event.preventDefault()`. Essential for forms and links.
-- **`--stop`**: Automatically calls `event.stopPropagation()`. Prevents the event from bubbling up to parent elements.
-- **`--once`**: The event listener will only trigger the very first time the event occurs, and then immediately unbind itself.
-- **`--passive`**: Marks the event listener as passive, improving scroll performance on events like `onScroll` or `onTouchMove` (cannot be used with `--prevent`).
+You can combine modifiers if needed:
 
 ```tsx
 function EventShowcase() {
   return (
     <div onClick={() => console.log('Div clicked')}>
-      {/* Prevents the form from reloading the page */}
       <form onSubmit--prevent={() => console.log('Form saved')}>
         <button type="submit">Save</button>
       </form>
 
-      {/* Stops the click from reaching the parent <div> */}
       <button
         type="button"
         onClick--stop={() => console.log('Only button clicked')}
@@ -138,8 +114,7 @@ function EventShowcase() {
         Stop Bubbling
       </button>
 
-      {/* This will only log the very first time it is clicked */}
-      <button type="button" onClick--once={() => console.log('Clicked once!')}>
+      <button type="button" onClick--once={() => console.log('Just once!')}>
         One-Time Click
       </button>
     </div>
@@ -147,4 +122,4 @@ function EventShowcase() {
 }
 ```
 
-Event modifiers keep your handlers pure, focused strictly on your application logic rather than DOM mechanics. With event handling covered, you're ready to learn how to conditionally render content and display lists using Control Flow components.
+By handling event mechanics directly in your JSX, you can focus on your application logic instead of boilerplate. Next up: rendering lists and conditionals with Control Flow.

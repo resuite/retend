@@ -1,0 +1,119 @@
+# Unique Instances
+
+By default, when a component is unmounted and then mounted somewhere else in your application—like navigating between routes or toggling visibility with `<If>`—Retend destroys the old DOM elements and creates brand new ones.
+
+For most interfaces, this is exactly what you want. But some UI elements have complex internal state that should survive across moves. A video player in the middle of playback, a form input halfway through being filled, a canvas with an active drawing context, an iframe that's loaded external content—these things should persist.
+
+That's where `createUnique` comes in. It marks a component's elements as persistent, moving them intact across your application instead of destroying and recreating them.
+
+## Making Elements Persistent
+
+Wrap your component function in `createUnique`:
+
+```tsx
+import { createUnique } from 'retend';
+
+export const PersistentVideo = createUnique(() => {
+  return (
+    <video src="https://example.com/video.mp4" controls autoplay>
+      Your browser does not support the video tag.
+    </video>
+  );
+});
+```
+
+Now whenever you render `<PersistentVideo />` and later render it somewhere else, the exact same underlying video element moves to the new location. The video keeps playing without interruption.
+
+## Multiple Independent Instances
+
+By default, all uses of a unique component share the same underlying instance. Render `<PersistentVideo />` in two different places and it physically moves to whichever one renders last.
+
+If you need multiple independent instances that can coexist, give each one a unique `id`:
+
+```tsx
+// Two separate video players, each with their own state
+<PersistentVideo id="camera-1" />
+<PersistentVideo id="camera-2" />
+```
+
+Now each ID gets its own persistent element. They can both exist on screen simultaneously without interfering with each other.
+
+## Working with Props
+
+If your unique component accepts props, they come in as a reactive `Cell`. This lets the persistent instance adapt to new props as it moves around:
+
+```tsx
+import { createUnique, Cell } from 'retend';
+
+const UniquePanel = createUnique((props) => {
+  // Derive a reactive title from the incoming props
+  const title = Cell.derived(() => props.get().title);
+
+  return (
+    <div class="panel">
+      <h2>{title}</h2>
+      <p>This panel persists as it moves</p>
+    </div>
+  );
+});
+
+// Initial render
+<UniquePanel id="panel-1" title="First Title" />
+
+// If moved to a new location with different props...
+<UniquePanel id="panel-1" title="Updated Title" />
+
+// The same underlying element updates to the new title
+```
+
+The panel's DOM elements stay the same; only the data changes.
+
+## Saving and Restoring Custom State
+
+While `createUnique` preserves the underlying elements, some state—like scroll position—can get lost when elements are detached and reattached to the DOM.
+
+You can explicitly save and restore state using `onSave` and `onRestore`:
+
+```tsx
+const ScrollableArea = createUnique(
+  () => (
+    <div style={{ height: '400px', overflow: 'auto' }}>
+      <p>Lots of content here...</p>
+    </div>
+  ),
+  {
+    onSave: (element) => {
+      // Save whatever state you need
+      return { scrollPos: element.scrollTop };
+    },
+    onRestore: (element, savedData) => {
+      // Restore it when the element remounts
+      if (savedData) {
+        element.scrollTop = savedData.scrollPos;
+      }
+    },
+  }
+);
+```
+
+When the element detaches, `onSave` runs and you can return any data structure. When it reattaches, `onRestore` gets both the element and the data you saved.
+
+## Styling the Wrapper
+
+Under the hood, `createUnique` wraps your component in a host element (`<retend-unique-instance>` on the web). You can apply classes and styles to this wrapper using the `container` option:
+
+```tsx
+const StyledUnique = createUnique(() => <div>Content</div>, {
+  container: {
+    class: 'my-wrapper-class',
+    style: { display: 'block', padding: '20px' },
+    'data-test': 'unique-element',
+  },
+});
+```
+
+This is useful if you need to control the wrapper's layout or add data attributes for testing.
+
+---
+
+Unique instances solve a real problem: preserving complex UI state across navigation and visibility changes. Use them for video players, active forms, canvases, iframes, or any UI element with internal state that matters.

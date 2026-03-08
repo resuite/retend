@@ -38,16 +38,21 @@ const headingListFromMarkdown = (content: string) => {
   const lines = content.split('\n');
 
   for (const line of lines) {
-    if (!line.startsWith('## ')) {
-      if (!line.startsWith('### ')) {
-        continue;
-      }
-    }
-    let depth = 2;
-    let rawLabel = line.slice(3);
-    if (line.startsWith('### ')) {
+    // Match headings of depth 2-4 (## ### ####)
+    let depth = 0;
+    let rawLabel = '';
+
+    if (line.startsWith('## ')) {
+      depth = 2;
+      rawLabel = line.slice(3);
+    } else if (line.startsWith('### ')) {
       depth = 3;
       rawLabel = line.slice(4);
+    } else if (line.startsWith('#### ')) {
+      depth = 4;
+      rawLabel = line.slice(5);
+    } else {
+      continue;
     }
 
     const label = headingLabelFromMarkdown(rawLabel);

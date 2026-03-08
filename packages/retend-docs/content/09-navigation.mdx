@@ -1,0 +1,124 @@
+# Navigation
+
+Once your routes are defined, users need a way to move between pages. In a traditional website, that's done with `<a>` tags—the browser loads a new HTML document and starts over. In a single-page app built with Retend, clicking a link should update the URL and swap out the page content, all without a full reload.
+
+Retend gives you both declarative and programmatic ways to handle navigation cleanly and efficiently.
+
+## Using Links
+
+The `<Link>` component is your go-to for navigation. It renders a standard HTML `<a>` tag under the hood, but intercepts clicks to update the URL client-side instead of triggering a page reload.
+
+This approach is recommended for almost all navigation. It respects accessibility, lets users open links in new tabs, and works well with search engines.
+
+```tsx
+import { Link } from 'retend/router';
+
+export function NavigationMenu() {
+  return (
+    <nav class="main-nav">
+      <Link href="/">Home</Link>
+      <Link href="/about">About Us</Link>
+      <Link href="/contact">Contact</Link>
+    </nav>
+  );
+}
+```
+
+Since `<Link>` renders a real `<a>` tag, you can pass standard HTML attributes like `class`, `id`, or `aria-label`:
+
+```tsx
+<Link
+  href="/signup"
+  class="btn btn-primary"
+  aria-label="Sign up for an account"
+>
+  Get Started
+</Link>
+```
+
+### Replacing History Instead of Adding to It
+
+By default, clicking a `<Link>` pushes a new entry to the browser's history stack. The user can click "Back" to return.
+
+Sometimes you want to replace the current history entry instead—like redirecting from a login page to a dashboard after successful authentication. You don't want the login page lingering in the browser history.
+
+Use the `replace` attribute for this:
+
+```tsx
+<Link href="/dashboard" replace>
+  Go to Dashboard
+</Link>
+```
+
+## Navigating from Code
+
+While `<Link>` handles static navigation, you often need to navigate as a _consequence_ of something else—submitting a form, completing an API call, or finishing a multi-step process.
+
+For those cases, reach for the `useRouter()` hook to get access to the router and call `.navigate()` programmatically:
+
+```tsx
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+export function LoginForm() {
+  const router = useRouter();
+  const isSubmitting = Cell.source(false);
+
+  const handleSubmit = async (event: Event) => {
+    event.preventDefault();
+    isSubmitting.set(true);
+
+    try {
+      await performLogin();
+      await router.navigate('/dashboard');
+    } catch (error) {
+      console.error('Login failed', error);
+    } finally {
+      isSubmitting.set(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* form fields... */}
+      <button type="submit" disabled={isSubmitting.get()}>
+        Log In
+      </button>
+    </form>
+  );
+}
+```
+
+Both `router.navigate()` and `router.replace()` return Promises that resolve when navigation—including any middlewares or lazy loading—completes.
+
+## Outlets: Where Pages Live
+
+Remember from the routing section that `<Outlet />` marks the spot where matched child components get rendered. Here's how `<Link>` and `<Outlet>` work together in a typical layout:
+
+```tsx
+import { Link, Outlet } from 'retend/router';
+
+export function AppLayout() {
+  return (
+    <div class="app-container">
+      <header>
+        <div class="logo">MyApp</div>
+        <nav>
+          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/settings">Settings</Link>
+        </nav>
+      </header>
+
+      <main class="content-area">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+```
+
+When a user clicks "Settings", the layout stays put. Only the content inside `<Outlet>` swaps to the new page—a smooth, state-preserving transition.
+
+---
+
+With routing and navigation in place, you can build multi-page applications. Next, let's look at extracting dynamic data from URLs using **Queries and Params**.

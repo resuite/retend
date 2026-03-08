@@ -1,20 +1,19 @@
 # Lazy Loading
 
-As your application grows, the amount of JavaScript required to run it increases. If you bundle every single route component into one giant file, the user's browser has to download, parse, and execute all of that code before they can see the homepage—even if they never visit the settings page!
+JavaScript bundles grow as applications grow. Ship a single massive file and users download, parse, and execute all of it—even the settings page they'll never visit. That's wasteful.
 
-Retend provides a `lazy()` function to seamlessly code-split your routes. This tells the bundler (like Vite) to split that component into its own separate file, which is only downloaded when the user actually navigates to that specific route.
+Retend solves this with code splitting. The `lazy()` function tells your bundler (like Vite) to split a route's component into its own file, downloaded only when the user actually navigates there.
 
-## Basic Usage
+## Basic Lazy Loading
 
-To use lazy loading, wrap a dynamic `import()` statement inside the `lazy()` function. The imported module **must** export your component as its `default` export.
+Wrap a dynamic `import()` in `lazy()`. The imported module must have the component as its `default` export:
 
 ```tsx
 import { defineRoutes, lazy } from 'retend/router';
 
-// The Home component is bundled and loaded immediately
 const Home = () => <div>Home</div>;
 
-// The Settings component is split into a separate file and loaded on demand
+// Loads on demand when user navigates to /settings
 const SettingsLazy = lazy(() => import('./views/Settings'));
 
 const routes = defineRoutes([
@@ -23,21 +22,21 @@ const routes = defineRoutes([
 ]);
 ```
 
-In the example above, the initial JavaScript payload will only contain the `Home` component. When a user clicks a link to navigate to `/settings`, the router will fetch the `Settings.js` file over the network and render it seamlessly.
+The initial JavaScript payload includes only `Home`. When a user clicks through to `/settings`, the router fetches the `Settings.js` chunk over the network and renders it seamlessly.
 
 ### Component Structure
 
-When creating a file that will be lazily loaded, remember that `lazy()` expects the component to be the `default` export.
+When creating a file for lazy loading, remember: `lazy()` expects the component as the `default` export.
 
 ```tsx
 // views/Settings.tsx
 
-// You can have local helper components
+// Local helper components are fine
 function SettingsForm() {
   return <form>...</form>;
 }
 
-// But the main view component MUST be the default export
+// But the main component MUST be default
 export default function SettingsView() {
   return (
     <div class="settings">
@@ -48,12 +47,12 @@ export default function SettingsView() {
 }
 ```
 
-## Lazy Loading Nested Routes
+## Lazy Nested Routes
 
-Lazy loading works exactly the same way for nested route architectures. You can lazily load the layout component itself, or its children, or both.
+Lazy loading works the same way with nested routes. You can lazily load the layout, its children, or both:
 
 ```tsx
-import { defineRoutes, lazy } from 'retend/router';
+import { defineRoutes, lazy, Outlet } from 'retend/router';
 
 const DashboardLayout = () => (
   <div>
@@ -62,7 +61,6 @@ const DashboardLayout = () => (
   </div>
 );
 
-// The child view is lazily loaded
 const UserProfileLazy = lazy(() => import('./views/dashboard/UserProfile'));
 
 const routes = defineRoutes([
@@ -76,24 +74,21 @@ const routes = defineRoutes([
 
 ## Lazy Subtrees
 
-For truly massive applications with hundreds of routes, even the routing configuration itself can become too large to download at once. Retend provides an advanced feature called **Lazy Subtrees**, allowing you to split and lazy-load entire routing configurations.
+For massive applications with hundreds of routes, even the routing config itself becomes too large. **Lazy Subtrees** let you split entire routing configurations and load them on demand.
 
-Instead of providing a `component` or an array of `children`, you provide a `subtree` property that dynamically imports another routing configuration file.
+Instead of a `component` or `children` array, use a `subtree` property that dynamically imports another routing file.
 
-### 1. Define the child route configuration
+### Step 1: Create the Subtree File
 
-First, create a separate file that defines the subtree. This file must export a single `RouteRecord` (created by `defineRoute`) as its default export.
-
-**Crucially**, the `path` of the exported route MUST exactly match the `path` where it will be mounted in the parent router.
+Create a separate file that exports a single route configuration as its default export:
 
 ```tsx
 // finance.routes.ts
 import { defineRoute, lazy } from 'retend/router';
 import FinanceDashboard from './views/FinanceDashboard';
 
-// Define and default export a single route structure
+// The path MUST match where it will be mounted in the parent router
 export default defineRoute({
-  // The path MUST match the mount point in the main router
   path: '/finance/:accountId',
   component: FinanceDashboard,
   children: [
@@ -109,9 +104,9 @@ export default defineRoute({
 });
 ```
 
-### 2. Connect the subtree in your main router
+### Step 2: Connect in Main Router
 
-In your main routing configuration, use the `subtree` property and `lazy()` to connect the external file to the specific path.
+In your main routes, use `subtree` with `lazy()`:
 
 ```tsx
 // index.routes.ts
@@ -121,10 +116,14 @@ const routes = defineRoutes([
   { path: '/', component: Home },
   {
     path: '/finance/:accountId',
-    // The entire finance route tree is loaded on demand!
+    // Entire subtree loads on demand
     subtree: lazy(() => import('./finance.routes.ts')),
   },
 ]);
 ```
 
-With Lazy Subtrees, Retend makes it possible to build infinitely scalable single-page applications without ever compromising on initial load performance.
+With Lazy Subtrees, you can build infinitely scalable SPAs without sacrificing initial load performance.
+
+---
+
+Next: Learn how to extract data from URLs using **Queries and Params**.

@@ -1,30 +1,20 @@
 # JSX and Components
 
-Building user interfaces in Retend revolves around two main concepts: **JSX** and **Components**. Together, they allow you to build reusable pieces of your application and describe what they should look like in a clear, readable way.
+At the heart of building interfaces with Retend are two powerful, interrelated concepts: **JSX** for describing what things look like, and **Components** for organizing those descriptions into reusable pieces.
 
-## What is JSX?
+## JSX: Writing Markup as Code
 
-JSX is an extension for JavaScript that allows you to write HTML directly inside your JavaScript files. Instead of separating your logic (JavaScript) and your markup (HTML) into different files, JSX lets you combine them seamlessly.
-
-When you write JSX in Retend, it gets transformed into highly optimized code that directly updates your target renderer's tree (such as the browser's Document Object Model (DOM) when using `retend-web`).
-
-Here is a simple example of JSX:
+JSX is a syntax that lets you write HTML-like markup directly inside JavaScript. Rather than bouncing between separate HTML files and JavaScript files, JSX collapses that boundary—your structure, logic, and behavior all live together.
 
 ```tsx
 const element = <h1>Hello, Retend!</h1>;
 ```
 
-This looks exactly like HTML, but it's living right inside a JavaScript variable.
+When Retend processes this, it transforms it into highly optimized code that directly reaches into your renderer (whether that's the DOM in the browser, or something else entirely) and builds exactly what you need.
 
-### Writing JSX in Retend
+### Attributes and the HTML You Know
 
-While JSX looks like HTML, it is fundamentally JavaScript. Because of this, and to keep Retend incredibly fast, there are a few specific things to keep in mind:
-
-#### Standard HTML Attributes
-
-When adding attributes to your elements, you should use the standard HTML attribute names you already know.
-
-For instance, to add a CSS class to an element, use the `class` attribute:
+Since JSX compiles down to regular DOM operations, you use standard HTML attribute names. For styling with classes:
 
 ```tsx
 <div class="card-container">
@@ -32,28 +22,25 @@ For instance, to add a CSS class to an element, use the `class` attribute:
 </div>
 ```
 
-If you are creating a `<label>` for a specific input, use the `for` attribute:
+For labels that reference form inputs:
 
 ```tsx
 <label for="username">Username</label>
 <input type="text" id="username" />
 ```
 
-#### Boolean Attributes
+### Boolean Attributes
 
-Some HTML attributes are "boolean"—they represent a true or false state. Examples include `checked` on a checkbox or `disabled` on a button. In Retend, if you simply include the attribute name, it is automatically treated as `true`.
+Attributes like `checked` on checkboxes or `disabled` on buttons represent simple true/false states. In Retend, just include the attribute name and it's automatically `true`:
 
 ```tsx
-// The checkbox will be checked by default
 <input type="checkbox" checked />
-
-// The button will be disabled
 <button type="button" disabled>Processing...</button>
 ```
 
-#### Dynamic Values and JavaScript Expressions
+### Embedding JavaScript
 
-The true power of JSX comes from being able to embed JavaScript directly into your markup. You can do this by wrapping your JavaScript variables or expressions in curly braces `{}`.
+The real power emerges when you mix JavaScript into your markup using curly braces `{}`. Variables, expressions, calculations—whatever you need:
 
 ```tsx
 const userName = 'Alice';
@@ -67,7 +54,7 @@ const profile = (
 );
 ```
 
-You can use this for attributes as well. For inline styles, you pass a JavaScript object where the CSS property names are camelCased (e.g., `backgroundColor` instead of `background-color`):
+This works in attributes too. For inline styles, pass an object with camelCased property names (`backgroundColor` instead of `background-color`):
 
 ```tsx
 const message = 'Something went wrong!';
@@ -77,11 +64,11 @@ const alertBox = (
 );
 ```
 
-## What are Components?
+## Components: Building Blocks
 
-While JSX lets you write markup, **Components** let you organize that markup into reusable building blocks. A component is simply a JavaScript function that returns JSX.
+While JSX lets you describe individual pieces of UI, **components** let you package them up into reusable units. A component is simply a JavaScript function that returns JSX.
 
-By convention, component names must always start with a **Capital Letter** (PascalCase). This is how Retend distinguishes between a standard HTML tag (like `<div>`) and a custom component you've created (like `<UserProfile>`).
+Component names must start with a **capital letter** (PascalCase). That's how Retend knows the difference between a standard HTML element like `<div>` and something you've custom-built like `<UserProfile>`.
 
 ```tsx
 function Greeting() {
@@ -89,7 +76,7 @@ function Greeting() {
 }
 ```
 
-Once defined, you can use your component inside other JSX just like a regular HTML tag:
+Once defined, use it anywhere in your JSX:
 
 ```tsx
 function App() {
@@ -102,28 +89,24 @@ function App() {
 }
 ```
 
-### How Components Run
+### The Run-Once Architecture
 
-There is one critical concept to understand about components in Retend: **Components only run exactly once.**
+Here's something critical about Retend components: **they run exactly once**. When you use a component, Retend calls that function one single time to create the initial elements for your renderer. The function never runs again.
 
-When you use a component in your application, Retend calls that function one time to create the initial elements for the active renderer (like DOM elements on the web). The component function itself is never called again to update the screen.
+Updates happen through a different mechanism entirely—something called **Cells** (we'll explore this next). This run-once design is what gives Retend its exceptional performance. No unnecessary recalculations, no expensive re-renders. Just precise, surgical updates when data changes.
 
-Instead, dynamic updates are handled independently through a concept called "Cells" (which we will cover in the next section). This run-once architecture is the secret behind Retend's incredible performance, as it avoids unnecessary recalculations.
+### Props: Customizing Components
 
-### Passing Data with Props
-
-Components are much more useful when they can be customized. You can pass data into your components using **props** (short for properties). Passing props looks exactly like passing standard HTML attributes.
+Components become far more useful when you can customize them. Pass data in using **props** (short for properties), which look just like HTML attributes:
 
 ```tsx
-// Using a component and passing custom props
 <UserCard name="Alice" age={30} />
 ```
 
-Inside your component, this data is received as a single object, usually called `props`. In Retend, it is highly recommended to **destructure your props at the very beginning of the component function**.
+Inside your component, receive this data as a single object (conventionally named `props`) and destructure it immediately:
 
 ```tsx
 function UserCard(props) {
-  // Destructure the props immediately
   const { name, age } = props;
 
   return (
@@ -137,18 +120,13 @@ function UserCard(props) {
 
 #### The `children` Prop
 
-Sometimes you want a component to act as a layout or "wrapper" around other content. You can do this using the special `children` prop. Any JSX placed between the opening and closing tags of a component will be passed in as `children`.
+Sometimes components act as containers or layouts for other content. The special `children` prop captures anything placed between a component's opening and closing tags:
 
 ```tsx
 function AlertBox(props) {
   const { children } = props;
 
-  return (
-    <div class="alert-box">
-      {/* The nested content will be rendered here */}
-      {children}
-    </div>
-  );
+  return <div class="alert-box">{children}</div>;
 }
 
 function App() {
@@ -160,18 +138,14 @@ function App() {
 }
 ```
 
-#### Forwarding Extra Props
+#### Spreading Props to HTML Elements
 
-If you are building a component that wraps a standard HTML element (like a custom styled button), you often want to allow users to pass standard attributes (like `disabled`, `id`, or `aria-label`) straight through to the underlying HTML tag.
-
-You can accomplish this using the JavaScript rest operator (`...rest`) to gather any remaining props, and the spread operator to apply them.
+If you're wrapping a standard HTML element (like a styled button), you'll often want to let users pass standard attributes like `disabled`, `id`, or `aria-label` straight through. Use the rest operator to gather remaining props and the spread operator to apply them:
 
 ```tsx
 function PrimaryButton(props) {
-  // Extract the props we specifically care about
   const { children, ...rest } = props;
 
-  // Spread the rest of the props onto the button
   return (
     <button type="button" class="btn-primary" {...rest}>
       {children}
@@ -179,10 +153,10 @@ function PrimaryButton(props) {
   );
 }
 
-// Usage: The 'disabled' and 'id' props will be forwarded directly to the <button>
+// Usage: 'disabled' and 'id' pass directly to the button
 <PrimaryButton id="submit-btn" disabled>
   Submit Form
 </PrimaryButton>;
 ```
 
-Now that you understand how to build static interfaces with JSX and Components, you're ready to learn how to make them interactive. In the next section, we'll explore **Reactivity and Cells**, the system Retend uses to precisely update your application when your data changes.
+With the structure and composition basics down, you're ready to make things interactive. Next up: **Reactivity and Cells**—where we explore how Retend keeps your UI in sync with your data.

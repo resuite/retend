@@ -2,9 +2,9 @@
 
 import { FeatureCard } from '@/components/FeatureCard';
 
-Retend is a modern JavaScript framework for building user interfaces. It helps you create interactive web applications where the screen automatically updates whenever your data changes. Under the hood, Retend is designed to be incredibly fast and lightweight. It directly updates the parts of the page that change, avoiding unnecessary work and keeping your application quick and responsive.
+Retend is a modern JavaScript framework for building user interfaces. It focuses on one thing: making your apps fast and simple.
 
-## Core Principles
+## Why Retend
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
   <FeatureCard
@@ -17,63 +17,56 @@ Retend is a modern JavaScript framework for building user interfaces. It helps y
   />
   <FeatureCard
     title="Server-Ready"
-    description="Retend can render your application on the server or generate static HTML files, helping your site load faster and rank better in search engines."
+    description="Retend can render your application on the server or generate static HTML files, helping your site load faster."
   />
   <FeatureCard
-    title="Platform Agnostic"
-    description="Retend's core is decoupled from the browser. It interacts directly with the environment instead of using complex abstractions like a Virtual DOM, keeping it incredibly lean and fast."
+    title="Lightweight"
+    description="Retend interacts directly with the browser instead of using complex abstractions. This keeps it small and fast."
   />
 </div>
 
-## Installation
+## Quick Setup
 
-The easiest way to get started with Retend is to use the official project creation tool. This interactive tool will ask you a few questions and set up a complete, working project for you.
+The fastest way to start a new project:
 
 ```bash
-# Using npx (npm)
 npx retend-start@latest
 ```
 
-The `retend-start` tool will automatically configure:
+This creates a complete project with:
 
 - **TypeScript** or JavaScript (your choice)
-- **Vite** for a blazing fast local development experience
-- **Routing** for multiple pages, configured out-of-the-box
-- **Tailwind CSS** (optional, but recommended for styling)
+- **Vite** for fast development
+- **Routing** for multi-page apps
+- **Tailwind CSS** (optional)
 
-### Manual Installation
-
-If you prefer to set up a project yourself, or if you want to add Retend to an existing project, you can install the core packages directly:
+### Adding Retend to an Existing Project
 
 ```bash
 pnpm add retend retend-web
 ```
 
-- **`retend`**: The core reactivity library containing Cells, Context, and Application Hooks.
-- **`retend-web`**: The browser rendering engine that handles updating the DOM efficiently.
+- **`retend`** — Core reactivity (Cells, Context, lifecycle)
+- **`retend-web`** — DOM renderer for your pages
 
-## Hello World
+## Your First App
 
-Let's take a look at a basic Retend application to see how these concepts come together. In Retend, your component functions only run **once**. Any data that needs to change over time is placed inside a `Cell`. When the `Cell`'s value is updated, the user interface updates automatically, without re-rendering the whole component.
+Here's a simple counter:
 
 ```tsx
 import { renderToDOM } from 'retend-web';
 import { Cell } from 'retend';
 
 const App = () => {
-  // 1. Create a reactive value starting at 0
   const count = Cell.source(0);
 
-  // 2. Create a simple function to update the count
   const incrementCount = () => count.set(count.get() + 1);
 
-  // 3. Return what should be drawn to the screen
   return (
     <>
       <h1>Hello, Retend</h1>
-      <p>Click the button below to update the count dynamically.</p>
+      <p>Click the button below to update the count.</p>
 
-      {/* 4. Bind our click handler and our reactive count Variable */}
       <button type="button" onClick={incrementCount}>
         Counter: {count}
       </button>
@@ -81,26 +74,23 @@ const App = () => {
   );
 };
 
-// 5. Tell Retend where to put our application on the web page
-const root = document.getElementById('app')!;
-renderToDOM(root, App);
+renderToDOM(document.getElementById('app')!, App);
 ```
 
-### Running Your App
+**How it works:** Pass `{count}` directly into your JSX. Retend watches that Cell and updates the text automatically when it changes. The `App` function runs only once.
 
-If you used the `retend-start` command, you can start a local development server to see your application in your browser immediately. Simply navigate into your new project directory and run:
+### Run Your App
 
 ```bash
-# Start the Vite development server
 pnpm run dev
 ```
 
-You should now see your Retend app running on `http://localhost:5229` (or the port shown in your terminal). Open that URL, click the counter button, and watch the number update instantly!
+Your app will be at `http://localhost:5229`.
 
-## Next Steps
+## What's Next?
 
-Now that you have a basic understanding of Retend, here are some great places to explore next:
+- **[Cells and Reactivity](/docs/core-concepts/reactivity-cells)** — Learn how reactive state works
+- **[JSX and Components](/docs/core-concepts/jsx-and-components)** — Build reusable UI pieces
+- **[Control Flow](/docs/control-flow/if)** — Handle lists and conditionals
 
-- Learn more about state management in **[Cells and Reactivity](/docs/core-concepts/reactivity-cells)**.
-- Understand how to structure your UI using **[JSX and Components](/docs/core-concepts/jsx-and-components)**.
-- See how to render lists or handle conditional logic using **[Control Flow](/docs/control-flow/if)**.
+Let's build something powerful.

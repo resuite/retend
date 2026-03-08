@@ -46,6 +46,7 @@ const groups = [
       'Queries And Params',
       'Middleware',
       'Lazy Loading',
+      'Route Locking',
     ]),
     items: [] as { href: string; label: string }[],
   },

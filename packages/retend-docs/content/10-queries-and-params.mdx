@@ -1,0 +1,114 @@
+# Queries and Params
+
+Routes give you the structure of your application, but URLs themselves carry data. A user viewing product #42 needs that ID in the URL. A search results page needs the search term. Retend gives you powerful tools to extract this data: **URL Parameters** for required dynamic segments and **Query Parameters** for optional filters and state.
+
+## URL Parameters
+
+When you define a route with a dynamic segment like `/users/:userId`, that `:userId` becomes a parameter. Visit `/users/123` and the value `123` is captured.
+
+To access these parameters in your component, use the `useCurrentRoute()` hook. It returns a reactive `Cell` containing all information about the matched route:
+
+```tsx
+import { useCurrentRoute } from 'retend/router';
+import { Cell } from 'retend';
+
+export function UserProfile() {
+  const currentRoute = useCurrentRoute();
+
+  // Derive the user ID so changes trigger UI updates
+  const userId = Cell.derived(() => currentRoute.get().params.get('userId'));
+
+  return (
+    <div class="user-profile">
+      <h1>User Profile</h1>
+      <p>Loading data for User ID: {userId}</p>
+    </div>
+  );
+}
+```
+
+Why use `Cell.derived()` here? Because `currentRoute` is a Cell, and if a user navigates from `/users/123` to `/users/456`, the parameter changes reactively. Your component doesn't unmount—the `userId` Cell simply updates and the DOM reflects the change instantly.
+
+**A note on types:** Parameters from the URL are always strings. If you need a number, parse it inside your derivation with `parseInt()` or `Number()`.
+
+## Query Parameters
+
+Query parameters are those key-value pairs at the end of URLs: `/search?q=retend&sort=date`. They're typically used for optional state like search terms, filters, and pagination.
+
+Unlike URL parameters, you don't declare query parameters in your routes. Any route can accept any query parameters at any time. To work with them, use the `useRouteQuery()` hook.
+
+### Reading Query Values
+
+`useRouteQuery()` returns an object that lets you reactively read query values:
+
+```tsx
+import { useRouteQuery } from 'retend/router';
+import { Cell, If } from 'retend';
+
+export function SearchResults() {
+  const query = useRouteQuery();
+
+  // Returns a Cell<string | null>
+  const searchTerm = query.get('q');
+
+  // Returns a Cell<boolean>
+  const hasFilter = query.has('category');
+
+  return (
+    <div class="results">
+      <p>You searched for: {searchTerm}</p>
+      {If(hasFilter, {
+        true: () => <span class="badge">Category filter applied</span>,
+      })}
+    </div>
+  );
+}
+```
+
+If a query parameter appears multiple times in the URL (`?tags=red&tags=blue`), use `query.getAll('tags')` to get all values as a `Cell<string[]>`.
+
+### Updating Query Parameters
+
+The same `query` object lets you modify the URL by updating query parameters. These methods are **asynchronous** because they trigger a navigation:
+
+```tsx
+import { useRouteQuery } from 'retend/router';
+
+export function Filters() {
+  const query = useRouteQuery();
+
+  const handleSortChange = async (event: Event) => {
+    const target = event.target as HTMLSelectElement;
+    await query.set('sort', target.value);
+  };
+
+  const clearAll = async () => {
+    await query.clear();
+  };
+
+  return (
+    <div class="filters">
+      <select onChange={handleSortChange}>
+        <option value="relevance">Relevance</option>
+        <option value="date">Date</option>
+        <option value="price">Price</option>
+      </select>
+
+      <button onClick={clearAll}>Reset Filters</button>
+    </div>
+  );
+}
+```
+
+**Available methods:**
+
+- `query.set(key, value)` — Sets or replaces a query parameter
+- `query.append(key, value)` — Adds another value without removing existing ones
+- `query.delete(key)` — Removes all values for a key
+- `query.clear()` — Removes all query parameters from the URL
+
+Since query parameters are wired directly into Retend's reactivity, calling `query.set()` automatically updates any component reading from `query.get()`. Your UI and URL stay perfectly in sync.
+
+---
+
+URLs are the bridge between routes and components. Parameters and queries let you encode the application state directly in those URLs, making your app bookmarkable and shareable. Next up: protecting sensitive routes with **Middleware**.

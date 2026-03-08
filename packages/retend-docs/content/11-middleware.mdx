@@ -1,0 +1,150 @@
+# Middleware
+
+Routing middleware is like a security checkpoint or a tollbooth—every time a user tries to navigate to a new route, your middleware gets a chance to inspect, approve, or redirect that navigation before it actually happens. This unlocks powerful patterns: protecting admin routes, tracking analytics, enforcing permission checks, redirecting after login, and so much more.
+
+## How Middleware Works
+
+You define middleware using the `defineRouterMiddleware` function. Each middleware is a function that runs during navigation:
+
+```tsx
+import { defineRouterMiddleware } from 'retend/router';
+
+const analyticsMiddleware = defineRouterMiddleware((details) => {
+  console.log(
+    `User navigated from ${details.from?.path} to ${details.to.path}`
+  );
+});
+```
+
+The `details` object contains information about the navigation:
+
+- **`to`**: A `RouteData` object describing where the user is going
+- **`from`**: A `RouteData` object describing where they came from (null on initial load)
+
+Both objects include:
+
+- `name` — the route's name
+- `path` — the route pattern (e.g., `/users/:userId`)
+- `fullPath` — the complete URL including query params
+- `params` — a Map of extracted URL parameters
+- `query` — a URLSearchParams object of query parameters
+- `hash` — the URL hash
+- `metadata` — any custom metadata you attached to the route
+
+## Protecting Routes with Authentication
+
+The most common middleware pattern is authentication guards. If a user tries to access admin pages without being logged in, redirect them to login:
+
+```tsx
+import { defineRouterMiddleware, redirect } from 'retend/router';
+
+const authMiddleware = defineRouterMiddleware((details) => {
+  // Protect admin routes
+  if (details.to.path.startsWith('/admin')) {
+    const isLoggedIn = checkUserSession();
+
+    if (!isLoggedIn) {
+      // Block this navigation and go to login instead
+      return redirect('/login');
+    }
+  }
+
+  // Return nothing to allow the navigation
+});
+```
+
+When you return `redirect()`, Retend stops processing other middleware and immediately starts navigating to the new path.
+
+## Asynchronous Middleware
+
+Sometimes you need to check authentication with a server call—verify a token, check permissions, fetch user roles. Middleware supports async operations:
+
+```tsx
+import { defineRouterMiddleware, redirect } from 'retend/router';
+
+const permissionMiddleware = defineRouterMiddleware(async (details) => {
+  // Only check permissions for protected routes
+  if (details.to.path.startsWith('/account')) {
+    const hasAccess = await verifyAccessToken();
+
+    if (!hasAccess) {
+      return redirect('/access-denied');
+    }
+  }
+});
+```
+
+Retend waits for the Promise to settle before continuing the navigation pipeline.
+
+## Multiple Middleware
+
+You can chain multiple middleware together. They run in order, and if one returns a redirect, the rest don't run:
+
+```tsx
+import { Router, defineRoutes } from 'retend/router';
+
+const router = new Router({
+  routes: defineRoutes([
+    /* ... */
+  ]),
+  middlewares: [
+    analyticsMiddleware, // Runs first
+    authMiddleware, // Runs second
+    permissionMiddleware, // Runs third
+  ],
+});
+```
+
+This setup means analytics logs _every_ navigation attempt, but auth checks happen before permission checks.
+
+## Practical Example: Analytics + Auth
+
+Here's a real-world scenario combining multiple patterns:
+
+```tsx
+import { defineRouterMiddleware, redirect } from 'retend/router';
+
+// Track all navigation for analytics
+const trackPageView = defineRouterMiddleware((details) => {
+  sendAnalyticsEvent({
+    event: 'page_view',
+    path: details.to.fullPath,
+    timestamp: Date.now(),
+  });
+});
+
+// Verify user is authenticated
+const requireAuth = defineRouterMiddleware(async (details) => {
+  // Only check for protected routes
+  if (details.to.path.startsWith('/dashboard')) {
+    const isValid = await refreshAuthToken();
+
+    if (!isValid) {
+      return redirect('/login');
+    }
+  }
+});
+
+// Enforce role-based access
+const requireRole = defineRouterMiddleware((details) => {
+  if (details.to.path.startsWith('/admin')) {
+    const user = getCurrentUser();
+
+    if (user?.role !== 'admin') {
+      return redirect('/unauthorized');
+    }
+  }
+});
+
+// Register them in order
+const router = new Router({
+  routes,
+  middlewares: [trackPageView, requireAuth, requireRole],
+});
+```
+
+Now every navigation is tracked, authenticated users can access the dashboard, and only admins can reach `/admin`.
+
+---
+
+Middleware gives you fine-grained control over the navigation flow. Combined with route locking, you can build sophisticated user experiences that respect user intent and protect sensitive data.

@@ -1,0 +1,116 @@
+# Route Locking
+
+Picture this: a user is filling out a long form on your site. They've typed several paragraphs, filled in their contact info, and then—oops—they accidentally click the browser's back button. All their work vanishes.
+
+Route locking prevents this frustration. When a route is locked, all navigation attempts are blocked until you explicitly unlock it.
+
+## Locking a Route
+
+Call `router.lock()` to prevent the user from leaving the current page:
+
+```tsx
+import { useRouter } from 'retend/router';
+
+export function EditPostForm() {
+  const router = useRouter();
+
+  const handleInput = () => {
+    router.lock();
+  };
+
+  return (
+    <form>
+      <textarea onInput={handleInput} placeholder="Write your post..." />
+    </form>
+  );
+}
+```
+
+Once locked, clicking links, calling `router.navigate()`, or using the browser's back/forward buttons will all be blocked. Nothing happens silently—you should pair this with user feedback.
+
+## Unlocking and Allowing Navigation
+
+When the user saves their changes (or deliberately discards them), unlock the route with `router.unlock()`:
+
+```tsx
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+export function SettingsForm() {
+  const router = useRouter();
+  const isDirty = Cell.source(false);
+
+  const handleChange = () => {
+    if (!isDirty.get()) {
+      isDirty.set(true);
+      router.lock();
+    }
+  };
+
+  const handleSave = async () => {
+    await saveSettings();
+    isDirty.set(false);
+    router.unlock();
+  };
+
+  return (
+    <form>
+      <input type="text" onInput={handleChange} />
+      <button type="button" onClick={handleSave}>
+        Save
+      </button>
+    </form>
+  );
+}
+```
+
+## Showing a Confirmation Dialog
+
+Silently blocking navigation is confusing. Users will click a link, nothing happens, and they'll think something's broken. Instead, listen for the `routelockprevented` event and show a confirmation dialog:
+
+```tsx
+import { useRouter } from 'retend/router';
+import { onSetup, Cell, If } from 'retend';
+
+export function ProtectedForm() {
+  const router = useRouter();
+  const showWarning = Cell.source(false);
+
+  onSetup(() => {
+    const handleBlockedNavigation = (event: Event) => {
+      const customEvent = event as CustomEvent<{ attemptedPath: string }>;
+      console.log(`Blocked navigation to: ${customEvent.detail.attemptedPath}`);
+      showWarning.set(true);
+    };
+
+    router.addEventListener('routelockprevented', handleBlockedNavigation);
+
+    return () => {
+      router.removeEventListener('routelockprevented', handleBlockedNavigation);
+    };
+  });
+
+  const handleDiscard = () => {
+    router.unlock();
+    showWarning.set(false);
+  };
+
+  return (
+    <div>
+      <textarea placeholder="Type something..."></textarea>
+
+      {If(showWarning, () => (
+        <div class="confirmation-dialog">
+          <p>You have unsaved changes.</p>
+          <button onClick={() => showWarning.set(false)}>Keep Editing</button>
+          <button onClick={handleDiscard}>Discard & Leave</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+The `routelockprevented` event includes details about where the user tried to navigate, so you can customize your message if needed.
+
+Route locking, combined with clear user feedback, ensures users never lose work to accidental navigation.
