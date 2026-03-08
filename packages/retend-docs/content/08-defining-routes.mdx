@@ -4,7 +4,7 @@ Traditional web applications work one way: you click a link, the browser fetches
 
 Single Page Applications (SPAs) take a different approach. The initial page loads once, and then JavaScript takes over to handle all subsequent navigation. URLs change, but the page doesn't reload. This creates a fast, app-like experience that feels native to the browser.
 
-Retend is built for this model. It ships with a powerful router right out of the box—no third-party libraries needed.
+Retend includes a router—no third-party libraries needed.
 
 ## Setting Up Routes
 
@@ -32,7 +32,7 @@ const root = document.getElementById('app')!;
 renderToDOM(root, () => createRouterRoot(router));
 ```
 
-The `createRouterRoot` function takes your router and turns it into a renderable component. More importantly, it establishes a **router context** that any component in your app can tap into using the `useRouter()` hook:
+The `createRouterRoot` function takes your router and turns it into a renderable component. It also establishes a **router context** that any component in your app can tap into using the `useRouter()` hook:
 
 ```tsx
 import { useRouter } from 'retend/router';
@@ -143,4 +143,4 @@ const routes = defineRoutes([
 
 ---
 
-Routes define _what_ your app can show. Next up: how to actually _move_ between them using **Navigation**.
+Routes define _what_ your app can show.

@@ -1,0 +1,75 @@
+# Rendering Architecture
+
+Retend is designed to be completely platform-agnostic. The core library (`retend`) does not know about the browser Document Object Model (DOM), strings, or native mobile views. Instead, it delegates all platform-specific operations to a **Renderer**.
+
+A Renderer acts as the abstract bridge between Retend's reactive logic and a specific host environment. By swapping out the renderer, you can use Retend to build web applications (`retend-web`), generate static HTML (`retend-server`), or theoretically drive native mobile interfaces.
+
+---
+
+## How Renderers Work
+
+When Retend processes your JSX and reactive `Cells`, it calls methods on the _active renderer_ to create, update, and manage nodes.
+
+1. **Decoupled Types**: The framework maintains type safety without knowing what a "Node" actually is. A node could be an `HTMLElement` in the browser, a string fragment on the server, or a JSON object in a custom environment.
+2. **Global Context**: Retend tracks the active renderer in a global context. When you call `renderToDOM` from `retend-web`, it sets the `DOMRenderer` as active before processing your application.
+3. **Reconciliation & Updates**: The core framework handles the complex logic of fine-grained reactivity and list diffing. It then instructs the renderer via precise commands (like `updateText`, `append`, or `reconcile`) on how to apply those changes to the target output.
+
+---
+
+## `RendererTypes`
+
+To maintain type safety while remaining decoupled, every renderer defines a specific set of concrete types.
+
+- `Output`: The final result of the rendering process.
+- `Node`: The fundamental unit of the renderer's output.
+- `Handle`: A reference used to track and update a dynamic collection of nodes.
+- `Group`: A logical container for a set of nodes that does not necessarily correspond to a host-level entity.
+- `Text`: A specific node type for representing plain text content.
+- `Container`: A host-level entity capable of containing other nodes.
+- `Host`: The target environment or main interface where the renderer operates (e.g., the browser `Window`).
+- `SavedNodeState`: A serializable or structured representation of a node's state, used for preservation and restoration.
+
+---
+
+## The `Renderer` API
+
+Every renderer implementation must satisfy the `Renderer` interface. Below are the key properties and methods that make up the API contract.
+
+### Environment & Configuration
+
+- `host`: The instance of the host environment where the renderer is operating.
+- `observer`: An `Observer` instance (or `null`) for watching the node environment and firing callbacks on renderer-defined connections.
+- `capabilities`: Configuration flags indicating supported features (e.g., `supportsSetupEffects`, `supportsObserverConnectedCallbacks`).
+
+### Lifecycle & Execution
+
+- `render(app: JSX.Template) => Node | Node[]`: Initiates the rendering process for a template.
+- `handleComponent(tagnameOrFunction, props, snapshot?, fileData?) => Node | Node[]`: Orchestrates the execution of components.
+- `onViewChange(callback: () => void) => void`: Registers a callback to be notified when the view updates.
+
+### Node Creation & Identification
+
+- `isNode(child: any) => boolean`: A predicate that identifies if a value is a valid node for this renderer.
+- `isGroup(child: any) => boolean`: A predicate that identifies if a node is a logical group.
+- `createGroup(input?: Node[]) => Group`: Creates a virtual collection to group nodes without requiring a host-level container.
+- `createContainer(tagname: string, props?: any) => Container`: Creates a host-level entity (like an element) with the specified name and properties.
+- `createText(text: string) => Node`: Instantiates a text node from a string.
+
+### DOM Manipulation & Updates
+
+- `updateText(text: string, node: Text) => Node`: Mutates the content of an existing text node.
+- `setProperty(node: Node, key: string, value: unknown) => Node`: Applies a property or reactive value to a node.
+- `unwrapGroup(fragment: Group) => Node[]`: Flattens a Group node back into its constituent nodes.
+- `append(parent: Node, children: Node | Node[]) => Node`: Physically attaches nodes to a container in the host environment.
+- `isActive(node: Node) => boolean`: Checks if a node is currently "active" in the host environment.
+
+### Dynamic Collections & Reconciliation
+
+- `createGroupHandle(group: Group) => Handle`: Creates a stable reference (handle) to a group of nodes, enabling subsequent incremental updates.
+- `write(handle: Handle, newContent: Node[]) => void`: Synchronously replaces the current nodes associated with a handle with new content.
+- `reconcile(handle: Handle, options: ReconcilerOptions) => void`: Efficiently updates the nodes associated with a handle by diffing them against a new list of items.
+
+### State Preservation
+
+- `saveContainerState(node: Container, customData: unknown) => SavedNodeState`: Captures the current state of a container node to be restored later.
+- `restoreContainerState(node: Container, state: SavedNodeState) => void`: Re-applies a previously saved state to a container node.

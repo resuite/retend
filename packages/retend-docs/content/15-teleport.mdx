@@ -15,22 +15,18 @@ import { Teleport } from 'retend-web';
 function Modal(props) {
   const { isOpen, onClose } = props;
 
-  return (
-    <>
-      {If(isOpen, {
-        true: () => (
-          <Teleport to="#modal-root">
-            <dialog class="modal-overlay" open onClick={onClose}>
-              <article class="modal-content" onClick--stop>
-                <h2>Modal Title</h2>
-                <button onClick={onClose}>Close</button>
-              </article>
-            </dialog>
-          </Teleport>
-        ),
-      })}
-    </>
-  );
+  return If(isOpen, {
+    true: () => (
+      <Teleport to="#modal-root">
+        <dialog class="modal-overlay" open onClick={onClose}>
+          <article class="modal-content" onClick--stop>
+            <h2>Modal Title</h2>
+            <button onClick={onClose}>Close</button>
+          </article>
+        </dialog>
+      </Teleport>
+    ),
+  });
 }
 ```
 
@@ -59,7 +55,7 @@ If Retend can't find a matching element, it logs an error to the console.
 
 ## Physical vs. Logical
 
-Here's the magic: `<Teleport>` only changes where elements _physically_ appear in the DOM. Logically, they're still children of the component that rendered them.
+`<Teleport>` only changes where elements _physically_ appear in the DOM. Logically, they're still children of the component that rendered them.
 
 This means:
 
@@ -121,4 +117,4 @@ The overlay click closes the dialog, but clicking inside the box doesn't (thanks
 
 ---
 
-Teleport bridges the gap between logical component hierarchy and physical DOM structure. Use it for overlays, dropdowns, tooltips, and any UI that needs to break free from normal layout constraints. Next up: **Shadow Root** for style isolation.
+Teleport bridges the gap between logical component hierarchy and physical DOM structure. Use it for overlays, dropdowns, tooltips, and any UI that needs to break free from normal layout constraints.

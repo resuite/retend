@@ -1,6 +1,6 @@
 # Lifecycle Hooks
 
-Since Retend components run exactly once to create the initial output, the lifecycle model is refreshingly simple. There's no complex re-render cycle to manage, no synchronization headaches across multiple lifecycle phases. Just setup and cleanup.
+Since Retend components run exactly once to create the initial output, the lifecycle model is simple. There's no complex re-render cycle to manage, no synchronization headaches across multiple lifecycle phases. Just setup and cleanup.
 
 In Retend, you really only need to think about two moments: when a component starts, and when it ends.
 
@@ -76,7 +76,7 @@ If you tried to read `canvasRef.get()` inside `onSetup`, the node might not be m
 
 ## Structuring Your Components
 
-Since Retend components are essentially one-time setup scripts, you have freedom in how you organize them. But a sensible pattern helps readability:
+Since Retend components are one-time setup scripts, you have freedom in how you organize them. But a sensible pattern helps readability:
 
 1. **State** — Define your `Cell.source()` values at the top
 2. **Derived** — Add `Cell.derived()` computations next
@@ -115,4 +115,4 @@ function TodoItem({ item }) {
 }
 ```
 
-The simple rule: always include cleanup functions when you set up anything that runs in the background. Your future self (and your users' browsers) will thank you.
+Always include cleanup functions when you set up anything that runs in the background.

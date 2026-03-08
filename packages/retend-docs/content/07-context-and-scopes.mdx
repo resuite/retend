@@ -77,7 +77,7 @@ No props needed. The theme travels directly from `App` to `ThemedButton`, regard
 
 ### What Happens Without a Provider?
 
-If a component calls `useScopeContext(ThemeScope)` but no Provider exists above it, Retend throws a helpful error. You can't accidentally read from a context that doesn't exist.
+If a component calls `useScopeContext(ThemeScope)` but no Provider exists above it, Retend throws a clear error.
 
 ## Why Not Just Use Global Variables?
 
@@ -188,4 +188,4 @@ Now child components can read the current value with `.get()` and update it with
 
 ---
 
-Context Scopes are one of Retend's simplest yet most powerful features. They keep your component trees clean and your state organized. Ready to tackle multi-page applications? Next up: **Defining Routes**.
+Context Scopes keep your component trees clean and your state organized.

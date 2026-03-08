@@ -106,7 +106,7 @@ Inside a keyed loop, if an item's properties change (but its key stays the same)
 }
 ```
 
-Note that `index` is a Cell, so you need to call `.get()` when reading it inside derivations.
+`index` is a Cell, so call `.get()` when reading it inside derivations.
 
 ## Multi-State Rendering with `Switch`
 
@@ -134,4 +134,4 @@ function DataFetcher() {
 
 ---
 
-These three functions are the foundation of Retend's control flow. They keep your conditionals and loops reactive, performant, and easy to reason about. Ready to explore how components initialize and clean up? Check out **[Lifecycle Hooks](/docs/core-concepts/lifecycle-hooks)**.
+These three functions are the foundation of Retend's control flow. They keep your conditionals and loops reactive and performant.

@@ -1,20 +1,22 @@
 # JSX and Components
 
-At the heart of building interfaces with Retend are two powerful, interrelated concepts: **JSX** for describing what things look like, and **Components** for organizing those descriptions into reusable pieces.
+Retend uses **JSX** to describe the user interface and **Components** to organize those descriptions into reusable blocks.
 
-## JSX: Writing Markup as Code
+## Understanding JSX
 
-JSX is a syntax that lets you write HTML-like markup directly inside JavaScript. Rather than bouncing between separate HTML files and JavaScript files, JSX collapses that boundary—your structure, logic, and behavior all live together.
+JSX is a syntax extension that allows you to write HTML-like markup directly inside your JavaScript files. It keeps your interface structure and logic in one place.
 
 ```tsx
 const element = <h1>Hello, Retend!</h1>;
 ```
 
-When Retend processes this, it transforms it into highly optimized code that directly reaches into your renderer (whether that's the DOM in the browser, or something else entirely) and builds exactly what you need.
+When Retend processes JSX, it transforms the markup into highly optimized operations for the active renderer (such as the browser DOM).
 
-### Attributes and the HTML You Know
+### Standard HTML Attributes
 
-Since JSX compiles down to regular DOM operations, you use standard HTML attribute names. For styling with classes:
+Because JSX compiles directly to standard renderer operations, you use regular HTML attribute names.
+
+For CSS classes, use the standard `class` attribute:
 
 ```tsx
 <div class="card-container">
@@ -22,7 +24,7 @@ Since JSX compiles down to regular DOM operations, you use standard HTML attribu
 </div>
 ```
 
-For labels that reference form inputs:
+For form input labels, use the standard `for` attribute:
 
 ```tsx
 <label for="username">Username</label>
@@ -31,16 +33,16 @@ For labels that reference form inputs:
 
 ### Boolean Attributes
 
-Attributes like `checked` on checkboxes or `disabled` on buttons represent simple true/false states. In Retend, just include the attribute name and it's automatically `true`:
+Attributes like `checked` on checkboxes or `disabled` on buttons represent simple true or false states. If you include the attribute name without a value, it defaults to `true`:
 
 ```tsx
 <input type="checkbox" checked />
 <button type="button" disabled>Processing...</button>
 ```
 
-### Embedding JavaScript
+### Embedding JavaScript Expressions
 
-The real power emerges when you mix JavaScript into your markup using curly braces `{}`. Variables, expressions, calculations—whatever you need:
+You can insert JavaScript variables and expressions directly into your JSX using curly braces `{}`.
 
 ```tsx
 const userName = 'Alice';
@@ -54,21 +56,21 @@ const profile = (
 );
 ```
 
-This works in attributes too. For inline styles, pass an object with camelCased property names (`backgroundColor` instead of `background-color`):
+This also works for attribute values. For inline styles, pass a JavaScript object with camelCased property names:
 
 ```tsx
-const message = 'Something went wrong!';
-
 const alertBox = (
-  <div style={{ backgroundColor: 'red', color: 'white' }}>{message}</div>
+  <div style={{ backgroundColor: 'red', color: 'white' }}>
+    Something went wrong!
+  </div>
 );
 ```
 
-## Components: Building Blocks
+## Understanding Components
 
-While JSX lets you describe individual pieces of UI, **components** let you package them up into reusable units. A component is simply a JavaScript function that returns JSX.
+Components allow you to package UI elements into reusable units. In Retend, a component is a standard JavaScript function that returns JSX.
 
-Component names must start with a **capital letter** (PascalCase). That's how Retend knows the difference between a standard HTML element like `<div>` and something you've custom-built like `<UserProfile>`.
+Component names must start with a **capital letter** (PascalCase). This distinguishes custom components from standard HTML tags.
 
 ```tsx
 function Greeting() {
@@ -76,7 +78,7 @@ function Greeting() {
 }
 ```
 
-Once defined, use it anywhere in your JSX:
+You can use your defined component anywhere in your JSX:
 
 ```tsx
 function App() {
@@ -91,19 +93,21 @@ function App() {
 
 ### The Run-Once Architecture
 
-Here's something critical about Retend components: **they run exactly once**. When you use a component, Retend calls that function one single time to create the initial elements for your renderer. The function never runs again.
+A critical aspect of Retend's design is that **components run exactly once**.
 
-Updates happen through a different mechanism entirely—something called **Cells** (we'll explore this next). This run-once design is what gives Retend its exceptional performance. No unnecessary recalculations, no expensive re-renders. Just precise, surgical updates when data changes.
+When you use a component, Retend executes the function a single time to build the initial elements. The function will not run again.
 
-### Props: Customizing Components
+Retend handles data updates through **Cells**, which update the specific DOM elements directly without re-running the component function. This eliminates unnecessary recalculations and provides exceptional performance.
 
-Components become far more useful when you can customize them. Pass data in using **props** (short for properties), which look just like HTML attributes:
+### Passing Data with Props
+
+You can customize components by passing data into them using **props** (properties). Props look identical to HTML attributes:
 
 ```tsx
 <UserCard name="Alice" age={30} />
 ```
 
-Inside your component, receive this data as a single object (conventionally named `props`) and destructure it immediately:
+Inside your component, you receive these props as a single object. It is conventional to destructure them immediately:
 
 ```tsx
 function UserCard(props) {
@@ -118,9 +122,9 @@ function UserCard(props) {
 }
 ```
 
-#### The `children` Prop
+### Passing Content with the Children Prop
 
-Sometimes components act as containers or layouts for other content. The special `children` prop captures anything placed between a component's opening and closing tags:
+To use a component as a container or layout wrapper, use the special `children` prop. It captures any content placed between the component's opening and closing tags:
 
 ```tsx
 function AlertBox(props) {
@@ -138,9 +142,11 @@ function App() {
 }
 ```
 
-#### Spreading Props to HTML Elements
+### Forwarding Props to Elements
 
-If you're wrapping a standard HTML element (like a styled button), you'll often want to let users pass standard attributes like `disabled`, `id`, or `aria-label` straight through. Use the rest operator to gather remaining props and the spread operator to apply them:
+When building reusable wrapper components (like a custom button), you often need to forward standard attributes (like `id` or `disabled`) to the underlying HTML element.
+
+Use the rest operator (`...rest`) to gather extra props, and the spread syntax to apply them to the element:
 
 ```tsx
 function PrimaryButton(props) {
@@ -153,10 +159,10 @@ function PrimaryButton(props) {
   );
 }
 
-// Usage: 'disabled' and 'id' pass directly to the button
-<PrimaryButton id="submit-btn" disabled>
-  Submit Form
-</PrimaryButton>;
+// Usage: The 'disabled' and 'id' attributes are passed directly to the <button>
+const ui = (
+  <PrimaryButton id="submit-btn" disabled>
+    Submit Form
+  </PrimaryButton>
+);
 ```
-
-With the structure and composition basics down, you're ready to make things interactive. Next up: **Reactivity and Cells**—where we explore how Retend keeps your UI in sync with your data.

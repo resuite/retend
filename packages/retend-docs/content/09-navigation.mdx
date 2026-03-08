@@ -93,7 +93,7 @@ Both `router.navigate()` and `router.replace()` return Promises that resolve whe
 
 ## Outlets: Where Pages Live
 
-Remember from the routing section that `<Outlet />` marks the spot where matched child components get rendered. Here's how `<Link>` and `<Outlet>` work together in a typical layout:
+`<Outlet />` marks the spot where matched child components get rendered. Here's `<Link>` and `<Outlet>` in a typical layout:
 
 ```tsx
 import { Link, Outlet } from 'retend/router';
@@ -121,4 +121,4 @@ When a user clicks "Settings", the layout stays put. Only the content inside `<O
 
 ---
 
-With routing and navigation in place, you can build multi-page applications. Next, let's look at extracting dynamic data from URLs using **Queries and Params**.
+With routing and navigation in place, you can build multi-page applications.

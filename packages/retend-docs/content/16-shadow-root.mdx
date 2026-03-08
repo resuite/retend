@@ -1,0 +1,99 @@
+# Shadow Root
+
+The Shadow DOM allows hidden DOM trees to be attached to elements in the regular DOM tree. It's a key piece of web components, providing powerful encapsulation for HTML, CSS, and JavaScript.
+
+In Retend, you can easily attach a shadow root to any element using the `<ShadowRoot>` component from `retend-web`.
+
+## Using ShadowRoot
+
+To attach a shadow DOM to an element, simply nest `<ShadowRoot>` inside it. Any children passed to `<ShadowRoot>` will be rendered inside the shadow root of its parent element.
+
+```tsx
+import { ShadowRoot } from 'retend-web';
+
+function Card() {
+  return (
+    <div class="card">
+      <ShadowRoot>
+        <p>This content lives inside the shadow DOM!</p>
+      </ShadowRoot>
+    </div>
+  );
+}
+```
+
+In the example above, the `<ShadowRoot>` creates an open shadow root attached to the parent `<div>`. The `<p>` tag is safely rendered inside it.
+
+## Encapsulating Styles
+
+One of the biggest benefits of the Shadow DOM is that it encapsulates CSS styles. Styles defined inside a `<ShadowRoot>` won't leak out to affect the rest of your page, and styles from outside won't bleed in.
+
+```tsx
+import { ShadowRoot } from 'retend-web';
+
+function StyledComponent() {
+  return (
+    <div>
+      <div class="test">I am affected by global styles</div>
+      <ShadowRoot>
+        <style>{'.test { color: red; }'}</style>
+        <div class="test">I am isolated and my text is red</div>
+      </ShadowRoot>
+    </div>
+  );
+}
+```
+
+The global `.test` class doesn't affect the inner `div`, and the inner `<style>` doesn't turn the outer `div` red.
+
+## Reactivity and Features
+
+Shadow roots in Retend behave just like regular component subtrees. They fully support:
+
+- **Reactivity:** You can use Cells and control flow components (`<If>`, `<For>`) naturally inside a shadow root.
+- **Context and Scopes:** Context flows down seamlessly through shadow boundaries.
+- **Event Listeners:** Events like `onClick` attached to elements inside the shadow root work out of the box.
+- **Fragments:** You can use fragments (`<></>`) to return multiple top-level elements inside the shadow root.
+- **Nesting:** You can even nest `<ShadowRoot>` components inside each other.
+
+```tsx
+import { Cell } from 'retend';
+import { ShadowRoot } from 'retend-web';
+
+function Counter() {
+  const count = Cell.source(0);
+
+  return (
+    <div class="counter-host">
+      <ShadowRoot>
+        <style>
+          {`
+            button {
+              padding: 0.5rem 1rem;
+              background-color: #007bff;
+              color: white;
+              border: none;
+              border-radius: 4px;
+              cursor: pointer;
+            }
+          `}
+        </style>
+        <p>Count: {count}</p>
+        <button onClick={() => count.update((c) => c + 1)}>Increment</button>
+      </ShadowRoot>
+    </div>
+  );
+}
+```
+
+## Constraints and Best Practices
+
+When working with `<ShadowRoot>`, keep the following in mind:
+
+- **Must be a child of an HTML element:** The `<ShadowRoot>` component expects its parent to be a standard DOM element (like `<div>`, `<section>`, `<article>`, etc.) that supports `attachShadow`.
+- **Mode:** Retend always creates shadow roots in **`open`** mode (`mode="open"`). `closed` mode is not supported.
+- **One per parent:** A parent node should ideally have at most one `<ShadowRoot>` child. Adding multiple `ShadowRoot` components to the same parent can lead to unexpected behavior.
+
+---
+
+The `<ShadowRoot>` component provides an elegant way to integrate native web component encapsulation directly within your declarative Retend templates.

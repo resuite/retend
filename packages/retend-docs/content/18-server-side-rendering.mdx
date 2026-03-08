@@ -1,0 +1,72 @@
+# Server-Side Rendering
+
+Retend's server-side story is currently centered on static generation with hydration. You pre-render routes at build time, ship HTML, then hydrate on the client to attach interactivity.
+
+## Rendering Pipeline
+
+At a high level:
+
+1. `retendSSG` renders each configured route at build time.
+2. Retend waits for async boundaries before serializing HTML.
+3. The output includes a server context script with the rendered path.
+4. `hydrate(...)` restores router state and reuses existing DOM on the client.
+
+## Static Site Generation
+
+Use `retend-server/plugin` in `vite.config`:
+
+```ts
+import path from 'node:path';
+import { defineConfig } from 'vite';
+import { retend } from 'retend-web/plugin';
+import { retendSSG } from 'retend-server/plugin';
+
+export default defineConfig({
+  resolve: {
+    alias: { '@': path.resolve(__dirname, './source') },
+  },
+  plugins: [
+    retend(),
+    retendSSG({
+      pages: ['/', '/about'],
+      routerModulePath: './source/router.tsx',
+      rootSelector: '#app',
+    }),
+  ],
+});
+```
+
+## Hydration
+
+Hydrate the pre-rendered app from your client entry:
+
+```ts
+import { hydrate } from 'retend-server/client';
+import { createRouter } from './router';
+
+hydrate(createRouter, {
+  rootId: 'app',
+});
+```
+
+In development, hydration defaults to SPA mode. In production, hydration restores the server context and dispatches a `hydrationcompleted` event when done.
+
+## Client-Only and Async Boundaries
+
+Use `ClientOnly` for browser-only UI and `Await` for async boundaries:
+
+```tsx
+import { Await, Cell } from 'retend';
+import { ClientOnly } from 'retend-server';
+
+const asyncMessage = Cell.derivedAsync(async () => 'Ready');
+
+export const App = () => (
+  <Await fallback={<p>Loading...</p>}>
+    <p>{asyncMessage}</p>
+    <ClientOnly fallback={<span>Preparing client UI...</span>}>
+      <button type="button">Interactive</button>
+    </ClientOnly>
+  </Await>
+);
+```

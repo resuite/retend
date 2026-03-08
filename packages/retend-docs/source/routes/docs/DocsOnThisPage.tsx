@@ -10,6 +10,11 @@ interface DocsOnThisPageProps {
 export function DocsOnThisPage(props: DocsOnThisPageProps) {
   const { sectionHeadings } = props;
 
+  const displayHeadings =
+    sectionHeadings && sectionHeadings.length > 0
+      ? sectionHeadings
+      : [{ id: '', label: 'Overview', depth: 2 }];
+
   return (
     <aside class="hidden lg:sticky lg:top-[calc(var(--header-height)+var(--spacing)*14)] lg:block lg:w-52 lg:self-start">
       <div class="mb-4">
@@ -20,7 +25,7 @@ export function DocsOnThisPage(props: DocsOnThisPageProps) {
       <nav aria-label="Page sections">
         <ul class="border-border/60 relative ml-[0.5px] flex flex-col gap-2 border-l">
           {For(
-            sectionHeadings,
+            displayHeadings,
             (heading) => (
               <HeadingRoute heading={heading} />
             ),
@@ -41,12 +46,14 @@ function HeadingRoute(props: HeadingRouteProps) {
   const currentRoute = useCurrentRoute();
 
   const href = Cell.derived(() => {
-    return `${currentRoute.get().path}${currentRoute.get().query}#${heading.id}`;
+    const hash = heading.id ? `#${heading.id}` : '';
+    return `${currentRoute.get().path}${currentRoute.get().query}${hash}`;
   });
 
-  const isActive = Cell.derived(
-    () => currentRoute.get().hash === `#${heading.id}`
-  );
+  const isActive = Cell.derived(() => {
+    const expectedHash = heading.id ? `#${heading.id}` : '';
+    return currentRoute.get().hash === expectedHash;
+  });
   const isNotActive = Cell.derived(() => !isActive.get());
 
   const depthPadding = heading.depth === 2 ? 'pl-3' : 'pl-6';
