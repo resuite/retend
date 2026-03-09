@@ -1,19 +1,14 @@
 # Server-Side Rendering
 
-Retend's server-side story is currently centered on static generation with hydration. You pre-render routes at build time, ship HTML, then hydrate on the client to attach interactivity.
+Normally, Single Page Applications load an empty HTML file first, and then rely entirely on JavaScript to draw the interface on the screen. This means users (and search engines) might see a blank page for a moment while the JavaScript downloads.
 
-## Rendering Pipeline
-
-At a high level:
-
-1. `retendSSG` renders each configured route at build time.
-2. Retend waits for async boundaries before serializing HTML.
-3. The output includes a server context script with the rendered path.
-4. `hydrate(...)` restores router state and reuses existing DOM on the client.
+**Server-Side Rendering (SSR)** and **Static Site Generation (SSG)** fix this by building your HTML on the server before sending it to the browser. The user sees the full page instantly, and then Retend seamlessly attaches itself to make the page interactive.
 
 ## Static Site Generation
 
-Use `retend-server/plugin` in `vite.config`:
+Retend provides a simple plugin for Vite that can automatically pre-render all of your routes into ready-to-serve HTML files when you build your project.
+
+To use it, add `retendSSG` from `retend-server/plugin` into your `vite.config.ts`:
 
 ```ts
 import path from 'node:path';
@@ -27,6 +22,7 @@ export default defineConfig({
   },
   plugins: [
     retend(),
+    // Add the SSG plugin with the routes you want to build
     retendSSG({
       pages: ['/', '/about'],
       routerModulePath: './source/router.tsx',
@@ -36,24 +32,35 @@ export default defineConfig({
 });
 ```
 
+When you run your build command, Retend will visit both the `/` and `/about` pages and generate static HTML files for them.
+
 ## Hydration
 
-Hydrate the pre-rendered app from your client entry:
+Once the browser loads that static HTML, Retend needs to "wake it up" and reconnect all your event listeners and Reactive Cells. This process is called **Hydration**.
+
+Instead of using the standard `renderToDOM` function in your main client file, you use the `hydrate` function from `retend-server`:
 
 ```ts
 import { hydrate } from 'retend-server/client';
 import { createRouter } from './router';
 
+// This brings the static HTML back to life!
 hydrate(createRouter, {
   rootId: 'app',
 });
 ```
 
-In development, hydration defaults to SPA mode. In production, hydration restores the server context and dispatches a `hydrationcompleted` event when done.
+In development mode, `hydrate` will act normally and render the app from scratch. But in production, it will look at the existing HTML and smartly attach to it without rebuilding the entire page.
 
-## Client-Only and Async Boundaries
+## Handing Async Data
 
-Use `ClientOnly` for browser-only UI and `Await` for async boundaries:
+When rendering on the server, Retend needs to know when all your data has finished loading so it knows when to generate the HTML. It does this automatically using the `<Await>` boundaries you've already set up!
+
+## Client-Only Components
+
+Sometimes you have a component that uses browser-specific features (like reading the `window` size or accessing `localStorage`) that simply won't work on the server.
+
+You can wrap these components in `<ClientOnly>`. They will be skipped during the server build, and will only render once the JavaScript loads in the user's browser:
 
 ```tsx
 import { Await, Cell } from 'retend';
@@ -64,9 +71,13 @@ const asyncMessage = Cell.derivedAsync(async () => 'Ready');
 export const App = () => (
   <Await fallback={<p>Loading...</p>}>
     <p>{asyncMessage}</p>
-    <ClientOnly fallback={<span>Preparing client UI...</span>}>
-      <button type="button">Interactive</button>
+
+    {/* This button will NOT be rendered into the static HTML file */}
+    <ClientOnly fallback={<span>Preparing interactive button...</span>}>
+      <button type="button">Accesses Local Storage</button>
     </ClientOnly>
   </Await>
 );
 ```
+
+By safely isolating browser-only code, your application can render perfectly on the server every time.

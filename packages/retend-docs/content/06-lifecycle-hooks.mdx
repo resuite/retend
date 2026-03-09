@@ -1,28 +1,12 @@
 # Lifecycle Hooks
 
-Since Retend components run exactly once to create the initial output, the lifecycle model is simple. There's no complex re-render cycle to manage, no synchronization headaches across multiple lifecycle phases. Just setup and cleanup.
+Because Retend components run exactly once to build your interface, the component lifecycle is very simple. You really only need to think about two moments: when a component is created, and when it is destroyed.
 
-In Retend, you really only need to think about two moments: when a component starts, and when it ends.
+Retend gives you two functions for running code at these specific times: `onSetup` and `onConnected`. Both run when the component initializes, and both let you return a "cleanup" function that runs when the component is destroyed.
 
-## `onSetup` and `onConnected`
+## Running Background Tasks with `onSetup`
 
-Retend gives you two hooks for managing side effects and initialization logic: `onSetup` and `onConnected`. Both run when the component initializes, and if you return a cleanup function from either, it runs when the component is destroyed.
-
-The key difference is _when_ they run relative to each other:
-
-**The Timeline:**
-
-1. `onConnected` runs first — the moment the physical node attaches to the environment (e.g., the DOM)
-2. `onSetup` runs second — after the entire component tree is initialized
-
-When the component unmounts, cleanup runs in reverse:
-
-1. `onSetup` cleanup runs
-2. `onConnected` cleanup runs
-
-## Setting Up Logical State
-
-Use `onSetup` for anything that doesn't need a physical DOM node. This is where you establish WebSocket connections, create timers, set up global event listeners, or initialize any background processes.
+Use `onSetup` for logic that doesn't need to interact with the physical elements on the page. This is where you should set up timers, fetch initial data, or subscribe to external events.
 
 ```tsx
 import { onSetup, Cell } from 'retend';
@@ -32,10 +16,10 @@ function LiveClock() {
   const timeString = Cell.derived(() => time.get().toLocaleTimeString());
 
   onSetup(() => {
-    // Start updating the time every second
+    // This runs once when the component is created
     const timerId = setInterval(() => time.set(new Date()), 1000);
 
-    // Clean up when the component unmounts
+    // The function you return here runs when the component is destroyed
     return () => clearInterval(timerId);
   });
 
@@ -43,69 +27,71 @@ function LiveClock() {
 }
 ```
 
-The cleanup function is critical. If you're running background tasks like intervals or event listeners, returning a cleanup function prevents memory leaks and ensures those tasks stop when the component is removed from the screen.
+The cleanup function is critical. If you start a timer or an event listener, returning a cleanup function ensures those tasks stop when the component leaves the screen, preventing memory leaks in your application.
 
-## Working with Physical Nodes
+## Working with the DOM using `onConnected`
 
-Sometimes you need to interact with the actual DOM element — measure it, draw on a canvas, initialize a third-party widget. That's where `onConnected` comes in.
+Sometimes you need to interact directly with an HTML element—for example, to measure its size, draw on a canvas, or attach a third-party library.
 
-`onConnected` takes a ref (created with `Cell.source(null)`) and a callback that receives the connected node. This guarantees the node exists in the renderer before your code runs.
+If you try to do this inside `onSetup`, the element might not be on the screen yet. `onConnected` solves this. You give it a reference to an element, and it guarantees the element is ready to use before your code runs.
 
 ```tsx
 import { onConnected, Cell } from 'retend';
 
 function CanvasDrawer() {
+  // 1. Create a reference starting at null
   const canvasRef = Cell.source<HTMLCanvasElement | null>(null);
 
+  // 2. Pass the reference to onConnected
   onConnected(canvasRef, (canvas) => {
+    // At this point, `canvas` is guaranteed to be the actual HTML element
     const context = canvas.getContext('2d');
     context.fillStyle = 'blue';
     context.fillRect(10, 10, 150, 100);
 
     return () => {
-      // Cleanup if needed
+      // Cleanup runs when the canvas is removed from the page
       console.log('Canvas is being removed');
     };
   });
 
+  // 3. Attach the reference to your JSX using the `ref` attribute
   return <canvas ref={canvasRef} width="200" height="200"></canvas>;
 }
 ```
 
-If you tried to read `canvasRef.get()` inside `onSetup`, the node might not be mounted yet. `onConnected` removes that uncertainty — the node is guaranteed to exist.
-
 ## Structuring Your Components
 
-Since Retend components are one-time setup scripts, you have freedom in how you organize them. But a sensible pattern helps readability:
+Since components only run once, you have the freedom to organize them however you like. However, following a consistent pattern makes your code much easier to read:
 
-1. **State** — Define your `Cell.source()` values at the top
-2. **Derived** — Add `Cell.derived()` computations next
-3. **Handlers** — Write your event handler functions
-4. **Lifecycle** — Place `onSetup` and `onConnected` near the bottom
-5. **Return** — End with your JSX
+1. **State:** Define your `Cell.source()` values at the top.
+2. **Derived:** Add any `Cell.derived()` computations.
+3. **Handlers:** Write your event handler functions (like `onClick`).
+4. **Lifecycle:** Place your `onSetup` and `onConnected` blocks.
+5. **Return:** End by returning your JSX.
 
-This ordering ensures all your Cells and handlers are available when lifecycle hooks run.
+This order ensures all your data and functions are fully ready by the time your lifecycle blocks run.
 
 ```tsx
 function TodoItem({ item }) {
-  // State first
+  // 1. State
   const isEditing = Cell.source(false);
 
-  // Derived state
+  // 2. Derived
   const displayText = Cell.derived(() => {
     return isEditing.get() ? 'Editing...' : item.title;
   });
 
-  // Handlers
+  // 3. Handlers
   const toggleEdit = () => isEditing.set(!isEditing.get());
 
-  // Lifecycle last
+  // 4. Lifecycle
   onSetup(() => {
     console.log('TodoItem created:', item.id);
     return () => console.log('TodoItem destroyed:', item.id);
   });
 
-  // JSX return
+  // 5. Return JSX
   return (
     <div>
       <span>{displayText}</span>
@@ -116,5 +102,3 @@ function TodoItem({ item }) {
   );
 }
 ```
-
-Always include cleanup functions when you set up anything that runs in the background.

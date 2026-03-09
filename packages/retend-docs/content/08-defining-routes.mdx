@@ -1,60 +1,44 @@
 # Defining Routes
 
-Traditional web applications work one way: you click a link, the browser fetches a whole new HTML document, and the page reloads. It's simple but slow.
+In most web applications, you want to show different pages when the user visits different URLs (like `/home` or `/about`). In Retend, we do this using a **Router**.
 
-Single Page Applications (SPAs) take a different approach. The initial page loads once, and then JavaScript takes over to handle all subsequent navigation. URLs change, but the page doesn't reload. This creates a fast, app-like experience that feels native to the browser.
-
-Retend includes a router—no third-party libraries needed.
+The router keeps track of the current URL and decides which components to show on the screen. Retend includes its own router built-in, so you don't need to install any extra libraries!
 
 ## Setting Up Routes
 
-To define your application's routing, you create an array of **Route Records**. Each record connects a URL path to a component.
+To set up your application's routing, you define an array of **Route Records**. Each record simply connects a URL path to a component.
 
-While plain arrays work fine, the `defineRoutes` helper gives you better TypeScript inference and IDE autocompletion:
+We use the `defineRoutes` helper function to create this array:
 
 ```tsx
 import { Router, defineRoutes, createRouterRoot } from 'retend/router';
 import { renderToDOM } from 'retend-web';
 
-// Your page components
+// 1. Create your page components
 const Home = () => <div>Welcome to the Home Page</div>;
 const About = () => <div>About Us</div>;
 
-// Define your routes
+// 2. Define your routes
 const routes = defineRoutes([
   { path: '/', component: Home },
   { path: '/about', component: About },
 ]);
 
-// Initialize and render
+// 3. Initialize the Router
 const router = new Router({ routes });
 const root = document.getElementById('app')!;
+
+// 4. Render the router to the screen
 renderToDOM(root, () => createRouterRoot(router));
 ```
 
-The `createRouterRoot` function takes your router and turns it into a renderable component. It also establishes a **router context** that any component in your app can tap into using the `useRouter()` hook:
-
-```tsx
-import { useRouter } from 'retend/router';
-
-function BackButton() {
-  const router = useRouter();
-  const handleBack = () => {
-    router.back();
-  };
-  return (
-    <button type="button" onClick={handleBack}>
-      Go Back
-    </button>
-  );
-}
-```
+The `createRouterRoot` function takes your router and turns it into a component that can be rendered.
 
 ## Nested Routes and Layouts
 
-Most apps have a consistent structure across pages—a header here, a sidebar there. Building this with flat routes means copy-pasting shared components into every page, which is both repetitive and wasteful (those components get destroyed and recreated on every navigation).
+Most applications share common layout elements across different pages—like a header at the top or a navigation sidebar on the left.
 
-Nested routes solve this elegantly. A parent route acts as a layout, and the `<Outlet />` component marks where child routes should render:
+Instead of copying and pasting the header into every single page component, you can use **Nested Routes**. You define a parent route that acts as the layout, and use the special `<Outlet />` component to mark where the child pages should be rendered.
 
 ```tsx
 import { defineRoutes, Outlet } from 'retend/router';
@@ -64,6 +48,7 @@ function DashboardLayout() {
     <div class="dashboard-layout">
       <aside>Sidebar Navigation</aside>
       <main>
+        {/* The child page content will appear here */}
         <Outlet />
       </main>
     </div>
@@ -85,11 +70,11 @@ const routes = defineRoutes([
 ]);
 ```
 
-The `DashboardLayout` component stays mounted while navigating between its children. Only the content inside `<Outlet />` swaps out.
+Now, when a user visits `/dashboard/overview`, the `DashboardLayout` appears on the screen, and the `Overview` component is placed right where the `<Outlet />` is. When they navigate to `/dashboard/settings`, the sidebar stays exactly where it is, and only the `<Outlet />` part changes.
 
-### Index Routes
+### Default Child Routes
 
-What happens when a user visits `/dashboard` exactly? The Outlet would be empty. You can define a default child route by setting its path to an empty string:
+If a user visits exactly `/dashboard`, the `<Outlet />` would be empty because no child route was specified. You can create a default child route by using an empty string (`''`) as the path:
 
 ```tsx
 const routes = defineRoutes([
@@ -97,57 +82,43 @@ const routes = defineRoutes([
     path: '/products',
     component: ProductsLayout,
     children: [
-      { path: '', component: ProductList },
+      { path: '', component: ProductList }, // This loads by default at /products
       { path: 'categories', component: CategoriesList },
     ],
   },
 ]);
 ```
 
-Now `/products` shows the product list by default.
+## Dynamic URLs
 
-## Dynamic URL Segments
-
-Some URLs need to capture variable data—a user ID, a post ID, a category name. Prefix a segment with a colon to make it dynamic:
+Sometimes URLs need to contain variable data, like a specific user's ID or a blog post's title. You can create a dynamic route by adding a colon (`:`) before a segment in the path:
 
 ```tsx
 const routes = defineRoutes([
-  // Matches /users/123 or /users/alice
+  // This matches /users/123, /users/alice, etc.
   { path: '/users/:userId', component: UserProfile },
 
-  // Multiple dynamic segments work too
+  // You can even have multiple dynamic segments
   { path: '/posts/:category/:postId', component: BlogPost },
 ]);
 ```
 
-How do you access these parameters in your components? That's covered in the **Queries and Params** section, but the short answer is `useCurrentRoute()` and reading `params` from the current route cell.
+We will cover how to actually access those variables (like the `userId`) from inside your components in the next few sections.
 
-## Wildcards and Catch-Alls
+## Handling "404 Not Found"
 
-### Matching Anything: The Catch-All Route
+If a user visits a URL that doesn't exist in your routes, you probably want to show a custom "Not Found" page. You can use an asterisk (`*`) to create a route that matches absolutely anything.
 
-For custom 404 pages, use a single asterisk (`*`). Since routes are evaluated in order, put this at the end:
+Because the router checks routes in order from top to bottom, always put your "catch-all" route at the very end:
 
 ```tsx
 const routes = defineRoutes([
   { path: '/', component: Home },
   { path: '/about', component: About },
+
+  // If nothing above matched, this will run
   { path: '*', component: NotFoundPage },
 ]);
 ```
 
-### Capturing Multiple Segments
-
-Building something like a file explorer? You might need to capture an unknown number of trailing segments. Add an asterisk after a dynamic parameter:
-
-```tsx
-const routes = defineRoutes([
-  // Matches /files/images/2026/vacation/photo.png
-  // Captures "images/2026/vacation/photo.png" into filePath
-  { path: '/files/:filePath*', component: FileViewer },
-]);
-```
-
----
-
-Routes define _what_ your app can show.
+With your routes defined, your application now knows exactly what to show for any URL.

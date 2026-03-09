@@ -1,10 +1,12 @@
 # Control Flow
 
-Retend handles conditional rendering and lists differently than many frameworks. Instead of sprinkling logic operators throughout your JSX, you use pure JavaScript functions—`If`, `For`, and `Switch`—that keep your code type-safe, performant, and reactive.
+In Retend, you use special functions—`If`, `For`, and `Switch`—to handle conditionals and lists in your user interface. These functions connect directly to your Cells, so when your data changes, your layout updates automatically.
 
 ## Conditional Rendering with `If`
 
-Need to show different content based on a condition? The `If` function takes a Cell (or any value) and branches based on its truthiness.
+When you want to show or hide parts of your interface based on a condition, use the `If` function.
+
+It takes a Cell (or any regular value) and branches based on whether the value is true or false.
 
 ```tsx
 import { If, Cell } from 'retend';
@@ -16,7 +18,7 @@ function ToggleMessage() {
   return (
     <div>
       <button type="button" onClick={toggle}>
-        Toggle
+        Toggle Message
       </button>
 
       {If(show, {
@@ -28,21 +30,23 @@ function ToggleMessage() {
 }
 ```
 
-You only need the `true` branch if that's all you're rendering:
+If you only care about the `true` case, you can just provide that branch:
 
 ```tsx
 {
   If(show, {
-    true: () => <p>Only shows when true.</p>,
+    true: () => <p>Only shows when the Cell is true.</p>,
   });
 }
 ```
 
-**Why not use `&&` or ternary operators?** Those operators don't bind to Retend's DOM tracking system, so they won't react when Cells change. Stick with `If` instead.
+_(Note: Standard JavaScript `if` statements or `&&` operators don't connect to Retend's reactivity system if the data changes later. Always use the `If` function for parts of your UI that can change)._
 
 ## Rendering Lists with `For`
 
-The `For` function handles arrays—whether they're static or wrapped in a Cell. You give it the array, a callback that returns JSX for each item, and optionally a key strategy for efficient DOM reuse.
+When you have an array of data, use the `For` function to display a list of elements.
+
+You provide the array, and a callback function that returns the JSX you want to render for each item.
 
 ```tsx
 import { For, Cell } from 'retend';
@@ -59,10 +63,10 @@ function ItemList() {
         items,
         (item, index) => (
           <li>
-            #{index}: {item.name}
+            Item {index}: {item.name}
           </li>
         ),
-        { key: 'id' }
+        { key: 'id' } // Helps Retend update lists efficiently
       )}
     </ul>
   );
@@ -71,48 +75,13 @@ function ItemList() {
 
 ### Using Keys for Efficiency
 
-When you're rendering a list of objects with unique identifiers, always provide a `key` option. This tells Retend which DOM nodes can be reused when items are added, removed, or reordered—instead of destroying and recreating everything.
+When rendering a list of objects that might change (like adding or removing items), it's highly recommended to provide a `key` in the options object at the end.
 
-You can specify a key as a string (the property name):
-
-```tsx
-{
-  key: 'id';
-}
-```
-
-Or as a function that extracts the key:
-
-```tsx
-{
-  key: (item) => item.userId;
-}
-```
-
-Don't manually add `key` props to your JSX—Retend handles DOM stability automatically through the options object.
-
-### Keeping Sub-Properties Reactive
-
-Inside a keyed loop, if an item's properties change (but its key stays the same), you might lose fine-grained reactivity. To preserve it, derive a Cell for each item:
-
-```tsx
-{
-  For(
-    users,
-    (user, index) => {
-      const userCell = Cell.derived(() => users.get()[index.get()]);
-      return <UserCard user={userCell} />;
-    },
-    { key: 'id' }
-  );
-}
-```
-
-`index` is a Cell, so call `.get()` when reading it inside derivations.
+The `key` tells Retend how to uniquely identify each item, which makes updating the list much faster. You can provide the name of the unique ID property as a string, like `key: 'id'`.
 
 ## Multi-State Rendering with `Switch`
 
-When you have more than two states—like a data-fetching UI with "loading", "success", and "error" states—`Switch` is cleaner than nested `If` calls.
+When you have more than two possible states—like checking whether data is "loading", "success", or "error"—nested `If` functions can get messy. The `Switch` function handles this cleanly.
 
 ```tsx
 import { Switch, Cell } from 'retend';
@@ -132,8 +101,6 @@ function DataFetcher() {
 }
 ```
 
-`Switch` checks the Cell's value against each key in the object. When it finds a match, it runs that branch. If nothing matches, nothing renders.
+`Switch` looks at the value inside your Cell and runs the matching branch. If the status is "success", it only renders the `success` branch.
 
----
-
-These three functions are the foundation of Retend's control flow. They keep your conditionals and loops reactive and performant.
+By using `If`, `For`, and `Switch`, you ensure your layouts stay in sync with your data automatically.

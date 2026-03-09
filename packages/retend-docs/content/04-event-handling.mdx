@@ -1,10 +1,10 @@
 # Event Handling
 
-When users click buttons, type in inputs, or hover over elements, Retend lets you respond with event props.
+When users click buttons, type in inputs, or hover over elements, you want your application to respond. In Retend, you do this using event props.
 
 ## Listening to Events
 
-Adding event listeners in Retend is simple: pass a function to an event prop. Use **camelCase** event names (like `onClick`, `onInput`, `onSubmit`) rather than the lowercase HTML style.
+Adding event listeners is simple: pass a function to an event prop. Use **camelCase** event names (like `onClick`, `onInput`, `onSubmit`) rather than the lowercase HTML style.
 
 ```tsx
 function LoggingButton() {
@@ -20,51 +20,9 @@ function LoggingButton() {
 }
 ```
 
-Prefer defining handlers before JSX and reusing them in event props:
-
-```tsx
-function ReusableButton() {
-  const handleClick = () => {
-    console.log('Clicked!');
-  };
-
-  return (
-    <button type="button" onClick={handleClick}>
-      Click Me
-    </button>
-  );
-}
-```
-
-## Updating State from Events
-
-The whole point of listening to events is usually to change something. In Retend, that means updating your Cells by calling `.set()`.
-
-Since your component function only runs once, you don't have to worry about re-renders. Retend just updates the DOM elements directly:
-
-```tsx
-import { Cell } from 'retend';
-
-function Counter() {
-  const count = Cell.source(0);
-  const increment = () => {
-    count.set(count.get() + 1);
-  };
-
-  return (
-    <div>
-      <p>Current count: {count}</p>
-      <button type="button" onClick={increment}>
-        Add +1
-      </button>
-    </div>
-  );
-}
-```
-
 ## Working with the Event Object
 
-Your handler receives the standard DOM `Event` object, giving you access to whatever details you need: key presses, mouse coordinates, form values, and more.
+Your event handler function automatically receives the standard `Event` object. This object holds all the details about what just happened—like which key was pressed, where the mouse clicked, or what text the user typed.
 
 ```tsx
 function SearchInput() {
@@ -82,15 +40,42 @@ function SearchInput() {
 }
 ```
 
+## Updating State from Events
+
+Most of the time, an event should change something on the screen. To do this, simply update your Cells by calling `.set()`. Because Retend is reactive, updating the Cell automatically updates the user interface.
+
+```tsx
+import { Cell } from 'retend';
+
+function Counter() {
+  const count = Cell.source(0);
+
+  const increment = () => {
+    count.set(count.get() + 1);
+  };
+
+  return (
+    <div>
+      <p>Current count: {count}</p>
+      <button type="button" onClick={increment}>
+        Add +1
+      </button>
+    </div>
+  );
+}
+```
+
 ## Event Modifiers
 
-Writing `event.preventDefault()` at the top of every form handler gets tedious. Retend lets you attach **modifiers** directly to your event names using double hyphens:
+Sometimes dealing with events requires writing the same extra code over and over again. For example, you almost always need to call `event.preventDefault()` when a user submits a form, otherwise the browser will try to navigate to a new page.
+
+Retend provides **modifiers** that handle these common tasks for you automatically. You attach them directly to your event names using double hyphens (`--`):
 
 ```tsx
 function Form() {
   const handleSubmit = () => {
     console.log('Form submitted!');
-    // preventDefault is handled automatically
+    // No need to call event.preventDefault() here!
   };
 
   return (
@@ -103,47 +88,23 @@ function Form() {
 
 ### Available Modifiers
 
-- **`--prevent`**: Calls `event.preventDefault()`. Essential for forms and links that would normally cause navigation.
-- **`--stop`**: Calls `event.stopPropagation()`. Prevents the event from bubbling to parent elements.
-- **`--once`**: The handler only fires once, then automatically unbinds itself.
-- **`--passive`**: Marks the listener as passive, improving scroll performance on `onScroll` or `onTouchMove` (incompatible with `--prevent`).
+- **`--prevent`**: Automatically calls `event.preventDefault()`. Very common for forms and links.
+- **`--stop`**: Automatically calls `event.stopPropagation()`. Stops the event from triggering events on parent elements.
+- **`--once`**: Ensures the event handler only runs a single time, then automatically removes it.
+- **`--passive`**: Improves performance for scrolling events (like `onScroll` or `onTouchMove`). Cannot be used with `--prevent`.
 
-You can combine modifiers if needed:
+You can even combine modifiers if you need to:
 
 ```tsx
 function EventShowcase() {
-  const handleParentClick = () => {
-    console.log('Div clicked');
-  };
-
-  const handleFormSubmit = () => {
-    console.log('Form saved');
-  };
-
-  const handleStopClick = () => {
-    console.log('Only button clicked');
-  };
-
   const handleOnceClick = () => {
     console.log('Just once!');
   };
 
   return (
-    <div onClick={handleParentClick}>
-      <form onSubmit--prevent={handleFormSubmit}>
-        <button type="submit">Save</button>
-      </form>
-
-      <button type="button" onClick--stop={handleStopClick}>
-        Stop Bubbling
-      </button>
-
-      <button type="button" onClick--once={handleOnceClick}>
-        One-Time Click
-      </button>
-    </div>
+    <button type="button" onClick--stop--once={handleOnceClick}>
+      One-Time Click
+    </button>
   );
 }
 ```
-
-By handling event mechanics directly in your JSX, you can focus on your application logic instead of boilerplate.

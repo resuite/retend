@@ -1,130 +1,81 @@
 # Teleport
 
-Some UI elements don't play well with the normal DOM hierarchy. A modal needs to float above everything. A dropdown menu needs to escape its parent's `overflow: hidden`. A tooltip needs to break free from complex z-index stacking contexts. These components need to render _somewhere else_ in the DOM—physically detached from where they're logically defined.
+Sometimes you need to create a UI element that sits "on top" of your entire application, like a modal popup, a dropdown menu, or a tooltip.
 
-Retend's `<Teleport>` component lets you do exactly that: define a component in one place in your code, but render its output somewhere completely different in the actual DOM.
+If you try to render these deep inside your component tree, you often run into CSS issues. Parent components might have `overflow: hidden` which cuts off your dropdown, or complex `z-index` rules that cause your modal to appear behind other elements.
+
+To solve this, Retend provides the `<Teleport>` component. It lets you write your component exactly where it belongs logically in your code, but tells the browser to render the actual HTML elements somewhere else entirely—usually at the very end of the `<body>` tag where they can avoid all CSS layout issues.
 
 ## Using Teleport
 
-Wrap the content you want to move and tell it where to go with the `to` prop:
+To use Teleport, simply wrap the content you want to move and use the `to` prop to tell it where to go.
+
+Notice that `<Teleport>` is imported from `retend-web`, not `retend`, because it is specific to the browser!
 
 ```tsx
-import { Cell, If } from 'retend';
+import { If } from 'retend';
 import { Teleport } from 'retend-web';
 
-function Modal(props) {
-  const { isOpen, onClose } = props;
+export function Modal(props) {
+  const { isOpen, onClose, title } = props;
 
   return If(isOpen, {
     true: () => (
+      // Teleport this entire chunk of HTML to the #modal-root element
       <Teleport to="#modal-root">
-        <dialog class="modal-overlay" open onClick={onClose}>
-          <article class="modal-content" onClick--stop>
-            <h2>Modal Title</h2>
+        <div class="modal-overlay" onClick={onClose}>
+          <div class="modal-content" onClick--stop>
+            <h2>{title}</h2>
             <button type="button" onClick={onClose}>
               Close
             </button>
-          </article>
-        </dialog>
+          </div>
+        </div>
       </Teleport>
     ),
   });
 }
 ```
 
-In your HTML, set up a container for teleported content:
+In your main HTML file, you just need to make sure that target element actually exists:
 
 ```html
 <body>
+  <!-- Your main app renders here -->
   <div id="app"></div>
+
+  <!-- Your teleported modals will render here -->
   <div id="modal-root"></div>
 </body>
 ```
 
-When `isOpen` is true, the modal renders inside `#modal-root`—not inside the `<Modal>` component's normal DOM position. When `isOpen` becomes false, Retend cleanly removes the modal from the target.
+You can use either an ID selector (like `#modal-root`) or a tag name (like `body`) for the `to` prop.
 
-### CSS Selectors
+## Logical vs. Physical
 
-The `to` prop supports only `#id` and tag name selectors:
+The magic of `<Teleport>` is that it only moves your elements _physically_ in the HTML.
 
-```tsx
-<Teleport to="#popover-container">...</Teleport>
-<Teleport to="body">...</Teleport>
-```
+_Logically_, your component behaves exactly as if it was still sitting in its original spot in the code. This means:
 
-If Retend can't find a matching element, it logs an error to the console.
-
-## Physical vs. Logical
-
-`<Teleport>` only changes where elements _physically_ appear in the DOM. Logically, they're still children of the component that rendered them.
-
-This means:
-
-- **Reactivity works perfectly.** Cells used inside the Teleport update seamlessly.
-- **Context still flows.** Scopes and Context you access from parent components work inside the Teleport.
+1. **Reactivity works perfectly:** Any Cells you use inside the Teleport will still update the UI instantly when they change.
+2. **Scopes still work:** If you teleport a tooltip to the `<body>`, it can still access data from a Scope Provider that wraps its original parent component!
 
 ```tsx
-import { useScopeContext, Cell } from 'retend';
+import { useScopeContext } from 'retend';
 import { Teleport } from 'retend-web';
 import { ThemeScope } from './scopes';
 
-function ThemedTooltip(props) {
-  const { text } = props;
-
-  // Access the theme from our logical parent, even though
-  // we physically render in the body
+function ThemedTooltip() {
+  // We can still read the ThemeScope from our parent component,
+  // even though we are teleporting our HTML to the very bottom of the page!
   const theme = useScopeContext(ThemeScope);
-  const isDarkTheme = Cell.derived(() => theme.get() === 'dark');
-  const isLightTheme = Cell.derived(() => theme.get() === 'light');
 
   return (
     <Teleport to="body">
-      <div
-        class={[
-          'tooltip',
-          { 'tooltip-dark': isDarkTheme, 'tooltip-light': isLightTheme },
-        ]}
-      >
-        {text}
-      </div>
+      <div class={`tooltip tooltip-${theme.get()}`}>Helpful information!</div>
     </Teleport>
   );
 }
 ```
 
-The tooltip logically belongs to its parent component's tree, so it can read any Context from above. But physically, it lives in the `<body>`, free from layout constraints.
-
-## A Practical Example
-
-Here's a complete modal system with overlay dismissal:
-
-```tsx
-function ConfirmDialog(props) {
-  const { title, message, onConfirm, onCancel } = props;
-
-  return (
-    <Teleport to="#dialog-root">
-      <div class="dialog-overlay" onClick={onCancel}>
-        <div class="dialog-box" onClick--stop>
-          <h2>{title}</h2>
-          <p>{message}</p>
-          <div class="dialog-actions">
-            <button type="button" onClick={onCancel}>
-              Cancel
-            </button>
-            <button type="button" onClick={onConfirm} class="btn-primary">
-              Confirm
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-  );
-}
-```
-
-The overlay click closes the dialog, but clicking inside the box doesn't (thanks to `onClick--stop`). The logical parent can still pass down Cells and Context. The physical rendering location keeps it above everything else on the page.
-
----
-
-Teleport bridges the gap between logical component hierarchy and physical DOM structure. Use it for overlays, dropdowns, tooltips, and any UI that needs to break free from normal layout constraints.
+With `<Teleport>`, you don't have to choose between clean component architecture and bulletproof CSS layouts. You get both.

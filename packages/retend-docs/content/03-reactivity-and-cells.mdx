@@ -1,12 +1,10 @@
 # Reactivity and Cells
 
-Retend takes a fundamentally different approach to UI updates than most frameworks. **Components run exactly once** to create the initial DOM elements. They don't re-render. Instead, Retend uses a fine-grained reactivity system called **Cells** to surgically update just the parts of your interface that actually changed.
+## What is Reactivity?
 
----
+When you build a web application, your data often changes over time. Whether a user clicks a button, a network request completes, or a background timer ticks, you want your user interface to automatically update to reflect the newest information. This automatic updating is what we call **reactivity**.
 
-## How Reactivity Works
-
-A `Cell` is a simple container for a value. What makes Cells powerful is that Retend automatically tracks _where_ that value is used in your application. When the value changes, Retend updates only those specific locations in the DOM—nothing more, nothing less.
+In Retend, reactivity is powered by **Cells**. A Cell is a simple container for your data. When the data inside a Cell changes, Retend automatically updates the exact parts of the screen where that Cell is used—nothing more, nothing less.
 
 You create a new reactive value using `Cell.source()`:
 

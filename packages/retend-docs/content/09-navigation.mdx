@@ -1,14 +1,12 @@
 # Navigation
 
-Once your routes are defined, users need a way to move between pages. In a traditional website, that's done with `<a>` tags—the browser loads a new HTML document and starts over. In a single-page app built with Retend, clicking a link should update the URL and swap out the page content, all without a full reload.
-
-Retend gives you both declarative and programmatic ways to handle navigation cleanly and efficiently.
+Once your routes are defined, users need a way to move between pages. Retend provides built-in tools to handle navigation instantly, without triggering a full browser page reload.
 
 ## Using Links
 
-The `<Link>` component is your go-to for navigation. It renders a standard HTML `<a>` tag under the hood, but intercepts clicks to update the URL client-side instead of triggering a page reload.
+The `<Link>` component is what you should use for almost all navigation. It renders a standard HTML `<a>` tag, but it intercepts the click to smoothly update the URL and swap the page content instantly.
 
-This approach is recommended for almost all navigation. It respects accessibility, lets users open links in new tabs, and works well with search engines.
+Because it uses a real `<a>` tag under the hood, it's great for accessibility, search engines, and lets users right-click to open links in new tabs.
 
 ```tsx
 import { Link } from 'retend/router';
@@ -24,7 +22,7 @@ export function NavigationMenu() {
 }
 ```
 
-Since `<Link>` renders a real `<a>` tag, you can pass standard HTML attributes like `class`, `id`, or `aria-label`:
+You can pass standard HTML attributes like `class`, `id`, or `aria-label` directly to the `<Link>` component:
 
 ```tsx
 <Link
@@ -36,13 +34,11 @@ Since `<Link>` renders a real `<a>` tag, you can pass standard HTML attributes l
 </Link>
 ```
 
-### Replacing History Instead of Adding to It
+### Replacing History
 
-By default, clicking a `<Link>` pushes a new entry to the browser's history stack. The user can click "Back" to return.
+By default, clicking a `<Link>` adds a new entry to the browser's history, allowing the user to click the "Back" button to return to where they came from.
 
-Sometimes you want to replace the current history entry instead—like redirecting from a login page to a dashboard after successful authentication. You don't want the login page lingering in the browser history.
-
-Use the `replace` attribute for this:
+Sometimes you don't want them to be able to go back. For example, if they just logged in, pressing "Back" shouldn't take them back to the login page. You can use the `replace` prop to instantly replace the current history entry instead:
 
 ```tsx
 <Link href="/dashboard" replace>
@@ -52,9 +48,9 @@ Use the `replace` attribute for this:
 
 ## Navigating from Code
 
-While `<Link>` handles static navigation, you often need to navigate as a _consequence_ of something else—submitting a form, completing an API call, or finishing a multi-step process.
+Sometimes you need to navigate the user automatically after they do something, like submitting a form or completing a payment.
 
-For those cases, reach for the `useRouter()` hook to get access to the router and call `.navigate()` programmatically:
+For these situations, you can use the `useRouter()` function to access the router directly from your code, and call `router.navigate()`.
 
 ```tsx
 import { useRouter } from 'retend/router';
@@ -69,6 +65,7 @@ export function LoginForm() {
 
     try {
       await performLogin();
+      // After login is successful, automatically navigate to the dashboard
       await router.navigate('/dashboard');
     } catch (error) {
       console.error('Login failed', error);
@@ -79,7 +76,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit--prevent={handleSubmit}>
-      {/* form fields... */}
+      {/* ... form fields ... */}
       <button type="submit" disabled={isSubmitting}>
         Log In
       </button>
@@ -88,36 +85,6 @@ export function LoginForm() {
 }
 ```
 
-Both `router.navigate()` and `router.replace()` return Promises that resolve when navigation—including any middlewares or lazy loading—completes.
+Just like with links, you can also use `router.replace('/login')` if you want to replace the browser history entry instead of adding a new one.
 
-## Outlets: Where Pages Live
-
-`<Outlet />` marks the spot where matched child components get rendered. Here's `<Link>` and `<Outlet>` in a typical layout:
-
-```tsx
-import { Link, Outlet } from 'retend/router';
-
-export function AppLayout() {
-  return (
-    <div class="app-container">
-      <header>
-        <div class="logo">MyApp</div>
-        <nav>
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/settings">Settings</Link>
-        </nav>
-      </header>
-
-      <main class="content-area">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
-```
-
-When a user clicks "Settings", the layout stays put. Only the content inside `<Outlet>` swaps to the new page—a smooth, state-preserving transition.
-
----
-
-With routing and navigation in place, you can build multi-page applications.
+Both `router.navigate()` and `router.replace()` return Promises, which means you can `await` them to know exactly when the entire page transition is fully complete.

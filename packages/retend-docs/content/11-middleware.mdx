@@ -1,71 +1,64 @@
 # Middleware
 
-Routing middleware is like a security checkpoint or a tollbooth—every time a user tries to navigate to a new route, your middleware gets a chance to inspect, approve, or redirect that navigation before it actually happens. Use it for protecting admin routes, tracking analytics, enforcing permission checks, redirecting after login, and more.
+When building an application, you often have pages that shouldn't be accessible to everyone. For example, a user shouldn't be able to reach their dashboard if they aren't logged in.
 
-## How Middleware Works
+**Middleware** acts like a security checkpoint for your router. Every time a user tries to navigate to a new page, your middleware gets a chance to inspect the request, and can choose to approve it or redirect the user somewhere else.
 
-You define middleware using the `defineRouterMiddleware` function. Each middleware is a function that runs during navigation:
+## Creating Middleware
+
+You create middleware using the `defineRouterMiddleware` function. It takes a function that runs right before every navigation happens:
 
 ```tsx
 import { defineRouterMiddleware } from 'retend/router';
 
-const analyticsMiddleware = defineRouterMiddleware((details) => {
-  console.log(
-    `User navigated from ${details.from?.path} to ${details.to.path}`
-  );
+// A simple middleware that just logs where the user is going
+const loggingMiddleware = defineRouterMiddleware((details) => {
+  console.log(`User is going to: ${details.to.path}`);
 });
 ```
 
-The `details` object contains information about the navigation:
+The `details` object passed to your function contains two important properties:
 
-- **`to`**: A `RouteData` object describing where the user is going
-- **`from`**: A `RouteData` object describing where they came from (null on initial load)
+- **`to`**: Information about where the user is trying to go.
+- **`from`**: Information about the current page they are leaving.
 
-Both objects include:
+## Protecting Routes (Redirects)
 
-- `name` — the route's name
-- `path` — the route pattern (e.g., `/users/:userId`)
-- `fullPath` — the complete URL including query params
-- `params` — a Map of extracted URL parameters
-- `query` — a URLSearchParams object of query parameters
-- `hash` — the URL hash
-- `metadata` — any custom metadata you attached to the route
+The most common use for middleware is authentication. If a user tries to visit a protected page while logged out, you want to stop them and redirect them to the login page.
 
-## Protecting Routes with Authentication
-
-The most common middleware pattern is authentication guards. If a user tries to access admin pages without being logged in, redirect them to login:
+To do this, simply return the `redirect()` function:
 
 ```tsx
 import { defineRouterMiddleware, redirect } from 'retend/router';
 
 const authMiddleware = defineRouterMiddleware((details) => {
-  // Protect admin routes
+  // Check if they are trying to access an admin area
   if (details.to.path.startsWith('/admin')) {
-    const isLoggedIn = checkUserSession();
+    const isLoggedIn = checkUserSession(); // Your own logic
 
     if (!isLoggedIn) {
-      // Block this navigation and go to login instead
+      // Stop the navigation and go to the login page instead
       return redirect('/login');
     }
   }
 
-  // Return nothing to allow the navigation
+  // If you don't return anything, the navigation continues normally
 });
 ```
 
-When you return `redirect()`, Retend stops processing other middleware and immediately starts navigating to the new path.
+If your middleware returns `redirect()`, Retend instantly cancels the original navigation and starts navigating to the new path instead.
 
-## Asynchronous Middleware
+## Asynchronous Checks
 
-Sometimes you need to check authentication with a server call—verify a token, check permissions, fetch user roles. Middleware supports async operations:
+Often, checking if a user is allowed to view a page requires asking your server (like verifying a session token). Your middleware can be `async` to handle this:
 
 ```tsx
 import { defineRouterMiddleware, redirect } from 'retend/router';
 
 const permissionMiddleware = defineRouterMiddleware(async (details) => {
-  // Only check permissions for protected routes
   if (details.to.path.startsWith('/account')) {
-    const hasAccess = await verifyAccessToken();
+    // Wait for the server to verify the token
+    const hasAccess = await verifyTokenWithServer();
 
     if (!hasAccess) {
       return redirect('/access-denied');
@@ -74,77 +67,23 @@ const permissionMiddleware = defineRouterMiddleware(async (details) => {
 });
 ```
 
-Retend waits for the Promise to settle before continuing the navigation pipeline.
+Retend will pause the navigation and wait for your Promise to finish before moving the user to the next page.
 
-## Multiple Middleware
+## Using Multiple Middlewares
 
-You can chain multiple middleware together. They run in order, and if one returns a redirect, the rest don't run:
+You can plug multiple middlewares into your Router. They run in the exact order you list them. If any one of them returns a redirect, the chain stops immediately.
 
 ```tsx
-import { Router, defineRoutes } from 'retend/router';
+import { Router } from 'retend/router';
 
 const router = new Router({
-  routes: defineRoutes([
-    /* ... */
-  ]),
+  routes: myRoutes,
   middlewares: [
-    analyticsMiddleware, // Runs first
-    authMiddleware, // Runs second
-    permissionMiddleware, // Runs third
+    loggingMiddleware, // Runs 1st: logs the attempt
+    authMiddleware, // Runs 2nd: checks if logged in
+    permissionMiddleware, // Runs 3rd: checks specific permissions
   ],
 });
 ```
 
-This setup means analytics logs _every_ navigation attempt, but auth checks happen before permission checks.
-
-## Practical Example: Analytics + Auth
-
-Here's a real-world scenario combining multiple patterns:
-
-```tsx
-import { defineRouterMiddleware, redirect } from 'retend/router';
-
-// Track all navigation for analytics
-const trackPageView = defineRouterMiddleware((details) => {
-  sendAnalyticsEvent({
-    event: 'page_view',
-    path: details.to.fullPath,
-    timestamp: Date.now(),
-  });
-});
-
-// Verify user is authenticated
-const requireAuth = defineRouterMiddleware(async (details) => {
-  // Only check for protected routes
-  if (details.to.path.startsWith('/dashboard')) {
-    const isValid = await refreshAuthToken();
-
-    if (!isValid) {
-      return redirect('/login');
-    }
-  }
-});
-
-// Enforce role-based access
-const requireRole = defineRouterMiddleware((details) => {
-  if (details.to.path.startsWith('/admin')) {
-    const user = getCurrentUser();
-
-    if (user?.role !== 'admin') {
-      return redirect('/unauthorized');
-    }
-  }
-});
-
-// Register them in order
-const router = new Router({
-  routes,
-  middlewares: [trackPageView, requireAuth, requireRole],
-});
-```
-
-Now every navigation is tracked, authenticated users can access the dashboard, and only admins can reach `/admin`.
-
----
-
-Middleware gives you fine-grained control over the navigation flow. Combined with route locking, you can build sophisticated user experiences that respect user intent and protect sensitive data.
+This lets you keep your logic clean and separated. Your logging middleware doesn't need to know anything about authentication—it just does its one job and passes the baton.

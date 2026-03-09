@@ -1,14 +1,14 @@
 # Unique Instances
 
-By default, when a component is unmounted and then mounted somewhere else in your application—like navigating between routes or toggling visibility with `<If>`—Retend destroys the old DOM elements and creates brand new ones.
+By default, when you navigate to a different page or hide a component using `If()`, Retend destroys those elements. If those elements are shown again later, brand new ones are created from scratch.
 
-For most interfaces, this is exactly what you want. But some UI elements have complex internal state that should survive across moves. A video player in the middle of playback, a form input halfway through being filled, a canvas with an active drawing context, an iframe that's loaded external content—these things should persist.
+For most of your application, this is exactly what you want. But what about a video player that is currently playing? Or a canvas element that the user has been drawing on? If these are destroyed and recreated, all of their internal state is lost!
 
-That's where `createUnique` comes in. It marks a component's elements as persistent, moving them intact across your application instead of destroying and recreating them.
+**Unique Instances** solve this by letting you create elements that survive being moved around your application.
 
-## Making Elements Persistent
+## Creating Persistent Elements
 
-Wrap your component function in `createUnique`:
+To make a component persistent, simply wrap its function in `createUnique()`:
 
 ```tsx
 import { createUnique } from 'retend';
@@ -22,13 +22,13 @@ export const PersistentVideo = createUnique(() => {
 });
 ```
 
-Now whenever you render `<PersistentVideo />` and later render it somewhere else, the exact same underlying video element moves to the new location. The video keeps playing without interruption.
+Now, if you render `<PersistentVideo />` on your Home page, and then the user navigates to the About page where `<PersistentVideo />` is also rendered, the exact same underlying video element is seamlessly physically moved to the new page. The video will keep playing without skipping a beat.
 
 ## Multiple Independent Instances
 
-By default, all uses of a unique component share the same underlying instance. Render `<PersistentVideo />` in two different places and it physically moves to whichever one renders last.
+By default, every time you use a unique component, it shares the exact same underlying instance. If you render `<PersistentVideo />` in two different places at the same time, the video element will physically jump to whichever one was rendered last.
 
-If you need multiple independent instances that can coexist, give each one a unique `id`:
+If you want multiple, independent unique instances that can coexist on the screen at the same time, just give each one a unique `id` prop:
 
 ```tsx
 // Two separate video players, each with their own state
@@ -36,43 +36,41 @@ If you need multiple independent instances that can coexist, give each one a uni
 <PersistentVideo id="camera-2" />
 ```
 
-Now each ID gets its own persistent element. They can both exist on screen simultaneously without interfering with each other.
+Now `camera-1` and `camera-2` are completely independent persistent elements.
 
-## Working with Props
+## Passing Props
 
-If your unique component accepts props, they come in as a reactive `Cell`. This lets the persistent instance adapt to new props as it moves around:
+If your unique component needs to accept props, those props will be provided to your function as a single reactive `Cell`. This allows your persistent element to instantly react when it is moved to a new location with different props.
 
 ```tsx
 import { createUnique, Cell } from 'retend';
 
 const UniquePanel = createUnique((props) => {
-  // Derive a reactive title from the incoming props
+  // 1. Create a derived Cell so the title automatically updates
   const title = Cell.derived(() => props.get().title);
 
   return (
     <div class="panel">
       <h2>{title}</h2>
-      <p>This panel persists as it moves</p>
+      <p>This panel persists as it moves.</p>
     </div>
   );
 });
 
-// Initial render
+// If rendered here...
 <UniquePanel id="panel-1" title="First Title" />
 
-// If moved to a new location with different props...
+// And then later moved here...
 <UniquePanel id="panel-1" title="Updated Title" />
 
-// The same underlying element updates to the new title
+// The exact same DOM elements are used, but the <h2> text updates instantly!
 ```
 
-The panel's DOM elements stay the same; only the data changes.
+## Saving and Restoring Scroll Position
 
-## Saving and Restoring Custom State
+While `createUnique` perfectly preserves the HTML elements themselves, the browser automatically resets things like scroll position when an element is detached from the screen and moved.
 
-While `createUnique` preserves the underlying elements, some state—like scroll position—can get lost when elements are detached and reattached to the DOM.
-
-You can explicitly save and restore state using `onSave` and `onRestore`:
+You can explicitly tell Retend how to save and restore this specific state using the `onSave` and `onRestore` options:
 
 ```tsx
 const ScrollableArea = createUnique(
@@ -82,12 +80,12 @@ const ScrollableArea = createUnique(
     </div>
   ),
   {
+    // 1. When the element is removed from the screen, save its scroll position
     onSave: (element) => {
-      // Save whatever state you need
       return { scrollPos: element.scrollTop };
     },
+    // 2. When the element is put back on the screen, restore the scroll position
     onRestore: (element, savedData) => {
-      // Restore it when the element remounts
       if (savedData) {
         element.scrollTop = savedData.scrollPos;
       }
@@ -96,11 +94,11 @@ const ScrollableArea = createUnique(
 );
 ```
 
-When the element detaches, `onSave` runs and you can return any data structure. When it reattaches, `onRestore` gets both the element and the data you saved.
-
 ## Styling the Wrapper
 
-Under the hood, `createUnique` wraps your component in a host element (`<retend-unique-instance>` on the web). You can apply classes and styles to this wrapper using the `container` option:
+To make this magic work under the hood, `createUnique` actually wraps your component in a special invisible HTML element (`<retend-unique-instance>`).
+
+If you need to apply CSS classes or styles to this invisible wrapper so it doesn't accidentally break your layout, you can use the `container` option:
 
 ```tsx
 const StyledUnique = createUnique(() => <div>Content</div>, {
@@ -112,8 +110,4 @@ const StyledUnique = createUnique(() => <div>Content</div>, {
 });
 ```
 
-This is useful if you need to control the wrapper's layout or add data attributes for testing.
-
----
-
-Unique instances solve a real problem: preserving complex UI state across navigation and visibility changes. Use them for video players, active forms, canvases, iframes, or any UI element with internal state that matters.
+Unique instances are a powerful tool to pull out whenever you are dealing with complex UI elements that hold their own internal data.

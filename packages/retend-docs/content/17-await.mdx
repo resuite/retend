@@ -1,24 +1,26 @@
 # Await
 
-The `<Await>` component creates an asynchronous boundary in your application. It coordinates loading states across component subtrees, displaying a fallback UI while data loads from an API or while other async work is performed.
+When your application needs to fetch data from a server, it takes time. You usually want to show a loading spinner or some placeholder text while the user waits.
 
-Unlike some frameworks that use error-throwing to trigger boundaries, Retend uses **Async Cells** paired with control flow components for a cleaner, more explicit approach.
+Managing these loading states manually (by creating boolean `isLoading` Cells and passing them around) gets very messy very quickly.
 
-## Understanding Async Cells
+Retend solves this elegantly with the `<Await>` component. It creates an invisible boundary around parts of your app, automatically hiding those parts and showing a "fallback" UI until all the data they need has finished loading.
 
-Before diving into `<Await>`, you need to know about Async Cells. They are created using `Cell.derivedAsync` and allow you to handle asynchronous operations reactively.
+## Async Cells
 
-When you pass an Async Cell to a control flow component like `<If>` or `<For>`, Retend automatically registers it with the nearest parent `<Await>` boundary.
+To use `<Await>`, you first need to understand **Async Cells**. A normal `Cell` holds a value instantly. An Async Cell, created using `Cell.derivedAsync()`, holds a Promise that will eventually become a value.
+
+When you pass an Async Cell into a control flow component like `<If>` or `<For>`, Retend automatically detects that it is waiting for data, and tells the nearest `<Await>` parent to pause rendering.
 
 ## Basic Usage
 
-To use an asynchronous boundary, wrap your components in `<Await>` and provide a `fallback` element. Then, inside your components, create and use your Async Cells.
+To use an asynchronous boundary, wrap your components in `<Await>` and provide a `fallback` element to show while loading.
 
 ```tsx
 import { Await, If, Cell } from 'retend';
 
 function UserProfile() {
-  // Create the Async Cell inside the component
+  // 1. Create an Async Cell to fetch data
   const userData = Cell.derivedAsync(async () => {
     const response = await fetch('https://api.example.com/user');
     return response.json();
@@ -26,7 +28,8 @@ function UserProfile() {
 
   return (
     <div class="user-profile">
-      {/* If userData is pending, the parent Await boundary shows the fallback */}
+      {/* 2. Because userData is an Async Cell, this <If> automatically 
+             tells the parent <Await> to show the fallback until the fetch finishes. */}
       {If(userData, {
         true: (user) => (
           <div>
@@ -43,7 +46,8 @@ export function App() {
   return (
     <main>
       <h1>Dashboard</h1>
-      {/* Displays "Loading user data..." until userData resolves */}
+
+      {/* 3. Wrap everything in an <Await> boundary */}
       <Await fallback={<p>Loading user data...</p>}>
         <UserProfile />
       </Await>
@@ -52,119 +56,50 @@ export function App() {
 }
 ```
 
-When `userData` is still loading, the `<Await>` boundary catches the pending state and displays "Loading user data...". Once the fetch completes, the boundary renders its actual children, and the user's name and email appear.
+When the page first loads, the `<Await>` component catches the "pending" state from `UserProfile` and displays "Loading user data...". Once the API request finishes, the `<Await>` component removes the fallback and instantly reveals the real `UserProfile` showing the user's name and email.
 
-## Multiple Async Operations
+## Waiting for Multiple Things
 
-An `<Await>` boundary waits for _all_ async operations within its subtree to complete. If you have multiple Async Cells in the same boundary, the fallback stays visible until everything resolves.
+An `<Await>` boundary is smart: it waits for _every single_ async operation inside it to finish before it reveals its content.
+
+If your `DashboardContent` component fetches both the user's profile AND a list of their recent posts, the `<Await>` fallback will stay on screen until _both_ of those network requests are completely finished.
 
 ```tsx
 import { Await, If, For, Cell } from 'retend';
 
 function DashboardContent() {
-  const userData = Cell.derivedAsync(async () => {
-    const res = await fetch('/api/user');
-    return res.json();
-  });
-
-  const posts = Cell.derivedAsync(async () => {
-    const res = await fetch('/api/posts');
-    return res.json();
-  });
+  const userData = Cell.derivedAsync(async () =>
+    fetch('/api/user').then((r) => r.json())
+  );
+  const postsData = Cell.derivedAsync(async () =>
+    fetch('/api/posts').then((r) => r.json())
+  );
 
   return (
     <div>
-      {If(userData, {
-        true: (user) => <h2>{user.name}'s Dashboard</h2>,
-      })}
-
-      <div class="posts">
-        {For(posts, (post) => (
-          <article>
-            <h3>{post.title}</h3>
-            <p>{post.content}</p>
-          </article>
-        ))}
-      </div>
+      {/* Retend sees both of these Async Cells and tells the boundary to wait for both! */}
+      {If(userData, { true: (u) => <h2>{u.name}'s Dashboard</h2> })}
+      {For(postsData, (p) => (
+        <p>{p.title}</p>
+      ))}
     </div>
   );
 }
 
 export function Dashboard() {
   return (
-    <Await fallback={<p>Loading everything...</p>}>
+    // This fallback shows until both userData AND postsData are done
+    <Await fallback={<p>Loading dashboard entirely...</p>}>
       <DashboardContent />
     </Await>
   );
 }
 ```
 
-Both `userData` and `posts` must finish loading before the dashboard content appears. If you want them to load independently, you can wrap them in separate `<Await>` boundaries.
+If you prefer them to load independently (so the user profile appears first while the posts are still loading), you can simply wrap them in two separate `<Await>` components!
 
-## Async Cells vs. Regular Cells
+## Server-Side Rendering (Advanced)
 
-This distinction matters. A regular `Cell` can hold a Promise as its value, but it doesn't trigger `<Await>` boundaries:
+If you are building an app with Server-Side Rendering (SSR), `<Await>` boundaries are crucial. They allow your server to know exactly when all the data on the page has finished loading, so it can send down a perfectly complete HTML document to the user.
 
-```tsx
-import { Cell } from 'retend';
-
-// This WON'T trigger an Await boundary
-const promiseCell = Cell.source(fetch('/api/data'));
-
-// This WILL trigger an Await boundary
-const dataCell = Cell.derivedAsync(async () => {
-  const response = await fetch('/api/data');
-  return response.json();
-});
-```
-
-If you want a boundary to wait for an async operation, you must use `Cell.derivedAsync`.
-
-## Manual Registration
-
-If you are building custom components that handle async logic and need to hook into the `<Await>` boundary system manually, you can use the `useAwait` hook.
-
-```tsx
-import { useAwait } from 'retend';
-
-function CustomAsyncComponent() {
-  // Get the nearest Await context
-  const awaitContext = useAwait();
-
-  if (awaitContext) {
-    // Register an Async Cell with the boundary
-    // The boundary will wait for this cell to resolve
-    awaitContext.waitUntil(myAsyncCell);
-  }
-
-  return <div>Custom content</div>;
-}
-```
-
-This is rarely needed in typical applications, but it's available for advanced integrations.
-
-## Server-Side Rendering (SSR)
-
-`<Await>` boundaries are essential for server-side rendering. The server needs to wait for all async operations to complete before serializing the final HTML. You can use the `waitForAsyncBoundaries()` helper in your SSR pipeline:
-
-```tsx
-import { waitForAsyncBoundaries } from 'retend';
-import { renderToString } from 'retend-server';
-
-async function handleRequest(req, res) {
-  // 1. Initial render triggers all async dependencies
-  const dom = renderer.render(<App />);
-
-  // 2. Wait for all boundaries to resolve
-  await waitForAsyncBoundaries();
-
-  // 3. Now serialize to HTML (loading states are resolved)
-  const html = renderToString(dom, window);
-
-  res.send(`<!DOCTYPE html>\n${html}`);
-}
-```
-
----
-
-Async boundaries are how Retend handles the common pattern of "show a loading state until data arrives". Combined with Async Cells, they keep your component tree simple and your data flows explicit.
+Retend provides a `waitForAsyncBoundaries()` function specifically for your server code to wait for everything to settle before sending the HTML response.

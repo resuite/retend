@@ -1,75 +1,56 @@
 # Rendering Architecture
 
-Retend is designed to be platform-agnostic. The core library does not rely on the browser Document Object Model (DOM), strings, or native mobile views. Instead, it delegates all platform-specific operations to a **Renderer**.
+If you ever look closely at Retend's core code, you might notice something interesting: it doesn't actually know anything about HTML or the browser's Document Object Model (DOM).
 
-A Renderer acts as the abstract bridge between Retend's reactive logic and a specific host environment. By swapping out the renderer, you can use Retend to build web applications (`retend-web`), generate static HTML (`retend-server`), or theoretically drive native mobile interfaces.
+Retend is fundamentally platform-agnostic. The core library (`retend`) handles all the reactive logic, components, and state management, but it delegates the actual drawing of the interface to a **Renderer**.
 
----
+By swapping out the renderer, you can use Retend to build web applications (`retend-web`), generate static HTML (`retend-server`), or even theoretically drive native mobile interfaces!
 
 ## How Renderers Work
 
-When Retend processes your JSX and reactive `Cells`, it calls methods on the _active renderer_ to create, update, and manage nodes.
+When Retend processes your JSX and reactive Cells, it calculates exactly what needs to change. It then calls methods on the _active renderer_ to actually make those changes.
 
-1. **Decoupled Types**: The framework maintains type safety without knowing what a "Node" actually is. A node could be an `HTMLElement` in the browser, a string fragment on the server, or a JSON object in a custom environment.
-2. **Global Context**: Retend tracks the active renderer in a global context. When you call `renderToDOM` from `retend-web`, it sets the `DOMRenderer` as active before processing your application.
-3. **Reconciliation & Updates**: The core framework handles the complex logic of fine-grained reactivity and list diffing. It then instructs the renderer via precise commands (like `updateText`, `append`, or `reconcile`) on how to apply those changes to the target output.
+1. **Decoupled Types**: The core framework maintains perfect TypeScript safety without knowing what a "Node" actually is. To the core framework, a node is just an opaque object. To `retend-web`, a node is a real `HTMLElement`. To `retend-server`, a node is just a text string.
+2. **Global Context**: Retend tracks the active renderer in a global context. When you call `renderToDOM` from `retend-web`, it secretly sets the browser renderer as the active one before processing your application.
+3. **Reconciliation & Updates**: The core framework handles all the complex math of fine-grained reactivity and figuring out what changed in a list. It then gives the renderer very simple, precise commands (like "update the text of this node" or "append this child here").
 
----
+## The Renderer API
 
-## `RendererTypes`
+Every renderer in the Retend ecosystem implements the `Renderer` interface. If you ever wanted to build a custom renderer (for example, to render Retend apps to an HTML5 Canvas, or to a command-line terminal UI), you would implement this exact interface.
 
-To maintain type safety while remaining decoupled, every renderer defines a specific set of concrete types.
+Here are the key parts of the contract that make up a Renderer:
 
+### Types
+
+Every renderer defines concrete types for its specific platform:
+
+- `Node`: The fundamental building block (e.g., an HTML element).
+- `Text`: A specific node for plain text.
+- `Container`: A node that can hold other nodes.
 - `Output`: The final result of the rendering process.
-- `Node`: The fundamental unit of the renderer's output.
-- `Handle`: A reference used to track and update a dynamic collection of nodes.
-- `Group`: A logical container for a set of nodes that does not necessarily correspond to a host-level entity.
-- `Text`: A specific node type for representing plain text content.
-- `Container`: A host-level entity capable of containing other nodes.
-- `Host`: The target environment or main interface where the renderer operates (e.g., the browser `Window`).
-- `SavedNodeState`: A serializable or structured representation of a node's state, used for preservation and restoration.
 
----
+### Node Creation
 
-## The `Renderer` API
+The core framework calls these methods when it needs to create new elements:
 
-Every renderer implementation must satisfy the `Renderer` interface. Below are the key properties and methods that make up the API contract.
-
-### Environment & Configuration
-
-- `host`: The instance of the host environment where the renderer is operating.
-- `observer`: An `Observer` instance (or `null`) for watching the node environment and firing callbacks on renderer-defined connections.
-- `capabilities`: Configuration flags indicating supported features (e.g., `supportsSetupEffects`, `supportsObserverConnectedCallbacks`).
-
-### Lifecycle & Execution
-
-- `render(app: JSX.Template) => Node | Node[]`: Initiates the rendering process for a template.
-- `handleComponent(tagnameOrFunction, props, snapshot?, fileData?) => Node | Node[]`: Orchestrates the execution of components.
-- `onViewChange(callback: () => void) => void`: Registers a callback to be notified when the view updates.
-
-### Node Creation & Identification
-
-- `isNode(child: any) => boolean`: A predicate that identifies if a value is a valid node for this renderer.
-- `isGroup(child: any) => boolean`: A predicate that identifies if a node is a logical group.
-- `createGroup(input?: Node[]) => Group`: Creates a virtual collection to group nodes without requiring a host-level container.
-- `createContainer(tagname: string, props?: any) => Container`: Creates a host-level entity (like an element) with the specified name and properties.
-- `createText(text: string) => Node`: Instantiates a text node from a string.
+- `createContainer(tagname, props)`: Creates a host-level entity (like a `<div>`).
+- `createText(text)`: Creates a text node.
+- `createGroup(nodes)`: Creates a logical grouping of nodes without a physical container (used for `<></>` Fragments).
 
 ### DOM Manipulation & Updates
 
-- `updateText(text: string, node: Text) => Node`: Mutates the content of an existing text node.
-- `setProperty(node: Node, key: string, value: unknown) => Node`: Applies a property or reactive value to a node.
-- `unwrapGroup(fragment: Group) => Node[]`: Flattens a Group node back into its constituent nodes.
-- `append(parent: Node, children: Node | Node[]) => Node`: Physically attaches nodes to a container in the host environment.
-- `isActive(node: Node) => boolean`: Checks if a node is currently "active" in the host environment.
+When a reactive Cell changes, the core framework tells the renderer exactly what to do:
 
-### Dynamic Collections & Reconciliation
+- `updateText(text, node)`: Mutates the text of an existing text node.
+- `setProperty(node, key, value)`: Applies a property or attribute to a node.
+- `append(parent, children)`: Physically attaches nodes to a parent.
 
-- `createGroupHandle(group: Group) => Handle`: Creates a stable reference (handle) to a group of nodes, enabling subsequent incremental updates.
-- `write(handle: Handle, newContent: Node[]) => void`: Synchronously replaces the current nodes associated with a handle with new content.
-- `reconcile(handle: Handle, options: ReconcilerOptions) => void`: Efficiently updates the nodes associated with a handle by diffing them against a new list of items.
+### Dynamic Collections
 
-### State Preservation
+When a `<For>` loop needs to update a list of items, the core framework handles the diffing algorithm and then commands the renderer:
 
-- `saveContainerState(node: Container, customData: unknown) => SavedNodeState`: Captures the current state of a container node to be restored later.
-- `restoreContainerState(node: Container, state: SavedNodeState) => void`: Re-applies a previously saved state to a container node.
+- `reconcile(handle, options)`: Efficiently creates, moves, or removes nodes in the DOM to match the new list.
+
+---
+
+This separation of concerns is what keeps Retend's core incredibly small and focused, while allowing it to run flawlessly anywhere JavaScript can run!
