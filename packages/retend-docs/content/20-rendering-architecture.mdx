@@ -1,4 +1,4 @@
-# Rendering Architecture
+# Rendering Architecture (Advanced)
 
 If you ever look closely at Retend's core code, you might notice something interesting: it doesn't actually know anything about HTML or the browser's Document Object Model (DOM).
 
@@ -37,7 +37,7 @@ The core framework calls these methods when it needs to create new elements:
 - `createText(text)`: Creates a text node.
 - `createGroup(nodes)`: Creates a logical grouping of nodes without a physical container (used for `<></>` Fragments).
 
-### DOM Manipulation & Updates
+### Node Updates
 
 When a reactive Cell changes, the core framework tells the renderer exactly what to do:
 

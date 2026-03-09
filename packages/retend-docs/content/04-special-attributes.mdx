@@ -117,6 +117,8 @@ export function VideoPlayer() {
 Since `ref={cell}` is just a prop, you can pass it down to child components manually and attach it to any element you choose.
 
 ```tsx
+import { Cell, onSetup } from 'retend';
+
 function MyInput(props) {
   // We take the 'ref' from props and pass it to the internal input
   return <input ref={props.ref} class="custom-input" />;

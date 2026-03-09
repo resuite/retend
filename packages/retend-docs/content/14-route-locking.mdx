@@ -2,7 +2,9 @@
 
 We've all experienced the frustration of filling out a long form, accidentally hitting the back button or clicking a link, and losing all our unsaved work.
 
-**Route Locking** is a feature that allows you to temporarily "lock" the user on the current page. While the route is locked, any attempt to navigate away—whether by clicking a link, using the back button, or calling `router.navigate()`—will be completely blocked.
+**Route Locking** is a feature that allows you to temporarily "lock" the user on the current page. While the route is locked, any attempt to navigate away using in-app navigation—whether by clicking a `<Link>`, or calling `router.navigate()`—will be blocked.
+
+_(Note: Route locking only controls navigation handled by Retend's router. It does not prevent browser-level actions like closing the tab, typing a new URL into the address bar, or refreshing the page. For those, use the browser's `beforeunload` event.)_
 
 ## Locking a Route
 

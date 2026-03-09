@@ -42,6 +42,28 @@ If you only care about the `true` case, you can just provide that branch:
 
 _(Note: Standard JavaScript `if` statements or `&&` operators don't connect to Retend's reactivity system if the data changes later. Always use the `If` function for parts of your UI that can change)._
 
+### Shorthand Syntax
+
+If you only need to render something when the value is truthy, you can pass a function instead of an object:
+
+```tsx
+{
+  If(show, (value) => <p>The value is: {value}</p>);
+}
+```
+
+You can also provide a third argument for the falsy case:
+
+```tsx
+{
+  If(
+    show,
+    () => <p>Visible!</p>,
+    () => <p>Hidden.</p>
+  );
+}
+```
+
 ## Rendering Lists with `For`
 
 When you have an array of data, use the `For` function to display a list of elements.
@@ -66,12 +88,14 @@ function ItemList() {
             Item {index}: {item.name}
           </li>
         ),
-        { key: 'id' } // Helps Retend update lists efficiently
+        { key: 'id' }
       )}
     </ul>
   );
 }
 ```
+
+_(Note: The `index` parameter is a reactive `Cell<number>`, not a plain number. You can pass it directly into JSX and it will update automatically, but if you need to use it in a calculation, call `index.get()` first.)_
 
 ### Using Keys for Efficiency
 
@@ -102,5 +126,22 @@ function DataFetcher() {
 ```
 
 `Switch` looks at the value inside your Cell and runs the matching branch. If the status is "success", it only renders the `success` branch.
+
+### Default Case
+
+If the value might not match any of the defined branches, you can pass a third argument as a fallback:
+
+```tsx
+{
+  Switch(
+    status,
+    {
+      loading: () => <p>Loading...</p>,
+      success: () => <p>Done!</p>,
+    },
+    (value) => <p>Unknown status: {value}</p>
+  );
+}
+```
 
 By using `If`, `For`, and `Switch`, you ensure your layouts stay in sync with your data automatically.

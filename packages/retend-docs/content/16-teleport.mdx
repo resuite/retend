@@ -24,7 +24,7 @@ export function Modal(props) {
       // Teleport this entire chunk of HTML to the #modal-root element
       <Teleport to="#modal-root">
         <div class="modal-overlay" onClick={onClose}>
-          <div class="modal-content" onClick--stop>
+          <div class="modal-content" onClick--stop={() => {}}>
             <h2>{title}</h2>
             <button type="button" onClick={onClose}>
               Close
@@ -61,18 +61,18 @@ _Logically_, your component behaves exactly as if it was still sitting in its or
 2. **Scopes still work:** If you teleport a tooltip to the `<body>`, it can still access data from a Scope Provider that wraps its original parent component!
 
 ```tsx
-import { useScopeContext } from 'retend';
+import { Cell, useScopeContext } from 'retend';
 import { Teleport } from 'retend-web';
 import { ThemeScope } from './scopes';
 
 function ThemedTooltip() {
-  // We can still read the ThemeScope from our parent component,
-  // even though we are teleporting our HTML to the very bottom of the page!
   const theme = useScopeContext(ThemeScope);
+
+  const tooltipClass = Cell.derived(() => `tooltip tooltip-${theme}`);
 
   return (
     <Teleport to="body">
-      <div class={`tooltip tooltip-${theme.get()}`}>Helpful information!</div>
+      <div class={tooltipClass}>Helpful information!</div>
     </Teleport>
   );
 }

@@ -6,6 +6,8 @@ Managing these loading states manually (by creating boolean `isLoading` Cells an
 
 Retend solves this elegantly with the `<Await>` component. It creates an invisible boundary around parts of your app, automatically hiding those parts and showing a "fallback" UI until all the data they need has finished loading.
 
+_(Note: Unlike `If`, `For`, and `Switch` which are called as functions, `Await` is used as a JSX component with props because it wraps a section of your layout rather than producing a single value.)_
+
 ## Async Cells
 
 To use `<Await>`, you first need to understand **Async Cells**. A normal `Cell` holds a value instantly. An Async Cell, created using `Cell.derivedAsync()`, holds a Promise that will eventually become a value.

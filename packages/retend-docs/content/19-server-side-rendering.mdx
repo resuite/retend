@@ -34,6 +34,8 @@ export default defineConfig({
 
 When you run your build command, Retend will visit both the `/` and `/about` pages and generate static HTML files for them.
 
+_(Note: For dynamic routes like `/users/:userId`, you need to list each specific URL you want to generate, such as `/users/1` and `/users/2`.)_
+
 ## Hydration
 
 Once the browser loads that static HTML, Retend needs to "wake it up" and reconnect all your event listeners and Reactive Cells. This process is called **Hydration**.
@@ -52,7 +54,7 @@ hydrate(createRouter, {
 
 In development mode, `hydrate` will act normally and render the app from scratch. But in production, it will look at the existing HTML and smartly attach to it without rebuilding the entire page.
 
-## Handing Async Data
+## Handling Async Data
 
 When rendering on the server, Retend needs to know when all your data has finished loading so it knows when to generate the HTML. It does this automatically using the `<Await>` boundaries you've already set up!
 
@@ -60,7 +62,9 @@ When rendering on the server, Retend needs to know when all your data has finish
 
 Sometimes you have a component that uses browser-specific features (like reading the `window` size or accessing `localStorage`) that simply won't work on the server.
 
-You can wrap these components in `<ClientOnly>`. They will be skipped during the server build, and will only render once the JavaScript loads in the user's browser:
+You can wrap these components in `<ClientOnly>`. They will be skipped during the server build, and will only render once the JavaScript loads in the user's browser.
+
+_(Note: `ClientOnly` is imported from `retend-server`, while `hydrate` is imported from `retend-server/client`. The split exists because `ClientOnly` is a component used in shared code, while `hydrate` contains browser-specific startup logic.)_
 
 ```tsx
 import { Await, Cell } from 'retend';

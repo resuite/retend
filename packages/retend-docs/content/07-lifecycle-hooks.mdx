@@ -29,9 +29,9 @@ function LiveClock() {
 
 The cleanup function is critical. If you start a timer or an event listener, returning a cleanup function ensures those tasks stop when the component leaves the screen, preventing memory leaks in your application.
 
-## Working with the DOM using `onConnected`
+## Working with Elements using `onConnected`
 
-Sometimes you need to interact directly with an HTML element—for example, to measure its size, draw on a canvas, or attach a third-party library.
+Sometimes you need to interact directly with a rendered element—for example, to measure its size, draw on a canvas, or attach a third-party library.
 
 If you try to do this inside `onSetup`, the element might not be on the screen yet. `onConnected` solves this. You give it a reference to an element, and it guarantees the element is ready to use before your code runs.
 
@@ -73,6 +73,8 @@ Since components only run once, you have the freedom to organize them however yo
 This order ensures all your data and functions are fully ready by the time your lifecycle blocks run.
 
 ```tsx
+import { Cell, onSetup } from 'retend';
+
 function TodoItem({ item }) {
   // 1. State
   const isEditing = Cell.source(false);

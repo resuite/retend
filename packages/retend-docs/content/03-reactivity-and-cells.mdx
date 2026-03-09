@@ -59,7 +59,7 @@ function ToggleSwitch() {
 }
 ```
 
-When you pass the Cell into JSX, Retend establishes a live connection. Every time you call `.set()`, Retend reaches into the DOM and updates that exact text node. The `ToggleSwitch` function itself never runs again.
+When you pass the Cell into JSX, Retend establishes a live connection. Every time you call `.set()`, Retend updates that exact text node in the rendered output. The `ToggleSwitch` function itself never runs again.
 
 ---
 
@@ -94,7 +94,7 @@ When you pass a function to `Cell.derived()`, Retend immediately runs it and wat
 
 ## Side Effects with `.listen()`
 
-Sometimes you need to run code when a Cell changes—logging, syncing to `localStorage`, manually updating the DOM. That's what `.listen()` is for:
+Sometimes you need to run code when a Cell changes—logging, syncing to `localStorage`, or performing manual updates. That's what `.listen()` is for:
 
 ```tsx
 import { Cell } from 'retend';

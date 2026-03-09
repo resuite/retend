@@ -27,8 +27,10 @@ Your event handler function automatically receives the standard `Event` object. 
 ```tsx
 function SearchInput() {
   const handleInput = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    console.log('User typed:', target.value);
+    const target = event.target;
+    if (target instanceof HTMLInputElement) {
+      console.log('User typed:', target.value);
+    }
   };
 
   return (
