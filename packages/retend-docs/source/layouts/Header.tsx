@@ -26,11 +26,11 @@ export function Header() {
             <li class="hidden sm:block">
               <a
                 class="text-fg-muted hover:text-brand text-[0.95rem] transition-colors"
-                href="https://github.com/adebola-io/retend"
+                href="https://github.com/resuite/retend"
                 target="_blank"
                 rel="noreferrer"
               >
-                Github
+                GitHub
               </a>
             </li>
             <li>

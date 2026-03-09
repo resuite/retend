@@ -9,15 +9,15 @@
     "pwa",
     "web"
   ],
-  "homepage": "https://github.com/adebola-io/retend#readme",
+  "homepage": "https://github.com/resuite/retend#readme",
   "bugs": {
-    "url": "https://github.com/adebola-io/retend/issues"
+    "url": "https://github.com/resuite/retend/issues"
   },
   "license": "MIT",
   "author": "Adebola Akomolafe",
   "repository": {
     "type": "git",
-    "directory": "github.com/adebola-io/retend"
+    "directory": "github.com/resuite/retend"
   },
   "type": "module",
   "module": "dist/index.js",

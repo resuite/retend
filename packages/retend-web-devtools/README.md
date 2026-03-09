@@ -1,6 +1,6 @@
 # retend-web-devtools
 
-DevTools overlay for [Retend](https://github.com/adebola-io/retend) web applications.
+DevTools overlay for [Retend](https://github.com/resuite/retend) web applications.
 
 Provides an in-app overlay to inspect your application's component tree, view props, and highlight rendered UI regions.
 
@@ -33,9 +33,9 @@ Import and use it normally:
 ```tsx
 import { renderToDOM } from 'retend-web';
 import { RetendDevTools } from 'retend-web-devtools';
-import { App } from './App';
+import App from './App';
 
-const root = document.getElementById('root')!;
+const root = document.getElementById('app')!;
 
 renderToDOM(root, () => (
   <RetendDevTools>
@@ -54,7 +54,7 @@ import { createRouter } from './router';
 import { RetendDevTools } from 'retend-web-devtools';
 
 hydrate(createRouter, {
-  rootId: 'root',
+  rootId: 'app',
   wrap(root) {
     return <RetendDevTools>{root}</RetendDevTools>;
   },

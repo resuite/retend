@@ -8,8 +8,8 @@ Welcome! This page will help you start your first project with Retend, a modern 
 
 Before we begin, please ensure you have the following installed:
 
-- **Node.js**: A JavaScript runtime environment. If you don't have it, download it from the [official Node.js website](https://nodejs.org/).
-- **npm** or **pnpm**: A package manager, which usually comes with Node.js.
+- **Node.js**: If you do not have it yet, download it from the [official Node.js website](https://nodejs.org/).
+- **npm**: It ships with Node.js. If you prefer `pnpm`, the equivalent commands work too.
 
 We also assume you are familiar with basic HTML, CSS, and JavaScript.
 
@@ -36,30 +36,40 @@ We also assume you are familiar with basic HTML, CSS, and JavaScript.
 
 ## Setting Up Your First Project
 
-The fastest way to start learning Retend is to scaffold a new project. Open your terminal and run this command:
+The fastest way to start learning Retend is to scaffold a new project. Open your terminal and run:
 
 ```bash
-npx retend-start@latest
+npx retend-start@latest my-app
 ```
 
-This command automatically creates a complete project structure for you, including:
+Then move into the project, install dependencies, and start the dev server:
 
-- [TypeScript](https://www.typescriptlang.org/) or JavaScript
+```bash
+cd my-app
+npm install
+npm run dev
+```
+
+By default, the scaffold creates:
+
+- [TypeScript](https://www.typescriptlang.org/)
 - [Vite](https://vitejs.dev/) for an exceptionally fast development experience
 - Built-in routing for multi-page applications
-- [Tailwind CSS](https://tailwindcss.com/) (optional, for styling)
+- CSS modules for styling
+- Client-side rendering
+
+If you want Tailwind CSS, add `--tailwind`. If you want static site generation, add `--ssg`.
 
 ## Writing Your First Application
 
 Let us build a simple toggle switch application. This will show you how Retend handles reactive data.
 
-Create a new file and add the following code:
+After scaffolding, open `source/App.tsx` and replace its contents with:
 
 ```tsx
-import { renderToDOM } from 'retend-web';
 import { Cell } from 'retend';
 
-const App = () => {
+export default function App() {
   // 1. Create a reactive piece of data
   const isOn = Cell.source(false);
 
@@ -77,11 +87,10 @@ const App = () => {
       </button>
     </>
   );
-};
-
-// 4. Mount the application to the browser's Document Object Model (DOM)
-renderToDOM(document.getElementById('app')!, App);
+}
 ```
+
+If you picked JavaScript during setup, edit `source/App.jsx` instead.
 
 ### How the Toggle Switch Works
 
@@ -91,10 +100,10 @@ renderToDOM(document.getElementById('app')!, App);
 
 ## Running Your Application
 
-To see your application in action, run the development server:
+If the dev server is not already running, start it with:
 
 ```bash
-pnpm run dev
+npm run dev
 ```
 
 Open your web browser and navigate to `http://localhost:5229`. You will see your toggle switch ready to be clicked!

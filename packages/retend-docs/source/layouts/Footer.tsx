@@ -74,7 +74,7 @@ export function Footer() {
               <ul class="flex flex-col gap-4">
                 <li>
                   <a
-                    href="https://github.com/adebola-io/retend"
+                    href="https://github.com/resuite/retend"
                     target="_blank"
                     rel="noreferrer"
                     class="text-fg hover:text-brand text-sm transition-colors"

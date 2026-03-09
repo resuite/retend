@@ -25,11 +25,11 @@ This package provides a collection of utility hooks and components for [Retend](
 ## Installation
 
 ```bash
-npm install retend-utils
+npm install retend retend-web retend-utils
 # or
-yarn add retend-utils
+yarn add retend retend-web retend-utils
 # or
-bun add retend-utils
+bun add retend retend-web retend-utils
 ```
 
 ## Hooks

@@ -1,6 +1,6 @@
 # retend-web
 
-The official DOM renderer for [Retend](https://github.com/adebola-io/retend).
+The official DOM renderer for [Retend](https://github.com/resuite/retend).
 
 `retend-web` provides the necessary glue to run Retend applications in the browser. It leverages the browser's native capabilities while providing a familiar JSX-based development experience.
 
@@ -19,15 +19,18 @@ npm install retend retend-web
 
 ## Usage
 
-To start using `retend-web`, you need to set the active renderer:
+For most apps, use `renderToDOM`:
 
 ```javascript
-import { setActiveRenderer } from 'retend';
-import { DOMRenderer } from 'retend-web';
+import { renderToDOM } from 'retend-web';
 
-const renderer = new DOMRenderer(window);
-setActiveRenderer(renderer);
+const App = () => <h1>Hello, Retend</h1>;
+const root = document.getElementById('app');
+
+renderToDOM(root, App);
 ```
+
+If you need lower-level control, `retend-web` also exports `DOMRenderer`.
 
 ## Features
 

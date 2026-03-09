@@ -3,13 +3,13 @@
   "version": "0.0.24",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adebola-io/retend.git"
+    "url": "git+https://github.com/resuite/retend.git"
   },
   "bugs": {
-    "url": "https://github.com/adebola-io/retend/issues"
+    "url": "https://github.com/resuite/retend/issues"
   },
   "description": "A modern reactive framework for fluid, dynamic web apps.",
-  "homepage": "https://github.com/adebola-io/retend#readme",
+  "homepage": "https://github.com/resuite/retend#readme",
   "license": "MIT",
   "private": true,
   "packageManager": "pnpm@10.6.3",

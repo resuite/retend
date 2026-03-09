@@ -68,7 +68,7 @@ const questions = [
     type: 'confirm',
     name: 'useTailwind',
     message: chalk.magenta('Do you want to use Tailwind CSS?'),
-    default: true,
+    default: false,
     argKey: 'tailwind',
   },
   {
@@ -85,14 +85,14 @@ const questions = [
     type: 'confirm',
     name: 'useSSG',
     message: chalk.magenta('Do you want to use Static Site Generation (SSG)?'),
-    default: true,
+    default: false,
     argKey: 'ssg',
   },
   {
     type: 'confirm',
     name: 'includeDocs',
     message: chalk.magenta('Include .docs folder for AI assistants?'),
-    default: true,
+    default: false,
     argKey: 'docs',
   },
 ];
@@ -425,7 +425,7 @@ const router = createRouter();
 router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
-renderToDOM(root, createRouterRoot(router));
+renderToDOM(root, () => createRouterRoot(router));
 
 `;
 
@@ -856,7 +856,7 @@ function displayCompletionMessage(projectName) {
   console.log(chalk.cyan('3. Start the development server:'));
   console.log(chalk.white(`   ${devCommand}`));
   console.log(chalk.cyan('4. Open your browser and visit:'));
-  console.log(chalk.white('   http://localhost:5529'));
+  console.log(chalk.white('   http://localhost:5229'));
   console.log(
     chalk.cyan(`5. Begin editing your project files in the 'source' directory`)
   );

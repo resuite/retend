@@ -2,7 +2,7 @@
 
 > Retend is not ready for any production use. Implement it at your own discretion.
 
-Retend is a experimental framework for building fluid web apps. Like React, it allows you to use JSX to create dynamic user interfaces.
+Retend is an experimental framework for building fluid web apps. Like React, it allows you to use JSX to create dynamic user interfaces.
 
 If you've worked with HTML, CSS, and JavaScript, Retend should be easy to pick up. It is designed to help you build applications quickly and efficiently.
 
@@ -25,7 +25,8 @@ const App = () => {
   );
 };
 
-renderToDOM(document.body, App);
+const root = document.getElementById('app')!;
+renderToDOM(root, App);
 ```
 
 ## Key Features
@@ -46,83 +47,47 @@ renderToDOM(document.body, App);
 
 - (Experimental) HMR Support: Retend supports hot module reloads, which allow you to see changes instantly without refreshing the page. This speeds up development by letting you focus more on your application.
 
-- (Experimental) SSG support: Retends supports statically generating a select group of paths of your application.
+- (Experimental) SSG support: Retend supports statically generating a select group of paths of your application.
 
 ## Installation
 
-> `NOTE`: This section assumes you already have Node.js and pnpm installed on your machine. If you don't, install Node.js from the official [Node.js website](https://nodejs.org/en/) and then run `corepack enable pnpm`.
+Install Node.js first. `npm` ships with Node.js, so you can start with the default package manager and switch to `pnpm` or `bun` later if you prefer.
 
-To get started with Retend, you'll need to create a new project using the scaffolding tool.
+The recommended alpha setup path is:
 
-This will set up the basic project structure for you. Then, you'll need to install dependencies and start the development server.
+```bash
+npx retend-start@latest my-app
+cd my-app
+npm install
+npm run dev
+```
 
-- Create a new project:
+Then open `http://localhost:5229`.
 
-  Open your terminal in your documents directory, and run the following command:
+By default, the scaffold creates a TypeScript app with CSS modules, built-in routing, and client-side rendering.
 
-  ```bash
-  npx retend-start@latest
-  ```
+Optional flags:
 
-  This command will prompt you for some details about your project and generate the necessary project files.
+- `--default`: skip prompts and use the default starter
+- `--tailwind`: enable Tailwind CSS
+- `--javascript`: use JavaScript instead of TypeScript
+- `--ssg`: enable static site generation
+- `--docs`: include `.docs` and `AGENTS.md` files for AI assistants
 
-  You can also use the following options to configure the project:
-  - `--name`: The name of the project (defaults to `my-app`).
-  - `--tailwind`: Whether to use Tailwind CSS (defaults to `false`).
-  - `--scss`: Whether to use SCSS (defaults to `CSS`). If set, SCSS will be used as the CSS preprocessor.
-  - `--javascript`: Whether to use JavaScript (defaults to `JavaScript`). If set, JavaScript will be used as the language. Otherwise, TypeScript will be used.
-  - `--ssg`: Whether to use Static Site Generation (SSG) (defaults to `false`).
+Example:
 
-  For example:
-
-  ```bash
-  npx retend-start my-app --tailwind --scss --javascript --ssg
-  ```
-
-  This command will create a new project named `my-app` with Tailwind CSS, SCSS, JavaScript, and SSG enabled.
-
-  You can also use the `--default` flag to use the default options:
-
-  ```bash
-  npx retend-start --default
-  ```
-
-  This command will create a new project named `my-app` with the default options (no Tailwind CSS, CSS, JavaScript, and no SSG).
-
-- Navigate to your project directory:
-
-  After creating the project, navigate into the project by using `cd` and the name you used:
-
-  ```shell
-  cd your-project-name
-  ```
-
-- Install dependencies:
-
-  Run the following command to install all the required packages for your project:
-
-  ```bash
-  pnpm install
-  ```
-
-- Start the development server:
-
-  Finally, start the development server using this command in the same directory:
-
-  ```bash
-  pnpm run dev
-  ```
-
-  This command will start a local development server, and you'll be able to see your application at `http://localhost:5229` in your browser.
+```bash
+npx retend-start@latest my-app --tailwind --ssg
+```
 
 ## Documentation
 
-You can learn more about Retend by reading the [documentation](https://github.com/adebola-io/retend/blob/main/docs/README.md).
+Start with the [Getting Started guide](https://github.com/resuite/retend/blob/main/docs/README.md#getting-started).
 
 ## License
 
-Retend is licensed under the [MIT License](https://github.com/adebola-io/retend/blob/main/LICENSE).
+MIT
 
 ## Contributing
 
-Contributions are welcome! Please read the [contributing guidelines](https://github.com/adebola-io/retend/blob/main/CONTRIBUTING.md) for more information.
+Contributions are welcome! Please read the [contributing guidelines](https://github.com/resuite/retend/blob/main/CONTRIBUTING.md) for more information.

@@ -19,7 +19,7 @@ export function CallToAction() {
 
       <Card class="mb-10 inline-flex items-center gap-4 px-6 py-4 sm:px-8">
         <code class="text-fg font-mono text-sm sm:text-base">
-          npx retend-start@latest
+          npx retend-start@latest my-app
         </code>
       </Card>
 
@@ -29,11 +29,11 @@ export function CallToAction() {
           <ArrowRightIcon />
         </Button>
         <Button
-          href="https://github.com/adebola-io/retend"
+          href="https://github.com/resuite/retend"
           variant="secondary"
           external
         >
-          View on Github
+          View on GitHub
           <ExternalLinkIcon />
         </Button>
       </div>

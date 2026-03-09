@@ -1,3 +1,22 @@
+# Retend Documentation
+
+> Retend is experimental and not ready for production use.
+
+## Getting Started
+
+The recommended way to start a new app is:
+
+```bash
+npx retend-start@latest my-app
+cd my-app
+npm install
+npm run dev
+```
+
+Then open `http://localhost:5229`.
+
+By default, the scaffold creates a TypeScript app with CSS modules, built-in routing, and client-side rendering. Add `--tailwind` for Tailwind CSS, `--ssg` for static site generation, or `--docs` to include AI-assistant files.
+
 ## Core Concepts
 
 ### Understanding JSX
@@ -1615,7 +1634,8 @@ const routes: RouteRecords = [
 ];
 
 const router = new Router({ routes });
-renderToDOM(createRouterRoot(router), document.body);
+const root = document.getElementById('app')!;
+renderToDOM(root, () => createRouterRoot(router));
 ```
 
 ### Implementing the Router

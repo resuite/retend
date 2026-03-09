@@ -10,7 +10,7 @@ The core reactive framework for building user interfaces with JSX. Retend provid
 
 Retend is a renderer-agnostic reactive UI framework. It provides the building blocks for creating dynamic interfaces while remaining decoupled from any specific platform through an abstract `Renderer` interface.
 
-For browser applications, use it with [`retend-web`](https://github.com/adebola-io/retend/tree/main/packages/retend-web) (the DOM renderer).
+For browser applications, use it with [`retend-web`](https://github.com/resuite/retend/tree/main/packages/retend-web) (the DOM renderer).
 
 ## Key Concepts
 
@@ -27,7 +27,7 @@ npm install retend retend-web
 Or use the scaffolding tool for new projects:
 
 ```bash
-npx retend-start
+npx retend-start@latest my-app
 ```
 
 ## Quick Example
@@ -43,8 +43,8 @@ const Counter = () => {
   );
 };
 
-// Initialize the renderer
-renderToDOM(document.body, App);
+const root = document.getElementById('app')!;
+renderToDOM(root, Counter);
 ```
 
 ## Module Exports
@@ -62,7 +62,7 @@ import { setGlobalContext, getGlobalContext } from 'retend/context';
 
 ## Documentation
 
-For API documentation, examples, and guides, see the [full documentation](https://github.com/adebola-io/retend/blob/main/docs/README.md).
+For setup, examples, and API guides, start with the [Getting Started guide](https://github.com/resuite/retend/blob/main/docs/README.md#getting-started).
 
 ## License
 

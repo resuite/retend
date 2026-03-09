@@ -36,11 +36,11 @@ export function Hero() {
             <ArrowRightIcon />
           </Button>
           <Button
-            href="https://github.com/adebola-io/retend"
+            href="https://github.com/resuite/retend"
             variant="secondary"
             external
           >
-            View Github
+            View GitHub
             <ExternalLinkIcon />
           </Button>
         </div>
