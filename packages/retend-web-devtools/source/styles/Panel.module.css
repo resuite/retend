@@ -54,7 +54,7 @@
   height: 100%;
   position: relative;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: 1fr auto;
   box-shadow: 0 0.5rem 2rem var(--retend-devtools-panel-shadow);
   overflow: hidden;
   animation: panelOpen 0.24s cubic-bezier(0.18, 0.8, 0.12, 1);
@@ -85,7 +85,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--retend-devtools-panel-border);
+  border-top: 1px solid var(--retend-devtools-panel-border);
   flex-shrink: 0;
 }
 
@@ -105,9 +105,17 @@
   color: var(--retend-devtools-title-text);
 }
 
-.body {
+.bodyContainer {
   min-height: 100%;
   max-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow-x: auto;

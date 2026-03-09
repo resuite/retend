@@ -40,8 +40,6 @@ export function ToggleButton() {
 }
 ```
 
-_(Note: Passing Cells inside the class object ensures that only the `class` attribute update is triggered without re-rendering the whole component.)_
-
 ## The `style` Attribute
 
 The `style` attribute accepts either a standard CSS string or an object containing your styles.
@@ -58,25 +56,26 @@ Just like `class`, if your styles depend on reactive state, the property values 
 
 ## The `ref` Attribute
 
-The `ref` attribute provides a way to get a direct reference to the underlying UI element after it has been mounted in the renderer's tree. This is essential when you need to perform imperative actions, manage focus, or integrate with non-reactive third-party libraries.
+The `ref` attribute provides a way to get a direct reference to the underlying UI element after it has been created. This is essential when you need to perform imperative actions, manage focus, or integrate with non-reactive third-party libraries.
 
-Instead of a special Ref object, Retend allows you to pass a callback function directly to the `ref` attribute. This callback receives the UI element instance as its argument once it's created.
+In Retend, you create a ref by using `Cell.source(null)`. You then pass this cell directly to the `ref` attribute. Once the element is created, Retend automatically updates the cell with the reference to the UI element.
 
 ```tsx
-export function AutoFocusInput() {
-  let inputElement;
+import { Cell } from 'retend';
 
-  // We can use a lifecycle hook or event handler to interact with the element
+export function AutoFocusInput() {
+  // 1. Create a reference starting at null
+  const inputRef = Cell.source(null);
+
   const handleFocus = () => {
-    if (inputElement) {
-      inputElement.focus();
-    }
+    // 3. Access the element safely using .get()
+    inputRef.get()?.focus();
   };
 
   return (
     <div class="flex gap-2">
       <input
-        ref={(el) => (inputElement = el)}
+        ref={inputRef} // 2. Attach the reference
         type="text"
         placeholder="Type here..."
       />
@@ -86,4 +85,51 @@ export function AutoFocusInput() {
 }
 ```
 
-Using a callback gives you complete control over how and where you store the element reference.
+#### Example: Media Control
+
+Refs are particularly useful for interacting with browser APIs that Retend doesn't wrap reactively, like controlling a `<video>` or `<audio>` element.
+
+```tsx
+import { Cell } from 'retend';
+
+export function VideoPlayer() {
+  const videoRef = Cell.source<HTMLVideoElement | null>(null);
+
+  const togglePlay = () => {
+    const video = videoRef.get();
+    if (video) {
+      if (video.paused) video.play();
+      else video.pause();
+    }
+  };
+
+  return (
+    <div class="video-container">
+      <video ref={videoRef} src="/promo.mp4" />
+      <button onClick={togglePlay}>Play/Pause</button>
+    </div>
+  );
+}
+```
+
+#### Ref Forwarding
+
+Since `ref={cell}` is just a prop, you can pass it down to child components manually and attach it to any element you choose.
+
+```tsx
+function MyInput(props) {
+  // We take the 'ref' from props and pass it to the internal input
+  return <input ref={props.ref} class="custom-input" />;
+}
+
+export function ParentComponent() {
+  const inputRef = Cell.source(null);
+
+  onSetup(() => {
+    // We can access the child's input here!
+    inputRef.get()?.focus();
+  });
+
+  return <MyInput ref={inputRef} />;
+}
+```

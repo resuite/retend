@@ -1,7 +1,8 @@
+import type { DOMRenderer } from 'retend-web';
+import type { JSX } from 'retend/jsx-runtime';
+
 /// <reference types="vite/client" />
-import { __HMR_UpdatableFn, getActiveRenderer } from 'retend';
-import { DOMRenderer } from 'retend-web';
-import { JSX } from 'retend/jsx-runtime';
+import { getActiveRenderer } from 'retend';
 
 import { MainContent } from '@/components/MainContent';
 import { Panel } from '@/components/Panel';

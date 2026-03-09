@@ -1,0 +1,93 @@
+npm warn Unknown project config "auto-install-peers". This will stop working in the next major version of npm.
+
+> lint
+> oxlint packages tests experiments
+
+
+  x typescript-eslint(consistent-type-imports): All imports in the declaration are only used as types. Use `import type`.
+   ,-[packages/retend-web-devtools/source/components/ComponentName.tsx:3:1]
+ 2 | 
+ 3 | import { ComponentTreeNode } from '@/core/devtools-renderer';
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 4 | import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+   `----
+  help: Add type specifier to this import declaration
+
+  x typescript-eslint(consistent-type-imports): All imports in the declaration are only used as types. Use `import type`.
+   ,-[packages/retend-web-devtools/source/RetendDevTools.tsx:3:1]
+ 2 | import { __HMR_UpdatableFn, getActiveRenderer } from 'retend';
+ 3 | import { DOMRenderer } from 'retend-web';
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 4 | import { JSX } from 'retend/jsx-runtime';
+   `----
+  help: Add type specifier to this import declaration
+
+  x typescript-eslint(consistent-type-imports): All imports in the declaration are only used as types. Use `import type`.
+   ,-[packages/retend-web-devtools/source/RetendDevTools.tsx:4:1]
+ 3 | import { DOMRenderer } from 'retend-web';
+ 4 | import { JSX } from 'retend/jsx-runtime';
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 5 | 
+   `----
+  help: Add type specifier to this import declaration
+
+  x typescript-eslint(consistent-type-imports): All imports in the declaration are only used as types. Use `import type`.
+   ,-[packages/retend-web-devtools/source/components/MainContent.tsx:4:1]
+ 3 | import { getActiveRenderer, setActiveRenderer } from 'retend';
+ 4 | import { DOMRenderer } from 'retend-web';
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 5 | 
+   `----
+  help: Add type specifier to this import declaration
+
+  x typescript-eslint(consistent-type-imports): Imports __HMR_UpdatableFn, SourceCell, and StateSnapshot are only used as type.
+    ,-[packages/retend-web-devtools/source/core/devtools-renderer.ts:1:1]
+  1 | ,-> import {
+  2 | |     __HMR_UpdatableFn,
+  3 | |     Cell,
+  4 | |     createScope,
+  5 | |     onSetup,
+  6 | |     SourceCell,
+  7 | |     StateSnapshot,
+  8 | |     useScopeContext,
+  9 | `-> } from 'retend';
+ 10 |     import { DOMRenderer } from 'retend-web';
+    `----
+  help: Mark all type-only imports with the type specifier
+
+  x typescript-eslint(consistent-type-imports): All imports in the declaration are only used as types. Use `import type`.
+    ,-[packages/retend-web-devtools/source/core/devtools-renderer.ts:11:1]
+ 10 | import { DOMRenderer } from 'retend-web';
+ 11 | import { JSX } from 'retend/jsx-runtime';
+    : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 12 | 
+    `----
+  help: Add type specifier to this import declaration
+
+  x typescript-eslint(consistent-type-imports): Imports __HMR_UpdatableFn are only used as type.
+   ,-[packages/retend-web-devtools/source/components/TreeNode.tsx:1:1]
+ 1 | import { __HMR_UpdatableFn, Await, Cell, For, If, onSetup } from 'retend';
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 2 | import { ShadowRoot, Teleport } from 'retend-web';
+   `----
+  help: Mark all type-only imports with the type specifier
+
+  x typescript-eslint(consistent-type-imports): All imports in the declaration are only used as types. Use `import type`.
+   ,-[packages/retend-docs/source/components/NavigableHeading.tsx:2:1]
+ 1 | import { Cell, onSetup } from 'retend';
+ 2 | import { JSX } from 'retend/jsx-runtime';
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 3 | import { useCurrentRoute } from 'retend/router';
+   `----
+  help: Add type specifier to this import declaration
+
+  x typescript-eslint(consistent-type-imports): All imports in the declaration are only used as types. Use `import type`.
+   ,-[packages/retend-docs/source/components/MDXComponents.tsx:1:1]
+ 1 | import { JSX } from 'retend/jsx-runtime';
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 2 | 
+   `----
+  help: Add type specifier to this import declaration
+
+Found 0 warnings and 9 errors.
+Finished in 141ms on 211 files with 150 rules using 8 threads.

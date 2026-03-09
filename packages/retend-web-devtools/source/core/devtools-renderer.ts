@@ -1,14 +1,8 @@
-import {
-  __HMR_UpdatableFn,
-  Cell,
-  createScope,
-  onSetup,
-  SourceCell,
-  StateSnapshot,
-  useScopeContext,
-} from 'retend';
+import type { __HMR_UpdatableFn, SourceCell, StateSnapshot } from 'retend';
+import type { JSX } from 'retend/jsx-runtime';
+
+import { Cell, createScope, onSetup, useScopeContext } from 'retend';
 import { DOMRenderer } from 'retend-web';
-import { JSX } from 'retend/jsx-runtime';
 
 export interface ComponentTreeNode {
   component: __HMR_UpdatableFn;

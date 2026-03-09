@@ -42,7 +42,7 @@
 @Example 6
 @Input Div with reactive name
 const className = Cell.source('container');
-<div class={container} />
+<div class={className} />
 @Note Reactive values in class object are converted to strings.
 
 ---

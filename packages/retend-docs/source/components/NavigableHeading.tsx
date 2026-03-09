@@ -1,5 +1,6 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import { Cell, onSetup } from 'retend';
-import { JSX } from 'retend/jsx-runtime';
 import { useCurrentRoute } from 'retend/router';
 
 type HeadingProps =

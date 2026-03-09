@@ -83,16 +83,18 @@ export function Panel() {
                   class={classes.content}
                   data-picker-is-active={devRenderer.isPickerActive}
                 >
+                  <div class={classes.bodyContainer}>
+                    <div class={classes.body}>
+                      <ComponentTree />
+                    </div>
+                    {If(inspectorIsOpen, () => (
+                      <InspectorPanel />
+                    ))}
+                  </div>
                   <div class={classes.header}>
                     <span class={classes.title}>Component Tree</span>
                     <PanelHeaderTools panel={panel} />
                   </div>
-                  <div class={classes.body}>
-                    <ComponentTree />
-                  </div>
-                  {If(inspectorIsOpen, () => (
-                    <InspectorPanel />
-                  ))}
                 </div>
               </div>
             ))}

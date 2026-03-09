@@ -1,7 +1,7 @@
+import type { DOMRenderer } from 'retend-web';
 import type { JSX } from 'retend/jsx-runtime';
 
 import { getActiveRenderer, setActiveRenderer } from 'retend';
-import { DOMRenderer } from 'retend-web';
 
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 

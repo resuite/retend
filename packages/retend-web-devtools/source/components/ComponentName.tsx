@@ -1,6 +1,7 @@
 import { Cell, If } from 'retend';
 
-import { ComponentTreeNode } from '@/core/devtools-renderer';
+import type { ComponentTreeNode } from '@/core/devtools-renderer';
+
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import classes from '@/styles/ComponentTree.module.css';
 import { resolveComponentName } from '@/utils/sourceMapUtils';

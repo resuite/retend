@@ -1,4 +1,4 @@
-import { JSX } from 'retend/jsx-runtime';
+import type { JSX } from 'retend/jsx-runtime';
 
 import { InlineCode } from '@/components/InlineCode';
 import { MDXCodeBlock } from '@/components/MDXCodeBlock';

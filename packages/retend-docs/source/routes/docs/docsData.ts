@@ -1,8 +1,7 @@
+/// <reference types="vite/client" />
 import type { JSX } from 'retend/jsx-runtime';
 
-/// <reference types="vite/client" />
-
-export type DocPage = {
+export interface DocPage {
   headings: { id: string; label: string; depth: number }[];
   href: string;
   slug: string;
@@ -12,81 +11,74 @@ export type DocPage = {
   isIndex: boolean;
   sortKey: string;
   Component: (props: { components: Record<string, unknown> }) => JSX.Element;
-};
+}
 
-export type DocSectionData = {
+export interface DocSectionData {
   label: string;
   href: string;
   pages: DocPage[];
-};
+}
 
 type DocModule = Record<string, { default: DocPage['Component'] }>;
 
-const docModules = import.meta.glob('../../../content/**/*.mdx', {
-  eager: true,
-}) as DocModule;
+const modules = import.meta.glob('../../../content/**/*.mdx', { eager: true });
 declare const __DOC_HEADINGS__: Record<string, DocPage['headings']>;
 
-export const docPages: DocPage[] = [];
+const normalizePathSegments = (relativePath: string): string[] =>
+  relativePath
+    .split('/')
+    .filter((segment) => segment !== 'index')
+    .map((segment) => segment.replace(/^\d+-/u, ''));
 
-for (const [filePath, mdxModule] of Object.entries(docModules)) {
+const createLabelFromSlug = (slug: string): string => {
+  const labelMap: Record<string, string> = {
+    'Shadow Root': 'ShadowRoot',
+  };
+
+  const label = slug
+    .replace(/-/gu, ' ')
+    .split(' ')
+    .map((part) => (part ? `${part[0].toUpperCase()}${part.slice(1)}` : part))
+    .join(' ');
+
+  return labelMap[label] || label;
+};
+
+const createDocPage = ([filePath, mdxModule]: [
+  string,
+  { default: DocPage['Component'] },
+]): DocPage => {
   const relativePath = filePath
     .replace('../../../content/', '')
     .replace(/\.mdx$/u, '');
-
-  const pathSegments = relativePath.split('/');
-  const normalizedSegments: string[] = [];
-
-  for (const pathSegment of pathSegments) {
-    if (pathSegment === 'index') continue;
-    normalizedSegments.push(pathSegment.replace(/^\d+-/u, ''));
-  }
-
-  let href = '/docs';
-  if (normalizedSegments.length > 0) {
-    href = `${href}/${normalizedSegments.join('/')}`;
-  }
-
-  const pageSlug =
-    normalizedSegments[normalizedSegments.length - 1] || 'overview';
-
-  let headings: DocPage['headings'] = [];
+  const segments = normalizePathSegments(relativePath);
+  const slug = segments[segments.length - 1] || 'overview';
   const pageHeadings = __DOC_HEADINGS__[filePath];
-  if (Array.isArray(pageHeadings)) {
-    headings = pageHeadings;
-  }
 
-  const labelParts = pageSlug.replace(/-/gu, ' ').split(' ');
-  for (const [index, labelPart] of labelParts.entries()) {
-    if (labelPart === '') continue;
-    labelParts[index] = `${labelPart[0].toUpperCase()}${labelPart.slice(1)}`;
-  }
-  let label = labelParts.join(' ');
-  if (label === 'Unique Instances') label = 'Unique';
-  if (label === 'Shadow Root') label = 'ShadowRoot';
-
-  docPages.push({
-    headings,
-    href,
-    slug: pageSlug,
-    label,
+  return {
+    headings: Array.isArray(pageHeadings) ? pageHeadings : [],
+    href: segments.length > 0 ? `/docs/${segments.join('/')}` : '/docs',
+    slug,
+    label: createLabelFromSlug(slug),
     section: 'all',
     sectionLabel: 'Documentation',
     isIndex: false,
     sortKey: relativePath,
     Component: mdxModule.default,
-  });
-}
+  };
+};
 
-// Sort alphabetically by file name (which means numerical order 01-, 02- etc)
-docPages.sort((left, right) => left.sortKey.localeCompare(right.sortKey));
+export const docPages: DocPage[] = Object.entries(modules as DocModule)
+  .map(createDocPage)
+  .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
 
-const sections = new Map<string, DocSectionData>();
-
-sections.set('all', {
-  label: 'Documentation',
-  href: '/docs',
-  pages: docPages,
-});
-
-export const sectionEntries = Array.from(sections.entries());
+export const sectionEntries: [string, DocSectionData][] = [
+  [
+    'all',
+    {
+      label: 'Documentation',
+      href: '/docs',
+      pages: docPages,
+    },
+  ],
+];

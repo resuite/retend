@@ -29,7 +29,8 @@
     "unicorn/no-empty-file": "off",
     "unicorn/no-useless-spread": "warn",
     "typescript/no-extraneous-class": "off",
-    "typescript/triple-slash-reference": "warn"
+    "typescript/triple-slash-reference": "warn",
+    "typescript/consistent-type-imports": "error"
   },
   "ignorePatterns": ["dist", "node_modules", "*.d.ts", "*.log"]
 }
