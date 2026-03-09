@@ -210,6 +210,7 @@ export function For(list, fn, options) {
         nodeLookAhead,
       };
       renderer.reconcile(handle, reconciliationOptions);
+      renderer.observer?.flush();
 
       cacheFromLastRun = newCache;
       for (const node of effectNodesToActivate) node.activate();

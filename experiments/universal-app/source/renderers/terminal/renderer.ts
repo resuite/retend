@@ -743,7 +743,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
   isActive(_node: TerminalNode): boolean {
     return true;
   }
-  onViewChange(_processor: () => void) {}
   createGroup(input?: TerminalNode | TerminalNode[]) {
     return Array.isArray(input) ? input : [input || new MarkerNode('')];
   }

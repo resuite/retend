@@ -152,6 +152,7 @@ export function If(value, fnOrObject, elseFn) {
       stateSnapshot.node.dispose();
       const results = callback(nextValue);
       renderer.write(handle, results);
+      renderer.observer?.flush();
       stateSnapshot.node.activate();
     };
 

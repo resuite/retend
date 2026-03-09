@@ -287,6 +287,7 @@ export function runInvalidatorWithHMRBoundaries(
       return true;
     };
     const updated = withState(snapshot, swap);
+    renderer.observer?.flush();
     if (updated) snapshot.node.activate();
   };
 

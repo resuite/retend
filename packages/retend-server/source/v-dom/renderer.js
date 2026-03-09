@@ -82,8 +82,6 @@ export class VDOMRenderer {
     return false;
   }
 
-  onViewChange() {}
-
   /**
    * @param {VDom.VNode} node
    * @param {any} data

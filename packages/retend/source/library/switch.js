@@ -112,6 +112,7 @@ export function Switch(value, cases, defaultCase) {
       snapshot.node.dispose();
       const results = callback(nextValue);
       renderer.write(handle, results);
+      renderer.observer?.flush();
       snapshot.node.activate();
     };
 
@@ -239,6 +240,7 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
       snapshot.node.dispose();
       const results = callback(nextValue);
       renderer.write(handle, results);
+      renderer.observer?.flush();
       snapshot.node.activate();
     };
 

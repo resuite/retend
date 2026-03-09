@@ -38,7 +38,7 @@ describe('onConnected', () => {
 
     window.document.body.append(node);
 
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(callback).toHaveBeenCalledWith(node);
     expect(callback).toHaveBeenCalledTimes(1);
@@ -58,11 +58,12 @@ describe('onConnected', () => {
 
     onConnected(nodeRef, callback);
     expect(callback).toHaveBeenCalled();
+    renderer.observer?.flush();
     await timeout(0);
 
     node.remove();
 
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(cleanup).toHaveBeenCalled();
   });
@@ -83,6 +84,7 @@ describe('onConnected', () => {
 
     window.document.body.append(node);
 
+    renderer.observer?.flush();
     await timeout(0);
 
     expect(callback1).toHaveBeenCalled();
@@ -90,7 +92,7 @@ describe('onConnected', () => {
 
     node.remove();
 
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(cleanup1).toHaveBeenCalled();
     expect(cleanup2).toHaveBeenCalled();
@@ -118,7 +120,7 @@ describe('onConnected', () => {
     expect(resolved).toBe(true);
 
     node.remove();
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(cleanup).toHaveBeenCalled();
   });
@@ -136,7 +138,7 @@ describe('onConnected', () => {
 
     window.document.body.append(node);
 
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(callback).toHaveBeenCalledWith(node);
     expect(callback).toHaveBeenCalledTimes(1);
@@ -160,7 +162,7 @@ describe('onConnected', () => {
     expect(child.isConnected).toBe(true);
 
     parent.remove();
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(cleanup).toHaveBeenCalled();
   });
@@ -177,7 +179,7 @@ describe('onConnected', () => {
 
     nodeRef.set(node1);
     window.document.body.append(node1);
-    await timeout(0);
+    renderer.observer?.flush();
     expect(callback).toHaveBeenCalledWith(node1);
     expect(callback).toHaveBeenCalledTimes(1);
 
@@ -185,7 +187,7 @@ describe('onConnected', () => {
     nodeRef.set(node2);
     onConnected(nodeRef, callback2);
     window.document.body.append(node2);
-    await timeout(0);
+    renderer.observer?.flush();
     expect(callback2).toHaveBeenCalledWith(node2);
     expect(callback2).toHaveBeenCalledTimes(1);
 
@@ -205,7 +207,7 @@ describe('onConnected', () => {
     nodeRef.set(null);
 
     window.document.body.append(node);
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(callback).not.toHaveBeenCalled();
 
@@ -223,7 +225,7 @@ describe('onConnected', () => {
     onConnected(derivedRef, callback);
 
     window.document.body.append(node);
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(callback).toHaveBeenCalledWith(node);
     expect(callback).toHaveBeenCalledTimes(1);
@@ -244,7 +246,7 @@ describe('onConnected', () => {
     onConnected(ref2, callback2);
 
     window.document.body.append(node);
-    await timeout(0);
+    renderer.observer?.flush();
 
     expect(callback1).toHaveBeenCalledWith(node);
     expect(callback2).toHaveBeenCalledWith(node);

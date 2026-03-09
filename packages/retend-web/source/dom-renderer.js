@@ -117,15 +117,6 @@ export class DOMRenderer {
     return node.isConnected;
   }
 
-  /** @param {() => void} processor  */
-  onViewChange(processor) {
-    const mutObserver = new MutationObserver(processor);
-    mutObserver.observe(window.document.body, {
-      subtree: true,
-      childList: true,
-    });
-  }
-
   /**
    * @param {Node} node
    * @param {any} data
@@ -821,7 +812,7 @@ export class DOMRenderer {
   }
 
   #flushObserverMountedNodes() {
-    this.observer?.processMountedNodes();
+    this.observer?.flush();
   }
 
   /**

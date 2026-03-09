@@ -522,12 +522,13 @@ export function onSetup(callback) {
  * @see {@link onSetup} for registering effects that will be run by this function.
  */
 export async function runPendingSetupEffects() {
-  const { node } = getState();
+  const { node, renderer } = getState();
   if (!(node instanceof RootEffectNode)) {
     const message =
       'runPendingSetupEffects() can only be called at the root level of a component tree.';
     throw new Error(message);
   }
+  renderer?.observer?.flush();
   node.enable();
   await node.activate();
   await new Promise((resolve) => setTimeout(resolve));

@@ -516,8 +516,6 @@ export class CanvasRenderer {
     return true;
   }
 
-  onViewChange(_processor: () => void) {}
-
   saveContainerState() {
     return null;
   }

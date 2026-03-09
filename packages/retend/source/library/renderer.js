@@ -97,8 +97,6 @@ import { getGlobalContext } from '../context/index.js';
  *
  * @property {(app: JSX.Template) => Node | Node[]} render
  *
- * @property {(callback: () => void) => void} onViewChange
- *
  * @property {Capabilities} capabilities
  * Configuration flags indicating which features this renderer supports.
  *

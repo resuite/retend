@@ -27,8 +27,6 @@ export class Observer {
     const { capabilities } = renderer;
     if (!capabilities.supportsObserverConnectedCallbacks) return;
     this.#renderer = renderer;
-    const processor = this.processMountedNodes.bind(this);
-    renderer.onViewChange(processor);
   }
 
   /**
@@ -37,9 +35,25 @@ export class Observer {
    * @param {T} node - The node to mount the callback to
    * @param {MountFn<T>} callback - The callback to execute when mounted
    */
-  async #mount(node, callback) {
+  #mount(node, callback) {
     try {
-      const cleanup = await callback(node);
+      const cleanup = callback(node);
+      if (cleanup instanceof Promise) {
+        cleanup
+          .then((resolvedCleanup) => {
+            if (!resolvedCleanup) return;
+            const cleanups = this.#mountedNodes.get(node);
+            if (cleanups) {
+              cleanups.push(resolvedCleanup);
+            } else {
+              this.#mountedNodes.set(node, [resolvedCleanup]);
+            }
+          })
+          .catch((error) => {
+            console.error('Error mounting node:', error);
+          });
+        return;
+      }
       if (cleanup) {
         const cleanups = this.#mountedNodes.get(node);
         if (cleanups) {
@@ -79,7 +93,10 @@ export class Observer {
    * It iterates through the `callbackSets` to mount callbacks for newly connected nodes
    * and iterates through the `mountedNodes` to execute cleanup functions for disconnected nodes.
    */
-  processMountedNodes() {
+  flush() {
+    if (!this.#renderer?.capabilities.supportsObserverConnectedCallbacks) {
+      return;
+    }
     for (const [key, callbacks] of this.#callbackSets) {
       key.get();
       const currentValue = key.peek();
