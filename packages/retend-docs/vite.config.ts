@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { retendSSG } from 'retend-server/plugin';
-import { retend } from 'retend-web/plugin';
+import { retend } from 'retend-web/plugins/vite';
 import { defineConfig } from 'vite';
 
 const docsPages = new Set<string>();

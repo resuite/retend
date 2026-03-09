@@ -1,5 +1,5 @@
 #!/usr/bin / env node
-/* oxlint-disable no-console */
+/**/
 /// <reference types="node" />
 
 import chalk from 'chalk';
@@ -316,7 +316,7 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { retend } from 'retend-web/plugin';${
+import { retend } from 'retend-web/plugins/vite';${
     answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ''
   }${
     answers.useTailwind ? "\nimport tailwindcss from '@tailwindcss/vite';" : ''

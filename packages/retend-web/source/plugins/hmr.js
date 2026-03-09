@@ -59,16 +59,14 @@ import {
  * re-render only those that have changed. This approach avoids unnecessary re-renders and
  * optimizes hot module replacement (HMR) for JSX files.
  *
- * @param {Object} newModule - The updated module with potentially changed function components.
- * @param {string} url - The module's URL, used to dynamically import and compare the old module.
+ * @param {Record<string, unknown>} newModule - The updated module with potentially changed function components.
+ * @param {Record<string, unknown> | undefined} oldModule - The previous module exports.
  */
-export async function hotReloadModule(newModule, url) {
+export async function hotReloadModule(newModule, oldModule) {
   // if (import.meta.env.SSR) return; // Skip HMR on the server
 
   if (!newModule) return;
-
-  // Dynamically import the old module using its URL.
-  const oldModule = await import(/* @vite-ignore */ url);
+  if (!oldModule) return;
 
   const newModuleData = Object.entries(newModule);
   if (newModuleData.length === 0) {
@@ -105,9 +103,11 @@ export async function hotReloadModule(newModule, url) {
     }
 
     try {
-      const cell = oldInstance[__HMR_SYMBOLS.ComponentInvalidator];
+      const current = /** @type {any} */ (oldInstance);
+      const next = /** @type {any} */ (newInstance);
+      const cell = current[__HMR_SYMBOLS.ComponentInvalidator];
       if (cell) {
-        newInstance[__HMR_SYMBOLS.ComponentInvalidator] = cell;
+        next[__HMR_SYMBOLS.ComponentInvalidator] = cell;
         context.current.set(newInstance);
         cell.set(newInstance);
       }

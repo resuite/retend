@@ -30,18 +30,19 @@ export const retend = () => {
         return null;
       }
 
-      const isJsx = id.endsWith('.jsx') || id.endsWith('.tsx');
+      const isJsx =
+        id.endsWith('.jsx') || id.endsWith('.tsx') || id.endsWith('.mdx');
 
       if (!isJsx) return null;
 
       const injectedCode = `
-import { hotReloadModule as __HMR____ } from 'retend-web/plugin/hmr';
+import { hotReloadModule as __HMR____ } from 'retend-web/plugins/hmr';
 
 ${code}
 
 if (import.meta.hot) {
-  import.meta.hot.accept((newModule) => {
-    __HMR____(newModule, import.meta.url);
+  import.meta.hot.accept(async (newModule) => {
+    __HMR____(newModule, await import(/* @vite-ignore */ import.meta.url));
   });
 }
       `;

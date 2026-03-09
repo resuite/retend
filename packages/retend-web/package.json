@@ -26,13 +26,17 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./plugin": {
-      "types": "./dist/plugin/index.d.ts",
-      "import": "./dist/plugin/index.js"
+    "./plugins/vite": {
+      "types": "./dist/plugins/vite.d.ts",
+      "import": "./dist/plugins/vite.js"
     },
-    "./plugin/hmr": {
-      "types": "./dist/plugin/hmr.d.ts",
-      "import": "./dist/plugin/hmr.js"
+    "./plugins/rspack": {
+      "types": "./dist/plugins/rspack.d.ts",
+      "import": "./dist/plugins/rspack.js"
+    },
+    "./plugins/hmr": {
+      "types": "./dist/plugins/hmr.d.ts",
+      "import": "./dist/plugins/hmr.js"
     },
     "./dom-ops": {
       "types": "./dist/dom-ops.d.ts",

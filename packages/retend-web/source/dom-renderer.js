@@ -17,7 +17,7 @@ import {
 import { getGlobalContext, setGlobalContext } from 'retend/context';
 
 import * as Ops from './dom-ops.js';
-import { withHMRBoundaries } from './plugin/hmr.js';
+import { withHMRBoundaries } from './plugins/hmr.js';
 import {
   DeferredHandleSymbol,
   Skip,
@@ -226,6 +226,10 @@ export class DOMRenderer {
       if (import.meta.env?.DEV) {
         return withHMRBoundaries(tagname, props, fileData, this);
       }
+      // @ts-expect-error: Rspack types are not ingrained
+      if (import.meta.webpackHot) {
+        return withHMRBoundaries(tagname, props, fileData, this);
+      }
       const template = tagname(...props);
       /** @type {Node[]} */
       const nodes = createNodesFromTemplate(template, this);
@@ -245,6 +249,10 @@ export class DOMRenderer {
       }
       // @ts-expect-error: Vite types are not ingrained
       if (import.meta.env?.DEV) {
+        return withHMRBoundaries(tagname, props, fileData, this);
+      }
+      // @ts-expect-error: Rspack types are not ingrained
+      if (import.meta.webpackHot) {
         return withHMRBoundaries(tagname, props, fileData, this);
       }
       const template = tagname(...props);
