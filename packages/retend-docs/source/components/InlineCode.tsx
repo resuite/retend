@@ -8,7 +8,7 @@ export function InlineCode(props: InlineCodeProps) {
     <code
       class={[
         'border-border bg-surface min-w-0 border text-nowrap',
-        'mx-[0.1em] px-[0.4em] py-[0.15em] font-mono text-[0.85em] font-medium',
+        'mx-[0.1em] px-[0.4em] py-[0.15em] font-mono text-[0.8em] font-medium',
         'rounded-md',
         className,
       ]}
