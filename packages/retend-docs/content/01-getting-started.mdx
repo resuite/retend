@@ -51,7 +51,7 @@ This command automatically creates a complete project structure for you, includi
 
 ## Writing Your First Application
 
-Let us build a simple counter application. This will show you how Retend handles reactive data.
+Let us build a simple toggle switch application. This will show you how Retend handles reactive data.
 
 Create a new file and add the following code:
 
@@ -61,19 +61,19 @@ import { Cell } from 'retend';
 
 const App = () => {
   // 1. Create a reactive piece of data
-  const count = Cell.source(0);
+  const isOn = Cell.source(false);
 
   // 2. Define a function to update the data
-  const incrementCount = () => count.set(count.get() + 1);
+  const toggleSwitch = () => isOn.set(!isOn.get());
 
   // 3. Return the user interface
   return (
     <>
       <h1>Hello, Retend</h1>
-      <p>Click the button below to update the count.</p>
+      <p>Click the button below to toggle the switch.</p>
 
-      <button type="button" onClick={incrementCount}>
-        Counter: {count}
+      <button type="button" onClick={toggleSwitch}>
+        Status: {isOn}
       </button>
     </>
   );
@@ -83,11 +83,11 @@ const App = () => {
 renderToDOM(document.getElementById('app')!, App);
 ```
 
-### How the Counter Works
+### How the Toggle Switch Works
 
-1. We create a `count` variable using `Cell.source(0)`. This wraps our number `0` in a reactive container.
-2. We pass `{count}` directly into our user interface.
-3. Retend watches that specific `Cell`. When you click the button and `incrementCount` runs, Retend automatically updates just the text inside the button. The `App` function itself only runs exactly once!
+1. We create an `isOn` variable using `Cell.source(false)`. This wraps our boolean `false` in a reactive container.
+2. We pass `{isOn}` directly into our user interface.
+3. Retend watches that specific `Cell`. When you click the button and `toggleSwitch` runs, Retend automatically updates just the text inside the button. The `App` function itself only runs exactly once!
 
 ## Running Your Application
 
@@ -97,7 +97,7 @@ To see your application in action, run the development server:
 pnpm run dev
 ```
 
-Open your web browser and navigate to `http://localhost:5229`. You will see your counter ready to be clicked!
+Open your web browser and navigate to `http://localhost:5229`. You will see your toggle switch ready to be clicked!
 
 ## What to Learn Next
 

@@ -7,6 +7,7 @@ Retend is a experimental framework for building fluid web apps. Like React, it a
 If you've worked with HTML, CSS, and JavaScript, Retend should be easy to pick up. It is designed to help you build applications quickly and efficiently.
 
 ## At a Glance:
+
 ```tsx
 import { Cell } from 'retend';
 import { renderToDOM } from 'retend-web';
@@ -36,7 +37,6 @@ renderToDOM(document.body, App);
 - Built-in Reactivity: [`@adbl/cells`](https://github.com/adebola-io/cells) is used for reactivity. This means that parts of your UI that depend on data will automatically update, without the need for manual triggering or rerenders.
 
 - Platform Agnostic by Default: Retend's core reactivity is decoupled from the browser. The default web renderer (`retend-web`) maps components directly to DOM elements.
-
   - There is no Virtual DOM.
   - There is no "re-render".
 
@@ -67,7 +67,6 @@ This will set up the basic project structure for you. Then, you'll need to insta
   This command will prompt you for some details about your project and generate the necessary project files.
 
   You can also use the following options to configure the project:
-
   - `--name`: The name of the project (defaults to `my-app`).
   - `--tailwind`: Whether to use Tailwind CSS (defaults to `false`).
   - `--scss`: Whether to use SCSS (defaults to `CSS`). If set, SCSS will be used as the CSS preprocessor.

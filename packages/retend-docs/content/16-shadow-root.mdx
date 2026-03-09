@@ -63,11 +63,11 @@ You don't have to learn any new patterns to use a Shadow Root. Everything you al
 import { Cell } from 'retend';
 import { ShadowRoot } from 'retend-web';
 
-function IsolatedCounter() {
-  const count = Cell.source(0);
+function IsolatedToggle() {
+  const isOn = Cell.source(false);
 
   return (
-    <div class="counter-host">
+    <div class="toggle-host">
       <ShadowRoot>
         <style>
           {`
@@ -80,9 +80,9 @@ function IsolatedCounter() {
           `}
         </style>
 
-        <p>Count: {count}</p>
-        <button type="button" onClick={() => count.update((c) => c + 1)}>
-          Increment
+        <p>Status: {isOn}</p>
+        <button type="button" onClick={() => isOn.set(!isOn.get())}>
+          Toggle
         </button>
       </ShadowRoot>
     </div>

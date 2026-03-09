@@ -47,18 +47,18 @@ Most of the time, an event should change something on the screen. To do this, si
 ```tsx
 import { Cell } from 'retend';
 
-function Counter() {
-  const count = Cell.source(0);
+function ToggleSwitch() {
+  const isOn = Cell.source(false);
 
-  const increment = () => {
-    count.set(count.get() + 1);
+  const toggle = () => {
+    isOn.set(!isOn.get());
   };
 
   return (
     <div>
-      <p>Current count: {count}</p>
-      <button type="button" onClick={increment}>
-        Add +1
+      <p>Switch is: {isOn}</p>
+      <button type="button" onClick={toggle}>
+        Toggle
       </button>
     </div>
   );

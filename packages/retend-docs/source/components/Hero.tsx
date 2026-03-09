@@ -3,14 +3,14 @@ import { ArrowRightIcon, ExternalLinkIcon } from '@/icons';
 import { Button } from './Button';
 import { CodeBlock } from './CodeBlock';
 
-const heroCode = `function Counter() {
-  const count = Cell.source(0);
-  const inc = () => count.set(count.get() + 1);
+const heroCode = `function ToggleSwitch() {
+  const isOn = Cell.source(false);
+  const toggle = () => isOn.set(!isOn.get());
 
   return (
     <div>
-      <h2>Current count: {count}</h2>
-      <button type="button" onClick={inc}>Increase</button>
+      <h2>Switch status: {isOn}</h2>
+      <button type="button" onClick={toggle}>Toggle</button>
     </div>
   );
 }`;
