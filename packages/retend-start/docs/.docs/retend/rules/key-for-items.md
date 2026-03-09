@@ -1,6 +1,6 @@
-| title                  | impact  | impactDescription                                      | tags                       |
-| :--------------------- | :------ | :----------------------------------------------------- | :------------------------- |
-| Always Key For Items   | Medium  | Efficient list updates and proper item identity tracking. | performance, control-flow, For |
+| title                | impact | impactDescription                                         | tags                           |
+| :------------------- | :----- | :-------------------------------------------------------- | :----------------------------- |
+| Always Key For Items | Medium | Efficient list updates and proper item identity tracking. | performance, control-flow, For |
 
 # Always Key For Items
 
@@ -53,9 +53,13 @@ const users = Cell.source([
 function UserList() {
   return (
     <ul>
-      {For(users, (user) => (
-        <li>{user.name}</li>
-      ), { key: 'id' })}
+      {For(
+        users,
+        (user) => (
+          <li>{user.name}</li>
+        ),
+        { key: 'id' }
+      )}
     </ul>
   );
 }
@@ -73,9 +77,13 @@ const items = Cell.source([
 function ItemList() {
   return (
     <ul>
-      {For(items, (item) => (
-        <li>{item.value}</li>
-      ), { key: (item) => `${item.category}-${item.index}` })}
+      {For(
+        items,
+        (item) => (
+          <li>{item.value}</li>
+        ),
+        { key: (item) => `${item.category}-${item.index}` }
+      )}
     </ul>
   );
 }

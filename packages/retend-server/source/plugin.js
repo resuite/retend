@@ -4,14 +4,12 @@
 /** @import { AsyncStorage } from './types.js' */
 /** @import { Router } from 'retend/router' */
 
-import {
-  buildPath,
-  HtmlOutputArtifact,
-  RedirectOutputArtifact,
-} from './server.js';
-import path, { resolve } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
+/** @import { HtmlOutputArtifact } from './server.js' */
+import path, { resolve } from 'node:path';
 import { resolveConfig, createRunnableDevEnvironment } from 'vite';
+
+import { buildPath, RedirectOutputArtifact } from './server.js';
 
 /**
  * @typedef {object} SharedData
@@ -348,7 +346,7 @@ async function stringifyArtifact(
     }
   }
 
-  const source = await stringify();
+  const source = stringify();
   return source;
 }
 
@@ -367,15 +365,20 @@ async function defineSharedGlobalContext(sharedData, setGlobalContext) {
       if (!store) throw new Error('No store found');
       return store.teleportIdCounter;
     },
-    get consistentValues() {
-      const store = asyncLocalStorage.getStore();
-      if (!store) throw new Error('No store found');
-      return store.consistentValues;
-    },
     get globalData() {
       const store = asyncLocalStorage.getStore();
       if (!store) throw new Error('No store found');
       return store.globalData;
+    },
+    get renderer() {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      return store.renderer;
+    },
+    set renderer(renderer) {
+      const store = asyncLocalStorage.getStore();
+      if (!store) throw new Error('No store found');
+      store.renderer = renderer;
     },
   };
   setGlobalContext(context);

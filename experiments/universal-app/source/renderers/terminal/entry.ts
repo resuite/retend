@@ -1,6 +1,7 @@
-import { TerminalHost, TerminalRenderer, TerminalScreen } from './renderer';
 import { runPendingSetupEffects, setActiveRenderer } from 'retend';
+
 import App from '../../App';
+import { TerminalHost, TerminalRenderer, TerminalScreen } from './renderer';
 
 const screen = new TerminalScreen();
 

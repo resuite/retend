@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
 import { Cell } from 'retend';
 import { For, If, Switch } from 'retend';
 import {
+  branchState,
   createScope,
-  useScopeContext,
-  createScopeSnapshot,
-  withScopeSnapshot,
-  combineScopes,
   getActiveRenderer,
   setActiveRenderer,
+  useScopeContext,
+  withState,
 } from 'retend';
+import { describe, expect, it } from 'vitest';
+
 import { browserSetup, getTextContent, vDomSetup } from '../setup.tsx';
 
 const runTests = () => {
@@ -28,8 +28,11 @@ const runTests = () => {
         );
       };
 
-      const result = (
-        <UserScope.Provider value={userData} content={ChildComponent} />
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <UserScope.Provider value={userData}>
+          <ChildComponent />
+        </UserScope.Provider>
       ) as HTMLElement;
 
       expect(getTextContent(result)).toBe('User: Alice, Age: 30');
@@ -53,17 +56,18 @@ const runTests = () => {
         return <div>Theme: {theme}</div>;
       };
 
-      const result = (
-        <ThemeScope.Provider
-          value={'light'}
-          content={() => (
-            <div>
+      const renderer = getActiveRenderer();
+
+      const result = renderer.render(
+        <ThemeScope.Provider value="light">
+          <div>
+            <Component />
+            <ThemeScope.Provider value="dark">
               <Component />
-              <ThemeScope.Provider value={'dark'} content={Component} />
-              <Component />
-            </div>
-          )}
-        />
+            </ThemeScope.Provider>
+            <Component />
+          </div>
+        </ThemeScope.Provider>
       ) as HTMLElement;
 
       expect(getTextContent(result)).toBe(
@@ -85,21 +89,21 @@ const runTests = () => {
         );
       };
 
-      const result = (
-        <UserScope.Provider
-          value={{ name: 'Bob' }}
-          content={() => (
-            <ThemeScope.Provider value={'dark'} content={Component} />
-          )}
-        />
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <UserScope.Provider value={{ name: 'Bob' }}>
+          <ThemeScope.Provider value={'dark'}>
+            <Component />
+          </ThemeScope.Provider>
+        </UserScope.Provider>
       ) as HTMLElement;
 
       expect(getTextContent(result)).toBe('User: Bob, Theme: dark');
     });
   });
 
-  describe('Scope.Provider children function syntax', () => {
-    it('should create and consume a basic scope using children', () => {
+  describe('Scope.Provider children component syntax', () => {
+    it('should create and consume a basic scope using Fragment children', () => {
       const userData = { name: 'Alice', age: 30 };
       const UserScope = createScope<typeof userData>();
 
@@ -112,9 +116,12 @@ const runTests = () => {
         );
       };
 
-      const result = (
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
         <UserScope.Provider value={userData}>
-          {() => <ChildComponent />}
+          <>
+            <ChildComponent />
+          </>
         </UserScope.Provider>
       ) as HTMLElement;
 
@@ -129,17 +136,16 @@ const runTests = () => {
         return <div>Theme: {theme}</div>;
       };
 
-      const result = (
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
         <ThemeScope.Provider value={'light'}>
-          {() => (
-            <div>
+          <div>
+            <Component />
+            <ThemeScope.Provider value={'dark'}>
               <Component />
-              <ThemeScope.Provider value={'dark'}>
-                {() => <Component />}
-              </ThemeScope.Provider>
-              <Component />
-            </div>
-          )}
+            </ThemeScope.Provider>
+            <Component />
+          </div>
         </ThemeScope.Provider>
       ) as HTMLElement;
 
@@ -162,13 +168,12 @@ const runTests = () => {
         );
       };
 
-      const result = (
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
         <UserScope.Provider value={{ name: 'Bob' }}>
-          {() => (
-            <ThemeScope.Provider value={'dark'}>
-              {() => <Component />}
-            </ThemeScope.Provider>
-          )}
+          <ThemeScope.Provider value={'dark'}>
+            <Component />
+          </ThemeScope.Provider>
         </UserScope.Provider>
       ) as HTMLElement;
 
@@ -186,7 +191,11 @@ const runTests = () => {
       };
       const ConfigScope = createScope<typeof config>();
       const App = () => {
-        return <ConfigScope.Provider value={config} content={Component} />;
+        return (
+          <ConfigScope.Provider value={config}>
+            <Component />
+          </ConfigScope.Provider>
+        );
       };
 
       const OverviewComponent = () => {
@@ -216,7 +225,8 @@ const runTests = () => {
         );
       };
 
-      const result = App() as HTMLElement;
+      const renderer = getActiveRenderer();
+      const result = renderer.render(App) as HTMLElement;
       expect(getTextContent(result)).toBe('MyApp');
       showDetails.set(true);
       expect(getTextContent(result)).toBe(
@@ -251,27 +261,32 @@ const runTests = () => {
         const nestedUser = Cell.source({ name: 'John Doe', age: 30 });
         const isAlex = Cell.derived(() => user.get().name === 'Alexander');
         return If(isAlex, () => (
-          <UserScope.Provider value={nestedUser} content={ChildComponent} />
+          <UserScope.Provider value={nestedUser}>
+            <ChildComponent />
+          </UserScope.Provider>
         ));
       };
       const user = Cell.source({ name: 'Alice', age: 25 });
-      const App = () => {
+      const ProviderContent = () => {
         const isNotAlex = Cell.derived(() => user.get().name !== 'Alexander');
         return (
+          <>
+            {If(isNotAlex, ChildComponent)}
+            <ParentComponent />
+          </>
+        );
+      };
+      const App = () => {
+        return (
           <div>
-            <UserScope.Provider
-              value={user}
-              content={() => (
-                <>
-                  {If(isNotAlex, ChildComponent)}
-                  <ParentComponent />
-                </>
-              )}
-            />
+            <UserScope.Provider value={user}>
+              <ProviderContent />
+            </UserScope.Provider>
           </div>
         );
       };
-      const result = App() as HTMLElement;
+      const renderer = getActiveRenderer();
+      const result = renderer.render(App) as HTMLElement;
       expect(getTextContent(result)).toBe(
         "The user's name is Alice and their age is 25"
       );
@@ -311,16 +326,16 @@ const runTests = () => {
           </div>
         );
       };
-      const result = (
-        <UserScope.Provider
-          value={userData}
-          content={() => (
-            <ItemsScope.Provider
-              value={itemsData}
-              content={() => <ListComponent />}
-            />
-          )}
-        />
+      const ItemsProvider = () => (
+        <ItemsScope.Provider value={itemsData}>
+          <ListComponent />
+        </ItemsScope.Provider>
+      );
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <UserScope.Provider value={userData}>
+          <ItemsProvider />
+        </UserScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result)).toBe(
         'Item 1 - owned by AliceItem 2 - owned by Alice'
@@ -351,16 +366,16 @@ const runTests = () => {
           </div>
         );
       };
-      const result = (
-        <ConfigScope.Provider
-          value={configData}
-          content={() => (
-            <StateScope.Provider
-              value={stateData}
-              content={() => <Component />}
-            />
-          )}
-        />
+      const StateProvider = () => (
+        <StateScope.Provider value={stateData}>
+          <Component />
+        </StateScope.Provider>
+      );
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <ConfigScope.Provider value={configData}>
+          <StateProvider />
+        </ConfigScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result)).toBe('TestAppLoading: Yes');
       currentState.set('error');
@@ -370,34 +385,39 @@ const runTests = () => {
     });
   });
 
-  describe('createScopeSnapshot and withScopeSnapshot', () => {
+  describe('branchState and withState', () => {
     it('should restore scope values from snapshot', () => {
       const CounterScope = createScope<number>();
-      let snapshot: ReturnType<typeof createScopeSnapshot>;
+      let snapshot: ReturnType<typeof branchState>;
       const testResults: number[] = [];
-      const result = (
-        <CounterScope.Provider
-          value={1}
-          content={() => {
-            snapshot = createScopeSnapshot();
-            return (
-              <CounterScope.Provider
-                value={2}
-                content={() => {
-                  // Record the current value
-                  const currentValue = useScopeContext(CounterScope);
-                  testResults.push(currentValue);
-                  // Test withScopeSnapshot
-                  const restoredValue = withScopeSnapshot(snapshot, () => {
-                    return useScopeContext(CounterScope);
-                  });
-                  testResults.push(restoredValue);
-                  return <div>Test completed</div>;
-                }}
-              />
-            );
-          }}
-        />
+
+      const Recorder = () => {
+        // Record the current value
+        const currentValue = useScopeContext(CounterScope);
+        testResults.push(currentValue);
+        // Test withState
+        const restoredValue = withState(snapshot, () => {
+          return useScopeContext(CounterScope);
+        });
+        testResults.push(restoredValue);
+        return <div>Test completed</div>;
+      };
+
+      const InnerProvider = () => (
+        <CounterScope.Provider value={2}>
+          <Recorder />
+        </CounterScope.Provider>
+      );
+
+      const OuterProvider = () => {
+        snapshot = branchState();
+        return <InnerProvider />;
+      };
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <CounterScope.Provider value={1}>
+          <OuterProvider />
+        </CounterScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result)).toBe('Test completed');
       expect(testResults).toEqual([2, 1]); // Current value: 2, Restored value: 1
@@ -408,13 +428,13 @@ const runTests = () => {
       const mockRenderer = { name: 'mock' } as any;
 
       setActiveRenderer(mockRenderer);
-      const snapshot = createScopeSnapshot();
+      const snapshot = branchState();
       expect(snapshot.renderer).toBe(mockRenderer);
 
       setActiveRenderer(initialRenderer);
       expect(getActiveRenderer()).toBe(initialRenderer);
 
-      withScopeSnapshot(snapshot, () => {
+      withState(snapshot, () => {
         expect(getActiveRenderer()).toBe(mockRenderer);
       });
 
@@ -422,86 +442,45 @@ const runTests = () => {
     });
 
     it('should handle empty snapshots', () => {
-      const emptySnapshot = createScopeSnapshot();
-      expect(emptySnapshot.scopes.size).toBe(0);
-      const result = withScopeSnapshot(emptySnapshot, () => {
+      const emptySnapshot = branchState();
+      expect(emptySnapshot.scopes).toBeNull();
+      const result = withState(emptySnapshot, () => {
         return 'test-result';
       });
       expect(result).toBe('test-result');
     });
   });
 
-  describe('combineScopes', () => {
-    it('should combine multiple scopes', () => {
-      const UserScope = createScope<{ name: string }>();
-      const ThemeScope = createScope<string>();
-      const ConfigScope = createScope<{ debug: boolean }>();
-      const CombinedScope = combineScopes(UserScope, ThemeScope, ConfigScope);
-      const Component = () => {
-        const user = useScopeContext(UserScope);
-        const theme = useScopeContext(ThemeScope);
-        const config = useScopeContext(ConfigScope);
-        return (
-          <div>
-            User: {user.name}, Theme: {theme}, Debug:{' '}
-            {config.debug ? 'On' : 'Off'}
-          </div>
-        );
-      };
-      const ScopeData = {
-        [UserScope.key]: { name: 'Alice' },
-        [ThemeScope.key]: 'dark',
-        [ConfigScope.key]: { debug: true },
-      };
-      const result = (
-        <CombinedScope.Provider value={ScopeData} content={Component} />
-      ) as HTMLElement;
-      expect(getTextContent(result)).toBe(
-        'User: Alice, Theme: dark, Debug: On'
-      );
+  describe('EffectNode ID', () => {
+    it('should assign hierarchical IDs to branched nodes', () => {
+      const snapshot1 = branchState();
+      const snapshot2 = branchState();
+      const snapshot3 = branchState();
+
+      expect(snapshot1.node.id).toBe('0.0');
+      expect(snapshot2.node.id).toBe('0.1');
+      expect(snapshot3.node.id).toBe('0.2');
     });
 
-    it('should handle Scope order correctly', () => {
-      const Scope1 = createScope<string>();
-      const Scope2 = createScope<string>();
-      const CombinedScope = combineScopes(Scope1, Scope2);
-      const Component = () => {
-        const value1 = useScopeContext(Scope1);
-        const value2 = useScopeContext(Scope2);
-        return (
-          <div>
-            {value1}-{value2}
-          </div>
-        );
-      };
-      const ScopeData = {
-        [Scope1.key]: 'first',
-        [Scope2.key]: 'second',
-      };
-      const result = (
-        <CombinedScope.Provider
-          value={ScopeData}
-          content={() => <Component />}
-        />
-      ) as HTMLElement;
-      expect(getTextContent(result)).toBe('first-second');
+    it('should create nested hierarchical IDs', () => {
+      const parent = branchState();
+
+      const child1 = withState(parent, () => branchState());
+      const child2 = withState(parent, () => branchState());
+
+      expect(parent.node.id).toBe('0.0');
+      expect(child1.node.id).toBe('0.0.0');
+      expect(child2.node.id).toBe('0.0.1');
     });
 
-    it('should work with a single Scope', () => {
-      const UserScope = createScope<{ name: string }>();
-      const CombinedScope = combineScopes(UserScope);
-      const Component = () => {
-        const user = useScopeContext(UserScope);
-        return <div>{user.name}</div>;
-      };
-      const ScopeData = { [UserScope.key]: { name: 'Solo' } };
-      const result = (
-        <CombinedScope.Provider
-          value={ScopeData}
-          content={() => <Component />}
-        />
-      ) as HTMLElement;
-      expect(getTextContent(result)).toBe('Solo');
+    it('should support deeply nested branches', () => {
+      const level1 = branchState();
+      const level2 = withState(level1, () => branchState());
+      const level3 = withState(level2, () => branchState());
+
+      expect(level1.node.id).toBe('0.0');
+      expect(level2.node.id).toBe('0.0.0');
+      expect(level3.node.id).toBe('0.0.0.0');
     });
   });
 
@@ -513,8 +492,11 @@ const runTests = () => {
         return <div>{value}</div>;
       };
       // First render
-      const result1 = (
-        <TestScope.Provider value={'test-value'} content={TestComponent} />
+      const renderer = getActiveRenderer();
+      const result1 = renderer.render(
+        <TestScope.Provider value={'test-value'}>
+          <TestComponent />
+        </TestScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result1)).toBe('test-value');
       // After unmount, scope should be cleaned up
@@ -533,18 +515,25 @@ const runTests = () => {
         return <div>{value}</div>;
       };
       // First mount
-      const result1 = (
-        <TestScope.Provider value={1} content={TestComponent} />
+      const renderer = getActiveRenderer();
+      const result1 = renderer.render(
+        <TestScope.Provider value={1}>
+          <TestComponent />
+        </TestScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result1)).toBe('1');
       // Second mount with different data
-      const result2 = (
-        <TestScope.Provider value={2} content={TestComponent} />
+      const result2 = renderer.render(
+        <TestScope.Provider value={2}>
+          <TestComponent />
+        </TestScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result2)).toBe('2');
       // Third mount
-      const result3 = (
-        <TestScope.Provider value={3} content={TestComponent} />
+      const result3 = renderer.render(
+        <TestScope.Provider value={3}>
+          <TestComponent />
+        </TestScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result3)).toBe('3');
     });
@@ -570,16 +559,14 @@ const runTests = () => {
         const value = useScopeContext(SharedScope);
         return <div>Component2: {value}</div>;
       };
-      const result = (
-        <SharedScope.Provider
-          value={'shared-value'}
-          content={() => (
-            <div>
-              <Component1 />
-              <Component2 />
-            </div>
-          )}
-        />
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <SharedScope.Provider value={'shared-value'}>
+          <div>
+            <Component1 />
+            <Component2 />
+          </div>
+        </SharedScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result)).toBe(
         'Component1: shared-valueComponent2: shared-value'
@@ -604,8 +591,11 @@ const runTests = () => {
           </div>
         );
       };
-      const result = (
-        <ComplexScope.Provider value={complexData} content={Component} />
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <ComplexScope.Provider value={complexData}>
+          <Component />
+        </ComplexScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result)).toBe(
         'User: Alice, Theme: dark, Items: 1, Has Metadata: Yes'
@@ -626,8 +616,11 @@ const runTests = () => {
           </div>
         );
       };
-      const result = (
-        <FunctionsScope.Provider value={functionsData} content={Component} />
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <FunctionsScope.Provider value={functionsData}>
+          <Component />
+        </FunctionsScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result)).toBe('Hello, World! Result: 5');
     });
@@ -646,8 +639,11 @@ const runTests = () => {
           </div>
         );
       };
-      const result = (
-        <CellScope.Provider value={cellData} content={Component} />
+      const renderer = getActiveRenderer();
+      const result = renderer.render(
+        <CellScope.Provider value={cellData}>
+          <Component />
+        </CellScope.Provider>
       ) as HTMLElement;
       expect(getTextContent(result)).toBe('Counter: 0, Message: Hello');
       // Test reactivity

@@ -1,14 +1,11 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import {
-  combineScopes,
-  createScope,
-  useScopeContext,
-  getActiveRenderer,
-} from 'retend';
-import { resetGlobalContext } from 'retend/context';
-import { createRouterRoot, Router, useRouter } from 'retend/router';
-import { routerSetup, getTextContent } from '../setup.tsx';
 import type { DOMRenderer } from 'retend-web';
+
+import { createScope, getActiveRenderer, useScopeContext } from 'retend';
+import { resetGlobalContext } from 'retend/context';
+import { Router, createRouterRoot, useRouter } from 'retend/router';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { getTextContent, routerSetup } from '../setup.tsx';
 
 describe('Scopes in Routing', () => {
   beforeEach(() => {
@@ -36,7 +33,11 @@ describe('Scopes in Routing', () => {
     const Home = () => {
       const { Outlet } = useRouter();
       const data: Data = { name: 'Sefunmi' };
-      return <DataScope.Provider value={data} content={Outlet} />;
+      return (
+        <DataScope.Provider value={data}>
+          <Outlet />
+        </DataScope.Provider>
+      );
     };
 
     const router = new Router({
@@ -102,12 +103,13 @@ describe('Scopes in Routing', () => {
         zip: '12345',
       };
 
-      const Scope = combineScopes(UserScope, UserAddressScope);
-      const combinedData = {
-        [UserScope.key]: userData,
-        [UserAddressScope.key]: userAddress,
-      };
-      return <Scope.Provider value={combinedData} content={Outlet} />;
+      return (
+        <UserScope.Provider value={userData}>
+          <UserAddressScope.Provider value={userAddress}>
+            <Outlet />
+          </UserAddressScope.Provider>
+        </UserScope.Provider>
+      );
     };
 
     const router = new Router({
@@ -166,7 +168,11 @@ describe('Scopes in Routing', () => {
     const Parent = () => {
       const { Outlet } = useRouter();
       const profile: ProfileData = { username: 'NestedUser' };
-      return <ProfileScope.Provider value={profile} content={Outlet} />;
+      return (
+        <ProfileScope.Provider value={profile}>
+          <Outlet />
+        </ProfileScope.Provider>
+      );
     };
 
     const router = new Router({
@@ -243,10 +249,9 @@ describe('Scopes in Routing', () => {
               name: 'Protected',
               path: 'protected',
               component: () => (
-                <SessionScope.Provider
-                  value={{ token: 'abc123' }}
-                  content={Protected}
-                />
+                <SessionScope.Provider value={{ token: 'abc123' }}>
+                  <Protected />
+                </SessionScope.Provider>
               ),
             },
             {
@@ -291,7 +296,11 @@ describe('Scopes in Routing', () => {
     const Home = () => {
       const { Outlet } = useRouter();
       const data: Data = { name: 'Sefunmi' };
-      return <DataScope.Provider value={data} content={Outlet} />;
+      return (
+        <DataScope.Provider value={data}>
+          <Outlet />
+        </DataScope.Provider>
+      );
     };
 
     const router = new Router({

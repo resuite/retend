@@ -8,10 +8,11 @@
 /** @import { ChildNode } from 'domhandler' */
 /** @import { VWindow, VDOMRenderer } from './v-dom/index.js'; */
 
-import { resolve } from 'node:path';
-import { promises as fs } from 'node:fs';
+import { Comment, Element, Text } from 'domhandler';
 import { parseDocument } from 'htmlparser2';
-import { Comment, Text, Element } from 'domhandler';
+import { promises as fs } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { addMetaListener } from './meta.js';
 import { renderToString } from './render-to-string.js';
 
@@ -20,7 +21,7 @@ export class HtmlOutputArtifact extends OutputArtifact {
   /**
    * @param {string} name
    * @param {VWindow} contents
-   * @param {() => Promise<string>} stringify
+   * @param {() => string} stringify
    */
   constructor(name, contents, stringify) {
     super();
@@ -92,22 +93,18 @@ async function renderPath(options) {
     vdomModule,
   } = options;
 
-  const { getConsistentValues } = retendModule;
-
   const window = buildWindowFromHtmlText(htmlShell, vdomModule.VWindow);
   const renderer = new vdomModule.VDOMRenderer(window, {
     markDynamicNodes: true,
   });
 
   const teleportIdCounter = { value: 0 };
-  const consistentValues = new Map();
   const globalData = new Map();
   globalData.set('env:ssr', true);
-  retendModule.setActiveRenderer(renderer, globalData);
   const globalContextStore = {
+    renderer,
     path,
     teleportIdCounter,
-    consistentValues,
     globalData,
   };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
@@ -137,9 +134,17 @@ async function renderPath(options) {
       console.warn('appElement not found while rendering', path);
       return;
     }
-    appElement.replaceChildren(retendRouterModule.createRouterRoot(router));
+    const renderedRoot = renderer.render(() =>
+      retendModule.Await({
+        fallback: null,
+        children: () => retendRouterModule.createRouterRoot(router),
+      })
+    );
+    const nodes = Array.isArray(renderedRoot) ? renderedRoot : [renderedRoot];
+    appElement.replaceChildren(...nodes);
 
     await router.navigate(path);
+    await retendModule.waitForAsyncBoundaries();
 
     const pageTitle = document.title;
     if (pageTitle) {
@@ -152,24 +157,22 @@ async function renderPath(options) {
 
     // The server context can restore useful information about
     // the app for a client-side hydration.
-    const consistentValues = Object.fromEntries(getConsistentValues());
     /** @type {ServerContext} */
     const ctx = {
       path,
-      consistentValues,
     };
     const payload = JSON.stringify(ctx);
     document.body.append(
       document.createMarkupNode(
-        `<script data-static data-server-context type="application/json">${payload}</script>`
+        `<script data-server-context type="application/json">${payload}</script>`
       )
     );
 
     const finalPath = currentRoute.get().fullPath;
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
 
-    const stringify = async () => {
-      const htmlContents = await renderToString(document, window);
+    const stringify = () => {
+      const htmlContents = renderToString(document, window);
       const contents = `<!DOCTYPE html>${htmlContents}`;
       window.close(); // destroys timeouts and intervals.
       return contents;
@@ -203,8 +206,10 @@ async function renderPath(options) {
     }
 
     outputs.push(
-      new HtmlOutputArtifact(redirectFileName, redirectWindow, () =>
-        Promise.resolve(redirectContent)
+      new HtmlOutputArtifact(
+        redirectFileName,
+        redirectWindow,
+        () => redirectContent
       )
     );
   });

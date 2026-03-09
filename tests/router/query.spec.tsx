@@ -1,13 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
-import { vDomSetup, getTextContent } from '../setup.tsx';
-import { For, If, Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, For, If, getActiveRenderer } from 'retend';
 import {
-  createRouterRoot,
-  Router,
-  useRouteQuery,
   type AsyncRouteQuery,
+  Router,
+  createRouterRoot,
+  useRouteQuery,
 } from 'retend/router';
+import { describe, expect, it, vi } from 'vitest';
+
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('useRouteQuery', () => {
   vDomSetup();

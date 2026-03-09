@@ -1,0 +1,6 @@
+source
+bun.lockb
+tsconfig.json
+tsconfig.build.json
+vite.config.ts
+!dist

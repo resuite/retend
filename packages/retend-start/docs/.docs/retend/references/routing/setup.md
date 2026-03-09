@@ -135,3 +135,9 @@ For complex features with many sub-routes, use `subtree` instead of defining eve
   subtree: lazy(() => import('./routes/admin'))
 }
 ```
+
+## Source Reference
+
+- `packages/retend/source/router/router.js`
+- `packages/retend/source/router/routeTree.js`
+- `packages/retend/source/router/lazy.js`

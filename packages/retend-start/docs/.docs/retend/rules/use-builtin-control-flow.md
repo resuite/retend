@@ -1,5 +1,5 @@
-| title                     | impact | impactDescription                                                           | tags                                  |
-| :------------------------ | :----- | :-------------------------------------------------------------------------- | :------------------------------------ |
+| title                     | impact | impactDescription                                                             | tags                                               |
+| :------------------------ | :----- | :---------------------------------------------------------------------------- | :------------------------------------------------- |
 | Use Built-in Control Flow | HIGH   | Provides efficient, granular updates and consistent patterns across codebase. | control-flow, performance, reactivity, consistency |
 
 # Use Built-in Control Flow
@@ -53,13 +53,13 @@ const staticItems = ['a', 'b', 'c'];
 ```tsx
 // Avoid
 {
-  isVisible ? <Modal /> : null
+  isVisible ? <Modal /> : null;
 }
 
 // Good
 {
   If(isVisible, {
-    true: () => <Modal />
-  })
+    true: () => <Modal />,
+  });
 }
 ```

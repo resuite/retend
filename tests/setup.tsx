@@ -1,11 +1,12 @@
 import 'retend-web/jsx-runtime';
-import { beforeEach, afterEach } from 'vitest';
-import { setGlobalContext, resetGlobalContext } from 'retend/context';
-import { type VNode, VWindow, isVNode } from 'retend-server/v-dom';
-import { setActiveRenderer, getActiveRenderer } from 'retend';
+import type { JSX } from 'retend/jsx-runtime';
 
-import { DOMRenderer } from 'retend-web';
+import { setActiveRenderer, getActiveRenderer } from 'retend';
+import { type VNode, VWindow, isVNode } from 'retend-server/v-dom';
 import { VDOMRenderer } from 'retend-server/v-dom';
+import { DOMRenderer } from 'retend-web';
+import { setGlobalContext, resetGlobalContext } from 'retend/context';
+import { beforeEach, afterEach } from 'vitest';
 
 export type NodeLike = VNode | Node;
 
@@ -13,10 +14,12 @@ export const timeout = async (number?: number) => {
   return new Promise((r) => setTimeout(r, number ?? 0));
 };
 
+export const render = (node: JSX.Template) =>
+  getActiveRenderer().render(node) as unknown as Element;
+
 export const routerSetup = () => {
   const window = new VWindow();
   setGlobalContext({
-    consistentValues: new Map(),
     globalData: new Map(),
     teleportIdCounter: { value: 0 },
   });
@@ -31,7 +34,6 @@ export const routerSetupBrowser = () => {
     document.body.append(document.createElement('retend-router-outlet'));
 
     setGlobalContext({
-      consistentValues: new Map(),
       globalData: new Map(),
       teleportIdCounter: { value: 0 },
     });
@@ -56,7 +58,6 @@ export const browserSetup = () => {
 
     setGlobalContext({
       teleportIdCounter: { value: 0 },
-      consistentValues: new Map(),
       globalData: new Map(),
     });
     setActiveRenderer(new DOMRenderer(window));
@@ -72,7 +73,6 @@ export const vDomSetup = (options?: { markDynamicNodes: boolean }) => {
   beforeEach(() => {
     const window = new VWindow();
     setGlobalContext({
-      consistentValues: new Map(),
       globalData: new Map(),
       teleportIdCounter: { value: 0 },
     });

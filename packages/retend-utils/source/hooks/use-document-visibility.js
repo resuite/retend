@@ -1,4 +1,5 @@
 import { Cell } from 'retend';
+
 import { createSharedHook } from '../internal/create-shared-hook.js';
 
 const USE_DOCUMENT_VISIBILITY_KEY = Symbol(

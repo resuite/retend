@@ -1,11 +1,10 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 
-import { Cell } from '@adbl/cells';
-import { h } from './jsx.js';
-import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
-import { ArgumentList } from './utils.js';
+import { Cell, AsyncCell } from '@adbl/cells';
+
+import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
-import { IgnoredHProps } from '../_internals.js';
+import { branchState, withState } from './scope.js';
 
 /**
  * @template T
@@ -18,11 +17,20 @@ import { IgnoredHProps } from '../_internals.js';
  */
 
 /**
+ * Extracts the resolved value type from a cell type.
+ * For AsyncCell<Promise<T>>, returns T.
+ * For Cell<T>, returns T.
+ * For T, returns T.
+ * @template T
+ * @typedef {Awaited<T extends AsyncCell<infer U> ? U : T extends Cell<infer V> ? V : T>} ResolvedCellValue
+ */
+
+/**
  * Conditionally renders nodes based on the truthiness of a value.
  *
  * @template T
- * @param {T | Cell<T>} value
- * @param {( ((value: NonNullable<T>) => JSX.Template)) | ConditionObject<T>} fnOrObject
+ * @param {T | AsyncCell<T> | Cell<T>} value
+ * @param {( ((value: NonNullable<ResolvedCellValue<T>>) => JSX.Template)) | ConditionObject<ResolvedCellValue<T>>} fnOrObject
  * @param { (() => JSX.Template)} [elseFn] - Optional callback for falsy values
  * @returns {JSX.Template}
  *
@@ -37,123 +45,135 @@ import { IgnoredHProps } from '../_internals.js';
  *   false: () => <div>Please log in.</div>
  * });
  *
- * document.body.append(...message);
+ * document.body.append(...renderer.render(message));
  *
  * // Later, when the user logs in, update the cell
  * isLoggedIn.set(true);
  * // The welcome message will now be displayed
  */
 export function If(value, fnOrObject, elseFn) {
-  const renderer = getActiveRenderer();
-  if (!Cell.isCell(value)) {
-    if (typeof fnOrObject === 'function') {
-      if (value) {
-        return h(
-          fnOrObject,
-          new ArgumentList([value]),
-          ...IgnoredHProps,
-          renderer
-        );
-      }
-      if (elseFn) {
-        return h(elseFn, new ArgumentList([]), ...IgnoredHProps, renderer);
-      }
-      return;
-    }
-
-    if (typeof fnOrObject === 'object') {
-      if (value && 'true' in fnOrObject) {
-        return h(
-          fnOrObject.true,
-          new ArgumentList([value]),
-          ...IgnoredHProps,
-          renderer
-        );
-      }
-
-      if (!value && 'false' in fnOrObject) {
-        return h(
-          fnOrObject.false,
-          new ArgumentList([]),
-          ...IgnoredHProps,
-          renderer
-        );
-      }
-    }
-
-    console.error(
-      'If expects a callback or condition object as the second argument.'
-    );
-    return;
-  }
-
-  const scopeSnapshot = createScopeSnapshot();
-
-  /** @param {T} _value */
-  const callback = (_value) => {
-    return withScopeSnapshot(scopeSnapshot, () => {
+  return () => {
+    const renderer = getActiveRenderer();
+    if (!Cell.isCell(value)) {
       if (typeof fnOrObject === 'function') {
-        if (_value) {
-          const newNodes = h(
-            fnOrObject,
-            new ArgumentList([_value]),
-            ...IgnoredHProps,
-            renderer
-          );
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        if (!fnOrObject.name) {
+          Object.defineProperty(fnOrObject, 'name', { value: 'If.True' });
+        }
+        if (value) {
+          return renderer.handleComponent(fnOrObject, [value]);
         }
         if (elseFn) {
-          const newNodes = h(
-            elseFn,
-            new ArgumentList([]),
-            ...IgnoredHProps,
-            renderer
-          );
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+          return renderer.handleComponent(elseFn, []);
         }
-        return [];
+        return;
       }
 
       if (typeof fnOrObject === 'object') {
-        if (_value && 'true' in fnOrObject) {
-          const newNodes = h(
-            fnOrObject.true,
-            new ArgumentList([_value]),
-            ...IgnoredHProps,
-            renderer
-          );
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        if (value && 'true' in fnOrObject) {
+          return renderer.handleComponent(fnOrObject.true, [value]);
         }
 
-        if (!_value && 'false' in fnOrObject) {
-          const newNodes = h(
-            fnOrObject.false,
-            new ArgumentList([]),
-            ...IgnoredHProps,
-            renderer
-          );
-          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        if (!value && 'false' in fnOrObject) {
+          return renderer.handleComponent(fnOrObject.false, []);
         }
-
-        return [];
       }
+
       console.error(
         'If expects a callback or condition object as the second argument.'
       );
-      return [];
+      return;
+    }
+
+    const stateSnapshot = branchState();
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+
+    if (typeof fnOrObject === 'function' && !fnOrObject.name) {
+      Object.defineProperty(fnOrObject, 'name', { value: 'If.True' });
+    }
+
+    /** @param {T} _value */
+    const callback = (_value) => {
+      return withState(stateSnapshot, () => {
+        if (typeof fnOrObject === 'function') {
+          if (_value) {
+            const newNodes = renderer.handleComponent(
+              fnOrObject,
+              [_value],
+              stateSnapshot
+            );
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+          if (elseFn) {
+            const newNodes = renderer.handleComponent(
+              elseFn,
+              [],
+              stateSnapshot
+            );
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+          return [];
+        }
+
+        if (typeof fnOrObject === 'object') {
+          if (_value && 'true' in fnOrObject) {
+            const newNodes = renderer.handleComponent(
+              fnOrObject.true,
+              [_value],
+              stateSnapshot
+            );
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+
+          if (!_value && 'false' in fnOrObject) {
+            const newNodes = renderer.handleComponent(
+              fnOrObject.false,
+              [],
+              stateSnapshot
+            );
+            return Array.isArray(newNodes) ? newNodes : [newNodes];
+          }
+
+          return [];
+        }
+        console.error(
+          'If expects a callback or condition object as the second argument.'
+        );
+        return [];
+      });
+    };
+
+    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+    let handle;
+
+    /**
+     * @param {T} nextValue
+     */
+    const processValueChange = (nextValue) => {
+      stateSnapshot.node.dispose();
+      const results = callback(nextValue);
+      renderer.write(handle, results);
+      renderer.observer?.flush();
+      stateSnapshot.node.activate();
+    };
+
+    // It is important that the listener is registered first.
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
     });
+
+    const initialValue = value.get();
+
+    if (initialValue instanceof Promise) {
+      const group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
+      initialValue.then((resolved) => processValueChange(resolved));
+      return group;
+    }
+
+    const initialResults = callback(initialValue);
+    const group = renderer.createGroup(initialResults);
+    handle = renderer.createGroupHandle(group);
+    return group;
   };
-
-  // It is important that the listener is registered first.
-  value.listen((nextValue) => {
-    scopeSnapshot.node.dispose();
-    const results = callback(nextValue);
-    renderer.write(handle, results);
-    scopeSnapshot.node.activate();
-  });
-
-  const initialResults = callback(value.get());
-  const group = renderer.createGroup(initialResults);
-  const handle = renderer.createGroupHandle(group);
-  return group;
 }

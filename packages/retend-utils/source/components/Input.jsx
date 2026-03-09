@@ -1,7 +1,7 @@
 /** @import { SourceCell } from 'retend' */
 /** @import { JSX } from 'retend/jsx-runtime' */
 
-import { Cell, useObserver } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 /**
  * A reactive input component with two-way data binding support for various HTML input types.
@@ -27,7 +27,6 @@ import { Cell, useObserver } from 'retend';
  */
 export function Input(props) {
   const { model, ref = Cell.source(null), ...rest } = props;
-  const observer = useObserver();
   // It is derived to prevent explicit binding to the
   // source model, which could have led to memory
   // leaks.
@@ -53,7 +52,7 @@ export function Input(props) {
     }
   });
 
-  observer.onConnected(ref, (input) => {
+  onConnected(ref, (input) => {
     // Propagate initial values.
     if (model) {
       const modelValue = model.get();

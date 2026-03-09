@@ -1,0 +1,114 @@
+# Reactivity and Cells
+
+## What is Reactivity?
+
+When you build a web application, your data often changes over time. Whether a user clicks a button, a network request completes, or a background timer ticks, you want your user interface to automatically update to reflect the newest information. This automatic updating is what we call **reactivity**.
+
+In Retend, reactivity is powered by **Cells**. A Cell is a simple container for your data. When the data inside a Cell changes, Retend automatically updates the exact parts of the screen where that Cell is used—nothing more, nothing less.
+
+You create a new reactive value using `Cell.source()`:
+
+```tsx
+import { Cell } from 'retend';
+
+const isOn = Cell.source(false);
+```
+
+### Getting and Setting Values
+
+To read a value from a Cell, call `.get()`. To update it, call `.set()`:
+
+```tsx
+import { Cell } from 'retend';
+
+const isOn = Cell.source(false);
+
+console.log(isOn.get()); // → false
+
+isOn.set(true);
+
+console.log(isOn.get()); // → true
+```
+
+---
+
+## Using Cells in JSX
+
+Here's where things get interesting. When you use a Cell in your JSX, **pass the Cell itself, not its value**. Don't call `.get()`.
+
+```tsx
+import { Cell } from 'retend';
+
+function ToggleSwitch() {
+  const isOn = Cell.source(false);
+
+  const toggle = () => {
+    isOn.set(!isOn.get());
+  };
+
+  return (
+    <div>
+      {/* Pass the Cell directly */}
+      <p>Status: {isOn}</p>
+
+      <button type="button" onClick={toggle}>
+        Toggle
+      </button>
+    </div>
+  );
+}
+```
+
+When you pass the Cell into JSX, Retend establishes a live connection. Every time you call `.set()`, Retend reaches into the DOM and updates that exact text node. The `ToggleSwitch` function itself never runs again.
+
+---
+
+## Derived Cells for Computed Values
+
+Often you have data that depends on other data. A `firstName` Cell and `lastName` Cell might need a `fullName` that stays in sync. That's where `Cell.derived()` comes in.
+
+```tsx
+import { Cell } from 'retend';
+
+function UserProfile() {
+  const firstName = Cell.source('Alice');
+  const lastName = Cell.source('Smith');
+
+  const fullName = Cell.derived(() => {
+    return `${firstName.get()} ${lastName.get()}`;
+  });
+
+  return <h1>{fullName}</h1>;
+}
+```
+
+When you pass a function to `Cell.derived()`, Retend immediately runs it and watches which Cells get `.get()` called on them. That's your dependency list—automatically tracked. If either `firstName` or `lastName` changes, the `fullName` computation re-runs and updates everywhere it's used.
+
+### Rules for Derived Cells
+
+- **No dependency arrays.** Retend figures out what you depend on by watching `.get()` calls.
+- **Read-only.** You can't call `.set()` on a derived Cell. They're for computing, not storing.
+- **Keep them pure.** Don't mutate the DOM, make network requests, or call `.set()` on other Cells inside a derivation.
+
+---
+
+## Side Effects with `.listen()`
+
+Sometimes you need to run code when a Cell changes—logging, syncing to `localStorage`, manually updating the DOM. That's what `.listen()` is for:
+
+```tsx
+import { Cell } from 'retend';
+
+const theme = Cell.source('light');
+
+theme.listen((newTheme) => {
+  document.body.className = newTheme;
+  localStorage.setItem('user-theme', newTheme);
+});
+```
+
+Every time you call `.set()` on the Cell, your listener function runs with the new value. Unlike derived Cells, listeners are designed explicitly for side effects.
+
+---
+
+With Cells as your foundation, you're ready to build interactive interfaces.

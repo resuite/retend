@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Prefer Switch for Multiple Cases | Low | Improves readability for multiple branches.            | control-flow, switch        |
+| title                            | impact | impactDescription                           | tags                 |
+| :------------------------------- | :----- | :------------------------------------------ | :------------------- |
+| Prefer Switch for Multiple Cases | Low    | Improves readability for multiple branches. | control-flow, switch |
 
 # Prefer Switch for Multiple Cases
 
@@ -30,7 +30,7 @@
 
 // INVALID - unreadable nested ternary
 <div>
-  {view === 'home' 
+  {view === 'home'
     ? <Home />
     : view === 'about'
       ? <About />
@@ -44,14 +44,17 @@
 ### Valid
 
 ```tsx
-// VALID - clean Switch with object syntax
+// VALID - clean Switch with explicit default
 <div>
-  {Switch(view, {
-    home: () => <Home />,
-    about: () => <About />,
-    contact: () => <Contact />,
-    default: () => <NotFound />
-  })}
+  {Switch(
+    view,
+    {
+      home: () => <Home />,
+      about: () => <About />,
+      contact: () => <Contact />
+    },
+    () => <NotFound />
+  )}
 </div>
 
 // VALID - Switch with separate default handler
@@ -67,11 +70,13 @@
 ## When to Use Switch
 
 Use `Switch` when:
+
 - You have 3+ conditions
 - Conditions are mutually exclusive
 - You want a default/fallback case
 
 Use `If` when:
+
 - You have only 2 conditions (true/false)
 - Simple binary logic
 
@@ -81,12 +86,16 @@ Switch on specific object properties:
 
 ```tsx
 function UserView({ user }) {
-  return Switch.OnProperty(user, 'role', {
-    admin: () => <AdminDashboard />,
-    editor: () => <EditorPanel />,
-    viewer: () => <ViewerInterface />,
-    default: () => <GuestView />
-  });
+  return Switch.OnProperty(
+    user,
+    'role',
+    {
+      admin: () => <AdminDashboard />,
+      editor: () => <EditorPanel />,
+      viewer: () => <ViewerInterface />,
+    },
+    () => <GuestView />
+  );
 }
 ```
 
@@ -99,10 +108,15 @@ const currentView = Cell.source('home');
 
 // Automatically updates when currentView changes
 <div>
-  {Switch(currentView, {
-    home: () => <Home />,
-    about: () => <About />,
-    default: () => <NotFound />
-  })}
-</div>
+  {Switch(
+    currentView,
+    {
+      home: () => <Home />,
+      about: () => <About />,
+    },
+    () => (
+      <NotFound />
+    )
+  )}
+</div>;
 ```

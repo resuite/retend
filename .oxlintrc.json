@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "unicorn", "import", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn",
+    "style": "off"
+  },
+  "rules": {
+    "no-unused-expressions": "off",
+    "no-shadow": "off",
+    "no-await-in-loop": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/no-unknown-property": "off",
+    "react/jsx-max-depth": "off",
+    "react/jsx-props-no-spreading": "off",
+    "react/jsx-no-constructed-context-values": "off",
+    "import/no-named-export": "off",
+    "import/prefer-default-export": "off",
+    "import/group-exports": "off",
+    "import/no-unassigned-import": "off",
+    "import/no-named-as-default": "off",
+    "unicorn/filename-case": "off",
+    "unicorn/prefer-global-this": "off",
+    "unicorn/no-null": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/require-module-specifiers": "off",
+    "unicorn/no-empty-file": "off",
+    "unicorn/no-useless-spread": "warn",
+    "typescript/no-extraneous-class": "off",
+    "typescript/triple-slash-reference": "warn",
+    "typescript/consistent-type-imports": "error"
+  },
+  "ignorePatterns": ["dist", "node_modules", "*.d.ts", "*.log"]
+}

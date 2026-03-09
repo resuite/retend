@@ -33,5 +33,5 @@ const div = elementRef.get(); // returns the HTMLDivElement
 ## Why use refs?
 
 - **Direct Connection**: More reliable than `querySelector` as it doesn't depend on fragile IDs or class names.
-- **Reactivity**: Works with `useObserver` (see `control-flow.md`) to react to element connection/disconnection.
+- **Reactivity**: Works with `onConnected` (see `control-flow.md`) to react to element connection/disconnection.
 - **Locality**: Keeps logic local to the component.

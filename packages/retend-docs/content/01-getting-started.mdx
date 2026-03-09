@@ -1,0 +1,108 @@
+# Getting Started
+
+import { FeatureCard } from '@/components/FeatureCard';
+
+Welcome! This page will help you start your first project with Retend, a modern JavaScript framework for building user interfaces. We focus on keeping your applications fast and your code simple.
+
+## Prerequisites
+
+Before we begin, please ensure you have the following installed:
+
+- **Node.js**: A JavaScript runtime environment. If you don't have it, download it from the [official Node.js website](https://nodejs.org/).
+- **npm** or **pnpm**: A package manager, which usually comes with Node.js.
+
+We also assume you are familiar with basic HTML, CSS, and JavaScript.
+
+## Why Choose Retend?
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+  <FeatureCard
+    title="Automatic Updates"
+    description="Wrap data in Cells. Retend updates only what changes, automatically."
+  />
+  <FeatureCard
+    title="Simple Components"
+    description="Write UI using plain JavaScript functions. They run just once, making them easy to read and debug."
+  />
+  <FeatureCard
+    title="Server-Ready"
+    description="Render on the server or generate static pages for faster load times."
+  />
+  <FeatureCard
+    title="Lightweight"
+    description="Direct browser interaction without complex abstractions keeps Retend small and fast."
+  />
+</div>
+
+## Setting Up Your First Project
+
+The fastest way to start learning Retend is to scaffold a new project. Open your terminal and run this command:
+
+```bash
+npx retend-start@latest
+```
+
+This command automatically creates a complete project structure for you, including:
+
+- [TypeScript](https://www.typescriptlang.org/) or JavaScript
+- [Vite](https://vitejs.dev/) for an exceptionally fast development experience
+- Built-in routing for multi-page applications
+- [Tailwind CSS](https://tailwindcss.com/) (optional, for styling)
+
+## Writing Your First Application
+
+Let us build a simple toggle switch application. This will show you how Retend handles reactive data.
+
+Create a new file and add the following code:
+
+```tsx
+import { renderToDOM } from 'retend-web';
+import { Cell } from 'retend';
+
+const App = () => {
+  // 1. Create a reactive piece of data
+  const isOn = Cell.source(false);
+
+  // 2. Define a function to update the data
+  const toggleSwitch = () => isOn.set(!isOn.get());
+
+  // 3. Return the user interface
+  return (
+    <>
+      <h1>Hello, Retend</h1>
+      <p>Click the button below to toggle the switch.</p>
+
+      <button type="button" onClick={toggleSwitch}>
+        Status: {isOn}
+      </button>
+    </>
+  );
+};
+
+// 4. Mount the application to the browser's Document Object Model (DOM)
+renderToDOM(document.getElementById('app')!, App);
+```
+
+### How the Toggle Switch Works
+
+1. We create an `isOn` variable using `Cell.source(false)`. This wraps our boolean `false` in a reactive container.
+2. We pass `{isOn}` directly into our user interface.
+3. Retend watches that specific `Cell`. When you click the button and `toggleSwitch` runs, Retend automatically updates just the text inside the button. The `App` function itself only runs exactly once!
+
+## Running Your Application
+
+To see your application in action, run the development server:
+
+```bash
+pnpm run dev
+```
+
+Open your web browser and navigate to `http://localhost:5229`. You will see your toggle switch ready to be clicked!
+
+## What to Learn Next
+
+Now that you have your first app running, you can explore more advanced topics:
+
+- **[Cells and Reactivity](/docs/core-concepts/reactivity-and-cells)**: Learn deeply how reactive state works.
+- **[JSX and Components](/docs/core-concepts/jsx-and-components)**: Build reusable pieces for your user interface.
+- **[Control Flow](/docs/control-flow/if)**: Handle lists and conditional logic.

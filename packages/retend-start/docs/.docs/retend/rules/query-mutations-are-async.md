@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| Query Mutations Are Async | Medium | Prevents race conditions and timing bugs.              | router, queries, async      |
+| title                     | impact | impactDescription                         | tags                   |
+| :------------------------ | :----- | :---------------------------------------- | :--------------------- |
+| Query Mutations Are Async | Medium | Prevents race conditions and timing bugs. | router, queries, async |
 
 # Query Mutations Are Async
 
@@ -22,12 +22,12 @@
 // INVALID - treating as synchronous
 function FilterDropdown() {
   const query = useRouteQuery();
-  
+
   const handleChange = (value) => {
     query.set('filter', value); // Returns Promise!
     fetchData(); // Might run with old query params
   };
-  
+
   return <select onChange={handleChange}>...</select>;
 }
 ```
@@ -38,12 +38,12 @@ function FilterDropdown() {
 // VALID - await query mutations
 function FilterDropdown() {
   const query = useRouteQuery();
-  
+
   const handleChange = async (value) => {
     await query.set('filter', value);
     fetchData(); // Now runs with updated query params
   };
-  
+
   return <select onChange={handleChange}>...</select>;
 }
 
@@ -51,13 +51,19 @@ function FilterDropdown() {
 function DataList() {
   const query = useRouteQuery();
   const filterCell = query.get('filter'); // Returns Cell<string | null>
-  
+
   const items = Cell.derived(async () => {
     const filter = filterCell.get();
     return await fetchFilteredItems(filter);
   });
-  
-  return <div>{For(items, item => <Item data={item} />)}</div>;
+
+  return (
+    <div>
+      {For(items, (item) => (
+        <Item data={item} />
+      ))}
+    </div>
+  );
 }
 ```
 
@@ -69,14 +75,14 @@ All query mutation methods return Promises:
 const query = useRouteQuery();
 
 // All of these return Promise<void>
-await query.set('key', 'value');      // Set single value
-await query.append('key', 'value');   // Append to array value
-await query.delete('key');            // Remove parameter
-await query.clear();                  // Remove all parameters
+await query.set('key', 'value'); // Set single value
+await query.append('key', 'value'); // Append to array value
+await query.delete('key'); // Remove parameter
+await query.clear(); // Remove all parameters
 
 // Reading query values (synchronous)
-const value = query.get('key');       // Returns Cell<string | null>
-const exists = query.has('key');      // Returns Cell<boolean>
+const value = query.get('key'); // Returns Cell<string | null>
+const exists = query.has('key'); // Returns Cell<boolean>
 ```
 
 ## Best Practice

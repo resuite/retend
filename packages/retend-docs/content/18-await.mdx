@@ -1,0 +1,105 @@
+# Await
+
+When your application needs to fetch data from a server, it takes time. You usually want to show a loading spinner or some placeholder text while the user waits.
+
+Managing these loading states manually (by creating boolean `isLoading` Cells and passing them around) gets very messy very quickly.
+
+Retend solves this elegantly with the `<Await>` component. It creates an invisible boundary around parts of your app, automatically hiding those parts and showing a "fallback" UI until all the data they need has finished loading.
+
+## Async Cells
+
+To use `<Await>`, you first need to understand **Async Cells**. A normal `Cell` holds a value instantly. An Async Cell, created using `Cell.derivedAsync()`, holds a Promise that will eventually become a value.
+
+When you pass an Async Cell into a control flow component like `<If>` or `<For>`, Retend automatically detects that it is waiting for data, and tells the nearest `<Await>` parent to pause rendering.
+
+## Basic Usage
+
+To use an asynchronous boundary, wrap your components in `<Await>` and provide a `fallback` element to show while loading.
+
+```tsx
+import { Await, If, Cell } from 'retend';
+
+function UserProfile() {
+  // 1. Create an Async Cell to fetch data
+  const userData = Cell.derivedAsync(async () => {
+    const response = await fetch('https://api.example.com/user');
+    return response.json();
+  });
+
+  return (
+    <div class="user-profile">
+      {/* 2. Because userData is an Async Cell, this <If> automatically 
+             tells the parent <Await> to show the fallback until the fetch finishes. */}
+      {If(userData, {
+        true: (user) => (
+          <div>
+            <h2>{user.name}</h2>
+            <p>{user.email}</p>
+          </div>
+        ),
+      })}
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    <main>
+      <h1>Dashboard</h1>
+
+      {/* 3. Wrap everything in an <Await> boundary */}
+      <Await fallback={<p>Loading user data...</p>}>
+        <UserProfile />
+      </Await>
+    </main>
+  );
+}
+```
+
+When the page first loads, the `<Await>` component catches the "pending" state from `UserProfile` and displays "Loading user data...". Once the API request finishes, the `<Await>` component removes the fallback and instantly reveals the real `UserProfile` showing the user's name and email.
+
+## Waiting for Multiple Things
+
+An `<Await>` boundary is smart: it waits for _every single_ async operation inside it to finish before it reveals its content.
+
+If your `DashboardContent` component fetches both the user's profile AND a list of their recent posts, the `<Await>` fallback will stay on screen until _both_ of those network requests are completely finished.
+
+```tsx
+import { Await, If, For, Cell } from 'retend';
+
+function DashboardContent() {
+  const userData = Cell.derivedAsync(async () =>
+    fetch('/api/user').then((r) => r.json())
+  );
+  const postsData = Cell.derivedAsync(async () =>
+    fetch('/api/posts').then((r) => r.json())
+  );
+
+  return (
+    <div>
+      {/* Retend sees both of these Async Cells and tells the boundary to wait for both! */}
+      {If(userData, { true: (u) => <h2>{u.name}'s Dashboard</h2> })}
+      {For(postsData, (p) => (
+        <p>{p.title}</p>
+      ))}
+    </div>
+  );
+}
+
+export function Dashboard() {
+  return (
+    // This fallback shows until both userData AND postsData are done
+    <Await fallback={<p>Loading dashboard entirely...</p>}>
+      <DashboardContent />
+    </Await>
+  );
+}
+```
+
+If you prefer them to load independently (so the user profile appears first while the posts are still loading), you can simply wrap them in two separate `<Await>` components!
+
+## Server-Side Rendering (Advanced)
+
+If you are building an app with Server-Side Rendering (SSR), `<Await>` boundaries are crucial. They allow your server to know exactly when all the data on the page has finished loading, so it can send down a perfectly complete HTML document to the user.
+
+Retend provides a `waitForAsyncBoundaries()` function specifically for your server code to wait for everything to settle before sending the HTML response.

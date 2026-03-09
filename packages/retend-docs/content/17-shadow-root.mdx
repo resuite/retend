@@ -1,0 +1,98 @@
+# Shadow Root
+
+When you are building a reusable widget (like a complex calendar or a video player), you often worry about CSS leaking. You don't want your widget's styles to accidentally ruin the design of the rest of the website, and you don't want the website's global CSS to bleed in and break your widget.
+
+The browser's native **Shadow DOM** solves this by letting you create a hidden, isolated HTML tree. Retend makes it incredibly easy to use with the `<ShadowRoot>` component.
+
+## Using ShadowRoot
+
+To isolate a part of your component, simply wrap it in `<ShadowRoot>`. Remember to import it from `retend-web`, as it is a browser-specific feature!
+
+```tsx
+import { ShadowRoot } from 'retend-web';
+
+function Card() {
+  return (
+    <div class="card-container">
+      <ShadowRoot>
+        <p>This content lives inside an isolated shadow DOM!</p>
+      </ShadowRoot>
+    </div>
+  );
+}
+```
+
+In the example above, the `<ShadowRoot>` attaches itself to its parent `<div>`. Everything inside the `<ShadowRoot>` is safely isolated.
+
+## Escaping Global Styles
+
+Because the Shadow DOM completely isolates your elements, you can safely use `<style>` tags directly inside it without worrying about them affecting anything else on the page.
+
+```tsx
+import { ShadowRoot } from 'retend-web';
+
+function StyledComponent() {
+  return (
+    <div>
+      <div class="test">I turn blue because of the global stylesheet.</div>
+
+      <ShadowRoot>
+        {/* This style ONLY applies inside this ShadowRoot */}
+        <style>{'.test { color: red; }'}</style>
+
+        <div class="test">I am completely isolated and my text is red.</div>
+      </ShadowRoot>
+    </div>
+  );
+}
+```
+
+The global `.test` class doesn't affect the inner `div`, and the inner `<style>` doesn't turn the outer `div` red. It's perfectly safe!
+
+## Reactivity and Features
+
+Even though the HTML is isolated from the rest of the page, **your Retend code works exactly like normal**.
+
+You don't have to learn any new patterns to use a Shadow Root. Everything you already know about Retend continues to work seamlessly through the isolation barrier:
+
+- **Reactivity:** You can use Cells and control flow components (`<If>`, `<For>`) naturally.
+- **Context and Scopes:** Context from `createScope()` flows down through the shadow boundary perfectly.
+- **Events:** Event listeners like `onClick` work right out of the box.
+
+```tsx
+import { Cell } from 'retend';
+import { ShadowRoot } from 'retend-web';
+
+function IsolatedToggle() {
+  const isOn = Cell.source(false);
+
+  return (
+    <div class="toggle-host">
+      <ShadowRoot>
+        <style>
+          {`
+            button {
+              padding: 0.5rem 1rem;
+              background-color: #007bff;
+              color: white;
+              border-radius: 4px;
+            }
+          `}
+        </style>
+
+        <p>Status: {isOn}</p>
+        <button type="button" onClick={() => isOn.set(!isOn.get())}>
+          Toggle
+        </button>
+      </ShadowRoot>
+    </div>
+  );
+}
+```
+
+## Important Rules
+
+When working with `<ShadowRoot>`, there are a couple of rules to keep in mind:
+
+1. **It must be inside an HTML element:** The `<ShadowRoot>` attaches to its direct parent. That parent must be a standard HTML element (like a `<div>`, `<section>`, or `<article>`).
+2. **Only one per parent:** You should never place two `<ShadowRoot>` components directly inside the exact same parent element.

@@ -1,21 +1,20 @@
-import { describe, it, expect } from 'vitest';
 import { Cell } from 'retend';
-import { browserSetup, vDomSetup } from './setup.tsx';
+import { describe, expect, it } from 'vitest';
+
+import { browserSetup, render, vDomSetup } from './setup.tsx';
 
 const runTests = () => {
   it('should set an attribute on an element', () => {
-    const element = <div class="card">Hello, world!</div>;
-    expect((element as unknown as Element).getAttribute('class')).toBe('card');
+    const element = render(<div class="card">Hello, world!</div>);
+    expect(element.getAttribute('class')).toBe('card');
   });
 
   it('should set a reactive attribute on an element', () => {
     const id = Cell.source('id');
-    const element = <div id={id}>Hello, world!</div>;
-    expect((element as unknown as Element).getAttribute('id')).toBe('id');
+    const element = render(<div id={id}>Hello, world!</div>);
+    expect(element.getAttribute('id')).toBe('id');
     id.set('another-id');
-    expect((element as unknown as Element).getAttribute('id')).toBe(
-      'another-id'
-    );
+    expect(element.getAttribute('id')).toBe('another-id');
   });
 };
 

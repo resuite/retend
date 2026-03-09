@@ -1,14 +1,8 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 
+import { getActiveRenderer, linkNodes, createNodesFromTemplate } from 'retend';
 import { getGlobalContext } from 'retend/context';
-import {
-  useConsistent,
-  useObserver,
-  getActiveRenderer,
-  linkNodes,
-  createNodesFromTemplate,
-} from 'retend';
-import { DOMRenderer } from './dom-renderer.js';
+/** @import { DOMRenderer } from './dom-renderer.js' */
 
 /**
  * @typedef TeleportOnlyProps
@@ -51,12 +45,10 @@ import { DOMRenderer } from './dom-renderer.js';
  */
 export function Teleport(props) {
   const { to: target, ...rest } = props;
-  const observer = useObserver();
   const { teleportIdCounter } = getGlobalContext();
   const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   /** @type {string | undefined} */
-  let teleportId;
-  const key = `teleport/target/${teleportIdCounter.value++}`;
+  const teleportId = `teleport/target/${teleportIdCounter.value++}`;
 
   /** @param {Node} [anchor] */
   const mountTeleportedNodes = async (anchor) => {
@@ -69,13 +61,16 @@ export function Teleport(props) {
       return;
     }
 
-    teleportId = await useConsistent(key, () => crypto.randomUUID());
+    props.children = createNodesFromTemplate(props.children, renderer);
     const newInstance = renderer.createContainer('retend-teleport', props);
     renderer.setProperty(newInstance, 'data-teleport-id', teleportId);
 
     for (const [key, value] of Object.entries(rest)) {
       if (key === 'children') continue;
       renderer.setProperty(newInstance, key, value);
+    }
+    if (anchor) {
+      Reflect.set(anchor, '__retendTeleportedContainer', newInstance);
     }
 
     const children = createNodesFromTemplate(props.children, renderer);
@@ -84,8 +79,16 @@ export function Teleport(props) {
     }
 
     renderer.append(parent, newInstance);
-    return () => newInstance.remove();
+    queueMicrotask(() => {
+      renderer.observer?.flush();
+    });
+    return () => {
+      if (anchor) {
+        Reflect.deleteProperty(anchor, '__retendTeleportedContainer');
+      }
+      newInstance.remove();
+    };
   };
 
-  return renderer.scheduleTeleport(mountTeleportedNodes, observer);
+  return renderer.scheduleTeleport(mountTeleportedNodes);
 }

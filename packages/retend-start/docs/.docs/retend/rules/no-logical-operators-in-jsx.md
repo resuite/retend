@@ -1,5 +1,5 @@
-| title                    | impact | impactDescription                            | tags                        |
-| :----------------------- | :----- | :------------------------------------------- | :-------------------------- |
+| title                       | impact | impactDescription                            | tags                        |
+| :-------------------------- | :----- | :------------------------------------------- | :-------------------------- |
 | No Logical Operators in JSX | High   | Enforces reactive and readable control flow. | syntax, control-flow, style |
 
 # No Logical Operators in JSX
@@ -51,7 +51,7 @@
 // Use If for simple conditional rendering
 <div>
   {If(isVisible, {
-    true: () => <Modal />
+    true: () => <Modal />,
   })}
 </div>;
 

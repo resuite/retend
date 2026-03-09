@@ -1,21 +1,24 @@
-import { Cell, getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
-import { ShadowRoot } from 'retend-web';
 import type { VElement, VNode } from 'retend-server/v-dom';
+import type { DOMRenderer } from 'retend-web';
+
+import { Cell, getActiveRenderer } from 'retend';
+import { ShadowRoot } from 'retend-web';
 import { assert, describe, expect, it } from 'vitest';
+
 import { browserSetup, getTextContent, vDomSetup } from './setup.tsx';
 
 const runTests = () => {
   it('should create a shadow root with default mode "open"', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const result = (
+    const App = () => (
       <div>
         <ShadowRoot>
           <div>Shadow content</div>
         </ShadowRoot>
       </div>
-    ) as HTMLElement & VElement;
+    );
+    const result = renderer.render(App) as HTMLElement & VElement;
 
     expect(result instanceof window.HTMLElement).toBe(true);
     const shadowRoot = result.shadowRoot;
@@ -27,7 +30,7 @@ const runTests = () => {
   it('should encapsulate styles within shadow root', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const result = (
+    const App = () => (
       <div>
         <div class="test">Light DOM</div>
         <ShadowRoot>
@@ -35,7 +38,8 @@ const runTests = () => {
           <div class="test">Shadow DOM</div>
         </ShadowRoot>
       </div>
-    ) as HTMLElement & VElement;
+    );
+    const result = renderer.render(App) as HTMLElement & VElement;
 
     window.document.body.append(result as Node & VNode);
 
@@ -46,13 +50,14 @@ const runTests = () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const content = Cell.source('Initial');
-    const result = (
+    const App = () => (
       <div>
         <ShadowRoot>
           <div>{content}</div>
         </ShadowRoot>
       </div>
-    ) as HTMLElement & VElement;
+    );
+    const result = renderer.render(App) as HTMLElement & VElement;
 
     window.document.body.append(result as Node & VNode);
     const shadowRoot = result.shadowRoot;
@@ -65,7 +70,8 @@ const runTests = () => {
   });
 
   it('should handle nested shadow roots', () => {
-    const result = (
+    const renderer = getActiveRenderer();
+    const App = () => (
       <div>
         <ShadowRoot>
           <div>
@@ -76,7 +82,8 @@ const runTests = () => {
           </div>
         </ShadowRoot>
       </div>
-    ) as HTMLElement & VElement;
+    );
+    const result = renderer.render(App) as HTMLElement & VElement;
 
     const outerShadow = result.shadowRoot;
     const innerShadow = outerShadow?.querySelector('div')?.shadowRoot;
@@ -85,6 +92,31 @@ const runTests = () => {
     assert(innerShadow);
     expect(getTextContent(outerShadow)).toContain('Outer Shadow');
     expect(getTextContent(innerShadow)).toBe('Inner Shadow');
+  });
+
+  it('should render fragment children in shadow roots', () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const App = () => (
+      <div>
+        <ShadowRoot>
+          <>
+            <span id="fragment-first">First</span>
+            <span id="fragment-second">Second</span>
+          </>
+        </ShadowRoot>
+      </div>
+    );
+    const result = renderer.render(App) as HTMLElement & VElement;
+    const shadowRoot = result.shadowRoot;
+
+    assert(shadowRoot);
+    const first = shadowRoot.querySelector('#fragment-first');
+    const second = shadowRoot.querySelector('#fragment-second');
+
+    assert(first);
+    assert(second);
+    expect(getTextContent(first)).toBe('First');
+    expect(getTextContent(second)).toBe('Second');
   });
 };
 
@@ -102,7 +134,7 @@ describe('ShadowRoot', () => {
         clicked.set(true);
       };
 
-      const result = (
+      const App = () => (
         <div>
           <ShadowRoot>
             <button type="button" onClick={handleClick}>
@@ -110,7 +142,8 @@ describe('ShadowRoot', () => {
             </button>
           </ShadowRoot>
         </div>
-      ) as HTMLElement & VElement;
+      );
+      const result = renderer.render(App) as HTMLElement & VElement;
 
       window.document.body.append(result as Node & VNode);
       const button = result.shadowRoot?.querySelector('button');

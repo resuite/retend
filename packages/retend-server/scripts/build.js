@@ -1,5 +1,6 @@
-import fs from 'node:fs';
 import { execSync } from 'node:child_process';
+/* oxlint-disable no-console */
+import fs from 'node:fs';
 
 if (fs.existsSync('dist')) {
   console.log('Removing dist directory...');
@@ -17,4 +18,4 @@ for (const dir of fs.readdirSync('source')) {
 console.log('Done!');
 
 console.log('Building types...');
-execSync('bunx tsc --project tsconfig.json', { stdio: 'inherit' });
+execSync('pnpm exec tsc --project tsconfig.json', { stdio: 'inherit' });

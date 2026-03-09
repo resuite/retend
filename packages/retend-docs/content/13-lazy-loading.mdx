@@ -1,0 +1,125 @@
+# Lazy Loading
+
+As your application grows and you add more pages, the amount of JavaScript your application needs to download grows as well. Downloading the entire application at once—even the pages a user might never visit—can make your initial load time very slow.
+
+**Lazy Loading** solves this by splitting your code into smaller separate files, and only downloading those files when the user actually navigates to that specific page.
+
+## Basic Lazy Loading
+
+In Retend, you can easily lazy-load a route's component using the `lazy()` function. You just wrap a dynamic `import()` statement around the path to your component file.
+
+```tsx
+import { defineRoutes, lazy } from 'retend/router';
+
+// This component is included in the main initial download
+const Home = () => <div>Home</div>;
+
+// This component is separated into its own file and downloaded only when needed
+const SettingsLazy = lazy(() => import('./views/Settings'));
+
+const routes = defineRoutes([
+  { path: '/', component: Home },
+  { path: '/settings', component: SettingsLazy },
+]);
+```
+
+### Exporting your Component
+
+The `lazy()` function specifically expects the component to be the **default** export of that file.
+
+```tsx
+// views/Settings.tsx
+
+// You can still use local helper components
+function SettingsForm() {
+  return <form>...</form>;
+}
+
+// But the component you want to lazy-load MUST be the `default` export
+export default function SettingsView() {
+  return (
+    <div class="settings">
+      <h1>Account Settings</h1>
+      <SettingsForm />
+    </div>
+  );
+}
+```
+
+## Lazy Loading Nested Routes
+
+Lazy loading works exactly the same way with nested routes. You can lazily load the parent layout, the child pages, or both!
+
+```tsx
+import { defineRoutes, lazy, Outlet } from 'retend/router';
+
+const DashboardLayout = () => (
+  <div>
+    <h1>Dashboard</h1>
+    <Outlet />
+  </div>
+);
+
+// The child page is lazy-loaded
+const UserProfileLazy = lazy(() => import('./views/dashboard/UserProfile'));
+
+const routes = defineRoutes([
+  {
+    path: '/dashboard',
+    component: DashboardLayout,
+    children: [{ path: 'profile', component: UserProfileLazy }],
+  },
+]);
+```
+
+## Lazy Subtrees (Advanced)
+
+If you are building a massive application with hundreds of routes, even the file containing all your routes can become too large to download at once.
+
+**Lazy Subtrees** let you split up your routing configuration itself, so entire sections of your app's routes are only downloaded when the user enters that section.
+
+### Step 1: Create the Subtree File
+
+Create a separate file that exports a single route configuration as its `default` export:
+
+```tsx
+// finance.routes.ts
+import { defineRoute, lazy } from 'retend/router';
+import FinanceDashboard from './views/FinanceDashboard';
+
+// The path MUST match where it will be mounted in the parent router
+export default defineRoute({
+  path: '/finance/:accountId',
+  component: FinanceDashboard,
+  children: [
+    {
+      path: 'reports',
+      component: lazy(() => import('./views/Reports')),
+    },
+    {
+      path: 'invoices',
+      component: lazy(() => import('./views/Invoices')),
+    },
+  ],
+});
+```
+
+### Step 2: Connect it to the Main Router
+
+In your main route file, use the `subtree` property instead of `component` or `children`, and wrap the import in `lazy()` just like before:
+
+```tsx
+// index.routes.ts
+import { defineRoutes, lazy } from 'retend/router';
+
+const routes = defineRoutes([
+  { path: '/', component: Home },
+  {
+    path: '/finance/:accountId',
+    // The entire finance section (routes and components) loads on demand
+    subtree: lazy(() => import('./finance.routes.ts')),
+  },
+]);
+```
+
+Lazy loading is the best way to ensure your application stays blazing fast, no matter how large it gets.

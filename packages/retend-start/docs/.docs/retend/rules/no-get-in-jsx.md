@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| No .get() in JSX     | Critical | Breaks reactivity and causes static renders.         | reactivity, jsx, cells      |
+| title            | impact   | impactDescription                            | tags                   |
+| :--------------- | :------- | :------------------------------------------- | :--------------------- |
+| No .get() in JSX | Critical | Breaks reactivity and causes static renders. | reactivity, jsx, cells |
 
 # No .get() in JSX
 
@@ -14,6 +14,18 @@
 - `.get()` returns a static snapshot that won't update when the cell changes
 - This is the #1 mistake when migrating from React
 
+## Detection
+
+**Triggers**:
+
+- JSX expression contains `.get()` (for example `{cell.get()}`)
+- JSX attribute uses `.get()` (for example `value={cell.get()}`)
+
+## Auto-Fix
+
+- Replace `cell.get()` in JSX with `cell`
+- If a transformed value is needed, create a `Cell.derived()` in the component body and pass that Cell into JSX
+
 ## Examples
 
 ### Invalid
@@ -22,7 +34,7 @@
 // INVALID - breaks reactivity
 function Counter() {
   const count = Cell.source(0);
-  
+
   return <div>{count.get()}</div>; // Static value, won't update
 }
 ```
@@ -33,7 +45,7 @@ function Counter() {
 // VALID - reactive updates
 function Counter() {
   const count = Cell.source(0);
-  
+
   return <div>{count}</div>; // Updates automatically when count changes
 }
 ```
@@ -47,16 +59,16 @@ function Counter() {
 ```tsx
 function Counter() {
   const count = Cell.source(0);
-  
+
   // Outside JSX - use .get()
   const doubled = Cell.derived(() => count.get() * 2);
-  
+
   // In callback - use .get()
   const handleClick = () => {
     console.log(count.get());
     count.set(count.get() + 1);
   };
-  
+
   // In JSX - pass cell directly
   return (
     <div>
@@ -66,3 +78,8 @@ function Counter() {
   );
 }
 ```
+
+## Related Rules
+
+- `pass-cells-directly`
+- `jsx-reactivity-patterns`

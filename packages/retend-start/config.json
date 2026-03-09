@@ -1,16 +1,17 @@
 {
-	"minNodeVersion": "14.0.0",
-	"directories": ["public", "source", "source/styles"],
-	"dependencies": {
-		"retend": "^0.0.24",
-		"retend-server": "^0.0.24",
-		"retend-utils": "^0.0.24",
-		"retend-web": "^0.0.24"
-	},
-	"devDependencies": {
-		"vite": "^6.2.1",
-		"typescript": "^5.5.2",
-		"tailwindcss": "^4.1.8",
-		"@tailwindcss/vite": "^4.1.5"
-	}
+  "minNodeVersion": "14.0.0",
+  "directories": ["public", "source", "source/styles"],
+  "dependencies": {
+    "retend": "^0.0.24",
+    "retend-server": "^0.0.24",
+    "retend-utils": "^0.0.24",
+    "retend-web": "^0.0.24"
+  },
+  "devDependencies": {
+    "vite": "^6.2.1",
+    "oxlint": "^1.50.0",
+    "typescript": "^5.5.2",
+    "tailwindcss": "^4.1.8",
+    "@tailwindcss/vite": "^4.1.5"
+  }
 }

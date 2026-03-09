@@ -1,0 +1,110 @@
+# Event Handling
+
+When users click buttons, type in inputs, or hover over elements, you want your application to respond. In Retend, you do this using event props.
+
+## Listening to Events
+
+Adding event listeners is simple: pass a function to an event prop. Use **camelCase** event names (like `onClick`, `onInput`, `onSubmit`) rather than the lowercase HTML style.
+
+```tsx
+function LoggingButton() {
+  const handleClick = () => {
+    console.log('Button was clicked!');
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Click Me
+    </button>
+  );
+}
+```
+
+## Working with the Event Object
+
+Your event handler function automatically receives the standard `Event` object. This object holds all the details about what just happened—like which key was pressed, where the mouse clicked, or what text the user typed.
+
+```tsx
+function SearchInput() {
+  const handleInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    console.log('User typed:', target.value);
+  };
+
+  return (
+    <div>
+      <label for="search">Search:</label>
+      <input type="text" id="search" onInput={handleInput} />
+    </div>
+  );
+}
+```
+
+## Updating State from Events
+
+Most of the time, an event should change something on the screen. To do this, simply update your Cells by calling `.set()`. Because Retend is reactive, updating the Cell automatically updates the user interface.
+
+```tsx
+import { Cell } from 'retend';
+
+function ToggleSwitch() {
+  const isOn = Cell.source(false);
+
+  const toggle = () => {
+    isOn.set(!isOn.get());
+  };
+
+  return (
+    <div>
+      <p>Switch is: {isOn}</p>
+      <button type="button" onClick={toggle}>
+        Toggle
+      </button>
+    </div>
+  );
+}
+```
+
+## Event Modifiers
+
+Sometimes dealing with events requires writing the same extra code over and over again. For example, you almost always need to call `event.preventDefault()` when a user submits a form, otherwise the browser will try to navigate to a new page.
+
+Retend provides **modifiers** that handle these common tasks for you automatically. You attach them directly to your event names using double hyphens (`--`):
+
+```tsx
+function Form() {
+  const handleSubmit = () => {
+    console.log('Form submitted!');
+    // No need to call event.preventDefault() here!
+  };
+
+  return (
+    <form onSubmit--prevent={handleSubmit}>
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+### Available Modifiers
+
+- **`--prevent`**: Automatically calls `event.preventDefault()`. Very common for forms and links.
+- **`--stop`**: Automatically calls `event.stopPropagation()`. Stops the event from triggering events on parent elements.
+- **`--once`**: Ensures the event handler only runs a single time, then automatically removes it.
+- **`--passive`**: Improves performance for scrolling events (like `onScroll` or `onTouchMove`). Cannot be used with `--prevent`.
+
+You can even combine modifiers if you need to:
+
+```tsx
+function EventShowcase() {
+  const handleOnceClick = () => {
+    console.log('Just once!');
+  };
+
+  return (
+    <button type="button" onClick--stop--once={handleOnceClick}>
+      One-Time Click
+    </button>
+  );
+}
+```

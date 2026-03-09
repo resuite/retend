@@ -1,0 +1,122 @@
+# JSX and Components
+
+Retend uses **JSX** to describe your user interface and **Components** to organize those descriptions into reusable pieces.
+
+## What is JSX?
+
+JSX looks exactly like HTML, but it lives inside your JavaScript files. It lets you keep your layout and your logic in the same place.
+
+```tsx
+const heading = <h1>Hello, Retend!</h1>;
+```
+
+Because JSX is basically just HTML under the hood, you can use regular HTML attributes.
+
+For CSS classes, use `class`:
+
+```tsx
+<div class="card-container">
+  <p class="text-large">Welcome</p>
+</div>
+```
+
+For form labels, use `for`:
+
+```tsx
+<label for="username">Username</label>
+<input type="text" id="username" />
+```
+
+### Adding JavaScript to JSX
+
+The real power of JSX is being able to insert JavaScript variables directly into your markup using curly braces `{}`.
+
+```tsx
+const userName = 'Alice';
+const userAge = 28;
+
+const profile = (
+  <div class="profile">
+    <h2>{userName}</h2>
+    <p>Age: {userAge}</p>
+  </div>
+);
+```
+
+You can use curly braces for attributes, too. For inline styles, simply pass a JavaScript object:
+
+```tsx
+const alertBox = (
+  <div style={{ backgroundColor: 'red', color: 'white' }}>
+    Something went wrong!
+  </div>
+);
+```
+
+## What are Components?
+
+As your application grows, writing all your JSX in one place becomes messy. Components let you break your UI down into smaller, independent building blocks.
+
+In Retend, a component is just a standard JavaScript function that returns JSX. Component names must start with a **capital letter** so Retend can tell them apart from regular HTML tags.
+
+```tsx
+function Greeting() {
+  return <div>Welcome to our application!</div>;
+}
+```
+
+Once defined, you can use your component just like an HTML element:
+
+```tsx
+function App() {
+  return (
+    <main>
+      <h1>Home Page</h1>
+      <Greeting />
+    </main>
+  );
+}
+```
+
+### Passing Data with Props
+
+Hardcoded components aren't very useful. You usually want to pass custom data into them. You can do this using **props** (short for properties). Props look exactly like HTML attributes:
+
+```tsx
+<UserCard name="Alice" age={30} />
+```
+
+Inside your component, you receive these props as a single object.
+
+```tsx
+function UserCard(props) {
+  const { name, age } = props;
+
+  return (
+    <div class="card">
+      <h3>{name}</h3>
+      <p>Age: {age}</p>
+    </div>
+  );
+}
+```
+
+### Wrapping Content with Children
+
+Sometimes you want a component to act like a container, such as a custom card or an alert box. If you place content between the opening and closing tags, it will be available inside your component as the `children` prop:
+
+```tsx
+function AlertBox(props) {
+  const { children } = props;
+
+  return <div class="alert-box">{children}</div>;
+}
+
+function App() {
+  return (
+    <AlertBox>
+      <strong>Warning!</strong> Please check your inputs.
+    </AlertBox>
+  );
+}
+```

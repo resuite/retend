@@ -692,3 +692,8 @@ function ProductGrid() {
 1. **Input component** - Use the Input helper to simplify two-way binding.
 2. **FluidList** - Use instead of manual For loops when you need animations or complex layouts
 3. **createUniqueTransition** - Perfect for elements that move between different parts of the UI (modals, picture-in-picture, detail views)
+
+## Source Reference
+
+- `packages/retend-utils/source/hooks/`
+- `packages/retend-utils/source/components/`

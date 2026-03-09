@@ -1,4 +1,4 @@
-import { useObserver, Cell } from 'retend';
+import { onConnected, Cell } from 'retend';
 import { getGlobalContext } from 'retend/context';
 
 /**
@@ -93,8 +93,6 @@ export function useElementBounding(elementRef, options = {}) {
   const bottom = Cell.source(0);
   const left = Cell.source(0);
 
-  const observer = useObserver();
-
   const recalculate = () => {
     const element = elementRef.get();
 
@@ -134,7 +132,7 @@ export function useElementBounding(elementRef, options = {}) {
     }
   };
 
-  observer.onConnected(elementRef, (element) => {
+  onConnected(elementRef, (element) => {
     const { globalData } = getGlobalContext();
 
     /** @type {(() => void) | undefined} */

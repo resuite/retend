@@ -1,0 +1,41 @@
+{
+  "name": "retend-web-devtools",
+  "version": "0.0.25",
+  "private": false,
+  "description": "Retend DevTools for web apps.",
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "types": "./dist/RetendDevTools.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/RetendDevTools.d.ts",
+      "development": "./dist/index.js",
+      "import": "./dist/prod.js",
+      "default": "./dist/prod.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "retend": "workspace:*",
+    "retend-web": "workspace:*",
+    "vite-plugin-css-injected-by-js": "^4.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^7.3.1"
+  },
+  "peerDependencies": {
+    "retend": "*",
+    "retend-web": "*"
+  }
+}

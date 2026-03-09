@@ -1,9 +1,11 @@
 /** @import { ReconcilerOptions, Renderer } from "retend" */
 /** @import { DOMRenderer } from './dom-renderer.js'; */
-import { Cell, linkNodes, normalizeJsxChild, SourceCell } from 'retend';
+import { AsyncCell, Cell, SourceCell, linkNodes, useAwait } from 'retend';
+
 import {
   addCellListener,
   createCommentPair,
+  isMatchingCommentPair,
   setAttribute,
   writeStaticStyle,
 } from './utils.js';
@@ -56,12 +58,17 @@ export function reconcile(segment, options, renderer) {
   let i = 0;
   const batchAdd = renderer.host.document.createDocumentFragment();
   const batchAddLike = /** @type {*} */ (batchAdd);
+  /** @type {ChildNode | null} */
+  let batchTail = null;
   for (const item of newList) {
     // @ts-ignore: Invariant: nodes is always defined.
     const { nodes } = newCache.get(retrieveOrSetItemKey(item, i));
     const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
     if (isAlreadyInPosition) {
-      if (batchAdd.childNodes.length > 0) lastInserted.after(batchAddLike);
+      if (batchTail) {
+        lastInserted.after(batchAddLike);
+        batchTail = null;
+      }
       lastInserted = nodes[nodes.length - 1];
       i++;
       continue;
@@ -98,7 +105,10 @@ export function reconcile(segment, options, renderer) {
           // recheck sequential correctness.
           const isAlreadyInPosition = lastInserted.nextSibling === nodes[0];
           if (isAlreadyInPosition) {
-            if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+            if (batchTail) {
+              lastInserted.after(batchAddLike);
+              batchTail = null;
+            }
             lastInserted = nodes[nodes.length - 1];
             i++;
             continue;
@@ -110,16 +120,20 @@ export function reconcile(segment, options, renderer) {
     const isNewItemInstance = !nodes[0]?.parentNode;
     if (isNewItemInstance) {
       batchAddLike.append(...nodes);
+      batchTail =
+        /** @type {ChildNode | undefined} */ (nodes[nodes.length - 1]) ??
+        batchTail;
       i++;
       continue;
     }
 
-    if (batchAdd.childNodes.length === 0) {
+    if (!batchTail) {
       onBeforeNodeMove?.(nodes);
       lastInserted.after(.../** @type {*} */ (nodes));
     } else {
-      const newPtr = batchAdd.childNodes[batchAdd.childNodes.length - 1];
+      const newPtr = batchTail;
       lastInserted.after(batchAddLike);
+      batchTail = null;
       onBeforeNodeMove?.(nodes);
       newPtr.after(.../** @type {*} */ (nodes));
     }
@@ -127,7 +141,7 @@ export function reconcile(segment, options, renderer) {
     i++;
   }
 
-  if (batchAdd.childNodes.length) lastInserted.after(batchAddLike);
+  if (batchTail) lastInserted.after(batchAddLike);
 }
 
 /**
@@ -160,24 +174,15 @@ export function setProperty(node, key, value, setEventListener) {
       return node;
     }
     addCellListener(element, value, function (value) {
-      setAttribute(this, key, value, setEventListener);
+      if (value instanceof Promise) {
+        value.then((resolvedValue) => {
+          setAttribute(this, key, resolvedValue, setEventListener);
+        });
+      } else setAttribute(this, key, value, setEventListener);
     });
   } else setAttribute(element, key, value, setEventListener);
 
   return node;
-}
-
-/**
- * @param {Promise<any>} child
- * @param {Renderer<any>} renderer
- */
-export function handlePromise(child, renderer) {
-  const placeholder = renderer.host.document.createComment('----');
-  Reflect.set(placeholder, '__promise', child);
-  child.then((value) => {
-    placeholder.replaceWith(normalizeJsxChild(value, renderer));
-  });
-  return placeholder;
 }
 
 /**
@@ -224,6 +229,155 @@ export function write(segment, newContent) {
 }
 
 /**
+ * @param {any[]} segment
+ */
+export function finalizeHydrationHandleSegment(segment) {
+  const next = resolveRangeSegment(segment);
+  if (!next) return;
+  segment[0] = next.start;
+  segment[1] = next.end;
+  segment.length = 2;
+}
+
+/**
+ * @param {any[]} segment
+ * @returns {{ start: Comment, end: Comment } | null}
+ */
+function resolveRangeSegment(segment) {
+  const start = segment[0];
+  const end = segment[1];
+  if (isComment(start) && isComment(end) && isMatchingCommentPair(start, end)) {
+    return { start, end };
+  }
+
+  const deferredRange =
+    segment.find((value) => isDeferredMarker(value))?.sourceArray ?? [];
+  const deferredStart = deferredRange[0];
+  const deferredEnd = deferredRange[1];
+
+  let nextStart = isComment(deferredStart) ? deferredStart : null;
+  let nextEnd = isComment(deferredEnd) ? deferredEnd : null;
+
+  if (nextStart && !nextEnd) {
+    nextEnd = findCommentPairFromStart(nextStart);
+  } else if (nextEnd && !nextStart) {
+    nextStart = findCommentPairFromEnd(nextEnd);
+  }
+
+  if (nextStart && nextEnd && isMatchingCommentPair(nextStart, nextEnd)) {
+    return { start: nextStart, end: nextEnd };
+  }
+
+  return synthesizeRangeAnchors(segment);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Comment}
+ */
+function isComment(value) {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'nodeType' in value &&
+    value.nodeType === 8
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is { sourceArray: unknown[], symbol?: symbol }}
+ */
+function isDeferredMarker(value) {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'sourceArray' in value &&
+    Array.isArray(value.sourceArray)
+  );
+}
+
+/**
+ * @param {Comment} start
+ * @returns {Comment | null}
+ */
+function findCommentPairFromStart(start) {
+  const symbol = Reflect.get(start, '__commentRangeSymbol');
+  if (!symbol) return null;
+
+  let cursor = start.nextSibling;
+  while (cursor) {
+    if (
+      isComment(cursor) &&
+      Reflect.get(cursor, '__commentRangeSymbol') === symbol
+    ) {
+      return cursor;
+    }
+    cursor = cursor.nextSibling;
+  }
+  return null;
+}
+
+/**
+ * @param {Comment} end
+ * @returns {Comment | null}
+ */
+function findCommentPairFromEnd(end) {
+  const symbol = Reflect.get(end, '__commentRangeSymbol');
+  if (!symbol) return null;
+
+  let cursor = end.previousSibling;
+  while (cursor) {
+    if (
+      isComment(cursor) &&
+      Reflect.get(cursor, '__commentRangeSymbol') === symbol
+    ) {
+      return cursor;
+    }
+    cursor = cursor.previousSibling;
+  }
+  return null;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is Node}
+ */
+function isNodeLike(value) {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'nodeType' in value &&
+    typeof value.nodeType === 'number' &&
+    'ownerDocument' in value
+  );
+}
+
+/**
+ * @param {any[]} segment
+ * @returns {{ start: Comment, end: Comment } | null}
+ */
+function synthesizeRangeAnchors(segment) {
+  const contentNodes = segment.filter((value) => isNodeLike(value));
+  const first = contentNodes[0];
+  const last = contentNodes[contentNodes.length - 1];
+  if (!first || !last) return null;
+  if (!first.parentNode || first.parentNode !== last.parentNode) return null;
+  if (!first.ownerDocument) return null;
+
+  const deferred = segment.find((value) => isDeferredMarker(value));
+  const symbol = deferred?.symbol ?? Symbol();
+  const start = first.ownerDocument.createComment('[');
+  const end = first.ownerDocument.createComment(']');
+  Reflect.set(start, '__commentRangeSymbol', symbol);
+  Reflect.set(end, '__commentRangeSymbol', symbol);
+
+  first.parentNode.insertBefore(start, first);
+  first.parentNode.insertBefore(end, last.nextSibling);
+  return { start, end };
+}
+
+/**
  * @param {string} text
  * @param {any} node
  */
@@ -238,16 +392,33 @@ export function updateText(text, node) {
  */
 export function createText(text, renderer) {
   if (Cell.isCell(text)) {
-    const textNode = renderer.host.document.createTextNode(String(text.get()));
+    const initialValue = text.get();
     const { updateText } = renderer;
-    addCellListener(
-      textNode,
-      text,
-      function (value) {
-        updateText(value, this);
-      },
-      false
+
+    if (text instanceof AsyncCell) useAwait()?.waitUntil(text);
+
+    /**
+     * @this any
+     * @param {any} value
+     */
+    function updateTextValue(value) {
+      if (value instanceof Promise) {
+        value.then((resolvedValue) => updateText(resolvedValue, this));
+      } else updateText(value, this);
+    }
+
+    // Handle async cells - start empty and update when resolved
+    if (initialValue instanceof Promise) {
+      const textNode = renderer.host.document.createTextNode('');
+      addCellListener(textNode, text, updateTextValue, false);
+      initialValue.then((resolvedValue) => updateText(resolvedValue, textNode));
+      return textNode;
+    }
+
+    const textNode = renderer.host.document.createTextNode(
+      String(initialValue)
     );
+    addCellListener(textNode, text, updateTextValue, false);
     return textNode;
   }
 

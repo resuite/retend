@@ -53,7 +53,7 @@ Like in HTML, you can add attributes to JSX elements. For example, you can add a
 
 _However_, in Retend, there are some slight differences to HTML attributes to better support the use of JavaScript expressions.
 
-- For listener attributes, e.g. `onclick`, `oninput`, `onmouseover` etc., the jsx equivalent is named in camelCase, e.g. **`onClick`, `onInput`, `onMouseOver`** etc.
+- For listener attributes, e.g. `onclick`, `oninput`, `onmouseover` etc., the jsx equivalent is named in camelCase, e.g. `onClick`, `onInput`, `onMouseOver` etc.
   Let's say you want to add a click event listener to a button. In HTML, you would write:
 
   ```html
@@ -270,7 +270,7 @@ const user = Cell.source({ id: 0, name: 'John Doe' });
 
 #### Accessing and Updating Cells
 
-To get the value of a Cell, you use `Cell.get()`, which returns the value the cell currently holds. To update it, you interact with its `.set(...)` method, Retend will automatically update the parts of your UI that use that cell.
+To get the value of a Cell, you use `.get()` on the cell instance, which returns the value the cell currently holds. To update it, you interact with its `.set(...)` method, Retend will automatically update the parts of your UI that use that cell.
 
 ```javascript
 user.get(); // Returns the value inside the user cell.
@@ -391,12 +391,12 @@ The `If` function in Retend lets you show or remove parts of your user interface
 
 It takes up to three arguments:
 
-1. **A condition** that will be evaluated as true or false.
+1. A condition that will be evaluated as true or false.
    This value can also be a Cell object, and the `If` component will automatically update if the value changes.
-2. **A template function for truthy values**, which will be called if the condition is evaluated to be true.
-3. **An optional template function for falsy values** that will be called if the condition is evaluated to be false.
+2. A template function for truthy values, which will be called if the condition is evaluated to be true.
+3. An optional template function for falsy values that will be called if the condition is evaluated to be false.
 
-- **Basic Conditional Rendering:**
+- Basic Conditional Rendering:
 
 In this example, we'll have a boolean variable to control whether or not to display a welcome message.
 
@@ -721,8 +721,8 @@ If you are already familiar with JavaScript `for` loops or array's `map` method,
 
 The `For` function takes two key pieces of information:
 
-- **The list itself:** This is the collection of data you want to display. It can be a regular JavaScript array or a special reactive container called a `Cell` that we explained earlier.
-- **A "template" function:** This is a function that determines how each item in the list should be displayed on the page. It receives each individual item in your list and its index, and tells Retend what HTML structure should be created for it.
+- The list itself: This is the collection of data you want to display. It can be a regular JavaScript array or a special reactive container called a `Cell` that we explained earlier.
+- A "template" function: This is a function that determines how each item in the list should be displayed on the page. It receives each individual item in your list and its index, and tells Retend what HTML structure should be created for it.
 
 Here's a breakdown of each of these aspects, along with examples to help you understand them:
 
@@ -730,13 +730,13 @@ Here's a breakdown of each of these aspects, along with examples to help you und
 
 The `For` function can handle two kinds of list: regular JavaScript arrays and special `Cell` objects that are made available through the `@adbl/cells` library.
 
-- **Regular JavaScript Arrays**: If your list is static (doesn't change) then you can use a normal array like this:
+- Regular JavaScript Arrays: If your list is static (doesn't change) then you can use a normal array like this:
 
   ```javascript
   const items = ['Apple', 'Banana', 'Orange'];
   ```
 
-- **`Cell` Objects (for Dynamic Lists)**: If the list you need to display can change over time, perhaps because of user interaction or incoming data, it needs to be wrapped in a `Cell` object, using the `Cell.source()` method:
+- `Cell` Objects (for Dynamic Lists): If the list you need to display can change over time, perhaps because of user interaction or incoming data, it needs to be wrapped in a `Cell` object, using the `Cell.source()` method:
 
   ```javascript
   import { Cell } from 'retend';
@@ -885,8 +885,8 @@ With this code, you're extracting information (name and age) from user objects a
 
 When you change something in a list wrapped by `For`, instead of tearing down and recreating the list from scratch, it tries to do updates efficiently:
 
-- **Auto-Memoization:** When it encounters the same data in a list for a second time, `For` automatically recognizes it, and instead of re-rendering the entire associated DOM nodes from scratch, it reuses the previous DOM nodes and only changes its index.
-- **Pure template Functions** The function that determines how each item should be rendered should not change based on things outside the function's input. In fact, your callback function might not even run if the item was memoized from a previous call.
+- Auto-Memoization: When it encounters the same data in a list for a second time, `For` automatically recognizes it, and instead of re-rendering the entire associated DOM nodes from scratch, it reuses the previous DOM nodes and only changes its index.
+- Pure template Functions The function that determines how each item should be rendered should not change based on things outside the function's input. In fact, your callback function might not even run if the item was memoized from a previous call.
 
 The `For` function provides a smart, performant and reactive method for displaying and handling lists. By focusing on its use of the template function, how to handle different list types and how to interpret reactivity, you can render lists effectively in Retend.
 
@@ -1071,19 +1071,19 @@ Modifiers are appended to the event name using a double hyphen (`--`). For examp
 
 Here are the available modifiers:
 
-- **`self`**: Only triggers the listener if the event originates from the element itself (not from a child element).
+- `self`: Only triggers the listener if the event originates from the element itself (not from a child element).
 
-- **`prevent`**: Calls `preventDefault()` on the event, preventing the default browser action (e.g., form submission, link navigation).
+- `prevent`: Calls `preventDefault()` on the event, preventing the default browser action (e.g., form submission, link navigation).
 
-- **`once`**: The listener will only be triggered once. After the first time, it will be automatically removed.
+- `once`: The listener will only be triggered once. After the first time, it will be automatically removed.
 
-- **`passive`**: Indicates that the listener will never call `preventDefault()`. This allows the browser to optimize scrolling performance. This is most useful for `scroll`, `touch` and `wheel` events.
+- `passive`: Indicates that the listener will never call `preventDefault()`. This allows the browser to optimize scrolling performance. This is most useful for `scroll`, `touch` and `wheel` events.
 
-- **`stop`**: Calls `stopPropagation()` on the event. This prevents the event from bubbling up to parent elements.
+- `stop`: Calls `stopPropagation()` on the event. This prevents the event from bubbling up to parent elements.
 
-**Examples:**
+Examples:
 
-- **Preventing Form Submission:**
+- Preventing Form Submission:
 
 ```jsx
 function MyForm() {
@@ -1101,7 +1101,7 @@ document.body.append(<MyForm />);
 
 Here, the `prevent` modifier will call `event.preventDefault()` before `handleSubmit` is called, ensuring that the browser does not perform a full-page reload when the button is clicked.
 
-- **Stopping Event Bubbling:**
+- Stopping Event Bubbling:
 
 ```jsx
 function ParentComponent() {
@@ -1128,7 +1128,7 @@ document.body.append(<ParentComponent />);
 
 In this example, clicking the button will only trigger the `handleChildClick`, because `onClick--stop` prevents the event from propagating to the `ParentComponent`.
 
-- **`self` modifier**:
+- `self` modifier:
 
 ```jsx
 function MyComponent() {
@@ -1151,7 +1151,7 @@ document.body.append(<MyComponent />);
 
 In this example, clicking on the button will trigger the alert on the button's click handler, but it will not trigger the parent's click handler. Only clicking directly on the div itself will trigger the div's click handler.
 
-- **`once` modifier**:
+- `once` modifier:
 
 ```jsx
 import { Cell } from 'retend';
@@ -1173,7 +1173,7 @@ document.body.append(<MyComponent />);
 
 In this example, only the first click on the button will increase the counter, and subsequent clicks will do nothing.
 
-- **Combining Modifiers:**
+- Combining Modifiers:
 
 ```jsx
 function MyComponent() {
@@ -1205,7 +1205,7 @@ It allows other code, usually within the functions that render your view, to com
 
 In Retend, using refs involves these key parts:
 
-- **Creating a Reactive `Cell`:** First, you need to create a `Cell` where the reference will be stored at a later time.
+- Creating a Reactive `Cell`: First, you need to create a `Cell` where the reference will be stored at a later time.
 
 ```javascript
 import { Cell } from 'retend';
@@ -1215,7 +1215,7 @@ const elementRef = Cell.source(null);
 
 Here, `elementRef` will hold the references to the node we're trying to access later on. Initially, it starts with a value of `null`, which means that there's no associated element at the beginning, but that will change.
 
-- **Linking with the `ref` Attribute:** In your JSX, you use the special `ref` attribute on the HTML element you want to access. You set the `Cell` variable as the attribute's value.
+- Linking with the `ref` Attribute: In your JSX, you use the special `ref` attribute on the HTML element you want to access. You set the `Cell` variable as the attribute's value.
 
 ```jsx
 <div ref={elementRef}>Hello world!</div>
@@ -1223,7 +1223,7 @@ Here, `elementRef` will hold the references to the node we're trying to access l
 
 Now when the `div` element is created, it will be assigned to the `elementRef` cell.
 
-- **Accessing the Element:**
+- Accessing the Element:
 
 ```jsx
 import { Cell } from 'retend';
@@ -1237,36 +1237,35 @@ elementRef.get() === div; // elementRef is now the div element
 
 While you could use `document.querySelector()` to get an HTML element directly, refs offer a more straightforward and reliable way of handling your UI interactions, specially in a reactive web app where the webpage may update and change a lot, unlike traditional apps that change less often:
 
-- **Direct Connection:** With refs, you're creating a direct link to your HTML element in your JSX code, so it is much more reliable and predictable than having to query for it by id or classes, for instance, where those attributes may change over time with edits.
-- **Reacts to Node Changes**: The ref `Cell` object are reactive, so when used in conjunction with [`useObserver`](#life-cycles) or other related patterns, can be used to react whenever a related Node disappears or becomes available again.
-- **Better Code Structure**: Using refs often keeps the logic local to your component code instead of relying on a global selector-based lookup, making your code easier to read and maintain.
+- Direct Connection: With refs, you're creating a direct link to your HTML element in your JSX code, so it is much more reliable and predictable than having to query for it by id or classes, for instance, where those attributes may change over time with edits.
+- Reacts to Node Changes: The ref `Cell` object are reactive, so when used in conjunction with [`onConnected`](#dom-lifecycle-with-onconnected) or other related patterns, can be used to react whenever a related Node disappears or becomes available again.
+- Better Code Structure: Using refs often keeps the logic local to your component code instead of relying on a global selector-based lookup, making your code easier to read and maintain.
 
 ---
 
-## DOM Lifecycle with `useObserver`
+## DOM Lifecycle with `onConnected`
 
-The `useObserver()` function provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes. This is useful for effects that are tied to a specific DOM element's presence on screen (like measuring its size).
+The `onConnected()` function provides a way to trigger code based on the _connection_ and _disconnection_ of DOM nodes. This is useful for effects that are tied to a specific DOM element's presence on screen (like measuring its size).
 
 ### Understanding Connection and Disconnection
 
-- **Connection:** A node is "connected" when it becomes part of the browser's live DOM tree. This means the node has been inserted into the document. Importantly, this is _not_ about visibility, or appearance in the viewport, but about being included in the document's structure, even if it's hidden by CSS.
+- Connection: A node is "connected" when it becomes part of the browser's live DOM tree. This means the node has been inserted into the document. Importantly, this is _not_ about visibility, or appearance in the viewport, but about being included in the document's structure, even if it's hidden by CSS.
 
-- **Disconnection:** A node is "disconnected" when it is removed from the DOM tree. This happens when you remove or replace the element directly from Javascript, or when a parent of that node gets removed from the DOM.
+- Disconnection: A node is "disconnected" when it is removed from the DOM tree. This happens when you remove or replace the element directly from Javascript, or when a parent of that node gets removed from the DOM.
 
-The `useObserver()` function returns a `Observer` object, which is a wrapper around the browser's `MutationObserver` API. Its main method, `onConnected`, allows you to run a callback function when a node is connected to the DOM.
+The `onConnected()` function allows you to run a callback function when a node is connected to the DOM.
 
 ### Executing Code on Connection
 
-Here's how to use `useObserver` to run a setup action as a reaction to html:
+Here's how to use `onConnected` to run a setup action as a reaction to html:
 
 ```jsx
-import { Cell, useObserver } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(divRef, (element) => {
+  onConnected(divRef, (element) => {
     console.log('This HTML element has connected:', element);
     element.setAttribute('data-connected', 'true');
   });
@@ -1280,20 +1279,19 @@ document.body.append(<MyComponent />);
 In this code:
 
 1. We've created a ref using `const divRef = Cell.source(null)`.
-2. When the `div` appears in the DOM, the callback function is automatically run.It logs a message to the console and adds a `data-connected` attribute to the element.
+2. When the `div` appears in the DOM, the callback function is automatically run. It logs a message to the console and adds a `data-connected` attribute to the element.
 
 ### Executing Code on Disconnection
 
-The `onConnected` method also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
+The `onConnected` hook also has a mechanism for cleanup logic, which gets automatically executed once the element leaves the DOM:
 
 ```jsx
-import { Cell, useObserver } from 'retend';
+import { Cell, onConnected } from 'retend';
 
 const MyComponent = () => {
   const divRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(divRef, (element) => {
+  onConnected(divRef, (element) => {
     element.setAttribute('data-connected', 'true');
 
     // here we return a cleanup function that runs automatically on disconnection
@@ -1312,28 +1310,28 @@ document.body.append(<MyComponent />);
 In this example, the `onConnected` hook now:
 
 1. Takes an action that runs immediately as soon as the element is present: Setting a `data-connected` attribute.
-2. It returns a function. That function is stored and **only called** whenever the element gets removed.
+2. It returns a function. That function is stored and only called whenever the element gets removed.
    This makes it useful for clean up actions and prevents unexpected behavior.
 
 ### Differences From Other Frameworks
 
-- **Node-Centric**: `useObserver` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
-- **Explicit Timing**: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
+- Node-Centric: `onConnected` focuses directly on the HTML nodes as they exist in the DOM (the underlying tree of a webpage). It does _not_ work with abstract component representations, or artificial life-cycles, but with HTML nodes directly.
+- Explicit Timing: The timing of "connection" and "disconnection" is very clear and predictable, based on the browser's native APIs: the action will always run at those exact phases.
 
 ---
 
-## Component Lifecycle with `useSetupEffect`
+## Component Lifecycle with `onSetup`
 
-The `useSetupEffect` hook provides a way to manage side effects that are tied to a component's logical lifecycle, rather than a specific DOM element's presence. It is similar to `useEffect(..., [])` in React.
+The `onSetup` hook provides a way to manage side effects that are tied to a component's logical lifecycle, rather than a specific DOM element's presence. It is similar to `useEffect(..., [])` in React.
 
-The callback passed to `useSetupEffect` runs once when a component instance is initialized. It is the ideal place for tasks like setting timers, subscribing to data streams, or adding global event listeners.
+The callback passed to `onSetup` runs once when a component instance is initialized. It is the ideal place for tasks like setting timers, subscribing to data streams, or adding global event listeners.
 
 ### Cleanup
 
 The callback can return a cleanup function. This function is automatically executed when the component instance is destroyed (e.g., when it's removed from a `<For>` list). This is crucial for preventing memory leaks.
 
 ```tsx
-import { Cell, useSetupEffect } from 'retend';
+import { Cell, onSetup } from 'retend';
 
 function LiveClock() {
   const time = Cell.source(new Date());
@@ -1341,7 +1339,7 @@ function LiveClock() {
     return time.get().toLocaleTimeString();
   });
 
-  useSetupEffect(() => {
+  onSetup(() => {
     const timerId = setInterval(() => time.set(new Date()), 1000);
 
     // Cleanup function
@@ -1352,10 +1350,10 @@ function LiveClock() {
 }
 ```
 
-### `useSetupEffect` vs `useObserver`
+### `onSetup` vs `onConnected`
 
-- Use `useSetupEffect` for component lifecycle logic that isn't tied to a specific DOM element.
-- Use `useObserver` for effects that need to run when a specific DOM element is connected or disconnected from the DOM.
+- Use `onSetup` for component lifecycle logic that isn't tied to a specific DOM element.
+- Use `onConnected` for effects that need to run when a specific DOM element is connected or disconnected from the DOM.
 
 ---
 
@@ -1376,7 +1374,7 @@ App
                 └── StatusIndicator
 ```
 
-To get the `theme` value from the top-level `App` component all the way down to the `StatusIndicator`, we would have to pass it through every single intermediate component. This is called **"prop drilling."**
+To get the `theme` value from the top-level `App` component all the way down to the `StatusIndicator`, we would have to pass it through every single intermediate component. This is called "prop drilling."
 
 Here’s what that looks like in code:
 
@@ -1427,23 +1425,23 @@ function StatusIndicator({ theme }) {
 
 While this pattern works, it has significant downsides that become more painful as your app scales:
 
-- **Verbose and Cumbersome:** You have to add the `theme` prop to the function signature and JSX of every intermediate component, even if they have no use for it.
-- **Tightly Coupled:** Components become fragile. If you decide to refactor the tree and move `UserProfileWidget`, you have to make sure you also update the prop chain in its new location.
-- **Hard to Maintain:** Imagine you need to add another piece of shared state, like `language`. You would have to repeat this entire tedious process, modifying five different components just to get the data where it's needed.
+- Verbose and Cumbersome: You have to add the `theme` prop to the function signature and JSX of every intermediate component, even if they have no use for it.
+- Tightly Coupled: Components become fragile. If you decide to refactor the tree and move `UserProfileWidget`, you have to make sure you also update the prop chain in its new location.
+- Hard to Maintain: Imagine you need to add another piece of shared state, like `language`. You would have to repeat this entire tedious process, modifying five different components just to get the data where it's needed.
 
-This is the exact problem that **_scopes_** are designed to solve. They provide a clean, efficient, and maintainable way to broadcast data to a whole tree of components.
+This is the exact problem that _scopes_ are designed to solve. They provide a clean, efficient, and maintainable way to broadcast data to a whole tree of components.
 
 A scope is like a data tunnel. You can create one, "provide" a value to it at the top of a component tree, and then any component inside that tree can "consume" or read that value, no matter how deeply nested it is.
 
 There are three main parts to the Scope system:
 
 1.  `createScope()`: A function that creates a new, unique scope.
-2.  `Scope.Provider`: A special component that provides a value to all its children, which are passed via a function as its `children`.
+2.  `Scope.Provider`: A component that provides a value to all its children, passed directly as its `children`.
 3.  `useScopeContext()`: A function that lets a component read a value from the nearest matching `Scope.Provider` above it in the tree.
 
 Let's refactor our theme example using Scopes and see the difference.
 
-**1. Create the Scope**
+1. Create the Scope
 
 First, we create a scope. It's best to do this in a separate file so it can be easily imported wherever it's needed.
 
@@ -1454,7 +1452,7 @@ import { createScope } from 'retend';
 export const ThemeScope = createScope();
 ```
 
-**2. Provide the Value**
+2. Provide the Value
 
 Next, in our main `App` component, we'll use the `ThemeScope.Provider` to wrap our component tree and provide the theme value. To make it dynamic, we'll use a reactive `Cell`.
 
@@ -1466,17 +1464,16 @@ import AuthenticatedLayout from './AuthenticatedLayout.jsx';
 function App() {
   const theme = 'dark';
 
-  // Any component inside the function passed as children can now access the theme.
-  // The Provider component takes a `value` and a function as its children.
+  // Any component rendered inside the Provider can now access the theme.
   return (
     <ThemeScope.Provider value={theme}>
-      {() => <AuthenticatedLayout />}
+      <AuthenticatedLayout />
     </ThemeScope.Provider>
   );
 }
 ```
 
-**3. Consume the Value**
+3. Consume the Value
 
 Finally, our `StatusIndicator` component can directly access the theme using `useScopeContext()`.
 
@@ -1509,7 +1506,7 @@ import { globalTheme } from './store.js';
 // ... use globalTheme.get() ...
 ```
 
-While this works for simple cases, it breaks down quickly and misses the key benefits that Scopes provide: **isolation** and **lifecycle management**.
+While this works for simple cases, it breaks down quickly and misses the key benefits that Scopes provide: isolation and lifecycle management.
 
 #### 1. Isolation and Reusability
 
@@ -1528,12 +1525,12 @@ function DocumentationPage() {
     <div class="side-by-side-preview">
       {/* First instance: Light Theme */}
       <ThemeScope.Provider value={lightTheme}>
-        {() => <MyThemedComponent />}
+        <MyThemedComponent />
       </ThemeScope.Provider>
 
       {/* Second instance: Dark Theme */}
       <ThemeScope.Provider value={darkTheme}>
-        {() => <MyThemedComponent />}
+        <MyThemedComponent />
       </ThemeScope.Provider>
     </div>
   );
@@ -1575,58 +1572,17 @@ export function MultiStepForm() {
   // The formData state is only "alive" while MultiStepForm is on the screen.
   return (
     <FormScope.Provider value={formData}>
-      {() => (
-        <>
-          <Step1 />
-          <Step2 />
-          {/* ... other steps ... */}
-        </>
-      )}
+      <>
+        <Step1 />
+        <Step2 />
+        {/* ... other steps ... */}
+      </>
     </FormScope.Provider>
   );
 }
 ```
 
 When the `<MultiStepForm>` component is mounted, the `FormScope.Provider` is created, and the `formData` state comes into existence. When the user navigates away and `<MultiStepForm>` is unmounted, the provider is destroyed, and its `value` can be safely garbage-collected by the JavaScript engine. This prevents memory leaks and ensures that state is fresh every time the component is used.
-
-### Combining Scopes
-
-For applications with multiple scopes (e.g., theme, user authentication, language), you can end up nesting providers, sometimes called a "pyramid of doom."
-
-```jsx
-<AuthScope.Provider value={user}>
-  {() => (
-    <ThemeScope.Provider value={theme}>
-      {() => (
-        <LanguageScope.Provider value={lang}>
-          {() => <App />}
-        </LanguageScope.Provider>
-      )}
-    </ThemeScope.Provider>
-  )}
-</AuthScope.Provider>
-```
-
-Retend provides a `combineScopes` utility to make this cleaner.
-
-```jsx
-import { combineScopes } from 'retend';
-
-// The order matters: AuthScope is the outermost, LanguageScope is the innermost.
-const AppScopes = combineScopes(AuthScope, ThemeScope, LanguageScope);
-
-function Root() {
-  const scopeValues = {
-    [AuthScope.key]: user,
-    [ThemeScope.key]: theme,
-    [LanguageScope.key]: lang,
-  };
-
-  return (
-    <AppScopes.Provider value={scopeValues}>{() => <App />}</AppScopes.Provider>
-  );
-}
-```
 
 In summary, scopes are a powerful and essential tool for building maintainable and scalable Retend applications. They solve the problem of prop drilling while providing crucial state isolation and memory management benefits.
 
@@ -1639,7 +1595,8 @@ The library includes a routing system for single-page applications.
 ### Setting Up the Router
 
 ```jsx
-import { Router, type RouteRecords } from 'retend/router';
+import { Router, type RouteRecords, createRouterRoot } from 'retend/router';
+import { renderToDOM } from 'retend-web';
 
 const Home = () => {
   return <h1>Welcome to the Home Page</h1>;
@@ -1658,20 +1615,17 @@ const routes: RouteRecords = [
 ];
 
 const router = new Router({ routes });
-document.body.appendChild(<router.Outlet />);
+renderToDOM(createRouterRoot(router), document.body);
 ```
 
 ### Implementing the Router
 
-Use the `useRouter` hook to access routing functionality from inside a component. This will prevents circular dependencies and import issues.
+Use `Link` and `Outlet` for navigation structure, and `useRouter` when you need programmatic navigation or route data.
 
 ```jsx
-import { useRouter } from 'retend/router';
+import { Link, Outlet } from 'retend/router';
 
 const App = () => {
-  const router = useRouter();
-  const { Link, Outlet } = router;
-
   return (
     <div class="app">
       <nav>
@@ -1707,10 +1661,9 @@ const routes: RouteRecords = [
 ```
 
 ```jsx
-import { useRouter } from 'retend/router';
+import { Link, Outlet } from 'retend/router';
 
 const Dashboard = () => {
-  const { Link, Outlet } = useRouter();
   return (
     <div>
       <h1>Dashboard</h1>
@@ -1729,7 +1682,7 @@ const Dashboard = () => {
 You can implement lazy loading of route components using the `lazy()` function.
 
 ```javascript
-import { lazy } from 'retend';
+import { lazy, defineRoutes } from 'retend/router';
 
 const Settings = lazy(() => import('./Settings'));
 
@@ -1750,7 +1703,7 @@ For larger applications, you can improve initial load times by not only lazy-loa
 
 Imagine your application has a `/dashboard` section with its own set of nested routes. Instead of defining them all in your main router file, you can load them lazily.
 
-**1. Main Router Configuration (`src/router.js`)**
+1. Main Router Configuration (`src/router.js`)
 
 In your main router setup, define a route for `/dashboard` and use the `subtree` property with the `lazy` helper to point to the dashboard's route configuration file.
 
@@ -1770,7 +1723,7 @@ const routes = defineRoutes([
 export const router = new Router({ routes });
 ```
 
-**2. Dashboard Routes (`src/views/dashboard/routes.js`)**
+2. Dashboard Routes (`src/views/dashboard/routes.js`)
 
 This file defines the routes specific to the dashboard. The key requirement is that the top-level route's path (`/dashboard`) must match the path in the main router configuration.
 
@@ -1799,9 +1752,9 @@ Navigate programmatically using the `navigate` method:
 
 ```jsx
 const ProfileButton = () => {
-  const { navigate } = useRouter();
+  const router = useRouter();
   const goToProfile = () => {
-    navigate('/profile/123');
+    router.navigate('/profile/123');
   };
 
   return <button onClick={goToProfile}>View Profile</button>;
@@ -1819,9 +1772,11 @@ Define and access dynamic route parameters:
   component: lazy(() => import('./Profile')),
 }
 
+import { useCurrentRoute } from 'retend/router';
+
 const Profile = () => {
-  const router = useRouter();
-  const id = router.params.get('id');
+  const route = useCurrentRoute();
+  const id = route.get().params.get('id');
 
   return <h1>Profile ID: {id}</h1>;
 };
@@ -1847,7 +1802,7 @@ The `getCurrentRoute()` method on the router returns a `Cell` object that contai
 - Implementing dynamic UI based on the current route (e.g. showing breadcrumbs)
 - Adjusting styles or behaviors based on the current route parameters.
 
-**Basic Usage:**
+Basic Usage:
 
 ```jsx
 import { useRouter } from 'retend/router';
@@ -1878,13 +1833,13 @@ function CurrentRouteDisplay() {
 
 In certain scenarios, you might want to prevent the user from navigating away from the current route, e.g. if they have unsaved changes in a form or if a critical operation is in progress. The router provides `lock()` and `unlock()` methods for this purpose.
 
-- **`router.lock()`**: Locks the router to the current path. Any subsequent attempts to navigate to a different path (either programmatically or via browser history) will be ignored.
+- `router.lock()`: Locks the router to the current path. Any subsequent attempts to navigate to a different path (either programmatically or via browser history) will be ignored.
 
-- **`router.unlock()`**: Releases the lock, allowing navigation to proceed normally.
+- `router.unlock()`: Releases the lock, allowing navigation to proceed normally.
 
 When navigation is attempted while the router is locked, the router will dispatch a `routelockprevented` event. You can listen for this event to react to blocked navigation attempts, for example, by showing a notification to the user.
 
-**Listening for the `routelockprevented` Event:**
+Listening for the `routelockprevented` Event:
 
 ```javascript
 import { useRouter } from 'retend/router';
@@ -1900,7 +1855,7 @@ router.addEventListener('routelockprevented', (event) => {
 });
 ```
 
-**Example:**
+Example:
 
 ```jsx
 import { useRouter } from 'retend/router';
@@ -2001,7 +1956,7 @@ function MyComponent() {
 
 ### Stack Mode Navigation
 
-**Stack Mode** turns the router into a stack-based navigation system. This lets routes act like a stack, where each route is a unique entry that can be navigated to and from.
+Stack Mode turns the router into a stack-based navigation system. This lets routes act like a stack, where each route is a unique entry that can be navigated to and from.
 
 #### Enabling Stack Mode
 
@@ -2045,7 +2000,7 @@ These components are specifically for web-based rendering and are documented in 
 
 The `createUnique` factory function creates components that preserve their identity and internal state across different locations in your application. DOM nodes are moved instead of recreated, maintaining state like video playback, scroll position, or form input values.
 
-**Key Features:**
+Key Features:
 
 - Only one instance per unique identity exists at any time
 - DOM nodes are physically moved, not recreated
@@ -2054,7 +2009,7 @@ The `createUnique` factory function creates components that preserve their ident
 - Works seamlessly with routing and conditional rendering
 - Props are passed reactively as a Cell
 
-- **Basic Usage**:
+- Basic Usage:
 
 ```jsx
 import { createUnique } from 'retend';
@@ -2074,7 +2029,7 @@ function App() {
 
 The factory function returns a component that can be used like any other component. By default, the component's identity is tied to the render function itself.
 
-- **Using the id prop to distinguish instances**:
+- Using the id prop to distinguish instances:
 
 ```jsx
 import { createUnique } from 'retend';
@@ -2095,7 +2050,7 @@ function App() {
 
 Each unique `id` creates a separate persistent instance. Without an `id`, all usages share the same instance.
 
-- **Video Player Persisting Across Pages**:
+- Video Player Persisting Across Pages:
 
 ```jsx
 import { Cell, Switch, createUnique } from 'retend';
@@ -2139,13 +2094,13 @@ function App() {
 
 In this example, the video continues playing when switching between pages because the same DOM element is moved rather than being destroyed and recreated.
 
-- **Setup Effects that Persist**:
+- Setup Effects that Persist:
 
 ```jsx
-import { Cell, Switch, createUnique, useSetupEffect } from 'retend';
+import { Cell, Switch, createUnique, onSetup } from 'retend';
 
 const PersistentComponent = createUnique(() => {
-  useSetupEffect(() => {
+  onSetup(() => {
     console.log('Setup called once');
     return () => {
       console.log('Cleanup called when completely removed');
@@ -2177,7 +2132,7 @@ function App() {
 
 The setup effect runs once when the component is first created and the cleanup only runs when all instances are completely removed from the application.
 
-- **Saving and Restoring State**:
+- Saving and Restoring State:
 
 ```jsx
 import { createUnique } from 'retend';
@@ -2202,7 +2157,7 @@ const ScrollableArea = createUnique(
 
 The `onSave` callback is called when the component is about to move, allowing you to capture any state. The `onRestore` callback is called when the component arrives at its new location, allowing you to restore that state.
 
-- **Accessing Props Reactively**:
+- Accessing Props Reactively:
 
 ```jsx
 import { Cell, createUnique } from 'retend';
@@ -2235,7 +2190,7 @@ function App() {
 
 Props are passed as a Cell, enabling reactive access to prop changes. Use `props.get()` to access current values, or derive cells for reactivity.
 
-- **Container Styling Options**:
+- Container Styling Options:
 
 ```jsx
 import { createUnique } from 'retend';
@@ -2251,7 +2206,7 @@ const StyledUnique = createUnique(() => <div>Styled unique content</div>, {
 
 Container options are applied to the wrapper element (`retend-unique-instance` custom element).
 
-- **Dynamic IDs in Lists**:
+- Dynamic IDs in Lists:
 
 ```jsx
 import { Cell, For, createUnique } from 'retend';

@@ -1,0 +1,113 @@
+# Unique Instances
+
+By default, when you navigate to a different page or hide a component using `If()`, Retend destroys those elements. If those elements are shown again later, brand new ones are created from scratch.
+
+For most of your application, this is exactly what you want. But what about a video player that is currently playing? Or a canvas element that the user has been drawing on? If these are destroyed and recreated, all of their internal state is lost!
+
+**Unique Instances** solve this by letting you create elements that survive being moved around your application.
+
+## Creating Persistent Elements
+
+To make a component persistent, simply wrap its function in `createUnique()`:
+
+```tsx
+import { createUnique } from 'retend';
+
+export const PersistentVideo = createUnique(() => {
+  return (
+    <video src="https://example.com/video.mp4" controls autoplay>
+      Your browser does not support the video tag.
+    </video>
+  );
+});
+```
+
+Now, if you render `<PersistentVideo />` on your Home page, and then the user navigates to the About page where `<PersistentVideo />` is also rendered, the exact same underlying video element is seamlessly physically moved to the new page. The video will keep playing without skipping a beat.
+
+## Multiple Independent Instances
+
+By default, every time you use a unique component, it shares the exact same underlying instance. If you render `<PersistentVideo />` in two different places at the same time, the video element will physically jump to whichever one was rendered last.
+
+If you want multiple, independent unique instances that can coexist on the screen at the same time, just give each one a unique `id` prop:
+
+```tsx
+// Two separate video players, each with their own state
+<PersistentVideo id="camera-1" />
+<PersistentVideo id="camera-2" />
+```
+
+Now `camera-1` and `camera-2` are completely independent persistent elements.
+
+## Passing Props
+
+If your unique component needs to accept props, those props will be provided to your function as a single reactive `Cell`. This allows your persistent element to instantly react when it is moved to a new location with different props.
+
+```tsx
+import { createUnique, Cell } from 'retend';
+
+const UniquePanel = createUnique((props) => {
+  // 1. Create a derived Cell so the title automatically updates
+  const title = Cell.derived(() => props.get().title);
+
+  return (
+    <div class="panel">
+      <h2>{title}</h2>
+      <p>This panel persists as it moves.</p>
+    </div>
+  );
+});
+
+// If rendered here...
+<UniquePanel id="panel-1" title="First Title" />
+
+// And then later moved here...
+<UniquePanel id="panel-1" title="Updated Title" />
+
+// The exact same DOM elements are used, but the <h2> text updates instantly!
+```
+
+## Saving and Restoring Scroll Position
+
+While `createUnique` perfectly preserves the HTML elements themselves, the browser automatically resets things like scroll position when an element is detached from the screen and moved.
+
+You can explicitly tell Retend how to save and restore this specific state using the `onSave` and `onRestore` options:
+
+```tsx
+const ScrollableArea = createUnique(
+  () => (
+    <div style={{ height: '400px', overflow: 'auto' }}>
+      <p>Lots of content here...</p>
+    </div>
+  ),
+  {
+    // 1. When the element is removed from the screen, save its scroll position
+    onSave: (element) => {
+      return { scrollPos: element.scrollTop };
+    },
+    // 2. When the element is put back on the screen, restore the scroll position
+    onRestore: (element, savedData) => {
+      if (savedData) {
+        element.scrollTop = savedData.scrollPos;
+      }
+    },
+  }
+);
+```
+
+## Styling the Wrapper
+
+To make this magic work under the hood, `createUnique` actually wraps your component in a special invisible HTML element (`<retend-unique-instance>`).
+
+If you need to apply CSS classes or styles to this invisible wrapper so it doesn't accidentally break your layout, you can use the `container` option:
+
+```tsx
+const StyledUnique = createUnique(() => <div>Content</div>, {
+  container: {
+    class: 'my-wrapper-class',
+    style: { display: 'block', padding: '20px' },
+    'data-test': 'unique-element',
+  },
+});
+```
+
+Unique instances are a powerful tool to pull out whenever you are dealing with complex UI elements that hold their own internal data.

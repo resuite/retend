@@ -73,7 +73,7 @@
 /**
  * @typedef RouterProviderProps
  * @property {Router} router
- * @property {() => JSX.Template} children
+ * @property {JSX.Template} children
  */
 
 /**

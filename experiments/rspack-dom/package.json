@@ -1,0 +1,22 @@
+{
+  "name": "rspack-dom-renderer-poc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "rspack serve --port 5230",
+    "build": "rspack build",
+    "preview": "rspack serve --mode production --port 5230"
+  },
+  "dependencies": {
+    "retend": "workspace:*",
+    "retend-web": "workspace:*",
+    "retend-web-devtools": "workspace:*"
+  },
+  "devDependencies": {
+    "@rspack/cli": "^1.3.15",
+    "@rspack/core": "^1.3.15",
+    "@types/node": "latest",
+    "typescript": "^5.5.2"
+  }
+}

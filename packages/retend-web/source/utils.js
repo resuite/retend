@@ -1,6 +1,7 @@
 /** @import { JsxElement } from './dom-renderer.js'; */
-import { Cell } from 'retend';
-import { DOMRenderer } from './dom-renderer.js';
+import { AsyncCell, Cell, useAwait } from 'retend';
+
+/** @import { DOMRenderer } from './dom-renderer.js'; */
 import { ShadowRootFragment } from './dom-ops.js';
 
 /** @typedef {Comment & { __commentRangeSymbol?: symbol }} ConnectedComment */
@@ -33,8 +34,8 @@ import { ShadowRootFragment } from './dom-ops.js';
  */
 export function createCommentPair(renderer) {
   const symbol = Symbol();
-  const rangeStart = renderer.host.document.createComment('----');
-  const rangeEnd = renderer.host.document.createComment('----');
+  const rangeStart = renderer.host.document.createComment('[');
+  const rangeEnd = renderer.host.document.createComment(']');
   Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
   Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 
@@ -298,25 +299,32 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
   return `${useHost ? ':host{' : ''}${Object.entries(styles)
     .map(([key, value]) => {
       if (Cell.isCell(/** @type any */ (value)) && element) {
+        if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
         /**
          * @this HTMLElement
-         * @param {string} newValue
+         * @param {string | Promise<any>} newValue
          */
-        function applyNewStyle(newValue) {
+        function applyStyle(newValue) {
           const styleKey = normalizeStyleKey(key);
-          if (value instanceof Promise) {
-            value.then((resolvedValue) => {
-              applyNewStyle.bind(this)(resolvedValue);
+          if (newValue instanceof Promise) {
+            newValue.then((resolvedValue) => {
+              applyStyle.bind(this)(resolvedValue);
             });
           } else if (!isSomewhatFalsy(newValue)) {
             // optional because the style property does not exist in the vDOM.
             this.style?.setProperty(styleKey, newValue);
           } else this.style?.removeProperty(styleKey);
         }
-        addCellListener(element, value, applyNewStyle, false);
+        addCellListener(element, value, applyStyle, false);
+        const raw = value.peek();
+        if (raw instanceof Promise) {
+          raw.then((resolvedValue) => applyStyle.bind(element)(resolvedValue));
+          return '';
+        } else if (isSomewhatFalsy(value)) return '';
+        return `${normalizeStyleKey(key)}: ${raw}`;
       }
       if (isSomewhatFalsy(value)) return '';
-      return `${normalizeStyleKey(key)}: ${value.valueOf()}`;
+      return `${normalizeStyleKey(key)}: ${value}`;
     })
     .join('; ')}${useHost ? '}' : ''}`;
 }
@@ -391,6 +399,7 @@ export function normalizeClassValue(val, element) {
   }
 
   if (Cell.isCell(val) && element) {
+    if (val instanceof AsyncCell) useAwait()?.waitUntil(val);
     let currentClassToken = '';
     /**
      *
@@ -666,10 +675,26 @@ export function setAttribute(
     key === 'dangerouslySetInnerHTML' &&
     typeof value === 'object' &&
     value !== null &&
-    '__html' in value &&
-    typeof value.__html === 'string'
+    '__html' in value
   ) {
-    element.innerHTML = value.__html;
+    const html = value.__html;
+    if (Cell.isCell(html)) {
+      if (html instanceof AsyncCell) useAwait()?.waitUntil(html);
+      /**
+       * @this {Element}
+       * @param {string | Promise<string>} newValue
+       */
+      function applyInnerHTML(newValue) {
+        if (newValue instanceof Promise) {
+          newValue.then((resolved) => applyInnerHTML.bind(this)(resolved));
+        } else {
+          this.innerHTML = newValue;
+        }
+      }
+      addCellListener(element, html, applyInnerHTML);
+    } else if (typeof html === 'string') {
+      element.innerHTML = html;
+    }
     return;
   }
 
@@ -767,6 +792,7 @@ export function containerIsDynamic(tagname, props, childChecker) {
 /** @param {any} value  */
 export function isReactiveChild(value) {
   if (Cell.isCell(value)) return true;
+  if (value instanceof DeferredHandleSymbol) return true;
   if (Array.isArray(value)) {
     if (
       value[0] instanceof DeferredHandleSymbol &&

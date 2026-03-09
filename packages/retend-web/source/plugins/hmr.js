@@ -1,0 +1,296 @@
+import {
+  Cell,
+  CellUpdateError,
+  __HMR_SYMBOLS,
+  createNodesFromTemplate,
+  branchState,
+  onSetup,
+  withState,
+} from 'retend';
+import { getGlobalContext } from 'retend/context';
+import { routeToComponent } from 'retend/router';
+
+import {
+  addCellListener,
+  consolidateNodes,
+  copyCellListeners,
+  createCommentPair,
+  isMatchingCommentPair,
+  removeCellListeners,
+} from '../utils.js';
+
+/** @import { ReactiveCellFunction } from '../utils.js' */
+/** @import { __HMR_UpdatableFn, HmrContext } from 'retend'; */
+/** @import { JSX } from 'retend/jsx-runtime'; */
+/** @import { Scope } from 'retend' */
+/** @import { DOMRenderer } from '../dom-renderer.js'; */
+
+/** @typedef {Node & { __commentRangeSymbol?: symbol }} RangedNode */
+
+/**
+ * @typedef Instance
+ *
+ * @property {Record<string, unknown>} [props]
+ * Props passed to the component instance.
+ *
+ * @property {RangedNode[]} nodes
+ * Nodes returned from the component instance.
+ */
+
+/**
+ * @typedef {Node & {
+ *  __linked?: boolean,
+ * }} LinkableNodeLike
+ */
+
+/**
+ * @typedef {Node & {
+ *  __linked?: boolean,
+ * }} LinkableNode
+ */
+
+/**
+ * @typedef {Object} HMRFunctionOptions
+ */
+
+/**
+ * Hot reload handler for JSX components, updating only changed functions within a module.
+ * Compares instances of JSX function components between the old and new modules to selectively
+ * re-render only those that have changed. This approach avoids unnecessary re-renders and
+ * optimizes hot module replacement (HMR) for JSX files.
+ *
+ * @param {Record<string, unknown>} newModule - The updated module with potentially changed function components.
+ * @param {Record<string, unknown> | undefined} oldModule - The previous module exports.
+ */
+export async function hotReloadModule(newModule, oldModule) {
+  // if (import.meta.env.SSR) return; // Skip HMR on the server
+
+  if (!newModule) return;
+  if (!oldModule) return;
+
+  const newModuleData = Object.entries(newModule);
+  if (newModuleData.length === 0) {
+    globalThis.window?.location?.reload?.();
+    return;
+  }
+
+  const { globalData } = getGlobalContext();
+  const errors = [];
+  /** @type {HmrContext} */
+  const context = {
+    current: Cell.source(/** @type {Function | null} */ (null)),
+    old: Object.values(oldModule),
+    new: Object.values(newModule),
+  };
+  globalData.set(__HMR_SYMBOLS.HMRContextKey, context);
+  for (const [key, newInstance] of newModuleData) {
+    const oldInstance = oldModule[key];
+    if (!oldInstance) continue;
+    if (typeof oldInstance !== 'function') continue;
+    if (typeof newInstance !== 'function') continue;
+
+    // If the function is a routing component, then it needs to swapped out
+    // in the route tree.
+    if (routeToComponent.has(oldInstance)) {
+      const matches = routeToComponent.get(oldInstance);
+      if (matches) {
+        for (const match of matches) {
+          match.component = newInstance;
+        }
+        routeToComponent.set(newInstance, matches);
+      }
+      routeToComponent.delete(oldInstance);
+    }
+
+    try {
+      const current = /** @type {any} */ (oldInstance);
+      const next = /** @type {any} */ (newInstance);
+      const cell = current[__HMR_SYMBOLS.ComponentInvalidator];
+      if (cell) {
+        next[__HMR_SYMBOLS.ComponentInvalidator] = cell;
+        context.current.set(newInstance);
+        cell.set(newInstance);
+      }
+    } catch (e) {
+      if (e instanceof CellUpdateError) {
+        for (const error of e.errors) errors.push(error);
+      } else throw e;
+    } finally {
+      globalData.set(__HMR_SYMBOLS.HMRContextKey, null);
+    }
+  }
+
+  if (errors.length > 0) {
+    for (const error of errors) {
+      // @ts-expect-error:
+      console.error('HMR Update Error: ', error, error.__component);
+    }
+  }
+}
+
+/**
+ *
+ * @param {Scope & { [__HMR_SYMBOLS.HmrId]?: string }} Scope
+ * @param {string} [fileName]
+ */
+function trackScopeReference(Scope, fileName) {
+  const ScopeList = __HMR_SYMBOLS.ScopeList;
+  if (!Reflect.get(Scope, __HMR_SYMBOLS.HmrId)) {
+    const description = Scope.key.description;
+    let uniqueId = description ? `${fileName}-${description}` : fileName;
+
+    while (ScopeList.has(uniqueId)) uniqueId += '_';
+    ScopeList.set(uniqueId, Scope);
+    Reflect.set(Scope, __HMR_SYMBOLS.HmrId, uniqueId);
+  }
+
+  ScopeList.set(Scope[__HMR_SYMBOLS.HmrId], Scope);
+  onSetup(() => () => ScopeList.delete(Scope[__HMR_SYMBOLS.HmrId]));
+}
+
+/**
+ * @param {__HMR_UpdatableFn} tagname
+ * @param {any[]} props
+ * @param {JSX.JSXDevFileData | undefined} fileData
+ * @param {DOMRenderer} renderer
+ */
+export function withHMRBoundaries(tagname, props, fileData, renderer) {
+  if (tagname.__isScopeProviderOf && fileData) {
+    const { fileName } = fileData;
+    const Scope = tagname.__isScopeProviderOf;
+    if (!Reflect.get(Scope, __HMR_SYMBOLS.HmrId))
+      trackScopeReference(Scope, fileName);
+  }
+
+  // In Dev mode and using HMR, components have a self-referential
+  // Invalidator cell, which should automatically trigger a rerun of
+  // the component.
+  let invalidator = tagname[__HMR_SYMBOLS.ComponentInvalidator];
+  if (!invalidator) {
+    invalidator = Cell.source(tagname);
+    tagname[__HMR_SYMBOLS.ComponentInvalidator] = invalidator;
+  }
+  return runInvalidatorWithHMRBoundaries(invalidator, props, renderer);
+}
+
+/**
+ * @param {Node[]} nodes
+ * @param {DOMRenderer} renderer
+ */
+function stabilizeNodes(nodes, renderer) {
+  // We can be smarter about whether or not to create a comment pair, so we
+  // don't end up with a cluttered DOM tree.
+  // NOTE TO FUTURE SELF: This optimization is only possible because
+  // the comment ranges in other control flow structures already provide
+  // guarantees about how nodes should behave.
+  if (nodes.length === 0) return createCommentPair(renderer);
+
+  if (nodes.length > 1) {
+    const startNode = nodes[0];
+    const endNode = nodes[nodes.length - 1];
+    const isAlreadyStable =
+      nodes.length > 1 &&
+      startNode instanceof Comment &&
+      endNode instanceof Comment &&
+      isMatchingCommentPair(startNode, endNode);
+
+    if (isAlreadyStable) return nodes;
+
+    const pair = createCommentPair(renderer);
+    return [pair[0], ...nodes, pair[1]];
+  }
+
+  return nodes;
+}
+
+/**
+ * @param {Cell<__HMR_UpdatableFn>} value
+ * @param {any[]} completeProps
+ * @param {DOMRenderer} renderer
+ */
+export function runInvalidatorWithHMRBoundaries(
+  value,
+  completeProps,
+  renderer
+) {
+  const snapshot = branchState();
+
+  /** @returns {Node[]} */
+  const nextComponentRender = () => {
+    const ancestry = __HMR_SYMBOLS.useComponentAncestry();
+    const template = __HMR_SYMBOLS.RetendComponentTree.Provider({
+      h: false,
+      value: [...ancestry, value.peek()],
+      children: () => value.peek()(...completeProps, { createdByJsx: true }),
+    });
+    return stabilizeNodes(
+      createNodesFromTemplate(template, renderer),
+      renderer
+    );
+  };
+
+  let nodes = withState(snapshot, nextComponentRender);
+
+  /** @type {ReactiveCellFunction<Function, Node, void>} */
+  const refresh = function (fn) {
+    snapshot.node.dispose();
+    const swap = () => {
+      const hmr = __HMR_SYMBOLS.getHMRContext();
+      if (!hmr) return false;
+      if (hmr.current.peek() === fn) {
+        if (!this.isConnected) return false;
+        // If a component render instance is in an update path, there is
+        // no use updating it, since it will be (or has been) overwritten
+        // by its parent.
+        const parents = __HMR_SYMBOLS.useComponentAncestry();
+        const instanceIsInUpdatePath = parents.some((c) => {
+          return (c !== fn && hmr.old.includes(c)) || hmr.new.includes(c);
+        });
+        if (instanceIsInUpdatePath) return false;
+      }
+
+      if (this !== nodes[0]) {
+        // Hard to explain, but it means at the leaf of the render tree
+        // there was a single node, but a child component updated,
+        // changing the value of that node.
+        const staleNodes = nodes;
+        nodes = [this];
+
+        /** @type {Node | null} */
+        let next = this;
+        while (staleNodes.length !== nodes.length) {
+          next = this.nextSibling;
+          if (!next) break;
+          nodes.push(next);
+        }
+      }
+
+      const oldStart = nodes[0];
+      const oldEnd = nodes[nodes.length - 1];
+
+      nodes = nextComponentRender();
+      const finalFragment = consolidateNodes(nodes, renderer);
+
+      const range = window.document.createRange();
+      range.setStartBefore(oldStart);
+      range.setEndAfter(oldEnd);
+      range.deleteContents();
+      range.insertNode(finalFragment);
+
+      queueMicrotask(() => {
+        // We cannot start listening in this run of the event loop,
+        // because then we are asking the system to overwrite what
+        // we just replaced.
+        copyCellListeners(this, nodes[0]);
+        removeCellListeners(this); // prevents phantom updates.
+      });
+      return true;
+    };
+    const updated = withState(snapshot, swap);
+    renderer.observer?.flush();
+    if (updated) snapshot.node.activate();
+  };
+
+  addCellListener(nodes[0], value, refresh, false);
+  return nodes;
+}

@@ -6,17 +6,19 @@ Scopes provide a way to share state between components that are far apart in the
 
 ### `createScope()`
 
-Creates a new, unique scope object. Best practice is to create this in a separate file for easy import.
+Creates a new, unique scope object. Best practice is to create this in a separate file for easy import. The returned Scope object contains a `key` property (a unique symbol) and a `Provider` component.
 
 ```javascript
 import { createScope } from 'retend';
 
 export const ThemeScope = createScope();
+// ThemeScope.key - unique symbol for this scope
+// ThemeScope.Provider - component to provide the scope value
 ```
 
 ### `Scope.Provider`
 
-A component that provides a value to all its children. It takes a `value` prop and a function as its `children`.
+A component that provides a value to all its children. It takes a `value` prop and direct `children`.
 
 ```jsx
 import { ThemeScope } from './scopes.js';
@@ -26,7 +28,7 @@ function App() {
 
   return (
     <ThemeScope.Provider value={theme}>
-      {() => <AuthenticatedLayout />}
+      <AuthenticatedLayout />
     </ThemeScope.Provider>
   );
 }
@@ -43,30 +45,6 @@ import { ThemeScope } from './scopes.js';
 function StatusIndicator() {
   const theme = useScopeContext(ThemeScope);
   return <div class={`status-${theme}`}></div>;
-}
-```
-
-## Advanced Patterns
-
-### Combine Scopes
-
-For applications with multiple scopes, usage of `combineScopes` avoids the "pyramid of doom" of nested providers.
-
-```jsx
-import { combineScopes } from 'retend';
-
-const AppScopes = combineScopes(AuthScope, ThemeScope, LanguageScope);
-
-function Root() {
-  const scopeValues = {
-    [AuthScope.key]: user,
-    [ThemeScope.key]: theme,
-    [LanguageScope.key]: lang,
-  };
-
-  return (
-    <AppScopes.Provider value={scopeValues}>{() => <App />}</AppScopes.Provider>
-  );
 }
 ```
 

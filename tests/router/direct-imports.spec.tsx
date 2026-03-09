@@ -1,15 +1,17 @@
-import { describe, it, expect } from 'vitest';
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { vDomSetup, getTextContent } from '../setup.tsx';
+
+import { getActiveRenderer } from 'retend';
 import {
-  createRouterRoot,
-  Router,
-  defineRoutes,
   Link,
   Outlet,
+  Router,
   RouterProvider,
+  createRouterRoot,
+  defineRoutes,
 } from 'retend/router';
+import { describe, expect, it, vi } from 'vitest';
+
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Direct Imports', () => {
   vDomSetup();
@@ -24,21 +26,27 @@ describe('Router Direct Imports', () => {
       ]),
     });
     router.attachWindowListeners(window);
-
-    RouterProvider({
-      router,
-      children: () => {
-        // Test that Link component can be used directly
-        const linkElement = Link({
+    const Component = () => {
+      // Test that Link component can be used directly
+      const linkElement = renderer.render(
+        Link({
           href: '/about',
           children: 'About Link',
-        }) as HTMLElement;
-        expect(linkElement).toBeDefined();
-        expect(linkElement.tagName.toLowerCase()).toBe('a');
-        expect(linkElement.getAttribute('href')).toBe('/about');
-        expect(getTextContent(linkElement)).toBe('About Link');
-      },
-    });
+        })
+      ) as HTMLElement;
+      expect(linkElement).toBeDefined();
+      expect(linkElement.tagName.toLowerCase()).toBe('a');
+      expect(linkElement.getAttribute('href')).toBe('/about');
+      expect(getTextContent(linkElement)).toBe('About Link');
+
+      return <></>;
+    };
+
+    renderer.render(
+      <RouterProvider router={router}>
+        <Component />
+      </RouterProvider>
+    );
   });
 
   it('should work with directly imported Outlet component', async () => {
@@ -50,18 +58,19 @@ describe('Router Direct Imports', () => {
       ]),
     });
     router.attachWindowListeners(window);
+    const Component = () => {
+      const outletElement = renderer.render(Outlet()) as HTMLElement;
+      expect(outletElement).toBeDefined();
+      expect(outletElement.tagName.toLowerCase()).toBe('retend-router-outlet');
 
-    // Test that Outlet component can be used directly
-    RouterProvider({
-      router,
-      children: () => {
-        const outletElement = Outlet() as HTMLElement;
-        expect(outletElement).toBeDefined();
-        expect(outletElement.tagName.toLowerCase()).toBe(
-          'retend-router-outlet'
-        );
-      },
-    });
+      return <></>;
+    };
+
+    renderer.render(
+      <RouterProvider router={router}>
+        <Component />
+      </RouterProvider>
+    );
   });
 
   it('should maintain backward compatibility with router instance methods', async () => {
@@ -74,25 +83,28 @@ describe('Router Direct Imports', () => {
       ]),
     });
     router.attachWindowListeners(window);
-
-    RouterProvider({
-      router,
-      children: () => {
-        // Test that router instance methods still work
-        const linkElement = router.Link({
+    const Component = () => {
+      const linkElement = renderer.render(
+        router.Link({
           href: '/about',
           children: 'About Link',
-        }) as HTMLElement;
-        expect(linkElement).toBeDefined();
-        expect(linkElement.tagName.toLowerCase()).toBe('a');
+        })
+      ) as HTMLElement;
+      expect(linkElement).toBeDefined();
+      expect(linkElement.tagName.toLowerCase()).toBe('a');
 
-        const outletElement = router.Outlet() as HTMLElement;
-        expect(outletElement).toBeDefined();
-        expect(outletElement.tagName.toLowerCase()).toBe(
-          'retend-router-outlet'
-        );
-      },
-    });
+      const outletElement = renderer.render(router.Outlet()) as HTMLElement;
+      expect(outletElement).toBeDefined();
+      expect(outletElement.tagName.toLowerCase()).toBe('retend-router-outlet');
+
+      return <></>;
+    };
+
+    renderer.render(
+      <RouterProvider router={router}>
+        <Component />
+      </RouterProvider>
+    );
   });
 
   it('should render components using direct imports in a real routing scenario', async () => {
@@ -145,16 +157,38 @@ describe('Router Direct Imports', () => {
     router.attachWindowListeners(window);
     window.document.body.append(createRouterRoot(router));
 
-    // Navigate to home
     await router.navigate('/');
     expect(getTextContent(window.document.body)).toContain('Home Page');
     expect(getTextContent(window.document.body)).toContain('App Header');
     expect(getTextContent(window.document.body)).toContain('App Footer');
 
-    // Navigate to about
     await router.navigate('/about');
     expect(getTextContent(window.document.body)).toContain('About Page');
     expect(getTextContent(window.document.body)).toContain('App Header');
     expect(getTextContent(window.document.body)).toContain('App Footer');
+  });
+
+  it('should let same-page hash links use native anchor behavior', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        {
+          path: '/article',
+          name: 'article',
+          component: () => <Link href="/article#section">Section</Link>,
+        },
+      ]),
+    });
+    router.attachWindowListeners(window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/article');
+    const navigate = vi.spyOn(router, 'navigate');
+
+    const link = window.document.querySelector('a');
+    link?.dispatchEvent(new Event('click'));
+
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

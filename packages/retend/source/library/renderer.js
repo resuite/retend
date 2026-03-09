@@ -1,12 +1,11 @@
 /** @import { JSX } from '../jsx-runtime/index.js'; */
 /** @import { __HMR_UpdatableFn } from '../library/index.js'; */
-/** @import { ScopeSnapshot } from '../library/scope.js'; */
+/** @import { StateSnapshot } from '../library/scope.js'; */
 /** @import { Cell } from '@adbl/cells'; */
 /** @import { Observer } from './observer.js'; */
+/** @import { Environments } from '../context/index.js'; */
 
 import { getGlobalContext } from '../context/index.js';
-// This should be a symbol for better security, but it breaks randomly in SSR.
-const RendererKey = 'retend:Renderer';
 
 /**
  * A registry of concrete types specific to a renderer implementation.
@@ -37,7 +36,9 @@ const RendererKey = 'retend:Renderer';
  *
  * @property {any} SavedNodeState
  * A serializable or structured representation of a node's state, used for preservation and restoration.
- *//**
+ */
+
+/**
  * A collection of flags defining the feature set and constraints of a renderer.
  * These are used by the framework to conditionally enable optimizations or
  * alternative execution paths based on what the host environment supports.
@@ -94,7 +95,7 @@ const RendererKey = 'retend:Renderer';
  * An observer instance for watching the node environment and firing callbacks
  * on renderer-defined connections.
  *
- * @property {(callback: () => void) => void} onViewChange
+ * @property {(app: JSX.Template) => Node | Node[]} render
  *
  * @property {Capabilities} capabilities
  * Configuration flags indicating which features this renderer supports.
@@ -120,9 +121,6 @@ const RendererKey = 'retend:Renderer';
  * @property {<N extends Node>(node: N, key: string, value: unknown) => N} setProperty
  * Applies a property or reactive value to a node.
  *
- * @property {(promise: Promise<any>) => Node} handlePromise
- * Manages the lifecycle of a node that resolves asynchronously.
- *
  * @property {(fragment: Group) => Node[]} unwrapGroup
  * Flattens a Group node back into its constituent nodes.
  *
@@ -142,10 +140,7 @@ const RendererKey = 'retend:Renderer';
  * @property {(handle: Handle, options: ReconcilerOptions<Node>) => void} reconcile
  * Efficiently updates the nodes associated with a handle by diffing them against a new list of items.
  *
- * @property {(node: Node) => Output} finalize
- * Performs the final transformation on the produced output before returning it to the user.
- *
- * @property {(tagnameOrFunction: __HMR_UpdatableFn, props: any, fileData?: JSX.JSXDevFileData) => Node | Node[]} handleComponent
+ * @property {(tagnameOrFunction: __HMR_UpdatableFn, props: any, snapshot?: StateSnapshot, fileData?: JSX.JSXDevFileData) => Node | Node[]} handleComponent
  * Orchestrates the execution of components.
  *
  * @property {(node: Container, customData: unknown) => SavedNodeState} saveContainerState
@@ -157,7 +152,7 @@ const RendererKey = 'retend:Renderer';
 
 /**
  * @template Node
- * @typedef {{ index: Cell<number>,  nodes: Node[], snapshot: ScopeSnapshot }} ForCachedData
+ * @typedef {{ index: Cell<number>,  nodes: Node[], snapshot: StateSnapshot }} ForCachedData
  */
 
 /**
@@ -195,9 +190,8 @@ const RendererKey = 'retend:Renderer';
  * The renderer instance responsible for the current execution cycle.
  */
 export function getActiveRenderer() {
-  const { globalData } = getGlobalContext();
-  const renderer = globalData.get(RendererKey);
-  return renderer;
+  const { renderer } = getGlobalContext();
+  return /** @type {Renderer<any>} */ (renderer);
 }
 
 /**
@@ -206,13 +200,13 @@ export function getActiveRenderer() {
  * @template {RendererTypes} Types
  * @param {Renderer<Types>} renderer
  * The renderer instance to be used for subsequent rendering operations.
- * @param {Map<PropertyKey, any>} [globalData]
+ * @param {Environments} [context]
  */
-export function setActiveRenderer(renderer, globalData) {
-  if (globalData) {
-    globalData.set(RendererKey, renderer);
+export function setActiveRenderer(renderer, context) {
+  if (context) {
+    context.renderer = renderer;
   } else {
-    const { globalData } = getGlobalContext();
-    globalData.set(RendererKey, renderer);
+    const context = getGlobalContext();
+    context.renderer = renderer;
   }
 }

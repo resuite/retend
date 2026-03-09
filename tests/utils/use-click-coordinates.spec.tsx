@@ -1,9 +1,11 @@
-import { useClickCoordinates } from '../../packages/retend-utils/source/hooks/use-click-coordinates.js';
-import { Cell, runPendingSetupEffects } from 'retend';
-import { describe, expect, it } from 'vitest';
-import { vDomSetup, browserSetup } from '../setup';
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, runPendingSetupEffects } from 'retend';
+import { getActiveRenderer } from 'retend';
+import { describe, expect, it } from 'vitest';
+
+import { useClickCoordinates } from '../../packages/retend-utils/source/hooks/use-click-coordinates.js';
+import { vDomSetup, browserSetup } from '../setup';
 
 const runTests = () => {
   it('should return a Cell containing the click coordinates', () => {

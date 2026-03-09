@@ -45,7 +45,7 @@ import { Cell } from 'retend';
 
 function FocusableInput() {
   const inputElementRef = Cell.source(null);
-  // Example usage (maybe with useObserver): inputElementRef.get()?.focus();
+  // Example usage (maybe with onConnected): inputElementRef.get()?.focus();
   return <input type="text" ref={inputElementRef} />;
 }
 @Note Refs are declared within the component that uses them.

@@ -1,0 +1,106 @@
+# Control Flow
+
+In Retend, you use special functions—`If`, `For`, and `Switch`—to handle conditionals and lists in your user interface. These functions connect directly to your Cells, so when your data changes, your layout updates automatically.
+
+## Conditional Rendering with `If`
+
+When you want to show or hide parts of your interface based on a condition, use the `If` function.
+
+It takes a Cell (or any regular value) and branches based on whether the value is true or false.
+
+```tsx
+import { If, Cell } from 'retend';
+
+function ToggleMessage() {
+  const show = Cell.source(false);
+  const toggle = () => show.set(!show.get());
+
+  return (
+    <div>
+      <button type="button" onClick={toggle}>
+        Toggle Message
+      </button>
+
+      {If(show, {
+        true: () => <p>The message is visible!</p>,
+        false: () => <p>The message is hidden.</p>,
+      })}
+    </div>
+  );
+}
+```
+
+If you only care about the `true` case, you can just provide that branch:
+
+```tsx
+{
+  If(show, {
+    true: () => <p>Only shows when the Cell is true.</p>,
+  });
+}
+```
+
+_(Note: Standard JavaScript `if` statements or `&&` operators don't connect to Retend's reactivity system if the data changes later. Always use the `If` function for parts of your UI that can change)._
+
+## Rendering Lists with `For`
+
+When you have an array of data, use the `For` function to display a list of elements.
+
+You provide the array, and a callback function that returns the JSX you want to render for each item.
+
+```tsx
+import { For, Cell } from 'retend';
+
+function ItemList() {
+  const items = Cell.source([
+    { id: 1, name: 'Apple' },
+    { id: 2, name: 'Banana' },
+  ]);
+
+  return (
+    <ul>
+      {For(
+        items,
+        (item, index) => (
+          <li>
+            Item {index}: {item.name}
+          </li>
+        ),
+        { key: 'id' } // Helps Retend update lists efficiently
+      )}
+    </ul>
+  );
+}
+```
+
+### Using Keys for Efficiency
+
+When rendering a list of objects that might change (like adding or removing items), it's highly recommended to provide a `key` in the options object at the end.
+
+The `key` tells Retend how to uniquely identify each item, which makes updating the list much faster. You can provide the name of the unique ID property as a string, like `key: 'id'`.
+
+## Multi-State Rendering with `Switch`
+
+When you have more than two possible states—like checking whether data is "loading", "success", or "error"—nested `If` functions can get messy. The `Switch` function handles this cleanly.
+
+```tsx
+import { Switch, Cell } from 'retend';
+
+function DataFetcher() {
+  const status = Cell.source('loading');
+
+  return (
+    <div>
+      {Switch(status, {
+        loading: () => <p>Fetching data...</p>,
+        success: () => <p>Success!</p>,
+        error: () => <p>Something went wrong.</p>,
+      })}
+    </div>
+  );
+}
+```
+
+`Switch` looks at the value inside your Cell and runs the matching branch. If the status is "success", it only renders the `success` branch.
+
+By using `If`, `For`, and `Switch`, you ensure your layouts stay in sync with your data automatically.

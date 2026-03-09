@@ -6,10 +6,10 @@ The official DOM renderer for [Retend](https://github.com/adebola-io/retend).
 
 ## Key Features
 
-- **Components are DOM Elements:** In `retend-web`, components are just functions that return standard DOM elements. Changes are applied directly to the DOM for maximum performance and interoperability.
-- **Teleport:** Render children into a different part of the DOM tree, useful for modals, tooltips, and global overlays.
-- **Shadow Root Support:** Easily encapsulate styles and structure using native Shadow DOM.
-- **Optimized DOM Operations:** Efficiently handles updates, attributes, and events using specialized reconciliation.
+- Components are DOM Elements: In `retend-web`, components are just functions that return standard DOM elements. Changes are applied directly to the DOM for maximum performance and interoperability.
+- Teleport: Render children into a different part of the DOM tree, useful for modals, tooltips, and global overlays.
+- Shadow Root Support: Easily encapsulate styles and structure using native Shadow DOM.
+- Optimized DOM Operations: Efficiently handles updates, attributes, and events using specialized reconciliation.
 
 ## Installation
 
@@ -23,9 +23,9 @@ To start using `retend-web`, you need to set the active renderer:
 
 ```javascript
 import { setActiveRenderer } from 'retend';
-import { DomRenderer } from 'retend-web';
+import { DOMRenderer } from 'retend-web';
 
-const renderer = new DomRenderer(document.body);
+const renderer = new DOMRenderer(window);
 setActiveRenderer(renderer);
 ```
 
@@ -39,7 +39,7 @@ The `<Teleport />` component allows you to render its children into a specific D
 import { Teleport } from 'retend-web';
 
 const MyModal = () => (
-  <Teleport to={document.body}>
+  <Teleport to="body">
     <div class="modal">
       <h1>Hello from the teleported modal!</h1>
     </div>
@@ -49,19 +49,21 @@ const MyModal = () => (
 
 ### ShadowRoot
 
-The `<Shadowroot />` component allows you to attach a shadow root to a parent element.
+The `<ShadowRoot />` component allows you to attach a shadow root to a parent element.
 
 ```jsx
-import { Shadowroot } from 'retend-web';
+import { ShadowRoot } from 'retend-web';
 
 const MyComponent = () => (
   <div class="host">
-    <Shadowroot mode="open">
+    <ShadowRoot>
       <style>{`.text { color: red; }`}</style>
       <span class="text">I am in the shadow DOM!</span>
-    </Shadowroot>
+    </ShadowRoot>
   </div>
 );
+
+// Note: ShadowRoot always uses open mode; `mode` is not supported.
 ```
 
 ## License

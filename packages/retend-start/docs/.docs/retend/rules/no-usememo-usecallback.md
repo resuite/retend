@@ -1,6 +1,6 @@
-| title                | impact | impactDescription                                      | tags                        |
-| :------------------- | :----- | :----------------------------------------------------- | :-------------------------- |
-| No useMemo/useCallback | High | Removes unnecessary optimization attempts.             | react-migration, patterns   |
+| title                  | impact | impactDescription                          | tags                      |
+| :--------------------- | :----- | :----------------------------------------- | :------------------------ |
+| No useMemo/useCallback | High   | Removes unnecessary optimization attempts. | react-migration, patterns |
 
 # No useMemo/useCallback
 

@@ -1,9 +1,16 @@
-/** @import { Renderer, ReconcilerOptions, __HMR_UpdatableFn } from "retend"; */
+/** @import { Renderer, ReconcilerOptions, __HMR_UpdatableFn, StateSnapshot } from "retend"; */
 /** @import * as VDom from './index.js' */
+/** @import { JSX } from 'retend/jsx-runtime'; */
 
-import { createNodesFromTemplate, Cell } from 'retend';
-import { VText, VComment, VDocumentFragment } from './index.js';
+import {
+  Cell,
+  createNodesFromTemplate,
+  normalizeJsxChild,
+  getState,
+} from 'retend';
 import * as Ops from 'retend-web/dom-ops';
+
+import { VComment, VDocumentFragment, VNode, VText } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
@@ -41,7 +48,13 @@ export class VDOMRenderer {
   observer = null;
   staticStyleIds = new Set();
   markDynamicNodes = false;
-  #dynamicNodeMarker = 0;
+
+  /**
+   * Map of encountered control flow branches during rendering,
+   * to the number of nodes generated within them.
+   * @type {Map<StateSnapshot, number>}
+   */
+  #branches = new Map();
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
@@ -55,11 +68,19 @@ export class VDOMRenderer {
     };
   }
 
+  /**
+   * Renders the given application into a virtual DOM tree.
+   *
+   * @param {JSX.Template} app - The application to render.
+   * @returns {VDom.VNode | VDom.VNode[]} The rendered virtual DOM tree.
+   */
+  render(app) {
+    return normalizeJsxChild(app, this);
+  }
+
   isActive() {
     return false;
   }
-
-  onViewChange() {}
 
   /**
    * @param {VDom.VNode} node
@@ -122,8 +143,18 @@ export class VDOMRenderer {
   /**
    * @param {__HMR_UpdatableFn} tagname
    * @param {any} props
+   * @param {StateSnapshot} [snapshot]
    */
-  handleComponent(tagname, props) {
+  handleComponent(tagname, props, snapshot) {
+    if (snapshot && this.markDynamicNodes) {
+      this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
+      const component = tagname(...props);
+      /** @type {VDom.VNode[]} */
+      const nodes = createNodesFromTemplate(component, this);
+      return nodes.length === 1 ? nodes[0] : nodes;
+    }
+
+    // Repeated for performance.
     const component = tagname(...props);
     /** @type {VDom.VNode[]} */
     const nodes = createNodesFromTemplate(component, this);
@@ -151,26 +182,11 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {Promise<any>} child
-   * @returns {VDom.VNode}
-   */
-  handlePromise(child) {
-    return Ops.handlePromise(child, this);
-  }
-
-  /**
    * @param {string} text
    * @param {VDom.VNode} node
    */
   updateText(text, node) {
     return Ops.updateText(text, node);
-  }
-
-  /**
-   * @param {VDom.VNode} node
-   */
-  finalize(node) {
-    return node;
   }
 
   /**
@@ -200,7 +216,11 @@ export class VDOMRenderer {
       this.markDynamicNodes &&
       Ops.containerIsDynamic(tagname, props, isReactiveChild)
     ) {
-      element.setAttribute('data-dyn', String(this.#dynamicNodeMarker++));
+      const currentBranch = getState();
+      const index = this.#branches.get(currentBranch) || 0;
+      const id = `${currentBranch.node.id}.${index}`;
+      element.setAttribute('data-dyn', id);
+      this.#branches.set(currentBranch, index + 1);
     }
     return element;
   }
@@ -213,11 +233,11 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {Node} node
-   * @returns {node is VDom.VDocumentFragment}
+   * @param {VNode} node
+   * @returns {node is VDocumentFragment}
    */
   isGroup(node) {
-    return node instanceof this.host.DocumentFragment;
+    return node instanceof VDocumentFragment;
   }
 
   /**
@@ -225,9 +245,7 @@ export class VDOMRenderer {
    * @returns {child is VDom.VNode}
    */
   isNode(child) {
-    return (
-      child instanceof this.host.Node || child instanceof Ops.ShadowRootFragment
-    );
+    return child instanceof VNode || child instanceof Ops.ShadowRootFragment;
   }
 
   /**
@@ -235,7 +253,17 @@ export class VDOMRenderer {
    */
   scheduleTeleport(callback) {
     const anchorNode = this.host.document.createComment('teleport-anchor');
-    this.host.document.teleportMounts.push(() => callback(anchorNode));
+    const capturedScopes = getState().scopes;
+    this.host.document.teleportMounts.push(() => {
+      const state = getState();
+      const previousScopes = state.scopes;
+      state.scopes = capturedScopes;
+      try {
+        return callback(anchorNode);
+      } finally {
+        state.scopes = previousScopes;
+      }
+    });
     anchorNode.__isTeleportAnchor = true;
     return anchorNode;
   }

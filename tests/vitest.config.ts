@@ -10,12 +10,11 @@ export default defineConfig({
     },
     browser: {
       provider: 'playwright',
-      fileParallelism: false,
+      fileParallelism: true,
       enabled: true,
       headless: true,
       instances: [{ browser: 'chromium' }],
       isolate: true,
-
     },
   },
 });

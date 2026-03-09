@@ -1,0 +1,26 @@
+{
+  "name": "retend-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mdx-js/rollup": "^3.1.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "retend": "workspace:*",
+    "retend-server": "workspace:*",
+    "retend-utils": "workspace:*",
+    "retend-web": "workspace:*",
+    "retend-web-devtools": "workspace:*",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "typescript": "^5.8.2",
+    "vite": "^6.4.1"
+  }
+}

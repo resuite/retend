@@ -1,50 +1,50 @@
-import { describe, it, expect } from 'vitest';
-import { Cell, For, getActiveRenderer } from 'retend';
+import type { VElement, VNode } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
-import {
-  browserSetup,
-  getTextContent,
-  vDomSetup,
-  type NodeLike,
-} from './setup.tsx';
-import type { VNode, VElement } from 'retend-server/v-dom';
+
+import { Cell, For, getActiveRenderer } from 'retend';
+import { describe, expect, it } from 'vitest';
+
+import { browserSetup, getTextContent, render, vDomSetup } from './setup.tsx';
 
 const runTests = () => {
   it('should render a list of elements', () => {
     const items = ['A', 'B', 'C'];
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('ABC');
   });
 
   it('should handle empty arrays', () => {
     const items: string[] = [];
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('');
   });
 
   it('should update only when Cell array changes', () => {
     const items = Cell.source(['A', 'B', 'C']);
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('ABC');
 
@@ -59,14 +59,15 @@ const runTests = () => {
     const items = ['First', 'Second', 'Third'];
     const indices: number[] = [];
 
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item, index) => {
           indices.push(index.get());
           return <span>{item}</span>;
         })}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(indices).toEqual([0, 1, 2]);
     expect(getTextContent(result)).toBe('FirstSecondThird');
@@ -79,13 +80,14 @@ const runTests = () => {
       { id: 3, text: 'Third' },
     ];
 
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item.text}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('FirstSecondThird');
   });
@@ -96,7 +98,7 @@ const runTests = () => {
       [3, 4],
     ];
 
-    const result = (
+    const App = () => (
       <div>
         {For(matrix, (row) => (
           <div>
@@ -106,7 +108,8 @@ const runTests = () => {
           </div>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('1234');
   });
@@ -119,18 +122,19 @@ const runTests = () => {
       { id: 2, text: 'Second' },
     ]);
 
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item.text}</span>
         ))}
       </div>
-    ) as HTMLElement & VElement;
+    );
+    const result = renderer.render(App) as HTMLElement & VElement;
 
     window.document.body.append(result as unknown as Node & VNode);
     const firstSpans = Array.from(result.querySelectorAll('span'));
 
-    items.set([...items.get()].reverse());
+    items.set([...items.get()].toReversed());
     const secondSpans = Array.from(result.querySelectorAll('span'));
 
     // The DOM nodes should be the same but reordered
@@ -147,13 +151,14 @@ const runTests = () => {
       { id: 2, text: Cell.source('Second') },
     ]);
 
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item.text}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('FirstSecond');
 
@@ -163,76 +168,82 @@ const runTests = () => {
 
   it('should handle null and undefined values', () => {
     const items = [null, undefined, 'Valid'];
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('Valid');
   });
 
   it('should handle null list', () => {
-    const result = (
+    const App = () => (
       <div>
         {For(null, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('');
   });
 
   it('should handle undefined list', () => {
-    const result = (
+    const App = () => (
       <div>
         {For(undefined, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('');
   });
 
   it('should handle Cell with null value', () => {
     const items = Cell.source(null);
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('');
   });
 
   it('should handle Cell with undefined value', () => {
     const items = Cell.source(undefined);
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('');
   });
 
   it('should handle Cell changing from array to null', () => {
     const items = Cell.source<string[] | null>(['A', 'B']);
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('AB');
 
@@ -242,13 +253,14 @@ const runTests = () => {
 
   it('should handle Cell changing from null to array', () => {
     const items = Cell.source<string[] | null>(null);
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => (
           <span>{item}</span>
         ))}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('');
 
@@ -264,7 +276,7 @@ const runTests = () => {
     ]);
 
     let callbackCount = 0;
-    const result = (
+    const App = () => (
       <div>
         {For(
           items,
@@ -275,7 +287,8 @@ const runTests = () => {
           { key: 'id' }
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('AliceBobCharlie');
     expect(callbackCount).toBe(3); // Called once for each initial item
@@ -298,7 +311,7 @@ const runTests = () => {
     ]);
 
     let callbackCount = 0;
-    const result = (
+    const App = () => (
       <div>
         {For(
           items,
@@ -309,7 +322,8 @@ const runTests = () => {
           { key: (item) => item.uuid }
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('FirstSecondThird');
     expect(callbackCount).toBe(3); // Called once for each initial item
@@ -332,7 +346,7 @@ const runTests = () => {
     ]);
 
     let callbackCount = 0;
-    const result = (
+    const App = () => (
       <div>
         {For(
           items,
@@ -343,7 +357,8 @@ const runTests = () => {
           { key: (item) => `${item.category}-${item.id}` }
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('Item1Item2Item3');
     expect(callbackCount).toBe(3); // Called once for each initial item
@@ -369,7 +384,7 @@ const runTests = () => {
       { id: 'gamma', text: 'Third' },
     ]);
 
-    const result = (
+    const App = () => (
       <div>
         {For(
           items,
@@ -380,7 +395,8 @@ const runTests = () => {
           { key: (item) => item.id }
         )}
       </div>
-    ) as HTMLElement & VElement;
+    );
+    const result = renderer.render(App) as HTMLElement & VElement;
 
     window.document.body.append(result as unknown as Node & VNode);
     expect(callbackCount).toBe(3); // Initial render
@@ -405,17 +421,18 @@ const runTests = () => {
   it('should handle function key with primitive items', () => {
     const items = Cell.source(['apple', 'banana', 'cherry']);
 
-    const result = (
+    const App = () => (
       <div>
         {For(
           items,
-          (item, index) => (
+          (item) => (
             <span>{item}</span>
           ),
           { key: (item) => item.toUpperCase() }
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('applebananacherry');
 
@@ -431,7 +448,7 @@ const runTests = () => {
       { id: undefined, name: 'Item3' },
     ]);
 
-    const result = (
+    const App = () => (
       <div>
         {For(
           items,
@@ -441,7 +458,8 @@ const runTests = () => {
           { key: (item) => item.id ?? `fallback-${item.name}` }
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('Item1Item2Item3');
   });
@@ -450,14 +468,15 @@ const runTests = () => {
     const items = Cell.source([{ name: 'First' }, { name: 'Second' }]);
 
     let callbackCount = 0;
-    const result = (
+    const App = () => (
       <div>
         {For(items, (item) => {
           callbackCount++;
           return <span>{item.name}</span>;
         })}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('FirstSecond');
     expect(callbackCount).toBe(2); // Called once for each initial item
@@ -476,7 +495,7 @@ const runTests = () => {
     ]);
 
     let callbackCount = 0;
-    const result = (
+    const App = () => (
       <div>
         {For(
           items,
@@ -487,7 +506,8 @@ const runTests = () => {
           { key: 'id' }
         )}
       </div>
-    ) as NodeLike;
+    );
+    const result = render(App);
 
     expect(getTextContent(result)).toBe('AliceBob');
     expect(callbackCount).toBe(2); // Called once for each initial item

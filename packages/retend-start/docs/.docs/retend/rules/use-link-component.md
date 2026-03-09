@@ -12,6 +12,18 @@
 - **Active State**: `Link` automatically handles active styling based on the current route.
 - **Performance**: Preserves application state that would be lost during a hard reload.
 
+## Detection
+
+**Triggers**:
+
+- Internal anchors like `<a href="/path">` (no protocol)
+- Manual `window.location` navigation in click handlers
+
+## Auto-Fix
+
+- Replace `<a href="/path">` with `<Link href="/path">`
+- Use `router.navigate('/path')` for programmatic navigation
+
 ## Examples
 
 ### Invalid
@@ -27,5 +39,9 @@
 import { Link } from 'retend/router';
 
 // Uses client-side navigation
-<Link to="/about">About</Link>;
+<Link href="/about">About</Link>;
 ```
+
+## Related Rules
+
+- `prefer-router-navigation`

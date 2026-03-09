@@ -4,14 +4,14 @@ To render a Retend application in a web environment, you need to configure the a
 
 ## Basic Setup
 
-In your entry file (e.g., `index.js` or `main.js`), import `setActiveRenderer` from `retend` and `DomRenderer` from `retend-web`.
+In your entry file (e.g., `index.js` or `main.js`), import `setActiveRenderer` and `runPendingSetupEffects` from `retend` and `DOMRenderer` from `retend-web`.
 
 ```javascript
-import { setActiveRenderer } from 'retend';
-import { DomRenderer } from 'retend-web';
+import { runPendingSetupEffects, setActiveRenderer } from 'retend';
+import { DOMRenderer } from 'retend-web';
 
-// Initialize the renderer with the host element (usually document.body)
-const renderer = new DomRenderer(document.body);
+// Initialize the renderer with the window object
+const renderer = new DOMRenderer(window);
 
 // Set it as the active renderer for the framework
 setActiveRenderer(renderer);
@@ -19,11 +19,17 @@ setActiveRenderer(renderer);
 
 ## Mounting Components
 
-Once the renderer is set, appending components to the DOM typically works via standard DOM APIs, because Retend components return real DOM nodes.
+Once the renderer is set, render your app and append the returned nodes to the DOM.
 
 ```jsx
 import { App } from './App';
 
-// Append the App component to the body
-document.body.append(<App />);
+const root = renderer.render(<App />);
+document.body.append(...(Array.isArray(root) ? root : [root]));
+runPendingSetupEffects();
 ```
+
+## Source Reference
+
+- `packages/retend-web/source/dom-renderer.js`
+- `packages/retend/source/library/renderer.js`

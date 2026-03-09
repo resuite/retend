@@ -1,8 +1,10 @@
-import { Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { Cell, createScope, getActiveRenderer, useScopeContext } from 'retend';
 import { Teleport } from 'retend-web';
 import { assert, describe, expect, it, vi } from 'vitest';
-import { browserSetup, getTextContent, timeout } from './setup.tsx';
+
+import { browserSetup, getTextContent } from './setup.tsx';
 
 describe('Teleport', () => {
   describe('Browser', () => {
@@ -17,20 +19,21 @@ describe('Teleport', () => {
       target.setAttribute('id', 'teleport-target');
       window.document.body.append(target);
 
-      const result = (
+      const App = () => (
         <div>
           <Teleport to="#teleport-target">
             <div>Teleported content</div>
           </Teleport>
         </div>
-      ) as HTMLElement;
+      );
+      const result = renderer.render(App) as HTMLElement;
 
       window.document.body.append(result);
 
       // The anchor should be in the original location
       expect(result.tagName).toBe('DIV');
 
-      await timeout();
+      renderer.observer?.flush();
 
       // The teleported content should be in the target
       const teleported = target.querySelector('retend-teleport');
@@ -46,17 +49,18 @@ describe('Teleport', () => {
       const target = window.document.createElement('section');
       window.document.body.append(target);
 
-      const result = (
+      const App = () => (
         <div>
           <Teleport to="section">
             <div>Teleported to section</div>
           </Teleport>
         </div>
-      ) as HTMLElement;
+      );
+      const result = renderer.render(App) as HTMLElement;
 
       window.document.body.append(result);
 
-      await timeout();
+      renderer.observer?.flush();
 
       // The teleported content should be in the target
       const teleported = target.querySelector('retend-teleport');
@@ -75,17 +79,18 @@ describe('Teleport', () => {
 
       const content = Cell.source('Initial content');
 
-      const result = (
+      const App = () => (
         <div>
           <Teleport to="#dynamic-target">
             <div>{content}</div>
           </Teleport>
         </div>
-      ) as HTMLElement;
+      );
+      const result = renderer.render(App) as HTMLElement;
 
       window.document.body.append(result);
 
-      await timeout();
+      renderer.observer?.flush();
 
       const teleported = target.querySelector('retend-teleport');
       assert(teleported);
@@ -102,17 +107,18 @@ describe('Teleport', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      const result = (
+      const App = () => (
         <div>
           <Teleport to="#nonexistent-target">
             <div>Content</div>
           </Teleport>
         </div>
-      ) as HTMLElement;
+      );
+      const result = renderer.render(App) as HTMLElement;
 
       window.document.body.append(result);
 
-      await timeout();
+      renderer.observer?.flush();
 
       expect(consoleSpy).toHaveBeenCalledWith(
         'Could not find teleport target, #nonexistent-target is not a matched id or tagname in the DOM.'
@@ -130,7 +136,7 @@ describe('Teleport', () => {
       target.id = 'multi-target';
       window.document.body.append(target);
 
-      const result = (
+      const App = () => (
         <div>
           <Teleport to="#multi-target">
             <div>First teleport</div>
@@ -139,17 +145,82 @@ describe('Teleport', () => {
             <div>Second teleport</div>
           </Teleport>
         </div>
-      ) as HTMLElement;
+      );
+      const result = renderer.render(App) as HTMLElement;
 
       window.document.body.append(result);
 
-      await timeout();
+      renderer.observer?.flush();
 
       // Both teleports should be in the target
       const teleports = target.querySelectorAll('retend-teleport');
       expect(teleports.length).toBe(2);
       expect(getTextContent(teleports[0])).toBe('First teleport');
       expect(getTextContent(teleports[1])).toBe('Second teleport');
+    });
+
+    it('should preserve scope context for teleported children', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+
+      const target = window.document.createElement('div');
+      target.id = 'scope-target';
+      window.document.body.append(target);
+
+      const Scoped = createScope<string>('TeleportScopedValue');
+      const ScopedText = () => {
+        const value = useScopeContext(Scoped);
+        return <span>{value}</span>;
+      };
+
+      const App = () => (
+        <Scoped.Provider value="Scoped value">
+          <div>
+            <Teleport to="#scope-target">
+              <ScopedText />
+            </Teleport>
+          </div>
+        </Scoped.Provider>
+      );
+
+      const result = renderer.render(App) as HTMLElement;
+      window.document.body.append(result);
+
+      renderer.observer?.flush();
+
+      const teleported = target.querySelector('retend-teleport');
+      assert(teleported);
+      expect(getTextContent(teleported)).toBe('Scoped value');
+    });
+
+    it('should link teleport anchor comment to teleported container', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+
+      const target = window.document.createElement('div');
+      target.id = 'anchor-target';
+      window.document.body.append(target);
+
+      const App = () => (
+        <div>
+          <Teleport to="#anchor-target">
+            <span>Anchored content</span>
+          </Teleport>
+        </div>
+      );
+      const result = renderer.render(App) as HTMLElement;
+      window.document.body.append(result);
+
+      const anchor = result.childNodes[0];
+      expect(anchor.nodeType).toBe(window.Node.COMMENT_NODE);
+
+      renderer.observer?.flush();
+
+      const teleported = target.querySelector('retend-teleport');
+      assert(teleported);
+      expect(Reflect.get(anchor, '__retendTeleportedContainer')).toBe(
+        teleported
+      );
     });
   });
 });

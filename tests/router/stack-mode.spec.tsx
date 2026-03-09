@@ -1,8 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { vDomSetup, getTextContent } from '../setup.tsx';
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createRouterRoot, Router, useRouter } from 'retend/router';
+
+import { getActiveRenderer } from 'retend';
+import { Router, createRouterRoot, useRouter } from 'retend/router';
+import { beforeEach, describe, expect, test } from 'vitest';
+
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 const runFlatTests = () => {
   let router: Router;
@@ -178,12 +180,14 @@ const runNestedTests = () => {
   });
 };
 
-describe('Router Stack Mode: Flat', () => {
-  vDomSetup();
-  runFlatTests();
-});
+describe('Router Stack Mode', () => {
+  describe('Router Stack Mode: Flat', () => {
+    vDomSetup();
+    runFlatTests();
+  });
 
-describe('Router Stack Mode: Nested', () => {
-  vDomSetup();
-  runNestedTests();
+  describe('Router Stack Mode: Nested', () => {
+    vDomSetup();
+    runNestedTests();
+  });
 });

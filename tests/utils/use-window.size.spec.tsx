@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { browserSetup } from '../setup.tsx';
-import { useWindowSize } from 'retend-utils/hooks';
-import { runPendingSetupEffects, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
+
+import { runPendingSetupEffects, getActiveRenderer } from 'retend';
+import { useWindowSize } from 'retend-utils/hooks';
+import { describe, it, expect } from 'vitest';
+
+import { browserSetup } from '../setup.tsx';
 
 describe('Hooks (useWindowSize)', () => {
   browserSetup();

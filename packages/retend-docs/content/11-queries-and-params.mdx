@@ -1,0 +1,112 @@
+# Queries and Params
+
+If you want users to be able to share links or bookmark specific pages (like looking at a specific product, or saving their search results), you need to store that information right in the URL.
+
+Retend gives you two ways to read data from the URL: **URL Parameters** (for required variables like an ID) and **Query Parameters** (for optional things like search filters).
+
+## URL Parameters
+
+In the previous section, we showed how to define dynamic routes like `/users/:userId`. When a user visits `/users/123`, the `:userId` part of the URL is called a **URL Parameter**.
+
+To read this parameter inside your component, use the `useCurrentRoute()` hook. It returns a reactive Cell containing the current route's information.
+
+```tsx
+import { useCurrentRoute } from 'retend/router';
+import { Cell } from 'retend';
+
+export function UserProfile() {
+  const currentRoute = useCurrentRoute();
+
+  // Create derived state to automatically update when the URL changes
+  const userId = Cell.derived(() => currentRoute.get().params.get('userId'));
+
+  return (
+    <div class="user-profile">
+      <h1>User Profile</h1>
+      <p>Loading data for User ID: {userId}</p>
+    </div>
+  );
+}
+```
+
+Because `currentRoute` is a Cell, if a user navigates from `/users/123` to `/users/456`, your component doesn't need to rebuild itself. The `userId` Cell simply updates, and the text on the screen changes instantly.
+
+_(Note: Data from the URL is always a string. If you need it to be a number, you must convert it yourself using `parseInt` or `Number`)._
+
+## Query Parameters
+
+Query parameters are the key-value pairs at the end of a URL, like `?search=shoes&sort=price`. They are perfect for optional data like search terms, active filters, or pagination.
+
+Unlike URL parameters, you don't need to define query parameters in your routes. Any URL can have them.
+
+### Reading Query Values
+
+To read query parameters, use the `useRouteQuery()` hook.
+
+```tsx
+import { useRouteQuery } from 'retend/router';
+import { If } from 'retend';
+
+export function SearchResults() {
+  const query = useRouteQuery();
+
+  // Returns a Cell containing the string, or null if it doesn't exist
+  const searchTerm = query.get('search');
+
+  // Returns a boolean Cell indicating if the parameter exists
+  const hasFilter = query.has('category');
+
+  return (
+    <div class="results">
+      <p>You searched for: {searchTerm}</p>
+
+      {If(hasFilter, {
+        true: () => <span class="badge">Category filter applied</span>,
+      })}
+    </div>
+  );
+}
+```
+
+If a URL has multiple values for the same key (like `?tags=red&tags=blue`), you can use `query.getAll('tags')` to get an array of all the values.
+
+### Updating Query Parameters
+
+You can also use the `query` object to change the URL. You don't need to build the URL string yourself; Retend handles it for you.
+
+Because updating the URL is technically navigating to a new page, these methods are asynchronous:
+
+```tsx
+import { useRouteQuery } from 'retend/router';
+
+export function Filters() {
+  const query = useRouteQuery();
+
+  const handleSortChange = async (event: Event) => {
+    const target = event.target as HTMLSelectElement;
+    // This updates the URL to include ?sort=date (for example)
+    await query.set('sort', target.value);
+  };
+
+  const clearAll = async () => {
+    // This removes all query parameters from the URL
+    await query.clear();
+  };
+
+  return (
+    <div class="filters">
+      <select onChange={handleSortChange}>
+        <option value="relevance">Relevance</option>
+        <option value="date">Date</option>
+        <option value="price">Price</option>
+      </select>
+
+      <button type="button" onClick={clearAll}>
+        Reset Filters
+      </button>
+    </div>
+  );
+}
+```
+
+Since query parameters are completely reactive, calling `query.set()` updates the URL, which automatically updates any component on the page that is reading those values using `query.get()`. Your screen stays perfectly in sync with the URL.

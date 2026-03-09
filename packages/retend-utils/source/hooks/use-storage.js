@@ -1,7 +1,8 @@
 /** @import { SourceCell } from 'retend' */
 
-import { createSharedHook } from '../internal/create-shared-hook.js';
 import { Cell, getActiveRenderer } from 'retend';
+
+import { createSharedHook } from '../internal/create-shared-hook.js';
 
 const LOCAL_STORAGE_CACHE_KEY = Symbol('hooks:useLocalStorage:cache');
 const SESSION_STORAGE_CACHE_KEY = Symbol('hooks:useSessionStorage:cache');
@@ -138,7 +139,7 @@ function createStorageOptions(key, storageType) {
             ? safeParseJson(valueFromStorage)
             : initialValue;
 
-        coreCell = Cell.source(value, { deep: true });
+        coreCell = Cell.source(value);
         data.cells.set(key, coreCell);
 
         if (valueFromStorage === null) {
@@ -152,7 +153,7 @@ function createStorageOptions(key, storageType) {
         });
       }
 
-      const returnCell = Cell.source(coreCell.get(), { deep: true });
+      const returnCell = Cell.source(coreCell.get());
 
       returnCell.listen((value) => {
         coreCell.set(value);

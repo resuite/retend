@@ -2,12 +2,19 @@
 
 /** @import { Router } from 'retend/router' */
 /** @import { ServerContext } from './types.js' */
+/** @import { JSX } from 'retend/jsx-runtime' */
 
-import { runPendingSetupEffects, useObserver, setActiveRenderer } from 'retend';
-import { createRouterRoot } from 'retend/router';
+import {
+  branchState,
+  runPendingSetupEffects,
+  setActiveRenderer,
+  withState,
+} from 'retend';
+import { DOMRenderer, renderToDOM } from 'retend-web';
 import { setGlobalContext } from 'retend/context';
+import { createRouterRoot } from 'retend/router';
+
 import { addMetaListener } from './meta.js';
-import { DOMRenderer } from 'retend-web';
 
 export * from './render-to-string.js';
 
@@ -112,6 +119,12 @@ export * from './render-to-string.js';
  */
 
 /**
+ * @typedef {Object} HydrationOptions
+ * @property {string} [rootId] The ID of the root element to hydrate. Defaults to "app".
+ * @property {(root: JSX.Template) => JSX.Template} [wrap] Wraps the routed app before rendering or hydration.
+ */
+
+/**
  * Re-enables the interactive features of a server-side rendered application.
  *
  * This function is the entry point for client-side hydration, taking a `routerModule`,
@@ -120,6 +133,7 @@ export * from './render-to-string.js';
  * interactive without a full page reload, improving user experience.
  *
  * @param {() => Router} routerFn - The function used to create the router
+ * @param {HydrationOptions} options - Customizations for hydration behaviour.
  * on the server.
  * @returns {Promise<Router>} The re-initiated instance of the router used to create the application.
  *   This allows you to interact with the router programmatically after hydration.
@@ -129,7 +143,11 @@ export * from './render-to-string.js';
  * import { hydrate } from 'retend-server/client';
  * import { createRouter } from './router';
  *
- * hydrate(createRouter)
+ * hydrate(createRouter, {
+ *   wrap(root) {
+ *     return root;
+ *   },
+ * })
  *   .then(() => {
  *     console.log('Application successfully hydrated!');
  *   })
@@ -145,10 +163,11 @@ export * from './render-to-string.js';
  *  });
  * ```
  */
-export async function hydrate(routerFn) {
+export async function hydrate(routerFn, options = {}) {
+  const rootId = options.rootId ?? 'app';
   if (import.meta.env.DEV) {
     // In dev mode, we default to an SPA.
-    return defaultToSpaMode(routerFn);
+    return defaultToSpaMode(routerFn, rootId, options);
   }
 
   const contextScript = document.querySelector('script[data-server-context]');
@@ -156,24 +175,31 @@ export async function hydrate(routerFn) {
     console.warn(
       '[retend-server] No server-side context found. Falling back to SPA mode.'
     );
-    const router = await defaultToSpaMode(routerFn);
+    const router = await defaultToSpaMode(routerFn, rootId, options);
     return router;
   }
 
   const context = JSON.parse(contextScript.textContent ?? '{}');
-  const router = await restoreContext(context, routerFn);
+  const router = await restoreContext(context, routerFn, options);
   addMetaListener(router, document);
   return router;
 }
 
-/** @param {() => Router} routerFn  */
-async function defaultToSpaMode(routerFn) {
-  const renderer = new DOMRenderer(window);
-  setActiveRenderer(renderer);
+/**
+ * @param {() => Router} routerFn
+ * @param {string} rootId
+ * @param {HydrationOptions} options
+ */
+async function defaultToSpaMode(routerFn, rootId = 'app', options = {}) {
   const router = routerFn();
   router.attachWindowListeners(window);
-  const root = document.querySelector('#app');
-  root?.append(/** @type {Node} */ (createRouterRoot(router)));
+  const root = document.getElementById(rootId);
+  if (!root) throw new Error('No root element found');
+  renderToDOM(root, () => {
+    return options.wrap
+      ? options.wrap(() => createRouterRoot(router))
+      : createRouterRoot(router);
+  });
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
   addMetaListener(router, document);
   await runPendingSetupEffects();
@@ -191,13 +217,13 @@ async function defaultToSpaMode(routerFn) {
  *  state, root element, and other consistent values.
  * @param {() => Router} routerCreateFn - The `createRouter` function used
  *  to create the application's router.
+ * @param {HydrationOptions} options
  */
-async function restoreContext(context, routerCreateFn) {
+async function restoreContext(context, routerCreateFn, options = {}) {
   const { path } = context;
 
   setGlobalContext({
     teleportIdCounter: { value: 0 },
-    consistentValues: new Map(Object.entries(context.consistentValues)),
     globalData: new Map(),
   });
   const renderer = new DOMRenderer(window);
@@ -205,10 +231,19 @@ async function restoreContext(context, routerCreateFn) {
 
   const router = routerCreateFn();
   renderer.enableHydrationMode();
-  const observer = useObserver();
-  createRouterRoot(router);
-  await renderer.hydrateChildrenWhenResolved(router.navigate(path));
-  renderer.endHydration();
+  // Preload the route before the first hydration render so outlet placeholders
+  // and server markup stay aligned.
+  await router.navigate(path);
+  const hydrationRoot = branchState();
+
+  withState(hydrationRoot, () => {
+    if (options.wrap) {
+      renderer.render(options.wrap(() => createRouterRoot(router)));
+      return;
+    }
+    createRouterRoot(router);
+  });
+  await renderer.endHydration();
   router.attachWindowListeners(window);
 
   const preloadedLinks = window.document.head.querySelectorAll(
@@ -217,7 +252,6 @@ async function restoreContext(context, routerCreateFn) {
   for (const element of preloadedLinks) {
     element.remove();
   }
-  observer.processMountedNodes();
   await runPendingSetupEffects();
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
 

@@ -1,4 +1,5 @@
-import { Cell, getActiveRenderer, SourceCell, useSetupEffect } from 'retend';
+/** @import { SourceCell } from 'retend' */
+import { Cell, getActiveRenderer, onSetup } from 'retend';
 import { getGlobalContext } from 'retend/context';
 
 const MATCH_MEDIA_CACHE_KEY = Symbol('hooks:useMatchMedia:queriesCache');
@@ -39,7 +40,7 @@ export const useMatchMedia = (query) => {
     queries.set(query, data);
   }
   const [match] = data;
-  useSetupEffect(() => {
+  onSetup(() => {
     /** @type (event: MediaQueryListEvent) => void */
     let listener;
     if (data[1] === 0) {

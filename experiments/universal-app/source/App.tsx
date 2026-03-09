@@ -1,4 +1,3 @@
-/// <reference path="./jsx-runtime/index.d.ts" />
 import { Cell } from 'retend';
 
 const styles = {

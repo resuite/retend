@@ -1,3 +1,7 @@
+import type { ReconcilerOptions } from 'retend';
+
+import { createNodesFromTemplate, Cell } from 'retend';
+
 import type {
   CanvasRendererTypes,
   CanvasNode,
@@ -6,8 +10,7 @@ import type {
   CanvasHandle,
   CanvasNodeProps,
 } from './types';
-import { createNodesFromTemplate, Cell } from 'retend';
-import type { ReconcilerOptions } from 'retend';
+
 import { getValue, resolveForCanvas } from '../shared/units';
 
 /**
@@ -240,12 +243,15 @@ class BoxNode extends BaseNode implements CanvasContainerNode {
     const columnGap = resolveDimension(style.columnGap, this.width) || 0;
     const rowGap = resolveDimension(style.rowGap, this.height) || 0;
     const gap = flexDirection === 'row' ? columnGap : rowGap;
-    const totalGaps = flowChildren.length > 1 ? (flowChildren.length - 1) * gap : 0;
+    const totalGaps =
+      flowChildren.length > 1 ? (flowChildren.length - 1) * gap : 0;
 
     if (flexDirection === 'column') {
-      totalChildExtent = flowChildren.reduce((acc, c) => acc + c.height, 0) + totalGaps;
+      totalChildExtent =
+        flowChildren.reduce((acc, c) => acc + c.height, 0) + totalGaps;
     } else {
-      totalChildExtent = flowChildren.reduce((acc, c) => acc + c.width, 0) + totalGaps;
+      totalChildExtent =
+        flowChildren.reduce((acc, c) => acc + c.width, 0) + totalGaps;
     }
 
     let startOffset = 0;
@@ -510,8 +516,6 @@ export class CanvasRenderer {
     return true;
   }
 
-  onViewChange(_processor: () => void) {}
-
   saveContainerState() {
     return null;
   }
@@ -638,11 +642,6 @@ export class CanvasRenderer {
     this.requestRender();
     return node;
   }
-
-  finalize(node: CanvasNode) {
-    return node;
-  }
-
   createGroup(input?: CanvasNode | CanvasNode[]) {
     if (!input) return [];
     return Array.isArray(input) ? input : [input];

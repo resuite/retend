@@ -13,7 +13,6 @@
 /**
  * @typedef {Object} ServerContext
  * @property {string} path
- * @property {Record<string, unknown>} consistentValues
  */
 
 /**
@@ -43,8 +42,8 @@
  * @typedef {Object} AsyncStorage
  * @property {string} path
  * @property {{ value: number }} teleportIdCounter
- * @property {Map<string, unknown>} consistentValues
  * @property {Map<string, any>} globalData
+ * @property {import('retend').Renderer<any>} renderer
  */
 
 /**

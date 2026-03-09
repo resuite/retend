@@ -1,0 +1,135 @@
+# Special Attributes
+
+In Retend, certain attributes have unique behaviors when applied to underlying UI elements. These are designed to provide a smooth developer experience while maintaining high performance. The most common special attributes are `class`, `style`, and `ref`.
+
+## The `class` Attribute
+
+To specify CSS classes on an element, use the `class` attribute (unlike React, which uses `className`). You can pass a string of space-separated classes, exactly as you would in standard HTML.
+
+```tsx
+<div class="card p-4 shadow">Content goes here</div>
+```
+
+### Dynamic Classes
+
+Because Retend relies on Cells for reactivity, you can easily apply classes conditionally. Instead of messy string concatenations, Retend provides a powerful array and object syntax for dynamic classes built right in!
+
+You can pass an array of strings, or objects where the key is the class name and the value is a boolean or a Cell. If the value is a Cell, Retend automatically sets up bindings to toggle the class efficiently without re-rendering the component.
+
+```tsx
+import { Cell } from 'retend';
+
+export function ToggleButton() {
+  const isActive = Cell.source(false);
+  const isInactive = Cell.derived(() => !isActive.get());
+
+  return (
+    <button
+      class={[
+        'btn',
+        {
+          'btn-active': isActive,
+          'btn-inactive': isInactive,
+        },
+      ]}
+      onClick={() => isActive.set(!isActive.get())}
+    >
+      Toggle me
+    </button>
+  );
+}
+```
+
+## The `style` Attribute
+
+The `style` attribute accepts either a standard CSS string or an object containing your styles.
+
+When using an object, CSS property names should typically be written in camelCase (e.g., `backgroundColor` instead of `background-color`).
+
+```tsx
+<div style={{ color: 'var(--color-brand)', borderRadius: '8px' }}>
+  Styled content
+</div>
+```
+
+Just like `class`, if your styles depend on reactive state, the property values within the style object can be Cells directly. Using Cells in the style object provides optimized updates without re-rendering the element.
+
+## The `ref` Attribute
+
+The `ref` attribute provides a way to get a direct reference to the underlying UI element after it has been created. This is essential when you need to perform imperative actions, manage focus, or integrate with non-reactive third-party libraries.
+
+In Retend, you create a ref by using `Cell.source(null)`. You then pass this cell directly to the `ref` attribute. Once the element is created, Retend automatically updates the cell with the reference to the UI element.
+
+```tsx
+import { Cell } from 'retend';
+
+export function AutoFocusInput() {
+  // 1. Create a reference starting at null
+  const inputRef = Cell.source(null);
+
+  const handleFocus = () => {
+    // 3. Access the element safely using .get()
+    inputRef.get()?.focus();
+  };
+
+  return (
+    <div class="flex gap-2">
+      <input
+        ref={inputRef} // 2. Attach the reference
+        type="text"
+        placeholder="Type here..."
+      />
+      <button onClick={handleFocus}>Focus the input</button>
+    </div>
+  );
+}
+```
+
+#### Example: Media Control
+
+Refs are particularly useful for interacting with browser APIs that Retend doesn't wrap reactively, like controlling a `<video>` or `<audio>` element.
+
+```tsx
+import { Cell } from 'retend';
+
+export function VideoPlayer() {
+  const videoRef = Cell.source<HTMLVideoElement | null>(null);
+
+  const togglePlay = () => {
+    const video = videoRef.get();
+    if (video) {
+      if (video.paused) video.play();
+      else video.pause();
+    }
+  };
+
+  return (
+    <div class="video-container">
+      <video ref={videoRef} src="/promo.mp4" />
+      <button onClick={togglePlay}>Play/Pause</button>
+    </div>
+  );
+}
+```
+
+#### Ref Forwarding
+
+Since `ref={cell}` is just a prop, you can pass it down to child components manually and attach it to any element you choose.
+
+```tsx
+function MyInput(props) {
+  // We take the 'ref' from props and pass it to the internal input
+  return <input ref={props.ref} class="custom-input" />;
+}
+
+export function ParentComponent() {
+  const inputRef = Cell.source(null);
+
+  onSetup(() => {
+    // We can access the child's input here!
+    inputRef.get()?.focus();
+  });
+
+  return <MyInput ref={inputRef} />;
+}
+```

@@ -117,8 +117,8 @@ export class VNode extends EventTarget {
       n instanceof VDocumentFragment
         ? n.childNodes
         : n instanceof VNode
-        ? n
-        : ownerDocument.createTextNode(n)
+          ? n
+          : ownerDocument.createTextNode(n)
     );
     for (const node of this.childNodes) {
       node.parentNode = null;
@@ -308,8 +308,9 @@ export class VDomTokenList {
   /** @param {string[]} tokens */
   add(...tokens) {
     const className = this.element.getAttribute('class') ?? '';
-    const newClassName = [...className.split(' '), ...tokens].join(' ');
-    this.element.setAttribute('class', newClassName);
+    const classes = className.split(' ').filter((c) => c.length > 0);
+    classes.push(...tokens);
+    this.element.setAttribute('class', classes.join(' '));
   }
 
   /** @param {string[]} tokens */
@@ -317,7 +318,7 @@ export class VDomTokenList {
     const className = this.element.getAttribute('class') ?? '';
     const newClassName = className
       .split(' ')
-      .filter((c) => !tokens.includes(c))
+      .filter((c) => c.length > 0 && !tokens.includes(c))
       .join(' ');
     this.element.setAttribute('class', newClassName);
   }
@@ -363,6 +364,14 @@ export class VElement extends VNode {
 
   get hiddenAttributes() {
     return this.#hiddenAttributes;
+  }
+
+  get innerHTML() {
+    const markupChild = this.childNodes.find(
+      (node) => node instanceof MarkupContainerNode
+    );
+    if (markupChild) return markupChild.html;
+    return '';
   }
 
   /** @param {string} html */
@@ -425,6 +434,7 @@ export class VElement extends VNode {
       );
     }
     this.#shadowRoot = new VShadowRoot('open', this.ownerDocument);
+    this.#shadowRoot.parentNode = this;
     return this.#shadowRoot;
   }
 

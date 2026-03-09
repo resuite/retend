@@ -1,17 +1,12 @@
-| title               | impact | impactDescription                                                       | tags                                 |
-| :------------------ | :----- | :---------------------------------------------------------------------- | :----------------------------------- |
-| Derived Outside JSX | MEDIUM | Improves performance by avoiding re-creation and keeps templates clean. | components, performance, readability |
+| title               | impact | impactDescription      | tags              |
+| :------------------ | :----- | :--------------------- | :---------------- |
+| Derived Outside JSX | LOW    | Keeps templates clean. | components, style |
 
 # Derived Outside JSX
 
-**Context**: Computing values from Cells.
+**Rule**: Define `Cell.derived()` in the component body, not inline in JSX.
 
-**Rule**: Define `Cell.derived()` logic in the component body, not inline within the JSX expression.
-
-**Why**:
-
-- **Performance**: Inline derivations may be recreated unnecessarily.
-- **Readability**: Keeps the template clean and declarative.
+**Why**: Cleaner templates. Separates logic from presentation.
 
 ```tsx
 // Bad

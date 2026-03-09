@@ -6,7 +6,7 @@
 
 **Context**: Defining large route configurations.
 
-**Rule**: Use `subtree` to split large route trees into separate modules/files.
+**Rule**: Use the `subtree` property with `lazy()` to split large route trees into separate modules/files.
 
 **Why**:
 
@@ -15,10 +15,10 @@
 
 ```tsx
 // Good
-import { subtree } from 'retend/router';
+import { lazy } from 'retend/router';
 
 const routes = [
-  subtree('/admin', () => import('./admin.routes')),
-  subtree('/dashboard', dashboardRoutes),
+  { path: '/admin', subtree: lazy(() => import('./admin.routes')) },
+  { path: '/dashboard', subtree: lazy(() => import('./dashboard.routes')) },
 ];
 ```

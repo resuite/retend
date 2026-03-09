@@ -1,14 +1,12 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { useObserver, CleanupFn } from './observer.js' */
+/** @import { onConnected, CleanupFn } from './observer.js' */
 /** @import { Renderer } from './renderer.js'; */
 import { Cell } from '@adbl/cells';
-import h from './jsx.js';
 
-import { getActiveRenderer, setActiveRenderer } from './renderer.js';
 import { getGlobalContext } from '../context/index.js';
-import { createNodesFromTemplate } from './utils.js';
+import { getActiveRenderer, setActiveRenderer } from './renderer.js';
+import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
 
-/** @import { Scope } from "../library/scope.js"; */
 /** @import { SourceCell } from "@adbl/cells"; */
 
 /** @typedef {{
@@ -24,49 +22,12 @@ import { createNodesFromTemplate } from './utils.js';
  * @property {SourceCell<Function | null>} current
  */
 
-/** @type {Scope<__HMR_UpdatableFn[]>} */
-const RetendComponentTree = createScope('retend:RetendComponentTree');
-const ComponentInvalidator = Symbol('Invalidator');
-
-export const __HMR_SYMBOLS = {
-  ComponentInvalidator,
-  OverwrittenBy: Symbol('OverwrittenBy'),
-  HmrId: Symbol('HmrId'),
-  HMRContextKey: Symbol('HMRContext'),
-  HMRScopeContext: Symbol('HMRScopeContext'),
-  ScopeList: new Map(),
-  RetendComponentTree,
-  useComponentAncestry() {
-    try {
-      return useScopeContext(RetendComponentTree);
-    } catch {
-      return [];
-    }
-  },
-  /** @returns {HmrContext | null} */
-  getHMRContext() {
-    const { globalData } = getGlobalContext();
-    return globalData.get(__HMR_SYMBOLS.HMRContextKey);
-  },
-};
-
 /**
  * @template [T=unknown]
- * @typedef ScopePropsWithChildren
- * @property {() => JSX.Template} children
+ * @typedef ScopeProps
+ * @property {JSX.Children} children
  * @property {T} value
- */
-
-/**
- * @template [T=unknown]
- * @typedef ScopePropsWithContent
- * @property {() => JSX.Template} content
- * @property {T} value
- */
-
-/**
- * @template [T=unknown]
- * @typedef {ScopePropsWithChildren<T> | ScopePropsWithContent<T>} ScopeProps
+ * @property {boolean} [h]
  */
 
 /**
@@ -77,10 +38,18 @@ export const __HMR_SYMBOLS = {
  */
 
 /**
- * @typedef ScopeSnapshot
- * @property {Map<Scope, unknown[]>} scopes
+ * @typedef ScopeLink
+ * @property {Scope} scope
+ * @property {any} value
+ * @property {ScopeLink | null} parent
+ */
+
+/**
+ * @typedef StateSnapshot
+ * @property {ScopeLink | null} scopes
  * @property {EffectNode} node
  * @property {Renderer<any> | undefined} renderer
+ * @property {any} [data]
  */
 
 /**
@@ -92,20 +61,42 @@ export const __HMR_SYMBOLS = {
  * Allows enabling/disabling, forking child nodes, and disposing by cleaning effects and children.
  */
 class EffectNode {
-  /** @type {Array<SetupFn>} */ #setupFns = [];
-  /** @type {Array<() => (Promise<void> | void)>} */ #disposeFns = [];
-  /** @type {Array<EffectNode>} */ #children = [];
+  #id = '0';
+
+  /** @type {Array<SetupFn>} */
+  #setupFns = [];
+  /** @type {Array<() => (Promise<void> | void)>} */
+  #disposeFns = [];
+  /** @type {Array<EffectNode>} */
+  #children = [];
+
   #enabled = false;
+  #suspended = false;
   #active = false;
   localContext = Cell.context();
   /** @type {Renderer<any>} | undefined */
   renderer = getActiveRenderer();
 
+  /** The hierarchical ID of this node (e.g., "0.1.2") */
+  get id() {
+    return this.#id;
+  }
+
   enable() {
     if (this.renderer?.capabilities.supportsSetupEffects) {
       this.#enabled = true;
-      for (const child of this.#children) child.enable();
+      for (const child of this.#children) {
+        if (!child.#suspended) child.enable();
+      }
     }
+  }
+
+  suspend() {
+    this.#suspended = true;
+  }
+
+  unsuspend() {
+    this.#suspended = false;
   }
 
   disable() {
@@ -121,6 +112,7 @@ class EffectNode {
   branch() {
     const newNode = new EffectNode();
     newNode.#enabled = this.#enabled;
+    newNode.#id = `${this.#id}.${this.#children.length}`;
     this.#children.push(newNode);
     return newNode;
   }
@@ -232,7 +224,11 @@ const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
  *
  * function App() {
  *    const userInfo = { name: 'Alice' };
- *    return <UserInfoScope.Provider value={userInfo} content={ChildComponent} />
+ *    return (
+ *      <UserInfoScope.Provider value={userInfo}>
+ *        <ChildComponent />
+ *      </UserInfoScope.Provider>
+ *    );
  * }
  *
  * function ChildComponent() {
@@ -242,39 +238,35 @@ const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
  * ```
  */
 export function createScope(name) {
+  const key = name ?? 'Scope';
   /** @type {Scope<T>} */
   const Scope = {
-    key: Symbol(name ?? 'Scope'),
+    key: Symbol(key),
     Provider: (props) => {
-      const renderFn =
-        'content' in props
-          ? props.content
-          : 'children' in props
-          ? props.children
-          : () => {};
+      const renderFn = 'children' in props ? props.children : () => {};
 
-      const activeScopeSnapshot = getScopeSnapshot();
+      const activeStateSnapshot = getState();
       const renderer = getActiveRenderer();
-      const hArgs = /** @type {const} */ ([
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        renderer,
-      ]);
-      const stackBefore = activeScopeSnapshot.scopes.get(Scope) ?? [];
-      activeScopeSnapshot.scopes.set(Scope, [...stackBefore, props.value]);
+      const previousScopes = activeStateSnapshot.scopes;
+      activeStateSnapshot.scopes = {
+        scope: Scope,
+        value: props.value,
+        parent: previousScopes,
+      };
       try {
         if ('h' in props && !props.h) {
-          const template = renderFn();
-          return createNodesFromTemplate(template, renderer);
+          return createNodesFromTemplate(renderFn, renderer);
         }
-        return h(renderFn, {}, ...hArgs);
+        return normalizeJsxChild(renderFn, renderer);
       } finally {
-        activeScopeSnapshot.scopes.set(Scope, stackBefore);
+        activeStateSnapshot.scopes = previousScopes;
       }
     },
   };
+
+  Object.defineProperty(Scope.Provider, 'name', {
+    value: `${key}.Provider`,
+  });
 
   /// @ts-expect-error: Vite types are not ingrained.
   if (import.meta.env?.DEV) {
@@ -291,15 +283,22 @@ export function createScope(name) {
  *
  * @template [T=unknown] The expected type of the scope data.
  * @param {Scope<T>} Scope The scope provider component returned by `createScope`.
- * @param {ScopeSnapshot} [snapshot] An optional snapshot of the current environment
  * @returns {T} The data stored in the specified scope.
  * @throws {Error} If no parent scope is found for the given provider, indicating it was not used to provide the scope.
  */
-export function useScopeContext(Scope, snapshot) {
-  const snapshotCtx = snapshot || getScopeSnapshot();
-  const relatedScopeData = snapshotCtx.scopes.get(Scope);
+export function useScopeContext(Scope) {
+  const snapshotCtx = getState();
+  let relatedScopeData;
+  let link = snapshotCtx.scopes;
+  while (link) {
+    if (link.scope === Scope) {
+      relatedScopeData = link.value;
+      break;
+    }
+    link = link.parent;
+  }
 
-  if (!relatedScopeData || relatedScopeData.length === 0) {
+  if (!relatedScopeData) {
     // @ts-expect-error: Vite types is not ingrained.
     if (import.meta.env?.DEV) {
       // In HMR, scopes can change referential identity.
@@ -308,7 +307,7 @@ export function useScopeContext(Scope, snapshot) {
       const latestInstance = Reflect.get(Scope, __HMR_SYMBOLS.OverwrittenBy);
       if (latestInstance && latestInstance !== Scope) {
         // Scope was previously invalidated by HMR.
-        return useScopeContext(latestInstance, snapshot);
+        return useScopeContext(latestInstance);
       }
       const { globalData } = getGlobalContext();
       const hmrContext = globalData.get(__HMR_SYMBOLS.HMRContextKey);
@@ -318,7 +317,7 @@ export function useScopeContext(Scope, snapshot) {
         const latestInstance = activeScopes.get(hmrId);
         if (latestInstance && latestInstance !== Scope) {
           Reflect.set(Scope, __HMR_SYMBOLS.OverwrittenBy, latestInstance);
-          return useScopeContext(latestInstance, snapshot);
+          return useScopeContext(latestInstance);
         }
       }
     }
@@ -328,81 +327,85 @@ export function useScopeContext(Scope, snapshot) {
       `No parent scope found for the provided scope (${scopeName}).\nThis usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
     );
   }
-  return /** @type {T} */ (relatedScopeData[relatedScopeData.length - 1]);
+  return /** @type {T} */ relatedScopeData;
 }
 
 /**
- * Captures a snapshot of the current values of all active scopes.
- * This can be used to "save" the scope state at a particular point in time,
- * which can then be restored later using `withScopeSnapshot`.
+ * Creates a new branch of the active application state, inheriting the
+ * current values of all active scopes and appending a new
+ * effect lifecycle node to the currently active node tree.
  *
- * @returns {ScopeSnapshot} A Map where keys are scope providers and values are the
- *   currently active data for that scope.
+ * This function is used to create an isolated execution branch for components,
+ * which can then be resumed or isolated using `withState`. Because
+ * this eagerly branches the effect lifecycle tree, the newly created nodes
+ * should eventually be activated or disposed to avoid memory leaks.
+ *
+ * @returns {StateSnapshot} A state branch containing the current scope chain and a newly forked effect node.
  *
  * @example
  * ```js
  * // Assuming 'ThemeScope' is a scope created with createScope()
  * // and a value has been provided to it.
- * const initialSnapshot = createScopeSnapshot();
+ * const initialSnapshot = branchState();
  *
  * // ... some operations that might push new values onto scopes ...
  *
  * // To restore the state later:
- * withScopeSnapshot(initialSnapshot, () => {
+ * withState(initialSnapshot, () => {
  *   // Inside this callback, the scopes are temporarily restored
  *   // to the state captured in 'initialSnapshot'.
  *   console.log('Scopes inside callback are restored to the snapshot.');
  * });
  * ```
  */
-export function createScopeSnapshot() {
-  const { scopes, node } = getScopeSnapshot();
+export function branchState() {
+  const { scopes, node } = getState();
+  const branched = node.branch();
   return {
-    scopes: new Map(scopes),
-    node: node.branch(),
+    scopes,
+    node: branched,
     renderer: getActiveRenderer(),
   };
 }
 
 /**
- * Returns a snapshot of the current scope state.
+ * Returns the current scope state.
  *
- * @returns {ScopeSnapshot} A Map where keys are scope providers and values are the
- *   currently active data for that scope.
+ * @returns {StateSnapshot} A snapshot containing the current scope chain and effect node.
  */
-function getScopeSnapshot() {
+export function getState() {
   const { globalData } = getGlobalContext();
   if (!globalData.has(SNAPSHOT_KEY)) {
     const node = new RootEffectNode();
-    const scopes = new Map();
     const renderer = getActiveRenderer();
-    globalData.set(SNAPSHOT_KEY, { scopes, node, renderer });
+    globalData.set(SNAPSHOT_KEY, { scopes: null, node, renderer });
   }
-  return globalData.get(SNAPSHOT_KEY);
+  const snapshot = globalData.get(SNAPSHOT_KEY);
+  return snapshot;
 }
 
 /**
- * @param {ScopeSnapshot} snapshot
+ * @param {StateSnapshot} snapshot
  */
-function setScopeSnapshot(snapshot) {
+function setState(snapshot) {
   const { globalData } = getGlobalContext();
   globalData.set(SNAPSHOT_KEY, snapshot);
 }
 
 /**
- * Executes a callback with the application's scope state temporarily restored
- * to a previously captured snapshot.
+ * Executes a callback within a previously created state branch.
  *
- * This function is useful for scenarios like server-side rendering or testing,
- * where you need to isolate or restore a specific set of scope values without
- * affecting the global state after the operation completes.
+ * This function is useful for scenarios like component rendering,
+ * server-side rendering or testing, where you need to isolate or run
+ * within a specific set of scope values and their effect lifecycles without
+ * affecting the global active execution branch after the operation completes.
  *
  * @template T
- * @param {ScopeSnapshot} snapshot A `ScopeSnapshot` object, typically obtained
- *   from `createScopeSnapshot()`, representing the desired state of scopes to
- *   restore.
+ * @param {StateSnapshot} snapshot A `StateSnapshot` object, typically obtained
+ *   from `branchState()`, representing the desired state branch to
+ *   execute within.
  * @param {() => T} callback A function to execute within the context of
- *   the restored scope snapshot. Any `useScopeContext` calls made inside this
+ *   the restored scope branch. Any `useScopeContext` calls made inside this
  *   callback will return the values from the provided `snapshot`.
  *
  * @example
@@ -413,12 +416,12 @@ function setScopeSnapshot(snapshot) {
  * // Assume some initial values have been provided for ThemeScope and UserScope.
  *
  * // Capture the initial state of all active scopes
- * const initialSnapshot = createScopeSnapshot();
+ * const initialSnapshot = branchState();
  *
  * // Assume some operations happen that change the values in the scopes.
  *
  * // Now, restore the scopes to the 'initialSnapshot' state for a specific operation
- * withScopeSnapshot(initialSnapshot, () => {
+ * withState(initialSnapshot, () => {
  *   // Inside this callback, any useScopeContext calls will retrieve values
  *   // as they were when 'initialSnapshot' was captured.
  *   console.log('Theme inside callback:', useScopeContext(ThemeScope));
@@ -428,80 +431,22 @@ function setScopeSnapshot(snapshot) {
  * // After the callback finishes, the original scope state is restored.
  * ```
  */
-export function withScopeSnapshot(snapshot, callback) {
-  /** @type {ScopeSnapshot | null} */
+export function withState(snapshot, callback) {
+  /** @type {StateSnapshot | null} */
   let previousSnapshot = null;
   const previousRenderer = getActiveRenderer();
 
   try {
-    previousSnapshot = getScopeSnapshot();
-    setScopeSnapshot(snapshot);
+    previousSnapshot = getState();
+    setState(snapshot);
     if (snapshot.renderer) {
       setActiveRenderer(snapshot.renderer);
     }
     return Cell.runWithContext(snapshot.node.localContext, callback);
   } finally {
     setActiveRenderer(previousRenderer);
-    if (getScopeSnapshot() === snapshot) {
-      if (previousSnapshot) setScopeSnapshot(previousSnapshot);
-    }
+    if (previousSnapshot) setState(previousSnapshot);
   }
-}
-
-/**
- * Combines multiple scopes into a single, composite provider component.
- * This is a utility for composing multiple contexts without manually nesting them.
- * The providers are applied from first to last, meaning the first provider
- * in the argument list will be the outermost in the component tree.
- *
- * @param {...Scope<any>} providers A sequence of scope provider components to combine.
- * @returns {Scope<any>} A new provider component that wraps the content with all given providers.
- *
- * @example
- * ```js
- * const ThemeScope = createScope();
- * const UserScope = createScope();
- *
- * // Instead of nesting providers like this:
- * <ThemeScope.Provider value='light' content={() =>
- *   <UserScope.Provider value={{ name: 'Anonymous' }} content={() => <App />} />
- * } />
- *
- * // You can combine them and use it like a single provider:
- * const AppScope = combineScopes(ThemeScope, UserScope);
- * const data = {
- *   [ThemeScope.key]: 'light',
- *   [UserScope.key]: { name: 'Anonymous' }
- * };
- * <AppScope.Provider value={data} content={App} />
- * ```
- */
-export function combineScopes(...providers) {
-  /** @type {Scope<any>} */
-  const Scope = {
-    key: Symbol('CombinedScope'),
-    Provider(props) {
-      const renderFn =
-        'content' in props
-          ? props.content
-          : 'children' in props
-          ? props.children
-          : () => {};
-
-      const finalContent = [...providers].reverse().reduce(
-        (innerContent, Scope) => () => {
-          return Scope.Provider({
-            value: props.value[Scope.key],
-            content: innerContent,
-          });
-        },
-        renderFn
-      );
-      return finalContent();
-    },
-  };
-
-  return Scope;
 }
 
 /**
@@ -517,7 +462,7 @@ export function combineScopes(...providers) {
  *
  * @example
  * ```tsx
- * import { Cell, useSetupEffect } from 'retend';
+ * import { Cell, onSetup } from 'retend';
  *
  * function LiveClock() {
  *   const time = Cell.source(new Date());
@@ -525,7 +470,7 @@ export function combineScopes(...providers) {
  *     return time.get().toLocaleTimeString();
  *   });
  *
- *   useSetupEffect(() => {
+ *   onSetup(() => {
  *     const timerId = setInterval(() => time.set(new Date()), 1000);
  *     return () => clearInterval(timerId);
  *   });
@@ -536,7 +481,7 @@ export function combineScopes(...providers) {
  *
  * @example
  * ```tsx
- * useSetupEffect(() => {
+ * onSetup(() => {
  *   const handleResize = () => console.log('Window resized!');
  *   window.addEventListener('resize', handleResize);
  *
@@ -546,22 +491,23 @@ export function combineScopes(...providers) {
  *
  * @remarks
  * - This hook runs only once per component instance, similar to `useEffect(..., [])` in React. It does not re-run on updates.
- * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `useObserver` instead.
+ * - For effects tied to a specific DOM element's presence on screen (like measuring its size), use `onConnected` instead.
  *
- * @see {@link useObserver} for DOM-based lifecycle effects.
+ * @see {@link onSetup} for registering effects that will be run by this function.
+ * @see {@link onConnected} for DOM-based lifecycle effects.
  */
-export function useSetupEffect(callback) {
-  const { node } = getScopeSnapshot();
+export function onSetup(callback) {
+  const { node } = getState();
   node.add(callback);
 }
 
 /**
- * Executes all pending setup effects that have been registered via `useSetupEffect`.
+ * Executes all pending setup effects that have been registered via `onSetup`.
  *
  * In many applications, particularly on the client-side, this function is called once
  * after the initial render to activate all registered lifecycle effects, such as
  * setting up timers, subscriptions, or event listeners. It ensures that the setup
- * logic defined in `useSetupEffect` is executed and can begin its work.
+ * logic defined in `onSetup` is executed and can begin its work.
  *
  * @example
  * ```js
@@ -573,16 +519,43 @@ export function useSetupEffect(callback) {
  * runPendingSetupEffects();
  * ```
  *
- * @see {@link useSetupEffect} for registering effects that will be run by this function.
+ * @see {@link onSetup} for registering effects that will be run by this function.
  */
 export async function runPendingSetupEffects() {
-  const { node } = getScopeSnapshot();
+  const { node, renderer } = getState();
   if (!(node instanceof RootEffectNode)) {
     const message =
       'runPendingSetupEffects() can only be called at the root level of a component tree.';
     throw new Error(message);
   }
+  renderer?.observer?.flush();
   node.enable();
   await node.activate();
   await new Promise((resolve) => setTimeout(resolve));
 }
+
+/** @type {Scope<__HMR_UpdatableFn[]>} */
+const RetendComponentTree = createScope('retend:RetendComponentTree');
+const ComponentInvalidator = Symbol('Invalidator');
+
+export const __HMR_SYMBOLS = {
+  ComponentInvalidator,
+  OverwrittenBy: Symbol('OverwrittenBy'),
+  HmrId: Symbol('HmrId'),
+  HMRContextKey: Symbol('HMRContext'),
+  HMRScopeContext: Symbol('HMRScopeContext'),
+  ScopeList: new Map(),
+  RetendComponentTree,
+  useComponentAncestry() {
+    try {
+      return useScopeContext(RetendComponentTree);
+    } catch {
+      return [];
+    }
+  },
+  /** @returns {HmrContext | null} */
+  getHMRContext() {
+    const { globalData } = getGlobalContext();
+    return globalData.get(__HMR_SYMBOLS.HMRContextKey);
+  },
+};

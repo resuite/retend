@@ -2,21 +2,21 @@
 
 [![npm version](https://img.shields.io/npm/v/retend?color=blue)](https://www.npmjs.com/package/retend)
 
-> **Retend is experimental and not ready for production use.**
+> Retend is experimental and not ready for production use.
 
 The core reactive framework for building user interfaces with JSX. Retend provides a renderer-agnostic foundation with fine-grained reactivity and built-in routing.
 
 ## What is Retend?
 
-Retend is a **renderer-agnostic reactive UI framework**. It provides the building blocks for creating dynamic interfaces while remaining decoupled from any specific platform through an abstract `Renderer` interface.
+Retend is a renderer-agnostic reactive UI framework. It provides the building blocks for creating dynamic interfaces while remaining decoupled from any specific platform through an abstract `Renderer` interface.
 
-For browser applications, use it with [**`retend-web`**](https://github.com/adebola-io/retend/tree/main/packages/retend-web) (the DOM renderer).
+For browser applications, use it with [`retend-web`](https://github.com/adebola-io/retend/tree/main/packages/retend-web) (the DOM renderer).
 
 ## Key Concepts
 
-- **Fine-grained Reactivity**: Changes propagate automatically to only the affected DOM nodes — no Virtual DOM diffing or full component re-renders
-- **Components are Functions**: No component instances or reconciliation layers — just direct node creation and surgical updates
-- **Renderer-Agnostic**: Works across environments (DOM, SSR, etc.) by swapping the renderer implementation
+- Fine-grained Reactivity: Changes propagate automatically to only the affected nodes in the renderer's tree — no Virtual DOM diffing or full component re-renders
+- Components are Functions: No component instances or reconciliation layers — just direct node creation and surgical updates
+- Renderer-Agnostic: Works across environments (DOM, SSR, etc.) by swapping the renderer implementation
 
 ## Installation
 
@@ -34,25 +34,24 @@ npx retend-start
 
 ```tsx
 import { Cell } from 'retend';
-import { render } from 'retend-web';
+import { renderToDOM } from 'retend-web';
 
 const Counter = () => {
   const count = Cell.source(0);
   return (
-    <button onClick={() => count.set(count.get() + 1)}>
-      Count: {count}
-    </button>
+    <button onClick={() => count.set(count.get() + 1)}>Count: {count}</button>
   );
 };
 
-render(<Counter />, document.body);
+// Initialize the renderer
+renderToDOM(document.body, App);
 ```
 
 ## Module Exports
 
 ```tsx
 // Core (reactivity, control flow, lifecycle)
-import { Cell, For, If, Switch, useSetupEffect } from 'retend';
+import { Cell, For, If, Switch, onSetup } from 'retend';
 
 // Router
 import { Router, Link, Outlet, useRouter } from 'retend/router';

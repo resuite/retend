@@ -136,7 +136,7 @@ function SearchResults() {
 
 ### Component-Scoped Listeners
 
-You can call `.listen()` directly within a component. The subscription is automatically tied to the component's lifecycle and will be cleaned up when the component unmounts. Do not use `useSetupEffect` for this.
+You can call `.listen()` directly within a component. The subscription is automatically tied to the component's lifecycle and will be cleaned up when the component unmounts. Do not use `onSetup` for this.
 
 ```tsx
 import { Cell } from 'retend';
@@ -205,6 +205,22 @@ const sum2 = Cell.derived(() => {
 
 // This triggers sum2 to recompute once
 position.set({ x: 5, y: 10 });
+```
+
+### Cell.batch()
+
+Groups multiple updates so dependent cells recompute once after the batch.
+
+```tsx
+const x = Cell.source(0);
+const y = Cell.source(0);
+const sum = Cell.derived(() => x.get() + y.get());
+
+Cell.batch(() => {
+  x.set(5);
+  y.set(10);
+});
+// sum recomputes once after the batch
 ```
 
 ### Combining with Arrays
@@ -310,3 +326,296 @@ async function fetchData() {
   }
 }
 ```
+
+### Cell.derivedAsync()
+
+Creates an **async derived cell** that automatically recomputes when its dependencies change, with built-in support for loading states, error handling, and request cancellation.
+
+```tsx
+const userId = Cell.source(1);
+
+const userData = Cell.derivedAsync(async (get, signal) => {
+  const id = get(userId);
+  const response = await fetch(`/api/users/${id}`, { signal });
+  return response.json();
+});
+```
+
+**Parameters:**
+
+- `callback: (get, signal) => Promise<U>` - An async function that computes the derived value
+  - `get: <T>(cell: Cell<T>) => T` - Function to read cell values while tracking them as dependencies
+  - `signal: AbortSignal` - Signal that aborts when a new computation starts (use for cancellation)
+
+**Returns:** `AsyncDerivedCell<U>` with these properties:
+
+| Property        | Type                        | Description                                        |
+| --------------- | --------------------------- | -------------------------------------------------- |
+| `.get()`        | `() => Promise<T \| null>`  | Returns a promise that resolves to the async value |
+| `.peek()`       | `() => Promise<T \| null>`  | Same as get() but without registering dependencies |
+| `.pending`      | `SourceCell<boolean>`       | `true` while the async computation is running      |
+| `.error`        | `SourceCell<Error \| null>` | Holds any error thrown during computation          |
+| `.revalidate()` | `() => void`                | Manually re-runs the async computation             |
+
+**Example with loading and error states:**
+
+```tsx
+function UserProfile(props: { userId: Cell<number> }) {
+  const { userId } = props;
+  const user = Cell.derivedAsync(async (get, signal) => {
+    const id = get(userId);
+    const response = await fetch(`/api/users/${id}`, { signal });
+    return response.json();
+  });
+
+  const userName = Cell.derivedAsync(async (get) => {
+    const userData = await get(user);
+    return userData?.name ?? '';
+  });
+
+  const hasUser = Cell.derived(() => user.get() !== null);
+
+  return (
+    <div>
+      {If(user.pending, {
+        true: () => <LoadingSpinner />,
+      })}
+      {If(user.error, {
+        true: (err) => <ErrorMessage error={err} />,
+      })}
+      {If(hasUser, () => (
+        <h1>{userName}</h1>
+      ))}
+    </div>
+  );
+}
+```
+
+**Key features:**
+
+- **Automatic dependency tracking** - Uses the `get` function to track which cells are dependencies
+- **Automatic cancellation** - The `AbortSignal` is aborted when dependencies change, cancelling in-flight requests
+- **Race condition prevention** - Old requests are cancelled when new ones start
+- **Loading state** - The `.pending` cell indicates when computation is running
+- **Error state** - The `.error` cell stores any errors that occur
+
+**Listening for errors:**
+
+```tsx
+userData.error.listen((err) => {
+  if (err) {
+    console.error('Failed to load user:', err);
+    showToast('Error loading user data');
+  }
+});
+```
+
+### Cell.task()
+
+Creates an **async task cell** for one-time operations that only execute when explicitly triggered via `runWith()`. Unlike `Cell.derivedAsync()` which auto-recomputes when dependencies change, a task only executes on demand.
+
+```tsx
+import { Cell } from 'retend';
+
+const submitTask = Cell.task(
+  async (formData: FormData, signal: AbortSignal) => {
+    const response = await fetch('/api/submit', {
+      method: 'POST',
+      body: formData,
+      signal,
+    });
+    if (!response.ok) throw new Error('Submission failed');
+    return response.json();
+  }
+);
+```
+
+**Parameters:**
+
+- `fn: (input: Input, signal: AbortSignal) => Promise<Output>` - Async function to execute
+  - `input: Input` - The value passed to `runWith()`
+  - `signal: AbortSignal` - Signal for cancellation (pass to fetch, etc.)
+
+**Returns:** `AsyncTaskCell<Input, Output>` with these properties:
+
+| Property          | Type                                        | Description                                          |
+| ----------------- | ------------------------------------------- | ---------------------------------------------------- |
+| `.runWith(input)` | `(input: Input) => Promise<Output \| null>` | Executes the task with the given input               |
+| `.pending`        | `SourceCell<boolean>`                       | `true` while the task is running (starts as `false`) |
+| `.error`          | `SourceCell<Error \| null>`                 | Holds any error thrown during execution              |
+| `.get()`          | `() => Promise<Output \| null>`             | Returns the promise for the last/current execution   |
+
+**Example with loading and error states:**
+
+```tsx
+function SubmitForm() {
+  const submitTask = Cell.task(async (formData: FormData, signal) => {
+    const response = await fetch('/api/submit', {
+      method: 'POST',
+      body: formData,
+      signal,
+    });
+    return response.json();
+  });
+
+  const handleSubmit = async (e: SubmitEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const result = await submitTask.runWith(formData);
+    console.log('Submitted:', result);
+  };
+
+  return (
+    <form onSubmit--prevent={handleSubmit}>
+      <input name="email" type="email" />
+      <button type="submit" disabled={submitTask.pending}>
+        {If(submitTask.pending, {
+          true: () => 'Submitting...',
+          false: () => 'Submit',
+        })}
+      </button>
+      {If(submitTask.error, (err) => (
+        <p class="error">{err.message}</p>
+      ))}
+    </form>
+  );
+}
+```
+
+**When to use Cell.task() vs Cell.derivedAsync():**
+
+| Use Case                      | Cell.task() | Cell.derivedAsync() |
+| ----------------------------- | ----------- | ------------------- |
+| Form submissions              | ✅          | ❌                  |
+| Button click actions          | ✅          | ❌                  |
+| POST/PUT/DELETE requests      | ✅          | ❌                  |
+| Data that should auto-refresh | ❌          | ✅                  |
+| Dependent on reactive state   | ❌          | ✅                  |
+
+### Cell.composite()
+
+Joins multiple cells into a single **"all-or-nothing" async unit**. Each returned property only produces a new value after **all** input cells have settled. This prevents partial updates and ensures data consistency.
+
+```tsx
+import { Cell } from 'retend';
+
+const userId = Cell.source(1);
+
+const user = Cell.derivedAsync(async (get, signal) => {
+  const id = get(userId);
+  const response = await fetch(`/api/users/${id}`, { signal });
+  return response.json();
+});
+
+const notifications = Cell.derivedAsync(async (get, signal) => {
+  const id = get(userId);
+  const response = await fetch(`/api/users/${id}/notifications`, { signal });
+  return response.json();
+});
+
+// Create a composite - both cells settle before either value updates
+const userDashboard = Cell.composite({ user, notifications });
+```
+
+**Parameters:**
+
+- `input: Record<string, Cell<any>>` - An object where each value is a Cell
+
+**Returns:** `Composite<CellData>` with these properties:
+
+| Property   | Type                  | Description                                                                          |
+| ---------- | --------------------- | ------------------------------------------------------------------------------------ |
+| `.values`  | Object                | Each original cell wrapped as `AsyncDerivedCell`, synchronized by a barrier          |
+| `.pending` | `Cell<boolean>`       | `true` if ANY input cell is pending                                                  |
+| `.loaded`  | `Cell<boolean>`       | `true` after the first successful load (good for showing content without flickering) |
+| `.error`   | `Cell<Error \| null>` | First error found in any input cell                                                  |
+
+**Note:** Each property above is a Cell, so you can use `.get()` and `.listen()` on them individually.
+
+**Example with loading and error states:**
+
+```tsx
+function Dashboard() {
+  const dashboard = Cell.composite({ user, posts, notifications });
+  const isReady = Cell.derived(() => !dashboard.pending.get());
+
+  return (
+    <div>
+      {If(dashboard.pending, () => (
+        <LoadingSpinner />
+      ))}
+      {If(dashboard.error, (err) => (
+        <ErrorMessage error={err} />
+      ))}
+      {If(isReady, () => (
+        <>
+          <UserProfile user={dashboard.values.user} />
+          <PostList posts={dashboard.values.posts} />
+          <NotificationList notifications={dashboard.values.notifications} />
+        </>
+      ))}
+    </div>
+  );
+}
+```
+
+**Using `.loaded` to prevent content flicker:**
+
+The `.loaded` cell stays `true` after the first successful load, even during subsequent refreshes. This is useful for showing existing content while refreshing:
+
+```tsx
+function Dashboard() {
+  const dashboard = Cell.composite({ user, posts });
+
+  return (
+    <div>
+      {If(dashboard.pending, () => (
+        <LoadingSpinner />
+      ))}
+      {If(dashboard.error, (err) => (
+        <ErrorMessage error={err} />
+      ))}
+      {If(dashboard.loaded, () => (
+        <>
+          {/* Content stays visible during refresh, only showing spinner above */}
+          <UserProfile user={dashboard.values.user} />
+          <PostList posts={dashboard.values.posts} />
+        </>
+      ))}
+    </div>
+  );
+}
+```
+
+**When to use Cell.composite():**
+
+- Loading related data that should display together (user + user's posts)
+- Preventing UI from showing mismatched data during updates
+- Grouping multiple async cells for unified loading/error states
+
+**Combining with Cell.task():**
+
+```tsx
+const uploadTask = Cell.task(async (file: File, signal) => {
+  // Upload logic
+});
+
+const deleteTask = Cell.task(async (id: string, signal) => {
+  // Delete logic
+});
+
+const operations = Cell.composite({
+  upload: uploadTask,
+  delete: deleteTask,
+});
+
+// Track overall pending state for all operations
+operations.pending.listen((isPending) => {
+  console.log('Any operation in progress:', isPending);
+});
+```
+
+## Source Reference
+
+- `packages/retend/source/library/index.js` (re-exports from `@adbl/cells`)
+- `@adbl/cells` (upstream Cells implementation)

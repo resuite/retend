@@ -12,30 +12,39 @@
   "homepage": "https://github.com/adebola-io/retend#readme",
   "license": "MIT",
   "private": true,
+  "packageManager": "pnpm@10.6.3",
   "scripts": {
-    "test": "cd ./tests && bunx vitest run",
-    "test:watch": "cd ./tests && vitest",
-    "test:ci": "cd ./tests && vitest run --reporter=verbose",
-    "build": "bun build-core && bun build-web && bun build-ssg && bun build-utils",
-    "build-core": "cd packages/retend && bun run build",
-    "build-web": "cd packages/retend-web && bun run build",
-    "build-ssg": "cd packages/retend-server && bun run build",
-    "build-utils": "cd packages/retend-utils && bun run build",
-    "publish-core": "cd packages/retend && bun run build && bun publish",
-    "publish-web": "cd packages/retend-web && bun run build && bun publish",
-    "publish-ssg": "cd packages/retend-server && bun run build && bun publish",
-    "publish-start": "cd packages/retend-start && bun publish",
-    "publish-utils": "cd packages/retend-utils && bun run build && bun publish",
-    "publish-all": "bun run publish-core && bun run publish-web && bun run publish-ssg && bun run publish-start && bun run publish-utils",
+    "test": "pnpm --filter retend-test-suite exec vitest run",
+    "test:watch": "pnpm --filter retend-test-suite exec vitest",
+    "test:ci": "pnpm --filter retend-test-suite exec vitest run --reporter=verbose",
+    "build": "pnpm run build-core && pnpm run build-web && pnpm run build-web-devtools && pnpm run build-ssg && pnpm run build-utils",
+    "build-core": "pnpm --filter retend run build",
+    "build-web": "pnpm --filter retend-web run build",
+    "build-web-devtools": "pnpm --filter retend-web-devtools run build",
+    "build-ssg": "pnpm --filter retend-server run build",
+    "build-utils": "pnpm --filter retend-utils run build",
+    "lint": "oxlint packages tests experiments",
+    "format": "oxfmt --write packages tests experiments",
+    "format:check": "oxfmt --check packages tests experiments",
+    "publish-core": "pnpm --filter retend run build && pnpm --filter retend publish --access public",
+    "publish-web": "pnpm --filter retend-web run build && pnpm --filter retend-web publish --access public",
+    "publish-web-devtools": "pnpm --filter retend-web-devtools run build && pnpm --filter retend-web-devtools publish --access public",
+    "publish-ssg": "pnpm --filter retend-server run build && pnpm --filter retend-server publish --access public",
+    "publish-start": "pnpm --filter retend-start publish --access public",
+    "publish-utils": "pnpm --filter retend-utils run build && pnpm --filter retend-utils publish --access public",
+    "publish-all": "pnpm run publish-core && pnpm run publish-web && pnpm run publish-web-devtools && pnpm run publish-ssg && pnpm run publish-start && pnpm run publish-utils",
     "pack-all": "chmod +x ./scripts/pack.sh && ./scripts/pack.sh",
-    "previews": "cp README.md packages/retend/README.md && bunx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-server' './packages/retend-start' './packages/retend-utils'"
+    "previews": "cp README.md packages/retend/README.md && pnpm dlx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-web-devtools' './packages/retend-server' './packages/retend-start' './packages/retend-utils'",
+    "prepare": "husky"
   },
   "workspaces": [
-    "packages/retend",
-    "packages/retend-server",
-    "packages/retend-start",
-    "packages/retend-utils",
-    "packages/retend-web",
-    "tests"
-  ]
+    "packages/*",
+    "tests",
+    "experiments/*"
+  ],
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0"
+  }
 }

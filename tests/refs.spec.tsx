@@ -1,13 +1,18 @@
-import { describe, it, expect, vi } from 'vitest';
-import { Cell, getActiveRenderer } from 'retend';
-import type { DOMRenderer } from 'retend-web';
-import { browserSetup, vDomSetup } from './setup.tsx';
 import type { VNode } from 'retend-server/v-dom';
+import type { DOMRenderer } from 'retend-web';
+
+import { Cell, getActiveRenderer } from 'retend';
+import { describe, expect, it, vi } from 'vitest';
+
+import { browserSetup, vDomSetup } from './setup.tsx';
 
 const runTests = () => {
   it('should assign a ref to an element', () => {
+    const renderer = getActiveRenderer();
     const elementRef = Cell.source<HTMLElement | null>(null);
-    const element = <div ref={elementRef}>Hello, world!</div>;
+    const element = renderer.render(
+      <div ref={elementRef}>Hello, world!</div>
+    ) as unknown as HTMLElement;
 
     expect(elementRef.peek()).toBe(element);
   });
@@ -22,13 +27,14 @@ const runTests = () => {
       return <div ref={elementRef}>Hello, world!</div>;
     };
 
-    const element = (<MyComponent />) as unknown as HTMLElement & VNode;
+    const element = renderer.render(<MyComponent />) as unknown as HTMLElement &
+      VNode;
 
     expect(elementRef.peek()).toBe(element);
     expect(elementRef.peek()).toBeInstanceOf(window.HTMLElement);
 
     elementRef.listen(callback);
-    const newInstance = <MyComponent />;
+    const newInstance = renderer.render(<MyComponent />);
     expect(callback).toHaveBeenCalledTimes(1);
     expect(elementRef.peek()).toBe(newInstance);
   });

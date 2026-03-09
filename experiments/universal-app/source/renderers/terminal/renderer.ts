@@ -1,3 +1,11 @@
+import blessed from 'blessed';
+import {
+  createNodesFromTemplate,
+  Cell,
+  type Renderer,
+  type __HMR_UpdatableFn,
+} from 'retend';
+
 import type {
   TerminalNode,
   TerminalTextNode,
@@ -6,13 +14,7 @@ import type {
   TerminalNodeProps,
   TerminalRendererTypes,
 } from './types';
-import {
-  createNodesFromTemplate,
-  Cell,
-  type Renderer,
-  type __HMR_UpdatableFn,
-} from 'retend';
-import blessed from 'blessed';
+
 import { getValue, resolveForTerminal } from '../shared/units';
 
 // --- Color Helpers ---
@@ -324,12 +326,15 @@ class BoxNode extends BaseNode implements TerminalContainerNode {
       (c) => getValue(c.props.style?.position) !== 'absolute'
     );
 
-    const totalGaps = flowChildren.length > 1 ? (flowChildren.length - 1) * gap : 0;
+    const totalGaps =
+      flowChildren.length > 1 ? (flowChildren.length - 1) * gap : 0;
 
     if (flexDirection === 'column') {
-      totalChildExtent = flowChildren.reduce((acc, c) => acc + c.height, 0) + totalGaps;
+      totalChildExtent =
+        flowChildren.reduce((acc, c) => acc + c.height, 0) + totalGaps;
     } else {
-      totalChildExtent = flowChildren.reduce((acc, c) => acc + c.width, 0) + totalGaps;
+      totalChildExtent =
+        flowChildren.reduce((acc, c) => acc + c.width, 0) + totalGaps;
     }
 
     let startOffset = 0;
@@ -738,7 +743,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
   isActive(_node: TerminalNode): boolean {
     return true;
   }
-  onViewChange(_processor: () => void) {}
   createGroup(input?: TerminalNode | TerminalNode[]) {
     return Array.isArray(input) ? input : [input || new MarkerNode('')];
   }
@@ -836,10 +840,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
     return createNodesFromTemplate(c, this) as TerminalNode[];
   }
 
-  // Unused strict methods
-  finalize(n: TerminalNode) {
-    return n;
-  }
   isGroup(n: unknown): n is TerminalNode[] {
     return Array.isArray(n);
   }

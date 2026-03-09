@@ -1,13 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { getTextContent, vDomSetup } from '../setup.tsx';
+
+import { getActiveRenderer } from 'retend';
 import {
-  createRouterRoot,
   Router,
+  createRouterRoot,
   defineRoutes,
   useRouter,
 } from 'retend/router';
+import { describe, expect, it, vi } from 'vitest';
+
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Matching', () => {
   vDomSetup();
@@ -174,6 +176,7 @@ describe('Router Matching', () => {
     const route = router.getCurrentRoute();
     const params = route.get().params;
     expect(Object.fromEntries(params.entries())).toEqual({ id: '123' });
+    expect(route.get().path).toBe('/users/123');
     expect(route.get().name).toBe('user-detail');
     expect(callback).toHaveBeenCalledWith('123');
     expect(callback).toHaveBeenCalledTimes(1);

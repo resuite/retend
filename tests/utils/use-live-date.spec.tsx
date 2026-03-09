@@ -1,6 +1,7 @@
-import { useLiveDate } from 'retend-utils/hooks';
 import { Cell } from 'retend';
+import { useLiveDate } from 'retend-utils/hooks';
 import { describe, expect, it } from 'vitest';
+
 import { vDomSetup } from '../setup';
 
 describe('useLiveDate', () => {

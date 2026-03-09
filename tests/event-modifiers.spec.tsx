@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { Cell, getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { browserSetup } from './setup.tsx';
-import type { VNode } from 'retend-server/v-dom';
+
+import { Cell, getActiveRenderer } from 'retend';
+import { describe, expect, it, vi } from 'vitest';
+
+import { browserSetup, render } from './setup.tsx';
 
 describe('Event Modifiers', () => {
   // Only run in browser since VDom doesn't support events
@@ -13,7 +14,7 @@ describe('Event Modifiers', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const prevented = Cell.source(false);
-    const form = (
+    const form = render(
       <form
         onSubmit--prevent={() => {
           prevented.set(true);
@@ -21,7 +22,7 @@ describe('Event Modifiers', () => {
       >
         <button type="submit">Submit</button>
       </form>
-    ) as HTMLFormElement & VNode;
+    ) as HTMLFormElement;
 
     window.document.body.append(form);
     form.querySelector('button')?.click();
@@ -35,7 +36,7 @@ describe('Event Modifiers', () => {
     const parentClicked = Cell.source(false);
     const childClicked = Cell.source(false);
 
-    const div = (
+    const div = render(
       <div
         onClick={() => {
           parentClicked.set(true);
@@ -55,7 +56,7 @@ describe('Event Modifiers', () => {
           Click me
         </button>
       </div>
-    ) as HTMLDivElement & VNode;
+    ) as HTMLDivElement;
 
     window.document.body.append(div);
     div.querySelector('button')?.click();
@@ -69,7 +70,7 @@ describe('Event Modifiers', () => {
     const { host: window } = renderer;
     const clicked = Cell.source(false);
 
-    const div = (
+    const div = render(
       <div
         onClick--self={() => {
           clicked.set(true);
@@ -77,7 +78,7 @@ describe('Event Modifiers', () => {
       >
         <button type="button">Click me</button>
       </div>
-    ) as HTMLDivElement & VNode;
+    ) as HTMLDivElement;
 
     window.document.body.append(div);
     div.querySelector('button')?.click();
@@ -92,7 +93,7 @@ describe('Event Modifiers', () => {
     const { host: window } = renderer;
     const clickCount = Cell.source(0);
 
-    const button = (
+    const button = render(
       <button
         type="button"
         onClick--once={() => {
@@ -101,7 +102,7 @@ describe('Event Modifiers', () => {
       >
         Click me
       </button>
-    ) as HTMLButtonElement & VNode;
+    ) as HTMLButtonElement;
 
     window.document.body.append(button);
     button.click();
@@ -116,14 +117,14 @@ describe('Event Modifiers', () => {
     const { host: window } = renderer;
     const handler = vi.fn();
 
-    const div = (
+    const div = render(
       <div
         onScroll--passive={handler}
         style={{ height: '100px', overflow: 'auto' }}
       >
         <div style={{ height: '200px' }}>Scroll content</div>
       </div>
-    ) as HTMLDivElement & VNode;
+    ) as HTMLDivElement;
 
     window.document.body.append(div);
 
@@ -140,7 +141,7 @@ describe('Event Modifiers', () => {
     const parentClicked = Cell.source(false);
     const childClicked = Cell.source(0);
 
-    const div = (
+    const div = render(
       <div
         style={{ padding: '10px' }}
         onClick={() => {
@@ -161,7 +162,7 @@ describe('Event Modifiers', () => {
           Click me
         </button>
       </div>
-    ) as HTMLDivElement & VNode;
+    ) as HTMLDivElement;
 
     window.document.body.append(div);
     const button = div.querySelector('button');
@@ -178,7 +179,7 @@ describe('Event Modifiers', () => {
     const { host: window } = renderer;
     const events: string[] = [];
 
-    const form = (
+    const form = render(
       <form
         onSubmit--prevent--stop={() => {
           events.push('submit');
@@ -186,7 +187,7 @@ describe('Event Modifiers', () => {
       >
         <button type="submit">Submit</button>
       </form>
-    ) as HTMLFormElement & VNode;
+    ) as HTMLFormElement;
 
     window.document.body.append(form);
 

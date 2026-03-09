@@ -2,31 +2,34 @@
   "name": "retend-start",
   "version": "0.0.24",
   "private": false,
-  "type": "module",
   "description": "Scaffold a new project with retend",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
+  "keywords": [
+    "javascript",
+    "jsx",
+    "reactivity",
+    "web"
+  ],
+  "homepage": "https://github.com/adebola-io/retend#readme",
+  "bugs": {
+    "url": "https://github.com/adebola-io/retend/issues"
   },
-  "bin": {
-    "scaffold": "index.js"
-  },
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adebola-io/retend.git"
   },
-  "keywords": [
-    "web",
-    "javascript",
-    "jsx",
-    "reactivity"
-  ],
-  "author": "Adebola Akomolafe",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/adebola-io/retend/issues"
+  "bin": {
+    "scaffold": "index.js"
   },
-  "homepage": "https://github.com/adebola-io/retend#readme",
+  "type": "module",
+  "main": "index.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "@types/node": "^22.7.5",
     "@types/semver": "^7.7.0",
@@ -34,8 +37,5 @@
     "inquirer": "^12.0.0",
     "ora": "^8.1.0",
     "semver": "^7.7.1"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

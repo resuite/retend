@@ -1,4 +1,5 @@
-import { Cell, useObserver } from 'retend';
+/** @import { Cell } from 'retend' */
+import { onConnected } from 'retend';
 
 /**
  * @typedef {Cell<HTMLElement | null> | Cell<HTMLElement | null>[]} ObserverTarget
@@ -13,7 +14,7 @@ import { Cell, useObserver } from 'retend';
  * @param {IntersectionObserverCallback} callback
  * A function that will be called when the intersection of any of the target elements with the root changes.
  *
- * @param {function(): IntersectionObserverInit} [options]
+ * @param {() => IntersectionObserverInit} [options]
  * An optional function that returns an `IntersectionObserverInit` object to configure the observer.
  *
  * @example
@@ -85,7 +86,6 @@ import { Cell, useObserver } from 'retend';
  * ```
  */
 export function useIntersectionObserver(target, callback, options) {
-  const observer = useObserver();
   /** @type {IntersectionObserver | null} */
   let intersectionObserver = null;
   let observedCount = 0;
@@ -93,7 +93,7 @@ export function useIntersectionObserver(target, callback, options) {
   const elements = Array.isArray(target) ? target : [target];
 
   for (const elementCell of elements) {
-    observer.onConnected(elementCell, (element) => {
+    onConnected(elementCell, (element) => {
       if (!intersectionObserver) {
         intersectionObserver = new IntersectionObserver(callback, options?.());
       }

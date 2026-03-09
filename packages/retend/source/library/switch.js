@@ -1,11 +1,10 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 
-import { Cell } from '@adbl/cells';
-import { ArgumentList } from './utils.js';
-import { createScopeSnapshot, withScopeSnapshot } from './scope.js';
-import h from './jsx.js';
+import { Cell, AsyncCell } from '@adbl/cells';
+
+import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
-import { IgnoredHProps } from '../_internals.js';
+import { branchState, withState } from './scope.js';
 
 /**
  * Renders a dynamic switch-case construct using a reactive value or static value.
@@ -37,13 +36,14 @@ import { IgnoredHProps } from '../_internals.js';
  *
  * @template {string | number | symbol} Discriminant
  * @overload
- * @param {Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Discriminant | null | undefined> | Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Partial<Record<Discriminant, () => JSX.Template>>} cases - An object mapping possible values to template-generating functions.
  * @param {(value: Discriminant) => JSX.Template} defaultCase - Optional function to generate JSX.Template if the value doesn't match any key in `cases`.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  *
+ * @template {string | number | symbol} Discriminant
  * @overload
- * @param {Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Discriminant | null | undefined> | Cell<Discriminant | null | undefined> | Discriminant | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Record<Discriminant, () => JSX.Template>} cases - An object mapping possible values to template-generating functions.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
  */
@@ -54,72 +54,92 @@ import { IgnoredHProps } from '../_internals.js';
  * @param {*} [defaultCase]
  */
 export function Switch(value, cases, defaultCase) {
-  const renderer = getActiveRenderer();
-  if (!Cell.isCell(value)) {
-    if (value in cases && cases[value]) {
-      const nodes = h(
-        cases[value],
-        new ArgumentList([]),
-        ...IgnoredHProps,
-        renderer
-      );
-      return nodes;
+  return () => {
+    const renderer = getActiveRenderer();
+
+    for (const fn of Object.values(cases)) {
+      if (typeof fn === 'function' && !fn.name) {
+        Object.defineProperty(fn, 'name', { value: 'Switch.Case' });
+      }
     }
 
-    if (defaultCase) {
-      const nodes = h(
-        defaultCase,
-        new ArgumentList([value]),
-        ...IgnoredHProps,
-        renderer
-      );
-      return nodes;
-    }
-
-    return undefined;
-  }
-
-  const snapshot = createScopeSnapshot();
-
-  /** @param {any} value */
-  const callback = (value) => {
-    return withScopeSnapshot(snapshot, () => {
-      const caseCaller = cases[value];
-      if (caseCaller) {
-        const newNodes = h(
-          caseCaller,
-          new ArgumentList([value]),
-          ...IgnoredHProps,
-          renderer
-        );
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+    if (!Cell.isCell(value)) {
+      if (value in cases && cases[value]) {
+        const nodes = renderer.handleComponent(cases[value], []);
+        return nodes;
       }
 
       if (defaultCase) {
-        const newNodes = h(
-          defaultCase,
-          new ArgumentList([value]),
-          ...IgnoredHProps,
-          renderer
-        );
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+        const nodes = renderer.handleComponent(defaultCase, [value]);
+        return nodes;
       }
-      return [];
+
+      return undefined;
+    }
+
+    const snapshot = branchState();
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+
+    /** @param {any} value */
+    const callback = (value) => {
+      return withState(snapshot, () => {
+        const caseCaller = cases[value];
+        if (caseCaller) {
+          const newNodes = renderer.handleComponent(
+            caseCaller,
+            [value],
+            snapshot
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        if (defaultCase) {
+          const newNodes = renderer.handleComponent(
+            defaultCase,
+            [value],
+            snapshot
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+        return [];
+      });
+    };
+
+    /**
+     * @param {*} nextValue
+     */
+    const processValueChange = (nextValue) => {
+      snapshot.node.dispose();
+      const results = callback(nextValue);
+      renderer.write(handle, results);
+      renderer.observer?.flush();
+      snapshot.node.activate();
+    };
+
+    // It is important that the listener is registered first.
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
     });
+
+    const initialValue = value.get();
+    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+    let handle;
+    /** @type {ReturnType<typeof renderer.createGroup>} */
+    let group;
+
+    if (initialValue instanceof Promise) {
+      group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
+      initialValue.then((resolved) => processValueChange(resolved));
+      return group;
+    }
+
+    const initialResults = callback(initialValue);
+    group = renderer.createGroup(initialResults);
+    handle = renderer.createGroupHandle(group);
+    return group;
   };
-
-  // The effect must be registered first.
-  value.listen((nextValue) => {
-    snapshot.node.dispose();
-    const results = callback(nextValue);
-    renderer.write(handle, results);
-    snapshot.node.activate();
-  });
-
-  const initialResults = callback(value.get());
-  const group = renderer.createGroup(initialResults);
-  const handle = renderer.createGroupHandle(group);
-  return group;
 }
 
 /**
@@ -131,7 +151,7 @@ export function Switch(value, cases, defaultCase) {
  * @template {{ [Selected in Extract<Value, PropertyKey>]: (value: Extract<Obj, Record<Key, Selected>>) => JSX.Template }} Cases
  * @template {Partial<Cases>} DefinedCases
  * @overload
- * @param {Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Obj | null | undefined> | Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Key} key - The key of the object or cell to switch against.
  * @param {DefinedCases} cases - An object mapping possible values to template-generating functions.
  * @param {(value: Exclude<Obj, Record<Key, keyof DefinedCases>>) => JSX.Template} defaultCase
@@ -144,7 +164,7 @@ export function Switch(value, cases, defaultCase) {
  * @template {Obj[Key]} Value
  * @template {{ [Selected in Extract<Value, PropertyKey>]: (value: Extract<Obj, Record<Key, Selected>>) => JSX.Template }} Cases
  * @overload
- * @param {Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
+ * @param {AsyncCell<Obj | null | undefined> | Cell<Obj | null | undefined> | Obj | null | undefined} value - A reactive `Cell` or a static value to determine the active case.
  * @param {Key} key - The key of the object or cell to switch against.
  * @param {Required<Cases>} cases - An object mapping possible values to template-generating functions.
  * @returns {JSX.Template} A list of nodes that represent the selected case's template.
@@ -157,75 +177,95 @@ export function Switch(value, cases, defaultCase) {
  * @param {*} [defaultCase]
  */
 Switch.OnProperty = (value, key, cases, defaultCase) => {
-  const renderer = getActiveRenderer();
-  if (!Cell.isCell(value)) {
-    const discriminant = value[key];
+  return () => {
+    const renderer = getActiveRenderer();
 
-    if (discriminant in cases && cases[discriminant]) {
-      const nodes = h(
-        cases[discriminant],
-        new ArgumentList([value]),
-        ...IgnoredHProps,
-        renderer
-      );
-      return nodes;
+    for (const fn of Object.values(cases)) {
+      if (typeof fn === 'function' && !fn.name) {
+        Object.defineProperty(fn, 'name', { value: 'Switch.Case' });
+      }
     }
 
-    if (defaultCase) {
-      const nodes = h(
-        defaultCase,
-        new ArgumentList([value]),
-        ...IgnoredHProps,
-        renderer
-      );
-      return nodes;
-    }
+    if (!Cell.isCell(value)) {
+      const discriminant = value[key];
 
-    return undefined;
-  }
-
-  const snapshot = createScopeSnapshot();
-
-  /** @param {any} cellValue */
-  const callback = (cellValue) => {
-    return withScopeSnapshot(snapshot, () => {
-      const discriminant = cellValue[key];
-
-      const caseCaller = cases[discriminant];
-      if (caseCaller) {
-        const newNodes = h(
-          caseCaller,
-          new ArgumentList([cellValue]),
-          ...IgnoredHProps,
-          renderer
-        );
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+      if (discriminant in cases && cases[discriminant]) {
+        const nodes = renderer.handleComponent(cases[discriminant], [value]);
+        return nodes;
       }
 
       if (defaultCase) {
-        const newNodes = h(
-          defaultCase,
-          new ArgumentList([cellValue]),
-          ...IgnoredHProps,
-          renderer
-        );
-        return Array.isArray(newNodes) ? newNodes : [newNodes];
+        const nodes = renderer.handleComponent(defaultCase, [value]);
+        return nodes;
       }
 
-      return [];
+      return undefined;
+    }
+
+    const snapshot = branchState();
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+
+    /** @param {any} cellValue */
+    const callback = (cellValue) => {
+      return withState(snapshot, () => {
+        const discriminant = cellValue[key];
+
+        const caseCaller = cases[discriminant];
+        if (caseCaller) {
+          const newNodes = renderer.handleComponent(
+            caseCaller,
+            [cellValue],
+            snapshot
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        if (defaultCase) {
+          const newNodes = renderer.handleComponent(
+            defaultCase,
+            [cellValue],
+            snapshot
+          );
+          return Array.isArray(newNodes) ? newNodes : [newNodes];
+        }
+
+        return [];
+      });
+    };
+
+    /**
+     * @param {*} nextValue
+     */
+    const processValueChange = (nextValue) => {
+      snapshot.node.dispose();
+      const results = callback(nextValue);
+      renderer.write(handle, results);
+      renderer.observer?.flush();
+      snapshot.node.activate();
+    };
+
+    // It is important that the listener is registered first.
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
     });
+
+    const initialValue = value.get();
+    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
+    let handle;
+    /** @type {ReturnType<typeof renderer.createGroup>} */
+    let group;
+
+    if (initialValue instanceof Promise) {
+      group = renderer.createGroup([]);
+      handle = renderer.createGroupHandle(group);
+      initialValue.then((resolved) => processValueChange(resolved));
+      return group;
+    }
+
+    const initialResults = callback(initialValue);
+    group = renderer.createGroup(initialResults);
+    handle = renderer.createGroupHandle(group);
+    return group;
   };
-
-  // The effect must be registered first.
-  value.listen((nextValue) => {
-    snapshot.node.dispose();
-    const newNodes = callback(nextValue);
-    renderer.write(handle, newNodes);
-    snapshot.node.activate();
-  });
-
-  const initialResults = callback(value.get());
-  const group = renderer.createGroup(initialResults);
-  const handle = renderer.createGroupHandle(group);
-  return group;
 };

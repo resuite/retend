@@ -1,16 +1,18 @@
-import { describe, it, expect } from 'vitest';
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { vDomSetup, getTextContent } from '../setup.tsx';
+
+import { getActiveRenderer } from 'retend';
 import {
-  createRouterRoot,
   Router,
+  createRouterRoot,
   defineRoute,
   defineRoutes,
   lazy,
   useCurrentRoute,
   useRouter,
 } from 'retend/router';
+import { describe, expect, it } from 'vitest';
+
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Lazy Subtrees', () => {
   vDomSetup();

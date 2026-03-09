@@ -1,4 +1,5 @@
 import { Cell } from 'retend';
+
 import { createSharedHook } from '../internal/create-shared-hook.js';
 
 /**

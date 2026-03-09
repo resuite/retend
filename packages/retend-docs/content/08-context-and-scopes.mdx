@@ -1,0 +1,120 @@
+# Context and Scopes
+
+As your application grows, you will often find that a component deep inside your layout needs access to data that lives at the very top.
+
+Normally, you would have to pass this data down as props through every single component in between, even if those middle components don't care about the data. In Retend, we solve this using **Scopes**.
+
+A Scope creates a broadcast channel. A parent component can put data into the Scope, and any child component—no matter how deep—can grab that data directly.
+
+## Creating and Using Scopes
+
+First, you create a Scope using the `createScope()` function:
+
+```tsx
+import { createScope } from 'retend';
+
+// Give it a name to help with debugging
+export const ThemeScope = createScope('Theme');
+```
+
+This gives you a Scope object that contains a `Provider` component. You wrap your layout inside this `Provider` to make the data available, passing the data into the `value` prop:
+
+```tsx
+import { ThemeScope } from './scopes';
+
+function App() {
+  const currentTheme = 'dark';
+
+  return (
+    <ThemeScope.Provider value={currentTheme}>
+      <MainLayout />
+    </ThemeScope.Provider>
+  );
+}
+```
+
+Now, any component inside `MainLayout` can access the theme by calling `useScopeContext()`, completely skipping all the components in between:
+
+```tsx
+import { useScopeContext } from 'retend';
+import { ThemeScope } from './scopes';
+
+function ThemedButton() {
+  // Grab the data directly from the Scope
+  const theme = useScopeContext(ThemeScope);
+
+  return (
+    <button
+      type="button"
+      class={[
+        'btn',
+        { 'btn-dark': theme === 'dark', 'btn-light': theme === 'light' },
+      ]}
+    >
+      Click Me
+    </button>
+  );
+}
+```
+
+If a component tries to use a Scope but there is no `Provider` wrapping it higher up in the layout, Retend will throw an error to let you know.
+
+## Passing Reactive Data (Cells)
+
+Usually, the data you want to share across your app can change—like whether a user is logged in, or the items in their shopping cart. You can pass a `Cell` into a Scope just like any other value:
+
+```tsx
+import { Cell, createScope, useScopeContext } from 'retend';
+
+export const UserScope = createScope('User');
+
+function App() {
+  // 1. Create a reactive Cell
+  const user = Cell.source({ name: 'Alice', role: 'guest' });
+
+  return (
+    // 2. Pass the entire Cell into the Provider
+    <UserScope.Provider value={user}>
+      <Dashboard />
+    </UserScope.Provider>
+  );
+}
+```
+
+When child components read the Cell from the Scope, they can both look at the data using `.get()` and update it using `.set()`. Because it's a Cell, any updates will automatically reflect everywhere else in the app that uses that data.
+
+```tsx
+function UserProfile() {
+  // 3. Grab the Cell from the Scope
+  const userCell = useScopeContext(UserScope);
+
+  // 4. Create derived state from it
+  const userName = Cell.derived(() => userCell.get().name);
+
+  const upgradeRole = () => {
+    // 5. Update the shared Cell
+    const current = userCell.get();
+    userCell.set({ ...current, role: 'admin' });
+  };
+
+  return (
+    <div>
+      <p>Hello, {userName}</p>
+      <button type="button" onClick={upgradeRole}>
+        Upgrade to Admin
+      </button>
+    </div>
+  );
+}
+```
+
+## Why use Scopes over Global Variables?
+
+You might wonder why you shouldn't just create a `Cell` in a separate file and import it wherever you need it.
+
+While that works well for simple apps, Scopes give you two major advantages:
+
+1. **Independent Instances**: You can use the same Provider multiple times on a page, and each one gets its own isolated state.
+2. **Automatic Memory Cleanup**: When the part of the screen containing the `Provider` is removed, the data inside it is automatically cleaned up. A global variable lives forever and holds onto memory until the user closes the tab.
+
+Scopes keep your data clean, organized, and tied strictly to the parts of your interface that actually need it.

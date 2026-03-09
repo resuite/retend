@@ -19,11 +19,12 @@
  */
 
 import { Cell } from '@adbl/cells';
-import { createScope, useScopeContext } from '../library/scope.js';
-import { RouteTree } from './routeTree.js';
-import { Lazy } from './lazy.js';
-import h from '../library/jsx.js';
+
+import { IgnoredHProps } from '../_internals.js';
 import { If } from '../library/if.js';
+import h from '../library/jsx.js';
+import { getActiveRenderer } from '../library/renderer.js';
+import { createScope, useScopeContext } from '../library/scope.js';
 import {
   BeforeNavigateEvent,
   RouteChangeEvent,
@@ -32,10 +33,10 @@ import {
   RouteLockPreventedEvent,
   RouterNavigationEvent,
 } from './events.js';
-import { constructURL, getFullPath } from './utils.js';
+import { Lazy } from './lazy.js';
 import { RouterMiddlewareResponse } from './middleware.js';
-import { getActiveRenderer } from '../library/renderer.js';
-import { IgnoredHProps } from '../_internals.js';
+import { RouteTree } from './routeTree.js';
+import { constructURL, getFullPath } from './utils.js';
 
 export * from './lazy.js';
 export * from './routeTree.js';
@@ -106,6 +107,7 @@ export class Router extends EventTarget {
     super();
     this.#routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
     this.#stackMode = routeOptions.stackMode ?? false;
+    this.#maxRedirects = routeOptions.maxRedirects ?? 0;
     this.useViewTransitions = routeOptions.useViewTransitions ?? false;
     this.#middlewares = routeOptions.middlewares ?? [];
     this.#internalState = { metadata: new Map(), routeChain: Cell.source([]) };
@@ -466,7 +468,7 @@ export class Router extends EventTarget {
       const fullPath = constructURL(target.path, result);
       this.#currentPath.set({
         name: target.name,
-        path: target.path,
+        path: constructURL(target.path, result, false),
         params: result.params,
         query: result.searchQueryParams,
         fullPath: fullPath,
@@ -810,7 +812,7 @@ export function useCurrentRoute() {
  * function App() {
  *   return (
  *     <RouterProvider router={router}>
- *       {() => <router.Outlet />}
+ *       <router.Outlet />
  *     </RouterProvider>
  *   );
  * }
@@ -837,7 +839,6 @@ export function RouterProvider(props) {
  */
 export function Outlet(props) {
   const routerData = useScopeContext(RouterScope);
-  const renderer = getActiveRenderer();
   const { depth, internalState } = routerData;
   const rawProps = props || {};
   const currentLevel = Cell.derived(() => {
@@ -845,21 +846,17 @@ export function Outlet(props) {
   });
   const path = Cell.derived(() => currentLevel.get()?.path);
   Reflect.set(rawProps, 'data-path', path);
-  rawProps.children = If(path, () => {
+  const OutletContent = () => {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
       value: { ...routerData, depth: routerData.depth + 1 },
-      children: () =>
-        h(
-          RenderFn,
-          { metadata: internalState.metadata },
-          ...IgnoredHProps,
-          renderer
-        ),
+      children: h(RenderFn, { metadata: internalState.metadata }),
     });
-  });
+  };
+  Object.defineProperty(OutletContent, 'name', { value: 'Outlet.Content' });
+  rawProps.children = If(path, OutletContent);
 
-  return h('retend-router-outlet', rawProps, ...IgnoredHProps, renderer);
+  return h('retend-router-outlet', rawProps, ...IgnoredHProps);
 }
 
 /**
@@ -882,7 +879,6 @@ export function Outlet(props) {
 export function Link(props = {}) {
   const router = useRouter();
   const currentRoute = router.getCurrentRoute();
-  const renderer = getActiveRenderer();
 
   if (!('href' in props)) {
     console.error('missing to attribute for link component.');
@@ -911,6 +907,12 @@ export function Link(props = {}) {
     // For valid URLs, the browser will handle the navigation.
     const hrefValue = href.get();
     if (hrefValue && !URL.canParse(hrefValue)) {
+      if (
+        hrefValue.includes('#') &&
+        hrefValue.split('#')[0] === currentRoute.get().fullPath.split('#')[0]
+      ) {
+        return;
+      }
       event.preventDefault();
       const beforeEvent = new RouterNavigationEvent('beforenavigate', {
         detail: { href: hrefValue, replace },
@@ -929,7 +931,7 @@ export function Link(props = {}) {
   };
   props.active = active;
 
-  return h('a', props, ...IgnoredHProps, renderer);
+  return h('a', props, ...IgnoredHProps);
 }
 
 /**
@@ -970,20 +972,16 @@ export function defineRoute(route) {
  *   ],
  * });
  *
- * document.body.append(createRouterRoot(router));
+ * const renderer = getActiveRenderer();
+ * document.body.append(renderer.render(() => createRouterRoot(router)));
  * ```
  *
  * @param {Router} router - The router instance to be provided to the application.
  * @returns {any} The root router component, typically an instance of `RouterProvider` wrapping an `Outlet`.
  */
 export function createRouterRoot(router) {
-  const rootOutlet = RouterProvider({ router, children: Outlet });
-  if (Array.isArray(rootOutlet)) {
-    const renderer = getActiveRenderer();
-    const group = renderer.createGroup(rootOutlet);
-    return group;
-  }
-  return rootOutlet;
+  const renderer = getActiveRenderer();
+  return renderer.render(() => RouterProvider({ router, children: Outlet }));
 }
 
 // Type Re-exports

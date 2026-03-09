@@ -1,8 +1,10 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { getActiveRenderer } from 'retend';
 import type { DOMRenderer } from 'retend-web';
-import { createRouterRoot, Router, defineRoutes } from 'retend/router';
-import { vDomSetup, getTextContent } from '../setup.tsx';
+
+import { getActiveRenderer } from 'retend';
+import { Router, createRouterRoot, defineRoutes } from 'retend/router';
+import { describe, expect, it, vi } from 'vitest';
+
+import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('router.lock()', () => {
   vDomSetup();

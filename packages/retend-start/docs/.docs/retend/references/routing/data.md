@@ -113,6 +113,8 @@ function FilterStatus() {
 
 ### Setting Query Params
 
+**Note:** Query mutation methods (`set`, `append`, `delete`, `clear`) are asynchronous and return `Promise<void>`. They trigger navigation to update the URL.
+
 ```tsx
 import { useRouteQuery } from 'retend/router';
 

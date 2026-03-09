@@ -1,56 +1,67 @@
 {
-	"name": "retend-web",
-	"version": "0.0.24",
-	"description": "A modern reactive framework for fluid, dynamic web apps.",
-	"private": false,
-	"type": "module",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"build": "bun scripts/build.js"
-	},
-	"keywords": ["web", "javascript", "pwa", "jsx"],
-	"exports": {
-		".": {
-			"import": "./dist/index.js",
-			"types": "./dist/index.d.ts"
-		},
-		"./plugin": {
-			"import": "./dist/plugin/index.js",
-			"types": "./dist/plugin/index.d.ts"
-		},
-		"./plugin/hmr": {
-			"import": "./dist/plugin/hmr.js",
-			"types": "./dist/plugin/hmr.d.ts"
-		},
-		"./dom-ops": {
-			"import": "./dist/dom-ops.js",
-			"types": "./dist/dom-ops.d.ts"
-		},
-  "./jsx-runtime": {
-      "import": "./dist/jsx-runtime/index.js",
-      "types": "./dist/jsx-runtime/index.d.ts"
+  "name": "retend-web",
+  "version": "0.0.24",
+  "private": false,
+  "description": "A modern reactive framework for fluid, dynamic web apps.",
+  "keywords": [
+    "javascript",
+    "jsx",
+    "pwa",
+    "web"
+  ],
+  "homepage": "https://github.com/adebola-io/retend#readme",
+  "bugs": {
+    "url": "https://github.com/adebola-io/retend/issues"
+  },
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "type": "git",
+    "directory": "github.com/adebola-io/retend"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./plugins/vite": {
+      "types": "./dist/plugins/vite.d.ts",
+      "import": "./dist/plugins/vite.js"
+    },
+    "./plugins/rspack": {
+      "types": "./dist/plugins/rspack.d.ts",
+      "import": "./dist/plugins/rspack.js"
+    },
+    "./plugins/hmr": {
+      "types": "./dist/plugins/hmr.d.ts",
+      "import": "./dist/plugins/hmr.js"
+    },
+    "./dom-ops": {
+      "types": "./dist/dom-ops.d.ts",
+      "import": "./dist/dom-ops.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime/index.d.ts",
+      "import": "./dist/jsx-runtime/index.js"
     }
-	},
-	"homepage": "https://github.com/adebola-io/retend#readme",
-	"bugs": {
-		"url": "https://github.com/adebola-io/retend/issues"
-	},
-	"author": "Adebola Akomolafe",
-	"repository": {
-		"directory": "github.com/adebola-io/retend",
-		"type": "git"
-	},
-	"license": "MIT",
-	"devDependencies": {
-		"typescript": "^5.8.2"
-	},
-	"peerDependencies": {
-		"retend": "*"
-	},
-	"publishConfig": {
-		"access": "public"
-	},
-	"dependencies": {
-		"csstype": "^3.2.3"
-	}
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node scripts/build.js"
+  },
+  "dependencies": {
+    "csstype": "^3.2.3"
+  },
+  "devDependencies": {
+    "retend": "workspace:*",
+    "typescript": "^5.8.2"
+  },
+  "peerDependencies": {
+    "retend": "*"
+  }
 }

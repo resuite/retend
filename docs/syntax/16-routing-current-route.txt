@@ -5,7 +5,7 @@
 
 @Example 1
 @Input Displaying the current route's name reactively.
-import { useRouter } from 'retend/router';
+import { Link, useRouter } from 'retend/router';
 import { Cell } from 'retend';
 
 function CurrentRouteName() {
@@ -64,7 +64,7 @@ function NavLink({ href, children }) {
   const isActive = Cell.derived(() => currentRoute.get().fullPath === href);
   const linkClass = Cell.derived(() => isActive.get() ? 'active-link' : '');
 
-  return <router.Link href={href} class={linkClass}>{children}</router.Link>;
+  return <Link href={href} class={linkClass}>{children}</Link>;
 }
 @Note Compare `currentRoute.get().fullPath` to determine active links.
 

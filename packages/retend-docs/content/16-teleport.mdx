@@ -1,0 +1,81 @@
+# Teleport
+
+Sometimes you need to create a UI element that sits "on top" of your entire application, like a modal popup, a dropdown menu, or a tooltip.
+
+If you try to render these deep inside your component tree, you often run into CSS issues. Parent components might have `overflow: hidden` which cuts off your dropdown, or complex `z-index` rules that cause your modal to appear behind other elements.
+
+To solve this, Retend provides the `<Teleport>` component. It lets you write your component exactly where it belongs logically in your code, but tells the browser to render the actual HTML elements somewhere else entirely—usually at the very end of the `<body>` tag where they can avoid all CSS layout issues.
+
+## Using Teleport
+
+To use Teleport, simply wrap the content you want to move and use the `to` prop to tell it where to go.
+
+Notice that `<Teleport>` is imported from `retend-web`, not `retend`, because it is specific to the browser!
+
+```tsx
+import { If } from 'retend';
+import { Teleport } from 'retend-web';
+
+export function Modal(props) {
+  const { isOpen, onClose, title } = props;
+
+  return If(isOpen, {
+    true: () => (
+      // Teleport this entire chunk of HTML to the #modal-root element
+      <Teleport to="#modal-root">
+        <div class="modal-overlay" onClick={onClose}>
+          <div class="modal-content" onClick--stop>
+            <h2>{title}</h2>
+            <button type="button" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </Teleport>
+    ),
+  });
+}
+```
+
+In your main HTML file, you just need to make sure that target element actually exists:
+
+```html
+<body>
+  <!-- Your main app renders here -->
+  <div id="app"></div>
+
+  <!-- Your teleported modals will render here -->
+  <div id="modal-root"></div>
+</body>
+```
+
+You can use either an ID selector (like `#modal-root`) or a tag name (like `body`) for the `to` prop.
+
+## Logical vs. Physical
+
+The magic of `<Teleport>` is that it only moves your elements _physically_ in the HTML.
+
+_Logically_, your component behaves exactly as if it was still sitting in its original spot in the code. This means:
+
+1. **Reactivity works perfectly:** Any Cells you use inside the Teleport will still update the UI instantly when they change.
+2. **Scopes still work:** If you teleport a tooltip to the `<body>`, it can still access data from a Scope Provider that wraps its original parent component!
+
+```tsx
+import { useScopeContext } from 'retend';
+import { Teleport } from 'retend-web';
+import { ThemeScope } from './scopes';
+
+function ThemedTooltip() {
+  // We can still read the ThemeScope from our parent component,
+  // even though we are teleporting our HTML to the very bottom of the page!
+  const theme = useScopeContext(ThemeScope);
+
+  return (
+    <Teleport to="body">
+      <div class={`tooltip tooltip-${theme.get()}`}>Helpful information!</div>
+    </Teleport>
+  );
+}
+```
+
+With `<Teleport>`, you don't have to choose between clean component architecture and bulletproof CSS layouts. You get both.

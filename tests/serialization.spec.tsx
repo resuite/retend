@@ -1,98 +1,54 @@
-import { Cell, For, If, getActiveRenderer } from 'retend';
+import type { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import type { DOMRenderer } from 'retend-web';
+import type { JSX } from 'retend/jsx-runtime';
+
+import { Cell, For, If, getActiveRenderer } from 'retend';
 import { renderToString } from 'retend-server/client';
 import { ShadowRoot } from 'retend-web';
 import { describe, expect, it } from 'vitest';
-import { browserSetup, timeout, vDomSetup } from './setup.tsx';
-import type { VDOMRenderer } from 'retend-server/v-dom';
+
+import { browserSetup, vDomSetup } from './setup.tsx';
+
+const toString = (template: JSX.Template, window: Window | VWindow) => {
+  const renderer = getActiveRenderer() as DOMRenderer | VDOMRenderer;
+  return renderToString(
+    renderer.render(template),
+    window as Parameters<typeof renderToString>[1]
+  );
+};
 
 const runTests = () => {
   it('should render basic JSX elements to strings', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const element = <div class="test">Hello World</div>;
-    const result = await renderToString(element, window);
+    const result = toString(<div class="test">Hello World</div>, window);
     expect(result).toBe('<div class="test">Hello World</div>');
-  });
-
-  it('should mark static nodes when option is enabled', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <span>Static content</span>
-        <span>{Cell.source('Dynamic content')}</span>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toContain('<span data-static>Static content</span>');
-    expect(result).not.toContain('<span data-static>Dynamic content</span>');
-  });
-
-  it('should skip reactive nodes when marking static nodes', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <span>{Cell.source('Dynamic content')}</span>
-        <span>Static Content</span>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toContain(
-      '<div><span>Dynamic content</span><span data-static>Static Content</span></div>'
-    );
-  });
-
-  it('should skip nodes with event listeners when marking static nodes', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <button type="button" onClick={() => console.log('Clicked!')}>
-          Click me
-        </button>
-        <p>
-          This is a paragraph with a <a href="https://example.com">link</a>.
-        </p>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toContain(
-      '<div><button type="button">Click me</button><p data-static>This is a paragraph with a <a href="https://example.com">link</a>.</p></div>'
-    );
   });
 
   it('should preserve whitespace between text nodes', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const element = (
+    const template = (
       <div>
         Hello {'World'}
         {'!'}
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(template, window);
     expect(result).toContain('<div>Hello <!--@@-->World<!--@@-->!</div>');
   });
 
   it('should handle void elements correctly', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const element = (
+    const template = (
       <div>
         <img src="test.jpg" alt="Test illustration" />
         <br />
         <input type="text" />
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(template, window);
     expect(result).toBe(
       '<div><img src="test.jpg" alt="Test illustration"/><br/><input type="text"/></div>'
     );
@@ -101,7 +57,7 @@ const runTests = () => {
   it('should handle nested fragments', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
-    const element = (
+    const template = (
       <>
         <div>First</div>
         <>
@@ -110,94 +66,8 @@ const runTests = () => {
         </>
       </>
     );
-    const result = await renderToString(element, window);
+    const result = toString(template, window);
     expect(result).toBe('<div>First</div><div>Second</div><div>Third</div>');
-  });
-
-  it('should handle promises in JSX', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = <div>{Promise.resolve('Async content')}</div>;
-    const result = await renderToString(element, window);
-    expect(result).toBe('<div>Async content</div>');
-  });
-
-  it('should handle component promises in JSX', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const Component = async () => {
-      await timeout();
-      return <div>Async content</div>;
-    };
-    const element = (
-      <div>
-        <Component />
-      </div>
-    );
-    const result = await renderToString(element, window);
-    expect(result).toBe('<div><div>Async content</div></div>');
-  });
-
-  it('should handle component promises in JSX with children', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const Component = async (props: { children?: unknown }) => {
-      await timeout();
-      return <div>Async content: {props.children}</div>;
-    };
-    const element = (
-      <div>
-        <Component>
-          <p>Child</p>
-        </Component>
-      </div>
-    );
-    const result = await renderToString(element, window);
-    expect(result).toBe('<div><div>Async content: <p>Child</p></div></div>');
-  });
-
-  it('should handle nested async components in JSX', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const ChildComponent = async () => {
-      await timeout();
-      return <span>Child async content</span>;
-    };
-    const ParentComponent = async () => {
-      await timeout();
-      return (
-        <div>
-          Parent async content
-          <ChildComponent />
-        </div>
-      );
-    };
-    const element = (
-      <div>
-        <ParentComponent />
-      </div>
-    );
-    const result = await renderToString(element, window);
-    expect(result).toBe(
-      '<div><div>Parent async content<span>Child async content</span></div></div>'
-    );
-  });
-
-  it('should handle fragments with async components', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const AsyncComponent = async () => {
-      await timeout();
-      return <div>Async content</div>;
-    };
-    const element = (
-      <>
-        <div>Static content</div>
-        <AsyncComponent />
-      </>
-    );
-    const result = await renderToString(element, window);
-    expect(result).toBe('<div>Static content</div><div>Async content</div>');
   });
 
   it('should handle deeply nested elements', async () => {
@@ -214,7 +84,7 @@ const runTests = () => {
         </div>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><div><div><div><div>Deeply nested content</div></div></div></div></div>'
     );
@@ -228,7 +98,7 @@ const runTests = () => {
         Content
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div id="test" class="test-class" data-test="value">Content</div>'
     );
@@ -238,9 +108,27 @@ const runTests = () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const element = <div>Special characters: &amp; &lt; &gt; " '</div>;
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div>Special characters: &amp; &lt; &gt; &quot; &apos;</div>'
+    );
+  });
+
+  it('should not escape raw text inside script and style tags', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const scriptContent =
+      "(function(){var theme=localStorage.getItem('retend-theme');if(theme === '\\\"dark\\\"' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}})();";
+    const styleContent = `.test::before{content:"<>&'";}`;
+    const element = (
+      <div>
+        <script>{scriptContent}</script>
+        <style>{styleContent}</style>
+      </div>
+    );
+    const result = toString(element, window);
+    expect(result).toBe(
+      `<div><script>${scriptContent}</script><style>${styleContent}</style></div>`
     );
   });
 
@@ -248,7 +136,7 @@ const runTests = () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const element = <input type="checkbox" checked />;
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<input type="checkbox" checked="true"/>');
   });
 
@@ -263,7 +151,7 @@ const runTests = () => {
         ))}
       </ul>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>'
     );
@@ -279,7 +167,7 @@ const runTests = () => {
         <span>Valid content</span>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<div><span>Valid content</span></div>');
   });
 
@@ -295,26 +183,8 @@ const runTests = () => {
         })}
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<div><span>Conditional content</span></div>');
-  });
-
-  it('should mark static nodes inside shadow root when enabled', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div>Static content</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div data-static><template shadowrootmode="open"><div>Static content</div></template></div>'
-    );
   });
 
   it('should hoist shadow roots to the start of the parent node', async () => {
@@ -328,53 +198,9 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Shadow content</div></template><div>Normal content</div></div>'
-    );
-  });
-
-  it('should handle static marking in nested shadow roots', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div data-outer>
-            <ShadowRoot>
-              <div>Static inner</div>
-            </ShadowRoot>
-            <span>Static outer</span>
-          </div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div data-static><template shadowrootmode="open"><div data-outer="true"><template shadowrootmode="open"><div>Static inner</div></template><span>Static outer</span></div></template></div>'
-    );
-  });
-
-  it('should not mark nodes with event listeners as static in shadow root', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <button type="button" onClick={() => {}}>
-            Click me
-          </button>
-          <div>Static content</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div><template shadowrootmode="open"><button type="button">Click me</button><div>Static content</div></template></div>'
     );
   });
 
@@ -388,7 +214,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Shadow content</div></template></div>'
     );
@@ -405,7 +231,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><style>.test { color: red; }</style><div class="test">Styled content</div></template></div>'
     );
@@ -426,7 +252,7 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div><template shadowrootmode="open"><div>Inner content</div></template>Outer content</div></template></div>'
     );
@@ -443,46 +269,9 @@ const runTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
       '<div><template shadowrootmode="open"><div>Dynamic content</div></template></div>'
-    );
-  });
-
-  it('should not mark shadowroot parent as static if it has reactive children', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const content = Cell.source('Dynamic content');
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div>{content}</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div><template shadowrootmode="open"><div>Dynamic content</div></template></div>'
-    );
-  });
-
-  it('should mark shadowroot parent as static if it has static children', async () => {
-    const renderer = getActiveRenderer() as DOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div>Static content</div>
-        </ShadowRoot>
-      </div>
-    );
-    const result = await renderToString(element, window, {
-      markStaticNodes: true,
-    });
-    expect(result).toBe(
-      '<div data-static><template shadowrootmode="open"><div>Static content</div></template></div>'
     );
   });
 
@@ -492,7 +281,7 @@ const runTests = () => {
     //@ts-ignore: testing
     const element = <div AttrName="test" Other="test" />;
 
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe('<div attr-name="test" other="test"></div>');
   });
 };
@@ -506,9 +295,9 @@ const dynamicTests = () => {
         Click me
       </button>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toContain(
-      '<button data-dyn="0" type="button">Click me</button>'
+      '<button data-dyn="0.0" type="button">Click me</button>'
     );
   });
 
@@ -516,9 +305,9 @@ const dynamicTests = () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div class={Cell.source('test-class')}>Content</div>;
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toContain(
-      '<div data-dyn="0" class="test-class">Content</div>'
+      '<div data-dyn="0.0" class="test-class">Content</div>'
     );
   });
 
@@ -526,8 +315,8 @@ const dynamicTests = () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div title={Cell.source('dynamic-title')}>Content</div>;
-    const result = await renderToString(element, window);
-    expect(result).toContain('data-dyn="0"');
+    const result = toString(element, window);
+    expect(result).toContain('data-dyn="0.0"');
   });
 
   it('should mark an element as dynamic if it is held by a ref', async () => {
@@ -535,15 +324,15 @@ const dynamicTests = () => {
     const { host: window } = renderer;
     const ref = Cell.source('dynamic-ref');
     const element = <div ref={ref}>Content</div>;
-    const result = await renderToString(element, window);
-    expect(result).toContain('data-dyn="0"');
+    const result = toString(element, window);
+    expect(result).toContain('data-dyn="0.0"');
   });
 
   it('should not mark static elements as dynamic when option is enabled', async () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div class="static">Static content</div>;
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).not.toContain('data-dyn');
   });
 
@@ -562,9 +351,9 @@ const dynamicTests = () => {
         </button>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
-      '<div><button data-dyn="0" type="button">Button 1</button><div data-dyn="1" class="class1">Div 1</div><span>Static</span><button data-dyn="2" type="button">Button 2</button></div>'
+      '<div><button data-dyn="0.0" type="button">Button 1</button><div data-dyn="0.1" class="class1">Div 1</div><span>Static</span><button data-dyn="0.2" type="button">Button 2</button></div>'
     );
   });
 
@@ -572,7 +361,7 @@ const dynamicTests = () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div>{Cell.source('Dynamic text')}</div>;
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toContain('<div data-dyn');
   });
 
@@ -588,9 +377,9 @@ const dynamicTests = () => {
         </div>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     expect(result).toBe(
-      '<div><div><button data-dyn="0" type="button">Click</button></div></div>'
+      '<div><div><button data-dyn="0.0" type="button">Click</button></div></div>'
     );
   });
 
@@ -605,8 +394,8 @@ const dynamicTests = () => {
         ))}
       </ul>
     );
-    const result = await renderToString(element, window);
-    expect(result).toContain('<ul data-dyn="0">');
+    const result = toString(element, window);
+    expect(result).toContain('<ul data-dyn="0.0">');
   });
 
   it('should mark the container for a If as reactive', async () => {
@@ -620,8 +409,8 @@ const dynamicTests = () => {
         })}
       </div>
     );
-    const result = await renderToString(element, window);
-    expect(result).toContain('<div data-dyn="0">');
+    const result = toString(element, window);
+    expect(result).toContain('<div data-dyn="0.0">');
   });
 
   it('should mark an element as reactive if it has a shadowroot', async () => {
@@ -634,8 +423,8 @@ const dynamicTests = () => {
         </ShadowRoot>
       </div>
     );
-    const result = await renderToString(element, window);
-    expect(result).toContain('<div data-dyn="0">');
+    const result = toString(element, window);
+    expect(result).toContain('<div data-dyn="0.0">');
   });
 
   it('should increment for very large subtrees', async () => {
@@ -644,16 +433,14 @@ const dynamicTests = () => {
     const size = 100;
     const element = (
       <div>
-        {Array.from({ length: size }).map((_, i) => (
-          <div key={i} onClick={() => {}}>
-            {i}
-          </div>
+        {For(Array.from({ length: size }), (i) => (
+          <div onClick={() => {}}>{i}</div>
         ))}
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     for (let i = 0; i < size; i++) {
-      expect(result).toContain(`data-dyn="${i}"`);
+      expect(result).toContain(`data-dyn="0.${i}"`);
     }
   });
 
@@ -671,10 +458,184 @@ const dynamicTests = () => {
         </div>
       </div>
     );
-    const result = await renderToString(element, window);
+    const result = toString(element, window);
     for (let i = 0; i < 5; i++) {
-      expect(result).toContain(`data-dyn="${i}"`);
+      expect(result).toContain(`data-dyn="0.${i}"`);
     }
+  });
+};
+
+const multiDimensionalMarkerTests = () => {
+  it('should use multi-dimensional markers for For loop items', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+
+    const items = Cell.source(['Item 1', 'Item 2', 'Item 3']);
+    const element = (
+      <div>
+        {For(items, (item) => (
+          <button key={item} type="button" onClick={() => {}}>
+            {item}
+          </button>
+        ))}
+      </div>
+    );
+    const result = toString(element, window);
+    // Container gets data-dyn="0.0", items get data-dyn="0.0.X.0" format
+    expect(result).toContain('data-dyn="0.0"');
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
+  });
+
+  it('should use multi-dimensional markers for If branches', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+
+    const condition = Cell.source(true);
+    const element = (
+      <div>
+        {If(condition, {
+          true: () => <button onClick={() => {}}>True Button</button>,
+          false: () => <button onClick={() => {}}>False Button</button>,
+        })}
+      </div>
+    );
+    const result = toString(element, window);
+    // Container gets data-dyn="0.0", if branch gets data-dyn="0.0.X" format (shorter than For loops)
+    expect(result).toContain('data-dyn="0.0"');
+    expect(result).toMatch(/data-dyn="0\.0\.\d+"/);
+  });
+
+  it('should create separate branches for multiple For loops', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+
+    const items1 = Cell.source(['a', 'b']);
+    const items2 = Cell.source(['c', 'd']);
+    const element = (
+      <div>
+        {For(items1, (item) => (
+          <span key={item} onClick={() => {}}>
+            {item}
+          </span>
+        ))}
+        {For(items2, (item) => (
+          <span key={item} onClick={() => {}}>
+            {item}
+          </span>
+        ))}
+      </div>
+    );
+    const result = toString(element, window);
+    // Container gets data-dyn="0.0", each For loop creates its own branch
+    expect(result).toContain('data-dyn="0.0"');
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
+    expect(result).toMatch(/data-dyn="0\.1\.\d+\.0"/);
+  });
+
+  it('should handle nested For loops with multi-dimensional markers', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+
+    const outerItems = Cell.source(['X', 'Y']);
+    const innerItems = ['1', '2'];
+    const element = (
+      <div>
+        {For(outerItems, (outer) => (
+          <div key={outer}>
+            <button onClick={() => {}}>Outer {outer}</button>
+            {For(innerItems, (inner) => (
+              <span key={inner} onClick={() => {}}>
+                {outer}-{inner}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+    const result = toString(element, window);
+    // Container: data-dyn="0.0"
+    // Outer loop items: data-dyn="0.0.X.0" (where X is the item index)
+    // Inner loop items: data-dyn="0.0.X.Y" (where Y is the inner item index within that outer item)
+    expect(result).toContain('data-dyn="0.0"');
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.1"/);
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.2"/);
+  });
+
+  it('should increment indices correctly within a branch', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+
+    const items = Cell.source(['Item 1', 'Item 2', 'Item 3']);
+    const element = (
+      <div>
+        {For(items, (item, _index) => (
+          <button key={item} type="button" onClick={() => {}}>
+            {item}
+          </button>
+        ))}
+      </div>
+    );
+    const result = toString(element, window);
+    // Container: data-dyn="0.0"
+    // Each item gets data-dyn="0.0.X.0" where X is the item index
+    expect(result).toContain('data-dyn="0.0"');
+    expect(result).toMatch(/data-dyn="0\.0\.0\.0"/);
+    expect(result).toMatch(/data-dyn="0\.0\.1\.0"/);
+    expect(result).toMatch(/data-dyn="0\.0\.2\.0"/);
+  });
+
+  it('should handle For with reactive items and dynamic children', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+
+    const items = Cell.source(['a', 'b']);
+    const element = (
+      <ul>
+        {For(items, (item) => (
+          <li key={item}>
+            <button onClick={() => {}}>{item}</button>
+            <span class={Cell.source('class-' + item)}>Text</span>
+          </li>
+        ))}
+      </ul>
+    );
+    const result = toString(element, window);
+    // Container: data-dyn="0.0"
+    // Each li contains multiple dynamic elements with sequential indices
+    expect(result).toContain('data-dyn="0.0"');
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.1"/);
+  });
+
+  it('should handle deeply nested control flow structures', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+
+    const items = Cell.source(['a']);
+    const condition = Cell.source(true);
+    const element = (
+      <div>
+        {For(items, (item) => (
+          <div key={item}>
+            {If(condition, {
+              true: () => (
+                <span>
+                  <button onClick={() => {}}>Deep</button>
+                </span>
+              ),
+            })}
+          </div>
+        ))}
+      </div>
+    );
+    const result = toString(element, window);
+    // Container: data-dyn="0.0"
+    // For item: data-dyn="0.0.X.0"
+    // If branch: data-dyn="0.0.X.0.Y.0"
+    // Button: data-dyn="0.0.X.0.Y.0.Z.0"
+    expect(result).toContain('data-dyn="0.0"');
+    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
   });
 };
 
@@ -692,5 +653,6 @@ describe('JSX Serialization', () => {
   describe('VDom (Dynamic)', () => {
     vDomSetup({ markDynamicNodes: true });
     dynamicTests();
+    multiDimensionalMarkerTests();
   });
 });

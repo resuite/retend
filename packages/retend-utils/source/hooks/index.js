@@ -9,3 +9,4 @@ export * from './use-cursor-position.js';
 export * from './use-intersection-observer.js';
 export * from './use-click-coordinates.js';
 export * from './use-document-visibility.js';
+export * from './use-window-event-listener.js';

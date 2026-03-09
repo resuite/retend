@@ -1,19 +1,22 @@
-#!/usr/bin/env node
+#!/usr/bin / env node
+/**/
 /// <reference types="node" />
 
+import chalk from 'chalk';
+import { createPromptModule } from 'inquirer';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-
-import chalk from 'chalk';
-import { createPromptModule } from 'inquirer';
 import ora from 'ora';
 import semver from 'semver';
+
 import CONFIG from './config.json' with { type: 'json' };
 
 const isBun =
   typeof process !== 'undefined' && process.versions && process.versions.bun;
+const npmUserAgent = process.env.npm_config_user_agent ?? '';
+const isPnpm = npmUserAgent.startsWith('pnpm/');
 
 const args = process.argv.slice(2);
 
@@ -313,7 +316,7 @@ async function createViteConfig(projectDir, answers) {
   const content = `
 import { defineConfig } from 'vite';
 import path from 'node:path';
-import { retend } from 'retend-web/plugin';${
+import { retend } from 'retend-web/plugins/vite';${
     answers.useSSG ? "\nimport { retendSSG } from 'retend-server/plugin';" : ''
   }${
     answers.useTailwind ? "\nimport tailwindcss from '@tailwindcss/vite';" : ''
@@ -414,18 +417,16 @@ hydrate(createRouter)
     : `
 /// <reference types="vite/client" />
 /// <reference types="retend-web/jsx-runtime" />
-import { runPendingSetupEffects, setActiveRenderer } from 'retend';
 import { createRouterRoot } from 'retend/router';
-import { DOMRenderer } from 'retend-web';
 import { createRouter } from './router';
+import { renderToDOM } from 'retend-web';
 
-setActiveRenderer(new DOMRenderer(window));
 const router = createRouter();
 router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
-root?.append(createRouterRoot(router));
-runPendingSetupEffects();
+renderToDOM(root, createRouterRoot(router));
+
 `;
 
   await fs.writeFile(
@@ -622,11 +623,13 @@ async function createPackageJson(projectDir, answers) {
       dev: 'vite --port 5229',
       build: 'vite build',
       preview: 'vite preview',
+      lint: 'oxlint .',
     },
     dependencies: getRetendDependencies(commitHash, Boolean(answers.useSSG)),
     /** @type {Record<string, string>} */
     devDependencies: {
       vite: CONFIG.devDependencies.vite,
+      oxlint: CONFIG.devDependencies.oxlint,
     },
   };
 
@@ -684,10 +687,85 @@ async function createConfigFile(projectDir, answers) {
     content.compilerOptions.skipLibCheck = true;
   }
 
-  await fs.writeFile(
-    path.join(projectDir, fileName),
-    JSON.stringify(content, null, 2)
-  );
+  await Promise.all([
+    fs.writeFile(
+      path.join(projectDir, fileName),
+      JSON.stringify(content, null, 2)
+    ),
+    fs.writeFile(
+      path.join(projectDir, '.oxlintrc.json'),
+      JSON.stringify(
+        {
+          $schema: './node_modules/oxlint/configuration_schema.json',
+          jsPlugins: ['./retend-oxlint-plugin.mjs'],
+          rules: {
+            'retend/no-get-in-jsx': 'error',
+          },
+        },
+        null,
+        2
+      )
+    ),
+    fs.writeFile(
+      path.join(projectDir, 'retend-oxlint-plugin.mjs'),
+      `const noGetInJsx = {
+  meta: {
+    docs: {
+      description: 'disallow .get() in JSX expressions',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Calling .get() in JSX returns a static snapshot. Pass the Cell directly.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (node.callee.type !== 'MemberExpression' || node.callee.computed) {
+          return;
+        }
+
+        if (
+          node.callee.property.type !== 'Identifier' ||
+          node.callee.property.name !== 'get'
+        ) {
+          return;
+        }
+
+        let parent = node.parent;
+        while (parent) {
+          if (parent.type === 'JSXExpressionContainer') {
+            context.report({ node: node.callee.property, messageId: 'unexpected' });
+            return;
+          }
+
+          if (
+            parent.type === 'ArrowFunctionExpression' ||
+            parent.type === 'FunctionDeclaration' ||
+            parent.type === 'FunctionExpression'
+          ) {
+            return;
+          }
+
+          parent = parent.parent;
+        }
+      },
+    };
+  },
+};
+
+export default {
+  meta: {
+    name: 'retend',
+  },
+  rules: {
+    'no-get-in-jsx': noGetInJsx,
+  },
+};
+`
+    ),
+  ]);
 }
 
 /**
@@ -740,7 +818,7 @@ async function createDocsFiles(projectDir, answers) {
     await fs.cp(docsDir, path.join(projectDir, '.docs'), { recursive: true });
     // Copy AGENTS.md file to project
     await fs.cp(agentsFile, path.join(projectDir, 'AGENTS.md'));
-  } catch (error) {
+  } catch {
     console.warn(
       chalk.yellow(
         'Failed to copy documentation files. You can add them manually later.'
@@ -753,21 +831,37 @@ async function createDocsFiles(projectDir, answers) {
  * @param {string} projectName
  */
 function displayCompletionMessage(projectName) {
+  const installCommand = isBun
+    ? 'bun install'
+    : isPnpm
+      ? 'pnpm install'
+      : 'npm install';
+  const devCommand = isBun
+    ? 'bun run dev'
+    : isPnpm
+      ? 'pnpm run dev'
+      : 'npm run dev';
+  const buildCommand = isBun
+    ? 'bun run build'
+    : isPnpm
+      ? 'pnpm run build'
+      : 'npm run build';
+
   console.log(chalk.green('\n✨ Your project is ready! ✨'));
   console.log(chalk.yellow('\nNext steps:'));
   console.log(chalk.cyan('1. Navigate to your project folder:'));
   console.log(chalk.white(`   cd ${projectName}`));
   console.log(chalk.cyan('2. Install project dependencies:'));
-  console.log(chalk.white(`   ${isBun ? 'bun install' : 'npm install'}`));
+  console.log(chalk.white(`   ${installCommand}`));
   console.log(chalk.cyan('3. Start the development server:'));
-  console.log(chalk.white(`   ${isBun ? 'bun run dev' : 'npm run dev'}`));
+  console.log(chalk.white(`   ${devCommand}`));
   console.log(chalk.cyan('4. Open your browser and visit:'));
   console.log(chalk.white('   http://localhost:5529'));
   console.log(
     chalk.cyan(`5. Begin editing your project files in the 'source' directory`)
   );
   console.log(chalk.cyan('6. To build for production, run:'));
-  console.log(chalk.white(`${isBun ? 'bun run build' : 'npm run build'}`));
+  console.log(chalk.white(buildCommand));
   console.log(chalk.blue('\nHappy coding! 🚀'));
 }
 

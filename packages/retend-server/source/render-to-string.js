@@ -1,5 +1,4 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import { ScopeSnapshot } from 'retend' */
 /** @import * as VDom from './v-dom/index.js' */
 
 const voidElements = new Set([
@@ -20,12 +19,7 @@ const voidElements = new Set([
 ]);
 
 const SPLIT_TEXT_MARKER = '<!--@@-->';
-
-/**
- * @typedef {Object} RenderToStringOptions
- * @property {boolean} [markStaticNodes]
- * Whether to mark static elements with the [data-static] attribute.
- */
+const rawTextElements = new Set(['SCRIPT', 'STYLE']);
 
 /**
  * Renders a JSX template to a string.
@@ -33,26 +27,24 @@ const SPLIT_TEXT_MARKER = '<!--@@-->';
  *
  * @param {JSX.Template} template - The JSX template to render.
  * @param {Window & globalThis | VDom.VWindow} window - The window object.
- * @param {RenderToStringOptions} [options] - Options for rendering the template.
- * @returns {Promise<string>} A promise that resolves to the rendered string.
+ * @returns {string} The rendered string.
  *
  * @description
  * This function takes a JSX template and converts it to its string representation.
- * It can handle various types of input, including primitive values, Promises,
+ * It can handle various types of input, including primitive values,
  * DOM nodes, and arrays of templates.
  *
  * @example
  * const jsxTemplate = <div>Hello, world!</div>;
- * const renderedString = await renderToString(jsxTemplate);
+ * const renderedString = renderToString(jsxTemplate);
  * console.log(renderedString); // Outputs: <div>Hello, world!</div>
  */
-export async function renderToString(template, window, options = {}) {
+export function renderToString(template, window, inRawTextElement = false) {
   if (/string|number|boolean/.test(typeof template)) {
+    if (inRawTextElement) {
+      return String(template);
+    }
     return escapeHTML(template);
-  }
-
-  if (template instanceof Promise) {
-    return await renderToString(await template, window, options);
   }
 
   if (
@@ -62,15 +54,6 @@ export async function renderToString(template, window, options = {}) {
     return template.html;
   }
 
-  if (
-    template instanceof window.Comment &&
-    '__promise' in template &&
-    template.__promise instanceof Promise
-  ) {
-    const value = await template.__promise;
-    return await renderToString(value, window, options);
-  }
-
   if (template instanceof window.Node) {
     /*
      * TODO: There is a bug in happy-dom where
@@ -78,6 +61,9 @@ export async function renderToString(template, window, options = {}) {
      * even when the nodeType is Node.TEXT_NODE
      */
     if (template.nodeType === window.Node.TEXT_NODE) {
+      if (inRawTextElement) {
+        return template.textContent ?? '';
+      }
       return escapeHTML(template.textContent ?? '');
     }
 
@@ -87,16 +73,8 @@ export async function renderToString(template, window, options = {}) {
 
     if (template instanceof window.ShadowRoot) {
       let text = '<template shadowrootmode="open">';
-
-      if (options.markStaticNodes) {
-        const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
-        if (isStatic) {
-          Reflect.set(template, '__isStatic', true);
-        }
-      }
-
       for (const child of template.childNodes) {
-        text += await renderToString(child, window, options);
+        text += renderToString(child, window, false);
       }
       text += '</template>';
       return text;
@@ -105,13 +83,14 @@ export async function renderToString(template, window, options = {}) {
     if (template instanceof window.DocumentFragment) {
       let textContent = '';
       for (const child of template.childNodes) {
-        textContent += await renderToString(child, window, options);
+        textContent += renderToString(child, window, inRawTextElement);
       }
       return textContent;
     }
 
     if (template instanceof window.Element) {
       const tagName = template.tagName.toLowerCase();
+      const isRawTextElement = rawTextElements.has(template.tagName);
 
       let text = `<${tagName}`;
 
@@ -119,26 +98,12 @@ export async function renderToString(template, window, options = {}) {
         text += ` ${attribute.name}="${escapeHTML(attribute.value)}"`;
       }
 
-      if (options.markStaticNodes) {
-        const isStatic = nodeIsStatic(/** @type {*} */ (template), window);
-        if (isStatic) {
-          Reflect.set(template, '__isStatic', true);
-          const parentIsStatic =
-            template.parentNode &&
-            Reflect.get(template.parentNode, '__isStatic');
-
-          if (!parentIsStatic) {
-            text += ' data-static';
-          }
-        }
-      }
-
       const isVoid = voidElements.has(template.tagName);
       if (!isVoid || template.childNodes.length > 0 || template.shadowRoot) {
         text += '>';
 
         if (template.shadowRoot) {
-          text += await renderToString(template.shadowRoot, window, options);
+          text += renderToString(template.shadowRoot, window, false);
         }
 
         let precededByTextNode = false;
@@ -146,18 +111,15 @@ export async function renderToString(template, window, options = {}) {
           // Insert marker between consecutive text nodes to preserve whitespace
           // This prevents text node merging during HTML parsing
           const shouldSplit =
+            !isRawTextElement &&
             precededByTextNode &&
             child.nodeType === window.Node.TEXT_NODE &&
             (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
 
           if (shouldSplit) {
-            text += `${SPLIT_TEXT_MARKER}${await renderToString(
-              child,
-              window,
-              options
-            )}`;
+            text += `${SPLIT_TEXT_MARKER}${renderToString(child, window, false)}`;
           } else {
-            text += await renderToString(child, window, options);
+            text += renderToString(child, window, isRawTextElement);
           }
           precededByTextNode =
             child.nodeType === window.Node.TEXT_NODE &&
@@ -173,67 +135,19 @@ export async function renderToString(template, window, options = {}) {
     }
 
     if (template instanceof window.Document) {
-      return await renderToString(template.documentElement, window, options);
+      return renderToString(template.documentElement, window, false);
     }
   }
 
   if (Array.isArray(template)) {
     let textContent = '';
     for (const child of template) {
-      textContent += await renderToString(child, window, options);
+      textContent += renderToString(child, window, inRawTextElement);
     }
     return textContent;
   }
 
   return '';
-}
-
-/**
- * Checks if a node has no reactivity attached so it can be marked as static.
- * Static node can be safely skipped during hydration.
- * @param {(Node | VDom.VNode) & {
- *  __isHydrationUpgradable?: boolean,
- *  __ref?: any,
- *  __attributeCells?: Map<string, any>,
- *  __isTeleportAnchor?: boolean;
- *  __eventListenerList?: Map<string, any>;
- *  __originScopeSnapshot?: ScopeSnapshot
- *  __hasEventListeners?: boolean;
- *  hiddenAttributes?: Map<string, any>,
- *  getAttribute: (name: string) => string | null,
- *  childNodes: any[],
- *  __commentRangeSymbol?: any
- * shadowRoot?: {
- *  mode: string,
- *  childNodes: any[]
- * }
- * }} node
- * @param {VDom.VWindow | Window & globalThis} window
- */
-function nodeIsStatic(node, window) {
-  if (node.__commentRangeSymbol) return false;
-  if (node.__isTeleportAnchor) return false;
-  if (node.__originScopeSnapshot) return false;
-  if (node.__attributeCells?.size) return false;
-  if (node.__eventListenerList?.size) return false;
-
-  if (node.nodeType === window.Node.ELEMENT_NODE) {
-    if (node.getAttribute('data-static') !== null) return true;
-    if (node.__ref) return false;
-    if (node.__hasEventListeners) return false;
-
-    for (const child of node.childNodes) {
-      if (!nodeIsStatic(child, window)) return false;
-    }
-  }
-
-  if (node.shadowRoot) {
-    for (const child of node.shadowRoot.childNodes) {
-      if (!nodeIsStatic(child, window)) return false;
-    }
-  }
-
-  return true;
 }
 
 /**

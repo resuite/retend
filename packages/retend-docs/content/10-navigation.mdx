@@ -1,0 +1,90 @@
+# Navigation
+
+Once your routes are defined, users need a way to move between pages. Retend provides built-in tools to handle navigation instantly, without triggering a full browser page reload.
+
+## Using Links
+
+The `<Link>` component is what you should use for almost all navigation. It renders a standard HTML `<a>` tag, but it intercepts the click to smoothly update the URL and swap the page content instantly.
+
+Because it uses a real `<a>` tag under the hood, it's great for accessibility, search engines, and lets users right-click to open links in new tabs.
+
+```tsx
+import { Link } from 'retend/router';
+
+export function NavigationMenu() {
+  return (
+    <nav class="main-nav">
+      <Link href="/">Home</Link>
+      <Link href="/about">About Us</Link>
+      <Link href="/contact">Contact</Link>
+    </nav>
+  );
+}
+```
+
+You can pass standard HTML attributes like `class`, `id`, or `aria-label` directly to the `<Link>` component:
+
+```tsx
+<Link
+  href="/signup"
+  class="btn btn-primary"
+  aria-label="Sign up for an account"
+>
+  Get Started
+</Link>
+```
+
+### Replacing History
+
+By default, clicking a `<Link>` adds a new entry to the browser's history, allowing the user to click the "Back" button to return to where they came from.
+
+Sometimes you don't want them to be able to go back. For example, if they just logged in, pressing "Back" shouldn't take them back to the login page. You can use the `replace` prop to instantly replace the current history entry instead:
+
+```tsx
+<Link href="/dashboard" replace>
+  Go to Dashboard
+</Link>
+```
+
+## Navigating from Code
+
+Sometimes you need to navigate the user automatically after they do something, like submitting a form or completing a payment.
+
+For these situations, you can use the `useRouter()` function to access the router directly from your code, and call `router.navigate()`.
+
+```tsx
+import { useRouter } from 'retend/router';
+import { Cell } from 'retend';
+
+export function LoginForm() {
+  const router = useRouter();
+  const isSubmitting = Cell.source(false);
+
+  const handleSubmit = async () => {
+    isSubmitting.set(true);
+
+    try {
+      await performLogin();
+      // After login is successful, automatically navigate to the dashboard
+      await router.navigate('/dashboard');
+    } catch (error) {
+      console.error('Login failed', error);
+    } finally {
+      isSubmitting.set(false);
+    }
+  };
+
+  return (
+    <form onSubmit--prevent={handleSubmit}>
+      {/* ... form fields ... */}
+      <button type="submit" disabled={isSubmitting}>
+        Log In
+      </button>
+    </form>
+  );
+}
+```
+
+Just like with links, you can also use `router.replace('/login')` if you want to replace the browser history entry instead of adding a new one.
+
+Both `router.navigate()` and `router.replace()` return Promises, which means you can `await` them to know exactly when the entire page transition is fully complete.

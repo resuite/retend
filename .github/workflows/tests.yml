@@ -1,4 +1,4 @@
-name: Run Tests (Bun)
+name: Run Tests (pnpm)
 
 on:
   push:
@@ -12,11 +12,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v1
+      - uses: pnpm/action-setup@v4
         with:
-          bun-version: 1.3.0
+          version: 10.6.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
 
-      - run: bunx playwright install chromium                         
-      - run: bun install
-      - run: bun run build
-      - run: bun run test
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter retend-test-suite exec playwright install chromium
+      - run: pnpm run build
+      - run: pnpm run test

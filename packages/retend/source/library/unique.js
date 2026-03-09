@@ -1,25 +1,27 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { ScopeSnapshot } from '../library/scope.js'; */
+/** @import { StateSnapshot } from '../library/scope.js'; */
 /** @import { Renderer } from '../library/renderer.js'; */
 
 import { Cell, SourceCell } from '@adbl/cells';
-import { useObserver } from '../library/observer.js';
-import h from '../library/jsx.js';
+
 import { getGlobalContext } from '../context/index.js';
+import h from '../library/jsx.js';
+import { onConnected } from '../library/observer.js';
+import { getActiveRenderer } from '../library/renderer.js';
 import {
   __HMR_SYMBOLS,
-  createScopeSnapshot,
-  useSetupEffect,
-  withScopeSnapshot,
+  branchState,
+  onSetup,
+  withState,
 } from '../library/scope.js';
-import { getActiveRenderer } from '../library/renderer.js';
 import { linkNodes } from '../library/utils.js';
+import { useAwait } from './await.js';
 
 /**
  * @typedef UniqueStash
  * @property {Map<string | Function, { data: any }>} instances
  * @property {Map<string | Function, Cell<unknown | null>>} refs
- * @property {Map<string | Function, ScopeSnapshot>} scopes
+ * @property {Map<string | Function, StateSnapshot>} scopes
  * @property {Map<string | Function, SourceCell<any>>} props
  * @property {Set<() => void>} pendingTeardowns
  * @property {Map<string | Function, { node: unknown, props: any }[]>} stack
@@ -45,7 +47,7 @@ const initUniqueStash = (renderer) => {
     }
     stash.pendingTeardowns.clear();
   };
-
+  /** @type {UniqueStash} */
   const stash = {
     instances: new Map(),
     refs: new Map(),
@@ -143,7 +145,7 @@ const initUniqueStash = (renderer) => {
  * const UniqueCanvas = createUnique(
  *   (props) => {
  *     const canvas = Cell.source(null);
- *     useSetupEffect(() => {
+ *     onSetup(() => {
  *       const node = canvas.get();
  *       if (!node) return;
  *       // Initialize canvas context, listeners, etc.
@@ -185,13 +187,7 @@ export function createUnique(renderFn, options = {}) {
     const { id = renderFn } = props;
     const { globalData } = getGlobalContext();
     const renderer = getActiveRenderer();
-    const hArgs = /** @type {const} */ ([
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      renderer,
-    ]);
+    const awaitCtx = useAwait();
     const { onSave, onRestore, container = {} } = options;
     const ref = Cell.source(null);
 
@@ -211,9 +207,8 @@ export function createUnique(renderFn, options = {}) {
     } else {
       propSource.set(props);
     }
-    const observer = useObserver();
 
-    const retendUniqueInstance = h(elementName, container, ...hArgs);
+    const uniqueInstance = h(elementName, container).instantiate(renderer);
     let previous = stash.instances.get(id);
 
     /** @param {unknown} div */
@@ -281,7 +276,7 @@ export function createUnique(renderFn, options = {}) {
       stash.pendingTeardowns.delete(teardown);
     };
 
-    observer.onConnected(ref, (node) => {
+    onConnected(ref, (node) => {
       restoreState(node);
       const scope = stash.scopes.get(id);
       if (scope) scope.node.enable();
@@ -295,7 +290,7 @@ export function createUnique(renderFn, options = {}) {
       };
     });
 
-    useSetupEffect(() => {
+    onSetup(() => {
       const current = ref.peek();
 
       return () => {
@@ -327,10 +322,7 @@ export function createUnique(renderFn, options = {}) {
 
           const next = journey.at(-1);
           if (next && currentElement !== next.node) {
-            renderer.append(
-              next.node,
-              Array.from(retendUniqueInstance.childNodes)
-            );
+            renderer.append(next.node, Array.from(uniqueInstance.childNodes));
             renderer.setProperty(next.node, 'state', 'restored');
             propSource.set(next.props);
             restoreState(next.node);
@@ -339,26 +331,38 @@ export function createUnique(renderFn, options = {}) {
       };
     });
 
-    if (ref instanceof SourceCell) ref.set(retendUniqueInstance);
+    if (ref instanceof SourceCell) ref.set(uniqueInstance);
     stash.refs.set(id, ref);
 
     let childNodes;
     if (previous) {
-      renderer.setProperty(retendUniqueInstance, 'state', 'restored');
-      renderer.restoreContainerState(retendUniqueInstance, previous);
+      renderer.setProperty(uniqueInstance, 'state', 'restored');
+      if (awaitCtx && !awaitCtx.done) {
+        awaitCtx.finished.then(() => {
+          renderer.restoreContainerState(uniqueInstance, previous);
+        });
+      } else {
+        renderer.restoreContainerState(uniqueInstance, previous);
+      }
     } else {
-      renderer.setProperty(retendUniqueInstance, 'state', 'new');
+      renderer.setProperty(uniqueInstance, 'state', 'new');
       childNodes = (() => {
-        const scopeSnapshot = createScopeSnapshot();
-        stash.scopes.set(id, scopeSnapshot);
-        return withScopeSnapshot(scopeSnapshot, () =>
-          h(renderFn, propSource, ...hArgs)
+        const stateSnapshot = branchState();
+        stash.scopes.set(id, stateSnapshot);
+        return withState(stateSnapshot, () =>
+          renderer.handleComponent(renderFn, [propSource], stateSnapshot)
         );
       })();
-      linkNodes(retendUniqueInstance, childNodes, renderer);
+      linkNodes(uniqueInstance, childNodes, renderer);
     }
 
-    return retendUniqueInstance;
+    return uniqueInstance;
   };
+
+  UniqueComponent.__retendUnique = true;
+  Object.defineProperty(UniqueComponent, 'name', { value: renderFn.name });
+  if (!renderFn.name) {
+    Object.defineProperty(renderFn, 'name', { value: 'Unique.Content' });
+  }
   return UniqueComponent;
 }

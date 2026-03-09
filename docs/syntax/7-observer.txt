@@ -1,107 +1,101 @@
-@Title observer
-@Description Demonstrates the usage of the `useObserver` function in Retend for DOM connection and disconnection lifecycle management.
-@Note `useObserver` is the only lifecycle hook in Retend.
+@Title onConnected
+@Description Demonstrates the usage of the `onConnected` function in Retend for DOM connection and disconnection lifecycle management.
+@Note `onConnected` is the only lifecycle hook in Retend.
 
 ---
 
 @Example 1
-@Input Basic div with connection observer logging a message.
-import { Cell, useObserver } from 'retend';
+@Input Basic div with connection callback logging a message.
+import { Cell, onConnected } from 'retend';
 
-const ObserverDiv = () => {
+const ConnectionAwareDiv = () => {
   const divRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(divRef, (element) => {
+  onConnected(divRef, (element) => {
     console.log('Div connected to the DOM:', element);
   });
 
-  return <div ref={divRef}>Observer Div</div>;
+  return <div ref={divRef}>Connection Aware Div</div>;
 };
 @Note in Typescript, the cell call should be typed as `Cell.source<HTMLDivElement | null>(null)`.
 ---
 
 @Example 2
-@Input Paragraph element with observer setting an attribute on connect.
-import { Cell, useObserver } from 'retend';
+@Input Paragraph element with callback setting an attribute on connect.
+import { Cell, onConnected } from 'retend';
 
-const ObserverParagraph = () => {
+const LifecycleParagraph = () => {
   const pRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(pRef, (element) => {
+  onConnected(pRef, (element) => {
     element.setAttribute('data-observed', 'true');
   });
 
-  return <p ref={pRef}>Observed Paragraph</p>;
+  return <p ref={pRef}>Lifecycle Paragraph</p>;
 };
 @Note in Typescript, the cell call should be typed as `Cell.source<HTMLParagraphElement | null>(null)`.
 
 ---
 
 @Example 3
-@Input Button element with observer setting style on connect and cleaning up on disconnect.
-import { Cell, useObserver } from 'retend';
+@Input Button element with callback setting style on connect and cleaning up on disconnect.
+import { Cell, onConnected } from 'retend';
 
-const ObserverButton = () => {
+const LifecycleButton = () => {
   const buttonRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(buttonRef, (element) => {
+  onConnected(buttonRef, (element) => {
     element.style.backgroundColor = 'lightblue';
     return () => {
       element.style.removeProperty('background-color');
     };
   });
 
-  return <button type="button" ref={buttonRef}>Observed Button</button>;
+  return <button type="button" ref={buttonRef}>Lifecycle Button</button>;
 };
 
 ---
 
 @Example 4
-@Input Link element with observer setting href on connect.
-import { Cell, useObserver } from 'retend';
+@Input Link element with callback setting href on connect.
+import { Cell, onConnected } from 'retend';
 
-const ObserverLink = () => {
+const LifecycleLink = () => {
   const linkRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(linkRef, (element) => {
+  onConnected(linkRef, (element) => {
     element.href = 'https://example.com';
   });
 
-  return <a ref={linkRef}>Observed Link</a>;
+  return <a ref={linkRef}>Lifecycle Link</a>;
 };
 
 ---
 
 @Example 5
-@Input Image element with observer setting src on connect.
-import { Cell, useObserver } from 'retend';
+@Input Image element with callback setting src on connect.
+import { Cell, onConnected } from 'retend';
 
-const ObserverImage = () => {
+const LifecycleImage = () => {
   const imgRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(imgRef, (element) => {
+  onConnected(imgRef, (element) => {
     element.src = '/image.png';
   });
 
-  return <img ref={imgRef} alt="Observed Image" />;
+  return <img ref={imgRef} alt="Lifecycle Image" />;
 };
 
 ---
 
 @Example 6
-@Input Observer on a div that creates a timer on connect and clears it on disconnect.
-import { Cell, useObserver } from 'retend';
+@Input Connection callback on a div that creates a timer on connect and clears it on disconnect.
+import { Cell, onConnected } from 'retend';
 
 const TimerDiv = () => {
   const divRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(divRef, (element) => {
+  onConnected(divRef, (element) => {
     const timerId = setInterval(() => {
       console.log('Timer tick');
     }, 1000);
@@ -118,34 +112,32 @@ const TimerDiv = () => {
 ---
 
 @Example 7
-@Input Observer on a list item that adds a class on connect.
-import { Cell, useObserver } from 'retend';
+@Input Connection callback on a list item that adds a class on connect.
+import { Cell, onConnected } from 'retend';
 
-const ObserverListItem = () => {
+const LifecycleListItem = () => {
   const itemRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(itemRef, (element) => {
+  onConnected(itemRef, (element) => {
     element.classList.add('observed-item');
     return () => {
       element.classList.remove('observed-item');
     };
   });
 
-  return <li ref={itemRef}>Observed List Item</li>;
+  return <li ref={itemRef}>Lifecycle List Item</li>;
 };
 
 ---
 
 @Example 8
-@Input Observer on an input that focuses on connect and removes focus on disconnect.
-import { Cell, useObserver } from 'retend';
+@Input Connection callback on an input that focuses on connect and removes focus on disconnect.
+import { Cell, onConnected } from 'retend';
 
-const ObserverInput = () => {
+const LifecycleInput = () => {
   const inputRef = Cell.source(null);
-  const observer = useObserver();
 
-  observer.onConnected(inputRef, (element) => {
+  onConnected(inputRef, (element) => {
     element.focus();
     return () => {
       element.blur();
@@ -158,25 +150,24 @@ const ObserverInput = () => {
 ---
 
 @Example 9
-@Input Rendering different observers based on the result of If.
-import { Cell, useObserver, If } from 'retend';
+@Input Rendering different connections based on the result of If.
+import { Cell, onConnected, If } from 'retend';
 
-const ConditionalObserver = () => {
-  const shouldObserve = Cell.source(true);
+const ConditionalConnection = () => {
+  const shouldConnect = Cell.source(true);
   const ref1 = Cell.source(null);
   const ref2 = Cell.source(null);
-  const observer = useObserver();
 
   const handleClick = () => {
-    shouldObserve.set(!shouldObserve.get());
+    shouldConnect.set(!shouldConnect.get());
   };
 
-  observer.onConnected(ref1, (element) => {
+  onConnected(ref1, (element) => {
     console.log('Ref 1 Connected');
     return () => console.log('Ref 1 Disconnected');
   });
 
-  observer.onConnected(ref2, (element) => {
+  onConnected(ref2, (element) => {
     console.log('Ref 2 Connected');
     return () => console.log('Ref 2 Disconnected');
   });
@@ -184,9 +175,9 @@ const ConditionalObserver = () => {
   return (
     <>
       <button onClick={handleClick}>Toggle</button>
-      {If(shouldObserve, () => <div ref={ref1}>Observer 1</div>, () => <div ref={ref2}>Observer 2</div>)}
+      {If(shouldConnect, () => <div ref={ref1}>Connection 1</div>, () => <div ref={ref2}>Connection 2</div>)}
     </>
   );
 };
-@Note handlers and event listeners should be declared before observer.onConnected is called.
+@Note handlers and event listeners should be declared before onConnected is called.
 @Note Prefer creating handlers and event listeners outside JSX, if possible.

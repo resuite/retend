@@ -16,7 +16,7 @@ declare module 'retend/jsx-runtime' {
       | undefined
       | string
       | CSSProperties
-      | Container<JSX.ValueOrCell<CSSProperties>>
+      | Container<JSX.ValueOrCellOrPromise<CSSProperties>>
       | Array<StyleValue>;
 
     type HTMLAttributeReferrerPolicy =
@@ -56,515 +56,515 @@ declare module 'retend/jsx-runtime' {
 
     interface GlobalEvents {
       /**
-      * Fired when a resource load is aborted, such as by a user canceling the load.
-      */
+       * Fired when a resource load is aborted, such as by a user canceling the load.
+       */
       onAbort: UIEvent;
 
       /**
-      * Occurs when a CSS animation is canceled unexpectedly.
-      */
+       * Occurs when a CSS animation is canceled unexpectedly.
+       */
       onAnimationCancel: AnimationEvent;
 
       /**
-      * Fired when a CSS animation reaches its end.
-      */
+       * Fired when a CSS animation reaches its end.
+       */
       onAnimationEnd: AnimationEvent;
 
       /**
-      * Triggered when a CSS animation repeats.
-      */
+       * Triggered when a CSS animation repeats.
+       */
       onAnimationIteration: AnimationEvent;
 
       /**
-      * Fired when a CSS animation begins.
-      */
+       * Fired when a CSS animation begins.
+       */
       onAnimationStart: AnimationEvent;
 
       /**
-      * Occurs when a non-primary pointer button (e.g., middle mouse button) is pressed on an element.
-      */
+       * Occurs when a non-primary pointer button (e.g., middle mouse button) is pressed on an element.
+       */
       onAuxClick: MouseEvent;
 
       /**
-      * Fired just before text is inserted into an editable element.
-      */
+       * Fired just before text is inserted into an editable element.
+       */
       onBeforeInput: InputEvent;
 
       /**
-      * Triggered before a `<details>` element is toggled between open and closed states.
-      */
+       * Triggered before a `<details>` element is toggled between open and closed states.
+       */
       onBeforeToggle: Event;
 
       /**
-      * Fired when an element loses focus. Does not bubble.
-      */
+       * Fired when an element loses focus. Does not bubble.
+       */
       onBlur: FocusEvent;
 
       /**
-      * Occurs when a user dismisses a cancelable element, such as closing a dialog.
-      */
+       * Occurs when a user dismisses a cancelable element, such as closing a dialog.
+       */
       onCancel: Event;
 
       /**
-      * Fired when media can start playing, but might need to stop for further buffering.
-      */
+       * Fired when media can start playing, but might need to stop for further buffering.
+       */
       onCanPlay: Event;
 
       /**
-      * Occurs when media can play through to the end without interruption.
-      */
+       * Occurs when media can play through to the end without interruption.
+       */
       onCanPlayThrough: Event;
 
       /**
-      * Fired when the value of an input element changes.
-      */
+       * Fired when the value of an input element changes.
+       */
       onChange: Event;
 
       /**
-      * Occurs when a pointing device button (usually a mouse) is pressed and released on an element.
-      */
+       * Occurs when a pointing device button (usually a mouse) is pressed and released on an element.
+       */
       onClick: MouseEvent;
 
       /**
-      * Fired when a window or tab is closed.
-      */
+       * Fired when a window or tab is closed.
+       */
       onClose: Event;
 
       /**
-      * Occurs when a text composition system finishes composing text.
-      */
+       * Occurs when a text composition system finishes composing text.
+       */
       onCompositionEnd: CompositionEvent;
 
       /**
-      * Fired when a text composition system starts composing text.
-      */
+       * Fired when a text composition system starts composing text.
+       */
       onCompositionStart: CompositionEvent;
 
       /**
-      * Occurs when a text composition is updated.
-      */
+       * Occurs when a text composition is updated.
+       */
       onCompositionUpdate: CompositionEvent;
 
       /**
-      * Fired when the right mouse button is pressed to open a context menu.
-      */
+       * Fired when the right mouse button is pressed to open a context menu.
+       */
       onContextMenu: MouseEvent;
 
       /**
-      * Occurs when the user copies text to the clipboard.
-      */
+       * Occurs when the user copies text to the clipboard.
+       */
       onCopy: ClipboardEvent;
 
       /**
-      * Fired when a text track has changed the currently displaying cues.
-      */
+       * Fired when a text track has changed the currently displaying cues.
+       */
       onCueChange: Event;
 
       /**
-      * Occurs when the user cuts text to the clipboard.
-      */
+       * Occurs when the user cuts text to the clipboard.
+       */
       onCut: ClipboardEvent;
 
       /**
-      * Fired when a pointing device button is clicked twice on an element.
-      */
+       * Fired when a pointing device button is clicked twice on an element.
+       */
       onDblClick: MouseEvent;
 
       /**
-      * Occurs when an element or text selection is being dragged.
-      */
+       * Occurs when an element or text selection is being dragged.
+       */
       onDrag: DragEvent;
 
       /**
-      * Fired when a drag operation ends.
-      */
+       * Fired when a drag operation ends.
+       */
       onDragEnd: DragEvent;
 
       /**
-      * Occurs when a dragged element or text selection enters a valid drop target.
-      */
+       * Occurs when a dragged element or text selection enters a valid drop target.
+       */
       onDragEnter: DragEvent;
 
       /**
-      * Fired when a dragged element or text selection leaves a valid drop target.
-      */
+       * Fired when a dragged element or text selection leaves a valid drop target.
+       */
       onDragLeave: DragEvent;
 
       /**
-      * Occurs when an element or text selection is being dragged over a valid drop target.
-      */
+       * Occurs when an element or text selection is being dragged over a valid drop target.
+       */
       onDragOver: DragEvent;
 
       /**
-      * Fired when the user starts dragging an element or text selection.
-      */
+       * Fired when the user starts dragging an element or text selection.
+       */
       onDragStart: DragEvent;
 
       /**
-      * Occurs when an element is dropped on a valid drop target.
-      */
+       * Occurs when an element is dropped on a valid drop target.
+       */
       onDrop: DragEvent;
 
       /**
-      * Fired when the duration of media changes.
-      */
+       * Fired when the duration of media changes.
+       */
       onDurationChange: Event;
 
       /**
-      * Occurs when a media element is reset to its initial state.
-      */
+       * Occurs when a media element is reset to its initial state.
+       */
       onEmptied: Event;
 
       /**
-      * Fired when media playback has stopped because the end of the media was reached.
-      */
+       * Fired when media playback has stopped because the end of the media was reached.
+       */
       onEnded: Event;
 
       /**
-      * Occurs when a resource failed to load or couldn't be used.
-      */
+       * Occurs when a resource failed to load or couldn't be used.
+       */
       onError: ErrorEvent;
 
       /**
-      * Fired when an element receives focus. Does not bubble.
-      */
+       * Fired when an element receives focus. Does not bubble.
+       */
       onFocus: FocusEvent;
 
       /**
-      * Occurs when an element is about to receive focus.
-      */
+       * Occurs when an element is about to receive focus.
+       */
       onFocusIn: FocusEvent;
 
       /**
-      * Fired when an element is about to lose focus.
-      */
+       * Fired when an element is about to lose focus.
+       */
       onFocusOut: FocusEvent;
 
       /**
-      * Occurs when a form's data is updated.
-      */
+       * Occurs when a form's data is updated.
+       */
       onFormData: FormDataEvent;
 
       /**
-      * Fired when an element captures a pointer using setPointerCapture().
-      */
+       * Fired when an element captures a pointer using setPointerCapture().
+       */
       onGotPointerCapture: PointerEvent;
 
       /**
-      * Occurs when the value of an input element changes.
-      */
+       * Occurs when the value of an input element changes.
+       */
       onInput: Event;
 
       /**
-      * Fired when a submittable element has been checked for validity and doesn't satisfy its constraints.
-      */
+       * Fired when a submittable element has been checked for validity and doesn't satisfy its constraints.
+       */
       onInvalid: Event;
 
       /**
-      * Occurs when a key is pressed down.
-      */
+       * Occurs when a key is pressed down.
+       */
       onKeyDown: KeyboardEvent;
 
       /**
-      * @deprecated
-      * Fired when a key that produces a character value is pressed down. Deprecated in favor of beforeinput or keydown.
-      */
+       * @deprecated
+       * Fired when a key that produces a character value is pressed down. Deprecated in favor of beforeinput or keydown.
+       */
       onKeyPress: KeyboardEvent;
 
       /**
-      * Occurs when a key is released.
-      */
+       * Occurs when a key is released.
+       */
       onKeyUp: KeyboardEvent;
 
       /**
-      * Fired when a resource and its dependent resources have finished loading.
-      */
+       * Fired when a resource and its dependent resources have finished loading.
+       */
       onLoad: Event;
 
       /**
-      * Occurs when media data is loaded.
-      */
+       * Occurs when media data is loaded.
+       */
       onLoadedData: Event;
 
       /**
-      * Fired when metadata of media has been loaded.
-      */
+       * Fired when metadata of media has been loaded.
+       */
       onLoadedMetadata: Event;
 
       /**
-      * Occurs when the browser starts looking for specified media.
-      */
+       * Occurs when the browser starts looking for specified media.
+       */
       onLoadStart: Event;
 
       /**
-      * Fired when an element loses pointer capture.
-      */
+       * Fired when an element loses pointer capture.
+       */
       onLostPointerCapture: PointerEvent;
 
       /**
-      * Occurs when a pointing device button is pressed on an element.
-      */
+       * Occurs when a pointing device button is pressed on an element.
+       */
       onMouseDown: MouseEvent;
 
       /**
-      * Fired when a pointing device is moved onto an element. Does not bubble.
-      */
+       * Fired when a pointing device is moved onto an element. Does not bubble.
+       */
       onMouseEnter: MouseEvent;
 
       /**
-      * Occurs when a pointing device is moved off an element. Does not bubble.
-      */
+       * Occurs when a pointing device is moved off an element. Does not bubble.
+       */
       onMouseLeave: MouseEvent;
 
       /**
-      * Fired when a pointing device is moved over an element.
-      */
+       * Fired when a pointing device is moved over an element.
+       */
       onMouseMove: MouseEvent;
 
       /**
-      * Occurs when a pointing device is moved off an element.
-      */
+       * Occurs when a pointing device is moved off an element.
+       */
       onMouseOut: MouseEvent;
 
       /**
-      * Fired when a pointing device is moved onto an element or one of its children.
-      */
+       * Fired when a pointing device is moved onto an element or one of its children.
+       */
       onMouseOver: MouseEvent;
 
       /**
-      * Occurs when a pointing device button is released over an element.
-      */
+       * Occurs when a pointing device button is released over an element.
+       */
       onMouseUp: MouseEvent;
 
       /**
-      * Fired when the user pastes text from the clipboard.
-      */
+       * Fired when the user pastes text from the clipboard.
+       */
       onPaste: ClipboardEvent;
 
       /**
-      * Occurs when media playback is paused.
-      */
+       * Occurs when media playback is paused.
+       */
       onPause: Event;
 
       /**
-      * Fired when media playback is ready to start after having been paused.
-      */
+       * Fired when media playback is ready to start after having been paused.
+       */
       onPlay: Event;
 
       /**
-      * Occurs when media starts playing.
-      */
+       * Occurs when media starts playing.
+       */
       onPlaying: Event;
 
       /**
-      * Fired when a pointer event is canceled.
-      */
+       * Fired when a pointer event is canceled.
+       */
       onPointerCancel: PointerEvent;
 
       /**
-      * Occurs when a pointer becomes active.
-      */
+       * Occurs when a pointer becomes active.
+       */
       onPointerDown: PointerEvent;
 
       /**
-      * Fired when a pointer enters the hit test boundaries of an element. Does not bubble.
-      */
+       * Fired when a pointer enters the hit test boundaries of an element. Does not bubble.
+       */
       onPointerEnter: PointerEvent;
 
       /**
-      * Occurs when a pointer leaves the hit test boundaries of an element. Does not bubble.
-      */
+       * Occurs when a pointer leaves the hit test boundaries of an element. Does not bubble.
+       */
       onPointerLeave: PointerEvent;
 
       /**
-      * Fired when a pointer changes coordinates.
-      */
+       * Fired when a pointer changes coordinates.
+       */
       onPointerMove: PointerEvent;
 
       /**
-      * Occurs when a pointer leaves the hit test boundaries of an element.
-      */
+       * Occurs when a pointer leaves the hit test boundaries of an element.
+       */
       onPointerOut: PointerEvent;
 
       /**
-      * Fired when a pointer enters the hit test boundaries of an element.
-      */
+       * Fired when a pointer enters the hit test boundaries of an element.
+       */
       onPointerOver: PointerEvent;
 
       /**
-      * Occurs when a pointer is no longer active.
-      */
+       * Occurs when a pointer is no longer active.
+       */
       onPointerUp: PointerEvent;
 
       /**
-      * Fired periodically as the browser loads a resource.
-      */
+       * Fired periodically as the browser loads a resource.
+       */
       onProgress: ProgressEvent;
 
       /**
-      * Occurs when the playback rate of media changes.
-      */
+       * Occurs when the playback rate of media changes.
+       */
       onRateChange: Event;
 
       /**
-      * Fired when a form is reset.
-      */
+       * Fired when a form is reset.
+       */
       onReset: Event;
 
       /**
-      * Occurs when the document view is resized.
-      */
+       * Occurs when the document view is resized.
+       */
       onResize: UIEvent;
 
       /**
-      * Fired when the document view or an element has been scrolled.
-      */
+       * Fired when the document view or an element has been scrolled.
+       */
       onScroll: Event;
 
       /**
-      * Occurs when a scrolling interaction completes.
-      */
+       * Occurs when a scrolling interaction completes.
+       */
       onScrollEnd: Event;
 
       /**
-      * Fired when the browser detects a violation of its Content Security Policy.
-      */
+       * Fired when the browser detects a violation of its Content Security Policy.
+       */
       onSecurityPolicyViolation: SecurityPolicyViolationEvent;
 
       /**
-      * Occurs when the seeking attribute is set to false, indicating that seeking has ended.
-      */
+       * Occurs when the seeking attribute is set to false, indicating that seeking has ended.
+       */
       onSeeked: Event;
 
       /**
-      * Fired when the seeking attribute is set to true, indicating that seeking is active.
-      */
+       * Fired when the seeking attribute is set to true, indicating that seeking is active.
+       */
       onSeeking: Event;
 
       /**
-      * Occurs when text is selected in an input field.
-      */
+       * Occurs when text is selected in an input field.
+       */
       onSelect: Event;
 
       /**
-      * Fired when the text selection in an editable element changes.
-      */
+       * Fired when the text selection in an editable element changes.
+       */
       onSelectionChange: Event;
 
       /**
-      * Occurs when a user starts a new text selection.
-      */
+       * Occurs when a user starts a new text selection.
+       */
       onSelectStart: Event;
 
       /**
-      * Fired when the contents of a slot element changes.
-      */
+       * Fired when the contents of a slot element changes.
+       */
       onSlotChange: Event;
 
       /**
-      * Occurs when media data loading has stalled.
-      */
+       * Occurs when media data loading has stalled.
+       */
       onStalled: Event;
 
       /**
-      * Fired when a form is submitted.
-      */
+       * Fired when a form is submitted.
+       */
       onSubmit: SubmitEvent;
 
       /**
-      * Occurs when media data loading has been suspended.
-      */
+       * Occurs when media data loading has been suspended.
+       */
       onSuspend: Event;
 
       /**
-      * Fired when the time indicated by the currentTime attribute has updated.
-      */
+       * Fired when the time indicated by the currentTime attribute has updated.
+       */
       onTimeUpdate: Event;
 
       /**
-      * Occurs when a `<details>` element is toggled between open and closed states.
-      */
+       * Occurs when a `<details>` element is toggled between open and closed states.
+       */
       onToggle: Event;
 
       /**
-      * Fired when a touch point is removed from the touch surface.
-      */
+       * Fired when a touch point is removed from the touch surface.
+       */
       onTouchCancel: TouchEvent;
 
       /**
-      * Occurs when a touch point is removed from the touch surface.
-      */
+       * Occurs when a touch point is removed from the touch surface.
+       */
       onTouchEnd: TouchEvent;
 
       /**
-      * Fired when a touch point is moved along the touch surface.
-      */
+       * Fired when a touch point is moved along the touch surface.
+       */
       onTouchMove: TouchEvent;
 
       /**
-      * Occurs when a touch point is placed on the touch surface.
-      */
+       * Occurs when a touch point is placed on the touch surface.
+       */
       onTouchStart: TouchEvent;
 
       /**
-      * Fired when a CSS transition is canceled.
-      */
+       * Fired when a CSS transition is canceled.
+       */
       onTransitionCancel: TransitionEvent;
 
       /**
-      * Occurs when a CSS transition has completed.
-      */
+       * Occurs when a CSS transition has completed.
+       */
       onTransitionEnd: TransitionEvent;
 
       /**
-      * Fired when a CSS transition is first created.
-      */
+       * Fired when a CSS transition is first created.
+       */
       onTransitionRun: TransitionEvent;
 
       /**
-      * Occurs when a CSS transition has actually started.
-      */
+       * Occurs when a CSS transition has actually started.
+       */
       onTransitionStart: TransitionEvent;
 
       /**
-      * Fired when the volume of media changes.
-      */
+       * Fired when the volume of media changes.
+       */
       onVolumeChange: Event;
 
       /**
-      * Occurs when media playback has stopped because it needs to buffer the next frame.
-      */
+       * Occurs when media playback has stopped because it needs to buffer the next frame.
+       */
       onWaiting: Event;
 
       /**
-      * Fired when a CSS animation ends. WebKit prefix version.
-      */
+       * Fired when a CSS animation ends. WebKit prefix version.
+       */
       onWebkitAnimationEnd: Event;
 
       /**
-      * Occurs when a CSS animation repeats. WebKit prefix version.
-      */
+       * Occurs when a CSS animation repeats. WebKit prefix version.
+       */
       onWebkitAnimationIteration: Event;
 
       /**
-      * Fired when a CSS animation starts. WebKit prefix version.
-      */
+       * Fired when a CSS animation starts. WebKit prefix version.
+       */
       onWebkitAnimationStart: Event;
 
       /**
-      * Occurs when a CSS transition ends. WebKit prefix version.
-      */
+       * Occurs when a CSS transition ends. WebKit prefix version.
+       */
       onWebkitTransitionEnd: Event;
 
       /**
-      * Fired when the user rotates a wheel button on a pointing device.
-      */
+       * Fired when the user rotates a wheel button on a pointing device.
+       */
       onWheel: WheelEvent;
     }
 
     type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
     type AddModifierSuffix<
-      T extends string | number | bigint | boolean | null | undefined
+      T extends string | number | bigint | boolean | null | undefined,
     > = `${T}--${Modifiers}`;
     type RemoveModifierSuffix<U> = U extends `${infer T}--${Modifiers}`
       ? T
@@ -578,494 +578,500 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxAriaAttributes {
       /**
-      * Identifies the element that is currently active within a group.
-      * This supports one active descendant per group.
-      */
+       * Identifies the element that is currently active within a group.
+       * This supports one active descendant per group.
+       */
       ariaActiveDescendant?: string;
 
       /**
-      * Indicates whether an element is considered to be atomic for conveying its meaning to assistive technologies.
-      */
+       * Indicates whether an element is considered to be atomic for conveying its meaning to assistive technologies.
+       */
       ariaAtomic?: Booleanish;
 
       /**
-      * Indicates the type of autocompletion mechanism for this element, if any.
-      */
+       * Indicates the type of autocompletion mechanism for this element, if any.
+       */
       ariaAutocomplete?: 'none' | 'inline' | 'list' | 'both';
 
       /**
-      * Indicates whether the element is busy processing user input.
-      */
+       * Indicates whether the element is busy processing user input.
+       */
       ariaBusy?: Booleanish;
 
       /**
-      * Indicates the current checked state of a checkable element.
-      * Can also be set to "mixed" for checkboxes with indeterminate state.
-      */
+       * Indicates the current checked state of a checkable element.
+       * Can also be set to "mixed" for checkboxes with indeterminate state.
+       */
       ariaChecked?: Booleanish | 'mixed';
 
       /**
-      * Defines the number of columns in a grid or treegrid.
-      */
+       * Defines the number of columns in a grid or treegrid.
+       */
       ariaColCount?: Numberish;
 
       /**
-      * Defines the position of an element within a grid or treegrid.
-      * Starts at 1.
-      */
+       * Defines the position of an element within a grid or treegrid.
+       * Starts at 1.
+       */
       ariaColIndex?: Numberish;
 
       /**
-      * Defines the number of columns spanned by a cell or gridcell.
-      */
+       * Defines the number of columns spanned by a cell or gridcell.
+       */
       ariaColSpan?: Numberish;
 
       /**
-      * Identifies the element(s) that are controlled by this element.
-      * Useful for things like buttons and menus.
-      */
+       * Identifies the element(s) that are controlled by this element.
+       * Useful for things like buttons and menus.
+       */
       ariaControls?: string;
 
       /**
-      * Indicates the current state of an element that supports pagination.
-      * Can be page, step, location, date, or time.
-      */
+       * Indicates the current state of an element that supports pagination.
+       * Can be page, step, location, date, or time.
+       */
       ariaCurrent?: Booleanish | 'page' | 'step' | 'location' | 'date' | 'time';
 
       /**
-      * Identifies the element(s) that describe the object.
-      */
+       * Identifies the element(s) that describe the object.
+       */
       ariaDescribedBy?: string;
 
       /**
-      * Identifies the element that provides a detailed description of the element.
-      */
+       * Identifies the element that provides a detailed description of the element.
+       */
       ariaDetails?: string;
 
       /**
-      * Indicates that the element is disabled.
-      */
+       * Indicates that the element is disabled.
+       */
       ariaDisabled?: Booleanish;
 
       /**
-      * Defines what effects (e.g. copy, move) are allowed during drag and drop operations.
-      */
+       * Defines what effects (e.g. copy, move) are allowed during drag and drop operations.
+       */
       ariaDropEffect?: 'none' | 'copy' | 'execute' | 'link' | 'move' | 'popup';
 
       /**
-      * Identifies the element that provides an error message for the user.
-      */
+       * Identifies the element that provides an error message for the user.
+       */
       ariaErrorMessage?: string;
 
       /**
-      * Indicates whether the element is currently expanded or collapsed.
-      */
+       * Indicates whether the element is currently expanded or collapsed.
+       */
       ariaExpanded?: Booleanish;
 
       /**
-      * Identifies the element(s) that are flowto for this UI element.
-      */
+       * Identifies the element(s) that are flowto for this UI element.
+       */
       ariaFlowTo?: string;
 
       /**
-      * Indicates that the element is currently grabbed by a pointing device.
-      */
+       * Indicates that the element is currently grabbed by a pointing device.
+       */
       ariaGrabbed?: Booleanish;
 
       /**
-      * Indicates whether the element has a popup or flyout menu.
-      * Can specify the type of popup as well (menu, listbox, etc).
-      */
-      ariaHasPopup?: Booleanish | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog';
+       * Indicates whether the element has a popup or flyout menu.
+       * Can specify the type of popup as well (menu, listbox, etc).
+       */
+      ariaHasPopup?:
+        | Booleanish
+        | 'menu'
+        | 'listbox'
+        | 'tree'
+        | 'grid'
+        | 'dialog';
 
       /**
-      * Indicates whether the element is hidden or not exposed to the user agent.
-      */
+       * Indicates whether the element is hidden or not exposed to the user agent.
+       */
       ariaHidden?: Booleanish;
 
       /**
-      * Indicates whether the element is valid or invalid.
-      * Can also specify the type of error (grammar, spelling).
-      */
+       * Indicates whether the element is valid or invalid.
+       * Can also specify the type of error (grammar, spelling).
+       */
       ariaInvalid?: Booleanish | 'grammar' | 'spelling';
 
       /**
-      * Identifies a keyboard shortcut for activating or manipulating an element.
-      */
+       * Identifies a keyboard shortcut for activating or manipulating an element.
+       */
       ariaKeyShortcuts?: string;
 
       /**
-      * Provides a string that describes the element to the user.
-      */
+       * Provides a string that describes the element to the user.
+       */
       ariaLabel?: string;
 
       /**
-      * Identifies the element(s) that label this element.
-      */
+       * Identifies the element(s) that label this element.
+       */
       ariaLabelledBy?: string;
 
       /**
-      * Defines the hierarchical level of an element within a structure.
-      */
+       * Defines the hierarchical level of an element within a structure.
+       */
       ariaLevel?: Numberish;
 
       /**
-      * Indicates how live updates are presented to the user.
-      * Options are "off", "assertive", or "polite".
-      */
+       * Indicates how live updates are presented to the user.
+       * Options are "off", "assertive", or "polite".
+       */
       ariaLive?: 'off' | 'assertive' | 'polite';
 
       /**
-      * Indicates that element is modal, meaning it blocks interaction with the browser underneath it.
-      */
+       * Indicates that element is modal, meaning it blocks interaction with the browser underneath it.
+       */
       ariaModal?: Booleanish;
 
       /**
-      * Indicates whether the element can contain multiple lines of text.
-      */
+       * Indicates whether the element can contain multiple lines of text.
+       */
       ariaMultiline?: Booleanish;
 
       /**
-      * Indicates whether multiple items can be selected within this element.
-      */
+       * Indicates whether multiple items can be selected within this element.
+       */
       ariaMultiSelectable?: Booleanish;
 
       /**
-      * Indicates the spatial orientation of the content.
-      */
+       * Indicates the spatial orientation of the content.
+       */
       ariaOrientation?: 'horizontal' | 'vertical';
 
       /**
-      * Identifies the element(s) that are owned by this element.
-      * Useful for things like tabs and menu items.
-      */
+       * Identifies the element(s) that are owned by this element.
+       * Useful for things like tabs and menu items.
+       */
       ariaOwns?: string;
 
       /**
-      * Provides a placeholder text for an input field.
-      */
+       * Provides a placeholder text for an input field.
+       */
       ariaPlaceholder?: string;
 
       /**
-      * Defines the vertical offset from the insertion point.
-      */
+       * Defines the vertical offset from the insertion point.
+       */
       ariaPosInset?: Numberish;
 
       /**
-      * Indicates the current pressed state of a toggle button or switch.
-      * Can also be set to "mixed" for indeterminate state.
-      */
+       * Indicates the current pressed state of a toggle button or switch.
+       * Can also be set to "mixed" for indeterminate state.
+       */
       ariaPressed?: Booleanish | 'mixed';
 
       /**
-      * Indicates that the element is read-only.
-      */
+       * Indicates that the element is read-only.
+       */
       ariaReadonly?: Booleanish;
 
       /**
-      * Defines what updates are relevant to the user.
-      * Many options including "text", "additions", "removals", etc.
-      */
+       * Defines what updates are relevant to the user.
+       * Many options including "text", "additions", "removals", etc.
+       */
       ariaRelevant?:
-      | 'additions'
-      | 'additions removals'
-      | 'additions text'
-      | 'all'
-      | 'removals'
-      | 'removals additions'
-      | 'removals text'
-      | 'text'
-      | 'text additions'
-      | 'text removals';
+        | 'additions'
+        | 'additions removals'
+        | 'additions text'
+        | 'all'
+        | 'removals'
+        | 'removals additions'
+        | 'removals text'
+        | 'text'
+        | 'text additions'
+        | 'text removals';
 
       /**
-      * Indicates that user input is required on this element.
-      */
+       * Indicates that user input is required on this element.
+       */
       ariaRequired?: Booleanish;
 
       /**
-      * Defines a human-readable description for the element's role.
-      */
+       * Defines a human-readable description for the element's role.
+       */
       ariaRoleDescription?: string;
 
       /**
-      * Defines the number of rows in a grid or treegrid.
-      */
+       * Defines the number of rows in a grid or treegrid.
+       */
       ariaRowCount?: Numberish;
 
       /**
-      * Defines the position of an element within a grid or treegrid.
-      * Starts at 1.
-      */
+       * Defines the position of an element within a grid or treegrid.
+       * Starts at 1.
+       */
       ariaRowIndex?: Numberish;
 
       /**
-      * Defines the number of rows spanned by a cell or gridcell.
-      */
+       * Defines the number of rows spanned by a cell or gridcell.
+       */
       ariaRowSpan?: Numberish;
 
       /**
-      * Indicates whether the element is currently selected.
-      */
+       * Indicates whether the element is currently selected.
+       */
       ariaSelected?: Booleanish;
 
       /**
-      * Defines the total number of items in a set or collection.
-      */
+       * Defines the total number of items in a set or collection.
+       */
       ariaSetSize?: Numberish;
 
       /**
-      * Indicates how data within the element is sorted.
-      * Options are "none", "ascending", "descending", or "other".
-      */
+       * Indicates how data within the element is sorted.
+       * Options are "none", "ascending", "descending", or "other".
+       */
       ariaSort?: 'none' | 'ascending' | 'descending' | 'other';
 
       /**
-      * Defines the maximum permitted value for a range element.
-      */
+       * Defines the maximum permitted value for a range element.
+       */
       ariaValueMax?: Numberish;
 
       /**
-      * Defines the minimum permitted value for a range element.
-      */
+       * Defines the minimum permitted value for a range element.
+       */
       ariaValueMin?: Numberish;
 
       /**
-      * Defines the current value for a range element.
-      */
+       * Defines the current value for a range element.
+       */
       ariaValueNow?: Numberish;
 
       /**
-      * Provides the current value of the element as text.
-      */
+       * Provides the current value of the element as text.
+       */
       ariaValueText?: string;
     }
 
     /**
-    * Represents the global attributes available on JSX elements in TypeScript.
-    */
+     * Represents the global attributes available on JSX elements in TypeScript.
+     */
     interface JSXGlobalAttributes {
       /**
-      * Sets or retrieves the HTML content (inner markup) of an element.
-      */
+       * Sets or retrieves the HTML content (inner markup) of an element.
+       */
       innerHTML?: string;
 
       /**
-      * Assigns a space-separated list of CSS classes to the element.
-      */
+       * Assigns a space-separated list of CSS classes to the element.
+       */
       // The class can be a string, an array of string, an iterable,
       // an object with string keys, or a combination of the above.
       // It is hard to type.
       class?: unknown;
 
       /**
-      * Defines inline CSS styles for the element. Can be a string or an object.
-      */
+       * Defines inline CSS styles for the element. Can be a string or an object.
+       */
       style?: StyleValue;
 
       /**
-      * Keyboard shortcut to activate or focus the element.
-      */
+       * Keyboard shortcut to activate or focus the element.
+       */
       accessKey?: string;
 
       /**
-      * Whether the element's content is editable or not.
-      * Can be a boolean, 'inherit', or 'plaintext-only'.
-      */
+       * Whether the element's content is editable or not.
+       * Can be a boolean, 'inherit', or 'plaintext-only'.
+       */
       contenteditable?: Booleanish | 'inherit' | 'plaintext-only';
 
       /**
-      * The associated context menu of the element, identified by its ID.
-      */
+       * The associated context menu of the element, identified by its ID.
+       */
       contextMenu?: string;
 
       /**
-      * Specifies the element's text direction (LTR or RTL).
-      */
+       * Specifies the element's text direction (LTR or RTL).
+       */
       dir?: string;
 
       /**
-      * Defines whether the element can be dragged or not.
-      * Can be a boolean or undefined.
-      */
+       * Defines whether the element can be dragged or not.
+       * Can be a boolean or undefined.
+       */
       draggable?: Booleanish;
 
       /**
-      * Whether the element is hidden or not.
-      * Can be a boolean, '', 'hidden', or 'until-found'.
-      */
+       * Whether the element is hidden or not.
+       * Can be a boolean, '', 'hidden', or 'until-found'.
+       */
       hidden?: Booleanish | '' | 'hidden' | 'until-found';
 
       /**
-      * Specifies the name of the slot that the element is assigned to.
-      */
+       * Specifies the name of the slot that the element is assigned to.
+       */
       slot?: string;
 
       /**
-      * Uniquely identifies the element within a document.
-      */
+       * Uniquely identifies the element within a document.
+       */
       id?: string;
 
       /**
-      * Indicates that the element should not be included in tab navigation.
-      * Can be a boolean or undefined.
-      */
+       * Indicates that the element should not be included in tab navigation.
+       * Can be a boolean or undefined.
+       */
       inert?: Booleanish;
 
       /**
-      * Specifies the element's language.
-      */
+       * Specifies the element's language.
+       */
       lang?: string;
 
       /**
-      * Defines a part of the element that can be styled from
-      * outside the shadow DOM.
-      */
+       * Defines a part of the element that can be styled from
+       * outside the shadow DOM.
+       */
       part?: string;
 
       /**
-      * A hint for the type of text expected in an input field.
-      */
+       * A hint for the type of text expected in an input field.
+       */
       placeholder?: string;
 
       /**
-      * Enables or disables spell checking on the element.
-      * Can be a boolean or undefined.
-      */
+       * Enables or disables spell checking on the element.
+       * Can be a boolean or undefined.
+       */
       spellcheck?: Booleanish;
 
       /**
-      * Sets the element's position in the tab order.
-      */
+       * Sets the element's position in the tab order.
+       */
       tabIndex?: Numberish;
 
       /**
-      * Advisory text information about the element.
-      */
+       * Advisory text information about the element.
+       */
       title?: string;
 
       /**
-      * Specifies whether the content of an element should be translated or not.
-      */
+       * Specifies whether the content of an element should be translated or not.
+       */
       translate?: 'yes' | 'no';
 
       /**
-      * The name of the radio group that the radio button belongs to.
-      */
+       * The name of the radio group that the radio button belongs to.
+       */
       radioGroup?: string;
 
       /**
-      * Defines an expected attribute type for an element.
-      */
+       * Defines an expected attribute type for an element.
+       */
       role?: string;
 
       /**
-      * Optional metadata about the element, similar to the `about` attribute in HTML.
-      */
+       * Optional metadata about the element, similar to the `about` attribute in HTML.
+       */
       about?: string;
 
       /**
-      * A machine-readable definition of the content type of the element.
-      */
+       * A machine-readable definition of the content type of the element.
+       */
       dataType?: string;
 
       /**
-      * A hint for the type of data expected for the property specified by the 'property' attribute.
-      */
+       * A hint for the type of data expected for the property specified by the 'property' attribute.
+       */
       prefix?: string;
 
       /**
-      * The name of the property the element represents.
-      */
+       * The name of the property the element represents.
+       */
       property?: string;
 
       /**
-      * A URI that describes the resource referenced by the element.
-      */
+       * A URI that describes the resource referenced by the element.
+       */
       resource?: string;
 
       /**
-      * The expected MIME type of the resource.
-      */
+       * The expected MIME type of the resource.
+       */
       typeof?: string;
 
       /**
-      * A vocabulary for defining or describing groups of related items.
-      */
+       * A vocabulary for defining or describing groups of related items.
+       */
       vocab?: string;
 
       /**
-      * Controls the capitalization of text entered into an element.
-      */
+       * Controls the capitalization of text entered into an element.
+       */
       autoCapitalize?: string;
 
       /**
-      * Enables or disables autocorrection for the element's content.
-      */
+       * Enables or disables autocorrection for the element's content.
+       */
       autoCorrect?: string;
 
       /**
-      * Configures the behavior of the on-screen keyboard for the element.
-      */
+       * Configures the behavior of the on-screen keyboard for the element.
+       */
       autoSave?: string;
 
       /**
-      * The foreground (text) color of the element.
-      */
+       * The foreground (text) color of the element.
+       */
       color?: string;
 
       /**
-      * Defines a property that specifies one or more item properties for microdata.
-      */
+       * Defines a property that specifies one or more item properties for microdata.
+       */
       itemProp?: string;
 
       /**
-      * Specifies whether the element is part of an item scope.
-      * Can be a boolean or undefined.
-      */
+       * Specifies whether the element is part of an item scope.
+       * Can be a boolean or undefined.
+       */
       itemScope?: Booleanish;
 
       /**
-      * Specifies the element's scope (e.g., for microdata).
-      */
+       * Specifies the element's scope (e.g., for microdata).
+       */
       itemType?: string;
 
       /**
-      * References one or more elements that are considered part of the same item.
-      */
+       * References one or more elements that are considered part of the same item.
+       */
       itemRef?: string;
 
       /**
-      * Defines the expected number of results displayed for a search operation.
-      */
+       * Defines the expected number of results displayed for a search operation.
+       */
       results?: Numberish;
 
       /**
-      * Defines security risks on the element.
-      */
+       * Defines security risks on the element.
+       */
       security?: string;
 
       /**
-      * Indicates whether an element's content can be selected by the user.
-      */
+       * Indicates whether an element's content can be selected by the user.
+       */
       unselectable?: 'on' | 'off';
 
       /**
-      * Controls the type of input method to be used for the element.
-      */
+       * Controls the type of input method to be used for the element.
+       */
       inputmode?:
-      | 'none'
-      | 'text'
-      | 'tel'
-      | 'url'
-      | 'email'
-      | 'numeric'
-      | 'decimal'
-      | 'search';
+        | 'none'
+        | 'text'
+        | 'tel'
+        | 'url'
+        | 'email'
+        | 'numeric'
+        | 'decimal'
+        | 'search';
 
       /**
-      * Turns an element into a popover element; takes a popover state ("auto" or "manual") as its value.
-      */
+       * Turns an element into a popover element; takes a popover state ("auto" or "manual") as its value.
+       */
       popover?: 'auto' | 'manual';
     }
 
@@ -1083,7 +1089,7 @@ declare module 'retend/jsx-runtime' {
       ref?: import('retend').Cell<unknown>;
       children?: Children;
       dangerouslySetInnerHTML?: {
-        __html: string;
+        __html: JSX.ValueOrCellOrPromise<string>;
       };
       xmlns?: string;
     }
@@ -1091,158 +1097,159 @@ declare module 'retend/jsx-runtime' {
     type DatasetAttributes = Record<`data-${string}`, string>;
 
     interface JsxHtmlElement<E = HTMLElement>
-      extends JSXGlobalAttributes,
-      JsxAriaAttributes,
-      JsxGlobalEventHandlers<E>,
-      DatasetAttributes,
-      JsxNativeProps { }
+      extends
+        JSXGlobalAttributes,
+        JsxAriaAttributes,
+        JsxGlobalEventHandlers<E>,
+        DatasetAttributes,
+        JsxNativeProps {}
 
     interface JsxHtmlAnchorElement extends JsxHtmlElement<HTMLAnchorElement> {
       /**
-      * Specifies the filename of the linked content when downloaded.
-      */
+       * Specifies the filename of the linked content when downloaded.
+       */
       download?: string;
 
       /**
-      * Sets the URL of the linked content.
-      */
+       * Sets the URL of the linked content.
+       */
       href?: string;
 
       /**
-      * Defines the language of the linked content.
-      */
+       * Defines the language of the linked content.
+       */
       hreflang?: string;
 
       /**
-      * Specifies the media types that the link applies to.
-      */
+       * Specifies the media types that the link applies to.
+       */
       media?: string;
 
       /**
-      * A space-separated list of URLs that should be pinged when the link is clicked.
-      */
+       * A space-separated list of URLs that should be pinged when the link is clicked.
+       */
       ping?: string;
 
       /**
-      * Defines the relationship between the current document and the linked content.
-      */
+       * Defines the relationship between the current document and the linked content.
+       */
       rel?: string;
 
       /**
-      * Sets the name of the frame to display the linked content.
-      */
+       * Sets the name of the frame to display the linked content.
+       */
       target?: string;
 
       /**
-      * Specifies the media type of the linked content.
-      */
+       * Specifies the media type of the linked content.
+       */
       type?: string;
 
       /**
-      * Defines which referrer information to send when following the link.
-      */
+       * Defines which referrer information to send when following the link.
+       */
       referrerpolicy?: HTMLAttributeReferrerPolicy;
     }
 
     interface JsxAreaElement extends JsxHtmlElement<HTMLAreaElement> {
       /**
-      * Alternative text for the link.
-      */
+       * Alternative text for the link.
+       */
       alt?: string;
 
       /**
-      * Coordinates for the area of a link.
-      */
+       * Coordinates for the area of a link.
+       */
       coords?: string;
 
       /**
-      * Indicates that the linked resource should be downloaded instead of navigating to it.
-      */
+       * Indicates that the linked resource should be downloaded instead of navigating to it.
+       */
       download?: string;
 
       /**
-      * The URL of the linked resource.
-      */
+       * The URL of the linked resource.
+       */
       href?: string;
 
       /**
-      * The language of the linked resource.
-      */
+       * The language of the linked resource.
+       */
       hreflang?: string;
 
       /**
-      * The media type of the linked resource.
-      */
+       * The media type of the linked resource.
+       */
       media?: string;
 
       /**
-      * The referrer policy for the link.
-      */
+       * The referrer policy for the link.
+       */
       referrerpolicy?: HTMLAttributeReferrerPolicy;
 
       /**
-      * The relationship between the current document and the linked resource.
-      */
+       * The relationship between the current document and the linked resource.
+       */
       rel?: string;
 
       /**
-      * The shape of the link area.
-      */
+       * The shape of the link area.
+       */
       shape?: string;
 
       /**
-      * The target for the linked resource.
-      */
+       * The target for the linked resource.
+       */
       target?: string;
     }
     interface JsxAudioElement extends JsxHtmlElement<HTMLAudioElement> {
       /**
-      * Specifies that the audio will automatically start playing as soon as it can do so without stopping.
-      */
+       * Specifies that the audio will automatically start playing as soon as it can do so without stopping.
+       */
       autoplay?: Booleanish;
 
       /**
-      * Specifies that audio controls should be displayed.
-      */
+       * Specifies that audio controls should be displayed.
+       */
       controls?: Booleanish;
 
       /**
-      * Specifies that the audio will start over again every time it is finished.
-      */
+       * Specifies that the audio will start over again every time it is finished.
+       */
       loop?: Booleanish;
 
       /**
-      * Specifies that the audio output should be muted.
-      */
+       * Specifies that the audio output should be muted.
+       */
       muted?: Booleanish;
 
       /**
-      * Specifies the URL of the audio file.
-      */
+       * Specifies the URL of the audio file.
+       */
       src?: string;
 
       /**
-      * Specifies if and how the author thinks the audio should be loaded when the page loads.
-      */
+       * Specifies if and how the author thinks the audio should be loaded when the page loads.
+       */
       preload?: 'auto' | 'metadata' | 'none';
     }
 
     interface JsxBaseElement extends JsxHtmlElement<HTMLBaseElement> {
       /**
-      * Specifies the base URL for all relative URLs in the page.
-      */
+       * Specifies the base URL for all relative URLs in the page.
+       */
       href?: string;
 
       /**
-      * Specifies the default target for all hyperlinks and forms in the page.
-      */
+       * Specifies the default target for all hyperlinks and forms in the page.
+       */
       target?: string;
     }
 
     interface JsxBodyElement extends JsxHtmlElement<HTMLBodyElement> {
       /**
-      * Fires when the user is about to leave the page.
-      */
+       * Fires when the user is about to leave the page.
+       */
       onBeforeUnload?: (event: BeforeUnloadEvent) => void;
       'onBeforeUnload--self'?: (
         this: HTMLBodyElement,
@@ -1268,96 +1275,95 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxHtmlButtonElement extends JsxHtmlElement<HTMLButtonElement> {
       /**
-      * Automatically focuses the button when the page loads.
-      */
+       * Automatically focuses the button when the page loads.
+       */
       autofocus?: Booleanish;
 
       /**
-      * Disables the button, making it non-interactive.
-      */
+       * Disables the button, making it non-interactive.
+       */
       disabled?: Booleanish;
 
       /**
-      * Associates the button with a form element.
-      */
+       * Associates the button with a form element.
+       */
       form?: string;
 
       /**
-      * Specifies the URL to process the form submission.
-      */
+       * Specifies the URL to process the form submission.
+       */
       formAction?: string;
 
       /**
-      * Specifies how form data should be encoded when submitting.
-      */
+       * Specifies how form data should be encoded when submitting.
+       */
       formEnctype?: string;
 
       /**
-      * Specifies the HTTP method to use when submitting the form.
-      */
+       * Specifies the HTTP method to use when submitting the form.
+       */
       formMethod?: string;
 
       /**
-      * Specifies that form validation should not be performed when submitting.
-      */
+       * Specifies that form validation should not be performed when submitting.
+       */
       formNoValidate?: Booleanish;
 
       /**
-      * Specifies where to display the response after submitting the form.
-      */
+       * Specifies where to display the response after submitting the form.
+       */
       formTarget?: string;
 
       /**
-      * Specifies a name for the button.
-      */
+       * Specifies a name for the button.
+       */
       name?: string;
 
       /**
-      * Specifies the type of button.
-      */
+       * Specifies the type of button.
+       */
       type?: 'submit' | 'reset' | 'button';
 
       /**
-      * Specifies the initial value for the button.
-      */
+       * Specifies the initial value for the button.
+       */
       value?: string | ReadonlyArray<string> | number;
 
       /**
-      * Adds a popover control to the button taking the ID of the popover element to control as its value.
-      */
+       * Adds a popover control to the button taking the ID of the popover element to control as its value.
+       */
       popoverTarget?: string;
 
       /**
-      * Specifies the action to be triggered on the popover element set as the popover target.
-      */
+       * Specifies the action to be triggered on the popover element set as the popover target.
+       */
       popoverTargetAction?: 'hide' | 'show' | 'toggle';
     }
 
     interface JsxCanvasElement extends JsxHtmlElement<HTMLCanvasElement> {
       /**
-      * Specifies the height of the canvas.
-      */
+       * Specifies the height of the canvas.
+       */
       height?: number | string;
 
       /**
-      * Specifies the width of the canvas.
-      */
+       * Specifies the width of the canvas.
+       */
       width?: number | string;
     }
 
-    interface JsxTableCaptionElement
-      extends JsxHtmlElement<HTMLTableCaptionElement> {
+    interface JsxTableCaptionElement extends JsxHtmlElement<HTMLTableCaptionElement> {
       /**
-      * Specifies the alignment of the caption.
-      * @deprecated This attribute is not supported in HTML5.
-      */
+       * Specifies the alignment of the caption.
+       * @deprecated This attribute is not supported in HTML5.
+       */
       align?: 'top' | 'bottom' | 'left' | 'right';
     }
 
     interface JsxDataElement extends JsxHtmlElement<HTMLDataElement> {
       /**
-      * Specifies the machine-readable translation of the content.
-      */
+       * Specifies the machine-readable translation of the content.
+       */
       value?: string;
     }
 
@@ -1367,15 +1373,15 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxDetailsElement extends JsxHtmlElement<HTMLDetailsElement> {
       /**
-      * Specifies whether the details should be visible (open) to the user.
-      */
+       * Specifies whether the details should be visible (open) to the user.
+       */
       open?: Booleanish;
     }
 
     interface JsxDialogElement extends JsxHtmlElement<HTMLDialogElement> {
       /**
-      * Indicates that the dialog is active and can be interacted with.
-      */
+       * Indicates that the dialog is active and can be interacted with.
+       */
       open?: Booleanish;
     }
 
@@ -1385,82 +1391,82 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxEmbedElement extends JsxHtmlElement<HTMLEmbedElement> {
       /**
-      * Specifies the height of the embedded content.
-      */
+       * Specifies the height of the embedded content.
+       */
       height?: number | string;
 
       /**
-      * Specifies the address of the external file to embed.
-      */
+       * Specifies the address of the external file to embed.
+       */
       src?: string;
 
       /**
-      * Specifies the MIME type of the embedded content.
-      */
+       * Specifies the MIME type of the embedded content.
+       */
       type?: string;
 
       /**
-      * Specifies the width of the embedded content.
-      */
+       * Specifies the width of the embedded content.
+       */
       width?: number | string;
     }
 
     interface JsxFieldSetElement extends JsxHtmlElement<HTMLFieldSetElement> {
       /**
-      * Specifies that the fieldset should be disabled.
-      */
+       * Specifies that the fieldset should be disabled.
+       */
       disabled?: Booleanish;
 
       /**
-      * Specifies which form the fieldset belongs to.
-      */
+       * Specifies which form the fieldset belongs to.
+       */
       form?: string;
 
       /**
-      * Specifies a name for the fieldset.
-      */
+       * Specifies a name for the fieldset.
+       */
       name?: string;
     }
 
     interface JsxFormElement extends JsxHtmlElement<HTMLFormElement> {
       /**
-      * Specifies the character encodings that are to be used for the form submission.
-      */
+       * Specifies the character encodings that are to be used for the form submission.
+       */
       acceptCharset?: string;
 
       /**
-      * Specifies where to send the form-data when a form is submitted.
-      */
+       * Specifies where to send the form-data when a form is submitted.
+       */
       action?: string;
 
       /**
-      * Specifies whether the form should have autocomplete on or off.
-      */
+       * Specifies whether the form should have autocomplete on or off.
+       */
       autoComplete?: 'on' | 'off';
 
       /**
-      * Specifies how the form-data should be encoded when submitting it to the server.
-      */
+       * Specifies how the form-data should be encoded when submitting it to the server.
+       */
       encType?: string;
 
       /**
-      * Specifies the HTTP method to use when sending form-data.
-      */
+       * Specifies the HTTP method to use when sending form-data.
+       */
       method?: 'get' | 'post';
 
       /**
-      * Specifies the name of the form.
-      */
+       * Specifies the name of the form.
+       */
       name?: string;
 
       /**
-      * Specifies that the form should not be validated when submitted.
-      */
+       * Specifies that the form should not be validated when submitted.
+       */
       noValidate?: Booleanish;
 
       /**
-      * Specifies where to display the response that is received after submitting the form.
-      */
+       * Specifies where to display the response that is received after submitting the form.
+       */
       target?: string;
     }
 
@@ -1474,217 +1480,217 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxIFrameElement extends JsxHtmlElement<HTMLIFrameElement> {
       /**
-      * Specifies a feature policy for the `<iframe>`.
-      */
+       * Specifies a feature policy for the `<iframe>`.
+       */
       allow?: string;
 
       /**
-      * Set to true to allow fullscreen mode.
-      */
+       * Set to true to allow fullscreen mode.
+       */
       allowFullScreen?: Booleanish;
 
       /**
-      * Specifies the height of the iframe.
-      */
+       * Specifies the height of the iframe.
+       */
       height?: number | string;
 
       /**
-      * Specifies which referrer information to send when fetching the frame's resource.
-      */
+       * Specifies which referrer information to send when fetching the frame's resource.
+       */
       referrerPolicy?: HTMLAttributeReferrerPolicy;
 
       /**
-      * Specifies extra HTML attributes for the iframe.
-      */
+       * Specifies extra HTML attributes for the iframe.
+       */
       sandbox?: string;
 
       /**
-      * Specifies the address of the document to embed in the iframe.
-      */
+       * Specifies the address of the document to embed in the iframe.
+       */
       src?: string;
 
       /**
-      * Specifies the content to be displayed in browsers that do not support iframes.
-      */
+       * Specifies the content to be displayed in browsers that do not support iframes.
+       */
       srcdoc?: string;
 
       /**
-      * Specifies the width of the iframe.
-      */
+       * Specifies the width of the iframe.
+       */
       width?: number | string;
     }
 
     interface JsxImageElement extends JsxHtmlElement<HTMLImageElement> {
       /**
-      * Specifies an alternate text for the image.
-      */
+       * Specifies an alternate text for the image.
+       */
       alt?: string;
 
       /**
-      * Specifies the height of the image.
-      */
+       * Specifies the height of the image.
+       */
       height?: number | string;
 
       /**
-      * Specifies whether the image is a server-side image map.
-      */
+       * Specifies whether the image is a server-side image map.
+       */
       isMap?: Booleanish;
 
       /**
-      * Specifies an image as a client-side image map.
-      */
+       * Specifies an image as a client-side image map.
+       */
       useMap?: string;
 
       /**
-      * Specifies the URL of the image.
-      */
+       * Specifies the URL of the image.
+       */
       src?: string;
 
       /**
-      * Specifies a list of image URLs to use in different situations.
-      */
+       * Specifies a list of image URLs to use in different situations.
+       */
       srcSet?: string;
 
       /**
-      * Specifies the width of the image.
-      */
+       * Specifies the width of the image.
+       */
       width?: number | string;
 
       /**
-      * Specifies how the image should be loaded.
-      */
+       * Specifies how the image should be loaded.
+       */
       loading?: 'eager' | 'lazy';
     }
 
     interface JsxInputElement extends JsxHtmlElement<HTMLInputElement> {
       /**
-      * Specifies that the input should automatically get focus when the page loads.
-      */
+       * Specifies that the input should automatically get focus when the page loads.
+       */
       autoFocus?: Booleanish;
 
       /**
-      * Specifies whether the input is checked.
-      */
+       * Specifies whether the input is checked.
+       */
       checked?: Booleanish;
 
       /**
-      * Specifies that the input field is disabled.
-      */
+       * Specifies that the input field is disabled.
+       */
       disabled?: Booleanish;
 
       /**
-      * Specifies the form the input belongs to.
-      */
+       * Specifies the form the input belongs to.
+       */
       form?: string;
 
       /**
-      * Specifies the URL of the file to use as the form submission value.
-      */
+       * Specifies the URL of the file to use as the form submission value.
+       */
       formAction?: string;
 
       /**
-      * Specifies how form-data should be encoded before sending it to a server.
-      */
+       * Specifies how form-data should be encoded before sending it to a server.
+       */
       formEncType?: string;
 
       /**
-      * Specifies the HTTP method to use when sending form-data.
-      */
+       * Specifies the HTTP method to use when sending form-data.
+       */
       formMethod?: string;
 
       /**
-      * Specifies that the form-data should not be validated on submission.
-      */
+       * Specifies that the form-data should not be validated on submission.
+       */
       formNoValidate?: Booleanish;
 
       /**
-      * Specifies where to display the response after submitting the form.
-      */
+       * Specifies where to display the response after submitting the form.
+       */
       formTarget?: string;
 
       /**
-      * Specifies the maximum value for an input field.
-      */
+       * Specifies the maximum value for an input field.
+       */
       max?: number | string;
 
       /**
-      * Specifies the maximum number of characters allowed in the textarea.
-      */
+       * Specifies the maximum number of characters allowed in the textarea.
+       */
       maxlength?: Numberish;
 
       /**
-      * Specifies a minimum value for an input field.
-      */
+       * Specifies a minimum value for an input field.
+       */
       min?: number | string;
 
       /**
-      * Specifies the minimum number of characters allowed in the textarea.
-      */
+       * Specifies the minimum number of characters allowed in the textarea.
+       */
       minlength?: Numberish;
 
       /**
-      * Specifies that a user can enter more than one value in an input field.
-      */
+       * Specifies that a user can enter more than one value in an input field.
+       */
       multiple?: Booleanish;
 
       /**
-      * Specifies the name of the input element.
-      */
+       * Specifies the name of the input element.
+       */
       name?: string;
 
       /**
-      * Specifies a regular expression that the input's value is checked against.
-      */
+       * Specifies a regular expression that the input's value is checked against.
+       */
       pattern?: string;
 
       /**
-      * Specifies a short hint that describes the expected value of the input field.
-      */
+       * Specifies a short hint that describes the expected value of the input field.
+       */
       placeholder?: string;
 
       /**
-      * Specifies that the input field is read-only.
-      */
+       * Specifies that the input field is read-only.
+       */
       readOnly?: Booleanish;
 
       /**
-      * Specifies that the input field must be filled out before submitting the form.
-      */
+       * Specifies that the input field must be filled out before submitting the form.
+       */
       required?: Booleanish;
 
       /**
-      * Specifies the visible width of a text input.
-      */
+       * Specifies the visible width of a text input.
+       */
       size?: number;
 
       /**
-      * Specifies the URL of the image to use as a submit button.
-      */
+       * Specifies the URL of the image to use as a submit button.
+       */
       src?: string;
 
       /**
-      * Specifies the interval between legal numbers in an input field.
-      */
+       * Specifies the interval between legal numbers in an input field.
+       */
       step?: number | string;
 
       /**
-      * Specifies the type of input element to display.
-      */
+       * Specifies the type of input element to display.
+       */
       type?: string;
 
       /**
-      * Specifies the initial value of the input element.
-      */
+       * Specifies the initial value of the input element.
+       */
       value?: string;
 
       /**
-      * Adds a popover control to the button taking the ID of the popover element to control as its value.
-      */
+       * Adds a popover control to the button taking the ID of the popover element to control as its value.
+       */
       popoverTarget?: string;
 
       /**
-      * Specifies the action to be triggered on the popover element set as the popover target.
-      */
+       * Specifies the action to be triggered on the popover element set as the popover target.
+       */
       popoverTargetAction?: 'hide' | 'show' | 'toggle';
     }
 
@@ -1726,13 +1732,13 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxLabelElement extends JsxHtmlElement<HTMLLabelElement> {
       /**
-      * Specifies which form element a label is bound to.
-      */
+       * Specifies which form element a label is bound to.
+       */
       for?: string;
 
       /**
-      * Specifies the form that the label belongs to.
-      */
+       * Specifies the form that the label belongs to.
+       */
       form?: string;
     }
 
@@ -1742,211 +1748,211 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxLIElement extends JsxHtmlElement<HTMLLIElement> {
       /**
-      * Specifies the value of a list item. Only for ordered lists.
-      */
+       * Specifies the value of a list item. Only for ordered lists.
+       */
       value?: number;
     }
 
     interface JsxLinkElement extends JsxHtmlElement<HTMLLinkElement> {
       /**
-      * Specifies how the element handles cross-origin requests.
-      */
+       * Specifies how the element handles cross-origin requests.
+       */
       crossOrigin?: string;
 
       /**
-      * Specifies the URL of the linked resource.
-      */
+       * Specifies the URL of the linked resource.
+       */
       href?: string;
 
       /**
-      * Specifies the language of the linked resource.
-      */
+       * Specifies the language of the linked resource.
+       */
       hrefLang?: string;
 
       /**
-      * Specifies on which media/device the linked resource should be displayed.
-      */
+       * Specifies on which media/device the linked resource should be displayed.
+       */
       media?: string;
 
       /**
-      * Specifies which referrer information to send with the linked resource.
-      */
+       * Specifies which referrer information to send with the linked resource.
+       */
       referrerPolicy?: HTMLAttributeReferrerPolicy;
 
       /**
-      * Specifies the relationship between the current document and the linked resource.
-      */
+       * Specifies the relationship between the current document and the linked resource.
+       */
       rel?: string;
 
       /**
-      * Specifies the size of the linked resource. Only for rel="icon".
-      */
+       * Specifies the size of the linked resource. Only for rel="icon".
+       */
       sizes?: string;
 
       /**
-      * Specifies the media type of the linked resource.
-      */
+       * Specifies the media type of the linked resource.
+       */
       type?: string;
     }
 
     interface JsxMapElement extends JsxHtmlElement<HTMLMapElement> {
       /**
-      * Specifies the name of the map element.
-      */
+       * Specifies the name of the map element.
+       */
       name?: string;
     }
 
     interface JsxMenuElement extends JsxHtmlElement<HTMLMenuElement> {
       /**
-      * Specifies the type of menu to display.
-      */
+       * Specifies the type of menu to display.
+       */
       type?: 'context' | 'toolbar';
     }
 
     interface JsxMetaElement extends JsxHtmlElement<HTMLMetaElement> {
       /**
-      * Specifies the character encoding for the HTML document.
-      */
+       * Specifies the character encoding for the HTML document.
+       */
       charset?: string;
 
       /**
-      * Specifies the value associated with the http-equiv or name attribute.
-      */
+       * Specifies the value associated with the http-equiv or name attribute.
+       */
       content?: string;
 
       /**
-      * Specifies an HTTP header for the information in the content attribute.
-      */
+       * Specifies an HTTP header for the information in the content attribute.
+       */
       httpEquiv?: string;
 
       /**
-      * Specifies a name for the metadata.
-      */
+       * Specifies a name for the metadata.
+       */
       name?: string;
     }
 
     interface JsxMeterElement extends JsxHtmlElement<HTMLMeterElement> {
       /**
-      * Specifies the form that the meter element belongs to.
-      */
+       * Specifies the form that the meter element belongs to.
+       */
       form?: string;
 
       /**
-      * Specifies the range that is considered to be a high value.
-      */
+       * Specifies the range that is considered to be a high value.
+       */
       high?: number;
 
       /**
-      * Specifies the range that is considered to be a low value.
-      */
+       * Specifies the range that is considered to be a low value.
+       */
       low?: number;
 
       /**
-      * Specifies the maximum value of the range.
-      */
+       * Specifies the maximum value of the range.
+       */
       max?: number;
 
       /**
-      * Specifies the minimum value of the range.
-      */
+       * Specifies the minimum value of the range.
+       */
       min?: number;
 
       /**
-      * Specifies the optimal value of the range.
-      */
+       * Specifies the optimal value of the range.
+       */
       optimum?: number;
 
       /**
-      * Specifies the current value of the gauge.
-      */
+       * Specifies the current value of the gauge.
+       */
       value?: number | string;
     }
 
     interface JsxObjectElement extends JsxHtmlElement<HTMLObjectElement> {
       /**
-      * Specifies the URL of the resource to be used by the object.
-      */
+       * Specifies the URL of the resource to be used by the object.
+       */
       data?: string;
 
       /**
-      * Specifies the form that the object element belongs to.
-      */
+       * Specifies the form that the object element belongs to.
+       */
       form?: string;
 
       /**
-      * Specifies the height of the object.
-      */
+       * Specifies the height of the object.
+       */
       height?: number | string;
 
       /**
-      * Specifies the name of the object element.
-      */
+       * Specifies the name of the object element.
+       */
       name?: string;
 
       /**
-      * Specifies the content type of data specified in the data attribute.
-      */
+       * Specifies the content type of data specified in the data attribute.
+       */
       type?: string;
 
       /**
-      * Specifies the name of a client-side image map to be used with the object.
-      */
+       * Specifies the name of a client-side image map to be used with the object.
+       */
       useMap?: string;
 
       /**
-      * Specifies the width of the object.
-      */
+       * Specifies the width of the object.
+       */
       width?: number | string;
     }
 
     interface JsxOListElement extends JsxHtmlElement<HTMLOListElement> {
       /**
-      * Specifies that the list order should be reversed (9,8,7...).
-      */
+       * Specifies that the list order should be reversed (9,8,7...).
+       */
       reversed?: Booleanish;
 
       /**
-      * Specifies the start value of an ordered list.
-      */
+       * Specifies the start value of an ordered list.
+       */
       start?: number;
 
       /**
-      * Specifies the kind of marker to use in the list.
-      */
+       * Specifies the kind of marker to use in the list.
+       */
       type?: '1' | 'a' | 'A' | 'i' | 'I';
     }
 
     interface JsxOptGroupElement extends JsxHtmlElement<HTMLOptGroupElement> {
       /**
-      * Specifies that an option-group should be disabled.
-      */
+       * Specifies that an option-group should be disabled.
+       */
       disabled?: Booleanish;
 
       /**
-      * Specifies a label for an option-group.
-      */
+       * Specifies a label for an option-group.
+       */
       label?: string;
     }
 
     interface JsxOptionElement extends JsxHtmlElement<HTMLOptionElement> {
       /**
-      * Specifies that an option should be disabled.
-      */
+       * Specifies that an option should be disabled.
+       */
       disabled?: Booleanish;
 
       /**
-      * Specifies a label for an option.
-      */
+       * Specifies a label for an option.
+       */
       label?: string;
 
       /**
-      * Specifies that an option should be pre-selected when the page loads.
-      */
+       * Specifies that an option should be pre-selected when the page loads.
+       */
       selected?: Booleanish;
 
       /**
-      * Specifies the value to be sent to a server when the form is submitted.
-      */
+       * Specifies the value to be sent to a server when the form is submitted.
+       */
       value?: string | ReadonlyArray<string> | number;
     }
 
@@ -1960,118 +1966,118 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxProgressElement extends JsxHtmlElement<HTMLProgressElement> {
       /**
-      * Specifies how much of the task has been completed.
-      */
+       * Specifies how much of the task has been completed.
+       */
       value?: number | string;
 
       /**
-      * Specifies how much work the task requires in total.
-      */
+       * Specifies how much work the task requires in total.
+       */
       max?: number | string;
     }
 
     interface JsxQuoteElement extends JsxHtmlElement<HTMLQuoteElement> {
       /**
-      * Specifies the source URL of the quote.
-      */
+       * Specifies the source URL of the quote.
+       */
       cite?: string;
     }
 
     interface JsxScriptElement extends JsxHtmlElement<HTMLScriptElement> {
       /**
-      * Specifies that the script is executed asynchronously.
-      */
+       * Specifies that the script is executed asynchronously.
+       */
       async?: Booleanish;
 
       /**
-      * Specifies the character encoding used in an external script file.
-      */
+       * Specifies the character encoding used in an external script file.
+       */
       charSet?: string;
 
       /**
-      * Specifies that the script is executed when the page has finished parsing.
-      */
+       * Specifies that the script is executed when the page has finished parsing.
+       */
       defer?: Booleanish;
 
       /**
-      * Specifies the URL of an external script file.
-      */
+       * Specifies the URL of an external script file.
+       */
       src?: string;
 
       /**
-      * Specifies the media type of the script.
-      */
+       * Specifies the media type of the script.
+       */
       type?: string;
     }
 
     interface JsxSelectElement extends JsxHtmlElement<HTMLSelectElement> {
       /**
-      * Specifies that the select element should automatically get focus when the page loads.
-      */
+       * Specifies that the select element should automatically get focus when the page loads.
+       */
       autoFocus?: Booleanish;
 
       /**
-      * Specifies that the select element should be disabled.
-      */
+       * Specifies that the select element should be disabled.
+       */
       disabled?: Booleanish;
 
       /**
-      * Specifies which form the select element belongs to.
-      */
+       * Specifies which form the select element belongs to.
+       */
       form?: string;
 
       /**
-      * Specifies that multiple options can be selected at once.
-      */
+       * Specifies that multiple options can be selected at once.
+       */
       multiple?: Booleanish;
 
       /**
-      * Specifies the name of the select element.
-      */
+       * Specifies the name of the select element.
+       */
       name?: string;
 
       /**
-      * Specifies that the user is required to select a value before submitting the form.
-      */
+       * Specifies that the user is required to select a value before submitting the form.
+       */
       required?: Booleanish;
 
       /**
-      * Specifies the number of visible options in a drop-down list.
-      */
+       * Specifies the number of visible options in a drop-down list.
+       */
       size?: number;
     }
 
     interface JsxSlotElement extends JsxHtmlElement<HTMLSlotElement> {
       /**
-      * Specifies the name of the slot.
-      */
+       * Specifies the name of the slot.
+       */
       name?: string;
     }
 
     interface JsxSourceElement extends JsxHtmlElement<HTMLSourceElement> {
       /**
-      * Specifies the URL of the media file.
-      */
+       * Specifies the URL of the media file.
+       */
       src?: string;
 
       /**
-      * Specifies the MIME type of the resource.
-      */
+       * Specifies the MIME type of the resource.
+       */
       type?: string;
 
       /**
-      * Specifies the intended media type of the source.
-      */
+       * Specifies the intended media type of the source.
+       */
       media?: string;
 
       /**
-      * Specifies image sources for responsive images.
-      */
+       * Specifies image sources for responsive images.
+       */
       srcSet?: string;
 
       /**
-      * Specifies which image size to use in different situations.
-      */
+       * Specifies which image size to use in different situations.
+       */
       sizes?: string;
     }
 
@@ -2081,18 +2087,18 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxStyleElement extends JsxHtmlElement<HTMLStyleElement> {
       /**
-      * Specifies that the styles only apply to the parent element and its child elements.
-      */
+       * Specifies that the styles only apply to the parent element and its child elements.
+       */
       scoped?: Booleanish;
 
       /**
-      * Specifies the media that the linked resource applies to.
-      */
+       * Specifies the media that the linked resource applies to.
+       */
       media?: string;
 
       /**
-      * Specifies the MIME type of the style sheet.
-      */
+       * Specifies the MIME type of the style sheet.
+       */
       type?: string;
     }
 
@@ -2100,101 +2106,100 @@ declare module 'retend/jsx-runtime' {
       // Table element typically doesn't have any specific attributes in modern HTML
     }
 
-    interface JsxTableSectionElement
-      extends JsxHtmlElement<HTMLTableSectionElement> {
+    interface JsxTableSectionElement extends JsxHtmlElement<HTMLTableSectionElement> {
       // TableSection element (thead, tbody, tfoot) typically doesn't have any specific attributes
     }
 
     interface JsxTableCellElement extends JsxHtmlElement<HTMLTableCellElement> {
       /**
-      * Specifies the number of columns a cell should span.
-      */
+       * Specifies the number of columns a cell should span.
+       */
       colSpan?: number;
 
       /**
-      * Specifies the number of rows a cell should span.
-      */
+       * Specifies the number of rows a cell should span.
+       */
       rowSpan?: number;
 
       /**
-      * Specifies one or more header cells a cell is related to.
-      */
+       * Specifies one or more header cells a cell is related to.
+       */
       headers?: string;
     }
 
     interface JsxTemplateElement extends JsxHtmlElement<HTMLTemplateElement> {
       /**
-      * Specifies the mode to use when creating a shadow root for the parent element.
-      */
+       * Specifies the mode to use when creating a shadow root for the parent element.
+       */
       shadowrootmode?: 'open' | 'closed';
     }
 
     interface JsxTextAreaElement extends JsxHtmlElement<HTMLTextAreaElement> {
       /**
-      * Specifies that the textarea should automatically get focus when the page loads.
-      */
+       * Specifies that the textarea should automatically get focus when the page loads.
+       */
       autoFocus?: Booleanish;
 
       /**
-      * Specifies the visible width of a text area.
-      */
+       * Specifies the visible width of a text area.
+       */
       cols?: number;
 
       /**
-      * Specifies that the textarea should be disabled.
-      */
+       * Specifies that the textarea should be disabled.
+       */
       disabled?: Booleanish;
 
       /**
-      * Specifies which form the textarea belongs to.
-      */
+       * Specifies which form the textarea belongs to.
+       */
       form?: string;
 
       /**
-      * Specifies the maximum number of characters allowed in the textarea.
-      */
+       * Specifies the maximum number of characters allowed in the textarea.
+       */
       maxlength?: number;
 
       /**
-      * Specifies the minimum number of characters allowed in the textarea.
-      */
+       * Specifies the minimum number of characters allowed in the textarea.
+       */
       minlength?: number;
 
       /**
-      * Specifies the name of the textarea.
-      */
+       * Specifies the name of the textarea.
+       */
       name?: string;
 
       /**
-      * Specifies a short hint that describes the expected value of the textarea.
-      */
+       * Specifies a short hint that describes the expected value of the textarea.
+       */
       placeholder?: string;
 
       /**
-      * Specifies that the textarea is read-only.
-      */
+       * Specifies that the textarea is read-only.
+       */
       readOnly?: Booleanish;
 
       /**
-      * Specifies that the textarea must be filled out before submitting the form.
-      */
+       * Specifies that the textarea must be filled out before submitting the form.
+       */
       required?: Booleanish;
 
       /**
-      * Specifies the visible number of lines in a text area.
-      */
+       * Specifies the visible number of lines in a text area.
+       */
       rows?: number;
 
       /**
-      * Specifies how the text in a text area is to be wrapped when submitted in a form.
-      */
+       * Specifies how the text in a text area is to be wrapped when submitted in a form.
+       */
       wrap?: string;
     }
 
     interface JsxTimeElement extends JsxHtmlElement<HTMLTimeElement> {
       /**
-      * Specifies the date and time.
-      */
+       * Specifies the date and time.
+       */
       dateTime?: string;
     }
 
@@ -2208,28 +2213,33 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxTrackElement extends JsxHtmlElement<HTMLTrackElement> {
       /**
-      * Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
-      */
+       * Specifies that the track is to be enabled if the user's preferences do not indicate that another track would be more appropriate.
+       */
       default?: Booleanish;
 
       /**
-      * Specifies the kind of text track.
-      */
-      kind?: 'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata';
+       * Specifies the kind of text track.
+       */
+      kind?:
+        | 'subtitles'
+        | 'captions'
+        | 'descriptions'
+        | 'chapters'
+        | 'metadata';
 
       /**
-      * Specifies the language of the track text data.
-      */
+       * Specifies the language of the track text data.
+       */
       label?: string;
 
       /**
-      * Specifies the language of the track text data.
-      */
+       * Specifies the language of the track text data.
+       */
       src?: string;
 
       /**
-      * Specifies the language of the track text data.
-      */
+       * Specifies the language of the track text data.
+       */
       srcLang?: string;
     }
 
@@ -2239,56 +2249,55 @@ declare module 'retend/jsx-runtime' {
 
     interface JsxVideoElement extends JsxHtmlElement<HTMLVideoElement> {
       /**
-      * Specifies that the video will start playing as soon as it is ready.
-      */
+       * Specifies that the video will start playing as soon as it is ready.
+       */
       autoPlay?: Booleanish;
 
       /**
-      * Specifies that video controls should be displayed.
-      */
+       * Specifies that video controls should be displayed.
+       */
       controls?: Booleanish;
 
       /**
-      * Specifies the height of the video player.
-      */
+       * Specifies the height of the video player.
+       */
       height?: number | string;
 
       /**
-      * Specifies that the video will start over again, every time it is finished.
-      */
+       * Specifies that the video will start over again, every time it is finished.
+       */
       loop?: Booleanish;
 
       /**
-      * Specifies that the audio output of the video should be muted.
-      */
+       * Specifies that the audio output of the video should be muted.
+       */
       muted?: Booleanish;
 
       /**
-      * Specifies an image to be shown while the video is downloading, or until the user hits the play button.
-      */
+       * Specifies an image to be shown while the video is downloading, or until the user hits the play button.
+       */
       poster?: string;
 
       /**
-      * Specifies if and how the author thinks the video should be loaded when the page loads.
-      */
+       * Specifies if and how the author thinks the video should be loaded when the page loads.
+       */
       preload?: 'auto' | 'metadata' | 'none';
 
       /**
-      * Specifies the URL of the video file.
-      */
+       * Specifies the URL of the video file.
+       */
       src?: string;
 
       /**
-      * Specifies the width of the video player.
-      */
+       * Specifies the width of the video player.
+       */
       width?: number | string;
     }
 
-    interface JsxHtmlDivElement extends JsxHtmlElement<HTMLDivElement> { }
-    interface JsxHtmlHeadingElement extends JsxHtmlElement<HTMLHeadingElement> { }
-    interface JsxHtmlOutputElement extends JsxHtmlElement<HTMLOutputElement> { }
-    interface JsxHtmlParagraphElement
-      extends JsxHtmlElement<HTMLParagraphElement> { }
+    interface JsxHtmlDivElement extends JsxHtmlElement<HTMLDivElement> {}
+    interface JsxHtmlHeadingElement extends JsxHtmlElement<HTMLHeadingElement> {}
+    interface JsxHtmlOutputElement extends JsxHtmlElement<HTMLOutputElement> {}
+    interface JsxHtmlParagraphElement extends JsxHtmlElement<HTMLParagraphElement> {}
 
     interface JsxHtmlElementMap {
       a: JsxHtmlAnchorElement;
@@ -2441,19 +2450,19 @@ declare module 'retend/jsx-runtime' {
     interface SVGPresentationAttributes {
       /** Specifies how an object is aligned along the font baseline */
       alignmentBaseline?:
-      | 'auto'
-      | 'baseline'
-      | 'before-edge'
-      | 'text-before-edge'
-      | 'middle'
-      | 'central'
-      | 'after-edge'
-      | 'text-after-edge'
-      | 'ideographic'
-      | 'alphabetic'
-      | 'hanging'
-      | 'mathematical'
-      | 'inherit';
+        | 'auto'
+        | 'baseline'
+        | 'before-edge'
+        | 'text-before-edge'
+        | 'middle'
+        | 'central'
+        | 'after-edge'
+        | 'text-after-edge'
+        | 'ideographic'
+        | 'alphabetic'
+        | 'hanging'
+        | 'mathematical'
+        | 'inherit';
       /** Specifies the base color of the element */
       baselineShift?: 'auto' | 'baseline' | 'super' | 'sub' | string | number;
       /** Specifies the color to paint the element */
@@ -2492,15 +2501,15 @@ declare module 'retend/jsx-runtime' {
 
     /** Interface for SVG core attributes */
     interface SVGCoreAttributes<E = SVGElement>
-      extends JSXGlobalAttributes,
-      JsxAriaAttributes,
-      JsxGlobalEventHandlers<E>,
-      DatasetAttributes,
-      JsxNativeProps { }
+      extends
+        JSXGlobalAttributes,
+        JsxAriaAttributes,
+        JsxGlobalEventHandlers<E>,
+        DatasetAttributes,
+        JsxNativeProps {}
 
     interface JsxSVGElement
-      extends SVGCoreAttributes<SVGSVGElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGSVGElement>, SVGPresentationAttributes {
       /** Specifies the width of the SVG viewport */
       width?: number | string;
       /** Specifies the height of the SVG viewport */
@@ -2512,8 +2521,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGAElement
-      extends SVGCoreAttributes<SVGAElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGAElement>, SVGPresentationAttributes {
       /** Specifies the URL to link to */
       href?: string;
       /** Specifies the target window or frame for the linked URL */
@@ -2533,8 +2541,7 @@ declare module 'retend/jsx-runtime' {
       repeatCount?: number | 'indefinite';
     }
 
-    interface JsxSVGAnimateMotionElement
-      extends SVGCoreAttributes<SVGAnimateMotionElement> {
+    interface JsxSVGAnimateMotionElement extends SVGCoreAttributes<SVGAnimateMotionElement> {
       /** Specifies the path the animation will follow */
       path?: string;
       /** Specifies the duration of the animation */
@@ -2543,8 +2550,7 @@ declare module 'retend/jsx-runtime' {
       repeatCount?: number | 'indefinite';
     }
 
-    interface JsxSVGAnimateTransformElement
-      extends SVGCoreAttributes<SVGAnimateTransformElement> {
+    interface JsxSVGAnimateTransformElement extends SVGCoreAttributes<SVGAnimateTransformElement> {
       /** Specifies the type of transformation */
       type?: 'translate' | 'scale' | 'rotate' | 'skewX' | 'skewY';
       /** Specifies the starting value of the animation */
@@ -2558,8 +2564,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGCircleElement
-      extends SVGCoreAttributes<SVGCircleElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGCircleElement>, SVGPresentationAttributes {
       /** Specifies the x-coordinate of the center of the circle */
       cx?: number | string;
       /** Specifies the y-coordinate of the center of the circle */
@@ -2568,19 +2573,17 @@ declare module 'retend/jsx-runtime' {
       r?: number | string;
     }
 
-    interface JsxSVGClipPathElement
-      extends SVGCoreAttributes<SVGClipPathElement> {
+    interface JsxSVGClipPathElement extends SVGCoreAttributes<SVGClipPathElement> {
       /** Specifies the coordinate system for the contents of the <clipPath> element */
       clipPathUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
     }
 
-    interface JsxSVGDefsElement extends SVGCoreAttributes<SVGDefsElement> { }
+    interface JsxSVGDefsElement extends SVGCoreAttributes<SVGDefsElement> {}
 
-    interface JsxSVGDescElement extends SVGCoreAttributes<SVGDescElement> { }
+    interface JsxSVGDescElement extends SVGCoreAttributes<SVGDescElement> {}
 
     interface JsxSVGEllipseElement
-      extends SVGCoreAttributes<SVGEllipseElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGEllipseElement>, SVGPresentationAttributes {
       /** Specifies the x-coordinate of the center of the ellipse */
       cx?: number | string;
       /** Specifies the y-coordinate of the center of the ellipse */
@@ -2600,8 +2603,7 @@ declare module 'retend/jsx-runtime' {
       mode?: 'normal' | 'multiply' | 'screen' | 'darken' | 'lighten';
     }
 
-    interface JsxSVGFEColorMatrixElement
-      extends SVGCoreAttributes<SVGFEColorMatrixElement> {
+    interface JsxSVGFEColorMatrixElement extends SVGCoreAttributes<SVGFEColorMatrixElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the type of color matrix operation */
@@ -2612,14 +2614,12 @@ declare module 'retend/jsx-runtime' {
       result?: string;
     }
 
-    interface JsxSVGFEComponentTransferElement
-      extends SVGCoreAttributes<SVGFEComponentTransferElement> {
+    interface JsxSVGFEComponentTransferElement extends SVGCoreAttributes<SVGFEComponentTransferElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
     }
 
-    interface JsxSVGFECompositeElement
-      extends SVGCoreAttributes<SVGFECompositeElement> {
+    interface JsxSVGFECompositeElement extends SVGCoreAttributes<SVGFECompositeElement> {
       /** Specifies the first input for the given filter primitive */
       in?: string;
       /** Specifies the second input for the given filter primitive */
@@ -2636,8 +2636,7 @@ declare module 'retend/jsx-runtime' {
       k4?: number;
     }
 
-    interface JsxSVGFEConvolveMatrixElement
-      extends SVGCoreAttributes<SVGFEConvolveMatrixElement> {
+    interface JsxSVGFEConvolveMatrixElement extends SVGCoreAttributes<SVGFEConvolveMatrixElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the values for the convolution matrix */
@@ -2646,8 +2645,7 @@ declare module 'retend/jsx-runtime' {
       order?: number | string;
     }
 
-    interface JsxSVGFEDiffuseLightingElement
-      extends SVGCoreAttributes<SVGFEDiffuseLightingElement> {
+    interface JsxSVGFEDiffuseLightingElement extends SVGCoreAttributes<SVGFEDiffuseLightingElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the surface scale factor */
@@ -2656,8 +2654,7 @@ declare module 'retend/jsx-runtime' {
       diffuseConstant?: number;
     }
 
-    interface JsxSVGFEDisplacementMapElement
-      extends SVGCoreAttributes<SVGFEDisplacementMapElement> {
+    interface JsxSVGFEDisplacementMapElement extends SVGCoreAttributes<SVGFEDisplacementMapElement> {
       /** Specifies the first input for the given filter primitive */
       in?: string;
       /** Specifies the second input for the given filter primitive */
@@ -2670,16 +2667,14 @@ declare module 'retend/jsx-runtime' {
       yChannelSelector?: 'R' | 'G' | 'B' | 'A';
     }
 
-    interface JsxSVGFEDistantLightElement
-      extends SVGCoreAttributes<SVGFEDistantLightElement> {
+    interface JsxSVGFEDistantLightElement extends SVGCoreAttributes<SVGFEDistantLightElement> {
       /** Specifies the azimuth of the light source */
       azimuth?: number;
       /** Specifies the elevation of the light source */
       elevation?: number;
     }
 
-    interface JsxSVGFEDropShadowElement
-      extends SVGCoreAttributes<SVGFEDropShadowElement> {
+    interface JsxSVGFEDropShadowElement extends SVGCoreAttributes<SVGFEDropShadowElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the standard deviation for the blur operation */
@@ -2691,8 +2686,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGFEFloodElement
-      extends SVGCoreAttributes<SVGFEFloodElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGFEFloodElement>, SVGPresentationAttributes {
       /** Specifies the flood color */
       floodColor?: string;
       /** Specifies the flood opacity */
@@ -2719,8 +2713,7 @@ declare module 'retend/jsx-runtime' {
       type?: 'identity' | 'table' | 'discrete' | 'linear' | 'gamma';
     }
 
-    interface JsxSVGFEGaussianBlurElement
-      extends SVGCoreAttributes<SVGFEGaussianBlurElement> {
+    interface JsxSVGFEGaussianBlurElement extends SVGCoreAttributes<SVGFEGaussianBlurElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the standard deviation for the blur operation */
@@ -2728,24 +2721,21 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGFEImageElement
-      extends SVGCoreAttributes<SVGFEImageElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGFEImageElement>, SVGPresentationAttributes {
       /** Specifies the URL of the image file */
       href?: string;
       /** Specifies how to align the image */
       preserveAspectRatio?: string;
     }
 
-    interface JsxSVGFEMergeElement extends SVGCoreAttributes<SVGFEMergeElement> { }
+    interface JsxSVGFEMergeElement extends SVGCoreAttributes<SVGFEMergeElement> {}
 
-    interface JsxSVGFEMergeNodeElement
-      extends SVGCoreAttributes<SVGFEMergeNodeElement> {
+    interface JsxSVGFEMergeNodeElement extends SVGCoreAttributes<SVGFEMergeNodeElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
     }
 
-    interface JsxSVGFEMorphologyElement
-      extends SVGCoreAttributes<SVGFEMorphologyElement> {
+    interface JsxSVGFEMorphologyElement extends SVGCoreAttributes<SVGFEMorphologyElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the morphology operation to perform */
@@ -2754,8 +2744,7 @@ declare module 'retend/jsx-runtime' {
       radius?: number | string;
     }
 
-    interface JsxSVGFEOffsetElement
-      extends SVGCoreAttributes<SVGFEOffsetElement> {
+    interface JsxSVGFEOffsetElement extends SVGCoreAttributes<SVGFEOffsetElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the amount to offset the input graphic along the x-axis */
@@ -2764,8 +2753,7 @@ declare module 'retend/jsx-runtime' {
       dy?: number | string;
     }
 
-    interface JsxSVGFEPointLightElement
-      extends SVGCoreAttributes<SVGFEPointLightElement> {
+    interface JsxSVGFEPointLightElement extends SVGCoreAttributes<SVGFEPointLightElement> {
       /** Specifies the x location of the light source */
       x?: number;
       /** Specifies the y location of the light source */
@@ -2774,8 +2762,7 @@ declare module 'retend/jsx-runtime' {
       z?: number;
     }
 
-    interface JsxSVGFESpecularLightingElement
-      extends SVGCoreAttributes<SVGFESpecularLightingElement> {
+    interface JsxSVGFESpecularLightingElement extends SVGCoreAttributes<SVGFESpecularLightingElement> {
       /** Specifies the input for the given filter primitive */
       in?: string;
       /** Specifies the surface scale factor */
@@ -2786,8 +2773,7 @@ declare module 'retend/jsx-runtime' {
       specularExponent?: number;
     }
 
-    interface JsxSVGFESpotLightElement
-      extends SVGCoreAttributes<SVGFESpotLightElement> {
+    interface JsxSVGFESpotLightElement extends SVGCoreAttributes<SVGFESpotLightElement> {
       /** Specifies the x location of the light source */
       x?: number;
       /** Specifies the y location of the light source */
@@ -2811,8 +2797,7 @@ declare module 'retend/jsx-runtime' {
       in?: string;
     }
 
-    interface JsxSVGFETurbulenceElement
-      extends SVGCoreAttributes<SVGFETurbulenceElement> {
+    interface JsxSVGFETurbulenceElement extends SVGCoreAttributes<SVGFETurbulenceElement> {
       /** Specifies the base frequency for the noise function */
       baseFrequency?: number | string;
       /** Specifies the number of octaves for the noise function */
@@ -2841,8 +2826,9 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGForeignObjectElement
-      extends SVGCoreAttributes<SVGForeignObjectElement>,
-      SVGPresentationAttributes {
+      extends
+        SVGCoreAttributes<SVGForeignObjectElement>,
+        SVGPresentationAttributes {
       /** Specifies the x coordinate of the foreign object */
       x?: number | string;
       /** Specifies the y coordinate of the foreign object */
@@ -2854,15 +2840,13 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGGElement
-      extends SVGCoreAttributes<SVGGElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGGElement>, SVGPresentationAttributes {
       /** Defines a mask to be applied to the element. */
       mask?: string;
     }
 
     interface JsxSVGImageElement
-      extends SVGCoreAttributes<SVGImageElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGImageElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the image */
       x?: number | string;
       /** Specifies the y coordinate of the image */
@@ -2878,8 +2862,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGLineElement
-      extends SVGCoreAttributes<SVGLineElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGLineElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the start of the line */
       x1?: number | string;
       /** Specifies the y coordinate of the start of the line */
@@ -2890,8 +2873,7 @@ declare module 'retend/jsx-runtime' {
       y2?: number | string;
     }
 
-    interface JsxSVGLinearGradientElement
-      extends SVGCoreAttributes<SVGLinearGradientElement> {
+    interface JsxSVGLinearGradientElement extends SVGCoreAttributes<SVGLinearGradientElement> {
       /** Specifies the x coordinate of the start point of the gradient vector */
       x1?: number | string;
       /** Specifies the y coordinate of the start point of the gradient vector */
@@ -2905,8 +2887,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGMarkerElement
-      extends SVGCoreAttributes<SVGMarkerElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGMarkerElement>, SVGPresentationAttributes {
       /** Specifies the width of the marker */
       markerWidth?: number | string;
       /** Specifies the height of the marker */
@@ -2922,8 +2903,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGMaskElement
-      extends SVGCoreAttributes<SVGMaskElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGMaskElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the mask */
       x?: number | string;
       /** Specifies the y coordinate of the mask */
@@ -2938,8 +2918,7 @@ declare module 'retend/jsx-runtime' {
       maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox';
     }
 
-    interface JsxSVGMetadataElement
-      extends SVGCoreAttributes<SVGMetadataElement> { }
+    interface JsxSVGMetadataElement extends SVGCoreAttributes<SVGMetadataElement> {}
 
     interface JsxSVGMPathElement extends SVGCoreAttributes<SVGMPathElement> {
       /** Specifies a path to follow */
@@ -2947,8 +2926,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGPathElement
-      extends SVGCoreAttributes<SVGPathElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGPathElement>, SVGPresentationAttributes {
       /** Specifies the path to be drawn */
       d?: string;
       /** Specifies the path length for path animation */
@@ -2956,8 +2934,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGPatternElement
-      extends SVGCoreAttributes<SVGPatternElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGPatternElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the pattern tile */
       x?: number | string;
       /** Specifies the y coordinate of the pattern tile */
@@ -2973,21 +2950,18 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGPolygonElement
-      extends SVGCoreAttributes<SVGPolygonElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGPolygonElement>, SVGPresentationAttributes {
       /** Specifies the points that make up the polygon */
       points?: string;
     }
 
     interface JsxSVGPolylineElement
-      extends SVGCoreAttributes<SVGPolylineElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGPolylineElement>, SVGPresentationAttributes {
       /** Specifies the points that make up the polyline */
       points?: string;
     }
 
-    interface JsxSVGRadialGradientElement
-      extends SVGCoreAttributes<SVGRadialGradientElement> {
+    interface JsxSVGRadialGradientElement extends SVGCoreAttributes<SVGRadialGradientElement> {
       /** Specifies the x coordinate of the end circle of the radial gradient */
       cx?: number | string;
       /** Specifies the y coordinate of the end circle of the radial gradient */
@@ -3005,8 +2979,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGRectElement
-      extends SVGCoreAttributes<SVGRectElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGRectElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the rectangle */
       x?: number | string;
       /** Specifies the y coordinate of the rectangle */
@@ -3024,8 +2997,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGStopElement
-      extends SVGCoreAttributes<SVGStopElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGStopElement>, SVGPresentationAttributes {
       /** Specifies where the gradient stop is placed */
       offset?: number | string;
       /** Specifies the color of the gradient stop */
@@ -3035,12 +3007,10 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGSwitchElement
-      extends SVGCoreAttributes<SVGSwitchElement>,
-      SVGPresentationAttributes { }
+      extends SVGCoreAttributes<SVGSwitchElement>, SVGPresentationAttributes {}
 
     interface JsxSVGSymbolElement
-      extends SVGCoreAttributes<SVGSymbolElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGSymbolElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the symbol */
       x?: number | string;
       /** Specifies the y coordinate of the symbol */
@@ -3056,8 +3026,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGTextElement
-      extends SVGCoreAttributes<SVGTextElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGTextElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the starting point of the text */
       x?: number | string;
       /** Specifies the y coordinate of the starting point of the text */
@@ -3075,8 +3044,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGTextPathElement
-      extends SVGCoreAttributes<SVGTextPathElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGTextPathElement>, SVGPresentationAttributes {
       /** Specifies the path the text should follow */
       href?: string;
       /** Specifies where on the path the text should begin */
@@ -3088,8 +3056,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface JsxSVGTSpanElement
-      extends SVGCoreAttributes<SVGTSpanElement>,
-      SVGPresentationAttributes {
+      extends SVGCoreAttributes<SVGTSpanElement>, SVGPresentationAttributes {
       /** Specifies the x coordinate of the starting point of the text */
       x?: number | string;
       /** Specifies the y coordinate of the starting point of the text */
@@ -3106,9 +3073,9 @@ declare module 'retend/jsx-runtime' {
       lengthAdjust?: 'spacing' | 'spacingAndGlyphs';
     }
 
-    interface JsxSVGUseElement extends SVGCoreAttributes<SVGUseElement> { }
+    interface JsxSVGUseElement extends SVGCoreAttributes<SVGUseElement> {}
 
-    interface JsxSVGViewElement extends SVGCoreAttributes<SVGViewElement> { }
+    interface JsxSVGViewElement extends SVGCoreAttributes<SVGViewElement> {}
 
     interface JsxSvgElementMap {
       svg: JsxSVGElement;
@@ -3173,7 +3140,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     type Container<ElementAttributes extends object> = {
-      [attribute in keyof ElementAttributes]: JSX.ValueOrCell<
+      [attribute in keyof ElementAttributes]: JSX.ValueOrCellOrPromise<
         ElementAttributes[attribute]
       >;
     };
@@ -3186,22 +3153,22 @@ declare module 'retend/jsx-runtime' {
       [key in keyof IntrinsicElementsBase]: ElementTypes<key>;
     } & Record<`${string}-${string}`, ElementTypes<'div'>>;
 
-    export interface IntrinsicElements extends IntrinsicElementsInner { }
+    export interface IntrinsicElements extends IntrinsicElementsInner {}
 
-    type NodeLike = globalThis.Node
+    type NodeLike = globalThis.Node;
 
     type Node =
       | NodeLike
       | PropertyKey
       | Promise<
-        | NodeLike
-        | NodeLike[]
-        | PropertyKey
-        | null
-        | undefined
-        // biome-ignore lint/suspicious/noConfusingVoidType:
-        | void
-      >;
+          | NodeLike
+          | NodeLike[]
+          | PropertyKey
+          | null
+          | undefined
+          // biome-ignore lint/suspicious/noConfusingVoidType:
+          | void
+        >;
     export type Template =
       | Node
       | Node[]
@@ -3213,8 +3180,8 @@ declare module 'retend/jsx-runtime' {
       | Promise<Node | Node[] | void | undefined | null>;
 
     export type Element = Template;
-    export type DivProps = JSX.IntrinsicElements['div']
-    export type AnchorProps = JSX.IntrinsicElements['a']
+    export type DivProps = JSX.IntrinsicElements['div'];
+    export type AnchorProps = JSX.IntrinsicElements['a'];
     interface BaseContainerProps extends DivProps {}
     interface LinkElementProps extends AnchorProps {}
   }

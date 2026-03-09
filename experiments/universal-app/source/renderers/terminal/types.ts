@@ -1,4 +1,5 @@
 import type { JSX } from 'retend/jsx-runtime';
+
 import type { TextNode } from './renderer';
 
 export interface TerminalNodeProps {
