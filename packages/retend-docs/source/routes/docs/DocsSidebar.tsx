@@ -24,7 +24,7 @@ const groups = [
     label: 'Core Concepts',
     itemLabels: new Set([
       'Jsx And Components',
-      'Reactivity Cells',
+      'Reactivity And Cells',
       'Event Handling',
     ]),
     items: [] as SidebarItem[],
