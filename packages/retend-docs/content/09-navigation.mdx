@@ -64,8 +64,7 @@ export function LoginForm() {
   const router = useRouter();
   const isSubmitting = Cell.source(false);
 
-  const handleSubmit = async (event: Event) => {
-    event.preventDefault();
+  const handleSubmit = async () => {
     isSubmitting.set(true);
 
     try {
@@ -79,9 +78,9 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit--prevent={handleSubmit}>
       {/* form fields... */}
-      <button type="submit" disabled={isSubmitting.get()}>
+      <button type="submit" disabled={isSubmitting}>
         Log In
       </button>
     </form>

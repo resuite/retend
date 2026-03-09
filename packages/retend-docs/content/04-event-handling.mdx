@@ -20,12 +20,20 @@ function LoggingButton() {
 }
 ```
 
-You don't have to define the handler separately—you can write it inline with an arrow function:
+Prefer defining handlers before JSX and reusing them in event props:
 
 ```tsx
-<button type="button" onClick={() => console.log('Clicked!')}>
-  Click Me
-</button>
+function ReusableButton() {
+  const handleClick = () => {
+    console.log('Clicked!');
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Click Me
+    </button>
+  );
+}
 ```
 
 ## Updating State from Events
@@ -39,11 +47,14 @@ import { Cell } from 'retend';
 
 function Counter() {
   const count = Cell.source(0);
+  const increment = () => {
+    count.set(count.get() + 1);
+  };
 
   return (
     <div>
       <p>Current count: {count}</p>
-      <button type="button" onClick={() => count.set(count.get() + 1)}>
+      <button type="button" onClick={increment}>
         Add +1
       </button>
     </div>
@@ -101,20 +112,33 @@ You can combine modifiers if needed:
 
 ```tsx
 function EventShowcase() {
+  const handleParentClick = () => {
+    console.log('Div clicked');
+  };
+
+  const handleFormSubmit = () => {
+    console.log('Form saved');
+  };
+
+  const handleStopClick = () => {
+    console.log('Only button clicked');
+  };
+
+  const handleOnceClick = () => {
+    console.log('Just once!');
+  };
+
   return (
-    <div onClick={() => console.log('Div clicked')}>
-      <form onSubmit--prevent={() => console.log('Form saved')}>
+    <div onClick={handleParentClick}>
+      <form onSubmit--prevent={handleFormSubmit}>
         <button type="submit">Save</button>
       </form>
 
-      <button
-        type="button"
-        onClick--stop={() => console.log('Only button clicked')}
-      >
+      <button type="button" onClick--stop={handleStopClick}>
         Stop Bubbling
       </button>
 
-      <button type="button" onClick--once={() => console.log('Just once!')}>
+      <button type="button" onClick--once={handleOnceClick}>
         One-Time Click
       </button>
     </div>

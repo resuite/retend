@@ -69,7 +69,17 @@ import { ThemeScope } from './scopes';
 
 function ThemedButton() {
   const theme = useScopeContext(ThemeScope);
-  return <button class={`btn btn-${theme}`}>Click Me</button>;
+  return (
+    <button
+      type="button"
+      class={[
+        'btn',
+        { 'btn-dark': theme === 'dark', 'btn-light': theme === 'light' },
+      ]}
+    >
+      Click Me
+    </button>
+  );
 }
 ```
 
@@ -167,16 +177,16 @@ function App() {
 
 function UserProfile() {
   const userCell = useScopeContext(UserScope);
+  const userName = Cell.derived(() => userCell.get().name);
+  const handleRoleChange = () => {
+    const current = userCell.get();
+    userCell.set({ ...current, role: 'user' });
+  };
 
   return (
     <div>
-      <p>Hello, {userCell.get().name}</p>
-      <button
-        onClick={() => {
-          const current = userCell.get();
-          userCell.set({ ...current, role: 'user' });
-        }}
-      >
+      <p>Hello, {userName}</p>
+      <button type="button" onClick={handleRoleChange}>
         Change Role
       </button>
     </div>

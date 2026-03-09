@@ -94,6 +94,9 @@ export function ProtectedForm() {
     router.unlock();
     showWarning.set(false);
   };
+  const handleKeepEditing = () => {
+    showWarning.set(false);
+  };
 
   return (
     <div>
@@ -102,8 +105,12 @@ export function ProtectedForm() {
       {If(showWarning, () => (
         <div class="confirmation-dialog">
           <p>You have unsaved changes.</p>
-          <button onClick={() => showWarning.set(false)}>Keep Editing</button>
-          <button onClick={handleDiscard}>Discard & Leave</button>
+          <button type="button" onClick={handleKeepEditing}>
+            Keep Editing
+          </button>
+          <button type="button" onClick={handleDiscard}>
+            Discard & Leave
+          </button>
         </div>
       ))}
     </div>

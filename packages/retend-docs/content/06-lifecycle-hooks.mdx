@@ -109,7 +109,9 @@ function TodoItem({ item }) {
   return (
     <div>
       <span>{displayText}</span>
-      <button onClick={toggleEdit}>Edit</button>
+      <button type="button" onClick={toggleEdit}>
+        Edit
+      </button>
     </div>
   );
 }

@@ -16,7 +16,7 @@ for (const [, sectionData] of sectionEntries) {
 
 export type SidebarItem =
   | { type: 'link'; href: string; label: string }
-  | { type: 'group'; label: string; items: { href: string; label: string }[] };
+  | { type: 'group'; label: string; items: SidebarItem[] };
 
 export const sidebarItems: SidebarItem[] = [];
 const groups = [
@@ -27,7 +27,7 @@ const groups = [
       'Reactivity Cells',
       'Event Handling',
     ]),
-    items: [] as { href: string; label: string }[],
+    items: [] as SidebarItem[],
   },
   {
     label: 'Building Blocks',
@@ -36,7 +36,7 @@ const groups = [
       'Lifecycle Hooks',
       'Context And Scopes',
     ]),
-    items: [] as { href: string; label: string }[],
+    items: [] as SidebarItem[],
   },
   {
     label: 'Routing',
@@ -48,20 +48,21 @@ const groups = [
       'Lazy Loading',
       'Route Locking',
     ]),
-    items: [] as { href: string; label: string }[],
+    items: [] as SidebarItem[],
   },
   {
     label: 'Advanced Components',
     itemLabels: new Set(['Unique', 'Teleport', 'ShadowRoot', 'Await']),
-    items: [] as { href: string; label: string }[],
+    items: [] as SidebarItem[],
   },
 ];
 
 for (const doc of flatDocs) {
+  if (doc.href.startsWith('/docs/api/')) continue;
   let matchedGroup = false;
   for (const group of groups) {
     if (group.itemLabels.has(doc.label)) {
-      group.items.push(doc);
+      group.items.push({ type: 'link', href: doc.href, label: doc.label });
       if (group.items.length === 1) {
         sidebarItems.push({
           type: 'group',
@@ -154,6 +155,58 @@ function SidebarHeader(props: { toggle: () => void }) {
   );
 }
 
+function SidebarNode(props: { item: SidebarItem }) {
+  const { item } = props;
+
+  if (item.type === 'link') {
+    return (
+      <li>
+        <Link
+          href={item.href}
+          class="text-fg-muted hover:text-brand block py-1 text-sm transition-colors"
+        >
+          {item.label}
+        </Link>
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <details class="group">
+        <summary class="text-fg-muted hover:text-brand cursor-pointer list-none py-1 text-sm transition-colors [&::-webkit-details-marker]:hidden">
+          <div class="flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="-rotate-90 transition-transform duration-200 group-open:rotate-0"
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+            {item.label}
+          </div>
+        </summary>
+        <ul class="mt-2 ml-6 flex flex-col gap-2 border-l border-[#5c5c5c] pl-3">
+          {For(
+            item.items,
+            (subItem) => (
+              <SidebarNode item={subItem} />
+            ),
+            { key: (i) => (i.type === 'link' ? i.href : i.label) }
+          )}
+        </ul>
+      </details>
+    </li>
+  );
+}
+
 function SidebarNav() {
   return (
     <nav
@@ -163,62 +216,9 @@ function SidebarNav() {
       <ul class="flex flex-col gap-3">
         {For(
           sidebarItems,
-          (item) => {
-            if (item.type === 'link') {
-              return (
-                <li>
-                  <Link
-                    href={item.href}
-                    class="text-fg-muted hover:text-brand block py-1 text-sm transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            }
-
-            return (
-              <li>
-                <details class="group">
-                  <summary class="text-fg-muted hover:text-brand cursor-pointer list-none py-1 text-sm transition-colors [&::-webkit-details-marker]:hidden">
-                    <div class="flex items-center gap-2">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        class="-rotate-90 transition-transform duration-200 group-open:rotate-0"
-                      >
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                      </svg>
-                      {item.label}
-                    </div>
-                  </summary>
-                  <ul class="mt-2 ml-6 flex flex-col gap-2 border-l border-[#5c5c5c] pl-3">
-                    {For(
-                      item.items,
-                      (subItem) => (
-                        <li>
-                          <Link
-                            href={subItem.href}
-                            class="text-fg-muted hover:text-brand block py-1 text-sm transition-colors"
-                          >
-                            {subItem.label}
-                          </Link>
-                        </li>
-                      ),
-                      { key: 'href' }
-                    )}
-                  </ul>
-                </details>
-              </li>
-            );
-          },
+          (item) => (
+            <SidebarNode item={item} />
+          ),
           { key: (item) => (item.type === 'link' ? item.href : item.label) }
         )}
       </ul>

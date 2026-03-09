@@ -1,6 +1,6 @@
 # Rendering Architecture
 
-Retend is designed to be completely platform-agnostic. The core library (`retend`) does not know about the browser Document Object Model (DOM), strings, or native mobile views. Instead, it delegates all platform-specific operations to a **Renderer**.
+Retend is designed to be platform-agnostic. The core library does not rely on the browser Document Object Model (DOM), strings, or native mobile views. Instead, it delegates all platform-specific operations to a **Renderer**.
 
 A Renderer acts as the abstract bridge between Retend's reactive logic and a specific host environment. By swapping out the renderer, you can use Retend to build web applications (`retend-web`), generate static HTML (`retend-server`), or theoretically drive native mobile interfaces.
 

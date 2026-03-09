@@ -39,7 +39,14 @@ import { useRouter } from 'retend/router';
 
 function BackButton() {
   const router = useRouter();
-  return <button onClick={() => router.back()}>Go Back</button>;
+  const handleBack = () => {
+    router.back();
+  };
+  return (
+    <button type="button" onClick={handleBack}>
+      Go Back
+    </button>
+  );
 }
 ```
 
@@ -113,7 +120,7 @@ const routes = defineRoutes([
 ]);
 ```
 
-How do you access these parameters in your components? That's covered in the **Queries and Params** section, but the short answer is the `useParams()` hook.
+How do you access these parameters in your components? That's covered in the **Queries and Params** section, but the short answer is `useCurrentRoute()` and reading `params` from the current route cell.
 
 ## Wildcards and Catch-Alls
 

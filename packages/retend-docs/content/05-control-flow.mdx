@@ -15,7 +15,9 @@ function ToggleMessage() {
 
   return (
     <div>
-      <button onClick={toggle}>Toggle</button>
+      <button type="button" onClick={toggle}>
+        Toggle
+      </button>
 
       {If(show, {
         true: () => <p>The message is visible!</p>,

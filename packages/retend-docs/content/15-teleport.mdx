@@ -21,7 +21,9 @@ function Modal(props) {
         <dialog class="modal-overlay" open onClick={onClose}>
           <article class="modal-content" onClick--stop>
             <h2>Modal Title</h2>
-            <button onClick={onClose}>Close</button>
+            <button type="button" onClick={onClose}>
+              Close
+            </button>
           </article>
         </dialog>
       </Teleport>
@@ -43,12 +45,11 @@ When `isOpen` is true, the modal renders inside `#modal-root`—not inside the `
 
 ### CSS Selectors
 
-The `to` prop accepts any CSS selector. Retend finds the first matching element and renders there:
+The `to` prop supports only `#id` and tag name selectors:
 
 ```tsx
 <Teleport to="#popover-container">...</Teleport>
 <Teleport to="body">...</Teleport>
-<Teleport to=".overlay-target">...</Teleport>
 ```
 
 If Retend can't find a matching element, it logs an error to the console.
@@ -73,12 +74,19 @@ function ThemedTooltip(props) {
   // Access the theme from our logical parent, even though
   // we physically render in the body
   const theme = useScopeContext(ThemeScope);
-
-  const themeClass = Cell.derived(() => `tooltip tooltip-${theme.get()}`);
+  const isDarkTheme = Cell.derived(() => theme.get() === 'dark');
+  const isLightTheme = Cell.derived(() => theme.get() === 'light');
 
   return (
     <Teleport to="body">
-      <div class={themeClass}>{text}</div>
+      <div
+        class={[
+          'tooltip',
+          { 'tooltip-dark': isDarkTheme, 'tooltip-light': isLightTheme },
+        ]}
+      >
+        {text}
+      </div>
     </Teleport>
   );
 }
@@ -101,8 +109,10 @@ function ConfirmDialog(props) {
           <h2>{title}</h2>
           <p>{message}</p>
           <div class="dialog-actions">
-            <button onClick={onCancel}>Cancel</button>
-            <button onClick={onConfirm} class="btn-primary">
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="button" onClick={onConfirm} class="btn-primary">
               Confirm
             </button>
           </div>

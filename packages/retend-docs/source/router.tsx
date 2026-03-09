@@ -30,6 +30,10 @@ export function createRouter() {
                 path: ':section/:page',
                 component: DocsPage,
               },
+              {
+                path: ':section/:page/:subpage',
+                component: DocsPage,
+              },
             ],
           },
         ],

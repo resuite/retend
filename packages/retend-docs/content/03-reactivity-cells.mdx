@@ -50,13 +50,12 @@ function Counter() {
 
   return (
     <div>
-      {/* ❌ Wrong: This passes the static number 0 */}
-      <p>Count: {count.get()}</p>
-
-      {/* ✅ Right: Pass the Cell directly */}
+      {/* Pass the Cell directly */}
       <p>Count: {count}</p>
 
-      <button onClick={increment}>Add 1</button>
+      <button type="button" onClick={increment}>
+        Add 1
+      </button>
     </div>
   );
 }
