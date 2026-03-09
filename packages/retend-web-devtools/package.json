@@ -27,7 +27,8 @@
   },
   "dependencies": {
     "retend": "workspace:*",
-    "retend-web": "workspace:*"
+    "retend-web": "workspace:*",
+    "vite-plugin-css-injected-by-js": "^4.0.1"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

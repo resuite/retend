@@ -9,7 +9,7 @@ import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import { usePanelState } from '@/hooks/usePanelState';
 import classes from '@/styles/Panel.module.css';
 
-const VITE_STYLE_KEY = '[data-vite-dev-id*="retend-web-devtools"]';
+const VITE_STYLE_ID = '__retend-web-devtools-styling';
 
 export function Panel() {
   const devRenderer = useDevToolsRenderer();
@@ -35,13 +35,12 @@ export function Panel() {
 
   onConnected(divRef, (div) => {
     requestAnimationFrame(() => {
-      const styleTags = document.querySelectorAll(VITE_STYLE_KEY);
-      for (const styleTag of styleTags) {
-        const stylesheet = new CSSStyleSheet();
-        stylesheet.replace(styleTag.innerHTML).then((sheet) => {
-          div.shadowRoot?.adoptedStyleSheets.push(sheet);
-        });
-      }
+      const styleTag = document.getElementById(VITE_STYLE_ID);
+      if (!styleTag) return;
+      const stylesheet = new CSSStyleSheet();
+      stylesheet.replace(styleTag.innerHTML).then((sheet) => {
+        div.shadowRoot?.adoptedStyleSheets.push(sheet);
+      });
     });
   });
 

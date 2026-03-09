@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { defineConfig } from 'vite';
+import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 
 export default defineConfig({
   base: './',
@@ -9,17 +10,12 @@ export default defineConfig({
     },
   },
   plugins: [
-    {
-      name: 'retend-devtools-inject-css-entry',
-      generateBundle(_options, bundle) {
-        const entry = bundle['index.js'];
-        if (entry) {
-          if (entry.type === 'chunk') {
-            entry.code = `import "./retend-web-devtools.css";\n${entry.code}`;
-          }
-        }
+    cssInjectedByJsPlugin({
+      styleId: '__retend-web-devtools-styling',
+      jsAssetsFilterFunction(chunk) {
+        return chunk.fileName === 'index.js';
       },
-    },
+    }),
   ],
 
   build: {
