@@ -58,6 +58,10 @@
   box-shadow: 0 0.5rem 2rem var(--retend-devtools-panel-shadow);
   overflow: hidden;
   animation: panelOpen 0.24s cubic-bezier(0.18, 0.8, 0.12, 1);
+
+  &[data-picker-is-active] {
+    display: none;
+  }
 }
 
 .panelWorkspace {

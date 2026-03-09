@@ -79,7 +79,10 @@ export function Panel() {
                   },
                 ]}
               >
-                <div class={classes.content}>
+                <div
+                  class={classes.content}
+                  data-picker-is-active={devRenderer.isPickerActive}
+                >
                   <div class={classes.header}>
                     <span class={classes.title}>Component Tree</span>
                     <PanelHeaderTools panel={panel} />
