@@ -98,7 +98,6 @@ export class Observer {
       return;
     }
     for (const [key, callbacks] of this.#callbackSets) {
-      key.get();
       const currentValue = key.peek();
       if (!currentValue || !this.#renderer?.isActive(currentValue)) continue;
       for (const callback of callbacks) {

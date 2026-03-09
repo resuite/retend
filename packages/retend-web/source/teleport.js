@@ -79,6 +79,9 @@ export function Teleport(props) {
     }
 
     renderer.append(parent, newInstance);
+    queueMicrotask(() => {
+      renderer.observer?.flush();
+    });
     return () => {
       if (anchor) {
         Reflect.deleteProperty(anchor, '__retendTeleportedContainer');
