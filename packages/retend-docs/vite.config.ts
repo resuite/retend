@@ -76,6 +76,53 @@ const headingListFromMarkdown = (content: string) => {
 
   return headings;
 };
+
+const addHeadingIds =
+  () =>
+  (tree: {
+    children?: Array<{
+      children?: unknown[];
+      data?: { hProperties?: Record<string, string> };
+      depth?: number;
+      value?: string;
+    }>;
+  }) => {
+    const headingIdCount = new Map<string, number>();
+
+    const textFromNode = (node: { children?: unknown[]; value?: string }) => {
+      let result = node.value ?? '';
+      if (Array.isArray(node.children)) {
+        for (const child of node.children) {
+          result += textFromNode(
+            child as { children?: unknown[]; value?: string }
+          );
+        }
+      }
+      return result;
+    };
+
+    if (!Array.isArray(tree.children)) return;
+
+    for (const node of tree.children) {
+      if (node.depth !== 2 && node.depth !== 3 && node.depth !== 4) continue;
+
+      const label = textFromNode(node).trim();
+      if (label === '') continue;
+
+      let id = headingIdFromLabel(label);
+      if (id === '') continue;
+
+      const seenCount = headingIdCount.get(id) ?? 0;
+      headingIdCount.set(id, seenCount + 1);
+      if (seenCount > 0) {
+        id = `${id}-${seenCount}`;
+      }
+
+      node.data ??= {};
+      node.data.hProperties ??= {};
+      node.data.hProperties.id = id;
+    }
+  };
 const docsHeadingsByPath: Record<
   string,
   Array<{ id: string; label: string; depth: number }>
@@ -130,7 +177,11 @@ export default defineConfig({
     tailwindcss(),
     {
       enforce: 'pre',
-      ...mdx({ include: /\.mdx$/u, jsxImportSource: 'retend' }),
+      ...mdx({
+        include: /\.mdx$/u,
+        jsxImportSource: 'retend',
+        remarkPlugins: [addHeadingIds],
+      }),
     },
     retend(),
     retendSSG({

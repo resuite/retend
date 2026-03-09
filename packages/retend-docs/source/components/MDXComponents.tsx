@@ -5,13 +5,7 @@ import { MDXCodeBlock } from '@/components/MDXCodeBlock';
 
 import { NavigableHeading } from './NavigableHeading';
 
-type MdxComponentOptions = {
-  nextHeadingId?: (depth: 2 | 3) => string | undefined;
-};
-
-export function createMDXComponents(options: MdxComponentOptions = {}) {
-  const { nextHeadingId } = options;
-
+export function createMDXComponents() {
   return {
     code: (props: JSX.IntrinsicElements['code']) => {
       const text = props.children as string;
@@ -36,14 +30,12 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
       </h1>
     ),
     h2: (props: JSX.IntrinsicElements['h2']) => {
-      const { class: className, children, ...rest } = props;
-      let headingId: string | undefined;
-      if (nextHeadingId) headingId = nextHeadingId(2);
+      const { class: className, children, key, ...rest } = props;
 
       return (
         <NavigableHeading
           as="h2"
-          id={headingId}
+          key={key as JSX.IntrinsicAttributes['key']}
           class={['text-fg mt-10 mb-4 text-3xl tracking-tight', className]}
           {...rest}
         >
@@ -52,14 +44,12 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
       );
     },
     h3: (props: JSX.IntrinsicElements['h3']) => {
-      const { class: className, children, ...rest } = props;
-      let headingId: string | undefined;
-      if (nextHeadingId) headingId = nextHeadingId(3);
+      const { class: className, children, key, ...rest } = props;
 
       return (
         <NavigableHeading
           as="h3"
-          id={headingId}
+          key={key as JSX.IntrinsicAttributes['key']}
           class={['text-fg mt-8 mb-3 text-2xl tracking-tight', className]}
           {...rest}
         >
@@ -67,20 +57,38 @@ export function createMDXComponents(options: MdxComponentOptions = {}) {
         </NavigableHeading>
       );
     },
-    h4: (props: JSX.IntrinsicElements['h4']) => (
-      <h4 class="text-fg mt-7 mb-2 text-xl tracking-tight">{props.children}</h4>
-    ),
+    h4: (props: JSX.IntrinsicElements['h4']) => {
+      const { class: className, children, key, ...rest } = props;
+
+      return (
+        <NavigableHeading
+          as="h4"
+          key={key as JSX.IntrinsicAttributes['key']}
+          class={['text-fg mt-7 mb-2 text-xl tracking-tight', className]}
+          {...rest}
+        >
+          {children}
+        </NavigableHeading>
+      );
+    },
     p: (props: JSX.IntrinsicElements['p']) => (
       <p class="text-fg my-4 leading-7">{props.children}</p>
     ),
-    a: (props: JSX.IntrinsicElements['a']) => (
-      <a
-        href={props.href}
-        class="text-brand hover:text-brand-dark underline underline-offset-4"
-      >
-        {props.children}
-      </a>
-    ),
+    a: (props: JSX.IntrinsicElements['a']) => {
+      const isExternal =
+        typeof props.href === 'string' && props.href.startsWith('http');
+      return (
+        <a
+          href={props.href}
+          class="text-brand hover:text-brand-dark underline underline-offset-4"
+          {...(isExternal
+            ? { target: '_blank', rel: 'noopener noreferrer' }
+            : {})}
+        >
+          {props.children}
+        </a>
+      );
+    },
     ul: (props: JSX.IntrinsicElements['ul']) => (
       <ul class="my-4 list-disc pl-6">{props.children}</ul>
     ),

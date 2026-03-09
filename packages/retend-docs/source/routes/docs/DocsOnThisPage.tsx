@@ -11,7 +11,7 @@ export function DocsOnThisPage(props: DocsOnThisPageProps) {
   const { sectionHeadings } = props;
 
   const displayHeadings =
-    sectionHeadings && sectionHeadings.length > 0
+    sectionHeadings.length > 0
       ? sectionHeadings
       : [{ id: '', label: 'Overview', depth: 2 }];
 

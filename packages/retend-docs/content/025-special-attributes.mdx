@@ -1,0 +1,89 @@
+# Special Attributes
+
+In Retend, certain attributes have unique behaviors when applied to underlying UI elements. These are designed to provide a smooth developer experience while maintaining high performance. The most common special attributes are `class`, `style`, and `ref`.
+
+## The `class` Attribute
+
+To specify CSS classes on an element, use the `class` attribute (unlike React, which uses `className`). You can pass a string of space-separated classes, exactly as you would in standard HTML.
+
+```tsx
+<div class="card p-4 shadow">Content goes here</div>
+```
+
+### Dynamic Classes
+
+Because Retend relies on Cells for reactivity, you can easily apply classes conditionally. Instead of messy string concatenations, Retend provides a powerful array and object syntax for dynamic classes built right in!
+
+You can pass an array of strings, or objects where the key is the class name and the value is a boolean or a Cell. If the value is a Cell, Retend automatically sets up bindings to toggle the class efficiently without re-rendering the component.
+
+```tsx
+import { Cell } from 'retend';
+
+export function ToggleButton() {
+  const isActive = Cell.source(false);
+  const isInactive = Cell.derived(() => !isActive.get());
+
+  return (
+    <button
+      class={[
+        'btn',
+        {
+          'btn-active': isActive,
+          'btn-inactive': isInactive,
+        },
+      ]}
+      onClick={() => isActive.set(!isActive.get())}
+    >
+      Toggle me
+    </button>
+  );
+}
+```
+
+_(Note: Passing Cells inside the class object ensures that only the `class` attribute update is triggered without re-rendering the whole component.)_
+
+## The `style` Attribute
+
+The `style` attribute accepts either a standard CSS string or an object containing your styles.
+
+When using an object, CSS property names should typically be written in camelCase (e.g., `backgroundColor` instead of `background-color`).
+
+```tsx
+<div style={{ color: 'var(--color-brand)', borderRadius: '8px' }}>
+  Styled content
+</div>
+```
+
+Just like `class`, if your styles depend on reactive state, the property values within the style object can be Cells directly. Using Cells in the style object provides optimized updates without re-rendering the element.
+
+## The `ref` Attribute
+
+The `ref` attribute provides a way to get a direct reference to the underlying UI element after it has been mounted in the renderer's tree. This is essential when you need to perform imperative actions, manage focus, or integrate with non-reactive third-party libraries.
+
+Instead of a special Ref object, Retend allows you to pass a callback function directly to the `ref` attribute. This callback receives the UI element instance as its argument once it's created.
+
+```tsx
+export function AutoFocusInput() {
+  let inputElement;
+
+  // We can use a lifecycle hook or event handler to interact with the element
+  const handleFocus = () => {
+    if (inputElement) {
+      inputElement.focus();
+    }
+  };
+
+  return (
+    <div class="flex gap-2">
+      <input
+        ref={(el) => (inputElement = el)}
+        type="text"
+        placeholder="Type here..."
+      />
+      <button onClick={handleFocus}>Focus the input</button>
+    </div>
+  );
+}
+```
+
+Using a callback gives you complete control over how and where you store the element reference.

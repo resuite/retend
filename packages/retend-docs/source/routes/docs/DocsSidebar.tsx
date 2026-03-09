@@ -24,6 +24,7 @@ const groups = [
     label: 'Core Concepts',
     itemLabels: new Set([
       'Jsx And Components',
+      'Special Attributes',
       'Reactivity And Cells',
       'Event Handling',
     ]),

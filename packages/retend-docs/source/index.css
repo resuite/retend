@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'Paper Mono';
+  src: url('./fonts/PaperMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+
 @theme {
   --color-bg: var(--color-retend-bg);
   --color-fg: var(--color-retend-fg);
@@ -15,7 +22,7 @@
 
   --font-main: system-ui, ui-sans-serif, sans-serif;
   --font-mono:
-    IBM Plex Mono, Monaspace Neon, ui-monospace, SFMono-Regular, 'SF Mono',
+    'Paper Mono', Monaspace Neon, ui-monospace, SFMono-Regular, 'SF Mono',
     Menlo, monospace;
 }
 
@@ -206,6 +213,7 @@
 .rt-code-comment {
   color: var(--color-retend-code-comment);
   font-style: italic;
+  opacity: 0.5;
 }
 
 .rt-code-boolean {

@@ -35,23 +35,18 @@ export function DocsPage() {
   const ActivePage = activePage.Component;
   const sectionHeadings = activePage.headings;
   const editHref = `https://github.com/adebola-io/retend/edit/main/packages/retend-docs/content/${activePage.sortKey}.mdx`;
-  let headingCursor = 0;
-  const components = createMDXComponents({
-    nextHeadingId(depth) {
-      while (headingCursor < sectionHeadings.length) {
-        const heading = sectionHeadings[headingCursor];
-        headingCursor += 1;
-        if (heading.depth === depth) return heading.id;
-      }
-    },
-  });
+  const components = createMDXComponents();
 
   const flatItems: { href: string; label: string }[] = [];
   for (const item of sidebarItems) {
     if (item.type === 'link') {
       flatItems.push(item);
-    } else if (item.type === 'group') {
-      flatItems.push(...item.items);
+    } else {
+      for (const child of item.items) {
+        if (child.type === 'link') {
+          flatItems.push(child);
+        }
+      }
     }
   }
 
