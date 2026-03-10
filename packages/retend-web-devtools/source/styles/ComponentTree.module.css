@@ -144,7 +144,7 @@
 
 .componentName {
   color: var(--retend-devtools-accent);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .internalCore {
