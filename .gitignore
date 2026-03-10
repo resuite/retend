@@ -133,3 +133,5 @@ dist
 .yarn/install-state.gz
 .pnp.*
 examples
+.pnpm-store
+.ruff_cache

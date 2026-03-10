@@ -90,7 +90,7 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  packages/retend-docs:
+  docs:
     dependencies:
       '@mdx-js/rollup':
         specifier: ^3.1.1
@@ -103,19 +103,19 @@ importers:
         version: 4.0.1
       retend:
         specifier: workspace:*
-        version: link:../retend
+        version: link:../packages/retend
       retend-server:
         specifier: workspace:*
-        version: link:../retend-server
+        version: link:../packages/retend-server
       retend-utils:
         specifier: workspace:*
-        version: link:../retend-utils
+        version: link:../packages/retend-utils
       retend-web:
         specifier: workspace:*
-        version: link:../retend-web
+        version: link:../packages/retend-web
       retend-web-devtools:
         specifier: workspace:*
-        version: link:../retend-web-devtools
+        version: link:../packages/retend-web-devtools
       tailwindcss:
         specifier: ^4.2.1
         version: 4.2.1

@@ -34,7 +34,7 @@ export function DocsPage() {
 
   const ActivePage = activePage.Component;
   const sectionHeadings = activePage.headings;
-  const editHref = `https://github.com/resuite/retend/edit/main/packages/retend-docs/content/${activePage.sortKey}.mdx`;
+  const editHref = `https://github.com/resuite/retend/edit/main/docs/content/${activePage.sortKey}.mdx`;
   const components = createMDXComponents();
 
   const flatItems: { href: string; label: string }[] = [];

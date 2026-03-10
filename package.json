@@ -23,9 +23,9 @@
     "build-web-devtools": "pnpm --filter retend-web-devtools run build",
     "build-ssg": "pnpm --filter retend-server run build",
     "build-utils": "pnpm --filter retend-utils run build",
-    "lint": "oxlint packages tests experiments",
-    "format": "oxfmt --write packages tests experiments",
-    "format:check": "oxfmt --check packages tests experiments",
+    "lint": "oxlint packages docs tests experiments",
+    "format": "oxfmt --write packages docs tests experiments",
+    "format:check": "oxfmt --check packages docs tests experiments",
     "publish-core": "pnpm --filter retend run build && pnpm --filter retend publish --access public",
     "publish-web": "pnpm --filter retend-web run build && pnpm --filter retend-web publish --access public",
     "publish-web-devtools": "pnpm --filter retend-web-devtools run build && pnpm --filter retend-web-devtools publish --access public",
@@ -38,6 +38,7 @@
     "prepare": "husky"
   },
   "workspaces": [
+    "docs",
     "packages/*",
     "tests",
     "experiments/*"
