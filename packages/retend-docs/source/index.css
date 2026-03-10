@@ -1,12 +1,5 @@
 @import 'tailwindcss';
 
-@font-face {
-  font-family: 'Paper Mono';
-  src: url('./fonts/PaperMono-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-}
-
 @theme {
   --color-bg: var(--color-retend-bg);
   --color-fg: var(--color-retend-fg);
@@ -22,15 +15,14 @@
 
   --font-main: system-ui, ui-sans-serif, sans-serif;
   --font-mono:
-    'Paper Mono', Monaspace Neon, ui-monospace, SFMono-Regular, 'SF Mono',
-    Menlo, monospace;
+    'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 }
 
 :root {
   --color-retend-bg: #ffffff;
   --color-retend-fg: #0f172a;
   --color-retend-fg-muted: #64748b;
-  --color-retend-brand: #ea580c; /* Muted Deep Orange */
+  --color-retend-brand: #b76e33;
   --color-retend-brand-dark: #c2410c; /* Dark Orange */
   --color-retend-brand-soft: #ffedd5; /* Very pale peach */
   --color-retend-surface: #ffffff;
@@ -41,19 +33,19 @@
   --color-retend-card-shadow: #c5c5c5;
   --color-retend-selection-bg: #e2e8f0;
   --color-retend-selection-fg: #1e293b;
-  --color-retend-code-keyword: #cc6200; /* Dark Pure Orange */
-  --color-retend-code-function: #b36b00; /* Dark Golden Orange */
-  --color-retend-code-string: #996600; /* Dark Yellow-Orange */
-  --color-retend-code-number: #a64d00; /* Dark Rust */
-  --color-retend-code-property: #cc6d00; /* Deep Orange */
-  --color-retend-code-type: #b37700; /* Dark Amber */
-  --color-retend-code-tag: #cc6200; /* Dark Pure Orange */
-  --color-retend-code-component: #b36b00; /* Dark Golden Orange */
-  --color-retend-code-comment: #78716c; /* Warm Gray/Stone */
-  --color-retend-code-boolean: #cc6d00; /* Deep Orange */
-  --color-retend-code-operator: #44403c; /* Dark stone */
-  --color-retend-code-punctuation: #292524; /* Near black stone */
-  --color-retend-code-builtin: #a64d00; /* Dark Rust */
+  --color-retend-code-keyword: #d14a00; /* Vivid orange */
+  --color-retend-code-function: #9c6b12; /* Rich amber */
+  --color-retend-code-string: #5a8a1e; /* Vivid green */
+  --color-retend-code-number: #c25420; /* Bright rust */
+  --color-retend-code-property: #b07610; /* Bold gold */
+  --color-retend-code-type: #c44e2b; /* Bright terracotta */
+  --color-retend-code-tag: #d04818; /* Vivid red-orange */
+  --color-retend-code-component: #b85c14; /* Deep amber */
+  --color-retend-code-comment: #a09890; /* Warm gray */
+  --color-retend-code-boolean: #c25420; /* Bright rust */
+  --color-retend-code-operator: #6b6560; /* Stone */
+  --color-retend-code-punctuation: #8a837e; /* Mid stone */
+  --color-retend-code-builtin: #a85c20; /* Rich copper */
 
   --header-height: 4rem;
 }
@@ -62,9 +54,9 @@
   --color-retend-bg: #1c1917;
   --color-retend-fg: #fafaf9;
   --color-retend-fg-muted: #a8a29e;
-  --color-retend-brand: #fb923c; /* Bright calm orange */
-  --color-retend-brand-dark: #ea580c; /* Deep orange */
-  --color-retend-brand-soft: #431407; /* Dark reddish orange */
+  --color-retend-brand: #ffa44a;
+  --color-retend-brand-dark: #ea580c;
+  --color-retend-brand-soft: #431407;
   --color-retend-surface: #292524;
   --color-retend-surface-alt: #44403c;
   --color-retend-surface-alt-hover: #57534e;
@@ -73,19 +65,19 @@
   --color-retend-card-shadow: #121212;
   --color-retend-selection-bg: #57534e;
   --color-retend-selection-fg: #f8fafc;
-  --color-retend-code-keyword: #ff8800; /* Pure Bright Orange */
-  --color-retend-code-function: #ffaa00; /* Amber Orange */
-  --color-retend-code-string: #ffc300; /* Yellow-Orange */
-  --color-retend-code-number: #ff7b00; /* Deep Pure Orange */
-  --color-retend-code-property: #ff9900; /* Golden Orange */
-  --color-retend-code-type: #ffbb00; /* bright Yellow-Orange */
-  --color-retend-code-tag: #ff8800; /* Pure Bright Orange */
-  --color-retend-code-component: #ffaa00; /* Amber Orange */
-  --color-retend-code-comment: #a8a29e; /* Muted stone */
-  --color-retend-code-boolean: #ff9900; /* Golden Orange */
-  --color-retend-code-operator: #d1d5db; /* Light gray */
-  --color-retend-code-punctuation: #e5e7eb; /* Lighter gray */
-  --color-retend-code-builtin: #ff7b00; /* Deep Pure Orange */
+  --color-retend-code-keyword: #ff9b5e; /* Bright peach */
+  --color-retend-code-function: #f0c765; /* Bright gold */
+  --color-retend-code-string: #a8cc60; /* Bright lime-green */
+  --color-retend-code-number: #f0a060; /* Warm tangerine */
+  --color-retend-code-property: #e8b84d; /* Vivid gold */
+  --color-retend-code-type: #f09070; /* Bright salmon */
+  --color-retend-code-tag: #ff7b50; /* Bright coral */
+  --color-retend-code-component: #f0a040; /* Bright amber */
+  --color-retend-code-comment: #8a8480; /* Warm stone */
+  --color-retend-code-boolean: #f0a060; /* Warm tangerine */
+  --color-retend-code-operator: #c8c0b8; /* Light warm gray */
+  --color-retend-code-punctuation: #a09890; /* Mid warm gray */
+  --color-retend-code-builtin: #e8a060; /* Warm apricot */
 }
 
 @layer base {
@@ -180,6 +172,7 @@
 
 .rt-code-keyword {
   color: var(--color-retend-code-keyword);
+  font-weight: 500;
 }
 
 .rt-code-function {

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port 3000",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "pnpm run build && npx wrangler deploy"
   },
   "dependencies": {
     "@mdx-js/rollup": "^3.1.1",

@@ -1,0 +1,9 @@
+name = "retend-docs"
+compatibility_date = "2026-03-10"
+main = "./router.server.ts"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
