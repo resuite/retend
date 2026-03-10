@@ -1,6 +1,7 @@
 # retend
 
 [![npm version](https://img.shields.io/npm/v/retend?color=blue)](https://www.npmjs.com/package/retend)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/resuite/retend)
 
 > Retend is experimental and not ready for production use.
 
