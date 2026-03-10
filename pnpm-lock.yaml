@@ -17,6 +17,9 @@ importers:
       oxlint:
         specifier: ^1.50.0
         version: 1.50.0
+      wrangler:
+        specifier: 4.71.0
+        version: 4.71.0
 
   experiments/rspack-dom:
     dependencies:
