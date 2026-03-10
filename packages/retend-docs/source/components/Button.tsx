@@ -11,7 +11,7 @@ export type ButtonProps = JSX.IntrinsicElements['button'] & {
 };
 
 const variantClass: Record<ButtonVariant, string> = {
-  primary: 'bg-brand text-white',
+  primary: 'bg-brand text-white dark:text-black dark:font-semibold',
   secondary: 'border-brand bg-white text-fg border dark:bg-surface',
 };
 
