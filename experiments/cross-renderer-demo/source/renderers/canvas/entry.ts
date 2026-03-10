@@ -14,7 +14,7 @@ if (!canvas) {
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  if (renderer) renderer.render();
+  if (renderer) renderer.flush();
 }
 window.addEventListener('resize', resize);
 const renderer = new CanvasRenderer(canvas);
@@ -22,7 +22,7 @@ setActiveRenderer(renderer);
 
 resize();
 
-const appNodes = renderer.handleComponent(App, {});
+const appNodes = renderer.render(App());
 renderer.append(renderer.root, appNodes);
 
 runPendingSetupEffects();

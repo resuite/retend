@@ -56,3 +56,9 @@ export function setGlobalContext(newContext) {
 export function getGlobalContext() {
   return globalThis.__RETEND_GLOBAL_CONTEXT__;
 }
+
+if (!globalThis.__RETEND_GLOBAL_CONTEXT__) {
+  setGlobalContext({
+    globalData: new Map(),
+  });
+}

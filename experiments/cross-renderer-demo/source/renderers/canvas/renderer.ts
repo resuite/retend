@@ -1,6 +1,6 @@
-import type { ReconcilerOptions } from 'retend';
+import type { ReconcilerOptions, __HMR_UpdatableFn } from 'retend';
 
-import { createNodesFromTemplate, Cell } from 'retend';
+import { createNodesFromTemplate, normalizeJsxChild, Cell } from 'retend';
 
 import type {
   CanvasRendererTypes,
@@ -31,6 +31,55 @@ function resolveDimension(
     return unwrapped;
   }
   return undefined;
+}
+
+function getFlexDirection(style: CanvasNodeProps['style']): 'row' | 'column' {
+  const flexDirection = getValue(style?.flexDirection);
+  if (flexDirection === 'row') {
+    return 'row';
+  }
+
+  return 'column';
+}
+
+function toNodeArray(input?: CanvasNode | CanvasNode[]): CanvasNode[] {
+  if (!input) {
+    return [];
+  }
+
+  if (Array.isArray(input)) {
+    return input;
+  }
+
+  return [input];
+}
+
+function attachChildren(parent: CanvasNode, input: CanvasNode | CanvasNode[]) {
+  const nodes = toNodeArray(input);
+
+  for (const node of nodes) {
+    node.parent = parent;
+    parent.children.push(node);
+  }
+}
+
+function collectReconciledNodes(
+  options: ReconcilerOptions<CanvasNode>
+): CanvasNode[] {
+  const nodes: CanvasNode[] = [];
+  let i = 0;
+
+  for (const item of options.newList) {
+    const key = options.retrieveOrSetItemKey(item, i);
+    const cached = options.newCache.get(key);
+    if (cached) {
+      nodes.push(...cached.nodes);
+    }
+
+    i += 1;
+  }
+
+  return nodes;
 }
 
 class BaseNode implements CanvasNode {
@@ -88,7 +137,7 @@ class BoxNode extends BaseNode implements CanvasContainerNode {
       this.height = 0;
     }
 
-    const flexDirection = getValue(style.flexDirection) || 'column';
+    const flexDirection = getFlexDirection(style);
     const padding =
       resolveDimension(style.padding, this.width) ||
       (this.type === 'button' ? 10 : 0);
@@ -222,7 +271,7 @@ class BoxNode extends BaseNode implements CanvasContainerNode {
     }
 
     // Layout Config
-    const flexDirection = getValue(style.flexDirection) || 'column';
+    const flexDirection = getFlexDirection(style);
     const alignItems = getValue(style.alignItems) || 'flex-start';
     const justifyContent = getValue(style.justifyContent) || 'flex-start';
     const padding =
@@ -485,14 +534,14 @@ export class CanvasRenderer {
     this.root = new BoxNode('root');
     // Root sizing handled in render
 
-    this.render();
+    this.flush();
   }
 
   requestRender() {
-    requestAnimationFrame(() => this.render());
+    requestAnimationFrame(() => this.flush());
   }
 
-  render() {
+  flush() {
     const { width, height } = this.host;
     this.ctx.clearRect(0, 0, width, height);
 
@@ -508,6 +557,10 @@ export class CanvasRenderer {
 
     // Layout & Draw Pass
     this.root.draw(this.ctx);
+  }
+
+  render(app: unknown): CanvasNode | CanvasNode[] {
+    return normalizeJsxChild(app, this);
   }
 
   // Renderer Interface Implementation
@@ -552,17 +605,7 @@ export class CanvasRenderer {
   }
 
   reconcile(handle: CanvasHandle, options: ReconcilerOptions<CanvasNode>) {
-    // "Just rerender" strategy: collect all nodes from the new cache in order.
-    const allNodes: CanvasNode[] = [];
-    let i = 0;
-    for (const item of options.newList) {
-      const key = options.retrieveOrSetItemKey(item, i++);
-      const cached = options.newCache.get(key);
-      if (cached) {
-        allNodes.push(...cached.nodes);
-      }
-    }
-    this.write(handle, allNodes);
+    this.write(handle, collectReconciledNodes(options));
   }
 
   setProperty<N extends CanvasNode>(node: N, key: string, value: unknown): N {
@@ -607,34 +650,19 @@ export class CanvasRenderer {
     return node;
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: Retend interface compliance
-  handleComponent(tagname: any, props: any): CanvasNode | CanvasNode[] {
-    // @ts-ignore
-    const component = tagname(props);
+  handleComponent(
+    tagname: __HMR_UpdatableFn,
+    props: unknown[]
+  ): CanvasNode | CanvasNode[] {
+    const component = tagname(...props);
     const nodes = createNodesFromTemplate(component, this) as CanvasNode[];
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
   append(parent: CanvasNode, child: CanvasNode | CanvasNode[]) {
-    if (Array.isArray(child)) {
-      for (const c of child) {
-        c.parent = parent;
-        parent.children.push(c);
-      }
-    } else {
-      child.parent = parent;
-      parent.children.push(child);
-    }
+    attachChildren(parent, child);
     this.requestRender();
     return parent;
-  }
-
-  handlePromise(child: Promise<unknown>) {
-    const placeholder = new MarkerNode('promise-placeholder');
-    child.then((_res) => {
-      // placeholder logic
-    });
-    return placeholder;
   }
 
   updateText(text: string, node: CanvasTextNode) {
@@ -643,8 +671,7 @@ export class CanvasRenderer {
     return node;
   }
   createGroup(input?: CanvasNode | CanvasNode[]) {
-    if (!input) return [];
-    return Array.isArray(input) ? input : [input];
+    return toNodeArray(input);
   }
 
   unwrapGroup(group: CanvasNode[]) {

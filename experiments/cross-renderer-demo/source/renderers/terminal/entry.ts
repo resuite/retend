@@ -10,8 +10,5 @@ const host = new TerminalHost(screen);
 const renderer = new TerminalRenderer(host);
 setActiveRenderer(renderer);
 
-const container = renderer.createContainer('root', {});
-renderer.append(container, renderer.handleComponent(App, {}));
-
-renderer.render();
+renderer.append(renderer.root, renderer.render(App()));
 runPendingSetupEffects();

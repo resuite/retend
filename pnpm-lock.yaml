@@ -46,7 +46,7 @@ importers:
         specifier: ^5.5.2
         version: 5.9.3
 
-  experiments/universal-app:
+  experiments/cross-renderer-demo:
     dependencies:
       '@types/blessed':
         specifier: ^0.1.25

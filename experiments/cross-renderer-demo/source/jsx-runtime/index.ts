@@ -1,12 +1,11 @@
 declare module 'retend/jsx-runtime' {
+  import type { Cell, AsyncDerivedCell } from 'retend';
+
   namespace JSX {
     type Booleanish = boolean | 'true' | 'false';
     type Numberish = number | `${number}`;
-    type ValueOrCellOrPromise<T> =
-      | T
-      | import('retend').Cell<T>
-      | import('retend').AsyncDerivedCell<T>;
-    type ValueOrCell<T> = T | import('retend').Cell<T>;
+    type ValueOrCellOrPromise<T> = T | Cell<T> | AsyncDerivedCell<T>;
+    type ValueOrCell<T> = T | Cell<T>;
 
     /**
      * Unit value type - ONLY strings with "u" or "%" suffix are valid.

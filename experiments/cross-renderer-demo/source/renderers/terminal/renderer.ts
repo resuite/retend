@@ -1,7 +1,9 @@
 import blessed from 'blessed';
 import {
   createNodesFromTemplate,
+  normalizeJsxChild,
   Cell,
+  type ReconcilerOptions,
   type Renderer,
   type __HMR_UpdatableFn,
 } from 'retend';
@@ -62,6 +64,54 @@ function resolveDimension(
     return Math.floor(unwrapped / 8); // Convert pixels to chars
   }
   return undefined;
+}
+
+function getFlexDirection(style: TerminalNodeProps['style']): 'row' | 'column' {
+  const flexDirection = getValue(style?.flexDirection);
+  if (flexDirection === 'row') {
+    return 'row';
+  }
+
+  if (!flexDirection) {
+    const whiteSpace = getValue(style?.whiteSpace);
+    if (whiteSpace === 'nowrap') {
+      return 'row';
+    }
+  }
+
+  return 'column';
+}
+
+function toNodeArray(input?: TerminalNode | TerminalNode[]): TerminalNode[] {
+  if (!input) {
+    return [];
+  }
+
+  if (Array.isArray(input)) {
+    return input;
+  }
+
+  return [input];
+}
+
+function collectReconciledNodes(
+  options: ReconcilerOptions<TerminalNode>
+): TerminalNode[] {
+  const nodes: TerminalNode[] = [];
+  let i = 0;
+
+  for (const item of options.newList) {
+    const key = options.retrieveOrSetItemKey(item, i);
+    const cached = options.newCache.get(key);
+
+    if (cached) {
+      nodes.push(...cached.nodes);
+    }
+
+    i += 1;
+  }
+
+  return nodes;
 }
 
 // --- Blessed Screen Wrapper ---
@@ -160,6 +210,13 @@ class BaseNode implements TerminalNode {
   }
 }
 
+function resetBlessedWidget(node: BaseNode) {
+  if (node.blessedWidget) {
+    node.blessedWidget.destroy();
+    node.blessedWidget = null;
+  }
+}
+
 class BoxNode extends BaseNode implements TerminalContainerNode {
   measure(availableWidth?: number, availableHeight?: number) {
     // --- SIZING PASS: Calculate sizes recursively ---
@@ -185,10 +242,7 @@ class BoxNode extends BaseNode implements TerminalContainerNode {
       this.height = 0;
     }
 
-    const whiteSpace = getValue(style.whiteSpace);
-    let flexDirection = getValue(style.flexDirection);
-    if (!flexDirection && whiteSpace === 'nowrap') flexDirection = 'row';
-    flexDirection = flexDirection || 'column';
+    const flexDirection = getFlexDirection(style);
 
     const padding = resolveDimension(style.padding, this.width) || 0;
     // Blessed borders take 2 chars total (1 left, 1 right) - must account for this in available space
@@ -305,10 +359,7 @@ class BoxNode extends BaseNode implements TerminalContainerNode {
   layout() {
     // --- LAYOUT PASS: Position children based on this node's position ---
     const style = this.props.style || {};
-    const whiteSpace = getValue(style.whiteSpace);
-    let flexDirection = getValue(style.flexDirection);
-    if (!flexDirection && whiteSpace === 'nowrap') flexDirection = 'row';
-    flexDirection = flexDirection || 'column';
+    const flexDirection = getFlexDirection(style);
 
     const padding = resolveDimension(style.padding, this.width) || 0;
     const alignItems = getValue(style.alignItems) || 'flex-start';
@@ -682,19 +733,16 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
         this.host.screen.screen.height as number
       );
       this.destroyAllWidgets();
-      this.render();
+      this.flush();
     });
 
-    setTimeout(() => this.render(), 10);
+    setTimeout(() => this.flush(), 10);
   }
 
   destroyAllWidgets() {
     // Recursively destroy all blessed widgets to recreate on resize
     const destroyWidgets = (node: TerminalNode) => {
-      if ((node as BaseNode).blessedWidget) {
-        (node as BaseNode).blessedWidget?.destroy();
-        (node as BaseNode).blessedWidget = null;
-      }
+      resetBlessedWidget(node as BaseNode);
       for (const child of node.children) {
         destroyWidgets(child);
       }
@@ -711,11 +759,11 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
     // Use setImmediate to batch renders after tree construction completes
     setImmediate(() => {
       this.renderPending = false;
-      this.render();
+      this.flush();
     });
   }
 
-  render() {
+  flush() {
     // 1. Resize root - pass viewport dimensions as available size for percentage resolution
     this.root.width = this.host.width;
     this.root.height = this.host.height;
@@ -739,12 +787,16 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
     this.host.render();
   }
 
+  render(app: unknown): TerminalNode | TerminalNode[] {
+    return normalizeJsxChild(app, this);
+  }
+
   // --- Interface minimal impl ---
   isActive(_node: TerminalNode): boolean {
     return true;
   }
   createGroup(input?: TerminalNode | TerminalNode[]) {
-    return Array.isArray(input) ? input : [input || new MarkerNode('')];
+    return toNodeArray(input);
   }
   unwrapGroup(group: TerminalNode[]) {
     return group;
@@ -770,11 +822,7 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
       const n = new TextNode(String(text.get()), {});
       text.listen((v) => {
         n.text = String(v);
-        // Destroy old widget so it gets recreated
-        if (n.blessedWidget) {
-          n.blessedWidget.destroy();
-          n.blessedWidget = null;
-        }
+        resetBlessedWidget(n);
         this.requestRender();
       });
       return n;
@@ -784,8 +832,7 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
 
   append(parent: TerminalNode, child: TerminalNode | TerminalNode[]) {
     if (!parent) return parent;
-    const arr = Array.isArray(child) ? child : [child];
-    for (const c of arr) {
+    for (const c of toNodeArray(child)) {
       c.parent = parent;
       parent.children.push(c);
     }
@@ -834,10 +881,11 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
 
   handleComponent(
     tag: __HMR_UpdatableFn,
-    props: unknown
+    props: unknown[]
   ): TerminalNode | TerminalNode[] {
-    const c = tag(props);
-    return createNodesFromTemplate(c, this) as TerminalNode[];
+    const component = tag(...props);
+    const nodes = createNodesFromTemplate(component, this) as TerminalNode[];
+    return nodes.length === 1 ? nodes[0] : nodes;
   }
 
   isGroup(n: unknown): n is TerminalNode[] {
@@ -846,13 +894,8 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
   isNode(n: unknown): n is TerminalNode {
     return n instanceof BaseNode;
   }
-  handlePromise() {
-    return new MarkerNode('p');
-  }
-  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-  reconcile(handle: any, options: any) {
-    // Minimal impl
-    this.write(handle, options.nodes || []);
+  reconcile(handle: TerminalHandle, options: ReconcilerOptions<TerminalNode>) {
+    this.write(handle, collectReconciledNodes(options));
   }
   saveContainerState() {
     return null;
@@ -861,10 +904,7 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
 
   updateText(t: string, n: TextNode) {
     n.text = t;
-    if (n.blessedWidget) {
-      n.blessedWidget?.destroy();
-      n.blessedWidget = null;
-    }
+    resetBlessedWidget(n);
     this.requestRender();
     return n;
   }
