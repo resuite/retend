@@ -4,7 +4,7 @@ Because Retend components run exactly once to build your interface, the componen
 
 Retend gives you two functions for running code at these specific times: `onSetup` and `onConnected`. Both run when the component initializes, and both let you return a "cleanup" function that runs when the component is destroyed.
 
-## Running Background Tasks with `onSetup`
+## `onSetup`
 
 Use `onSetup` for logic that doesn't need to interact with the physical elements on the page. This is where you should set up timers, fetch initial data, or subscribe to external events.
 
@@ -29,9 +29,9 @@ function LiveClock() {
 
 The cleanup function is critical. If you start a timer or an event listener, returning a cleanup function ensures those tasks stop when the component leaves the screen, preventing memory leaks in your application.
 
-## Working with Elements using `onConnected`
+## `onConnected`
 
-Sometimes you need to interact directly with a rendered element—for example, to measure its size, draw on a canvas, or attach a third-party library.
+Sometimes you need to interact directly with a rendered element, for example, to measure its size, draw on a canvas, or attach a third-party library.
 
 If you try to do this inside `onSetup`, the element might not be on the screen yet. `onConnected` solves this. You give it a reference to an element, and it guarantees the element is ready to use before your code runs.
 

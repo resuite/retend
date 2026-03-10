@@ -1,0 +1,101 @@
+# Static Site Generation
+
+Static Site Generation (SSG) lets you pre-render your application's pages into static HTML files at build time. This means users see content instantly when they load the page, and search engines can crawl your site without running JavaScript.
+
+Retend provides a Vite plugin, `retendSSG`, that handles this process automatically.
+
+## Setup
+
+First, import the plugin and add it to your Vite configuration:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { retend } from 'retend-web/plugins/vite';
+import { retendSSG } from 'retend-server/plugin';
+
+export default defineConfig({
+  plugins: [
+    retend(),
+    retendSSG({
+      pages: ['/', '/about', '/contact'],
+      routerModulePath: './source/router.ts',
+    }),
+  ],
+});
+```
+
+### Configuration Options
+
+| Option             | Required | Default  | Description                                     |
+| ------------------ | -------- | -------- | ----------------------------------------------- |
+| `pages`            | Yes      | —        | An array of URLs to generate static HTML for.   |
+| `routerModulePath` | Yes      | —        | Path to the module that exports `createRouter`. |
+| `rootSelector`     | No       | `'#app'` | CSS selector for the root element.              |
+
+### The Router Module
+
+The module at `routerModulePath` must export a `createRouter` function that returns a `Router` instance:
+
+```tsx
+// source/router.ts
+import { Router, defineRoutes } from 'retend';
+import { Home } from './pages/home';
+import { About } from './pages/about';
+
+const routes = defineRoutes(() => [
+  { path: '/', component: Home },
+  { path: '/about', component: About },
+]);
+
+export function createRouter() {
+  return new Router({ routes });
+}
+```
+
+## Handling Dynamic Routes
+
+The `pages` array must list every specific URL you want to generate. For dynamic routes like `/users/:userId`, you need to enumerate each URL:
+
+```ts
+retendSSG({
+  pages: ['/', '/users/1', '/users/2', '/users/3'],
+  routerModulePath: './source/router.ts',
+});
+```
+
+If your URLs come from a database or API, you can build the array dynamically in your Vite config:
+
+```ts
+const userIds = await fetchAllUserIds();
+
+export default defineConfig({
+  plugins: [
+    retend(),
+    retendSSG({
+      pages: ['/', ...userIds.map((id) => `/users/${id}`)],
+      routerModulePath: './source/router.ts',
+    }),
+  ],
+});
+```
+
+## How It Works
+
+When you run `vite build`, the plugin:
+
+1. Reads your `index.html` shell.
+2. For each page in the `pages` array, creates a virtual browser environment.
+3. Renders the app by navigating the router to that page.
+4. Waits for all async data (via `<Await>` boundaries) to resolve.
+5. Serializes the rendered output into a static HTML file.
+6. Handles any redirects defined in your routes automatically.
+
+The resulting HTML files are fully self-contained and can be served by any static file host.
+
+## Redirects
+
+If a route in your configuration has a `redirect` property, the plugin automatically generates:
+
+- An HTML file with a `<meta http-equiv="refresh">` redirect.
+- A `_redirects` file entry (compatible with Netlify, Cloudflare Pages, etc.).

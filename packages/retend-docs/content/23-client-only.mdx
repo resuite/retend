@@ -1,0 +1,46 @@
+# ClientOnly
+
+Some parts of your app depend on browser-specific APIs — `window.innerWidth`, `localStorage`, `navigator`, or third-party libraries that access the DOM. These APIs don't exist on the server, so rendering those components during Static Site Generation would fail.
+
+The `<ClientOnly>` component solves this. It skips its children during server rendering and only renders them once the app is running in the browser.
+
+## Usage
+
+```tsx
+import { ClientOnly } from 'retend-server';
+
+function App() {
+  return (
+    <div>
+      <h1>My Page</h1>
+
+      <ClientOnly fallback={<p>Loading interactive content...</p>}>
+        <BrowserOnlyWidget />
+      </ClientOnly>
+    </div>
+  );
+}
+```
+
+During SSG, the `fallback` is rendered instead. Once the JavaScript loads and the component mounts in the browser, the real `children` replace the fallback.
+
+## When to Use It
+
+Use `<ClientOnly>` when a component:
+
+- Reads from `window`, `document`, or `navigator`.
+- Uses `localStorage` or `sessionStorage`.
+- Depends on a third-party library that accesses the DOM at import time.
+- Measures element dimensions or positions.
+
+If a component doesn't touch browser APIs, you don't need `<ClientOnly>` — Retend's SSG handles it automatically.
+
+## Without a Fallback
+
+If you don't need placeholder content, omit the `fallback` prop. The area will be empty during server rendering and will appear once the client hydrates:
+
+```tsx
+<ClientOnly>
+  <InteractiveMap />
+</ClientOnly>
+```

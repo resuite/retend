@@ -1,0 +1,97 @@
+# View Transitions
+
+Modern browsers support the [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API), which lets you animate between different views of your application. Retend's router has built-in support for this feature.
+
+## Enabling View Transitions
+
+To enable view transitions, pass `useViewTransitions: true` when creating your `Router`:
+
+```tsx
+import { Router, defineRoutes } from 'retend';
+
+const routes = defineRoutes(() => [
+  { path: '/', component: Home },
+  { path: '/about', component: About },
+]);
+
+export function createRouter() {
+  return new Router({
+    routes,
+    useViewTransitions: true,
+  });
+}
+```
+
+When enabled, every route change is automatically wrapped in a call to `document.startViewTransition()`. If the browser doesn't support the API, the router falls back to instant navigation.
+
+## Automatic Direction Types
+
+The router automatically determines the direction of each navigation and adds a type to the view transition. This lets you apply different animations for forward and backward navigation:
+
+- **`forwards`** — Navigating to a new page.
+- **`backwards`** — Navigating back in the history stack.
+- **`neutral`** — Replacing the current page or navigating to the same path.
+
+You can target these types in your CSS:
+
+```css
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-to-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+::view-transition-group(forwards) {
+  animation: slide-in-from-right 300ms ease;
+}
+
+::view-transition-old(forwards) {
+  animation: slide-out-to-left 300ms ease;
+}
+```
+
+## Per-Route Transition Types
+
+You can assign a custom `transitionType` to individual routes. This lets you apply specific animations to particular pages:
+
+```tsx
+const routes = defineRoutes(() => [
+  { path: '/', component: Home },
+  {
+    path: '/gallery',
+    component: Gallery,
+    transitionType: 'gallery',
+  },
+  {
+    path: '/settings',
+    component: Settings,
+    transitionType: 'settings',
+  },
+]);
+```
+
+The per-route `transitionType` is added alongside the direction type, so both are available to your CSS at the same time:
+
+```css
+::view-transition-group(gallery) {
+  animation: fade-zoom-in 400ms ease;
+}
+
+::view-transition-group(settings) {
+  animation: slide-up 250ms ease;
+}
+```
+
+This gives you fine-grained control over how each page enters and exits, while still benefiting from the automatic direction detection.

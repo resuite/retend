@@ -5,7 +5,7 @@ interface Rect {
   height: number;
 }
 
-type HighlightColor = 'blue' | 'pink' | 'green' | 'red' | 'amber';
+type HighlightColor = 'amber' | 'blue' | 'pink' | 'green' | 'red';
 
 interface CursorPosition {
   x: number;
@@ -65,9 +65,9 @@ let selectedCurrentRect: Rect | null = null;
 let label = '';
 let selectedLabel = '';
 let timer: ReturnType<typeof setInterval> | 0 = 0;
-let color: HighlightColor = 'blue';
+let color: HighlightColor = 'amber';
 let cursorPosition: CursorPosition | null = null;
-let cursorColor: HighlightColor = 'blue';
+let cursorColor: HighlightColor = 'amber';
 
 function syncCanvasSize() {
   if (!canvas) return;

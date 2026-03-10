@@ -1,7 +1,5 @@
 # Rendering Architecture (Advanced)
 
-If you ever look closely at Retend's core code, you might notice something interesting: it doesn't actually know anything about HTML or the browser's Document Object Model (DOM).
-
 Retend is fundamentally platform-agnostic. The core library (`retend`) handles all the reactive logic, components, and state management, but it delegates the actual drawing of the interface to a **Renderer**.
 
 By swapping out the renderer, you can use Retend to build web applications (`retend-web`), generate static HTML (`retend-server`), or even theoretically drive native mobile interfaces!

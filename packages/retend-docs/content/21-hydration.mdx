@@ -1,0 +1,66 @@
+# Hydration
+
+After the server generates static HTML, the browser needs to "wake it up" — reconnecting event listeners, reactive Cells, and making the page interactive. This process is called **hydration**.
+
+## Basic Setup
+
+In your client-side entry point, import `hydrate` from `retend-server/client` and pass it your router factory function:
+
+```tsx
+// source/main.ts
+import { hydrate } from 'retend-server/client';
+import { createRouter } from './router';
+
+hydrate(createRouter);
+```
+
+The `hydrate` function:
+
+1. Finds the existing server-rendered HTML.
+2. Re-creates the router and matches the current URL.
+3. Attaches event listeners and reactive bindings to the existing elements.
+4. Dispatches a `hydrationcompleted` event on `window` when finished.
+
+```tsx
+window.addEventListener('hydrationcompleted', () => {
+  console.log('App is now interactive!');
+});
+```
+
+## Options
+
+The `hydrate` function accepts an options object as its second argument:
+
+```tsx
+hydrate(createRouter, {
+  rootId: 'app',
+  wrap(root) {
+    return root;
+  },
+});
+```
+
+| Option   | Default | Description                                                                              |
+| -------- | ------- | ---------------------------------------------------------------------------------------- |
+| `rootId` | `"app"` | The `id` of the root element that holds the server-rendered HTML.                        |
+| `wrap`   | —       | A function that wraps the app root before rendering. Useful for adding global providers. |
+
+### Wrapping the App
+
+If your app needs a global provider (like a theme or auth context) that wraps the entire router, use the `wrap` option:
+
+```tsx
+import { ThemeScope } from './scopes';
+
+hydrate(createRouter, {
+  wrap(root) {
+    return <ThemeScope.Provider value="dark">{root}</ThemeScope.Provider>;
+  },
+});
+```
+
+## Development Mode
+
+In development, `hydrate` behaves differently. Since there's no pre-rendered HTML during `vite dev`, it falls back to normal client-side rendering (SPA mode). This means you can use the same entry point for both development and production without any conditional logic.
+
+If the server context script tag (`<script data-server-context>`) is missing when running in production, `hydrate` logs a warning and falls back to SPA mode automatically.

@@ -222,7 +222,7 @@
 }
 
 .propNumber {
-  color: #38bdf8;
+  color: #fb923c;
 }
 
 .propBoolean {
@@ -238,11 +238,11 @@
 }
 
 .propFunction {
-  color: #22c55e;
+  color: #f59e0b;
 }
 
 .propJsxTemplate {
-  color: #60a5fa;
+  color: #fbbf24;
 }
 
 .propArray {
@@ -250,7 +250,7 @@
 }
 
 .propObject {
-  color: #60a5fa;
+  color: #fbbf24;
 }
 
 .propSymbol {
@@ -258,7 +258,7 @@
 }
 
 .propBigint {
-  color: #34d399;
+  color: #fcd34d;
 }
 
 .propExpandable {

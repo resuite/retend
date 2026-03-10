@@ -11,7 +11,7 @@ export interface ComponentTreeNode {
   output?: Node | Node[];
 }
 
-export type HighlightColor = 'blue' | 'pink' | 'green' | 'red' | 'amber';
+export type HighlightColor = 'amber' | 'blue' | 'pink' | 'green' | 'red';
 
 export interface CursorPosition {
   x: number;
@@ -34,7 +34,7 @@ export class DevToolsDOMRenderer extends DOMRenderer {
   rootNode = Cell.source<ComponentTreeNode | null>(null);
   hoveredNode = Cell.source<ComponentTreeNode | null>(null);
   selectedNode = Cell.source<ComponentTreeNode | null>(null);
-  highlightColor = Cell.source<HighlightColor>('blue');
+  highlightColor = Cell.source<HighlightColor>('amber');
   pickerCursorPosition = Cell.source<CursorPosition | null>(null);
   pickerHoveredElement = Cell.source<Element | null>(null);
   isPickerActive = Cell.source<boolean>(false);

@@ -10,15 +10,15 @@ const colorOptions: Array<{
   label: string;
   className: string;
 }> = [
-  { value: 'blue', label: 'Blue highlight', className: classes.paletteBlue },
-  { value: 'pink', label: 'Pink highlight', className: classes.palettePink },
-  { value: 'green', label: 'Green highlight', className: classes.paletteGreen },
-  { value: 'red', label: 'Red highlight', className: classes.paletteRed },
   {
     value: 'amber',
     label: 'Amber highlight',
     className: classes.paletteAmber,
   },
+  { value: 'blue', label: 'Blue highlight', className: classes.paletteBlue },
+  { value: 'pink', label: 'Pink highlight', className: classes.palettePink },
+  { value: 'green', label: 'Green highlight', className: classes.paletteGreen },
+  { value: 'red', label: 'Red highlight', className: classes.paletteRed },
 ];
 
 export function HighlightColorPicker() {

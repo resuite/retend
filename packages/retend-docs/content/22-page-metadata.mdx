@@ -1,0 +1,161 @@
+# Page Metadata
+
+Retend's router has built-in support for managing page metadata — titles, descriptions, Open Graph tags, Twitter cards, and more. Metadata is defined per-route and updates automatically when the user navigates.
+
+## Setting a Page Title
+
+The simplest form of metadata is the `title` property on a route definition:
+
+```tsx
+const routes = defineRoutes(() => [
+  {
+    path: '/',
+    component: Home,
+    title: 'Home | My App',
+  },
+  {
+    path: '/about',
+    component: About,
+    title: 'About Us | My App',
+  },
+]);
+```
+
+When a user navigates to `/about`, the browser tab title updates to "About Us | My App" automatically.
+
+## Route Metadata
+
+For richer metadata (descriptions, social sharing tags, etc.), use the `metadata` property:
+
+```tsx
+const routes = defineRoutes(() => [
+  {
+    path: '/',
+    component: Home,
+    metadata: {
+      title: 'Home | My App',
+      description: 'Welcome to My App.',
+      ogTitle: 'My App',
+      ogImage: 'https://example.com/og-image.png',
+    },
+  },
+]);
+```
+
+### Available Properties
+
+Retend recognizes these metadata keys and maps them to the appropriate HTML tags:
+
+| Key           | HTML Output                 |
+| ------------- | --------------------------- |
+| `title`       | `<title>`                   |
+| `description` | `<meta name="description">` |
+| `author`      | `<meta name="author">`      |
+| `keywords`    | `<meta name="keywords">`    |
+| `viewport`    | `<meta name="viewport">`    |
+| `lang`        | `<html lang="...">`         |
+| `charset`     | `<meta charset="...">`      |
+| `themeColor`  | `<meta name="theme-color">` |
+
+**Open Graph** (for Facebook, LinkedIn, etc.):
+
+| Key             | HTML Output                        |
+| --------------- | ---------------------------------- |
+| `ogTitle`       | `<meta property="og:title">`       |
+| `ogDescription` | `<meta property="og:description">` |
+| `ogImage`       | `<meta property="og:image">`       |
+| `ogUrl`         | `<meta property="og:url">`         |
+| `ogType`        | `<meta property="og:type">`        |
+| `ogLocale`      | `<meta property="og:locale">`      |
+| `ogSiteName`    | `<meta property="og:site_name">`   |
+
+**Twitter Cards:**
+
+| Key                  | HTML Output                         |
+| -------------------- | ----------------------------------- |
+| `twitterCard`        | `<meta name="twitter:card">`        |
+| `twitterTitle`       | `<meta name="twitter:title">`       |
+| `twitterDescription` | `<meta name="twitter:description">` |
+| `twitterImage`       | `<meta name="twitter:image">`       |
+
+## Dynamic Metadata
+
+Sometimes metadata depends on the current URL. For example, a user profile page needs to show the user's name in the title. Pass a function instead of an object:
+
+```tsx
+const routes = defineRoutes(() => [
+  {
+    path: '/users/:userId',
+    component: UserProfile,
+    metadata: async ({ params }) => {
+      const userId = params.get('userId');
+      const user = await fetchUser(userId);
+      return {
+        title: `${user.name} | My App`,
+        description: user.bio,
+        ogTitle: user.name,
+        ogImage: user.avatar,
+      };
+    },
+  },
+]);
+```
+
+The function receives an object with:
+
+- **`params`**: A `Map<string, string>` of matched URL parameters.
+- **`query`**: A `URLSearchParams` of the query string.
+
+## Component-Level Metadata
+
+You can also attach metadata directly to a component function:
+
+```tsx
+function BlogPost(props) {
+  return <article>...</article>;
+}
+
+BlogPost.metadata = async ({ params }) => {
+  const post = await fetchPost(params.get('slug'));
+  return {
+    title: post.title,
+    description: post.excerpt,
+  };
+};
+```
+
+This is useful when the component itself is the best place to define what metadata it needs. If both the route and the component define metadata, they are merged — component metadata takes precedence.
+
+## Metadata Cascading
+
+In nested routes, metadata accumulates from parent to child. Child routes override parent values for the same key:
+
+```tsx
+const routes = defineRoutes(() => [
+  {
+    path: '/',
+    component: Layout,
+    metadata: {
+      ogSiteName: 'My App',
+      lang: 'en',
+    },
+    children: [
+      {
+        path: 'blog',
+        component: BlogList,
+        metadata: {
+          title: 'Blog | My App',
+          description: 'Read our latest posts.',
+        },
+      },
+    ],
+  },
+]);
+```
+
+When the user visits `/blog`, the final metadata combines both levels:
+
+- `ogSiteName`: "My App" (from parent)
+- `lang`: "en" (from parent)
+- `title`: "Blog | My App" (from child)
+- `description`: "Read our latest posts." (from child)

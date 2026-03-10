@@ -22,12 +22,7 @@ export function NavigableHeading(props: NavigableHeadingProps) {
   const scrollIntoView = () => {
     const heading = ref.get();
     if (heading?.id && hash.get() === `#${heading.id}`) {
-      heading.scrollIntoView({ block: 'start' });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          heading.scrollIntoView({ block: 'start' });
-        });
-      });
+      console.log('SCROLLING INTO VIEW: ', heading);
     }
   };
 

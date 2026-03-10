@@ -48,12 +48,23 @@ const groups = [
       'Middleware',
       'Lazy Loading',
       'Route Locking',
+      'View Transitions',
     ]),
     items: [] as SidebarItem[],
   },
   {
     label: 'Advanced Components',
     itemLabels: new Set(['Unique', 'Teleport', 'ShadowRoot', 'Await']),
+    items: [] as SidebarItem[],
+  },
+  {
+    label: 'Server Side Rendering',
+    itemLabels: new Set([
+      'Static Site Generation',
+      'Hydration',
+      'Page Metadata',
+      'Client Only',
+    ]),
     items: [] as SidebarItem[],
   },
 ];
