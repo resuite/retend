@@ -1,0 +1,243 @@
+# Utility Hooks
+
+All hooks listed on this page are imported from `retend-utils/hooks`.
+
+## useElementBounding
+
+Tracks the bounding rectangle of an HTML element reactively. The returned object contains a reactive `Cell` for each dimension, and updates automatically when the element's size or position changes.
+
+**Parameters:**
+
+- `elementRef` — A `Cell<HTMLElement | null>` referencing the element to track.
+- `options` (optional):
+  - `reset` (boolean, default `true`) — Reset values when the element leaves the tree.
+  - `windowResize` (boolean, default `true`) — Update on window resize.
+  - `windowScroll` (boolean, default `true`) — Update on window scroll.
+  - `updateTiming` (`'sync'` | `'next-frame'`, default `'sync'`) — Timing strategy for updates.
+
+**Returns:** An object with reactive cells: `width`, `height`, `x`, `y`, `top`, `right`, `bottom`, `left`.
+
+```tsx
+import { Cell } from 'retend';
+import { useElementBounding } from 'retend-utils/hooks';
+
+function PositionTracker() {
+  const trackedElement = Cell.source(null);
+  const bounds = useElementBounding(trackedElement);
+
+  return (
+    <>
+      <div ref={trackedElement} style="width: 100px; height: 50px;">
+        Track me!
+      </div>
+      <p>
+        Position: X={bounds.x}, Y={bounds.y}
+      </p>
+      <p>
+        Size: {bounds.width} × {bounds.height}
+      </p>
+    </>
+  );
+}
+```
+
+## useLiveDate
+
+Provides a reactive `Cell` containing the current date and time, updated at a configurable interval.
+
+**Parameters:**
+
+- `interval` (number, default `1000`) — Update frequency in milliseconds.
+
+**Returns:** `Cell<Date>`
+
+```tsx
+import { Cell } from 'retend';
+import { useLiveDate } from 'retend-utils/hooks';
+
+function Clock() {
+  const now = useLiveDate(1000);
+  const timeString = Cell.derived(() => now.get().toLocaleTimeString());
+
+  return <p>Current time: {timeString}</p>;
+}
+```
+
+## useWindowSize
+
+Returns reactive cells that track the current window dimensions.
+
+**Parameters:** None.
+
+**Returns:** `{ width: Cell<number>, height: Cell<number> }`
+
+```tsx
+import { Cell } from 'retend';
+import { If } from 'retend';
+import { useWindowSize } from 'retend-utils/hooks';
+
+function AdaptiveLayout() {
+  const { width } = useWindowSize();
+  const isMobile = Cell.derived(() => width.get() < 768);
+
+  return If(isMobile, {
+    true: () => <div>Mobile layout</div>,
+    false: () => <div>Desktop layout</div>,
+  });
+}
+```
+
+## useOnlineStatus
+
+Tracks the network connection status reactively.
+
+**Parameters:** None.
+
+**Returns:** `Cell<boolean>` — `true` when the browser is online.
+
+```tsx
+import { If } from 'retend';
+import { useOnlineStatus } from 'retend-utils/hooks';
+
+function NetworkBanner() {
+  const isOnline = useOnlineStatus();
+
+  return (
+    <p>
+      {If(isOnline, {
+        true: () => 'You are online.',
+        false: () => 'You are offline.',
+      })}
+    </p>
+  );
+}
+```
+
+## useLocalStorage
+
+Creates a reactive `Cell` that is automatically synchronized with `localStorage`. Changes to the cell are persisted, and the stored value is restored on initialization.
+
+**Parameters:**
+
+- `key` (string) — The localStorage key.
+- `initialValue` (JSON-serializable) — Default value if the key does not exist.
+
+**Returns:** `Cell` containing the stored value.
+
+```tsx
+import { useLocalStorage } from 'retend-utils/hooks';
+
+function ThemeSwitcher() {
+  const theme = useLocalStorage('theme', 'light');
+
+  const toggleTheme = () => {
+    theme.set(theme.get() === 'light' ? 'dark' : 'light');
+  };
+
+  return (
+    <>
+      <button onClick={toggleTheme}>Toggle Theme</button>
+      <p>Current theme: {theme}</p>
+    </>
+  );
+}
+```
+
+## useSessionStorage
+
+Creates a reactive `Cell` synchronized with `sessionStorage`. Behaves identically to `useLocalStorage`, but the data is scoped to the browser session.
+
+**Parameters:**
+
+- `key` (string) — The sessionStorage key.
+- `initialValue` (JSON-serializable) — Default value if the key does not exist.
+
+**Returns:** `Cell` containing the stored value.
+
+```tsx
+import { useSessionStorage } from 'retend-utils/hooks';
+
+function SessionCounter() {
+  const count = useSessionStorage('count', 0);
+
+  const increment = () => {
+    count.set(count.get() + 1);
+  };
+
+  return (
+    <>
+      <button onClick={increment}>Increment</button>
+      <p>Count: {count}</p>
+    </>
+  );
+}
+```
+
+## useDerivedValue
+
+Normalizes a value that may be either a static value or a `Cell` into a consistent `Cell`. If the input is already a `Cell`, the returned cell tracks it. If the input is a plain value, the returned cell holds it as a constant.
+
+This is useful inside components that accept props which may or may not be reactive.
+
+**Parameters:**
+
+- `property` (`Cell<T>` | `T`) — The value or cell to derive from.
+
+**Returns:** `Cell<T>`
+
+```tsx
+import { Cell } from 'retend';
+import { useDerivedValue } from 'retend-utils/hooks';
+
+function Label(props: { text: Cell<string> | string }) {
+  const text = useDerivedValue(props.text);
+
+  return <span>{text}</span>;
+}
+```
+
+## useMatchMedia
+
+Creates a reactive `Cell` that tracks whether a CSS media query currently matches.
+
+**Parameters:**
+
+- `query` (string) — A valid media query string (e.g. `'(prefers-color-scheme: dark)'`).
+
+**Returns:** `Cell<boolean>`
+
+```tsx
+import { If } from 'retend';
+import { useMatchMedia } from 'retend-utils/hooks';
+
+function ThemeIndicator() {
+  const prefersDark = useMatchMedia('(prefers-color-scheme: dark)');
+
+  return If(prefersDark, {
+    true: () => <p>Dark mode is active.</p>,
+    false: () => <p>Light mode is active.</p>,
+  });
+}
+```
+
+## useCursorPosition
+
+Tracks the cursor position within the window reactively.
+
+**Parameters:** None.
+
+**Returns:** `{ x: Cell<number>, y: Cell<number> }`
+
+```tsx
+import { useCursorPosition } from 'retend-utils/hooks';
+
+function CursorTracker() {
+  const { x, y } = useCursorPosition();
+
+  return (
+    <p>
+      Cursor: ({x}, {y})
+    </p>
+  );
+}
+```

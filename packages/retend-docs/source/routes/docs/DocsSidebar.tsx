@@ -67,6 +67,15 @@ const groups = [
     ]),
     items: [] as SidebarItem[],
   },
+  {
+    label: 'Utilities',
+    itemLabels: new Set([
+      'Utilities Overview',
+      'Utility Hooks',
+      'Utility Components',
+    ]),
+    items: [] as SidebarItem[],
+  },
 ];
 
 for (const doc of flatDocs) {

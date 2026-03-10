@@ -1,0 +1,54 @@
+# Rendering Architecture (Advanced)
+
+Retend is fundamentally platform-agnostic. The core library (`retend`) handles all the reactive logic, components, and state management, but it delegates the actual drawing of the interface to a **Renderer**.
+
+By swapping out the renderer, you can use Retend to build web applications (`retend-web`), generate static HTML (`retend-server`), or even theoretically drive native mobile interfaces!
+
+## How Renderers Work
+
+When Retend processes your JSX and reactive Cells, it calculates exactly what needs to change. It then calls methods on the _active renderer_ to actually make those changes.
+
+1. **Decoupled Types**: The core framework maintains perfect TypeScript safety without knowing what a "Node" actually is. To the core framework, a node is just an opaque object. To `retend-web`, a node is a real `HTMLElement`. To `retend-server`, a node is just a text string.
+2. **Global Context**: Retend tracks the active renderer in a global context. When you call `renderToDOM` from `retend-web`, it secretly sets the browser renderer as the active one before processing your application.
+3. **Reconciliation & Updates**: The core framework handles all the complex math of fine-grained reactivity and figuring out what changed in a list. It then gives the renderer very simple, precise commands (like "update the text of this node" or "append this child here").
+
+## The Renderer API
+
+Every renderer in the Retend ecosystem implements the `Renderer` interface. If you ever wanted to build a custom renderer (for example, to render Retend apps to an HTML5 Canvas, or to a command-line terminal UI), you would implement this exact interface.
+
+Here are the key parts of the contract that make up a Renderer:
+
+### Types
+
+Every renderer defines concrete types for its specific platform:
+
+- `Node`: The fundamental building block (e.g., an HTML element).
+- `Text`: A specific node for plain text.
+- `Container`: A node that can hold other nodes.
+- `Output`: The final result of the rendering process.
+
+### Node Creation
+
+The core framework calls these methods when it needs to create new elements:
+
+- `createContainer(tagname, props)`: Creates a host-level entity (like a `<div>`).
+- `createText(text)`: Creates a text node.
+- `createGroup(nodes)`: Creates a logical grouping of nodes without a physical container (used for `<></>` Fragments).
+
+### Node Updates
+
+When a reactive Cell changes, the core framework tells the renderer exactly what to do:
+
+- `updateText(text, node)`: Mutates the text of an existing text node.
+- `setProperty(node, key, value)`: Applies a property or attribute to a node.
+- `append(parent, children)`: Physically attaches nodes to a parent.
+
+### Dynamic Collections
+
+When a `<For>` loop needs to update a list of items, the core framework handles the diffing algorithm and then commands the renderer:
+
+- `reconcile(handle, options)`: Efficiently creates, moves, or removes nodes in the DOM to match the new list.
+
+---
+
+This separation of concerns is what keeps Retend's core incredibly small and focused, while allowing it to run flawlessly anywhere JavaScript can run!
