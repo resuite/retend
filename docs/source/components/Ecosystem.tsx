@@ -32,14 +32,16 @@ function EcosystemCard(props: {
 export function Ecosystem() {
   return (
     <section>
-      <SectionHeader
-        label="Ecosystem"
-        title="Everything you need."
-        description="Retend ships with a full suite of tools so you can focus on your product, not your dependency list."
-      />
+      <div class="animate-scroll-fade-in">
+        <SectionHeader
+          label="Ecosystem"
+          title="Everything you need."
+          description="Retend ships with a full suite of tools so you can focus on your product, not your dependency list."
+        />
+      </div>
 
       <ul class="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
-        <li>
+        <li class="animate-scroll-reveal" style={{ 'animation-delay': '0ms' }}>
           <EcosystemCard
             title="Built-in Router"
             description="First-class routing with lazy loading, middleware, route locking, and reactive query params. No external dependencies required."
@@ -47,7 +49,7 @@ export function Ecosystem() {
           />
         </li>
 
-        <li>
+        <li class="animate-scroll-reveal" style={{ 'animation-delay': '100ms' }}>
           <EcosystemCard
             title="Server Rendering"
             description="SSR and static site generation out of the box. The same components render on the server and hydrate seamlessly on the client."
@@ -55,7 +57,7 @@ export function Ecosystem() {
           />
         </li>
 
-        <li>
+        <li class="animate-scroll-reveal" style={{ 'animation-delay': '200ms' }}>
           <EcosystemCard
             title="Async Boundaries"
             description={
@@ -69,7 +71,7 @@ export function Ecosystem() {
           />
         </li>
 
-        <li>
+        <li class="animate-scroll-reveal" style={{ 'animation-delay': '0ms' }}>
           <EcosystemCard
             title="Instant HMR"
             description={
@@ -83,7 +85,7 @@ export function Ecosystem() {
           />
         </li>
 
-        <li>
+        <li class="animate-scroll-reveal" style={{ 'animation-delay': '100ms' }}>
           <EcosystemCard
             title="Scoped Context"
             description={
@@ -97,7 +99,7 @@ export function Ecosystem() {
           />
         </li>
 
-        <li>
+        <li class="animate-scroll-reveal" style={{ 'animation-delay': '200ms' }}>
           <EcosystemCard
             title="Universal Rendering"
             description="Write components once and render them anywhere. The same code runs in the browser, on the server, or in tests — powered by a pluggable renderer architecture."

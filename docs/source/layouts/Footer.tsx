@@ -24,18 +24,18 @@ export function Footer() {
               <ul class="flex flex-col gap-4">
                 <li>
                   <Link
-                    href="/concepts"
+                    href="/docs/getting-started"
                     class="text-fg hover:text-brand text-sm transition-colors"
                   >
-                    Concepts
+                    Getting Started
                   </Link>
                 </li>
                 <li>
                   <Link
-                    href="/api"
+                    href="/docs/jsx-and-components"
                     class="text-fg hover:text-brand text-sm transition-colors"
                   >
-                    API Reference
+                    Core Concepts
                   </Link>
                 </li>
               </ul>
@@ -44,28 +44,34 @@ export function Footer() {
               <h4 class="text-fg-muted text-sm font-medium">Ecosystem</h4>
               <ul class="flex flex-col gap-4">
                 <li>
-                  <Link
-                    href="/router"
+                  <a
+                    href="https://npmjs.com/package/retend"
+                    target="_blank"
+                    rel="noreferrer"
                     class="text-fg hover:text-brand text-sm transition-colors"
                   >
                     Router
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link
-                    href="/server"
+                  <a
+                    href="https://npmjs.com/package/retend-server"
+                    target="_blank"
+                    rel="noreferrer"
                     class="text-fg hover:text-brand text-sm transition-colors"
                   >
                     Server
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link
-                    href="/utils"
+                  <a
+                    href="https://npmjs.com/package/retend-utils"
+                    target="_blank"
+                    rel="noreferrer"
                     class="text-fg hover:text-brand text-sm transition-colors"
                   >
                     Utils
-                  </Link>
+                  </a>
                 </li>
               </ul>
             </div>
