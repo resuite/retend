@@ -6,6 +6,7 @@ import { HighlightOverlay } from '@/components/HighlightOverlay';
 import { InspectorPanel } from '@/components/InspectorPanel';
 import { PanelHeaderTools } from '@/components/PanelHeaderTools';
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
+import { useFling } from '@/hooks/useFling';
 import { usePanelState } from '@/hooks/usePanelState';
 import classes from '@/styles/Panel.module.css';
 
@@ -15,11 +16,27 @@ export function Panel() {
   const devRenderer = useDevToolsRenderer();
   const panel = usePanelState();
   const divRef = Cell.source<HTMLElement | null>(null);
+  const panelRef = Cell.source<HTMLDivElement | null>(null);
   const inspectorIsOpen = Cell.derived(
     () => devRenderer.selectedNode.get() !== null
   );
 
+  const {
+    isDragging,
+    isFlinging,
+    style,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    getShouldSkipClick,
+    setShouldSkipClick,
+  } = useFling(panel, panelRef);
+
   const togglePanel = () => {
+    if (getShouldSkipClick()) {
+      setShouldSkipClick(false);
+      return;
+    }
     const nextState = !panel.panelIsOpen.get();
     panel.togglePanel();
     if (!nextState) {
@@ -49,6 +66,7 @@ export function Panel() {
       <retend-web-devtools ref={divRef} style={{ display: 'contents' }}>
         <ShadowRoot>
           <div
+            ref={panelRef}
             class={[
               classes.panel,
               {
@@ -64,8 +82,11 @@ export function Panel() {
                 [classes.positionBottomRight]: Cell.derived(
                   () => panel.panelPosition.get() === 'bottom-right'
                 ),
+                [classes.isDragging]: isDragging,
+                [classes.isFlinging]: isFlinging,
               },
             ]}
+            style={style}
             data-retend-devtools
           >
             {If(panel.panelIsOpen, () => (
@@ -105,6 +126,9 @@ export function Panel() {
                 { [classes.buttonOpen]: panel.panelIsOpen },
               ]}
               onClick={togglePanel}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
             >
               RT
             </button>

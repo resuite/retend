@@ -149,6 +149,15 @@
   }
 }
 
+.isDragging {
+  transition: none !important;
+  user-select: none;
+}
+
+.isFlinging {
+  transition: transform 0.4s cubic-bezier(0.18, 0.8, 0.12, 1) !important;
+}
+
 @keyframes panelOpen {
   from {
     opacity: 0;
