@@ -27,7 +27,6 @@ export const CustomEvent =
  * Each environment provides its own window interface optimized for that context.
  *
  * @typedef {{
- *    teleportIdCounter: { value: number }
  *    observer?: Observer
  *    globalData: Map<PropertyKey, any>
  *    renderer?: Renderer<any>

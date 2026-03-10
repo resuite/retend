@@ -95,7 +95,6 @@ describe('Hydration parent dialog close', () => {
   it('closes hydrated dialog without crashing updates', async () => {
     setGlobalContext({
       globalData: new Map(),
-      teleportIdCounter: { value: 0 },
     });
 
     const serverWindow = new VWindow();

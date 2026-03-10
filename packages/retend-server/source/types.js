@@ -41,7 +41,6 @@
 /**
  * @typedef {Object} AsyncStorage
  * @property {string} path
- * @property {{ value: number }} teleportIdCounter
  * @property {Map<string, any>} globalData
  * @property {import('retend').Renderer<any>} renderer
  */

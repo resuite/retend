@@ -19,7 +19,7 @@ function EcosystemCard(props: {
 }) {
   return (
     <Card class="group hover:border-brand/40 flex min-w-0 flex-col overflow-hidden transition-colors">
-      <div class="border-border/65 dark:border-border bg-surface-alt/30 group-hover:bg-brand/[0.02] relative flex h-48 w-full items-center justify-center overflow-hidden border-b transition-colors">
+      <div class="border-border/65 dark:border-border bg-surface-alt/30 group-hover:bg-brand/2 relative flex h-48 w-full items-center justify-center overflow-hidden border-b transition-colors">
         <props.illustration />
       </div>
       <div class="flex-1 p-6 md:p-8">

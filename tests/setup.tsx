@@ -21,7 +21,6 @@ export const routerSetup = () => {
   const window = new VWindow();
   setGlobalContext({
     globalData: new Map(),
-    teleportIdCounter: { value: 0 },
   });
   setActiveRenderer(new VDOMRenderer(window));
 };
@@ -35,7 +34,6 @@ export const routerSetupBrowser = () => {
 
     setGlobalContext({
       globalData: new Map(),
-      teleportIdCounter: { value: 0 },
     });
     setActiveRenderer(new DOMRenderer(window));
   });
@@ -57,7 +55,6 @@ export const browserSetup = () => {
     clearBrowserWindow();
 
     setGlobalContext({
-      teleportIdCounter: { value: 0 },
       globalData: new Map(),
     });
     setActiveRenderer(new DOMRenderer(window));
@@ -74,7 +71,6 @@ export const vDomSetup = (options?: { markDynamicNodes: boolean }) => {
     const window = new VWindow();
     setGlobalContext({
       globalData: new Map(),
-      teleportIdCounter: { value: 0 },
     });
     setActiveRenderer(new VDOMRenderer(window, options));
   });

@@ -80,7 +80,6 @@ describe('useWindowEventListener', () => {
 
     setGlobalContext({
       globalData: new Map(),
-      teleportIdCounter: { value: 0 },
     });
     setActiveRenderer(new VDOMRenderer(new VWindow()));
 

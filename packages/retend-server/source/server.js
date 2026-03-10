@@ -98,13 +98,11 @@ async function renderPath(options) {
     markDynamicNodes: true,
   });
 
-  const teleportIdCounter = { value: 0 };
   const globalData = new Map();
   globalData.set('env:ssr', true);
   const globalContextStore = {
     renderer,
     path,
-    teleportIdCounter,
     globalData,
   };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */

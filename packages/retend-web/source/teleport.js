@@ -45,10 +45,16 @@ import { getGlobalContext } from 'retend/context';
  */
 export function Teleport(props) {
   const { to: target, ...rest } = props;
-  const { teleportIdCounter } = getGlobalContext();
+  const { globalData } = getGlobalContext();
+
+  if (!globalData.has('teleportCounter')) {
+    globalData.set('teleportCounter', { value: 0 });
+  }
+  const teleportCounter = globalData.get('teleportCounter');
+
   const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   /** @type {string | undefined} */
-  const teleportId = `teleport/target/${teleportIdCounter.value++}`;
+  const teleportId = `teleport/target/${teleportCounter.value++}`;
 
   /** @param {Node} [anchor] */
   const mountTeleportedNodes = async (anchor) => {

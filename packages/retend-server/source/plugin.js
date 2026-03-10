@@ -360,11 +360,6 @@ async function defineSharedGlobalContext(sharedData, setGlobalContext) {
   const { asyncLocalStorage } = sharedData;
 
   const context = {
-    get teleportIdCounter() {
-      const store = asyncLocalStorage.getStore();
-      if (!store) throw new Error('No store found');
-      return store.teleportIdCounter;
-    },
     get globalData() {
       const store = asyncLocalStorage.getStore();
       if (!store) throw new Error('No store found');

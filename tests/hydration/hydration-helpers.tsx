@@ -18,7 +18,6 @@ type TemplateFn = () => JSX.Template;
 const resetHydrationContext = () => {
   setGlobalContext({
     globalData: new Map(),
-    teleportIdCounter: { value: 0 },
   });
 };
 

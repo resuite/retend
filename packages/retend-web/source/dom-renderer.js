@@ -862,7 +862,6 @@ export class DOMRenderer {
 export function renderToDOM(element, App) {
   setGlobalContext(
     getGlobalContext() ?? {
-      teleportIdCounter: { value: 0 },
       globalData: new Map(),
     }
   );

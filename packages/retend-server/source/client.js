@@ -223,7 +223,6 @@ async function restoreContext(context, routerCreateFn, options = {}) {
   const { path } = context;
 
   setGlobalContext({
-    teleportIdCounter: { value: 0 },
     globalData: new Map(),
   });
   const renderer = new DOMRenderer(window);

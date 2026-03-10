@@ -111,7 +111,6 @@ describe('Hydration router + unique transition', () => {
   it('hydrates without mismatch errors', async () => {
     setGlobalContext({
       globalData: new Map(),
-      teleportIdCounter: { value: 0 },
     });
 
     const serverWindow = new VWindow();
