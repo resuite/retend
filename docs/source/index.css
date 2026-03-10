@@ -182,7 +182,7 @@
     animation-timeline: view();
     animation-range: entry 10% cover 30%;
   }
-  
+
   /* Fallback for browsers that don't support view() timelines but we still apply classes */
 }
 

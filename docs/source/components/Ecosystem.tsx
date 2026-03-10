@@ -49,7 +49,10 @@ export function Ecosystem() {
           />
         </li>
 
-        <li class="animate-scroll-reveal" style={{ 'animation-delay': '100ms' }}>
+        <li
+          class="animate-scroll-reveal"
+          style={{ 'animation-delay': '100ms' }}
+        >
           <EcosystemCard
             title="Server Rendering"
             description="SSR and static site generation out of the box. The same components render on the server and hydrate seamlessly on the client."
@@ -57,7 +60,10 @@ export function Ecosystem() {
           />
         </li>
 
-        <li class="animate-scroll-reveal" style={{ 'animation-delay': '200ms' }}>
+        <li
+          class="animate-scroll-reveal"
+          style={{ 'animation-delay': '200ms' }}
+        >
           <EcosystemCard
             title="Async Boundaries"
             description={
@@ -85,7 +91,10 @@ export function Ecosystem() {
           />
         </li>
 
-        <li class="animate-scroll-reveal" style={{ 'animation-delay': '100ms' }}>
+        <li
+          class="animate-scroll-reveal"
+          style={{ 'animation-delay': '100ms' }}
+        >
           <EcosystemCard
             title="Scoped Context"
             description={
@@ -99,7 +108,10 @@ export function Ecosystem() {
           />
         </li>
 
-        <li class="animate-scroll-reveal" style={{ 'animation-delay': '200ms' }}>
+        <li
+          class="animate-scroll-reveal"
+          style={{ 'animation-delay': '200ms' }}
+        >
           <EcosystemCard
             title="Universal Rendering"
             description="Write components once and render them anywhere. The same code runs in the browser, on the server, or in tests — powered by a pluggable renderer architecture."

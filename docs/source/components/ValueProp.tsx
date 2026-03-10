@@ -15,7 +15,10 @@ export function ValueProp() {
             />
           </Card>
         </li>
-        <li class="animate-scroll-reveal" style={{ 'animation-delay': '100ms' }}>
+        <li
+          class="animate-scroll-reveal"
+          style={{ 'animation-delay': '100ms' }}
+        >
           <Card class="group p-6 md:p-8">
             <FeatureCard
               icon={<SlidersIcon />}
@@ -24,7 +27,10 @@ export function ValueProp() {
             />
           </Card>
         </li>
-        <li class="animate-scroll-reveal" style={{ 'animation-delay': '200ms' }}>
+        <li
+          class="animate-scroll-reveal"
+          style={{ 'animation-delay': '200ms' }}
+        >
           <Card class="group p-6 md:p-8">
             <FeatureCard
               icon={<LightningIcon />}
