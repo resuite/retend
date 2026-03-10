@@ -21,7 +21,6 @@ import { VComment, VDocumentFragment, VNode, VText } from './index.js';
 
 /**
  * @typedef VDOMRenderingTypes
- * @property {VDom.VNode} Output
  * @property {VDom.VNode} Node
  * @property {VDom.VNode} Text
  * @property {DOMHandle} Handle
@@ -190,11 +189,10 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {VDom.VNode | VDom.VNode[]} [input]
    * @returns {VDom.VDocumentFragment}
    */
-  createGroup(input) {
-    return Ops.createGroup(input, this);
+  createGroup() {
+    return this.host.document.createDocumentFragment();
   }
 
   /**

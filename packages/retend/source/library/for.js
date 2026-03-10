@@ -6,6 +6,7 @@ import { Cell, AsyncCell } from '@adbl/cells';
 import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
+import { linkNodes } from './utils.js';
 
 /**
  * Extracts the item type from a list value.
@@ -231,7 +232,7 @@ export function For(list, fn, options) {
     const _list = list.get();
 
     if (_list instanceof Promise) {
-      group = renderer.createGroup([]);
+      group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
       _list.then((resolved) => processListChanges(resolved));
       return group;
@@ -265,10 +266,12 @@ export function For(list, fn, options) {
         cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
         i++;
       }
-      group = renderer.createGroup(allNodes);
+      group = renderer.createGroup();
+      const nodes = Array.isArray(allNodes) ? allNodes : [allNodes];
+      for (const child of nodes) linkNodes(group, child, renderer);
       handle = renderer.createGroupHandle(group);
     } else {
-      group = renderer.createGroup([]);
+      group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
     }
     return group;

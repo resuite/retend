@@ -2,6 +2,7 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 
+import { createGroupFromNodes } from '../_internals.js';
 import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
@@ -129,14 +130,14 @@ export function Switch(value, cases, defaultCase) {
     let group;
 
     if (initialValue instanceof Promise) {
-      group = renderer.createGroup([]);
+      group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
       initialValue.then((resolved) => processValueChange(resolved));
       return group;
     }
 
     const initialResults = callback(initialValue);
-    group = renderer.createGroup(initialResults);
+    group = createGroupFromNodes(initialResults, renderer);
     handle = renderer.createGroupHandle(group);
     return group;
   };
@@ -257,14 +258,14 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
     let group;
 
     if (initialValue instanceof Promise) {
-      group = renderer.createGroup([]);
+      group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
       initialValue.then((resolved) => processValueChange(resolved));
       return group;
     }
 
     const initialResults = callback(initialValue);
-    group = renderer.createGroup(initialResults);
+    group = createGroupFromNodes(initialResults, renderer);
     handle = renderer.createGroupHandle(group);
     return group;
   };

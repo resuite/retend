@@ -186,21 +186,6 @@ export function setProperty(node, key, value, setEventListener) {
 }
 
 /**
- * @param {any} input
- * @param {Renderer<any>} renderer
- */
-export function createGroup(input, renderer) {
-  const fragment = renderer.host.document.createDocumentFragment();
-  if (input) {
-    const children = Array.isArray(input) ? input : [input];
-    for (const child of children) {
-      linkNodes(fragment, child, renderer);
-    }
-  }
-  return fragment;
-}
-
-/**
  * @param {any} fragment
  * @param {Renderer<any>} renderer
  * @returns {any}

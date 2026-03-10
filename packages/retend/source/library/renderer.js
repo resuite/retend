@@ -13,8 +13,6 @@ import { getGlobalContext } from '../context/index.js';
  * remaining decoupled from the host-specific node and handle implementations.
  *
  * @typedef RendererTypes
- * @property {any} Output
- * The final result of the rendering process.
  *
  * @property {any} Node
  * The fundamental unit of the renderer's output.
@@ -65,9 +63,6 @@ import { getGlobalContext } from '../context/index.js';
  * @template [Node=Types['Node']]
  * The base node type.
  *
- * @template [Output=Types['Output']]
- * The final output type.
- *
  * @template {Node} [Container=Types['Container']]
  * A node that can contain other nodes.
  *
@@ -103,7 +98,7 @@ import { getGlobalContext } from '../context/index.js';
  * @property {(child: any) => child is Node} isNode
  * A predicate that identifies if a value is a valid node for this renderer.
  *
- * @property {(input?: Node[]) => Group} createGroup
+ * @property {() => Group} createGroup
  * Creates a virtual collection to group nodes without requiring a host-level container.
  *
  * @property {(child: any) => child is Group} isGroup

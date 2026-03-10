@@ -42,8 +42,6 @@ export type TerminalContainerNode = TerminalNode;
 export type TerminalHandle = [TerminalNode, TerminalNode];
 
 export type TerminalRendererTypes = {
-  // biome-ignore lint/suspicious/noExplicitAny: explicit any for renderer interface
-  Output: any;
   Node: TerminalNode;
   Text: TextNode;
   Handle: TerminalHandle;

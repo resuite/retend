@@ -13,6 +13,7 @@ import {
   onConnected,
   setActiveRenderer,
   runPendingSetupEffects,
+  linkNodes,
 } from 'retend';
 import { getGlobalContext, setGlobalContext } from 'retend/context';
 
@@ -40,7 +41,6 @@ const DOCUMENT_FRAGMENT_NODE = 11;
 
 /**
  * @typedef DOMRenderingTypes
- * @property {Node} Output
  * @property {Node} Node
  * @property {Node} Text
  * @property {DOMHandle} Handle
@@ -157,10 +157,13 @@ export class DOMRenderer {
    * @param {Node[]} newContent
    */
   write(segment, newContent) {
-    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      //@ts-expect-error
-      segment.splice(1, segment.length - 2, ...newContent);
-      return segment;
+    if (this.#isHydrationModeEnabled) {
+      Ops.finalizeHydrationHandleSegment(segment);
+      if (this.#getHydrationState()) {
+        //@ts-expect-error
+        segment.splice(1, segment.length - 2, ...newContent);
+        return segment;
+      }
     }
     return Ops.write(segment, newContent);
   }
@@ -242,7 +245,9 @@ export class DOMRenderer {
       if (tagname === Await) {
         return withState(branchState(), () => {
           const nodes = createNodesFromTemplate(props[0]?.children, this);
-          const group = this.createGroup(nodes);
+          const group = this.createGroup();
+          const children = Array.isArray(nodes) ? nodes : [nodes];
+          for (const child of children) linkNodes(group, child, this);
           this.createGroupHandle(group);
           return group;
         });
@@ -331,21 +336,14 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {Node | Node[]} [input]
    * @returns {DocumentFragment}
    */
-  createGroup(input) {
+  createGroup() {
     if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      if (input) {
-        // @ts-expect-error
-        if (Array.isArray(input)) return input;
-        // @ts-expect-error
-        return [input];
-      }
       // @ts-expect-error
       return [];
     }
-    return Ops.createGroup(input, this);
+    return this.host.document.createDocumentFragment();
   }
 
   /**
@@ -429,6 +427,9 @@ export class DOMRenderer {
   isNode(child) {
     if (child instanceof Node || child instanceof Ops.ShadowRootFragment) {
       return true;
+    }
+    if (child instanceof DeferredHandleSymbol && this.#isHydrationModeEnabled) {
+      return this.#getHydrationState() !== null;
     }
     if (!(child instanceof Skip) || !this.#isHydrationModeEnabled) {
       return false;

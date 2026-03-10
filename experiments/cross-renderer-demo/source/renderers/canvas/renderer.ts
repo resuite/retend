@@ -467,8 +467,8 @@ export class CanvasRenderer {
     return true;
   }
 
-  createGroup(input?: CanvasNode | CanvasNode[]): CanvasNode[] {
-    return toNodeArray(input);
+  createGroup(): CanvasNode[] {
+    return [];
   }
 
   unwrapGroup(group: CanvasNode[]): CanvasNode[] {

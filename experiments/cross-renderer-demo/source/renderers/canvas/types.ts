@@ -32,7 +32,6 @@ export type CanvasContainerNode = CanvasNode;
 export type CanvasHandle = [CanvasNode, CanvasNode];
 
 export type CanvasRendererTypes = {
-  Output: CanvasNode;
   Node: CanvasNode;
   Text: CanvasTextNode;
   Handle: CanvasHandle;

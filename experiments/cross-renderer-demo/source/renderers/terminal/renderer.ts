@@ -533,8 +533,8 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
     return true;
   }
 
-  createGroup(input?: TerminalNode | TerminalNode[]): TerminalNode[] {
-    return toNodeArray(input);
+  createGroup(): TerminalNode[] {
+    return [];
   }
 
   unwrapGroup(group: TerminalNode[]): TerminalNode[] {
