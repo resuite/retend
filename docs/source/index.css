@@ -51,7 +51,7 @@
 }
 
 .dark {
-  --color-retend-bg: #1c1917;
+  --color-retend-bg: #0d0d0c;
   --color-retend-fg: #fafaf9;
   --color-retend-fg-muted: #a8a29e;
   --color-retend-brand: #ffa44a;
@@ -61,7 +61,7 @@
   --color-retend-surface-alt: #44403c;
   --color-retend-surface-alt-hover: #57534e;
   --color-retend-border: #44403c;
-  --color-retend-dots: #44403c;
+  --color-retend-dots: #252423;
   --color-retend-card-shadow: #121212;
   --color-retend-selection-bg: #57534e;
   --color-retend-selection-fg: #f8fafc;

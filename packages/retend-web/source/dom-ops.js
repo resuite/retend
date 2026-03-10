@@ -431,7 +431,7 @@ export function createText(text, renderer) {
 export function writeStaticStyles(renderer) {
   writeStaticStyle(
     'dom-styles',
-    ':where(retend-outlet, retend-teleport) { display: contents }' +
+    ':where(retend-router-outlet, retend-teleport) { display: contents }' +
       ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
     renderer
   );

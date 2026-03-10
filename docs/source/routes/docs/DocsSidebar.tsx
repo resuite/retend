@@ -233,7 +233,7 @@ function SidebarNode(props: { item: SidebarItem }) {
             {item.label}
           </div>
         </summary>
-        <ul class="mt-2 ml-6 flex flex-col gap-2 border-l border-[#5c5c5c] pl-3">
+        <ul class="mt-2 ml-6 flex flex-col gap-2 border-l border-[#2f2f2f] pl-3">
           {For(
             item.items,
             (subItem) => (

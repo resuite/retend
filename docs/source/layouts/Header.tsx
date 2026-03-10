@@ -7,7 +7,7 @@ import iconUrl from '../../assets/icon.svg';
 
 export function Header() {
   return (
-    <header class="bg-bg fixed top-0 right-0 left-0 z-50 flex h-(--header-height) flex-col justify-center border-b border-[#5c5c5c]">
+    <header class="bg-bg fixed top-0 right-0 left-0 z-50 flex h-(--header-height) flex-col justify-center border-b border-[#2f2f2f]">
       <div class="mx-auto w-full max-w-300 px-5 sm:px-6 md:px-10">
         <nav class="flex items-center justify-between">
           <div class="flex items-center gap-3">
