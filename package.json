@@ -1,18 +1,23 @@
 {
+  "version": "0.0.26",
+  "private": true,
+  "description": "A modern reactive framework for fluid, dynamic web apps.",
+  "homepage": "https://github.com/resuite/retend#readme",
+  "bugs": {
+    "url": "https://github.com/resuite/retend/issues"
+  },
+  "license": "MIT",
   "author": "Adebola Akomolafe",
-  "version": "0.0.24",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/resuite/retend.git"
   },
-  "bugs": {
-    "url": "https://github.com/resuite/retend/issues"
-  },
-  "description": "A modern reactive framework for fluid, dynamic web apps.",
-  "homepage": "https://github.com/resuite/retend#readme",
-  "license": "MIT",
-  "private": true,
-  "packageManager": "pnpm@10.6.3",
+  "workspaces": [
+    "docs",
+    "packages/*",
+    "tests",
+    "experiments/*"
+  ],
   "scripts": {
     "test": "pnpm --filter retend-test-suite exec vitest run",
     "test:watch": "pnpm --filter retend-test-suite exec vitest",
@@ -37,16 +42,11 @@
     "previews": "cp README.md packages/retend/README.md && pnpm dlx pkg-pr-new publish './packages/retend' './packages/retend-web' './packages/retend-web-devtools' './packages/retend-server' './packages/retend-start' './packages/retend-utils'",
     "prepare": "husky"
   },
-  "workspaces": [
-    "docs",
-    "packages/*",
-    "tests",
-    "experiments/*"
-  ],
   "devDependencies": {
     "husky": "^9.1.7",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.50.0",
     "wrangler": "4.71.0"
-  }
+  },
+  "packageManager": "pnpm@10.6.3"
 }

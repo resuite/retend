@@ -1,6 +1,6 @@
 {
   "name": "retend-utils",
-  "version": "0.0.24",
+  "version": "0.0.26",
   "private": false,
   "description": "A collection of utility functions for Retend.",
   "keywords": [
