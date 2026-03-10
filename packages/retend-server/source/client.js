@@ -79,6 +79,11 @@ export * from './render-to-string.js';
  * Indicates the language and territory of the content.
  * Example: "en_US", "es_ES"
  *
+ * @property {string} [ogLogo]
+ * The Open Graph logo image URL, specified using <meta property="og:logo">.
+ * A brand image used by consumers that support the tag.
+ * Example: "https://example.com/logo.png"
+ *
  * @property {string} [ogSiteName]
  * The Open Graph site name, specified using <meta property="og:site_name">.
  * The overall site name for social sharing context.

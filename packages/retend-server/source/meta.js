@@ -16,6 +16,7 @@ const metaNameMap = {
   ogUrl: 'og:url',
   ogType: 'og:type',
   ogLocale: 'og:locale',
+  ogLogo: 'og:logo',
   ogSiteName: 'og:site_name',
   twitterCard: 'twitter:card',
   twitterTitle: 'twitter:title',
@@ -95,10 +96,7 @@ export function updatePageMeta(newMeta, document) {
     const metaName = metaNameMap[/** @type {keyof PageMeta} */ (key)];
     const newValue = newMeta[/** @type {keyof PageMeta} */ (key)];
 
-    // OG and Twitter tags use 'property' attribute, others use 'name'
-    const isOgOrTwitter =
-      metaName.startsWith('og:') || metaName.startsWith('twitter:');
-    const attrName = isOgOrTwitter ? 'property' : 'name';
+    const attrName = metaName.startsWith('og:') ? 'property' : 'name';
 
     const metaTags = head.querySelectorAll('meta');
     let metaTag = null;

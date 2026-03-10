@@ -143,13 +143,21 @@ DocsPage.metadata = ({ params }: { params: Map<string, string> }) => {
     return { title: 'Page Not Found | Retend' };
   }
 
+  let title = activePage.title || activePage.label;
+
   return {
-    title: activePage.title
-      ? `${activePage.title} | Retend`
-      : `${activePage.label} | Retend`,
+    title: `${title} | Retend`,
     description: activePage.description,
-    ogTitle: activePage.title || activePage.label,
+    ogTitle: title,
     ogDescription: activePage.description,
     ogImage: `https://retend.dev/og/${activePage.slug}.png`,
+    ogUrl: `https://retend.dev${activePath}`,
+    ogType: 'article',
+    ogLocale: 'en_US',
+    ogLogo: 'https://retend.dev/og/overview.png',
+    twitterCard: 'summary_large_image',
+    twitterTitle: title,
+    twitterDescription: activePage.description,
+    twitterImage: `https://retend.dev/og/${activePage.slug}.png`,
   };
 };

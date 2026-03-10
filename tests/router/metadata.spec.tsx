@@ -2,6 +2,7 @@ import type { DOMRenderer } from 'retend-web';
 
 import { getActiveRenderer } from 'retend';
 import { Cell } from 'retend';
+import { VWindow } from 'retend-server/v-dom';
 import {
   type RouteComponent,
   Router,
@@ -12,6 +13,7 @@ import {
 } from 'retend/router';
 import { describe, expect, it } from 'vitest';
 
+import { updatePageMeta } from '../../packages/retend-server/source/meta.js';
 import { getTextContent, vDomSetup } from '../setup.tsx';
 
 describe('Router Metadata', () => {
@@ -61,6 +63,31 @@ describe('Router Metadata', () => {
       title: 'About Us',
       description: 'Learn more about our company',
     });
+  });
+
+  it('should write Open Graph and Twitter tags with the right attributes', () => {
+    const window = new VWindow();
+
+    updatePageMeta(
+      {
+        ogLogo: 'https://retend.dev/og/overview.png',
+        twitterCard: 'summary_large_image',
+      },
+      window.document
+    );
+
+    const metaTags = [...window.document.head.querySelectorAll('meta')];
+
+    expect(
+      metaTags
+        .find((tag) => tag.getAttribute('property') === 'og:logo')
+        ?.getAttribute('content')
+    ).toBe('https://retend.dev/og/overview.png');
+    expect(
+      metaTags
+        .find((tag) => tag.getAttribute('name') === 'twitter:card')
+        ?.getAttribute('content')
+    ).toBe('summary_large_image');
   });
 
   it('should aggregate metadata from nested routes', async () => {

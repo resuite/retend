@@ -25,5 +25,14 @@ Home.metadata = () => {
     ogDescription:
       'Retend is a modern, lightweight runtime to build incredibly fast, reactive web applications. Get started with the simpler UI framework.',
     ogImage: 'https://retend.dev/og/overview.png',
+    ogUrl: 'https://retend.dev/',
+    ogType: 'website',
+    ogLocale: 'en_US',
+    ogLogo: 'https://retend.dev/og/overview.png',
+    twitterCard: 'summary_large_image',
+    twitterTitle: 'Retend - A simpler way to build user interfaces',
+    twitterDescription:
+      'Retend is a modern, lightweight runtime to build incredibly fast, reactive web applications. Get started with the simpler UI framework.',
+    twitterImage: 'https://retend.dev/og/overview.png',
   };
 };
