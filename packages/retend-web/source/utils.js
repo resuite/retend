@@ -80,6 +80,10 @@ export function consolidateNodes(nodes, renderer) {
 export function writeStaticStyle(id, contents, renderer) {
   const { head } = renderer.host.document;
   const formatted = `retend:static-style-ids:${id}`;
+  if (renderer.host.document.getElementById(id)) {
+    renderer.staticStyleIds.add(formatted);
+    return;
+  }
   if (renderer.staticStyleIds.has(formatted)) return;
 
   const newStyle = renderer.host.document.createElement('style');
