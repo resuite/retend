@@ -5,7 +5,8 @@
     "retend": "^0.0.24",
     "retend-server": "^0.0.24",
     "retend-utils": "^0.0.24",
-    "retend-web": "^0.0.24"
+    "retend-web": "^0.0.24",
+    "retend-web-devtools": "^0.0.25"
   },
   "devDependencies": {
     "vite": "^6.2.1",

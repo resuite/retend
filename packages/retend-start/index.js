@@ -280,7 +280,7 @@ async function cleanupProject(projectDir) {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createIndexHtml(projectDir, answers) {
-  const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
+  const extension = answers.language === 'TypeScript' ? 'tsx' : 'jsx';
   const styleExtension = 'css';
   const content = `
 <!DOCTYPE html>
@@ -401,15 +401,20 @@ body {
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
 async function createMainFile(projectDir, answers) {
-  const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
+  const extension = answers.language === 'TypeScript' ? 'tsx' : 'jsx';
   const content = answers.useSSG
     ? `
 /// <reference types="vite/client" />
 /// <reference types="retend-web/jsx-runtime" />
 import { hydrate } from 'retend-server/client';
+import { RetendDevTools } from 'retend-web-devtools';
 import { createRouter } from './router';
 
-hydrate(createRouter)
+hydrate(createRouter, {
+  wrap(root) {
+    return <RetendDevTools>{root}</RetendDevTools>;
+  },
+})
   .then(() => {
     console.log('[retend-server] app successfully hydrated.');
   });
@@ -420,12 +425,15 @@ hydrate(createRouter)
 import { createRouterRoot } from 'retend/router';
 import { createRouter } from './router';
 import { renderToDOM } from 'retend-web';
+import { RetendDevTools } from 'retend-web-devtools';
 
 const router = createRouter();
 router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
-renderToDOM(root, () => createRouterRoot(router));
+renderToDOM(root, () => (
+  <RetendDevTools>{createRouterRoot(router)}</RetendDevTools>
+));
 
 `;
 
@@ -590,6 +598,7 @@ function getRetendDependencies(commitHash, useSSG = true) {
       retend: `https://pkg.pr.new/resuite/retend@${commitHash}`,
       'retend-utils': `https://pkg.pr.new/resuite/retend/retend-utils@${commitHash}`,
       'retend-web': `https://pkg.pr.new/resuite/retend/retend-web@${commitHash}`,
+      'retend-web-devtools': `https://pkg.pr.new/resuite/retend/retend-web-devtools@${commitHash}`,
     };
     if (useSSG) {
       deps['retend-server'] =
