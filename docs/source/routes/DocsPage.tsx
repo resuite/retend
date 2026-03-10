@@ -150,6 +150,6 @@ DocsPage.metadata = ({ params }: { params: Map<string, string> }) => {
     description: activePage.description,
     ogTitle: activePage.title || activePage.label,
     ogDescription: activePage.description,
-    ogImage: `https://retend.dev/og/${activePage.slug}.svg`,
+    ogImage: `https://retend.dev/og/${activePage.slug}.png`,
   };
 };
