@@ -120,3 +120,35 @@ export function DocsPage() {
     </>
   );
 }
+
+DocsPage.metadata = ({ params }: { params: Map<string, string> }) => {
+  const section = params.get('section');
+  const pageParam = params.get('page');
+  const subpage = params.get('subpage');
+
+  let activePath = '/docs';
+  if (section) activePath += '/' + section;
+  if (pageParam) activePath += '/' + pageParam;
+  if (subpage) activePath += '/' + subpage;
+
+  let activePage = null;
+  for (const docPage of docPages) {
+    if (docPage.href === activePath) {
+      activePage = docPage;
+      break;
+    }
+  }
+
+  if (!activePage) {
+    return { title: 'Page Not Found | Retend' };
+  }
+
+  return {
+    title: activePage.title
+      ? `${activePage.title} | Retend`
+      : `${activePage.label} | Retend`,
+    description: activePage.description,
+    ogTitle: activePage.title || activePage.label,
+    ogDescription: activePage.description,
+  };
+};

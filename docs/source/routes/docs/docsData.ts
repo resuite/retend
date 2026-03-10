@@ -2,7 +2,12 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 export interface DocPage {
-  headings: { id: string; label: string; depth: number }[];
+  headings: {
+    id: string;
+    selector: '' | `#${string}`;
+    label: string;
+    depth: number;
+  }[];
   href: string;
   slug: string;
   label: string;
@@ -10,6 +15,8 @@ export interface DocPage {
   sectionLabel: string;
   isIndex: boolean;
   sortKey: string;
+  title: string;
+  description: string;
   Component: (props: { components: Record<string, unknown> }) => JSX.Element;
 }
 
@@ -22,7 +29,10 @@ export interface DocSectionData {
 type DocModule = Record<string, { default: DocPage['Component'] }>;
 
 const modules = import.meta.glob('../../../content/**/*.mdx', { eager: true });
-declare const __DOC_HEADINGS__: Record<string, DocPage['headings']>;
+declare const __DOC_METADATA__: Record<
+  string,
+  { headings: DocPage['headings']; title: string; description: string }
+>;
 
 const normalizePathSegments = (relativePath: string): string[] =>
   relativePath
@@ -33,6 +43,7 @@ const normalizePathSegments = (relativePath: string): string[] =>
 const createLabelFromSlug = (slug: string): string => {
   const labelMap: Record<string, string> = {
     'Shadow Root': 'ShadowRoot',
+    Devtools: 'DevTools',
   };
 
   const label = slug
@@ -53,10 +64,16 @@ const createDocPage = ([filePath, mdxModule]: [
     .replace(/\.mdx$/u, '');
   const segments = normalizePathSegments(relativePath);
   const slug = segments[segments.length - 1] || 'overview';
-  const pageHeadings = __DOC_HEADINGS__[filePath];
+  const pageMeta = __DOC_METADATA__[filePath] || {
+    headings: [],
+    title: '',
+    description: '',
+  };
 
   return {
-    headings: Array.isArray(pageHeadings) ? pageHeadings : [],
+    headings: Array.isArray(pageMeta.headings) ? pageMeta.headings : [],
+    title: pageMeta.title || '',
+    description: pageMeta.description || '',
     href: segments.length > 0 ? `/docs/${segments.join('/')}` : '/docs',
     slug,
     label: createLabelFromSlug(slug),

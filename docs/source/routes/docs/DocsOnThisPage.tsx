@@ -1,7 +1,9 @@
 import { Cell, For } from 'retend';
 import { Link, useCurrentRoute } from 'retend/router';
 
-type DocsHeading = { id: string; label: string; depth: number };
+import type { DocPage } from './docsData';
+
+type DocsHeading = DocPage['headings'][number];
 
 interface DocsOnThisPageProps {
   sectionHeadings: DocsHeading[];
@@ -13,7 +15,7 @@ export function DocsOnThisPage(props: DocsOnThisPageProps) {
   const displayHeadings =
     sectionHeadings.length > 0
       ? sectionHeadings
-      : [{ id: '', label: 'Overview', depth: 2 }];
+      : [{ id: '', selector: '' as const, label: 'Overview', depth: 2 }];
 
   return (
     <aside class="hidden lg:sticky lg:top-[calc(var(--header-height)+var(--spacing)*14)] lg:block lg:w-52 lg:self-start">
@@ -46,13 +48,11 @@ function HeadingRoute(props: HeadingRouteProps) {
   const currentRoute = useCurrentRoute();
 
   const href = Cell.derived(() => {
-    const hash = heading.id ? `#${heading.id}` : '';
-    return `${currentRoute.get().path}${currentRoute.get().query}${hash}`;
+    return `${currentRoute.get().path}${currentRoute.get().query}${heading.selector}`;
   });
 
   const isActive = Cell.derived(() => {
-    const expectedHash = heading.id ? `#${heading.id}` : '';
-    return currentRoute.get().hash === expectedHash;
+    return currentRoute.get().hash === heading.selector;
   });
   const isNotActive = Cell.derived(() => !isActive.get());
 

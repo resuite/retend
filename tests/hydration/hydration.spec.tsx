@@ -884,9 +884,10 @@ describe('Hydration', () => {
         <div id="unique-for-target" />
         <Teleport to="#unique-for-target">
           <div>
-            {For(items, (item, index) => (
-              <Item id={`item-el-${index.get()}`} item={item} />
-            ))}
+            {For(items, (item, index) => {
+              const itemId = Cell.derived(() => `item-el-${index.get()}`);
+              return <Item id={itemId} item={item} />;
+            })}
           </div>
         </Teleport>
       </div>

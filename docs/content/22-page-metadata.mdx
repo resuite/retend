@@ -7,7 +7,7 @@ Retend's router has built-in support for managing page metadata — titles, desc
 The simplest form of metadata is the `title` property on a route definition:
 
 ```tsx
-const routes = defineRoutes(() => [
+const routes = defineRoutes([
   {
     path: '/',
     component: Home,
@@ -28,7 +28,7 @@ When a user navigates to `/about`, the browser tab title updates to "About Us | 
 For richer metadata (descriptions, social sharing tags, etc.), use the `metadata` property:
 
 ```tsx
-const routes = defineRoutes(() => [
+const routes = defineRoutes([
   {
     path: '/',
     component: Home,
@@ -83,7 +83,7 @@ Retend recognizes these metadata keys and maps them to the appropriate HTML tags
 Sometimes metadata depends on the current URL. For example, a user profile page needs to show the user's name in the title. Pass a function instead of an object:
 
 ```tsx
-const routes = defineRoutes(() => [
+const routes = defineRoutes([
   {
     path: '/users/:userId',
     component: UserProfile,
@@ -131,7 +131,7 @@ This is useful when the component itself is the best place to define what metada
 In nested routes, metadata accumulates from parent to child. Child routes override parent values for the same key:
 
 ```tsx
-const routes = defineRoutes(() => [
+const routes = defineRoutes([
   {
     path: '/',
     component: Layout,

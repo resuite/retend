@@ -29,7 +29,7 @@ export function ValueProp() {
             <FeatureCard
               icon={<LightningIcon />}
               title="Performant."
-              description="Retend updates only the necessary parts of the interface, keeping your applications fast and lightweight on any device."
+              description="Retend updates only the necessary parts of the interface, keeping your apps lightweight on any device."
             />
           </Card>
         </li>

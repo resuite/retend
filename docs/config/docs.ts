@@ -10,6 +10,23 @@ const collapsedSections = new Set([
   'ssr-and-ssg',
 ]);
 
+const metadataFromMarkdown = (content: string) => {
+  let title = '';
+  let description = '';
+
+  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  if (frontmatterMatch) {
+    const frontmatter = frontmatterMatch[1];
+    const titleMatch = frontmatter.match(/^title:\s*(.+)$/m);
+    if (titleMatch) title = titleMatch[1].trim();
+
+    const descMatch = frontmatter.match(/^description:\s*(.+)$/m);
+    if (descMatch) description = descMatch[1].trim();
+  }
+
+  return { title, description };
+};
+
 const headingIdFromLabel = (value: string) =>
   value
     .toLowerCase()
@@ -31,7 +48,12 @@ const headingLabelFromMarkdown = (value: string) => {
 
 const headingListFromMarkdown = (content: string) => {
   const headingIdCount = new Map<string, number>();
-  const headings: Array<{ id: string; label: string; depth: number }> = [];
+  const headings: Array<{
+    id: string;
+    selector: `#${string}`;
+    label: string;
+    depth: number;
+  }> = [];
   const lines = content.split('\n');
 
   for (const line of lines) {
@@ -67,7 +89,7 @@ const headingListFromMarkdown = (content: string) => {
       id = `${id}-${seenCount}`;
     }
 
-    headings.push({ id, label, depth });
+    headings.push({ id, selector: `#${id}`, label, depth });
   }
 
   return headings;
@@ -120,9 +142,17 @@ export const addHeadingIds =
     }
   };
 
-export const docsHeadingsByPath: Record<
+export const docsMetadataByPath: Record<
   string,
-  Array<{ id: string; label: string; depth: number }>
+  {
+    headings: Array<{
+      id: string;
+      label: string;
+      depth: number;
+    }>;
+    title: string;
+    description: string;
+  }
 > = {};
 
 const docsContentFiles = globSync('content/**/*.mdx', {
@@ -131,8 +161,14 @@ const docsContentFiles = globSync('content/**/*.mdx', {
 
 for (const docsContentFile of docsContentFiles) {
   const source = readFileSync(path.resolve(docsRoot, docsContentFile), 'utf8');
-  docsHeadingsByPath[`../../../${docsContentFile}`] =
-    headingListFromMarkdown(source);
+  const headings = headingListFromMarkdown(source);
+  const { title, description } = metadataFromMarkdown(source);
+
+  docsMetadataByPath[`../../../${docsContentFile}`] = {
+    headings,
+    title,
+    description,
+  };
 
   const segments = docsContentFile
     .replace(/^content\//u, '')

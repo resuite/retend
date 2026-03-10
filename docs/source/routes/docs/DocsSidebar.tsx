@@ -178,13 +178,25 @@ function SidebarHeader(props: { toggle: () => void }) {
 
 function SidebarNode(props: { item: SidebarItem }) {
   const { item } = props;
+  const currentRoute = useCurrentRoute();
 
   if (item.type === 'link') {
+    const isActive = Cell.derived(
+      () => currentRoute.get().fullPath === item.href
+    );
+    const isNotActive = Cell.derived(() => !isActive.get());
+
     return (
       <li>
         <Link
           href={item.href}
-          class="text-fg-muted hover:text-brand block py-1 text-sm transition-colors"
+          class={[
+            'block py-1 text-sm transition-colors',
+            {
+              'text-fg-muted hover:text-brand': isNotActive,
+              'text-brand font-medium': isActive,
+            },
+          ]}
         >
           {item.label}
         </Link>
@@ -192,9 +204,16 @@ function SidebarNode(props: { item: SidebarItem }) {
     );
   }
 
+  const isGroupActive = Cell.derived(() => {
+    return item.items.some(
+      (subItem) =>
+        subItem.type === 'link' && subItem.href === currentRoute.get().fullPath
+    );
+  });
+
   return (
     <li>
-      <details class="group">
+      <details class="group" open={isGroupActive}>
         <summary class="text-fg-muted hover:text-brand cursor-pointer list-none py-1 text-sm transition-colors [&::-webkit-details-marker]:hidden">
           <div class="flex items-center gap-2">
             <svg

@@ -7,11 +7,11 @@ import { retendSSG } from 'retend-server/plugin';
 import { retend } from 'retend-web/plugins/vite';
 import { defineConfig } from 'vite';
 
-import { addHeadingIds, docsHeadingsByPath, docsPages } from './config/docs';
+import { addHeadingIds, docsMetadataByPath, docsPages } from './config/docs';
 
 export default defineConfig({
   define: {
-    __DOC_HEADINGS__: JSON.stringify(docsHeadingsByPath),
+    __DOC_METADATA__: JSON.stringify(docsMetadataByPath),
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './source') },

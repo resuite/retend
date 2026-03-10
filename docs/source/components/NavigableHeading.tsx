@@ -20,9 +20,11 @@ export function NavigableHeading(props: NavigableHeadingProps) {
   const hash = Cell.derived(() => route.get().hash);
 
   const scrollIntoView = () => {
-    const heading = ref.get();
-    if (heading?.id && hash.get() === `#${heading.id}`) {
-      console.log('SCROLLING INTO VIEW: ', heading);
+    const selector = hash.get();
+    if (!selector) return;
+    const heading = document.querySelector(selector);
+    if (heading && heading === ref.get()) {
+      heading.scrollIntoView();
     }
   };
 
