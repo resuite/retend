@@ -59,10 +59,10 @@
   display: inline-block;
   width: 0.4375rem;
   height: 0.4375rem;
-  background-color: var(--retend-devtools-accent);
+  background-color: var(--retend-devtools-tree-accent);
   border-radius: 50%;
   box-shadow: 0 0 10px
-    color-mix(in srgb, var(--retend-devtools-accent) 60%, transparent);
+    color-mix(in srgb, var(--retend-devtools-tree-accent) 60%, transparent);
 }
 
 .sideInspectorClose {
@@ -84,10 +84,10 @@
   transition: all 0.15s ease;
 
   &:hover {
-    color: var(--retend-devtools-accent);
+    color: var(--retend-devtools-tree-accent);
     background: color-mix(
       in srgb,
-      var(--retend-devtools-accent) 15%,
+      var(--retend-devtools-tree-accent) 15%,
       transparent
     );
   }
@@ -126,7 +126,7 @@
 }
 
 .sideInspectorComponentName {
-  color: var(--retend-devtools-accent);
+  color: var(--retend-devtools-tree-accent);
   font-weight: 600;
   font-size: var(--retend-devtools-font-size-lg);
 }
@@ -140,7 +140,7 @@
 }
 
 .sideInspectorLocationEllipsis {
-  color: var(--retend-devtools-accent);
+  color: var(--retend-devtools-tree-accent);
   font-weight: 600;
 }
 
@@ -158,11 +158,11 @@
   transition: all 0.15s ease;
 
   &:hover {
-    border-color: var(--retend-devtools-accent);
-    color: var(--retend-devtools-accent);
+    border-color: var(--retend-devtools-tree-accent);
+    color: var(--retend-devtools-tree-accent);
     background: color-mix(
       in srgb,
-      var(--retend-devtools-accent) 8%,
+      var(--retend-devtools-tree-accent) 8%,
       transparent
     );
   }
@@ -362,10 +362,10 @@
 }
 
 .renderedByItemFirst .renderedByName {
-  color: var(--retend-devtools-accent);
+  color: var(--retend-devtools-tree-accent);
   background: color-mix(
     in srgb,
-    var(--retend-devtools-accent) 12%,
+    var(--retend-devtools-tree-accent) 12%,
     transparent
   );
   font-weight: 600;
@@ -374,7 +374,7 @@
 .renderedByItemFirst .renderedByName:hover {
   background: color-mix(
     in srgb,
-    var(--retend-devtools-accent) 20%,
+    var(--retend-devtools-tree-accent) 20%,
     transparent
   );
 }

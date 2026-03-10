@@ -18,6 +18,11 @@
   padding: 0.375rem 0.5rem;
   border-bottom: 1px solid var(--retend-devtools-panel-border);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--retend-devtools-panel-bg);
+  z-index: 10;
+  margin-bottom: 1rem;
 }
 
 .searchIconWrap {
@@ -143,7 +148,7 @@
 }
 
 .componentName {
-  color: var(--retend-devtools-accent);
+  color: var(--retend-devtools-tree-accent);
   font-weight: 500;
 }
 
