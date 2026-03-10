@@ -5,7 +5,7 @@ import { Card } from './Card';
 
 export function CallToAction() {
   return (
-    <section class="animate-scroll-fade-in flex flex-col items-center py-8 text-center md:py-16">
+    <section class="flex flex-col items-center py-8 text-center md:py-16">
       <span class="text-brand mb-4 font-mono text-xs tracking-widest uppercase md:mb-5">
         Get Started
       </span>

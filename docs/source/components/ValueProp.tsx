@@ -6,7 +6,7 @@ export function ValueProp() {
   return (
     <section>
       <ul class="grid grid-cols-1 gap-y-10 sm:gap-y-12 md:grid-cols-3 md:gap-x-12 md:gap-y-16">
-        <li class="animate-scroll-reveal" style={{ 'animation-delay': '0ms' }}>
+        <li>
           <Card class="group p-6 md:p-8">
             <FeatureCard
               icon={<BlocksIcon />}
@@ -15,10 +15,7 @@ export function ValueProp() {
             />
           </Card>
         </li>
-        <li
-          class="animate-scroll-reveal"
-          style={{ 'animation-delay': '100ms' }}
-        >
+        <li>
           <Card class="group p-6 md:p-8">
             <FeatureCard
               icon={<SlidersIcon />}
@@ -27,10 +24,7 @@ export function ValueProp() {
             />
           </Card>
         </li>
-        <li
-          class="animate-scroll-reveal"
-          style={{ 'animation-delay': '200ms' }}
-        >
+        <li>
           <Card class="group p-6 md:p-8">
             <FeatureCard
               icon={<LightningIcon />}

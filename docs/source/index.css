@@ -148,53 +148,6 @@
   }
 }
 
-@keyframes scroll-reveal {
-  from {
-    opacity: 0;
-    transform: perspective(1000px) translateY(50px) scale(0.9) rotateX(-15deg);
-  }
-  to {
-    opacity: 1;
-    transform: perspective(1000px) translateY(0) scale(1) rotateX(0);
-  }
-}
-
-@keyframes scroll-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@supports (animation-timeline: view()) {
-  .animate-scroll-reveal {
-    animation: scroll-reveal linear both;
-    animation-timeline: view();
-    animation-range: entry 10% cover 30%;
-  }
-
-  .animate-scroll-fade-in {
-    animation: scroll-fade-in linear both;
-    animation-timeline: view();
-    animation-range: entry 10% cover 30%;
-  }
-
-  /* Fallback for browsers that don't support view() timelines but we still apply classes */
-}
-
-@supports not (animation-timeline: view()) {
-  .animate-scroll-reveal,
-  .animate-scroll-fade-in {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
 @custom-variant dark (&:where(html.dark, html.dark *));
 
 .rt-code-block {
