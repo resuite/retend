@@ -11,22 +11,50 @@
   --retend-devtools-font-size-lg: 0.875rem; /* 14px */
   --retend-devtools-panel-height: min(40rem, 82dvh);
 
-  --retend-devtools-panel-bg: #1a1a1a;
-  --retend-devtools-panel-border: #333;
+  --retend-devtools-panel-bg: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 4%,
+    #1a1a1a
+  );
+  --retend-devtools-panel-border: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 18%,
+    #333
+  );
   --retend-devtools-panel-shadow: rgba(0, 0, 0, 0.5);
   --retend-devtools-resize-handle: #555;
-  --retend-devtools-title-text: #999;
+  --retend-devtools-title-text: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 32%,
+    #999
+  );
   --retend-devtools-fab-bg: black;
   --retend-devtools-fab-border: white;
-  --retend-devtools-fab-hover-border: #f59e0b;
-  --retend-devtools-header-button-border: #3a3a3a;
-  --retend-devtools-header-button-text: #8b8b8b;
+  --retend-devtools-fab-hover-border: var(--retend-devtools-accent);
+  --retend-devtools-header-button-border: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 18%,
+    #3a3a3a
+  );
+  --retend-devtools-header-button-text: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 24%,
+    #8b8b8b
+  );
   --retend-devtools-accent: #ddae5d;
   --retend-devtools-tree-text: #e0e0e0;
   --retend-devtools-tree-muted: #6f6d6d;
   --retend-devtools-attributes: #fbbf24;
-  --retend-devtools-row-hover: rgba(245, 158, 11, 0.12);
-  --retend-devtools-row-active: rgba(245, 158, 11, 0.22);
+  --retend-devtools-row-hover: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 12%,
+    transparent
+  );
+  --retend-devtools-row-active: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 22%,
+    transparent
+  );
   --retend-devtools-chevron: #888;
   --retend-devtools-leaf-dot: #555;
   --retend-devtools-internal-core: #fcd34d;
@@ -39,9 +67,21 @@
   --retend-devtools-palette-red: #ef4444;
   --retend-devtools-palette-amber: #f59e0b;
   --retend-devtools-palette-border: rgba(255, 255, 255, 0.2);
-  --retend-devtools-inspector-bg: rgba(255, 255, 255, 0.02);
-  --retend-devtools-inspector-border: rgba(255, 255, 255, 0.06);
+  --retend-devtools-inspector-bg: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 5%,
+    rgba(255, 255, 255, 0.02)
+  );
+  --retend-devtools-inspector-border: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 14%,
+    rgba(255, 255, 255, 0.06)
+  );
   --retend-devtools-inspector-code-bg: rgba(0, 0, 0, 0.22);
   --retend-devtools-inspector-text: #c9d4e8;
-  --retend-devtools-inspector-title: #9aa6c4;
+  --retend-devtools-inspector-title: color-mix(
+    in srgb,
+    var(--retend-devtools-accent) 24%,
+    #9aa6c4
+  );
 }

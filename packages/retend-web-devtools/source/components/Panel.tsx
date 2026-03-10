@@ -20,6 +20,37 @@ export function Panel() {
   const inspectorIsOpen = Cell.derived(
     () => devRenderer.selectedNode.get() !== null
   );
+  const panelStyle = Cell.derived(() => {
+    let accent = 'var(--retend-devtools-palette-amber)';
+    const color = devRenderer.highlightColor.get();
+
+    if (color === 'blue') {
+      accent = 'var(--retend-devtools-palette-blue)';
+    }
+
+    if (color === 'pink') {
+      accent = 'var(--retend-devtools-palette-pink)';
+    }
+
+    if (color === 'green') {
+      accent = 'var(--retend-devtools-palette-green)';
+    }
+
+    if (color === 'red') {
+      accent = 'var(--retend-devtools-palette-red)';
+    }
+
+    const nextStyle = style.get();
+
+    if (!nextStyle) {
+      return { '--retend-devtools-accent': accent };
+    }
+
+    return {
+      ...nextStyle,
+      '--retend-devtools-accent': accent,
+    };
+  });
 
   const {
     isDragging,
@@ -86,7 +117,7 @@ export function Panel() {
                 [classes.isFlinging]: isFlinging,
               },
             ]}
-            style={style}
+            style={panelStyle}
             data-retend-devtools
           >
             {If(panel.panelIsOpen, () => (

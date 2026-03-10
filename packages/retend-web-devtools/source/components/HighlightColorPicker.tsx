@@ -12,18 +12,18 @@ const colorOptions: Array<{
 }> = [
   {
     value: 'amber',
-    label: 'Amber highlight',
+    label: 'Amber theme',
     className: classes.paletteAmber,
   },
-  { value: 'blue', label: 'Blue highlight', className: classes.paletteBlue },
-  { value: 'pink', label: 'Pink highlight', className: classes.palettePink },
-  { value: 'green', label: 'Green highlight', className: classes.paletteGreen },
-  { value: 'red', label: 'Red highlight', className: classes.paletteRed },
+  { value: 'blue', label: 'Blue theme', className: classes.paletteBlue },
+  { value: 'pink', label: 'Pink theme', className: classes.palettePink },
+  { value: 'green', label: 'Green theme', className: classes.paletteGreen },
+  { value: 'red', label: 'Red theme', className: classes.paletteRed },
 ];
 
 export function HighlightColorPicker() {
   return (
-    <div class={classes.palette} role="group" aria-label="Highlight color">
+    <div class={classes.palette} role="group" aria-label="DevTools theme">
       {For(colorOptions, (option) => (
         <PaletteColorButton option={option} />
       ))}
