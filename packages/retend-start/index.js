@@ -676,6 +676,7 @@ async function createConfigFile(projectDir, answers) {
       noFallthroughCasesInSwitch: true,
       jsx: 'react-jsx',
       jsxImportSource: 'retend',
+      types: ['retend-web/jsx-runtime'],
       paths: {
         '@/*': ['./source/*'],
       },
@@ -800,7 +801,7 @@ async function createVSCodeFolder(projectDir, answers) {
 }
 
 /**
- * Function to create the .docs folder and AGENTS.md file for AI assistants
+ * Function to create the .docs folder and AGENT.md file for AI assistants
  * @param {string} projectDir - The directory where the project is created
  * @param {Record<string, any>} answers - The answers to the project creation questions
  */
@@ -811,13 +812,13 @@ async function createDocsFiles(projectDir, answers) {
 
   const packageRoot = path.dirname(new URL(import.meta.url).pathname);
   const docsDir = path.join(packageRoot, 'docs', '.docs');
-  const agentsFile = path.join(packageRoot, 'docs', 'AGENTS.md');
+  const agentFile = path.join(packageRoot, 'docs', 'AGENT.md');
 
   try {
     // Copy .docs folder to project
     await fs.cp(docsDir, path.join(projectDir, '.docs'), { recursive: true });
-    // Copy AGENTS.md file to project
-    await fs.cp(agentsFile, path.join(projectDir, 'AGENTS.md'));
+    // Copy AGENT.md file to project
+    await fs.cp(agentFile, path.join(projectDir, 'AGENT.md'));
   } catch {
     console.warn(
       chalk.yellow(

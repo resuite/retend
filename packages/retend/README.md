@@ -62,7 +62,7 @@ import { setGlobalContext, getGlobalContext } from 'retend/context';
 
 ## Documentation
 
-For setup, examples, and API guides, start with the [Getting Started guide](https://github.com/resuite/retend/blob/main/docs/README.md#getting-started).
+For setup, examples, and API guides, start with [retend.dev](https://retend.dev).
 
 ## License
 

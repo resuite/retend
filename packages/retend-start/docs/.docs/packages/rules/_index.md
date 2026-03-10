@@ -112,10 +112,10 @@ This index centralizes detection hints so rule files can stay concise.
 
 ## Web-Specific (retend-web)
 
-| id                      | impact  | docs                                           | detection                         | autofix                 |
-| ----------------------- | ------- | ---------------------------------------------- | --------------------------------- | ----------------------- |
-| class-attribute-syntax  | WARNING | ../retend-web/rules/class-attribute-syntax.md  | string concat or ternary in class | use array/object syntax |
-| component-class-merging | WARNING | ../retend-web/rules/component-class-merging.md | class prop overwritten            | merge classes           |
+| id                      | impact  | docs                             | detection                         | autofix                 |
+| ----------------------- | ------- | -------------------------------- | --------------------------------- | ----------------------- |
+| class-attribute-syntax  | WARNING | rules/class-attribute-syntax.md  | string concat or ternary in class | use array/object syntax |
+| component-class-merging | WARNING | rules/component-class-merging.md | class prop overwritten            | merge classes           |
 
 ## Manual Review Rules
 

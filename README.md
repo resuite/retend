@@ -72,7 +72,7 @@ Optional flags:
 - `--tailwind`: enable Tailwind CSS
 - `--javascript`: use JavaScript instead of TypeScript
 - `--ssg`: enable static site generation
-- `--docs`: include `.docs` and `AGENTS.md` files for AI assistants
+- `--docs`: include `.docs` and `AGENT.md` files for AI assistants
 
 Example:
 
@@ -82,7 +82,7 @@ npx retend-start@latest my-app --tailwind --ssg
 
 ## Documentation
 
-Start with the [Getting Started guide](https://github.com/resuite/retend/blob/main/docs/README.md#getting-started).
+Documentation lives at [retend.dev](https://retend.dev).
 
 ## License
 
