@@ -1,49 +1,58 @@
 import type { ReconcilerOptions, __HMR_UpdatableFn } from 'retend';
 
-import { createNodesFromTemplate, normalizeJsxChild, Cell } from 'retend';
+import { Cell, createNodesFromTemplate, normalizeJsxChild } from 'retend';
 
 import type {
-  CanvasRendererTypes,
-  CanvasNode,
-  CanvasTextNode,
   CanvasContainerNode,
   CanvasHandle,
+  CanvasNode,
   CanvasNodeProps,
+  CanvasRendererTypes,
+  CanvasTextNode,
 } from './types';
 
 import { getValue, resolveForCanvas } from '../shared/units';
 
-/**
- * Resolve a style dimension value, handling Cell values and unit conversion
- */
 function resolveDimension(
   value: unknown,
-  parentSize?: number,
-  unitScale = 8
+  parentSize?: number
 ): number | undefined {
-  const unwrapped = getValue(value);
-  if (unwrapped === undefined || unwrapped === null) return undefined;
-  if (typeof unwrapped === 'string') {
-    return resolveForCanvas(unwrapped, parentSize, unitScale);
+  const resolvedValue = getValue(value);
+  if (resolvedValue === undefined || resolvedValue === null) {
+    return undefined;
   }
-  // Fallback for raw numbers (shouldn't happen with proper types)
-  if (typeof unwrapped === 'number') {
-    return unwrapped;
-  }
-  return undefined;
+
+  return resolveForCanvas(String(resolvedValue), parentSize);
 }
 
-function getFlexDirection(style: CanvasNodeProps['style']): 'row' | 'column' {
-  const flexDirection = getValue(style?.flexDirection);
-  if (flexDirection === 'row') {
-    return 'row';
+function getGap(style: CanvasNodeProps['style'], isRow: boolean): number {
+  if (!style) {
+    return 0;
   }
 
-  return 'column';
+  if (isRow) {
+    const gap = resolveDimension(style.columnGap);
+    if (gap !== undefined) {
+      return gap;
+    }
+
+    return 0;
+  }
+
+  const gap = resolveDimension(style.rowGap);
+  if (gap !== undefined) {
+    return gap;
+  }
+
+  return 0;
+}
+
+function isRowLayout(style: CanvasNodeProps['style']): boolean {
+  return getValue(style?.flexDirection) === 'row';
 }
 
 function toNodeArray(input?: CanvasNode | CanvasNode[]): CanvasNode[] {
-  if (!input) {
+  if (input === undefined) {
     return [];
   }
 
@@ -52,15 +61,6 @@ function toNodeArray(input?: CanvasNode | CanvasNode[]): CanvasNode[] {
   }
 
   return [input];
-}
-
-function attachChildren(parent: CanvasNode, input: CanvasNode | CanvasNode[]) {
-  const nodes = toNodeArray(input);
-
-  for (const node of nodes) {
-    node.parent = parent;
-    parent.children.push(node);
-  }
 }
 
 function collectReconciledNodes(
@@ -75,11 +75,51 @@ function collectReconciledNodes(
     if (cached) {
       nodes.push(...cached.nodes);
     }
-
     i += 1;
   }
 
   return nodes;
+}
+
+function getTextStyle(node: CanvasNode): CanvasNodeProps['style'] {
+  const ownStyle = node.props.style;
+  if (!node.parent) {
+    return ownStyle;
+  }
+
+  const parentStyle = node.parent.props.style;
+  if (!parentStyle) {
+    return ownStyle;
+  }
+
+  if (!ownStyle) {
+    return parentStyle;
+  }
+
+  return {
+    ...parentStyle,
+    ...ownStyle,
+  };
+}
+
+function getFont(style: CanvasNodeProps['style']): string {
+  let fontSize = 16;
+  if (style) {
+    const resolvedFontSize = resolveDimension(style.fontSize);
+    if (resolvedFontSize !== undefined) {
+      fontSize = resolvedFontSize;
+    }
+  }
+
+  let fontWeight = 'normal';
+  if (style) {
+    const resolvedFontWeight = getValue(style.fontWeight);
+    if (resolvedFontWeight) {
+      fontWeight = resolvedFontWeight;
+    }
+  }
+
+  return `${fontWeight} ${fontSize}px sans-serif`;
 }
 
 class BaseNode implements CanvasNode {
@@ -101,14 +141,92 @@ class BaseNode implements CanvasNode {
     _ctx: CanvasRenderingContext2D,
     _availableWidth?: number,
     _availableHeight?: number
-  ) {
-    const style = this.props.style || {};
-    this.width = resolveDimension(style.width, _availableWidth) || 0;
-    this.height = resolveDimension(style.height, _availableHeight) || 0;
+  ): void {}
+
+  draw(_ctx: CanvasRenderingContext2D): void {}
+}
+
+class MarkerNode extends BaseNode {
+  constructor() {
+    super('marker');
+  }
+}
+
+class TextNode extends BaseNode implements CanvasTextNode {
+  text: string;
+
+  constructor(text: string) {
+    super('text-node');
+    this.text = text;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx;
+  measure(ctx: CanvasRenderingContext2D): void {
+    const style = getTextStyle(this);
+    ctx.font = getFont(style);
+
+    const metrics = ctx.measureText(this.text);
+    this.width = metrics.width;
+
+    let fontSize = 16;
+    if (style) {
+      const resolvedFontSize = resolveDimension(style.fontSize);
+      if (resolvedFontSize !== undefined) {
+        fontSize = resolvedFontSize;
+      }
+    }
+
+    this.height = fontSize;
+  }
+
+  draw(ctx: CanvasRenderingContext2D): void {
+    const style = getTextStyle(this);
+    ctx.font = getFont(style);
+
+    let color = 'white';
+    if (style) {
+      const resolvedColor = getValue(style.color);
+      if (resolvedColor) {
+        color = resolvedColor;
+      }
+    }
+
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.text, this.x, this.y);
+  }
+}
+
+class TextContainerNode extends BaseNode implements CanvasContainerNode {
+  constructor(props: CanvasNodeProps = {}) {
+    super('text', props);
+  }
+
+  measure(
+    ctx: CanvasRenderingContext2D,
+    _availableWidth?: number,
+    _availableHeight?: number
+  ): void {
+    this.width = 0;
+    this.height = 0;
+
+    for (const child of this.children) {
+      child.measure(ctx);
+      this.width += child.width;
+      if (child.height > this.height) {
+        this.height = child.height;
+      }
+    }
+  }
+
+  draw(ctx: CanvasRenderingContext2D): void {
+    let currentX = this.x;
+
+    for (const child of this.children) {
+      child.x = currentX;
+      child.y = this.y;
+      child.draw(ctx);
+      currentX += child.width;
+    }
   }
 }
 
@@ -117,535 +235,350 @@ class BoxNode extends BaseNode implements CanvasContainerNode {
     ctx: CanvasRenderingContext2D,
     availableWidth?: number,
     availableHeight?: number
-  ) {
-    const style = this.props.style || {};
-    const isRoot = this.type === 'root';
+  ): void {
+    const style = this.props.style;
 
-    // Resolve dimensions with parent size for percentages
-    const resolvedWidth = resolveDimension(style.width, availableWidth);
-    const resolvedHeight = resolveDimension(style.height, availableHeight);
+    const resolvedWidth = resolveDimension(style?.width, availableWidth);
+    const resolvedHeight = resolveDimension(style?.height, availableHeight);
 
     if (resolvedWidth !== undefined) {
       this.width = resolvedWidth;
+    } else if (this.type === 'root' && availableWidth !== undefined) {
+      this.width = availableWidth;
     } else {
       this.width = 0;
     }
 
     if (resolvedHeight !== undefined) {
       this.height = resolvedHeight;
+    } else if (this.type === 'root' && availableHeight !== undefined) {
+      this.height = availableHeight;
     } else {
       this.height = 0;
     }
 
-    const flexDirection = getFlexDirection(style);
-    const padding =
-      resolveDimension(style.padding, this.width) ||
-      (this.type === 'button' ? 10 : 0);
+    let padding = 0;
+    if (style) {
+      const resolvedPadding = resolveDimension(style.padding, this.width);
+      if (resolvedPadding !== undefined) {
+        padding = resolvedPadding;
+      }
+    }
 
-    let totalChildWidth = 0;
-    let totalChildHeight = 0;
-    let maxChildWidth = 0;
-    let maxChildHeight = 0;
-
-    let childAvailableWidth: number | undefined;
-    if (this.width) {
+    let childAvailableWidth = availableWidth;
+    if (this.width > 0) {
       childAvailableWidth = this.width - padding * 2;
-    } else if (isRoot && resolvedWidth) {
-      childAvailableWidth = resolvedWidth - padding * 2;
-    } else if (availableWidth) {
-      childAvailableWidth = availableWidth - padding * 2;
     }
 
-    let childAvailableHeight: number | undefined;
-    if (this.height) {
+    let childAvailableHeight = availableHeight;
+    if (this.height > 0) {
       childAvailableHeight = this.height - padding * 2;
-    } else if (isRoot && resolvedHeight) {
-      childAvailableHeight = resolvedHeight - padding * 2;
-    } else if (availableHeight) {
-      childAvailableHeight = availableHeight - padding * 2;
     }
 
-    // First pass: Measure children (grouping text nodes)
-    let i = 0;
-    while (i < this.children.length) {
-      const child = this.children[i];
-      if (child.type === 'text-inner') {
-        // Find consecutive text nodes
-        let j = i + 1;
-        // biome-ignore lint/suspicious/noExplicitAny: internal text node access
-        const first = child as any;
-        let combinedText = first.text;
-        const group = [first];
-
-        while (
-          j < this.children.length &&
-          this.children[j].type === 'text-inner'
-        ) {
-          // biome-ignore lint/suspicious/noExplicitAny: internal text node access
-          const sibling = this.children[j] as any;
-          combinedText += sibling.text;
-          group.push(sibling);
-          j++;
-        }
-
-        if (group.length > 1) {
-          const originalText = first.text;
-          first.text = combinedText;
-          first.measure(ctx, childAvailableWidth, childAvailableHeight);
-          first.text = originalText;
-
-          // Clear siblings
-          for (let k = 1; k < group.length; k++) {
-            const sibling = group[k];
-            sibling.width = 0;
-            sibling.height = 0;
-            sibling.lines = [];
-          }
-          i = j;
-          continue;
-        }
-      }
-
-      child.measure(ctx, childAvailableWidth, childAvailableHeight);
-      i++;
-    }
-
-    // Second pass: Accumulate layout stats
     for (const child of this.children) {
-      const childStyle = child.props.style || {};
-      if (getValue(childStyle.position) === 'absolute') continue;
-
-      if (flexDirection === 'column') {
-        totalChildHeight += child.height;
-        maxChildWidth = Math.max(maxChildWidth, child.width);
-      } else {
-        totalChildWidth += child.width;
-        maxChildHeight = Math.max(maxChildHeight, child.height);
-      }
+      child.measure(ctx, childAvailableWidth, childAvailableHeight);
     }
-
-    // Auto-sizing (only if not explicit)
-    if (!this.width && !isRoot) {
-      if (flexDirection === 'column') {
-        this.width = maxChildWidth + padding * 2;
-      } else {
-        this.width = totalChildWidth + padding * 2;
-      }
-    }
-
-    if (!this.height && !isRoot) {
-      if (flexDirection === 'column') {
-        this.height = totalChildHeight + padding * 2;
-      } else {
-        this.height = maxChildHeight + padding * 2;
-      }
-    }
-
-    // Default min size for empty boxes
-    if (!this.width && !isRoot) this.width = 0;
-    if (!this.height && !isRoot) this.height = 0;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
-    const style = this.props.style || {};
+  draw(ctx: CanvasRenderingContext2D): void {
+    const style = this.props.style;
 
-    let fillStyle = getValue(style.backgroundColor) || 'transparent';
-    if (fillStyle === 'transparent' && this.type === 'button') {
-      fillStyle = '#e0e0e0';
+    if (style) {
+      const backgroundColor = getValue(style.backgroundColor);
+      if (backgroundColor) {
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+
+      const borderColor = getValue(style.borderColor);
+      if (borderColor) {
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+      }
     }
 
-    if (fillStyle !== 'transparent') {
-      ctx.fillStyle = fillStyle;
-      ctx.fillRect(this.x, this.y, this.width, this.height);
+    const isRow = isRowLayout(style);
+    const gap = getGap(style, isRow);
+
+    let padding = 0;
+    if (style) {
+      const resolvedPadding = resolveDimension(style.padding, this.width);
+      if (resolvedPadding !== undefined) {
+        padding = resolvedPadding;
+      }
     }
 
-    // Border support
-    const borderColor = getValue(style.borderColor);
-    if (borderColor) {
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(this.x, this.y, this.width, this.height);
-    } else if (this.type === 'button') {
-      ctx.strokeStyle = '#999';
-      ctx.strokeRect(this.x, this.y, this.width, this.height);
-    }
+    let totalMainAxisSize = 0;
+    for (let i = 0; i < this.children.length; i += 1) {
+      const child = this.children[i];
+      if (isRow) {
+        totalMainAxisSize += child.width;
+      } else {
+        totalMainAxisSize += child.height;
+      }
 
-    // Layout Config
-    const flexDirection = getFlexDirection(style);
-    const alignItems = getValue(style.alignItems) || 'flex-start';
-    const justifyContent = getValue(style.justifyContent) || 'flex-start';
-    const padding =
-      resolveDimension(style.padding, this.width) ||
-      (this.type === 'button' ? 10 : 0);
-
-    // Available space
-    const availWidth = this.width - padding * 2;
-    const availHeight = this.height - padding * 2;
-
-    // Calculate total children extent for justification (excluding absolute)
-    let totalChildExtent = 0;
-    const flowChildren = this.children.filter(
-      (c) => getValue(c.props.style?.position) !== 'absolute'
-    );
-
-    // Add gaps to total extent
-    const columnGap = resolveDimension(style.columnGap, this.width) || 0;
-    const rowGap = resolveDimension(style.rowGap, this.height) || 0;
-    const gap = flexDirection === 'row' ? columnGap : rowGap;
-    const totalGaps =
-      flowChildren.length > 1 ? (flowChildren.length - 1) * gap : 0;
-
-    if (flexDirection === 'column') {
-      totalChildExtent =
-        flowChildren.reduce((acc, c) => acc + c.height, 0) + totalGaps;
-    } else {
-      totalChildExtent =
-        flowChildren.reduce((acc, c) => acc + c.width, 0) + totalGaps;
-    }
-
-    let startOffset = 0;
-    if (justifyContent === 'center') {
-      const axisSize = flexDirection === 'column' ? availHeight : availWidth;
-      startOffset = (axisSize - totalChildExtent) / 2;
-      if (startOffset < 0) startOffset = 0; // Don't push content above viewport
-    } else if (justifyContent === 'flex-end') {
-      const axisSize = flexDirection === 'column' ? availHeight : availWidth;
-      startOffset = axisSize - totalChildExtent;
-      if (startOffset < 0) startOffset = 0;
+      if (i > 0) {
+        totalMainAxisSize += gap;
+      }
     }
 
     let currentX = this.x + padding;
     let currentY = this.y + padding;
 
-    if (flexDirection === 'column') {
-      currentY += startOffset;
-    } else {
-      currentX += startOffset;
+    if (style && getValue(style.justifyContent) === 'center') {
+      if (isRow) {
+        currentX += (this.width - padding * 2 - totalMainAxisSize) / 2;
+      } else {
+        currentY += (this.height - padding * 2 - totalMainAxisSize) / 2;
+      }
     }
 
     for (const child of this.children) {
-      const childStyle = child.props.style || {};
+      if (isRow) {
+        child.x = currentX;
+        child.y = this.y + padding;
 
-      if (getValue(childStyle.position) === 'absolute') {
-        const left = resolveDimension(childStyle.left, this.width) || 0;
-        const top = resolveDimension(childStyle.top, this.height) || 0;
-
-        child.x = this.x + left;
-        child.y = this.y + top;
+        if (style && getValue(style.alignItems) === 'center') {
+          child.y =
+            this.y + padding + (this.height - padding * 2 - child.height) / 2;
+        }
 
         child.draw(ctx);
+        currentX += child.width + gap;
         continue;
       }
 
-      // Alignment (Cross Axis)
-      let childX = currentX;
-      let childY = currentY;
+      child.x = this.x + padding;
+      child.y = currentY;
 
-      if (flexDirection === 'column') {
-        // Cross axis is X
-        if (alignItems === 'center') {
-          childX = this.x + padding + (availWidth / 2 - child.width / 2);
-        } else if (alignItems === 'flex-end') {
-          childX = this.x + this.width - padding - child.width;
-        } else {
-          childX = this.x + padding; // flex-start
-        }
-
-        // Main axis placement
-        childY = currentY;
-        currentY += child.height + gap;
-      } else {
-        // row
-        // Cross axis is Y
-        if (alignItems === 'center') {
-          childY = this.y + padding + (availHeight / 2 - child.height / 2);
-        } else if (alignItems === 'flex-end') {
-          childY = this.y + this.height - padding - child.height;
-        } else {
-          childY = this.y + padding;
-        }
-
-        // Main axis placement
-        childX = currentX;
-        currentX += child.width + gap;
+      if (style && getValue(style.alignItems) === 'center') {
+        child.x =
+          this.x + padding + (this.width - padding * 2 - child.width) / 2;
       }
 
-      child.x = childX;
-      child.y = childY;
-
-      // Recursive draw
       child.draw(ctx);
+      currentY += child.height + gap;
     }
   }
 }
 
-class TextNodeInner extends BaseNode implements CanvasTextNode {
-  text: string;
-  lines: string[] = [];
-  lineHeight = 0;
-
-  constructor(text: string) {
-    super('text-inner');
-    this.text = text;
-  }
-
-  getResolvedStyle() {
-    // Text nodes usually sit inside a container (like <text> or <button>) that holds the styles.
-    // We need to look up to the parent to find text-related styles.
-    const myStyle = this.props.style || {};
-    const parentStyle =
-      this.parent &&
-      (this.parent.type === 'text' || this.parent.type === 'button')
-        ? this.parent.props.style || {}
-        : {};
-
-    return {
-      ...parentStyle,
-      ...myStyle,
-    };
-  }
-
-  getFont() {
-    const style = this.getResolvedStyle();
-    // Font size: resolve unit value, default to 16px (2u)
-    const fontSize = resolveDimension(style.fontSize) || 16;
-    const fontWeight = getValue(style.fontWeight) || 'normal';
-    const fontFamily = getValue(style.fontFamily) || 'sans-serif';
-
-    return `${fontWeight} ${fontSize}px ${fontFamily}`;
-  }
-
-  measure(ctx: CanvasRenderingContext2D, availableWidth?: number) {
-    const style = this.getResolvedStyle();
-    ctx.font = this.getFont();
-
-    const textStr = String(this.text);
-    const fontSize = resolveDimension(style.fontSize) || 16;
-    this.lineHeight = fontSize * 1.2;
-    const whiteSpace = getValue(style.whiteSpace) || 'normal';
-
-    if (!availableWidth || whiteSpace === 'nowrap') {
-      // No constraint or nowrap, single line
-      const metrics = ctx.measureText(textStr);
-      this.width = metrics.width;
-      this.height = this.lineHeight;
-      this.lines = [textStr];
-      return;
+function findClickTarget(
+  node: CanvasNode,
+  x: number,
+  y: number
+): CanvasNode | null {
+  for (let i = node.children.length - 1; i >= 0; i -= 1) {
+    const child = node.children[i];
+    const match = findClickTarget(child, x, y);
+    if (match) {
+      return match;
     }
-
-    // Word Wrapping Logic
-    const words = textStr.split(' ');
-    let currentLine = words[0];
-    this.lines = [];
-    let maxWidth = 0;
-
-    for (let i = 1; i < words.length; i++) {
-      const word = words[i];
-      const width = ctx.measureText(`${currentLine} ${word}`).width;
-      if (width < availableWidth) {
-        currentLine += ` ${word}`;
-      } else {
-        this.lines.push(currentLine);
-        maxWidth = Math.max(maxWidth, ctx.measureText(currentLine).width);
-        currentLine = word;
-      }
-    }
-    this.lines.push(currentLine);
-    maxWidth = Math.max(maxWidth, ctx.measureText(currentLine).width);
-
-    this.width = maxWidth;
-    this.height = this.lines.length * this.lineHeight;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
-    const style = this.getResolvedStyle();
-    ctx.fillStyle = getValue(style.color) || 'black';
-    ctx.font = this.getFont();
-    ctx.textBaseline = 'top'; // Easier for multi-line layout
-
-    const textAlign = getValue(style.textAlign) || 'left';
-    ctx.textAlign = textAlign;
-
-    const textDecoration = getValue(style.textDecoration);
-    const isUnderline = textDecoration === 'underline';
-
-    let yOffset = 0;
-    for (const line of this.lines) {
-      let xPos = this.x;
-      if (textAlign === 'center') {
-        xPos = this.x + this.width / 2;
-      } else if (textAlign === 'right') {
-        xPos = this.x + this.width;
-      }
-
-      ctx.fillText(line, xPos, this.y + yOffset);
-
-      // Draw underline if textDecoration is 'underline'
-      if (isUnderline) {
-        const lineWidth = ctx.measureText(line).width;
-        let underlineX = xPos;
-        if (textAlign === 'center') {
-          underlineX = xPos - lineWidth / 2;
-        } else if (textAlign === 'right') {
-          underlineX = xPos - lineWidth;
-        }
-        ctx.beginPath();
-        ctx.strokeStyle = getValue(style.color) || 'black';
-        ctx.lineWidth = 1;
-        ctx.moveTo(underlineX, this.y + yOffset + this.lineHeight - 2);
-        ctx.lineTo(
-          underlineX + lineWidth,
-          this.y + yOffset + this.lineHeight - 2
-        );
-        ctx.stroke();
-      }
-
-      yOffset += this.lineHeight;
-    }
-    // Reset alignment for other nodes
-    ctx.textAlign = 'left';
+  if (!node.props.onClick) {
+    return null;
   }
-}
 
-class MarkerNode extends BaseNode {
-  constructor(public name: string) {
-    super('marker');
+  if (x < node.x) {
+    return null;
   }
-  draw() {}
+
+  if (x > node.x + node.width) {
+    return null;
+  }
+
+  if (y < node.y) {
+    return null;
+  }
+
+  if (y > node.y + node.height) {
+    return null;
+  }
+
+  return node;
 }
 
 export class CanvasRenderer {
   host: CanvasRendererTypes['Host'];
   ctx: CanvasRenderingContext2D;
   root: BoxNode;
+  observer = null;
   capabilities = {
     supportsSetupEffects: true,
     supportsObserverConnectedCallbacks: false,
   };
-  observer = null;
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.host = canvas;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Could not get 2d context');
-    this.ctx = ctx;
+  constructor(host: HTMLCanvasElement) {
+    this.host = host;
 
-    // Root node
+    const context = host.getContext('2d');
+    if (!context) {
+      throw new Error('Could not get 2d context');
+    }
+
+    this.ctx = context;
     this.root = new BoxNode('root');
-    // Root sizing handled in render
+
+    this.host.addEventListener('click', (event) => {
+      const rect = this.host.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const target = findClickTarget(this.root, x, y);
+
+      if (target && target.props.onClick) {
+        target.props.onClick(event);
+        this.requestRender();
+      }
+    });
 
     this.flush();
   }
 
-  requestRender() {
-    requestAnimationFrame(() => this.flush());
-  }
+  flush(): void {
+    const width = this.host.width;
+    const height = this.host.height;
 
-  flush() {
-    const { width, height } = this.host;
     this.ctx.clearRect(0, 0, width, height);
 
+    this.root.x = 0;
+    this.root.y = 0;
     this.root.width = width;
     this.root.height = height;
-
-    // Measure Pass - pass viewport as available size for percentage resolution
     this.root.measure(this.ctx, width, height);
-
-    // Force root size back to canvas size
+    this.root.x = 0;
+    this.root.y = 0;
     this.root.width = width;
     this.root.height = height;
-
-    // Layout & Draw Pass
     this.root.draw(this.ctx);
+  }
+
+  requestRender(): void {
+    requestAnimationFrame(() => {
+      this.flush();
+    });
   }
 
   render(app: unknown): CanvasNode | CanvasNode[] {
     return normalizeJsxChild(app, this);
   }
 
-  // Renderer Interface Implementation
-
   isActive(_node: CanvasNode): boolean {
     return true;
   }
 
-  saveContainerState() {
-    return null;
+  createGroup(input?: CanvasNode | CanvasNode[]): CanvasNode[] {
+    return toNodeArray(input);
   }
-  restoreContainerState() {}
+
+  unwrapGroup(group: CanvasNode[]): CanvasNode[] {
+    return group;
+  }
 
   createGroupHandle(group: CanvasNode[]): CanvasHandle {
-    const start = new MarkerNode('start');
-    const end = new MarkerNode('end');
+    const start = new MarkerNode();
+    const end = new MarkerNode();
     group.unshift(start);
     group.push(end);
     return [start, end];
   }
 
-  write(handle: CanvasHandle, newContent: CanvasNode[]) {
+  createContainer(
+    tagname: string,
+    props: CanvasNodeProps = {}
+  ): CanvasContainerNode {
+    if (tagname === 'text') {
+      return new TextContainerNode(props);
+    }
+
+    return new BoxNode(tagname, props);
+  }
+
+  createText(text: string | Cell<unknown>): CanvasTextNode {
+    if (Cell.isCell(text)) {
+      const node = new TextNode(String(text.get()));
+      text.listen((value) => {
+        node.text = String(value);
+        this.requestRender();
+      });
+      return node;
+    }
+
+    return new TextNode(String(text));
+  }
+
+  updateText(text: string, node: CanvasTextNode): CanvasTextNode {
+    node.text = text;
+    this.requestRender();
+    return node;
+  }
+
+  append(parent: CanvasNode, children: CanvasNode | CanvasNode[]): CanvasNode {
+    const nodes = toNodeArray(children);
+    for (const node of nodes) {
+      node.parent = parent;
+      parent.children.push(node);
+    }
+
+    this.requestRender();
+    return parent;
+  }
+
+  write(handle: CanvasHandle, newContent: CanvasNode[]): void {
     const [start, end] = handle;
     const parent = start.parent;
-    if (!parent) return;
+    if (!parent) {
+      return;
+    }
 
     const startIndex = parent.children.indexOf(start);
     const endIndex = parent.children.indexOf(end);
-
-    if (startIndex === -1 || endIndex === -1) return;
-
-    // Remove old
-    parent.children.splice(startIndex + 1, endIndex - startIndex - 1);
-
-    // Insert new
-    for (const n of newContent) {
-      n.parent = parent;
+    if (startIndex === -1 || endIndex === -1) {
+      return;
     }
-    parent.children.splice(startIndex + 1, 0, ...newContent);
 
+    for (const node of newContent) {
+      node.parent = parent;
+    }
+
+    parent.children.splice(
+      startIndex + 1,
+      endIndex - startIndex - 1,
+      ...newContent
+    );
     this.requestRender();
   }
 
-  reconcile(handle: CanvasHandle, options: ReconcilerOptions<CanvasNode>) {
+  reconcile(
+    handle: CanvasHandle,
+    options: ReconcilerOptions<CanvasNode>
+  ): void {
     this.write(handle, collectReconciledNodes(options));
   }
 
   setProperty<N extends CanvasNode>(node: N, key: string, value: unknown): N {
     if (Cell.isCell(value)) {
-      const cell = value as Cell<unknown>;
-      const update = (val: unknown) => {
-        this.setProperty(node, key, val);
-      };
-      cell.listen(update);
-      update(cell.get());
+      value.listen((nextValue) => {
+        this.setProperty(node, key, nextValue);
+      });
+      return this.setProperty(node, key, value.get());
+    }
+
+    if (key === 'style' && value) {
+      const currentStyle = node.props.style;
+      if (!currentStyle) {
+        node.props.style = value as CanvasNodeProps['style'];
+      } else {
+        node.props.style = {
+          ...currentStyle,
+          ...(value as CanvasNodeProps['style']),
+        };
+      }
+      this.requestRender();
       return node;
     }
 
-    if (key === 'style' && typeof value === 'object' && value !== null) {
-      // biome-ignore lint/suspicious/noExplicitAny: casting for merge
-      node.props.style = { ...node.props.style, ...(value as any) };
-    } else if (key.startsWith('on')) {
-      node.props[key] = value;
-      if (key === 'onClick') {
-        const handler = (e: MouseEvent) => {
-          const rect = this.host.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          if (
-            x >= node.x &&
-            x <= node.x + node.width &&
-            y >= node.y &&
-            y <= node.y + node.height
-          ) {
-            if (typeof value === 'function') {
-              value(e);
-            }
-            this.requestRender();
-          }
-        };
-        this.host.addEventListener('click', handler);
-      }
-    } else {
-      node.props[key] = value;
-    }
+    node.props[key] = value;
     this.requestRender();
     return node;
   }
@@ -654,51 +587,20 @@ export class CanvasRenderer {
     tagname: __HMR_UpdatableFn,
     props: unknown[]
   ): CanvasNode | CanvasNode[] {
-    const component = tagname(...props);
-    const nodes = createNodesFromTemplate(component, this) as CanvasNode[];
-    return nodes.length === 1 ? nodes[0] : nodes;
-  }
-
-  append(parent: CanvasNode, child: CanvasNode | CanvasNode[]) {
-    attachChildren(parent, child);
-    this.requestRender();
-    return parent;
-  }
-
-  updateText(text: string, node: CanvasTextNode) {
-    node.text = text;
-    this.requestRender();
-    return node;
-  }
-  createGroup(input?: CanvasNode | CanvasNode[]) {
-    return toNodeArray(input);
-  }
-
-  unwrapGroup(group: CanvasNode[]) {
-    return group;
-  }
-
-  createContainer(tagname: string, props: CanvasNodeProps) {
-    return new BoxNode(tagname, props);
-  }
-
-  createText(text: string | Cell<unknown>) {
-    if (Cell.isCell(text)) {
-      const initial = text.get();
-      const node = new TextNodeInner(
-        typeof initial === 'string' || typeof initial === 'number'
-          ? String(initial)
-          : ''
-      );
-      text.listen((val) => {
-        node.text =
-          typeof val === 'string' || typeof val === 'number' ? String(val) : '';
-        this.requestRender();
-      });
-      return node;
+    const template = tagname(...props);
+    const nodes = createNodesFromTemplate(template, this) as CanvasNode[];
+    if (nodes.length === 1) {
+      return nodes[0];
     }
-    return new TextNodeInner(String(text));
+
+    return nodes;
   }
+
+  saveContainerState(): null {
+    return null;
+  }
+
+  restoreContainerState(): void {}
 
   isGroup(node: unknown): node is CanvasNode[] {
     return Array.isArray(node);

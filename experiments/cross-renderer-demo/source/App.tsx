@@ -12,6 +12,9 @@ const styles = {
     alignItems: 'center',
   },
   stack: {
+    width: '24u',
+    height: '14u',
+    justifyContent: 'center',
     alignItems: 'center',
     rowGap: '2u',
   },
@@ -26,13 +29,18 @@ const styles = {
     fontWeight: 'bold',
   },
   controls: {
+    width: '14u',
     flexDirection: 'row',
+    justifyContent: 'center',
     columnGap: '2u',
   },
   button: {
+    width: '5u',
+    height: '5u',
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#2A2A2A',
     borderColor: '#5B9BD5',
-    padding: '2u',
   },
   buttonLabel: {
     color: 'white',
@@ -46,7 +54,7 @@ const App = () => {
   return (
     <view style={styles.container}>
       <view style={styles.stack}>
-        <text style={styles.heading}>Hello Retend</text>
+        <text style={styles.heading}>Hello world</text>
         <text style={styles.counter}>Count: {count}</text>
         <view style={styles.controls}>
           <view
