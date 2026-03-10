@@ -20,6 +20,17 @@ export function Panel() {
   const inspectorIsOpen = Cell.derived(
     () => devRenderer.selectedNode.get() !== null
   );
+
+  const {
+    isDragging,
+    isFlinging,
+    style,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    getShouldSkipClick,
+    setShouldSkipClick,
+  } = useFling(panel, panelRef);
   const panelStyle = Cell.derived(() => {
     let accent = 'var(--retend-devtools-palette-amber)';
     const color = devRenderer.highlightColor.get();
@@ -51,17 +62,6 @@ export function Panel() {
       '--retend-devtools-accent': accent,
     };
   });
-
-  const {
-    isDragging,
-    isFlinging,
-    style,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    getShouldSkipClick,
-    setShouldSkipClick,
-  } = useFling(panel, panelRef);
 
   const togglePanel = () => {
     if (getShouldSkipClick()) {
