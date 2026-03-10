@@ -4,95 +4,56 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/resuite/retend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A modern reactive framework for building fluid web applications.**
+**A universal, renderer-agnostic reactive framework for building fluid user interfaces.**
 
-> ⚠️ **Alpha Software**: Retend is currently in alpha and not recommended for production use.
+> ⚠️ **Alpha Software**: Retend is currently in early development and not recommended for production use.
 
-Retend is a reactive JavaScript framework that uses JSX to build dynamic user interfaces. Unlike traditional frameworks, Retend components run exactly once—no re-renders, no Virtual DOM. Updates happen automatically and precisely where data changes.
+Retend is a modern reactive framework that uses JSX to construct dynamic interfaces on _any_ platform. Unlike traditional frameworks, Retend components run exactly once—there is no Virtual DOM, no diffing phase, and no component re-renders.
 
-If you're familiar with HTML, CSS, and JavaScript, you'll feel right at home with Retend.
+Instead, Retend acts as an orchestration engine between its reactive primitive (`Cell`) and a pluggable `Renderer` interface, ensuring that state changes translate instantly to precise node updates in the target environment.
 
-## Why Retend?
+## Core Concepts
 
-- **No Virtual DOM**: Retend maps components directly to real DOM elements, eliminating the overhead of maintaining a separate virtual tree.
-
-- **No Re-renders**: Components execute exactly once. When data changes, only the specific DOM nodes that depend on that data update automatically.
-
-- **Fine-grained Reactivity**: Built on [`@adbl/cells`](https://github.com/adebola-io/cells), Retend tracks dependencies automatically and updates only what needs to change.
-
-- **Platform Agnostic**: The core reactivity system is decoupled from the browser. Swap renderers to target web (`retend-web`), server-side (`retend-server`), or even custom platforms.
+- **Renderer-Agnostic Engine**: The core reactivity and JSX transform (`retend`) have zero knowledge of the browser. You configure a `Renderer` interface (like `DOMRenderer` for the web, or a custom one for Canvas, Terminal, or Mobile) to map universal instructions to platform-specific nodes.
+- **Run-Once Components**: Components are not diffed or reconciled. They execute exactly once to establish reactive bindings between state and the active renderer.
+- **Surgical Reactivity**: Built around [`@adbl/cells`](https://github.com/adebola-io/cells), dependencies are automatically tracked. State changes directly command the renderer to update only the specific nodes that changed.
+- **Batteries Included**: Despite being renderer-agnostic, the core library ships with universal primitives like a programmatic router, control flow components (`If`, `For`, `Switch`), and robust scope context injection.
 
 ## At a Glance
 
+Your application logic and JSX are completely decoupled from the platform:
+
 ```tsx
 import { Cell } from 'retend';
-import { renderToDOM } from 'retend-web';
 
 const App = () => {
   const count = Cell.source(0);
-  const increment = () => count.set(count.get() + 1);
-
   return (
-    <div>
-      <button type="button" onClick={increment}>
-        Count: {count}
-      </button>
-    </div>
+    <button type="button" onClick={() => count.set(count.get() + 1)}>
+      Count: {count}
+    </button>
   );
 };
-
-const root = document.getElementById('app')!;
-renderToDOM(root, App);
 ```
 
-## Key Features
+To display it, simply pass the component tree to your environment's specific renderer:
 
-### Core
+```tsx
+import { DOMRenderer, setActiveRenderer } from 'retend-web';
 
-- **JSX Support**: Write HTML-like syntax directly in JavaScript for intuitive component design.
-- **Fine-grained Reactivity**: Wrap data in Cells. When data changes, the DOM updates automatically—no manual triggers needed.
-- **Control Flow**: Built-in `If`, `For`, and `Switch` functions for conditional rendering and lists.
-- **Context & Scopes**: Share state across your component tree without prop drilling.
-- **Lifecycle Hooks**: `onMount`, `onCleanup`, and other hooks for side effects.
+const renderer = new DOMRenderer(window);
+setActiveRenderer(renderer);
 
-### Routing
+const rootNode = renderer.render(<App />);
 
-- **Built-in Router**: Programmatic routing for single-page applications with `defineRoutes`.
-- **Navigation Guards**: Middleware support for route protection and redirects.
-- **Lazy Loading**: Code-split routes for faster initial loads.
-- **Query Parameters**: Built-in support for URL search params.
-- **View Transitions**: Smooth animated transitions between routes.
+document.getElementById('app')!.append(rootNode);
+```
 
-### Performance
+_(Note: `retend-web` provides a `renderToDOM` helper to simplify this for browser projects!)_
 
-- **Direct DOM Updates**: No Virtual DOM means faster rendering with less memory overhead.
-- **Components Run Once**: No diffing or reconciliation on every change.
-- **Tree Shaking**: Import only what you need for smaller bundles.
-- **Lightweight Core**: Minimal footprint for fast page loads.
+## Quick Start
 
-### Developer Experience
-
-- **TypeScript Support**: Full TypeScript support with type inference.
-- **Hot Module Replacement**: See changes instantly during development.
-- **Static Site Generation**: Pre-render pages for optimal performance and SEO.
-- **DevTools**: Debug your applications with dedicated browser extensions.
-
-## Package Ecosystem
-
-Retend is organized into focused packages:
-
-| Package               | Purpose                                                      |
-| --------------------- | ------------------------------------------------------------ |
-| `retend`              | Core library with reactivity, JSX, control flow, and routing |
-| `retend-web`          | DOM renderer for browser applications                        |
-| `retend-server`       | Server-side rendering and static site generation             |
-| `retend-start`        | CLI tool for scaffolding new projects                        |
-| `retend-utils`        | Utility functions and helpers                                |
-| `retend-web-devtools` | Browser DevTools integration                                 |
-
-## Installation
-
-Install Node.js first. `npm` ships with Node.js, so you can start with the default package manager and switch to `pnpm` or `bun` later if you prefer.
+The fastest way to scaffold a browser project is using our CLI:
 
 ```bash
 npx retend-start@latest my-app
@@ -101,39 +62,21 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5229` in your browser.
+_CLI Options: `--tailwind`, `--ssg`, `--javascript`, `--docs`, `--default`_
 
-The scaffold creates a TypeScript app with CSS modules, built-in routing, and client-side rendering by default.
+## Package Ecosystem
 
-### CLI Options
+Retend's architecture is split to enforce separation of concerns:
 
-| Flag           | Description                                             |
-| -------------- | ------------------------------------------------------- |
-| `--default`    | Skip prompts and use default configuration              |
-| `--tailwind`   | Enable Tailwind CSS                                     |
-| `--javascript` | Use JavaScript instead of TypeScript                    |
-| `--ssg`        | Enable static site generation                           |
-| `--docs`       | Include `.docs` folder and `AGENT.md` for AI assistants |
+- **`retend`**: The universal core library (reactivity, JSX, control flow, routing).
+- **`retend-web`**: The official DOM renderer implementation for browser applications.
+- **`retend-server`**: Server-side rendering (SSR) and static site generation (SSG) implementations.
+- **`retend-start`**: CLI tool for scaffolding new projects.
+- **`retend-utils`**: Utility functions and universal hooks.
+- **`retend-web-devtools`**: Browser extension integration for inspecting the DOM renderer.
 
-```bash
-npx retend-start@latest my-app --tailwind --ssg
-```
+## Links
 
-## Documentation
-
-Visit [retend.dev](https://retend.dev) for comprehensive documentation including:
-
-- Getting Started Guide
-- Reactivity Deep Dive
-- Component Patterns
-- Routing & Navigation
-- Static Site Generation
-- API Reference
-
-## License
-
-[MIT](LICENSE)
-
-## Contributing
-
-Contributions are welcome! Please read the [contributing guidelines](https://github.com/resuite/retend/blob/main/CONTRIBUTING.md) for more information.
+- **Documentation**: [retend.dev](https://retend.dev)
+- **Contributing**: [CONTRIBUTING.md](https://github.com/resuite/retend/blob/main/CONTRIBUTING.md)
+- **License**: [MIT](LICENSE)

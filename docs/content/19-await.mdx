@@ -1,3 +1,8 @@
+---
+title: 'Await'
+description: 'Show loading UI while fetching data.'
+---
+
 # Await
 
 When your application needs to fetch data from a server, it takes time. You usually want to show a loading spinner or some placeholder text while the user waits.
@@ -30,7 +35,7 @@ function UserProfile() {
 
   return (
     <div class="user-profile">
-      {/* 2. Because userData is an Async Cell, this <If> automatically 
+      {/* 2. Because userData is an Async Cell, this <If> automatically
              tells the parent <Await> to show the fallback until the fetch finishes. */}
       {If(userData, {
         true: (user) => (

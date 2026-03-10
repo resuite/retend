@@ -1,3 +1,8 @@
+---
+title: 'ClientOnly'
+description: 'Render UI only in the browser for API-dependent components.'
+---
+
 # ClientOnly
 
 Some parts of your app depend on browser-specific APIs — `window.innerWidth`, `localStorage`, `navigator`, or third-party libraries that access the DOM. These APIs don't exist on the server, so rendering those components during Static Site Generation would fail.

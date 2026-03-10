@@ -19,6 +19,17 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     {
+      name: 'strip-mdx-frontmatter',
+      enforce: 'pre',
+      transform(source, id) {
+        if (!id.endsWith('.mdx')) {
+          return null;
+        }
+
+        return source.replace(/^---\n[\s\S]*?\n---\n*/u, '');
+      },
+    },
+    {
       enforce: 'pre',
       ...mdx({
         include: /\.mdx$/u,
