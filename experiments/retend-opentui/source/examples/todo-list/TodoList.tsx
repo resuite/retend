@@ -1,10 +1,10 @@
 import { If } from 'retend';
 
+import { EmptyState } from './EmptyState';
 import { Heading } from './Heading';
-import { EmptyState } from './todo-list/EmptyState';
-import { TodoInput } from './todo-list/TodoInput';
-import { TodoSection } from './todo-list/TodoSection';
-import { useTodoList } from './todo-list/useTodoList';
+import { TodoInput } from './TodoInput';
+import { TodoSection } from './TodoSection';
+import { useTodoList } from './useTodoList';
 
 export function TodoList() {
   const {

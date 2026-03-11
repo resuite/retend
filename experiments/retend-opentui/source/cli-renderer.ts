@@ -3,13 +3,16 @@ import type { JSX } from 'retend/jsx-runtime';
 import {
   ASCIIFontRenderable,
   BoxRenderable,
+  createCliRenderer,
   type CliRenderer,
+  type CliRendererConfig,
   CodeRenderable,
   InputRenderable,
   MarkdownRenderable,
   Renderable,
   ScrollBoxRenderable,
   SelectRenderable,
+  SyntaxStyle,
   TabSelectRenderable,
   TextareaRenderable,
   TextAttributes,
@@ -18,15 +21,17 @@ import {
 import {
   type __HMR_UpdatableFn,
   type Capabilities,
+  branchState,
+  createNodesFromTemplate,
   normalizeJsxChild,
-  type ReconcilerOptions,
+  runPendingSetupEffects,
+  setActiveRenderer,
+  type StateSnapshot,
   type Observer,
+  type ReconcilerOptions,
   type Renderer,
   type RendererTypes,
-  createNodesFromTemplate,
-  branchState,
   withState,
-  type StateSnapshot,
 } from 'retend';
 
 import type { RenderableRange } from './extensions';
@@ -44,6 +49,11 @@ interface OpenTuiRendererOptions extends RendererTypes {
   SavedNodeState: never;
 }
 
+const syntaxStyle = SyntaxStyle.create();
+
+/**
+ * Retend renderer for OpenTUI CLI applications.
+ */
 export class OpenTuiRenderer implements Renderer<OpenTuiRendererOptions> {
   host: EventTarget;
   observer: Observer | null;
@@ -107,11 +117,13 @@ export class OpenTuiRenderer implements Renderer<OpenTuiRendererOptions> {
       case 'scrollbox':
         return new ScrollBoxRenderable(this.cliRenderer.root.ctx, {});
       case 'code':
-        return new CodeRenderable(this.cliRenderer.root.ctx, {});
+        return new CodeRenderable(this.cliRenderer.root.ctx, { syntaxStyle });
       case 'textarea':
         return new TextareaRenderable(this.cliRenderer.root.ctx, {});
       case 'markdown':
-        return new MarkdownRenderable(this.cliRenderer.root.ctx, {});
+        return new MarkdownRenderable(this.cliRenderer.root.ctx, {
+          syntaxStyle,
+        });
       default:
         return new BoxRenderable(this.cliRenderer.root.ctx, {});
     }
@@ -189,4 +201,16 @@ export class OpenTuiRenderer implements Renderer<OpenTuiRendererOptions> {
   restoreContainerState(): void {
     throw new Error('Not implemented');
   }
+}
+
+export async function renderToCLI(
+  App: () => JSX.Template,
+  config?: CliRendererConfig
+) {
+  const cliRenderer = await createCliRenderer(config);
+  const renderer = new OpenTuiRenderer(cliRenderer);
+  setActiveRenderer(renderer);
+  renderer.render(App);
+  await runPendingSetupEffects();
+  return renderer;
 }

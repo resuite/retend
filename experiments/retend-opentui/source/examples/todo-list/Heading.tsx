@@ -3,16 +3,15 @@ export function Heading() {
     <box
       borderColor="orange"
       marginBottom={2}
-      height={3}
+      paddingY={1}
       width="100%"
       alignItems="center"
       justifyContent="center"
       borderStyle="double"
     >
-      <box>
-        <b fg="blue" marginBottom={1}>
-          TODO LIST
-        </b>
+      <box alignItems="center">
+        <ascii_font text="TODO" font="block" color="orange" />
+        <text fg="gray">reactive terminal workflow</text>
       </box>
     </box>
   );

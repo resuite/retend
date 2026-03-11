@@ -52,6 +52,7 @@ export function setProperty<N extends Renderable>(
   value: any
 ): N {
   if (key === 'onSubmit' && node instanceof InputRenderable) {
+    // @ts-expect-error: something wrong with the opentui types.
     node.on(InputRenderableEvents.ENTER, value);
     return node;
   }

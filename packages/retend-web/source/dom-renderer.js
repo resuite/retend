@@ -15,7 +15,6 @@ import {
   runPendingSetupEffects,
   linkNodes,
 } from 'retend';
-import { getGlobalContext, setGlobalContext } from 'retend/context';
 
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
@@ -802,11 +801,6 @@ export class DOMRenderer {
  * @param {() => JSX.Template} App - A function that returns the template to be rendered.
  */
 export function renderToDOM(element, App) {
-  setGlobalContext(
-    getGlobalContext() ?? {
-      globalData: new Map(),
-    }
-  );
   const renderer = new DOMRenderer(window);
   setActiveRenderer(renderer);
   const root = renderer.render(App);
