@@ -10,9 +10,6 @@ import { defineConfig } from 'vite';
 import { addHeadingIds, docsMetadataByPath, docsPages } from './config/docs';
 
 export default defineConfig({
-  build: {
-    sourcemap: true,
-  },
   define: {
     __DOC_METADATA__: JSON.stringify(docsMetadataByPath),
   },
