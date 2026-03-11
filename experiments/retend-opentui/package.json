@@ -1,0 +1,49 @@
+{
+  "name": "retend-opentui",
+  "version": "0.0.27",
+  "private": false,
+  "description": "Retend bindings for OpenTUI.",
+  "keywords": [
+    "javascript",
+    "tui"
+  ],
+  "homepage": "https://github.com/resuite/retend#readme",
+  "bugs": {
+    "url": "https://github.com/resuite/retend/issues"
+  },
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "type": "git",
+    "directory": "github.com/resuite/retend"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime/index.d.ts",
+      "import": "./dist/jsx-runtime/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node scripts/build.js"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.1.87"
+  },
+  "devDependencies": {
+    "retend": "workspace:*",
+    "typescript": "^5.8.2"
+  },
+  "peerDependencies": {
+    "retend": "*"
+  }
+}
