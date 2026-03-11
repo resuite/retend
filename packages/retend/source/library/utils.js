@@ -5,15 +5,16 @@ import { Block } from './block.js';
 import { useAwait } from './index.js';
 
 /**
- * @template {RendererTypes} Data
+ * @template {RendererTypes} Types
+ * @template {Renderer<Types>} [R=Renderer<Types>]
+ * @template {ReturnType<R['unwrapGroup']>} [NodeList=ReturnType<R['unwrapGroup']>]
  * Generates an array of child nodes from a given input.
  * @param {any} children
- * @param {Renderer<Data>} renderer
- * @returns {Data['Node'][]}
+ * @param {R} renderer
+ * @returns {NodeList}
  */
 export function createNodesFromTemplate(children, renderer) {
-  /** @type {Data['Node'][]} */
-  const nodes = [];
+  const nodes = /** @type {NodeList} */ ([]);
   const stack = [children];
 
   while (stack.length > 0) {
@@ -181,11 +182,8 @@ function createTextNode(subchild, renderer) {
     if (subchild instanceof AsyncCell) useAwait()?.waitUntil(subchild);
     /** @param {any} nextValue */
     const nextTextUpdate = (nextValue) => {
-      if (nextValue instanceof Promise) {
-        nextValue.then(nextTextUpdate);
-      } else {
-        renderer.updateText(nextValue, textNode);
-      }
+      if (nextValue instanceof Promise) nextValue.then(nextTextUpdate);
+      else renderer.updateText(String(nextValue), textNode);
     };
 
     const initialValue = subchild.get();
@@ -193,11 +191,11 @@ function createTextNode(subchild, renderer) {
       textNode = renderer.createText('', true, true);
       nextTextUpdate(initialValue);
     } else {
-      textNode = renderer.createText(initialValue, true);
+      textNode = renderer.createText(String(initialValue), true);
     }
     subchild.listen(nextTextUpdate);
     return textNode;
   } else {
-    return renderer.createText(subchild);
+    return renderer.createText(String(subchild));
   }
 }

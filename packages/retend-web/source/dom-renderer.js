@@ -217,7 +217,7 @@ export class DOMRenderer {
 
   /**
    * @param {__HMR_UpdatableFn} tagname
-   * @param {any} props
+   * @param {any[]} props
    * @param {StateSnapshot} [_]
    * @param {JSX.JSXDevFileData} [fileData]
    * @returns {Node | Node[]}
@@ -233,7 +233,6 @@ export class DOMRenderer {
         return withHMRBoundaries(tagname, props, fileData, this);
       }
       const template = tagname(...props);
-      /** @type {Node[]} */
       const nodes = createNodesFromTemplate(template, this);
       return nodes.length === 1 ? nodes[0] : nodes;
     }
@@ -409,7 +408,7 @@ export class DOMRenderer {
   createText(text, isReactive, isPending) {
     if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
       if (isReactive) {
-        const node = this.host.document.createTextNode(String(text));
+        const node = this.host.document.createTextNode(text);
         // @ts-expect-error
         node.__isReactive = true;
         // @ts-expect-error
@@ -419,7 +418,7 @@ export class DOMRenderer {
       // @ts-expect-error
       return new Skip(text);
     }
-    return this.host.document.createTextNode(String(text));
+    return this.host.document.createTextNode(text);
   }
 
   /**

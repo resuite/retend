@@ -141,7 +141,7 @@ export class VDOMRenderer {
 
   /**
    * @param {__HMR_UpdatableFn} tagname
-   * @param {any} props
+   * @param {any[]} props
    * @param {StateSnapshot} [snapshot]
    */
   handleComponent(tagname, props, snapshot) {

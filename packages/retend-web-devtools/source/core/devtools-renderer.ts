@@ -98,7 +98,7 @@ export class DevToolsDOMRenderer extends DOMRenderer {
 
   override handleComponent(
     tagname: __HMR_UpdatableFn,
-    props: any,
+    props: any[],
     _?: StateSnapshot,
     fileData?: JSX.JSXDevFileData
   ): Node | Node[] {
@@ -109,7 +109,7 @@ export class DevToolsDOMRenderer extends DOMRenderer {
 
     const treeNode: ComponentTreeNode = {
       component: tagname,
-      props,
+      props: props[0],
       fileData,
     };
     const parentInTree = this.useParentNode();

@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-/* oxlint-disable no-console */
+/**/
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -51,6 +51,13 @@ const jsxRuntimeDtsMapFile = `${jsxRuntimeDir}/index.d.ts.map`;
 fs.unlinkSync(jsxRuntimeDtsMapFile);
 console.log('Done!');
 
+console.log('Fixing renderer types...');
+const rendererDistDtsFile = 'dist/library/renderer.d.ts';
+const rendererSourceDtsFile = 'source/library/renderer.d.ts';
+const rendererDtsContent = fs.readFileSync(rendererSourceDtsFile, 'utf-8');
+fs.writeFileSync(rendererDistDtsFile, rendererDtsContent);
+console.log('Done!');
+
 console.log('\nInjecting d.ts references...');
 const jsFiles = findFiles('dist', '.js');
 for (const jsFile of jsFiles) {
@@ -67,4 +74,5 @@ for (const jsFile of jsFiles) {
     }
   }
 }
+
 console.log('Done!');

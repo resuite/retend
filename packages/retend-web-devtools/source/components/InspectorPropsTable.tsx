@@ -15,30 +15,27 @@ export function InspectorPropsTable() {
     const isRouterLink = node.component === Link;
     const isRouterOutlet = node.component === Outlet;
     const nextRows: Array<{ key: string; value: unknown }> = [];
-
-    if (Array.isArray(node.props)) {
-      const propsData = node.props[0];
-      if (propsData) {
-        const entries = Object.entries(propsData as Record<string, unknown>);
-        for (const [key, value] of entries) {
-          if (key === 'children') {
+    const { props } = node;
+    if (props) {
+      const entries = Object.entries(props as Record<string, unknown>);
+      for (const [key, value] of entries) {
+        if (key === 'children') {
+          continue;
+        }
+        if (isRouterLink) {
+          if (key === 'onClick') {
             continue;
           }
-          if (isRouterLink) {
-            if (key === 'onClick') {
-              continue;
-            }
-            if (key === 'active') {
-              continue;
-            }
+          if (key === 'active') {
+            continue;
           }
-          if (isRouterOutlet) {
-            if (key === 'data-path') {
-              continue;
-            }
-          }
-          nextRows.push({ key, value });
         }
+        if (isRouterOutlet) {
+          if (key === 'data-path') {
+            continue;
+          }
+        }
+        nextRows.push({ key, value });
       }
     }
 

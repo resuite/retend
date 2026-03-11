@@ -495,7 +495,7 @@ export class CanvasRenderer {
   }
 
   createText(text: string): CanvasTextNode {
-    return new TextNode(String(text));
+    return new TextNode(text);
   }
 
   updateText(text: string, node: CanvasTextNode): CanvasTextNode {

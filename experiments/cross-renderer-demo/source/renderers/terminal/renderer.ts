@@ -561,7 +561,7 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
   }
 
   createText(text: string): TerminalTextNode {
-    return new TextNode(String(text));
+    return new TextNode(text);
   }
 
   updateText(text: string, node: TerminalTextNode): TerminalTextNode {
