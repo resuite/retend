@@ -1,6 +1,6 @@
 /** @import { ReconcilerOptions, Renderer } from "retend" */
 /** @import { DOMRenderer } from './dom-renderer.js'; */
-import { AsyncCell, Cell, SourceCell, linkNodes, useAwait } from 'retend';
+import { Cell, SourceCell, linkNodes } from 'retend';
 
 import {
   addCellListener,
@@ -369,45 +369,6 @@ function synthesizeRangeAnchors(segment) {
 export function updateText(text, node) {
   node.textContent = String(text);
   return node;
-}
-
-/**
- * @param {string | Cell<any>} text
- * @param {Renderer<any>} renderer
- */
-export function createText(text, renderer) {
-  if (Cell.isCell(text)) {
-    const initialValue = text.get();
-    const { updateText } = renderer;
-
-    if (text instanceof AsyncCell) useAwait()?.waitUntil(text);
-
-    /**
-     * @this any
-     * @param {any} value
-     */
-    function updateTextValue(value) {
-      if (value instanceof Promise) {
-        value.then((resolvedValue) => updateText(resolvedValue, this));
-      } else updateText(value, this);
-    }
-
-    // Handle async cells - start empty and update when resolved
-    if (initialValue instanceof Promise) {
-      const textNode = renderer.host.document.createTextNode('');
-      addCellListener(textNode, text, updateTextValue, false);
-      initialValue.then((resolvedValue) => updateText(resolvedValue, textNode));
-      return textNode;
-    }
-
-    const textNode = renderer.host.document.createTextNode(
-      String(initialValue)
-    );
-    addCellListener(textNode, text, updateTextValue, false);
-    return textNode;
-  }
-
-  return renderer.host.document.createTextNode(String(text));
 }
 
 /**

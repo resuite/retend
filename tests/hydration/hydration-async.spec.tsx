@@ -1215,6 +1215,23 @@ describe('Hydration async', () => {
     await vi.advanceTimersByTimeAsync(30);
     expect(node?.textContent?.includes('[object Promise]')).toBe(false);
     expect(node?.textContent).toBe('Hello Ken');
+    expect(getHydrationErrors().length).toBe(0);
+  });
+
+  it('does not report a mismatch when pending async text claims resolved server text', async () => {
+    const template = () => {
+      const asyncText = Cell.derivedAsync(async () => {
+        await timeout(20);
+        return 'Loaded';
+      });
+
+      return <p id="async-claim">{asyncText}</p>;
+    };
+
+    const { document } = await setupHydration(template);
+
+    expect(document.querySelector('#async-claim')?.textContent).toBe('Loaded');
+    expect(getHydrationErrors().length).toBe(0);
   });
 
   it('hydrates async Switch nested in multiple containers with server-resolved initial case', async () => {

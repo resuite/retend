@@ -797,6 +797,8 @@ export function containerIsDynamic(tagname, props, childChecker) {
 export function isReactiveChild(value) {
   if (Cell.isCell(value)) return true;
   if (value instanceof DeferredHandleSymbol) return true;
+  // @ts-expect-error
+  if (value instanceof Text && value.__isReactive) return true;
   if (Array.isArray(value)) {
     if (
       value[0] instanceof DeferredHandleSymbol &&

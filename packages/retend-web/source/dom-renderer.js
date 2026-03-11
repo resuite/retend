@@ -22,7 +22,6 @@ import { withHMRBoundaries } from './plugins/hmr.js';
 import {
   DeferredHandleSymbol,
   Skip,
-  addCellListener,
   containerIsDynamic,
   flattenJSXChildren,
   isReactiveChild,
@@ -402,14 +401,25 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {string | Cell<any>} text
+   * @param {string} text
+   * @param {boolean} [isReactive]
+   * @param {boolean} [isPending]
+   * @returns {Text}
    */
-  createText(text) {
+  createText(text, isReactive, isPending) {
     if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      if (Cell.isCell(text)) return text;
+      if (isReactive) {
+        const node = this.host.document.createTextNode(String(text));
+        // @ts-expect-error
+        node.__isReactive = true;
+        // @ts-expect-error
+        if (isPending) node.__isPending = true;
+        return node;
+      }
+      // @ts-expect-error
       return new Skip(text);
     }
-    return Ops.createText(text, this);
+    return this.host.document.createTextNode(String(text));
   }
 
   /**
@@ -507,7 +517,6 @@ export class DOMRenderer {
       if (key !== 'children') this.setProperty(staticNode, key, props[key]);
     }
 
-    const { updateText } = this;
     const { children } = props;
     const staticIsElement = staticNode instanceof Element;
 
@@ -518,49 +527,6 @@ export class DOMRenderer {
       const root =
         staticNode.shadowRoot ?? staticNode.attachShadow({ mode: 'open' });
       this.#hydrateNode(root, children.props);
-      return;
-    }
-
-    if (Cell.isCell(children)) {
-      const textNode = staticNode.firstChild;
-      if (!textNode || textNode.nodeType !== TEXT_NODE) {
-        console.error('Hydration error: Expected text node but got', textNode);
-        return;
-      }
-      const expectedValue = children.get();
-      if (!(expectedValue instanceof Promise)) {
-        const expectedText = String(expectedValue);
-        if (textNode.textContent !== expectedText) {
-          console.error(
-            'Hydration error: Expected text',
-            expectedText,
-            'but got',
-            textNode.textContent
-          );
-        }
-      }
-      /**
-       * @param {any} value
-       * @this {Text}
-       */
-      function listener(value) {
-        if (value instanceof Promise) {
-          value.then((resolvedValue) => {
-            updateText(resolvedValue, this);
-          });
-        } else updateText(value, this);
-      }
-      addCellListener(
-        /** @type {Text} */ (textNode),
-        children,
-        listener,
-        false
-      );
-      if (expectedValue instanceof Promise) {
-        Promise.resolve(children.get()).then((resolvedValue) => {
-          updateText(resolvedValue, textNode);
-        });
-      }
       return;
     }
     if (!Array.isArray(children)) return;
@@ -656,54 +622,30 @@ export class DOMRenderer {
         continue;
       }
 
-      if (Cell.isCell(node)) {
-        /** @type {Text} */
-        let textNode;
-        const domNodeIsText = domNode?.nodeType === TEXT_NODE;
-        if (domNodeIsText) {
-          textNode = /** @type {Text} */ (domNode);
+      // @ts-expect-error
+      if (node instanceof Text && node.__isReactive) {
+        if (domNode?.nodeType === TEXT_NODE) {
+          if (
+            domNode.textContent !== node.textContent &&
+            // @ts-expect-error
+            !node.__isPending
+          ) {
+            console.error(
+              'Hydration error: Expected text',
+              node.textContent,
+              'but got',
+              domNode.textContent
+            );
+          }
+          // @ts-expect-error
+          node.__isPending = false;
+          node.textContent = domNode.textContent;
+          domNode.replaceWith(node);
           domIndex++;
+        } else if (domNode) {
+          staticNode.insertBefore(node, domNode);
         } else {
-          // The Cell's value was empty during SSR, so no text node was
-          // created by the browser. Create one now and insert it.
-          textNode = this.host.document.createTextNode('');
-          if (domNode) {
-            staticNode.insertBefore(textNode, domNode);
-          } else {
-            staticNode.appendChild(textNode);
-          }
-        }
-        const expectedValue = node.get();
-        if (!(expectedValue instanceof Promise)) {
-          const expectedText = String(expectedValue);
-          if (textNode.textContent !== expectedText) {
-            if (domNodeIsText) {
-              console.error(
-                'Hydration error: Expected text',
-                expectedText,
-                'but got',
-                textNode.textContent
-              );
-            }
-            textNode.textContent = expectedText;
-          }
-        }
-        /**
-         * @param {any} value
-         * @this {Text}
-         */
-        function listener(value) {
-          if (value instanceof Promise) {
-            value.then((resolvedValue) => updateText(resolvedValue, this));
-          } else {
-            updateText(value, this);
-          }
-        }
-        addCellListener(textNode, node, listener, false);
-        if (expectedValue instanceof Promise) {
-          Promise.resolve(node.get()).then((resolvedValue) => {
-            updateText(resolvedValue, textNode);
-          });
+          staticNode.appendChild(node);
         }
         nodeIndex++;
         continue;

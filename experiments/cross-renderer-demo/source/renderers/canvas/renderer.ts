@@ -494,16 +494,7 @@ export class CanvasRenderer {
     return new BoxNode(tagname, props);
   }
 
-  createText(text: string | Cell<unknown>): CanvasTextNode {
-    if (Cell.isCell(text)) {
-      const node = new TextNode(String(text.get()));
-      text.listen((value) => {
-        node.text = String(value);
-        this.requestRender();
-      });
-      return node;
-    }
-
+  createText(text: string): CanvasTextNode {
     return new TextNode(String(text));
   }
 

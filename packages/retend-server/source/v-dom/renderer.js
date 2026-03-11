@@ -224,10 +224,13 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {string | Cell<any>} text
+   * @param {string} text
+   * @param {boolean} [isReactive]
    */
-  createText(text) {
-    return Ops.createText(text, this);
+  createText(text, isReactive) {
+    const node = this.host.document.createTextNode(String(text));
+    if (this.markDynamicNodes && isReactive) node.__isReactive = true;
+    return node;
   }
 
   /**
@@ -279,8 +282,7 @@ function isReactiveChild(value) {
     }
   }
   if (value instanceof Ops.ShadowRootFragment) return true;
-  // @ts-expect-error
-  if (value instanceof VText && value.__attributeCells?.size) return true;
+  if (value instanceof VText && value.__isReactive) return true;
   // @ts-expect-error
   if (value instanceof VComment && value.__commentRangeSymbol) return true;
   return false;

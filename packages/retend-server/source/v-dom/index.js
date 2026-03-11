@@ -269,6 +269,7 @@ export class VNode extends EventTarget {
 
 export class VText extends VNode {
   #textContent;
+  __isReactive;
   /**
    * @param {string} text
    * @param {VDocument} document
@@ -276,6 +277,7 @@ export class VText extends VNode {
   constructor(text, document) {
     super(document);
     this.#textContent = text;
+    this.__isReactive = false;
   }
 
   /** @override */

@@ -107,7 +107,7 @@ import { getGlobalContext } from '../context/index.js';
  * @property {(tagname: string, props?: any) => Container} createContainer
  * Creates a host-level entity with the specified name and properties.
  *
- * @property {(text: string) => Node} createText
+ * @property {(text: string, isReactive?: boolean, isPending?: boolean) => Node} createText
  * Instantiates a text node from a string.
  *
  * @property {(text: string, node: Text) => Node} updateText

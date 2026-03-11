@@ -1,5 +1,8 @@
 /** @import { Renderer, RendererTypes } from './renderer.js'; */
+import { AsyncCell, Cell } from '@adbl/cells';
+
 import { Block } from './block.js';
+import { useAwait } from './index.js';
 
 /**
  * @template {RendererTypes} Data
@@ -21,6 +24,11 @@ export function createNodesFromTemplate(children, renderer) {
       typeof child === 'boolean'
     ) {
       nodes.push(renderer.createText(String(child)));
+      continue;
+    }
+
+    if (Cell.isCell(child)) {
+      nodes.push(createTextNode(child, renderer));
       continue;
     }
 
@@ -134,12 +142,15 @@ export function normalizeJsxChild(child, renderer) {
         continue;
       }
 
-      const normalized =
-        subchild === null || subchild === undefined
-          ? renderer.createText('')
-          : renderer.isNode(subchild)
-            ? subchild
-            : renderer.createText(subchild);
+      let normalized;
+      if (subchild === null || subchild === undefined) {
+        normalized = renderer.createText('');
+      } else if (renderer.isNode(subchild)) {
+        normalized = subchild;
+      } else {
+        normalized = createTextNode(subchild, renderer);
+      }
+
       renderer.append(group, normalized);
     }
     return group;
@@ -153,5 +164,40 @@ export function normalizeJsxChild(child, renderer) {
     return renderer.createText('');
   }
 
-  return renderer.createText(child);
+  return createTextNode(child, renderer);
+}
+
+/**
+ * @template {RendererTypes} Types
+ * @param {string | Cell<any>} subchild
+ * @param {Renderer<Types>} renderer - The renderer instance.
+ * @returns {Types['Node']} The normalized child element.
+ */
+function createTextNode(subchild, renderer) {
+  // TEXT HANDLING.
+  if (Cell.isCell(subchild)) {
+    /** @type { Types["Node"]} */
+    let textNode;
+    if (subchild instanceof AsyncCell) useAwait()?.waitUntil(subchild);
+    /** @param {any} nextValue */
+    const nextTextUpdate = (nextValue) => {
+      if (nextValue instanceof Promise) {
+        nextValue.then(nextTextUpdate);
+      } else {
+        renderer.updateText(nextValue, textNode);
+      }
+    };
+
+    const initialValue = subchild.get();
+    if (initialValue instanceof Promise) {
+      textNode = renderer.createText('', true, true);
+      nextTextUpdate(initialValue);
+    } else {
+      textNode = renderer.createText(initialValue, true);
+    }
+    subchild.listen(nextTextUpdate);
+    return textNode;
+  } else {
+    return renderer.createText(subchild);
+  }
 }

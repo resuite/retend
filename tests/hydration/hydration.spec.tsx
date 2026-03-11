@@ -1627,6 +1627,35 @@ describe('Hydration', () => {
     consoleSpy.mockRestore();
   });
 
+  it('should report hydration mismatch errors for resolved empty reactive text', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const text = Cell.source('');
+    const template = () => (
+      <div id="mismatch-empty-root">
+        <span id="mismatch-empty-text">{text}</span>
+      </div>
+    );
+
+    const html = await renderHydrationServerHtml(template);
+
+    const corruptedHtml = html.replace(
+      'id="mismatch-empty-text"></span>',
+      'id="mismatch-empty-text">Different Content</span>'
+    );
+    const { renderer: clientRenderer } =
+      createHydrationClientRenderer(corruptedHtml);
+    startHydration(clientRenderer, template);
+    await clientRenderer.endHydration();
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const errorCalls = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('Hydration error')
+    );
+    expect(errorCalls.length).toBeGreaterThan(0);
+
+    consoleSpy.mockRestore();
+  });
+
   it('should hydrate For loop with items returning Fragments', async () => {
     const items = Cell.source(['A', 'B']);
     const template = () => (
