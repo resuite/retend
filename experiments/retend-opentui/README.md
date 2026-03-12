@@ -95,10 +95,10 @@ These map to the corresponding OpenTUI renderables and accept their OpenTUI opti
 
 ## Examples
 
-Example apps live under [`source/examples`](./source/examples):
+Example apps live under [`examples`](./examples):
 
-- [`todo-list`](./source/examples/todo-list)
-- [`snake-game`](./source/examples/snake-game)
+- [`todo-list`](./examples/todo-list)
+- [`snake-game`](./examples/snake-game)
 
 Each example has its own `entry.tsx` that uses `renderToCLI`.
 

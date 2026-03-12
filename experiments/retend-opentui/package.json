@@ -34,7 +34,10 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "start:music-player": "bun run examples/music-player/entry.tsx",
+    "start:snake-game": "bun run examples/snake-game/entry.tsx",
+    "start:todo-list": "bun run examples/todo-list/entry.tsx"
   },
   "dependencies": {
     "@opentui/core": "^0.1.87"

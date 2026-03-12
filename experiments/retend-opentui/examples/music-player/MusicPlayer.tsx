@@ -50,9 +50,19 @@ export function MusicPlayer() {
     if (root) root.focus();
 
     const playbackInterval = setInterval(() => {
+      const root = rootRef.get();
+      if (!root || root.isDestroyed) {
+        clearInterval(playbackInterval);
+        return;
+      }
       tickPlayback();
     }, 1000);
     const meterInterval = setInterval(() => {
+      const root = rootRef.get();
+      if (!root || root.isDestroyed) {
+        clearInterval(meterInterval);
+        return;
+      }
       meterTick.set(meterTick.get() + 1);
     }, 60);
 

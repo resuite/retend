@@ -1,12 +1,12 @@
 import { TextAttributes } from '@opentui/core';
-import { Cell, For, type Cell as RetendCell } from 'retend';
+import { Cell, For } from 'retend';
 
 import type { Tile } from './types';
 
 import { columns, rows } from './constants';
 
 interface SnakeBoardProps {
-  board: RetendCell<Tile[][]>;
+  board: Cell<Tile[][]>;
 }
 
 export function SnakeBoard(props: SnakeBoardProps) {

@@ -1,4 +1,4 @@
-import { renderToCLI } from '../../index.js';
+import { renderToCLI } from '../../source/index.js';
 import { SnakeGame } from './SnakeGame.js';
 
 await renderToCLI(SnakeGame, {

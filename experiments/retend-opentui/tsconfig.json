@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "./source",
+    "rootDir": "./",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitAny": true,
@@ -27,6 +27,6 @@
     "jsx": "react-jsx",
     "jsxImportSource": "retend"
   },
-  "include": ["source"],
+  "include": ["source", "examples"],
   "exclude": ["node_modules/**/*", "dist"]
 }
