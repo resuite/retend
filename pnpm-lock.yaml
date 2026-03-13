@@ -246,6 +246,9 @@ importers:
 
   packages/retend-web-devtools:
     dependencies:
+      html-to-image:
+        specifier: ^1.11.13
+        version: 1.11.13
       retend:
         specifier: workspace:*
         version: link:../retend
@@ -277,6 +280,9 @@ importers:
       retend-web:
         specifier: workspace:*
         version: link:../packages/retend-web
+      retend-web-devtools:
+        specifier: workspace:*
+        version: link:../packages/retend-web-devtools
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@25.4.0)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
@@ -2893,6 +2899,9 @@ packages:
 
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
+
+  html-to-image@1.11.13:
+    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
 
   htmlparser2@10.1.0:
     resolution: {integrity: sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==}
@@ -6654,6 +6663,8 @@ snapshots:
       wbuf: 1.7.3
 
   html-escaper@2.0.2: {}
+
+  html-to-image@1.11.13: {}
 
   htmlparser2@10.1.0:
     dependencies:

@@ -26,6 +26,7 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
+    "html-to-image": "^1.11.13",
     "retend": "workspace:*",
     "retend-web": "workspace:*",
     "vite-plugin-css-injected-by-js": "^4.0.1"
