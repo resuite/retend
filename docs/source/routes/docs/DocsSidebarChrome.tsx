@@ -3,10 +3,12 @@ import type { Cell } from 'retend';
 import { If } from 'retend';
 
 export function MobileMenuButton(props: { toggle: () => void }) {
+  const { toggle } = props;
+
   return (
     <button
       type="button"
-      onClick={props.toggle}
+      onClick={toggle}
       class={[
         'mb-6 w-fit lg:hidden',
         'bg-surface text-fg sticky top-[calc(var(--header-height)+var(--spacing)*6)] z-30 flex items-center gap-2 rounded-xl font-bold',
@@ -37,13 +39,15 @@ export function MobileOverlay(props: {
   isOpen: Cell<boolean>;
   toggle: () => void;
 }) {
+  const { isOpen, toggle } = props;
+
   return (
     <>
-      {If(props.isOpen, {
+      {If(isOpen, {
         true: () => (
           <div
             class="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={props.toggle}
+            onClick={toggle}
           />
         ),
       })}

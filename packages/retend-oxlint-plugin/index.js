@@ -113,6 +113,40 @@ function getTopLevelJsxComponents(program) {
   return components;
 }
 
+function getPropsDestructureStatement(component, propsName) {
+  const firstStatement = component.body.body[0];
+  if (!firstStatement) {
+    return null;
+  }
+
+  if (firstStatement.type !== 'VariableDeclaration') {
+    return null;
+  }
+
+  if (firstStatement.kind !== 'const') {
+    return null;
+  }
+
+  const firstDeclaration = firstStatement.declarations[0];
+  if (!firstDeclaration) {
+    return null;
+  }
+
+  if (firstDeclaration.id.type !== 'ObjectPattern') {
+    return null;
+  }
+
+  if (firstDeclaration.init?.type !== 'Identifier') {
+    return null;
+  }
+
+  if (firstDeclaration.init.name !== propsName) {
+    return null;
+  }
+
+  return firstStatement;
+}
+
 const noClassName = {
   meta: {
     docs: {
@@ -135,6 +169,84 @@ const noClassName = {
         }
 
         context.report({ node: node.name, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const propsDestructureFirst = {
+  meta: {
+    docs: {
+      description: 'require destructuring props as the first statement',
+    },
+    schema: [],
+    messages: {
+      destructure:
+        'Destructure props from props as the first statement in the component body.',
+      member:
+        'Use destructured props instead of props.member access inside components.',
+    },
+  },
+  create(context) {
+    return {
+      Program(node) {
+        for (const component of getTopLevelJsxComponents(node)) {
+          const propsParam = component.params[0];
+          if (!propsParam) {
+            continue;
+          }
+
+          if (propsParam.type === 'ObjectPattern') {
+            context.report({ node: propsParam, messageId: 'destructure' });
+            continue;
+          }
+
+          if (propsParam.type !== 'Identifier') {
+            continue;
+          }
+
+          const propsName = propsParam.name;
+          const propsStatement = getPropsDestructureStatement(
+            component,
+            propsName
+          );
+
+          if (!propsStatement) {
+            context.report({ node: component.body, messageId: 'destructure' });
+            continue;
+          }
+
+          for (const statement of component.body.body.slice(1)) {
+            let reported = false;
+            walkOwnBody(statement, (current) => {
+              if (
+                current.type === 'MemberExpression' &&
+                current.object.type === 'Identifier' &&
+                current.object.name === propsName
+              ) {
+                context.report({ node: current, messageId: 'member' });
+                reported = true;
+                return false;
+              }
+
+              if (
+                current.type === 'JSXMemberExpression' &&
+                current.object.type === 'JSXIdentifier' &&
+                current.object.name === propsName
+              ) {
+                context.report({ node: current, messageId: 'member' });
+                reported = true;
+                return false;
+              }
+
+              return true;
+            });
+
+            if (reported) {
+              return;
+            }
+          }
+        }
       },
     };
   },
@@ -830,6 +942,7 @@ export default {
     'max-component-lines': maxComponentLines,
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
     'no-classname': noClassName,
+    'props-destructure-first': propsDestructureFirst,
     'no-templated-class': noTemplatedClass,
     'no-get-in-derived-async': noGetInDerivedAsync,
     'no-get-in-jsx': noGetInJsx,

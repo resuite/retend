@@ -714,6 +714,7 @@ async function createConfigFile(projectDir, answers) {
             'retend/max-component-lines': 'error',
             'retend/max-jsx-components-per-file': 'error',
             'retend/no-classname': 'error',
+            'retend/props-destructure-first': 'error',
             'retend/no-templated-class': 'error',
             'retend/no-get-in-jsx': 'error',
             'retend/no-get-in-derived-async': 'error',

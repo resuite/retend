@@ -78,11 +78,13 @@ export function SidebarNav(props: {
   items: SidebarItem[];
   toggle: () => void;
 }) {
+  const { items, toggle } = props;
+
   return (
     <>
       <div class="mb-2 flex items-center justify-between lg:hidden">
         <h1 class="text-fg text-xl tracking-tight">Documentation</h1>
-        <button type="button" onClick={props.toggle} class="text-fg p-2">
+        <button type="button" onClick={toggle} class="text-fg p-2">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"
@@ -109,7 +111,7 @@ export function SidebarNav(props: {
       >
         <ul class="flex flex-col gap-3">
           {For(
-            props.items,
+            items,
             (item) => (
               <SidebarNode item={item} />
             ),
