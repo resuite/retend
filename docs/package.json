@@ -8,6 +8,7 @@
     "build": "pnpm -C .. build && WRANGLER_LOG_PATH=.wrangler/logs tsc --noEmit && WRANGLER_LOG_PATH=.wrangler/logs vite build",
     "build-docs": "vite build",
     "build-docs-clean": "rm -rf dist .wrangler && vite build",
+    "lint": "oxlint -c .oxlintrc.json .",
     "preview": "vite preview",
     "deploy": "pnpm run build && WRANGLER_LOG_PATH=.wrangler/logs npx wrangler deploy"
   },
@@ -27,6 +28,7 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@resvg/resvg-wasm": "^2.6.2",
     "@types/node": "^22.7.5",
+    "retend-oxlint-plugin": "workspace:*",
     "typescript": "^5.8.2",
     "vite": "^6.4.1"
   }

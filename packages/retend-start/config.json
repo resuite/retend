@@ -1,5 +1,5 @@
 {
-  "minNodeVersion": "14.0.0",
+  "minNodeVersion": "^20.19.0 || >=22.12.0",
   "directories": ["public", "source", "source/styles"],
   "dependencies": {
     "retend": "^0.0.27",
@@ -9,8 +9,9 @@
     "retend-web-devtools": "^0.0.27"
   },
   "devDependencies": {
-    "vite": "^6.2.1",
+    "vite": "^8.0.0",
     "oxlint": "^1.50.0",
+    "retend-oxlint-plugin": "^0.0.27",
     "typescript": "^5.5.2",
     "tailwindcss": "^4.1.8",
     "@tailwindcss/vite": "^4.1.5"

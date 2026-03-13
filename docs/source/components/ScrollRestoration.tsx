@@ -8,6 +8,18 @@ export function ScrollRestoration() {
     const segments = currentRoute.get().fullPath.split('/');
     return `${segments[0]}/${segments[1]}/${segments[2]}`;
   });
+  basePath.listen(() => {
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        const state = window.history.state;
+        if (state?.scroll) {
+          window.scrollTo(state.scroll.x, state.scroll.y);
+        } else {
+          window.scrollTo(0, 0);
+        }
+      });
+    });
+  });
 
   onSetup(() => {
     // 1. Disable browser auto-restore
@@ -25,24 +37,9 @@ export function ScrollRestoration() {
     // 3. Attach save listener
     router.addEventListener('beforenavigate', saveScrollPosition);
 
-    // 4. Restore position when the route updates
-    const unlisten = basePath.listen(() => {
-      queueMicrotask(() => {
-        requestAnimationFrame(() => {
-          const state = window.history.state;
-          if (state?.scroll) {
-            window.scrollTo(state.scroll.x, state.scroll.y);
-          } else {
-            window.scrollTo(0, 0);
-          }
-        });
-      });
-    });
-
     // Cleanup
     return () => {
       router.removeEventListener('beforenavigate', saveScrollPosition);
-      unlisten();
     };
   });
 

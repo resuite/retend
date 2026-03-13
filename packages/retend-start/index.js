@@ -204,9 +204,9 @@ async function main() {
  */
 function checkNodeVersion() {
   const currentVersion = process.version;
-  if (semver.lt(currentVersion, CONFIG.minNodeVersion)) {
+  if (!semver.satisfies(currentVersion, CONFIG.minNodeVersion)) {
     throw new Error(
-      `Node.js version ${CONFIG.minNodeVersion} or higher is required. Current version: ${currentVersion}`
+      `Node.js version ${CONFIG.minNodeVersion} is required. Current version: ${currentVersion}`
     );
   }
 }
@@ -639,6 +639,7 @@ async function createPackageJson(projectDir, answers) {
     devDependencies: {
       vite: CONFIG.devDependencies.vite,
       oxlint: CONFIG.devDependencies.oxlint,
+      'retend-oxlint-plugin': CONFIG.devDependencies['retend-oxlint-plugin'],
     },
   };
 
@@ -707,73 +708,25 @@ async function createConfigFile(projectDir, answers) {
       JSON.stringify(
         {
           $schema: './node_modules/oxlint/configuration_schema.json',
-          jsPlugins: ['./retend-oxlint-plugin.mjs'],
+          jsPlugins: ['./node_modules/retend-oxlint-plugin/index.js'],
           rules: {
+            'retend/component-statement-order': 'error',
+            'retend/max-component-lines': 'error',
+            'retend/max-jsx-components-per-file': 'error',
+            'retend/no-classname': 'error',
+            'retend/no-templated-class': 'error',
             'retend/no-get-in-jsx': 'error',
+            'retend/no-get-in-derived-async': 'error',
+            'retend/no-jsx-control-flow': 'error',
+            'retend/no-jsx-map': 'error',
+            'retend/no-listen-in-onsetup': 'error',
+            'retend/no-react-imports': 'error',
+            'retend/prefer-router-navigation': 'error',
           },
         },
         null,
         2
       )
-    ),
-    fs.writeFile(
-      path.join(projectDir, 'retend-oxlint-plugin.mjs'),
-      `const noGetInJsx = {
-  meta: {
-    docs: {
-      description: 'disallow .get() in JSX expressions',
-    },
-    schema: [],
-    messages: {
-      unexpected:
-        'Calling .get() in JSX returns a static snapshot. Pass the Cell directly.',
-    },
-  },
-  create(context) {
-    return {
-      CallExpression(node) {
-        if (node.callee.type !== 'MemberExpression' || node.callee.computed) {
-          return;
-        }
-
-        if (
-          node.callee.property.type !== 'Identifier' ||
-          node.callee.property.name !== 'get'
-        ) {
-          return;
-        }
-
-        let parent = node.parent;
-        while (parent) {
-          if (parent.type === 'JSXExpressionContainer') {
-            context.report({ node: node.callee.property, messageId: 'unexpected' });
-            return;
-          }
-
-          if (
-            parent.type === 'ArrowFunctionExpression' ||
-            parent.type === 'FunctionDeclaration' ||
-            parent.type === 'FunctionExpression'
-          ) {
-            return;
-          }
-
-          parent = parent.parent;
-        }
-      },
-    };
-  },
-};
-
-export default {
-  meta: {
-    name: 'retend',
-  },
-  rules: {
-    'no-get-in-jsx': noGetInJsx,
-  },
-};
-`
     ),
   ]);
 }

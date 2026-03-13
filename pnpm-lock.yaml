@@ -63,6 +63,9 @@ importers:
       '@types/node':
         specifier: ^22.7.5
         version: 22.19.11
+      retend-oxlint-plugin:
+        specifier: workspace:*
+        version: link:../packages/retend-oxlint-plugin
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
@@ -154,6 +157,8 @@ importers:
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
+
+  packages/retend-oxlint-plugin: {}
 
   packages/retend-server:
     dependencies:

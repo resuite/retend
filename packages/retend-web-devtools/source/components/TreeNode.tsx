@@ -50,7 +50,7 @@ export function TreeNode(props: TreeNodeProps) {
   const { node, depth, forceExpanded, visibleNodes, bypassProviderCollapse } =
     props;
   const devRenderer = useDevToolsRenderer();
-  const expanded = Cell.source(depth < 6);
+  const expanded = Cell.source(depth < 9);
   const containerRef = Cell.source<HTMLElement | null>(null);
   const { name } = node.component;
 

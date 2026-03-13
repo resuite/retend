@@ -1,0 +1,28 @@
+{
+  "name": "retend-oxlint-plugin",
+  "version": "0.0.27",
+  "private": false,
+  "description": "Oxlint rules for Retend projects.",
+  "keywords": [
+    "lint",
+    "oxlint",
+    "retend"
+  ],
+  "homepage": "https://github.com/resuite/retend#readme",
+  "bugs": {
+    "url": "https://github.com/resuite/retend/issues"
+  },
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "type": "git",
+    "directory": "github.com/resuite/retend"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

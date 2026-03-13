@@ -2,7 +2,7 @@
 
 # Set paths
 PREVIEWS_DIR="./tgz-previews"
-PACKAGES=("packages/retend" "packages/retend-start" "packages/retend-server")
+PACKAGES=("packages/retend" "packages/retend-start" "packages/retend-server" "packages/retend-oxlint-plugin")
 
 # Create previews directory if it doesn't exist
 mkdir -p $PREVIEWS_DIR

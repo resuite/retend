@@ -1,7 +1,9 @@
-import { Cell, For, If } from 'retend';
-import { Link, useCurrentRoute } from 'retend/router';
+import { Cell } from 'retend';
+import { useCurrentRoute } from 'retend/router';
 
 import { sectionEntries } from './docsData';
+import { MobileMenuButton, MobileOverlay } from './DocsSidebarChrome';
+import { SidebarNav } from './DocsSidebarNav';
 
 const flatDocs: Array<{ href: string; label: string }> = [];
 for (const [, sectionData] of sectionEntries) {
@@ -100,172 +102,6 @@ for (const doc of flatDocs) {
   }
 }
 
-function MobileMenuButton(props: { toggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={props.toggle}
-      class={[
-        'mb-6 w-fit lg:hidden',
-        'bg-surface text-fg sticky top-[calc(var(--header-height)+var(--spacing)*6)] z-30 flex items-center gap-2 rounded-xl font-bold',
-        'border-border border px-3 py-2 text-sm shadow-[-3px_3px_0_var(--color-card-shadow)] transition-all active:translate-y-0.5 active:shadow-[0px_0px_0_var(--color-card-shadow)] dark:shadow-[-5px_5px_0_var(--color-card-shadow)]',
-      ]}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M4 6h16M4 12h16m-7 6h7"
-        />
-      </svg>
-      Menu
-    </button>
-  );
-}
-
-function MobileOverlay(props: { isOpen: Cell<boolean>; toggle: () => void }) {
-  return (
-    <>
-      {If(props.isOpen, {
-        true: () => (
-          <div
-            class="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={props.toggle}
-          />
-        ),
-      })}
-    </>
-  );
-}
-
-function SidebarHeader(props: { toggle: () => void }) {
-  return (
-    <>
-      <div class="mb-2 flex items-center justify-between lg:hidden">
-        <h1 class="text-fg text-xl tracking-tight">Documentation</h1>
-        <button type="button" onClick={props.toggle} class="text-fg p-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-      <h1 class="text-fg hidden text-xl tracking-tight lg:block lg:pb-2">
-        Documentation
-      </h1>
-    </>
-  );
-}
-
-function SidebarNode(props: { item: SidebarItem }) {
-  const { item } = props;
-  const currentRoute = useCurrentRoute();
-
-  if (item.type === 'link') {
-    const isActive = Cell.derived(
-      () => currentRoute.get().fullPath === item.href
-    );
-    const isNotActive = Cell.derived(() => !isActive.get());
-
-    return (
-      <li>
-        <Link
-          href={item.href}
-          class={[
-            'block py-1 text-sm transition-colors',
-            {
-              'text-fg-muted hover:text-brand': isNotActive,
-              'text-brand font-medium': isActive,
-            },
-          ]}
-        >
-          {item.label}
-        </Link>
-      </li>
-    );
-  }
-
-  const isGroupActive = Cell.derived(() => {
-    return item.items.some(
-      (subItem) =>
-        subItem.type === 'link' && subItem.href === currentRoute.get().fullPath
-    );
-  });
-
-  return (
-    <li>
-      <details class="group" open={isGroupActive}>
-        <summary class="text-fg-muted hover:text-brand cursor-pointer list-none py-1 text-sm transition-colors [&::-webkit-details-marker]:hidden">
-          <div class="flex items-center gap-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              class="-rotate-90 transition-transform duration-200 group-open:rotate-0"
-            >
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-            {item.label}
-          </div>
-        </summary>
-        <ul class="mt-2 ml-6 flex flex-col gap-2 border-l border-[#2f2f2f] pl-3">
-          {For(
-            item.items,
-            (subItem) => (
-              <SidebarNode item={subItem} />
-            ),
-            { key: (i) => (i.type === 'link' ? i.href : i.label) }
-          )}
-        </ul>
-      </details>
-    </li>
-  );
-}
-
-function SidebarNav() {
-  return (
-    <nav
-      class="flex flex-col gap-7 overflow-y-auto pb-4"
-      aria-label="Documentation pages"
-    >
-      <ul class="flex flex-col gap-3">
-        {For(
-          sidebarItems,
-          (item) => (
-            <SidebarNode item={item} />
-          ),
-          { key: (item) => (item.type === 'link' ? item.href : item.label) }
-        )}
-      </ul>
-    </nav>
-  );
-}
-
 export function DocsSidebar() {
   const isOpen = Cell.source(false);
   const toggle = () => isOpen.set(!isOpen.get());
@@ -290,8 +126,7 @@ export function DocsSidebar() {
           },
         ]}
       >
-        <SidebarHeader toggle={toggle} />
-        <SidebarNav />
+        <SidebarNav items={sidebarItems} toggle={toggle} />
       </aside>
     </>
   );
