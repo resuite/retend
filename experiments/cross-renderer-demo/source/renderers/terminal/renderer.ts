@@ -655,11 +655,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
 
     return nodes;
   }
-
-  saveContainerState(): null {
-    return null;
-  }
-
   restoreContainerState(): void {}
 
   isGroup(node: unknown): node is TerminalNode[] {

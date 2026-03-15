@@ -388,22 +388,6 @@ export function writeStaticStyles(renderer) {
  * @param {any} data
  * @param {Renderer<any>} renderer
  */
-export function saveContainerState(node, data, renderer) {
-  if (!(node instanceof renderer.host.Element)) {
-    throw new Error('Cannot save state of non-element node.');
-  }
-  return {
-    childNodes: [...node.childNodes],
-    shadowRoot: node.shadowRoot,
-    data,
-  };
-}
-
-/**
- * @param {any} node
- * @param {any} data
- * @param {Renderer<any>} renderer
- */
 export function restoreContainerState(node, data, renderer) {
   renderer.append(node, data.childNodes);
   if (data.shadowRoot) {

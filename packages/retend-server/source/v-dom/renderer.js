@@ -16,7 +16,6 @@ import { VComment, VDocumentFragment, VNode, VText } from './index.js';
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
  * @typedef {[VDom.VComment, VDom.VComment]} DOMHandle
  * @typedef {Renderer<VDOMRenderingTypes>} VDOMRendererInterface
- * @typedef {{ childNodes: VDom.VNode[], shadowRoot: VDom.VShadowRoot | null, data: any }} SavedInstance
  */
 
 /**
@@ -27,7 +26,6 @@ import { VComment, VDocumentFragment, VNode, VText } from './index.js';
  * @property {VDom.VDocumentFragment} Group
  * @property {JsxElement} Container
  * @property {VDom.VWindow} Host
- * @property {SavedInstance} SavedNodeState
  */
 
 /**
@@ -54,6 +52,7 @@ export class VDOMRenderer {
    * @type {Map<StateSnapshot, number>}
    */
   #branches = new Map();
+  #handleData = new WeakMap();
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
@@ -82,28 +81,18 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {VDom.VNode} node
-   * @param {any} data
-   * @returns {SavedInstance}
-   */
-  saveContainerState(node, data) {
-    return Ops.saveContainerState(node, data, this);
-  }
-
-  /**
-   * @param {JsxElement} node
-   * @param {SavedInstance} data
-   */
-  restoreContainerState(node, data) {
-    return Ops.restoreContainerState(node, data, this);
-  }
-
-  /**
    * @param {VDom.VDocumentFragment} fragment
    * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
-    return Ops.createGroupHandle(fragment, this);
+    const handle = Ops.createGroupHandle(fragment, this);
+    this.#handleData.set(handle, []);
+    let node = handle[0].nextSibling;
+    while (node && node !== handle[1]) {
+      this.#handleData.get(handle)?.push(node);
+      node = node.nextSibling;
+    }
+    return handle;
   }
 
   /**
@@ -111,7 +100,28 @@ export class VDOMRenderer {
    * @param {VDom.VNode[]} newContent
    */
   write(segment, newContent) {
+    this.#handleData.set(segment, newContent);
     return Ops.write(segment, newContent);
+  }
+
+  /**
+   * @param {DOMHandle} from
+   * @param {DOMHandle} to
+   */
+  transfer(from, to) {
+    const moved = [];
+    let node = from[0].nextSibling;
+    while (node && node !== from[1]) {
+      const next = node.nextSibling;
+      moved.push(node);
+      node = next;
+    }
+    if (!moved.length) {
+      moved.push(...(this.#handleData.get(from) ?? []));
+    }
+    this.#handleData.set(from, []);
+    this.#handleData.set(to, moved);
+    return this.write(to, moved);
   }
 
   /**

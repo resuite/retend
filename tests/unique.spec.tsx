@@ -7,6 +7,7 @@ import {
   Switch,
   createUnique,
   getActiveRenderer,
+  onMove,
   onSetup,
   runPendingSetupEffects,
 } from 'retend';
@@ -600,23 +601,24 @@ describe('Unique', () => {
         restoreFn();
       };
 
-      const PersistentMusicPlayer = createUnique(
-        () => {
-          onSetup(() => {
-            setupFn();
-          });
+      const PersistentMusicPlayer = createUnique(() => {
+        onSetup(() => {
+          setupFn();
+        });
+        onMove(() => {
+          const data = saveState(document.body as HTMLElement);
+          return () => restoreState(document.body as HTMLElement, data);
+        });
 
-          return (
-            <>
-              Music player:
-              <audio src="music.mp3" controls>
-                <track kind="captions" src="captions.vtt" />
-              </audio>
-            </>
-          );
-        },
-        { onSave: saveState, onRestore: restoreState }
-      );
+        return (
+          <>
+            Music player:
+            <audio src="music.mp3" controls>
+              <track kind="captions" src="captions.vtt" />
+            </audio>
+          </>
+        );
+      });
 
       const page = Cell.source<'home' | 'about'>('home');
       const App = () => {
@@ -662,9 +664,11 @@ describe('Unique', () => {
 
       const PersistentMusicPlayer = createUnique(() => {
         return (
-          <ShadowRoot>
-            <h2>Music player</h2>
-          </ShadowRoot>
+          <div class="shadow-host">
+            <ShadowRoot>
+              <h2>Music player</h2>
+            </ShadowRoot>
+          </div>
         );
       });
 
@@ -694,18 +698,18 @@ describe('Unique', () => {
       body.append(app);
       await runPendingSetupEffects();
       expect(getTextContent(body)).toBe('Home ');
-      const unique = body.querySelector('retend-unique-instance');
+      const unique = body.querySelector('.shadow-host');
       expect(unique?.shadowRoot).toBeInstanceOf(window.ShadowRoot);
 
       page.set('about');
-      const unique2 = body.querySelector('retend-unique-instance');
+      await runPendingSetupEffects();
+      const unique2 = body.querySelector('.shadow-host');
       expect(unique2?.shadowRoot).toBeInstanceOf(window.ShadowRoot);
 
-      await runPendingSetupEffects();
       body.replaceChildren();
     });
 
-    it('should set state to "new" when first rendered', async () => {
+    it('should not render a Unique wrapper when first rendered', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
       const uuid = crypto.randomUUID();
@@ -725,11 +729,11 @@ describe('Unique', () => {
       await runPendingSetupEffects();
 
       const uniqueElement = body.querySelector('retend-unique-instance');
-      expect(uniqueElement?.getAttribute('state')).toBe('new');
+      expect(uniqueElement).toBeNull();
       body.replaceChildren();
     });
 
-    it('should set state to "restored" when moved to new location', async () => {
+    it('should move without rendering a Unique wrapper', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
       const uuid = crypto.randomUUID();
@@ -752,34 +756,30 @@ describe('Unique', () => {
       body.append(element);
       await runPendingSetupEffects();
 
-      const uniqueElement = body.querySelector('retend-unique-instance');
-      expect(uniqueElement?.getAttribute('state')).toBe('new');
+      expect(body.querySelector('retend-unique-instance')).toBeNull();
 
       show.set(true);
       await runPendingSetupEffects();
 
-      const uniqueElements = body.querySelectorAll('retend-unique-instance');
-
-      expect(uniqueElements.length).toBeGreaterThan(0);
-      const states = Array.from(uniqueElements).map((el) =>
-        el.getAttribute('state')
+      expect(body.querySelector('retend-unique-instance')).toBeNull();
+      expect(getTextContent(body)).toBe(
+        'Showing content: true,  ||Unique Data'
       );
-      expect(states).toContain('restored');
 
       body.replaceChildren();
     });
 
-    it('should set state to "moved" when component is unmounted', async () => {
+    it('should call onMove when component is unmounted', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
       const uuid = crypto.randomUUID();
-      const saveStates: string[] = [];
+      let moved = 0;
 
-      const UniqueContent = createUnique(() => <div>Unique Data</div>, {
-        onSave: (el: HTMLElement) => {
-          saveStates.push(el.getAttribute('state') || '');
-          return {};
-        },
+      const UniqueContent = createUnique(() => {
+        onMove(() => {
+          moved += 1;
+        });
+        return <div>Unique Data</div>;
       });
 
       const { body } = window.document;
@@ -795,18 +795,14 @@ describe('Unique', () => {
       body.append(element);
       await runPendingSetupEffects();
 
-      let uniqueElement = body.querySelector('retend-unique-instance');
-      expect(uniqueElement?.getAttribute('state')).toBe('new');
-
       // Remove the component completely
       show.set(false);
       await runPendingSetupEffects();
 
-      // Check that onSave was called and the state was 'moved'
-      expect(saveStates).toContain('moved');
+      expect(moved).toBe(1);
 
       // The element should be removed from DOM
-      uniqueElement = body.querySelector('retend-unique-instance');
+      const uniqueElement = body.querySelector('retend-unique-instance');
       expect(uniqueElement).toBeNull();
 
       body.replaceChildren();
@@ -895,18 +891,20 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
-    it('should transition through states correctly during lifecycle', async () => {
+    it('should run onMove save and restore callbacks through the lifecycle', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
       const uuid = crypto.randomUUID();
       const states: string[] = [];
-      const saveStates: string[] = [];
 
-      const UniqueContent = createUnique(() => <div>Unique Data</div>, {
-        onSave: (el: HTMLElement) => {
-          saveStates.push(el.getAttribute('state') || '');
-          return {};
-        },
+      const UniqueContent = createUnique(() => {
+        onMove(() => {
+          states.push('moved');
+          return () => {
+            states.push('restored');
+          };
+        });
+        return <div>Unique Data</div>;
       });
 
       const { body } = window.document;
@@ -929,62 +927,45 @@ describe('Unique', () => {
       body.append(element);
       await runPendingSetupEffects();
 
-      let uniqueElement = body.querySelector('retend-unique-instance');
-      expect(uniqueElement?.getAttribute('state')).toBe('new');
-      states.push(uniqueElement?.getAttribute('state') || '');
-
-      // Move to second position - should become 'restored'
       showFirst.set(false);
       showSecond.set(true);
       await runPendingSetupEffects();
 
-      uniqueElement = body.querySelector('retend-unique-instance');
-      expect(uniqueElement?.getAttribute('state')).toBe('restored');
-      states.push(uniqueElement?.getAttribute('state') || '');
-
-      // Move back to first position - should stay 'restored'
       showSecond.set(false);
       showFirst.set(true);
       await runPendingSetupEffects();
 
-      uniqueElement = body.querySelector('retend-unique-instance');
-      expect(uniqueElement?.getAttribute('state')).toBe('restored');
-      states.push(uniqueElement?.getAttribute('state') || '');
-
-      // Remove completely - should save with 'moved' state
       showFirst.set(false);
       await runPendingSetupEffects();
 
-      expect(saveStates).toContain('moved');
-
-      // Re-add - should be 'new' again since it was completely removed
       showFirst.set(true);
       await runPendingSetupEffects();
 
-      uniqueElement = body.querySelector('retend-unique-instance');
-      expect(uniqueElement?.getAttribute('state')).toBe('new');
-      states.push(uniqueElement?.getAttribute('state') || '');
-
-      // Verify the state transitions
-      expect(states).toEqual(['new', 'restored', 'restored', 'new']);
+      expect(states).toEqual([
+        'moved',
+        'restored',
+        'moved',
+        'restored',
+        'moved',
+      ]);
 
       body.replaceChildren();
     });
 
-    it('should preserve and update attributes on the Unique wrapper', async () => {
+    it('should preserve and update attributes on the rendered element', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
       const className = Cell.source('initial-class');
 
       const { body } = window.document;
-      const Component = createUnique(() => <div>Content</div>, {
-        container: { class: className },
-      });
+      const Component = createUnique(() => (
+        <div class={className}>Content</div>
+      ));
 
       body.append(render(<Component />));
       await runPendingSetupEffects();
 
-      const uniqueEl = body.querySelector('retend-unique-instance');
+      const uniqueEl = body.querySelector('div');
       expect(uniqueEl?.className).toBe('initial-class');
 
       className.set('updated-class');
@@ -1039,7 +1020,7 @@ describe('Unique', () => {
       await runPendingSetupEffects();
 
       expect(getTextContent(body)).toContain('Inner Content');
-      expect(innerSetup).toHaveBeenCalledTimes(2); // Should not re-run setup
+      expect(innerSetup).toHaveBeenCalledTimes(1);
       body.replaceChildren();
     });
 

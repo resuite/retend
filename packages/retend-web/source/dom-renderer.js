@@ -34,7 +34,6 @@ const DOCUMENT_FRAGMENT_NODE = 11;
  * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
- * @typedef {{ childNodes: Node[], shadowRoot: ShadowRoot | null, data: any }} SavedInstance
  */
 
 /**
@@ -45,7 +44,6 @@ const DOCUMENT_FRAGMENT_NODE = 11;
  * @property {DocumentFragment} Group
  * @property {JsxElement} Container
  * @property {Window} Host
- * @property {SavedInstance} SavedNodeState
  */
 
 /**
@@ -79,6 +77,7 @@ export class DOMRenderer {
   /** @type {Map<string, JsxElement>} */
   #table = new Map();
   #hydratedNodes = new WeakSet();
+  #handleData = new WeakMap();
 
   /** @param {Window} host */
   constructor(host) {
@@ -116,23 +115,6 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {Node} node
-   * @param {any} data
-   * @returns {SavedInstance}
-   */
-  saveContainerState(node, data) {
-    return Ops.saveContainerState(node, data, this);
-  }
-
-  /**
-   * @param {JsxElement} node
-   * @param {SavedInstance} data
-   */
-  restoreContainerState(node, data) {
-    return Ops.restoreContainerState(node, data, this);
-  }
-
-  /**
    * @param {DocumentFragment} fragment
    * @returns {DOMHandle}
    */
@@ -143,11 +125,19 @@ export class DOMRenderer {
       const symbol = new DeferredHandleSymbol([]);
       array.splice(0, 0, symbol);
       array.push(symbol);
+      this.#handleData.set(array, []);
       this.#deferredHydrationHandles.add(array);
       // @ts-expect-error
       return array;
     }
-    return Ops.createGroupHandle(fragment, this);
+    const handle = Ops.createGroupHandle(fragment, this);
+    this.#handleData.set(handle, []);
+    let node = handle[0].nextSibling;
+    while (node && node !== handle[1]) {
+      this.#handleData.get(handle)?.push(node);
+      node = node.nextSibling;
+    }
+    return handle;
   }
 
   /**
@@ -160,10 +150,42 @@ export class DOMRenderer {
       if (this.#getHydrationState()) {
         //@ts-expect-error
         segment.splice(1, segment.length - 2, ...newContent);
+        this.#handleData.set(segment, newContent);
         return segment;
       }
     }
+    this.#handleData.set(segment, newContent);
     return Ops.write(segment, newContent);
+  }
+
+  /**
+   * @param {DOMHandle} from
+   * @param {DOMHandle} to
+   */
+  transfer(from, to) {
+    if (this.#isHydrationModeEnabled) {
+      Ops.finalizeHydrationHandleSegment(from);
+      Ops.finalizeHydrationHandleSegment(to);
+      if (this.#getHydrationState()) {
+        const moved = from.splice(1, from.length - 2);
+        to.splice(1, to.length - 2, ...moved);
+        return to;
+      }
+    }
+
+    const moved = [];
+    let node = from[0].nextSibling;
+    while (node && node !== from[1]) {
+      const next = node.nextSibling;
+      moved.push(node);
+      node = next;
+    }
+    if (!moved.length) {
+      moved.push(...(this.#handleData.get(from) ?? []));
+    }
+    this.#handleData.set(from, []);
+    this.#handleData.set(to, moved);
+    return this.write(to, moved);
   }
 
   /**

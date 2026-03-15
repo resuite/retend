@@ -194,10 +194,6 @@ export class OpenTuiRenderer implements Renderer<OpenTuiRendererOptions> {
     return nodeOps.isConnected(this.cliRenderer.root, node);
   }
 
-  saveContainerState(): never {
-    throw new Error('Not implemented');
-  }
-
   restoreContainerState(): void {
     throw new Error('Not implemented');
   }

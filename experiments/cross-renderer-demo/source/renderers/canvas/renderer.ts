@@ -586,11 +586,6 @@ export class CanvasRenderer {
 
     return nodes;
   }
-
-  saveContainerState(): null {
-    return null;
-  }
-
   restoreContainerState(): void {}
 
   isGroup(node: unknown): node is CanvasNode[] {
