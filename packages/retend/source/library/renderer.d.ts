@@ -23,8 +23,6 @@ export interface RendererTypes {
   Container: any;
   /** The target environment or main interface where the renderer operates. */
   Host: EventTarget extends infer T ? T : EventTarget;
-  /** A serializable or structured representation of a node's state, used for preservation and restoration. */
-  SavedNodeState: any;
 }
 
 /**
@@ -85,7 +83,6 @@ export interface Renderer<
   Handle extends Node = Types['Handle'],
   Text extends Node = Types['Text'],
   Host = Types['Host'],
-  SavedNodeState = Types['SavedNodeState'],
 > {
   /** The instance of the host environment where the renderer is operating. */
   host: Host;
@@ -128,10 +125,7 @@ export interface Renderer<
     snapshot?: StateSnapshot,
     fileData?: JSX.JSXDevFileData
   ): Node | Node[];
-  /** Captures the current state of a container node to be restored later. */
-  saveContainerState(node: Container, customData: unknown): SavedNodeState;
-  /** Re-applies a previously saved state to a container node. */
-  restoreContainerState(node: Container, state: SavedNodeState): void;
+  transfer(from: Handle, to: Handle): void;
 }
 
 /**

@@ -1,76 +1,31 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { StateSnapshot } from '../library/scope.js'; */
-/** @import { Renderer } from '../library/renderer.js'; */
+/** @import { SourceCell } from '@adbl/cells' */
+/** @import { StateSnapshot } from '../library/scope.js' */
 
-import { Cell, SourceCell } from '@adbl/cells';
+import { Cell } from '@adbl/cells';
 
 import { getGlobalContext } from '../context/index.js';
-import h from '../library/jsx.js';
-import { onConnected } from '../library/observer.js';
-import { getActiveRenderer } from '../library/renderer.js';
 import {
   __HMR_SYMBOLS,
   branchState,
-  onSetup,
+  createScope,
   withState,
 } from '../library/scope.js';
-import { linkNodes } from '../library/utils.js';
-import { useAwait } from './await.js';
+import { createNodesFromTemplate } from './index.js';
+
+const StashSymbol = Symbol('UniqueStash');
+const UniqueScope = createScope('Unique');
 
 /**
- * @typedef UniqueStash
- * @property {Map<string | Function, { data: any }>} instances
- * @property {Map<string | Function, Cell<unknown | null>>} refs
- * @property {Map<string | Function, StateSnapshot>} scopes
- * @property {Map<string | Function, SourceCell<any>>} props
- * @property {Set<() => void>} pendingTeardowns
- * @property {Map<string | Function, { node: unknown, props: any }[]>} stack
- * @property {() => void} onActivate
+ * @typedef {WeakMap<object, Map<string | Function, UniqueCtx>>} RendererUniqueStash
  */
 
 /**
- * @typedef {WeakMap<Renderer<any>, UniqueStash>} RendererToUniqueStash
- */
-
-const UniqueComponentStash = Symbol('UniqueComponentStash');
-const elementName = 'retend-unique-instance';
-
-/**
- * @param {Renderer<any>} renderer
- * @returns {UniqueStash}
- */
-const initUniqueStash = (renderer) => {
-  const { globalData } = getGlobalContext();
-  const checkForUniqueComponentTeardowns = () => {
-    for (const teardown of stash.pendingTeardowns) {
-      teardown();
-    }
-    stash.pendingTeardowns.clear();
-  };
-  /** @type {UniqueStash} */
-  const stash = {
-    instances: new Map(),
-    refs: new Map(),
-    scopes: new Map(),
-    pendingTeardowns: new Set(),
-    stack: new Map(),
-    props: new Map(),
-    onActivate: checkForUniqueComponentTeardowns,
-  };
-  const rendererStash = new Map();
-  rendererStash.set(renderer, stash);
-  globalData.set(UniqueComponentStash, rendererStash);
-
-  renderer.host.addEventListener('retend:activate', stash.onActivate);
-  return stash;
-};
-
-/**
- * @template Data, Node
- * @typedef {Object} UniqueComponentOptions
- * @property {(node: Node) => Data} [onSave]
- * @property {(node: Node, data: Data) => void} [onRestore]
- * @property {JSX.BaseContainerProps} [container]
+ * @typedef UniqueCtx
+ * @property {SourceCell<UniqueProps<any>>} propsCell
+ * @property {StateSnapshot} state
+ * @property {any} handle
+ * @property {any | null} previousHandle
  */
 
 /**
@@ -103,7 +58,6 @@ const initUniqueStash = (renderer) => {
  * it carries over its entire state intact, including:
  * - All child nodes and their internal state
  * - Any scoped reactive computations
- * - Custom data managed via `onSave` / `onRestore` callbacks (if used)
  *
  * The component is only fully disposed once it is no longer rendered anywhere.
  *
@@ -142,221 +96,76 @@ const initUniqueStash = (renderer) => {
  *
  * @example
  * // With custom state management
- * const UniqueCanvas = createUnique(
- *   (props) => {
- *     const canvas = Cell.source(null);
- *     onSetup(() => {
- *       const node = canvas.get();
- *       if (!node) return;
- *       // Initialize canvas context, listeners, etc.
- *       const ctx = node.getContext('2d');
- *       // ... setup
- *     });
- *     return <canvas ref={canvas} />;
- *   },
- *   {
- *     onSave: (node) => {
- *       // Extract custom state before component moves
- *       return { customState: extractState(node) };
- *     },
- *     onRestore: (node, data) => {
- *       // Restore custom state after component moves
- *       applyState(node, data.customState);
- *     }
- *   }
- * );
+ * const UniqueCanvas = createUnique((props) => {
+ *   const canvas = Cell.source(null);
+ *
+ *   onSetup(() => {
+ *     const node = canvas.get();
+ *     if (!node) return;
+ *     // Initialize canvas context, listeners, etc.
+ *     const ctx = node.getContext('2d');
+ *     // ... setup
+ *   });
+ *
+ *   return <canvas ref={canvas} />;
+ * });
  *
  * @template {{}} Props - Props type (excluding id, which is added automatically)
- * @template [Data=any] - Type of custom data managed by onSave/onRestore
- * @template [Node=unknown] - Type of the root node (environment-specific)
- *
  * @param {UniqueComponentRenderFn<Props>} renderFn
  *   Function that receives reactive props as a Cell and returns a template.
  *   Props updates propagate reactively through the Cell.
- *
- * @param {UniqueComponentOptions<Data, Node>} [options]
  *
  * @returns {UniqueComponent<Props>}
  *   A component function that accepts props including an optional `id` string.
  *   When `id` is omitted, a single instance is created per renderFn.
  *   When `id` is provided, separate instances are created for each unique id.
  */
-export function createUnique(renderFn, options = {}) {
+export function createUnique(renderFn) {
   /** @param {UniqueProps<Props>} props */
   const UniqueComponent = (props) => {
-    const { id = renderFn } = props;
-    const { globalData } = getGlobalContext();
-    const renderer = getActiveRenderer();
-    const awaitCtx = useAwait();
-    const { onSave, onRestore, container = {} } = options;
-    const ref = Cell.source(null);
+    const { globalData, renderer } = getGlobalContext();
+    if (!renderer) throw new Error('No renderer available');
+    let group;
 
-    /** @type {UniqueStash} */
-    const stash =
-      globalData.get(UniqueComponentStash)?.get(renderer) ??
-      initUniqueStash(renderer);
-    let journey = stash.stack.get(id);
-    if (!journey) {
-      journey = [];
-      stash.stack.set(id, journey);
-    }
-    let propSource = stash.props.get(id);
-    if (!propSource) {
-      propSource = Cell.source(props);
-      stash.props.set(id, propSource);
-    } else {
-      propSource.set(props);
+    /** @type {RendererUniqueStash} */
+    let ctx = globalData.get(StashSymbol);
+    if (!ctx) {
+      ctx = new WeakMap();
+      globalData.set(StashSymbol, ctx);
     }
 
-    const uniqueInstance = h(elementName, container).instantiate(renderer);
-    let previous = stash.instances.get(id);
-
-    /** @param {unknown} div */
-    const saveState = (div) => {
-      renderer.setProperty(div, 'state', 'moved');
-      let customData;
-      // @ts-ignore: TODO: The base type should be unknown when more environments are added.
-      if (onSave && renderer.isActive(div)) customData = onSave(div);
-
-      previous = renderer.saveContainerState(div, customData);
-      if (previous) stash.instances.set(id, previous);
-    };
-
-    /** @param {unknown} node */
-    const restoreState = (node) => {
-      if (onRestore && previous?.data) {
-        // @ts-ignore: TODO: The base type should be unknown when more environments are added.
-        onRestore(node, previous.data);
-      }
-
-      stash.refs.set(id, Cell.source(node));
-      if (!journey.find(({ node: n }) => node === n)) {
-        journey.push({ node, props });
-      }
-      stash.instances.delete(id);
-    };
-
-    if (!previous) {
-      const div = stash.refs.get(id)?.peek();
-      if (div) saveState(div);
+    let rendererCtx = ctx.get(renderer);
+    if (!rendererCtx) {
+      rendererCtx = new Map();
+      ctx.set(renderer, rendererCtx);
     }
-    let disposedByHMR = false;
 
-    // it's tricky to know when to dispose,
-    // because if this instance is removed, but then rendered somewhere else
-    // in the very next frame, we want both instances consolidated.
-    //
-    // Retend's lifecycle is:
-    // -> control flow component triggers change
-    // -> its current setup effects are disposed (we save state here)
-    // -> its dom nodes are removed
-    // -> its observer cleanups are called (we add event listener here)
-    // -> new component is rendered (we transfer nodes here)
-    // -> wait till next event loop (in activate fn)
-    // -> new setup effect is activated.
-    // -> retend:activate event dispatched.
-    // Once (7) runs, it means the next node should already be in the dom, and if
-    // it isn't, then we can dispose, because there is no continuity.
-    const teardown = () => {
-      const possibleNextInstance = journey.at(-1);
-      if (possibleNextInstance) {
-        stash.pendingTeardowns.delete(teardown);
-        return;
-      }
-      const scope = stash.scopes.get(id);
-      if (scope) {
-        scope.node.enable();
-        scope.node.dispose();
-      }
-      stash.instances.delete(id);
-      stash.refs.delete(id);
-      stash.scopes.delete(id);
-      stash.stack.delete(id);
-      stash.props.delete(id);
-      stash.pendingTeardowns.delete(teardown);
-    };
-
-    onConnected(ref, (node) => {
-      restoreState(node);
-      const scope = stash.scopes.get(id);
-      if (scope) scope.node.enable();
-
-      return () => {
-        const index = journey.findIndex(({ node: n }) => node === n);
-        if (index !== -1) journey.splice(index, 1);
-        const nextInstance = journey.at(-1);
-        if (!nextInstance && !disposedByHMR)
-          stash.pendingTeardowns.add(teardown);
-      };
-    });
-
-    onSetup(() => {
-      const current = ref.peek();
-
-      return () => {
-        // We dont want to preserve the instance across HMR re-renders.
-        const hmrContext = __HMR_SYMBOLS.getHMRContext();
-        if (hmrContext?.current) {
-          const scope = stash.scopes.get(id);
-          if (scope) {
-            scope.node.enable();
-            scope.node.dispose();
-          }
-          stash.instances.delete(id);
-          stash.refs.delete(id);
-          stash.scopes.delete(id);
-          stash.stack.delete(id);
-          stash.props.delete(id);
-          disposedByHMR = true;
-          return;
-        }
-        const scope = stash.scopes.get(id);
-        if (scope) scope.node.disable();
-        const currentElement = stash.refs.get(id)?.peek();
-
-        const index = journey.findIndex(({ node }) => node === currentElement);
-        if (index !== -1) journey.splice(index, 1);
-
-        if (currentElement === current) {
-          saveState(current);
-
-          const next = journey.at(-1);
-          if (next && currentElement !== next.node) {
-            renderer.append(next.node, Array.from(uniqueInstance.childNodes));
-            renderer.setProperty(next.node, 'state', 'restored');
-            propSource.set(next.props);
-            restoreState(next.node);
-          }
-        }
-      };
-    });
-
-    if (ref instanceof SourceCell) ref.set(uniqueInstance);
-    stash.refs.set(id, ref);
-
-    let childNodes;
-    if (previous) {
-      renderer.setProperty(uniqueInstance, 'state', 'restored');
-      if (awaitCtx && !awaitCtx.done) {
-        awaitCtx.finished.then(() => {
-          renderer.restoreContainerState(uniqueInstance, previous);
+    const key = props.id ?? renderFn; // todo: we need a better way to prevent collisions if multiple components share an id namespace.
+    let uniqueCtx = rendererCtx.get(key);
+    if (!uniqueCtx) {
+      // FIRST RUN.
+      const propsCell = Cell.source(props);
+      const state = branchState();
+      const output = withState(state, () => {
+        return UniqueScope.Provider({
+          value: {}, // todo. This will keep track of onMove()
+          children: () => renderFn(propsCell),
         });
-      } else {
-        renderer.restoreContainerState(uniqueInstance, previous);
-      }
+      });
+      state.node.disable(); // Prevents detachment of the parent scope from affecting this.
+      const nodes = createNodesFromTemplate(output, renderer);
+      group = createNodesFromTemplate(nodes, renderer);
+      const handle = renderer.createGroupHandle(group);
+
+      uniqueCtx = { propsCell, state, handle, previousHandle: null };
+      rendererCtx.set(key, uniqueCtx);
     } else {
-      renderer.setProperty(uniqueInstance, 'state', 'new');
-      childNodes = (() => {
-        const stateSnapshot = branchState();
-        stash.scopes.set(id, stateSnapshot);
-        return withState(stateSnapshot, () =>
-          renderer.handleComponent(renderFn, [propSource], stateSnapshot)
-        );
-      })();
-      linkNodes(uniqueInstance, childNodes, renderer);
+      group = renderer.createGroup();
+      const handle = renderer.createGroupHandle(group);
+      renderer.transfer(uniqueCtx.previousHandle, handle);
     }
 
-    return uniqueInstance;
+    return group;
   };
 
   UniqueComponent.__retendUnique = true;
