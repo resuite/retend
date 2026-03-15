@@ -154,7 +154,8 @@ const noClassName = {
     },
     schema: [],
     messages: {
-      unexpected: 'Use the class prop in Retend JSX instead of className.',
+      unexpected:
+        'Use the `class` prop instead of `className`. Retend uses standard HTML attributes.',
     },
   },
   create(context) {
@@ -182,9 +183,9 @@ const propsDestructureFirst = {
     schema: [],
     messages: {
       destructure:
-        'Destructure props from props as the first statement in the component body.',
+        'Destructure props as the first statement in the component. Use `const { x } = props` instead of `props.x`.',
       member:
-        'Use destructured props instead of props.member access inside components.',
+        'Use destructured props (`const { x } = props`) instead of `props.x`.',
     },
   },
   create(context) {
@@ -388,8 +389,10 @@ const noJsxControlFlow = {
     },
     schema: [],
     messages: {
-      conditional: 'Use If or Switch instead of ternaries in Retend JSX.',
-      logical: 'Use If instead of logical operators in Retend JSX.',
+      conditional:
+        "Use `If` or `Switch` from 'retend' instead of ternary expressions in JSX.",
+      logical:
+        "Use `If` from 'retend' instead of logical operators (`&&`, `||`) in JSX.",
     },
   },
   create(context) {
@@ -417,7 +420,7 @@ const noJsxMap = {
     },
     schema: [],
     messages: {
-      unexpected: 'Use For instead of .map() in Retend JSX.',
+      unexpected: "Use `For` from 'retend' instead of `.map()` in JSX.",
     },
   },
   create(context) {
@@ -708,7 +711,8 @@ const noReactImports = {
     },
     schema: [],
     messages: {
-      unexpected: 'Do not import from react or react-dom in Retend projects.',
+      unexpected:
+        "Retend doesn't require React imports. Remove imports from 'react' or 'react-dom'.",
     },
   },
   create(context) {

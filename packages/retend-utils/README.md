@@ -20,7 +20,7 @@ This package provides a collection of utility hooks and components for [Retend](
   - [Components](#components)
     - [`Input`](#input)
     - [`FluidList`](#fluidlist)
-    - [`createUniqueTransition`](#createuniquetransition)
+    - [`UniqueTransition`](#uniquetransition)
 
 ## Installation
 
@@ -421,40 +421,39 @@ function MyComponent() {
 }
 ```
 
-### `createUniqueTransition`
+### `UniqueTransition`
 
-A factory function that creates unique components with smooth [FLIP](https://aerotwist.com/blog/flip-your-animations/) animations. When an element created with `createUniqueTransition` moves between different positions in the DOM tree, it automatically animates from its previous position and size to its new position and size using CSS transforms.
+A component that animates the children of a `createUnique(...)` component with smooth [FLIP](https://aerotwist.com/blog/flip-your-animations/) transitions. When the surrounding unique instance moves between different positions in the DOM tree, `UniqueTransition` animates its children from their previous position and size to their new position and size using CSS transforms.
 
 Parameters:
 
-- `renderFn`: Required. A function that returns the JSX to be rendered. Receives props as a reactive Cell.
-- `options`: Required. An object with transition configuration:
+- `children`: Required. The children to animate when the surrounding unique instance moves.
+- Transition props:
   - `transitionDuration`: The duration of the transition (e.g., `'300ms'`, `'0.5s'`).
   - `transitionTimingFunction`: Optional. The easing function for the transition (e.g., `'ease-in-out'`). Default: `'ease'`.
   - `maintainWidthDuringTransition`: Optional. If true, disables horizontal scaling during transitions.
   - `maintainHeightDuringTransition`: Optional. If true, disables vertical scaling during transitions.
-  - `onSave`: Optional. A callback function `(element: HTMLElement) => CustomData` that runs just before the element moves. It can return custom data (e.g., scroll position) to be preserved.
-  - `onRestore`: Optional. A callback function `(element: HTMLElement, data: CustomData) => void` that runs after the element arrives at its new location. It receives the element and the data returned from `onSave`.
-  - `container`: Optional. Attributes to apply to the wrapper element.
 
 Returns:
 
-- A unique component that can be used like any other component. Pass an `id` prop to distinguish multiple instances.
+- The wrapped children.
 
 Example: Persistent Video Player
 
 A video player that smoothly animates when moving between a sidebar and a main content area.
 
 ```tsx
-import { createUniqueTransition } from 'retend-utils/components';
+import { createUnique } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
-const PersistentVideo = createUniqueTransition(
-  (props) => {
-    const src = Cell.derived(() => props.get().src);
-    return <VideoPlayer src={src} />;
-  },
-  { transitionDuration: '300ms' }
-);
+const PersistentVideo = createUnique((props) => {
+  const src = Cell.derived(() => props.get().src);
+  return (
+    <UniqueTransition transitionDuration="300ms">
+      <VideoPlayer src={src} />
+    </UniqueTransition>
+  );
+});
 
 function App() {
   return (
@@ -470,8 +469,8 @@ Example: Picture-in-Picture Transition
 A video that animates between a main view and a picture-in-picture corner.
 
 ```tsx
-import { Cell, If } from 'retend';
-import { createUniqueTransition } from 'retend-utils/components';
+import { Cell, If, createUnique } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
 const styles = {
   main: { width: '640px', height: '360px' },
@@ -484,13 +483,14 @@ const styles = {
   },
 };
 
-const VideoPlayer = createUniqueTransition(
-  () => <video src="video.mp4" controls />,
-  {
-    transitionDuration: '300ms',
-    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-  }
-);
+const VideoPlayer = createUnique(() => (
+  <UniqueTransition
+    transitionDuration="300ms"
+    transitionTimingFunction="cubic-bezier(0.4, 0, 0.2, 1)"
+  >
+    <video src="video.mp4" controls />
+  </UniqueTransition>
+));
 
 function App() {
   const isPip = Cell.source(false);
@@ -517,37 +517,27 @@ function App() {
 }
 ```
 
-Example: Preserving State
+Example: Returning Your Own Root Element
 
-An item card that animates between a grid and a detail view while preserving its scroll position.
+If you need shared sizing or layout styles for the moving content, return your own root element from `renderFn`.
 
 ```tsx
-import { Cell } from 'retend';
-import { createUniqueTransition } from 'retend-utils/components';
+import { Cell, createUnique } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
-const AnimatedCard = createUniqueTransition(
-  (props) => {
-    const title = Cell.derived(() => props.get().title);
-    return (
+const AnimatedCard = createUnique((props) => {
+  const title = Cell.derived(() => props.get().title);
+  return (
+    <UniqueTransition transitionDuration="300ms">
       <div class="card">
         <h3>{title}</h3>
         <div class="content" style="overflow-y: auto; height: 100px;">
           {/* ... long content ... */}
         </div>
       </div>
-    );
-  },
-  {
-    transitionDuration: '300ms',
-    onSave: (el) => ({ scrollTop: el.querySelector('.content')?.scrollTop }),
-    onRestore: (el, data) => {
-      if (data?.scrollTop) {
-        const contentEl = el.querySelector('.content');
-        if (contentEl) contentEl.scrollTop = data.scrollTop;
-      }
-    },
-  }
-);
+    </UniqueTransition>
+  );
+});
 
 function ProductGrid() {
   const items = Cell.source([

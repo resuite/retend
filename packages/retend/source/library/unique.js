@@ -26,12 +26,11 @@ const UniqueScope = createScope('Unique');
 
 /**
  * @typedef UniqueCtx
- * @property {SourceCell<UniqueProps<any>>} propsCell
+ * @property {SourceCell<UniqueProps<any>>} props
  * @property {StateSnapshot} state
  * @property {Set<UniqueMoveFn>} moveFns
  * @property {Array<() => void>} restoreFns
- * @property {any} handle
- * @property {any[]} handles
+ * @property {any[]} journey
  * @property {(() => void) | null} teardown
  */
 
@@ -138,12 +137,12 @@ export function onMove(callback) {
  *   When `id` is provided, separate instances are created for each unique id.
  */
 export function createUnique(renderFn) {
-  /** @param {UniqueProps<Props>} props */
-  const UniqueComponent = (props) => {
+  /** @param {UniqueProps<Props>} nextProps */
+  const UniqueComponent = (nextProps) => {
     const { globalData, renderer } = getGlobalContext();
     if (!renderer) throw new Error('No renderer available');
     const awaitCtx = useAwait();
-    const deferTransfer = Boolean(awaitCtx && !awaitCtx.done);
+    const { host } = renderer;
     let group;
     /** @type {any} */
     let handle;
@@ -161,89 +160,74 @@ export function createUnique(renderFn) {
       stash.set(renderer, instances);
     }
 
-    const key = props.id ?? renderFn; // todo: we need a better way to prevent collisions if multiple components share an id namespace.
+    // todo: we need a better way to prevent collisions if multiple components share an id namespace.
+    const key = nextProps.id ?? renderFn;
     let instance = instances.get(key);
+    let isFirstRender = !instance;
     if (!instance) {
-      // Create the persistent instance once, then keep moving its live handle.
-      const propsCell = Cell.source(props);
+      const props = Cell.source(nextProps);
       const state = branchState();
       /** @type {Set<UniqueMoveFn>} */
       const moveFns = new Set();
-      const output = withState(state, () => {
-        return UniqueScope.Provider({
+      const output = withState(state, () =>
+        UniqueScope.Provider({
           value: moveFns,
-          children: () => renderFn(propsCell),
-        });
-      });
-      state.node.disable(); // Prevents detachment of the parent scope from affecting this.
+          children: () => renderFn(props),
+        })
+      );
       group = createGroupFromNodes(output, renderer);
       handle = renderer.createGroupHandle(group);
 
       instance = {
-        propsCell,
+        props,
         state,
         moveFns,
         restoreFns: [],
-        handle,
-        handles: [],
+        journey: [handle],
         teardown: null,
       };
       instances.set(key, instance);
     } else {
-      if (instance.teardown && !deferTransfer) {
-        renderer.host.removeEventListener('retend:activate', instance.teardown);
-        instance.teardown = null;
-      }
       group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
-      if (!deferTransfer) {
-        renderer.transfer(instance.handle, handle);
-        instance.handle = handle;
-      } else if (awaitCtx) {
-        const current = instance;
-        awaitCtx.finished.then(() => {
-          if (instances.get(key) !== current) return;
-          if (current.handle === handle) return;
-          if (!renderer.isActive(handle[0])) return;
-          if (current.teardown) {
-            renderer.host.removeEventListener(
-              'retend:activate',
-              current.teardown
-            );
-            current.teardown = null;
+
+      const moveToNewPosition = () => {
+        const instance = instances.get(key);
+        if (!instance) return;
+        const previousHandle = instance.journey[instance.journey.length - 1];
+        if (!previousHandle) return;
+
+        if (instance.teardown) {
+          host.removeEventListener('retend:activate', instance.teardown);
+          instance.teardown = null;
+        }
+        renderer.transfer(previousHandle, handle);
+        instance.journey.push(handle);
+
+        for (const restore of instance.restoreFns) {
+          try {
+            restore();
+          } catch (error) {
+            console.error(error);
           }
-          renderer.transfer(current.handle, handle);
-          current.handle = handle;
-        });
-      }
+        }
+        instance.restoreFns.length = 0;
+      };
+
+      if (awaitCtx && !awaitCtx.done) awaitCtx.finished.then(moveToNewPosition);
+      else moveToNewPosition();
+      instance.props.set(nextProps);
     }
 
-    instance.propsCell.set(props);
-
     onSetup(() => {
-      if (!instance.handles.includes(handle)) {
-        instance.handles.push(handle);
+      if (isFirstRender) instance.state.node.activate();
+      else {
+        for (const restore of instance.restoreFns) restore();
+        instance.restoreFns.length = 0;
       }
-      if (instance.handle === handle) {
-        instance.state.node.enable();
-        if (instance.restoreFns.length) {
-          withState(instance.state, () => {
-            for (const restore of instance.restoreFns) {
-              restore();
-            }
-          });
-          instance.restoreFns.length = 0;
-        }
-      }
-      instance.state.node.activate();
 
       return () => {
-        const index = instance.handles.indexOf(handle);
-        if (index !== -1) {
-          instance.handles.splice(index, 1);
-        }
-        if (instance.handle !== handle) return;
-
+        // If the instance is being torn down due to HMR, skip setup for next render
         const hmrContext = __HMR_SYMBOLS.getHMRContext();
         if (hmrContext?.current) {
           instance.state.node.enable();
@@ -251,37 +235,15 @@ export function createUnique(renderFn) {
           instances.delete(key);
           return;
         }
-
         instance.state.node.disable();
-        instance.restoreFns.length = 0;
-        withState(instance.state, () => {
-          for (const callback of instance.moveFns) {
-            const restore = callback();
-            if (typeof restore === 'function') {
-              instance.restoreFns.push(restore);
-            }
-          }
-        });
 
-        const parkedGroup = renderer.createGroup();
-        const parkedHandle = renderer.createGroupHandle(parkedGroup);
-        renderer.transfer(handle, parkedHandle);
-        instance.handle = parkedHandle;
-
-        const nextHandle = instance.handles.at(-1);
-        if (nextHandle) {
-          renderer.transfer(parkedHandle, nextHandle);
-          instance.handle = nextHandle;
-          instance.state.node.enable();
-          if (instance.restoreFns.length) {
-            withState(instance.state, () => {
-              for (const restore of instance.restoreFns) {
-                restore();
-              }
-            });
-            instance.restoreFns.length = 0;
+        for (const move of instance.moveFns) {
+          try {
+            const restore = move();
+            if (restore) instance.restoreFns.push(restore);
+          } catch (e) {
+            console.error(e);
           }
-          return;
         }
 
         const teardown = () => {
@@ -293,9 +255,7 @@ export function createUnique(renderFn) {
         };
 
         instance.teardown = teardown;
-        renderer.host.addEventListener('retend:activate', teardown, {
-          once: true,
-        });
+        host.addEventListener('retend:activate', teardown, { once: true });
       };
     });
 

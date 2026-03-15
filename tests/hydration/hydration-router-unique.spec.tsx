@@ -5,13 +5,14 @@ import {
   Cell,
   For,
   If,
+  createUnique,
   type SourceCell,
   setActiveRenderer,
   waitForAsyncBoundaries,
 } from 'retend';
 import { hydrate, renderToString } from 'retend-server/client';
 import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
-import { createUniqueTransition } from 'retend-utils/components';
+import { UniqueTransition } from 'retend-utils/components';
 import { setGlobalContext } from 'retend/context';
 import { Router, createRouterRoot } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
@@ -58,17 +59,17 @@ const buttonStyles: JSX.StyleValue = {
   padding: '0',
 };
 
-const Box = createUniqueTransition(
-  () => {
-    const count = Cell.source(0);
-    return <div style={contentStyles}>{count}</div>;
-  },
-  {
-    container: { style: uniqueStyles },
-    transitionDuration: '250ms',
-    transitionTimingFunction: 'ease-in-out',
-  }
-);
+const Box = createUnique(() => {
+  const count = Cell.source(0);
+  return (
+    <UniqueTransition
+      transitionDuration="250ms"
+      transitionTimingFunction="ease-in-out"
+    >
+      <div style={{ ...uniqueStyles, ...contentStyles }}>{count}</div>
+    </UniqueTransition>
+  );
+});
 
 const Container = (props: {
   index: Cell<number>;

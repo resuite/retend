@@ -1133,6 +1133,141 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should call onMove when moving back to a previously visited handle', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const moveCount = Cell.source(0);
+
+      const UniqueContent = createUnique(() => {
+        onMove(() => {
+          moveCount.set(moveCount.get() + 1);
+        });
+        return <div>Unique Data</div>;
+      });
+
+      const { body } = window.document;
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+
+      const element = render(
+        <div>
+          First:{' '}
+          {If(showFirst, () => (
+            <UniqueContent id={uuid} />
+          ))}{' '}
+          || Second:{' '}
+          {If(showSecond, () => (
+            <UniqueContent id={uuid} />
+          ))}
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+
+      // Initial state: component in first location, onMove not called yet
+      expect(moveCount.get()).toBe(0);
+
+      // Move from first to second
+      showFirst.set(false);
+      showSecond.set(true);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(1);
+
+      // Move back to first (previously visited location)
+      // This is the bug scenario - onMove should be called
+      showSecond.set(false);
+      showFirst.set(true);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(2);
+
+      // Move to second again
+      showFirst.set(false);
+      showSecond.set(true);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(3);
+
+      // Move back to first again
+      showSecond.set(false);
+      showFirst.set(true);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(4);
+
+      body.replaceChildren();
+    });
+
+    it('should call onMove when both instances rendered then second is removed', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const moveCount = Cell.source(0);
+
+      const UniqueContent = createUnique(() => {
+        onMove(() => {
+          moveCount.set(moveCount.get() + 1);
+        });
+        return <div>Unique Data</div>;
+      });
+
+      const { body } = window.document;
+      const showSecond = Cell.source(true);
+
+      // First instance always rendered, second instance initially visible
+      const element = render(
+        <div>
+          First: <UniqueContent id={uuid} /> || Second:{' '}
+          {If(showSecond, () => (
+            <UniqueContent id={uuid} />
+          ))}
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+
+      // Both instances rendered on same loop, component is at second location (last wins)
+      // onMove is not called because nothing was removed yet
+      expect(moveCount.get()).toBe(0);
+
+      // Remove the second location
+      showSecond.set(false);
+      await runPendingSetupEffects();
+
+      // onMove should be called as component is removed from second location
+      // and moves back to first location
+      expect(moveCount.get()).toBe(1);
+
+      // Ping pong: show second again
+      // Component was stable at first location, now moves to second location
+      // onMove IS called because the component moved from a stable position
+      showSecond.set(true);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(2);
+
+      // Remove second again - onMove IS called (component moves back to first)
+      showSecond.set(false);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(3);
+
+      // Ping pong again: show second
+      // Component was stable at first location, now moves to second location
+      // onMove IS called because the component moved from a stable position
+      showSecond.set(true);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(4);
+
+      // Remove second again - onMove IS called (component moves back to first)
+      showSecond.set(false);
+      await runPendingSetupEffects();
+      expect(moveCount.get()).toBe(5);
+
+      // Verify component is still in first location
+      expect(getTextContent(body)).toContain('Unique Data');
+
+      body.replaceChildren();
+    });
+
     it('should preserve and update attributes on the rendered element', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
