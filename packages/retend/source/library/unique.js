@@ -4,6 +4,7 @@
 
 import { Cell } from '@adbl/cells';
 
+import { createGroupFromNodes } from '../_internals.js';
 import { getGlobalContext } from '../context/index.js';
 import {
   __HMR_SYMBOLS,
@@ -14,7 +15,6 @@ import {
   withState,
 } from '../library/scope.js';
 import { useAwait } from './await.js';
-import { linkNodes } from './index.js';
 
 const StashSymbol = Symbol('UniqueStash');
 /** @type {Scope<Set<UniqueMoveFn>>} */
@@ -176,8 +176,7 @@ export function createUnique(renderFn) {
         });
       });
       state.node.disable(); // Prevents detachment of the parent scope from affecting this.
-      group = renderer.createGroup();
-      linkNodes(group, output, renderer);
+      group = createGroupFromNodes(output, renderer);
       handle = renderer.createGroupHandle(group);
 
       instance = {

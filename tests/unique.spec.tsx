@@ -116,6 +116,187 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should not rerun onSetup when a Unique component moves repeatedly', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const setupFn = vi.fn();
+      const cleanupFn = vi.fn();
+
+      const UniqueContent = createUnique(() => {
+        onSetup(() => {
+          setupFn();
+          return cleanupFn;
+        });
+        return <div>Unique Data</div>;
+      });
+
+      const { body } = window.document;
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+      const element = render(
+        <div>
+          <div class="first">
+            {If(showFirst, () => (
+              <UniqueContent id={uuid} />
+            ))}
+          </div>
+          <div class="second">
+            {If(showSecond, () => (
+              <UniqueContent id={uuid} />
+            ))}
+          </div>
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+
+      expect(setupFn).toHaveBeenCalledTimes(1);
+      expect(cleanupFn).not.toHaveBeenCalled();
+
+      showFirst.set(false);
+      showSecond.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('');
+      expect(getTextContent(body.querySelector('.second')!)).toBe(
+        'Unique Data'
+      );
+      expect(setupFn).toHaveBeenCalledTimes(1);
+      expect(cleanupFn).not.toHaveBeenCalled();
+
+      showSecond.set(false);
+      showFirst.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('Unique Data');
+      expect(getTextContent(body.querySelector('.second')!)).toBe('');
+      expect(setupFn).toHaveBeenCalledTimes(1);
+      expect(cleanupFn).not.toHaveBeenCalled();
+
+      body.replaceChildren();
+    });
+
+    it('should move a Unique component that returns multiple elements', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+
+      const UniqueContent = createUnique(() => {
+        return (
+          <>
+            <span>Unique</span>
+            <span> Data</span>
+          </>
+        );
+      });
+
+      const { body } = window.document;
+      const show = Cell.source(false);
+      const element = render(
+        <div>
+          Showing content: {show}, <UniqueContent id={uuid} /> ||
+          {If(show, () => (
+            <UniqueContent id={uuid} />
+          ))}
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toBe(
+        'Showing content: false, Unique Data ||'
+      );
+      show.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toBe(
+        'Showing content: true,  ||Unique Data'
+      );
+      body.replaceChildren();
+    });
+
+    it('should move a Unique component that returns a string', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+
+      const UniqueContent = createUnique(() => {
+        return 'Unique Data';
+      });
+
+      const { body } = window.document;
+      const show = Cell.source(false);
+      const element = render(
+        <div>
+          Showing content: {show}, <UniqueContent id={uuid} /> ||
+          {If(show, () => (
+            <UniqueContent id={uuid} />
+          ))}
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toBe(
+        'Showing content: false, Unique Data ||'
+      );
+      show.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toBe(
+        'Showing content: true,  ||Unique Data'
+      );
+      body.replaceChildren();
+    });
+
+    it('should move a Unique component that returns nothing', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showContent = Cell.source(false);
+
+      const UniqueContent = createUnique(() => {
+        return If(showContent, () => 'Unique Data');
+      });
+
+      const { body } = window.document;
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+      const element = render(
+        <div>
+          First:
+          {If(showFirst, () => (
+            <UniqueContent id={uuid} />
+          ))}
+          |Second:
+          {If(showSecond, () => (
+            <UniqueContent id={uuid} />
+          ))}
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toBe('First:|Second:');
+
+      showFirst.set(false);
+      showSecond.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toBe('First:|Second:');
+
+      showContent.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body)).toBe('First:|Second:Unique Data');
+      body.replaceChildren();
+    });
+
     it('should not move a Unique component into Await before it resolves', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
@@ -1204,6 +1385,60 @@ describe('Unique', () => {
       showInFirst.set(true);
       await runPendingSetupEffects();
       expect(getTextContent(body.querySelector('.first')!)).toBe('First: 10');
+
+      body.replaceChildren();
+    });
+
+    it('should update plain props after a Unique component moves', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+
+      interface Props {
+        label: string;
+      }
+
+      const UniqueContent = createUnique<Props>((props) => {
+        const label = Cell.derived(() => props.get().label);
+        return <div>{label}</div>;
+      });
+
+      const { body } = window.document;
+      const label = Cell.source('Alpha');
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.derived(() => !showFirst.get());
+
+      const App = () => (
+        <div>
+          <div class="first">
+            {If(label, (label) =>
+              If(showFirst, () => <UniqueContent id={uuid} label={label} />)
+            )}
+          </div>
+          <div class="second">
+            {If(label, (label) =>
+              If(showSecond, () => <UniqueContent id={uuid} label={label} />)
+            )}
+          </div>
+        </div>
+      );
+
+      body.append(render(<App />));
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('Alpha');
+
+      showFirst.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.second')!)).toBe('Alpha');
+
+      label.set('Beta');
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.second')!)).toBe('Beta');
+
+      showFirst.set(true);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.first')!)).toBe('Beta');
 
       body.replaceChildren();
     });
