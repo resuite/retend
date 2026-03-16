@@ -227,6 +227,13 @@ export function createUnique(renderFn) {
           instance.idOfLastSavedHandle = save(instance, renderer);
           instance.journey.push(handle);
           renderer.restore(instance.idOfLastSavedHandle, handle);
+          // Yes this is not ideal, but abeg.
+          // The correct place for this to run is in onSetup(),
+          // after the subtree has been surely appended, but
+          // that happens too late, and the animations in retend-utils
+          // that depend on timing end up with a split-second glitch.
+          // This is the best we can do without a major rearchitect.
+          queueMicrotask(() => runRestoreFns(instance));
         }
       };
       if (awaitCtx && !awaitCtx.done) awaitCtx.finished.then(move);
@@ -235,7 +242,6 @@ export function createUnique(renderFn) {
 
     onSetup(() => {
       if (!instance.isStable) instance.isStable = true;
-      else runRestoreFns(instance);
       instance.idOfLastSavedHandle = null;
 
       return () => {
