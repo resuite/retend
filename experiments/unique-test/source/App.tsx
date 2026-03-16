@@ -1,6 +1,6 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { Cell, createUnique, For, If, type SourceCell } from 'retend';
+import { Cell, createUnique, For, If, onSetup, type SourceCell } from 'retend';
 import { UniqueTransition } from 'retend-utils/components';
 
 const appStyles: JSX.StyleValue = {
@@ -39,6 +39,14 @@ const buttonStyles: JSX.StyleValue = {
 
 const Box = createUnique(() => {
   const count = Cell.source(0);
+
+  onSetup(() => {
+    const intervalId = setInterval(() => {
+      count.set(count.get() + 1);
+    }, 1000);
+    return () => clearInterval(intervalId);
+  });
+
   return (
     <UniqueTransition
       transitionDuration="250ms"
