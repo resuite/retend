@@ -586,6 +586,90 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should correctly handle race conditions when moving between Await and synchronous locations', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showInInitial = Cell.source(true);
+      const showInAwait = Cell.source(false);
+      const showInSync = Cell.source(false);
+      let resolveReady = () => {};
+      const ready = Cell.derivedAsync(async () => {
+        await new Promise<void>((resolve) => {
+          resolveReady = resolve;
+        });
+        return 'Ready';
+      });
+
+      const UniqueContent = createUnique(() => {
+        return <div>Unique Data</div>;
+      });
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="initial">
+              <span>Initial:</span>
+              {If(showInInitial, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="sync">
+              <span>Sync:</span>
+              {If(showInSync, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <Await fallback={<span>Loading</span>}>
+              <div class="await">
+                <span>Await:</span>
+                {If(showInAwait, () => (
+                  <UniqueContent id={uuid} />
+                ))}
+              </div>
+              <span>{ready}</span>
+            </Await>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      // Start: Unique is at 'Initial'
+      expect(getTextContent(body.querySelector('.initial')!)).toBe(
+        'Initial:Unique Data'
+      );
+
+      // Step 1: Move to 'Await' (pending)
+      showInInitial.set(false);
+      showInAwait.set(true);
+      await runPendingSetupEffects();
+
+      // Step 2: Move to 'Sync' (synchronous)
+      // This should supersede the pending move to 'Await'
+      showInAwait.set(false);
+      showInSync.set(true);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.sync')!)).toBe(
+        'Sync:Unique Data'
+      );
+
+      // Step 3: Resolve the Await subtree
+      // The pending move to 'Await' should NOT steal the component back
+      resolveReady();
+      await timeout();
+
+      // Component should stay in 'Sync'
+      expect(getTextContent(body.querySelector('.sync')!)).toBe(
+        'Sync:Unique Data'
+      );
+      // 'Await' should be empty
+      expect(getTextContent(body.querySelector('.await')!)).toBe('Await:');
+
+      body.replaceChildren();
+    });
+
     it('should keep the scope of Unique components alive', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;

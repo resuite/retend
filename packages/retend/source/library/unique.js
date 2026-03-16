@@ -31,7 +31,9 @@ const UniqueScope = createScope('Unique');
  * @property {Set<UniqueMoveFn>} moveFns
  * @property {Array<() => void>} restoreFns
  * @property {any[]} journey
+ * @property {any} activeHandle
  * @property {(() => void) | null} teardown
+ * @property {boolean} isStable
  */
 
 /**
@@ -59,6 +61,41 @@ export function onMove(callback) {
   set.add(callback);
 }
 
+/** @param {UniqueCtx} inst */
+const save = (inst) => {
+  inst.moveFns.forEach((move) => {
+    try {
+      const restoreFn = move();
+      if (restoreFn) inst.restoreFns.push(restoreFn);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+};
+
+/** @param {UniqueCtx} inst */
+const restore = (inst) => {
+  inst.restoreFns.forEach((fn) => {
+    try {
+      fn();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+  inst.restoreFns.length = 0;
+};
+
+/**
+ * @param {UniqueCtx} inst
+ * @param {Map<any, UniqueCtx>} instances
+ * @param {any} key
+ */
+const dispose = (inst, instances, key) => {
+  inst.state.node.enable();
+  inst.state.node.dispose();
+  instances.delete(key);
+};
+
 /**
  * Creates a component that preserves its identity and internal state
  * even when its position in the render tree changes. Rather than being destroyed
@@ -85,47 +122,6 @@ export function onMove(callback) {
  *   that shouldn't be torn down unnecessarily
  * - Stateful widgets that are moved between different containers or tabs
  *
- * @example
- * const UniqueCounter = createUnique((props) => {
- *   const count = Cell.source(0);
- *   const increment = () => count.set(count.get() + 1);
- *   return (
- *     <div>
- *       <button onClick={increment}>Count: {count}</button>
- *     </div>
- *   );
- * });
- *
- * // Renders the same instance regardless of where it appears
- * <UniqueCounter />
- *
- * @example
- * // With id - multiple instances distinguished by id prop
- * const UniqueVideoPlayer = createUnique((props) => {
- *   const src = Cell.derived(() => props.get().src);
- *   return <video src={src} controls />;
- * });
- *
- * // Each id creates a separate persistent instance
- * <UniqueVideoPlayer id="main" src="/video1.mp4" />
- * <UniqueVideoPlayer id="pip" src="/video2.mp4" />
- *
- * @example
- * // With custom state management
- * const UniqueCanvas = createUnique((props) => {
- *   const canvas = Cell.source(null);
- *
- *   onSetup(() => {
- *     const node = canvas.get();
- *     if (!node) return;
- *     // Initialize canvas context, listeners, etc.
- *     const ctx = node.getContext('2d');
- *     // ... setup
- *   });
- *
- *   return <canvas ref={canvas} />;
- * });
- *
  * @template {{}} Props - Props type (excluding id, which is added automatically)
  * @param {UniqueComponentRenderFn<Props>} renderFn
  *   Function that receives reactive props as a Cell and returns a template.
@@ -141,60 +137,28 @@ export function createUnique(renderFn) {
   const UniqueComponent = (nextProps) => {
     const { globalData, renderer } = getGlobalContext();
     if (!renderer) throw new Error('No renderer available');
+
     const awaitCtx = useAwait();
     const { host } = renderer;
+    const key = nextProps.id ?? renderFn;
+
+    let stash = globalData.get(StashSymbol);
+    if (!stash) globalData.set(StashSymbol, (stash = new WeakMap()));
+
+    let instances = stash.get(renderer);
+    if (!instances) stash.set(renderer, (instances = new Map()));
+
+    let instance = instances.get(key);
+    const isFirstRender = !instance;
+
+    /** @type {any} */
     let group;
     /** @type {any} */
     let handle;
 
-    /** @type {RendererUniqueStash} */
-    let stash = globalData.get(StashSymbol);
-    if (!stash) {
-      stash = new WeakMap();
-      globalData.set(StashSymbol, stash);
-    }
-
-    let instances = stash.get(renderer);
-    if (!instances) {
-      instances = new Map();
-      stash.set(renderer, instances);
-    }
-
-    const save = () => {
-      const instance = instances.get(key);
-      if (!instance) return;
-      for (const move of instance.moveFns) {
-        try {
-          const restore = move();
-          if (restore) instance.restoreFns.push(restore);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    };
-
-    const restore = () => {
-      const instance = instances.get(key);
-      if (!instance) return;
-
-      for (const restore of instance.restoreFns) {
-        try {
-          restore();
-        } catch (error) {
-          console.error(error);
-        }
-      }
-      instance.restoreFns.length = 0;
-    };
-
-    // todo: we need a better way to prevent collisions if multiple components share an id namespace.
-    const key = nextProps.id ?? renderFn;
-    let instance = instances.get(key);
-    let isFirstRender = !instance;
     if (!instance) {
       const props = Cell.source(nextProps);
       const state = branchState();
-      /** @type {Set<UniqueMoveFn>} */
       const moveFns = new Set();
       const output = withState(state, () =>
         UniqueScope.Provider({
@@ -202,6 +166,7 @@ export function createUnique(renderFn) {
           children: () => renderFn(props),
         })
       );
+
       group = createGroupFromNodes(output, renderer);
       handle = renderer.createGroupHandle(group);
 
@@ -211,27 +176,41 @@ export function createUnique(renderFn) {
         moveFns,
         restoreFns: [],
         journey: [handle],
+        activeHandle: handle,
         teardown: null,
+        isStable: false,
       };
       instances.set(key, instance);
+
+      host.addEventListener(
+        'retend:activate',
+        () => (instance.isStable = true),
+        { once: true }
+      );
     } else {
       group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
+      instance.journey.push(handle);
 
       const moveToNewPosition = () => {
-        const instance = instances.get(key);
-        if (!instance) return;
-        const previousHandle = instance.journey[instance.journey.length - 1];
-        if (!previousHandle) return;
+        if (instance.activeHandle === handle) return;
 
         if (instance.teardown) {
           host.removeEventListener('retend:activate', instance.teardown);
           instance.teardown = null;
+          instance.state.node.enable();
         }
-        renderer.transfer(previousHandle, handle);
-        instance.journey.push(handle);
 
-        restore();
+        if (
+          instance.journey.includes(instance.activeHandle) &&
+          instance.isStable
+        ) {
+          save(instance);
+        }
+
+        renderer.transfer(instance.activeHandle, handle);
+        instance.activeHandle = handle;
+        restore(instance);
       };
 
       if (awaitCtx && !awaitCtx.done) awaitCtx.finished.then(moveToNewPosition);
@@ -241,27 +220,34 @@ export function createUnique(renderFn) {
 
     onSetup(() => {
       if (isFirstRender) instance.state.node.activate();
-      else restore();
+      else restore(instance);
 
       return () => {
-        // If the instance is being torn down due to HMR, skip setup for next render
-        const hmrContext = __HMR_SYMBOLS.getHMRContext();
-        if (hmrContext?.current) {
-          instance.state.node.enable();
-          instance.state.node.dispose();
-          instances.delete(key);
-          return;
+        if (__HMR_SYMBOLS.getHMRContext()?.current) {
+          return dispose(instance, instances, key);
         }
-        instance.state.node.disable();
 
-        save();
+        const index = instance.journey.indexOf(handle);
+        if (index !== -1) instance.journey.splice(index, 1);
+
+        if (instance.activeHandle !== handle) return;
+
+        instance.state.node.disable();
+        if (instance.isStable) save(instance);
 
         const teardown = () => {
           if (instance.teardown !== teardown) return;
           instance.teardown = null;
-          instance.state.node.enable();
-          instance.state.node.dispose();
-          instances.delete(key);
+
+          const newHead = instance.journey[instance.journey.length - 1];
+          if (newHead) {
+            renderer.transfer(handle, newHead);
+            instance.activeHandle = newHead;
+            instance.state.node.enable();
+            restore(instance);
+          } else {
+            dispose(instance, instances, key);
+          }
         };
 
         instance.teardown = teardown;
@@ -273,9 +259,9 @@ export function createUnique(renderFn) {
   };
 
   UniqueComponent.__retendUnique = true;
-  Object.defineProperty(UniqueComponent, 'name', { value: renderFn.name });
-  if (!renderFn.name) {
-    Object.defineProperty(renderFn, 'name', { value: 'Unique.Content' });
-  }
+  const name = renderFn.name || 'Unique.Content';
+  Object.defineProperty(UniqueComponent, 'name', { value: name });
+  if (!renderFn.name) Object.defineProperty(renderFn, 'name', { value: name });
+
   return UniqueComponent;
 }
