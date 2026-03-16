@@ -77,7 +77,6 @@ export class DOMRenderer {
   /** @type {Map<string, JsxElement>} */
   #table = new Map();
   #hydratedNodes = new WeakSet();
-  #handleData = new WeakMap();
 
   /** @param {Window} host */
   constructor(host) {
@@ -125,19 +124,11 @@ export class DOMRenderer {
       const symbol = new DeferredHandleSymbol([]);
       array.splice(0, 0, symbol);
       array.push(symbol);
-      this.#handleData.set(array, []);
       this.#deferredHydrationHandles.add(array);
       // @ts-expect-error
       return array;
     }
-    const handle = Ops.createGroupHandle(fragment, this);
-    this.#handleData.set(handle, []);
-    let node = handle[0].nextSibling;
-    while (node && node !== handle[1]) {
-      this.#handleData.get(handle)?.push(node);
-      node = node.nextSibling;
-    }
-    return handle;
+    return Ops.createGroupHandle(fragment, this);
   }
 
   /**
@@ -150,11 +141,9 @@ export class DOMRenderer {
       if (this.#getHydrationState()) {
         //@ts-expect-error
         segment.splice(1, segment.length - 2, ...newContent);
-        this.#handleData.set(segment, newContent);
         return segment;
       }
     }
-    this.#handleData.set(segment, newContent);
     return Ops.write(segment, newContent);
   }
 
@@ -173,19 +162,16 @@ export class DOMRenderer {
       }
     }
 
-    const moved = [];
-    let node = from[0].nextSibling;
-    while (node && node !== from[1]) {
+    const nodesToMove = [];
+    const start = from[0];
+    const end = from[1];
+    let node = start?.nextSibling;
+    while (node && node !== end) {
       const next = node.nextSibling;
-      moved.push(node);
+      nodesToMove.push(node);
       node = next;
     }
-    if (!moved.length) {
-      moved.push(...(this.#handleData.get(from) ?? []));
-    }
-    this.#handleData.set(from, []);
-    this.#handleData.set(to, moved);
-    return this.write(to, moved);
+    return this.write(to, nodesToMove);
   }
 
   /**
