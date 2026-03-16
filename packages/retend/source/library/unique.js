@@ -160,6 +160,33 @@ export function createUnique(renderFn) {
       stash.set(renderer, instances);
     }
 
+    const save = () => {
+      const instance = instances.get(key);
+      if (!instance) return;
+      for (const move of instance.moveFns) {
+        try {
+          const restore = move();
+          if (restore) instance.restoreFns.push(restore);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+
+    const restore = () => {
+      const instance = instances.get(key);
+      if (!instance) return;
+
+      for (const restore of instance.restoreFns) {
+        try {
+          restore();
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      instance.restoreFns.length = 0;
+    };
+
     // todo: we need a better way to prevent collisions if multiple components share an id namespace.
     const key = nextProps.id ?? renderFn;
     let instance = instances.get(key);
@@ -204,14 +231,7 @@ export function createUnique(renderFn) {
         renderer.transfer(previousHandle, handle);
         instance.journey.push(handle);
 
-        for (const restore of instance.restoreFns) {
-          try {
-            restore();
-          } catch (error) {
-            console.error(error);
-          }
-        }
-        instance.restoreFns.length = 0;
+        restore();
       };
 
       if (awaitCtx && !awaitCtx.done) awaitCtx.finished.then(moveToNewPosition);
@@ -221,10 +241,7 @@ export function createUnique(renderFn) {
 
     onSetup(() => {
       if (isFirstRender) instance.state.node.activate();
-      else {
-        for (const restore of instance.restoreFns) restore();
-        instance.restoreFns.length = 0;
-      }
+      else restore();
 
       return () => {
         // If the instance is being torn down due to HMR, skip setup for next render
@@ -237,14 +254,7 @@ export function createUnique(renderFn) {
         }
         instance.state.node.disable();
 
-        for (const move of instance.moveFns) {
-          try {
-            const restore = move();
-            if (restore) instance.restoreFns.push(restore);
-          } catch (e) {
-            console.error(e);
-          }
-        }
+        save();
 
         const teardown = () => {
           if (instance.teardown !== teardown) return;
