@@ -1,0 +1,3 @@
+- Use pnpm only.
+- Packages must be rebuilt after changes before running tests.
+- Use `pnpm run test` to run tests.
