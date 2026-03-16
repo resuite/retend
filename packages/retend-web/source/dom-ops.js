@@ -384,20 +384,6 @@ export function writeStaticStyles(renderer) {
 }
 
 /**
- * @param {any} node
- * @param {any} data
- * @param {Renderer<any>} renderer
- */
-export function restoreContainerState(node, data, renderer) {
-  renderer.append(node, data.childNodes);
-  if (data.shadowRoot) {
-    const { mode, childNodes } = data.shadowRoot;
-    const newShadow = node.attachShadow({ mode });
-    renderer.append(newShadow, [...childNodes]);
-  }
-}
-
-/**
  * @param {any} parentNode
  * @param {any | any[]} childNode
  * @param {Renderer<any>} renderer

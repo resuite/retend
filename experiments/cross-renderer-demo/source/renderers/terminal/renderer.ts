@@ -655,7 +655,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
 
     return nodes;
   }
-  restoreContainerState(): void {}
 
   isGroup(node: unknown): node is TerminalNode[] {
     return Array.isArray(node);

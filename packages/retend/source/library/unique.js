@@ -1,6 +1,7 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
 /** @import { SourceCell } from '@adbl/cells' */
 /** @import { StateSnapshot, Scope } from '../library/scope.js' */
+/** @import { Renderer } from '../library/renderer.js' */
 
 import { Cell } from '@adbl/cells';
 
@@ -10,6 +11,7 @@ import {
   __HMR_SYMBOLS,
   branchState,
   createScope,
+  MissingScopeError,
   onSetup,
   useScopeContext,
   withState,
@@ -31,9 +33,8 @@ const UniqueScope = createScope('Unique');
  * @property {Set<UniqueMoveFn>} moveFns
  * @property {Array<() => void>} restoreFns
  * @property {any[]} journey
- * @property {any} activeHandle
- * @property {(() => void) | null} teardown
  * @property {boolean} isStable
+ * @property {number | null} idOfLastSavedHandle
  */
 
 /**
@@ -57,44 +58,62 @@ const UniqueScope = createScope('Unique');
 
 /** @param {UniqueMoveFn} callback */
 export function onMove(callback) {
-  const set = useScopeContext(UniqueScope);
-  set.add(callback);
+  try {
+    const set = useScopeContext(UniqueScope);
+    set.add(callback);
+  } catch (cause) {
+    if (cause instanceof MissingScopeError) {
+      const message = `onMove() cannot be used outside a unique subtree.`;
+      throw new Error(message, { cause });
+    }
+  }
 }
 
-/** @param {UniqueCtx} inst */
-const save = (inst) => {
-  inst.moveFns.forEach((move) => {
+/**
+ * @param {UniqueCtx} inst
+ * @param {Renderer<any>} renderer
+ * @returns {number}
+ */
+const save = (inst, renderer) => {
+  // if there is a last saved handle, there is a pending save that
+  // needs to be restored before saving again.
+  if (inst.idOfLastSavedHandle !== null) return inst.idOfLastSavedHandle;
+  // If there are pending restore function, we need to clear them
+  // before saving again.
+  for (const move of inst.moveFns) {
     try {
       const restoreFn = move();
       if (restoreFn) inst.restoreFns.push(restoreFn);
     } catch (e) {
       console.error(e);
     }
-  });
+  }
+  const handle = inst.journey[inst.journey.length - 1];
+  return renderer.save(handle);
 };
 
 /** @param {UniqueCtx} inst */
-const restore = (inst) => {
-  inst.restoreFns.forEach((fn) => {
+const runRestoreFns = (inst) => {
+  for (const fn of inst.restoreFns) {
     try {
       fn();
     } catch (e) {
       console.error(e);
     }
-  });
+  }
   inst.restoreFns.length = 0;
 };
 
-/**
- * @param {UniqueCtx} inst
- * @param {Map<any, UniqueCtx>} instances
- * @param {any} key
- */
-const dispose = (inst, instances, key) => {
-  inst.state.node.enable();
-  inst.state.node.dispose();
-  instances.delete(key);
-};
+// /**
+//  * @param {UniqueCtx} inst
+//  * @param {Map<any, UniqueCtx>} instances
+//  * @param {any} key
+//  */
+// const dispose = (inst, instances, key) => {
+//   inst.state.node.enable();
+//   inst.state.node.dispose();
+//   instances.delete(key);
+// };
 
 /**
  * Creates a component that preserves its identity and internal state
@@ -138,10 +157,11 @@ export function createUnique(renderFn) {
     const { globalData, renderer } = getGlobalContext();
     if (!renderer) throw new Error('No renderer available');
 
-    const awaitCtx = useAwait();
-    const { host } = renderer;
     const key = nextProps.id ?? renderFn;
+    const { host } = renderer;
+    const awaitCtx = useAwait();
 
+    /** @type {RendererUniqueStash} */
     let stash = globalData.get(StashSymbol);
     if (!stash) globalData.set(StashSymbol, (stash = new WeakMap()));
 
@@ -149,23 +169,21 @@ export function createUnique(renderFn) {
     if (!instances) stash.set(renderer, (instances = new Map()));
 
     let instance = instances.get(key);
-    const isFirstRender = !instance;
-
-    /** @type {any} */
     let group;
     /** @type {any} */
     let handle;
 
     if (!instance) {
+      // First Instance of createUnique, create normally.
       const props = Cell.source(nextProps);
       const state = branchState();
       const moveFns = new Set();
-      const output = withState(state, () =>
-        UniqueScope.Provider({
+      const output = withState(state, () => {
+        return UniqueScope.Provider({
           value: moveFns,
           children: () => renderFn(props),
-        })
-      );
+        });
+      });
 
       group = createGroupFromNodes(output, renderer);
       handle = renderer.createGroupHandle(group);
@@ -176,81 +194,79 @@ export function createUnique(renderFn) {
         moveFns,
         restoreFns: [],
         journey: [handle],
-        activeHandle: handle,
-        teardown: null,
         isStable: false,
+        idOfLastSavedHandle: null,
       };
       instances.set(key, instance);
-
-      host.addEventListener(
-        'retend:activate',
-        () => (instance.isStable = true),
-        { once: true }
-      );
     } else {
       group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
-      instance.journey.push(handle);
-
-      const moveToNewPosition = () => {
-        if (instance.activeHandle === handle) return;
-
-        if (instance.teardown) {
-          host.removeEventListener('retend:activate', instance.teardown);
-          instance.teardown = null;
-          instance.state.node.enable();
-        }
-
-        if (
-          instance.journey.includes(instance.activeHandle) &&
-          instance.isStable
-        ) {
-          save(instance);
-        }
-
-        renderer.transfer(instance.activeHandle, handle);
-        instance.activeHandle = handle;
-        restore(instance);
-      };
-
-      if (awaitCtx && !awaitCtx.done) awaitCtx.finished.then(moveToNewPosition);
-      else moveToNewPosition();
       instance.props.set(nextProps);
+
+      // In the case where there are multiple awaiting instances, we
+      // have to keep resaving and re-restoring as we propagate to the last one.
+      const length = instance.journey.length;
+      const move = () => {
+        const instance = instances.get(key);
+        if (!instance) return;
+
+        if (length !== instance.journey.length || !instance.isStable) {
+          // Next instance, when last instance is not yet stable.
+          // Move the nodes, but do not run move effects.
+          const previousHandle = instance.journey[instance.journey.length - 1];
+          instance.idOfLastSavedHandle = renderer.save(previousHandle);
+          instance.journey.push(handle);
+          renderer.restore(instance.idOfLastSavedHandle, handle);
+        } else {
+          // Next instance, when last instance is stable.
+          // Move and run effects.
+          // If last instance was already disposed, it would have already
+          // run the moveFn effects, so all we need to do is restore. If it is an
+          // active instance however, we need to run both save() and restore()
+          // on the fly.
+          instance.idOfLastSavedHandle = save(instance, renderer);
+          instance.journey.push(handle);
+          renderer.restore(instance.idOfLastSavedHandle, handle);
+        }
+      };
+      if (awaitCtx && !awaitCtx.done) awaitCtx.finished.then(move);
+      else move();
     }
 
     onSetup(() => {
-      if (isFirstRender) instance.state.node.activate();
-      else restore(instance);
+      if (!instance.isStable) instance.isStable = true;
+      else runRestoreFns(instance);
+      instance.idOfLastSavedHandle = null;
 
       return () => {
-        if (__HMR_SYMBOLS.getHMRContext()?.current) {
-          return dispose(instance, instances, key);
-        }
-
-        const index = instance.journey.indexOf(handle);
-        if (index !== -1) instance.journey.splice(index, 1);
-
-        if (instance.activeHandle !== handle) return;
-
+        // This detaches it from the parent node, preventing
+        // dispose() from cascading, and keeping its context alive
+        // when moved.
         instance.state.node.disable();
-        if (instance.isStable) save(instance);
+        instance.idOfLastSavedHandle = save(instance, renderer);
 
         const teardown = () => {
-          if (instance.teardown !== teardown) return;
-          instance.teardown = null;
+          const index = instance.journey.indexOf(handle);
+          if (index !== -1) instance.journey.splice(index, 1);
 
-          const newHead = instance.journey[instance.journey.length - 1];
-          if (newHead) {
-            renderer.transfer(handle, newHead);
-            instance.activeHandle = newHead;
-            instance.state.node.enable();
-            restore(instance);
+          if (instance.journey.length == 0) {
+            // The Unique component's journey has ended, there are no more handles.
+            // Restoring to nothing helps flush the renderer state.
+            instance.state.node.enable(); // needed for dispose()
+            instance.state.node.dispose();
+            if (instance.idOfLastSavedHandle !== null) {
+              renderer.restore(instance.idOfLastSavedHandle, null);
+            }
+            instances.delete(key);
           } else {
-            dispose(instance, instances, key);
+            // There is no forward handle to restore, so we restore to the last one in the journey.
+            const last = instance.journey[instance.journey.length - 1];
+            if (instance.idOfLastSavedHandle !== null) {
+              renderer.restore(instance.idOfLastSavedHandle, last);
+              runRestoreFns(instance);
+            }
           }
         };
-
-        instance.teardown = teardown;
         host.addEventListener('retend:activate', teardown, { once: true });
       };
     });

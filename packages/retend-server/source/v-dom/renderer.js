@@ -52,7 +52,8 @@ export class VDOMRenderer {
    * @type {Map<StateSnapshot, number>}
    */
   #branches = new Map();
-  #handleData = new WeakMap();
+  #savedHandles = new Map();
+  #savedHandleId = 0;
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
@@ -85,14 +86,7 @@ export class VDOMRenderer {
    * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
-    const handle = Ops.createGroupHandle(fragment, this);
-    this.#handleData.set(handle, []);
-    let node = handle[0].nextSibling;
-    while (node && node !== handle[1]) {
-      this.#handleData.get(handle)?.push(node);
-      node = node.nextSibling;
-    }
-    return handle;
+    return Ops.createGroupHandle(fragment, this);
   }
 
   /**
@@ -100,28 +94,34 @@ export class VDOMRenderer {
    * @param {VDom.VNode[]} newContent
    */
   write(segment, newContent) {
-    this.#handleData.set(segment, newContent);
     return Ops.write(segment, newContent);
   }
 
   /**
-   * @param {DOMHandle} from
-   * @param {DOMHandle} to
+   * @param {DOMHandle} handle
+   * @returns {number}
    */
-  transfer(from, to) {
-    const moved = [];
-    let node = from[0].nextSibling;
-    while (node && node !== from[1]) {
-      const next = node.nextSibling;
-      moved.push(node);
-      node = next;
+  save(handle) {
+    const id = this.#savedHandleId++;
+    const nodes = [];
+    let node = handle[0].nextSibling;
+    while (node && node !== handle[1]) {
+      nodes.push(node);
+      node = node.nextSibling;
     }
-    if (!moved.length) {
-      moved.push(...(this.#handleData.get(from) ?? []));
-    }
-    this.#handleData.set(from, []);
-    this.#handleData.set(to, moved);
-    return this.write(to, moved);
+    this.#savedHandles.set(id, nodes);
+    return id;
+  }
+
+  /**
+   * @param {number} id
+   * @param {DOMHandle | null} handle
+   */
+  restore(id, handle) {
+    const nodes = this.#savedHandles.get(id);
+    if (!nodes) return;
+    this.#savedHandles.delete(id);
+    if (handle) this.write(handle, nodes);
   }
 
   /**

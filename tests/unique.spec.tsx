@@ -502,6 +502,9 @@ describe('Unique', () => {
 
       resolveReady();
       await timeout();
+      expect(getTextContent(body.querySelector('.first')!)).toBe(
+        'First:Unique Data'
+      );
 
       showFirst.set(false);
       showSecond.set(true);

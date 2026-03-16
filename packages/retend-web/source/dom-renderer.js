@@ -77,6 +77,8 @@ export class DOMRenderer {
   /** @type {Map<string, JsxElement>} */
   #table = new Map();
   #hydratedNodes = new WeakSet();
+  #savedHandles = new Map();
+  #savedHandleId = 0;
 
   /** @param {Window} host */
   constructor(host) {
@@ -148,30 +150,34 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {DOMHandle} from
-   * @param {DOMHandle} to
+   * @param {DOMHandle} handle
+   * @returns {number}
    */
-  transfer(from, to) {
+  save(handle) {
     if (this.#isHydrationModeEnabled) {
-      Ops.finalizeHydrationHandleSegment(from);
-      Ops.finalizeHydrationHandleSegment(to);
-      if (this.#getHydrationState()) {
-        const moved = from.splice(1, from.length - 2);
-        to.splice(1, to.length - 2, ...moved);
-        return to;
-      }
+      Ops.finalizeHydrationHandleSegment(handle);
     }
+    const id = this.#savedHandleId;
+    this.#savedHandleId += 1;
+    const nodes = [];
+    let node = handle[0].nextSibling;
+    while (node && node !== handle[1]) {
+      nodes.push(node);
+      node = node.nextSibling;
+    }
+    this.#savedHandles.set(id, nodes);
+    return id;
+  }
 
-    const nodesToMove = [];
-    const start = from[0];
-    const end = from[1];
-    let node = start?.nextSibling;
-    while (node && node !== end) {
-      const next = node.nextSibling;
-      nodesToMove.push(node);
-      node = next;
-    }
-    return this.write(to, nodesToMove);
+  /**
+   * @param {number} id
+   * @param {DOMHandle | null} handle
+   */
+  restore(id, handle) {
+    const nodes = this.#savedHandles.get(id);
+    if (!nodes) return;
+    this.#savedHandles.delete(id);
+    if (handle) this.write(handle, nodes);
   }
 
   /**

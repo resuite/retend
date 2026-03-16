@@ -125,7 +125,10 @@ export interface Renderer<
     snapshot?: StateSnapshot,
     fileData?: JSX.JSXDevFileData
   ): Node | Node[];
-  transfer(from: Handle, to: Handle): void;
+  /** Saves the current state of a handle to the renderer's snapshot store. */
+  save(handle: Handle): number;
+  /** Restores a handle's state from the renderer's snapshot store. */
+  restore(id: number, handle: Handle): void;
 }
 
 /**

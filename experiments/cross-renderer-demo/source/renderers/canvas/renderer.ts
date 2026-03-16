@@ -586,7 +586,6 @@ export class CanvasRenderer {
 
     return nodes;
   }
-  restoreContainerState(): void {}
 
   isGroup(node: unknown): node is CanvasNode[] {
     return Array.isArray(node);
