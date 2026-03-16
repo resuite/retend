@@ -4,7 +4,7 @@ import { getActiveRenderer, linkNodes, onMove } from 'retend';
 
 /**
  * @typedef ElementUIState
- * @property {DOMRect[]} rects
+ * @property {Map<Element, DOMRect>} rects
  */
 
 /**
@@ -22,8 +22,6 @@ import { getActiveRenderer, linkNodes, onMove } from 'retend';
 /**
  * @typedef {TransitionProps & { children: JSX.Children }} UniqueTransitionProps
  */
-
-const TransitionAnimationSymbol = Symbol('UniqueTransitionAnimation');
 
 /**
  * @param {DOMRect} from
@@ -110,17 +108,9 @@ function saveState(handle) {
   const elements = getHandleElements(handle);
   if (!elements.length) return null;
 
-  const rects = [];
+  const rects = new Map();
   for (const element of elements) {
-    rects.push(element.getBoundingClientRect());
-    const transitionAnimation = Reflect.get(element, TransitionAnimationSymbol);
-    if (transitionAnimation) {
-      transitionAnimation.cancel();
-      Reflect.deleteProperty(element, TransitionAnimationSymbol);
-    }
-    if (element instanceof HTMLElement) {
-      element.style.removeProperty('transform');
-    }
+    rects.set(element, element.getBoundingClientRect());
     element.removeAttribute('data-transitioning');
   }
 
@@ -182,18 +172,17 @@ function restoreTransition(elementState, handle, options) {
   }
 
   requestAnimationFrame(() => {
-    const nextRects = [];
+    const nextRects = new Map();
     for (const element of elements) {
-      nextRects.push(element.getBoundingClientRect());
+      nextRects.set(element, element.getBoundingClientRect());
     }
     for (const anim of parentAnimations) {
       anim.currentTime = Number(anim.currentTime) - transition.duration;
     }
-    for (let i = 0; i < elements.length; i += 1) {
-      const element = elements[i];
-      const oldRect = rects[i];
+    for (const element of elements) {
+      const oldRect = rects.get(element);
       if (!oldRect) continue;
-      const newRect = nextRects[i];
+      const newRect = nextRects.get(element);
       if (!newRect) continue;
       if (newRect.width === 0 && !maintainWidthDuringTransition) continue;
       if (newRect.height === 0 && !maintainHeightDuringTransition) continue;
@@ -221,15 +210,10 @@ function restoreTransition(elementState, handle, options) {
         { transform: [initialTransform, 'none'] },
         transition
       );
-      Reflect.set(element, TransitionAnimationSymbol, animation);
       if (element instanceof HTMLElement) {
         element.style.removeProperty('transform');
       }
       animation.finished.finally(() => {
-        if (Reflect.get(element, TransitionAnimationSymbol) !== animation) {
-          return;
-        }
-        Reflect.deleteProperty(element, TransitionAnimationSymbol);
         element.removeAttribute('data-transitioning');
       });
     }
