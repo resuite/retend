@@ -112,7 +112,6 @@ function saveState(handle) {
   const rects = new Map();
   for (const element of elements) {
     rects.set(element, element.getBoundingClientRect());
-    element.removeAttribute('data-transitioning');
   }
 
   /** @type {Map<Animation, boolean>} */
@@ -216,6 +215,7 @@ function restoreTransition(elementState, handle, options) {
 
       if (element instanceof HTMLElement) {
         element.style.setProperty('transform', initialTransform);
+        element.style.setProperty('transform-origin', 'top left');
       }
       element.setAttribute('data-transitioning', '');
       const animation = element.animate(
@@ -227,6 +227,9 @@ function restoreTransition(elementState, handle, options) {
       }
       animation.finished.finally(() => {
         element.removeAttribute('data-transitioning');
+        if (element instanceof HTMLElement) {
+          element.style.removeProperty('transform-origin');
+        }
       });
     }
   });
