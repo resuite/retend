@@ -1355,6 +1355,45 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should restore the previous props when the latest unique instance is removed', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+
+      const UniqueContent = createUnique<{ label: string }>((props) => {
+        const label = Cell.derived(() => props.get().label);
+        return <div>{label}</div>;
+      });
+
+      const { body } = window.document;
+      const showSecond = Cell.source(true);
+
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              <UniqueContent id={uuid} label="First" />
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} label="Second" />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.second')!)).toBe('Second');
+
+      showSecond.set(false);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('First');
+
+      body.replaceChildren();
+    });
+
     it('should preserve and update attributes on the rendered element', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;

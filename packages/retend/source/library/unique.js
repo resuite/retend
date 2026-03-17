@@ -32,7 +32,7 @@ const UniqueScope = createScope('Unique');
  * @property {StateSnapshot} state
  * @property {Set<UniqueMoveFn>} moveFns
  * @property {Array<() => void>} restoreFns
- * @property {any[]} journey
+ * @property {Array<[any, UniqueProps<any>]>} journey
  * @property {any[] | null} pendingNodes
  * @property {boolean} isStable
  * @property {number | null} idOfLastSavedHandle
@@ -119,7 +119,7 @@ const save = (inst, renderer) => {
       console.error(e);
     }
   }
-  const handle = inst.journey[inst.journey.length - 1];
+  const handle = inst.journey[inst.journey.length - 1][0];
   return renderer.save(handle);
 };
 
@@ -220,7 +220,7 @@ export function createUnique(renderFn) {
         state,
         moveFns,
         restoreFns: [],
-        journey: [handle],
+        journey: [[handle, nextProps]],
         pendingNodes,
         isStable: false,
         idOfLastSavedHandle: null,
@@ -241,8 +241,9 @@ export function createUnique(renderFn) {
         if (length !== instance.journey.length || !instance.isStable) {
           // Next instance, when last instance is not yet stable.
           // Move the nodes, but do not run move effects.
-          const previousHandle = instance.journey[instance.journey.length - 1];
-          instance.journey.push(handle);
+          const previousHandle =
+            instance.journey[instance.journey.length - 1][0];
+          instance.journey.push([handle, nextProps]);
           if (instance.pendingNodes) {
             renderer.write(handle, instance.pendingNodes);
             instance.pendingNodes = null;
@@ -258,7 +259,7 @@ export function createUnique(renderFn) {
           // active instance however, we need to run both save() and restore()
           // on the fly.
           instance.idOfLastSavedHandle = save(instance, renderer);
-          instance.journey.push(handle);
+          instance.journey.push([handle, nextProps]);
           renderer.restore(instance.idOfLastSavedHandle, handle);
           // Yes this is not ideal, but abeg.
           // The correct place for this to run is in onSetup(),
@@ -286,7 +287,7 @@ export function createUnique(renderFn) {
         instance.idOfLastSavedHandle = save(instance, renderer);
 
         const teardown = () => {
-          const index = instance.journey.indexOf(handle);
+          const index = instance.journey.findIndex(([item]) => item === handle);
           if (index !== -1) instance.journey.splice(index, 1);
 
           if (instance.journey.length == 0) {
@@ -300,8 +301,10 @@ export function createUnique(renderFn) {
             instances.delete(key);
           } else {
             // There is no forward handle to restore, so we restore to the last one in the journey.
-            const last = instance.journey[instance.journey.length - 1];
+            const [last, lastProps] =
+              instance.journey[instance.journey.length - 1];
             if (instance.idOfLastSavedHandle !== null) {
+              instance.props.set(lastProps);
               renderer.restore(instance.idOfLastSavedHandle, last);
               runRestoreFns(instance);
               // Reset to indicate the saved state has been used and we're ready
