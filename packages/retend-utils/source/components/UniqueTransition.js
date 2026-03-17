@@ -12,6 +12,7 @@ import { getActiveRenderer, linkNodes, onMove } from 'retend';
  * @typedef TransitionProps
  * @property {string} [transitionDuration] How long the transition between states should take.
  * @property {string} [transitionTimingFunction] How the transition should be performed.
+ * @property {string} [transformOrigin] The transform origin used during the transition.
  * @property {boolean} [maintainWidthDuringTransition] If true, disables horizontal scaling during transitions.
  * @property {boolean} [maintainHeightDuringTransition] If true, disables vertical scaling during transitions.
  */
@@ -137,6 +138,7 @@ function restoreTransition(elementState, handle, options) {
   const {
     transitionDuration,
     transitionTimingFunction,
+    transformOrigin = 'top left',
     maintainWidthDuringTransition,
     maintainHeightDuringTransition,
   } = options;
@@ -215,7 +217,7 @@ function restoreTransition(elementState, handle, options) {
 
       if (element instanceof HTMLElement) {
         element.style.setProperty('transform', initialTransform);
-        element.style.setProperty('transform-origin', 'top left');
+        element.style.setProperty('transform-origin', transformOrigin);
       }
       element.setAttribute('data-transitioning', '');
       const animation = element.animate(
