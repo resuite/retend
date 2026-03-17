@@ -9,10 +9,10 @@ import { linkNodes } from './utils.js';
 
 /**
  * @template T
- * @typedef {Record<'true', ((value: T) => JSX.Template)>
+ * @typedef {Record<'true', ((value: NonNullable<T>) => JSX.Template)>
  * | Record<'false',  (() => JSX.Template)>
  * | {
- *   true:  ((value: T) => JSX.Template),
+ *   true:  ((value: NonNullable<T>) => JSX.Template),
  *   false:  (() => JSX.Template)
  * }} ConditionObject
  */
