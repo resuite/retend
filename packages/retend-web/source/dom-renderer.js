@@ -362,6 +362,7 @@ export class DOMRenderer {
    * @returns {Node[]}
    */
   unwrapGroup(group) {
+    if (Array.isArray(group)) return [...group];
     return Array.from(group.childNodes);
   }
 

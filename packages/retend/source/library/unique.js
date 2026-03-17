@@ -33,6 +33,7 @@ const UniqueScope = createScope('Unique');
  * @property {Set<UniqueMoveFn>} moveFns
  * @property {Array<() => void>} restoreFns
  * @property {any[]} journey
+ * @property {any[] | null} pendingNodes
  * @property {boolean} isStable
  * @property {number | null} idOfLastSavedHandle
  */
@@ -186,6 +187,7 @@ export function createUnique(renderFn) {
       });
 
       group = createGroupFromNodes(output, renderer);
+      const pendingNodes = renderer.unwrapGroup(group);
       handle = renderer.createGroupHandle(group);
 
       instance = {
@@ -194,6 +196,7 @@ export function createUnique(renderFn) {
         moveFns,
         restoreFns: [],
         journey: [handle],
+        pendingNodes,
         isStable: false,
         idOfLastSavedHandle: null,
       };
@@ -214,9 +217,14 @@ export function createUnique(renderFn) {
           // Next instance, when last instance is not yet stable.
           // Move the nodes, but do not run move effects.
           const previousHandle = instance.journey[instance.journey.length - 1];
-          instance.idOfLastSavedHandle = renderer.save(previousHandle);
           instance.journey.push(handle);
-          renderer.restore(instance.idOfLastSavedHandle, handle);
+          if (instance.pendingNodes) {
+            renderer.write(handle, instance.pendingNodes);
+            instance.pendingNodes = null;
+          } else {
+            instance.idOfLastSavedHandle = renderer.save(previousHandle);
+            renderer.restore(instance.idOfLastSavedHandle, handle);
+          }
         } else {
           // Next instance, when last instance is stable.
           // Move and run effects.
@@ -241,6 +249,7 @@ export function createUnique(renderFn) {
     }
 
     onSetup(() => {
+      instance.pendingNodes = null;
       if (!instance.isStable) instance.isStable = true;
       instance.idOfLastSavedHandle = null;
 
