@@ -1,6 +1,14 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { Cell, createUnique, For, If, onSetup, type SourceCell } from 'retend';
+import {
+  Cell,
+  createUnique,
+  For,
+  If,
+  onConnected,
+  onSetup,
+  type SourceCell,
+} from 'retend';
 import { UniqueTransition } from 'retend-utils/components';
 
 const appStyles: JSX.StyleValue = {
@@ -15,10 +23,15 @@ const appStyles: JSX.StyleValue = {
 };
 
 const contentStyles: JSX.StyleValue = {
-  display: 'grid',
-  placeItems: 'center',
   height: '100%',
   aspectRatio: '1',
+};
+
+const innerContentStyles: JSX.StyleValue = {
+  height: '100%',
+  width: '100%',
+  display: 'grid',
+  placeItems: 'center',
   fontSize: '3rem',
   backgroundColor: '#467497',
   color: 'white',
@@ -37,8 +50,20 @@ const buttonStyles: JSX.StyleValue = {
   padding: '0',
 };
 
+const paragraphStyles: JSX.StyleValue = {
+  margin: '0',
+};
+
 const Box = createUnique(() => {
   const count = Cell.source(0);
+  const ref = Cell.source<HTMLElement | null>(null);
+
+  onConnected(ref, (div) => {
+    div.animate(
+      { rotate: ['0deg', '360deg'] },
+      { duration: 600, iterations: Infinity }
+    );
+  });
 
   onSetup(() => {
     const intervalId = setInterval(() => {
@@ -52,7 +77,12 @@ const Box = createUnique(() => {
       transitionDuration="250ms"
       transitionTimingFunction="ease-in-out"
     >
-      <div style={contentStyles}>{count}</div>
+      <p class={paragraphStyles}>Stray Element.</p>
+      <div style={contentStyles}>
+        <div ref={ref} style={innerContentStyles}>
+          {count}
+        </div>
+      </div>
     </UniqueTransition>
   );
 });
