@@ -50,7 +50,7 @@ When a reactive Cell changes, the core framework tells the renderer exactly what
 
 ### Dynamic Collections
 
-When a `<For>` loop needs to update a list of items, the core framework handles the diffing algorithm and then commands the renderer:
+When a `For()` loop needs to update a list of items, the core framework handles the diffing algorithm and then commands the renderer:
 
 - `reconcile(handle, options)`: Efficiently creates, moves, or removes nodes in the DOM to match the new list.
 

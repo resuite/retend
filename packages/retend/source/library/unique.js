@@ -57,7 +57,37 @@ const UniqueScope = createScope('Unique');
  * @typedef {() => void | (() => void)} UniqueMoveFn
  */
 
-/** @param {UniqueMoveFn} callback */
+/**
+ * Registers a callback to be called when a unique component moves between
+ * locations in the DOM tree.
+ *
+ * This hook is useful for preserving custom state (like scroll position)
+ * during transitions, or for performing cleanup/setup around the move.
+ *
+ * The callback runs just before the component is moved. Return a function
+ * from the callback to run it after the move completes.
+ *
+ * @param {UniqueMoveFn} callback - A function to call before the component moves.
+ *   Can optionally return a cleanup function to run after the move completes.
+ *
+ * @example
+ * // Preserving focus during moves
+ * const SearchInput = createUnique(() => {
+ *   const inputRef = Cell.source(null);
+ *
+ *   onMove(() => {
+ *     const input = inputRef.get();
+ *     const wasFocused = input && document.activeElement === input;
+ *     return () => {
+ *       if (wasFocused && input) input.focus();
+ *     };
+ *   });
+ *
+ *   return <input ref={inputRef} type="search" placeholder="Search..." />;
+ * });
+ *
+ * @throws {Error} If called outside of a unique component subtree.
+ */
 export function onMove(callback) {
   try {
     const set = useScopeContext(UniqueScope);

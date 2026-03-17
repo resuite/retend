@@ -11,13 +11,11 @@ Managing these loading states manually (by creating boolean `isLoading` Cells an
 
 Retend solves this elegantly with the `<Await>` component. It creates an invisible boundary around parts of your app, automatically hiding those parts and showing a "fallback" UI until all the data they need has finished loading.
 
-_(Note: Unlike `If`, `For`, and `Switch` which are called as functions, `Await` is used as a JSX component with props because it wraps a section of your layout rather than producing a single value.)_
-
 ## Async Cells
 
 To use `<Await>`, you first need to understand **Async Cells**. A normal `Cell` holds a value instantly. An Async Cell, created using `Cell.derivedAsync()`, holds a Promise that will eventually become a value.
 
-When you pass an Async Cell into a control flow component like `<If>` or `<For>`, Retend automatically detects that it is waiting for data, and tells the nearest `<Await>` parent to pause rendering.
+When you use an async cell in your template, Retend automatically detects that it is waiting for data, and tells the nearest `<Await>` parent to pause rendering.
 
 ## Basic Usage
 
@@ -35,7 +33,7 @@ function UserProfile() {
 
   return (
     <div class="user-profile">
-      {/* 2. Because userData is an Async Cell, this <If> automatically
+      {/* 2. Because userData is an Async Cell, this If() automatically
              tells the parent <Await> to show the fallback until the fetch finishes. */}
       {If(userData, {
         true: (user) => (
