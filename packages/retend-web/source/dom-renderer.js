@@ -157,8 +157,7 @@ export class DOMRenderer {
     if (this.#isHydrationModeEnabled) {
       Ops.finalizeHydrationHandleSegment(handle);
     }
-    const id = this.#savedHandleId;
-    this.#savedHandleId += 1;
+    const id = this.#savedHandleId++;
     const nodes = [];
     let node = handle[0].nextSibling;
     while (node && node !== handle[1]) {
