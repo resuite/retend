@@ -5,6 +5,7 @@ import { getActiveRenderer, linkNodes, onMove } from 'retend';
 /**
  * @typedef ElementUIState
  * @property {Map<Element, DOMRect>} rects
+ * @property {Map<Animation, boolean>} wasPlaying Map of animation to whether it was playing before being paused.
  */
 
 /**
@@ -114,12 +115,18 @@ function saveState(handle) {
     element.removeAttribute('data-transitioning');
   }
 
+  /** @type {Map<Animation, boolean>} */
+  const wasPlaying = new Map();
+
   for (const element of elements) {
     const animations = element.getAnimations({ subtree: true });
-    for (const animation of animations) animation.pause();
+    for (const animation of animations) {
+      wasPlaying.set(animation, animation.playState === 'running');
+      animation.pause();
+    }
   }
 
-  return { rects };
+  return { rects, wasPlaying };
 }
 
 /**
@@ -146,12 +153,17 @@ function restoreTransition(elementState, handle, options) {
   }
   if (!anchor) return;
 
+  const { rects, wasPlaying } = elementState;
+
   for (const element of elements) {
     for (const animation of element.getAnimations({ subtree: true })) {
-      animation.play();
+      if (wasPlaying.get(animation)) {
+        requestAnimationFrame(() => {
+          animation.play();
+        });
+      }
     }
   }
-  const { rects } = elementState;
 
   const transition = parseTransitionOptions(
     transitionDuration,
