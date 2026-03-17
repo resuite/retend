@@ -270,6 +270,10 @@ export function createUnique(renderFn) {
             if (instance.idOfLastSavedHandle !== null) {
               renderer.restore(instance.idOfLastSavedHandle, last);
               runRestoreFns(instance);
+              // Reset to indicate the saved state has been used and we're ready
+              // for a new save cycle. This allows save() to call moveFns in
+              // subsequent moves after runPendingSetupEffects() has been called.
+              instance.idOfLastSavedHandle = null;
             }
           }
         };
