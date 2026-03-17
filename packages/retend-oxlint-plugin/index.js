@@ -362,18 +362,6 @@ const noGetInJsx = {
             return;
           }
 
-          if (parent.type === 'ArrowFunctionExpression') {
-            return;
-          }
-
-          if (parent.type === 'FunctionDeclaration') {
-            return;
-          }
-
-          if (parent.type === 'FunctionExpression') {
-            return;
-          }
-
           parent = parent.parent;
         }
       },
@@ -393,56 +381,62 @@ const noDerivedInJsx = {
     },
   },
   create(context) {
-    return {
-      CallExpression(node) {
-        if (node.callee.type !== 'MemberExpression') {
-          return;
+    const reported = new WeakSet();
+
+    const reportInlineDerived = (root) => {
+      const stack = [root];
+
+      while (stack.length > 0) {
+        const current = stack.pop();
+        if (!current) {
+          continue;
         }
 
-        if (node.callee.computed) {
-          return;
+        if (Array.isArray(current)) {
+          stack.push(...current);
+          continue;
         }
 
-        if (node.callee.object.type !== 'Identifier') {
-          return;
+        if (!(current instanceof Object)) {
+          continue;
         }
 
-        if (node.callee.object.name !== 'Cell') {
-          return;
-        }
-
-        if (node.callee.property.type !== 'Identifier') {
-          return;
-        }
-
-        if (node.callee.property.name !== 'derived') {
-          return;
-        }
-
-        let parent = node.parent;
-        while (parent) {
-          if (parent.type === 'JSXExpressionContainer') {
+        if (
+          current.type === 'CallExpression' &&
+          current.callee.type === 'MemberExpression' &&
+          !current.callee.computed &&
+          current.callee.object.type === 'Identifier' &&
+          current.callee.object.name === 'Cell' &&
+          current.callee.property.type === 'Identifier' &&
+          current.callee.property.name === 'derived'
+        ) {
+          if (!reported.has(current)) {
+            reported.add(current);
             context.report({
-              node: node.callee.property,
+              node: current.callee.property,
               messageId: 'unexpected',
             });
-            return;
           }
-
-          if (parent.type === 'ArrowFunctionExpression') {
-            return;
-          }
-
-          if (parent.type === 'FunctionDeclaration') {
-            return;
-          }
-
-          if (parent.type === 'FunctionExpression') {
-            return;
-          }
-
-          parent = parent.parent;
         }
+
+        for (const [key, value] of Object.entries(current)) {
+          if (key === 'parent') {
+            continue;
+          }
+
+          if (value instanceof Object) {
+            stack.push(value);
+          }
+        }
+      }
+    };
+
+    return {
+      JSXExpressionContainer(node) {
+        reportInlineDerived(node.expression);
+      },
+      ReturnStatement(node) {
+        reportInlineDerived(node.argument);
       },
     };
   },
