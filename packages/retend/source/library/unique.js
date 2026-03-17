@@ -105,17 +105,6 @@ const runRestoreFns = (inst) => {
   inst.restoreFns.length = 0;
 };
 
-// /**
-//  * @param {UniqueCtx} inst
-//  * @param {Map<any, UniqueCtx>} instances
-//  * @param {any} key
-//  */
-// const dispose = (inst, instances, key) => {
-//   inst.state.node.enable();
-//   inst.state.node.dispose();
-//   instances.delete(key);
-// };
-
 /**
  * Creates a component that preserves its identity and internal state
  * even when its position in the render tree changes. Rather than being destroyed
