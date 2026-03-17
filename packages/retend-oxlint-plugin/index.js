@@ -651,11 +651,11 @@ const componentStatementOrder = {
 const maxComponentLines = {
   meta: {
     docs: {
-      description: 'disallow JSX components longer than 150 lines',
+      description: 'disallow JSX components longer than 100 lines',
     },
     schema: [],
     messages: {
-      unexpected: 'Keep JSX components at 150 lines or fewer.',
+      unexpected: 'Keep JSX components at 100 lines or fewer.',
     },
   },
   create(context) {
@@ -666,7 +666,7 @@ const maxComponentLines = {
             continue;
           }
 
-          if (component.loc.end.line - component.loc.start.line + 1 <= 150) {
+          if (component.loc.end.line - component.loc.start.line + 1 <= 100) {
             continue;
           }
 
