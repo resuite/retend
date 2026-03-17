@@ -94,6 +94,7 @@ When you pass a function to `Cell.derived()`, Retend immediately runs it and wat
 - **No dependency arrays.** Retend figures out what you depend on by watching `.get()` calls.
 - **Read-only.** You can't call `.set()` on a derived Cell. They're for computing, not storing.
 - **Keep them pure.** Don't mutate the DOM, make network requests, or call `.set()` on other Cells inside a derivation.
+- **Hoist them before JSX.** Create the derived Cell in the component scope, then pass that Cell into JSX instead of calling `Cell.derived()` inline.
 
 ---
 

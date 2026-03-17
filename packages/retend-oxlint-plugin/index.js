@@ -381,6 +381,73 @@ const noGetInJsx = {
   },
 };
 
+const noDerivedInJsx = {
+  meta: {
+    docs: {
+      description: 'disallow Cell.derived() in JSX expressions',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Hoist `Cell.derived()` out of JSX into a variable in the parent scope.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (node.callee.type !== 'MemberExpression') {
+          return;
+        }
+
+        if (node.callee.computed) {
+          return;
+        }
+
+        if (node.callee.object.type !== 'Identifier') {
+          return;
+        }
+
+        if (node.callee.object.name !== 'Cell') {
+          return;
+        }
+
+        if (node.callee.property.type !== 'Identifier') {
+          return;
+        }
+
+        if (node.callee.property.name !== 'derived') {
+          return;
+        }
+
+        let parent = node.parent;
+        while (parent) {
+          if (parent.type === 'JSXExpressionContainer') {
+            context.report({
+              node: node.callee.property,
+              messageId: 'unexpected',
+            });
+            return;
+          }
+
+          if (parent.type === 'ArrowFunctionExpression') {
+            return;
+          }
+
+          if (parent.type === 'FunctionDeclaration') {
+            return;
+          }
+
+          if (parent.type === 'FunctionExpression') {
+            return;
+          }
+
+          parent = parent.parent;
+        }
+      },
+    };
+  },
+};
+
 const noJsxControlFlow = {
   meta: {
     docs: {
@@ -950,6 +1017,7 @@ export default {
     'no-templated-class': noTemplatedClass,
     'no-get-in-derived-async': noGetInDerivedAsync,
     'no-get-in-jsx': noGetInJsx,
+    'no-derived-in-jsx': noDerivedInJsx,
     'no-jsx-control-flow': noJsxControlFlow,
     'no-jsx-map': noJsxMap,
     'no-listen-in-onsetup': noListenInOnSetup,

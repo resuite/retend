@@ -41,6 +41,7 @@ console.log(doubled.get()); // 20
 - Recomputes only when dependencies change
 - Cannot be manually set (read-only)
 - Lazily evaluated (only computes when read)
+- Hoist `Cell.derived()` out of JSX and pass the derived cell into JSX instead of creating it inline
 
 **Methods:**
 
