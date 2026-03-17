@@ -280,6 +280,13 @@ export function createUnique(renderFn) {
       instance.idOfLastSavedHandle = null;
 
       return () => {
+        const hmrContext = __HMR_SYMBOLS.getHMRContext();
+        if (hmrContext?.current) {
+          instance.state.node.enable();
+          instance.state.node.dispose();
+          instances.delete(key);
+          return;
+        }
         // This detaches it from the parent node, preventing
         // dispose() from cascading, and keeping its context alive
         // when moved.
