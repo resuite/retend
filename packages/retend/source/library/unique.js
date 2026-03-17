@@ -195,10 +195,15 @@ export function createUnique(renderFn) {
 
     if (!instance) {
       // First Instance of createUnique, create normally.
-      const props = Cell.source(nextProps);
+      /** @type {SourceCell<UniqueProps<Props>>} */
+      let props;
       const state = branchState();
       const moveFns = new Set();
       const output = withState(state, () => {
+        // The cell is created here so that it persists within the unique
+        // state's context. Outside, it would belong to the parent context, and be
+        // destroyed when the parent context is destroyed.
+        props = Cell.source(nextProps);
         return UniqueScope.Provider({
           value: moveFns,
           children: () => renderFn(props),
@@ -210,6 +215,7 @@ export function createUnique(renderFn) {
       handle = renderer.createGroupHandle(group);
 
       instance = {
+        // @ts-expect-error - props is assigned within withState.
         props,
         state,
         moveFns,
