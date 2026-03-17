@@ -59,9 +59,9 @@ const UniqueScope = createScope('Unique');
 
 /**
  * Registers a callback to be called when a unique component moves between
- * locations in the DOM tree.
+ * locations in the render tree.
  *
- * This hook is useful for preserving custom state (like scroll position)
+ * This hook is useful for preserving custom state
  * during transitions, or for performing cleanup/setup around the move.
  *
  * The callback runs just before the component is moved. Return a function
