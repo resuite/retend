@@ -498,21 +498,35 @@ describe('Unique', () => {
           </Await>
         )
       );
-      await runPendingSetupEffects();
 
       resolveReady();
       await timeout();
       expect(getTextContent(body.querySelector('.first')!)).toBe(
         'First:Unique Data'
       );
+      await runPendingSetupEffects();
+      await runPendingSetupEffects();
 
-      showFirst.set(false);
       showSecond.set(true);
+
+      await runPendingSetupEffects();
 
       expect(getTextContent(body.querySelector('.first')!)).toBe('First:');
       expect(getTextContent(body.querySelector('.second')!)).toBe(
         'Second:Unique Data'
       );
+
+      showSecond.set(false);
+
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.second')!)).toBe('Second:');
+      expect(getTextContent(body.querySelector('.first')!)).toBe(
+        'First:Unique Data'
+      );
+
+      // showSecond.set(false);
+
       body.replaceChildren();
     });
 
