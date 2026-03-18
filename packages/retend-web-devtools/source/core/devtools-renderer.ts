@@ -27,7 +27,6 @@ const controlFlowNames = new Set([
   'Switch.Case',
   'Outlet.Content',
   'Await.Content',
-  'Unique.Content',
 ]);
 
 export class DevToolsDOMRenderer extends DOMRenderer {
