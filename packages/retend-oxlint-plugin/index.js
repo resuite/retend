@@ -354,6 +354,23 @@ const noGetInJsx = {
 
         let parent = node.parent;
         while (parent) {
+          if (
+            parent.type === 'CallExpression' &&
+            parent.callee.type === 'MemberExpression' &&
+            !parent.callee.computed &&
+            parent.callee.object.type === 'Identifier' &&
+            parent.callee.object.name === 'Cell' &&
+            parent.callee.property.type === 'Identifier'
+          ) {
+            if (parent.callee.property.name === 'derived') {
+              return;
+            }
+
+            if (parent.callee.property.name === 'derivedAsync') {
+              return;
+            }
+          }
+
           if (parent.type === 'JSXExpressionContainer') {
             context.report({
               node: node.callee.property,
