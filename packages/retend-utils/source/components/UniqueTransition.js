@@ -5,7 +5,18 @@ import { getActiveRenderer, linkNodes, onMove } from 'retend';
 /**
  * @typedef ElementUIState
  * @property {Map<Element, DOMRect>} rects
- * @property {Map<Animation, boolean>} wasPlaying Map of animation to whether it was playing before being paused.
+ * @property {ElementAnimationState[]} animations
+ */
+
+/**
+ * @typedef ElementAnimationState
+ * @property {Animation} animation
+ * @property {Element} element
+ * @property {boolean} playing
+ * @property {CSSNumberish | null} currentTime
+ * @property {Keyframe[]} keyframes
+ * @property {EffectTiming} timing
+ * @property {CompositeOperationOrAuto} composite
  */
 
 /**
@@ -115,18 +126,32 @@ function saveState(handle) {
     rects.set(element, element.getBoundingClientRect());
   }
 
-  /** @type {Map<Animation, boolean>} */
-  const wasPlaying = new Map();
+  /** @type {ElementAnimationState[]} */
+  const animations = [];
 
   for (const element of elements) {
-    const animations = element.getAnimations({ subtree: true });
-    for (const animation of animations) {
-      wasPlaying.set(animation, animation.playState === 'running');
+    const currentAnimations = element.getAnimations({ subtree: true });
+    for (const animation of currentAnimations) {
+      const effect = /** @type {KeyframeEffect | null} */ (animation.effect);
+      if (!effect) continue;
+      const target = effect?.target;
+      if (!(target instanceof Element)) continue;
+      /** @type {ElementAnimationState} */
+      const state = {
+        animation,
+        element: target,
+        playing: animation.playState === 'running',
+        currentTime: animation.currentTime,
+        keyframes: effect.getKeyframes(),
+        timing: effect.getTiming(),
+        composite: effect.composite,
+      };
+      animations.push(state);
       animation.pause();
     }
   }
 
-  return { rects, wasPlaying };
+  return { rects, animations };
 }
 
 /**
@@ -154,17 +179,28 @@ function restoreTransition(elementState, handle, options) {
   }
   if (!anchor) return;
 
-  const { rects, wasPlaying } = elementState;
+  const { rects, animations } = elementState;
 
-  for (const element of elements) {
-    for (const animation of element.getAnimations({ subtree: true })) {
-      if (wasPlaying.get(animation)) {
-        requestAnimationFrame(() => {
-          animation.play();
-        });
+  requestAnimationFrame(() => {
+    for (const state of animations) {
+      state.animation.cancel();
+      const effect = new KeyframeEffect(
+        state.element,
+        state.keyframes,
+        state.timing
+      );
+      if (state.composite !== 'auto') {
+        effect.composite = state.composite;
       }
+      const currentAnimation = new Animation(
+        effect,
+        state.element.ownerDocument.timeline
+      );
+      currentAnimation.currentTime = state.currentTime;
+      if (state.playing) currentAnimation.play();
+      else currentAnimation.pause();
     }
-  }
+  });
 
   const transition = parseTransitionOptions(
     transitionDuration,

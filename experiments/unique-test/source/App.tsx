@@ -1,14 +1,7 @@
+/// <reference types="retend-web/jsx-runtime" />
 import type { JSX } from 'retend/jsx-runtime';
 
-import {
-  Cell,
-  createUnique,
-  For,
-  If,
-  onConnected,
-  onSetup,
-  type SourceCell,
-} from 'retend';
+import { Cell, createUnique, For, If, onSetup, type SourceCell } from 'retend';
 import { UniqueTransition } from 'retend-utils/components';
 
 const appStyles: JSX.StyleValue = {
@@ -58,13 +51,6 @@ const Box = createUnique(() => {
   const count = Cell.source(0);
   const ref = Cell.source<HTMLElement | null>(null);
 
-  onConnected(ref, (div) => {
-    div.animate(
-      { rotate: ['0deg', '360deg'] },
-      { duration: 600, iterations: Infinity }
-    );
-  });
-
   onSetup(() => {
     const intervalId = setInterval(() => {
       count.set(count.get() + 1);
@@ -77,9 +63,21 @@ const Box = createUnique(() => {
       transitionDuration="250ms"
       transitionTimingFunction="ease-in-out"
     >
+      <style>
+        {`
+        .div {
+          animation: rotate 6s linear infinite;
+        }
+
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        `}
+      </style>
       <p class={paragraphStyles}>Stray Element.</p>
       <div style={contentStyles}>
-        <div ref={ref} style={innerContentStyles}>
+        <div ref={ref} class="div" style={innerContentStyles}>
           {count}
         </div>
       </div>
