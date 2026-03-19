@@ -5,18 +5,14 @@ import { getActiveRenderer, linkNodes, onMove } from 'retend';
 /**
  * @typedef ElementUIState
  * @property {Map<Element, DOMRect>} rects
- * @property {ElementAnimationState[]} animations
+ * @property {ElementAnimationState[]} animationState
  */
 
 /**
  * @typedef ElementAnimationState
- * @property {Animation} animation
- * @property {Element} element
- * @property {boolean} playing
+ * @property {Element} target
+ * @property {string} animationName
  * @property {CSSNumberish | null} currentTime
- * @property {Keyframe[]} keyframes
- * @property {EffectTiming} timing
- * @property {CompositeOperationOrAuto} composite
  */
 
 /**
@@ -127,31 +123,24 @@ function saveState(handle) {
   }
 
   /** @type {ElementAnimationState[]} */
-  const animations = [];
+  const animationState = [];
 
   for (const element of elements) {
     const currentAnimations = element.getAnimations({ subtree: true });
-    for (const animation of currentAnimations) {
-      const effect = /** @type {KeyframeEffect | null} */ (animation.effect);
-      if (!effect) continue;
-      const target = effect?.target;
-      if (!(target instanceof Element)) continue;
-      /** @type {ElementAnimationState} */
-      const state = {
-        animation,
-        element: target,
-        playing: animation.playState === 'running',
-        currentTime: animation.currentTime,
-        keyframes: effect.getKeyframes(),
-        timing: effect.getTiming(),
-        composite: effect.composite,
-      };
-      animations.push(state);
-      animation.pause();
+    for (const a of currentAnimations) {
+      if (!(a instanceof CSSAnimation)) continue;
+      const { effect } = a;
+      if (!(effect instanceof KeyframeEffect) || !effect.target) continue;
+
+      animationState.push({
+        target: effect.target,
+        animationName: a.animationName,
+        currentTime: a.currentTime,
+      });
     }
   }
 
-  return { rects, animations };
+  return { rects, animationState };
 }
 
 /**
@@ -179,32 +168,26 @@ function restoreTransition(elementState, handle, options) {
   }
   if (!anchor) return;
 
-  const { rects, animations } = elementState;
+  const { rects, animationState } = elementState;
 
   requestAnimationFrame(() => {
-    for (const state of animations) {
-      if (state.animation instanceof CSSTransition) {
-        state.animation.currentTime = state.currentTime;
-        if (state.playing) state.animation.play();
-        else state.animation.pause();
-        continue;
+    const newAnimations = elements.flatMap((element) => {
+      return element.getAnimations({ subtree: true });
+    });
+
+    for (const newAnimation of newAnimations) {
+      if (!(newAnimation instanceof CSSAnimation)) continue;
+
+      const savedState = animationState.find((s) => {
+        if (!(newAnimation.effect instanceof KeyframeEffect)) return false;
+        return (
+          s.animationName === newAnimation.animationName &&
+          s.target === newAnimation.effect.target
+        );
+      });
+      if (savedState) {
+        newAnimation.currentTime = savedState.currentTime;
       }
-      state.animation.cancel();
-      const effect = new KeyframeEffect(
-        state.element,
-        state.keyframes,
-        state.timing
-      );
-      if (state.composite !== 'auto') {
-        effect.composite = state.composite;
-      }
-      const currentAnimation = new Animation(
-        effect,
-        state.element.ownerDocument.timeline
-      );
-      currentAnimation.currentTime = state.currentTime;
-      if (state.playing) currentAnimation.play();
-      else currentAnimation.pause();
     }
   });
 
@@ -262,14 +245,16 @@ function restoreTransition(elementState, handle, options) {
         element.style.setProperty('transform-origin', transformOrigin);
       }
       element.setAttribute('data-transitioning', '');
-      const animation = element.animate(
-        { transform: [initialTransform, 'none'] },
-        transition
-      );
+      const animation =
+        /** @type {Animation & { __retendUniqueTransition?: string }} */ (
+          element.animate({ transform: [initialTransform, 'none'] }, transition)
+        );
+      animation.__retendUniqueTransition = 'flip';
       if (element instanceof HTMLElement) {
         element.style.removeProperty('transform');
       }
       animation.finished.finally(() => {
+        animation.cancel();
         element.removeAttribute('data-transitioning');
         if (element instanceof HTMLElement) {
           element.style.removeProperty('transform-origin');

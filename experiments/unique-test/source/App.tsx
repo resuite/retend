@@ -16,8 +16,9 @@ const appStyles: JSX.StyleValue = {
 };
 
 const contentStyles: JSX.StyleValue = {
-  height: '100%',
+  height: '80%',
   aspectRatio: '1',
+  borderRadius: '13px',
 };
 
 const innerContentStyles: JSX.StyleValue = {
@@ -43,13 +44,8 @@ const buttonStyles: JSX.StyleValue = {
   padding: '0',
 };
 
-const paragraphStyles: JSX.StyleValue = {
-  margin: '0',
-};
-
 const Box = createUnique(() => {
   const count = Cell.source(0);
-  const ref = Cell.source<HTMLElement | null>(null);
 
   onSetup(() => {
     const intervalId = setInterval(() => {
@@ -66,19 +62,34 @@ const Box = createUnique(() => {
       <style>
         {`
         .div {
-          animation: rotate 6s linear infinite;
+          animation: rotate 4s linear infinite, pulse 3s linear infinite;
+        }
+
+        .content {
+          animation: bloom 10s linear;
         }
 
         @keyframes rotate {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+
+        @keyframes pulse {
+          from { background-color: orange }
+          50% { background-color: yellow }
+          to { background-color: orange }
+        }
+
+        @keyframes bloom {
+          from { transform: scale(0.8); }
+          50% { transform: scale(1.2); }
+          to { transform: scale(1); }
+        }
         `}
       </style>
-      <p class={paragraphStyles}>Stray Element.</p>
       <div style={contentStyles}>
-        <div ref={ref} class="div" style={innerContentStyles}>
-          {count}
+        <div class="content" style={innerContentStyles}>
+          <div class="div">{count}</div>
         </div>
       </div>
     </UniqueTransition>
