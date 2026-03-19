@@ -9,7 +9,6 @@ import {
   runPendingSetupEffects,
 } from 'retend';
 import { UniqueTransition } from 'retend-utils/components';
-
 import {
   Router,
   createRouterRoot,
@@ -215,7 +214,8 @@ describe('Router Unique', () => {
       );
       return If(paintingId, (id: string) => (
         <div>
-          Child:[<Stage />]
+          Child:[
+          <Stage />]
           <Title id={`painting-title-${id}`} label={`Title ${id}`} />
         </div>
       ));
@@ -237,7 +237,8 @@ describe('Router Unique', () => {
               const { Outlet } = useRouter();
               return (
                 <div>
-                  Parent:[<Stage />]
+                  Parent:[
+                  <Stage />]
                   <CollectionPanel />
                   <Outlet />
                 </div>
