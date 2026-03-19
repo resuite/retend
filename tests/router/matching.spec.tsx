@@ -1,6 +1,6 @@
 import type { DOMRenderer } from 'retend-web';
 
-import { getActiveRenderer } from 'retend';
+import { createUnique, getActiveRenderer } from 'retend';
 import {
   Router,
   createRouterRoot,
@@ -479,6 +479,70 @@ describe('Router Matching', () => {
     expect(route.get().name).toBe('home');
     expect(getTextContent(window.document.body)).toBe(
       'This is the home page. Content: '
+    );
+  });
+
+  it('should move Unique components across routing layers and outlets', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const UniqueContent = createUnique(() => {
+      return <>Unique Data</>;
+    });
+    const routes = defineRoutes([
+      {
+        name: 'parent',
+        path: '/',
+        component: () => {
+          const { Outlet } = useRouter();
+          return (
+            <>
+              Parent:[
+              <UniqueContent id="unique-route" />]
+              <Outlet />
+            </>
+          );
+        },
+        children: [
+          {
+            name: 'child',
+            path: 'child',
+            component: () => {
+              const { Outlet } = useRouter();
+              return (
+                <>
+                  Child:[
+                  <Outlet />]
+                </>
+              );
+            },
+            children: [
+              {
+                name: 'child-index',
+                path: '',
+                component: () => <>Index</>,
+              },
+              {
+                name: 'grandchild',
+                path: 'grandchild',
+                component: () => (
+                  <>
+                    Grandchild:[
+                    <UniqueContent id="unique-route" />]
+                  </>
+                ),
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const router = new Router({ routes });
+    router.attachWindowListeners(window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/child/grandchild');
+    expect(getTextContent(window.document.body)).toBe(
+      'Parent:[]Child:[Grandchild:[Unique Data]]'
     );
   });
 });
