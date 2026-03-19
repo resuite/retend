@@ -6,6 +6,7 @@ import { getActiveRenderer, linkNodes, onMove } from 'retend';
  * @typedef ElementUIState
  * @property {Map<Element, DOMRect>} rects
  * @property {ElementAnimationState[]} animationState
+ * @property {CSSTransition[]} transitions
  */
 
 /**
@@ -124,11 +125,15 @@ function saveState(handle) {
 
   /** @type {ElementAnimationState[]} */
   const animationState = [];
+  const transitions = [];
 
   for (const element of elements) {
     const currentAnimations = element.getAnimations({ subtree: true });
     for (const a of currentAnimations) {
-      if (!(a instanceof CSSAnimation)) continue;
+      if (!(a instanceof CSSAnimation)) {
+        if (a instanceof CSSTransition) transitions.push(a);
+        continue;
+      }
       const { effect } = a;
       if (!(effect instanceof KeyframeEffect) || !effect.target) continue;
 
@@ -140,7 +145,7 @@ function saveState(handle) {
     }
   }
 
-  return { rects, animationState };
+  return { rects, animationState, transitions };
 }
 
 /**
@@ -168,7 +173,7 @@ function restoreTransition(elementState, handle, options) {
   }
   if (!anchor) return;
 
-  const { rects, animationState } = elementState;
+  const { rects, animationState, transitions } = elementState;
 
   requestAnimationFrame(() => {
     const newAnimations = elements.flatMap((element) => {
@@ -188,6 +193,20 @@ function restoreTransition(elementState, handle, options) {
       if (savedState) {
         newAnimation.currentTime = savedState.currentTime;
       }
+    }
+
+    for (const transition of transitions) {
+      if (
+        !(transition.effect instanceof KeyframeEffect) ||
+        !transition.effect.target
+      ) {
+        continue;
+      }
+      const target = transition.effect.target;
+      target.animate(
+        transition.effect.getKeyframes(),
+        transition.effect.getTiming()
+      );
     }
   });
 
@@ -245,11 +264,10 @@ function restoreTransition(elementState, handle, options) {
         element.style.setProperty('transform-origin', transformOrigin);
       }
       element.setAttribute('data-transitioning', '');
-      const animation =
-        /** @type {Animation & { __retendUniqueTransition?: string }} */ (
-          element.animate({ transform: [initialTransform, 'none'] }, transition)
-        );
-      animation.__retendUniqueTransition = 'flip';
+      const animation = element.animate(
+        { transform: [initialTransform, 'none'] },
+        transition
+      );
       if (element instanceof HTMLElement) {
         element.style.removeProperty('transform');
       }
