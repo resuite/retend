@@ -183,6 +183,12 @@ function restoreTransition(elementState, handle, options) {
 
   requestAnimationFrame(() => {
     for (const state of animations) {
+      if (state.animation instanceof CSSTransition) {
+        state.animation.currentTime = state.currentTime;
+        if (state.playing) state.animation.play();
+        else state.animation.pause();
+        continue;
+      }
       state.animation.cancel();
       const effect = new KeyframeEffect(
         state.element,
