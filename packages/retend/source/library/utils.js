@@ -34,7 +34,7 @@ export function createNodesFromTemplate(children, renderer) {
     }
 
     if (renderer.isGroup(child)) {
-      nodes.push(...renderer.unwrapGroup(child));
+      nodes.push(child);
       continue;
     }
 
