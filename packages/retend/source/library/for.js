@@ -242,7 +242,7 @@ export function For(list, fn, options) {
     };
 
     if (list instanceof AsyncCell) useAwait()?.waitUntil(list);
-    list.listen(reactToListChanges);
+    list.listen(reactToListChanges, { priority: -1 });
 
     /** @type {ReturnType<typeof renderer.createGroupHandle>} */
     let handle;
