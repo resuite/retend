@@ -50,18 +50,29 @@ function getTopLevelJsxComponents(program) {
   const components = [];
 
   for (const statement of program.body) {
-    let component = null;
+    let node = statement;
 
     if (
-      statement.type === 'FunctionDeclaration' &&
-      statement.id?.name &&
-      /^[A-Z]/u.test(statement.id.name)
+      statement.type === 'ExportDefaultDeclaration' ||
+      statement.type === 'ExportNamedDeclaration'
     ) {
-      component = statement;
+      if (!statement.declaration) {
+        continue;
+      }
+
+      node = statement.declaration;
     }
 
-    if (statement.type === 'VariableDeclaration') {
-      for (const declaration of statement.declarations) {
+    const candidates = [];
+
+    if (node.type === 'FunctionDeclaration' && node.id?.name) {
+      if (/^[A-Z]/u.test(node.id.name)) {
+        candidates.push(node);
+      }
+    }
+
+    if (node.type === 'VariableDeclaration') {
+      for (const declaration of node.declarations) {
         if (declaration.id.type !== 'Identifier') {
           continue;
         }
@@ -76,38 +87,32 @@ function getTopLevelJsxComponents(program) {
           }
         }
 
-        component = declaration.init;
+        candidates.push(declaration.init);
       }
     }
 
-    if (!component) {
-      continue;
-    }
+    for (const component of candidates) {
+      let containsJsx = false;
+      walkOwnBody(component.body, (current) => {
+        if (current.type === 'JSXElement') {
+          containsJsx = true;
+          return false;
+        }
 
-    if (component.body.type !== 'BlockStatement') {
-      continue;
-    }
+        if (current.type === 'JSXFragment') {
+          containsJsx = true;
+          return false;
+        }
 
-    let containsJsx = false;
-    walkOwnBody(component.body, (current) => {
-      if (current.type === 'JSXElement') {
-        containsJsx = true;
-        return false;
+        return true;
+      });
+
+      if (!containsJsx) {
+        continue;
       }
 
-      if (current.type === 'JSXFragment') {
-        containsJsx = true;
-        return false;
-      }
-
-      return true;
-    });
-
-    if (!containsJsx) {
-      continue;
+      components.push(component);
     }
-
-    components.push(component);
   }
 
   return components;
@@ -203,6 +208,11 @@ const propsDestructureFirst = {
           }
 
           if (propsParam.type !== 'Identifier') {
+            continue;
+          }
+
+          if (component.body.type !== 'BlockStatement') {
+            context.report({ node: component.body, messageId: 'destructure' });
             continue;
           }
 
@@ -548,6 +558,10 @@ const componentStatementOrder = {
     return {
       Program(node) {
         for (const component of getTopLevelJsxComponents(node)) {
+          if (component.body.type !== 'BlockStatement') {
+            continue;
+          }
+
           let lastOrder = -1;
 
           for (const bodyStatement of component.body.body) {

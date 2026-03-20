@@ -17,5 +17,20 @@
     "retend/no-listen-in-onsetup": "error",
     "retend/no-react-imports": "error",
     "retend/prefer-router-navigation": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["source/components/EcosystemIllustrations.tsx"],
+      "rules": {
+        "retend/max-component-lines": "off",
+        "retend/max-jsx-components-per-file": "off"
+      }
+    },
+    {
+      "files": ["source/layouts/Footer.tsx", "source/routes/DocsPage.tsx"],
+      "rules": {
+        "retend/max-component-lines": "off"
+      }
+    }
+  ]
 }

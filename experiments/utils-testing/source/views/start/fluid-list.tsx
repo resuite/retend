@@ -24,7 +24,7 @@ const removeBox = (id: number) => {
 };
 
 const shuffleBoxes = () => {
-  const shuffledBoxes = [...boxes.get()].sort(() => Math.random() - 0.5);
+  const shuffledBoxes = boxes.get().toSorted(() => Math.random() - 0.5);
   boxes.set(shuffledBoxes);
 };
 
