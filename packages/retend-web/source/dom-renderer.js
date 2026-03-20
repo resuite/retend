@@ -634,6 +634,35 @@ export class DOMRenderer {
         continue;
       }
 
+      if (
+        node instanceof DeferredHandleSymbol &&
+        node.sourceArray.length === 1
+      ) {
+        const boundary = node.sourceArray[0];
+        if (
+          boundary?.nodeType === COMMENT_NODE &&
+          boundary.textContent === '['
+        ) {
+          const range = this.#findSerializedRangeCloseComment(boundary);
+          if (range) {
+            node.sourceArray.push(range.close);
+            nodeIndex++;
+            continue;
+          }
+        }
+        if (
+          boundary?.nodeType === COMMENT_NODE &&
+          boundary.textContent === ']'
+        ) {
+          const range = this.#findSerializedRangeOpenComment(boundary);
+          if (range) {
+            node.sourceArray.unshift(range.open);
+            nodeIndex++;
+            continue;
+          }
+        }
+      }
+
       // @ts-expect-error
       if (node instanceof Text && node.__isReactive) {
         if (domNode?.nodeType === TEXT_NODE) {
@@ -689,6 +718,27 @@ export class DOMRenderer {
       }
       cursor = cursor.nextSibling;
       offset += 1;
+    }
+    return null;
+  }
+
+  /**
+   * @param {Comment} endComment
+   * @returns {{ open: Comment } | null}
+   */
+  #findSerializedRangeOpenComment(endComment) {
+    if (endComment.textContent !== ']') return null;
+    let depth = 1;
+    let cursor = endComment.previousSibling;
+    while (cursor) {
+      if (cursor.nodeType === COMMENT_NODE) {
+        if (cursor.textContent === ']') depth += 1;
+        else if (cursor.textContent === '[') {
+          depth -= 1;
+          if (depth === 0) return { open: /** @type {Comment} */ (cursor) };
+        }
+      }
+      cursor = cursor.previousSibling;
     }
     return null;
   }

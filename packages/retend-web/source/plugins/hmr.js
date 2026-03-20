@@ -165,10 +165,10 @@ export function withHMRBoundaries(tagname, props, fileData, renderer) {
   // In Dev mode and using HMR, components have a self-referential
   // Invalidator cell, which should automatically trigger a rerun of
   // the component.
-  let invalidator = tagname[__HMR_SYMBOLS.ComponentInvalidator];
+  let invalidator = Reflect.get(tagname, __HMR_SYMBOLS.ComponentInvalidator);
   if (!invalidator) {
     invalidator = Cell.source(tagname);
-    tagname[__HMR_SYMBOLS.ComponentInvalidator] = invalidator;
+    Reflect.set(tagname, __HMR_SYMBOLS.ComponentInvalidator, invalidator);
   }
   return runInvalidatorWithHMRBoundaries(invalidator, props, renderer);
 }
