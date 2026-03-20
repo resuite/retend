@@ -796,12 +796,12 @@ export class DOMRenderer {
   #getHydrationState() {
     if (!this.#isHydrationModeEnabled) return null;
     const hydration = getState().data;
-    if (!hydration) {
+    if (!hydration || !hydration.hydrating) {
       return this.#hydratingBranchCount > 0
         ? { cursor: 0, renderDepth: 0, pendingHydrations: 0, hydrating: true }
         : null;
     }
-    return hydration.hydrating ? hydration : null;
+    return hydration;
   }
 }
 
