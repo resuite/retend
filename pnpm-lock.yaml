@@ -173,6 +173,34 @@ importers:
         specifier: ^6.2.1
         version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
 
+  experiments/utils-testing:
+    dependencies:
+      retend:
+        specifier: workspace:*
+        version: link:../../packages/retend
+      retend-server:
+        specifier: workspace:*
+        version: link:../../packages/retend-server
+      retend-utils:
+        specifier: workspace:*
+        version: link:../../packages/retend-utils
+      retend-web:
+        specifier: workspace:*
+        version: link:../../packages/retend-web
+      retend-web-devtools:
+        specifier: workspace:*
+        version: link:../../packages/retend-web-devtools
+    devDependencies:
+      '@types/node':
+        specifier: latest
+        version: 25.5.0
+      typescript:
+        specifier: ^5.5.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.2.1
+        version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
+
   packages/retend:
     dependencies:
       '@adbl/cells':
@@ -5803,11 +5831,11 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/bonjour@3.5.13':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/chai@5.2.3':
     dependencies:
@@ -5817,11 +5845,11 @@ snapshots:
   '@types/connect-history-api-fallback@1.5.4':
     dependencies:
       '@types/express-serve-static-core': 4.19.8
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/debug@4.1.12':
     dependencies:
@@ -5837,7 +5865,7 @@ snapshots:
 
   '@types/express-serve-static-core@4.19.8':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
       '@types/qs': 6.15.0
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
@@ -5857,7 +5885,7 @@ snapshots:
 
   '@types/http-proxy@1.17.17':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/json-schema@7.0.15': {}
 
@@ -5873,7 +5901,7 @@ snapshots:
 
   '@types/node-forge@1.3.14':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/node@16.9.1': {}
 
@@ -5900,11 +5928,11 @@ snapshots:
   '@types/send@0.17.6':
     dependencies:
       '@types/mime': 1.3.5
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/serve-index@1.9.4':
     dependencies:
@@ -5913,12 +5941,12 @@ snapshots:
   '@types/serve-static@1.15.10':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
       '@types/send': 0.17.6
 
   '@types/sockjs@0.3.36':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@types/unist@2.0.11': {}
 
@@ -5926,7 +5954,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 25.5.0
 
   '@ungap/structured-clone@1.3.0': {}
 
