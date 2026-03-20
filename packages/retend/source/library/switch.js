@@ -118,13 +118,10 @@ export function Switch(value, cases, defaultCase) {
     };
 
     // It is important that the listener is registered first.
-    value.listen(
-      (nextValue) => {
-        if (nextValue instanceof Promise) nextValue.then(processValueChange);
-        else processValueChange(nextValue);
-      },
-      { priority: -1 }
-    );
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
+    });
 
     const initialValue = value.get();
     /** @type {ReturnType<typeof renderer.createGroupHandle>} */
@@ -249,13 +246,10 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
     };
 
     // It is important that the listener is registered first.
-    value.listen(
-      (nextValue) => {
-        if (nextValue instanceof Promise) nextValue.then(processValueChange);
-        else processValueChange(nextValue);
-      },
-      { priority: -1 }
-    );
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
+    });
 
     const initialValue = value.get();
     /** @type {ReturnType<typeof renderer.createGroupHandle>} */

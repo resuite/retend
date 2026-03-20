@@ -158,13 +158,10 @@ export function If(value, fnOrObject, elseFn) {
     };
 
     // It is important that the listener is registered first.
-    value.listen(
-      (nextValue) => {
-        if (nextValue instanceof Promise) nextValue.then(processValueChange);
-        else processValueChange(nextValue);
-      },
-      { priority: -1 }
-    );
+    value.listen((nextValue) => {
+      if (nextValue instanceof Promise) nextValue.then(processValueChange);
+      else processValueChange(nextValue);
+    });
 
     const initialValue = value.get();
 
