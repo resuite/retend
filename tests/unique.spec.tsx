@@ -233,6 +233,50 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should not run onMove when removing an older Unique handle', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const moveFn = vi.fn();
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(true);
+
+      const UniqueContent = createUnique(() => {
+        onMove(() => moveFn());
+        return <div>Unique Data</div>;
+      });
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              {If(showFirst, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      moveFn.mockClear();
+      showFirst.set(false);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('');
+      expect(getTextContent(body.querySelector('.second')!)).toBe(
+        'Unique Data'
+      );
+      expect(moveFn).not.toHaveBeenCalled();
+      body.replaceChildren();
+    });
+
     it('should move a Unique component that returns multiple elements', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;

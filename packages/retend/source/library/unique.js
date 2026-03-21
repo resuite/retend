@@ -284,8 +284,12 @@ export function createUnique(renderFn) {
         // This detaches it from the parent node, preventing
         // dispose() from cascading, and keeping its context alive
         // when moved.
-        instance.state.node.disable();
-        instance.idOfLastSavedHandle = save(instance, renderer);
+        const isLastHandle =
+          instance.journey[instance.journey.length - 1][0] === handle;
+        if (isLastHandle) {
+          instance.state.node.disable();
+          instance.idOfLastSavedHandle = save(instance, renderer);
+        }
 
         const teardown = () => {
           const index = instance.journey.findIndex(([item]) => item === handle);
@@ -305,7 +309,7 @@ export function createUnique(renderFn) {
             // There is no forward handle to restore, so we restore to the last one in the journey.
             const [last, lastProps] =
               instance.journey[instance.journey.length - 1];
-            if (instance.idOfLastSavedHandle !== null) {
+            if (isLastHandle && instance.idOfLastSavedHandle !== null) {
               instance.props.set(lastProps);
               renderer.restore(instance.idOfLastSavedHandle, last);
               runRestoreFns(instance);

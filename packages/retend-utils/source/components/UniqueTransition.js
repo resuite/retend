@@ -1,6 +1,7 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-/** @import { DOMRenderer } from 'retend-web' */
+
 import { getActiveRenderer, linkNodes, onMove } from 'retend';
+import { DOMRenderer } from 'retend-web';
 
 /**
  * @typedef ElementUIState
@@ -346,6 +347,7 @@ export function UniqueTransition(props) {
   const handle = renderer.createGroupHandle(group);
 
   onMove(() => {
+    if (!(renderer instanceof DOMRenderer)) return;
     const state = saveState(handle);
     if (!state) return;
     return () => {
