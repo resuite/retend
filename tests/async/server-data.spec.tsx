@@ -28,8 +28,8 @@ describe('serverResource', () => {
       await timeout(10);
       return 'Ada';
     });
-    const first = serverResource(() => 'user', load);
-    const second = serverResource(() => 'user', load);
+    const first = Cell.derivedAsync(async () => serverResource('user', load));
+    const second = Cell.derivedAsync(async () => serverResource('user', load));
     const pending = Promise.all([first.get(), second.get()]);
 
     await vi.runAllTimersAsync();
@@ -41,15 +41,16 @@ describe('serverResource', () => {
 
   it('resumes from serialized data and refetches when the key changes', async () => {
     const name = Cell.source('Ada');
-    const load = vi.fn(async (get) => {
-      const value = get(name);
+    const load = vi.fn(async (value) => {
       await timeout(10);
       return `Hello ${value}`;
     });
     setGlobalContext({
       globalData: new Map([['env:ssr', true]]),
     });
-    const serverValue = serverResource((get) => ['greeting', get(name)], load);
+    const serverValue = Cell.derivedAsync(async (get) =>
+      serverResource(['greeting', get(name)], () => load(get(name)))
+    );
     const initial = serverValue.get();
 
     await vi.runAllTimersAsync();
@@ -65,7 +66,9 @@ describe('serverResource', () => {
         [Symbol.for('retend:server-data'), new Map(Object.entries(serialized))],
       ]),
     });
-    const clientValue = serverResource((get) => ['greeting', get(name)], load);
+    const clientValue = Cell.derivedAsync(async (get) =>
+      serverResource(['greeting', get(name)], () => load(get(name)))
+    );
 
     expect(await clientValue.get()).toBe('Hello Ada');
     expect(load).toHaveBeenCalledTimes(1);

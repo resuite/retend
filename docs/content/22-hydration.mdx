@@ -69,3 +69,42 @@ hydrate(createRouter, {
 In development, `hydrate` behaves differently. Since there's no pre-rendered HTML during `vite dev`, it falls back to normal client-side rendering (SPA mode). This means you can use the same entry point for both development and production without any conditional logic.
 
 If the server context script tag (`<script data-server-context>`) is missing when running in production, `hydrate` logs a warning and falls back to SPA mode automatically.
+
+## `serverResource`
+
+If you need data to load during SSR, serialize into the hydration payload, and resume on the client, use `serverResource` from `retend-server`.
+
+```tsx
+import { Cell, If } from 'retend';
+import { serverResource } from 'retend-server';
+
+function UserPage(props) {
+  const user = Cell.derivedAsync(async () =>
+    serverResource(['user', props.userId], () =>
+      fetch(`/api/users/${props.userId}`).then((response) => response.json())
+    )
+  );
+
+  return If(user, {
+    true: (value) => <h1>{value.name}</h1>,
+  });
+}
+```
+
+The first argument defines the cache key. If that key depends on reactive values, put `serverResource` inside `Cell.derivedAsync()` and read those values there so the async cell can refetch when the key changes.
+
+```tsx
+import { Cell, If } from 'retend';
+import { serverResource } from 'retend-server';
+
+const name = Cell.source('Ada');
+const greeting = Cell.derivedAsync(async (get) =>
+  serverResource(['greeting', get(name)], () => `Hello ${get(name)}`)
+);
+
+function Greeting() {
+  return If(greeting, {
+    true: (value) => <p>{value}</p>,
+  });
+}
+```
