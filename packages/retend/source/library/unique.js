@@ -244,6 +244,7 @@ export function createUnique(renderFn) {
           instance.journey.push([handle, nextProps]);
           instance.idOfLastSavedHandle = renderer.save(previousHandle);
           renderer.restore(instance.idOfLastSavedHandle, handle);
+          instance.idOfLastSavedHandle = null;
         } else {
           // Next instance, when last instance is stable.
           // Move and run effects.
@@ -254,6 +255,7 @@ export function createUnique(renderFn) {
           instance.idOfLastSavedHandle = save(instance, renderer);
           instance.journey.push([handle, nextProps]);
           renderer.restore(instance.idOfLastSavedHandle, handle);
+          instance.idOfLastSavedHandle = null;
           // Yes this is not ideal, but abeg.
           // The correct place for this to run is in onSetup(),
           // after the subtree has been surely appended, but
@@ -296,6 +298,7 @@ export function createUnique(renderFn) {
             instance.state.node.dispose();
             if (instance.idOfLastSavedHandle !== null) {
               renderer.restore(instance.idOfLastSavedHandle, null);
+              instance.idOfLastSavedHandle = null;
             }
             instances.delete(key);
           } else {
