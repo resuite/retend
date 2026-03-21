@@ -178,6 +178,61 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should clean up onMove callbacks when a child unmounts', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const moveFn = vi.fn();
+      const showChild = Cell.source(true);
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+
+      const Child = () => {
+        onMove(() => moveFn());
+        return <span>Child</span>;
+      };
+
+      const UniqueContent = createUnique(() => {
+        return (
+          <div>
+            {If(showChild, () => (
+              <Child />
+            ))}
+          </div>
+        );
+      });
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              {If(showFirst, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      showChild.set(false);
+      await runPendingSetupEffects();
+      showChild.set(true);
+      await runPendingSetupEffects();
+      showFirst.set(false);
+      showSecond.set(true);
+      await runPendingSetupEffects();
+
+      expect(moveFn).toHaveBeenCalledTimes(1);
+      body.replaceChildren();
+    });
+
     it('should move a Unique component that returns multiple elements', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;

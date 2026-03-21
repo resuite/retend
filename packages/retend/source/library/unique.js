@@ -91,6 +91,7 @@ export function onMove(callback) {
   try {
     const set = useScopeContext(UniqueScope);
     set.add(callback);
+    onSetup(() => () => set.delete(callback));
   } catch (cause) {
     if (cause instanceof MissingScopeError) {
       const message = `onMove() cannot be used outside a unique subtree.`;
