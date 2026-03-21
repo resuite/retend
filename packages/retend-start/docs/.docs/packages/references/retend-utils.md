@@ -539,39 +539,39 @@ function PhotoGrid() {
 }
 ```
 
-### createUniqueTransition
+### UniqueTransition
 
-A factory function that creates unique components with smooth FLIP animations. When an element moves between different positions in the DOM tree, it automatically animates from its previous position and size to its new position and size.
+A component that animates the children of a `createUnique(...)` component with smooth [FLIP](https://aerotwist.com/blog/flip-your-animations/) transitions. When the surrounding unique instance moves between different positions in the DOM tree, `UniqueTransition` animates its children from their previous position and size to their new position and size using CSS transforms.
 
 **Parameters:**
 
-- `renderFn`: **Required**. Function that returns JSX. Receives props as a reactive Cell
-- `options`: **Required**. Object with:
+- `children`: **Required**. The children to animate when the surrounding unique instance moves.
+- Transition props:
   - `transitionDuration`: String (e.g., '300ms', '0.5s') - Duration of the transition
   - `transitionTimingFunction`: Optional. String (e.g., 'ease-in-out') - Easing function. Default: 'ease'
   - `maintainWidthDuringTransition`: Optional. Boolean - Disables horizontal scaling. Default: false
   - `maintainHeightDuringTransition`: Optional. Boolean - Disables vertical scaling. Default: false
-  - `onSave`: Optional. Function `(element: HTMLElement) => CustomData` - Runs before element moves
-  - `onRestore`: Optional. Function `(element: HTMLElement, data: CustomData) => void` - Runs after element arrives
-  - `container`: Optional. Attributes for the wrapper element
 
 **Returns:**
 
-- A unique component that can be used like any other component. Pass an `id` prop to distinguish multiple instances.
+- The wrapped children.
+
+> **Note**: `UniqueTransition` must be rendered within a `createUnique(...)` component.
 
 **Example: Persistent Video Player**
 
 ```tsx
-import { Cell } from 'retend';
-import { createUniqueTransition } from 'retend-utils/components';
+import { Cell, createUnique } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
-const PersistentVideo = createUniqueTransition(
-  (props) => {
-    const src = Cell.derived(() => props.get().src);
-    return <video src={src} controls />;
-  },
-  { transitionDuration: '300ms' }
-);
+const PersistentVideo = createUnique((props) => {
+  const src = Cell.derived(() => props.get().src);
+  return (
+    <UniqueTransition transitionDuration="300ms">
+      <video src={src} controls />
+    </UniqueTransition>
+  );
+});
 
 function App() {
   return (
@@ -585,8 +585,8 @@ function App() {
 **Example: Picture-in-Picture Transition**
 
 ```tsx
-import { Cell, If } from 'retend';
-import { createUniqueTransition } from 'retend-utils/components';
+import { Cell, If, createUnique } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
 const styles = {
   main: { width: '640px', height: '360px' },
@@ -599,13 +599,14 @@ const styles = {
   },
 };
 
-const VideoPlayer = createUniqueTransition(
-  () => <video src="video.mp4" controls />,
-  {
-    transitionDuration: '300ms',
-    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-  }
-);
+const VideoPlayer = createUnique(() => (
+  <UniqueTransition
+    transitionDuration="300ms"
+    transitionTimingFunction="cubic-bezier(0.4, 0, 0.2, 1)"
+  >
+    <video src="video.mp4" controls />
+  </UniqueTransition>
+));
 
 function App() {
   const isPip = Cell.source(false);
@@ -630,16 +631,27 @@ function App() {
 }
 ```
 
-**Example: Preserving Scroll Position**
+**Example: Custom State During Moves**
+
+Use the `onMove` hook from `retend` for custom state preservation (like scroll position):
 
 ```tsx
-import { Cell, For } from 'retend';
-import { createUniqueTransition } from 'retend-utils/components';
+import { Cell, For, createUnique, onMove } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
-const AnimatedCard = createUniqueTransition(
-  (props) => {
-    const title = Cell.derived(() => props.get().title);
-    return (
+const AnimatedCard = createUnique((props) => {
+  const title = Cell.derived(() => props.get().title);
+
+  onMove(() => {
+    const content = document.querySelector('.content');
+    const scrollTop = content.scrollTop;
+    return () => {
+      content.scrollTop = scrollTop;
+    };
+  });
+
+  return (
+    <UniqueTransition transitionDuration="300ms">
       <div class="card">
         <h3>{title}</h3>
         <div class="content" style="overflow-y: auto; height: 100px;">
@@ -648,21 +660,9 @@ const AnimatedCard = createUniqueTransition(
           <p>Even more content...</p>
         </div>
       </div>
-    );
-  },
-  {
-    transitionDuration: '300ms',
-    onSave: (el) => ({
-      scrollTop: el.querySelector('.content')?.scrollTop,
-    }),
-    onRestore: (el, data) => {
-      if (data?.scrollTop) {
-        const contentEl = el.querySelector('.content');
-        if (contentEl) contentEl.scrollTop = data.scrollTop;
-      }
-    },
-  }
-);
+    </UniqueTransition>
+  );
+});
 
 function ProductGrid() {
   const items = Cell.source([
@@ -691,7 +691,7 @@ function ProductGrid() {
 
 1. **Input component** - Use the Input helper to simplify two-way binding.
 2. **FluidList** - Use instead of manual For loops when you need animations or complex layouts
-3. **createUniqueTransition** - Perfect for elements that move between different parts of the UI (modals, picture-in-picture, detail views)
+3. **UniqueTransition** - Perfect for elements that move between different parts of the UI (modals, picture-in-picture, detail views). Must be used within a `createUnique` component.
 
 ## Source Reference
 

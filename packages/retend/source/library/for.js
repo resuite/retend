@@ -9,6 +9,30 @@ import { branchState, withState } from './scope.js';
 import { linkNodes } from './utils.js';
 
 /**
+ * @template {import('./renderer.js').RendererTypes} Types
+ * @param {unknown} value
+ * @param {import('./renderer.js').Renderer<Types>} renderer
+ * @returns {unknown[]}
+ */
+function flattenNodes(value, renderer) {
+  if (Array.isArray(value)) {
+    const result = [];
+    for (const item of value) {
+      if (renderer.isGroup(item)) {
+        result.push(...renderer.unwrapGroup(item));
+      } else {
+        result.push(item);
+      }
+    }
+    return result;
+  }
+  if (renderer.isGroup(value)) {
+    return [...renderer.unwrapGroup(value)];
+  }
+  return [value];
+}
+
+/**
  * Extracts the item type from a list value.
  * Handles AsyncCell<Promise<Iterable<T>>>, Cell<Iterable<T>>, and Iterable<T>.
  * @template V
@@ -181,7 +205,7 @@ export function For(list, fn, options) {
             return renderer.handleComponent(fn, parameters, snapshot);
           });
           effectNodesToActivate.push(snapshot.node);
-          const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+          const nodes = flattenNodes(newNodes, renderer);
           trackNodes(nodes);
           newCache.set(itemKey, { nodes, index: i, snapshot });
           firstNode = nodes[0];
@@ -258,7 +282,7 @@ export function For(list, fn, options) {
         const newNodes = withState(snapshot, () =>
           renderer.handleComponent(fn, parameters, snapshot)
         );
-        const nodes = Array.isArray(newNodes) ? newNodes : [newNodes];
+        const nodes = flattenNodes(newNodes, renderer);
         trackNodes(nodes);
         allNodes.push(...nodes);
 

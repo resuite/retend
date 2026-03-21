@@ -8,11 +8,10 @@ type NativeButtonProps = JSX.IntrinsicElements['button'];
 interface ThemeToggleProps extends NativeButtonProps {}
 
 export function ThemeToggle(props: ThemeToggleProps) {
+  const { class: className, ...rest } = props;
   const { theme, toggleTheme } = useThemeContext();
   const isDark = Cell.derived(() => theme.get() === 'dark');
   const isLight = Cell.derived(() => !isDark.get());
-
-  const { class: className, ...rest } = props;
 
   return (
     <button

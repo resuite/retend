@@ -46,7 +46,6 @@ interface OpenTuiRendererOptions extends RendererTypes {
   Text: TextRenderable;
   Container: Renderable;
   Host: EventTarget;
-  SavedNodeState: never;
 }
 
 const syntaxStyle = SyntaxStyle.create();
@@ -189,16 +188,16 @@ export class OpenTuiRenderer implements Renderer<OpenTuiRendererOptions> {
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
-  // Stubs.
   isActive(node: Renderable) {
     return nodeOps.isConnected(this.cliRenderer.root, node);
   }
 
-  saveContainerState(): never {
+  // Stubs.
+  save(): number {
     throw new Error('Not implemented');
   }
 
-  restoreContainerState(): void {
+  restore() {
     throw new Error('Not implemented');
   }
 }

@@ -70,6 +70,13 @@ export function ProviderChain(props: TreeNodeProps) {
   const continuationChildren = Cell.derived(() => {
     return getChildren(lastInChain.get()).get();
   });
+  const selectedState = Cell.derived(() => {
+    const selected = devRenderer.selectedNode.get();
+    for (const provider of chain.get()) {
+      if (selected === provider) return 'true';
+    }
+    return undefined;
+  });
 
   const onBadgeClick = (event: MouseEvent) => {
     event.stopPropagation();
@@ -86,14 +93,6 @@ export function ProviderChain(props: TreeNodeProps) {
 
   return If(isCollapsible, {
     true: () => {
-      const selectedState = Cell.derived(() => {
-        const selected = devRenderer.selectedNode.get();
-        for (const provider of chain.get()) {
-          if (selected === provider) return 'true';
-        }
-        return undefined;
-      });
-
       return (
         <div class={classes.node} style={{ '--depth': depth }}>
           <div

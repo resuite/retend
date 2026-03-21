@@ -8,6 +8,7 @@ import {
   Switch,
   createScope,
   createUnique,
+  getActiveRenderer,
   useScopeContext,
 } from 'retend';
 import { ShadowRoot, Teleport } from 'retend-web';
@@ -381,6 +382,37 @@ describe('Hydration', () => {
 
     expect(f1?.textContent).toBe('A+');
     expect(f2?.textContent).toBe('B+');
+  });
+
+  it('should hydrate document fragment children', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const FragmentChild = () => {
+      const renderer = getActiveRenderer();
+      const { document } = renderer.host;
+      const fragment = document.createDocumentFragment();
+
+      fragment.append(
+        renderer.createText('First', true),
+        renderer.createText('Second', true)
+      );
+
+      return fragment;
+    };
+    const template = () => (
+      <div id="document-fragment-host" onClick={() => {}}>
+        <FragmentChild />
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const host = document.querySelector('#document-fragment-host');
+    const errorCalls = consoleSpy.mock.calls.filter((call) =>
+      call[0]?.includes?.('Hydration error')
+    );
+    consoleSpy.mockRestore();
+
+    expect(errorCalls.length).toBe(0);
+    expect(host?.textContent).toBe('FirstSecond');
   });
 
   it('should hydrate style object with reactive property alone', async () => {

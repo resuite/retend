@@ -16,7 +16,6 @@ import { VComment, VDocumentFragment, VNode, VText } from './index.js';
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
  * @typedef {[VDom.VComment, VDom.VComment]} DOMHandle
  * @typedef {Renderer<VDOMRenderingTypes>} VDOMRendererInterface
- * @typedef {{ childNodes: VDom.VNode[], shadowRoot: VDom.VShadowRoot | null, data: any }} SavedInstance
  */
 
 /**
@@ -27,7 +26,6 @@ import { VComment, VDocumentFragment, VNode, VText } from './index.js';
  * @property {VDom.VDocumentFragment} Group
  * @property {JsxElement} Container
  * @property {VDom.VWindow} Host
- * @property {SavedInstance} SavedNodeState
  */
 
 /**
@@ -54,6 +52,8 @@ export class VDOMRenderer {
    * @type {Map<StateSnapshot, number>}
    */
   #branches = new Map();
+  #savedHandles = new Map();
+  #savedHandleId = 0;
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
@@ -82,23 +82,6 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {VDom.VNode} node
-   * @param {any} data
-   * @returns {SavedInstance}
-   */
-  saveContainerState(node, data) {
-    return Ops.saveContainerState(node, data, this);
-  }
-
-  /**
-   * @param {JsxElement} node
-   * @param {SavedInstance} data
-   */
-  restoreContainerState(node, data) {
-    return Ops.restoreContainerState(node, data, this);
-  }
-
-  /**
    * @param {VDom.VDocumentFragment} fragment
    * @returns {DOMHandle}
    */
@@ -112,6 +95,33 @@ export class VDOMRenderer {
    */
   write(segment, newContent) {
     return Ops.write(segment, newContent);
+  }
+
+  /**
+   * @param {DOMHandle} handle
+   * @returns {number}
+   */
+  save(handle) {
+    const id = this.#savedHandleId++;
+    const nodes = [];
+    let node = handle[0].nextSibling;
+    while (node && node !== handle[1]) {
+      nodes.push(node);
+      node = node.nextSibling;
+    }
+    this.#savedHandles.set(id, nodes);
+    return id;
+  }
+
+  /**
+   * @param {number} id
+   * @param {DOMHandle | null} handle
+   */
+  restore(id, handle) {
+    const nodes = this.#savedHandles.get(id);
+    if (!nodes) return;
+    this.#savedHandles.delete(id);
+    if (handle) this.write(handle, nodes);
   }
 
   /**

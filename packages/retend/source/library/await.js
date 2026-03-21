@@ -115,9 +115,9 @@ export function Await(props) {
 
   return If(initialStateDone, {
     true: () => {
-      snapshot.node.unsuspend();
-      snapshot.node.enable();
       onSetup(() => {
+        snapshot.node.unsuspend();
+        snapshot.node.enable();
         asyncCells.set(new Set());
         // will dispose automatically from parent scope.
         snapshot.node.activate();

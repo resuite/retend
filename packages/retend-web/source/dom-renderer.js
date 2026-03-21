@@ -34,7 +34,6 @@ const DOCUMENT_FRAGMENT_NODE = 11;
  * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
- * @typedef {{ childNodes: Node[], shadowRoot: ShadowRoot | null, data: any }} SavedInstance
  */
 
 /**
@@ -45,7 +44,6 @@ const DOCUMENT_FRAGMENT_NODE = 11;
  * @property {DocumentFragment} Group
  * @property {JsxElement} Container
  * @property {Window} Host
- * @property {SavedInstance} SavedNodeState
  */
 
 /**
@@ -79,6 +77,8 @@ export class DOMRenderer {
   /** @type {Map<string, JsxElement>} */
   #table = new Map();
   #hydratedNodes = new WeakSet();
+  #savedHandles = new Map();
+  #savedHandleId = 0;
 
   /** @param {Window} host */
   constructor(host) {
@@ -116,23 +116,6 @@ export class DOMRenderer {
   }
 
   /**
-   * @param {Node} node
-   * @param {any} data
-   * @returns {SavedInstance}
-   */
-  saveContainerState(node, data) {
-    return Ops.saveContainerState(node, data, this);
-  }
-
-  /**
-   * @param {JsxElement} node
-   * @param {SavedInstance} data
-   */
-  restoreContainerState(node, data) {
-    return Ops.restoreContainerState(node, data, this);
-  }
-
-  /**
    * @param {DocumentFragment} fragment
    * @returns {DOMHandle}
    */
@@ -164,6 +147,36 @@ export class DOMRenderer {
       }
     }
     return Ops.write(segment, newContent);
+  }
+
+  /**
+   * @param {DOMHandle} handle
+   * @returns {number}
+   */
+  save(handle) {
+    if (this.#isHydrationModeEnabled) {
+      Ops.finalizeHydrationHandleSegment(handle);
+    }
+    const id = this.#savedHandleId++;
+    const nodes = [];
+    let node = handle[0].nextSibling;
+    while (node && node !== handle[1]) {
+      nodes.push(node);
+      node = node.nextSibling;
+    }
+    this.#savedHandles.set(id, nodes);
+    return id;
+  }
+
+  /**
+   * @param {number} id
+   * @param {DOMHandle | null} handle
+   */
+  restore(id, handle) {
+    const nodes = this.#savedHandles.get(id);
+    if (!nodes) return;
+    this.#savedHandles.delete(id);
+    if (handle) this.write(handle, nodes);
   }
 
   /**
@@ -348,6 +361,7 @@ export class DOMRenderer {
    * @returns {Node[]}
    */
   unwrapGroup(group) {
+    if (Array.isArray(group)) return [...group];
     return Array.from(group.childNodes);
   }
 
@@ -620,6 +634,35 @@ export class DOMRenderer {
         continue;
       }
 
+      if (
+        node instanceof DeferredHandleSymbol &&
+        node.sourceArray.length === 1
+      ) {
+        const boundary = node.sourceArray[0];
+        if (
+          boundary?.nodeType === COMMENT_NODE &&
+          boundary.textContent === '['
+        ) {
+          const range = this.#findSerializedRangeCloseComment(boundary);
+          if (range) {
+            node.sourceArray.push(range.close);
+            nodeIndex++;
+            continue;
+          }
+        }
+        if (
+          boundary?.nodeType === COMMENT_NODE &&
+          boundary.textContent === ']'
+        ) {
+          const range = this.#findSerializedRangeOpenComment(boundary);
+          if (range) {
+            node.sourceArray.unshift(range.open);
+            nodeIndex++;
+            continue;
+          }
+        }
+      }
+
       // @ts-expect-error
       if (node instanceof Text && node.__isReactive) {
         if (domNode?.nodeType === TEXT_NODE) {
@@ -675,6 +718,27 @@ export class DOMRenderer {
       }
       cursor = cursor.nextSibling;
       offset += 1;
+    }
+    return null;
+  }
+
+  /**
+   * @param {Comment} endComment
+   * @returns {{ open: Comment } | null}
+   */
+  #findSerializedRangeOpenComment(endComment) {
+    if (endComment.textContent !== ']') return null;
+    let depth = 1;
+    let cursor = endComment.previousSibling;
+    while (cursor) {
+      if (cursor.nodeType === COMMENT_NODE) {
+        if (cursor.textContent === ']') depth += 1;
+        else if (cursor.textContent === '[') {
+          depth -= 1;
+          if (depth === 0) return { open: /** @type {Comment} */ (cursor) };
+        }
+      }
+      cursor = cursor.previousSibling;
     }
     return null;
   }
@@ -782,12 +846,12 @@ export class DOMRenderer {
   #getHydrationState() {
     if (!this.#isHydrationModeEnabled) return null;
     const hydration = getState().data;
-    if (!hydration) {
+    if (!hydration || !hydration.hydrating) {
       return this.#hydratingBranchCount > 0
         ? { cursor: 0, renderDepth: 0, pendingHydrations: 0, hydrating: true }
         : null;
     }
-    return hydration.hydrating ? hydration : null;
+    return hydration;
   }
 }
 

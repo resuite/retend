@@ -50,18 +50,29 @@ function getTopLevelJsxComponents(program) {
   const components = [];
 
   for (const statement of program.body) {
-    let component = null;
+    let node = statement;
 
     if (
-      statement.type === 'FunctionDeclaration' &&
-      statement.id?.name &&
-      /^[A-Z]/u.test(statement.id.name)
+      statement.type === 'ExportDefaultDeclaration' ||
+      statement.type === 'ExportNamedDeclaration'
     ) {
-      component = statement;
+      if (!statement.declaration) {
+        continue;
+      }
+
+      node = statement.declaration;
     }
 
-    if (statement.type === 'VariableDeclaration') {
-      for (const declaration of statement.declarations) {
+    const candidates = [];
+
+    if (node.type === 'FunctionDeclaration' && node.id?.name) {
+      if (/^[A-Z]/u.test(node.id.name)) {
+        candidates.push(node);
+      }
+    }
+
+    if (node.type === 'VariableDeclaration') {
+      for (const declaration of node.declarations) {
         if (declaration.id.type !== 'Identifier') {
           continue;
         }
@@ -76,38 +87,32 @@ function getTopLevelJsxComponents(program) {
           }
         }
 
-        component = declaration.init;
+        candidates.push(declaration.init);
       }
     }
 
-    if (!component) {
-      continue;
-    }
+    for (const component of candidates) {
+      let containsJsx = false;
+      walkOwnBody(component.body, (current) => {
+        if (current.type === 'JSXElement') {
+          containsJsx = true;
+          return false;
+        }
 
-    if (component.body.type !== 'BlockStatement') {
-      continue;
-    }
+        if (current.type === 'JSXFragment') {
+          containsJsx = true;
+          return false;
+        }
 
-    let containsJsx = false;
-    walkOwnBody(component.body, (current) => {
-      if (current.type === 'JSXElement') {
-        containsJsx = true;
-        return false;
+        return true;
+      });
+
+      if (!containsJsx) {
+        continue;
       }
 
-      if (current.type === 'JSXFragment') {
-        containsJsx = true;
-        return false;
-      }
-
-      return true;
-    });
-
-    if (!containsJsx) {
-      continue;
+      components.push(component);
     }
-
-    components.push(component);
   }
 
   return components;
@@ -154,7 +159,8 @@ const noClassName = {
     },
     schema: [],
     messages: {
-      unexpected: 'Use the class prop in Retend JSX instead of className.',
+      unexpected:
+        'Use the `class` prop instead of `className`. Retend uses standard HTML attributes.',
     },
   },
   create(context) {
@@ -182,9 +188,9 @@ const propsDestructureFirst = {
     schema: [],
     messages: {
       destructure:
-        'Destructure props from props as the first statement in the component body.',
+        'Destructure props as the first statement in the component. Use `const { x } = props` instead of `props.x`.',
       member:
-        'Use destructured props instead of props.member access inside components.',
+        'Use destructured props (`const { x } = props`) instead of `props.x`.',
     },
   },
   create(context) {
@@ -202,6 +208,11 @@ const propsDestructureFirst = {
           }
 
           if (propsParam.type !== 'Identifier') {
+            continue;
+          }
+
+          if (component.body.type !== 'BlockStatement') {
+            context.report({ node: component.body, messageId: 'destructure' });
             continue;
           }
 
@@ -353,6 +364,23 @@ const noGetInJsx = {
 
         let parent = node.parent;
         while (parent) {
+          if (
+            parent.type === 'CallExpression' &&
+            parent.callee.type === 'MemberExpression' &&
+            !parent.callee.computed &&
+            parent.callee.object.type === 'Identifier' &&
+            parent.callee.object.name === 'Cell' &&
+            parent.callee.property.type === 'Identifier'
+          ) {
+            if (parent.callee.property.name === 'derived') {
+              return;
+            }
+
+            if (parent.callee.property.name === 'derivedAsync') {
+              return;
+            }
+          }
+
           if (parent.type === 'JSXExpressionContainer') {
             context.report({
               node: node.callee.property,
@@ -361,20 +389,81 @@ const noGetInJsx = {
             return;
           }
 
-          if (parent.type === 'ArrowFunctionExpression') {
-            return;
-          }
-
-          if (parent.type === 'FunctionDeclaration') {
-            return;
-          }
-
-          if (parent.type === 'FunctionExpression') {
-            return;
-          }
-
           parent = parent.parent;
         }
+      },
+    };
+  },
+};
+
+const noDerivedInJsx = {
+  meta: {
+    docs: {
+      description: 'disallow Cell.derived() in JSX expressions',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Hoist `Cell.derived()` out of JSX into a variable in the parent scope.',
+    },
+  },
+  create(context) {
+    const reported = new WeakSet();
+
+    const reportInlineDerived = (root) => {
+      const stack = [root];
+
+      while (stack.length > 0) {
+        const current = stack.pop();
+        if (!current) {
+          continue;
+        }
+
+        if (Array.isArray(current)) {
+          stack.push(...current);
+          continue;
+        }
+
+        if (!(current instanceof Object)) {
+          continue;
+        }
+
+        if (
+          current.type === 'CallExpression' &&
+          current.callee.type === 'MemberExpression' &&
+          !current.callee.computed &&
+          current.callee.object.type === 'Identifier' &&
+          current.callee.object.name === 'Cell' &&
+          current.callee.property.type === 'Identifier' &&
+          current.callee.property.name === 'derived'
+        ) {
+          if (!reported.has(current)) {
+            reported.add(current);
+            context.report({
+              node: current.callee.property,
+              messageId: 'unexpected',
+            });
+          }
+        }
+
+        for (const [key, value] of Object.entries(current)) {
+          if (key === 'parent') {
+            continue;
+          }
+
+          if (value instanceof Object) {
+            stack.push(value);
+          }
+        }
+      }
+    };
+
+    return {
+      JSXExpressionContainer(node) {
+        reportInlineDerived(node.expression);
+      },
+      ReturnStatement(node) {
+        reportInlineDerived(node.argument);
       },
     };
   },
@@ -388,8 +477,10 @@ const noJsxControlFlow = {
     },
     schema: [],
     messages: {
-      conditional: 'Use If or Switch instead of ternaries in Retend JSX.',
-      logical: 'Use If instead of logical operators in Retend JSX.',
+      conditional:
+        "Use `If` or `Switch` from 'retend' instead of ternary expressions in JSX.",
+      logical:
+        "Use `If` from 'retend' instead of logical operators (`&&`, `||`) in JSX.",
     },
   },
   create(context) {
@@ -417,7 +508,7 @@ const noJsxMap = {
     },
     schema: [],
     messages: {
-      unexpected: 'Use For instead of .map() in Retend JSX.',
+      unexpected: "Use `For` from 'retend' instead of `.map()` in JSX.",
     },
   },
   create(context) {
@@ -467,6 +558,10 @@ const componentStatementOrder = {
     return {
       Program(node) {
         for (const component of getTopLevelJsxComponents(node)) {
+          if (component.body.type !== 'BlockStatement') {
+            continue;
+          }
+
           let lastOrder = -1;
 
           for (const bodyStatement of component.body.body) {
@@ -581,11 +676,11 @@ const componentStatementOrder = {
 const maxComponentLines = {
   meta: {
     docs: {
-      description: 'disallow JSX components longer than 150 lines',
+      description: 'disallow JSX components longer than 100 lines',
     },
     schema: [],
     messages: {
-      unexpected: 'Keep JSX components at 150 lines or fewer.',
+      unexpected: 'Keep JSX components at 100 lines or fewer.',
     },
   },
   create(context) {
@@ -596,7 +691,7 @@ const maxComponentLines = {
             continue;
           }
 
-          if (component.loc.end.line - component.loc.start.line + 1 <= 150) {
+          if (component.loc.end.line - component.loc.start.line + 1 <= 100) {
             continue;
           }
 
@@ -708,7 +803,8 @@ const noReactImports = {
     },
     schema: [],
     messages: {
-      unexpected: 'Do not import from react or react-dom in Retend projects.',
+      unexpected:
+        "Retend doesn't require React imports. Remove imports from 'react' or 'react-dom'.",
     },
   },
   create(context) {
@@ -946,6 +1042,7 @@ export default {
     'no-templated-class': noTemplatedClass,
     'no-get-in-derived-async': noGetInDerivedAsync,
     'no-get-in-jsx': noGetInJsx,
+    'no-derived-in-jsx': noDerivedInJsx,
     'no-jsx-control-flow': noJsxControlFlow,
     'no-jsx-map': noJsxMap,
     'no-listen-in-onsetup': noListenInOnSetup,

@@ -656,12 +656,6 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
     return nodes;
   }
 
-  saveContainerState(): null {
-    return null;
-  }
-
-  restoreContainerState(): void {}
-
   isGroup(node: unknown): node is TerminalNode[] {
     return Array.isArray(node);
   }
@@ -669,4 +663,10 @@ export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
   isNode(child: unknown): child is TerminalNode {
     return child instanceof BaseNode;
   }
+
+  save(_handle: TerminalHandle): number {
+    return 0;
+  }
+
+  restore(_id: number, _handle: TerminalHandle | null): void {}
 }

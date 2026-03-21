@@ -8,6 +8,18 @@ import dropdownClasses from '@/styles/PositionDropdown.module.css';
 
 export function PositionDropdown({ panel }: { panel: PanelState }) {
   const isOpen = Cell.source(false);
+  const isTopLeft = Cell.derived(
+    () => panel.panelPosition.get() === 'top-left'
+  );
+  const isTopRight = Cell.derived(
+    () => panel.panelPosition.get() === 'top-right'
+  );
+  const isBottomLeft = Cell.derived(
+    () => panel.panelPosition.get() === 'bottom-left'
+  );
+  const isBottomRight = Cell.derived(
+    () => panel.panelPosition.get() === 'bottom-right'
+  );
 
   const toggleDropdown = () => {
     isOpen.set(!isOpen.get());
@@ -30,11 +42,12 @@ export function PositionDropdown({ panel }: { panel: PanelState }) {
   const positions: Array<{
     value: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     label: string;
+    isActive: Cell<boolean>;
   }> = [
-    { value: 'top-left', label: 'Top Left' },
-    { value: 'top-right', label: 'Top Right' },
-    { value: 'bottom-left', label: 'Bottom Left' },
-    { value: 'bottom-right', label: 'Bottom Right' },
+    { value: 'top-left', label: 'Top Left', isActive: isTopLeft },
+    { value: 'top-right', label: 'Top Right', isActive: isTopRight },
+    { value: 'bottom-left', label: 'Bottom Left', isActive: isBottomLeft },
+    { value: 'bottom-right', label: 'Bottom Right', isActive: isBottomRight },
   ];
 
   return (
@@ -53,23 +66,18 @@ export function PositionDropdown({ panel }: { panel: PanelState }) {
 
       {If(isOpen, () => (
         <div class={dropdownClasses.dropdownMenu}>
-          {For(positions, (p) => {
-            const isActive = Cell.derived(
-              () => panel.panelPosition.get() === p.value
-            );
-            return (
-              <button
-                type="button"
-                class={[
-                  dropdownClasses.dropdownItem,
-                  { [dropdownClasses.dropdownItemActive]: isActive },
-                ]}
-                onClick={() => setPosition(p.value)}
-              >
-                {p.label}
-              </button>
-            );
-          })}
+          {For(positions, (p) => (
+            <button
+              type="button"
+              class={[
+                dropdownClasses.dropdownItem,
+                { [dropdownClasses.dropdownItemActive]: p.isActive },
+              ]}
+              onClick={() => setPosition(p.value)}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
       ))}
     </div>

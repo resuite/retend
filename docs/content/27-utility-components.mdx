@@ -99,39 +99,34 @@ function TaskBoard() {
 }
 ```
 
-## createUniqueTransition
+## UniqueTransition
 
-A factory function that creates unique components with smooth FLIP animations. When an element produced by `createUniqueTransition` moves between positions in the tree, it animates from its previous position and size to its new one using CSS transforms.
+A component that animates the children of a `createUnique()` component with smooth FLIP animations. When the unique instance moves between positions in the tree, `UniqueTransition` animates its children from their previous position and size to their new one using CSS transforms.
 
-This is the animated counterpart to the core `createUnique` function described in the [Unique Instances](/docs/unique) page.
+This component must be used within a `createUnique` component. See the [Unique Instances](/docs/unique) page for more details.
 
-**Parameters:**
+**Props:**
 
-- `renderFn` (required) — A function returning the JSX to render. Receives props as a reactive `Cell`.
-- `options` (required):
-  - `transitionDuration` (string) — Duration of the animation (e.g. `'300ms'`).
-  - `transitionTimingFunction` (string, default `'ease'`) — Easing function.
-  - `maintainWidthDuringTransition` (boolean, optional) — Disable horizontal scaling during transitions.
-  - `maintainHeightDuringTransition` (boolean, optional) — Disable vertical scaling during transitions.
-  - `onSave` (`(element) => data`, optional) — Called before the element moves. Return data to preserve (e.g. scroll position).
-  - `onRestore` (`(element, data) => void`, optional) — Called after the element arrives. Receives the data returned from `onSave`.
-  - `container` (optional) — Attributes applied to the wrapper element.
-
-**Returns:** A unique component. Pass an `id` prop to distinguish multiple instances.
+- `children` (required) — The children to animate when the unique instance moves.
+- `transitionDuration` (string) — Duration of the animation (e.g. `'300ms'`).
+- `transitionTimingFunction` (string, default `'ease'`) — Easing function.
+- `maintainWidthDuringTransition` (boolean, optional) — Disable horizontal scaling during transitions.
+- `maintainHeightDuringTransition` (boolean, optional) — Disable vertical scaling during transitions.
 
 ### Basic Usage
 
 ```tsx
-import { createUniqueTransition } from 'retend-utils/components';
-import { Cell } from 'retend';
+import { createUnique, Cell } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
-const PersistentVideo = createUniqueTransition(
-  (props) => {
-    const src = Cell.derived(() => props.get().src);
-    return <video src={src} controls />;
-  },
-  { transitionDuration: '300ms' }
-);
+const PersistentVideo = createUnique((props) => {
+  const src = Cell.derived(() => props.get().src);
+  return (
+    <UniqueTransition transitionDuration="300ms">
+      <video src={src} controls />
+    </UniqueTransition>
+  );
+});
 
 function App() {
   return (
@@ -145,8 +140,8 @@ function App() {
 ### Picture-in-Picture Transition
 
 ```tsx
-import { Cell, If } from 'retend';
-import { createUniqueTransition } from 'retend-utils/components';
+import { Cell, If, createUnique } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
 const styles = {
   main: { width: '640px', height: '360px' },
@@ -159,13 +154,14 @@ const styles = {
   },
 };
 
-const VideoPlayer = createUniqueTransition(
-  () => <video src="video.mp4" controls />,
-  {
-    transitionDuration: '300ms',
-    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-  }
-);
+const VideoPlayer = createUnique(() => (
+  <UniqueTransition
+    transitionDuration="300ms"
+    transitionTimingFunction="cubic-bezier(0.4, 0, 0.2, 1)"
+  >
+    <video src="video.mp4" controls />
+  </UniqueTransition>
+));
 
 function App() {
   const isPip = Cell.source(false);
@@ -194,35 +190,38 @@ function App() {
 
 ### Preserving State During Transitions
 
-Use `onSave` and `onRestore` to capture and restore element state (such as scroll position) across transitions.
+Use the `onMove` hook from `retend` to capture and restore element state (such as scroll position) across transitions.
 
 ```tsx
-import { Cell } from 'retend';
-import { createUniqueTransition } from 'retend-utils/components';
+import { Cell, createUnique, onMove } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 
-const AnimatedCard = createUniqueTransition(
-  (props) => {
-    const title = Cell.derived(() => props.get().title);
-    return (
+const AnimatedCard = createUnique((props) => {
+  const title = Cell.derived(() => props.get().title);
+  const contentRef = Cell.source<HTMLDivElement | null>(null);
+
+  onMove(() => {
+    const content = contentRef.get();
+    if (!content) return;
+    const scrollTop = content.scrollTop;
+    return () => {
+      content.scrollTop = scrollTop;
+    };
+  });
+
+  return (
+    <UniqueTransition transitionDuration="300ms">
       <div class="card">
         <h3>{title}</h3>
-        <div class="content" style="overflow-y: auto; height: 100px;">
+        <div
+          ref={contentRef}
+          class="content"
+          style="overflow-y: auto; height: 100px;"
+        >
           {/* Long scrollable content */}
         </div>
       </div>
-    );
-  },
-  {
-    transitionDuration: '300ms',
-    onSave: (el) => ({
-      scrollTop: el.querySelector('.content')?.scrollTop,
-    }),
-    onRestore: (el, data) => {
-      if (data?.scrollTop) {
-        const contentEl = el.querySelector('.content');
-        if (contentEl) contentEl.scrollTop = data.scrollTop;
-      }
-    },
-  }
-);
+    </UniqueTransition>
+  );
+});
 ```

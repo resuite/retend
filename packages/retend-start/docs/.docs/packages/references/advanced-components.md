@@ -4,7 +4,7 @@
 
 The `createUnique` factory function creates components that preserve their identity and internal state (like video playback, scroll position, input values) across different locations in your application.
 
-> **Note**: For FLIP animations during transitions, see `createUniqueTransition` in `retend-utils.md`.
+> **Note**: For FLIP animations during transitions, wrap your unique component's content in `UniqueTransition` from `retend-utils/components`.
 
 ### Key Features
 
@@ -39,16 +39,25 @@ Use the `id` prop to distinguish multiple persistent instances of the same compo
 ### Lifecycle & State
 
 - **`onSetup`**: Runs once on creation. Cleanup runs only when the component is completely removed from the app (not just moved).
-- **`onSave` / `onRestore`**: Optional callbacks in the options object to manually save/restore state (like scroll position) during moves.
+- **`onMove`**: A hook that runs when the unique component moves between locations. Use it to save/restore state during moves.
 
 ```javascript
-const Scrollable = createUnique(
-  () => <div style={{ overflow: 'auto' }}>...</div>,
-  {
-    onSave: (el) => ({ scrollTop: el.scrollTop }),
-    onRestore: (el, data) => {
-      el.scrollTop = data.scrollTop;
-    },
-  }
-);
+import { createUnique, onMove } from 'retend';
+
+const Scrollable = createUnique(() => {
+  onMove(() => {
+    const content = document.querySelector('.content');
+    const scrollTop = content.scrollTop;
+    return () => {
+      content.scrollTop = scrollTop;
+    };
+  });
+  return (
+    <div class="content" style={{ overflow: 'auto' }}>
+      ...
+    </div>
+  );
+});
 ```
+
+The `onMove` hook receives a callback that runs before the component moves. Return a cleanup/restore function to run after the move completes.

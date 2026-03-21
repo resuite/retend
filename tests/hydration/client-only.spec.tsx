@@ -1,4 +1,4 @@
-import { Cell, runPendingSetupEffects } from 'retend';
+import { Cell, createUnique, runPendingSetupEffects } from 'retend';
 import { ClientOnly } from 'retend-server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -146,6 +146,44 @@ describe('ClientOnly', () => {
 
       btn.click();
       expect(btn.textContent).toBe('Count: 1');
+    });
+
+    it('should hydrate within a unique subtree without range errors', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const Stage = createUnique(() => {
+        return (
+          <ClientOnly>
+            <div id="client-only-unique">Visible</div>
+          </ClientOnly>
+        );
+      });
+      const template = () => (
+        <div id="root">
+          <Stage />
+        </div>
+      );
+
+      const { document } = await setupHydration(template);
+      await runPendingSetupEffects();
+
+      const errorCalls = consoleSpy.mock.calls.map((call) =>
+        call.map(String).join(' ')
+      );
+      consoleSpy.mockRestore();
+
+      expect(
+        errorCalls.some((message) => message.includes('Hydration error'))
+      ).toBe(false);
+      expect(
+        errorCalls.some((message) =>
+          message.includes('after is not a function')
+        )
+      ).toBe(false);
+      expect(document.querySelector('#client-only-unique')?.textContent).toBe(
+        'Visible'
+      );
     });
 
     it('should work alongside other hydrated content', async () => {

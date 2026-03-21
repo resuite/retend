@@ -1,0 +1,23 @@
+{
+  "name": "utils-testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5229",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "retend": "workspace:*",
+    "retend-server": "workspace:*",
+    "retend-utils": "workspace:*",
+    "retend-web": "workspace:*",
+    "retend-web-devtools": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "typescript": "^5.5.2",
+    "vite": "^6.2.1"
+  }
+}

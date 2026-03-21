@@ -323,11 +323,18 @@ export function useScopeContext(Scope) {
     }
 
     const scopeName = Scope?.key.description || 'UnknownScope';
-    throw new Error(
+    throw new MissingScopeError(scopeName);
+  }
+  return /** @type {T} */ relatedScopeData;
+}
+
+export class MissingScopeError extends Error {
+  /** @param {string} scopeName */
+  constructor(scopeName) {
+    super(
       `No parent scope found for the provided scope (${scopeName}).\nThis usually means you are calling useScopeContext outside of a <Scope.Provider> for this scope.`
     );
   }
-  return /** @type {T} */ relatedScopeData;
 }
 
 /**

@@ -717,6 +717,7 @@ async function createConfigFile(projectDir, answers) {
             'retend/props-destructure-first': 'error',
             'retend/no-templated-class': 'error',
             'retend/no-get-in-jsx': 'error',
+            'retend/no-derived-in-jsx': 'error',
             'retend/no-get-in-derived-async': 'error',
             'retend/no-jsx-control-flow': 'error',
             'retend/no-jsx-map': 'error',

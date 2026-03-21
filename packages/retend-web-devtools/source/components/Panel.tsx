@@ -147,6 +147,18 @@ export function Panel() {
       ...nextStyle,
     };
   });
+  const positionTopLeft = Cell.derived(
+    () => panel.panelPosition.get() === 'top-left'
+  );
+  const positionTopRight = Cell.derived(
+    () => panel.panelPosition.get() === 'top-right'
+  );
+  const positionBottomLeft = Cell.derived(
+    () => panel.panelPosition.get() === 'bottom-left'
+  );
+  const positionBottomRight = Cell.derived(
+    () => panel.panelPosition.get() === 'bottom-right'
+  );
 
   const togglePanel = () => {
     if (getShouldSkipClick()) {
@@ -186,18 +198,10 @@ export function Panel() {
             class={[
               classes.panel,
               {
-                [classes.positionTopLeft]: Cell.derived(
-                  () => panel.panelPosition.get() === 'top-left'
-                ),
-                [classes.positionTopRight]: Cell.derived(
-                  () => panel.panelPosition.get() === 'top-right'
-                ),
-                [classes.positionBottomLeft]: Cell.derived(
-                  () => panel.panelPosition.get() === 'bottom-left'
-                ),
-                [classes.positionBottomRight]: Cell.derived(
-                  () => panel.panelPosition.get() === 'bottom-right'
-                ),
+                [classes.positionTopLeft]: positionTopLeft,
+                [classes.positionTopRight]: positionTopRight,
+                [classes.positionBottomLeft]: positionBottomLeft,
+                [classes.positionBottomRight]: positionBottomRight,
                 [classes.isDragging]: isDragging,
                 [classes.isFlinging]: isFlinging,
               },

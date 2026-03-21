@@ -1,7 +1,14 @@
-import { onConnected, Cell, For, If, setActiveRenderer } from 'retend';
+import {
+  onConnected,
+  Cell,
+  For,
+  If,
+  createUnique,
+  setActiveRenderer,
+} from 'retend';
 import { hydrate, renderToString } from 'retend-server/client';
 import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
-import { createUniqueTransition } from 'retend-utils/components';
+import { UniqueTransition } from 'retend-utils/components';
 import { setGlobalContext } from 'retend/context';
 import { Router, createRouterRoot } from 'retend/router';
 import { describe, expect, it, vi } from 'vitest';
@@ -14,24 +21,20 @@ const items = [
   { id: 3, name: 'Item 3', description: 'Description of Item 3' },
 ];
 
-const Item = createUniqueTransition<{ item: (typeof items)[number] }>(
-  (props) => {
-    const item = Cell.derived(() => props.get().item);
-    const name = Cell.derived(() => item.get().name);
-    const description = Cell.derived(() => item.get().description);
+const Item = createUnique<{ item: (typeof items)[number] }>((props) => {
+  const item = Cell.derived(() => props.get().item);
+  const name = Cell.derived(() => item.get().name);
+  const description = Cell.derived(() => item.get().description);
 
-    return (
-      <>
+  return (
+    <UniqueTransition transitionDuration="1200ms">
+      <div style={{ height: '130px', minWidth: '200px' }}>
         <h2>{name}</h2>
         <p>{description}</p>
-      </>
-    );
-  },
-  {
-    container: { style: { height: '130px', minWidth: '200px' } },
-    transitionDuration: '1200ms',
-  }
-);
+      </div>
+    </UniqueTransition>
+  );
+});
 
 function WithParentTransitions() {
   const selectedItemId = Cell.source<number | null>(1);

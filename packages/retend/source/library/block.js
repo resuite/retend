@@ -1,7 +1,6 @@
 /** @import { Renderer } from './renderer.js' */
 import { AsyncCell } from '@adbl/cells';
 
-import { createGroupFromNodes } from '../_internals.js';
 import { useAwait } from './await.js';
 import { createNodesFromTemplate, linkNodes } from './utils.js';
 
@@ -28,10 +27,9 @@ export class Block {
     const { fileData, kind, props, tagOrFn } = this;
 
     if (kind === 2) {
-      return createGroupFromNodes(
-        createNodesFromTemplate(props?.children, renderer),
-        renderer
-      );
+      const group = renderer.createGroup();
+      linkNodes(group, props?.children, renderer);
+      return group;
     }
 
     if (kind === 1) {

@@ -104,8 +104,8 @@ for (const doc of flatDocs) {
 
 export function DocsSidebar() {
   const isOpen = Cell.source(false);
-  const toggle = () => isOpen.set(!isOpen.get());
   const isClosed = Cell.derived(() => !isOpen.get());
+  const toggle = () => isOpen.set(!isOpen.get());
   const closeSidebar = () => isOpen.set(false);
 
   useCurrentRoute().listen(closeSidebar);

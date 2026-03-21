@@ -231,7 +231,11 @@ export function finalizeHydrationHandleSegment(segment) {
 function resolveRangeSegment(segment) {
   const start = segment[0];
   const end = segment[1];
-  if (isComment(start) && isComment(end) && isMatchingCommentPair(start, end)) {
+  if (
+    isComment(start) &&
+    isComment(end) &&
+    (isMatchingCommentPair(start, end) || isSerializedCommentPair(start, end))
+  ) {
     return { start, end };
   }
 
@@ -249,11 +253,35 @@ function resolveRangeSegment(segment) {
     nextStart = findCommentPairFromEnd(nextEnd);
   }
 
-  if (nextStart && nextEnd && isMatchingCommentPair(nextStart, nextEnd)) {
+  if (
+    nextStart &&
+    nextEnd &&
+    (isMatchingCommentPair(nextStart, nextEnd) ||
+      isSerializedCommentPair(nextStart, nextEnd))
+  ) {
     return { start: nextStart, end: nextEnd };
   }
 
   return synthesizeRangeAnchors(segment);
+}
+
+/**
+ * @param {Comment} start
+ * @param {Comment} end
+ */
+function isSerializedCommentPair(start, end) {
+  if (start.textContent !== '[' || end.textContent !== ']') return false;
+  let depth = 1;
+  let cursor = start.nextSibling;
+  while (cursor) {
+    if (cursor.nodeType === 8) {
+      if (cursor.textContent === '[') depth += 1;
+      else if (cursor.textContent === ']') depth -= 1;
+    }
+    if (cursor === end) return depth === 0;
+    cursor = cursor.nextSibling;
+  }
+  return false;
 }
 
 /**
@@ -381,36 +409,6 @@ export function writeStaticStyles(renderer) {
       ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
     renderer
   );
-}
-
-/**
- * @param {any} node
- * @param {any} data
- * @param {Renderer<any>} renderer
- */
-export function saveContainerState(node, data, renderer) {
-  if (!(node instanceof renderer.host.Element)) {
-    throw new Error('Cannot save state of non-element node.');
-  }
-  return {
-    childNodes: [...node.childNodes],
-    shadowRoot: node.shadowRoot,
-    data,
-  };
-}
-
-/**
- * @param {any} node
- * @param {any} data
- * @param {Renderer<any>} renderer
- */
-export function restoreContainerState(node, data, renderer) {
-  renderer.append(node, data.childNodes);
-  if (data.shadowRoot) {
-    const { mode, childNodes } = data.shadowRoot;
-    const newShadow = node.attachShadow({ mode });
-    renderer.append(newShadow, [...childNodes]);
-  }
 }
 
 /**

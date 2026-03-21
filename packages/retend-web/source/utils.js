@@ -855,6 +855,10 @@ export function flattenJSXChildren(tree) {
       for (let i = node.length - 1; i >= 0; i--) {
         stack.push(node[i]);
       }
+    } else if (node?.nodeType === 11) {
+      for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        stack.push(node.childNodes[i]);
+      }
     } else html.push(node);
   }
 
