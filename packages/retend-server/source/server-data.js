@@ -31,6 +31,7 @@ export function setServerDataValues(values) {
 }
 
 /**
+ * @template T
  * Loads a value during SSR, serializes it into the server context,
  * and resumes it on the client.
  *
@@ -55,9 +56,10 @@ export function setServerDataValues(values) {
  * ```
  *
  * @param {unknown} key
- * @param {() => unknown | Promise<unknown>} load
+ * @param {() => T | Promise<T>} load
+ * @returns {Promise<T>}
  */
-export function serverResource(key, load) {
+export async function serverResource(key, load) {
   const map = getServerDataMap();
   const serializedKey = JSON.stringify(key);
   if (map.has(serializedKey)) return map.get(serializedKey);
