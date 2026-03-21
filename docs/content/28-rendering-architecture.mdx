@@ -13,32 +13,124 @@ By swapping out the renderer, you can use Retend to build web applications (`ret
 
 When Retend processes your JSX and reactive Cells, it calculates exactly what needs to change. It then calls methods on the _active renderer_ to actually make those changes.
 
-1. **Decoupled Types**: The core framework maintains perfect TypeScript safety without knowing what a "Node" actually is. To the core framework, a node is just an opaque object. To `retend-web`, a node is a real `HTMLElement`. To `retend-server`, a node is just a text string.
+1. **Decoupled Types**: The core framework maintains perfect TypeScript safety without knowing what a "Node" actually is. To the core framework, a node is just an opaque object. To `retend-web`, a node is a real `HTMLElement`. To `retend-server`, a node is a virtual DOM object (`VNode`, `VElement`, `VText`, etc.) that mimics the browser DOM API.
 2. **Global Context**: Retend tracks the active renderer in a global context. When you call `renderToDOM` from `retend-web`, it secretly sets the browser renderer as the active one before processing your application.
 3. **Reconciliation & Updates**: The core framework handles all the complex math of fine-grained reactivity and figuring out what changed in a list. It then gives the renderer very simple, precise commands (like "update the text of this node" or "append this child here").
+
+## Built-in Renderers
+
+Retend comes with two built-in renderer implementations:
+
+### DOMRenderer (`retend-web`)
+
+The standard renderer for browser environments:
+
+```js
+import { renderToDOM } from 'retend-web';
+
+renderToDOM(document.getElementById('app'), App);
+```
+
+**Key characteristics:**
+
+- Works with real DOM `HTMLElement` nodes
+- Supports hydration for SSR
+- Handles event listeners, styles, and attributes
+- Full support for all web APIs (shadow DOM, teleport, etc.)
+
+### VDOMRenderer (`retend-server`)
+
+A virtual DOM renderer for server-side rendering:
+
+```js
+import { renderToString } from 'retend-server/client';
+import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
+
+const window = new VWindow();
+const renderer = new VDOMRenderer(window);
+const nodes = renderer.render(<App />);
+const html = renderToString(nodes, window);
+```
+
+**Key characteristics:**
+
+- Uses lightweight virtual nodes (`VNode`, `VElement`, `VText`)
+- No browser APIs required
+- Generates static HTML strings via `renderToString()`
+- Supports marking dynamic nodes for hydration
+
+### Custom Renderers
+
+You can implement the `Renderer` interface for custom targets. The experimental packages include examples:
+
+- **CanvasRenderer**: Renders to HTML5 Canvas
+- **TerminalRenderer**: Renders to terminal UI
+
+## Renderer Capabilities
+
+Renderers declare their feature support via the `capabilities` property:
+
+```tsx
+interface Capabilities {
+  supportsSetupEffects?: boolean; // Can run setup effects
+  supportsObserverConnectedCallbacks?: boolean; // Supports observer.onConnected
+}
+```
+
+These flags allow the framework to:
+
+- Skip incompatible code paths
+- Provide fallbacks for limited environments
+- Optimize for specific platforms
 
 ## The Renderer API
 
 Every renderer in the Retend ecosystem implements the `Renderer` interface. If you ever wanted to build a custom renderer (for example, to render Retend apps to an HTML5 Canvas, or to a command-line terminal UI), you would implement this exact interface.
 
-Here are the key parts of the contract that make up a Renderer:
+### Renderer Types
 
-### Types
+Every renderer defines concrete types for its specific platform via `RendererTypes`:
 
-Every renderer defines concrete types for its specific platform:
+```tsx
+interface RendererTypes {
+  Node: unknown; // The fundamental unit of output (platform-specific)
+  Text: unknown; // A text node (platform-specific)
+  Container: unknown; // A node that can hold other nodes (platform-specific)
+  Group: unknown; // A logical container for fragments (platform-specific)
+  Handle: unknown; // Reference for dynamic lists (platform-specific)
+  Host: EventTarget; // The target environment
+}
+```
 
-- `Node`: The fundamental building block (e.g., an HTML element).
-- `Text`: A specific node for plain text.
-- `Container`: A node that can hold other nodes.
-- `Output`: The final result of the rendering process.
+### Complete API Reference
+
+| Method                                             | Description                             | Parameters                                                                                  | Returns          |
+| -------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------- |
+| `render(app)`                                      | Renders a JSX template                  | `app: JSX.Template`                                                                         | `Node \| Node[]` |
+| `createContainer(tagname, props?)`                 | Creates a host element                  | `tagname: string`, `props?: any`                                                            | `Container`      |
+| `createText(text, isReactive?, isPending?)`        | Creates a text node                     | `text: string`, `isReactive?: boolean`, `isPending?: boolean`                               | `Node`           |
+| `updateText(text, node)`                           | Updates an existing text node           | `text: string`, `node: Text`                                                                | `Node`           |
+| `createGroup()`                                    | Creates a logical group for fragments   | -                                                                                           | `Group`          |
+| `unwrapGroup(fragment)`                            | Flattens a group to nodes               | `fragment: Group`                                                                           | `Node[]`         |
+| `createGroupHandle(group)`                         | Creates stable handle for dynamic lists | `group: Group`                                                                              | `Handle`         |
+| `write(handle, newContent)`                        | Replaces content in a handle            | `handle: Handle`, `newContent: Node[]`                                                      | `void`           |
+| `reconcile(handle, options)`                       | Efficiently updates a dynamic list      | `handle: Handle`, `options: ReconcilerOptions`                                              | `void`           |
+| `append(parent, children)`                         | Attaches children to parent             | `parent: Node`, `children: Node \| Node[]`                                                  | `Node`           |
+| `setProperty(node, key, value)`                    | Sets a property/attribute               | `node: N`, `key: string`, `value: unknown`                                                  | `N`              |
+| `isNode(child)`                                    | Checks if value is a valid node         | `child: any`                                                                                | `boolean`        |
+| `isGroup(child)`                                   | Checks if value is a group              | `child: any`                                                                                | `boolean`        |
+| `isActive(node)`                                   | Checks if node is active                | `node: Node`                                                                                | `boolean`        |
+| `save(handle)`                                     | Saves handle state for later restore    | `handle: Handle`                                                                            | `number`         |
+| `restore(id, handle)`                              | Restores handle state                   | `id: number`, `handle: Handle \| null`                                                      | `void`           |
+| `handleComponent(fn, props, snapshot?, fileData?)` | Executes a component                    | `fn: Function`, `props: any[]`, `snapshot?: StateSnapshot`, `fileData?: JSX.JSXDevFileData` | `Node \| Node[]` |
 
 ### Node Creation
 
 The core framework calls these methods when it needs to create new elements:
 
 - `createContainer(tagname, props)`: Creates a host-level entity (like a `<div>`).
-- `createText(text)`: Creates a text node.
-- `createGroup(nodes)`: Creates a logical grouping of nodes without a physical container (used for `<></>` Fragments).
+- `createText(text, isReactive?, isPending?)`: Creates a text node. The `isReactive` flag indicates if the text content may change.
+- `createGroup()`: Creates a logical grouping of nodes without a physical container (used for `<></>` Fragments).
 
 ### Node Updates
 
@@ -52,7 +144,33 @@ When a reactive Cell changes, the core framework tells the renderer exactly what
 
 When a `For()` loop needs to update a list of items, the core framework handles the diffing algorithm and then commands the renderer:
 
-- `reconcile(handle, options)`: Efficiently creates, moves, or removes nodes in the DOM to match the new list.
+- `createGroupHandle(group)`: Creates a stable reference to track a dynamic section.
+- `write(handle, newContent)`: Replaces all content between handle markers.
+- `reconcile(handle, options)`: Efficiently creates, moves, or removes nodes to match a new list.
+
+### List Reconciliation
+
+The `reconcile` method implements Retend's efficient list diffing. The `ReconcilerOptions` interface:
+
+```tsx
+interface ReconcilerOptions<Node> {
+  retrieveOrSetItemKey: (item: any, i: number) => any;
+  onBeforeNodeRemove?: (node: Node, fromIndex: number) => void;
+  onBeforeNodeMove?: (nodes: Node[]) => void;
+  cacheFromLastRun: Map<any, ForCachedData<Node>>;
+  newCache: Map<any, ForCachedData<Node>>;
+  newList: Iterable<any>;
+  nodeLookAhead: Map<unknown, { itemKey: any; lastItemLastNode: Node | null }>;
+}
+
+interface ForCachedData<Node> {
+  index: Cell<number>;
+  nodes: Node[];
+  snapshot: StateSnapshot;
+}
+```
+
+The core framework handles the diffing algorithm and calls your renderer's `reconcile` with minimal, precise changes needed.
 
 ---
 

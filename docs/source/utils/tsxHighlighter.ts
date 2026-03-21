@@ -479,7 +479,7 @@ function highlightTsxUncached(source: string): string {
       else if (code === 60) out.push('&lt;');
       else if (code === 62) out.push('&gt;');
       else out.push(source[i]);
-      previousLexicalToken = source[i];
+      if (!isWhitespaceCode(code)) previousLexicalToken = source[i];
     }
 
     if (!isWhitespaceCode(code)) previousTokenCode = code;

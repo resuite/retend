@@ -106,9 +106,11 @@ export function createMDXComponents() {
     hr: () => <hr class="border-border/30 my-6 border-0 border-t" />,
     pre: (props: JSX.IntrinsicElements['pre']) => <pre>{props.children}</pre>,
     table: (props: JSX.IntrinsicElements['table']) => (
-      <table class="border-border my-6 w-full border-collapse text-sm">
-        {props.children}
-      </table>
+      <div class="my-6 overflow-x-auto">
+        <table class="border-border w-full border-collapse text-sm">
+          {props.children}
+        </table>
+      </div>
     ),
     th: (props: JSX.IntrinsicElements['th']) => (
       <th class="border-border bg-surface-alt text-fg border px-3 py-2 text-left font-semibold">

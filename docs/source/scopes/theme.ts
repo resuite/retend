@@ -16,7 +16,6 @@ export function useThemeData() {
     return isSystemDark.get() ? 'dark' : 'light';
   });
   const themeCell = useLocalStorage<Theme>('retend-theme', systemTheme.get());
-
   themeCell.listen((value) => {
     document.documentElement.classList.toggle('dark', value === 'dark');
   });
