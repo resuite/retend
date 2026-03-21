@@ -15,6 +15,7 @@ import { resolve } from 'node:path';
 
 import { addMetaListener } from './meta.js';
 import { renderToString } from './render-to-string.js';
+import { getServerDataValues } from './server-data.js';
 
 export class OutputArtifact {}
 export class HtmlOutputArtifact extends OutputArtifact {
@@ -155,9 +156,11 @@ async function renderPath(options) {
 
     // The server context can restore useful information about
     // the app for a client-side hydration.
+    const serverResource = Object.fromEntries(getServerDataValues());
     /** @type {ServerContext} */
     const ctx = {
       path,
+      serverResource,
     };
     const payload = JSON.stringify(ctx);
     document.body.append(

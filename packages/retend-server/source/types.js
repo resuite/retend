@@ -13,6 +13,7 @@
 /**
  * @typedef {Object} ServerContext
  * @property {string} path
+ * @property {Record<string, unknown>} serverResource
  */
 
 /**

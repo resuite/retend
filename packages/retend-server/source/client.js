@@ -15,6 +15,7 @@ import { setGlobalContext } from 'retend/context';
 import { createRouterRoot } from 'retend/router';
 
 import { addMetaListener } from './meta.js';
+import { setServerDataValues } from './server-data.js';
 
 export * from './render-to-string.js';
 
@@ -225,11 +226,12 @@ async function defaultToSpaMode(routerFn, rootId = 'app', options = {}) {
  * @param {HydrationOptions} options
  */
 async function restoreContext(context, routerCreateFn, options = {}) {
-  const { path } = context;
+  const { path, serverResource } = context;
 
   setGlobalContext({
     globalData: new Map(),
   });
+  setServerDataValues(new Map(Object.entries(serverResource)));
   const renderer = new DOMRenderer(window);
   setActiveRenderer(renderer);
 

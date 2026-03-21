@@ -142,7 +142,7 @@ describe('Hydration router + unique transition', () => {
     const html = renderToString(serverWindow.document.body, serverWindow);
 
     window.document.body.setHTMLUnsafe(
-      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/"}</script>`
+      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/","serverResource":{}}</script>`
     );
 
     const consoleErrorSpy = vi
@@ -242,7 +242,7 @@ describe('Hydration router + unique transition', () => {
     const html = renderToString(serverWindow.document.body, serverWindow);
 
     window.document.body.setHTMLUnsafe(
-      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/gallery/1"}</script>`
+      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/gallery/1","serverResource":{}}</script>`
     );
 
     const consoleErrorSpy = vi

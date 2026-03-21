@@ -2,6 +2,8 @@
 
 import { Cell, If, onSetup } from 'retend';
 
+export { serverResource } from './server-data.js';
+
 /**
  * @typedef {Object} ClientOnlyProps
  * @property {JSX.Template} children

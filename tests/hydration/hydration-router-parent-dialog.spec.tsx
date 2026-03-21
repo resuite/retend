@@ -113,7 +113,7 @@ describe('Hydration parent dialog close', () => {
     const html = renderToString(serverWindow.document.body, serverWindow);
 
     window.document.body.setHTMLUnsafe(
-      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/parent"}</script>`
+      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/parent","serverResource":{}}</script>`
     );
 
     const consoleErrorSpy = vi
