@@ -464,21 +464,21 @@ export class Router extends EventTarget {
     }
 
     const { chain, metadata } = await this.#flattenRouteChain(result);
-    // Cell.batch(() => {
-    const fullPath = constructURL(target.path, result);
-    this.#currentPath.set({
-      name: target.name,
-      path: constructURL(target.path, result, false),
-      params: result.params,
-      query: result.searchQueryParams,
-      fullPath: fullPath,
-      metadata,
-      hash: result.hash,
-    });
+    Cell.batch(() => {
+      const fullPath = constructURL(target.path, result);
+      this.#currentPath.set({
+        name: target.name,
+        path: constructURL(target.path, result, false),
+        params: result.params,
+        query: result.searchQueryParams,
+        fullPath: fullPath,
+        metadata,
+        hash: result.hash,
+      });
 
-    this.#internalState.metadata = metadata;
-    this.#internalState.routeChain.set(chain);
-    // });
+      this.#internalState.metadata = metadata;
+      this.#internalState.routeChain.set(chain);
+    });
 
     // Direction
     const direction = this.#calculateDirection(result.path, replace);
