@@ -26,7 +26,7 @@ import {
 /**
  * @typedef AwaitProps
  * @property {JSX.Template} [fallback]
- * @property {JSX.Children} children
+ * @property {JSX.Children} [children]
  */
 
 /** @type {Scope<AwaitContext>} */
