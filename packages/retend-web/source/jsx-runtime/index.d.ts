@@ -3073,7 +3073,9 @@ declare module 'retend/jsx-runtime' {
       lengthAdjust?: 'spacing' | 'spacingAndGlyphs';
     }
 
-    interface JsxSVGUseElement extends SVGCoreAttributes<SVGUseElement> {}
+    interface JsxSVGUseElement extends SVGCoreAttributes<SVGUseElement> {
+      href?: string;
+    }
 
     interface JsxSVGViewElement extends SVGCoreAttributes<SVGViewElement> {}
 
