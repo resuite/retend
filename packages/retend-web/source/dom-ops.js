@@ -405,8 +405,7 @@ export function updateText(text, node) {
 export function writeStaticStyles(renderer) {
   writeStaticStyle(
     'dom-styles',
-    ':where(retend-router-outlet, retend-teleport) { display: contents }' +
-      ':where(retend-unique-instance) {display: block;width:fit-content;height:fit-content}',
+    ':where(retend-router-outlet, retend-teleport) { display: contents }',
     renderer
   );
 }

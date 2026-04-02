@@ -771,9 +771,8 @@ export class DeferredHandleSymbol {
  * @param {Function} childChecker
  */
 export function containerIsDynamic(tagname, props, childChecker) {
-  if (tagname === 'retend-unique-instance' || tagname === 'retend-teleport') {
-    return true;
-  }
+  if (tagname === 'retend-teleport') return true;
+
   for (const key in props) {
     const value = props[key];
     if (key === 'className' || key === 'class') {
