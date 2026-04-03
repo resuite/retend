@@ -59,7 +59,7 @@ export class CanvasContainer<
     this.resolveSize(host);
     this.drawContainer(host);
 
-    const { textColor, textSize, x = 0, y = 0 } = this.style;
+    const { color: textColor, fontSize, left: x = 0, top: y = 0 } = this.style;
 
     host.ctx.save();
     host.ctx.translate(x, y);
@@ -68,15 +68,15 @@ export class CanvasContainer<
     host.scopeWidth = this.resolvedWidth;
     host.scopeHeight = this.resolvedHeight;
 
-    const prevColor = host.textColor;
-    const prevSize = host.textSize;
-    if (textColor) host.textColor = textColor;
-    if (textSize) host.textSize = textSize;
+    const prevColor = host.color;
+    const prevSize = host.fontSize;
+    if (textColor) host.color = textColor;
+    if (fontSize) host.fontSize = fontSize;
 
     for (const child of this.children) child.draw(host);
 
-    host.textColor = prevColor;
-    host.textSize = prevSize;
+    host.color = prevColor;
+    host.fontSize = prevSize;
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
     host.ctx.restore();
@@ -100,22 +100,22 @@ export class CanvasRoot extends CanvasContainer {
 
 export class CanvasRect extends CanvasContainer {
   override drawContainer(host: CanvasHost): void {
-    const { x = 0, y = 0, bgColor = 'transparent' } = this.style;
+    const { left = 0, top = 0, backgroundColor = 'transparent' } = this.style;
 
-    host.ctx.fillStyle = bgColor;
-    host.ctx.fillRect(x, y, this.resolvedWidth, this.resolvedHeight);
+    host.ctx.fillStyle = backgroundColor;
+    host.ctx.fillRect(left, top, this.resolvedWidth, this.resolvedHeight);
   }
 }
 
 export class CanvasCircle extends CanvasContainer {
   override drawContainer(host: CanvasHost): void {
-    const { x = 0, y = 0, bgColor = 'transparent' } = this.style;
+    const { left = 0, top = 0, backgroundColor = 'transparent' } = this.style;
 
-    host.ctx.fillStyle = bgColor;
+    host.ctx.fillStyle = backgroundColor;
     host.ctx.beginPath();
     host.ctx.arc(
-      x + this.resolvedWidth / 2,
-      y + this.resolvedHeight / 2,
+      left + this.resolvedWidth / 2,
+      top + this.resolvedHeight / 2,
       Math.min(this.resolvedWidth, this.resolvedHeight) / 2,
       0,
       Math.PI * 2
@@ -127,14 +127,15 @@ export class CanvasCircle extends CanvasContainer {
 export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
   override drawContainer(host: CanvasHost): void {
     const ownPoints = this.attributes.points ?? [];
-    const { x = 0, y = 0, bgColor = 'transparent' } = this.style;
+    const { left = 0, top = 0, backgroundColor = 'transparent' } = this.style;
     if (!ownPoints.length) return;
     const [firstX, firstY] = ownPoints[0];
 
-    host.ctx.fillStyle = bgColor;
+    host.ctx.fillStyle = backgroundColor;
     host.ctx.beginPath();
-    host.ctx.moveTo(x + firstX, y + firstY);
-    for (const [px, py] of ownPoints.slice(1)) host.ctx.lineTo(x + px, y + py);
+    host.ctx.moveTo(left + firstX, top + firstY);
+    for (const [px, py] of ownPoints.slice(1))
+      host.ctx.lineTo(left + px, top + py);
     host.ctx.closePath();
     host.ctx.fill();
   }

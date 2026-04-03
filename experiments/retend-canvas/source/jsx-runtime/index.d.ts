@@ -8,13 +8,13 @@ declare module 'retend/jsx-runtime' {
 
   namespace JSX {
     interface Style {
-      x?: number;
-      y?: number;
+      left?: number;
+      top?: number;
       width?: number | `${number}%`;
       height?: number | `${number}%`;
-      bgColor?: string;
-      textColor?: string;
-      textSize?: number;
+      backgroundColor?: string;
+      color?: string;
+      fontSize?: number;
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;

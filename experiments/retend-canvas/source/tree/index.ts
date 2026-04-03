@@ -4,8 +4,8 @@ export * from './container';
 export * from './text';
 
 export class CanvasHost extends EventTarget {
-  textColor = 'black';
-  textSize = 16;
+  color = 'black';
+  fontSize = 16;
   scopeWidth: number;
   scopeHeight: number;
 

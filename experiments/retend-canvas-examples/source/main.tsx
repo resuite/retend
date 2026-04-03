@@ -7,9 +7,9 @@ const App = () => {
       style={{
         width: '100%',
         height: '100%',
-        bgColor: 'blue',
-        textColor: 'white',
-        textSize: 90,
+        backgroundColor: 'blue',
+        color: 'white',
+        fontSize: 90,
       }}
     >
       <shape
@@ -19,9 +19,9 @@ const App = () => {
           [240, 120],
         ]}
         style={{
-          x: 40,
-          y: 40,
-          bgColor: 'lime',
+          top: 90,
+          left: 60,
+          backgroundColor: 'lime',
         }}
       />
       Hello worlddd!
