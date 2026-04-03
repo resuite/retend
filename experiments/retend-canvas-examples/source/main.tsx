@@ -1,33 +1,7 @@
 import 'retend-canvas/jsx-runtime';
 import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
 
-const App = () => {
-  return (
-    <rect
-      style={{
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'blue',
-        color: 'white',
-        fontSize: 90,
-      }}
-    >
-      <shape
-        points={[
-          [0, 120],
-          [120, 0],
-          [240, 120],
-        ]}
-        style={{
-          top: 90,
-          left: 60,
-          backgroundColor: 'lime',
-        }}
-      />
-      Hello worlddd!
-    </rect>
-  );
-};
+import App from './App';
 
 let renderer: CanvasRenderer;
 async function setupCanvas(canvas: HTMLCanvasElement) {
