@@ -7,6 +7,18 @@ declare module 'retend/jsx-runtime' {
   import { CanvasNode } from '../tree';
 
   namespace JSX {
+    interface Style {
+      x?: number;
+      y?: number;
+      width?: number | `${number}%`;
+      height?: number | `${number}%`;
+      bgColor?: string;
+      textColor?: string;
+      textSize?: number;
+    }
+
+    type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;
+
     type Container<T> = {
       [K in keyof T]: JSX.ValueOrCellOrPromise<T[K]>;
     } & JSX.IntrinsicAttributes;
@@ -16,13 +28,7 @@ declare module 'retend/jsx-runtime' {
     }
 
     interface ContainerProps {
-      x?: number;
-      y?: number;
-      width?: number | `${number}%`;
-      height?: number | `${number}%`;
-      bgColor?: string;
-      textColor?: string;
-      textSize?: number;
+      style?: StyleValue;
     }
 
     interface ShapeProps extends ContainerProps {

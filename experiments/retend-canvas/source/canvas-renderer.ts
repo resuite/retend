@@ -13,9 +13,6 @@ import {
   setActiveRenderer,
   runPendingSetupEffects,
   createNodesFromTemplate,
-  Cell,
-  AsyncCell,
-  useAwait,
 } from 'retend';
 
 import {
@@ -32,6 +29,7 @@ import {
   type CanvasTag,
   CanvasText,
   collectReconciledNodes,
+  setAttribute,
   write,
   CanvasRoot,
 } from './tree';
@@ -60,7 +58,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   host: CanvasHost;
   observer: Observer | null;
   #state?: StateSnapshot;
-  #root: CanvasContainer;
+  root: CanvasContainer;
   #viewport: { width: number; height: number };
 
   capabilities: Capabilities = {
@@ -79,14 +77,14 @@ export class CanvasRenderer implements CanvasRendererInterface {
       );
       this.host.scopeWidth = this.#viewport.width;
       this.host.scopeHeight = this.#viewport.height;
-      this.#root.draw(this.host);
+      this.root.draw(this.host);
     });
   }
 
   constructor(host: CanvasHost, viewport: { width: number; height: number }) {
     this.host = host;
     this.observer = null;
-    this.#root = new CanvasRoot();
+    this.root = new CanvasRoot();
     this.#viewport = viewport;
   }
 
@@ -96,8 +94,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
     return withState(this.#state, () => {
       const result = normalizeJsxChild(app, this);
       if (Array.isArray(result)) {
-        for (const child of result) this.#root.append(child);
-      } else this.#root.append(result);
+        for (const child of result) this.root.append(child);
+      } else this.root.append(result);
       return result;
     });
   }
@@ -140,24 +138,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   setProperty<N extends CanvasNode>(node: N, key: string, value: unknown): N {
     if (!(node instanceof CanvasContainer)) return node;
 
-    if (!Cell.isCell(value)) {
-      Reflect.set(node.attributes, key, value);
-      if (node.isConnectedTo(this.#root)) this.requestRender();
-      return node;
-    }
-
-    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
-    const updateProperty = (nextValue: any) => {
-      if (nextValue instanceof Promise) nextValue.then(updateProperty);
-      else {
-        Reflect.set(node.attributes, key, nextValue);
-        if (node.isConnectedTo(this.#root)) this.requestRender();
-      }
-    };
-
-    const rawVal = value.get();
-    updateProperty(rawVal);
-    value.listen(updateProperty);
+    setAttribute(node, key, value, this);
     return node;
   }
 
@@ -203,7 +184,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   isActive(node: CanvasNode): boolean {
     let current: CanvasNode | null = node;
     while (current) {
-      if (current === this.#root) return true;
+      if (current === this.root) return true;
       current = current.parent;
     }
     return false;

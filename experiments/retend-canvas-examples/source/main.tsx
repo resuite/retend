@@ -4,12 +4,26 @@ import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
 const App = () => {
   return (
     <rect
-      width="100%"
-      height="100%"
-      bgColor="blue"
-      textColor="white"
-      textSize={90}
+      style={{
+        width: '100%',
+        height: '100%',
+        bgColor: 'blue',
+        textColor: 'white',
+        textSize: 90,
+      }}
     >
+      <shape
+        points={[
+          [0, 120],
+          [120, 0],
+          [240, 120],
+        ]}
+        style={{
+          x: 40,
+          y: 40,
+          bgColor: 'lime',
+        }}
+      />
       Hello worlddd!
     </rect>
   );

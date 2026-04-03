@@ -1,5 +1,8 @@
-import type { ReconcilerOptions } from 'retend';
+import type { JSX } from 'retend/jsx-runtime';
 
+import { type ReconcilerOptions, AsyncCell, Cell, useAwait } from 'retend';
+
+import type { CanvasRenderer } from '../canvas-renderer';
 import type { CanvasContainer } from './container';
 
 import { CanvasFragment, type CanvasNode, type CanvasRange } from './node';
@@ -50,4 +53,63 @@ export function append(
     }
   } else parent.append(child);
   return parent;
+}
+
+export function setStyleProperty(
+  node: CanvasContainer,
+  renderer: CanvasRenderer,
+  key: keyof JSX.Style,
+  value: unknown
+) {
+  const nextStyle = node.getStyles();
+
+  if (!Cell.isCell(value)) {
+    Reflect.set(nextStyle, key, value);
+    if (node.isConnectedTo(renderer.root)) {
+      renderer.requestRender();
+    }
+    return;
+  }
+
+  if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+  const updateProperty = (nextValue: any) => {
+    if (nextValue instanceof Promise) nextValue.then(updateProperty);
+    else {
+      Reflect.set(nextStyle, key, nextValue);
+      if (node.isConnectedTo(renderer.root)) {
+        renderer.requestRender();
+      }
+    }
+  };
+
+  updateProperty(value.get());
+  value.listen(updateProperty);
+}
+
+export function setAttribute(
+  node: CanvasContainer,
+  key: string,
+  value: unknown,
+  renderer: CanvasRenderer
+) {
+  if (Cell.isCell(value)) {
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+    const updateAttribute = (nextValue: any) => {
+      if (nextValue instanceof Promise) nextValue.then(updateAttribute);
+      else setAttribute(node, key, nextValue, renderer);
+    };
+
+    updateAttribute(value.get());
+    value.listen(updateAttribute);
+    return;
+  }
+
+  if (key === 'style') {
+    setStyleProperty(node, renderer, key as keyof JSX.Style, value);
+  }
+
+  node.setAttribute(key as never, value as never);
+  if (node.isConnectedTo(renderer.root)) {
+    renderer.requestRender();
+  }
 }
