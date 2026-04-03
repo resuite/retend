@@ -15,7 +15,7 @@ export interface RendererTypes {
   Node: any;
   /** A reference used to track and update a dynamic collection of nodes within the output. */
   Handle: any;
-  /** A logical container for a set of nodes that doesn't necessarily correspond to a host-level entity. */
+  /** A l ogical container for a set of nodes that doesn't necessarily correspond to a host-level entity. */
   Group: any;
   /** A specific node type for representing plain text content. */
   Text: any;
@@ -109,7 +109,7 @@ export interface Renderer<
   /** Flattens a Group node back into its constituent nodes. */
   unwrapGroup(fragment: Group): Node[];
   /** Physically attaches nodes to a container in the host environment. */
-  append(parent: Node, children: Node | Node[]): Node;
+  append(parent: Container, children: Node | Node[]): Node;
   /** Checks if a node is "active". Activity of a node is renderer-defined. */
   isActive(node: Node): boolean;
   /** Creates a stable reference (handle) to a group of nodes, enabling subsequent incremental updates. */

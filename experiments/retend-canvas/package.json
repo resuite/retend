@@ -1,0 +1,41 @@
+{
+  "name": "retend-canvas",
+  "version": "0.0.28",
+  "private": false,
+  "description": "Retend canvas bindings.",
+  "keywords": [
+    "javascript",
+    "tui"
+  ],
+  "homepage": "https://github.com/resuite/retend#readme",
+  "bugs": {
+    "url": "https://github.com/resuite/retend/issues"
+  },
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "type": "git",
+    "directory": "github.com/resuite/retend"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime/index.d.ts",
+      "import": "./dist/jsx-runtime/index.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "retend": "workspace:*",
+    "typescript": "^5.8.2"
+  },
+  "peerDependencies": {
+    "retend": "*"
+  }
+}

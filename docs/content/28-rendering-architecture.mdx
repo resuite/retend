@@ -115,8 +115,8 @@ interface RendererTypes {
 | `createGroupHandle(group)`                         | Creates stable handle for dynamic lists | `group: Group`                                                                              | `Handle`         |
 | `write(handle, newContent)`                        | Replaces content in a handle            | `handle: Handle`, `newContent: Node[]`                                                      | `void`           |
 | `reconcile(handle, options)`                       | Efficiently updates a dynamic list      | `handle: Handle`, `options: ReconcilerOptions`                                              | `void`           |
-| `append(parent, children)`                         | Attaches children to parent             | `parent: Node`, `children: Node \| Node[]`                                                  | `Node`           |
-| `setProperty(node, key, value)`                    | Sets a property/attribute               | `node: N`, `key: string`, `value: unknown`                                                  | `N`              |
+| `append(container, children)`                      | Attaches children to parent             | `parent: Node`, `children: Node \| Node[]`                                                  | `Node`           |
+| `setProperty(container, key, value)`               | Sets a property/attribute               | `node: N`, `key: string`, `value: unknown`                                                  | `N`              |
 | `isNode(child)`                                    | Checks if value is a valid node         | `child: any`                                                                                | `boolean`        |
 | `isGroup(child)`                                   | Checks if value is a group              | `child: any`                                                                                | `boolean`        |
 | `isActive(node)`                                   | Checks if node is active                | `node: Node`                                                                                | `boolean`        |
