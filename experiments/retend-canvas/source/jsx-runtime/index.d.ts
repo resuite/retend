@@ -18,10 +18,11 @@ declare module 'retend/jsx-runtime' {
     interface ContainerProps {
       x?: number;
       y?: number;
-      width?: number;
-      height?: number;
+      width?: number | `${number}%`;
+      height?: number | `${number}%`;
       bgColor?: string;
       textColor?: string;
+      textSize?: number;
     }
 
     interface IntrinsicElements {

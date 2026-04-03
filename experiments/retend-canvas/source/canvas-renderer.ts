@@ -32,6 +32,7 @@ import {
   CanvasText,
   collectReconciledNodes,
   write,
+  CanvasRoot,
 } from './tree';
 
 interface CanvasRenderingTypes {
@@ -59,13 +60,15 @@ export class CanvasRenderer implements CanvasRendererInterface {
   observer: Observer | null;
   #state?: StateSnapshot;
   #root: CanvasContainer;
+  #viewport: { width: number; height: number };
 
   capabilities: Capabilities = {
     supportsObserverConnectedCallbacks: true,
     supportsSetupEffects: true,
   };
 
-  requestRender() {
+  requestRender(viewport?: { width: number; height: number }) {
+    if (viewport) this.#viewport = viewport;
     requestAnimationFrame(() => {
       this.host.ctx.clearRect(
         0,
@@ -73,14 +76,17 @@ export class CanvasRenderer implements CanvasRendererInterface {
         this.host.ctx.canvas.width,
         this.host.ctx.canvas.height
       );
+      this.host.scopeWidth = this.#viewport.width;
+      this.host.scopeHeight = this.#viewport.height;
       this.#root.draw(this.host);
     });
   }
 
-  constructor(host: CanvasHost) {
+  constructor(host: CanvasHost, viewport: { width: number; height: number }) {
     this.host = host;
     this.observer = null;
-    this.#root = new CanvasContainer('root');
+    this.#root = new CanvasRoot();
+    this.#viewport = viewport;
   }
 
   render(app: JSX.Template): CanvasNode | CanvasNode[] {
@@ -91,7 +97,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
       if (Array.isArray(result)) {
         for (const child of result) this.#root.append(child);
       } else this.#root.append(result);
-      this.requestRender();
       return result;
     });
   }
@@ -229,8 +234,9 @@ export async function renderToCanvasContext(
   ctx: CanvasRenderingContext2D,
   App: () => JSX.Template
 ) {
-  const host = new CanvasHost(ctx);
-  const renderer = new CanvasRenderer(host);
+  const host = new CanvasHost(ctx, ctx.canvas.width, ctx.canvas.height);
+  const viewport = { width: ctx.canvas.width, height: ctx.canvas.height };
+  const renderer = new CanvasRenderer(host, viewport);
   setActiveRenderer(renderer);
   renderer.render(App());
   await runPendingSetupEffects();

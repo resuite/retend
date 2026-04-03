@@ -3,12 +3,14 @@ import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
 
 const App = () => {
   return (
-    <rect width={661} height={100} bgColor="blue" textColor="white">
-      <rect x={10} width={50} bgColor="green" height={50}>
-        <circle width={50} height={50} bgColor="gray">
-          Weee
-        </circle>
-      </rect>
+    <rect
+      width="100%"
+      height="100%"
+      bgColor="blue"
+      textColor="white"
+      textSize={90}
+    >
+      Hello worlddd!
     </rect>
   );
 };
@@ -24,9 +26,10 @@ async function setupCanvas(canvas: HTMLCanvasElement) {
   ctx.scale(dpr, dpr);
 
   if (renderer) {
-    renderer.requestRender();
+    renderer.requestRender({ width: rect.width, height: rect.height });
   } else {
     renderer = await renderToCanvasContext(ctx, App);
+    renderer.requestRender({ width: rect.width, height: rect.height });
   }
   return ctx;
 }

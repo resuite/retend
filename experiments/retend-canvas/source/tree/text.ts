@@ -10,8 +10,11 @@ export class CanvasText extends CanvasNode {
   override draw(host: CanvasHost): void {
     host.ctx.textBaseline = 'top';
     const fillStyle = host.ctx.fillStyle;
+    const font = host.ctx.font;
     host.ctx.fillStyle = host.textColor;
+    host.ctx.font = `${host.textSize}px sans-serif`;
     host.ctx.fillText(this.content, 0, 0);
+    host.ctx.font = font;
     host.ctx.fillStyle = fillStyle;
   }
 }

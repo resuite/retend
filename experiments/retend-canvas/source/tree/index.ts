@@ -5,8 +5,17 @@ export * from './text';
 
 export class CanvasHost extends EventTarget {
   textColor = 'black';
+  textSize = 16;
+  scopeWidth: number;
+  scopeHeight: number;
 
-  constructor(public ctx: CanvasRenderingContext2D) {
+  constructor(
+    public ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number
+  ) {
     super();
+    this.scopeWidth = width;
+    this.scopeHeight = height;
   }
 }
