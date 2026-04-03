@@ -44,6 +44,15 @@ interface CanvasRenderingTypes {
 
 type CanvasRendererInterface = Renderer<CanvasRenderingTypes>;
 
+/**
+ * The CanvasRenderer class implements the Renderer interface for rendering
+ * JSX components to an HTML5 Canvas 2D context.
+ *
+ * This renderer manages a tree of canvas nodes, handling component lifecycle,
+ * state updates, and property bindings. It supports reactive updates through
+ * Cells and AsyncCells, and provides methods for creating and manipulating
+ * the canvas node tree.
+ */
 export class CanvasRenderer implements CanvasRendererInterface {
   host: CanvasHost;
   observer: Observer | null;
@@ -189,6 +198,20 @@ export class CanvasRenderer implements CanvasRendererInterface {
   }
 }
 
+/**
+ * Renders a JSX template to a 2D canvas context using the retend renderer.
+ *
+ * @param ctx - The 2D rendering context of a canvas element where the content will be drawn
+ * @param App - A function that returns a JSX template to render
+ * @returns A Promise that resolves to the CanvasRenderer instance after setup effects have run
+ *
+ * @example
+ * ```typescript
+ * const canvas = document.getElementById('canvas');
+ * const ctx = canvas.getContext('2d');
+ * await renderToCanvasContext(ctx, () => <MyApp />);
+ * ```
+ */
 export async function renderToCanvasContext(
   ctx: CanvasRenderingContext2D,
   App: () => JSX.Template

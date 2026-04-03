@@ -6,7 +6,6 @@
     "noImplicitAny": true,
     "allowUnreachableCode": false,
     "lib": ["DOM", "ESNext", "DOM.Iterable"],
-    "allowImportingTsExtensions": true,
     "target": "ESNext",
 
     "strictFunctionTypes": true,
@@ -18,7 +17,7 @@
 
     "allowJs": true,
     "declaration": true,
-    "emitDeclarationOnly": true,
+    "emitDeclarationOnly": false,
     "outDir": "dist",
     "declarationMap": true,
 

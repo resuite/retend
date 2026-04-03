@@ -13,7 +13,13 @@ fs.mkdirSync('dist');
 // Copy the source directories to the dist directory.
 console.log('Copying directories to dist...');
 for (const dir of fs.readdirSync('source')) {
-  fs.cpSync(`source/${dir}`, `dist/${dir}`, { recursive: true });
+  fs.cpSync(`source/${dir}`, `dist/${dir}`, {
+    recursive: true,
+    filter(source) {
+      if (source.endsWith('.d.ts')) return true;
+      return !source.endsWith('.ts');
+    },
+  });
 }
 console.log('Done!');
 
