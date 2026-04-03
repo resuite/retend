@@ -116,6 +116,18 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
+  experiments/retend-canvas-examples:
+    devDependencies:
+      retend:
+        specifier: workspace:*
+        version: link:../../packages/retend
+      retend-canvas:
+        specifier: workspace:*
+        version: link:../retend-canvas
+      vite:
+        specifier: ^6.2.1
+        version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
+
   experiments/retend-opentui:
     dependencies:
       '@opentui/core':

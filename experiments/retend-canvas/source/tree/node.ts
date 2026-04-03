@@ -1,3 +1,5 @@
+import type { CanvasHost } from '.';
+
 export class CanvasNode {
   parent: CanvasParentNode | null = null;
 
@@ -9,8 +11,7 @@ export class CanvasNode {
     return node === root;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx;
+  draw(_host: CanvasHost) {
     throw new Error('draw method not implemented.');
   }
 }
@@ -44,15 +45,6 @@ export class CanvasParentNode extends CanvasNode {
   }
 }
 
-export class CanvasText extends CanvasNode {
-  constructor(public content: string) {
-    super();
-  }
-
-  draw(ctx: CanvasRenderingContext2D): void {
-    ctx.fillText(this.content, 0, 0);
-  }
-}
 export class CanvasAnchor extends CanvasNode {
   draw() {
     // anchor nodes are not visible.

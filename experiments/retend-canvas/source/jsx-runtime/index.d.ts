@@ -15,8 +15,24 @@ declare module 'retend/jsx-runtime' {
       ref?: Cell<CanvasNode | null>;
     }
 
+    interface ContainerProps {
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+      bgColor?: string;
+      textColor?: string;
+    }
+
     interface IntrinsicElements {
-      rect: Container<{}>;
+      /**
+       * Draws a filled rectangle on the canvas.
+       */
+      rect: Container<ContainerProps>;
+      /**
+       * Draws a filled circle on the canvas.
+       */
+      circle: Container<ContainerProps>;
     }
   }
 }

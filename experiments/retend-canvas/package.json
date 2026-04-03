@@ -29,7 +29,8 @@
     }
   },
   "scripts": {
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "watch": "sh -c 'pnpm run build; while sleep 1; do if find source scripts -newer dist/index.js | grep -q .; then pnpm run build; fi; done'"
   },
   "devDependencies": {
     "retend": "workspace:*",

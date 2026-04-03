@@ -27,6 +27,7 @@ import {
   CanvasNode,
   type CanvasRange,
   CanvasRect,
+  CanvasCircle,
   type CanvasTag,
   CanvasText,
   collectReconciledNodes,
@@ -64,7 +65,17 @@ export class CanvasRenderer implements CanvasRendererInterface {
     supportsSetupEffects: true,
   };
 
-  #requestRender() {}
+  requestRender() {
+    requestAnimationFrame(() => {
+      this.host.ctx.clearRect(
+        0,
+        0,
+        this.host.ctx.canvas.width,
+        this.host.ctx.canvas.height
+      );
+      this.#root.draw(this.host);
+    });
+  }
 
   constructor(host: CanvasHost) {
     this.host = host;
@@ -80,7 +91,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
       if (Array.isArray(result)) {
         for (const child of result) this.#root.append(child);
       } else this.#root.append(result);
-      this.#requestRender();
+      this.requestRender();
       return result;
     });
   }
@@ -93,6 +104,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
     switch (tagname) {
       case 'rect':
         return new CanvasRect();
+      case 'circle':
+        return new CanvasCircle();
       default:
         return new CanvasContainer(tagname);
     }
@@ -112,7 +125,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   updateText(text: string, node: CanvasText): CanvasNode {
     node.content = text;
-    this.#requestRender();
+    this.requestRender();
     return node;
   }
 
@@ -120,8 +133,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
     if (!(node instanceof CanvasContainer)) return node;
 
     if (!Cell.isCell(value)) {
-      node.attributes[key] = value;
-      if (node.isConnectedTo(this.#root)) this.#requestRender();
+      Reflect.set(node.attributes, key, value);
+      if (node.isConnectedTo(this.#root)) this.requestRender();
       return node;
     }
 
@@ -129,8 +142,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
     const updateProperty = (nextValue: any) => {
       if (nextValue instanceof Promise) nextValue.then(updateProperty);
       else {
-        node.attributes[key] = nextValue;
-        if (node.isConnectedTo(this.#root)) this.#requestRender();
+        Reflect.set(node.attributes, key, nextValue);
+        if (node.isConnectedTo(this.#root)) this.requestRender();
       }
     };
 
@@ -162,12 +175,12 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   write(handle: CanvasRange, newContent: CanvasNode[]) {
     write(handle, newContent);
-    this.#requestRender();
+    this.requestRender();
   }
 
   reconcile(handle: CanvasRange, options: ReconcilerOptions<CanvasNode>) {
     write(handle, collectReconciledNodes(options));
-    this.#requestRender();
+    this.requestRender();
   }
 
   handleComponent(
@@ -216,11 +229,10 @@ export async function renderToCanvasContext(
   ctx: CanvasRenderingContext2D,
   App: () => JSX.Template
 ) {
-  App;
   const host = new CanvasHost(ctx);
   const renderer = new CanvasRenderer(host);
   setActiveRenderer(renderer);
-  renderer.render(App);
+  renderer.render(App());
   await runPendingSetupEffects();
   return renderer;
 }
