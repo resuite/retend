@@ -55,16 +55,16 @@ export function append(
   return parent;
 }
 
-export function setStyleProperty(
+function setStyleProperty(
   node: CanvasContainer,
   renderer: CanvasRenderer,
   key: keyof JSX.Style,
   value: unknown
 ) {
-  const nextStyle = node.getStyles();
-
   if (!Cell.isCell(value)) {
+    const nextStyle = node.getStyles();
     Reflect.set(nextStyle, key, value);
+    node.setStyles(nextStyle);
     if (node.isConnectedTo(renderer.root)) {
       renderer.requestRender();
     }
@@ -73,9 +73,11 @@ export function setStyleProperty(
 
   if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
   const updateProperty = (nextValue: any) => {
+    const nextStyle = node.getStyles();
     if (nextValue instanceof Promise) nextValue.then(updateProperty);
     else {
       Reflect.set(nextStyle, key, nextValue);
+      node.setStyles(nextStyle);
       if (node.isConnectedTo(renderer.root)) {
         renderer.requestRender();
       }
@@ -104,8 +106,17 @@ export function setAttribute(
     return;
   }
 
-  if (key === 'style') {
-    setStyleProperty(node, renderer, key as keyof JSX.Style, value);
+  if (key === 'style' && value instanceof Object) {
+    node.setAttribute(key as never, {} as never);
+    for (const styleKey in value) {
+      setStyleProperty(
+        node,
+        renderer,
+        styleKey as keyof JSX.Style,
+        Reflect.get(value, styleKey)
+      );
+    }
+    return;
   }
 
   node.setAttribute(key as never, value as never);
