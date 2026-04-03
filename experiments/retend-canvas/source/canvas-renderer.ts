@@ -28,6 +28,7 @@ import {
   type CanvasRange,
   CanvasRect,
   CanvasCircle,
+  CanvasShape,
   type CanvasTag,
   CanvasText,
   collectReconciledNodes,
@@ -111,8 +112,10 @@ export class CanvasRenderer implements CanvasRendererInterface {
         return new CanvasRect();
       case 'circle':
         return new CanvasCircle();
+      case 'shape':
+        return new CanvasShape();
       default:
-        return new CanvasContainer(tagname);
+        return new CanvasContainer();
     }
   }
 

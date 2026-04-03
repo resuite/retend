@@ -6,14 +6,16 @@ import { CanvasParentNode } from './node';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
 
-export class CanvasContainer extends CanvasParentNode {
-  attributes: JSX.ContainerProps;
+export class CanvasContainer<
+  Props extends JSX.ContainerProps = JSX.ContainerProps,
+> extends CanvasParentNode {
+  attributes: Props;
   protected resolvedWidth: number;
   protected resolvedHeight: number;
 
-  constructor(public tag: CanvasTag) {
+  constructor() {
     super();
-    this.attributes = {};
+    this.attributes = {} as Props;
     this.resolvedWidth = 0;
     this.resolvedHeight = 0;
   }
@@ -69,11 +71,8 @@ export class CanvasContainer extends CanvasParentNode {
 
 export class CanvasRoot extends CanvasContainer {
   constructor() {
-    super('root');
-    this.attributes = {
-      width: '100%',
-      height: '100%',
-    };
+    super();
+    this.attributes = { width: '100%', height: '100%' };
   }
 
   override drawContainer() {}
@@ -82,12 +81,8 @@ export class CanvasRoot extends CanvasContainer {
 // --------------
 
 export class CanvasRect extends CanvasContainer {
-  constructor() {
-    super('rect');
-  }
-
   override drawContainer(host: CanvasHost): void {
-    const { x = 0, y = 0, bgColor = 'black' } = this.attributes;
+    const { x = 0, y = 0, bgColor = 'transparent' } = this.attributes;
 
     host.ctx.fillStyle = bgColor;
     host.ctx.fillRect(x, y, this.resolvedWidth, this.resolvedHeight);
@@ -95,12 +90,8 @@ export class CanvasRect extends CanvasContainer {
 }
 
 export class CanvasCircle extends CanvasContainer {
-  constructor() {
-    super('circle');
-  }
-
   override drawContainer(host: CanvasHost): void {
-    const { x = 0, y = 0, bgColor = 'black' } = this.attributes;
+    const { x = 0, y = 0, bgColor = 'transparent' } = this.attributes;
 
     host.ctx.fillStyle = bgColor;
     host.ctx.beginPath();
@@ -111,6 +102,21 @@ export class CanvasCircle extends CanvasContainer {
       0,
       Math.PI * 2
     );
+    host.ctx.fill();
+  }
+}
+
+export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
+  override drawContainer(host: CanvasHost): void {
+    const { x = 0, y = 0, bgColor = 'transparent', points = [] } = this.attributes;
+    if (!points.length) return;
+    const [firstX, firstY] = points[0];
+
+    host.ctx.fillStyle = bgColor;
+    host.ctx.beginPath();
+    host.ctx.moveTo(x + firstX, y + firstY);
+    for (const [px, py] of points.slice(1)) host.ctx.lineTo(x + px, y + py);
+    host.ctx.closePath();
     host.ctx.fill();
   }
 }

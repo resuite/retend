@@ -25,6 +25,10 @@ declare module 'retend/jsx-runtime' {
       textSize?: number;
     }
 
+    interface ShapeProps extends ContainerProps {
+      points: [number, number][];
+    }
+
     interface IntrinsicElements {
       /**
        * Draws a filled rectangle on the canvas.
@@ -34,6 +38,7 @@ declare module 'retend/jsx-runtime' {
        * Draws a filled circle on the canvas.
        */
       circle: Container<ContainerProps>;
+      shape: Container<ShapeProps>;
     }
   }
 }
