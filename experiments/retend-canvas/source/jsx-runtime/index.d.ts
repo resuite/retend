@@ -26,6 +26,9 @@ declare module 'retend/jsx-runtime' {
       backgroundColor?: string;
       color?: string;
       fontSize?: number;
+      fontFamily?: string;
+      fontWeight?: string | number;
+      fontStyle?: 'normal' | 'italic' | 'oblique';
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;

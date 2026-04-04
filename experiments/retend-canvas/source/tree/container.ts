@@ -72,8 +72,17 @@ export class CanvasContainer<
 
   override draw(host: CanvasHost): void {
     this.resolveSize(host);
-    const { color, fontSize, textAlign, lineHeight, whiteSpace, overflow } =
-      this.style;
+    const {
+      color,
+      fontSize,
+      fontFamily,
+      fontWeight,
+      fontStyle,
+      textAlign,
+      lineHeight,
+      whiteSpace,
+      overflow,
+    } = this.style;
     const transform = createTransformMatrix(
       this.style,
       this.resolvedWidth,
@@ -103,11 +112,17 @@ export class CanvasContainer<
 
     const prevColor = host.color;
     const prevSize = host.fontSize;
+    const prevFamily = host.fontFamily;
+    const prevWeight = host.fontWeight;
+    const prevStyle = host.fontStyle;
     const prevTextAlign = host.textAlign;
     const prevLineHeight = host.lineHeight;
     const prevWhiteSpace = host.whiteSpace;
     if (color) host.color = color;
     if (fontSize) host.fontSize = fontSize;
+    if (fontFamily) host.fontFamily = fontFamily;
+    if (fontWeight) host.fontWeight = fontWeight;
+    if (fontStyle) host.fontStyle = fontStyle;
     if (textAlign) host.textAlign = textAlign;
     if (lineHeight !== undefined) host.lineHeight = lineHeight;
     if (whiteSpace) host.whiteSpace = whiteSpace;
@@ -116,6 +131,9 @@ export class CanvasContainer<
 
     host.color = prevColor;
     host.fontSize = prevSize;
+    host.fontFamily = prevFamily;
+    host.fontWeight = prevWeight;
+    host.fontStyle = prevStyle;
     host.textAlign = prevTextAlign;
     host.lineHeight = prevLineHeight;
     host.whiteSpace = prevWhiteSpace;

@@ -22,11 +22,12 @@ const centerStyle: JSX.Style = {
   height: '20%',
   width: '20%',
   backgroundColor: 'blue',
-  borderRadius: 40,
-  overflow: 'hidden',
   color: 'white',
-  borderWidth: 3,
   textAlign: 'center',
+  fontFamily: 'serif',
+  fontWeight: 'bold',
+  fontStyle: 'italic',
+  fontSize: 29,
 };
 
 const App = () => {

@@ -8,6 +8,10 @@ import type { CanvasHost } from '.';
 
 import { CanvasNode } from './node';
 
+function getFont(host: CanvasHost) {
+  return `${host.fontStyle} ${host.fontWeight} ${host.fontSize}px ${host.fontFamily}`;
+}
+
 export class CanvasText extends CanvasNode {
   #prepared: PreparedTextWithSegments | null = null;
   #preparedFont: string | null = null;
@@ -23,7 +27,7 @@ export class CanvasText extends CanvasNode {
     const fillStyle = host.ctx.fillStyle;
     const font = host.ctx.font;
     host.ctx.fillStyle = host.color;
-    host.ctx.font = `${host.fontSize}px sans-serif`;
+    host.ctx.font = getFont(host);
     const lineHeight = host.lineHeight ?? host.fontSize * 1.2;
     if (
       !this.#prepared ||
