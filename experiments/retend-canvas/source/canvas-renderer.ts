@@ -60,6 +60,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   #state?: StateSnapshot;
   root: CanvasContainer;
   #viewport: { width: number; height: number };
+  #renderFrame: number | null = null;
 
   capabilities: Capabilities = {
     supportsObserverConnectedCallbacks: true,
@@ -68,7 +69,9 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   requestRender(viewport?: { width: number; height: number }) {
     if (viewport) this.#viewport = viewport;
-    requestAnimationFrame(() => {
+    if (this.#renderFrame !== null) return;
+    this.#renderFrame = requestAnimationFrame(() => {
+      this.#renderFrame = null;
       this.host.ctx.clearRect(
         0,
         0,

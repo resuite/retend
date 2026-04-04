@@ -8,10 +8,15 @@ declare module 'retend/jsx-runtime' {
 
   namespace JSX {
     interface Style {
-      left?: number;
-      top?: number;
+      left?: number | `${number}%`;
+      top?: number | `${number}%`;
+      rotate?: `${number}deg`;
+      scale?: number;
+      transformOrigin?: string;
       width?: number | `${number}%`;
       height?: number | `${number}%`;
+      overflow?: 'visible' | 'hidden';
+      borderRadius?: number;
       backgroundColor?: string;
       color?: string;
       fontSize?: number;
@@ -44,6 +49,9 @@ declare module 'retend/jsx-runtime' {
        * Draws a filled circle on the canvas.
        */
       circle: Container<ContainerProps>;
+      /**
+       * Draws a filled custom shape on the canvas using the provided points.
+       */
       shape: Container<ShapeProps>;
     }
   }

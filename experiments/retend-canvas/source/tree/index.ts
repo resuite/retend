@@ -2,6 +2,7 @@ export * from './node';
 export * from './utils';
 export * from './container';
 export * from './text';
+export * from './transform';
 
 export class CanvasHost extends EventTarget {
   color = 'black';

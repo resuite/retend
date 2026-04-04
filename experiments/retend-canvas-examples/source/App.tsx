@@ -3,28 +3,34 @@ import type { JSX } from 'retend/jsx-runtime';
 const containerStyle: JSX.Style = {
   width: '100%',
   height: '100%',
-  backgroundColor: 'blue',
-  color: 'white',
-  fontSize: 90,
+  backgroundColor: 'black',
 };
 
-const shapeStyle: JSX.Style = {
-  top: 90,
-  left: 60,
+const innerStyle: JSX.Style = {
+  top: '5%',
+  left: '5%',
+  width: '90%',
+  height: '90%',
   backgroundColor: 'lime',
+};
+
+const circleStyle: JSX.Style = {
+  top: '10%',
+  left: '10%',
+  height: '80%',
+  width: '80%',
+  backgroundColor: 'blue',
+  borderRadius: 40,
+  overflow: 'hidden',
+  color: 'white',
 };
 
 const App = () => {
   return (
     <rect style={containerStyle}>
-      <shape
-        points={[
-          [0, 120],
-          [120, 0],
-          [240, 120],
-        ]}
-        style={shapeStyle}
-      />
+      <rect style={innerStyle}>
+        <rect style={circleStyle}>Hello1</rect>
+      </rect>
     </rect>
   );
 };
