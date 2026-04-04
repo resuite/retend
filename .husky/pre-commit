@@ -1,1 +1,6 @@
-pnpm format && pnpm lint
+files="$(git diff --cached --name-only --diff-filter=ACMR -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' '*.mts' '*.cts')"
+if [ -n "$files" ]; then
+  pnpm exec oxfmt $files
+  git add $files
+fi
+pnpm lint

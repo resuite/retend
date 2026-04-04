@@ -21,6 +21,9 @@ export class CanvasText extends CanvasNode {
   #preparedFont: string | null = null;
   #preparedText: string | null = null;
   #preparedWhiteSpace = -1;
+  #layout: ReturnType<typeof layoutWithLines> | null = null;
+  #layoutWidth = -1;
+  #layoutLineHeight = -1;
 
   constructor(
     public content: string,
@@ -63,14 +66,21 @@ export class CanvasText extends CanvasNode {
       this.#preparedFont = host.ctx.font;
       this.#preparedText = content;
       this.#preparedWhiteSpace = host.whiteSpace;
+      this.#layout = null;
     }
 
     const prepared = this.#prepared;
-    const layout = layoutWithLines(
-      prepared,
-      maxWidth ?? Number.POSITIVE_INFINITY,
-      lineHeight
-    );
+    const maxLineWidth = maxWidth ?? Number.POSITIVE_INFINITY;
+    if (
+      !this.#layout ||
+      this.#layoutWidth !== maxLineWidth ||
+      this.#layoutLineHeight !== lineHeight
+    ) {
+      this.#layout = layoutWithLines(prepared, maxLineWidth, lineHeight);
+      this.#layoutWidth = maxLineWidth;
+      this.#layoutLineHeight = lineHeight;
+    }
+    const layout = this.#layout;
     let width = 0;
     for (const line of layout.lines) {
       if (line.width > width) width = line.width;
@@ -116,10 +126,20 @@ export class CanvasText extends CanvasNode {
       this.#preparedFont = host.ctx.font;
       this.#preparedText = content;
       this.#preparedWhiteSpace = host.whiteSpace;
+      this.#layout = null;
     }
 
     const prepared = this.#prepared;
-    const layout = layoutWithLines(prepared, host.scopeWidth, lineHeight);
+    if (
+      !this.#layout ||
+      this.#layoutWidth !== host.scopeWidth ||
+      this.#layoutLineHeight !== lineHeight
+    ) {
+      this.#layout = layoutWithLines(prepared, host.scopeWidth, lineHeight);
+      this.#layoutWidth = host.scopeWidth;
+      this.#layoutLineHeight = lineHeight;
+    }
+    const layout = this.#layout;
     let y = 0;
     for (const line of layout.lines) {
       let x = 0;

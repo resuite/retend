@@ -29,6 +29,8 @@ export interface CanvasTransition {
   timingFunction: EasingValue;
   from: TransitionValue;
   to: TransitionValue;
+  fromColor?: ParsedColor;
+  toColor?: ParsedColor;
   target: JSX.Style[TransitionableStyleKey];
 }
 
@@ -37,6 +39,7 @@ type TransitionValue =
   | string
   | ReturnType<typeof Length.Px>
   | ReturnType<typeof Angle.Deg>;
+type ParsedColor = [number, number, number, number];
 
 const canvasTimeline: CanvasTimeline = {
   now() {
@@ -73,7 +76,7 @@ function resolveInheritedFontSize(node: CanvasNode | null) {
   return 16;
 }
 
-function parseHexColor(value: string) {
+function parseHexColor(value: string): ParsedColor | null {
   if (value.length === 4) {
     return [
       Number.parseInt(value[1] + value[1], 16),
@@ -93,7 +96,7 @@ function parseHexColor(value: string) {
   return null;
 }
 
-function parseNormalizedColor(value: string) {
+function parseNormalizedColor(value: string): ParsedColor | null {
   if (value.startsWith('#')) return parseHexColor(value);
 
   const matched = value.match(
@@ -126,15 +129,10 @@ function parseColor(node: CanvasNode, value: string) {
 }
 
 function interpolateColor(
-  node: CanvasNode,
-  from: string,
-  to: string,
+  start: ParsedColor,
+  end: ParsedColor,
   progress: number
 ) {
-  const start = parseColor(node, from);
-  const end = parseColor(node, to);
-  if (!start || !end) return to;
-
   const red = start[0] + (end[0] - start[0]) * progress;
   const green = start[1] + (end[1] - start[1]) * progress;
   const blue = start[2] + (end[2] - start[2]) * progress;
@@ -202,8 +200,11 @@ function interpolateValue(transition: CanvasTransition, progress: number) {
     transition.key === 'color' ||
     transition.key === 'borderColor'
   ) {
-    const { node } = transition;
-    return interpolateColor(node, from as string, to as string, progress);
+    return interpolateColor(
+      transition.fromColor as ParsedColor,
+      transition.toColor as ParsedColor,
+      progress
+    );
   }
   const start = from as number;
   const end = to as number;
@@ -256,13 +257,11 @@ function resolveTransitionValue(
   if (key === 'backgroundColor') {
     let nextValue = 'transparent';
     if (value) nextValue = value as string;
-    if (!parseColor(node, nextValue)) return null;
     return nextValue;
   }
   if (key === 'borderColor' || key === 'color') {
     let nextValue = resolveInheritedColor(node.parent);
     if (value) nextValue = value as string;
-    if (!parseColor(node, nextValue)) return null;
     return nextValue;
   }
   if (key === 'borderWidth') {
@@ -341,6 +340,14 @@ function createTransition(
   if (!from || !to) return null;
   if (isSameTransitionValue(from, to)) return null;
 
+  let fromColor: ParsedColor | undefined;
+  let toColor: ParsedColor | undefined;
+  if (key === 'backgroundColor' || key === 'borderColor' || key === 'color') {
+    fromColor = parseColor(node, from as string) ?? undefined;
+    toColor = parseColor(node, to as string) ?? undefined;
+    if (!fromColor || !toColor) return null;
+  }
+
   return {
     node,
     key,
@@ -350,6 +357,8 @@ function createTransition(
     timingFunction,
     from,
     to,
+    fromColor,
+    toColor,
     target: value,
   };
 }

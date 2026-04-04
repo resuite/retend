@@ -63,6 +63,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   observer: Observer | null;
   #state?: StateSnapshot;
   root: CanvasContainer;
+  transformMatrix = new DOMMatrix();
   #viewport: { width: number; height: number };
   transitions: CanvasTransition[];
   #renderFrame: number | null = null;

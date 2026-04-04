@@ -35,6 +35,7 @@ export function resolveTransformOrigin(
 }
 
 export function createTransformMatrix(
+  matrix: DOMMatrix,
   style: JSX.Style,
   width: number,
   height: number,
@@ -64,7 +65,10 @@ export function createTransformMatrix(
   }
   const { x, y } = resolveTransformOrigin(transformOrigin, width, height);
 
-  return new DOMMatrix()
+  matrix.a = matrix.d = 1;
+  matrix.b = matrix.c = matrix.e = matrix.f = 0;
+
+  return matrix
     .translateSelf(translateX, translateY)
     .translateSelf(x, y)
     .rotateSelf(rotation)

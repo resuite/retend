@@ -8,6 +8,13 @@ import { CanvasParentNode } from './node';
 import { createTransformMatrix, lengthToPx } from './transform';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
+const pathStyleKeys = [
+  'width',
+  'height',
+  'maxWidth',
+  'maxHeight',
+  'borderRadius',
+] as const;
 
 export class CanvasContainer<
   Props extends JSX.ContainerProps = JSX.ContainerProps,
@@ -34,18 +41,31 @@ export class CanvasContainer<
   }
 
   setStyles(style: JSX.Style) {
-    this.style = { ...this.style, ...style };
-    this.dirtyPath = true;
+    const nextStyle = { ...this.style, ...style };
+    for (const key of pathStyleKeys) {
+      if (nextStyle[key] !== this.style[key]) {
+        this.dirtyPath = true;
+        break;
+      }
+    }
+    this.style = nextStyle;
   }
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
     this.attributes[key] = value;
 
     if (key === 'style') {
-      this.style = value as JSX.Style;
+      const style = value as JSX.Style;
+      for (const key of pathStyleKeys) {
+        if (style[key] !== this.style[key]) {
+          this.dirtyPath = true;
+          break;
+        }
+      }
+      this.style = style;
+      return;
     }
-
-    this.dirtyPath = true;
+    if (key === 'points') this.dirtyPath = true;
   }
 
   protected resolveSize() {
@@ -116,6 +136,7 @@ export class CanvasContainer<
     this.resolveSize();
     const { overflow } = this.style;
     const transform = createTransformMatrix(
+      this.renderer.transformMatrix,
       this.style,
       this.width,
       this.height,
