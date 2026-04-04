@@ -3,12 +3,11 @@ import type { JSX } from 'retend/jsx-runtime';
 import type { CanvasHost } from '.';
 
 import { BorderStyle, Length, LengthUnit, Overflow } from '../style';
+import { resolveFittedContent } from './fit-content';
 import { CanvasParentNode } from './node';
 import { createTransformMatrix, lengthToPx } from './transform';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
-const FIT_CONTENT_LOOP =
-  'retend-canvas: a percent sized container cannot be inside a fit-content container.';
 
 export class CanvasContainer<
   Props extends JSX.ContainerProps = JSX.ContainerProps,
@@ -74,85 +73,13 @@ export class CanvasContainer<
       maxWidth?.unit === LengthUnit.FitContent ||
       maxHeight?.unit === LengthUnit.FitContent
     ) {
-      host.pushStyleCtx(this.style);
-
-      for (const child of this.children) {
-        const childSize = child.measure(host);
-        let childX = 0;
-        if (child instanceof CanvasContainer) {
-          const childWidth = child.style.width;
-          const childHeight = child.style.height;
-          const childLeft = child.style.left;
-          const childTop = child.style.top;
-          if (
-            width.unit === LengthUnit.FitContent ||
-            maxWidth?.unit === LengthUnit.FitContent
-          ) {
-            if (
-              childWidth?.unit === LengthUnit.Pct ||
-              childLeft?.unit === LengthUnit.Pct
-            ) {
-              console.warn(FIT_CONTENT_LOOP);
-            }
-            if (childLeft?.unit === LengthUnit.Px) childX = childLeft.value;
-          }
-          if (
-            height.unit === LengthUnit.FitContent ||
-            maxHeight?.unit === LengthUnit.FitContent
-          ) {
-            if (
-              childHeight?.unit === LengthUnit.Pct ||
-              childTop?.unit === LengthUnit.Pct
-            ) {
-              console.warn(FIT_CONTENT_LOOP);
-            }
-          }
-        }
-
-        if (
-          width.unit === LengthUnit.FitContent ||
-          maxWidth?.unit === LengthUnit.FitContent
-        ) {
-          fitContentWidth = Math.max(fitContentWidth, childX + childSize.width);
-        }
-      }
-
-      if (width.unit === LengthUnit.FitContent) nextWidth = fitContentWidth;
-      if (maxWidth?.unit === LengthUnit.FitContent) {
-        nextWidth = Math.min(nextWidth, fitContentWidth);
-      } else if (maxWidth) {
-        nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth));
-      }
-
-      if (
-        height.unit === LengthUnit.FitContent ||
-        maxHeight?.unit === LengthUnit.FitContent
-      ) {
-        fitContentHeight = 0;
-        for (const child of this.children) {
-          const childSize = child.measure(host, nextWidth);
-          let childY = 0;
-          if (child instanceof CanvasContainer) {
-            const childHeight = child.style.height;
-            const childTop = child.style.top;
-            if (
-              childHeight?.unit === LengthUnit.Pct ||
-              childTop?.unit === LengthUnit.Pct
-            ) {
-              console.warn(
-                'retend-canvas: fit-content height loop detected, using current scope height.'
-              );
-            }
-            if (childTop?.unit === LengthUnit.Px) childY = childTop.value;
-          }
-          fitContentHeight = Math.max(
-            fitContentHeight,
-            childY + childSize.height
-          );
-        }
-      }
-
-      host.popStyleCtx();
+      ({ nextWidth, fitContentWidth, fitContentHeight } = resolveFittedContent(
+        this.children,
+        this.style,
+        host,
+        nextWidth,
+        baseWidth
+      ));
     }
 
     if (height.unit === LengthUnit.FitContent) nextHeight = fitContentHeight;
