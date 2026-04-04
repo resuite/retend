@@ -47,11 +47,6 @@ const canvasTimeline: CanvasTimeline = {
   },
 };
 
-function writeStyle(node: CanvasContainer, key: string, value: unknown) {
-  const nextStyle = { ...node.styles, [key]: value };
-  node.setStyles(nextStyle);
-}
-
 function resolveInheritedColor(node: CanvasNode | null) {
   let current = node;
   while (current) {
@@ -365,59 +360,62 @@ function createTransition(
 
 export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
   if (isTransitionableKey(key)) {
-    node.renderer.transitions = node.renderer.transitions.filter(
-      (transition) => {
-        if (transition.node !== node) return true;
-        return transition.key !== key;
-      }
-    );
+    const transitions = node.renderer.transitions;
+    let writeIndex = 0;
+    for (let i = 0; i < transitions.length; i += 1) {
+      const transition = transitions[i];
+      if (transition.node === node && transition.key === key) continue;
+      transitions[writeIndex] = transition;
+      writeIndex += 1;
+    }
+    transitions.length = writeIndex;
     if (node.isConnectedTo(node.renderer.root)) {
       const transition = createTransition(node, key, value);
       if (transition) {
-        node.renderer.transitions.push(transition);
+        transitions.push(transition);
         node.renderer.requestRender();
         return;
       }
     }
   }
 
-  writeStyle(node, key, value);
+  node.setStyles({ [key]: value } as JSX.Style);
   if (node.isConnectedTo(node.renderer.root)) node.renderer.requestRender();
 }
 
 export function stepCanvasTransitions(renderer: CanvasRenderer) {
-  if (!renderer.transitions.length) return false;
+  const transitions = renderer.transitions;
+  if (!transitions.length) return false;
 
   const now = canvasTimeline.now();
-  const nextTransitions: CanvasTransition[] = [];
+  let writeIndex = 0;
 
-  for (const transition of renderer.transitions) {
-    if (!renderer.isActive(transition.node)) continue;
+  for (let i = 0; i < transitions.length; i += 1) {
+    const transition = transitions[i];
+    const { node, startTime, delay, duration, key, target, timingFunction } =
+      transition;
+    if (!renderer.isActive(node)) continue;
 
-    const elapsed = now - transition.startTime - transition.delay;
+    const elapsed = now - startTime - delay;
     if (elapsed <= 0) {
-      nextTransitions.push(transition);
+      transitions[writeIndex] = transition;
+      writeIndex += 1;
       continue;
     }
 
-    let progress = elapsed / transition.duration;
+    let progress = elapsed / duration;
     if (progress >= 1) {
-      writeStyle(transition.node, transition.key, transition.target);
+      node.setStyles({ [key]: target } as JSX.Style);
       continue;
     }
 
     if (progress < 0) progress = 0;
-    writeStyle(
-      transition.node,
-      transition.key,
-      interpolateValue(
-        transition,
-        applyEasing(transition.timingFunction, progress)
-      )
-    );
-    nextTransitions.push(transition);
+    const easing = applyEasing(timingFunction, progress);
+    node.setStyles({ [key]: interpolateValue(transition, easing) });
+    transitions[writeIndex] = transition;
+    writeIndex += 1;
   }
 
-  renderer.transitions = nextTransitions;
-  return nextTransitions.length > 0;
+  transitions.length = writeIndex;
+  return writeIndex > 0;
 }

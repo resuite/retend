@@ -15,15 +15,20 @@ export function write(handle: CanvasRange, newContent: CanvasNode[]) {
 
   const { parent } = start;
   const startIndex = parent.children.indexOf(start);
-  while (parent.children[startIndex + 1] !== end) {
-    parent.remove(parent.children[startIndex + 1]);
+  const endIndex = parent.children.indexOf(end);
+  const removed = parent.children.splice(
+    startIndex + 1,
+    endIndex - startIndex - 1
+  );
+  for (const node of removed) {
+    node.parent = null;
   }
 
   for (const node of newContent) {
     if (node.parent) node.parent.remove(node);
-    parent.children.splice(parent.children.indexOf(end), 0, node);
-    node.parent = parent;
   }
+  parent.children.splice(parent.children.indexOf(end), 0, ...newContent);
+  for (const node of newContent) node.parent = parent;
 }
 
 export function collectReconciledNodes(

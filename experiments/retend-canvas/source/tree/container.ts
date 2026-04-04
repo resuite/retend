@@ -41,14 +41,13 @@ export class CanvasContainer<
   }
 
   setStyles(style: JSX.Style) {
-    const nextStyle = { ...this.style, ...style };
     for (const key of pathStyleKeys) {
-      if (nextStyle[key] !== this.style[key]) {
+      if (key in style && style[key] !== this.style[key]) {
         this.dirtyPath = true;
         break;
       }
     }
-    this.style = nextStyle;
+    Object.assign(this.style, style);
   }
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
