@@ -20,18 +20,26 @@ export function resolveFittedContent(
   } = style;
   let fitContentWidth = 0;
   let fitContentHeight = 0;
+  const needsFitWidth =
+    width.unit === LengthUnit.FitContent ||
+    maxWidth?.unit === LengthUnit.FitContent;
+  const needsFitHeight =
+    height.unit === LengthUnit.FitContent ||
+    maxHeight?.unit === LengthUnit.FitContent;
+  const canReuseMeasure = needsFitWidth && nextWidth === host.scopeWidth;
+  const measuredChildren: Array<
+    ReturnType<(typeof children)[number]['measure']>
+  > = [];
 
   host.pushStyleCtx(style);
 
-  for (const child of children) {
-    const childSize = child.measure();
-    let childX = 0;
-    if (child instanceof CanvasContainer) {
-      const childStyle = child.styles;
-      if (
-        width.unit === LengthUnit.FitContent ||
-        maxWidth?.unit === LengthUnit.FitContent
-      ) {
+  if (needsFitWidth) {
+    for (const child of children) {
+      const childSize = child.measure();
+      if (canReuseMeasure) measuredChildren.push(childSize);
+      let childX = 0;
+      if (child instanceof CanvasContainer) {
+        const childStyle = child.styles;
         if (
           childStyle.width?.unit === LengthUnit.Pct ||
           childStyle.left?.unit === LengthUnit.Pct
@@ -41,23 +49,6 @@ export function resolveFittedContent(
         if (childStyle.left?.unit === LengthUnit.Px)
           childX = childStyle.left.value;
       }
-      if (
-        height.unit === LengthUnit.FitContent ||
-        maxHeight?.unit === LengthUnit.FitContent
-      ) {
-        if (
-          childStyle.height?.unit === LengthUnit.Pct ||
-          childStyle.top?.unit === LengthUnit.Pct
-        ) {
-          console.warn(FIT_CONTENT_LOOP);
-        }
-      }
-    }
-
-    if (
-      width.unit === LengthUnit.FitContent ||
-      maxWidth?.unit === LengthUnit.FitContent
-    ) {
       fitContentWidth = Math.max(fitContentWidth, childX + childSize.width);
     }
   }
@@ -69,12 +60,12 @@ export function resolveFittedContent(
     nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth));
   }
 
-  if (
-    height.unit === LengthUnit.FitContent ||
-    maxHeight?.unit === LengthUnit.FitContent
-  ) {
-    for (const child of children) {
-      const childSize = child.measure(nextWidth);
+  if (needsFitHeight) {
+    for (let i = 0; i < children.length; i += 1) {
+      const child = children[i];
+      const childSize = canReuseMeasure
+        ? (measuredChildren[i] ?? child.measure(nextWidth))
+        : child.measure(nextWidth);
       let childY = 0;
       if (child instanceof CanvasContainer) {
         const childStyle = child.styles;
