@@ -182,7 +182,12 @@ function applyEasing(timingFunction: EasingValue, progress: number) {
 
 function interpolateValue(transition: CanvasTransition, progress: number) {
   const { from, to } = transition;
-  if (transition.key === 'left' || transition.key === 'top') {
+  if (
+    transition.key === 'left' ||
+    transition.key === 'top' ||
+    transition.key === 'borderWidth' ||
+    transition.key === 'fontSize'
+  ) {
     const start = (from as ReturnType<typeof Length.Px>).value;
     const end = (to as ReturnType<typeof Length.Px>).value;
     return Length.Px(start + (end - start) * progress);
@@ -192,34 +197,13 @@ function interpolateValue(transition: CanvasTransition, progress: number) {
     const end = (to as ReturnType<typeof Angle.Deg>).value;
     return Angle.Deg(start + (end - start) * progress);
   }
-  if (transition.key === 'borderWidth' || transition.key === 'fontSize') {
-    const start = (from as ReturnType<typeof Length.Px>).value;
-    const end = (to as ReturnType<typeof Length.Px>).value;
-    return Length.Px(start + (end - start) * progress);
-  }
-  if (transition.key === 'backgroundColor') {
-    return interpolateColor(
-      transition.node,
-      from as string,
-      to as string,
-      progress
-    );
-  }
-  if (transition.key === 'borderColor') {
-    return interpolateColor(
-      transition.node,
-      from as string,
-      to as string,
-      progress
-    );
-  }
-  if (transition.key === 'color') {
-    return interpolateColor(
-      transition.node,
-      from as string,
-      to as string,
-      progress
-    );
+  if (
+    transition.key === 'backgroundColor' ||
+    transition.key === 'color' ||
+    transition.key === 'borderColor'
+  ) {
+    const { node } = transition;
+    return interpolateColor(node, from as string, to as string, progress);
   }
   const start = from as number;
   const end = to as number;
