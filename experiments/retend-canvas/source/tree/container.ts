@@ -1,6 +1,7 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import type { CanvasHost } from '.';
+import type { CanvasRenderer } from '../canvas-renderer';
 
 import { BorderStyle, Length, LengthUnit, Overflow } from '../style';
 import { resolveFittedContent } from './fit-content';
@@ -19,8 +20,8 @@ export class CanvasContainer<
   protected path: Path2D | null;
   protected dirtyPath: boolean;
 
-  constructor() {
-    super();
+  constructor(renderer: CanvasRenderer) {
+    super(renderer);
     this.attributes = {} as Props;
     this.style = {};
     this.width = 0;
@@ -194,8 +195,8 @@ export class CanvasContainer<
 }
 
 export class CanvasRoot extends CanvasContainer {
-  constructor() {
-    super();
+  constructor(renderer: CanvasRenderer) {
+    super(renderer);
     this.setAttribute('style', {
       width: Length.Pct(100),
       height: Length.Pct(100),

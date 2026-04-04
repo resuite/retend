@@ -105,17 +105,17 @@ function parseNormalizedColor(value: string) {
   return [Number(matched[1]), Number(matched[2]), Number(matched[3]), alpha];
 }
 
-function parseColor(renderer: CanvasRenderer, value: string) {
-  const currentFillStyle = renderer.host.ctx.fillStyle;
-  renderer.host.ctx.fillStyle = '#000001';
-  const firstSentinel = `${renderer.host.ctx.fillStyle}`;
-  renderer.host.ctx.fillStyle = value;
-  const firstValue = `${renderer.host.ctx.fillStyle}`;
-  renderer.host.ctx.fillStyle = '#000002';
-  const secondSentinel = `${renderer.host.ctx.fillStyle}`;
-  renderer.host.ctx.fillStyle = value;
-  const secondValue = `${renderer.host.ctx.fillStyle}`;
-  renderer.host.ctx.fillStyle = currentFillStyle;
+function parseColor(node: CanvasNode, value: string) {
+  const currentFillStyle = node.renderer.host.ctx.fillStyle;
+  node.renderer.host.ctx.fillStyle = '#000001';
+  const firstSentinel = `${node.renderer.host.ctx.fillStyle}`;
+  node.renderer.host.ctx.fillStyle = value;
+  const firstValue = `${node.renderer.host.ctx.fillStyle}`;
+  node.renderer.host.ctx.fillStyle = '#000002';
+  const secondSentinel = `${node.renderer.host.ctx.fillStyle}`;
+  node.renderer.host.ctx.fillStyle = value;
+  const secondValue = `${node.renderer.host.ctx.fillStyle}`;
+  node.renderer.host.ctx.fillStyle = currentFillStyle;
 
   if (firstValue !== secondValue) return null;
   if (firstValue === firstSentinel && secondValue === secondSentinel) {
@@ -125,13 +125,13 @@ function parseColor(renderer: CanvasRenderer, value: string) {
 }
 
 function interpolateColor(
-  renderer: CanvasRenderer,
+  node: CanvasNode,
   from: string,
   to: string,
   progress: number
 ) {
-  const start = parseColor(renderer, from);
-  const end = parseColor(renderer, to);
+  const start = parseColor(node, from);
+  const end = parseColor(node, to);
   if (!start || !end) return to;
 
   const red = start[0] + (end[0] - start[0]) * progress;
@@ -179,11 +179,7 @@ function applyEasing(timingFunction: EasingValue, progress: number) {
   );
 }
 
-function interpolateValue(
-  renderer: CanvasRenderer,
-  transition: CanvasTransition,
-  progress: number
-) {
+function interpolateValue(transition: CanvasTransition, progress: number) {
   const { from, to } = transition;
   if (transition.key === 'left' || transition.key === 'top') {
     const start = (from as ReturnType<typeof Length.Px>).value;
@@ -201,13 +197,28 @@ function interpolateValue(
     return Length.Px(start + (end - start) * progress);
   }
   if (transition.key === 'backgroundColor') {
-    return interpolateColor(renderer, from as string, to as string, progress);
+    return interpolateColor(
+      transition.node,
+      from as string,
+      to as string,
+      progress
+    );
   }
   if (transition.key === 'borderColor') {
-    return interpolateColor(renderer, from as string, to as string, progress);
+    return interpolateColor(
+      transition.node,
+      from as string,
+      to as string,
+      progress
+    );
   }
   if (transition.key === 'color') {
-    return interpolateColor(renderer, from as string, to as string, progress);
+    return interpolateColor(
+      transition.node,
+      from as string,
+      to as string,
+      progress
+    );
   }
   const start = from as number;
   const end = to as number;
@@ -215,7 +226,6 @@ function interpolateValue(
 }
 
 function resolveOffsetValue(
-  renderer: CanvasRenderer,
   node: CanvasContainer,
   value: JSX.Style['left'] | JSX.Style['top'],
   isX: boolean
@@ -225,31 +235,30 @@ function resolveOffsetValue(
 
   let baseSize = 0;
   if ('measure' in (node.parent ?? {})) {
-    const parentSize = node.parent?.measure(renderer.host);
+    const parentSize = node.parent?.measure(node.renderer.host);
     if (parentSize) {
       if (isX) baseSize = parentSize.width;
       else baseSize = parentSize.height;
     }
   }
   if (!baseSize) {
-    if (isX) baseSize = renderer.host.scopeWidth;
-    else baseSize = renderer.host.scopeHeight;
+    if (isX) baseSize = node.renderer.host.scopeWidth;
+    else baseSize = node.renderer.host.scopeHeight;
   }
 
   return Length.Px(lengthToPx(value, baseSize));
 }
 
 function resolveTransitionValue(
-  renderer: CanvasRenderer,
   node: CanvasContainer,
   key: TransitionableStyleKey,
   value: JSX.Style[TransitionableStyleKey]
 ) {
   if (key === 'left') {
-    return resolveOffsetValue(renderer, node, value as JSX.Style['left'], true);
+    return resolveOffsetValue(node, value as JSX.Style['left'], true);
   }
   if (key === 'top') {
-    return resolveOffsetValue(renderer, node, value as JSX.Style['top'], false);
+    return resolveOffsetValue(node, value as JSX.Style['top'], false);
   }
   if (key === 'rotate') {
     if (value) return value as JSX.Style['rotate'];
@@ -262,13 +271,13 @@ function resolveTransitionValue(
   if (key === 'backgroundColor') {
     let nextValue = 'transparent';
     if (value) nextValue = value as string;
-    if (!parseColor(renderer, nextValue)) return null;
+    if (!parseColor(node, nextValue)) return null;
     return nextValue;
   }
   if (key === 'borderColor' || key === 'color') {
     let nextValue = resolveInheritedColor(node.parent);
     if (value) nextValue = value as string;
-    if (!parseColor(renderer, nextValue)) return null;
+    if (!parseColor(node, nextValue)) return null;
     return nextValue;
   }
   if (key === 'borderWidth') {
@@ -331,7 +340,6 @@ function isTransitionableKey(key: string): key is TransitionableStyleKey {
 }
 
 function createTransition(
-  renderer: CanvasRenderer,
   node: CanvasContainer,
   key: TransitionableStyleKey,
   _value: unknown
@@ -353,8 +361,8 @@ function createTransition(
   const nextTimingFunction = node.styles.transitionTimingFunction;
   if (nextTimingFunction !== undefined) timingFunction = nextTimingFunction;
 
-  const from = resolveTransitionValue(renderer, node, key, node.styles[key]);
-  const to = resolveTransitionValue(renderer, node, key, value);
+  const from = resolveTransitionValue(node, key, node.styles[key]);
+  const to = resolveTransitionValue(node, key, value);
   if (!from || !to) return null;
   if (isSameTransitionValue(from, to)) return null;
 
@@ -371,29 +379,26 @@ function createTransition(
   };
 }
 
-export function applyStyle(
-  renderer: CanvasRenderer,
-  node: CanvasContainer,
-  key: string,
-  value: unknown
-) {
+export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
   if (isTransitionableKey(key)) {
-    renderer.transitions = renderer.transitions.filter((transition) => {
-      if (transition.node !== node) return true;
-      return transition.key !== key;
-    });
-    if (node.isConnectedTo(renderer.root)) {
-      const transition = createTransition(renderer, node, key, value);
+    node.renderer.transitions = node.renderer.transitions.filter(
+      (transition) => {
+        if (transition.node !== node) return true;
+        return transition.key !== key;
+      }
+    );
+    if (node.isConnectedTo(node.renderer.root)) {
+      const transition = createTransition(node, key, value);
       if (transition) {
-        renderer.transitions.push(transition);
-        renderer.requestRender();
+        node.renderer.transitions.push(transition);
+        node.renderer.requestRender();
         return;
       }
     }
   }
 
   writeStyle(node, key, value);
-  if (node.isConnectedTo(renderer.root)) renderer.requestRender();
+  if (node.isConnectedTo(node.renderer.root)) node.renderer.requestRender();
 }
 
 export function stepCanvasTransitions(renderer: CanvasRenderer) {
@@ -422,7 +427,6 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
       transition.node,
       transition.key,
       interpolateValue(
-        renderer,
         transition,
         applyEasing(transition.timingFunction, progress)
       )

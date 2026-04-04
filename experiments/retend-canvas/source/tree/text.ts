@@ -5,6 +5,7 @@ import {
 } from '@chenglou/pretext';
 
 import type { CanvasHost } from '.';
+import type { CanvasRenderer } from '../canvas-renderer';
 
 import { FontStyle, TextAlign, WhiteSpace } from '../style';
 import { CanvasNode } from './node';
@@ -22,8 +23,11 @@ export class CanvasText extends CanvasNode {
   #preparedText: string | null = null;
   #preparedWhiteSpace = -1;
 
-  constructor(public content: string) {
-    super();
+  constructor(
+    public content: string,
+    renderer: CanvasRenderer
+  ) {
+    super(renderer);
   }
 
   override measure(host: CanvasHost, maxWidth?: number) {

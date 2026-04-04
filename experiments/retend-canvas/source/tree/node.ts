@@ -1,7 +1,13 @@
 import type { CanvasHost } from '.';
+import type { CanvasRenderer } from '../canvas-renderer';
 
 export class CanvasNode {
+  renderer: CanvasRenderer;
   parent: CanvasParentNode | null = null;
+
+  constructor(renderer: CanvasRenderer) {
+    this.renderer = renderer;
+  }
 
   isConnectedTo(root: CanvasParentNode): boolean {
     let node: CanvasParentNode | null = this.parent;
@@ -23,8 +29,8 @@ export class CanvasNode {
 export class CanvasParentNode extends CanvasNode {
   children: CanvasNode[];
 
-  constructor() {
-    super();
+  constructor(renderer: CanvasRenderer) {
+    super(renderer);
     this.children = [];
   }
 

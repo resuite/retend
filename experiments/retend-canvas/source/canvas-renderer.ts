@@ -75,7 +75,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   constructor(host: CanvasHost, viewport: { width: number; height: number }) {
     this.host = host;
     this.observer = null;
-    this.root = new CanvasRoot();
+    this.root = new CanvasRoot(this);
     this.#viewport = viewport;
     this.transitions = [];
   }
@@ -112,24 +112,24 @@ export class CanvasRenderer implements CanvasRendererInterface {
   }
 
   createGroup(): CanvasFragment {
-    return new CanvasFragment();
+    return new CanvasFragment(this);
   }
 
   createContainer(tagname: CanvasTag): CanvasContainer {
     switch (tagname) {
       case 'rect':
-        return new CanvasRect();
+        return new CanvasRect(this);
       case 'circle':
-        return new CanvasCircle();
+        return new CanvasCircle(this);
       case 'shape':
-        return new CanvasShape();
+        return new CanvasShape(this);
       default:
-        return new CanvasContainer();
+        return new CanvasContainer(this);
     }
   }
 
   createText(text: string): CanvasNode {
-    return new CanvasText(text);
+    return new CanvasText(text, this);
   }
 
   isNode(child: any): child is CanvasNode {
@@ -149,7 +149,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   setProperty<N extends CanvasNode>(node: N, key: string, value: unknown): N {
     if (!(node instanceof CanvasContainer)) return node;
 
-    setAttribute(node, key, value, this);
+    setAttribute(node, key, value);
     return node;
   }
 
@@ -166,8 +166,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
   }
 
   createGroupHandle(group: CanvasFragment): CanvasRange {
-    const handleStart = new CanvasAnchor();
-    const handleEnd = new CanvasAnchor();
+    const handleStart = new CanvasAnchor(this);
+    const handleEnd = new CanvasAnchor(this);
     group.prepend(handleStart);
     group.append(handleEnd);
     return [handleStart, handleEnd];
