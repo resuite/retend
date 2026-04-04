@@ -14,14 +14,16 @@ export function write(handle: CanvasRange, newContent: CanvasNode[]) {
   }
 
   const { parent } = start;
-  const allChildren = parent.children;
+  const startIndex = parent.children.indexOf(start);
+  while (parent.children[startIndex + 1] !== end) {
+    parent.remove(parent.children[startIndex + 1]);
+  }
 
-  const startIndex = allChildren.indexOf(start);
-  const endIndex = allChildren.indexOf(end);
-
-  parent.children.splice(startIndex + 1, endIndex - 1, ...newContent);
-  // deleted nodes are not accessible and dont need to be removed one by one.
-  for (const node of newContent) node.parent = parent;
+  for (const node of newContent) {
+    if (node.parent) node.parent.remove(node);
+    parent.children.splice(parent.children.indexOf(end), 0, node);
+    node.parent = parent;
+  }
 }
 
 export function collectReconciledNodes(

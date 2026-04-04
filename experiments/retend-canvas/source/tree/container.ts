@@ -118,14 +118,14 @@ export class CanvasContainer<
     const prevTextAlign = host.textAlign;
     const prevLineHeight = host.lineHeight;
     const prevWhiteSpace = host.whiteSpace;
-    if (color) host.color = color;
-    if (fontSize) host.fontSize = fontSize;
-    if (fontFamily) host.fontFamily = fontFamily;
-    if (fontWeight) host.fontWeight = fontWeight;
-    if (fontStyle) host.fontStyle = fontStyle;
-    if (textAlign) host.textAlign = textAlign;
+    if (color !== undefined) host.color = color;
+    if (fontSize !== undefined) host.fontSize = fontSize;
+    if (fontFamily !== undefined) host.fontFamily = fontFamily;
+    if (fontWeight !== undefined) host.fontWeight = fontWeight;
+    if (fontStyle !== undefined) host.fontStyle = fontStyle;
+    if (textAlign !== undefined) host.textAlign = textAlign;
     if (lineHeight !== undefined) host.lineHeight = lineHeight;
-    if (whiteSpace) host.whiteSpace = whiteSpace;
+    if (whiteSpace !== undefined) host.whiteSpace = whiteSpace;
 
     for (const child of this.children) child.draw(host);
 
@@ -282,6 +282,11 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
       const nextDy = nextY - currentY;
       const prevLength = Math.hypot(prevDx, prevDy);
       const nextLength = Math.hypot(nextDx, nextDy);
+      if (!prevLength || !nextLength) {
+        if (i === 0) path.moveTo(currentX, currentY);
+        else path.lineTo(currentX, currentY);
+        continue;
+      }
       const radius = Math.min(borderRadius, prevLength / 2, nextLength / 2);
       const prevUnitX = prevDx / prevLength;
       const prevUnitY = prevDy / prevLength;
