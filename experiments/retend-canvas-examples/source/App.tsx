@@ -17,14 +17,14 @@ const App = () => {
           style={{
             height: Length.FitContent,
             width: Length.FitContent,
-            maxWidth: Length.Pct(30),
+            maxWidth: Length.Pct(50),
             alignSelf: Alignment.Center,
             justifySelf: Alignment.Center,
             backgroundColor: 'black',
             color: 'white',
             textAlign: TextAlign.Center,
             fontFamily: 'serif',
-            fontSize: Length.Px(29),
+            fontSize: Length.Px(40),
           }}
         >
           To be or not to be? That is the question.

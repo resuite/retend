@@ -4,20 +4,19 @@ import type { CanvasHost } from '.';
 
 import { BorderStyle, Length, LengthUnit, Overflow } from '../style';
 import { CanvasParentNode } from './node';
-import {
-  createTransformMatrix,
-  resolveCanvasLengthPercentage,
-} from './transform';
+import { createTransformMatrix, lengthToPx } from './transform';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
+const FIT_CONTENT_LOOP =
+  'retend-canvas: a percent sized container cannot be inside a fit-content container.';
 
 export class CanvasContainer<
   Props extends JSX.ContainerProps = JSX.ContainerProps,
 > extends CanvasParentNode {
   protected attributes: Props;
   protected style: JSX.Style;
-  protected resolvedWidth: number;
-  protected resolvedHeight: number;
+  protected width: number;
+  protected height: number;
   protected path: Path2D | null;
   protected dirtyPath: boolean;
 
@@ -25,8 +24,8 @@ export class CanvasContainer<
     super();
     this.attributes = {} as Props;
     this.style = {};
-    this.resolvedWidth = 0;
-    this.resolvedHeight = 0;
+    this.width = 0;
+    this.height = 0;
     this.path = null;
     this.dirtyPath = true;
   }
@@ -51,20 +50,18 @@ export class CanvasContainer<
   }
 
   protected resolveSize(host: CanvasHost) {
-    const width = this.style.width ?? Length.Px(100);
-    const height = this.style.height ?? Length.Px(100);
-    const { maxWidth, maxHeight } = this.style;
+    const {
+      width = Length.Px(100),
+      height = Length.Px(100),
+      maxWidth,
+      maxHeight,
+    } = this.style;
+
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
 
-    let nextWidth =
-      width.unit === LengthUnit.Pct
-        ? (width.value * baseWidth) / 100
-        : width.value;
-    let nextHeight =
-      height.unit === LengthUnit.Pct
-        ? (height.value * baseHeight) / 100
-        : height.value;
+    let nextWidth = lengthToPx(width, baseWidth);
+    let nextHeight = lengthToPx(height, baseHeight);
 
     if (width.unit === LengthUnit.FitContent) nextWidth = 0;
     if (height.unit === LengthUnit.FitContent) nextHeight = 0;
@@ -95,9 +92,7 @@ export class CanvasContainer<
               childWidth?.unit === LengthUnit.Pct ||
               childLeft?.unit === LengthUnit.Pct
             ) {
-              console.warn(
-                'retend-canvas: fit-content width loop detected, using current scope width.'
-              );
+              console.warn(FIT_CONTENT_LOOP);
             }
             if (childLeft?.unit === LengthUnit.Px) childX = childLeft.value;
           }
@@ -109,9 +104,7 @@ export class CanvasContainer<
               childHeight?.unit === LengthUnit.Pct ||
               childTop?.unit === LengthUnit.Pct
             ) {
-              console.warn(
-                'retend-canvas: fit-content height loop detected, using current scope height.'
-              );
+              console.warn(FIT_CONTENT_LOOP);
             }
           }
         }
@@ -128,10 +121,7 @@ export class CanvasContainer<
       if (maxWidth?.unit === LengthUnit.FitContent) {
         nextWidth = Math.min(nextWidth, fitContentWidth);
       } else if (maxWidth) {
-        nextWidth = Math.min(
-          nextWidth,
-          resolveCanvasLengthPercentage(maxWidth, baseWidth)
-        );
+        nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth));
       }
 
       if (
@@ -170,29 +160,20 @@ export class CanvasContainer<
     if (maxWidth?.unit === LengthUnit.FitContent) {
       nextWidth = Math.min(nextWidth, fitContentWidth);
     } else if (maxWidth) {
-      nextWidth = Math.min(
-        nextWidth,
-        resolveCanvasLengthPercentage(maxWidth, baseWidth)
-      );
+      nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth));
     }
     if (maxHeight?.unit === LengthUnit.FitContent) {
       nextHeight = Math.min(nextHeight, fitContentHeight);
     } else if (maxHeight) {
-      nextHeight = Math.min(
-        nextHeight,
-        resolveCanvasLengthPercentage(maxHeight, baseHeight)
-      );
+      nextHeight = Math.min(nextHeight, lengthToPx(maxHeight, baseHeight));
     }
 
-    if (
-      this.resolvedWidth !== nextWidth ||
-      this.resolvedHeight !== nextHeight
-    ) {
+    if (this.width !== nextWidth || this.height !== nextHeight) {
       this.dirtyPath = true;
     }
 
-    this.resolvedWidth = nextWidth;
-    this.resolvedHeight = nextHeight;
+    this.width = nextWidth;
+    this.height = nextHeight;
   }
 
   override measure(host: CanvasHost, maxWidth?: number) {
@@ -200,7 +181,7 @@ export class CanvasContainer<
     if (maxWidth !== undefined) host.scopeWidth = maxWidth;
     this.resolveSize(host);
     host.scopeWidth = prevScopeWidth;
-    return { width: this.resolvedWidth, height: this.resolvedHeight };
+    return { width: this.width, height: this.height };
   }
 
   override draw(host: CanvasHost): void {
@@ -208,8 +189,8 @@ export class CanvasContainer<
     const { overflow } = this.style;
     const transform = createTransformMatrix(
       this.style,
-      this.resolvedWidth,
-      this.resolvedHeight,
+      this.width,
+      this.height,
       host.scopeWidth,
       host.scopeHeight
     );
@@ -230,8 +211,8 @@ export class CanvasContainer<
     }
     const prevScopeWidth = host.scopeWidth;
     const prevScopeHeight = host.scopeHeight;
-    host.scopeWidth = this.resolvedWidth;
-    host.scopeHeight = this.resolvedHeight;
+    host.scopeWidth = this.width;
+    host.scopeHeight = this.height;
     host.pushStyleCtx(this.style);
 
     for (const child of this.children) child.draw(host);
@@ -261,11 +242,9 @@ export class CanvasContainer<
       borderColor = host.color,
     } = this.style;
     const resolvedBorderWidth = borderWidth.value;
-    let resolvedBorderStyle = borderStyle;
-    if (resolvedBorderStyle === undefined) {
-      if (resolvedBorderWidth) resolvedBorderStyle = BorderStyle.Solid;
-      else resolvedBorderStyle = BorderStyle.None;
-    }
+    const resolvedBorderStyle =
+      borderStyle ??
+      (resolvedBorderWidth ? BorderStyle.Solid : BorderStyle.None);
     host.ctx.fillStyle = backgroundColor;
     host.ctx.fill(path);
 
@@ -310,18 +289,14 @@ export class CanvasRect extends CanvasContainer {
     const { borderRadius = 0 } = this.style;
     const path = new Path2D();
     if (!borderRadius) {
-      path.rect(0, 0, this.resolvedWidth, this.resolvedHeight);
+      path.rect(0, 0, this.width, this.height);
       this.path = path;
       this.dirtyPath = false;
       return path;
     }
 
-    const radius = Math.min(
-      borderRadius,
-      this.resolvedWidth / 2,
-      this.resolvedHeight / 2
-    );
-    path.roundRect(0, 0, this.resolvedWidth, this.resolvedHeight, radius);
+    const radius = Math.min(borderRadius, this.width / 2, this.height / 2);
+    path.roundRect(0, 0, this.width, this.height, radius);
     this.path = path;
     this.dirtyPath = false;
     return path;
@@ -340,9 +315,9 @@ export class CanvasCircle extends CanvasContainer {
 
     const path = new Path2D();
     path.arc(
-      this.resolvedWidth / 2,
-      this.resolvedHeight / 2,
-      Math.min(this.resolvedWidth, this.resolvedHeight) / 2,
+      this.width / 2,
+      this.height / 2,
+      Math.min(this.width, this.height) / 2,
       0,
       Math.PI * 2
     );

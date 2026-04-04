@@ -15,12 +15,9 @@ const defaultTransformOrigin = TransformOrigin.At(
   Length.Pct(50)
 );
 
-export function resolveCanvasLengthPercentage(
-  value: LengthValue,
-  size: number
-) {
+export function lengthToPx(value: LengthValue, baseSize: number) {
   if (value.unit === LengthUnit.Pct) {
-    return (value.value * size) / 100;
+    return (value.value * baseSize) / 100;
   }
 
   return value.value;
@@ -32,8 +29,8 @@ export function resolveTransformOrigin(
   height: number
 ) {
   return {
-    x: resolveCanvasLengthPercentage(transformOrigin.x, width),
-    y: resolveCanvasLengthPercentage(transformOrigin.y, height),
+    x: lengthToPx(transformOrigin.x, width),
+    y: lengthToPx(transformOrigin.y, height),
   };
 }
 
@@ -51,7 +48,7 @@ export function createTransformMatrix(
   let translateX = 0;
   let translateY = 0;
   if (style.left !== undefined) {
-    translateX = resolveCanvasLengthPercentage(style.left, parentWidth);
+    translateX = lengthToPx(style.left, parentWidth);
   } else if (style.justifySelf === Alignment.Center) {
     translateX = (parentWidth - width) / 2;
   } else if (style.justifySelf === Alignment.End) {
@@ -59,7 +56,7 @@ export function createTransformMatrix(
   }
 
   if (style.top !== undefined) {
-    translateY = resolveCanvasLengthPercentage(style.top, parentHeight);
+    translateY = lengthToPx(style.top, parentHeight);
   } else if (style.alignSelf === Alignment.Center) {
     translateY = (parentHeight - height) / 2;
   } else if (style.alignSelf === Alignment.End) {
