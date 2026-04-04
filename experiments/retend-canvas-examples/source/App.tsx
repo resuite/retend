@@ -5,10 +5,10 @@ const App = () => {
     <rect style={{ width: Length.Pct(100), height: Length.Pct(100) }}>
       <rect
         style={{
-          top: Length.Pct(5),
-          left: Length.Pct(5),
           width: Length.Pct(90),
           height: Length.Pct(90),
+          alignSelf: Alignment.Center,
+          justifySelf: Alignment.Center,
           borderWidth: Length.Px(2),
           backgroundColor: 'brown',
         }}
