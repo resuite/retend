@@ -4,7 +4,10 @@ import type { CanvasHost } from '.';
 
 import { BorderStyle, Length, LengthUnit, Overflow } from '../style';
 import { CanvasParentNode } from './node';
-import { createTransformMatrix } from './transform';
+import {
+  createTransformMatrix,
+  resolveCanvasLengthPercentage,
+} from './transform';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
 
@@ -50,15 +53,135 @@ export class CanvasContainer<
   protected resolveSize(host: CanvasHost) {
     const width = this.style.width ?? Length.Px(100);
     const height = this.style.height ?? Length.Px(100);
+    const { maxWidth, maxHeight } = this.style;
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
-    let nextWidth = width.value;
-    let nextHeight = height.value;
-    if (width.unit === LengthUnit.Pct) {
-      nextWidth = (nextWidth * baseWidth) / 100;
+
+    let nextWidth =
+      width.unit === LengthUnit.Pct
+        ? (width.value * baseWidth) / 100
+        : width.value;
+    let nextHeight =
+      height.unit === LengthUnit.Pct
+        ? (height.value * baseHeight) / 100
+        : height.value;
+
+    if (width.unit === LengthUnit.FitContent) nextWidth = 0;
+    if (height.unit === LengthUnit.FitContent) nextHeight = 0;
+
+    let fitContentWidth = 0;
+    let fitContentHeight = 0;
+    if (
+      width.unit === LengthUnit.FitContent ||
+      height.unit === LengthUnit.FitContent ||
+      maxWidth?.unit === LengthUnit.FitContent ||
+      maxHeight?.unit === LengthUnit.FitContent
+    ) {
+      host.pushStyleCtx(this.style);
+
+      for (const child of this.children) {
+        const childSize = child.measure(host);
+        let childX = 0;
+        if (child instanceof CanvasContainer) {
+          const childWidth = child.style.width;
+          const childHeight = child.style.height;
+          const childLeft = child.style.left;
+          const childTop = child.style.top;
+          if (
+            width.unit === LengthUnit.FitContent ||
+            maxWidth?.unit === LengthUnit.FitContent
+          ) {
+            if (
+              childWidth?.unit === LengthUnit.Pct ||
+              childLeft?.unit === LengthUnit.Pct
+            ) {
+              console.warn(
+                'retend-canvas: fit-content width loop detected, using current scope width.'
+              );
+            }
+            if (childLeft?.unit === LengthUnit.Px) childX = childLeft.value;
+          }
+          if (
+            height.unit === LengthUnit.FitContent ||
+            maxHeight?.unit === LengthUnit.FitContent
+          ) {
+            if (
+              childHeight?.unit === LengthUnit.Pct ||
+              childTop?.unit === LengthUnit.Pct
+            ) {
+              console.warn(
+                'retend-canvas: fit-content height loop detected, using current scope height.'
+              );
+            }
+          }
+        }
+
+        if (
+          width.unit === LengthUnit.FitContent ||
+          maxWidth?.unit === LengthUnit.FitContent
+        ) {
+          fitContentWidth = Math.max(fitContentWidth, childX + childSize.width);
+        }
+      }
+
+      if (width.unit === LengthUnit.FitContent) nextWidth = fitContentWidth;
+      if (maxWidth?.unit === LengthUnit.FitContent) {
+        nextWidth = Math.min(nextWidth, fitContentWidth);
+      } else if (maxWidth) {
+        nextWidth = Math.min(
+          nextWidth,
+          resolveCanvasLengthPercentage(maxWidth, baseWidth)
+        );
+      }
+
+      if (
+        height.unit === LengthUnit.FitContent ||
+        maxHeight?.unit === LengthUnit.FitContent
+      ) {
+        fitContentHeight = 0;
+        for (const child of this.children) {
+          const childSize = child.measure(host, nextWidth);
+          let childY = 0;
+          if (child instanceof CanvasContainer) {
+            const childHeight = child.style.height;
+            const childTop = child.style.top;
+            if (
+              childHeight?.unit === LengthUnit.Pct ||
+              childTop?.unit === LengthUnit.Pct
+            ) {
+              console.warn(
+                'retend-canvas: fit-content height loop detected, using current scope height.'
+              );
+            }
+            if (childTop?.unit === LengthUnit.Px) childY = childTop.value;
+          }
+          fitContentHeight = Math.max(
+            fitContentHeight,
+            childY + childSize.height
+          );
+        }
+      }
+
+      host.popStyleCtx();
     }
-    if (height.unit === LengthUnit.Pct) {
-      nextHeight = (nextHeight * baseHeight) / 100;
+
+    if (height.unit === LengthUnit.FitContent) nextHeight = fitContentHeight;
+
+    if (maxWidth?.unit === LengthUnit.FitContent) {
+      nextWidth = Math.min(nextWidth, fitContentWidth);
+    } else if (maxWidth) {
+      nextWidth = Math.min(
+        nextWidth,
+        resolveCanvasLengthPercentage(maxWidth, baseWidth)
+      );
+    }
+    if (maxHeight?.unit === LengthUnit.FitContent) {
+      nextHeight = Math.min(nextHeight, fitContentHeight);
+    } else if (maxHeight) {
+      nextHeight = Math.min(
+        nextHeight,
+        resolveCanvasLengthPercentage(maxHeight, baseHeight)
+      );
     }
 
     if (
@@ -72,19 +195,17 @@ export class CanvasContainer<
     this.resolvedHeight = nextHeight;
   }
 
+  override measure(host: CanvasHost, maxWidth?: number) {
+    const prevScopeWidth = host.scopeWidth;
+    if (maxWidth !== undefined) host.scopeWidth = maxWidth;
+    this.resolveSize(host);
+    host.scopeWidth = prevScopeWidth;
+    return { width: this.resolvedWidth, height: this.resolvedHeight };
+  }
+
   override draw(host: CanvasHost): void {
     this.resolveSize(host);
-    const {
-      color,
-      fontSize,
-      fontFamily,
-      fontWeight,
-      fontStyle,
-      textAlign,
-      lineHeight,
-      whiteSpace,
-      overflow,
-    } = this.style;
+    const { overflow } = this.style;
     const transform = createTransformMatrix(
       this.style,
       this.resolvedWidth,
@@ -111,34 +232,11 @@ export class CanvasContainer<
     const prevScopeHeight = host.scopeHeight;
     host.scopeWidth = this.resolvedWidth;
     host.scopeHeight = this.resolvedHeight;
-
-    const prevColor = host.color;
-    const prevSize = host.fontSize;
-    const prevFamily = host.fontFamily;
-    const prevWeight = host.fontWeight;
-    const prevStyle = host.fontStyle;
-    const prevTextAlign = host.textAlign;
-    const prevLineHeight = host.lineHeight;
-    const prevWhiteSpace = host.whiteSpace;
-    if (color !== undefined) host.color = color;
-    if (fontSize !== undefined) host.fontSize = fontSize.value;
-    if (fontFamily !== undefined) host.fontFamily = fontFamily;
-    if (fontWeight !== undefined) host.fontWeight = fontWeight;
-    if (fontStyle !== undefined) host.fontStyle = fontStyle;
-    if (textAlign !== undefined) host.textAlign = textAlign;
-    if (lineHeight !== undefined) host.lineHeight = lineHeight;
-    if (whiteSpace !== undefined) host.whiteSpace = whiteSpace;
+    host.pushStyleCtx(this.style);
 
     for (const child of this.children) child.draw(host);
 
-    host.color = prevColor;
-    host.fontSize = prevSize;
-    host.fontFamily = prevFamily;
-    host.fontWeight = prevWeight;
-    host.fontStyle = prevStyle;
-    host.textAlign = prevTextAlign;
-    host.lineHeight = prevLineHeight;
-    host.whiteSpace = prevWhiteSpace;
+    host.popStyleCtx();
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
     host.ctx.restore();

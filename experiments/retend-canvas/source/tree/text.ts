@@ -26,6 +26,55 @@ export class CanvasText extends CanvasNode {
     super();
   }
 
+  override measure(host: CanvasHost, maxWidth?: number) {
+    let content = this.content;
+    const index = this.parent?.children.indexOf(this) ?? -1;
+    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
+      return { width: 0, height: 0 };
+    }
+    if (index !== -1) {
+      let nextIndex = index + 1;
+      let next = this.parent?.children[nextIndex];
+      while (next instanceof CanvasText) {
+        content += next.content;
+        nextIndex += 1;
+        next = this.parent?.children[nextIndex];
+      }
+    }
+
+    const font = host.ctx.font;
+    host.ctx.font = getFont(host);
+    const lineHeight = (host.lineHeight ?? 1.2) * host.fontSize;
+    if (
+      !this.#prepared ||
+      this.#preparedFont !== host.ctx.font ||
+      this.#preparedText !== content ||
+      this.#preparedWhiteSpace !== host.whiteSpace
+    ) {
+      let whiteSpace: 'normal' | 'pre-wrap' = 'normal';
+      if (host.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
+      this.#prepared = prepareWithSegments(content, host.ctx.font, {
+        whiteSpace,
+      });
+      this.#preparedFont = host.ctx.font;
+      this.#preparedText = content;
+      this.#preparedWhiteSpace = host.whiteSpace;
+    }
+
+    const prepared = this.#prepared;
+    const layout = layoutWithLines(
+      prepared,
+      maxWidth ?? Number.POSITIVE_INFINITY,
+      lineHeight
+    );
+    let width = 0;
+    for (const line of layout.lines) {
+      if (line.width > width) width = line.width;
+    }
+    host.ctx.font = font;
+    return { width, height: layout.height };
+  }
+
   override draw(host: CanvasHost): void {
     let content = this.content;
     const index = this.parent?.children.indexOf(this) ?? -1;

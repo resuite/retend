@@ -7,6 +7,7 @@
 export const LengthUnit = {
   Px: 0,
   Pct: 1,
+  FitContent: 2,
 } as const;
 
 /**
@@ -18,6 +19,11 @@ export type PxUnit = typeof LengthUnit.Px;
  * A percentage length unit.
  */
 export type PctUnit = typeof LengthUnit.Pct;
+
+/**
+ * A fit-content length unit.
+ */
+export type FitContentUnit = typeof LengthUnit.FitContent;
 
 /**
  * A pixel-based canvas length.
@@ -42,12 +48,20 @@ export interface PctLength {
 }
 
 /**
+ * A fit-content canvas length.
+ */
+export interface FitContentLength {
+  unit: FitContentUnit;
+  value: 0;
+}
+
+/**
  * A modeled canvas length value.
  *
  * Retend canvas uses explicit length objects instead of CSS-like strings so
  * style values can be typed, normalized, and interpreted without reparsing.
  */
-export type LengthValue = PxLength | PctLength;
+export type LengthValue = PxLength | PctLength | FitContentLength;
 
 /**
  * Creates strongly-typed canvas length values.
@@ -62,6 +76,7 @@ export const Length = {
   Pct(value: number): PctLength {
     return { unit: LengthUnit.Pct, value };
   },
+  FitContent: { unit: LengthUnit.FitContent, value: 0 } as FitContentLength,
 } as const;
 
 /**

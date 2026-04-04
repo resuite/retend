@@ -30,6 +30,8 @@ declare module 'retend/jsx-runtime' {
       transformOrigin?: TransformOriginValue;
       width?: LengthValue;
       height?: LengthValue;
+      maxWidth?: LengthValue;
+      maxHeight?: LengthValue;
       overflow?: OverflowValue;
       borderRadius?: number;
       borderStyle?: BorderStyleValue;

@@ -14,6 +14,10 @@ export class CanvasNode {
   draw(_host: CanvasHost) {
     throw new Error('draw method not implemented.');
   }
+
+  measure(_host: CanvasHost, _maxWidth?: number) {
+    return { width: 0, height: 0 };
+  }
 }
 
 export class CanvasParentNode extends CanvasNode {
