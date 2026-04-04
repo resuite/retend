@@ -9,9 +9,7 @@ import type { CanvasRenderer } from '../canvas-renderer';
 import { FontStyle, TextAlign, WhiteSpace } from '../style';
 import { CanvasNode } from './node';
 
-function getFont(
-  host: CanvasRenderer['host']
-) {
+function getFont(host: CanvasRenderer['host']) {
   let fontStyle = 'normal';
   if (host.fontStyle === FontStyle.Italic) fontStyle = 'italic';
   else if (host.fontStyle === FontStyle.Oblique) fontStyle = 'oblique';
@@ -68,7 +66,11 @@ export class CanvasText extends CanvasNode {
     }
 
     const prepared = this.#prepared;
-    const layout = layoutWithLines(prepared, maxWidth ?? Number.POSITIVE_INFINITY, lineHeight);
+    const layout = layoutWithLines(
+      prepared,
+      maxWidth ?? Number.POSITIVE_INFINITY,
+      lineHeight
+    );
     let width = 0;
     for (const line of layout.lines) {
       if (line.width > width) width = line.width;

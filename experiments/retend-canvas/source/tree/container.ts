@@ -74,7 +74,11 @@ export class CanvasContainer<
       maxWidth?.unit === LengthUnit.FitContent ||
       maxHeight?.unit === LengthUnit.FitContent
     ) {
-      ({ nextWidth, fitContentWidth, fitContentHeight } = resolveFittedContent(this, nextWidth, baseWidth));
+      ({ nextWidth, fitContentWidth, fitContentHeight } = resolveFittedContent(
+        this,
+        nextWidth,
+        baseWidth
+      ));
     }
 
     if (height.unit === LengthUnit.FitContent) nextHeight = fitContentHeight;
