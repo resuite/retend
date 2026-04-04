@@ -106,6 +106,34 @@ export class CanvasContainer<
   tracePath(_ctx: CanvasRenderingContext2D): boolean {
     return false;
   }
+
+  protected paintPath(host: CanvasHost) {
+    if (!this.tracePath(host.ctx)) return;
+
+    const {
+      backgroundColor = 'transparent',
+      borderStyle,
+      borderWidth = 0,
+      borderColor = host.color,
+    } = this.style;
+    const resolvedBorderStyle = borderStyle ?? (borderWidth ? 'solid' : 'none');
+    host.ctx.fillStyle = backgroundColor;
+    host.ctx.fill();
+
+    if (!borderWidth || resolvedBorderStyle === 'none') return;
+
+    host.ctx.lineWidth = borderWidth;
+    host.ctx.strokeStyle = borderColor;
+    if (resolvedBorderStyle === 'dashed') {
+      host.ctx.setLineDash([borderWidth * 3, borderWidth * 2]);
+    } else if (resolvedBorderStyle === 'dotted') {
+      host.ctx.setLineDash([borderWidth, borderWidth]);
+    } else {
+      host.ctx.setLineDash([]);
+    }
+    host.ctx.stroke();
+    host.ctx.setLineDash([]);
+  }
 }
 
 export class CanvasRoot extends CanvasContainer {
@@ -138,11 +166,7 @@ export class CanvasRect extends CanvasContainer {
   }
 
   override drawContainer(host: CanvasHost): void {
-    const { backgroundColor = 'transparent' } = this.style;
-
-    host.ctx.fillStyle = backgroundColor;
-    this.tracePath(host.ctx);
-    host.ctx.fill();
+    this.paintPath(host);
   }
 }
 
@@ -160,11 +184,7 @@ export class CanvasCircle extends CanvasContainer {
   }
 
   override drawContainer(host: CanvasHost): void {
-    const { backgroundColor = 'transparent' } = this.style;
-
-    host.ctx.fillStyle = backgroundColor;
-    this.tracePath(host.ctx);
-    host.ctx.fill();
+    this.paintPath(host);
   }
 }
 
@@ -217,9 +237,6 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
   }
 
   override drawContainer(host: CanvasHost): void {
-    const { backgroundColor = 'transparent' } = this.style;
-    if (!this.tracePath(host.ctx)) return;
-    host.ctx.fillStyle = backgroundColor;
-    host.ctx.fill();
+    this.paintPath(host);
   }
 }

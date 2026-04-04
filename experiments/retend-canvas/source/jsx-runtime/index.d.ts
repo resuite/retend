@@ -17,6 +17,9 @@ declare module 'retend/jsx-runtime' {
       height?: number | `${number}%`;
       overflow?: 'visible' | 'hidden';
       borderRadius?: number;
+      borderStyle?: 'none' | 'solid' | 'dashed' | 'dotted';
+      borderWidth?: number;
+      borderColor?: string;
       backgroundColor?: string;
       color?: string;
       fontSize?: number;

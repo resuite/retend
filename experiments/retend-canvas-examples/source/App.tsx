@@ -23,6 +23,7 @@ const circleStyle: JSX.Style = {
   borderRadius: 40,
   overflow: 'hidden',
   color: 'white',
+  borderWidth: 3,
 };
 
 const App = () => {
