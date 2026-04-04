@@ -11,6 +11,7 @@ import {
   Easing,
   type EasingValue,
   type TransitionableStyleKey,
+  Duration,
 } from '../style';
 import { CanvasContainer } from './container';
 import { lengthToPx } from './transform';
@@ -234,13 +235,13 @@ function resolveOffsetValue(
   if (value.unit === LengthUnit.FitContent) return null;
 
   let baseSize = 0;
-  if ('measure' in (node.parent ?? {})) {
-    const parentSize = node.parent?.measure(node.renderer.host);
-    if (parentSize) {
-      if (isX) baseSize = parentSize.width;
-      else baseSize = parentSize.height;
-    }
+
+  const parentSize = node.parent?.measure(node.renderer.host);
+  if (parentSize) {
+    if (isX) baseSize = parentSize.width;
+    else baseSize = parentSize.height;
   }
+
   if (!baseSize) {
     if (isX) baseSize = node.renderer.host.scopeWidth;
     else baseSize = node.renderer.host.scopeHeight;
@@ -309,19 +310,16 @@ function isSameTransitionValue(left: TransitionValue, right: TransitionValue) {
   return false;
 }
 
-function hasTransitionProperty(
-  node: CanvasContainer,
-  key: TransitionableStyleKey
-) {
-  const properties = node.styles.transitionProperty;
-  if (!properties) return false;
-  if (Array.isArray(properties)) {
-    for (const property of properties) {
+function hasTransitionProperty(node: CanvasContainer, key: string) {
+  const { transitionProperty } = node.styles;
+  if (!transitionProperty) return false;
+  if (Array.isArray(transitionProperty)) {
+    for (const property of transitionProperty) {
       if (property === key) return true;
     }
     return false;
   }
-  return properties === key;
+  return transitionProperty === key;
 }
 
 function isTransitionableKey(key: string): key is TransitionableStyleKey {
@@ -350,17 +348,10 @@ function createTransition(
   if (durationToMs(durationValue) <= 0) return null;
   if (!hasTransitionProperty(node, key)) return null;
 
-  let delay = 0;
-  const delayValue = node.styles.transitionDelay;
-  if (delayValue) {
-    delay = durationToMs(delayValue);
-    if (delay < 0) delay = 0;
-  }
+  const delayValue = node.styles.transitionDelay ?? Duration.Ms(0);
+  const delay = Math.max(0, durationToMs(delayValue));
 
-  let timingFunction: EasingValue = Easing.Ease;
-  const nextTimingFunction = node.styles.transitionTimingFunction;
-  if (nextTimingFunction !== undefined) timingFunction = nextTimingFunction;
-
+  const timingFunction = node.styles.transitionTimingFunction ?? Easing.Ease;
   const from = resolveTransitionValue(node, key, node.styles[key]);
   const to = resolveTransitionValue(node, key, value);
   if (!from || !to) return null;
