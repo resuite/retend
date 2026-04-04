@@ -2,6 +2,7 @@ import type { JSX } from 'retend/jsx-runtime';
 
 import type { CanvasHost } from '.';
 
+import { BorderStyle, Length, LengthUnit, Overflow } from '../style';
 import { CanvasParentNode } from './node';
 import { createTransformMatrix } from './transform';
 
@@ -47,15 +48,16 @@ export class CanvasContainer<
   }
 
   protected resolveSize(host: CanvasHost) {
-    const { width = 100, height = 100 } = this.style;
+    const width = this.style.width ?? Length.Px(100);
+    const height = this.style.height ?? Length.Px(100);
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
-    let nextWidth = Number.parseFloat(String(width));
-    let nextHeight = Number.parseFloat(String(height));
-    if (String(width).endsWith('%')) {
+    let nextWidth = width.value;
+    let nextHeight = height.value;
+    if (width.unit.value === LengthUnit.Pct.value) {
       nextWidth = (nextWidth * baseWidth) / 100;
     }
-    if (String(height).endsWith('%')) {
+    if (height.unit.value === LengthUnit.Pct.value) {
       nextHeight = (nextHeight * baseHeight) / 100;
     }
 
@@ -101,7 +103,7 @@ export class CanvasContainer<
       transform.f
     );
     this.drawContainer(host);
-    if (overflow === 'hidden') {
+    if (overflow?.value === Overflow.Hidden.value) {
       const path = this.tracePath();
       if (path) host.ctx.clip(path);
     }
@@ -160,17 +162,23 @@ export class CanvasContainer<
       borderWidth = 0,
       borderColor = host.color,
     } = this.style;
-    const resolvedBorderStyle = borderStyle ?? (borderWidth ? 'solid' : 'none');
+    let resolvedBorderStyle = borderStyle;
+    if (resolvedBorderStyle === undefined) {
+      if (borderWidth) resolvedBorderStyle = BorderStyle.Solid;
+      else resolvedBorderStyle = BorderStyle.None;
+    }
     host.ctx.fillStyle = backgroundColor;
     host.ctx.fill(path);
 
-    if (!borderWidth || resolvedBorderStyle === 'none') return;
+    if (!borderWidth || resolvedBorderStyle.value === BorderStyle.None.value) {
+      return;
+    }
 
     host.ctx.lineWidth = borderWidth;
     host.ctx.strokeStyle = borderColor;
-    if (resolvedBorderStyle === 'dashed') {
+    if (resolvedBorderStyle.value === BorderStyle.Dashed.value) {
       host.ctx.setLineDash([borderWidth * 3, borderWidth * 2]);
-    } else if (resolvedBorderStyle === 'dotted') {
+    } else if (resolvedBorderStyle.value === BorderStyle.Dotted.value) {
       host.ctx.setLineDash([borderWidth, borderWidth]);
     } else {
       host.ctx.setLineDash([]);
@@ -183,7 +191,10 @@ export class CanvasContainer<
 export class CanvasRoot extends CanvasContainer {
   constructor() {
     super();
-    this.setAttribute('style', { width: '100%', height: '100%' });
+    this.setAttribute('style', {
+      width: Length.Pct(100),
+      height: Length.Pct(100),
+    });
   }
 
   override drawContainer() {}

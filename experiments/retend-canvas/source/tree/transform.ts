@@ -1,88 +1,38 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-function isHorizontalKeyword(token: string) {
-  return token === 'left' || token === 'right';
-}
+import {
+  Angle,
+  Length,
+  type LengthValue,
+  LengthUnit,
+  TransformOrigin,
+  type TransformOriginValue,
+} from '../style';
 
-function isVerticalKeyword(token: string) {
-  return token === 'top' || token === 'bottom';
-}
-
-function resolveKeyword(token: string, size: number) {
-  if (token === 'left' || token === 'top') {
-    return 0;
-  }
-
-  if (token === 'center') {
-    return size / 2;
-  }
-
-  if (token === 'right' || token === 'bottom') {
-    return size;
-  }
-
-  return null;
-}
-
-function resolveLengthPercentage(token: string, size: number) {
-  const keyword = resolveKeyword(token, size);
-  if (keyword !== null) {
-    return keyword;
-  }
-
-  const value = Number.parseFloat(token);
-  if (token.endsWith('%')) {
-    return (value * size) / 100;
-  }
-
-  return value;
-}
+const defaultTransformOrigin = TransformOrigin.At(
+  Length.Pct(50),
+  Length.Pct(50)
+);
 
 export function resolveCanvasLengthPercentage(
-  value: number | string,
+  value: LengthValue,
   size: number
 ) {
-  return resolveLengthPercentage(String(value), size);
+  if (value.unit.value === LengthUnit.Pct.value) {
+    return (value.value * size) / 100;
+  }
+
+  return value.value;
 }
 
 export function resolveTransformOrigin(
-  transformOrigin: string,
+  transformOrigin: TransformOriginValue,
   width: number,
   height: number
 ) {
-  const tokens = transformOrigin.trim().split(/\s+/).slice(0, 2);
-  if (tokens.length === 0 || tokens[0] === '') {
-    return {
-      x: width / 2,
-      y: height / 2,
-    };
-  }
-
-  if (tokens.length === 1) {
-    const token = tokens[0];
-    if (isVerticalKeyword(token)) {
-      return {
-        x: width / 2,
-        y: resolveLengthPercentage(token, height),
-      };
-    }
-
-    return {
-      x: resolveLengthPercentage(token, width),
-      y: height / 2,
-    };
-  }
-
-  let xToken = tokens[0];
-  let yToken = tokens[1];
-  if (isVerticalKeyword(tokens[0]) || isHorizontalKeyword(tokens[1])) {
-    xToken = tokens[1];
-    yToken = tokens[0];
-  }
-
   return {
-    x: resolveLengthPercentage(xToken, width),
-    y: resolveLengthPercentage(yToken, height),
+    x: resolveCanvasLengthPercentage(transformOrigin.x, width),
+    y: resolveCanvasLengthPercentage(transformOrigin.y, height),
   };
 }
 
@@ -93,14 +43,12 @@ export function createTransformMatrix(
   parentWidth: number,
   parentHeight: number
 ) {
-  const {
-    left = 0,
-    top = 0,
-    rotate = '0deg',
-    scale = 1,
-    transformOrigin = '50% 50%',
-  } = style;
-  const rotation = Number.parseFloat(rotate);
+  const left = style.left ?? Length.Px(0);
+  const top = style.top ?? Length.Px(0);
+  const rotate = style.rotate ?? Angle.Deg(0);
+  const { scale = 1 } = style;
+  const transformOrigin = style.transformOrigin ?? defaultTransformOrigin;
+  const rotation = rotate.value;
   const translateX = resolveCanvasLengthPercentage(left, parentWidth);
   const translateY = resolveCanvasLengthPercentage(top, parentHeight);
   const { x, y } = resolveTransformOrigin(transformOrigin, width, height);

@@ -6,17 +6,21 @@ import {
 
 import type { CanvasHost } from '.';
 
+import { TextAlign } from '../style';
 import { CanvasNode } from './node';
 
 function getFont(host: CanvasHost) {
-  return `${host.fontStyle} ${host.fontWeight} ${host.fontSize}px ${host.fontFamily}`;
+  let fontStyle = 'normal';
+  if (host.fontStyle.value === 1) fontStyle = 'italic';
+  else if (host.fontStyle.value === 2) fontStyle = 'oblique';
+  return `${fontStyle} ${host.fontWeight} ${host.fontSize}px ${host.fontFamily}`;
 }
 
 export class CanvasText extends CanvasNode {
   #prepared: PreparedTextWithSegments | null = null;
   #preparedFont: string | null = null;
   #preparedText: string | null = null;
-  #preparedWhiteSpace: 'normal' | 'pre-wrap' | null = null;
+  #preparedWhiteSpace = -1;
 
   constructor(public content: string) {
     super();
@@ -33,14 +37,16 @@ export class CanvasText extends CanvasNode {
       !this.#prepared ||
       this.#preparedFont !== host.ctx.font ||
       this.#preparedText !== this.content ||
-      this.#preparedWhiteSpace !== host.whiteSpace
+      this.#preparedWhiteSpace !== host.whiteSpace.value
     ) {
+      let whiteSpace: 'normal' | 'pre-wrap' = 'normal';
+      if (host.whiteSpace.value === 1) whiteSpace = 'pre-wrap';
       this.#prepared = prepareWithSegments(this.content, host.ctx.font, {
-        whiteSpace: host.whiteSpace,
+        whiteSpace,
       });
       this.#preparedFont = host.ctx.font;
       this.#preparedText = this.content;
-      this.#preparedWhiteSpace = host.whiteSpace;
+      this.#preparedWhiteSpace = host.whiteSpace.value;
     }
 
     const prepared = this.#prepared;
@@ -48,9 +54,9 @@ export class CanvasText extends CanvasNode {
     let y = 0;
     for (const line of layout.lines) {
       let x = 0;
-      if (host.textAlign === 'center') {
+      if (host.textAlign.value === TextAlign.Center.value) {
         x = (host.scopeWidth - line.width) / 2;
-      } else if (host.textAlign === 'right') {
+      } else if (host.textAlign.value === TextAlign.Right.value) {
         x = host.scopeWidth - line.width;
       }
       host.ctx.fillText(line.text, x, y);

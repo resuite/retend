@@ -1,47 +1,47 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import { Cell, onSetup } from 'retend';
+import { Angle, FontStyle, FontWeight, Length, TextAlign } from 'retend-canvas';
 
 const containerStyle: JSX.Style = {
-  width: '100%',
-  height: '100%',
+  width: Length.Pct(100),
+  height: Length.Pct(100),
   backgroundColor: 'black',
 };
 
 const innerStyle: JSX.Style = {
-  top: '5%',
-  left: '5%',
-  width: '90%',
-  height: '90%',
+  top: Length.Pct(5),
+  left: Length.Pct(5),
+  width: Length.Pct(90),
+  height: Length.Pct(90),
   backgroundColor: 'lime',
 };
 
 const centerStyle: JSX.Style = {
-  top: '40%',
-  left: '40%',
-  height: '20%',
-  width: '20%',
+  top: Length.Pct(40),
+  left: Length.Pct(40),
+  height: Length.Pct(20),
+  width: Length.Pct(20),
   backgroundColor: 'blue',
   color: 'white',
-  textAlign: 'center',
+  textAlign: TextAlign.Center,
   fontFamily: 'serif',
-  fontWeight: 'bold',
-  fontStyle: 'italic',
+  fontWeight: FontWeight.Bold,
+  fontStyle: FontStyle.Italic,
   fontSize: 29,
 };
 
 const App = () => {
-  const rotate = Cell.source('0deg');
+  const rotate = Cell.source(Angle.Deg(0));
+  const scale = Cell.source(1);
 
   onSetup(() => {
     let lastTick = performance.now();
 
     const tick = (now: number) => {
-      const nextRotate =
-        String(Number.parseFloat(rotate.get()) + (now - lastTick) / 200) +
-        'deg';
+      const delta = now - lastTick;
       lastTick = now;
-      rotate.set(nextRotate);
+      rotate.set(Angle.Deg(rotate.get().value + delta / 200));
       requestAnimationFrame(tick);
     };
 
@@ -51,7 +51,7 @@ const App = () => {
   return (
     <rect style={containerStyle}>
       <rect style={{ ...innerStyle }}>
-        <rect style={{ ...centerStyle, rotate }}>
+        <rect style={{ ...centerStyle, rotate, scale }}>
           Hello World loremdud dshs dj fhffd hfdfh fdhv fhv
         </rect>
       </rect>

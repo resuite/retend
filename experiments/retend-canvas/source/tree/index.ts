@@ -1,3 +1,14 @@
+import {
+  FontStyle,
+  type FontStyleValue,
+  FontWeight,
+  type FontWeightValue,
+  TextAlign,
+  type TextAlignValue,
+  WhiteSpace,
+  type WhiteSpaceValue,
+} from '../style';
+
 export * from './node';
 export * from './utils';
 export * from './container';
@@ -8,11 +19,11 @@ export class CanvasHost extends EventTarget {
   color = 'black';
   fontSize = 16;
   fontFamily = 'sans-serif';
-  fontWeight: string | number = 'normal';
-  fontStyle: 'normal' | 'italic' | 'oblique' = 'normal';
-  textAlign: 'left' | 'center' | 'right' = 'left';
+  fontWeight: FontWeightValue = FontWeight.Normal;
+  fontStyle: FontStyleValue = FontStyle.Normal;
+  textAlign: TextAlignValue = TextAlign.Left;
   lineHeight: number | undefined;
-  whiteSpace: 'normal' | 'pre-wrap' = 'normal';
+  whiteSpace: WhiteSpaceValue = WhiteSpace.Normal;
   scopeWidth: number;
   scopeHeight: number;
 

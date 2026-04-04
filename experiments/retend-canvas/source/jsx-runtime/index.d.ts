@@ -1,5 +1,16 @@
 import type { Cell } from 'retend';
 
+import type {
+  AngleValue,
+  BorderStyleValue,
+  FontStyleValue,
+  FontWeightValue,
+  LengthValue,
+  OverflowValue,
+  TextAlignValue,
+  TransformOriginValue,
+  WhiteSpaceValue,
+} from '../style';
 import 'retend/jsx-runtime';
 
 declare module 'retend/jsx-runtime' {
@@ -8,27 +19,27 @@ declare module 'retend/jsx-runtime' {
 
   namespace JSX {
     interface Style {
-      left?: number | `${number}%`;
-      top?: number | `${number}%`;
-      rotate?: `${number}deg`;
+      left?: LengthValue;
+      top?: LengthValue;
+      rotate?: AngleValue;
       scale?: number;
-      transformOrigin?: string;
-      width?: number | `${number}%`;
-      height?: number | `${number}%`;
-      overflow?: 'visible' | 'hidden';
+      transformOrigin?: TransformOriginValue;
+      width?: LengthValue;
+      height?: LengthValue;
+      overflow?: OverflowValue;
       borderRadius?: number;
-      borderStyle?: 'none' | 'solid' | 'dashed' | 'dotted';
+      borderStyle?: BorderStyleValue;
       borderWidth?: number;
       borderColor?: string;
-      textAlign?: 'left' | 'center' | 'right';
+      textAlign?: TextAlignValue;
       lineHeight?: number;
-      whiteSpace?: 'normal' | 'pre-wrap';
+      whiteSpace?: WhiteSpaceValue;
       backgroundColor?: string;
       color?: string;
       fontSize?: number;
       fontFamily?: string;
-      fontWeight?: string | number;
-      fontStyle?: 'normal' | 'italic' | 'oblique';
+      fontWeight?: FontWeightValue;
+      fontStyle?: FontStyleValue;
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;
