@@ -20,6 +20,9 @@ declare module 'retend/jsx-runtime' {
       borderStyle?: 'none' | 'solid' | 'dashed' | 'dotted';
       borderWidth?: number;
       borderColor?: string;
+      textAlign?: 'left' | 'center' | 'right';
+      lineHeight?: number;
+      whiteSpace?: 'normal' | 'pre-wrap';
       backgroundColor?: string;
       color?: string;
       fontSize?: number;

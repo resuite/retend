@@ -17,15 +17,16 @@ const innerStyle: JSX.Style = {
 };
 
 const centerStyle: JSX.Style = {
-  top: '30%',
-  left: '30%',
-  height: '40%',
-  width: '40%',
+  top: '40%',
+  left: '40%',
+  height: '20%',
+  width: '20%',
   backgroundColor: 'blue',
   borderRadius: 40,
   overflow: 'hidden',
   color: 'white',
   borderWidth: 3,
+  textAlign: 'center',
 };
 
 const App = () => {
@@ -49,7 +50,9 @@ const App = () => {
   return (
     <rect style={containerStyle}>
       <rect style={{ ...innerStyle }}>
-        <rect style={{ ...centerStyle, rotate }}>Hello World</rect>
+        <rect style={{ ...centerStyle, rotate }}>
+          Hello World loremdud dshs dj fhffd hfdfh fdhv fhv
+        </rect>
       </rect>
     </rect>
   );

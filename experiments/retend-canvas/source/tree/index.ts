@@ -7,6 +7,9 @@ export * from './transform';
 export class CanvasHost extends EventTarget {
   color = 'black';
   fontSize = 16;
+  textAlign: 'left' | 'center' | 'right' = 'left';
+  lineHeight: number | undefined;
+  whiteSpace: 'normal' | 'pre-wrap' = 'normal';
   scopeWidth: number;
   scopeHeight: number;
 
