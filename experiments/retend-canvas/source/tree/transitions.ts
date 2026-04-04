@@ -46,6 +46,18 @@ const canvasTimeline: CanvasTimeline = {
     return performance.now();
   },
 };
+const transitionableKeys = {
+  left: true,
+  top: true,
+  rotate: true,
+  scale: true,
+  backgroundColor: true,
+  borderColor: true,
+  color: true,
+  borderWidth: true,
+  borderRadius: true,
+  fontSize: true,
+} as const;
 
 function resolveInheritedColor(node: CanvasNode | null) {
   let current = node;
@@ -301,18 +313,7 @@ function hasTransitionProperty(node: CanvasContainer, key: string) {
 }
 
 function isTransitionableKey(key: string): key is TransitionableStyleKey {
-  return (
-    key === 'left' ||
-    key === 'top' ||
-    key === 'rotate' ||
-    key === 'scale' ||
-    key === 'backgroundColor' ||
-    key === 'borderColor' ||
-    key === 'color' ||
-    key === 'borderWidth' ||
-    key === 'borderRadius' ||
-    key === 'fontSize'
-  );
+  return key in transitionableKeys;
 }
 
 function createTransition(
@@ -369,7 +370,7 @@ export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
       writeIndex += 1;
     }
     transitions.length = writeIndex;
-    if (node.isConnectedTo(node.renderer.root)) {
+    if (node.isConnected) {
       const transition = createTransition(node, key, value);
       if (transition) {
         transitions.push(transition);
@@ -380,7 +381,7 @@ export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
   }
 
   node.setStyles({ [key]: value } as JSX.Style);
-  if (node.isConnectedTo(node.renderer.root)) node.renderer.requestRender();
+  if (node.isConnected) node.renderer.requestRender();
 }
 
 export function stepCanvasTransitions(renderer: CanvasRenderer) {

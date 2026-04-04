@@ -3,11 +3,21 @@ import { Alignment, Duration, Length, TextAlign } from 'retend-canvas';
 
 const App = () => {
   const scale = Cell.source(1);
+  const counter = Cell.source(0);
 
   onSetup(() => {
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       scale.set(0.5);
     }, 3000);
+
+    const interval = setInterval(() => {
+      counter.set(counter.get() + 1);
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   });
 
   return (
@@ -39,7 +49,7 @@ const App = () => {
             fontSize: Length.Px(40),
           }}
         >
-          To be or not to be? That is the question.
+          To be or not to be? That is the question. Counter: {counter}
         </rect>
       </rect>
     </rect>

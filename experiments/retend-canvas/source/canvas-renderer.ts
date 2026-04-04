@@ -77,6 +77,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.host = host;
     this.observer = null;
     this.root = new CanvasRoot(this);
+    this.root.setConnected(true);
     this.#viewport = viewport;
     this.transitions = [];
   }
@@ -194,12 +195,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   }
 
   isActive(node: CanvasNode): boolean {
-    let current: CanvasNode | null = node;
-    while (current) {
-      if (current === this.root) return true;
-      current = current.parent;
-    }
-    return false;
+    return node.isConnected;
   }
 
   // Stubs.

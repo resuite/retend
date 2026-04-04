@@ -2,18 +2,32 @@ import type { CanvasRenderer } from '../canvas-renderer';
 
 export class CanvasNode {
   renderer: CanvasRenderer;
-  parent: CanvasParentNode | null = null;
+  #parent: CanvasParentNode | null = null;
+  #isConnected = false;
 
   constructor(renderer: CanvasRenderer) {
     this.renderer = renderer;
   }
 
-  isConnectedTo(root: CanvasParentNode): boolean {
-    let node: CanvasParentNode | null = this.parent;
-    while (node && node !== root) {
-      node = node.parent;
+  get isConnected() {
+    return this.#isConnected;
+  }
+
+  get parent() {
+    return this.#parent;
+  }
+
+  set parent(parent: CanvasParentNode | null) {
+    this.#parent = parent;
+    this.setConnected(parent?.isConnected === true);
+  }
+
+  setConnected(isConnected: boolean) {
+    if (this.isConnected === isConnected) return;
+    this.#isConnected = isConnected;
+    if (this instanceof CanvasParentNode) {
+      for (const child of this.children) child.setConnected(isConnected);
     }
-    return node === root;
   }
 
   draw() {

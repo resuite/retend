@@ -138,7 +138,7 @@ export function setAttribute(
   }
 
   node.setAttribute(key as never, value as never);
-  if (node.isConnectedTo(node.renderer.root)) {
+  if (node.isConnected) {
     node.renderer.requestRender();
   }
 }
