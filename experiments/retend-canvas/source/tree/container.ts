@@ -29,8 +29,8 @@ export class CanvasContainer<
     this.dirtyPath = true;
   }
 
-  getStyles() {
-    return { ...this.style };
+  get styles() {
+    return this.style;
   }
 
   setStyles(style: JSX.Style) {

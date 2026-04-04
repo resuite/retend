@@ -34,7 +34,7 @@ export function resolveFittedContent(
     const childSize = child.measure(host);
     let childX = 0;
     if (child instanceof CanvasContainer) {
-      const childStyle = child.getStyles();
+      const childStyle = child.styles;
       if (
         width.unit === LengthUnit.FitContent ||
         maxWidth?.unit === LengthUnit.FitContent
@@ -84,7 +84,7 @@ export function resolveFittedContent(
       const childSize = child.measure(host, nextWidth);
       let childY = 0;
       if (child instanceof CanvasContainer) {
-        const childStyle = child.getStyles();
+        const childStyle = child.styles;
         if (
           childStyle.height?.unit === LengthUnit.Pct ||
           childStyle.top?.unit === LengthUnit.Pct

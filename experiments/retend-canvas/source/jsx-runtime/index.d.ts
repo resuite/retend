@@ -4,12 +4,15 @@ import type {
   AngleValue,
   AlignmentValue,
   BorderStyleValue,
+  DurationValue,
   FontStyleValue,
   FontWeightValue,
   LengthValue,
   OverflowValue,
   PxLength,
   TextAlignValue,
+  TransitionableStyleKey,
+  EasingValue,
   TransformOriginValue,
   WhiteSpaceValue,
 } from '../style';
@@ -46,6 +49,10 @@ declare module 'retend/jsx-runtime' {
       fontFamily?: string;
       fontWeight?: FontWeightValue;
       fontStyle?: FontStyleValue;
+      transitionDuration?: DurationValue;
+      transitionDelay?: DurationValue;
+      transitionTimingFunction?: EasingValue;
+      transitionProperty?: TransitionableStyleKey | TransitionableStyleKey[];
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;

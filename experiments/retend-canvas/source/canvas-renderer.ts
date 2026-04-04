@@ -33,6 +33,10 @@ import {
   write,
   CanvasRoot,
 } from './tree';
+import {
+  type CanvasTransition,
+  stepCanvasTransitions,
+} from './tree/transitions';
 
 interface CanvasRenderingTypes {
   Node: CanvasNode;
@@ -60,6 +64,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   #state?: StateSnapshot;
   root: CanvasContainer;
   #viewport: { width: number; height: number };
+  transitions: CanvasTransition[];
   #renderFrame: number | null = null;
 
   capabilities: Capabilities = {
@@ -67,11 +72,20 @@ export class CanvasRenderer implements CanvasRendererInterface {
     supportsSetupEffects: true,
   };
 
+  constructor(host: CanvasHost, viewport: { width: number; height: number }) {
+    this.host = host;
+    this.observer = null;
+    this.root = new CanvasRoot();
+    this.#viewport = viewport;
+    this.transitions = [];
+  }
+
   requestRender(viewport?: { width: number; height: number }) {
     if (viewport) this.#viewport = viewport;
     if (this.#renderFrame !== null) return;
     this.#renderFrame = requestAnimationFrame(() => {
       this.#renderFrame = null;
+      const hasTransitions = stepCanvasTransitions(this);
       this.host.ctx.clearRect(
         0,
         0,
@@ -81,14 +95,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
       this.host.scopeWidth = this.#viewport.width;
       this.host.scopeHeight = this.#viewport.height;
       this.root.draw(this.host);
+      if (hasTransitions) this.requestRender();
     });
-  }
-
-  constructor(host: CanvasHost, viewport: { width: number; height: number }) {
-    this.host = host;
-    this.observer = null;
-    this.root = new CanvasRoot();
-    this.#viewport = viewport;
   }
 
   render(app: JSX.Template): CanvasNode | CanvasNode[] {

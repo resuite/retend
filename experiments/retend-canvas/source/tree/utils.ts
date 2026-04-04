@@ -6,6 +6,7 @@ import type { CanvasRenderer } from '../canvas-renderer';
 import type { CanvasContainer } from './container';
 
 import { CanvasFragment, type CanvasNode, type CanvasRange } from './node';
+import { applyStyle } from './transitions';
 
 export function write(handle: CanvasRange, newContent: CanvasNode[]) {
   const [start, end] = handle;
@@ -57,33 +58,21 @@ export function append(
   return parent;
 }
 
-function setStyleProperty(
+function setStyleProp(
   node: CanvasContainer,
   renderer: CanvasRenderer,
   key: keyof JSX.Style,
   value: unknown
 ) {
   if (!Cell.isCell(value)) {
-    const nextStyle = node.getStyles();
-    Reflect.set(nextStyle, key, value);
-    node.setStyles(nextStyle);
-    if (node.isConnectedTo(renderer.root)) {
-      renderer.requestRender();
-    }
+    applyStyle(renderer, node, key, value);
     return;
   }
 
   if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
   const updateProperty = (nextValue: any) => {
-    const nextStyle = node.getStyles();
     if (nextValue instanceof Promise) nextValue.then(updateProperty);
-    else {
-      Reflect.set(nextStyle, key, nextValue);
-      node.setStyles(nextStyle);
-      if (node.isConnectedTo(renderer.root)) {
-        renderer.requestRender();
-      }
-    }
+    else applyStyle(renderer, node, key, nextValue);
   };
 
   updateProperty(value.get());
@@ -109,13 +98,50 @@ export function setAttribute(
   }
 
   if (key === 'style' && value instanceof Object) {
+    const style = value as JSX.Style;
     node.setAttribute(key as never, {} as never);
-    for (const styleKey in value) {
-      setStyleProperty(
+    if ('transitionDuration' in style) {
+      setStyleProp(
+        node,
+        renderer,
+        'transitionDuration',
+        style.transitionDuration
+      );
+    }
+    if ('transitionDelay' in style) {
+      setStyleProp(node, renderer, 'transitionDelay', style.transitionDelay);
+    }
+    if ('transitionTimingFunction' in style) {
+      setStyleProp(
+        node,
+        renderer,
+        'transitionTimingFunction',
+        style.transitionTimingFunction
+      );
+    }
+    if ('transitionProperty' in style) {
+      setStyleProp(
+        node,
+        renderer,
+        'transitionProperty',
+        style.transitionProperty
+      );
+    }
+
+    for (const styleKey in style) {
+      if (
+        styleKey === 'transitionDuration' ||
+        styleKey === 'transitionDelay' ||
+        styleKey === 'transitionTimingFunction' ||
+        styleKey === 'transitionProperty'
+      ) {
+        continue;
+      }
+      setStyleProp(
         node,
         renderer,
         styleKey as keyof JSX.Style,
-        Reflect.get(value, styleKey)
+        style[styleKey as keyof JSX.Style]
       );
     }
     return;

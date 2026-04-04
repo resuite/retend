@@ -1,6 +1,15 @@
-import { Alignment, Length, TextAlign } from 'retend-canvas';
+import { Cell, onSetup } from 'retend';
+import { Alignment, Duration, Length, TextAlign } from 'retend-canvas';
 
 const App = () => {
+  const scale = Cell.source(1);
+
+  onSetup(() => {
+    setTimeout(() => {
+      scale.set(0.5);
+    }, 3000);
+  });
+
   return (
     <rect style={{ width: Length.Pct(100), height: Length.Pct(100) }}>
       <rect
@@ -15,6 +24,9 @@ const App = () => {
       >
         <rect
           style={{
+            scale,
+            transitionProperty: 'scale',
+            transitionDuration: Duration.Ms(500),
             height: Length.FitContent,
             width: Length.FitContent,
             maxWidth: Length.Pct(50),

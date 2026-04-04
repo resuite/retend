@@ -118,6 +118,63 @@ export const Angle = {
   },
 } as const;
 
+export const DurationUnit = {
+  Ms: 0,
+  Sec: 1,
+} as const;
+
+export type MsDurationUnit = typeof DurationUnit.Ms;
+
+export type SecDurationUnit = typeof DurationUnit.Sec;
+
+export interface MsDuration {
+  unit: MsDurationUnit;
+  value: number;
+}
+
+export interface SecDuration {
+  unit: SecDurationUnit;
+  value: number;
+}
+
+export type DurationValue = MsDuration | SecDuration;
+
+export const Duration = {
+  Ms(value: number): MsDuration {
+    return { unit: DurationUnit.Ms, value };
+  },
+  Sec(value: number): SecDuration {
+    return { unit: DurationUnit.Sec, value };
+  },
+} as const;
+
+export function durationToMs(value: DurationValue) {
+  if (value.unit === DurationUnit.Sec) return value.value * 1000;
+  return value.value;
+}
+
+export const Easing = {
+  Linear: 0,
+  Ease: 1,
+  EaseIn: 2,
+  EaseOut: 3,
+  EaseInOut: 4,
+} as const;
+
+export type EasingValue = (typeof Easing)[keyof typeof Easing];
+
+export type TransitionableStyleKey =
+  | 'left'
+  | 'top'
+  | 'rotate'
+  | 'scale'
+  | 'backgroundColor'
+  | 'borderColor'
+  | 'color'
+  | 'borderWidth'
+  | 'borderRadius'
+  | 'fontSize';
+
 /**
  * A modeled transform origin.
  *
