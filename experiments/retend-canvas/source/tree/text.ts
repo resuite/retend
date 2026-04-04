@@ -18,23 +18,6 @@ export class CanvasText extends CanvasNode {
     super();
   }
 
-  #prepare(font: string, whiteSpace: 'normal' | 'pre-wrap') {
-    if (
-      this.#prepared &&
-      this.#preparedFont === font &&
-      this.#preparedText === this.content &&
-      this.#preparedWhiteSpace === whiteSpace
-    ) {
-      return this.#prepared;
-    }
-
-    this.#prepared = prepareWithSegments(this.content, font, { whiteSpace });
-    this.#preparedFont = font;
-    this.#preparedText = this.content;
-    this.#preparedWhiteSpace = whiteSpace;
-    return this.#prepared;
-  }
-
   override draw(host: CanvasHost): void {
     host.ctx.textBaseline = 'top';
     const fillStyle = host.ctx.fillStyle;
@@ -42,7 +25,21 @@ export class CanvasText extends CanvasNode {
     host.ctx.fillStyle = host.color;
     host.ctx.font = `${host.fontSize}px sans-serif`;
     const lineHeight = host.lineHeight ?? host.fontSize * 1.2;
-    const prepared = this.#prepare(host.ctx.font, host.whiteSpace);
+    if (
+      !this.#prepared ||
+      this.#preparedFont !== host.ctx.font ||
+      this.#preparedText !== this.content ||
+      this.#preparedWhiteSpace !== host.whiteSpace
+    ) {
+      this.#prepared = prepareWithSegments(this.content, host.ctx.font, {
+        whiteSpace: host.whiteSpace,
+      });
+      this.#preparedFont = host.ctx.font;
+      this.#preparedText = this.content;
+      this.#preparedWhiteSpace = host.whiteSpace;
+    }
+
+    const prepared = this.#prepared;
     const layout = layoutWithLines(prepared, host.scopeWidth, lineHeight);
     let y = 0;
     for (const line of layout.lines) {
