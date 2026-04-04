@@ -1,11 +1,10 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { FontStyle, FontWeight, Length, TextAlign } from 'retend-canvas';
+import { Alignment, Length, TextAlign } from 'retend-canvas';
 
 const containerStyle: JSX.Style = {
   width: Length.Pct(100),
   height: Length.Pct(100),
-  backgroundColor: 'black',
 };
 
 const innerStyle: JSX.Style = {
@@ -13,31 +12,36 @@ const innerStyle: JSX.Style = {
   left: Length.Pct(5),
   width: Length.Pct(90),
   height: Length.Pct(90),
+  borderWidth: Length.Px(2),
   backgroundColor: 'lime',
 };
 
 const centerStyle: JSX.Style = {
-  top: Length.Pct(30),
-  left: Length.Pct(30),
   height: Length.Pct(20),
   width: Length.Pct(40),
+  alignSelf: Alignment.Center,
+  justifySelf: Alignment.Center,
   backgroundColor: 'blue',
   color: 'white',
   textAlign: TextAlign.Center,
   fontFamily: 'serif',
-  fontWeight: FontWeight.Bold,
-  fontStyle: FontStyle.Italic,
-  fontSize: 29,
+  fontSize: Length.Px(29),
 };
 
 const App = () => {
-  const name = 'oluwasefunmi';
-
   return (
     <rect style={containerStyle}>
       <rect style={innerStyle}>
         <rect style={centerStyle}>
-          Hello, my name is {name}. How do you do?
+          <rect
+            style={{
+              width: Length.Pct(100),
+              height: Length.Pct(30),
+              alignSelf: Alignment.Center,
+            }}
+          >
+            To be or not to be? That is the question.
+          </rect>
         </rect>
       </rect>
     </rect>

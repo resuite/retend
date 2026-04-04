@@ -7,12 +7,15 @@ let resizeFrame: number | null = null;
 function resizeCanvas(canvas: HTMLCanvasElement) {
   const dpr = window.devicePixelRatio;
   const rect = canvas.getBoundingClientRect();
-  worker.postMessage({
-    type: 'resize',
-    dpr,
-    width: rect.width,
-    height: rect.height,
-  });
+  worker.postMessage(
+    {
+      type: 'resize',
+      dpr,
+      width: rect.width,
+      height: rect.height,
+    },
+    []
+  );
 }
 
 function requestResize(canvas: HTMLCanvasElement) {

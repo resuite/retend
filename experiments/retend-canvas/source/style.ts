@@ -157,6 +157,14 @@ export const BorderStyle = {
  */
 export type BorderStyleValue = (typeof BorderStyle)[keyof typeof BorderStyle];
 
+export const Alignment = {
+  Start: 0,
+  Center: 1,
+  End: 2,
+} as const;
+
+export type AlignmentValue = (typeof Alignment)[keyof typeof Alignment];
+
 /**
  * The supported canvas text alignment values.
  *

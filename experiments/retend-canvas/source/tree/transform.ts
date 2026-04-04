@@ -1,6 +1,7 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import {
+  Alignment,
   Angle,
   Length,
   type LengthValue,
@@ -43,14 +44,27 @@ export function createTransformMatrix(
   parentWidth: number,
   parentHeight: number
 ) {
-  const left = style.left ?? Length.Px(0);
-  const top = style.top ?? Length.Px(0);
   const rotate = style.rotate ?? Angle.Deg(0);
   const { scale = 1 } = style;
   const transformOrigin = style.transformOrigin ?? defaultTransformOrigin;
   const rotation = rotate.value;
-  const translateX = resolveCanvasLengthPercentage(left, parentWidth);
-  const translateY = resolveCanvasLengthPercentage(top, parentHeight);
+  let translateX = 0;
+  let translateY = 0;
+  if (style.left !== undefined) {
+    translateX = resolveCanvasLengthPercentage(style.left, parentWidth);
+  } else if (style.justifySelf === Alignment.Center) {
+    translateX = (parentWidth - width) / 2;
+  } else if (style.justifySelf === Alignment.End) {
+    translateX = parentWidth - width;
+  }
+
+  if (style.top !== undefined) {
+    translateY = resolveCanvasLengthPercentage(style.top, parentHeight);
+  } else if (style.alignSelf === Alignment.Center) {
+    translateY = (parentHeight - height) / 2;
+  } else if (style.alignSelf === Alignment.End) {
+    translateY = parentHeight - height;
+  }
   const { x, y } = resolveTransformOrigin(transformOrigin, width, height);
 
   return new DOMMatrix()

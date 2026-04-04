@@ -2,11 +2,13 @@ import type { Cell } from 'retend';
 
 import type {
   AngleValue,
+  AlignmentValue,
   BorderStyleValue,
   FontStyleValue,
   FontWeightValue,
   LengthValue,
   OverflowValue,
+  PxLength,
   TextAlignValue,
   TransformOriginValue,
   WhiteSpaceValue,
@@ -21,6 +23,8 @@ declare module 'retend/jsx-runtime' {
     interface Style {
       left?: LengthValue;
       top?: LengthValue;
+      justifySelf?: AlignmentValue;
+      alignSelf?: AlignmentValue;
       rotate?: AngleValue;
       scale?: number;
       transformOrigin?: TransformOriginValue;
@@ -29,14 +33,14 @@ declare module 'retend/jsx-runtime' {
       overflow?: OverflowValue;
       borderRadius?: number;
       borderStyle?: BorderStyleValue;
-      borderWidth?: number;
+      borderWidth?: PxLength;
       borderColor?: string;
       textAlign?: TextAlignValue;
       lineHeight?: number;
       whiteSpace?: WhiteSpaceValue;
       backgroundColor?: string;
       color?: string;
-      fontSize?: number;
+      fontSize?: PxLength;
       fontFamily?: string;
       fontWeight?: FontWeightValue;
       fontStyle?: FontStyleValue;

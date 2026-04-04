@@ -121,7 +121,7 @@ export class CanvasContainer<
     const prevLineHeight = host.lineHeight;
     const prevWhiteSpace = host.whiteSpace;
     if (color !== undefined) host.color = color;
-    if (fontSize !== undefined) host.fontSize = fontSize;
+    if (fontSize !== undefined) host.fontSize = fontSize.value;
     if (fontFamily !== undefined) host.fontFamily = fontFamily;
     if (fontWeight !== undefined) host.fontWeight = fontWeight;
     if (fontStyle !== undefined) host.fontStyle = fontStyle;
@@ -159,27 +159,28 @@ export class CanvasContainer<
     const {
       backgroundColor = 'transparent',
       borderStyle,
-      borderWidth = 0,
+      borderWidth = Length.Px(0),
       borderColor = host.color,
     } = this.style;
+    const resolvedBorderWidth = borderWidth.value;
     let resolvedBorderStyle = borderStyle;
     if (resolvedBorderStyle === undefined) {
-      if (borderWidth) resolvedBorderStyle = BorderStyle.Solid;
+      if (resolvedBorderWidth) resolvedBorderStyle = BorderStyle.Solid;
       else resolvedBorderStyle = BorderStyle.None;
     }
     host.ctx.fillStyle = backgroundColor;
     host.ctx.fill(path);
 
-    if (!borderWidth || resolvedBorderStyle === BorderStyle.None) {
+    if (!resolvedBorderWidth || resolvedBorderStyle === BorderStyle.None) {
       return;
     }
 
-    host.ctx.lineWidth = borderWidth;
+    host.ctx.lineWidth = resolvedBorderWidth;
     host.ctx.strokeStyle = borderColor;
     if (resolvedBorderStyle === BorderStyle.Dashed) {
-      host.ctx.setLineDash([borderWidth * 3, borderWidth * 2]);
+      host.ctx.setLineDash([resolvedBorderWidth * 3, resolvedBorderWidth * 2]);
     } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-      host.ctx.setLineDash([borderWidth, borderWidth]);
+      host.ctx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
     } else {
       host.ctx.setLineDash([]);
     }
