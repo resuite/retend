@@ -1,12 +1,12 @@
 /**
  * The supported length units.
  *
- * Units are modeled as constant objects so the public API can stay fully
- * object-based even at the discriminant level.
+ * These constants describe the finite set of length units used by modeled
+ * canvas length values.
  */
 export const LengthUnit = {
-  Px: { value: 0 },
-  Pct: { value: 1 },
+  Px: 0,
+  Pct: 1,
 } as const;
 
 /**
@@ -67,12 +67,10 @@ export const Length = {
 /**
  * The supported angle units.
  *
- * Retend canvas currently models degree rotation explicitly, but the unit is
- * still represented as a constant object for consistency with the rest of the
- * typed style API.
+ * Retend canvas currently models degree rotation explicitly.
  */
 export const AngleUnit = {
-  Deg: { value: 0 },
+  Deg: 0,
 } as const;
 
 /**
@@ -127,20 +125,13 @@ export const TransformOrigin = {
 
 /**
  * The supported canvas overflow modes.
- */
-export interface OverflowMode {
-  value: 0 | 1;
-}
-
-/**
- * Constant overflow mode objects.
  *
- * These are shared singleton values so style code can use identity-stable
- * objects instead of string literals for closed overflow options.
+ * These constants replace string literals for the closed overflow set without
+ * introducing extra wrapper objects.
  */
 export const Overflow = {
-  Visible: { value: 0 } as OverflowMode,
-  Hidden: { value: 1 } as OverflowMode,
+  Visible: 0,
+  Hidden: 1,
 } as const;
 
 /**
@@ -150,22 +141,15 @@ export type OverflowValue = (typeof Overflow)[keyof typeof Overflow];
 
 /**
  * The supported canvas border styles.
- */
-export interface BorderStyleMode {
-  value: 0 | 1 | 2 | 3;
-}
-
-/**
- * Constant border style objects.
  *
- * These values model the finite border style set without exposing string
+ * These constants model the finite border style set without exposing string
  * literals through the public style API.
  */
 export const BorderStyle = {
-  None: { value: 0 } as BorderStyleMode,
-  Solid: { value: 1 } as BorderStyleMode,
-  Dashed: { value: 2 } as BorderStyleMode,
-  Dotted: { value: 3 } as BorderStyleMode,
+  None: 0,
+  Solid: 1,
+  Dashed: 2,
+  Dotted: 3,
 } as const;
 
 /**
@@ -175,21 +159,14 @@ export type BorderStyleValue = (typeof BorderStyle)[keyof typeof BorderStyle];
 
 /**
  * The supported canvas text alignment values.
- */
-export interface TextAlignMode {
-  value: 0 | 1 | 2;
-}
-
-/**
- * Constant text alignment objects.
  *
  * These values give style authors a finite, typed alignment vocabulary while
  * keeping alignment selection explicit and discoverable.
  */
 export const TextAlign = {
-  Left: { value: 0 } as TextAlignMode,
-  Center: { value: 1 } as TextAlignMode,
-  Right: { value: 2 } as TextAlignMode,
+  Left: 0,
+  Center: 1,
+  Right: 2,
 } as const;
 
 /**
@@ -199,20 +176,13 @@ export type TextAlignValue = (typeof TextAlign)[keyof typeof TextAlign];
 
 /**
  * The supported canvas white-space modes.
- */
-export interface WhiteSpaceMode {
-  value: 0 | 1;
-}
-
-/**
- * Constant white-space mode objects.
  *
- * These singleton values replace stringly white-space configuration with a
- * closed object-based API.
+ * These constants replace stringly white-space configuration with a closed,
+ * typed API.
  */
 export const WhiteSpace = {
-  Normal: { value: 0 } as WhiteSpaceMode,
-  PreWrap: { value: 1 } as WhiteSpaceMode,
+  Normal: 0,
+  PreWrap: 1,
 } as const;
 
 /**
@@ -222,21 +192,14 @@ export type WhiteSpaceValue = (typeof WhiteSpace)[keyof typeof WhiteSpace];
 
 /**
  * The supported canvas font styles.
- */
-export interface FontStyleMode {
-  value: 0 | 1 | 2;
-}
-
-/**
- * Constant font style objects.
  *
- * These values keep the public API object-based while still allowing the
+ * These values keep the public API compact while still allowing the
  * renderer to map the chosen style onto the canvas font shorthand.
  */
 export const FontStyle = {
-  Normal: { value: 0 } as FontStyleMode,
-  Italic: { value: 1 } as FontStyleMode,
-  Oblique: { value: 2 } as FontStyleMode,
+  Normal: 0,
+  Italic: 1,
+  Oblique: 2,
 } as const;
 
 /**

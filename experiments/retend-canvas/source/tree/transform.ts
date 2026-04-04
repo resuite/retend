@@ -18,7 +18,7 @@ export function resolveCanvasLengthPercentage(
   value: LengthValue,
   size: number
 ) {
-  if (value.unit.value === LengthUnit.Pct.value) {
+  if (value.unit === LengthUnit.Pct) {
     return (value.value * size) / 100;
   }
 

@@ -6,13 +6,13 @@ import {
 
 import type { CanvasHost } from '.';
 
-import { TextAlign } from '../style';
+import { FontStyle, TextAlign, WhiteSpace } from '../style';
 import { CanvasNode } from './node';
 
 function getFont(host: CanvasHost) {
   let fontStyle = 'normal';
-  if (host.fontStyle.value === 1) fontStyle = 'italic';
-  else if (host.fontStyle.value === 2) fontStyle = 'oblique';
+  if (host.fontStyle === FontStyle.Italic) fontStyle = 'italic';
+  else if (host.fontStyle === FontStyle.Oblique) fontStyle = 'oblique';
   return `${fontStyle} ${host.fontWeight} ${host.fontSize}px ${host.fontFamily}`;
 }
 
@@ -27,6 +27,21 @@ export class CanvasText extends CanvasNode {
   }
 
   override draw(host: CanvasHost): void {
+    let content = this.content;
+    const index = this.parent?.children.indexOf(this) ?? -1;
+    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
+      return;
+    }
+    if (index !== -1) {
+      let nextIndex = index + 1;
+      let next = this.parent?.children[nextIndex];
+      while (next instanceof CanvasText) {
+        content += next.content;
+        nextIndex += 1;
+        next = this.parent?.children[nextIndex];
+      }
+    }
+
     host.ctx.textBaseline = 'top';
     const fillStyle = host.ctx.fillStyle;
     const font = host.ctx.font;
@@ -36,17 +51,17 @@ export class CanvasText extends CanvasNode {
     if (
       !this.#prepared ||
       this.#preparedFont !== host.ctx.font ||
-      this.#preparedText !== this.content ||
-      this.#preparedWhiteSpace !== host.whiteSpace.value
+      this.#preparedText !== content ||
+      this.#preparedWhiteSpace !== host.whiteSpace
     ) {
       let whiteSpace: 'normal' | 'pre-wrap' = 'normal';
-      if (host.whiteSpace.value === 1) whiteSpace = 'pre-wrap';
-      this.#prepared = prepareWithSegments(this.content, host.ctx.font, {
+      if (host.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
+      this.#prepared = prepareWithSegments(content, host.ctx.font, {
         whiteSpace,
       });
       this.#preparedFont = host.ctx.font;
-      this.#preparedText = this.content;
-      this.#preparedWhiteSpace = host.whiteSpace.value;
+      this.#preparedText = content;
+      this.#preparedWhiteSpace = host.whiteSpace;
     }
 
     const prepared = this.#prepared;
@@ -54,9 +69,9 @@ export class CanvasText extends CanvasNode {
     let y = 0;
     for (const line of layout.lines) {
       let x = 0;
-      if (host.textAlign.value === TextAlign.Center.value) {
+      if (host.textAlign === TextAlign.Center) {
         x = (host.scopeWidth - line.width) / 2;
-      } else if (host.textAlign.value === TextAlign.Right.value) {
+      } else if (host.textAlign === TextAlign.Right) {
         x = host.scopeWidth - line.width;
       }
       host.ctx.fillText(line.text, x, y);

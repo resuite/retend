@@ -1,7 +1,6 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { Cell, onSetup } from 'retend';
-import { Angle, FontStyle, FontWeight, Length, TextAlign } from 'retend-canvas';
+import { FontStyle, FontWeight, Length, TextAlign } from 'retend-canvas';
 
 const containerStyle: JSX.Style = {
   width: Length.Pct(100),
@@ -18,10 +17,10 @@ const innerStyle: JSX.Style = {
 };
 
 const centerStyle: JSX.Style = {
-  top: Length.Pct(40),
-  left: Length.Pct(40),
+  top: Length.Pct(30),
+  left: Length.Pct(30),
   height: Length.Pct(20),
-  width: Length.Pct(20),
+  width: Length.Pct(40),
   backgroundColor: 'blue',
   color: 'white',
   textAlign: TextAlign.Center,
@@ -32,27 +31,13 @@ const centerStyle: JSX.Style = {
 };
 
 const App = () => {
-  const rotate = Cell.source(Angle.Deg(0));
-  const scale = Cell.source(1);
-
-  onSetup(() => {
-    let lastTick = performance.now();
-
-    const tick = (now: number) => {
-      const delta = now - lastTick;
-      lastTick = now;
-      rotate.set(Angle.Deg(rotate.get().value + delta / 200));
-      requestAnimationFrame(tick);
-    };
-
-    requestAnimationFrame(tick);
-  });
+  const name = 'oluwasefunmi';
 
   return (
     <rect style={containerStyle}>
-      <rect style={{ ...innerStyle }}>
-        <rect style={{ ...centerStyle, rotate, scale }}>
-          Hello World loremdud dshs dj fhffd hfdfh fdhv fhv
+      <rect style={innerStyle}>
+        <rect style={centerStyle}>
+          Hello, my name is {name}. How do you do?
         </rect>
       </rect>
     </rect>

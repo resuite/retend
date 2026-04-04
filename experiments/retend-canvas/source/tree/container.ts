@@ -54,10 +54,10 @@ export class CanvasContainer<
     const baseHeight = host.scopeHeight;
     let nextWidth = width.value;
     let nextHeight = height.value;
-    if (width.unit.value === LengthUnit.Pct.value) {
+    if (width.unit === LengthUnit.Pct) {
       nextWidth = (nextWidth * baseWidth) / 100;
     }
-    if (height.unit.value === LengthUnit.Pct.value) {
+    if (height.unit === LengthUnit.Pct) {
       nextHeight = (nextHeight * baseHeight) / 100;
     }
 
@@ -103,7 +103,7 @@ export class CanvasContainer<
       transform.f
     );
     this.drawContainer(host);
-    if (overflow?.value === Overflow.Hidden.value) {
+    if (overflow === Overflow.Hidden) {
       const path = this.tracePath();
       if (path) host.ctx.clip(path);
     }
@@ -170,15 +170,15 @@ export class CanvasContainer<
     host.ctx.fillStyle = backgroundColor;
     host.ctx.fill(path);
 
-    if (!borderWidth || resolvedBorderStyle.value === BorderStyle.None.value) {
+    if (!borderWidth || resolvedBorderStyle === BorderStyle.None) {
       return;
     }
 
     host.ctx.lineWidth = borderWidth;
     host.ctx.strokeStyle = borderColor;
-    if (resolvedBorderStyle.value === BorderStyle.Dashed.value) {
+    if (resolvedBorderStyle === BorderStyle.Dashed) {
       host.ctx.setLineDash([borderWidth * 3, borderWidth * 2]);
-    } else if (resolvedBorderStyle.value === BorderStyle.Dotted.value) {
+    } else if (resolvedBorderStyle === BorderStyle.Dotted) {
       host.ctx.setLineDash([borderWidth, borderWidth]);
     } else {
       host.ctx.setLineDash([]);
