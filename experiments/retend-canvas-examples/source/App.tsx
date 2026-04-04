@@ -1,22 +1,16 @@
 import { Cell, onSetup } from 'retend';
-import { Alignment, Duration, Length, TextAlign } from 'retend-canvas';
+import { Alignment, Length, TextAlign } from 'retend-canvas';
 
 const App = () => {
-  const scale = Cell.source(1);
   const counter = Cell.source(0);
 
   onSetup(() => {
-    const timeout = setTimeout(() => {
-      scale.set(0.5);
-    }, 3000);
-
     const interval = setInterval(() => {
       counter.set(counter.get() + 1);
     }, 1000);
 
     return () => {
       clearInterval(interval);
-      clearTimeout(timeout);
     };
   });
 
@@ -29,28 +23,23 @@ const App = () => {
           alignSelf: Alignment.Center,
           justifySelf: Alignment.Center,
           borderWidth: Length.Px(2),
-          backgroundColor: 'brown',
+          backgroundColor: 'black',
         }}
       >
         <rect
           style={{
-            scale,
-            transitionProperty: 'scale',
-            transitionDuration: Duration.Ms(500),
-            height: Length.FitContent,
-            width: Length.FitContent,
+            height: Length.Px(80),
+            width: Length.Px(80),
             maxWidth: Length.Pct(50),
             alignSelf: Alignment.Center,
             justifySelf: Alignment.Center,
-            backgroundColor: 'black',
+            backgroundColor: 'white',
             color: 'white',
             textAlign: TextAlign.Center,
             fontFamily: 'serif',
             fontSize: Length.Px(40),
           }}
-        >
-          To be or not to be? That is the question. Counter: {counter}
-        </rect>
+        ></rect>
       </rect>
     </rect>
   );
