@@ -4,13 +4,14 @@ import {
   type PreparedTextWithSegments,
 } from '@chenglou/pretext';
 
-import type { CanvasHost } from '.';
 import type { CanvasRenderer } from '../canvas-renderer';
 
 import { FontStyle, TextAlign, WhiteSpace } from '../style';
 import { CanvasNode } from './node';
 
-function getFont(host: CanvasHost) {
+function getFont(
+  host: CanvasRenderer['host']
+) {
   let fontStyle = 'normal';
   if (host.fontStyle === FontStyle.Italic) fontStyle = 'italic';
   else if (host.fontStyle === FontStyle.Oblique) fontStyle = 'oblique';
@@ -30,7 +31,8 @@ export class CanvasText extends CanvasNode {
     super(renderer);
   }
 
-  override measure(host: CanvasHost, maxWidth?: number) {
+  override measure(maxWidth?: number) {
+    const host = this.renderer.host;
     let content = this.content;
     const index = this.parent?.children.indexOf(this) ?? -1;
     if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
@@ -66,11 +68,7 @@ export class CanvasText extends CanvasNode {
     }
 
     const prepared = this.#prepared;
-    const layout = layoutWithLines(
-      prepared,
-      maxWidth ?? Number.POSITIVE_INFINITY,
-      lineHeight
-    );
+    const layout = layoutWithLines(prepared, maxWidth ?? Number.POSITIVE_INFINITY, lineHeight);
     let width = 0;
     for (const line of layout.lines) {
       if (line.width > width) width = line.width;
@@ -79,7 +77,8 @@ export class CanvasText extends CanvasNode {
     return { width, height: layout.height };
   }
 
-  override draw(host: CanvasHost): void {
+  override draw(): void {
+    const host = this.renderer.host;
     let content = this.content;
     const index = this.parent?.children.indexOf(this) ?? -1;
     if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {

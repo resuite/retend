@@ -1,4 +1,3 @@
-import type { CanvasHost } from '.';
 import type { CanvasRenderer } from '../canvas-renderer';
 
 export class CanvasNode {
@@ -17,11 +16,11 @@ export class CanvasNode {
     return node === root;
   }
 
-  draw(_host: CanvasHost) {
+  draw() {
     throw new Error('draw method not implemented.');
   }
 
-  measure(_host: CanvasHost, _maxWidth?: number) {
+  measure(_maxWidth?: number) {
     return { width: 0, height: 0 };
   }
 }

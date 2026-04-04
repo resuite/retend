@@ -94,7 +94,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
       );
       this.host.scopeWidth = this.#viewport.width;
       this.host.scopeHeight = this.#viewport.height;
-      this.root.draw(this.host);
+      this.root.draw();
       if (hasTransitions) this.requestRender();
     });
   }

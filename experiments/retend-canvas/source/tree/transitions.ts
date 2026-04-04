@@ -236,7 +236,7 @@ function resolveOffsetValue(
 
   let baseSize = 0;
 
-  const parentSize = node.parent?.measure(node.renderer.host);
+  const parentSize = node.parent?.measure();
   if (parentSize) {
     if (isX) baseSize = parentSize.width;
     else baseSize = parentSize.height;
@@ -254,7 +254,7 @@ function resolveTransitionValue(
   node: CanvasContainer,
   key: TransitionableStyleKey,
   value: JSX.Style[TransitionableStyleKey]
-) {
+): TransitionValue | null {
   if (key === 'left') {
     return resolveOffsetValue(node, value as JSX.Style['left'], true);
   }
@@ -262,11 +262,11 @@ function resolveTransitionValue(
     return resolveOffsetValue(node, value as JSX.Style['top'], false);
   }
   if (key === 'rotate') {
-    if (value) return value as JSX.Style['rotate'];
+    if (value) return value as ReturnType<typeof Angle.Deg>;
     return Angle.Deg(0);
   }
   if (key === 'scale') {
-    if (value !== undefined) return value as JSX.Style['scale'];
+    if (value !== undefined) return value as number;
     return 1;
   }
   if (key === 'backgroundColor') {
@@ -289,7 +289,7 @@ function resolveTransitionValue(
     return Length.Px(0);
   }
   if (key === 'borderRadius') {
-    if (value !== undefined) return value as JSX.Style['borderRadius'];
+    if (value !== undefined) return value as number;
     return 0;
   }
   if (value) {

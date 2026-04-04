@@ -1,8 +1,3 @@
-import type { JSX } from 'retend/jsx-runtime';
-
-import type { CanvasHost } from '.';
-import type { CanvasNode } from './node';
-
 import { Length, LengthUnit } from '../style';
 import { CanvasContainer } from './container';
 import { lengthToPx } from './transform';
@@ -13,12 +8,12 @@ const FIT_CONTENT_HEIGHT_LOOP =
   'retend-canvas: fit-content height loop detected, using current scope height.';
 
 export function resolveFittedContent(
-  children: CanvasNode[],
-  style: JSX.Style,
-  host: CanvasHost,
+  container: CanvasContainer,
   nextWidth: number,
   baseWidth: number
 ) {
+  const { children, styles: style } = container;
+  const host = container.renderer.host;
   const {
     width = Length.Px(100),
     height = Length.Px(100),
@@ -31,7 +26,7 @@ export function resolveFittedContent(
   host.pushStyleCtx(style);
 
   for (const child of children) {
-    const childSize = child.measure(host);
+    const childSize = child.measure();
     let childX = 0;
     if (child instanceof CanvasContainer) {
       const childStyle = child.styles;
@@ -81,7 +76,7 @@ export function resolveFittedContent(
     maxHeight?.unit === LengthUnit.FitContent
   ) {
     for (const child of children) {
-      const childSize = child.measure(host, nextWidth);
+      const childSize = child.measure(nextWidth);
       let childY = 0;
       if (child instanceof CanvasContainer) {
         const childStyle = child.styles;

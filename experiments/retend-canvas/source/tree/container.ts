@@ -1,6 +1,5 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import type { CanvasHost } from '.';
 import type { CanvasRenderer } from '../canvas-renderer';
 
 import { BorderStyle, Length, LengthUnit, Overflow } from '../style';
@@ -49,7 +48,8 @@ export class CanvasContainer<
     this.dirtyPath = true;
   }
 
-  protected resolveSize(host: CanvasHost) {
+  protected resolveSize() {
+    const host = this.renderer.host;
     const {
       width = Length.Px(100),
       height = Length.Px(100),
@@ -74,13 +74,7 @@ export class CanvasContainer<
       maxWidth?.unit === LengthUnit.FitContent ||
       maxHeight?.unit === LengthUnit.FitContent
     ) {
-      ({ nextWidth, fitContentWidth, fitContentHeight } = resolveFittedContent(
-        this.children,
-        this.style,
-        host,
-        nextWidth,
-        baseWidth
-      ));
+      ({ nextWidth, fitContentWidth, fitContentHeight } = resolveFittedContent(this, nextWidth, baseWidth));
     }
 
     if (height.unit === LengthUnit.FitContent) nextHeight = fitContentHeight;
@@ -104,16 +98,18 @@ export class CanvasContainer<
     this.height = nextHeight;
   }
 
-  override measure(host: CanvasHost, maxWidth?: number) {
+  override measure(maxWidth?: number) {
+    const host = this.renderer.host;
     const prevScopeWidth = host.scopeWidth;
     if (maxWidth !== undefined) host.scopeWidth = maxWidth;
-    this.resolveSize(host);
+    this.resolveSize();
     host.scopeWidth = prevScopeWidth;
     return { width: this.width, height: this.height };
   }
 
-  override draw(host: CanvasHost): void {
-    this.resolveSize(host);
+  override draw(): void {
+    const host = this.renderer.host;
+    this.resolveSize();
     const { overflow } = this.style;
     const transform = createTransformMatrix(
       this.style,
@@ -132,7 +128,7 @@ export class CanvasContainer<
       transform.e,
       transform.f
     );
-    this.drawContainer(host);
+    this.drawContainer();
     if (overflow === Overflow.Hidden) {
       const path = this.tracePath();
       if (path) host.ctx.clip(path);
@@ -143,7 +139,7 @@ export class CanvasContainer<
     host.scopeHeight = this.height;
     host.pushStyleCtx(this.style);
 
-    for (const child of this.children) child.draw(host);
+    for (const child of this.children) child.draw();
 
     host.popStyleCtx();
     host.scopeWidth = prevScopeWidth;
@@ -151,7 +147,7 @@ export class CanvasContainer<
     host.ctx.restore();
   }
 
-  drawContainer(_host: CanvasHost) {
+  drawContainer() {
     throw new Error('drawContainer must be implemented by canvas containers.');
   }
 
@@ -159,7 +155,8 @@ export class CanvasContainer<
     return null;
   }
 
-  protected paintPath(host: CanvasHost) {
+  protected paintPath() {
+    const host = this.renderer.host;
     const path = this.tracePath();
     if (!path) return;
 
@@ -230,8 +227,8 @@ export class CanvasRect extends CanvasContainer {
     return path;
   }
 
-  override drawContainer(host: CanvasHost): void {
-    this.paintPath(host);
+  override drawContainer(): void {
+    this.paintPath();
   }
 }
 
@@ -254,8 +251,8 @@ export class CanvasCircle extends CanvasContainer {
     return path;
   }
 
-  override drawContainer(host: CanvasHost): void {
-    this.paintPath(host);
+  override drawContainer(): void {
+    this.paintPath();
   }
 }
 
@@ -324,7 +321,7 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
     return path;
   }
 
-  override drawContainer(host: CanvasHost): void {
-    this.paintPath(host);
+  override drawContainer(): void {
+    this.paintPath();
   }
 }
