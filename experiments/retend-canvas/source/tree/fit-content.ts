@@ -4,8 +4,6 @@ import { lengthToPx } from './transform';
 
 const FIT_CONTENT_LOOP =
   'retend-canvas: a percent sized container cannot be inside a fit-content container.';
-const FIT_CONTENT_HEIGHT_LOOP =
-  'retend-canvas: fit-content height loop detected, using current scope height.';
 
 export function resolveFittedContent(
   container: CanvasContainer,
@@ -84,7 +82,7 @@ export function resolveFittedContent(
           childStyle.height?.unit === LengthUnit.Pct ||
           childStyle.top?.unit === LengthUnit.Pct
         ) {
-          console.warn(FIT_CONTENT_HEIGHT_LOOP);
+          console.warn(FIT_CONTENT_LOOP);
         }
         if (childStyle.top?.unit === LengthUnit.Px)
           childY = childStyle.top.value;
