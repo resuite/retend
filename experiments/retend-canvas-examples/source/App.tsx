@@ -1,5 +1,5 @@
 import { Cell, onSetup } from 'retend';
-import { Alignment, Length, TextAlign } from 'retend-canvas';
+import { Alignment, Length, Overflow } from 'retend-canvas';
 
 const App = () => {
   const counter = Cell.source(0);
@@ -24,22 +24,19 @@ const App = () => {
           justifySelf: Alignment.Center,
           borderWidth: Length.Px(2),
           backgroundColor: 'black',
+          overflow: Overflow.Hidden,
         }}
       >
-        <rect
+        <img
+          src="https://pbs.twimg.com/profile_images/2007466268979351552/eKsxKS5C_400x400.png"
+          alt="Image of Person"
           style={{
-            height: Length.Px(80),
-            width: Length.Px(80),
-            maxWidth: Length.Pct(50),
+            height: Length.Px(700),
+            width: Length.Px(700),
             alignSelf: Alignment.Center,
             justifySelf: Alignment.Center,
-            backgroundColor: 'white',
-            color: 'white',
-            textAlign: TextAlign.Center,
-            fontFamily: 'serif',
-            fontSize: Length.Px(40),
           }}
-        ></rect>
+        />
       </rect>
     </rect>
   );

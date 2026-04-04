@@ -1,9 +1,7 @@
 import { Length, LengthUnit } from '../style';
+import { WARNING_FIT_CONTENT_LOOP } from '../warnings';
 import { CanvasContainer } from './container';
 import { lengthToPx } from './transform';
-
-const FIT_CONTENT_LOOP =
-  'retend-canvas: a percent sized container cannot be inside a fit-content container.';
 
 export function resolveFittedContent(
   container: CanvasContainer,
@@ -44,7 +42,7 @@ export function resolveFittedContent(
           childStyle.width?.unit === LengthUnit.Pct ||
           childStyle.left?.unit === LengthUnit.Pct
         ) {
-          console.warn(FIT_CONTENT_LOOP);
+          console.warn(WARNING_FIT_CONTENT_LOOP);
         }
         if (childStyle.left?.unit === LengthUnit.Px)
           childX = childStyle.left.value;
@@ -73,7 +71,7 @@ export function resolveFittedContent(
           childStyle.height?.unit === LengthUnit.Pct ||
           childStyle.top?.unit === LengthUnit.Pct
         ) {
-          console.warn(FIT_CONTENT_LOOP);
+          console.warn(WARNING_FIT_CONTENT_LOOP);
         }
         if (childStyle.top?.unit === LengthUnit.Px)
           childY = childStyle.top.value;

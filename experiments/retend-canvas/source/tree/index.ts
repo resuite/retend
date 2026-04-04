@@ -14,6 +14,7 @@ import {
 export * from './node';
 export * from './utils';
 export * from './container';
+export * from './image';
 export * from './text';
 export * from './transform';
 

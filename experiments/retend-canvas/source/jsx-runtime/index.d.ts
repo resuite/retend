@@ -73,7 +73,16 @@ declare module 'retend/jsx-runtime' {
       points: [number, number][];
     }
 
+    interface ImageProps extends ContainerProps {
+      src?: string;
+      alt?: string;
+    }
+
     interface IntrinsicElements {
+      /**
+       * Draws an image on the canvas.
+       */
+      img: Container<ImageProps>;
       /**
        * Draws a filled rectangle on the canvas.
        */
