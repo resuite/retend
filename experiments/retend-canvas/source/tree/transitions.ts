@@ -16,10 +16,6 @@ import {
 import { CanvasContainer } from './container';
 import { lengthToPx } from './transform';
 
-interface CanvasTimeline {
-  now(): number;
-}
-
 export interface CanvasTransition {
   node: CanvasContainer;
   key: TransitionableStyleKey;
@@ -41,11 +37,6 @@ type TransitionValue =
   | ReturnType<typeof Angle.Deg>;
 type ParsedColor = [number, number, number, number];
 
-const canvasTimeline: CanvasTimeline = {
-  now() {
-    return performance.now();
-  },
-};
 const transitionableKeys = {
   left: true,
   top: true,
@@ -58,6 +49,7 @@ const transitionableKeys = {
   borderRadius: true,
   fontSize: true,
 } as const;
+const colorCache = new Map<string, ParsedColor | null>();
 
 function resolveInheritedColor(node: CanvasNode | null) {
   let current = node;
@@ -116,23 +108,13 @@ function parseNormalizedColor(value: string): ParsedColor | null {
   return [Number(matched[1]), Number(matched[2]), Number(matched[3]), alpha];
 }
 
-function parseColor(node: CanvasNode, value: string) {
-  const currentFillStyle = node.renderer.host.ctx.fillStyle;
-  node.renderer.host.ctx.fillStyle = '#000001';
-  const firstSentinel = `${node.renderer.host.ctx.fillStyle}`;
-  node.renderer.host.ctx.fillStyle = value;
-  const firstValue = `${node.renderer.host.ctx.fillStyle}`;
-  node.renderer.host.ctx.fillStyle = '#000002';
-  const secondSentinel = `${node.renderer.host.ctx.fillStyle}`;
-  node.renderer.host.ctx.fillStyle = value;
-  const secondValue = `${node.renderer.host.ctx.fillStyle}`;
-  node.renderer.host.ctx.fillStyle = currentFillStyle;
-
-  if (firstValue !== secondValue) return null;
-  if (firstValue === firstSentinel && secondValue === secondSentinel) {
-    return null;
+function parseColor(value: string) {
+  if (colorCache.has(value)) {
+    return colorCache.get(value) as ParsedColor | null;
   }
-  return parseNormalizedColor(firstValue);
+  const parsed = parseNormalizedColor(value);
+  colorCache.set(value, parsed);
+  return parsed;
 }
 
 function interpolateColor(
@@ -158,31 +140,11 @@ function applyEasing(timingFunction: EasingValue, progress: number) {
   }
   if (timingFunction === Easing.EaseInOut) {
     if (progress < 0.5) return 4 * progress * progress * progress;
-    const inverse = progress - 1;
-    return 1 + 4 * inverse * inverse * inverse;
+    const inverse = 1 - progress;
+    return 1 - 4 * inverse * inverse * inverse;
   }
-
-  let start = 0;
-  let end = 1;
-  let position = progress;
-  for (let i = 0; i < 8; i += 1) {
-    position = (start + end) / 2;
-    const inverse = 1 - position;
-    const estimate =
-      3 * inverse * inverse * position * 0.25 +
-      3 * inverse * position * position * 0.25 +
-      position * position * position;
-    if (Math.abs(estimate - progress) < 0.0001) break;
-    if (estimate < progress) start = position;
-    else end = position;
-  }
-
-  const inverse = 1 - position;
-  return (
-    3 * inverse * inverse * position * 0.1 +
-    3 * inverse * position * position +
-    position * position * position
-  );
+  const cosine = Math.cos(Math.PI * progress);
+  return -((cosine - 1) / 2);
 }
 
 function interpolateValue(transition: CanvasTransition, progress: number) {
@@ -339,15 +301,17 @@ function createTransition(
   let fromColor: ParsedColor | undefined;
   let toColor: ParsedColor | undefined;
   if (key === 'backgroundColor' || key === 'borderColor' || key === 'color') {
-    fromColor = parseColor(node, from as string) ?? undefined;
-    toColor = parseColor(node, to as string) ?? undefined;
-    if (!fromColor || !toColor) return null;
+    const parsedFrom = parseColor(from as string);
+    const parsedTo = parseColor(to as string);
+    if (!parsedFrom || !parsedTo) return null;
+    fromColor = parsedFrom;
+    toColor = parsedTo;
   }
 
   return {
     node,
     key,
-    startTime: canvasTimeline.now(),
+    startTime: performance.now(),
     delay,
     duration: durationToMs(durationValue),
     timingFunction,
@@ -388,7 +352,7 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
   const transitions = renderer.transitions;
   if (!transitions.length) return false;
 
-  const now = canvasTimeline.now();
+  const now = performance.now();
   let writeIndex = 0;
 
   for (let i = 0; i < transitions.length; i += 1) {

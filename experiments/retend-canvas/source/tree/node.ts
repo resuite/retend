@@ -41,6 +41,7 @@ export class CanvasNode {
 
 export class CanvasParentNode extends CanvasNode {
   children: CanvasNode[];
+  textVersion = 0;
 
   constructor(renderer: CanvasRenderer) {
     super(renderer);
@@ -52,6 +53,7 @@ export class CanvasParentNode extends CanvasNode {
     if (index !== -1) {
       this.children.splice(index, 1);
       node.parent = null;
+      this.textVersion += 1;
     }
   }
 
@@ -59,12 +61,14 @@ export class CanvasParentNode extends CanvasNode {
     if (node.parent) node.parent.remove(node);
     this.children.splice(0, 0, node);
     node.parent = this;
+    this.textVersion += 1;
   }
 
   append(node: CanvasNode) {
     if (node.parent) node.parent.remove(node);
     this.children.push(node);
     node.parent = this;
+    this.textVersion += 1;
   }
 }
 

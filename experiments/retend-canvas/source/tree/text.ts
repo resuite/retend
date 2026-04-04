@@ -17,6 +17,9 @@ function getFont(host: CanvasRenderer['host']) {
 }
 
 export class CanvasText extends CanvasNode {
+  #content: string;
+  #cachedFullText: string | null = null;
+  #cachedFullTextVersion = -1;
   #prepared: PreparedTextWithSegments | null = null;
   #preparedFont: string | null = null;
   #preparedText: string | null = null;
@@ -25,20 +28,30 @@ export class CanvasText extends CanvasNode {
   #layoutWidth = -1;
   #layoutLineHeight = -1;
 
-  constructor(
-    public content: string,
-    renderer: CanvasRenderer
-  ) {
+  constructor(content: string, renderer: CanvasRenderer) {
     super(renderer);
+    this.#content = content;
   }
 
-  override measure(maxWidth?: number) {
-    const host = this.renderer.host;
+  get content() {
+    return this.#content;
+  }
+
+  set content(content: string) {
+    this.#content = content;
+    if (this.parent) this.parent.textVersion += 1;
+  }
+
+  get fullText() {
+    const textVersion = this.parent?.textVersion ?? -1;
+    if (
+      this.#cachedFullText !== null &&
+      this.#cachedFullTextVersion === textVersion
+    ) {
+      return this.#cachedFullText;
+    }
     let content = this.content;
     const index = this.parent?.children.indexOf(this) ?? -1;
-    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
-      return { width: 0, height: 0 };
-    }
     if (index !== -1) {
       let nextIndex = index + 1;
       let next = this.parent?.children[nextIndex];
@@ -48,6 +61,18 @@ export class CanvasText extends CanvasNode {
         next = this.parent?.children[nextIndex];
       }
     }
+    this.#cachedFullText = content;
+    this.#cachedFullTextVersion = textVersion;
+    return content;
+  }
+
+  override measure(maxWidth?: number) {
+    const host = this.renderer.host;
+    const index = this.parent?.children.indexOf(this) ?? -1;
+    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
+      return { width: 0, height: 0 };
+    }
+    const content = this.fullText;
 
     const font = host.ctx.font;
     host.ctx.font = getFont(host);
@@ -91,20 +116,11 @@ export class CanvasText extends CanvasNode {
 
   override draw(): void {
     const host = this.renderer.host;
-    let content = this.content;
     const index = this.parent?.children.indexOf(this) ?? -1;
     if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
       return;
     }
-    if (index !== -1) {
-      let nextIndex = index + 1;
-      let next = this.parent?.children[nextIndex];
-      while (next instanceof CanvasText) {
-        content += next.content;
-        nextIndex += 1;
-        next = this.parent?.children[nextIndex];
-      }
-    }
+    const content = this.fullText;
 
     host.ctx.textBaseline = 'top';
     const fillStyle = host.ctx.fillStyle;
