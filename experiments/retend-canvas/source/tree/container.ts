@@ -14,6 +14,8 @@ export class CanvasContainer<
   protected style: JSX.Style;
   protected resolvedWidth: number;
   protected resolvedHeight: number;
+  protected path: Path2D | null;
+  protected dirtyPath: boolean;
 
   constructor() {
     super();
@@ -21,6 +23,8 @@ export class CanvasContainer<
     this.style = {};
     this.resolvedWidth = 0;
     this.resolvedHeight = 0;
+    this.path = null;
+    this.dirtyPath = true;
   }
 
   getStyles() {
@@ -29,6 +33,7 @@ export class CanvasContainer<
 
   setStyles(style: JSX.Style) {
     this.style = { ...this.style, ...style };
+    this.dirtyPath = true;
   }
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
@@ -37,6 +42,8 @@ export class CanvasContainer<
     if (key === 'style') {
       this.style = value as JSX.Style;
     }
+
+    this.dirtyPath = true;
   }
 
   protected resolveSize(host: CanvasHost) {
@@ -50,6 +57,13 @@ export class CanvasContainer<
     }
     if (String(height).endsWith('%')) {
       nextHeight = (nextHeight * baseHeight) / 100;
+    }
+
+    if (
+      this.resolvedWidth !== nextWidth ||
+      this.resolvedHeight !== nextHeight
+    ) {
+      this.dirtyPath = true;
     }
 
     this.resolvedWidth = nextWidth;
@@ -77,8 +91,9 @@ export class CanvasContainer<
       transform.f
     );
     this.drawContainer(host);
-    if (overflow === 'hidden' && this.tracePath(host.ctx)) {
-      host.ctx.clip();
+    if (overflow === 'hidden') {
+      const path = this.tracePath();
+      if (path) host.ctx.clip(path);
     }
     const prevScopeWidth = host.scopeWidth;
     const prevScopeHeight = host.scopeHeight;
@@ -103,12 +118,13 @@ export class CanvasContainer<
     throw new Error('drawContainer must be implemented by canvas containers.');
   }
 
-  tracePath(_ctx: CanvasRenderingContext2D): boolean {
-    return false;
+  tracePath(): Path2D | null {
+    return null;
   }
 
   protected paintPath(host: CanvasHost) {
-    if (!this.tracePath(host.ctx)) return;
+    const path = this.tracePath();
+    if (!path) return;
 
     const {
       backgroundColor = 'transparent',
@@ -118,7 +134,7 @@ export class CanvasContainer<
     } = this.style;
     const resolvedBorderStyle = borderStyle ?? (borderWidth ? 'solid' : 'none');
     host.ctx.fillStyle = backgroundColor;
-    host.ctx.fill();
+    host.ctx.fill(path);
 
     if (!borderWidth || resolvedBorderStyle === 'none') return;
 
@@ -131,7 +147,7 @@ export class CanvasContainer<
     } else {
       host.ctx.setLineDash([]);
     }
-    host.ctx.stroke();
+    host.ctx.stroke(path);
     host.ctx.setLineDash([]);
   }
 }
@@ -148,12 +164,18 @@ export class CanvasRoot extends CanvasContainer {
 // --------------
 
 export class CanvasRect extends CanvasContainer {
-  override tracePath(ctx: CanvasRenderingContext2D): boolean {
+  override tracePath(): Path2D | null {
+    if (!this.dirtyPath && this.path) {
+      return this.path;
+    }
+
     const { borderRadius = 0 } = this.style;
-    ctx.beginPath();
+    const path = new Path2D();
     if (!borderRadius) {
-      ctx.rect(0, 0, this.resolvedWidth, this.resolvedHeight);
-      return true;
+      path.rect(0, 0, this.resolvedWidth, this.resolvedHeight);
+      this.path = path;
+      this.dirtyPath = false;
+      return path;
     }
 
     const radius = Math.min(
@@ -161,8 +183,10 @@ export class CanvasRect extends CanvasContainer {
       this.resolvedWidth / 2,
       this.resolvedHeight / 2
     );
-    ctx.roundRect(0, 0, this.resolvedWidth, this.resolvedHeight, radius);
-    return true;
+    path.roundRect(0, 0, this.resolvedWidth, this.resolvedHeight, radius);
+    this.path = path;
+    this.dirtyPath = false;
+    return path;
   }
 
   override drawContainer(host: CanvasHost): void {
@@ -171,16 +195,22 @@ export class CanvasRect extends CanvasContainer {
 }
 
 export class CanvasCircle extends CanvasContainer {
-  override tracePath(ctx: CanvasRenderingContext2D): boolean {
-    ctx.beginPath();
-    ctx.arc(
+  override tracePath(): Path2D | null {
+    if (!this.dirtyPath && this.path) {
+      return this.path;
+    }
+
+    const path = new Path2D();
+    path.arc(
       this.resolvedWidth / 2,
       this.resolvedHeight / 2,
       Math.min(this.resolvedWidth, this.resolvedHeight) / 2,
       0,
       Math.PI * 2
     );
-    return true;
+    this.path = path;
+    this.dirtyPath = false;
+    return path;
   }
 
   override drawContainer(host: CanvasHost): void {
@@ -189,20 +219,30 @@ export class CanvasCircle extends CanvasContainer {
 }
 
 export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
-  override tracePath(ctx: CanvasRenderingContext2D): boolean {
-    const ownPoints = this.attributes.points ?? [];
-    const { borderRadius = 0 } = this.style;
-    if (!ownPoints.length) return false;
-    if (!borderRadius || ownPoints.length < 3) {
-      const [firstX, firstY] = ownPoints[0];
-      ctx.beginPath();
-      ctx.moveTo(firstX, firstY);
-      for (const [px, py] of ownPoints.slice(1)) ctx.lineTo(px, py);
-      ctx.closePath();
-      return true;
+  override tracePath(): Path2D | null {
+    if (!this.dirtyPath && this.path) {
+      return this.path;
     }
 
-    ctx.beginPath();
+    const ownPoints = this.attributes.points ?? [];
+    const { borderRadius = 0 } = this.style;
+    if (!ownPoints.length) {
+      this.path = null;
+      this.dirtyPath = false;
+      return null;
+    }
+
+    const path = new Path2D();
+    if (!borderRadius || ownPoints.length < 3) {
+      const [firstX, firstY] = ownPoints[0];
+      path.moveTo(firstX, firstY);
+      for (const [px, py] of ownPoints.slice(1)) path.lineTo(px, py);
+      path.closePath();
+      this.path = path;
+      this.dirtyPath = false;
+      return path;
+    }
+
     for (let i = 0; i < ownPoints.length; i += 1) {
       const [prevX, prevY] =
         ownPoints[(i - 1 + ownPoints.length) % ownPoints.length];
@@ -225,15 +265,17 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
       const endY = currentY + nextUnitY * radius;
 
       if (i === 0) {
-        ctx.moveTo(startX, startY);
+        path.moveTo(startX, startY);
       } else {
-        ctx.lineTo(startX, startY);
+        path.lineTo(startX, startY);
       }
 
-      ctx.quadraticCurveTo(currentX, currentY, endX, endY);
+      path.quadraticCurveTo(currentX, currentY, endX, endY);
     }
-    ctx.closePath();
-    return true;
+    path.closePath();
+    this.path = path;
+    this.dirtyPath = false;
+    return path;
   }
 
   override drawContainer(host: CanvasHost): void {

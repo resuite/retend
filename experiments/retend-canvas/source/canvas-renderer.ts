@@ -218,7 +218,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
  * ```
  */
 export async function renderToCanvasContext(
-  ctx: CanvasRenderingContext2D,
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   App: () => JSX.Template
 ) {
   const host = new CanvasHost(ctx, ctx.canvas.width, ctx.canvas.height);

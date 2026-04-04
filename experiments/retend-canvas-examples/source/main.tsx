@@ -1,35 +1,18 @@
 import 'retend-canvas/jsx-runtime';
-import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
-
-import App from './App';
-
-let renderer: CanvasRenderer;
+const worker = new Worker(new URL('./worker.ts', import.meta.url), {
+  type: 'module',
+});
 let resizeFrame: number | null = null;
 
-async function setupCanvas(canvas: HTMLCanvasElement) {
-  if (renderer) return renderer;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  renderer = await renderToCanvasContext(ctx, App);
-  return renderer;
-}
-
 function resizeCanvas(canvas: HTMLCanvasElement) {
-  if (!renderer) return;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = window.devicePixelRatio;
   const rect = canvas.getBoundingClientRect();
-  const width = Math.round(rect.width * dpr);
-  const height = Math.round(rect.height * dpr);
-  if (canvas.width !== width) {
-    canvas.width = width;
-  }
-  if (canvas.height !== height) {
-    canvas.height = height;
-  }
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  renderer.requestRender({ width: rect.width, height: rect.height });
+  worker.postMessage({
+    type: 'resize',
+    dpr,
+    width: rect.width,
+    height: rect.height,
+  });
 }
 
 function requestResize(canvas: HTMLCanvasElement) {
@@ -41,7 +24,17 @@ function requestResize(canvas: HTMLCanvasElement) {
 }
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-setupCanvas(canvas).then(() => {
-  requestResize(canvas);
-  window.addEventListener('resize', () => requestResize(canvas));
-});
+const rect = canvas.getBoundingClientRect();
+const offscreen = canvas.transferControlToOffscreen();
+worker.postMessage(
+  {
+    type: 'init',
+    canvas: offscreen,
+    dpr: window.devicePixelRatio,
+    width: rect.width,
+    height: rect.height,
+  },
+  [offscreen]
+);
+requestResize(canvas);
+window.addEventListener('resize', () => requestResize(canvas));

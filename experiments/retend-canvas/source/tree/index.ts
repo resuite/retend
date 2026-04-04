@@ -11,7 +11,7 @@ export class CanvasHost extends EventTarget {
   scopeHeight: number;
 
   constructor(
-    public ctx: CanvasRenderingContext2D,
+    public ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     width: number,
     height: number
   ) {
