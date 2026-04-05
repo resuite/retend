@@ -5,4 +5,3 @@ export {
   CanvasPointerEvent,
   CanvasTransitionEvent,
 } from './tree/node';
-export type { CanvasNodeEventName } from './tree/node';

@@ -1,5 +1,6 @@
 import type { JSX } from 'retend/jsx-runtime';
 
+import { Length } from '../style';
 import { WARNING_IMAGE_CHILDREN, WARNING_IMAGE_SVG } from '../warnings';
 import { CanvasContainer } from './container';
 
@@ -57,16 +58,17 @@ export class CanvasImage extends CanvasContainer<JSX.ImageProps> {
       return this.path;
     }
 
-    const { borderRadius = 0 } = this.style;
+    const { borderRadius = Length.Px(0) } = this.style;
     const path = new Path2D();
-    if (!borderRadius) {
+    const radiusValue = borderRadius.value;
+    if (!radiusValue) {
       path.rect(0, 0, this.width, this.height);
       this.path = path;
       this.dirtyPath = false;
       return path;
     }
 
-    const radius = Math.min(borderRadius, this.width / 2, this.height / 2);
+    const radius = Math.min(radiusValue, this.width / 2, this.height / 2);
     path.roundRect(0, 0, this.width, this.height, radius);
     this.path = path;
     this.dirtyPath = false;

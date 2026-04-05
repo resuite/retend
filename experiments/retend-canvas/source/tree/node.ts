@@ -1,14 +1,6 @@
-import type { CanvasRenderer } from '../canvas-renderer';
+import type { JSX } from 'retend/jsx-runtime';
 
-export type CanvasNodeEventName =
-  | 'click'
-  | 'pointerdown'
-  | 'pointermove'
-  | 'pointerup'
-  | 'transitionrun'
-  | 'transitionstart'
-  | 'transitionend'
-  | 'transitioncancel';
+import type { CanvasRenderer } from '../canvas-renderer';
 
 export class CanvasTransitionEvent extends Event {
   propertyName: string;
@@ -40,7 +32,7 @@ export class CanvasPointerEvent extends Event {
   #propagationStopped = false;
 
   constructor(
-    type: CanvasNodeEventName,
+    type: JSX.CanvasNodeEventName,
     x: number,
     y: number,
     target: CanvasNode
@@ -222,10 +214,24 @@ export class CanvasParentNode extends CanvasNode {
     this.textVersion += 1;
   }
 
-  append(node: CanvasNode) {
-    if (node.parent) node.parent.remove(node);
-    this.children.push(node);
-    node.parent = this;
+  append(...nodes: CanvasNode[]) {
+    const children = nodes.filter(Boolean);
+    for (const child of children) {
+      if (child instanceof CanvasFragment) {
+        for (const subchild of child.children) {
+          // Note: not recursive here because it is not possible
+          // to have a fragment within a fragment.
+          this.children.push(subchild);
+          subchild.parent = this;
+        }
+        child.children = [];
+      } else {
+        if (child.parent) child.parent.remove(child);
+        this.children.push(child);
+        child.parent = this;
+      }
+    }
+
     this.textVersion += 1;
   }
 }

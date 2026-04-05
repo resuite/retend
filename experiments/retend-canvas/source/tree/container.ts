@@ -52,21 +52,14 @@ export class CanvasContainer<
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
     const currentValue = this.attributes[key];
-    if (
-      key === 'onClick' ||
-      key === 'onPointerDown' ||
-      key === 'onPointerMove' ||
-      key === 'onPointerUp' ||
-      key === 'onTransitionRun' ||
-      key === 'onTransitionStart' ||
-      key === 'onTransitionEnd' ||
-      key === 'onTransitionCancel'
-    ) {
-      const eventName = key.slice(2).toLowerCase();
-      if (currentValue instanceof Function) {
+
+    const strKey = String(key);
+    if (strKey.startsWith('on') && strKey.length > 2) {
+      const eventName = strKey.slice(2).toLowerCase();
+      if (typeof currentValue === 'function') {
         this.removeEventListener(eventName, currentValue as EventListener);
       }
-      if (value instanceof Function) {
+      if (typeof value === 'function') {
         this.addEventListener(eventName, value as EventListener);
       }
     }
@@ -276,16 +269,17 @@ export class CanvasRect extends CanvasContainer {
       return this.path;
     }
 
-    const { borderRadius = 0 } = this.style;
+    const { borderRadius = Length.Px(0) } = this.style;
     const path = new Path2D();
-    if (!borderRadius) {
+    const radiusValue = borderRadius.value;
+    if (!radiusValue) {
       path.rect(0, 0, this.width, this.height);
       this.path = path;
       this.dirtyPath = false;
       return path;
     }
 
-    const radius = Math.min(borderRadius, this.width / 2, this.height / 2);
+    const radius = Math.min(radiusValue, this.width / 2, this.height / 2);
     path.roundRect(0, 0, this.width, this.height, radius);
     this.path = path;
     this.dirtyPath = false;
@@ -328,7 +322,8 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
     }
 
     const ownPoints = this.attributes.points ?? [];
-    const { borderRadius = 0 } = this.style;
+    const { borderRadius = Length.Px(0) } = this.style;
+    const radiusValue = borderRadius.value;
     if (!ownPoints.length) {
       this.path = null;
       this.dirtyPath = false;
@@ -336,7 +331,7 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
     }
 
     const path = new Path2D();
-    if (!borderRadius || ownPoints.length < 3) {
+    if (!radiusValue || ownPoints.length < 3) {
       const [firstX, firstY] = ownPoints[0];
       path.moveTo(firstX, firstY);
       for (const [px, py] of ownPoints.slice(1)) path.lineTo(px, py);
@@ -362,7 +357,7 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
         else path.lineTo(currentX, currentY);
         continue;
       }
-      const radius = Math.min(borderRadius, prevLength / 2, nextLength / 2);
+      const radius = Math.min(radiusValue, prevLength / 2, nextLength / 2);
       const prevUnitX = prevDx / prevLength;
       const prevUnitY = prevDy / prevLength;
       const nextUnitX = nextDx / nextLength;

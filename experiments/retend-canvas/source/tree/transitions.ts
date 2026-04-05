@@ -154,7 +154,8 @@ function interpolateValue(transition: CanvasTransition, progress: number) {
     transition.key === 'left' ||
     transition.key === 'top' ||
     transition.key === 'borderWidth' ||
-    transition.key === 'fontSize'
+    transition.key === 'fontSize' ||
+    transition.key === 'borderRadius'
   ) {
     const start = (from as ReturnType<typeof Length.Px>).value;
     const end = (to as ReturnType<typeof Length.Px>).value;
@@ -242,8 +243,10 @@ function resolveTransitionValue(
     return Length.Px(0);
   }
   if (key === 'borderRadius') {
-    if (value !== undefined) return value as number;
-    return 0;
+    if (value && typeof value === 'object' && 'value' in value) {
+      return Length.Px(Number(value.value));
+    }
+    return Length.Px(0);
   }
   if (value) {
     const fontSize = value as NonNullable<JSX.Style['fontSize']>;

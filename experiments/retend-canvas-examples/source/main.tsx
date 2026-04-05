@@ -3,12 +3,13 @@ const worker = new Worker(new URL('./worker.ts', import.meta.url), {
   type: 'module',
 });
 const channel = new BroadcastChannel('retend-canvas-example');
+const postToChannel = channel.postMessage.bind(channel);
 let resizeFrame: number | null = null;
 
 function resizeCanvas(canvas: HTMLCanvasElement) {
   const dpr = window.devicePixelRatio;
   const rect = canvas.getBoundingClientRect();
-  channel.postMessage({
+  postToChannel({
     type: 'resize',
     dpr,
     width: rect.width,
@@ -24,7 +25,10 @@ function requestResize(canvas: HTMLCanvasElement) {
   });
 }
 
-const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+const canvas = document.getElementById('canvas');
+if (!(canvas instanceof HTMLCanvasElement)) {
+  throw new Error('Canvas not found');
+}
 const rect = canvas.getBoundingClientRect();
 const offscreen = canvas.transferControlToOffscreen();
 worker.postMessage(
@@ -44,13 +48,13 @@ for (const eventName of [
   'pointerup',
 ] as const) {
   canvas.addEventListener(eventName, (event) => {
-    const pointerEvent = event as MouseEvent;
+    if (!(event instanceof MouseEvent)) return;
     const rect = canvas.getBoundingClientRect();
-    channel.postMessage({
+    postToChannel({
       type: 'event',
       eventName,
-      x: pointerEvent.clientX - rect.left,
-      y: pointerEvent.clientY - rect.top,
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
     });
   });
 }

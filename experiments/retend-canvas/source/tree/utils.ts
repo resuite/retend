@@ -10,7 +10,7 @@ import {
 
 import type { CanvasContainer } from './container';
 
-import { CanvasFragment, type CanvasNode, type CanvasRange } from './node';
+import { type CanvasNode, type CanvasRange } from './node';
 import { applyStyle } from './transitions';
 
 export function write(handle: CanvasRange, newContent: CanvasNode[]) {
@@ -51,21 +51,6 @@ export function collectReconciledNodes(
   }
 
   return nodes;
-}
-
-export function append(
-  parent: CanvasContainer,
-  child: CanvasNode | CanvasNode[]
-) {
-  if (Array.isArray(child)) {
-    const children = child.filter(Boolean);
-    for (const child of children) parent.append(child);
-  } else if (child instanceof CanvasFragment) {
-    for (const subchild of [...child.children]) {
-      parent.append(subchild);
-    }
-  } else parent.append(child);
-  return parent;
 }
 
 function setStyleProp(

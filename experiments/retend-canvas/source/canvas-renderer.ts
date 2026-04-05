@@ -16,7 +16,6 @@ import {
 } from 'retend';
 
 import {
-  append,
   CanvasAnchor,
   CanvasContainer,
   CanvasFragment,
@@ -29,7 +28,6 @@ import {
   CanvasShape,
   CanvasImage,
   type CanvasTag,
-  type CanvasNodeEventName,
   CanvasText,
   collectReconciledNodes,
   setAttribute,
@@ -174,7 +172,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     parent: CanvasContainer,
     child: CanvasNode | CanvasNode[]
   ): CanvasNode {
-    append(parent, child);
+    parent.append(...(Array.isArray(child) ? child : [child]));
     return parent;
   }
 
@@ -209,7 +207,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     return node.isConnected;
   }
 
-  dispatchEvent(eventName: CanvasNodeEventName, x: number, y: number) {
+  dispatchEvent(eventName: JSX.CanvasNodeEventName, x: number, y: number) {
     const hitCanvas = this.host.hitCtx.canvas;
     const sampleX = Math.floor(x);
     const sampleY = Math.floor(y);

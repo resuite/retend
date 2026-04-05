@@ -40,7 +40,7 @@ declare module 'retend/jsx-runtime' {
       maxWidth?: LengthValue;
       maxHeight?: LengthValue;
       overflow?: OverflowValue;
-      borderRadius?: number;
+      borderRadius?: PxLength;
       borderStyle?: BorderStyleValue;
       borderWidth?: PxLength;
       borderColor?: string;
@@ -83,6 +83,12 @@ declare module 'retend/jsx-runtime' {
     type JsxCanvasEventHandlers<E> = {
       [K in keyof CanvasEventMap]?: (this: E, event: CanvasEventMap[K]) => void;
     };
+
+    type RemoveOnPrefix<T extends string> = T extends `on${infer Rest}`
+      ? Lowercase<Rest>
+      : T;
+
+    type CanvasNodeEventName = RemoveOnPrefix<keyof CanvasEventMap>;
 
     interface ContainerProps extends JsxCanvasEventHandlers<ContainerProps> {
       style?: StyleValue;
