@@ -51,6 +51,21 @@ export class CanvasContainer<
   }
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
+    const currentValue = this.attributes[key];
+    if (
+      key === 'onClick' ||
+      key === 'onPointerDown' ||
+      key === 'onPointerMove' ||
+      key === 'onPointerUp'
+    ) {
+      const eventName = key.slice(2).toLowerCase();
+      if (currentValue instanceof Function) {
+        this.removeEventListener(eventName, currentValue as EventListener);
+      }
+      if (value instanceof Function) {
+        this.addEventListener(eventName, value as EventListener);
+      }
+    }
     this.attributes[key] = value;
 
     if (key === 'style') {
@@ -132,6 +147,7 @@ export class CanvasContainer<
 
   override draw(): void {
     const host = this.renderer.host;
+    const hitCtx = host.hitCtx;
     this.resolveSize();
     const { overflow } = this.style;
     const transform = createTransformMatrix(
@@ -144,7 +160,16 @@ export class CanvasContainer<
     );
 
     host.ctx.save();
+    hitCtx.save();
     host.ctx.transform(
+      transform.a,
+      transform.b,
+      transform.c,
+      transform.d,
+      transform.e,
+      transform.f
+    );
+    hitCtx.transform(
       transform.a,
       transform.b,
       transform.c,
@@ -155,7 +180,10 @@ export class CanvasContainer<
     this.drawContainer();
     if (overflow === Overflow.Hidden) {
       const path = this.tracePath();
-      if (path) host.ctx.clip(path);
+      if (path) {
+        host.ctx.clip(path);
+        hitCtx.clip(path);
+      }
     }
     const prevScopeWidth = host.scopeWidth;
     const prevScopeHeight = host.scopeHeight;
@@ -169,6 +197,7 @@ export class CanvasContainer<
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
     host.ctx.restore();
+    hitCtx.restore();
   }
 
   drawContainer() {
@@ -196,6 +225,14 @@ export class CanvasContainer<
       (resolvedBorderWidth ? BorderStyle.Solid : BorderStyle.None);
     host.ctx.fillStyle = backgroundColor;
     host.ctx.fill(path);
+    if (this.hasEventListeners) {
+      const id = this.id;
+      const r = (id >> 16) & 255;
+      const g = (id >> 8) & 255;
+      const b = id & 255;
+      host.hitCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      host.hitCtx.fill(path);
+    }
 
     if (!resolvedBorderWidth || resolvedBorderStyle === BorderStyle.None) {
       return;

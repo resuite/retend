@@ -1,4 +1,8 @@
-import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
+import {
+  type CanvasNodeEventName,
+  type CanvasRenderer,
+  renderToCanvasContext,
+} from 'retend-canvas';
 
 import App from './App';
 
@@ -29,6 +33,12 @@ addEventListener(
           width: number;
           height: number;
         }
+      | {
+          type: 'event';
+          eventName: CanvasNodeEventName;
+          x: number;
+          y: number;
+        }
     >
   ) => {
     if (event.data.type === 'init') {
@@ -41,6 +51,10 @@ addEventListener(
     }
 
     if (!renderer) return;
+    if (event.data.type === 'event') {
+      renderer.dispatchEvent(event.data.eventName, event.data.x, event.data.y);
+      return;
+    }
     resizeRenderer(event.data.width, event.data.height, event.data.dpr);
   }
 );

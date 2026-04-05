@@ -22,12 +22,14 @@ import {
   CanvasFragment,
   CanvasHost,
   CanvasNode,
+  CanvasPointerEvent,
   type CanvasRange,
   CanvasRect,
   CanvasCircle,
   CanvasShape,
   CanvasImage,
   type CanvasTag,
+  type CanvasNodeEventName,
   CanvasText,
   collectReconciledNodes,
   setAttribute,
@@ -67,6 +69,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
   transformMatrix = new DOMMatrix();
   #viewport: { width: number; height: number };
   transitions: CanvasTransition[];
+  nextNodeId = 1;
+  nodeMap = new Map<number, CanvasNode>();
   #renderFrame: number | null = null;
 
   capabilities: Capabilities = {
@@ -87,6 +91,9 @@ export class CanvasRenderer implements CanvasRendererInterface {
     if (viewport) this.#viewport = viewport;
     if (this.#renderFrame !== null) return;
     this.#renderFrame = requestAnimationFrame(() => {
+      const hitCanvas = this.host.hitCtx.canvas;
+      hitCanvas.width = Math.round(this.#viewport.width);
+      hitCanvas.height = Math.round(this.#viewport.height);
       this.#renderFrame = null;
       const hasTransitions = stepCanvasTransitions(this);
       this.host.ctx.clearRect(
@@ -95,6 +102,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
         this.host.ctx.canvas.width,
         this.host.ctx.canvas.height
       );
+      this.host.hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
       this.host.scopeWidth = this.#viewport.width;
       this.host.scopeHeight = this.#viewport.height;
       this.root.draw();
@@ -199,6 +207,34 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   isActive(node: CanvasNode): boolean {
     return node.isConnected;
+  }
+
+  dispatchEvent(eventName: CanvasNodeEventName, x: number, y: number) {
+    const hitCanvas = this.host.hitCtx.canvas;
+    const sampleX = Math.floor(x);
+    const sampleY = Math.floor(y);
+    if (sampleX < 0 || sampleY < 0) return;
+    if (sampleX >= hitCanvas.width) return;
+    if (sampleY >= hitCanvas.height) return;
+
+    const pixel = this.host.hitCtx.getImageData(sampleX, sampleY, 1, 1).data;
+    const id = (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
+    if (id === 0) return;
+
+    const target = this.nodeMap.get(id);
+    if (!target) return;
+
+    const event = new CanvasPointerEvent(eventName, x, y, target);
+    let current: CanvasNode | null = target;
+
+    while (current) {
+      event.setCurrentTarget(current);
+      current.dispatchEvent(event);
+      if (event.propagationStopped) break;
+      current = current.parent;
+    }
+
+    event.setCurrentTarget(null);
   }
 
   // Stubs.

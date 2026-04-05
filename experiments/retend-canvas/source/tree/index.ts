@@ -39,6 +39,7 @@ export class CanvasHost extends EventTarget {
   whiteSpace: WhiteSpaceValue = WhiteSpace.Normal;
   scopeWidth: number;
   scopeHeight: number;
+  hitCtx: OffscreenCanvasRenderingContext2D;
 
   constructor(
     public ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -46,8 +47,16 @@ export class CanvasHost extends EventTarget {
     height: number
   ) {
     super();
+    const hitCtx = new OffscreenCanvas(
+      Math.round(width),
+      Math.round(height)
+    ).getContext('2d');
+    if (!hitCtx) {
+      throw new Error('Could not create hit canvas context.');
+    }
     this.scopeWidth = width;
     this.scopeHeight = height;
+    this.hitCtx = hitCtx;
     this.#styleCtx = [
       {
         color: this.color,

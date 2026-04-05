@@ -1,6 +1,12 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { type ReconcilerOptions, AsyncCell, Cell, useAwait } from 'retend';
+import {
+  type ReconcilerOptions,
+  AsyncCell,
+  Cell,
+  SourceCell,
+  useAwait,
+} from 'retend';
 
 import type { CanvasContainer } from './container';
 
@@ -87,6 +93,11 @@ export function setAttribute(
   key: string,
   value: unknown
 ) {
+  if (key === 'ref' && value instanceof SourceCell) {
+    value.set(node);
+    return;
+  }
+
   if (Cell.isCell(value)) {
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
     const updateAttribute = (nextValue: any) => {

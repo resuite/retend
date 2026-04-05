@@ -39,5 +39,22 @@ worker.postMessage(
   },
   [offscreen]
 );
+for (const eventName of [
+  'click',
+  'pointerdown',
+  'pointermove',
+  'pointerup',
+] as const) {
+  canvas.addEventListener(eventName, (event) => {
+    const pointerEvent = event as MouseEvent;
+    const rect = canvas.getBoundingClientRect();
+    worker.postMessage({
+      type: 'event',
+      eventName,
+      x: pointerEvent.clientX - rect.left,
+      y: pointerEvent.clientY - rect.top,
+    });
+  });
+}
 requestResize(canvas);
 window.addEventListener('resize', () => requestResize(canvas));

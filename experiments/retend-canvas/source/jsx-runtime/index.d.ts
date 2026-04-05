@@ -20,7 +20,7 @@ import 'retend/jsx-runtime';
 
 declare module 'retend/jsx-runtime' {
   import('../tree');
-  import { CanvasNode } from '../tree';
+  import { CanvasNode, CanvasPointerEvent } from '../tree';
 
   namespace JSX {
     interface Style {
@@ -67,6 +67,10 @@ declare module 'retend/jsx-runtime' {
 
     interface ContainerProps {
       style?: StyleValue;
+      onClick?: (event: CanvasPointerEvent) => void;
+      onPointerDown?: (event: CanvasPointerEvent) => void;
+      onPointerMove?: (event: CanvasPointerEvent) => void;
+      onPointerUp?: (event: CanvasPointerEvent) => void;
     }
 
     interface ShapeProps extends ContainerProps {

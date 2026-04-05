@@ -1,12 +1,75 @@
 import type { CanvasRenderer } from '../canvas-renderer';
 
-export class CanvasNode {
+export type CanvasNodeEventName =
+  | 'click'
+  | 'pointerdown'
+  | 'pointermove'
+  | 'pointerup';
+
+export class CanvasPointerEvent extends Event {
+  x: number;
+  y: number;
+  #target: CanvasNode;
+  #currentTarget: CanvasNode | null;
+  #propagationStopped = false;
+
+  constructor(
+    type: CanvasNodeEventName,
+    x: number,
+    y: number,
+    target: CanvasNode
+  ) {
+    super(type, { cancelable: true });
+    this.x = x;
+    this.y = y;
+    this.#target = target;
+    this.#currentTarget = null;
+  }
+
+  override get target() {
+    return this.#target;
+  }
+
+  override get currentTarget() {
+    return this.#currentTarget;
+  }
+
+  get propagationStopped() {
+    return this.#propagationStopped;
+  }
+
+  override stopPropagation() {
+    this.#propagationStopped = true;
+    super.stopPropagation();
+  }
+
+  override stopImmediatePropagation() {
+    this.#propagationStopped = true;
+    super.stopImmediatePropagation();
+  }
+
+  setCurrentTarget(currentTarget: CanvasNode | null) {
+    this.#currentTarget = currentTarget;
+  }
+}
+
+export class CanvasNode extends EventTarget {
+  static #listenerIds = new WeakMap<
+    EventListenerOrEventListenerObject,
+    number
+  >();
+  static #nextListenerId = 1;
   renderer: CanvasRenderer;
+  id: number;
   #parent: CanvasParentNode | null = null;
   #isConnected = false;
+  #eventListenerKeys = new Set<string>();
 
   constructor(renderer: CanvasRenderer) {
+    super();
     this.renderer = renderer;
+    this.id = renderer.nextNodeId;
+    renderer.nextNodeId += 1;
   }
 
   get isConnected() {
@@ -17,6 +80,70 @@ export class CanvasNode {
     return this.#parent;
   }
 
+  get hasEventListeners() {
+    return this.#eventListenerKeys.size > 0;
+  }
+
+  override addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: AddEventListenerOptions | boolean
+  ) {
+    if (callback) {
+      if (
+        type === 'click' ||
+        type === 'pointerdown' ||
+        type === 'pointermove' ||
+        type === 'pointerup'
+      ) {
+        let listenerId = CanvasNode.#listenerIds.get(callback);
+        if (listenerId === undefined) {
+          listenerId = CanvasNode.#nextListenerId;
+          CanvasNode.#nextListenerId += 1;
+          CanvasNode.#listenerIds.set(callback, listenerId);
+        }
+        const capture =
+          options === true ||
+          (options instanceof Object && options.capture === true);
+        const prevSize = this.#eventListenerKeys.size;
+        this.#eventListenerKeys.add(`${type}:${listenerId}:${Number(capture)}`);
+        if (this.#eventListenerKeys.size !== prevSize && this.isConnected) {
+          this.renderer.requestRender();
+        }
+      }
+    }
+
+    super.addEventListener(type, callback, options);
+  }
+  override removeEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: EventListenerOptions | boolean
+  ) {
+    super.removeEventListener(type, callback, options);
+
+    if (!callback) return;
+    if (
+      type !== 'click' &&
+      type !== 'pointerdown' &&
+      type !== 'pointermove' &&
+      type !== 'pointerup'
+    ) {
+      return;
+    }
+
+    const listenerId = CanvasNode.#listenerIds.get(callback);
+    if (listenerId === undefined) return;
+    const capture =
+      options === true ||
+      (options instanceof Object && options.capture === true);
+    const prevSize = this.#eventListenerKeys.size;
+    this.#eventListenerKeys.delete(`${type}:${listenerId}:${Number(capture)}`);
+    if (this.#eventListenerKeys.size !== prevSize && this.isConnected) {
+      this.renderer.requestRender();
+    }
+  }
+
   set parent(parent: CanvasParentNode | null) {
     this.#parent = parent;
     this.setConnected(parent?.isConnected === true);
@@ -25,6 +152,11 @@ export class CanvasNode {
   setConnected(isConnected: boolean) {
     if (this.isConnected === isConnected) return;
     this.#isConnected = isConnected;
+    if (isConnected) {
+      this.renderer.nodeMap.set(this.id, this);
+    } else {
+      this.renderer.nodeMap.delete(this.id);
+    }
     if (this instanceof CanvasParentNode) {
       for (const child of this.children) child.setConnected(isConnected);
     }
