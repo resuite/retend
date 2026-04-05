@@ -56,7 +56,11 @@ export class CanvasContainer<
       key === 'onClick' ||
       key === 'onPointerDown' ||
       key === 'onPointerMove' ||
-      key === 'onPointerUp'
+      key === 'onPointerUp' ||
+      key === 'onTransitionRun' ||
+      key === 'onTransitionStart' ||
+      key === 'onTransitionEnd' ||
+      key === 'onTransitionCancel'
     ) {
       const eventName = key.slice(2).toLowerCase();
       if (currentValue instanceof Function) {

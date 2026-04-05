@@ -7,6 +7,7 @@ import {
 import App from './App';
 
 let renderer: CanvasRenderer;
+const channel = new BroadcastChannel('retend-canvas-example');
 
 function resizeRenderer(width: number, height: number, dpr: number) {
   const canvas = renderer.host.ctx.canvas;
@@ -19,14 +20,27 @@ function resizeRenderer(width: number, height: number, dpr: number) {
 addEventListener(
   'message',
   async (
+    event: MessageEvent<{
+      type: 'init';
+      canvas: OffscreenCanvas;
+      dpr: number;
+      width: number;
+      height: number;
+    }>
+  ) => {
+    if (event.data.type !== 'init') return;
+    if (renderer) return;
+    const ctx = event.data.canvas.getContext('2d');
+    if (!ctx) return;
+    renderer = await renderToCanvasContext(ctx, App);
+    resizeRenderer(event.data.width, event.data.height, event.data.dpr);
+  }
+);
+
+channel.addEventListener(
+  'message',
+  (
     event: MessageEvent<
-      | {
-          type: 'init';
-          canvas: OffscreenCanvas;
-          dpr: number;
-          width: number;
-          height: number;
-        }
       | {
           type: 'resize';
           dpr: number;
@@ -41,15 +55,6 @@ addEventListener(
         }
     >
   ) => {
-    if (event.data.type === 'init') {
-      if (renderer) return;
-      const ctx = event.data.canvas.getContext('2d');
-      if (!ctx) return;
-      renderer = await renderToCanvasContext(ctx, App);
-      resizeRenderer(event.data.width, event.data.height, event.data.dpr);
-      return;
-    }
-
     if (!renderer) return;
     if (event.data.type === 'event') {
       renderer.dispatchEvent(event.data.eventName, event.data.x, event.data.y);

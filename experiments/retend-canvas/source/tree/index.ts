@@ -50,7 +50,7 @@ export class CanvasHost extends EventTarget {
     const hitCtx = new OffscreenCanvas(
       Math.round(width),
       Math.round(height)
-    ).getContext('2d');
+    ).getContext('2d', { willReadFrequently: true });
     if (!hitCtx) {
       throw new Error('Could not create hit canvas context.');
     }

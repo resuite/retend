@@ -61,7 +61,7 @@ export function append(
     const children = child.filter(Boolean);
     for (const child of children) parent.append(child);
   } else if (child instanceof CanvasFragment) {
-    for (const subchild of child.children) {
+    for (const subchild of [...child.children]) {
       parent.append(subchild);
     }
   } else parent.append(child);

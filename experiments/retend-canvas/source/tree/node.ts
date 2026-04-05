@@ -4,7 +4,33 @@ export type CanvasNodeEventName =
   | 'click'
   | 'pointerdown'
   | 'pointermove'
-  | 'pointerup';
+  | 'pointerup'
+  | 'transitionrun'
+  | 'transitionstart'
+  | 'transitionend'
+  | 'transitioncancel';
+
+export class CanvasTransitionEvent extends Event {
+  propertyName: string;
+  elapsedTime: number;
+  #target: CanvasNode;
+
+  constructor(
+    type: string,
+    propertyName: string,
+    elapsedTime: number,
+    target: CanvasNode
+  ) {
+    super(type);
+    this.propertyName = propertyName;
+    this.elapsedTime = elapsedTime;
+    this.#target = target;
+  }
+
+  override get target() {
+    return this.#target;
+  }
+}
 
 export class CanvasPointerEvent extends Event {
   x: number;

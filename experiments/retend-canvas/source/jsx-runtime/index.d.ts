@@ -20,7 +20,11 @@ import 'retend/jsx-runtime';
 
 declare module 'retend/jsx-runtime' {
   import('../tree');
-  import { CanvasNode, CanvasPointerEvent } from '../tree';
+  import {
+    CanvasNode,
+    CanvasPointerEvent,
+    CanvasTransitionEvent,
+  } from '../tree';
 
   namespace JSX {
     interface Style {
@@ -65,12 +69,23 @@ declare module 'retend/jsx-runtime' {
       ref?: Cell<CanvasNode | null>;
     }
 
-    interface ContainerProps {
+    interface CanvasEventMap {
+      onPointerDown: CanvasPointerEvent;
+      onPointerMove: CanvasPointerEvent;
+      onPointerUp: CanvasPointerEvent;
+      onTransitionRun: CanvasTransitionEvent;
+      onTransitionStart: CanvasTransitionEvent;
+      onTransitionEnd: CanvasTransitionEvent;
+      onTransitionCancel: CanvasTransitionEvent;
+      onClick: CanvasPointerEvent;
+    }
+
+    type JsxCanvasEventHandlers<E> = {
+      [K in keyof CanvasEventMap]?: (this: E, event: CanvasEventMap[K]) => void;
+    };
+
+    interface ContainerProps extends JsxCanvasEventHandlers<ContainerProps> {
       style?: StyleValue;
-      onClick?: (event: CanvasPointerEvent) => void;
-      onPointerDown?: (event: CanvasPointerEvent) => void;
-      onPointerMove?: (event: CanvasPointerEvent) => void;
-      onPointerUp?: (event: CanvasPointerEvent) => void;
     }
 
     interface ShapeProps extends ContainerProps {

@@ -1,7 +1,6 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import type { CanvasRenderer } from '../canvas-renderer';
-import type { CanvasNode } from './node';
 
 import {
   Angle,
@@ -14,6 +13,7 @@ import {
   Duration,
 } from '../style';
 import { CanvasContainer } from './container';
+import { CanvasTransitionEvent, type CanvasNode } from './node';
 import { lengthToPx } from './transform';
 
 export interface CanvasTransition {
@@ -28,6 +28,7 @@ export interface CanvasTransition {
   fromColor?: ParsedColor;
   toColor?: ParsedColor;
   target: JSX.Style[TransitionableStyleKey];
+  started: boolean;
 }
 
 type TransitionValue =
@@ -320,6 +321,7 @@ function createTransition(
     fromColor,
     toColor,
     target: value,
+    started: false,
   };
 }
 
@@ -329,7 +331,17 @@ export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
     let writeIndex = 0;
     for (let i = 0; i < transitions.length; i += 1) {
       const transition = transitions[i];
-      if (transition.node === node && transition.key === key) continue;
+      if (transition.node === node && transition.key === key) {
+        node.dispatchEvent(
+          new CanvasTransitionEvent(
+            'transitioncancel',
+            key,
+            (performance.now() - transition.startTime) / 1000,
+            node
+          )
+        );
+        continue;
+      }
       transitions[writeIndex] = transition;
       writeIndex += 1;
     }
@@ -339,6 +351,9 @@ export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
       if (transition) {
         transitions.push(transition);
         node.renderer.requestRender();
+        node.dispatchEvent(
+          new CanvasTransitionEvent('transitionrun', key, 0, node)
+        );
         return;
       }
     }
@@ -359,18 +374,38 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
     const transition = transitions[i];
     const { node, startTime, delay, duration, key, target, timingFunction } =
       transition;
-    if (!renderer.isActive(node)) continue;
-
     const elapsed = now - startTime - delay;
+    if (!renderer.isActive(node)) {
+      node.dispatchEvent(
+        new CanvasTransitionEvent(
+          'transitioncancel',
+          key,
+          (now - startTime) / 1000,
+          node
+        )
+      );
+      continue;
+    }
+
     if (elapsed <= 0) {
       transitions[writeIndex] = transition;
       writeIndex += 1;
       continue;
     }
 
+    if (!transition.started) {
+      transition.started = true;
+      node.dispatchEvent(
+        new CanvasTransitionEvent('transitionstart', key, 0, node)
+      );
+    }
+
     let progress = elapsed / duration;
     if (progress >= 1) {
       node.setStyles({ [key]: target } as JSX.Style);
+      node.dispatchEvent(
+        new CanvasTransitionEvent('transitionend', key, duration / 1000, node)
+      );
       continue;
     }
 
