@@ -8,6 +8,7 @@ export const LengthUnit = {
   Px: 0,
   Pct: 1,
   FitContent: 2,
+  Vw: 3,
 } as const;
 
 /**
@@ -24,6 +25,11 @@ export type PctUnit = typeof LengthUnit.Pct;
  * A fit-content length unit.
  */
 export type FitContentUnit = typeof LengthUnit.FitContent;
+
+/**
+ * A viewport-width length unit.
+ */
+export type VwUnit = typeof LengthUnit.Vw;
 
 /**
  * A pixel-based canvas length.
@@ -56,12 +62,22 @@ export interface FitContentLength {
 }
 
 /**
+ * A viewport-width canvas length.
+ *
+ * Vw values are resolved against the viewport dimensions.
+ */
+export interface VwLength {
+  unit: VwUnit;
+  value: number;
+}
+
+/**
  * A modeled canvas length value.
  *
  * Retend canvas uses explicit length objects instead of CSS-like strings so
  * style values can be typed, normalized, and interpreted without reparsing.
  */
-export type LengthValue = PxLength | PctLength | FitContentLength;
+export type LengthValue = PxLength | PctLength | FitContentLength | VwLength;
 
 /**
  * Creates strongly-typed canvas length values.
@@ -75,6 +91,9 @@ export const Length = {
   },
   Pct(value: number): PctLength {
     return { unit: LengthUnit.Pct, value };
+  },
+  Vw(value: number): VwLength {
+    return { unit: LengthUnit.Vw, value };
   },
   FitContent: { unit: LengthUnit.FitContent, value: 0 } as FitContentLength,
 } as const;
@@ -294,6 +313,7 @@ export type FontStyleValue = (typeof FontStyle)[keyof typeof FontStyle];
  * canvas font shorthand without translating from keyword strings.
  */
 export const FontWeight = {
+  Light: 200,
   Normal: 400,
   Bold: 700,
 } as const;
