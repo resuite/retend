@@ -91,9 +91,10 @@ export class CanvasContainer<
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
     const viewportWidth = this.renderer.viewport.width;
+    const lhInPx = host.lineHeight * host.fontSize;
 
-    let nextWidth = lengthToPx(width, baseWidth, viewportWidth);
-    let nextHeight = lengthToPx(height, baseHeight, viewportWidth);
+    let nextWidth = lengthToPx(width, baseWidth, viewportWidth, lhInPx);
+    let nextHeight = lengthToPx(height, baseHeight, viewportWidth, lhInPx);
 
     if (width.unit === LengthUnit.FitContent) nextWidth = 0;
     if (height.unit === LengthUnit.FitContent) nextHeight = 0;
@@ -110,7 +111,8 @@ export class CanvasContainer<
         this,
         nextWidth,
         baseWidth,
-        viewportWidth
+        viewportWidth,
+        lhInPx
       ));
     }
 
@@ -121,7 +123,7 @@ export class CanvasContainer<
     } else if (maxWidth) {
       nextWidth = Math.min(
         nextWidth,
-        lengthToPx(maxWidth, baseWidth, viewportWidth)
+        lengthToPx(maxWidth, baseWidth, viewportWidth, lhInPx)
       );
     }
     if (maxHeight?.unit === LengthUnit.FitContent) {
@@ -129,7 +131,7 @@ export class CanvasContainer<
     } else if (maxHeight) {
       nextHeight = Math.min(
         nextHeight,
-        lengthToPx(maxHeight, baseHeight, viewportWidth)
+        lengthToPx(maxHeight, baseHeight, viewportWidth, lhInPx)
       );
     }
 
@@ -155,6 +157,7 @@ export class CanvasContainer<
     const hitCtx = host.hitCtx;
     this.resolveSize();
     const { overflow, opacity = 1 } = this.style;
+    const lhInPx = host.lineHeight * host.fontSize;
     const transform = createTransformMatrix(
       this.renderer.transformMatrix,
       this.style,
@@ -162,7 +165,8 @@ export class CanvasContainer<
       this.height,
       host.scopeWidth,
       host.scopeHeight,
-      this.renderer.viewport.width
+      this.renderer.viewport.width,
+      lhInPx
     );
 
     host.ctx.save();
@@ -239,6 +243,7 @@ export class CanvasContainer<
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
     const viewportWidth = this.renderer.viewport.width;
+    const lhInPx = host.lineHeight * host.fontSize;
 
     const paintBorders = () => {
       if (!resolvedBorderWidth || resolvedBorderStyle === BorderStyle.None) {
@@ -281,14 +286,21 @@ export class CanvasContainer<
         host.ctx.shadowOffsetX = lengthToPx(
           shadow.offsetX,
           baseWidth,
-          viewportWidth
+          viewportWidth,
+          lhInPx
         );
         host.ctx.shadowOffsetY = lengthToPx(
           shadow.offsetY,
           baseHeight,
-          viewportWidth
+          viewportWidth,
+          lhInPx
         );
-        host.ctx.shadowBlur = lengthToPx(shadow.blur, baseWidth, viewportWidth);
+        host.ctx.shadowBlur = lengthToPx(
+          shadow.blur,
+          baseWidth,
+          viewportWidth,
+          lhInPx
+        );
         host.ctx.shadowColor = shadow.color;
 
         host.ctx.fillStyle = 'black';
@@ -322,17 +334,20 @@ export class CanvasContainer<
           host.ctx.shadowOffsetX = lengthToPx(
             shadow.offsetX,
             baseWidth,
-            viewportWidth
+            viewportWidth,
+            lhInPx
           );
           host.ctx.shadowOffsetY = lengthToPx(
             shadow.offsetY,
             baseHeight,
-            viewportWidth
+            viewportWidth,
+            lhInPx
           );
           host.ctx.shadowBlur = lengthToPx(
             shadow.blur,
             baseWidth,
-            viewportWidth
+            viewportWidth,
+            lhInPx
           );
           host.ctx.shadowColor = shadow.color;
 

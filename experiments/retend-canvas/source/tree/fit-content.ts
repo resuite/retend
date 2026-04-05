@@ -7,7 +7,8 @@ export function resolveFittedContent(
   container: CanvasContainer,
   nextWidth: number,
   baseWidth: number,
-  viewportWidth?: number
+  viewportWidth: number,
+  lineHeightPx: number
 ) {
   const { children, styles: style } = container;
   const host = container.renderer.host;
@@ -58,7 +59,7 @@ export function resolveFittedContent(
   } else if (maxWidth) {
     nextWidth = Math.min(
       nextWidth,
-      lengthToPx(maxWidth, baseWidth, viewportWidth)
+      lengthToPx(maxWidth, baseWidth, viewportWidth, lineHeightPx)
     );
   }
 

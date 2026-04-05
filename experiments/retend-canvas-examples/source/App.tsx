@@ -1,6 +1,5 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-// import { Cell } from 'retend';
 import {
   Alignment,
   BoxShadow,
@@ -10,13 +9,21 @@ import {
   TextAlign,
 } from 'retend-canvas';
 
-// interface ListItem {
-//   id: number;
-//   name: string;
-// }
-
-// const list = Cell.source<ListItem[]>([]);
-//
+const App = () => {
+  return (
+    <rect style={styles.root}>
+      <text style={styles.title}>todos</text>
+      <rect style={styles.inputContainer}>
+        <text style={styles.input}>What needs to be done?</text>
+      </rect>
+      <rect style={styles.credit}>
+        <text style={styles.creditTextInstr}>Double-click to edit a todo</text>
+        <text style={styles.creditText}>Created by the TodoMVC Team</text>
+        <text style={styles.creditData}>Part of TodoMVC</text>
+      </rect>
+    </rect>
+  );
+};
 
 const styles = {
   root: {
@@ -36,7 +43,7 @@ const styles = {
   inputContainer: {
     height: Length.Px(65),
     width: Length.Pct(70),
-    maxWidth: Length.Px(400),
+    maxWidth: Length.Px(800),
     top: Length.Px(130),
     justifySelf: Alignment.Center,
     backgroundColor: 'white',
@@ -62,12 +69,15 @@ const styles = {
     alignSelf: Alignment.Center,
     textAlign: TextAlign.Center,
     fontSize: Length.Px(24),
-    left: Length.Px(10),
+    left: Length.Px(60),
     fontWeight: 350,
   },
 
   credit: {
-    backgroundColor: 'green',
+    top: Length.Px(245),
+    color: '#4d4d4d',
+    fontSize: Length.Px(11),
+    fontWeight: 300,
   },
 
   creditTextInstr: {
@@ -76,27 +86,13 @@ const styles = {
 
   creditText: {
     justifySelf: Alignment.Center,
+    top: Length.Lh(1.5),
   },
 
   creditData: {
     justifySelf: Alignment.Center,
+    top: Length.Lh(3),
   },
 } satisfies Record<string, JSX.Style>;
-
-const App = () => {
-  return (
-    <rect style={styles.root}>
-      <text style={styles.title}>todos</text>
-      <rect style={styles.inputContainer}>
-        <text style={styles.input}>What needs to be done?</text>
-      </rect>
-      <rect style={styles.credit}>
-        <text style={styles.creditTextInstr}>Double-click to edit a todo</text>
-        <text style={styles.creditText}>Created by the TodoMVC Team</text>
-        <text style={styles.creditData}>Part of TodoMVC</text>
-      </rect>
-    </rect>
-  );
-};
 
 export default App;

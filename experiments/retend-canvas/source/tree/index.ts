@@ -26,7 +26,7 @@ export class CanvasHost extends EventTarget {
     fontWeight: FontWeightValue;
     fontStyle: FontStyleValue;
     textAlign: TextAlignValue;
-    lineHeight: number | undefined;
+    lineHeight: number;
     whiteSpace: WhiteSpaceValue;
   }>;
   color = 'black';
@@ -35,7 +35,7 @@ export class CanvasHost extends EventTarget {
   fontWeight: FontWeightValue = FontWeight.Normal;
   fontStyle: FontStyleValue = FontStyle.Normal;
   textAlign: TextAlignValue = TextAlign.Left;
-  lineHeight: number | undefined;
+  lineHeight = 1.2;
   whiteSpace: WhiteSpaceValue = WhiteSpace.Normal;
   scopeWidth: number;
   scopeHeight: number;

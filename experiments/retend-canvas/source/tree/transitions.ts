@@ -234,7 +234,11 @@ function resolveOffsetValue(
     else baseSize = node.renderer.host.scopeHeight;
   }
 
-  return Length.Px(lengthToPx(value, baseSize, node.renderer.viewport.width));
+  const host = node.renderer.host;
+  const lhInPx = host.lineHeight * host.fontSize;
+  return Length.Px(
+    lengthToPx(value, baseSize, node.renderer.viewport.width, lhInPx)
+  );
 }
 
 function resolveTransitionValue<K extends TransitionableStyleKey>(
@@ -284,26 +288,31 @@ function resolveTransitionValue<K extends TransitionableStyleKey>(
     const shadows = Array.isArray(value)
       ? (value as BoxShadowValue[])
       : [value as BoxShadowValue];
+    const host = node.renderer.host;
+    const lhInPx = host.lineHeight * host.fontSize;
     return shadows.map((shadow) => ({
       offsetX: Length.Px(
         lengthToPx(
           shadow.offsetX,
           node.renderer.host.scopeWidth,
-          node.renderer.viewport.width
+          node.renderer.viewport.width,
+          lhInPx
         )
       ),
       offsetY: Length.Px(
         lengthToPx(
           shadow.offsetY,
           node.renderer.host.scopeHeight,
-          node.renderer.viewport.width
+          node.renderer.viewport.width,
+          lhInPx
         )
       ),
       blur: Length.Px(
         lengthToPx(
           shadow.blur,
           node.renderer.host.scopeWidth,
-          node.renderer.viewport.width
+          node.renderer.viewport.width,
+          lhInPx
         )
       ),
       color: shadow.color,

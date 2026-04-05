@@ -76,7 +76,7 @@ export class CanvasText extends CanvasNode {
 
     const font = host.ctx.font;
     host.ctx.font = getFont(host);
-    const lineHeight = (host.lineHeight ?? 1.2) * host.fontSize;
+    const lineHeight = host.lineHeight * host.fontSize;
     if (
       !this.#prepared ||
       this.#preparedFont !== host.ctx.font ||
@@ -127,7 +127,7 @@ export class CanvasText extends CanvasNode {
     const font = host.ctx.font;
     host.ctx.fillStyle = host.color;
     host.ctx.font = getFont(host);
-    const lineHeight = (host.lineHeight ?? 1.2) * host.fontSize;
+    const lineHeight = host.lineHeight * host.fontSize;
     if (
       !this.#prepared ||
       this.#preparedFont !== host.ctx.font ||

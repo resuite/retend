@@ -18,7 +18,8 @@ const defaultTransformOrigin = TransformOrigin.At(
 export function lengthToPx(
   value: LengthValue,
   baseSize: number,
-  viewportWidth?: number
+  viewportWidth: number,
+  lineHeightPx: number
 ) {
   if (value.unit === LengthUnit.Pct) {
     return (value.value * baseSize) / 100;
@@ -28,6 +29,10 @@ export function lengthToPx(
     return (value.value * (viewportWidth || baseSize)) / 100;
   }
 
+  if (value.unit === LengthUnit.Lh) {
+    return value.value * lineHeightPx;
+  }
+
   return value.value;
 }
 
@@ -35,11 +40,12 @@ export function resolveTransformOrigin(
   transformOrigin: TransformOriginValue,
   width: number,
   height: number,
-  viewportWidth?: number
+  viewportWidth: number,
+  lineHeightPx: number
 ) {
   return {
-    x: lengthToPx(transformOrigin.x, width, viewportWidth),
-    y: lengthToPx(transformOrigin.y, height, viewportWidth),
+    x: lengthToPx(transformOrigin.x, width, viewportWidth, lineHeightPx),
+    y: lengthToPx(transformOrigin.y, height, viewportWidth, lineHeightPx),
   };
 }
 
@@ -50,7 +56,8 @@ export function createTransformMatrix(
   height: number,
   parentWidth: number,
   parentHeight: number,
-  viewportWidth?: number
+  viewportWidth: number,
+  lineHeightPx: number
 ) {
   const rotate = style.rotate ?? Angle.Deg(0);
   const { scale = 1 } = style;
@@ -59,7 +66,12 @@ export function createTransformMatrix(
   let translateX = 0;
   let translateY = 0;
   if (style.left !== undefined) {
-    translateX = lengthToPx(style.left, parentWidth, viewportWidth);
+    translateX = lengthToPx(
+      style.left,
+      parentWidth,
+      viewportWidth,
+      lineHeightPx
+    );
   } else if (style.justifySelf === Alignment.Center) {
     translateX = (parentWidth - width) / 2;
   } else if (style.justifySelf === Alignment.End) {
@@ -67,7 +79,12 @@ export function createTransformMatrix(
   }
 
   if (style.top !== undefined) {
-    translateY = lengthToPx(style.top, parentHeight, viewportWidth);
+    translateY = lengthToPx(
+      style.top,
+      parentHeight,
+      viewportWidth,
+      lineHeightPx
+    );
   } else if (style.alignSelf === Alignment.Center) {
     translateY = (parentHeight - height) / 2;
   } else if (style.alignSelf === Alignment.End) {
@@ -77,7 +94,8 @@ export function createTransformMatrix(
     transformOrigin,
     width,
     height,
-    viewportWidth
+    viewportWidth,
+    lineHeightPx
   );
 
   matrix.a = matrix.d = 1;

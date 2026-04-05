@@ -9,6 +9,7 @@ export const LengthUnit = {
   Pct: 1,
   FitContent: 2,
   Vw: 3,
+  Lh: 4,
 } as const;
 
 /**
@@ -30,6 +31,11 @@ export type FitContentUnit = typeof LengthUnit.FitContent;
  * A viewport-width length unit.
  */
 export type VwUnit = typeof LengthUnit.Vw;
+
+/**
+ * A line-height length unit.
+ */
+export type LhUnit = typeof LengthUnit.Lh;
 
 /**
  * A pixel-based canvas length.
@@ -72,12 +78,27 @@ export interface VwLength {
 }
 
 /**
+ * A line-height canvas length.
+ *
+ * Lh values are resolved against the computed line height (fontSize × lineHeight).
+ */
+export interface LhLength {
+  unit: LhUnit;
+  value: number;
+}
+
+/**
  * A modeled canvas length value.
  *
  * Retend canvas uses explicit length objects instead of CSS-like strings so
  * style values can be typed, normalized, and interpreted without reparsing.
  */
-export type LengthValue = PxLength | PctLength | FitContentLength | VwLength;
+export type LengthValue =
+  | PxLength
+  | PctLength
+  | FitContentLength
+  | VwLength
+  | LhLength;
 
 /**
  * Creates strongly-typed canvas length values.
@@ -94,6 +115,9 @@ export const Length = {
   },
   Vw(value: number): VwLength {
     return { unit: LengthUnit.Vw, value };
+  },
+  Lh(value: number): LhLength {
+    return { unit: LengthUnit.Lh, value };
   },
   FitContent: { unit: LengthUnit.FitContent, value: 0 } as FitContentLength,
 } as const;
