@@ -203,7 +203,7 @@ function resolveOffsetValue(
     else baseSize = node.renderer.host.scopeHeight;
   }
 
-  return Length.Px(lengthToPx(value, baseSize));
+  return Length.Px(lengthToPx(value, baseSize, node.renderer.viewport.width));
 }
 
 function resolveTransitionValue(

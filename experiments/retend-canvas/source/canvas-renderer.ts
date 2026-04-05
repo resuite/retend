@@ -71,6 +71,10 @@ export class CanvasRenderer implements CanvasRendererInterface {
   nodeMap = new Map<number, CanvasNode>();
   #renderFrame: number | null = null;
 
+  get viewport() {
+    return this.#viewport;
+  }
+
   capabilities: Capabilities = {
     supportsObserverConnectedCallbacks: true,
     supportsSetupEffects: true,

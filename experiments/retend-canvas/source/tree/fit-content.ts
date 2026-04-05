@@ -6,7 +6,8 @@ import { lengthToPx } from './transform';
 export function resolveFittedContent(
   container: CanvasContainer,
   nextWidth: number,
-  baseWidth: number
+  baseWidth: number,
+  viewportWidth?: number
 ) {
   const { children, styles: style } = container;
   const host = container.renderer.host;
@@ -55,7 +56,10 @@ export function resolveFittedContent(
   if (maxWidth?.unit === LengthUnit.FitContent) {
     nextWidth = Math.min(nextWidth, fitContentWidth);
   } else if (maxWidth) {
-    nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth));
+    nextWidth = Math.min(
+      nextWidth,
+      lengthToPx(maxWidth, baseWidth, viewportWidth)
+    );
   }
 
   if (needsFitHeight) {
