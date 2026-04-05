@@ -82,17 +82,18 @@ export class CanvasContainer<
   protected resolveSize() {
     const host = this.renderer.host;
     const {
-      width = Length.Px(100),
-      height = Length.Px(100),
+      width = Length.Pct(100),
+      height = Length.FitContent,
       maxWidth,
       maxHeight,
     } = this.style;
 
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
+    const viewportWidth = this.renderer.viewport.width;
 
-    let nextWidth = lengthToPx(width, baseWidth);
-    let nextHeight = lengthToPx(height, baseHeight);
+    let nextWidth = lengthToPx(width, baseWidth, viewportWidth);
+    let nextHeight = lengthToPx(height, baseHeight, viewportWidth);
 
     if (width.unit === LengthUnit.FitContent) nextWidth = 0;
     if (height.unit === LengthUnit.FitContent) nextHeight = 0;
@@ -108,7 +109,8 @@ export class CanvasContainer<
       ({ nextWidth, fitContentWidth, fitContentHeight } = resolveFittedContent(
         this,
         nextWidth,
-        baseWidth
+        baseWidth,
+        viewportWidth
       ));
     }
 
@@ -117,12 +119,18 @@ export class CanvasContainer<
     if (maxWidth?.unit === LengthUnit.FitContent) {
       nextWidth = Math.min(nextWidth, fitContentWidth);
     } else if (maxWidth) {
-      nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth));
+      nextWidth = Math.min(
+        nextWidth,
+        lengthToPx(maxWidth, baseWidth, viewportWidth)
+      );
     }
     if (maxHeight?.unit === LengthUnit.FitContent) {
       nextHeight = Math.min(nextHeight, fitContentHeight);
     } else if (maxHeight) {
-      nextHeight = Math.min(nextHeight, lengthToPx(maxHeight, baseHeight));
+      nextHeight = Math.min(
+        nextHeight,
+        lengthToPx(maxHeight, baseHeight, viewportWidth)
+      );
     }
 
     if (this.width !== nextWidth || this.height !== nextHeight) {
@@ -153,7 +161,8 @@ export class CanvasContainer<
       this.width,
       this.height,
       host.scopeWidth,
-      host.scopeHeight
+      host.scopeHeight,
+      this.renderer.viewport.width
     );
 
     host.ctx.save();
