@@ -59,6 +59,7 @@ declare module 'retend/jsx-runtime' {
       transitionTimingFunction?: EasingValue;
       transitionProperty?: TransitionableStyleKey | TransitionableStyleKey[];
       boxShadow?: BoxShadowValue | BoxShadowValue[];
+      opacity?: number;
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;
@@ -122,6 +123,10 @@ declare module 'retend/jsx-runtime' {
        * Draws a filled custom shape on the canvas using the provided points.
        */
       shape: Container<ShapeProps>;
+      /**
+       * Draws a text container that only accepts text content.
+       */
+      text: Container<ContainerProps>;
     }
   }
 }

@@ -25,6 +25,7 @@ import {
   type CanvasRange,
   CanvasRect,
   CanvasCircle,
+  CanvasTextContainer,
   CanvasShape,
   CanvasImage,
   type CanvasTag,
@@ -134,6 +135,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
         return new CanvasRect(this);
       case 'circle':
         return new CanvasCircle(this);
+      case 'text':
+        return new CanvasTextContainer(this);
       case 'shape':
         return new CanvasShape(this);
       case 'img':

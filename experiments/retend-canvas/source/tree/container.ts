@@ -73,7 +73,7 @@ export class CanvasContainer<
           break;
         }
       }
-      this.style = style;
+      Object.assign(this.style, style);
       return;
     }
     if (key === 'points') this.dirtyPath = true;
@@ -154,7 +154,7 @@ export class CanvasContainer<
     const host = this.renderer.host;
     const hitCtx = host.hitCtx;
     this.resolveSize();
-    const { overflow } = this.style;
+    const { overflow, opacity = 1 } = this.style;
     const transform = createTransformMatrix(
       this.renderer.transformMatrix,
       this.style,
@@ -167,6 +167,7 @@ export class CanvasContainer<
 
     host.ctx.save();
     hitCtx.save();
+    host.ctx.globalAlpha *= opacity;
     host.ctx.transform(
       transform.a,
       transform.b,
@@ -206,9 +207,7 @@ export class CanvasContainer<
     hitCtx.restore();
   }
 
-  drawContainer() {
-    throw new Error('drawContainer must be implemented by canvas containers.');
-  }
+  drawContainer() {}
 
   tracePath(): Path2D | null {
     return null;
@@ -366,22 +365,15 @@ export class CanvasContainer<
 export class CanvasRoot extends CanvasContainer {
   constructor(renderer: CanvasRenderer) {
     super(renderer);
-    this.setAttribute('style', {
-      width: Length.Pct(100),
-      height: Length.Pct(100),
-    });
+    this.style = { width: Length.Pct(100), height: Length.Pct(100) };
   }
-
-  override drawContainer() {}
 }
 
 // --------------
 
 export class CanvasRect extends CanvasContainer {
   override tracePath(): Path2D | null {
-    if (!this.dirtyPath && this.path) {
-      return this.path;
-    }
+    if (!this.dirtyPath && this.path) return this.path;
 
     const { borderRadius = Length.Px(0) } = this.style;
     const path = new Path2D();
@@ -400,16 +392,14 @@ export class CanvasRect extends CanvasContainer {
     return path;
   }
 
-  override drawContainer(): void {
+  override drawContainer() {
     this.paintPath();
   }
 }
 
 export class CanvasCircle extends CanvasContainer {
   override tracePath(): Path2D | null {
-    if (!this.dirtyPath && this.path) {
-      return this.path;
-    }
+    if (!this.dirtyPath && this.path) return this.path;
 
     const path = new Path2D();
     path.arc(
@@ -426,6 +416,13 @@ export class CanvasCircle extends CanvasContainer {
 
   override drawContainer(): void {
     this.paintPath();
+  }
+}
+
+export class CanvasTextContainer extends CanvasRect {
+  constructor(renderer: CanvasRenderer) {
+    super(renderer);
+    this.style = { width: Length.FitContent };
   }
 }
 

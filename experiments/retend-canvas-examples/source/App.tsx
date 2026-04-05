@@ -28,7 +28,6 @@ const styles = {
   title: {
     fontSize: Length.Px(80),
     fontWeight: FontWeight.Light,
-    width: Length.FitContent,
     color: '#b83f45',
     top: Length.Px(15),
     justifySelf: Alignment.Center,
@@ -63,16 +62,38 @@ const styles = {
     alignSelf: Alignment.Center,
     textAlign: TextAlign.Center,
     fontSize: Length.Px(24),
+    left: Length.Px(10),
     fontWeight: 350,
+  },
+
+  credit: {
+    backgroundColor: 'green',
+  },
+
+  creditTextInstr: {
+    justifySelf: Alignment.Center,
+  },
+
+  creditText: {
+    justifySelf: Alignment.Center,
+  },
+
+  creditData: {
+    justifySelf: Alignment.Center,
   },
 } satisfies Record<string, JSX.Style>;
 
 const App = () => {
   return (
     <rect style={styles.root}>
-      <rect style={styles.title}>todos</rect>
+      <text style={styles.title}>todos</text>
       <rect style={styles.inputContainer}>
-        <rect style={styles.input}>What needs to be done?</rect>
+        <text style={styles.input}>What needs to be done?</text>
+      </rect>
+      <rect style={styles.credit}>
+        <text style={styles.creditTextInstr}>Double-click to edit a todo</text>
+        <text style={styles.creditText}>Created by the TodoMVC Team</text>
+        <text style={styles.creditData}>Part of TodoMVC</text>
       </rect>
     </rect>
   );

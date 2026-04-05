@@ -52,6 +52,7 @@ const transitionableKeys = {
   borderRadius: true,
   fontSize: true,
   boxShadow: true,
+  opacity: true,
 } as const;
 const colorCache = new Map<string, ParsedColor | null>();
 
@@ -236,10 +237,10 @@ function resolveOffsetValue(
   return Length.Px(lengthToPx(value, baseSize, node.renderer.viewport.width));
 }
 
-function resolveTransitionValue(
+function resolveTransitionValue<K extends TransitionableStyleKey>(
   node: CanvasContainer,
-  key: TransitionableStyleKey,
-  value: JSX.Style[TransitionableStyleKey]
+  key: K,
+  value: JSX.Style[K]
 ): TransitionValue | null {
   if (key === 'left') {
     return resolveOffsetValue(node, value as JSX.Style['left'], true);
@@ -308,6 +309,10 @@ function resolveTransitionValue(
       color: shadow.color,
       inset: shadow.inset,
     }));
+  }
+  if (key === 'opacity') {
+    if (value !== undefined) return value as number;
+    return 1;
   }
   if (value) {
     const fontSize = value as NonNullable<JSX.Style['fontSize']>;
