@@ -224,13 +224,134 @@ export class CanvasContainer<
       borderStyle,
       borderWidth = Length.Px(0),
       borderColor = host.color,
+      boxShadow,
     } = this.style;
     const resolvedBorderWidth = borderWidth.value;
     const resolvedBorderStyle =
       borderStyle ??
       (resolvedBorderWidth ? BorderStyle.Solid : BorderStyle.None);
-    host.ctx.fillStyle = backgroundColor;
-    host.ctx.fill(path);
+
+    const shadows = boxShadow
+      ? Array.isArray(boxShadow)
+        ? boxShadow
+        : [boxShadow]
+      : [];
+
+    const baseWidth = host.scopeWidth;
+    const baseHeight = host.scopeHeight;
+    const viewportWidth = this.renderer.viewport.width;
+
+    const paintBorders = () => {
+      if (!resolvedBorderWidth || resolvedBorderStyle === BorderStyle.None) {
+        return;
+      }
+
+      host.ctx.lineWidth = resolvedBorderWidth;
+      host.ctx.strokeStyle = borderColor;
+      if (resolvedBorderStyle === BorderStyle.Dashed) {
+        host.ctx.setLineDash([
+          resolvedBorderWidth * 3,
+          resolvedBorderWidth * 2,
+        ]);
+      } else if (resolvedBorderStyle === BorderStyle.Dotted) {
+        host.ctx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
+      } else {
+        host.ctx.setLineDash([]);
+      }
+      host.ctx.stroke(path);
+      host.ctx.setLineDash([]);
+    };
+
+    if (shadows.length > 0) {
+      const dropShadows = shadows.filter((s) => !s.inset);
+      const insetShadows = shadows.filter((s) => s.inset);
+
+      // Phase 1: Draw Drop Shadows
+      for (let i = dropShadows.length - 1; i >= 0; i -= 1) {
+        const shadow = dropShadows[i];
+        host.ctx.save();
+        const invertedPath = new Path2D();
+        invertedPath.rect(
+          -10000,
+          -10000,
+          this.renderer.viewport.width + 20000,
+          this.renderer.viewport.height + 20000
+        );
+        invertedPath.addPath(path);
+        host.ctx.clip(invertedPath, 'evenodd');
+        host.ctx.shadowOffsetX = lengthToPx(
+          shadow.offsetX,
+          baseWidth,
+          viewportWidth
+        );
+        host.ctx.shadowOffsetY = lengthToPx(
+          shadow.offsetY,
+          baseHeight,
+          viewportWidth
+        );
+        host.ctx.shadowBlur = lengthToPx(shadow.blur, baseWidth, viewportWidth);
+        host.ctx.shadowColor = shadow.color;
+
+        host.ctx.fillStyle = 'black';
+        host.ctx.fill(path);
+        host.ctx.restore();
+      }
+
+      // Phase 2: Draw Background Color
+      host.ctx.fillStyle = backgroundColor;
+      host.ctx.fill(path);
+
+      // Phase 3: Draw Inset Shadows
+      // We clip to the path so nothing spills outside,
+      // and stroke an inverted cutout to cast shadows into the element constraint
+      if (insetShadows.length > 0) {
+        for (let i = insetShadows.length - 1; i >= 0; i -= 1) {
+          const shadow = insetShadows[i];
+          host.ctx.save();
+          host.ctx.clip(path);
+
+          const invertedPath = new Path2D();
+          // Provide a giant canvas that is a cutout over the shape
+          invertedPath.rect(
+            -10000,
+            -10000,
+            this.renderer.viewport.width + 20000,
+            this.renderer.viewport.height + 20000
+          );
+          invertedPath.addPath(path);
+
+          host.ctx.shadowOffsetX = lengthToPx(
+            shadow.offsetX,
+            baseWidth,
+            viewportWidth
+          );
+          host.ctx.shadowOffsetY = lengthToPx(
+            shadow.offsetY,
+            baseHeight,
+            viewportWidth
+          );
+          host.ctx.shadowBlur = lengthToPx(
+            shadow.blur,
+            baseWidth,
+            viewportWidth
+          );
+          host.ctx.shadowColor = shadow.color;
+
+          host.ctx.fillStyle = shadow.color;
+          host.ctx.fill(invertedPath, 'evenodd');
+
+          host.ctx.restore();
+        }
+      }
+
+      // Phase 4: Paint Borders on Top
+      paintBorders();
+    } else {
+      host.ctx.fillStyle = backgroundColor;
+      host.ctx.fill(path);
+      paintBorders();
+    }
+
     if (this.hasEventListeners) {
       const id = this.id;
       const r = (id >> 16) & 255;
@@ -239,22 +360,6 @@ export class CanvasContainer<
       host.hitCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
       host.hitCtx.fill(path);
     }
-
-    if (!resolvedBorderWidth || resolvedBorderStyle === BorderStyle.None) {
-      return;
-    }
-
-    host.ctx.lineWidth = resolvedBorderWidth;
-    host.ctx.strokeStyle = borderColor;
-    if (resolvedBorderStyle === BorderStyle.Dashed) {
-      host.ctx.setLineDash([resolvedBorderWidth * 3, resolvedBorderWidth * 2]);
-    } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-      host.ctx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
-    } else {
-      host.ctx.setLineDash([]);
-    }
-    host.ctx.stroke(path);
-    host.ctx.setLineDash([]);
   }
 }
 

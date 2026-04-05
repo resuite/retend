@@ -15,6 +15,7 @@ import type {
   EasingValue,
   TransformOriginValue,
   WhiteSpaceValue,
+  BoxShadowValue,
 } from '../style';
 import 'retend/jsx-runtime';
 
@@ -57,6 +58,7 @@ declare module 'retend/jsx-runtime' {
       transitionDelay?: DurationValue;
       transitionTimingFunction?: EasingValue;
       transitionProperty?: TransitionableStyleKey | TransitionableStyleKey[];
+      boxShadow?: BoxShadowValue | BoxShadowValue[];
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;

@@ -12,8 +12,8 @@ export function resolveFittedContent(
   const { children, styles: style } = container;
   const host = container.renderer.host;
   const {
-    width = Length.Px(100),
-    height = Length.Px(100),
+    width = Length.Pct(100),
+    height = Length.FitContent,
     maxWidth,
     maxHeight,
   } = style;

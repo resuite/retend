@@ -192,7 +192,8 @@ export type TransitionableStyleKey =
   | 'color'
   | 'borderWidth'
   | 'borderRadius'
-  | 'fontSize';
+  | 'fontSize'
+  | 'boxShadow';
 
 /**
  * A modeled transform origin.
@@ -322,3 +323,36 @@ export const FontWeight = {
  * A canvas font weight value.
  */
 export type FontWeightValue = number;
+
+/**
+ * A modeled box shadow value.
+ */
+export interface BoxShadowValue {
+  offsetX: LengthValue;
+  offsetY: LengthValue;
+  blur: LengthValue;
+  color: string;
+  inset: boolean;
+}
+
+/**
+ * Factory for creating box shadow values.
+ */
+export const BoxShadow = {
+  Drop(
+    offsetX: LengthValue,
+    offsetY: LengthValue,
+    blur: LengthValue,
+    color: string
+  ): BoxShadowValue {
+    return { offsetX, offsetY, blur, color, inset: false };
+  },
+  Inset(
+    offsetX: LengthValue,
+    offsetY: LengthValue,
+    blur: LengthValue,
+    color: string
+  ): BoxShadowValue {
+    return { offsetX, offsetY, blur, color, inset: true };
+  },
+} as const;

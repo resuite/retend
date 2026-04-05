@@ -11,6 +11,7 @@ import {
   type EasingValue,
   type TransitionableStyleKey,
   Duration,
+  type BoxShadowValue,
 } from '../style';
 import { CanvasContainer } from './container';
 import { CanvasTransitionEvent, type CanvasNode } from './node';
@@ -35,7 +36,8 @@ type TransitionValue =
   | number
   | string
   | ReturnType<typeof Length.Px>
-  | ReturnType<typeof Angle.Deg>;
+  | ReturnType<typeof Angle.Deg>
+  | BoxShadowValue[];
 type ParsedColor = [number, number, number, number];
 
 const transitionableKeys = {
@@ -49,6 +51,7 @@ const transitionableKeys = {
   borderWidth: true,
   borderRadius: true,
   fontSize: true,
+  boxShadow: true,
 } as const;
 const colorCache = new Map<string, ParsedColor | null>();
 
@@ -177,6 +180,33 @@ function interpolateValue(transition: CanvasTransition, progress: number) {
       progress
     );
   }
+  if (transition.key === 'boxShadow') {
+    const start = from as BoxShadowValue[];
+    const end = to as BoxShadowValue[];
+    return start.map((shadow, i) => {
+      const nextShadow = end[i];
+      return {
+        offsetX: Length.Px(
+          shadow.offsetX.value +
+            (nextShadow.offsetX.value - shadow.offsetX.value) * progress
+        ),
+        offsetY: Length.Px(
+          shadow.offsetY.value +
+            (nextShadow.offsetY.value - shadow.offsetY.value) * progress
+        ),
+        blur: Length.Px(
+          shadow.blur.value +
+            (nextShadow.blur.value - shadow.blur.value) * progress
+        ),
+        color: interpolateColor(
+          parseColor(shadow.color) as ParsedColor,
+          parseColor(nextShadow.color) as ParsedColor,
+          progress
+        ),
+        inset: shadow.inset,
+      };
+    });
+  }
   const start = from as number;
   const end = to as number;
   return start + (end - start) * progress;
@@ -248,6 +278,37 @@ function resolveTransitionValue(
     }
     return Length.Px(0);
   }
+  if (key === 'boxShadow') {
+    if (!value) return [];
+    const shadows = Array.isArray(value)
+      ? (value as BoxShadowValue[])
+      : [value as BoxShadowValue];
+    return shadows.map((shadow) => ({
+      offsetX: Length.Px(
+        lengthToPx(
+          shadow.offsetX,
+          node.renderer.host.scopeWidth,
+          node.renderer.viewport.width
+        )
+      ),
+      offsetY: Length.Px(
+        lengthToPx(
+          shadow.offsetY,
+          node.renderer.host.scopeHeight,
+          node.renderer.viewport.width
+        )
+      ),
+      blur: Length.Px(
+        lengthToPx(
+          shadow.blur,
+          node.renderer.host.scopeWidth,
+          node.renderer.viewport.width
+        )
+      ),
+      color: shadow.color,
+      inset: shadow.inset,
+    }));
+  }
   if (value) {
     const fontSize = value as NonNullable<JSX.Style['fontSize']>;
     return Length.Px(fontSize.value);
@@ -262,6 +323,17 @@ function isSameTransitionValue(left: TransitionValue, right: TransitionValue) {
   if ('unit' in left && 'unit' in right) {
     if (left.unit !== right.unit) return false;
     return left.value === right.value;
+  }
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+      if (left[i].inset !== right[i].inset) return false;
+      if (left[i].offsetX.value !== right[i].offsetX.value) return false;
+      if (left[i].offsetY.value !== right[i].offsetY.value) return false;
+      if (left[i].blur.value !== right[i].blur.value) return false;
+      if (left[i].color !== right[i].color) return false;
+    }
+    return true;
   }
   return false;
 }
@@ -310,6 +382,16 @@ function createTransition(
     if (!parsedFrom || !parsedTo) return null;
     fromColor = parsedFrom;
     toColor = parsedTo;
+  }
+  if (key === 'boxShadow') {
+    const fromShadows = from as BoxShadowValue[];
+    const toShadows = to as BoxShadowValue[];
+    if (fromShadows.length !== toShadows.length) return null;
+    for (let i = 0; i < fromShadows.length; i += 1) {
+      if (fromShadows[i].inset !== toShadows[i].inset) return null;
+      if (!parseColor(fromShadows[i].color)) return null;
+      if (!parseColor(toShadows[i].color)) return null;
+    }
   }
 
   return {
