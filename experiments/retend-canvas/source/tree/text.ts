@@ -4,16 +4,17 @@ import {
   type PreparedTextWithSegments,
 } from '@chenglou/pretext';
 
+import type { CurrentCascade } from '.';
 import type { CanvasRenderer } from '../canvas-renderer';
 
 import { FontStyle, TextAlign, WhiteSpace } from '../style';
 import { CanvasNode } from './node';
 
-function getFont(host: CanvasRenderer['host']) {
+function getFont(styles: CurrentCascade) {
   let fontStyle = 'normal';
-  if (host.fontStyle === FontStyle.Italic) fontStyle = 'italic';
-  else if (host.fontStyle === FontStyle.Oblique) fontStyle = 'oblique';
-  return `${fontStyle} ${host.fontWeight} ${host.fontSize}px ${host.fontFamily}`;
+  if (styles.fontStyle === FontStyle.Italic) fontStyle = 'italic';
+  else if (styles.fontStyle === FontStyle.Oblique) fontStyle = 'oblique';
+  return `${fontStyle} ${styles.fontWeight} ${styles.fontSize!.value}px ${styles.fontFamily}`;
 }
 
 export class CanvasText extends CanvasNode {
@@ -68,6 +69,7 @@ export class CanvasText extends CanvasNode {
 
   override measure(maxWidth?: number) {
     const host = this.renderer.host;
+    const textStyles = host.getAllCascadedValues();
     const index = this.parent?.children.indexOf(this) ?? -1;
     if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
       return { width: 0, height: 0 };
@@ -75,22 +77,22 @@ export class CanvasText extends CanvasNode {
     const content = this.fullText;
 
     const font = host.ctx.font;
-    host.ctx.font = getFont(host);
-    const lineHeight = host.lineHeight * host.fontSize;
+    host.ctx.font = getFont(textStyles);
+    const lineHeight = textStyles.lineHeight * textStyles.fontSize.value;
     if (
       !this.#prepared ||
       this.#preparedFont !== host.ctx.font ||
       this.#preparedText !== content ||
-      this.#preparedWhiteSpace !== host.whiteSpace
+      this.#preparedWhiteSpace !== textStyles.whiteSpace
     ) {
       let whiteSpace: 'normal' | 'pre-wrap' = 'normal';
-      if (host.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
+      if (textStyles.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
       this.#prepared = prepareWithSegments(content, host.ctx.font, {
         whiteSpace,
       });
       this.#preparedFont = host.ctx.font;
       this.#preparedText = content;
-      this.#preparedWhiteSpace = host.whiteSpace;
+      this.#preparedWhiteSpace = textStyles.whiteSpace!;
       this.#layout = null;
     }
 
@@ -116,6 +118,7 @@ export class CanvasText extends CanvasNode {
 
   override draw(): void {
     const host = this.renderer.host;
+    const textStyles = host.getAllCascadedValues();
     const index = this.parent?.children.indexOf(this) ?? -1;
     if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
       return;
@@ -125,23 +128,23 @@ export class CanvasText extends CanvasNode {
     host.ctx.textBaseline = 'top';
     const fillStyle = host.ctx.fillStyle;
     const font = host.ctx.font;
-    host.ctx.fillStyle = host.color;
-    host.ctx.font = getFont(host);
-    const lineHeight = host.lineHeight * host.fontSize;
+    host.ctx.fillStyle = textStyles.color;
+    host.ctx.font = getFont(textStyles);
+    const lineHeight = textStyles.lineHeight * textStyles.fontSize.value;
     if (
       !this.#prepared ||
       this.#preparedFont !== host.ctx.font ||
       this.#preparedText !== content ||
-      this.#preparedWhiteSpace !== host.whiteSpace
+      this.#preparedWhiteSpace !== textStyles.whiteSpace
     ) {
       let whiteSpace: 'normal' | 'pre-wrap' = 'normal';
-      if (host.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
+      if (textStyles.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
       this.#prepared = prepareWithSegments(content, host.ctx.font, {
         whiteSpace,
       });
       this.#preparedFont = host.ctx.font;
       this.#preparedText = content;
-      this.#preparedWhiteSpace = host.whiteSpace;
+      this.#preparedWhiteSpace = textStyles.whiteSpace!;
       this.#layout = null;
     }
 
@@ -159,9 +162,9 @@ export class CanvasText extends CanvasNode {
     let y = 0;
     for (const line of layout.lines) {
       let x = 0;
-      if (host.textAlign === TextAlign.Center) {
+      if (textStyles.textAlign === TextAlign.Center) {
         x = (host.scopeWidth - line.width) / 2;
-      } else if (host.textAlign === TextAlign.Right) {
+      } else if (textStyles.textAlign === TextAlign.Right) {
         x = host.scopeWidth - line.width;
       }
       host.ctx.fillText(line.text, x, y);

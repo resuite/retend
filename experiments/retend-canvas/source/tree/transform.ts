@@ -39,7 +39,9 @@ export function lengthToPx(
   }
 
   if (value.unit === LengthUnit.Lh) {
-    const lhInPx = host.lineHeight * host.fontSize;
+    const lineHeight = host.getCascadedValue('lineHeight');
+    const fontSize = host.getCascadedValue('fontSize');
+    const lhInPx = lineHeight * fontSize.value;
     return value.value * lhInPx;
   }
 

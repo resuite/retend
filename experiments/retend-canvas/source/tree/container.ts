@@ -200,17 +200,21 @@ export class CanvasContainer<
         hitCtx.clip(path);
       }
     }
+
     const prevScopeWidth = host.scopeWidth;
     const prevScopeHeight = host.scopeHeight;
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
-    host.pushStyleCtx(this.style);
+
+    host.setStyleState(this.style);
 
     for (const child of this.children) child.draw();
 
-    host.popStyleCtx();
+    host.unsetStyleState(this.style);
+
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
+
     host.ctx.restore();
     hitCtx.restore();
   }
@@ -230,7 +234,7 @@ export class CanvasContainer<
       backgroundColor = 'transparent',
       borderStyle,
       borderWidth = Length.Px(0),
-      borderColor = host.color,
+      borderColor = host.getCascadedValue('color'),
       boxShadow,
     } = this.style;
     const resolvedBorderWidth = borderWidth.value;
@@ -439,7 +443,7 @@ export class CanvasPath extends CanvasContainer<JSX.PathProps> {
     const {
       borderStyle,
       borderWidth = Length.Px(0),
-      borderColor = host.color,
+      borderColor = host.getCascadedValue('color'),
     } = this.style;
     const resolvedBorderWidth = borderWidth.value;
     let resolvedBorderStyle = borderStyle;

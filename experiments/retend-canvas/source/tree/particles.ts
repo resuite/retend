@@ -15,7 +15,8 @@ export class CanvasParticles extends CanvasRect<JSX.ParticlesProps> {
     const hasColorMap = Array.isArray(colorMap);
     const hasSizeMap =
       sizeMap instanceof Float32Array || Array.isArray(sizeMap);
-    const baseColor = !hasColorMap && colorMap ? colorMap : host.color;
+    const baseColor =
+      !hasColorMap && colorMap ? colorMap : host.getCascadedValue('color');
     const baseSize = !hasSizeMap && sizeMap !== undefined ? sizeMap : 2;
 
     if (!hasColorMap) {

@@ -1,15 +1,6 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import {
-  FontStyle,
-  type FontStyleValue,
-  FontWeight,
-  type FontWeightValue,
-  TextAlign,
-  type TextAlignValue,
-  WhiteSpace,
-  type WhiteSpaceValue,
-} from '../style';
+import { FontStyle, FontWeight, Length, TextAlign, WhiteSpace } from '../style';
 
 export * from './node';
 export * from './utils';
@@ -19,28 +10,30 @@ export * from './text';
 export * from './transform';
 export * from './particles';
 
+const CASCADED_PROPERTIES = [
+  'color',
+  'fontSize',
+  'fontFamily',
+  'lineHeight',
+  'fontWeight',
+  'fontStyle',
+  'textAlign',
+  'whiteSpace',
+] as const;
+
+type TextStyling = {
+  [K in (typeof CASCADED_PROPERTIES)[number]]: Array<NonNullable<JSX.Style[K]>>;
+};
+
+export type CurrentCascade = {
+  [key in keyof TextStyling]: TextStyling[key][number];
+};
+
 export class CanvasHost extends EventTarget {
-  #styleCtx: Array<{
-    color: string;
-    fontSize: number;
-    fontFamily: string;
-    fontWeight: FontWeightValue;
-    fontStyle: FontStyleValue;
-    textAlign: TextAlignValue;
-    lineHeight: number;
-    whiteSpace: WhiteSpaceValue;
-  }>;
-  color = 'black';
-  fontSize = 16;
-  fontFamily = 'sans-serif';
-  fontWeight: FontWeightValue = FontWeight.Normal;
-  fontStyle: FontStyleValue = FontStyle.Normal;
-  textAlign: TextAlignValue = TextAlign.Left;
-  lineHeight = 1.2;
-  whiteSpace: WhiteSpaceValue = WhiteSpace.Normal;
   scopeWidth: number;
   scopeHeight: number;
   hitCtx: OffscreenCanvasRenderingContext2D;
+  #cascade: TextStyling;
 
   constructor(
     public ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -48,64 +41,55 @@ export class CanvasHost extends EventTarget {
     height: number
   ) {
     super();
-    const hitCtx = new OffscreenCanvas(
+    const hitCanvas = new OffscreenCanvas(
       Math.round(width),
       Math.round(height)
-    ).getContext('2d', { willReadFrequently: true });
-    if (!hitCtx) {
-      throw new Error('Could not create hit canvas context.');
-    }
+    );
+    const hitCtx = hitCanvas.getContext('2d', { willReadFrequently: true });
+    if (!hitCtx) throw new Error('Could not create hit canvas context.');
+
     this.scopeWidth = width;
     this.scopeHeight = height;
     this.hitCtx = hitCtx;
-    this.#styleCtx = [
-      {
-        color: this.color,
-        fontSize: this.fontSize,
-        fontFamily: this.fontFamily,
-        fontWeight: this.fontWeight,
-        fontStyle: this.fontStyle,
-        textAlign: this.textAlign,
-        lineHeight: this.lineHeight,
-        whiteSpace: this.whiteSpace,
-      },
-    ];
-  }
-
-  pushStyleCtx(style: JSX.Style) {
-    const current = this.#styleCtx[this.#styleCtx.length - 1];
-    const next = {
-      color: style.color ?? current.color,
-      fontSize: style.fontSize?.value ?? current.fontSize,
-      fontFamily: style.fontFamily ?? current.fontFamily,
-      fontWeight: style.fontWeight ?? current.fontWeight,
-      fontStyle: style.fontStyle ?? current.fontStyle,
-      textAlign: style.textAlign ?? current.textAlign,
-      lineHeight: style.lineHeight ?? current.lineHeight,
-      whiteSpace: style.whiteSpace ?? current.whiteSpace,
+    this.#cascade = {
+      color: ['black'],
+      fontSize: [Length.Px(16)],
+      fontFamily: ['sans-serif'],
+      fontWeight: [FontWeight.Normal],
+      fontStyle: [FontStyle.Normal],
+      lineHeight: [1.2],
+      textAlign: [TextAlign.Left],
+      whiteSpace: [WhiteSpace.Normal],
     };
-    this.#styleCtx.push(next);
-    this.color = next.color;
-    this.fontSize = next.fontSize;
-    this.fontFamily = next.fontFamily;
-    this.fontWeight = next.fontWeight;
-    this.fontStyle = next.fontStyle;
-    this.textAlign = next.textAlign;
-    this.lineHeight = next.lineHeight;
-    this.whiteSpace = next.whiteSpace;
   }
 
-  popStyleCtx() {
-    if (this.#styleCtx.length === 1) return;
-    this.#styleCtx.pop();
-    const current = this.#styleCtx[this.#styleCtx.length - 1];
-    this.color = current.color;
-    this.fontSize = current.fontSize;
-    this.fontFamily = current.fontFamily;
-    this.fontWeight = current.fontWeight;
-    this.fontStyle = current.fontStyle;
-    this.textAlign = current.textAlign;
-    this.lineHeight = current.lineHeight;
-    this.whiteSpace = current.whiteSpace;
+  getAllCascadedValues(): CurrentCascade {
+    const cascade = this.#cascade;
+    return {
+      color: cascade.color[cascade.color.length - 1],
+      fontSize: cascade.fontSize[cascade.fontSize.length - 1],
+      fontFamily: cascade.fontFamily[cascade.fontFamily.length - 1],
+      fontWeight: cascade.fontWeight[cascade.fontWeight.length - 1],
+      fontStyle: cascade.fontStyle[cascade.fontStyle.length - 1],
+      lineHeight: cascade.lineHeight[cascade.lineHeight.length - 1],
+      textAlign: cascade.textAlign[cascade.textAlign.length - 1],
+      whiteSpace: cascade.whiteSpace[cascade.whiteSpace.length - 1],
+    };
+  }
+
+  getCascadedValue<K extends keyof TextStyling>(key: K) {
+    return this.#cascade[key][this.#cascade[key].length - 1];
+  }
+
+  setStyleState(style: JSX.Style) {
+    for (const key of CASCADED_PROPERTIES) {
+      if (style[key]) this.#cascade[key].push(style[key] as never);
+    }
+  }
+
+  unsetStyleState(style: JSX.Style) {
+    for (const key of CASCADED_PROPERTIES) {
+      if (style[key]) this.#cascade[key].pop();
+    }
   }
 }

@@ -29,7 +29,7 @@ export function resolveFittedContent(
     ReturnType<(typeof children)[number]['measure']>
   > = [];
 
-  host.pushStyleCtx(style);
+  host.setStyleState(style);
 
   if (needsFitWidth) {
     for (const child of children) {
@@ -80,7 +80,7 @@ export function resolveFittedContent(
     }
   }
 
-  host.popStyleCtx();
+  host.unsetStyleState(style);
 
   return { nextWidth, fitContentWidth, fitContentHeight };
 }
