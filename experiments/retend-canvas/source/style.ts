@@ -219,7 +219,8 @@ export type TransitionableStyleKey =
   | 'borderRadius'
   | 'fontSize'
   | 'boxShadow'
-  | 'opacity';
+  | 'opacity'
+  | 'translate';
 
 /**
  * A modeled transform origin.

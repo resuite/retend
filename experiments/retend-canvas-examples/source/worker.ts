@@ -1,8 +1,6 @@
-import {
-  type CanvasNodeEventName,
-  type CanvasRenderer,
-  renderToCanvasContext,
-} from 'retend-canvas';
+import type { JSX } from 'retend/jsx-runtime';
+
+import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
 
 import App from './App';
 
@@ -41,15 +39,10 @@ channel.addEventListener(
   'message',
   (
     event: MessageEvent<
-      | {
-          type: 'resize';
-          dpr: number;
-          width: number;
-          height: number;
-        }
+      | { type: 'resize'; dpr: number; width: number; height: number }
       | {
           type: 'event';
-          eventName: CanvasNodeEventName;
+          eventName: JSX.CanvasNodeEventName;
           x: number;
           y: number;
         }

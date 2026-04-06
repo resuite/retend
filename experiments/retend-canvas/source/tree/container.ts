@@ -94,11 +94,9 @@ export class CanvasContainer<
 
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
-    const viewportWidth = this.renderer.viewport.width;
-    const lhInPx = host.lineHeight * host.fontSize;
 
-    let nextWidth = lengthToPx(width, baseWidth, viewportWidth, lhInPx);
-    let nextHeight = lengthToPx(height, baseHeight, viewportWidth, lhInPx);
+    let nextWidth = lengthToPx(width, baseWidth, this);
+    let nextHeight = lengthToPx(height, baseHeight, this);
 
     if (width.unit === LengthUnit.FitContent) nextWidth = 0;
     if (height.unit === LengthUnit.FitContent) nextHeight = 0;
@@ -114,9 +112,7 @@ export class CanvasContainer<
       ({ nextWidth, fitContentWidth, fitContentHeight } = resolveFittedContent(
         this,
         nextWidth,
-        baseWidth,
-        viewportWidth,
-        lhInPx
+        baseWidth
       ));
     }
 
@@ -125,17 +121,14 @@ export class CanvasContainer<
     if (maxWidth?.unit === LengthUnit.FitContent) {
       nextWidth = Math.min(nextWidth, fitContentWidth);
     } else if (maxWidth) {
-      nextWidth = Math.min(
-        nextWidth,
-        lengthToPx(maxWidth, baseWidth, viewportWidth, lhInPx)
-      );
+      nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth, this));
     }
     if (maxHeight?.unit === LengthUnit.FitContent) {
       nextHeight = Math.min(nextHeight, fitContentHeight);
     } else if (maxHeight) {
       nextHeight = Math.min(
         nextHeight,
-        lengthToPx(maxHeight, baseHeight, viewportWidth, lhInPx)
+        lengthToPx(maxHeight, baseHeight, this)
       );
     }
 
@@ -161,16 +154,12 @@ export class CanvasContainer<
     const hitCtx = host.hitCtx;
     this.resolveSize();
     const { overflow, opacity = 1 } = this.style;
-    const lhInPx = host.lineHeight * host.fontSize;
     const transform = createTransformMatrix(
-      this.renderer.transformMatrix,
-      this.style,
       this.width,
       this.height,
       host.scopeWidth,
       host.scopeHeight,
-      this.renderer.viewport.width,
-      lhInPx
+      this
     );
 
     host.ctx.save();
@@ -246,8 +235,6 @@ export class CanvasContainer<
 
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
-    const viewportWidth = this.renderer.viewport.width;
-    const lhInPx = host.lineHeight * host.fontSize;
 
     const paintBorders = () => {
       if (!resolvedBorderWidth || resolvedBorderStyle === BorderStyle.None) {
@@ -287,24 +274,9 @@ export class CanvasContainer<
         );
         invertedPath.addPath(path);
         host.ctx.clip(invertedPath, 'evenodd');
-        host.ctx.shadowOffsetX = lengthToPx(
-          shadow.offsetX,
-          baseWidth,
-          viewportWidth,
-          lhInPx
-        );
-        host.ctx.shadowOffsetY = lengthToPx(
-          shadow.offsetY,
-          baseHeight,
-          viewportWidth,
-          lhInPx
-        );
-        host.ctx.shadowBlur = lengthToPx(
-          shadow.blur,
-          baseWidth,
-          viewportWidth,
-          lhInPx
-        );
+        host.ctx.shadowOffsetX = lengthToPx(shadow.offsetX, baseWidth, this);
+        host.ctx.shadowOffsetY = lengthToPx(shadow.offsetY, baseHeight, this);
+        host.ctx.shadowBlur = lengthToPx(shadow.blur, baseWidth, this);
         host.ctx.shadowColor = shadow.color;
 
         host.ctx.fillStyle = 'black';
@@ -335,24 +307,9 @@ export class CanvasContainer<
           );
           invertedPath.addPath(path);
 
-          host.ctx.shadowOffsetX = lengthToPx(
-            shadow.offsetX,
-            baseWidth,
-            viewportWidth,
-            lhInPx
-          );
-          host.ctx.shadowOffsetY = lengthToPx(
-            shadow.offsetY,
-            baseHeight,
-            viewportWidth,
-            lhInPx
-          );
-          host.ctx.shadowBlur = lengthToPx(
-            shadow.blur,
-            baseWidth,
-            viewportWidth,
-            lhInPx
-          );
+          host.ctx.shadowOffsetX = lengthToPx(shadow.offsetX, baseWidth, this);
+          host.ctx.shadowOffsetY = lengthToPx(shadow.offsetY, baseHeight, this);
+          host.ctx.shadowBlur = lengthToPx(shadow.blur, baseWidth, this);
           host.ctx.shadowColor = shadow.color;
 
           host.ctx.fillStyle = shadow.color;

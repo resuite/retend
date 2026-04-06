@@ -37,6 +37,7 @@ export interface CanvasTransition {
 
 type TransitionValue =
   | number
+  | [number, number]
   | string
   | ReturnType<typeof Length.Px>
   | ReturnType<typeof Angle.Deg>
@@ -57,6 +58,7 @@ const transitionableKeys = {
   fontSize: true,
   boxShadow: true,
   opacity: true,
+  translate: true,
 } as const;
 const colorCache = new Map<string, ParsedColor | null>();
 
@@ -174,6 +176,27 @@ function interpolateValue(transition: CanvasTransition, progress: number) {
     const end = (to as ReturnType<typeof Angle.Deg>).value;
     return Angle.Deg(start + (end - start) * progress);
   }
+  if (transition.key === 'scale') {
+    if (Array.isArray(from) && Array.isArray(to)) {
+      const start = from as number[];
+      const end = to as number[];
+      return [
+        start[0] + (end[0] - start[0]) * progress,
+        start[1] + (end[1] - start[1]) * progress,
+      ] as [number, number];
+    }
+    const start = from as number;
+    const end = to as number;
+    return start + (end - start) * progress;
+  }
+  if (transition.key === 'translate') {
+    const start = from as [number, number];
+    const end = to as [number, number];
+    return [
+      Length.Px(start[0] + (end[0] - start[0]) * progress),
+      Length.Px(start[1] + (end[1] - start[1]) * progress),
+    ];
+  }
   if (
     transition.key === 'backgroundColor' ||
     transition.key === 'color' ||
@@ -238,11 +261,7 @@ function resolveOffsetValue(
     else baseSize = node.renderer.host.scopeHeight;
   }
 
-  const host = node.renderer.host;
-  const lhInPx = host.lineHeight * host.fontSize;
-  return Length.Px(
-    lengthToPx(value, baseSize, node.renderer.viewport.width, lhInPx)
-  );
+  return Length.Px(lengthToPx(value, baseSize, node));
 }
 
 function resolveTransitionValue<K extends TransitionableStyleKey>(
@@ -264,7 +283,22 @@ function resolveTransitionValue<K extends TransitionableStyleKey>(
     if (value) return value as ReturnType<typeof Angle.Deg>;
     return Angle.Deg(0);
   }
+  if (key === 'translate') {
+    if (!value) return [0, 0] as TransitionValue;
+    const isArray = Array.isArray(value);
+    const txValue = isArray ? value[0] : value;
+    const tyValue = isArray ? value[1] : undefined;
+
+    const size = node.measure();
+
+    const tx = txValue ? lengthToPx(txValue, size.width, node) : 0;
+    const ty = tyValue ? lengthToPx(tyValue, size.height, node) : 0;
+    return [tx, ty] as TransitionValue;
+  }
   if (key === 'scale') {
+    if (Array.isArray(value)) {
+      return [value[0], value[1]];
+    }
     if (value !== undefined) return value as number;
     return 1;
   }
@@ -296,32 +330,15 @@ function resolveTransitionValue<K extends TransitionableStyleKey>(
     const shadows = Array.isArray(value)
       ? (value as BoxShadowValue[])
       : [value as BoxShadowValue];
-    const host = node.renderer.host;
-    const lhInPx = host.lineHeight * host.fontSize;
     return shadows.map((shadow) => ({
       offsetX: Length.Px(
-        lengthToPx(
-          shadow.offsetX,
-          node.renderer.host.scopeWidth,
-          node.renderer.viewport.width,
-          lhInPx
-        )
+        lengthToPx(shadow.offsetX, node.renderer.host.scopeWidth, node)
       ),
       offsetY: Length.Px(
-        lengthToPx(
-          shadow.offsetY,
-          node.renderer.host.scopeHeight,
-          node.renderer.viewport.width,
-          lhInPx
-        )
+        lengthToPx(shadow.offsetY, node.renderer.host.scopeHeight, node)
       ),
       blur: Length.Px(
-        lengthToPx(
-          shadow.blur,
-          node.renderer.host.scopeWidth,
-          node.renderer.viewport.width,
-          lhInPx
-        )
+        lengthToPx(shadow.blur, node.renderer.host.scopeWidth, node)
       ),
       color: shadow.color,
       inset: shadow.inset,
@@ -347,13 +364,30 @@ function isSameTransitionValue(left: TransitionValue, right: TransitionValue) {
     return left.value === right.value;
   }
   if (Array.isArray(left) && Array.isArray(right)) {
+    if (
+      typeof left[0] === 'number' &&
+      typeof left[1] === 'number' &&
+      typeof right[0] === 'number' &&
+      typeof right[1] === 'number'
+    ) {
+      if (left.length !== right.length) return false;
+      for (let i = 0; i < left.length; i += 1) {
+        if (left[i] !== right[i]) return false;
+      }
+      return true;
+    }
+    const leftShadows = left as BoxShadowValue[];
+    const rightShadows = right as BoxShadowValue[];
     if (left.length !== right.length) return false;
-    for (let i = 0; i < left.length; i += 1) {
-      if (left[i].inset !== right[i].inset) return false;
-      if (left[i].offsetX.value !== right[i].offsetX.value) return false;
-      if (left[i].offsetY.value !== right[i].offsetY.value) return false;
-      if (left[i].blur.value !== right[i].blur.value) return false;
-      if (left[i].color !== right[i].color) return false;
+    for (let i = 0; i < leftShadows.length; i += 1) {
+      if (leftShadows[i].inset !== rightShadows[i].inset) return false;
+      if (leftShadows[i].offsetX.value !== rightShadows[i].offsetX.value)
+        return false;
+      if (leftShadows[i].offsetY.value !== rightShadows[i].offsetY.value)
+        return false;
+      if (leftShadows[i].blur.value !== rightShadows[i].blur.value)
+        return false;
+      if (leftShadows[i].color !== rightShadows[i].color) return false;
     }
     return true;
   }
@@ -411,6 +445,9 @@ function createTransition(
     } catch {
       return null;
     }
+  }
+  if (key === 'scale' && Array.isArray(from) && Array.isArray(to)) {
+    if (from.length !== to.length) return null;
   }
   if (key === 'backgroundColor' || key === 'borderColor' || key === 'color') {
     const parsedFrom = parseColor(from as string);

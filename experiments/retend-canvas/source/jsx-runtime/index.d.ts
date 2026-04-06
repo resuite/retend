@@ -34,7 +34,7 @@ declare module 'retend/jsx-runtime' {
       justifySelf?: AlignmentValue;
       alignSelf?: AlignmentValue;
       rotate?: AngleValue;
-      scale?: number;
+      scale?: number | [number, number];
       transformOrigin?: TransformOriginValue;
       width?: LengthValue;
       height?: LengthValue;
@@ -60,6 +60,7 @@ declare module 'retend/jsx-runtime' {
       transitionProperty?: TransitionableStyleKey | TransitionableStyleKey[];
       boxShadow?: BoxShadowValue | BoxShadowValue[];
       opacity?: number;
+      translate?: LengthValue | [LengthValue, LengthValue];
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;
