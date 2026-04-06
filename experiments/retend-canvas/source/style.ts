@@ -10,6 +10,7 @@ export const LengthUnit = {
   FitContent: 2,
   Vw: 3,
   Lh: 4,
+  Vh: 5,
 } as const;
 
 /**
@@ -31,6 +32,11 @@ export type FitContentUnit = typeof LengthUnit.FitContent;
  * A viewport-width length unit.
  */
 export type VwUnit = typeof LengthUnit.Vw;
+
+/**
+ * A viewport-height length unit.
+ */
+export type VhUnit = typeof LengthUnit.Vh;
 
 /**
  * A line-height length unit.
@@ -78,6 +84,16 @@ export interface VwLength {
 }
 
 /**
+ * A viewport-height canvas length.
+ *
+ * Vh values are resolved against the viewport dimensions.
+ */
+export interface VhLength {
+  unit: VhUnit;
+  value: number;
+}
+
+/**
  * A line-height canvas length.
  *
  * Lh values are resolved against the computed line height (fontSize × lineHeight).
@@ -98,6 +114,7 @@ export type LengthValue =
   | PctLength
   | FitContentLength
   | VwLength
+  | VhLength
   | LhLength;
 
 /**
@@ -115,6 +132,9 @@ export const Length = {
   },
   Vw(value: number): VwLength {
     return { unit: LengthUnit.Vw, value };
+  },
+  Vh(value: number): VhLength {
+    return { unit: LengthUnit.Vh, value };
   },
   Lh(value: number): LhLength {
     return { unit: LengthUnit.Lh, value };

@@ -33,6 +33,11 @@ export function lengthToPx(
     return (value.value * (viewportWidth || baseSize)) / 100;
   }
 
+  if (value.unit === LengthUnit.Vh) {
+    const viewportHeight = renderer.viewport.height;
+    return (value.value * (viewportHeight || baseSize)) / 100;
+  }
+
   if (value.unit === LengthUnit.Lh) {
     const lhInPx = host.lineHeight * host.fontSize;
     return value.value * lhInPx;
