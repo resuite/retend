@@ -26,7 +26,6 @@ export class CanvasImage extends CanvasContainer<JSX.ImageProps> {
       const src = value as string | undefined;
       if (!src) {
         this.imageBitmap = null;
-        this.dirtyPath = true;
         this.renderer.requestRender();
         return;
       }
@@ -43,7 +42,6 @@ export class CanvasImage extends CanvasContainer<JSX.ImageProps> {
         .then((bitmap) => {
           if (this.srcVersion === currentVersion) {
             this.imageBitmap = bitmap;
-            this.dirtyPath = true;
             this.renderer.requestRender();
           }
         })
@@ -54,24 +52,19 @@ export class CanvasImage extends CanvasContainer<JSX.ImageProps> {
   }
 
   override tracePath(): Path2D | null {
-    if (!this.dirtyPath && this.path) {
-      return this.path;
-    }
-
     const { borderRadius = Length.Px(0) } = this.style;
     const path = new Path2D();
     const radiusValue = borderRadius.value;
     if (!radiusValue) {
       path.rect(0, 0, this.width, this.height);
       this.path = path;
-      this.dirtyPath = false;
+
       return path;
     }
 
     const radius = Math.min(radiusValue, this.width / 2, this.height / 2);
     path.roundRect(0, 0, this.width, this.height, radius);
     this.path = path;
-    this.dirtyPath = false;
     return path;
   }
 

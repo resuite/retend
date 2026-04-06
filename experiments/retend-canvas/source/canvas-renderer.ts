@@ -89,30 +89,33 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.root.setConnected(true);
     this.#viewport = viewport;
     this.transitions = [];
+    this.drawToScreen = this.drawToScreen.bind(this);
   }
 
   requestRender(viewport?: { width: number; height: number }) {
     if (viewport) this.#viewport = viewport;
     if (this.#renderFrame !== null) return;
-    this.#renderFrame = requestAnimationFrame(() => {
-      const hitCanvas = this.host.hitCtx.canvas;
-      hitCanvas.width = Math.round(this.#viewport.width);
-      hitCanvas.height = Math.round(this.#viewport.height);
-      this.#renderFrame = null;
-      const hasTransitions = stepCanvasTransitions(this);
-      this.host.ctx.clearRect(
-        0,
-        0,
-        this.host.ctx.canvas.width,
-        this.host.ctx.canvas.height
-      );
-      this.host.hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
-      this.host.scopeWidth = this.#viewport.width;
-      this.host.scopeHeight = this.#viewport.height;
-      this.root.layout();
-      this.root.paint();
-      if (hasTransitions) this.requestRender();
-    });
+    this.#renderFrame = requestAnimationFrame(this.drawToScreen);
+  }
+
+  drawToScreen() {
+    const hitCanvas = this.host.hitCtx.canvas;
+    hitCanvas.width = Math.round(this.#viewport.width);
+    hitCanvas.height = Math.round(this.#viewport.height);
+    this.#renderFrame = null;
+    const hasTransitions = stepCanvasTransitions(this);
+    this.host.ctx.clearRect(
+      0,
+      0,
+      this.host.ctx.canvas.width,
+      this.host.ctx.canvas.height
+    );
+    this.host.hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
+    this.host.scopeWidth = this.#viewport.width;
+    this.host.scopeHeight = this.#viewport.height;
+    this.root.layout();
+    this.root.paint();
+    if (hasTransitions) this.requestRender();
   }
 
   render(app: JSX.Template): CanvasNode | CanvasNode[] {
