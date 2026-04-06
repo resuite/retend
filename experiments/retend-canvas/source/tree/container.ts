@@ -60,7 +60,7 @@ export class CanvasContainer<
       const eventName = strKey.slice(2).toLowerCase();
       this.setEventListener(
         eventName,
-        value instanceof Function ? value : null
+        typeof value === 'function' ? value : null
       );
     }
     this.attributes[key] = value;

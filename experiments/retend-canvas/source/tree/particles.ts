@@ -1,14 +1,8 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import type { CanvasRenderer } from '../canvas-renderer';
-
 import { CanvasRect } from './container';
 
 export class CanvasParticles extends CanvasRect<JSX.ParticlesProps> {
-  constructor(renderer: CanvasRenderer) {
-    super(renderer);
-  }
-
   override drawContainer(): void {
     super.drawContainer(); // Paints background and borders for root container
 
