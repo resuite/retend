@@ -18,26 +18,20 @@ export class CanvasParticles extends CanvasRect<JSX.ParticlesProps> {
     if (!positions || positions.length === 0) return;
 
     const isRect = shape === 'rect';
+    const hasColorMap = Array.isArray(colorMap);
+    const hasSizeMap =
+      sizeMap instanceof Float32Array || Array.isArray(sizeMap);
+    const baseColor = !hasColorMap && colorMap ? colorMap : host.color;
+    const baseSize = !hasSizeMap && sizeMap !== undefined ? sizeMap : 2;
 
-    // Fast path bounds checks
-    const isUniformColor = typeof colorMap === 'string' || !colorMap;
-    const isUniformSize = typeof sizeMap === 'number' || !sizeMap;
-
-    const baseColor = isUniformColor
-      ? (colorMap as string) || host.color
-      : host.color;
-    const baseSize = isUniformSize ? ((sizeMap as number) ?? 2) : 2;
-
-    if (isUniformColor) {
+    if (!hasColorMap) {
       host.ctx.fillStyle = baseColor;
       host.ctx.beginPath();
 
       for (let i = 0; i < positions.length; i += 2) {
         const cx = positions[i];
         const cy = positions[i + 1];
-        const r = isUniformSize
-          ? baseSize
-          : (sizeMap as Float32Array | number[])[i / 2];
+        const r = hasSizeMap ? sizeMap[i / 2] : baseSize;
 
         if (isRect) {
           host.ctx.rect(cx - r, cy - r, r * 2, r * 2);
@@ -48,23 +42,34 @@ export class CanvasParticles extends CanvasRect<JSX.ParticlesProps> {
       }
       host.ctx.fill();
     } else {
-      // Slower path: Per-particle color assignments
-      const colors = colorMap as string[];
+      const colorBatches = new Map<string, number[]>();
       for (let i = 0; i < positions.length; i += 2) {
-        const cx = positions[i];
-        const cy = positions[i + 1];
-        const r = isUniformSize
-          ? baseSize
-          : (sizeMap as Float32Array | number[])[i / 2];
-        const color = colors[i / 2] || baseColor;
+        const color = colorMap[i / 2] ? colorMap[i / 2] : baseColor;
+        const batch = colorBatches.get(color);
+        if (batch) {
+          batch.push(i);
+          continue;
+        }
+        colorBatches.set(color, [i]);
+      }
 
+      for (const [color, batch] of colorBatches) {
         host.ctx.fillStyle = color;
         host.ctx.beginPath();
-        if (isRect) {
-          host.ctx.rect(cx - r, cy - r, r * 2, r * 2);
-        } else {
-          host.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+
+        for (const i of batch) {
+          const cx = positions[i];
+          const cy = positions[i + 1];
+          const r = hasSizeMap ? sizeMap[i / 2] : baseSize;
+
+          if (isRect) {
+            host.ctx.rect(cx - r, cy - r, r * 2, r * 2);
+          } else {
+            host.ctx.moveTo(cx + r, cy);
+            host.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          }
         }
+
         host.ctx.fill();
       }
     }
