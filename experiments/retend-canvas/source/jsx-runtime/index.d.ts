@@ -16,6 +16,7 @@ import type {
   TransformOriginValue,
   WhiteSpaceValue,
   BoxShadowValue,
+  PointerEventsValue,
 } from '../style';
 import 'retend/jsx-runtime';
 
@@ -62,6 +63,7 @@ declare module 'retend/jsx-runtime' {
       opacity?: number;
       translate?: LengthValue | [LengthValue, LengthValue];
       clipPath?: string;
+      pointerEvents?: PointerEventsValue;
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;

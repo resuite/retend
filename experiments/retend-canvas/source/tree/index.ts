@@ -1,6 +1,13 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { FontStyle, FontWeight, Length, TextAlign, WhiteSpace } from '../style';
+import {
+  FontStyle,
+  FontWeight,
+  Length,
+  PointerEvents,
+  TextAlign,
+  WhiteSpace,
+} from '../style';
 
 export * from './node';
 export * from './utils';
@@ -19,6 +26,7 @@ const CASCADED_PROPERTIES = [
   'fontStyle',
   'textAlign',
   'whiteSpace',
+  'pointerEvents',
 ] as const;
 
 type TextStyling = {
@@ -60,6 +68,7 @@ export class CanvasHost extends EventTarget {
       lineHeight: [1.2],
       textAlign: [TextAlign.Left],
       whiteSpace: [WhiteSpace.Normal],
+      pointerEvents: [PointerEvents.Auto],
     };
   }
 
@@ -74,6 +83,7 @@ export class CanvasHost extends EventTarget {
       lineHeight: cascade.lineHeight[cascade.lineHeight.length - 1],
       textAlign: cascade.textAlign[cascade.textAlign.length - 1],
       whiteSpace: cascade.whiteSpace[cascade.whiteSpace.length - 1],
+      pointerEvents: cascade.pointerEvents[cascade.pointerEvents.length - 1],
     };
   }
 

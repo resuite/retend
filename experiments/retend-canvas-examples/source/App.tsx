@@ -1,7 +1,13 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import { Cell } from 'retend';
-import { Length, Alignment, Duration, Easing } from 'retend-canvas';
+import {
+  Length,
+  Alignment,
+  Duration,
+  Easing,
+  PointerEvents,
+} from 'retend-canvas';
 
 const PATH_A = 'M10 70 L70 10 L130 70 L110 70 L110 120 L30 120 L30 70 Z';
 const PATH_B = 'M10 20 L70 80 L130 20 L100 20 L100 110 L40 110 L40 20 Z';
@@ -37,6 +43,11 @@ const App = () => {
         </rect>
         <rect style={styles.button2} onClick={increment}>
           <text style={styles.buttonText}>+</text>
+        </rect>
+        <rect style={styles.buttonDisabledLayout}>
+          <text style={styles.buttonDisabled} onClick={() => window.alert('')}>
+            No Click!
+          </text>
         </rect>
       </rect>
 
@@ -112,6 +123,23 @@ const styles = {
   buttonText: {
     color: '#ffffff',
     fontSize: Length.Px(24),
+    justifySelf: Alignment.Center,
+    alignSelf: Alignment.Center,
+  },
+
+  buttonDisabledLayout: {
+    backgroundColor: '#ff0000',
+    width: Length.Px(100),
+    height: Length.Px(30),
+    borderRadius: Length.Px(8),
+    top: Length.Px(60),
+    left: Length.Px(10),
+    pointerEvents: PointerEvents.None,
+  },
+
+  buttonDisabled: {
+    color: '#ffffff',
+    fontSize: Length.Px(14),
     justifySelf: Alignment.Center,
     alignSelf: Alignment.Center,
   },

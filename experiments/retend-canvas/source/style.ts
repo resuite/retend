@@ -280,6 +280,20 @@ export const Overflow = {
 export type OverflowValue = (typeof Overflow)[keyof typeof Overflow];
 
 /**
+ * The supported pointer events modes.
+ */
+export const PointerEvents = {
+  Auto: 0,
+  None: 1,
+} as const;
+
+/**
+ * A pointer events value.
+ */
+export type PointerEventsValue =
+  (typeof PointerEvents)[keyof typeof PointerEvents];
+
+/**
  * The supported canvas border styles.
  *
  * These constants model the finite border style set without exposing string

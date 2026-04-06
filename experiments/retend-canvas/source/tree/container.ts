@@ -2,7 +2,13 @@ import type { JSX } from 'retend/jsx-runtime';
 
 import type { CanvasRenderer } from '../canvas-renderer';
 
-import { BorderStyle, Length, LengthUnit, Overflow } from '../style';
+import {
+  BorderStyle,
+  Length,
+  LengthUnit,
+  Overflow,
+  PointerEvents,
+} from '../style';
 import { resolveFittedContent } from './fit-content';
 import { CanvasParentNode } from './node';
 import { createTransformMatrix, lengthToPx } from './transform';
@@ -340,7 +346,10 @@ export class CanvasContainer<
       paintBorders();
     }
 
-    if (this.hasEventListeners) {
+    if (
+      this.hasEventListeners &&
+      host.getCascadedValue('pointerEvents') !== PointerEvents.None
+    ) {
       const id = this.id;
       const r = (id >> 16) & 255;
       const g = (id >> 8) & 255;
