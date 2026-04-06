@@ -68,7 +68,7 @@ export function createTransformMatrix(
   container: CanvasContainer
 ) {
   const style = container.styles;
-  const matrix = container.renderer.transformMatrix;
+  const matrix = new DOMMatrix();
   const rotate = style.rotate ?? Angle.Deg(0);
   const { scale = 1, translate } = style;
   let scaleX = 1;
@@ -117,9 +117,6 @@ export function createTransformMatrix(
     height,
     container
   );
-
-  matrix.a = matrix.d = 1;
-  matrix.b = matrix.c = matrix.e = matrix.f = 0;
 
   return matrix
     .translateSelf(translateX, translateY)

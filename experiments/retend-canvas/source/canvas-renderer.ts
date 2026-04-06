@@ -67,7 +67,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
   observer: Observer | null;
   #state?: StateSnapshot;
   root: CanvasContainer;
-  transformMatrix = new DOMMatrix();
   #viewport: { width: number; height: number };
   transitions: CanvasTransition[];
   nextNodeId = 1;
@@ -110,7 +109,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
       this.host.hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
       this.host.scopeWidth = this.#viewport.width;
       this.host.scopeHeight = this.#viewport.height;
-      this.root.draw();
+      this.root.layout();
+      this.root.paint();
       if (hasTransitions) this.requestRender();
     });
   }

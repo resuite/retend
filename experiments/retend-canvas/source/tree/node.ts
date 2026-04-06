@@ -80,7 +80,7 @@ export class CanvasPointerEvent extends CanvasDispatch {
   }
 }
 
-export class CanvasNode {
+export abstract class CanvasNode {
   renderer: CanvasRenderer;
   id: number;
   #parent: CanvasParentNode | null = null;
@@ -146,16 +146,15 @@ export class CanvasNode {
     }
   }
 
-  draw() {
-    throw new Error('draw method not implemented.');
-  }
-
   measure(_maxWidth?: number) {
     return { width: 0, height: 0 };
   }
+
+  abstract layout(): void;
+  abstract paint(): void;
 }
 
-export class CanvasParentNode extends CanvasNode {
+export abstract class CanvasParentNode extends CanvasNode {
   children: CanvasNode[];
   textVersion = 0;
 
@@ -203,11 +202,25 @@ export class CanvasParentNode extends CanvasNode {
 }
 
 export class CanvasAnchor extends CanvasNode {
-  draw() {
+  paint() {
     // anchor nodes are not visible.
+  }
+  layout() {
+    // anchor nodes do not layout.
   }
 }
 
 export type CanvasRange = [CanvasAnchor, CanvasAnchor];
 
-export class CanvasFragment extends CanvasParentNode {}
+export class CanvasFragment extends CanvasParentNode {
+  paint() {
+    throw new Error(
+      'CanvasFragment cannot be painted. It must be merged into the Canvas tree.'
+    );
+  }
+  layout() {
+    throw new Error(
+      'CanvasFragment cannot be laid out. It must be merged into the Canvas tree.'
+    );
+  }
+}

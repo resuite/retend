@@ -8,13 +8,6 @@ import { CanvasParentNode } from './node';
 import { createTransformMatrix, lengthToPx } from './transform';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
-const pathStyleKeys = [
-  'width',
-  'height',
-  'maxWidth',
-  'maxHeight',
-  'borderRadius',
-] as const;
 
 export class CanvasContainer<
   Props extends JSX.ContainerProps = JSX.ContainerProps,
@@ -23,10 +16,10 @@ export class CanvasContainer<
   protected style: JSX.Style;
   protected width: number;
   protected height: number;
+  protected layoutTransform: DOMMatrix | null;
   protected path: Path2D | null;
   protected clip: Path2D | null;
   protected clipValue: string | null;
-  protected dirtyPath: boolean;
 
   constructor(renderer: CanvasRenderer) {
     super(renderer);
@@ -34,10 +27,10 @@ export class CanvasContainer<
     this.style = {};
     this.width = 0;
     this.height = 0;
+    this.layoutTransform = null;
     this.path = null;
     this.clip = null;
     this.clipValue = null;
-    this.dirtyPath = true;
   }
 
   get styles() {
@@ -49,12 +42,6 @@ export class CanvasContainer<
   }
 
   setStyles(style: JSX.Style) {
-    for (const key of pathStyleKeys) {
-      if (key in style && style[key] !== this.style[key]) {
-        this.dirtyPath = true;
-        break;
-      }
-    }
     Object.assign(this.style, style);
   }
 
@@ -71,16 +58,9 @@ export class CanvasContainer<
 
     if (key === 'style') {
       const style = value as JSX.Style;
-      for (const key of pathStyleKeys) {
-        if (style[key] !== this.style[key]) {
-          this.dirtyPath = true;
-          break;
-        }
-      }
       Object.assign(this.style, style);
       return;
     }
-    this.dirtyPath = key === 'points' || key === 'd';
   }
 
   protected resolveSize() {
@@ -132,10 +112,6 @@ export class CanvasContainer<
       );
     }
 
-    if (this.width !== nextWidth || this.height !== nextHeight) {
-      this.dirtyPath = true;
-    }
-
     this.width = nextWidth;
     this.height = nextHeight;
   }
@@ -149,18 +125,40 @@ export class CanvasContainer<
     return { width: this.width, height: this.height };
   }
 
-  override draw(): void {
+  override layout(): void {
     const host = this.renderer.host;
-    const hitCtx = host.hitCtx;
     this.resolveSize();
-    const { clipPath, overflow, opacity = 1 } = this.style;
-    const transform = createTransformMatrix(
+    this.layoutTransform = createTransformMatrix(
       this.width,
       this.height,
       host.scopeWidth,
       host.scopeHeight,
       this
     );
+
+    const prevScopeWidth = host.scopeWidth;
+    const prevScopeHeight = host.scopeHeight;
+    host.scopeWidth = this.width;
+    host.scopeHeight = this.height;
+
+    host.setStyleState(this.style);
+
+    for (const child of this.children) child.layout();
+
+    host.unsetStyleState(this.style);
+
+    host.scopeWidth = prevScopeWidth;
+    host.scopeHeight = prevScopeHeight;
+  }
+
+  override paint(): void {
+    const host = this.renderer.host;
+    const hitCtx = host.hitCtx;
+    const { clipPath, overflow, opacity = 1 } = this.style;
+    const transform = this.layoutTransform;
+    if (!transform) {
+      throw new Error('paint called before layout.');
+    }
 
     host.ctx.save();
     hitCtx.save();
@@ -192,7 +190,7 @@ export class CanvasContainer<
       this.clip = null;
       this.clipValue = null;
     }
-    this.drawContainer();
+    this.paintContainer();
     if (overflow === Overflow.Hidden) {
       const path = this.tracePath();
       if (path) {
@@ -208,7 +206,7 @@ export class CanvasContainer<
 
     host.setStyleState(this.style);
 
-    for (const child of this.children) child.draw();
+    for (const child of this.children) child.paint();
 
     host.unsetStyleState(this.style);
 
@@ -219,7 +217,7 @@ export class CanvasContainer<
     hitCtx.restore();
   }
 
-  drawContainer() {}
+  paintContainer() {}
 
   tracePath(): Path2D | null {
     return null;
@@ -366,34 +364,28 @@ export class CanvasRect<
   Props extends JSX.ContainerProps = JSX.ContainerProps,
 > extends CanvasContainer<Props> {
   override tracePath(): Path2D | null {
-    if (!this.dirtyPath && this.path) return this.path;
-
     const { borderRadius = Length.Px(0) } = this.style;
     const path = new Path2D();
     const radiusValue = borderRadius.value;
     if (!radiusValue) {
       path.rect(0, 0, this.width, this.height);
       this.path = path;
-      this.dirtyPath = false;
       return path;
     }
 
     const radius = Math.min(radiusValue, this.width / 2, this.height / 2);
     path.roundRect(0, 0, this.width, this.height, radius);
     this.path = path;
-    this.dirtyPath = false;
     return path;
   }
 
-  override drawContainer() {
+  override paintContainer() {
     this.paintPath();
   }
 }
 
 export class CanvasCircle extends CanvasContainer {
   override tracePath(): Path2D | null {
-    if (!this.dirtyPath && this.path) return this.path;
-
     const path = new Path2D();
     path.arc(
       this.width / 2,
@@ -403,11 +395,10 @@ export class CanvasCircle extends CanvasContainer {
       Math.PI * 2
     );
     this.path = path;
-    this.dirtyPath = false;
     return path;
   }
 
-  override drawContainer(): void {
+  override paintContainer(): void {
     this.paintPath();
   }
 }
@@ -421,21 +412,17 @@ export class CanvasTextContainer extends CanvasRect {
 
 export class CanvasPath extends CanvasContainer<JSX.PathProps> {
   override tracePath(): Path2D | null {
-    if (!this.dirtyPath && this.path) return this.path;
-
     const d = this.attributes.d;
     if (!d) {
       this.path = null;
-      this.dirtyPath = false;
       return null;
     }
 
     this.path = new Path2D(d);
-    this.dirtyPath = false;
     return this.path;
   }
 
-  override drawContainer(): void {
+  override paintContainer(): void {
     const host = this.renderer.host;
     const path = this.tracePath();
     if (!path) return;
@@ -498,16 +485,11 @@ export class CanvasPath extends CanvasContainer<JSX.PathProps> {
 
 export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
   override tracePath(): Path2D | null {
-    if (!this.dirtyPath && this.path) {
-      return this.path;
-    }
-
     const ownPoints = this.attributes.points ?? [];
     const { borderRadius = Length.Px(0) } = this.style;
     const radiusValue = borderRadius.value;
     if (!ownPoints.length) {
       this.path = null;
-      this.dirtyPath = false;
       return null;
     }
 
@@ -518,7 +500,6 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
       for (const [px, py] of ownPoints.slice(1)) path.lineTo(px, py);
       path.closePath();
       this.path = path;
-      this.dirtyPath = false;
       return path;
     }
 
@@ -558,11 +539,10 @@ export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
     }
     path.closePath();
     this.path = path;
-    this.dirtyPath = false;
     return path;
   }
 
-  override drawContainer(): void {
+  override paintContainer(): void {
     this.paintPath();
   }
 }

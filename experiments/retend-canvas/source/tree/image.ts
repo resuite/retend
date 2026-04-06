@@ -75,7 +75,7 @@ export class CanvasImage extends CanvasContainer<JSX.ImageProps> {
     return path;
   }
 
-  override drawContainer(): void {
+  override paintContainer(): void {
     this.paintPath();
     const host = this.renderer.host;
 

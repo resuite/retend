@@ -116,49 +116,32 @@ export class CanvasText extends CanvasNode {
     return { width, height: layout.height };
   }
 
-  override draw(): void {
+  override layout(): void {
+    const host = this.renderer.host;
+    const index = this.parent?.children.indexOf(this) ?? -1;
+    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
+      return;
+    }
+    this.measure(host.scopeWidth);
+  }
+
+  override paint(): void {
     const host = this.renderer.host;
     const textStyles = host.getAllCascadedValues();
     const index = this.parent?.children.indexOf(this) ?? -1;
     if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
       return;
     }
-    const content = this.fullText;
 
     host.ctx.textBaseline = 'top';
+    const layout = this.#layout;
+    if (!layout) {
+      throw new Error('paint called before layout.');
+    }
     const fillStyle = host.ctx.fillStyle;
     const font = host.ctx.font;
     host.ctx.fillStyle = textStyles.color;
     host.ctx.font = getFont(textStyles);
-    const lineHeight = textStyles.lineHeight * textStyles.fontSize.value;
-    if (
-      !this.#prepared ||
-      this.#preparedFont !== host.ctx.font ||
-      this.#preparedText !== content ||
-      this.#preparedWhiteSpace !== textStyles.whiteSpace
-    ) {
-      let whiteSpace: 'normal' | 'pre-wrap' = 'normal';
-      if (textStyles.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
-      this.#prepared = prepareWithSegments(content, host.ctx.font, {
-        whiteSpace,
-      });
-      this.#preparedFont = host.ctx.font;
-      this.#preparedText = content;
-      this.#preparedWhiteSpace = textStyles.whiteSpace!;
-      this.#layout = null;
-    }
-
-    const prepared = this.#prepared;
-    if (
-      !this.#layout ||
-      this.#layoutWidth !== host.scopeWidth ||
-      this.#layoutLineHeight !== lineHeight
-    ) {
-      this.#layout = layoutWithLines(prepared, host.scopeWidth, lineHeight);
-      this.#layoutWidth = host.scopeWidth;
-      this.#layoutLineHeight = lineHeight;
-    }
-    const layout = this.#layout;
     let y = 0;
     for (const line of layout.lines) {
       let x = 0;
@@ -168,7 +151,7 @@ export class CanvasText extends CanvasNode {
         x = host.scopeWidth - line.width;
       }
       host.ctx.fillText(line.text, x, y);
-      y += lineHeight;
+      y += this.#layoutLineHeight;
     }
     host.ctx.font = font;
     host.ctx.fillStyle = fillStyle;

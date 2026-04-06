@@ -3,8 +3,8 @@ import type { JSX } from 'retend/jsx-runtime';
 import { CanvasRect } from './container';
 
 export class CanvasParticles extends CanvasRect<JSX.ParticlesProps> {
-  override drawContainer(): void {
-    super.drawContainer(); // Paints background and borders for root container
+  override paintContainer(): void {
+    super.paintContainer();
 
     const host = this.renderer.host;
     const { positions, colorMap, sizeMap, shape = 'circle' } = this.attributes;
