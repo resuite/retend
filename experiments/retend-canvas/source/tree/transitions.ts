@@ -161,80 +161,77 @@ function applyEasing(timingFunction: EasingValue, progress: number) {
 
 function interpolateValue(transition: CanvasTransition, progress: number) {
   const { from, to } = transition;
-  if (
-    transition.key === 'left' ||
-    transition.key === 'top' ||
-    transition.key === 'borderWidth' ||
-    transition.key === 'fontSize' ||
-    transition.key === 'borderRadius'
-  ) {
-    const start = (from as ReturnType<typeof Length.Px>).value;
-    const end = (to as ReturnType<typeof Length.Px>).value;
-    return Length.Px(start + (end - start) * progress);
-  }
-  if (transition.key === 'rotate') {
-    const start = (from as ReturnType<typeof Angle.Deg>).value;
-    const end = (to as ReturnType<typeof Angle.Deg>).value;
-    return Angle.Deg(start + (end - start) * progress);
-  }
-  if (transition.key === 'scale') {
-    if (Array.isArray(from) && Array.isArray(to)) {
-      const start = from as number[];
-      const end = to as number[];
-      return [
-        start[0] + (end[0] - start[0]) * progress,
-        start[1] + (end[1] - start[1]) * progress,
-      ] as [number, number];
+  switch (transition.key) {
+    case 'left':
+    case 'top':
+    case 'borderWidth':
+    case 'fontSize':
+    case 'borderRadius': {
+      const start = (from as ReturnType<typeof Length.Px>).value;
+      const end = (to as ReturnType<typeof Length.Px>).value;
+      return Length.Px(start + (end - start) * progress);
     }
-    const start = from as number;
-    const end = to as number;
-    return start + (end - start) * progress;
-  }
-  if (transition.key === 'translate') {
-    const start = from as [number, number];
-    const end = to as [number, number];
-    return [
-      Length.Px(start[0] + (end[0] - start[0]) * progress),
-      Length.Px(start[1] + (end[1] - start[1]) * progress),
-    ];
-  }
-  if (
-    transition.key === 'backgroundColor' ||
-    transition.key === 'color' ||
-    transition.key === 'borderColor'
-  ) {
-    return interpolateColor(
-      transition.fromColor as ParsedColor,
-      transition.toColor as ParsedColor,
-      progress
-    );
-  }
-  if (transition.key === 'boxShadow') {
-    const start = from as BoxShadowValue[];
-    const end = to as BoxShadowValue[];
-    return start.map((shadow, i) => {
-      const nextShadow = end[i];
-      return {
-        offsetX: Length.Px(
-          shadow.offsetX.value +
-            (nextShadow.offsetX.value - shadow.offsetX.value) * progress
-        ),
-        offsetY: Length.Px(
-          shadow.offsetY.value +
-            (nextShadow.offsetY.value - shadow.offsetY.value) * progress
-        ),
-        blur: Length.Px(
-          shadow.blur.value +
-            (nextShadow.blur.value - shadow.blur.value) * progress
-        ),
-        color: interpolateColor(
-          parseColor(shadow.color) as ParsedColor,
-          parseColor(nextShadow.color) as ParsedColor,
-          progress
-        ),
-        inset: shadow.inset,
-      };
-    });
+    case 'rotate': {
+      const start = (from as ReturnType<typeof Angle.Deg>).value;
+      const end = (to as ReturnType<typeof Angle.Deg>).value;
+      return Angle.Deg(start + (end - start) * progress);
+    }
+    case 'scale': {
+      if (Array.isArray(from) && Array.isArray(to)) {
+        const start = from as number[];
+        const end = to as number[];
+        return [
+          start[0] + (end[0] - start[0]) * progress,
+          start[1] + (end[1] - start[1]) * progress,
+        ] as [number, number];
+      }
+      const start = from as number;
+      const end = to as number;
+      return start + (end - start) * progress;
+    }
+    case 'translate': {
+      const start = from as [number, number];
+      const end = to as [number, number];
+      return [
+        Length.Px(start[0] + (end[0] - start[0]) * progress),
+        Length.Px(start[1] + (end[1] - start[1]) * progress),
+      ];
+    }
+    case 'backgroundColor':
+    case 'color':
+    case 'borderColor':
+      return interpolateColor(
+        transition.fromColor as ParsedColor,
+        transition.toColor as ParsedColor,
+        progress
+      );
+    case 'boxShadow': {
+      const start = from as BoxShadowValue[];
+      const end = to as BoxShadowValue[];
+      return start.map((shadow, i) => {
+        const nextShadow = end[i];
+        return {
+          offsetX: Length.Px(
+            shadow.offsetX.value +
+              (nextShadow.offsetX.value - shadow.offsetX.value) * progress
+          ),
+          offsetY: Length.Px(
+            shadow.offsetY.value +
+              (nextShadow.offsetY.value - shadow.offsetY.value) * progress
+          ),
+          blur: Length.Px(
+            shadow.blur.value +
+              (nextShadow.blur.value - shadow.blur.value) * progress
+          ),
+          color: interpolateColor(
+            parseColor(shadow.color) as ParsedColor,
+            parseColor(nextShadow.color) as ParsedColor,
+            progress
+          ),
+          inset: shadow.inset,
+        };
+      });
+    }
   }
   const start = from as number;
   const end = to as number;
@@ -265,95 +262,85 @@ function resolveOffsetValue(
   return Length.Px(lengthToPx(value, baseSize, node));
 }
 
-function resolveTransitionValue<K extends TransitionableStyleKey>(
+function resolveTransitionValue(
   node: CanvasContainer,
-  key: K,
+  key: TransitionableStyleKey,
   value: unknown
 ): TransitionValue | null {
-  if (key === 'left') {
-    return resolveOffsetValue(node, value as JSX.Style['left'], true);
-  }
-  if (key === 'top') {
-    return resolveOffsetValue(node, value as JSX.Style['top'], false);
-  }
-  if (key === 'd' || key === 'clipPath') {
-    if (value) return value as string;
-    return '';
-  }
-  if (key === 'rotate') {
-    if (value) return value as ReturnType<typeof Angle.Deg>;
-    return Angle.Deg(0);
-  }
-  if (key === 'translate') {
-    if (!value) return [0, 0] as TransitionValue;
-    const isArray = Array.isArray(value);
-    const txValue = isArray ? value[0] : value;
-    const tyValue = isArray ? value[1] : undefined;
+  switch (key) {
+    case 'left':
+      return resolveOffsetValue(node, value as JSX.Style['left'], true);
+    case 'top':
+      return resolveOffsetValue(node, value as JSX.Style['top'], false);
+    case 'd':
+    case 'clipPath':
+      if (value) return value as string;
+      return '';
+    case 'rotate':
+      if (value) return value as ReturnType<typeof Angle.Deg>;
+      return Angle.Deg(0);
+    case 'translate': {
+      if (!value) return [0, 0] as TransitionValue;
+      const isArray = Array.isArray(value);
+      const txValue = isArray ? value[0] : value;
+      const tyValue = isArray ? value[1] : undefined;
 
-    const size = node.measure();
+      const size = node.measure();
 
-    const tx = txValue ? lengthToPx(txValue, size.width, node) : 0;
-    const ty = tyValue ? lengthToPx(tyValue, size.height, node) : 0;
-    return [tx, ty] as TransitionValue;
-  }
-  if (key === 'scale') {
-    if (Array.isArray(value)) {
-      return [value[0], value[1]];
+      const tx = txValue ? lengthToPx(txValue, size.width, node) : 0;
+      const ty = tyValue ? lengthToPx(tyValue, size.height, node) : 0;
+      return [tx, ty] as TransitionValue;
     }
-    if (value !== undefined) return value as number;
-    return 1;
-  }
-  if (key === 'backgroundColor') {
-    let nextValue = 'transparent';
-    if (value) nextValue = value as string;
-    return nextValue;
-  }
-  if (key === 'borderColor' || key === 'color') {
-    let nextValue = resolveInheritedColor(node.parent);
-    if (value) nextValue = value as string;
-    return nextValue;
-  }
-  if (key === 'borderWidth') {
-    if (value) {
-      const borderWidth = value as NonNullable<JSX.Style['borderWidth']>;
-      return Length.Px(borderWidth.value);
+    case 'scale':
+      return (value as number | [number, number]) ?? 1;
+    case 'backgroundColor': {
+      return (value as string) || 'transparent';
     }
-    return Length.Px(0);
-  }
-  if (key === 'borderRadius') {
-    if (value && typeof value === 'object' && 'value' in value) {
-      return Length.Px(Number(value.value));
+    case 'borderColor':
+    case 'color': {
+      const nextValue = value || resolveInheritedColor(node.parent);
+      return nextValue as string;
     }
-    return Length.Px(0);
+    case 'borderWidth':
+      if (value) {
+        const borderWidth = value as NonNullable<JSX.Style['borderWidth']>;
+        return Length.Px(borderWidth.value);
+      }
+      return Length.Px(0);
+    case 'borderRadius':
+      if (value instanceof Object && 'value' in value) {
+        return Length.Px(Number(value.value));
+      }
+      return Length.Px(0);
+    case 'boxShadow': {
+      if (!value) return [];
+      const shadows = Array.isArray(value)
+        ? (value as BoxShadowValue[])
+        : [value as BoxShadowValue];
+      return shadows.map((shadow) => ({
+        offsetX: Length.Px(
+          lengthToPx(shadow.offsetX, node.renderer.host.scopeWidth, node)
+        ),
+        offsetY: Length.Px(
+          lengthToPx(shadow.offsetY, node.renderer.host.scopeHeight, node)
+        ),
+        blur: Length.Px(
+          lengthToPx(shadow.blur, node.renderer.host.scopeWidth, node)
+        ),
+        color: shadow.color,
+        inset: shadow.inset,
+      }));
+    }
+    case 'opacity':
+      if (value !== undefined) return value as number;
+      return 1;
+    case 'fontSize':
+      if (value) {
+        const fontSize = value as NonNullable<JSX.Style['fontSize']>;
+        return Length.Px(fontSize.value);
+      }
+      return Length.Px(resolveInheritedFontSize(node.parent));
   }
-  if (key === 'boxShadow') {
-    if (!value) return [];
-    const shadows = Array.isArray(value)
-      ? (value as BoxShadowValue[])
-      : [value as BoxShadowValue];
-    return shadows.map((shadow) => ({
-      offsetX: Length.Px(
-        lengthToPx(shadow.offsetX, node.renderer.host.scopeWidth, node)
-      ),
-      offsetY: Length.Px(
-        lengthToPx(shadow.offsetY, node.renderer.host.scopeHeight, node)
-      ),
-      blur: Length.Px(
-        lengthToPx(shadow.blur, node.renderer.host.scopeWidth, node)
-      ),
-      color: shadow.color,
-      inset: shadow.inset,
-    }));
-  }
-  if (key === 'opacity') {
-    if (value !== undefined) return value as number;
-    return 1;
-  }
-  if (value) {
-    const fontSize = value as NonNullable<JSX.Style['fontSize']>;
-    return Length.Px(fontSize.value);
-  }
-  return Length.Px(resolveInheritedFontSize(node.parent));
 }
 
 function isSameTransitionValue(left: TransitionValue, right: TransitionValue) {
