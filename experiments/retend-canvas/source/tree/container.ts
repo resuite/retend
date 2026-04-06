@@ -40,6 +40,10 @@ export class CanvasContainer<
     return this.style;
   }
 
+  getAttribute<K extends keyof Props>(key: K) {
+    return this.attributes[key];
+  }
+
   setStyles(style: JSX.Style) {
     for (const key of pathStyleKeys) {
       if (key in style && style[key] !== this.style[key]) {
@@ -76,7 +80,7 @@ export class CanvasContainer<
       Object.assign(this.style, style);
       return;
     }
-    if (key === 'points') this.dirtyPath = true;
+    this.dirtyPath = key === 'points' || key === 'd';
   }
 
   protected resolveSize() {
@@ -438,6 +442,83 @@ export class CanvasTextContainer extends CanvasRect {
   constructor(renderer: CanvasRenderer) {
     super(renderer);
     this.style = { width: Length.FitContent };
+  }
+}
+
+export class CanvasPath extends CanvasContainer<JSX.PathProps> {
+  override tracePath(): Path2D | null {
+    if (!this.dirtyPath && this.path) return this.path;
+
+    const d = this.attributes.d;
+    if (!d) {
+      this.path = null;
+      this.dirtyPath = false;
+      return null;
+    }
+
+    this.path = new Path2D(d);
+    this.dirtyPath = false;
+    return this.path;
+  }
+
+  override drawContainer(): void {
+    const host = this.renderer.host;
+    const path = this.tracePath();
+    if (!path) return;
+
+    const {
+      borderStyle,
+      borderWidth = Length.Px(0),
+      borderColor = host.color,
+    } = this.style;
+    const resolvedBorderWidth = borderWidth.value;
+    let resolvedBorderStyle = borderStyle;
+    if (!resolvedBorderStyle) {
+      if (resolvedBorderWidth) resolvedBorderStyle = BorderStyle.Solid;
+      else resolvedBorderStyle = BorderStyle.None;
+    }
+
+    if (resolvedBorderWidth && resolvedBorderStyle !== BorderStyle.None) {
+      host.ctx.lineWidth = resolvedBorderWidth;
+      host.ctx.strokeStyle = borderColor;
+      if (resolvedBorderStyle === BorderStyle.Dashed) {
+        host.ctx.setLineDash([
+          resolvedBorderWidth * 3,
+          resolvedBorderWidth * 2,
+        ]);
+      } else if (resolvedBorderStyle === BorderStyle.Dotted) {
+        host.ctx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
+      } else {
+        host.ctx.setLineDash([]);
+      }
+      host.ctx.stroke(path);
+      host.ctx.setLineDash([]);
+    }
+
+    if (
+      this.hasEventListeners &&
+      resolvedBorderWidth &&
+      resolvedBorderStyle !== BorderStyle.None
+    ) {
+      const id = this.id;
+      const r = (id >> 16) & 255;
+      const g = (id >> 8) & 255;
+      const b = id & 255;
+      host.hitCtx.lineWidth = Math.max(resolvedBorderWidth, 1);
+      host.hitCtx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+      if (resolvedBorderStyle === BorderStyle.Dashed) {
+        host.hitCtx.setLineDash([
+          resolvedBorderWidth * 3,
+          resolvedBorderWidth * 2,
+        ]);
+      } else if (resolvedBorderStyle === BorderStyle.Dotted) {
+        host.hitCtx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
+      } else {
+        host.hitCtx.setLineDash([]);
+      }
+      host.hitCtx.stroke(path);
+      host.hitCtx.setLineDash([]);
+    }
   }
 }
 

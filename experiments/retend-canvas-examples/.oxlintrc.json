@@ -1,0 +1,7 @@
+{
+  "extends": ["../../.oxlintrc.json"],
+  "jsPlugins": ["../../packages/retend-oxlint-plugin/index.js"],
+  "rules": {
+    "retend/no-classname": "error"
+  }
+}

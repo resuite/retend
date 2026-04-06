@@ -209,6 +209,7 @@ export type EasingValue = (typeof Easing)[keyof typeof Easing];
 export type TransitionableStyleKey =
   | 'left'
   | 'top'
+  | 'd'
   | 'rotate'
   | 'scale'
   | 'backgroundColor'

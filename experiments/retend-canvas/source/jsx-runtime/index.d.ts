@@ -101,6 +101,10 @@ declare module 'retend/jsx-runtime' {
       points: [number, number][];
     }
 
+    interface PathProps extends ContainerProps {
+      d: string;
+    }
+
     interface ImageProps extends ContainerProps {
       src?: string;
       alt?: string;
@@ -123,6 +127,10 @@ declare module 'retend/jsx-runtime' {
        * Draws a filled custom shape on the canvas using the provided points.
        */
       shape: Container<ShapeProps>;
+      /**
+       * Draws a stroked path on the canvas using the provided path data.
+       */
+      path: Container<PathProps>;
       /**
        * Draws a text container that only accepts text content.
        */

@@ -133,6 +133,11 @@ export function setAttribute(
     return;
   }
 
+  if (key === 'd') {
+    applyStyle(node, key, value);
+    return;
+  }
+
   node.setAttribute(key as never, value as never);
   if (node.isConnected) {
     node.renderer.requestRender();

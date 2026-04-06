@@ -1,5 +1,7 @@
 import type { JSX } from 'retend/jsx-runtime';
 
+import { interpolatePath } from 'd3-interpolate-path';
+
 import type { CanvasRenderer } from '../canvas-renderer';
 
 import {
@@ -28,7 +30,8 @@ export interface CanvasTransition {
   to: TransitionValue;
   fromColor?: ParsedColor;
   toColor?: ParsedColor;
-  target: JSX.Style[TransitionableStyleKey];
+  target: unknown;
+  interpolatePath?: (t: number) => string;
   started: boolean;
 }
 
@@ -43,6 +46,7 @@ type ParsedColor = [number, number, number, number];
 const transitionableKeys = {
   left: true,
   top: true,
+  d: true,
   rotate: true,
   scale: true,
   backgroundColor: true,
@@ -244,13 +248,17 @@ function resolveOffsetValue(
 function resolveTransitionValue<K extends TransitionableStyleKey>(
   node: CanvasContainer,
   key: K,
-  value: JSX.Style[K]
+  value: unknown
 ): TransitionValue | null {
   if (key === 'left') {
     return resolveOffsetValue(node, value as JSX.Style['left'], true);
   }
   if (key === 'top') {
     return resolveOffsetValue(node, value as JSX.Style['top'], false);
+  }
+  if (key === 'd') {
+    if (value) return value as string;
+    return '';
   }
   if (key === 'rotate') {
     if (value) return value as ReturnType<typeof Angle.Deg>;
@@ -371,9 +379,8 @@ function isTransitionableKey(key: string): key is TransitionableStyleKey {
 function createTransition(
   node: CanvasContainer,
   key: TransitionableStyleKey,
-  _value: unknown
+  value: unknown
 ): CanvasTransition | null {
-  const value = _value as JSX.Style[typeof key];
   const durationValue = node.styles.transitionDuration;
   if (!durationValue) return null;
   if (durationToMs(durationValue) <= 0) return null;
@@ -383,13 +390,28 @@ function createTransition(
   const delay = Math.max(0, durationToMs(delayValue));
 
   const timingFunction = node.styles.transitionTimingFunction ?? Easing.Ease;
-  const from = resolveTransitionValue(node, key, node.styles[key]);
+  let currentValue: unknown = node.getAttribute('d' as never);
+  if (key !== 'd') {
+    currentValue = node.styles[key as Exclude<TransitionableStyleKey, 'd'>];
+  }
+  const from = resolveTransitionValue(node, key, currentValue);
   const to = resolveTransitionValue(node, key, value);
   if (!from || !to) return null;
   if (isSameTransitionValue(from, to)) return null;
 
   let fromColor: ParsedColor | undefined;
   let toColor: ParsedColor | undefined;
+  let nextInterpolatePath: ((t: number) => string) | undefined;
+  if (key === 'd') {
+    const fromPath = node.getAttribute('d' as never) as string | undefined;
+    const toPath = value as string | undefined;
+    if (!fromPath || !toPath) return null;
+    try {
+      nextInterpolatePath = interpolatePath(fromPath, toPath);
+    } catch {
+      return null;
+    }
+  }
   if (key === 'backgroundColor' || key === 'borderColor' || key === 'color') {
     const parsedFrom = parseColor(from as string);
     const parsedTo = parseColor(to as string);
@@ -420,6 +442,7 @@ function createTransition(
     fromColor,
     toColor,
     target: value,
+    interpolatePath: nextInterpolatePath,
     started: false,
   };
 }
@@ -456,6 +479,12 @@ export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
         return;
       }
     }
+  }
+
+  if (key === 'd') {
+    node.setAttribute(key as never, value as never);
+    if (node.isConnected) node.renderer.requestRender();
+    return;
   }
 
   node.setStyles({ [key]: value } as JSX.Style);
@@ -501,7 +530,11 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
 
     let progress = elapsed / duration;
     if (progress >= 1) {
-      node.setStyles({ [key]: target } as JSX.Style);
+      if (key === 'd') {
+        node.setAttribute(key as never, target as never);
+      } else {
+        node.setStyles({ [key]: target } as JSX.Style);
+      }
       node.dispatchEvent(
         new CanvasTransitionEvent('transitionend', key, duration / 1000, node)
       );
@@ -510,7 +543,14 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
 
     if (progress < 0) progress = 0;
     const easing = applyEasing(timingFunction, progress);
-    node.setStyles({ [key]: interpolateValue(transition, easing) });
+    if (key === 'd') {
+      node.setAttribute(
+        key as never,
+        transition.interpolatePath?.(easing) as never
+      );
+    } else {
+      node.setStyles({ [key]: interpolateValue(transition, easing) });
+    }
     transitions[writeIndex] = transition;
     writeIndex += 1;
   }
