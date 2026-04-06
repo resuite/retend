@@ -577,6 +577,10 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
         key as never,
         transition.interpolatePath?.(easing) as never
       );
+    } else if (key === 'clipPath') {
+      node.setStyles({
+        [key]: transition.interpolatePath?.(easing),
+      } as JSX.Style);
     } else {
       node.setStyles({ [key]: interpolateValue(transition, easing) });
     }
