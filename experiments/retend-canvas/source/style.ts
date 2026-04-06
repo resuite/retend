@@ -230,6 +230,7 @@ export type TransitionableStyleKey =
   | 'left'
   | 'top'
   | 'd'
+  | 'clipPath'
   | 'rotate'
   | 'scale'
   | 'backgroundColor'

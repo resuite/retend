@@ -24,6 +24,8 @@ export class CanvasContainer<
   protected width: number;
   protected height: number;
   protected path: Path2D | null;
+  protected clip: Path2D | null;
+  protected clipValue: string | null;
   protected dirtyPath: boolean;
 
   constructor(renderer: CanvasRenderer) {
@@ -33,6 +35,8 @@ export class CanvasContainer<
     this.width = 0;
     this.height = 0;
     this.path = null;
+    this.clip = null;
+    this.clipValue = null;
     this.dirtyPath = true;
   }
 
@@ -149,7 +153,7 @@ export class CanvasContainer<
     const host = this.renderer.host;
     const hitCtx = host.hitCtx;
     this.resolveSize();
-    const { overflow, opacity = 1 } = this.style;
+    const { clipPath, overflow, opacity = 1 } = this.style;
     const transform = createTransformMatrix(
       this.width,
       this.height,
@@ -177,6 +181,17 @@ export class CanvasContainer<
       transform.e,
       transform.f
     );
+    if (clipPath) {
+      if (this.clipValue !== clipPath) {
+        this.clip = new Path2D(clipPath);
+        this.clipValue = clipPath;
+      }
+      host.ctx.clip(this.clip!);
+      hitCtx.clip(this.clip!);
+    } else if (this.clipValue !== null) {
+      this.clip = null;
+      this.clipValue = null;
+    }
     this.drawContainer();
     if (overflow === Overflow.Hidden) {
       const path = this.tracePath();

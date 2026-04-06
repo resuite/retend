@@ -61,6 +61,7 @@ declare module 'retend/jsx-runtime' {
       boxShadow?: BoxShadowValue | BoxShadowValue[];
       opacity?: number;
       translate?: LengthValue | [LengthValue, LengthValue];
+      clipPath?: string;
     }
 
     type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;

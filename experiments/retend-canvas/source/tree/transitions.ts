@@ -48,6 +48,7 @@ const transitionableKeys = {
   left: true,
   top: true,
   d: true,
+  clipPath: true,
   rotate: true,
   scale: true,
   backgroundColor: true,
@@ -275,7 +276,7 @@ function resolveTransitionValue<K extends TransitionableStyleKey>(
   if (key === 'top') {
     return resolveOffsetValue(node, value as JSX.Style['top'], false);
   }
-  if (key === 'd') {
+  if (key === 'd' || key === 'clipPath') {
     if (value) return value as string;
     return '';
   }
@@ -425,7 +426,9 @@ function createTransition(
 
   const timingFunction = node.styles.transitionTimingFunction ?? Easing.Ease;
   let currentValue: unknown = node.getAttribute('d' as never);
-  if (key !== 'd') {
+  if (key === 'clipPath') {
+    currentValue = node.styles.clipPath;
+  } else if (key !== 'd') {
     currentValue = node.styles[key as Exclude<TransitionableStyleKey, 'd'>];
   }
   const from = resolveTransitionValue(node, key, currentValue);
@@ -436,8 +439,10 @@ function createTransition(
   let fromColor: ParsedColor | undefined;
   let toColor: ParsedColor | undefined;
   let nextInterpolatePath: ((t: number) => string) | undefined;
-  if (key === 'd') {
-    const fromPath = node.getAttribute('d' as never) as string | undefined;
+  if (key === 'd' || key === 'clipPath') {
+    const fromPath = (
+      key === 'd' ? node.getAttribute('d' as never) : node.styles.clipPath
+    ) as string | undefined;
     const toPath = value as string | undefined;
     if (!fromPath || !toPath) return null;
     try {
