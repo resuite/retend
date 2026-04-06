@@ -2,10 +2,42 @@ import type { JSX } from 'retend/jsx-runtime';
 
 import type { CanvasRenderer } from '../canvas-renderer';
 
-export class CanvasTransitionEvent extends Event {
+class CanvasDispatch {
+  type: string;
+  cancelable: boolean;
+  defaultPrevented = false;
+  #target: CanvasNode;
+  #currentTarget: CanvasNode | null;
+
+  constructor(type: string, cancelable: boolean, target: CanvasNode) {
+    this.type = type;
+    this.cancelable = cancelable;
+    this.#target = target;
+    this.#currentTarget = null;
+  }
+
+  get target() {
+    return this.#target;
+  }
+
+  get currentTarget() {
+    return this.#currentTarget;
+  }
+
+  preventDefault() {
+    if (this.cancelable) {
+      this.defaultPrevented = true;
+    }
+  }
+
+  setCurrentTarget(currentTarget: CanvasNode | null) {
+    this.#currentTarget = currentTarget;
+  }
+}
+
+export class CanvasTransitionEvent extends CanvasDispatch {
   propertyName: string;
   elapsedTime: number;
-  #target: CanvasNode;
 
   constructor(
     type: string,
@@ -13,22 +45,15 @@ export class CanvasTransitionEvent extends Event {
     elapsedTime: number,
     target: CanvasNode
   ) {
-    super(type);
+    super(type, false, target);
     this.propertyName = propertyName;
     this.elapsedTime = elapsedTime;
-    this.#target = target;
-  }
-
-  override get target() {
-    return this.#target;
   }
 }
 
-export class CanvasPointerEvent extends Event {
+export class CanvasPointerEvent extends CanvasDispatch {
   x: number;
   y: number;
-  #target: CanvasNode;
-  #currentTarget: CanvasNode | null;
   #propagationStopped = false;
 
   constructor(
@@ -37,54 +62,32 @@ export class CanvasPointerEvent extends Event {
     y: number,
     target: CanvasNode
   ) {
-    super(type, { cancelable: true });
+    super(type, true, target);
     this.x = x;
     this.y = y;
-    this.#target = target;
-    this.#currentTarget = null;
-  }
-
-  override get target() {
-    return this.#target;
-  }
-
-  override get currentTarget() {
-    return this.#currentTarget;
   }
 
   get propagationStopped() {
     return this.#propagationStopped;
   }
 
-  override stopPropagation() {
+  stopPropagation() {
     this.#propagationStopped = true;
-    super.stopPropagation();
   }
 
-  override stopImmediatePropagation() {
+  stopImmediatePropagation() {
     this.#propagationStopped = true;
-    super.stopImmediatePropagation();
-  }
-
-  setCurrentTarget(currentTarget: CanvasNode | null) {
-    this.#currentTarget = currentTarget;
   }
 }
 
-export class CanvasNode extends EventTarget {
-  static #listenerIds = new WeakMap<
-    EventListenerOrEventListenerObject,
-    number
-  >();
-  static #nextListenerId = 1;
+export class CanvasNode {
   renderer: CanvasRenderer;
   id: number;
   #parent: CanvasParentNode | null = null;
   #isConnected = false;
-  #eventListenerKeys = new Set<string>();
+  #eventListeners = new Map<string, Function>();
 
   constructor(renderer: CanvasRenderer) {
-    super();
     this.renderer = renderer;
     this.id = renderer.nextNodeId;
     renderer.nextNodeId += 1;
@@ -99,67 +102,30 @@ export class CanvasNode extends EventTarget {
   }
 
   get hasEventListeners() {
-    return this.#eventListenerKeys.size > 0;
+    return (
+      this.#eventListeners.has('click') ||
+      this.#eventListeners.has('pointerdown') ||
+      this.#eventListeners.has('pointermove') ||
+      this.#eventListeners.has('pointerup')
+    );
   }
 
-  override addEventListener(
-    type: string,
-    callback: EventListenerOrEventListenerObject | null,
-    options?: AddEventListenerOptions | boolean
-  ) {
+  protected setEventListener(type: string, callback: Function | null) {
+    const hasEventListeners = this.hasEventListeners;
     if (callback) {
-      if (
-        type === 'click' ||
-        type === 'pointerdown' ||
-        type === 'pointermove' ||
-        type === 'pointerup'
-      ) {
-        let listenerId = CanvasNode.#listenerIds.get(callback);
-        if (listenerId === undefined) {
-          listenerId = CanvasNode.#nextListenerId;
-          CanvasNode.#nextListenerId += 1;
-          CanvasNode.#listenerIds.set(callback, listenerId);
-        }
-        const capture =
-          options === true ||
-          (options instanceof Object && options.capture === true);
-        const prevSize = this.#eventListenerKeys.size;
-        this.#eventListenerKeys.add(`${type}:${listenerId}:${Number(capture)}`);
-        if (this.#eventListenerKeys.size !== prevSize && this.isConnected) {
-          this.renderer.requestRender();
-        }
-      }
+      this.#eventListeners.set(type, callback);
+    } else {
+      this.#eventListeners.delete(type);
     }
-
-    super.addEventListener(type, callback, options);
-  }
-  override removeEventListener(
-    type: string,
-    callback: EventListenerOrEventListenerObject | null,
-    options?: EventListenerOptions | boolean
-  ) {
-    super.removeEventListener(type, callback, options);
-
-    if (!callback) return;
-    if (
-      type !== 'click' &&
-      type !== 'pointerdown' &&
-      type !== 'pointermove' &&
-      type !== 'pointerup'
-    ) {
-      return;
-    }
-
-    const listenerId = CanvasNode.#listenerIds.get(callback);
-    if (listenerId === undefined) return;
-    const capture =
-      options === true ||
-      (options instanceof Object && options.capture === true);
-    const prevSize = this.#eventListenerKeys.size;
-    this.#eventListenerKeys.delete(`${type}:${listenerId}:${Number(capture)}`);
-    if (this.#eventListenerKeys.size !== prevSize && this.isConnected) {
+    if (hasEventListeners !== this.hasEventListeners && this.isConnected) {
       this.renderer.requestRender();
     }
+  }
+
+  dispatchEvent(event: CanvasDispatch) {
+    event.setCurrentTarget(this);
+    this.#eventListeners.get(event.type)?.call(this, event);
+    event.setCurrentTarget(null);
   }
 
   set parent(parent: CanvasParentNode | null) {

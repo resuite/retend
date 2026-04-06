@@ -29,6 +29,7 @@ import {
   CanvasPath,
   CanvasShape,
   CanvasImage,
+  CanvasParticles,
   type CanvasTag,
   CanvasText,
   collectReconciledNodes,
@@ -144,6 +145,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
         return new CanvasShape(this);
       case 'img':
         return new CanvasImage(this);
+      case 'particles':
+        return new CanvasParticles(this);
       default:
         return new CanvasContainer(this);
     }
@@ -236,13 +239,10 @@ export class CanvasRenderer implements CanvasRendererInterface {
     let current: CanvasNode | null = target;
 
     while (current) {
-      event.setCurrentTarget(current);
       current.dispatchEvent(event);
       if (event.propagationStopped) break;
       current = current.parent;
     }
-
-    event.setCurrentTarget(null);
   }
 
   // Stubs.

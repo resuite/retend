@@ -111,6 +111,13 @@ declare module 'retend/jsx-runtime' {
       alt?: string;
     }
 
+    interface ParticlesProps extends ContainerProps {
+      positions: Float32Array | number[];
+      colorMap?: string | string[];
+      sizeMap?: number | Float32Array | number[];
+      shape?: 'circle' | 'rect';
+    }
+
     interface IntrinsicElements {
       /**
        * Draws an image on the canvas.
@@ -136,6 +143,10 @@ declare module 'retend/jsx-runtime' {
        * Draws a text container that only accepts text content.
        */
       text: Container<ContainerProps>;
+      /**
+       * Draws a high-performance particle swarm driven by data arrays.
+       */
+      particles: Container<ParticlesProps>;
     }
   }
 }

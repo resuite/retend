@@ -17,6 +17,7 @@ export * from './container';
 export * from './image';
 export * from './text';
 export * from './transform';
+export * from './particles';
 
 export class CanvasHost extends EventTarget {
   #styleCtx: Array<{

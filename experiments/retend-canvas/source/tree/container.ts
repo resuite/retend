@@ -55,17 +55,13 @@ export class CanvasContainer<
   }
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
-    const currentValue = this.attributes[key];
-
     const strKey = String(key);
     if (strKey.startsWith('on') && strKey.length > 2) {
       const eventName = strKey.slice(2).toLowerCase();
-      if (typeof currentValue === 'function') {
-        this.removeEventListener(eventName, currentValue as EventListener);
-      }
-      if (typeof value === 'function') {
-        this.addEventListener(eventName, value as EventListener);
-      }
+      this.setEventListener(
+        eventName,
+        value instanceof Function ? value : null
+      );
     }
     this.attributes[key] = value;
 
@@ -347,7 +343,9 @@ export class CanvasRoot extends CanvasContainer {
 
 // --------------
 
-export class CanvasRect extends CanvasContainer {
+export class CanvasRect<
+  Props extends JSX.ContainerProps = JSX.ContainerProps,
+> extends CanvasContainer<Props> {
   override tracePath(): Path2D | null {
     if (!this.dirtyPath && this.path) return this.path;
 
