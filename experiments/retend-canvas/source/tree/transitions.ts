@@ -553,7 +553,7 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
     const { node, startTime, delay, duration, key, target, timingFunction } =
       transition;
     const elapsed = now - startTime - delay;
-    if (!renderer.isActive(node)) {
+    if (!node.isConnected) {
       node.dispatchEvent(
         new CanvasTransitionEvent(
           'transitioncancel',
@@ -562,6 +562,18 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
           node
         )
       );
+      continue;
+    }
+
+    if (!hasTransitionProperty(node, key)) {
+      node.setStyles({ [key]: target } as JSX.Style);
+      const event = new CanvasTransitionEvent(
+        'transitioncancel',
+        key,
+        (now - startTime) / 1000,
+        node
+      );
+      node.dispatchEvent(event);
       continue;
     }
 
