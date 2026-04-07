@@ -4,11 +4,12 @@ import { Cell } from 'retend';
 import {
   Alignment,
   Angle,
+  type AnimatableStyleKey,
   Duration,
   Easing,
   Length,
   PointerEvents,
-  type TransitionableStyleKey,
+  TextAlign,
 } from 'retend-canvas';
 
 import type { Sticker as StickerType } from './data';
@@ -43,7 +44,7 @@ function createStyle(
   });
 
   const style = Cell.derived((): JSX.StyleValue => {
-    const transitionProperty: TransitionableStyleKey[] = drag.isDragging.get()
+    const transitionProperty: AnimatableStyleKey[] = drag.isDragging.get()
       ? ['scale', 'rotate', 'opacity']
       : ['scale', 'translate', 'rotate', 'opacity'];
     const pointerEvents = isNotSelected.get()
@@ -98,7 +99,7 @@ export function Sticker(props: StickerProps) {
   const style = createStyle(drag, props, isSelected, selected);
 
   const handleClick = () => {
-    if (drag.hasMoved.get()) return;
+    if (selected.get() || drag.hasMoved.get()) return;
     onSelect?.(sticker);
   };
 
@@ -109,6 +110,17 @@ export function Sticker(props: StickerProps) {
       onPointerDown={drag.handlePointerDown}
       onPointerMove={drag.handlePointerMove}
       onPointerUp={drag.handlePointerUp}
-    ></rect>
+    >
+      <text
+        style={{
+          width: Length.Pct(100),
+          alignSelf: Alignment.Center,
+          justifySelf: Alignment.Center,
+          textAlign: TextAlign.Center,
+        }}
+      >
+        {sticker.name}
+      </text>
+    </rect>
   );
 }

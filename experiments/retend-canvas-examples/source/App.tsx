@@ -16,8 +16,8 @@ const style = {
   container: {
     backgroundColor: 'black',
     color: 'white',
-    fontFamily: 'Jetbrains Mono',
-    fontSize: Length.Px(54),
+    fontFamily: 'Maple Mono',
+    fontSize: Length.Px(12),
     height: Length.Vh(100),
   },
   text: {
