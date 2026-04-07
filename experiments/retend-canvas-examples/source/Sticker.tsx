@@ -61,7 +61,7 @@ function createStyle(
           Length.Px(drag.dismissTy.get()),
         ],
         transitionProperty,
-        // transitionTimingFunction: 'var(--ease-spring)',
+        transitionTimingFunction: Easing.CubicBezier(0.16, 1, 0.3, 1),
       };
     }
 

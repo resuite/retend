@@ -222,9 +222,18 @@ export const Easing = {
   EaseIn: 2,
   EaseOut: 3,
   EaseInOut: 4,
+  CubicBezier(x1: number, y1: number, x2: number, y2: number) {
+    return [x1, y1, x2, y2] as const;
+  },
 } as const;
 
-export type EasingValue = (typeof Easing)[keyof typeof Easing];
+export type EasingValue =
+  | typeof Easing.Linear
+  | typeof Easing.Ease
+  | typeof Easing.EaseIn
+  | typeof Easing.EaseOut
+  | typeof Easing.EaseInOut
+  | ReturnType<typeof Easing.CubicBezier>;
 
 export type TransitionableStyleKey =
   | 'left'
