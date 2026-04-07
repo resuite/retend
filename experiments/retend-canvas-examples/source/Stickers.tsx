@@ -1,9 +1,10 @@
-import { Cell, For, getActiveRenderer } from 'retend';
-import { Length, type CanvasRenderer } from 'retend-canvas';
+import { Cell, For } from 'retend';
+import { Length } from 'retend-canvas';
 import { useRouteQuery } from 'retend/router';
 
 import { stickers } from './data';
 import { Sticker } from './Sticker';
+import { useWindowSize } from './useWindowSize';
 
 interface Point {
   x: number;
@@ -178,14 +179,6 @@ function createStickerTransforms(width: number, height: number) {
     transforms,
   };
 }
-
-export const useWindowSize = () => {
-  const renderer = getActiveRenderer() as CanvasRenderer;
-  return {
-    width: Cell.source(renderer.viewport.width),
-    height: Cell.source(renderer.viewport.height),
-  };
-};
 
 const Stickers = () => {
   const { width, height } = useWindowSize();

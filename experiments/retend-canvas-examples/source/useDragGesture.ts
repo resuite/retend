@@ -2,6 +2,8 @@ import type { CanvasPointerEvent } from 'retend-canvas';
 
 import { Cell } from 'retend';
 
+import { useWindowSize } from './useWindowSize';
+
 interface Transform {
   tx: number;
   ty: number;
@@ -19,6 +21,7 @@ export function useDragGesture(
   isSelected: Cell<boolean>,
   onDismiss: (() => void) | undefined
 ) {
+  const { width: innerWidth, height: innerHeight } = useWindowSize();
   const tx = Cell.source(initialTransform?.tx ?? 0);
   const ty = Cell.source(initialTransform?.ty ?? 0);
   const dismissTx = Cell.source(0);
@@ -82,8 +85,8 @@ export function useDragGesture(
       return;
     }
 
-    const maxX = window.innerWidth / 2;
-    const maxY = window.innerHeight / 2;
+    const maxX = innerWidth.get() / 2;
+    const maxY = innerHeight.get() / 2;
 
     Cell.batch(() => {
       tx.set(clampPosition(baseX + e.x - startX, maxX));
@@ -96,7 +99,7 @@ export function useDragGesture(
 
     if (isSelected.get()) {
       const shouldDismiss =
-        Math.abs(dismissTy.get()) > window.innerHeight * 0.2 ||
+        Math.abs(dismissTy.get()) > innerHeight.get() * 0.2 ||
         Math.abs(dismissVelocityY) > 1;
       dismissTx.set(0);
       dismissTy.set(0);
