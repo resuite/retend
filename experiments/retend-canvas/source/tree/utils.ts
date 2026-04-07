@@ -11,7 +11,7 @@ import {
 import type { CanvasContainer } from './container';
 
 import { type CanvasNode, type CanvasRange } from './node';
-import { applyStyle } from './transitions';
+import { updateStyle } from './transitions';
 
 export function write(handle: CanvasRange, newContent: CanvasNode[]) {
   const [start, end] = handle;
@@ -58,88 +58,68 @@ function setStyleProp(
   key: keyof JSX.Style,
   value: unknown
 ) {
-  if (!Cell.isCell(value)) {
-    applyStyle(node, key, value);
-    return;
+  if (Cell.isCell(value)) {
+    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+    const updateProperty = (nextValue: any) => {
+      if (nextValue instanceof Promise) nextValue.then(updateProperty);
+      else updateStyle(node, key, nextValue);
+    };
+    updateProperty(value.get());
+    value.listen(updateProperty);
+  } else {
+    updateStyle(node, key, value);
   }
-
-  if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
-  const updateProperty = (nextValue: any) => {
-    if (nextValue instanceof Promise) nextValue.then(updateProperty);
-    else applyStyle(node, key, nextValue);
-  };
-
-  updateProperty(value.get());
-  value.listen(updateProperty);
 }
+
+const SIDE_EFFECT_PROPS = [
+  'transitionProperty',
+  'transitionDuration',
+  'transitionTimingFunction',
+  'transitionDelay',
+];
 
 export function setAttribute(
   node: CanvasContainer,
   key: string,
-  value: unknown
+  _value: unknown
 ) {
-  if (key === 'ref' && value instanceof SourceCell) {
-    value.set(node);
+  if (key === 'ref' && _value instanceof SourceCell) {
+    _value.set(node);
     return;
   }
 
-  if (Cell.isCell(value)) {
-    if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
-    const updateAttribute = (nextValue: any) => {
+  if (Cell.isCell(_value)) {
+    if (_value instanceof AsyncCell) useAwait()?.waitUntil(_value);
+    const updateAttribute = <T>(nextValue: T) => {
       if (nextValue instanceof Promise) nextValue.then(updateAttribute);
       else setAttribute(node, key, nextValue);
     };
 
-    updateAttribute(value.get());
-    value.listen(updateAttribute);
+    updateAttribute(_value.get());
+    _value.listen(updateAttribute);
     return;
   }
 
-  if (key === 'style' && value instanceof Object) {
-    const style = value as JSX.Style;
-    node.setAttribute(key as never, {} as never);
-    if ('transitionDuration' in style) {
-      setStyleProp(node, 'transitionDuration', style.transitionDuration);
-    }
-    if ('transitionDelay' in style) {
-      setStyleProp(node, 'transitionDelay', style.transitionDelay);
-    }
-    if ('transitionTimingFunction' in style) {
-      setStyleProp(
-        node,
-        'transitionTimingFunction',
-        style.transitionTimingFunction
-      );
-    }
-    if ('transitionProperty' in style) {
-      setStyleProp(node, 'transitionProperty', style.transitionProperty);
-    }
-
-    for (const styleKey in style) {
-      if (
-        styleKey === 'transitionDuration' ||
-        styleKey === 'transitionDelay' ||
-        styleKey === 'transitionTimingFunction' ||
-        styleKey === 'transitionProperty'
-      ) {
-        continue;
+  if (key === 'style') {
+    if (_value && typeof _value === 'object') {
+      const value = _value as Record<string, unknown>;
+      // The style properties are set in order of priority, so
+      // that side effects that depend on the latest value are
+      // consistent.
+      for (const prop of SIDE_EFFECT_PROPS) {
+        if (prop in value) {
+          setStyleProp(node, prop as keyof JSX.Style, value[prop]);
+        }
       }
-      setStyleProp(
-        node,
-        styleKey as keyof JSX.Style,
-        style[styleKey as keyof JSX.Style]
-      );
+
+      for (const prop in value) {
+        if (!SIDE_EFFECT_PROPS.includes(prop)) {
+          setStyleProp(node, prop as keyof JSX.Style, value[prop]);
+        }
+      }
     }
-    return;
   }
 
-  if (key === 'd') {
-    applyStyle(node, key, value);
-    return;
-  }
-
-  node.setAttribute(key as never, value as never);
-  if (node.isConnected) {
-    node.renderer.requestRender();
-  }
+  node.setAttribute(key as never, _value as never);
+  if (node.isConnected) node.renderer.requestRender();
 }

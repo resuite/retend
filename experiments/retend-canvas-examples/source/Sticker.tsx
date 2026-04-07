@@ -7,6 +7,7 @@ import {
   Duration,
   Easing,
   Length,
+  PointerEvents,
   type TransitionableStyleKey,
 } from 'retend-canvas';
 
@@ -24,7 +25,7 @@ interface StickerProps extends StickerType {
   index?: Cell<number>;
   initialTransform?: Transform;
   height: number;
-  selected?: Cell<StickerType | null>;
+  selected: Cell<StickerType | null>;
   onSelect?: (item: StickerType) => void;
   onDismiss?: () => void;
 }
@@ -32,14 +33,22 @@ interface StickerProps extends StickerType {
 function createStyle(
   drag: ReturnType<typeof useDragGesture>,
   props: StickerProps,
-  isSelected: Cell<boolean>
+  isSelected: Cell<boolean>,
+  selected: Cell<StickerType | null>
 ) {
   const { initialTransform, height: heightRaw } = props;
+  const isNotSelected = Cell.derived(() => {
+    const selectedItem = selected.get();
+    return selectedItem && selectedItem.name !== props.name;
+  });
 
   const style = Cell.derived((): JSX.StyleValue => {
     const transitionProperty: TransitionableStyleKey[] = drag.isDragging.get()
       ? ['scale', 'rotate', 'opacity']
       : ['scale', 'translate', 'rotate', 'opacity'];
+    const pointerEvents = isNotSelected.get()
+      ? PointerEvents.None
+      : PointerEvents.Auto;
 
     const baseStyles: JSX.Style = {
       height: Length.Px(heightRaw),
@@ -48,7 +57,9 @@ function createStyle(
       justifySelf: Alignment.Center,
       backgroundColor: 'red',
       borderWidth: Length.Px(2),
+      transitionProperty,
       transitionDuration: Duration.Ms(500),
+      pointerEvents,
     };
 
     if (isSelected.get()) {
@@ -60,7 +71,6 @@ function createStyle(
           Length.Px(drag.dismissTx.get()),
           Length.Px(drag.dismissTy.get()),
         ],
-        transitionProperty,
         transitionTimingFunction: Easing.CubicBezier(0.16, 1, 0.3, 1),
       };
     }
@@ -70,7 +80,6 @@ function createStyle(
       rotate: Angle.Deg(initialTransform?.rotate ?? 0),
       scale: drag.isDragging.get() && drag.hasMoved.get() ? 1.3 : 1,
       translate: [Length.Px(drag.tx.get()), Length.Px(drag.ty.get())],
-      transitionProperty,
       transitionTimingFunction: Easing.Ease,
     };
   });
@@ -82,11 +91,11 @@ export function Sticker(props: StickerProps) {
   const { initialTransform, selected, onSelect, onDismiss, ...sticker } = props;
 
   const isSelected = Cell.derived(() => {
-    return selected?.get()?.name === sticker.name;
+    return selected.get()?.name === sticker.name;
   });
 
   const drag = useDragGesture(initialTransform, isSelected, onDismiss);
-  const style = createStyle(drag, props, isSelected);
+  const style = createStyle(drag, props, isSelected, selected);
 
   const handleClick = () => {
     if (drag.hasMoved.get()) return;

@@ -11,25 +11,30 @@ import {
   LengthUnit,
   Easing,
   type EasingValue,
-  type TransitionableStyleKey,
+  type AnimatableStyleKey,
   Duration,
   type BoxShadowValue,
+  type LengthValue,
 } from '../style';
+import {
+  interpolateColor,
+  parseColor,
+  type ParsedColor,
+  resolveInheritedColor,
+} from './color';
 import { CanvasContainer } from './container';
-import { CanvasTransitionEvent, type CanvasNode } from './node';
+import { TransitionEvent, type CanvasNode } from './node';
 import { lengthToPx } from './transform';
 
-export interface CanvasTransition {
+export interface CanvasAnimation<T extends TransitionValue = TransitionValue> {
   node: CanvasContainer;
-  key: TransitionableStyleKey;
+  key: AnimatableStyleKey;
   startTime: number;
   delay: number;
   duration: number;
   timingFunction: EasingValue;
-  from: TransitionValue;
-  to: TransitionValue;
-  fromColor?: ParsedColor;
-  toColor?: ParsedColor;
+  from: T;
+  to: T;
   target: unknown;
   interpolatePath?: (t: number) => string;
   started: boolean;
@@ -41,8 +46,8 @@ type TransitionValue =
   | string
   | ReturnType<typeof Length.Px>
   | ReturnType<typeof Angle.Deg>
+  | ParsedColor
   | BoxShadowValue[];
-type ParsedColor = [number, number, number, number];
 
 const transitionableKeys = {
   left: true,
@@ -61,19 +66,6 @@ const transitionableKeys = {
   opacity: true,
   translate: true,
 } as const;
-const colorCache = new Map<string, ParsedColor | null>();
-
-function resolveInheritedColor(node: CanvasNode | null) {
-  let current = node;
-  while (current) {
-    if (current instanceof CanvasContainer) {
-      const color = current.styles.color;
-      if (color) return color;
-    }
-    current = current.parent;
-  }
-  return 'black';
-}
 
 function resolveInheritedFontSize(node: CanvasNode | null) {
   let current = node;
@@ -85,60 +77,6 @@ function resolveInheritedFontSize(node: CanvasNode | null) {
     current = current.parent;
   }
   return 16;
-}
-
-function parseHexColor(value: string): ParsedColor | null {
-  if (value.length === 4) {
-    return [
-      Number.parseInt(value[1] + value[1], 16),
-      Number.parseInt(value[2] + value[2], 16),
-      Number.parseInt(value[3] + value[3], 16),
-      1,
-    ];
-  }
-  if (value.length === 7) {
-    return [
-      Number.parseInt(value.slice(1, 3), 16),
-      Number.parseInt(value.slice(3, 5), 16),
-      Number.parseInt(value.slice(5, 7), 16),
-      1,
-    ];
-  }
-  return null;
-}
-
-function parseNormalizedColor(value: string): ParsedColor | null {
-  if (value.startsWith('#')) return parseHexColor(value);
-
-  const matched = value.match(
-    /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/
-  );
-  if (!matched) return null;
-
-  let alpha = 1;
-  if (matched[4]) alpha = Number(matched[4]);
-  return [Number(matched[1]), Number(matched[2]), Number(matched[3]), alpha];
-}
-
-function parseColor(value: string) {
-  if (colorCache.has(value)) {
-    return colorCache.get(value) as ParsedColor | null;
-  }
-  const parsed = parseNormalizedColor(value);
-  colorCache.set(value, parsed);
-  return parsed;
-}
-
-function interpolateColor(
-  start: ParsedColor,
-  end: ParsedColor,
-  progress: number
-) {
-  const red = start[0] + (end[0] - start[0]) * progress;
-  const green = start[1] + (end[1] - start[1]) * progress;
-  const blue = start[2] + (end[2] - start[2]) * progress;
-  const alpha = start[3] + (end[3] - start[3]) * progress;
-  return `rgba(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)}, ${alpha})`;
 }
 
 function applyEasing(timingFunction: EasingValue, progress: number) {
@@ -180,7 +118,7 @@ function applyEasing(timingFunction: EasingValue, progress: number) {
   return -((cosine - 1) / 2);
 }
 
-function interpolateValue(transition: CanvasTransition, progress: number) {
+function interpolateValue(transition: CanvasAnimation, progress: number) {
   const { from, to } = transition;
   switch (transition.key) {
     case 'left':
@@ -222,8 +160,8 @@ function interpolateValue(transition: CanvasTransition, progress: number) {
     case 'color':
     case 'borderColor':
       return interpolateColor(
-        transition.fromColor as ParsedColor,
-        transition.toColor as ParsedColor,
+        transition.from as ParsedColor,
+        transition.to as ParsedColor,
         progress
       );
     case 'boxShadow': {
@@ -283,16 +221,15 @@ function resolveOffsetValue(
   return Length.Px(lengthToPx(value, baseSize, node));
 }
 
-function resolveTransitionValue(
+function resolveValue(
   node: CanvasContainer,
-  key: TransitionableStyleKey,
+  key: AnimatableStyleKey,
   value: unknown
 ): TransitionValue | null {
   switch (key) {
     case 'left':
-      return resolveOffsetValue(node, value as JSX.Style['left'], true);
     case 'top':
-      return resolveOffsetValue(node, value as JSX.Style['top'], false);
+      return resolveOffsetValue(node, value as LengthValue, key === 'left');
     case 'd':
     case 'clipPath':
       if (value) return value as string;
@@ -312,15 +249,18 @@ function resolveTransitionValue(
       const ty = tyValue ? lengthToPx(tyValue, size.height, node) : 0;
       return [tx, ty] as TransitionValue;
     }
-    case 'scale':
-      return (value as number | [number, number]) ?? 1;
+    case 'scale': {
+      const _value = value as number | [number, number];
+      if (Array.isArray(_value)) return _value;
+      return [_value, _value] as [number, number];
+    }
     case 'backgroundColor': {
-      return (value as string) || 'transparent';
+      return parseColor((value as string) || 'transparent');
     }
     case 'borderColor':
     case 'color': {
       const nextValue = value || resolveInheritedColor(node.parent);
-      return nextValue as string;
+      return parseColor(nextValue as string);
     }
     case 'borderWidth':
       if (value) {
@@ -415,43 +355,40 @@ function hasTransitionProperty(node: CanvasContainer, key: string) {
   return transitionProperty === key;
 }
 
-function isTransitionableKey(key: string): key is TransitionableStyleKey {
+function isTransitionableKey(key: string): key is AnimatableStyleKey {
   return key in transitionableKeys;
 }
 
 function createTransition(
   node: CanvasContainer,
-  key: TransitionableStyleKey,
-  value: unknown
-): CanvasTransition | null {
-  const durationValue = node.styles.transitionDuration;
-  if (!durationValue) return null;
-  if (durationToMs(durationValue) <= 0) return null;
-  if (!hasTransitionProperty(node, key)) return null;
+  key: AnimatableStyleKey,
+  target: unknown
+): CanvasAnimation | null {
+  const {
+    transitionDuration,
+    transitionDelay = Duration.Ms(0),
+    transitionTimingFunction = Easing.Ease,
+  } = node.styles;
 
-  const delayValue = node.styles.transitionDelay ?? Duration.Ms(0);
-  const delay = Math.max(0, durationToMs(delayValue));
+  if (!transitionDuration) return null;
+  const duration = durationToMs(transitionDuration);
+  if (duration <= 0 || !hasTransitionProperty(node, key)) return null;
 
-  const timingFunction = node.styles.transitionTimingFunction ?? Easing.Ease;
-  let currentValue: unknown = node.getAttribute('d' as never);
-  if (key === 'clipPath') {
-    currentValue = node.styles.clipPath;
-  } else if (key !== 'd') {
-    currentValue = node.styles[key as Exclude<TransitionableStyleKey, 'd'>];
-  }
-  const from = resolveTransitionValue(node, key, currentValue);
-  const to = resolveTransitionValue(node, key, value);
+  const delay = Math.max(0, durationToMs(transitionDelay));
+  const currentValue =
+    key === 'd' ? node.getAttribute(key as never) : node.styles[key];
+
+  let from = resolveValue(node, key, currentValue);
+  let to = resolveValue(node, key, target);
   if (!from || !to) return null;
   if (isSameTransitionValue(from, to)) return null;
 
-  let fromColor: ParsedColor | undefined;
-  let toColor: ParsedColor | undefined;
   let nextInterpolatePath: ((t: number) => string) | undefined;
   if (key === 'd' || key === 'clipPath') {
     const fromPath = (
       key === 'd' ? node.getAttribute('d' as never) : node.styles.clipPath
     ) as string | undefined;
-    const toPath = value as string | undefined;
+    const toPath = target as string | undefined;
     if (!fromPath || !toPath) return null;
     try {
       nextInterpolatePath = interpolatePath(fromPath, toPath);
@@ -459,16 +396,7 @@ function createTransition(
       return null;
     }
   }
-  if (key === 'scale' && Array.isArray(from) && Array.isArray(to)) {
-    if (from.length !== to.length) return null;
-  }
-  if (key === 'backgroundColor' || key === 'borderColor' || key === 'color') {
-    const parsedFrom = parseColor(from as string);
-    const parsedTo = parseColor(to as string);
-    if (!parsedFrom || !parsedTo) return null;
-    fromColor = parsedFrom;
-    toColor = parsedTo;
-  }
+
   if (key === 'boxShadow') {
     const fromShadows = from as BoxShadowValue[];
     const toShadows = to as BoxShadowValue[];
@@ -480,69 +408,76 @@ function createTransition(
     }
   }
 
+  const startTime = performance.now();
+
   return {
     node,
     key,
-    startTime: performance.now(),
+    startTime,
     delay,
-    duration: durationToMs(durationValue),
-    timingFunction,
+    duration,
+    timingFunction: transitionTimingFunction,
     from,
     to,
-    fromColor,
-    toColor,
-    target: value,
+    target,
     interpolatePath: nextInterpolatePath,
     started: false,
   };
 }
 
-export function applyStyle(node: CanvasContainer, key: string, value: unknown) {
-  if (isTransitionableKey(key)) {
-    const transitions = node.renderer.transitions;
-    let writeIndex = 0;
-    for (let i = 0; i < transitions.length; i += 1) {
-      const transition = transitions[i];
-      if (transition.node === node && transition.key === key) {
-        node.dispatchEvent(
-          new CanvasTransitionEvent(
-            'transitioncancel',
-            key,
-            (performance.now() - transition.startTime) / 1000,
-            node
-          )
-        );
-        continue;
-      }
-      transitions[writeIndex] = transition;
-      writeIndex += 1;
+function cancelTransition(transition: CanvasAnimation) {
+  const { node, key } = transition;
+  node.dispatchEvent(
+    new TransitionEvent(
+      'transitioncancel',
+      key,
+      (performance.now() - transition.startTime) / 1000,
+      node
+    )
+  );
+}
+
+export function updateStyle<K extends keyof JSX.Style>(
+  node: CanvasContainer,
+  key: K | 'd',
+  value: unknown
+) {
+  if (!isTransitionableKey(key)) {
+    node.setStyles({ [key]: value } as JSX.Style);
+    if (node.isConnected) node.renderer.requestRender();
+    return;
+  }
+
+  const { animations } = node.renderer;
+  let writeIndex = 0;
+  for (let i = 0; i < animations.length; i += 1) {
+    const transition = animations[i];
+    if (transition.node === node && transition.key === key) {
+      cancelTransition(transition);
+      continue;
     }
-    transitions.length = writeIndex;
-    if (node.isConnected) {
-      const transition = createTransition(node, key, value);
-      if (transition) {
-        transitions.push(transition);
-        node.renderer.requestRender();
-        node.dispatchEvent(
-          new CanvasTransitionEvent('transitionrun', key, 0, node)
-        );
-        return;
-      }
+    animations[writeIndex] = transition;
+    writeIndex += 1;
+  }
+  animations.length = writeIndex;
+  if (node.isConnected) {
+    const transition = createTransition(node, key, value);
+    if (transition) {
+      animations.push(transition);
+      node.renderer.requestRender();
+      node.dispatchEvent(new TransitionEvent('transitionrun', key, 0, node));
+      return;
     }
   }
 
   if (key === 'd') {
     node.setAttribute(key as never, value as never);
     if (node.isConnected) node.renderer.requestRender();
-    return;
   }
-
-  node.setStyles({ [key]: value } as JSX.Style);
-  if (node.isConnected) node.renderer.requestRender();
 }
 
-export function stepCanvasTransitions(renderer: CanvasRenderer) {
-  const transitions = renderer.transitions;
+export function playAnimationFrames(renderer: CanvasRenderer) {
+  const { animations: transitions } = renderer;
   if (!transitions.length) return false;
 
   const now = performance.now();
@@ -553,27 +488,10 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
     const { node, startTime, delay, duration, key, target, timingFunction } =
       transition;
     const elapsed = now - startTime - delay;
-    if (!node.isConnected) {
-      node.dispatchEvent(
-        new CanvasTransitionEvent(
-          'transitioncancel',
-          key,
-          (now - startTime) / 1000,
-          node
-        )
-      );
-      continue;
-    }
 
-    if (!hasTransitionProperty(node, key)) {
+    if (!node.isConnected || !hasTransitionProperty(node, key)) {
       node.setStyles({ [key]: target } as JSX.Style);
-      const event = new CanvasTransitionEvent(
-        'transitioncancel',
-        key,
-        (now - startTime) / 1000,
-        node
-      );
-      node.dispatchEvent(event);
+      cancelTransition(transition);
       continue;
     }
 
@@ -585,9 +503,7 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
 
     if (!transition.started) {
       transition.started = true;
-      node.dispatchEvent(
-        new CanvasTransitionEvent('transitionstart', key, 0, node)
-      );
+      node.dispatchEvent(new TransitionEvent('transitionstart', key, 0, node));
     }
 
     let progress = elapsed / duration;
@@ -598,7 +514,7 @@ export function stepCanvasTransitions(renderer: CanvasRenderer) {
         node.setStyles({ [key]: target } as JSX.Style);
       }
       node.dispatchEvent(
-        new CanvasTransitionEvent('transitionend', key, duration / 1000, node)
+        new TransitionEvent('transitionend', key, duration / 1000, node)
       );
       continue;
     }

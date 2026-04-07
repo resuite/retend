@@ -235,7 +235,7 @@ export type EasingValue =
   | typeof Easing.EaseInOut
   | ReturnType<typeof Easing.CubicBezier>;
 
-export type TransitionableStyleKey =
+export type AnimatableStyleKey =
   | 'left'
   | 'top'
   | 'd'

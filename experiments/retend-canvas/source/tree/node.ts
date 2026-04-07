@@ -35,7 +35,7 @@ class CanvasDispatch {
   }
 }
 
-export class CanvasTransitionEvent extends CanvasDispatch {
+export class TransitionEvent extends CanvasDispatch {
   propertyName: string;
   elapsedTime: number;
 
@@ -51,7 +51,7 @@ export class CanvasTransitionEvent extends CanvasDispatch {
   }
 }
 
-export class CanvasPointerEvent extends CanvasDispatch {
+export class PointerEvent extends CanvasDispatch {
   x: number;
   y: number;
   #propagationStopped = false;

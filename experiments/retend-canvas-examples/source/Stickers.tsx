@@ -201,23 +201,18 @@ const Stickers = () => {
   };
 
   return (
-    <rect
-      style={{ width: Length.Pct(100), height: Length.Pct(100) }}
-      onClick={handleOutsideClick}
-    >
-      {For(stickers, (sticker, index) => {
-        return (
-          <Sticker
-            index={index}
-            {...sticker}
-            initialTransform={layout.transforms[index.peek()]}
-            height={layout.stickerHeight}
-            onSelect={handleSelect}
-            onDismiss={handleOutsideClick}
-            selected={selected}
-          />
-        );
-      })}
+    <rect style={{ height: Length.Pct(100) }} onClick={handleOutsideClick}>
+      {For(stickers, (sticker, index) => (
+        <Sticker
+          index={index}
+          {...sticker}
+          initialTransform={layout.transforms[index.peek()]}
+          height={layout.stickerHeight}
+          onSelect={handleSelect}
+          onDismiss={handleOutsideClick}
+          selected={selected}
+        />
+      ))}
     </rect>
   );
 };

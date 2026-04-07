@@ -53,7 +53,6 @@ export function useDragGesture(
     lastY = e.y;
     lastMoveTime = performance.now();
     dismissVelocityY = 0;
-
     isDragging.set(true);
     hasMoved.set(false);
   };

@@ -13,7 +13,8 @@ function resizeRenderer(width: number, height: number, dpr: number) {
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   renderer.host.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  renderer.requestRender({ width, height });
+  renderer.updateViewport({ width, height });
+  renderer.requestRender();
 }
 
 addEventListener(

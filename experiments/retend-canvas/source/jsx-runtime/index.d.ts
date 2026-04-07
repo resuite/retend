@@ -11,7 +11,7 @@ import type {
   OverflowValue,
   PxLength,
   TextAlignValue,
-  TransitionableStyleKey,
+  AnimatableStyleKey,
   EasingValue,
   TransformOriginValue,
   WhiteSpaceValue,
@@ -58,7 +58,7 @@ declare module 'retend/jsx-runtime' {
       transitionDuration?: DurationValue;
       transitionDelay?: DurationValue;
       transitionTimingFunction?: EasingValue;
-      transitionProperty?: TransitionableStyleKey | TransitionableStyleKey[];
+      transitionProperty?: AnimatableStyleKey | AnimatableStyleKey[];
       boxShadow?: BoxShadowValue | BoxShadowValue[];
       opacity?: number;
       translate?: LengthValue | [LengthValue, LengthValue];

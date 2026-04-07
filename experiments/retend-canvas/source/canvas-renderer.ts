@@ -21,7 +21,7 @@ import {
   CanvasFragment,
   CanvasHost,
   CanvasNode,
-  CanvasPointerEvent,
+  PointerEvent,
   type CanvasRange,
   CanvasRect,
   CanvasCircle,
@@ -37,10 +37,7 @@ import {
   write,
   CanvasRoot,
 } from './tree';
-import {
-  type CanvasTransition,
-  stepCanvasTransitions,
-} from './tree/transitions';
+import { type CanvasAnimation, playAnimationFrames } from './tree/transitions';
 
 interface CanvasRenderingTypes {
   Node: CanvasNode;
@@ -68,7 +65,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   #state?: StateSnapshot;
   root: CanvasContainer;
   #viewport: { width: number; height: number };
-  transitions: CanvasTransition[];
+  animations: CanvasAnimation[];
   nextNodeId = 1;
   nodeMap = new Map<number, CanvasNode>();
   #renderFrame: number | null = null;
@@ -88,12 +85,16 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.root = new CanvasRoot(this);
     this.root.setConnected(true);
     this.#viewport = viewport;
-    this.transitions = [];
+    this.animations = [];
     this.drawToScreen = this.drawToScreen.bind(this);
   }
 
-  requestRender(viewport?: { width: number; height: number }) {
-    if (viewport) this.#viewport = viewport;
+  updateViewport(viewport: { width: number; height: number }) {
+    this.#viewport = viewport;
+    this.requestRender();
+  }
+
+  requestRender() {
     if (this.#renderFrame !== null) return;
     this.#renderFrame = requestAnimationFrame(this.drawToScreen);
   }
@@ -103,7 +104,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     hitCanvas.width = Math.round(this.#viewport.width);
     hitCanvas.height = Math.round(this.#viewport.height);
     this.#renderFrame = null;
-    const hasTransitions = stepCanvasTransitions(this);
+    const hasTransitions = playAnimationFrames(this);
     this.host.ctx.clearRect(
       0,
       0,
@@ -175,7 +176,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   setProperty<N extends CanvasNode>(node: N, key: string, value: unknown): N {
     if (!(node instanceof CanvasContainer)) return node;
-
     setAttribute(node, key, value);
     return node;
   }
@@ -238,7 +238,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     const target = this.nodeMap.get(id);
     if (!target) return;
 
-    const event = new CanvasPointerEvent(eventName, x, y, target);
+    const event = new PointerEvent(eventName, x, y, target);
     let current: CanvasNode | null = target;
 
     while (current) {
