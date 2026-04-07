@@ -1,8 +1,9 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
+import { createRouterRoot } from 'retend/router';
 
-import App from './App';
+import { createRouter } from './router';
 
 let renderer: CanvasRenderer;
 const channel = new BroadcastChannel('retend-canvas-example');
@@ -30,7 +31,12 @@ addEventListener(
     if (renderer) return;
     const ctx = event.data.canvas.getContext('2d');
     if (!ctx) return;
-    renderer = await renderToCanvasContext(ctx, App);
+
+    const router = createRouter();
+    renderer = await renderToCanvasContext(ctx, () => {
+      return createRouterRoot(router);
+    });
+    router.navigate('/');
     resizeRenderer(event.data.width, event.data.height, event.data.dpr);
   }
 );
