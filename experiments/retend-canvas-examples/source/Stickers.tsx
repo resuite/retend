@@ -1,6 +1,6 @@
 import { Cell, For } from 'retend';
-import { Length } from 'retend-canvas';
-import { useRouteQuery } from 'retend/router';
+import { Alignment, BoxShadow, Length, TextAlign } from 'retend-canvas';
+import { useRouteQuery, useRouter } from 'retend/router';
 
 import { stickers } from './data';
 import { Sticker } from './Sticker';
@@ -181,6 +181,7 @@ function createStickerTransforms(width: number, height: number) {
 }
 
 const Stickers = () => {
+  const router = useRouter();
   const { width, height } = useWindowSize();
   const w = width.get();
   const h = height.get();
@@ -201,7 +202,44 @@ const Stickers = () => {
   };
 
   return (
-    <rect style={{ height: Length.Pct(100) }} onClick={handleOutsideClick}>
+    <rect
+      style={{
+        height: Length.Vh(100),
+        backgroundColor: 'white',
+        color: 'black',
+      }}
+      onClick={handleOutsideClick}
+    >
+      <rect
+        style={{
+          width: Length.Px(92),
+          height: Length.Px(44),
+          backgroundColor: '#f8fafc',
+          borderColor: '#cbd5e1',
+          zIndex: 99,
+          borderWidth: Length.Px(1),
+          boxShadow: BoxShadow.Drop(
+            Length.Px(0),
+            Length.Px(12),
+            Length.Px(24),
+            '#0000001a'
+          ),
+          translate: [Length.Px(24), Length.Px(24)],
+        }}
+        onClick={() => {
+          router.navigate('/');
+        }}
+      >
+        <text
+          style={{
+            alignSelf: Alignment.Center,
+            textAlign: TextAlign.Center,
+            width: Length.Pct(100),
+          }}
+        >
+          Back
+        </text>
+      </rect>
       {For(stickers, (sticker, index) => (
         <Sticker
           index={index}

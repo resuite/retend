@@ -150,7 +150,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
       case 'particles':
         return new CanvasParticles(this);
       default:
-        return new CanvasContainer(this);
+        return new CanvasRect(this);
     }
   }
 

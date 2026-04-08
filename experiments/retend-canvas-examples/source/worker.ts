@@ -1,14 +1,17 @@
-import type { JSX } from 'retend/jsx-runtime';
-
-import { type CanvasRenderer, renderToCanvasContext } from 'retend-canvas';
+import {
+  type CanvasNodeEventName,
+  type CanvasRenderer,
+  renderToCanvasContext,
+} from 'retend-canvas';
 import { createRouterRoot } from 'retend/router';
 
 import { createRouter } from './router';
 
-let renderer: CanvasRenderer;
-const channel = new BroadcastChannel('retend-canvas-example');
+let renderer: CanvasRenderer | null = null;
+let router = createRouter();
 
 function resizeRenderer(width: number, height: number, dpr: number) {
+  if (!renderer) return;
   const canvas = renderer.host.ctx.canvas;
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
@@ -17,49 +20,56 @@ function resizeRenderer(width: number, height: number, dpr: number) {
   renderer.requestRender();
 }
 
-addEventListener(
-  'message',
-  async (
-    event: MessageEvent<{
-      type: 'init';
-      canvas: OffscreenCanvas;
-      dpr: number;
-      width: number;
-      height: number;
-    }>
-  ) => {
-    if (event.data.type !== 'init') return;
-    if (renderer) return;
-    const ctx = event.data.canvas.getContext('2d');
-    if (!ctx) return;
+interface InitMessage {
+  type: 'init';
+  canvas: OffscreenCanvas;
+  dpr: number;
+  width: number;
+  height: number;
+}
 
-    const router = createRouter();
-    renderer = await renderToCanvasContext(ctx, () => {
-      return createRouterRoot(router);
-    });
-    router.navigate('/');
-    resizeRenderer(event.data.width, event.data.height, event.data.dpr);
-  }
-);
+interface ResizeMessage {
+  type: 'resize';
+  dpr: number;
+  width: number;
+  height: number;
+}
 
-channel.addEventListener(
-  'message',
-  (
-    event: MessageEvent<
-      | { type: 'resize'; dpr: number; width: number; height: number }
-      | {
-          type: 'event';
-          eventName: JSX.CanvasNodeEventName;
-          x: number;
-          y: number;
-        }
-    >
-  ) => {
-    if (!renderer) return;
-    if (event.data.type === 'event') {
-      renderer.dispatchEvent(event.data.eventName, event.data.x, event.data.y);
-      return;
+interface PointerEventMessage {
+  type: 'event';
+  eventName: CanvasNodeEventName;
+  x: number;
+  y: number;
+}
+
+type Message =
+  | MessageEvent<InitMessage>
+  | MessageEvent<ResizeMessage>
+  | MessageEvent<PointerEventMessage>;
+
+addEventListener('message', async (event: Message) => {
+  switch (event.data.type) {
+    case 'init': {
+      if (renderer) return;
+      const ctx = event.data.canvas.getContext('2d');
+      if (!ctx) return;
+
+      renderer = await renderToCanvasContext(ctx, () => {
+        return createRouterRoot(router);
+      });
+      router.navigate('/');
+      resizeRenderer(event.data.width, event.data.height, event.data.dpr);
+      break;
     }
-    resizeRenderer(event.data.width, event.data.height, event.data.dpr);
+    case 'resize': {
+      resizeRenderer(event.data.width, event.data.height, event.data.dpr);
+      break;
+    }
+    case 'event': {
+      renderer?.dispatchEvent(event.data.eventName, event.data.x, event.data.y);
+      break;
+    }
   }
-);
+});
+
+export default {};

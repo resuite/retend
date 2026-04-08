@@ -1,15 +1,15 @@
+/// <reference types="vite/client" />
+//
 import 'retend-canvas/jsx-runtime';
-const worker = new Worker(new URL('./worker.ts', import.meta.url), {
-  type: 'module',
-});
-const channel = new BroadcastChannel('retend-canvas-example');
-const postToChannel = channel.postMessage.bind(channel);
+import AppWorker from './worker.ts?worker';
+
+const worker = new AppWorker();
 let resizeFrame: number | null = null;
 
 function resizeCanvas(canvas: HTMLCanvasElement) {
   const dpr = window.devicePixelRatio;
   const rect = canvas.getBoundingClientRect();
-  postToChannel({
+  worker.postMessage({
     type: 'resize',
     dpr,
     width: rect.width,
@@ -50,7 +50,7 @@ for (const eventName of [
   canvas.addEventListener(eventName, (event) => {
     if (!(event instanceof MouseEvent)) return;
     const rect = canvas.getBoundingClientRect();
-    postToChannel({
+    worker.postMessage({
       type: 'event',
       eventName,
       x: event.clientX - rect.left,
