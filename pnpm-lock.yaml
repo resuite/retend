@@ -112,9 +112,6 @@ importers:
       '@chenglou/pretext':
         specifier: ^0.0.4
         version: 0.0.4
-      d3-interpolate-path:
-        specifier: ^2.3.0
-        version: 2.3.0
     devDependencies:
       retend:
         specifier: workspace:*
@@ -360,6 +357,9 @@ importers:
       retend:
         specifier: workspace:*
         version: link:../packages/retend
+      retend-canvas:
+        specifier: workspace:*
+        version: link:../experiments/retend-canvas
       retend-server:
         specifier: workspace:*
         version: link:../packages/retend-server
@@ -2637,9 +2637,6 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
-
-  d3-interpolate-path@2.3.0:
-    resolution: {integrity: sha512-tZYtGXxBmbgHsIc9Wms6LS5u4w6KbP8C09a4/ZYc4KLMYYqub57rRBUgpUr2CIarIrJEpdAWWxWQvofgaMpbKQ==}
 
   debounce@1.2.1:
     resolution: {integrity: sha512-XRRe6Glud4rd/ZGQfiV1ruXSfbvfJedlV9Y6zOlP+2K04vBYiJEte6stfFkCP03aMnY5tsipamumUjL14fofug==}
@@ -6314,8 +6311,6 @@ snapshots:
   core-util-is@1.0.3: {}
 
   csstype@3.2.3: {}
-
-  d3-interpolate-path@2.3.0: {}
 
   debounce@1.2.1: {}
 
