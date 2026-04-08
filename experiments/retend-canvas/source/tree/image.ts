@@ -26,7 +26,7 @@ export class CanvasImage extends CanvasContainer<CanvasImageProps> {
       const src = value as string | undefined;
       if (!src) {
         this.imageBitmap = null;
-        this.renderer.requestRender();
+        if (this.isConnected) this.renderer.requestRender();
         return;
       }
 
@@ -42,7 +42,7 @@ export class CanvasImage extends CanvasContainer<CanvasImageProps> {
         .then((bitmap) => {
           if (this.srcVersion === currentVersion) {
             this.imageBitmap = bitmap;
-            this.renderer.requestRender();
+            if (this.isConnected) this.renderer.requestRender();
           }
         })
         .catch((err) => {
