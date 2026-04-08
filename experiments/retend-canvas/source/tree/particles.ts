@@ -1,8 +1,8 @@
-import type { JSX } from 'retend/jsx-runtime';
+import type { CanvasParticlesProps } from '../types';
 
 import { CanvasRect } from './container';
 
-export class CanvasParticles extends CanvasRect<JSX.ParticlesProps> {
+export class CanvasParticles extends CanvasRect<CanvasParticlesProps> {
   override paintContainer(): void {
     super.paintContainer();
 

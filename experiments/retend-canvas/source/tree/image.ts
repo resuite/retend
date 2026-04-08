@@ -1,10 +1,10 @@
-import type { JSX } from 'retend/jsx-runtime';
+import type { CanvasImageProps } from '../types';
 
 import { Length } from '../style';
 import { WARNING_IMAGE_CHILDREN, WARNING_IMAGE_SVG } from '../warnings';
 import { CanvasContainer } from './container';
 
-export class CanvasImage extends CanvasContainer<JSX.ImageProps> {
+export class CanvasImage extends CanvasContainer<CanvasImageProps> {
   protected imageBitmap: ImageBitmap | null = null;
   protected srcVersion = 0;
 
@@ -16,9 +16,9 @@ export class CanvasImage extends CanvasContainer<JSX.ImageProps> {
     console.warn(WARNING_IMAGE_CHILDREN);
   }
 
-  override setAttribute<K extends keyof JSX.ImageProps>(
+  override setAttribute<K extends keyof CanvasImageProps>(
     key: K,
-    value: JSX.ImageProps[K]
+    value: CanvasImageProps[K]
   ) {
     super.setAttribute(key, value);
 

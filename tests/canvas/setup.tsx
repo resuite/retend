@@ -1,3 +1,5 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import {
   CanvasRenderer,
   CanvasHost,

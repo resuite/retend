@@ -1,9 +1,8 @@
-import type { JSX } from 'retend/jsx-runtime';
-
 import { Cell } from 'retend';
 import {
   Alignment,
   Angle,
+  type CanvasStyleValue,
   Length,
   PointerEvents,
   TextAlign,
@@ -40,12 +39,12 @@ function createStyle(
     return selectedItem && selectedItem.name !== props.name;
   });
 
-  const style = Cell.derived((): JSX.StyleValue => {
+  const style = Cell.derived((): CanvasStyleValue => {
     const pointerEvents = isNotSelected.get()
       ? PointerEvents.None
       : PointerEvents.Auto;
 
-    const baseStyles: JSX.Style = {
+    const baseStyles: CanvasStyleValue = {
       height: Length.Px(heightRaw),
       width: Length.Px(heightRaw * 0.8),
       alignSelf: Alignment.Center,

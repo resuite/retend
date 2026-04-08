@@ -1,4 +1,4 @@
-import type { JSX } from 'retend/jsx-runtime';
+import type { CanvasStyle } from '../types';
 
 import {
   FontStyle,
@@ -30,7 +30,9 @@ const CASCADED_PROPERTIES = [
 ] as const;
 
 type TextStyling = {
-  [K in (typeof CASCADED_PROPERTIES)[number]]: Array<NonNullable<JSX.Style[K]>>;
+  [K in (typeof CASCADED_PROPERTIES)[number]]: Array<
+    NonNullable<CanvasStyle[K]>
+  >;
 };
 
 export type CurrentCascade = {
@@ -91,13 +93,13 @@ export class CanvasHost extends EventTarget {
     return this.#cascade[key][this.#cascade[key].length - 1];
   }
 
-  setStyleState(style: JSX.Style) {
+  setStyleState(style: CanvasStyle) {
     for (const key of CASCADED_PROPERTIES) {
       if (style[key]) this.#cascade[key].push(style[key] as never);
     }
   }
 
-  unsetStyleState(style: JSX.Style) {
+  unsetStyleState(style: CanvasStyle) {
     for (const key of CASCADED_PROPERTIES) {
       if (style[key]) this.#cascade[key].pop();
     }

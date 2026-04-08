@@ -1,6 +1,4 @@
-import type { JSX } from 'retend/jsx-runtime';
-
-import { Alignment, Length } from 'retend-canvas';
+import { Alignment, type CanvasStyle, Length } from 'retend-canvas';
 
 import Stickers from './Stickers';
 
@@ -24,6 +22,6 @@ const style = {
     alignSelf: Alignment.Center,
     justifySelf: Alignment.Center,
   },
-} satisfies Record<string, JSX.Style>;
+} satisfies Record<string, CanvasStyle>;
 
 export default App;

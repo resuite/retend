@@ -1,6 +1,5 @@
-import type { JSX } from 'retend/jsx-runtime';
-
 import type { CanvasRenderer } from '../canvas-renderer';
+import type { CanvasNodeEventName } from '../types';
 
 class CanvasDispatch {
   type: string;
@@ -41,7 +40,7 @@ export class PointerEvent extends CanvasDispatch {
   #propagationStopped = false;
 
   constructor(
-    type: JSX.CanvasNodeEventName,
+    type: CanvasNodeEventName,
     x: number,
     y: number,
     target: CanvasNode

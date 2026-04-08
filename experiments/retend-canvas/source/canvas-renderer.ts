@@ -15,6 +15,8 @@ import {
   createNodesFromTemplate,
 } from 'retend';
 
+import type { CanvasNodeEventName } from './types';
+
 import {
   CanvasAnchor,
   CanvasContainer,
@@ -219,7 +221,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     return node.isConnected;
   }
 
-  dispatchEvent(eventName: JSX.CanvasNodeEventName, x: number, y: number) {
+  dispatchEvent(eventName: CanvasNodeEventName, x: number, y: number) {
     const hitCanvas = this.host.hitCtx.canvas;
     const sampleX = Math.floor(x);
     const sampleY = Math.floor(y);

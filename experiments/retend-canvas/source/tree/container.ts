@@ -1,6 +1,12 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import type { CanvasRenderer } from '../canvas-renderer';
+import type {
+  CanvasStyle,
+  CanvasContainerProps,
+  CanvasShapeProps,
+  CanvasPathProps,
+} from '../types';
 
 import {
   BorderStyle,
@@ -16,10 +22,10 @@ import { createTransformMatrix, lengthToPx } from './transform';
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
 
 export class CanvasContainer<
-  Props extends JSX.ContainerProps = JSX.ContainerProps,
+  Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasParentNode {
   protected attributes: Props;
-  protected style: JSX.Style;
+  protected style: CanvasStyle;
   protected width: number;
   protected height: number;
   protected layoutTransform: DOMMatrix | null;
@@ -47,7 +53,7 @@ export class CanvasContainer<
     return this.attributes[key];
   }
 
-  setStyles(style: JSX.Style) {
+  setStyles(style: CanvasStyle) {
     Object.assign(this.style, style);
   }
 
@@ -63,7 +69,7 @@ export class CanvasContainer<
     this.attributes[key] = value;
 
     if (key === 'style') {
-      const style = value as JSX.Style;
+      const style = value as CanvasStyle;
       Object.assign(this.style, style);
       return;
     }
@@ -370,7 +376,7 @@ export class CanvasRoot extends CanvasContainer {
 // --------------
 
 export class CanvasRect<
-  Props extends JSX.ContainerProps = JSX.ContainerProps,
+  Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasContainer<Props> {
   override tracePath(): Path2D | null {
     const { borderRadius = Length.Px(0) } = this.style;
@@ -419,7 +425,7 @@ export class CanvasTextContainer extends CanvasRect {
   }
 }
 
-export class CanvasPath extends CanvasContainer<JSX.PathProps> {
+export class CanvasPath extends CanvasContainer<CanvasPathProps> {
   override tracePath(): Path2D | null {
     const d = this.attributes.d;
     if (!d) {
@@ -492,7 +498,7 @@ export class CanvasPath extends CanvasContainer<JSX.PathProps> {
   }
 }
 
-export class CanvasShape extends CanvasContainer<JSX.ShapeProps> {
+export class CanvasShape extends CanvasContainer<CanvasShapeProps> {
   override tracePath(): Path2D | null {
     const ownPoints = this.attributes.points ?? [];
     const { borderRadius = Length.Px(0) } = this.style;
