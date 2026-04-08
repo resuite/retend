@@ -1,18 +1,13 @@
-import type { Cell } from 'retend';
-
 import type {
   AngleValue,
   AlignmentValue,
   BorderStyleValue,
-  DurationValue,
   FontStyleValue,
   FontWeightValue,
   LengthValue,
   OverflowValue,
   PxLength,
   TextAlignValue,
-  AnimatableStyleKey,
-  EasingValue,
   TransformOriginValue,
   WhiteSpaceValue,
   BoxShadowValue,
@@ -22,7 +17,7 @@ import 'retend/jsx-runtime';
 
 declare module 'retend/jsx-runtime' {
   import('../tree');
-  import { CanvasNode, PointerEvent, TransitionEvent } from '../tree';
+  import { CanvasNode, PointerEvent } from '../tree';
 
   namespace JSX {
     interface Style {
@@ -51,10 +46,6 @@ declare module 'retend/jsx-runtime' {
       fontFamily?: string;
       fontWeight?: FontWeightValue;
       fontStyle?: FontStyleValue;
-      transitionDuration?: DurationValue;
-      transitionDelay?: DurationValue;
-      transitionTimingFunction?: EasingValue;
-      transitionProperty?: AnimatableStyleKey | AnimatableStyleKey[];
       boxShadow?: BoxShadowValue | BoxShadowValue[];
       opacity?: number;
       translate?: LengthValue | [LengthValue, LengthValue];
@@ -76,10 +67,23 @@ declare module 'retend/jsx-runtime' {
       onPointerDown: PointerEvent;
       onPointerMove: PointerEvent;
       onPointerUp: PointerEvent;
-      onTransitionRun: TransitionEvent;
-      onTransitionStart: TransitionEvent;
-      onTransitionEnd: TransitionEvent;
-      onTransitionCancel: TransitionEvent;
+      onClick: PointerEvent;
+    }
+
+    type StyleValue = Style | Container<JSX.ValueOrCellOrPromise<Style>>;
+
+    type Container<T> = {
+      [K in keyof T]: JSX.ValueOrCellOrPromise<T[K]>;
+    } & JSX.IntrinsicAttributes;
+
+    interface IntrinsicAttributes {
+      ref?: Cell<CanvasNode | null>;
+    }
+
+    interface CanvasEventMap {
+      onPointerDown: PointerEvent;
+      onPointerMove: PointerEvent;
+      onPointerUp: PointerEvent;
       onClick: PointerEvent;
     }
 

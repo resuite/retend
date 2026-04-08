@@ -11,7 +11,6 @@ import {
 import type { CanvasContainer } from './container';
 
 import { type CanvasNode, type CanvasRange } from './node';
-import { updateStyle } from './transitions';
 
 export function write(handle: CanvasRange, newContent: CanvasNode[]) {
   const [start, end] = handle;
@@ -62,21 +61,14 @@ function setStyleProp(
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
     const updateProperty = (nextValue: any) => {
       if (nextValue instanceof Promise) nextValue.then(updateProperty);
-      else updateStyle(node, key, nextValue);
+      else node.setStyles({ [key]: nextValue } as JSX.Style);
     };
     updateProperty(value.get());
     value.listen(updateProperty);
   } else {
-    updateStyle(node, key, value);
+    node.setStyles({ [key]: value } as JSX.Style);
   }
 }
-
-const SIDE_EFFECT_PROPS = [
-  'transitionProperty',
-  'transitionDuration',
-  'transitionTimingFunction',
-  'transitionDelay',
-];
 
 export function setAttribute(
   node: CanvasContainer,
@@ -103,19 +95,8 @@ export function setAttribute(
   if (key === 'style') {
     if (_value && typeof _value === 'object') {
       const value = _value as Record<string, unknown>;
-      // The style properties are set in order of priority, so
-      // that side effects that depend on the latest value are
-      // consistent.
-      for (const prop of SIDE_EFFECT_PROPS) {
-        if (prop in value) {
-          setStyleProp(node, prop as keyof JSX.Style, value[prop]);
-        }
-      }
-
       for (const prop in value) {
-        if (!SIDE_EFFECT_PROPS.includes(prop)) {
-          setStyleProp(node, prop as keyof JSX.Style, value[prop]);
-        }
+        setStyleProp(node, prop as keyof JSX.Style, value[prop]);
       }
     }
   }

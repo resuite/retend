@@ -1,3 +1,3 @@
 export * from './canvas-renderer';
 export * from './style';
-export { CanvasNode, PointerEvent, TransitionEvent } from './tree/node';
+export { CanvasNode, PointerEvent } from './tree/node';

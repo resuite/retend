@@ -35,22 +35,6 @@ class CanvasDispatch {
   }
 }
 
-export class TransitionEvent extends CanvasDispatch {
-  propertyName: string;
-  elapsedTime: number;
-
-  constructor(
-    type: string,
-    propertyName: string,
-    elapsedTime: number,
-    target: CanvasNode
-  ) {
-    super(type, false, target);
-    this.propertyName = propertyName;
-    this.elapsedTime = elapsedTime;
-  }
-}
-
 export class PointerEvent extends CanvasDispatch {
   x: number;
   y: number;

@@ -33,8 +33,7 @@
     "watch": "sh -c 'pnpm run build; while sleep 1; do if find source scripts -newer dist/index.js | grep -q .; then pnpm run build; fi; done'"
   },
   "dependencies": {
-    "@chenglou/pretext": "^0.0.4",
-    "d3-interpolate-path": "^2.3.0"
+    "@chenglou/pretext": "^0.0.4"
   },
   "devDependencies": {
     "retend": "workspace:*",

@@ -4,9 +4,6 @@ import { Cell } from 'retend';
 import {
   Alignment,
   Angle,
-  type AnimatableStyleKey,
-  Duration,
-  Easing,
   Length,
   PointerEvents,
   TextAlign,
@@ -44,9 +41,6 @@ function createStyle(
   });
 
   const style = Cell.derived((): JSX.StyleValue => {
-    const transitionProperty: AnimatableStyleKey[] = drag.isDragging.get()
-      ? ['scale', 'rotate', 'opacity']
-      : ['scale', 'translate', 'rotate', 'opacity'];
     const pointerEvents = isNotSelected.get()
       ? PointerEvents.None
       : PointerEvents.Auto;
@@ -58,8 +52,6 @@ function createStyle(
       justifySelf: Alignment.Center,
       backgroundColor: 'red',
       borderWidth: Length.Px(2),
-      transitionProperty,
-      transitionDuration: Duration.Ms(500),
       pointerEvents,
     };
 
@@ -72,7 +64,6 @@ function createStyle(
           Length.Px(drag.dismissTx.get()),
           Length.Px(drag.dismissTy.get()),
         ],
-        transitionTimingFunction: Easing.CubicBezier(0.16, 1, 0.3, 1),
       };
     }
 
@@ -81,7 +72,6 @@ function createStyle(
       rotate: Angle.Deg(initialTransform?.rotate ?? 0),
       scale: drag.isDragging.get() && drag.hasMoved.get() ? 1.3 : 1,
       translate: [Length.Px(drag.tx.get()), Length.Px(drag.ty.get())],
-      transitionTimingFunction: Easing.Ease,
     };
   });
 

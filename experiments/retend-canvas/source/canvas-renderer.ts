@@ -37,7 +37,6 @@ import {
   write,
   CanvasRoot,
 } from './tree';
-import { type CanvasAnimation, playAnimationFrames } from './tree/transitions';
 
 interface CanvasRenderingTypes {
   Node: CanvasNode;
@@ -65,7 +64,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   #state?: StateSnapshot;
   root: CanvasContainer;
   #viewport: { width: number; height: number };
-  animations: CanvasAnimation[];
+
   nextNodeId = 1;
   nodeMap = new Map<number, CanvasNode>();
   #renderFrame: number | null = null;
@@ -85,7 +84,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.root = new CanvasRoot(this);
     this.root.setConnected(true);
     this.#viewport = viewport;
-    this.animations = [];
     this.drawToScreen = this.drawToScreen.bind(this);
   }
 
@@ -104,7 +102,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
     hitCanvas.width = Math.round(this.#viewport.width);
     hitCanvas.height = Math.round(this.#viewport.height);
     this.#renderFrame = null;
-    const hasTransitions = playAnimationFrames(this);
     this.host.ctx.clearRect(
       0,
       0,
@@ -116,7 +113,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.host.scopeHeight = this.#viewport.height;
     this.root.layout();
     this.root.paint();
-    if (hasTransitions) this.requestRender();
   }
 
   render(app: JSX.Template): CanvasNode | CanvasNode[] {
