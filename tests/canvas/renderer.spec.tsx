@@ -1,7 +1,7 @@
 import { Length, Alignment, Overflow, BorderStyle } from 'retend-canvas';
 import { describe, expect, it } from 'vitest';
 import 'retend-canvas/jsx-runtime';
-import { render, pixelAt } from './setup.tsx';
+import { createCanvasAndRenderer, render, pixelAt } from './setup.tsx';
 
 describe('rect rendering', () => {
   it('draws a filled rectangle', async () => {
@@ -377,5 +377,39 @@ describe('zIndex', () => {
 
     const withZIndex = pixelAt(ctx2, 50, 50);
     expect(withZIndex[0]).toBeGreaterThan(200);
+  });
+
+  it('updates paint order after write removes a child', () => {
+    const { ctx, renderer } = createCanvasAndRenderer(100, 100);
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
+    renderer.append(renderer.root, group);
+    const red = renderer.createContainer('rect');
+    const blue = renderer.createContainer('rect');
+
+    renderer.setProperty(red, 'style', {
+      width: Length.Px(100),
+      height: Length.Px(100),
+      backgroundColor: 'red',
+      zIndex: 0,
+    });
+    renderer.setProperty(blue, 'style', {
+      width: Length.Px(100),
+      height: Length.Px(100),
+      backgroundColor: 'blue',
+      zIndex: 1,
+    });
+
+    renderer.write(handle, [red, blue]);
+    renderer.drawToScreen();
+
+    const before = pixelAt(ctx, 50, 50);
+    expect(before[2]).toBeGreaterThan(200);
+
+    renderer.write(handle, [red]);
+    renderer.drawToScreen();
+
+    const after = pixelAt(ctx, 50, 50);
+    expect(after[0]).toBeGreaterThan(200);
   });
 });
