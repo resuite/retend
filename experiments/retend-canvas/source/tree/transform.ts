@@ -1,4 +1,3 @@
-import type { CanvasContainer } from './container';
 import type { CanvasNode } from './node';
 
 import {
@@ -10,11 +9,9 @@ import {
   TransformOrigin,
   type TransformOriginValue,
 } from '../style';
+import { CanvasContainer } from './container';
 
-const defaultTransformOrigin = TransformOrigin.At(
-  Length.Pct(50),
-  Length.Pct(50)
-);
+const defaultOrigin = TransformOrigin.At(Length.Pct(50), Length.Pct(50));
 
 export function lengthToPx(
   value: LengthValue,
@@ -48,7 +45,7 @@ export function lengthToPx(
   return value.value;
 }
 
-export function resolveTransformOrigin(
+export function resolveOrigin(
   transformOrigin: TransformOriginValue,
   width: number,
   height: number,
@@ -61,35 +58,42 @@ export function resolveTransformOrigin(
 }
 
 export function createTransformMatrix(
+  container: CanvasContainer,
   width: number,
-  height: number,
-  parentWidth: number,
-  parentHeight: number,
-  container: CanvasContainer
+  height: number
 ) {
+  const { host } = container.renderer;
+  const { scopeWidth: parentWidth, scopeHeight: parentHeight } = host;
   const style = container.styles;
   const matrix = new DOMMatrix();
-  const rotate = style.rotate ?? Angle.Deg(0);
-  const { scale = 1, translate } = style;
-  let scaleX = 1;
-  let scaleY = 1;
-  if (Array.isArray(scale)) {
-    scaleX = scale[0];
-    scaleY = scale[1];
-  } else {
-    scaleX = scale;
-    scaleY = scale;
-  }
-  const transformOrigin = style.transformOrigin ?? defaultTransformOrigin;
+
+  const {
+    scale = [1, 1],
+    translate,
+    rotate = Angle.Deg(0),
+    transformOrigin = defaultOrigin,
+  } = style;
+  let [scaleX, scaleY] = scale as [number, number]; // Already normalized in CanvasContainer.setStyles
+
   const rotation = rotate.value;
   let translateX = 0;
   let translateY = 0;
+
   if (style.left !== undefined) {
     translateX = lengthToPx(style.left, parentWidth, container);
   } else if (style.justifySelf === Alignment.Center) {
     translateX = (parentWidth - width) / 2;
   } else if (style.justifySelf === Alignment.End) {
     translateX = parentWidth - width;
+  } else if (
+    style.justifySelf === undefined &&
+    container.parent instanceof CanvasContainer
+  ) {
+    if (container.parent.styles.justifyItems === Alignment.Center) {
+      translateX = (parentWidth - width) / 2;
+    } else if (container.parent.styles.justifyItems === Alignment.End) {
+      translateX = parentWidth - width;
+    }
   }
 
   if (style.top !== undefined) {
@@ -98,6 +102,15 @@ export function createTransformMatrix(
     translateY = (parentHeight - height) / 2;
   } else if (style.alignSelf === Alignment.End) {
     translateY = parentHeight - height;
+  } else if (
+    style.alignSelf === undefined &&
+    container.parent instanceof CanvasContainer
+  ) {
+    if (container.parent.styles.alignItems === Alignment.Center) {
+      translateY = (parentHeight - height) / 2;
+    } else if (container.parent.styles.alignItems === Alignment.End) {
+      translateY = parentHeight - height;
+    }
   }
 
   let tx = 0;
@@ -111,12 +124,7 @@ export function createTransformMatrix(
     }
   }
 
-  const { x, y } = resolveTransformOrigin(
-    transformOrigin,
-    width,
-    height,
-    container
-  );
+  const { x, y } = resolveOrigin(transformOrigin, width, height, container);
 
   return matrix
     .translateSelf(translateX, translateY)

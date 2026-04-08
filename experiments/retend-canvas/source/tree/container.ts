@@ -82,6 +82,10 @@ export class CanvasContainer<
     const previousZIndex = this.style.zIndex ?? 0;
     const newZIndex = style.zIndex ?? 0;
 
+    if (style.scale !== undefined && !Array.isArray(style.scale)) {
+      style.scale = [style.scale, style.scale];
+    }
+
     Object.assign(this.style, style);
 
     if (style.boxShadow) {
@@ -180,13 +184,7 @@ export class CanvasContainer<
   override layout(): void {
     const host = this.renderer.host;
     this.resolveSize();
-    this.layoutTransform = createTransformMatrix(
-      this.width,
-      this.height,
-      host.scopeWidth,
-      host.scopeHeight,
-      this
-    );
+    this.layoutTransform = createTransformMatrix(this, this.width, this.height);
 
     const prevScopeWidth = host.scopeWidth;
     const prevScopeHeight = host.scopeHeight;

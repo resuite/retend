@@ -24,6 +24,8 @@ export interface CanvasStyle {
   zIndex?: number;
   justifySelf?: AlignmentValue;
   alignSelf?: AlignmentValue;
+  justifyItems?: AlignmentValue;
+  alignItems?: AlignmentValue;
   rotate?: AngleValue;
   scale?: number | [number, number];
   transformOrigin?: TransformOriginValue;
