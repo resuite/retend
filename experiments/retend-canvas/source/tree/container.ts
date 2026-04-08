@@ -16,7 +16,7 @@ import {
   PointerEvents,
 } from '../style';
 import { resolveFittedContent } from './fit-content';
-import { CanvasParentNode } from './node';
+import { CanvasParentNode, type CanvasNode } from './node';
 import { createTransformMatrix, lengthToPx } from './transform';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
@@ -26,35 +26,65 @@ export class CanvasContainer<
 > extends CanvasParentNode {
   protected attributes: Props;
   protected style: CanvasStyle;
-  protected width: number;
-  protected height: number;
-  protected layoutTransform: DOMMatrix | null;
-  protected path: Path2D | null;
-  protected clip: Path2D | null;
-  protected clipValue: string | null;
+  protected width = 0;
+  protected height = 0;
+  protected layoutTransform: DOMMatrix | null = null;
+  protected path: Path2D | null = null;
+  protected clip: Path2D | null = null;
+  protected clipValue: string | null = null;
+
+  protected visualChildrenOrderChanged = false;
+  protected visualChildren: CanvasNode[] = [];
 
   constructor(renderer: CanvasRenderer) {
     super(renderer);
     this.attributes = {} as Props;
     this.style = {};
-    this.width = 0;
-    this.height = 0;
-    this.layoutTransform = null;
-    this.path = null;
-    this.clip = null;
-    this.clipValue = null;
   }
 
   get styles() {
     return this.style;
   }
 
-  getAttribute<K extends keyof Props>(key: K) {
-    return this.attributes[key];
+  protected updateChildrenVisualOrder() {
+    const children = this.children;
+    if (children.length < 2) {
+      this.visualChildren = children;
+      return;
+    }
+    this.visualChildren = children.toSorted((a, b) => {
+      const az = a instanceof CanvasContainer ? (a.style.zIndex ?? 0) : 0;
+      const bz = b instanceof CanvasContainer ? (b.style.zIndex ?? 0) : 0;
+      return az - bz;
+    });
+  }
+
+  override append(...nodes: CanvasNode[]) {
+    super.append(...nodes);
+    this.visualChildrenOrderChanged = true;
+  }
+
+  override prepend(node: CanvasNode) {
+    super.prepend(node);
+    this.visualChildrenOrderChanged = true;
+  }
+
+  override remove(node: CanvasNode) {
+    super.remove(node);
+    this.visualChildrenOrderChanged = true;
   }
 
   setStyles(style: CanvasStyle) {
+    const previousZIndex = this.style.zIndex ?? 0;
+    const newZIndex = style.zIndex ?? 0;
+
     Object.assign(this.style, style);
+
+    if (previousZIndex !== newZIndex) {
+      if (this.parent instanceof CanvasContainer) {
+        this.parent.visualChildrenOrderChanged = true;
+      }
+    }
   }
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
@@ -68,11 +98,7 @@ export class CanvasContainer<
     }
     this.attributes[key] = value;
 
-    if (key === 'style') {
-      const style = value as CanvasStyle;
-      Object.assign(this.style, style);
-      return;
-    }
+    if (key === 'style') this.setStyles(value as CanvasStyle);
   }
 
   protected resolveSize() {
@@ -218,7 +244,11 @@ export class CanvasContainer<
 
     host.setStyleState(this.style);
 
-    for (const child of this.children) child.paint();
+    if (this.visualChildrenOrderChanged) {
+      this.updateChildrenVisualOrder();
+      this.visualChildrenOrderChanged = false;
+    }
+    for (const child of this.visualChildren) child.paint();
 
     host.unsetStyleState(this.style);
 

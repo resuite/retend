@@ -58,6 +58,7 @@ function createStyle(
       return {
         ...baseStyles,
         rotate: Angle.Deg(0),
+        zIndex: 99,
         scale: 2.5,
         translate: [
           Length.Px(drag.dismissTx.get()),
@@ -68,6 +69,7 @@ function createStyle(
 
     return {
       ...baseStyles,
+      zIndex: drag.zIndex,
       rotate: Angle.Deg(initialTransform?.rotate ?? 0),
       scale: drag.isDragging.get() && drag.hasMoved.get() ? 1.3 : 1,
       translate: [Length.Px(drag.tx.get()), Length.Px(drag.ty.get())],

@@ -21,6 +21,7 @@ import type { CanvasNode, PointerEvent } from './tree/node';
 export interface CanvasStyle {
   left?: LengthValue;
   top?: LengthValue;
+  zIndex?: number;
   justifySelf?: AlignmentValue;
   alignSelf?: AlignmentValue;
   rotate?: AngleValue;

@@ -330,3 +330,52 @@ describe('pointer events', () => {
     expect(clicked).toBe(false);
   });
 });
+
+describe('zIndex', () => {
+  it('paints higher zIndex on top', async () => {
+    const { ctx } = await render(() => (
+      <rect style={{ width: Length.Px(100), height: Length.Px(100) }}>
+        <rect
+          style={{
+            width: Length.Px(100),
+            height: Length.Px(100),
+            backgroundColor: 'red',
+          }}
+        />
+        <rect
+          style={{
+            width: Length.Px(100),
+            height: Length.Px(100),
+            backgroundColor: 'blue',
+          }}
+        />
+      </rect>
+    ));
+
+    const noZIndex = pixelAt(ctx, 50, 50);
+    expect(noZIndex[2]).toBeGreaterThan(200);
+
+    const { ctx: ctx2 } = await render(() => (
+      <rect style={{ width: Length.Px(100), height: Length.Px(100) }}>
+        <rect
+          style={{
+            width: Length.Px(100),
+            height: Length.Px(100),
+            backgroundColor: 'red',
+            zIndex: 1,
+          }}
+        />
+        <rect
+          style={{
+            width: Length.Px(100),
+            height: Length.Px(100),
+            backgroundColor: 'blue',
+          }}
+        />
+      </rect>
+    ));
+
+    const withZIndex = pixelAt(ctx2, 50, 50);
+    expect(withZIndex[0]).toBeGreaterThan(200);
+  });
+});

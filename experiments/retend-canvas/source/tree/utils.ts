@@ -33,6 +33,10 @@ export function write(handle: CanvasRange, newContent: CanvasNode[]) {
   }
   parent.children.splice(parent.children.indexOf(end), 0, ...newContent);
   for (const node of newContent) node.parent = parent;
+
+  // This will force a trigger of the append side effects.
+  const content: CanvasNode[] = [];
+  parent.append(...content);
 }
 
 export function collectReconciledNodes(
