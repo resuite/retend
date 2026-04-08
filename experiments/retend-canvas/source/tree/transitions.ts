@@ -23,6 +23,7 @@ import {
   resolveInheritedColor,
 } from './color';
 import { CanvasContainer } from './container';
+import { applyEasing } from './easing';
 import { TransitionEvent, type CanvasNode } from './node';
 import { lengthToPx } from './transform';
 
@@ -79,45 +80,6 @@ function resolveInheritedFontSize(node: CanvasNode | null) {
   return 16;
 }
 
-function applyEasing(timingFunction: EasingValue, progress: number) {
-  if (Array.isArray(timingFunction)) {
-    const [x1, y1, x2, y2] = timingFunction;
-    let start = 0;
-    let end = 1;
-    let t = progress;
-    for (let i = 0; i < 8; i += 1) {
-      t = (start + end) / 2;
-      const inverse = 1 - t;
-      const x =
-        3 * inverse * inverse * t * x1 + 3 * inverse * t * t * x2 + t * t * t;
-      if (x < progress) {
-        start = t;
-      } else {
-        end = t;
-      }
-    }
-    const inverse = 1 - t;
-    return (
-      3 * inverse * inverse * t * y1 + 3 * inverse * t * t * y2 + t * t * t
-    );
-  }
-  if (timingFunction === Easing.Linear) return progress;
-  if (timingFunction === Easing.EaseIn) {
-    return progress * progress * progress;
-  }
-  if (timingFunction === Easing.EaseOut) {
-    const inverse = 1 - progress;
-    return 1 - inverse * inverse * inverse;
-  }
-  if (timingFunction === Easing.EaseInOut) {
-    if (progress < 0.5) return 4 * progress * progress * progress;
-    const inverse = 1 - progress;
-    return 1 - 4 * inverse * inverse * inverse;
-  }
-  const cosine = Math.cos(Math.PI * progress);
-  return -((cosine - 1) / 2);
-}
-
 function interpolateValue(transition: CanvasAnimation, progress: number) {
   const { from, to } = transition;
   switch (transition.key) {
@@ -125,28 +87,18 @@ function interpolateValue(transition: CanvasAnimation, progress: number) {
     case 'top':
     case 'borderWidth':
     case 'fontSize':
-    case 'borderRadius': {
-      const start = (from as ReturnType<typeof Length.Px>).value;
-      const end = (to as ReturnType<typeof Length.Px>).value;
-      return Length.Px(start + (end - start) * progress);
-    }
-    case 'rotate': {
-      const start = (from as ReturnType<typeof Angle.Deg>).value;
-      const end = (to as ReturnType<typeof Angle.Deg>).value;
-      return Angle.Deg(start + (end - start) * progress);
-    }
-    case 'scale': {
-      if (Array.isArray(from) && Array.isArray(to)) {
-        const start = from as number[];
-        const end = to as number[];
-        return [
-          start[0] + (end[0] - start[0]) * progress,
-          start[1] + (end[1] - start[1]) * progress,
-        ] as [number, number];
-      }
+    case 'borderRadius':
+    case 'rotate':
       const start = from as number;
       const end = to as number;
       return start + (end - start) * progress;
+    case 'scale': {
+      const start = from as [number, number];
+      const end = to as [number, number];
+      return [
+        start[0] + (end[0] - start[0]) * progress,
+        start[1] + (end[1] - start[1]) * progress,
+      ];
     }
     case 'translate': {
       const start = from as [number, number];
