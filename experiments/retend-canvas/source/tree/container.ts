@@ -16,6 +16,7 @@ import {
   Overflow,
   PointerEvents,
 } from '../style';
+import { updateAnimationAndTransitionStates } from './animations';
 import { resolveFittedContent } from './fit-content';
 import { CanvasParentNode, type CanvasNode } from './node';
 import { createTransformMatrix, lengthToPx } from './transform';
@@ -26,7 +27,9 @@ export class CanvasContainer<
   Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasParentNode {
   protected attributes: Props;
-  protected style: CanvasStyle;
+  protected _styles: CanvasStyle;
+  protected _staticStyles: CanvasStyle;
+
   protected width = 0;
   protected height = 0;
   protected layoutTransform: DOMMatrix | null = null;
@@ -43,11 +46,16 @@ export class CanvasContainer<
   constructor(renderer: CanvasRenderer) {
     super(renderer);
     this.attributes = {} as Props;
-    this.style = {};
+    this._styles = {};
+    this._staticStyles = {};
   }
 
   get styles() {
-    return this.style;
+    return this._styles;
+  }
+
+  get staticStyles() {
+    return this._staticStyles;
   }
 
   protected updateChildrenVisualOrder() {
@@ -57,8 +65,8 @@ export class CanvasContainer<
       return;
     }
     this.visualChildren = children.toSorted((a, b) => {
-      const az = a instanceof CanvasContainer ? (a.style.zIndex ?? 0) : 0;
-      const bz = b instanceof CanvasContainer ? (b.style.zIndex ?? 0) : 0;
+      const az = a instanceof CanvasContainer ? (a._styles.zIndex ?? 0) : 0;
+      const bz = b instanceof CanvasContainer ? (b._styles.zIndex ?? 0) : 0;
       return az - bz;
     });
   }
@@ -79,14 +87,17 @@ export class CanvasContainer<
   }
 
   setStyles(style: CanvasStyle) {
-    const previousZIndex = this.style.zIndex ?? 0;
+    const previousZIndex = this._styles.zIndex ?? 0;
     const newZIndex = style.zIndex ?? 0;
 
     if (style.scale !== undefined && !Array.isArray(style.scale)) {
       style.scale = [style.scale, style.scale];
     }
 
-    Object.assign(this.style, style);
+    updateAnimationAndTransitionStates(this, style);
+
+    Object.assign(this._styles, style);
+    Object.assign(this._staticStyles, style);
 
     if (style.boxShadow) {
       style.boxShadow = Array.isArray(style.boxShadow)
@@ -129,10 +140,8 @@ export class CanvasContainer<
       height = Length.FitContent,
       maxWidth,
       maxHeight,
-    } = this.style;
-
-    const baseWidth = host.scopeWidth;
-    const baseHeight = host.scopeHeight;
+    } = this._styles;
+    const { scopeWidth: baseWidth, scopeHeight: baseHeight } = host;
 
     let nextWidth = lengthToPx(width, baseWidth, this);
     let nextHeight = lengthToPx(height, baseHeight, this);
@@ -140,8 +149,6 @@ export class CanvasContainer<
     if (width.unit === LengthUnit.FitContent) nextWidth = 0;
     if (height.unit === LengthUnit.FitContent) nextHeight = 0;
 
-    let fitContentWidth = 0;
-    let fitContentHeight = 0;
     if (
       width.unit === LengthUnit.FitContent ||
       height.unit === LengthUnit.FitContent ||
@@ -149,23 +156,21 @@ export class CanvasContainer<
       maxHeight?.unit === LengthUnit.FitContent
     ) {
       const fittedSize = resolveFittedContent(this, nextWidth, baseWidth);
-      ({ nextWidth, fitContentWidth, fitContentHeight } = fittedSize);
-    }
+      const { fitContentWidth, fitContentHeight } = fittedSize;
+      nextWidth = fittedSize.nextWidth;
+      if (height.unit === LengthUnit.FitContent) nextHeight = fitContentHeight;
 
-    if (height.unit === LengthUnit.FitContent) nextHeight = fitContentHeight;
-
-    if (maxWidth?.unit === LengthUnit.FitContent) {
-      nextWidth = Math.min(nextWidth, fitContentWidth);
-    } else if (maxWidth) {
-      nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth, this));
-    }
-    if (maxHeight?.unit === LengthUnit.FitContent) {
-      nextHeight = Math.min(nextHeight, fitContentHeight);
-    } else if (maxHeight) {
-      nextHeight = Math.min(
-        nextHeight,
-        lengthToPx(maxHeight, baseHeight, this)
-      );
+      if (maxWidth?.unit === LengthUnit.FitContent) {
+        nextWidth = Math.min(nextWidth, fitContentWidth);
+      } else if (maxWidth) {
+        nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth, this));
+      }
+      if (maxHeight?.unit === LengthUnit.FitContent) {
+        nextHeight = Math.min(nextHeight, fitContentHeight);
+      } else if (maxHeight) {
+        const maxHeightValue = lengthToPx(maxHeight, baseHeight, this);
+        nextHeight = Math.min(nextHeight, maxHeightValue);
+      }
     }
 
     this.width = nextWidth;
@@ -191,11 +196,11 @@ export class CanvasContainer<
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
 
-    host.setStyleState(this.style);
+    host.setStyleState(this._styles);
 
     for (const child of this.children) child.layout();
 
-    host.unsetStyleState(this.style);
+    host.unsetStyleState(this._styles);
 
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
@@ -204,7 +209,7 @@ export class CanvasContainer<
   override paint(): void {
     const host = this.renderer.host;
     const hitCtx = host.hitCtx;
-    const { clipPath, overflow, opacity = 1 } = this.style;
+    const { clipPath, overflow, opacity = 1 } = this._styles;
     const transform = this.layoutTransform;
     if (!transform) {
       throw new Error('paint called before layout.');
@@ -254,7 +259,7 @@ export class CanvasContainer<
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
 
-    host.setStyleState(this.style);
+    host.setStyleState(this._styles);
 
     if (this.visualChildrenOrderChanged) {
       this.updateChildrenVisualOrder();
@@ -262,7 +267,7 @@ export class CanvasContainer<
     }
     for (const child of this.visualChildren) child.paint();
 
-    host.unsetStyleState(this.style);
+    host.unsetStyleState(this._styles);
 
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
@@ -283,7 +288,7 @@ export class CanvasContainer<
       borderStyle,
       borderWidth = Length.Px(0),
       borderColor = host.getCascadedValue('color'),
-    } = this.style;
+    } = this._styles;
 
     const resolvedBorderWidth = borderWidth.value;
     const resolvedBorderStyle =
@@ -343,7 +348,7 @@ export class CanvasContainer<
     if (!tracedPath) return;
 
     const { host } = this.renderer;
-    const { backgroundColor = 'transparent' } = this.style;
+    const { backgroundColor = 'transparent' } = this._styles;
 
     this.drawShadows(tracedPath, this.dropShadows);
 
@@ -371,7 +376,7 @@ export class CanvasContainer<
 export class CanvasRoot extends CanvasContainer {
   constructor(renderer: CanvasRenderer) {
     super(renderer);
-    this.style = { width: Length.Pct(100), height: Length.Pct(100) };
+    this._styles = { width: Length.Pct(100), height: Length.Pct(100) };
   }
 }
 
@@ -381,7 +386,7 @@ export class CanvasRect<
   Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasContainer<Props> {
   override tracePath(): Path2D | null {
-    const { borderRadius = Length.Px(0) } = this.style;
+    const { borderRadius = Length.Px(0) } = this._styles;
     const path = new Path2D();
     const radiusValue = borderRadius.value;
     if (!radiusValue) {
@@ -423,7 +428,7 @@ export class CanvasCircle extends CanvasContainer {
 export class CanvasTextContainer extends CanvasRect {
   constructor(renderer: CanvasRenderer) {
     super(renderer);
-    this.style = { width: Length.FitContent };
+    this._styles = { width: Length.FitContent };
   }
 }
 
@@ -448,7 +453,7 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
       borderStyle,
       borderWidth = Length.Px(0),
       borderColor = host.getCascadedValue('color'),
-    } = this.style;
+    } = this._styles;
     const resolvedBorderWidth = borderWidth.value;
     let resolvedBorderStyle = borderStyle;
     if (!resolvedBorderStyle) {
@@ -503,7 +508,7 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
 export class CanvasShape extends CanvasContainer<CanvasShapeProps> {
   override tracePath(): Path2D | null {
     const ownPoints = this.attributes.points ?? [];
-    const { borderRadius = Length.Px(0) } = this.style;
+    const { borderRadius = Length.Px(0) } = this._styles;
     const radiusValue = borderRadius.value;
     if (!ownPoints.length) {
       this.path = null;

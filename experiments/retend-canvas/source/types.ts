@@ -16,6 +16,7 @@ import type {
   BoxShadowValue,
   PointerEventsValue,
 } from './style';
+import type { ANIMATABLE_PROPERTIES } from './tree/animations';
 import type { CanvasNode, PointerEvent } from './tree/node';
 
 export interface CanvasStyle {
@@ -52,7 +53,24 @@ export interface CanvasStyle {
   translate?: LengthValue | [LengthValue, LengthValue];
   clipPath?: string;
   pointerEvents?: PointerEventsValue;
+  animationName?: AnimationDefinition;
+  animationDuration?: number; // in ms
+  animationTimingFunction?: [number, number, number, number];
+  animationDelay?: number;
 }
+
+export type AnimatableProperty = keyof typeof ANIMATABLE_PROPERTIES;
+
+export interface AnimationKeyframe {
+  offset: number;
+  styles: CanvasStyle;
+}
+
+export type AnimationDefinition = {
+  [key in 'from' | 'to' | `${number}%`]?: {
+    [key in AnimatableProperty]?: NonNullable<CanvasStyle[key]>;
+  };
+};
 
 export type CanvasStyleValue =
   | CanvasStyle
