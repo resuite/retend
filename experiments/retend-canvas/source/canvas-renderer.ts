@@ -15,7 +15,6 @@ import {
   createNodesFromTemplate,
 } from 'retend';
 
-import type { CanvasAnimation } from './tree/animations';
 import type { AnimationDefinition, CanvasNodeEventName } from './types';
 
 import {
@@ -40,6 +39,7 @@ import {
   write,
   CanvasRoot,
 } from './tree';
+import { tickAnimations, type CanvasAnimation } from './tree/animations';
 
 interface CanvasRenderingTypes {
   Node: CanvasNode;
@@ -122,6 +122,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     hitCanvas.width = Math.round(this.#viewport.width);
     hitCanvas.height = Math.round(this.#viewport.height);
     this.#renderFrame = null;
+    const hasRunningAnimations = tickAnimations(this.#animations);
     this.host.ctx.clearRect(
       0,
       0,
@@ -133,6 +134,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.host.scopeHeight = this.#viewport.height;
     this.root.layout();
     this.root.paint();
+    if (hasRunningAnimations) this.requestRender();
   }
 
   render(app: JSX.Template): CanvasNode | CanvasNode[] {

@@ -15,6 +15,7 @@ import type {
   WhiteSpaceValue,
   BoxShadowValue,
   PointerEventsValue,
+  AnimationFillModeValue,
 } from './style';
 import type { ANIMATABLE_PROPERTIES } from './tree/animations';
 import type { CanvasNode, PointerEvent } from './tree/node';
@@ -54,6 +55,7 @@ export interface CanvasStyle {
   clipPath?: string;
   pointerEvents?: PointerEventsValue;
   animationName?: AnimationDefinition;
+  animationFillMode?: AnimationFillModeValue;
   animationIterationCount?: number;
   animationDuration?: number; // in ms
   animationTimingFunction?: [number, number, number, number];

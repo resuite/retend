@@ -231,6 +231,16 @@ export const PointerEvents = {
 export type PointerEventsValue =
   (typeof PointerEvents)[keyof typeof PointerEvents];
 
+export const AnimationFillMode = {
+  None: 0,
+  Forwards: 1,
+  Backwards: 2,
+  Both: 3,
+} as const;
+
+export type AnimationFillModeValue =
+  (typeof AnimationFillMode)[keyof typeof AnimationFillMode];
+
 /**
  * The supported canvas border styles.
  *
