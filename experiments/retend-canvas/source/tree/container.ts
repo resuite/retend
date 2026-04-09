@@ -75,7 +75,7 @@ export class CanvasContainer<
 
     if (replaceAll) {
       const resetStyles = { ...this.baseStyles, ...style };
-      Reflect.set(this, 'computedStyles', { ...resetStyles });
+      Reflect.set(this, 'computedStyles', resetStyles);
       Reflect.set(this, 'authoredStyles', { ...resetStyles });
     } else {
       Object.assign(this.computedStyles, style);
@@ -171,6 +171,7 @@ export class CanvasContainer<
     const { host } = this.renderer;
     this.resolveSize();
     this.layoutTransform = createTransformMatrix(this, this.width, this.height);
+    if (this.children.length === 0) return;
     const { scopeWidth: prevScopeWidth, scopeHeight: prevScopeHeight } = host;
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
