@@ -111,27 +111,16 @@ export function interpolateTrackValue<T extends AnimatableProperty>(
     case 'translate': {
       const start = startFrame.value as LengthValue;
       const end = endFrame.value as LengthValue;
-      let baseWidth = 0;
-      let baseHeight = 0;
-      if (node.parent instanceof CanvasContainer) {
-        const { width, height } = node.parent.resolvedSize;
-        baseWidth = width;
-        baseHeight = height;
-      }
+      const { width, height } = node.resolvedSize;
+      const startX = Array.isArray(start) ? start[0] : start;
+      const startY = Array.isArray(start) ? start[1] : Length.Px(0);
+      const endX = Array.isArray(end) ? end[0] : end;
+      const endY = Array.isArray(end) ? end[1] : Length.Px(0);
 
-      if (Array.isArray(start) && Array.isArray(end)) {
-        return [
-          interpolateLength(start[0], end[0], localProgress, baseWidth, node),
-          interpolateLength(start[1], end[1], localProgress, baseHeight, node),
-        ];
-      }
-
-      if (!Array.isArray(start) && !Array.isArray(end)) {
-        return interpolateLength(start, end, localProgress, baseWidth, node);
-      }
-
-      if (localProgress >= 0.5) return end;
-      return start;
+      return [
+        interpolateLength(startX, endX, localProgress, width, node),
+        interpolateLength(startY, endY, localProgress, height, node),
+      ];
     }
 
     default:

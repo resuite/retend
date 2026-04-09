@@ -75,8 +75,8 @@ export class CanvasContainer<
 
     if (replaceAll) {
       const resetStyles = { ...this.baseStyles, ...style };
-      Reflect.set(this, 'computedStyles', resetStyles);
-      Reflect.set(this, 'authoredStyles', resetStyles);
+      Reflect.set(this, 'computedStyles', { ...resetStyles });
+      Reflect.set(this, 'authoredStyles', { ...resetStyles });
     } else {
       Object.assign(this.computedStyles, style);
       Object.assign(this.authoredStyles, style);

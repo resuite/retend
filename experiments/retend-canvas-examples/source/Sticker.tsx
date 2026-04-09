@@ -2,7 +2,9 @@ import { Cell } from 'retend';
 import {
   Alignment,
   Angle,
+  type AnimationDefinition,
   type CanvasStyleValue,
+  Easing,
   Length,
   PointerEvents,
   TextAlign,
@@ -19,13 +21,24 @@ interface Transform {
 }
 
 interface StickerProps extends StickerType {
-  index?: Cell<number>;
+  index: Cell<number>;
   initialTransform?: Transform;
   height: number;
   selected: Cell<StickerType | null>;
   onSelect?: (item: StickerType) => void;
   onDismiss?: () => void;
 }
+
+const fromInitial: AnimationDefinition = {
+  from: {
+    translate: [Length.Px(0), Length.Pct(50)],
+    rotate: Angle.Deg(0),
+  },
+  '40%': {
+    translate: Length.Px(0),
+    rotate: Angle.Deg(0),
+  },
+};
 
 function createStyle(
   drag: ReturnType<typeof useDragGesture>,
@@ -40,6 +53,7 @@ function createStyle(
   });
 
   const style = Cell.derived((): CanvasStyleValue => {
+    const index = props.index.get() ?? 0;
     const pointerEvents = isNotSelected.get()
       ? PointerEvents.None
       : PointerEvents.Auto;
@@ -50,8 +64,12 @@ function createStyle(
       alignSelf: Alignment.Center,
       justifySelf: Alignment.Center,
       backgroundColor: 'red',
+      borderColor: 'white',
       borderWidth: Length.Px(2),
       pointerEvents,
+      animationName: fromInitial,
+      animationDuration: 400 + (index + 1) * 20,
+      animationTimingFunction: Easing.CubicBezier(0.16, 1, 0.3, 1),
     };
 
     if (isSelected.get()) {

@@ -205,8 +205,8 @@ const Stickers = () => {
     <rect
       style={{
         height: Length.Vh(100),
-        backgroundColor: 'white',
-        color: 'black',
+        backgroundColor: 'black',
+        color: 'white',
       }}
       onClick={handleOutsideClick}
     >
@@ -215,6 +215,7 @@ const Stickers = () => {
           width: Length.Px(92),
           height: Length.Px(44),
           backgroundColor: '#f8fafc',
+          color: 'black',
           borderColor: '#cbd5e1',
           zIndex: 99,
           borderWidth: Length.Px(1),

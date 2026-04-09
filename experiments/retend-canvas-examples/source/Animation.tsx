@@ -72,12 +72,7 @@ function useAnimationState() {
       return { ...style.demo };
     }
     restartCounter.get();
-    const definition: AnimationDefinition = {};
-    for (const k in anim.definition) {
-      (definition as Record<string, unknown>)[k] = (
-        anim.definition as Record<string, unknown>
-      )[k];
-    }
+    const definition = { ...anim.definition } as AnimationDefinition;
     return {
       ...style.demo,
       animationName: definition,

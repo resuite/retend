@@ -43,7 +43,7 @@ export function scheduleAnimations(
   const { renderer, computedStyles: current } = node;
   const animations: CanvasAnimation[] = [];
 
-  if (hasAnimationDataChanged(current, nextStyles)) {
+  if (hasAnimationDataChanged(current, nextStyles, replace)) {
     if (node.isConnected && current.animationName) {
       renderer.cancelAnimation(node, current.animationName);
     }
@@ -54,15 +54,43 @@ export function scheduleAnimations(
   return animations;
 }
 
-function hasAnimationDataChanged(current: CanvasStyle, next: CanvasStyle) {
+function hasAnimationDataChanged(
+  current: CanvasStyle,
+  next: CanvasStyle,
+  replace: boolean
+) {
+  let animationName = next.animationName;
+  let animationDuration = next.animationDuration;
+  let animationTimingFunction = next.animationTimingFunction;
+  let animationDelay = next.animationDelay;
+  let animationFillMode = next.animationFillMode;
+  let animationIterationCount = next.animationIterationCount;
+
+  if (!replace) {
+    if (!('animationName' in next)) animationName = current.animationName;
+    if (!('animationDuration' in next)) {
+      animationDuration = current.animationDuration;
+    }
+    if (!('animationTimingFunction' in next)) {
+      animationTimingFunction = current.animationTimingFunction;
+    }
+    if (!('animationDelay' in next)) animationDelay = current.animationDelay;
+    if (!('animationFillMode' in next)) {
+      animationFillMode = current.animationFillMode;
+    }
+    if (!('animationIterationCount' in next)) {
+      animationIterationCount = current.animationIterationCount;
+    }
+  }
+
   return (
-    current.animationName !== next.animationName ||
-    current.animationDuration !== next.animationDuration ||
+    current.animationName !== animationName ||
+    current.animationDuration !== animationDuration ||
     current.animationTimingFunction?.join(',') !==
-      next.animationTimingFunction?.join(',') ||
-    current.animationDelay !== next.animationDelay ||
-    current.animationFillMode !== next.animationFillMode ||
-    current.animationIterationCount !== next.animationIterationCount
+      animationTimingFunction?.join(',') ||
+    current.animationDelay !== animationDelay ||
+    current.animationFillMode !== animationFillMode ||
+    current.animationIterationCount !== animationIterationCount
   );
 }
 
