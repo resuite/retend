@@ -50,6 +50,10 @@ export class CanvasContainer<
     this.baseStyles = {};
   }
 
+  get resolvedSize() {
+    return { width: this.width, height: this.height };
+  }
+
   override append(...nodes: CanvasNode[]) {
     super.append(...nodes);
     this.visualChildrenOrderChanged = true;

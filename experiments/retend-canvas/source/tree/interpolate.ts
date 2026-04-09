@@ -3,15 +3,19 @@ import type {
   AnimationKeyframe,
   CanvasStyle,
 } from '../types';
-import type { CanvasContainer } from './container';
 
-import { type EasingValue, Length } from '../style';
+import {
+  Angle,
+  type AngleValue,
+  type EasingValue,
+  Length,
+  type LengthValue,
+} from '../style';
+import { CanvasContainer } from './container';
 import { lengthToPx } from './transform';
 
-export function applyTimingFunction(
-  progress: number,
-  [x1, y1, x2, y2]: [number, number, number, number]
-): number {
+export function applyTiming(progress: number, easing: EasingValue): number {
+  const [x1, y1, x2, y2] = easing;
   if (progress <= 0 || progress >= 1) return Math.max(0, Math.min(1, progress));
 
   let start = 0;
@@ -38,9 +42,9 @@ export function applyTimingFunction(
   );
 }
 
-export function interpolateTrackValue(
-  property: AnimatableProperty,
-  keyframes: AnimationKeyframe<AnimatableProperty>[],
+export function interpolateTrackValue<T extends AnimatableProperty>(
+  property: T,
+  keyframes: AnimationKeyframe<T>[],
   progress: number,
   node: CanvasContainer,
   easing: EasingValue
@@ -64,13 +68,11 @@ export function interpolateTrackValue(
     }
   }
 
-  if (startFrame.offset === endFrame.offset) {
-    return startFrame.value;
-  }
+  if (startFrame.offset === endFrame.offset) return startFrame.value;
 
   const linearProgress =
     (progress - startFrame.offset) / (endFrame.offset - startFrame.offset);
-  const localProgress = applyTimingFunction(linearProgress, easing);
+  const localProgress = applyTiming(linearProgress, easing);
 
   switch (property) {
     case 'opacity': {
@@ -80,12 +82,8 @@ export function interpolateTrackValue(
     }
 
     case 'scale': {
-      const start = toScalePair(
-        startFrame.value as NonNullable<CanvasStyle['scale']>
-      );
-      const end = toScalePair(
-        endFrame.value as NonNullable<CanvasStyle['scale']>
-      );
+      const start = toPair(startFrame.value);
+      const end = toPair(endFrame.value);
       return [
         start[0] + (end[0] - start[0]) * localProgress,
         start[1] + (end[1] - start[1]) * localProgress,
@@ -93,67 +91,46 @@ export function interpolateTrackValue(
     }
 
     case 'rotate': {
-      const start = startFrame.value as NonNullable<CanvasStyle['rotate']>;
-      const end = endFrame.value as NonNullable<CanvasStyle['rotate']>;
-      return {
-        unit: start.unit,
-        value: start.value + (end.value - start.value) * localProgress,
-      };
+      const start = startFrame.value as AngleValue;
+      const end = endFrame.value as AngleValue;
+      return Angle.Deg(start.value + (end.value - start.value) * localProgress);
     }
 
-    case 'left': {
-      const start = startFrame.value as NonNullable<CanvasStyle['left']>;
-      const end = endFrame.value as NonNullable<CanvasStyle['left']>;
-      const baseSize = node.renderer.host.scopeWidth;
-      return interpolateLengthValue(start, end, localProgress, baseSize, node);
-    }
-
+    case 'left':
     case 'top': {
-      const start = startFrame.value as NonNullable<CanvasStyle['top']>;
-      const end = endFrame.value as NonNullable<CanvasStyle['top']>;
-      const baseSize = node.renderer.host.scopeHeight;
-      return interpolateLengthValue(start, end, localProgress, baseSize, node);
+      const start = startFrame.value as LengthValue;
+      const end = endFrame.value as LengthValue;
+      let baseSize = 0;
+      if (node.parent instanceof CanvasContainer) {
+        const { width, height } = node.parent.resolvedSize;
+        baseSize = property === 'left' ? width : height;
+      }
+      return interpolateLength(start, end, localProgress, baseSize, node);
     }
 
     case 'translate': {
-      const start = startFrame.value as NonNullable<CanvasStyle['translate']>;
-      const end = endFrame.value as NonNullable<CanvasStyle['translate']>;
-      const baseWidth = node.renderer.host.scopeWidth;
-      const baseHeight = node.renderer.host.scopeHeight;
+      const start = startFrame.value as LengthValue;
+      const end = endFrame.value as LengthValue;
+      let baseWidth = 0;
+      let baseHeight = 0;
+      if (node.parent instanceof CanvasContainer) {
+        const { width, height } = node.parent.resolvedSize;
+        baseWidth = width;
+        baseHeight = height;
+      }
 
       if (Array.isArray(start) && Array.isArray(end)) {
         return [
-          interpolateLengthValue(
-            start[0],
-            end[0],
-            localProgress,
-            baseWidth,
-            node
-          ),
-          interpolateLengthValue(
-            start[1],
-            end[1],
-            localProgress,
-            baseHeight,
-            node
-          ),
+          interpolateLength(start[0], end[0], localProgress, baseWidth, node),
+          interpolateLength(start[1], end[1], localProgress, baseHeight, node),
         ];
       }
 
       if (!Array.isArray(start) && !Array.isArray(end)) {
-        return interpolateLengthValue(
-          start,
-          end,
-          localProgress,
-          baseWidth,
-          node
-        );
+        return interpolateLength(start, end, localProgress, baseWidth, node);
       }
 
-      if (localProgress >= 0.5) {
-        return end;
-      }
-
+      if (localProgress >= 0.5) return end;
       return start;
     }
 
@@ -162,19 +139,14 @@ export function interpolateTrackValue(
   }
 }
 
-function toScalePair(
-  value: NonNullable<CanvasStyle['scale']>
-): [number, number] {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
+function toPair(value: any): [number, number] {
+  if (Array.isArray(value)) return value as [number, number];
   return [value, value];
 }
 
-function interpolateLengthValue(
-  start: NonNullable<CanvasStyle['left']>,
-  end: NonNullable<CanvasStyle['left']>,
+function interpolateLength(
+  start: LengthValue,
+  end: LengthValue,
   progress: number,
   baseSize: number,
   node: CanvasContainer
