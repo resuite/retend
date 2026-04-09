@@ -71,7 +71,7 @@ export class CanvasContainer<
 
   updateStyles(style: CanvasStyle, replaceAll = false) {
     const zIndexChanged = checkZIndexChange(this, style);
-    scheduleAnimations(this, style);
+    scheduleAnimations(this, style, replaceAll);
 
     if (replaceAll) {
       const resetStyles = { ...this.baseStyles, ...style };

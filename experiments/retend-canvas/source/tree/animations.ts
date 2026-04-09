@@ -37,7 +37,8 @@ export interface AnimationTrack<T extends AnimatableProperty> {
 
 export function scheduleAnimations(
   node: CanvasContainer,
-  nextStyles: CanvasStyle
+  nextStyles: CanvasStyle,
+  replace: boolean
 ) {
   const { renderer, computedStyles: current } = node;
   const animations: CanvasAnimation[] = [];
@@ -46,11 +47,10 @@ export function scheduleAnimations(
     if (node.isConnected && current.animationName) {
       renderer.cancelAnimation(node, current.animationName);
     }
-    const newAnimation = createAnimation(node, nextStyles);
-    if (newAnimation) animations.push(newAnimation);
+    const newAnimation = createAnimation(node, nextStyles, replace);
+    if (newAnimation) renderer.scheduleAnimations([newAnimation]);
   }
 
-  renderer.scheduleAnimations(animations);
   return animations;
 }
 
@@ -108,22 +108,22 @@ function convertToTracklist(
 
 function createAnimation(
   node: CanvasContainer,
-  nextStyles: CanvasStyle
+  nextStyles: CanvasStyle,
+  replace: boolean
 ): CanvasAnimation | undefined {
   const current = node.computedStyles;
+  const targetStyles = replace ? nextStyles : { ...current, ...nextStyles };
   const {
-    animationName = current.animationName,
-    animationDuration = current.animationDuration ?? 0,
-    animationDelay = current.animationDelay ?? 0,
-    animationFillMode = current.animationFillMode ?? AnimationFillMode.None,
-    animationIterationCount = current.animationIterationCount ?? 1,
-    animationTimingFunction = current.animationTimingFunction ?? [0, 0, 1, 1],
-  } = nextStyles;
+    animationName,
+    animationDuration = 0,
+    animationDelay = 0,
+    animationFillMode = AnimationFillMode.None,
+    animationIterationCount = 1,
+    animationTimingFunction = [0, 0, 1, 1],
+  } = targetStyles;
 
   if (!animationName) return undefined;
-
-  const finalState = { ...node.computedStyles, ...nextStyles };
-  const tracks = convertToTracklist(animationName, finalState);
+  const tracks = convertToTracklist(animationName, targetStyles);
   if (!tracks.length) return undefined;
 
   return {
