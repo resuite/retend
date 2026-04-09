@@ -467,7 +467,8 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
 
   override paintContainer(): void {
     const host = this.renderer.host;
-    const path = this.tracePath();
+    const path = this.pathChanged ? this.tracePath() : this.path;
+    this.pathChanged = false;
     if (!path) return;
 
     const {

@@ -201,6 +201,7 @@ export function tickAnimations(animations: CanvasAnimation[]): boolean {
     }
 
     Object.assign(node.computedStyles, animatedStyle);
+    node.checkForPathChange(animatedStyle);
     if (tickState.keepAnimation) remainingAnimations.push(animation);
   }
 

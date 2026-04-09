@@ -114,6 +114,34 @@ describe('circle rendering', () => {
   });
 });
 
+describe('path rendering', () => {
+  it('reuses cached path nodes', () => {
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <path
+        d="M0 0 L100 0 L100 100 Z"
+        style={{
+          borderStyle: BorderStyle.Solid,
+          borderWidth: Length.Px(1),
+        }}
+      />
+    );
+
+    const path = renderer.root.children[0] as any;
+    let traceCalls = 0;
+    const tracePath = path.tracePath.bind(path);
+    path.tracePath = () => {
+      traceCalls += 1;
+      return tracePath();
+    };
+
+    renderer.drawToScreen();
+    renderer.drawToScreen();
+
+    expect(traceCalls).toBe(1);
+  });
+});
+
 describe('nested containers', () => {
   it('renders child inside parent', async () => {
     const { ctx } = await render(() => (
