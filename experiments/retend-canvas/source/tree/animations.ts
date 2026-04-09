@@ -7,7 +7,7 @@ import type {
 import type { CanvasContainer } from './container';
 
 import { AnimationFillMode, type AnimationFillModeValue } from '../style';
-import { applyTimingFunction, interpolateTrackValue } from './interpolate';
+import { interpolateTrackValue } from './interpolate';
 
 export const ANIMATABLE_PROPERTIES = {
   scale: true,
@@ -242,10 +242,7 @@ function resolveTickState(animation: CanvasAnimation): {
 
   const overallProgress = animation.progress / animation.duration;
   animation.currentIteration = Math.floor(overallProgress);
-  const progress = applyTimingFunction(
-    overallProgress - animation.currentIteration,
-    animation.easing
-  );
+  const progress = overallProgress - animation.currentIteration;
 
   return {
     keepAnimation: true,
