@@ -16,12 +16,20 @@ export const ANIMATABLE_PROPERTIES = {
 } as const satisfies Partial<Record<keyof CanvasStyle, boolean>>;
 
 export interface CanvasAnimation {
+  definition: AnimationDefinition;
   target: CanvasContainer;
-  keyframes: AnimationKeyframe[];
+  tracks: AnimationTrack<AnimatableProperty>[];
+  iterations: number;
+  currentIteration: number;
   startTime: number;
   progress: number;
   duration: number;
   easing: [number, number, number, number];
+}
+
+export interface AnimationTrack<T extends AnimatableProperty> {
+  property: T;
+  keyframes: AnimationKeyframe<T>[];
 }
 
 export function updateAnimationAndTransitionStates(
@@ -33,17 +41,20 @@ export function updateAnimationAndTransitionStates(
 
   const animations = [];
 
-  if (current.animationName && hasAnimationDataChanged(current, nextStyles)) {
-    renderer.cancelAnimation(node, current.animationName);
+  if (hasAnimationDataChanged(current, nextStyles)) {
+    if (current.animationName) {
+      renderer.cancelAnimation(node, current.animationName);
+    }
     const newAnimation = createAnimation(node, nextStyles);
     if (newAnimation) animations.push(newAnimation);
   }
 
+  // todo: add transitions.
   // const changedAnimatableProperties = [];
   // for (const key in nextStyles) {
   // }
 
-  for (const animation of animations) renderer.scheduleAnimation(animation);
+  renderer.scheduleAnimations(animations);
 }
 
 function hasAnimationDataChanged(current: CanvasStyle, next: CanvasStyle) {
@@ -69,53 +80,44 @@ function hasAnimationDataChanged(current: CanvasStyle, next: CanvasStyle) {
   );
 }
 
-function getAnimatableStyles(style: CanvasStyle) {
-  const result: Partial<{
-    [key in AnimatableProperty]: CanvasStyle[key];
-  }> = {};
-  for (const key in style) {
-    if (key in ANIMATABLE_PROPERTIES) {
-      const _key = key as AnimatableProperty;
-      result[_key] = style[_key] as never;
-    }
-  }
-  return result;
-}
-
-function convertToKeyframes(
+function convertToTracklist(
   definition: AnimationDefinition,
   finalState: CanvasStyle
-): AnimationKeyframe[] {
-  const keyframes: AnimationKeyframe[] = [];
+) {
+  const propertyMap: Partial<
+    Record<AnimatableProperty, AnimationTrack<AnimatableProperty>>
+  > = {};
 
-  for (const key in definition) {
-    const stepKey = key as keyof AnimationDefinition;
-    const styles = definition[stepKey];
+  for (const frame in definition) {
+    const key = frame as keyof AnimationDefinition;
+    const offset =
+      key === 'from' ? 0 : key === 'to' ? 1 : parseFloat(key) / 100;
 
-    if (!styles) continue;
-
-    let offset =
-      stepKey === 'from' ? 0 : stepKey === 'to' ? 1 : parseFloat(stepKey) / 100;
-    offset = Math.max(0, Math.min(1, offset));
-    keyframes.push({ offset, styles });
+    for (const styleProperty in definition[key]) {
+      const property = styleProperty as AnimatableProperty;
+      const value = definition[key][property];
+      const track = (propertyMap[property] ??= { property, keyframes: [] });
+      track.keyframes.push({ offset, value });
+    }
   }
 
-  const sorted = keyframes.toSorted((a, b) => a.offset - b.offset);
+  const tracks = Object.values(propertyMap);
+  for (const track of tracks) {
+    track.keyframes.sort((a, b) => a.offset - b.offset);
+    const firstFrame = track.keyframes[0];
+    const lastFrame = track.keyframes[track.keyframes.length - 1];
+    const staticStyle = finalState[track.property];
 
-  if (sorted.length && sorted[0].offset !== 0) {
-    sorted.unshift({
-      offset: 0,
-      styles: getAnimatableStyles(finalState),
-    });
-  }
-  if (sorted.length && sorted[sorted.length - 1].offset !== 1) {
-    sorted.push({
-      offset: 1,
-      styles: getAnimatableStyles(finalState),
-    });
+    // Filling in missing frames.
+    if (firstFrame?.offset !== 0 && staticStyle) {
+      track.keyframes.unshift({ offset: 0, value: staticStyle });
+    }
+    if (lastFrame?.offset !== 1 && staticStyle) {
+      track.keyframes.push({ offset: 1, value: staticStyle });
+    }
   }
 
-  return sorted;
+  return tracks;
 }
 
 function createAnimation(
@@ -127,18 +129,22 @@ function createAnimation(
     animationName = current.animationName,
     animationDuration = current.animationDuration ?? 0,
     animationDelay = current.animationDelay ?? 0,
+    animationIterationCount = current.animationIterationCount ?? 1,
     animationTimingFunction = current.animationTimingFunction ?? [0, 0, 1, 1],
   } = nextStyles;
 
   if (!animationName) return undefined;
 
   const finalState = { ...node.styles, ...nextStyles };
-  const keyframes = convertToKeyframes(animationName, finalState);
-  if (!keyframes.length) return undefined;
+  const tracks = convertToTracklist(animationName, finalState);
+  if (!tracks.length) return undefined;
 
   return {
     target: node,
-    keyframes,
+    definition: animationName,
+    iterations: animationIterationCount,
+    currentIteration: 0,
+    tracks,
     startTime: performance.now() + animationDelay,
     progress: 0,
     duration: animationDuration,

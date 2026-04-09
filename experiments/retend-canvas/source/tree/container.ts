@@ -134,7 +134,7 @@ export class CanvasContainer<
   }
 
   protected resolveSize() {
-    const host = this.renderer.host;
+    const { host } = this.renderer;
     const {
       width = Length.Pct(100),
       height = Length.FitContent,
@@ -178,7 +178,7 @@ export class CanvasContainer<
   }
 
   override measure(maxWidth?: number) {
-    const host = this.renderer.host;
+    const { host } = this.renderer;
     const prevScopeWidth = host.scopeWidth;
     if (maxWidth !== undefined) host.scopeWidth = maxWidth;
     this.resolveSize();
@@ -187,21 +187,17 @@ export class CanvasContainer<
   }
 
   override layout(): void {
-    const host = this.renderer.host;
+    const { host } = this.renderer;
     this.resolveSize();
     this.layoutTransform = createTransformMatrix(this, this.width, this.height);
-
-    const prevScopeWidth = host.scopeWidth;
-    const prevScopeHeight = host.scopeHeight;
+    const { scopeWidth: prevScopeWidth, scopeHeight: prevScopeHeight } = host;
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
-
-    host.setStyleState(this._styles);
-
-    for (const child of this.children) child.layout();
-
-    host.unsetStyleState(this._styles);
-
+    host.addToCascade(this._styles);
+    for (const child of this.children) {
+      child.layout();
+    }
+    host.removeFromCascade(this._styles);
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
   }
@@ -259,7 +255,7 @@ export class CanvasContainer<
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
 
-    host.setStyleState(this._styles);
+    host.addToCascade(this._styles);
 
     if (this.visualChildrenOrderChanged) {
       this.updateChildrenVisualOrder();
@@ -267,7 +263,7 @@ export class CanvasContainer<
     }
     for (const child of this.visualChildren) child.paint();
 
-    host.unsetStyleState(this._styles);
+    host.removeFromCascade(this._styles);
 
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;

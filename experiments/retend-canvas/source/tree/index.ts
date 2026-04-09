@@ -93,13 +93,13 @@ export class CanvasHost extends EventTarget {
     return this.#cascade[key][this.#cascade[key].length - 1];
   }
 
-  setStyleState(style: CanvasStyle) {
+  addToCascade(style: CanvasStyle) {
     for (const key of CASCADED_PROPERTIES) {
       if (style[key]) this.#cascade[key].push(style[key] as never);
     }
   }
 
-  unsetStyleState(style: CanvasStyle) {
+  removeFromCascade(style: CanvasStyle) {
     for (const key of CASCADED_PROPERTIES) {
       if (style[key]) this.#cascade[key].pop();
     }

@@ -29,7 +29,7 @@ export function resolveFittedContent(
     ReturnType<(typeof children)[number]['measure']>
   > = [];
 
-  host.setStyleState(style);
+  host.addToCascade(style);
 
   if (needsFitWidth) {
     for (const child of children) {
@@ -80,7 +80,7 @@ export function resolveFittedContent(
     }
   }
 
-  host.unsetStyleState(style);
+  host.removeFromCascade(style);
 
   return { nextWidth, fitContentWidth, fitContentHeight };
 }

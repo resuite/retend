@@ -15,7 +15,8 @@ import {
   createNodesFromTemplate,
 } from 'retend';
 
-import type { CanvasNodeEventName } from './types';
+import type { CanvasAnimation } from './tree/animations';
+import type { AnimationDefinition, CanvasNodeEventName } from './types';
 
 import {
   CanvasAnchor,
@@ -66,6 +67,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   #state?: StateSnapshot;
   root: CanvasContainer;
   #viewport: { width: number; height: number };
+  #animations: CanvasAnimation[];
 
   nextNodeId = 1;
   nodeMap = new Map<number, CanvasNode>();
@@ -86,6 +88,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.root = new CanvasRoot(this);
     this.root.setConnected(true);
     this.#viewport = viewport;
+    this.#animations = [];
     this.drawToScreen = this.drawToScreen.bind(this);
   }
 
@@ -97,6 +100,21 @@ export class CanvasRenderer implements CanvasRendererInterface {
   requestRender() {
     if (this.#renderFrame !== null) return;
     this.#renderFrame = requestAnimationFrame(this.drawToScreen);
+  }
+
+  scheduleAnimations(animations: CanvasAnimation[]) {
+    this.#animations.push(...animations);
+    this.requestRender();
+  }
+
+  cancelAnimation(node: CanvasContainer, type: AnimationDefinition) {
+    const index = this.#animations.findIndex((animation) => {
+      return animation.target === node && animation.definition === type;
+    });
+    if (index !== -1) {
+      this.#animations.splice(index, 1);
+      this.requestRender();
+    }
   }
 
   drawToScreen() {

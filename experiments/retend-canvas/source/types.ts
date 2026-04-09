@@ -54,6 +54,7 @@ export interface CanvasStyle {
   clipPath?: string;
   pointerEvents?: PointerEventsValue;
   animationName?: AnimationDefinition;
+  animationIterationCount?: number;
   animationDuration?: number; // in ms
   animationTimingFunction?: [number, number, number, number];
   animationDelay?: number;
@@ -61,9 +62,9 @@ export interface CanvasStyle {
 
 export type AnimatableProperty = keyof typeof ANIMATABLE_PROPERTIES;
 
-export interface AnimationKeyframe {
+export interface AnimationKeyframe<T extends AnimatableProperty> {
   offset: number;
-  styles: CanvasStyle;
+  value: CanvasStyle[T];
 }
 
 export type AnimationDefinition = {
