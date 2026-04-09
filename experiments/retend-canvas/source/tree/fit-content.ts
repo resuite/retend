@@ -8,7 +8,7 @@ export function resolveFittedContent(
   nextWidth: number,
   baseWidth: number
 ) {
-  const { children, styles: style } = container;
+  const { children, computedStyles: style } = container;
   const host = container.renderer.host;
   const {
     width = Length.Pct(100),
@@ -37,7 +37,7 @@ export function resolveFittedContent(
       if (canReuseMeasure) measuredChildren.push(childSize);
       let childX = 0;
       if (child instanceof CanvasContainer) {
-        const childStyle = child.styles;
+        const childStyle = child.computedStyles;
         if (
           childStyle.width?.unit === LengthUnit.Pct ||
           childStyle.left?.unit === LengthUnit.Pct
@@ -66,7 +66,7 @@ export function resolveFittedContent(
         : child.measure(nextWidth);
       let childY = 0;
       if (child instanceof CanvasContainer) {
-        const childStyle = child.styles;
+        const childStyle = child.computedStyles;
         if (
           childStyle.height?.unit === LengthUnit.Pct ||
           childStyle.top?.unit === LengthUnit.Pct

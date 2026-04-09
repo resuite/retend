@@ -64,7 +64,7 @@ export function createTransformMatrix(
 ) {
   const { host } = container.renderer;
   const { scopeWidth: parentWidth, scopeHeight: parentHeight } = host;
-  const style = container.styles;
+  const style = container.computedStyles;
   const matrix = new DOMMatrix();
 
   const {
@@ -73,7 +73,7 @@ export function createTransformMatrix(
     rotate = Angle.Deg(0),
     transformOrigin = defaultOrigin,
   } = style;
-  let [scaleX, scaleY] = scale as [number, number]; // Already normalized in CanvasContainer.setStyles
+  let [scaleX, scaleY] = Array.isArray(scale) ? scale : [scale, scale];
 
   const rotation = rotate.value;
   let translateX = 0;
@@ -89,9 +89,9 @@ export function createTransformMatrix(
     style.justifySelf === undefined &&
     container.parent instanceof CanvasContainer
   ) {
-    if (container.parent.styles.justifyItems === Alignment.Center) {
+    if (container.parent.computedStyles.justifyItems === Alignment.Center) {
       translateX = (parentWidth - width) / 2;
-    } else if (container.parent.styles.justifyItems === Alignment.End) {
+    } else if (container.parent.computedStyles.justifyItems === Alignment.End) {
       translateX = parentWidth - width;
     }
   }
@@ -106,9 +106,9 @@ export function createTransformMatrix(
     style.alignSelf === undefined &&
     container.parent instanceof CanvasContainer
   ) {
-    if (container.parent.styles.alignItems === Alignment.Center) {
+    if (container.parent.computedStyles.alignItems === Alignment.Center) {
       translateY = (parentHeight - height) / 2;
-    } else if (container.parent.styles.alignItems === Alignment.End) {
+    } else if (container.parent.computedStyles.alignItems === Alignment.End) {
       translateY = parentHeight - height;
     }
   }

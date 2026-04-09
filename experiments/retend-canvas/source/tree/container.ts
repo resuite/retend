@@ -16,7 +16,7 @@ import {
   Overflow,
   PointerEvents,
 } from '../style';
-import { updateAnimationAndTransitionStates } from './animations';
+import { scheduleAnimations } from './animations';
 import { resolveFittedContent } from './fit-content';
 import { CanvasParentNode, type CanvasNode } from './node';
 import { createTransformMatrix, lengthToPx } from './transform';
@@ -27,8 +27,10 @@ export class CanvasContainer<
   Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasParentNode {
   protected attributes: Props;
-  protected _styles: CanvasStyle;
-  protected _staticStyles: CanvasStyle;
+
+  readonly computedStyles: CanvasStyle;
+  readonly authoredStyles: CanvasStyle;
+  protected baseStyles: CanvasStyle;
 
   protected width = 0;
   protected height = 0;
@@ -37,38 +39,15 @@ export class CanvasContainer<
   protected clip: Path2D | null = null;
   protected clipValue: string | null = null;
 
-  protected dropShadows: BoxShadowValue[] = [];
-  protected insetShadows: BoxShadowValue[] = [];
-
   protected visualChildrenOrderChanged = false;
   protected visualChildren: CanvasNode[] = [];
 
   constructor(renderer: CanvasRenderer) {
     super(renderer);
     this.attributes = {} as Props;
-    this._styles = {};
-    this._staticStyles = {};
-  }
-
-  get styles() {
-    return this._styles;
-  }
-
-  get staticStyles() {
-    return this._staticStyles;
-  }
-
-  protected updateChildrenVisualOrder() {
-    const children = this.children;
-    if (children.length < 2) {
-      this.visualChildren = children;
-      return;
-    }
-    this.visualChildren = children.toSorted((a, b) => {
-      const az = a instanceof CanvasContainer ? (a._styles.zIndex ?? 0) : 0;
-      const bz = b instanceof CanvasContainer ? (b._styles.zIndex ?? 0) : 0;
-      return az - bz;
-    });
+    this.computedStyles = {};
+    this.authoredStyles = {};
+    this.baseStyles = {};
   }
 
   override append(...nodes: CanvasNode[]) {
@@ -86,46 +65,21 @@ export class CanvasContainer<
     this.visualChildrenOrderChanged = true;
   }
 
-  setStyles(style: CanvasStyle, replace = false) {
-    const previousZIndex = this._styles.zIndex ?? 0;
-    const newZIndex = style.zIndex ?? 0;
+  updateStyles(style: CanvasStyle, replaceAll = false) {
+    const zIndexChanged = checkZIndexChange(this, style);
+    scheduleAnimations(this, style);
 
-    if (style.scale !== undefined && !Array.isArray(style.scale)) {
-      style.scale = [style.scale, style.scale];
+    if (replaceAll) {
+      const resetStyles = { ...this.baseStyles, ...style };
+      Reflect.set(this, 'computedStyles', resetStyles);
+      Reflect.set(this, 'authoredStyles', resetStyles);
+    } else {
+      Object.assign(this.computedStyles, style);
+      Object.assign(this.authoredStyles, style);
     }
 
-    updateAnimationAndTransitionStates(this, style);
-
-    if (replace) {
-      this._styles = {};
-      this._staticStyles = {};
-    }
-
-    Object.assign(this._styles, style);
-    Object.assign(this._staticStyles, style);
-
-    if (style.boxShadow) {
-      style.boxShadow = Array.isArray(style.boxShadow)
-        ? style.boxShadow
-        : [style.boxShadow];
-
-      const insetShadows = [];
-      const dropShadows = [];
-      for (const shadow of style.boxShadow) {
-        if (shadow.inset) insetShadows.push(shadow);
-        else dropShadows.push(shadow);
-      }
-      this.insetShadows = insetShadows;
-      this.dropShadows = dropShadows;
-    } else if (replace) {
-      this.insetShadows = [];
-      this.dropShadows = [];
-    }
-
-    if (previousZIndex !== newZIndex) {
-      if (this.parent instanceof CanvasContainer) {
-        this.parent.visualChildrenOrderChanged = true;
-      }
+    if (zIndexChanged && this.parent instanceof CanvasContainer) {
+      this.parent.visualChildrenOrderChanged = true;
     }
   }
 
@@ -138,7 +92,22 @@ export class CanvasContainer<
     }
     this.attributes[key] = value;
 
-    if (key === 'style') this.setStyles(value as CanvasStyle, true);
+    if (key === 'style') this.updateStyles(value as CanvasStyle, true);
+  }
+
+  protected updateChildrenVisualOrder() {
+    const children = this.children;
+    if (children.length < 2) {
+      this.visualChildren = children;
+      return;
+    }
+    this.visualChildren = children.toSorted((a, b) => {
+      const az =
+        a instanceof CanvasContainer ? (a.computedStyles.zIndex ?? 0) : 0;
+      const bz =
+        b instanceof CanvasContainer ? (b.computedStyles.zIndex ?? 0) : 0;
+      return az - bz;
+    });
   }
 
   protected resolveSize() {
@@ -148,7 +117,7 @@ export class CanvasContainer<
       height = Length.FitContent,
       maxWidth,
       maxHeight,
-    } = this._styles;
+    } = this.computedStyles;
     const { scopeWidth: baseWidth, scopeHeight: baseHeight } = host;
 
     let nextWidth = lengthToPx(width, baseWidth, this);
@@ -201,11 +170,11 @@ export class CanvasContainer<
     const { scopeWidth: prevScopeWidth, scopeHeight: prevScopeHeight } = host;
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
-    host.addToCascade(this._styles);
+    host.addToCascade(this.computedStyles);
     for (const child of this.children) {
       child.layout();
     }
-    host.removeFromCascade(this._styles);
+    host.removeFromCascade(this.computedStyles);
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
   }
@@ -213,7 +182,7 @@ export class CanvasContainer<
   override paint(): void {
     const host = this.renderer.host;
     const hitCtx = host.hitCtx;
-    const { clipPath, overflow, opacity = 1 } = this._styles;
+    const { clipPath, overflow, opacity = 1 } = this.computedStyles;
     const transform = this.layoutTransform;
     if (!transform) {
       throw new Error('paint called before layout.');
@@ -263,7 +232,7 @@ export class CanvasContainer<
     host.scopeWidth = this.width;
     host.scopeHeight = this.height;
 
-    host.addToCascade(this._styles);
+    host.addToCascade(this.computedStyles);
 
     if (this.visualChildrenOrderChanged) {
       this.updateChildrenVisualOrder();
@@ -271,7 +240,7 @@ export class CanvasContainer<
     }
     for (const child of this.visualChildren) child.paint();
 
-    host.removeFromCascade(this._styles);
+    host.removeFromCascade(this.computedStyles);
 
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
@@ -280,9 +249,9 @@ export class CanvasContainer<
     hitCtx.restore();
   }
 
-  paintContainer() {}
+  protected paintContainer() {}
 
-  tracePath(): Path2D | null {
+  protected tracePath(): Path2D | null {
     return null;
   }
 
@@ -292,7 +261,7 @@ export class CanvasContainer<
       borderStyle,
       borderWidth = Length.Px(0),
       borderColor = host.getCascadedValue('color'),
-    } = this._styles;
+    } = this.computedStyles;
 
     const resolvedBorderWidth = borderWidth.value;
     const resolvedBorderStyle =
@@ -352,14 +321,20 @@ export class CanvasContainer<
     if (!tracedPath) return;
 
     const { host } = this.renderer;
-    const { backgroundColor = 'transparent' } = this._styles;
+    const { backgroundColor = 'transparent', boxShadow } = this.computedStyles;
 
-    this.drawShadows(tracedPath, this.dropShadows);
+    const shadows = Array.isArray(boxShadow)
+      ? (boxShadow as BoxShadowValue[])
+      : [];
+    const dropShadows = shadows.filter((shadow) => !shadow.inset);
+    const insetShadows = shadows.filter((shadow) => shadow.inset);
+
+    this.drawShadows(tracedPath, dropShadows);
 
     host.ctx.fillStyle = backgroundColor;
     host.ctx.fill(tracedPath);
 
-    this.drawShadows(tracedPath, this.insetShadows);
+    this.drawShadows(tracedPath, insetShadows);
     this.paintBorders(tracedPath);
 
     const shouldDrawToHitScreen =
@@ -380,7 +355,10 @@ export class CanvasContainer<
 export class CanvasRoot extends CanvasContainer {
   constructor(renderer: CanvasRenderer) {
     super(renderer);
-    this._styles = { width: Length.Pct(100), height: Length.Pct(100) };
+    this.baseStyles = {
+      width: Length.Pct(100),
+      height: Length.Pct(100),
+    };
   }
 }
 
@@ -390,7 +368,7 @@ export class CanvasRect<
   Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasContainer<Props> {
   override tracePath(): Path2D | null {
-    const { borderRadius = Length.Px(0) } = this._styles;
+    const { borderRadius = Length.Px(0) } = this.computedStyles;
     const path = new Path2D();
     const radiusValue = borderRadius.value;
     if (!radiusValue) {
@@ -432,7 +410,7 @@ export class CanvasCircle extends CanvasContainer {
 export class CanvasTextContainer extends CanvasRect {
   constructor(renderer: CanvasRenderer) {
     super(renderer);
-    this._styles = { width: Length.FitContent };
+    this.baseStyles = { width: Length.FitContent };
   }
 }
 
@@ -457,7 +435,7 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
       borderStyle,
       borderWidth = Length.Px(0),
       borderColor = host.getCascadedValue('color'),
-    } = this._styles;
+    } = this.computedStyles;
     const resolvedBorderWidth = borderWidth.value;
     let resolvedBorderStyle = borderStyle;
     if (!resolvedBorderStyle) {
@@ -512,7 +490,7 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
 export class CanvasShape extends CanvasContainer<CanvasShapeProps> {
   override tracePath(): Path2D | null {
     const ownPoints = this.attributes.points ?? [];
-    const { borderRadius = Length.Px(0) } = this._styles;
+    const { borderRadius = Length.Px(0) } = this.computedStyles;
     const radiusValue = borderRadius.value;
     if (!ownPoints.length) {
       this.path = null;
@@ -571,4 +549,13 @@ export class CanvasShape extends CanvasContainer<CanvasShapeProps> {
   override paintContainer(): void {
     this.paintPath();
   }
+}
+
+function checkZIndexChange(
+  container: CanvasContainer,
+  style: CanvasStyle
+): boolean {
+  const previousZIndex = container.computedStyles.zIndex ?? 0;
+  const newZIndex = style.zIndex ?? previousZIndex ?? 0;
+  return previousZIndex !== newZIndex;
 }

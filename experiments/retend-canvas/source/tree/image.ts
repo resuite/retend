@@ -52,7 +52,7 @@ export class CanvasImage extends CanvasContainer<CanvasImageProps> {
   }
 
   override tracePath(): Path2D | null {
-    const { borderRadius = Length.Px(0) } = this._styles;
+    const { borderRadius = Length.Px(0) } = this.computedStyles;
     const path = new Path2D();
     const radiusValue = borderRadius.value;
     if (!radiusValue) {

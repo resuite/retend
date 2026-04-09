@@ -64,12 +64,12 @@ function setStyleProp(
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
     const updateProperty = (nextValue: any) => {
       if (nextValue instanceof Promise) nextValue.then(updateProperty);
-      else node.setStyles({ [key]: nextValue } as CanvasStyle);
+      else node.updateStyles({ [key]: nextValue } as CanvasStyle);
     };
     updateProperty(value.get());
     value.listen(updateProperty);
   } else {
-    node.setStyles({ [key]: value } as CanvasStyle);
+    node.updateStyles({ [key]: value } as CanvasStyle);
   }
 }
 
@@ -95,28 +95,21 @@ export function setAttribute(
     return;
   }
 
-  if (key === 'style') {
-    if (_value && typeof _value === 'object') {
-      const value = _value as Record<string, unknown>;
-      const style: CanvasStyle = {};
-      const cellStyleProps: [keyof CanvasStyle, unknown][] = [];
-      for (const prop in value) {
-        const propValue = value[prop];
-        if (Cell.isCell(propValue)) {
-          cellStyleProps.push([prop as keyof CanvasStyle, propValue]);
-        } else {
-          style[prop as keyof CanvasStyle] = propValue as never;
-        }
-      }
-      node.setAttribute(key as never, style as never);
-      for (const [prop, propValue] of cellStyleProps) {
-        setStyleProp(node, prop, propValue);
-      }
-      if (node.isConnected) node.renderer.requestRender();
-      return;
+  if (key === 'style' && _value && typeof _value === 'object') {
+    const value = _value as Record<string, unknown>;
+    const style: CanvasStyle = {};
+
+    for (const _prop in value) {
+      const prop = _prop as keyof CanvasStyle;
+      const propValue = value[prop];
+      if (Cell.isCell(propValue)) setStyleProp(node, prop, propValue);
+      else style[prop] = propValue as never;
     }
+
+    node.setAttribute(key, style);
+  } else {
+    node.setAttribute(key as never, _value as never);
   }
 
-  node.setAttribute(key as never, _value as never);
   if (node.isConnected) node.renderer.requestRender();
 }

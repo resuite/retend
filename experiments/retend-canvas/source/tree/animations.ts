@@ -23,7 +23,6 @@ export interface CanvasAnimation {
   target: CanvasContainer;
   tracks: AnimationTrack<AnimatableProperty>[];
   iterations: number;
-  currentIteration: number;
   fillMode: AnimationFillModeValue;
   progress: number;
   duration: number;
@@ -36,55 +35,34 @@ export interface AnimationTrack<T extends AnimatableProperty> {
   keyframes: AnimationKeyframe<T>[];
 }
 
-export function updateAnimationAndTransitionStates(
+export function scheduleAnimations(
   node: CanvasContainer,
   nextStyles: CanvasStyle
 ) {
-  const { renderer, styles: current } = node;
+  const { renderer, computedStyles: current } = node;
   const animations: CanvasAnimation[] = [];
 
   if (hasAnimationDataChanged(current, nextStyles)) {
-    if (current.animationName) {
+    if (node.isConnected && current.animationName) {
       renderer.cancelAnimation(node, current.animationName);
     }
     const newAnimation = createAnimation(node, nextStyles);
     if (newAnimation) animations.push(newAnimation);
   }
 
-  // todo: add transitions.
-  // const changedAnimatableProperties = [];
-  // for (const key in nextStyles) {
-  // }
-
-  if (animations.length > 0) renderer.scheduleAnimations(animations);
+  renderer.scheduleAnimations(animations);
+  return animations;
 }
 
 function hasAnimationDataChanged(current: CanvasStyle, next: CanvasStyle) {
-  const {
-    animationName: currentAnimationName,
-    animationDuration: currentAnimationDuration,
-    animationTimingFunction: currentTimingFunction,
-    animationDelay: currentDelay,
-    animationFillMode: currentFillMode,
-    animationIterationCount: currentIterationCount,
-  } = current;
-
-  const {
-    animationName: nextAnimationName,
-    animationDuration: nextAnimationDuration,
-    animationTimingFunction: nextTimingFunction,
-    animationDelay: nextDelay,
-    animationFillMode: nextFillMode,
-    animationIterationCount: nextIterationCount,
-  } = next;
-
   return (
-    currentAnimationName !== nextAnimationName ||
-    currentAnimationDuration !== nextAnimationDuration ||
-    currentTimingFunction?.join(',') !== nextTimingFunction?.join(',') ||
-    currentDelay !== nextDelay ||
-    currentFillMode !== nextFillMode ||
-    currentIterationCount !== nextIterationCount
+    current.animationName !== next.animationName ||
+    current.animationDuration !== next.animationDuration ||
+    current.animationTimingFunction?.join(',') !==
+      next.animationTimingFunction?.join(',') ||
+    current.animationDelay !== next.animationDelay ||
+    current.animationFillMode !== next.animationFillMode ||
+    current.animationIterationCount !== next.animationIterationCount
   );
 }
 
@@ -132,7 +110,7 @@ function createAnimation(
   node: CanvasContainer,
   nextStyles: CanvasStyle
 ): CanvasAnimation | undefined {
-  const current = node.styles;
+  const current = node.computedStyles;
   const {
     animationName = current.animationName,
     animationDuration = current.animationDuration ?? 0,
@@ -144,7 +122,7 @@ function createAnimation(
 
   if (!animationName) return undefined;
 
-  const finalState = { ...node.styles, ...nextStyles };
+  const finalState = { ...node.computedStyles, ...nextStyles };
   const tracks = convertToTracklist(animationName, finalState);
   if (!tracks.length) return undefined;
 
@@ -152,7 +130,6 @@ function createAnimation(
     target: node,
     definition: animationName,
     iterations: animationIterationCount,
-    currentIteration: 0,
     tracks,
     fillMode: animationFillMode,
     progress: -animationDelay,
@@ -195,11 +172,8 @@ export function tickAnimations(animations: CanvasAnimation[]): boolean {
       ) as never;
     }
 
-    Object.assign(node.styles, animatedStyle);
-
-    if (tickState.keepAnimation) {
-      remainingAnimations.push(animation);
-    }
+    Object.assign(node.computedStyles, animatedStyle);
+    if (tickState.keepAnimation) remainingAnimations.push(animation);
   }
 
   animations.length = 0;
@@ -241,8 +215,8 @@ function resolveTickState(animation: CanvasAnimation): {
   }
 
   const overallProgress = animation.progress / animation.duration;
-  animation.currentIteration = Math.floor(overallProgress);
-  const progress = overallProgress - animation.currentIteration;
+  const currentIteration = Math.floor(overallProgress);
+  const progress = overallProgress - currentIteration;
 
   return {
     keepAnimation: true,
@@ -269,7 +243,7 @@ function resolveFilledValue(
   node: CanvasContainer,
   phase: Exclude<TickPhase, 'active'>
 ) {
-  if (phase === 'static') return node.staticStyles[property];
+  if (phase === 'static') return node.authoredStyles[property];
   if (phase === 'from') return keyframes[0]?.value;
   return keyframes[keyframes.length - 1]?.value;
 }
