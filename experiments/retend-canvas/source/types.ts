@@ -16,6 +16,7 @@ import type {
   BoxShadowValue,
   PointerEventsValue,
   AnimationFillModeValue,
+  EasingValue,
 } from './style';
 import type { ANIMATABLE_PROPERTIES } from './tree/animations';
 import type { CanvasNode, PointerEvent } from './tree/node';
@@ -58,7 +59,7 @@ export interface CanvasStyle {
   animationFillMode?: AnimationFillModeValue;
   animationIterationCount?: number;
   animationDuration?: number; // in ms
-  animationTimingFunction?: [number, number, number, number];
+  animationTimingFunction?: EasingValue;
   animationDelay?: number;
 }
 

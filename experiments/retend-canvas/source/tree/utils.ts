@@ -98,9 +98,22 @@ export function setAttribute(
   if (key === 'style') {
     if (_value && typeof _value === 'object') {
       const value = _value as Record<string, unknown>;
+      const style: CanvasStyle = {};
+      const cellStyleProps: [keyof CanvasStyle, unknown][] = [];
       for (const prop in value) {
-        setStyleProp(node, prop as keyof CanvasStyle, value[prop]);
+        const propValue = value[prop];
+        if (Cell.isCell(propValue)) {
+          cellStyleProps.push([prop as keyof CanvasStyle, propValue]);
+        } else {
+          style[prop as keyof CanvasStyle] = propValue as never;
+        }
       }
+      node.setAttribute(key as never, style as never);
+      for (const [prop, propValue] of cellStyleProps) {
+        setStyleProp(node, prop, propValue);
+      }
+      if (node.isConnected) node.renderer.requestRender();
+      return;
     }
   }
 

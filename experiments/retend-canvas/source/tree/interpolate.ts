@@ -5,7 +5,7 @@ import type {
 } from '../types';
 import type { CanvasContainer } from './container';
 
-import { Length } from '../style';
+import { type EasingValue, Length } from '../style';
 import { lengthToPx } from './transform';
 
 export function applyTimingFunction(
@@ -42,7 +42,8 @@ export function interpolateTrackValue(
   property: AnimatableProperty,
   keyframes: AnimationKeyframe<AnimatableProperty>[],
   progress: number,
-  node: CanvasContainer
+  node: CanvasContainer,
+  easing: EasingValue
 ): CanvasStyle[AnimatableProperty] | undefined {
   const firstFrame = keyframes[0];
   const lastFrame = keyframes[keyframes.length - 1];
@@ -67,8 +68,9 @@ export function interpolateTrackValue(
     return startFrame.value;
   }
 
-  const localProgress =
+  const linearProgress =
     (progress - startFrame.offset) / (endFrame.offset - startFrame.offset);
+  const localProgress = applyTimingFunction(linearProgress, easing);
 
   switch (property) {
     case 'opacity': {

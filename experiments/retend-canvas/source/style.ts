@@ -173,6 +173,22 @@ export interface DegreeAngle {
 export type AngleValue = DegreeAngle;
 
 /**
+ * A modeled canvas easing value.
+ */
+export type EasingValue = [number, number, number, number];
+
+export const Easing = {
+  Linear: [0, 0, 1, 1] as EasingValue,
+  Ease: [0.25, 0.1, 0.25, 1] as EasingValue,
+  EaseIn: [0.42, 0, 1, 1] as EasingValue,
+  EaseOut: [0, 0, 0.58, 1] as EasingValue,
+  EaseInOut: [0.42, 0, 0.58, 1] as EasingValue,
+  CubicBezier(p1x: number, p1y: number, p2x: number, p2y: number): EasingValue {
+    return [p1x, p1y, p2x, p2y];
+  },
+} as const;
+
+/**
  * Creates strongly-typed canvas angle values.
  */
 export const Angle = {

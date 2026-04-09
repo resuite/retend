@@ -111,10 +111,10 @@ export class CanvasRenderer implements CanvasRendererInterface {
     const index = this.#animations.findIndex((animation) => {
       return animation.target === node && animation.definition === type;
     });
-    if (index !== -1) {
-      this.#animations.splice(index, 1);
-      this.requestRender();
-    }
+    if (index === -1) return undefined;
+    const [animation] = this.#animations.splice(index, 1);
+    this.requestRender();
+    return animation;
   }
 
   drawToScreen() {

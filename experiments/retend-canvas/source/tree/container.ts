@@ -86,7 +86,7 @@ export class CanvasContainer<
     this.visualChildrenOrderChanged = true;
   }
 
-  setStyles(style: CanvasStyle) {
+  setStyles(style: CanvasStyle, replace = false) {
     const previousZIndex = this._styles.zIndex ?? 0;
     const newZIndex = style.zIndex ?? 0;
 
@@ -95,6 +95,11 @@ export class CanvasContainer<
     }
 
     updateAnimationAndTransitionStates(this, style);
+
+    if (replace) {
+      this._styles = {};
+      this._staticStyles = {};
+    }
 
     Object.assign(this._styles, style);
     Object.assign(this._staticStyles, style);
@@ -112,6 +117,9 @@ export class CanvasContainer<
       }
       this.insetShadows = insetShadows;
       this.dropShadows = dropShadows;
+    } else if (replace) {
+      this.insetShadows = [];
+      this.dropShadows = [];
     }
 
     if (previousZIndex !== newZIndex) {
@@ -130,7 +138,7 @@ export class CanvasContainer<
     }
     this.attributes[key] = value;
 
-    if (key === 'style') this.setStyles(value as CanvasStyle);
+    if (key === 'style') this.setStyles(value as CanvasStyle, true);
   }
 
   protected resolveSize() {

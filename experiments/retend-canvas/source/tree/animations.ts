@@ -190,7 +190,8 @@ export function tickAnimations(animations: CanvasAnimation[]): boolean {
         track.property,
         track.keyframes,
         tickState.progress,
-        node
+        node,
+        animation.easing
       ) as never;
     }
 
