@@ -61,6 +61,36 @@ describe('rect rendering', () => {
     const right = pixelAt(ctx, 200, 25);
     expect(right[3]).toBeGreaterThan(0);
   });
+
+  it('recomputes path when replaceAll removes border radius', () => {
+    const { renderer, ctx } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          borderRadius: Length.Px(20),
+          backgroundColor: 'red',
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+    expect(pixelAt(ctx, 0, 0)[3]).toBe(0);
+
+    rect.updateStyles(
+      {
+        width: Length.Px(100),
+        height: Length.Px(100),
+        backgroundColor: 'red',
+      },
+      true
+    );
+    renderer.drawToScreen();
+
+    expect(pixelAt(ctx, 0, 0)[0]).toBeGreaterThan(200);
+  });
 });
 
 describe('circle rendering', () => {
@@ -205,6 +235,32 @@ describe('overflow hidden', () => {
 
     const outside = pixelAt(ctx, 150, 150);
     expect(outside[3]).toBe(0);
+  });
+
+  it('reuses cached path for overflow clipping', () => {
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          overflow: Overflow.Hidden,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    let traceCalls = 0;
+    const tracePath = rect.tracePath.bind(rect);
+    rect.tracePath = () => {
+      traceCalls += 1;
+      return tracePath();
+    };
+
+    renderer.drawToScreen();
+    renderer.drawToScreen();
+
+    expect(traceCalls).toBe(1);
   });
 
   it('does not clip children when overflow is visible', async () => {

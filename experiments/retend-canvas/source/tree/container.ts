@@ -23,14 +23,21 @@ import { createTransformMatrix, lengthToPx } from './transform';
 
 export type CanvasTag = 'root' | keyof JSX.IntrinsicElements;
 
+const PATH_CHANGE_PROPERTIES = [
+  'borderWidth',
+  'borderRadius',
+  'height',
+  'width',
+] as Array<keyof CanvasStyle>;
+
 export class CanvasContainer<
   Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasParentNode {
-  protected attributes: Props;
+  protected attributes = {} as Props;
 
-  readonly computedStyles: CanvasStyle;
-  readonly authoredStyles: CanvasStyle;
-  protected baseStyles: CanvasStyle;
+  readonly computedStyles: CanvasStyle = {};
+  readonly authoredStyles: CanvasStyle = {};
+  protected baseStyles: CanvasStyle = {};
 
   protected width = 0;
   protected height = 0;
@@ -39,16 +46,10 @@ export class CanvasContainer<
   protected clip: Path2D | null = null;
   protected clipValue: string | null = null;
 
+  protected pathChanged = true;
+
   protected visualChildrenOrderChanged = false;
   protected visualChildren: CanvasNode[] = [];
-
-  constructor(renderer: CanvasRenderer) {
-    super(renderer);
-    this.attributes = {} as Props;
-    this.computedStyles = {};
-    this.authoredStyles = {};
-    this.baseStyles = {};
-  }
 
   get resolvedSize() {
     return { width: this.width, height: this.height };
@@ -69,17 +70,38 @@ export class CanvasContainer<
     this.visualChildrenOrderChanged = true;
   }
 
+  checkForPathChange(style: CanvasStyle, previousStyles?: CanvasStyle) {
+    if (previousStyles) {
+      for (const key of PATH_CHANGE_PROPERTIES) {
+        if (previousStyles[key] !== style[key]) {
+          this.pathChanged = true;
+          return;
+        }
+      }
+    } else {
+      for (const key of PATH_CHANGE_PROPERTIES) {
+        if (style[key] !== undefined) {
+          this.pathChanged = true;
+          return;
+        }
+      }
+    }
+  }
+
   updateStyles(style: CanvasStyle, replaceAll = false) {
     const zIndexChanged = checkZIndexChange(this, style);
     scheduleAnimations(this, style, replaceAll);
+    const previousStyles = this.computedStyles;
 
     if (replaceAll) {
       const resetStyles = { ...this.baseStyles, ...style };
       Reflect.set(this, 'computedStyles', resetStyles);
       Reflect.set(this, 'authoredStyles', { ...resetStyles });
+      this.checkForPathChange(style, previousStyles);
     } else {
       Object.assign(this.computedStyles, style);
       Object.assign(this.authoredStyles, style);
+      this.checkForPathChange(style);
     }
 
     if (zIndexChanged && this.parent instanceof CanvasContainer) {
@@ -154,6 +176,9 @@ export class CanvasContainer<
       }
     }
 
+    if (this.width !== nextWidth || this.height !== nextHeight) {
+      this.pathChanged = true;
+    }
     this.width = nextWidth;
     this.height = nextHeight;
   }
@@ -225,7 +250,7 @@ export class CanvasContainer<
     }
     this.paintContainer();
     if (overflow === Overflow.Hidden) {
-      const path = this.tracePath();
+      const path = this.path;
       if (path) {
         host.ctx.clip(path);
         hitCtx.clip(path);
@@ -322,7 +347,8 @@ export class CanvasContainer<
   }
 
   protected paintPath() {
-    const tracedPath = this.tracePath();
+    const tracedPath = this.pathChanged ? this.tracePath() : this.path;
+    this.pathChanged = false;
     if (!tracedPath) return;
 
     const { host } = this.renderer;
@@ -431,6 +457,14 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
     return this.path;
   }
 
+  override setAttribute<K extends keyof CanvasPathProps>(
+    key: K,
+    value: CanvasPathProps[K]
+  ) {
+    super.setAttribute(key, value);
+    if (key === 'd') this.pathChanged = true;
+  }
+
   override paintContainer(): void {
     const host = this.renderer.host;
     const path = this.tracePath();
@@ -493,6 +527,14 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
 }
 
 export class CanvasShape extends CanvasContainer<CanvasShapeProps> {
+  override setAttribute<K extends keyof CanvasShapeProps>(
+    key: K,
+    value: CanvasShapeProps[K]
+  ) {
+    super.setAttribute(key, value);
+    if (key === 'points') this.pathChanged = true;
+  }
+
   override tracePath(): Path2D | null {
     const ownPoints = this.attributes.points ?? [];
     const { borderRadius = Length.Px(0) } = this.computedStyles;
