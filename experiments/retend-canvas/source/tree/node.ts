@@ -97,13 +97,16 @@ export abstract class CanvasNode {
   }
 
   protected setEventListener(type: string, callback: Function | null) {
-    const hasEventListeners = this.hasEventListeners;
+    const hadEventListeners = this.hasEventListeners;
     if (callback) {
       this.#eventListeners.set(type, callback);
     } else {
       this.#eventListeners.delete(type);
     }
-    if (hasEventListeners !== this.hasEventListeners && this.isConnected) {
+    const hasEventListeners = this.hasEventListeners;
+    if (hadEventListeners !== hasEventListeners && this.isConnected) {
+      if (hasEventListeners) this.renderer.interactiveNodeCount += 1;
+      else this.renderer.interactiveNodeCount -= 1;
       this.renderer.requestRender();
     }
   }
@@ -133,11 +136,14 @@ export abstract class CanvasNode {
 
   setConnected(isConnected: boolean) {
     if (this.isConnected === isConnected) return;
+    const hasEventListeners = this.hasEventListeners;
     this.#isConnected = isConnected;
     if (isConnected) {
+      if (hasEventListeners) this.renderer.interactiveNodeCount += 1;
       this.renderer.nodeMap.set(this.id, this);
     } else {
       this.renderer.releasePointerCaptures(this);
+      if (hasEventListeners) this.renderer.interactiveNodeCount -= 1;
       this.renderer.nodeMap.delete(this.id);
     }
     if (this instanceof CanvasParentNode) {

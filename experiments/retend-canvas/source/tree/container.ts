@@ -123,17 +123,25 @@ export class CanvasContainer<
 
   protected updateChildrenVisualOrder() {
     const children = this.children;
-    if (children.length < 2) {
-      this.visualChildren = children;
-      return;
+    if (children.length <= 2) {
+      for (const child of children) {
+        const hasZIndex =
+          child instanceof CanvasContainer &&
+          child.computedStyles.zIndex !== undefined &&
+          child.computedStyles.zIndex !== 0;
+        if (hasZIndex) {
+          this.visualChildren = children.toSorted((a, b) => {
+            const az =
+              a instanceof CanvasContainer ? (a.computedStyles.zIndex ?? 0) : 0;
+            const bz =
+              b instanceof CanvasContainer ? (b.computedStyles.zIndex ?? 0) : 0;
+            return az - bz;
+          });
+          return;
+        }
+      }
     }
-    this.visualChildren = children.toSorted((a, b) => {
-      const az =
-        a instanceof CanvasContainer ? (a.computedStyles.zIndex ?? 0) : 0;
-      const bz =
-        b instanceof CanvasContainer ? (b.computedStyles.zIndex ?? 0) : 0;
-      return az - bz;
-    });
+    this.visualChildren = children;
   }
 
   protected resolveSize() {
@@ -214,12 +222,13 @@ export class CanvasContainer<
     const hitCtx = host.hitCtx;
     const { clipPath, overflow, opacity = 1 } = this.computedStyles;
     const transform = this.layoutTransform;
+    const shouldPaintHitCanvas = this.renderer.interactiveNodeCount > 0;
     if (!transform) {
       throw new Error('paint called before layout.');
     }
 
     host.ctx.save();
-    hitCtx.save();
+    if (shouldPaintHitCanvas) hitCtx.save();
     host.ctx.globalAlpha *= opacity;
     host.ctx.transform(
       transform.a,
@@ -229,21 +238,23 @@ export class CanvasContainer<
       transform.e,
       transform.f
     );
-    hitCtx.transform(
-      transform.a,
-      transform.b,
-      transform.c,
-      transform.d,
-      transform.e,
-      transform.f
-    );
+    if (shouldPaintHitCanvas) {
+      hitCtx.transform(
+        transform.a,
+        transform.b,
+        transform.c,
+        transform.d,
+        transform.e,
+        transform.f
+      );
+    }
     if (clipPath) {
       if (this.clipValue !== clipPath) {
         this.clip = new Path2D(clipPath);
         this.clipValue = clipPath;
       }
       host.ctx.clip(this.clip!);
-      hitCtx.clip(this.clip!);
+      if (shouldPaintHitCanvas) hitCtx.clip(this.clip!);
     } else if (this.clipValue !== null) {
       this.clip = null;
       this.clipValue = null;
@@ -253,7 +264,7 @@ export class CanvasContainer<
       const path = this.path;
       if (path) {
         host.ctx.clip(path);
-        hitCtx.clip(path);
+        if (shouldPaintHitCanvas) hitCtx.clip(path);
       }
     }
 
@@ -276,7 +287,7 @@ export class CanvasContainer<
     host.scopeHeight = prevScopeHeight;
 
     host.ctx.restore();
-    hitCtx.restore();
+    if (shouldPaintHitCanvas) hitCtx.restore();
   }
 
   protected paintContainer() {}
@@ -369,6 +380,7 @@ export class CanvasContainer<
     this.paintBorders(tracedPath);
 
     const shouldDrawToHitScreen =
+      this.renderer.interactiveNodeCount > 0 &&
       this.hasEventListeners &&
       host.getCascadedValue('pointerEvents') !== PointerEvents.None;
 
@@ -501,6 +513,7 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
     }
 
     if (
+      this.renderer.interactiveNodeCount > 0 &&
       this.hasEventListeners &&
       resolvedBorderWidth &&
       resolvedBorderStyle !== BorderStyle.None

@@ -70,6 +70,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   #animations: CanvasAnimation[];
   #capturedPointerTargets = new Map<number, CanvasNode>();
   #activePointers = new Set<number>();
+  interactiveNodeCount = 0;
 
   nextNodeId = 1;
   nodeMap = new Map<number, CanvasNode>();
@@ -159,8 +160,9 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   drawToScreen() {
     const hitCanvas = this.host.hitCtx.canvas;
-    hitCanvas.width = Math.round(this.#viewport.width);
-    hitCanvas.height = Math.round(this.#viewport.height);
+    const hitWidth = Math.round(this.#viewport.width);
+    const hitHeight = Math.round(this.#viewport.height);
+    const shouldPaintHitCanvas = this.interactiveNodeCount > 0;
     this.#renderFrame = null;
     const hasRunningAnimations = tickAnimations(this.#animations);
     this.host.ctx.clearRect(
@@ -169,7 +171,13 @@ export class CanvasRenderer implements CanvasRendererInterface {
       this.host.ctx.canvas.width,
       this.host.ctx.canvas.height
     );
-    this.host.hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
+    if (shouldPaintHitCanvas) {
+      if (hitCanvas.width !== hitWidth || hitCanvas.height !== hitHeight) {
+        hitCanvas.width = hitWidth;
+        hitCanvas.height = hitHeight;
+      }
+      this.host.hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
+    }
     this.host.scopeWidth = this.#viewport.width;
     this.host.scopeHeight = this.#viewport.height;
     this.root.layout();
@@ -287,9 +295,15 @@ export class CanvasRenderer implements CanvasRendererInterface {
     y: number,
     pointerId = 1
   ) {
-    if (eventName === 'pointerdown') this.#activePointers.add(pointerId);
-
     const capturedTarget = this.#capturedPointerTargets.get(pointerId);
+    if (!capturedTarget && this.interactiveNodeCount === 0) {
+      if (eventName === 'pointerup') {
+        this.#capturedPointerTargets.delete(pointerId);
+        this.#activePointers.delete(pointerId);
+      }
+      return;
+    }
+    if (eventName === 'pointerdown') this.#activePointers.add(pointerId);
     const target =
       capturedTarget &&
       (eventName === 'pointermove' || eventName === 'pointerup')
