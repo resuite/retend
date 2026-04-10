@@ -61,6 +61,10 @@ export interface CanvasStyle {
   animationDuration?: number; // in ms
   animationTimingFunction?: EasingValue;
   animationDelay?: number;
+  transitionProperty?: AnimatableProperty | AnimatableProperty[];
+  transitionDuration?: number;
+  transitionTimingFunction?: EasingValue;
+  transitionDelay?: number;
 }
 
 export type AnimatableProperty = keyof typeof ANIMATABLE_PROPERTIES;

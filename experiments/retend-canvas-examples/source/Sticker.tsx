@@ -2,8 +2,10 @@ import { Cell } from 'retend';
 import {
   Alignment,
   Angle,
+  type AnimatableProperty,
   type AnimationDefinition,
   type CanvasStyleValue,
+  Duration,
   Easing,
   Length,
   PointerEvents,
@@ -54,6 +56,9 @@ function createStyle(
 
   const style = Cell.derived((): CanvasStyleValue => {
     const index = props.index.get() ?? 0;
+    const transitionProperty: AnimatableProperty[] = drag.isDragging.get()
+      ? ['scale', 'rotate', 'opacity']
+      : ['scale', 'translate', 'rotate', 'opacity'];
     const pointerEvents = isNotSelected.get()
       ? PointerEvents.None
       : PointerEvents.Auto;
@@ -63,12 +68,15 @@ function createStyle(
       width: Length.Px(heightRaw * 0.8),
       alignSelf: Alignment.Center,
       justifySelf: Alignment.Center,
-      backgroundColor: 'red',
+      backgroundColor: 'brown',
       borderColor: 'white',
       borderWidth: Length.Px(2),
       pointerEvents,
+      transitionProperty,
+      transitionDuration: Duration.Ms(500),
+      transitionTimingFunction: Easing.CubicBezier(0.16, 1, 0.3, 1),
       animationName: fromInitial,
-      animationDuration: 400 + (index + 1) * 20,
+      animationDuration: Duration.Ms(400 + (index + 1) * 20),
       animationTimingFunction: Easing.CubicBezier(0.16, 1, 0.3, 1),
     };
 

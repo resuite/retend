@@ -1,7 +1,19 @@
-import { Length, Alignment, Overflow, BorderStyle } from 'retend-canvas';
-import { describe, expect, it } from 'vitest';
+import {
+  Length,
+  Alignment,
+  Overflow,
+  BorderStyle,
+  Duration,
+  AnimationFillMode,
+  Easing,
+} from 'retend-canvas';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import 'retend-canvas/jsx-runtime';
 import { createCanvasAndRenderer, render, pixelAt } from './setup.tsx';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('rect rendering', () => {
   it('draws a filled rectangle', async () => {
@@ -372,6 +384,245 @@ describe('opacity', () => {
 
     const pixel = pixelAt(ctx, 50, 50);
     expect(pixel[3]).toBe(255);
+  });
+});
+
+describe('transitions', () => {
+  it('transitions a single property', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+          opacity: 0,
+          transitionProperty: 'opacity',
+          transitionDuration: Duration.Ms(100),
+          transitionTimingFunction: Easing.Linear,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+    rect.updateStyles({ opacity: 1 });
+
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBe(0);
+
+    now.mockReturnValue(50);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.5, 2);
+
+    now.mockReturnValue(100);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBe(1);
+  });
+
+  it('transitions multiple properties from transitionProperty arrays', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+          left: Length.Px(0),
+          opacity: 0,
+          transitionProperty: ['left', 'opacity'],
+          transitionDuration: Duration.Ms(100),
+          transitionTimingFunction: Easing.Linear,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+    rect.updateStyles({ left: Length.Px(100), opacity: 1 });
+
+    now.mockReturnValue(50);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.left.value).toBeCloseTo(50, 1);
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.5, 2);
+  });
+
+  it('updates unlisted properties immediately', () => {
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+          left: Length.Px(0),
+          opacity: 0,
+          transitionProperty: 'opacity',
+          transitionDuration: Duration.Ms(100),
+          transitionTimingFunction: Easing.Linear,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+    rect.updateStyles({ left: Length.Px(100), opacity: 1 });
+    renderer.drawToScreen();
+
+    expect(rect.computedStyles.left.value).toBe(100);
+    expect(rect.computedStyles.opacity).toBe(0);
+  });
+
+  it('restarts interrupted transitions from the current rendered value', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+          opacity: 0,
+          transitionProperty: 'opacity',
+          transitionDuration: Duration.Ms(100),
+          transitionTimingFunction: Easing.Linear,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+    rect.updateStyles({ opacity: 1 });
+
+    now.mockReturnValue(50);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.5, 2);
+
+    rect.updateStyles({ opacity: 0.25 });
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.5, 2);
+
+    now.mockReturnValue(100);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.375, 2);
+  });
+
+  it('keeps unrelated property transitions running when one property changes', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+          left: Length.Px(0),
+          opacity: 0,
+          transitionProperty: ['left', 'opacity'],
+          transitionDuration: Duration.Ms(100),
+          transitionTimingFunction: Easing.Linear,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+    rect.updateStyles({ left: Length.Px(100), opacity: 1 });
+
+    now.mockReturnValue(50);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.left.value).toBeCloseTo(50, 1);
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.5, 2);
+
+    rect.updateStyles({ opacity: 0.25 });
+    renderer.drawToScreen();
+
+    now.mockReturnValue(100);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.left.value).toBe(100);
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.375, 2);
+  });
+
+  it('suppresses transitions for properties driven by explicit animations', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+          opacity: 0,
+          transitionProperty: 'opacity',
+          transitionDuration: Duration.Ms(100),
+          transitionTimingFunction: Easing.Linear,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+    rect.updateStyles({
+      opacity: 1,
+      animationName: {
+        from: { opacity: 0 },
+        to: { opacity: 0.25 },
+      },
+      animationDuration: Duration.Ms(100),
+      animationFillMode: AnimationFillMode.Both,
+    });
+
+    now.mockReturnValue(100);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBe(0.25);
+  });
+
+  it('allows transitions after an explicit animation has finished', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const { renderer } = createCanvasAndRenderer();
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+          opacity: 0,
+          transitionProperty: 'opacity',
+          transitionDuration: Duration.Ms(100),
+          transitionTimingFunction: Easing.Linear,
+          animationName: {
+            from: { opacity: 0 },
+            to: { opacity: 1 },
+          },
+          animationDuration: Duration.Ms(100),
+          animationFillMode: AnimationFillMode.Both,
+        }}
+      />
+    );
+
+    const rect = renderer.root.children[0] as any;
+    renderer.drawToScreen();
+
+    now.mockReturnValue(100);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBe(1);
+
+    rect.updateStyles({ opacity: 0.25 });
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBe(1);
+
+    now.mockReturnValue(150);
+    renderer.drawToScreen();
+    expect(rect.computedStyles.opacity).toBeCloseTo(0.625, 2);
+  });
+});
+
+describe('duration', () => {
+  it('returns milliseconds for duration helpers', () => {
+    expect(Duration.Ms(150)).toBe(150);
+    expect(Duration.Sec(0.2)).toBe(200);
   });
 });
 

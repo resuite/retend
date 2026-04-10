@@ -188,6 +188,15 @@ export const Easing = {
   },
 } as const;
 
+export const Duration = {
+  Ms(value: number) {
+    return value;
+  },
+  Sec(value: number) {
+    return value * 1000;
+  },
+} as const;
+
 /**
  * Creates strongly-typed canvas angle values.
  */

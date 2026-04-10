@@ -90,13 +90,13 @@ export class CanvasContainer<
 
   updateStyles(style: CanvasStyle, replaceAll = false) {
     const zIndexChanged = checkZIndexChange(this, style);
-    scheduleAnimations(this, style, replaceAll);
+    const nextStyles = replaceAll ? { ...this.baseStyles, ...style } : style;
+    scheduleAnimations(this, nextStyles, replaceAll);
     const previousStyles = this.computedStyles;
 
     if (replaceAll) {
-      const resetStyles = { ...this.baseStyles, ...style };
-      Reflect.set(this, 'computedStyles', resetStyles);
-      Reflect.set(this, 'authoredStyles', { ...resetStyles });
+      Reflect.set(this, 'computedStyles', nextStyles);
+      Reflect.set(this, 'authoredStyles', { ...nextStyles });
       this.checkForPathChange(style, previousStyles);
     } else {
       Object.assign(this.computedStyles, style);

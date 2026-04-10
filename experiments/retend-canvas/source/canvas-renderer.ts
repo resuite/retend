@@ -107,6 +107,12 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.requestRender();
   }
 
+  hasAnimation(node: CanvasContainer, type: AnimationDefinition) {
+    return this.#animations.some((animation) => {
+      return animation.target === node && animation.definition === type;
+    });
+  }
+
   cancelAnimation(node: CanvasContainer, type: AnimationDefinition) {
     const index = this.#animations.findIndex((animation) => {
       return animation.target === node && animation.definition === type;
