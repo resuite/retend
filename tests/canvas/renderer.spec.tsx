@@ -665,6 +665,32 @@ describe('pointer events', () => {
     expect(clicked).toBe(false);
   });
 
+  it('does not dispatch stale click events after the last listener is removed', async () => {
+    let clicked = 0;
+    const { renderer } = await render(() => (
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+        }}
+        onClick={() => {
+          clicked += 1;
+        }}
+      />
+    ));
+
+    renderer.dispatchEvent('click', 50, 50);
+    expect(clicked).toBe(1);
+
+    const rect = renderer.root.children[0] as any;
+    renderer.setProperty(rect, 'onClick', null);
+    renderer.drawToScreen();
+    renderer.dispatchEvent('click', 50, 50);
+
+    expect(clicked).toBe(1);
+  });
+
   it('routes pointermove and pointerup to the captured node', async () => {
     const events: string[] = [];
     const { renderer } = await render(() => (
@@ -746,6 +772,69 @@ describe('pointer events', () => {
 
     expect(error).toBeInstanceOf(DOMException);
     expect((error as DOMException).name).toBe('NotFoundError');
+  });
+
+  it('updates hit testing after the viewport changes', () => {
+    let clicked = false;
+    const { renderer } = createCanvasAndRenderer(100, 100);
+    renderer.render(
+      <rect
+        style={{
+          left: Length.Vw(50),
+          width: Length.Vw(50),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+        }}
+        onClick={() => {
+          clicked = true;
+        }}
+      />
+    );
+
+    renderer.drawToScreen();
+    renderer.dispatchEvent('click', 75, 50);
+    expect(clicked).toBe(true);
+
+    clicked = false;
+    renderer.updateViewport({ width: 200, height: 100 });
+    renderer.drawToScreen();
+    renderer.dispatchEvent('click', 150, 50);
+
+    expect(clicked).toBe(true);
+  });
+});
+
+describe('performance', () => {
+  it('draws non-interactive scenes faster than interactive ones', () => {
+    const measure = (interactive: boolean) => {
+      const { renderer } = createCanvasAndRenderer(800, 600);
+
+      for (let i = 0; i < 1200; i += 1) {
+        const rect = renderer.createContainer('rect');
+        renderer.setProperty(rect, 'style', {
+          left: Length.Px((i % 40) * 20),
+          top: Length.Px(Math.floor(i / 40) * 20),
+          width: Length.Px(18),
+          height: Length.Px(18),
+          backgroundColor: 'red',
+        });
+        if (interactive) {
+          renderer.setProperty(rect, 'onPointerMove', () => {});
+        }
+        renderer.append(renderer.root, rect);
+      }
+
+      for (let i = 0; i < 5; i += 1) renderer.drawToScreen();
+
+      const start = performance.now();
+      for (let i = 0; i < 20; i += 1) renderer.drawToScreen();
+      return performance.now() - start;
+    };
+
+    const nonInteractive = measure(false) + measure(false);
+    const interactive = measure(true) + measure(true);
+
+    expect(nonInteractive).toBeLessThan(interactive);
   });
 });
 
