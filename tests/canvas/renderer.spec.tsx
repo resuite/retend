@@ -664,6 +664,89 @@ describe('pointer events', () => {
     renderer.dispatchEvent('click', 200, 200);
     expect(clicked).toBe(false);
   });
+
+  it('routes pointermove and pointerup to the captured node', async () => {
+    const events: string[] = [];
+    const { renderer } = await render(() => (
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+        }}
+        onPointerDown={(event) => {
+          events.push(`down:${event.x},${event.y}`);
+          event.currentTarget?.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          events.push(`move:${event.x},${event.y}`);
+        }}
+        onPointerUp={(event) => {
+          events.push(`up:${event.x},${event.y}`);
+        }}
+      />
+    ));
+
+    renderer.dispatchEvent('pointerdown', 50, 50);
+    renderer.dispatchEvent('pointermove', 200, 200);
+    renderer.dispatchEvent('pointerup', 200, 200);
+    renderer.dispatchEvent('pointermove', 200, 200);
+
+    expect(events).toEqual(['down:50,50', 'move:200,200', 'up:200,200']);
+  });
+
+  it('matches pointerId-based capture methods', async () => {
+    let hasCaptureOnDown = false;
+    let hasCaptureAfterRelease = true;
+    const { renderer } = await render(() => (
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+        }}
+        onPointerDown={(event) => {
+          event.currentTarget?.setPointerCapture(event.pointerId);
+          hasCaptureOnDown = !!event.currentTarget?.hasPointerCapture(
+            event.pointerId
+          );
+          event.currentTarget?.releasePointerCapture(event.pointerId);
+          hasCaptureAfterRelease = !!event.currentTarget?.hasPointerCapture(
+            event.pointerId
+          );
+        }}
+      />
+    ));
+
+    renderer.dispatchEvent('pointerdown', 50, 50, 7);
+
+    expect(hasCaptureOnDown).toBe(true);
+    expect(hasCaptureAfterRelease).toBe(false);
+  });
+
+  it('throws NotFoundError when capture is set for an inactive pointer', async () => {
+    let error: unknown;
+    const { renderer } = await render(() => (
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+        }}
+      />
+    ));
+
+    const rect = renderer.root.children[0] as any;
+
+    try {
+      rect.setPointerCapture(7);
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toBeInstanceOf(DOMException);
+    expect((error as DOMException).name).toBe('NotFoundError');
+  });
 });
 
 describe('zIndex', () => {

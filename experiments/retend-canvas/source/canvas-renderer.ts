@@ -68,6 +68,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
   root: CanvasContainer;
   #viewport: { width: number; height: number };
   #animations: CanvasAnimation[];
+  #capturedPointerTargets = new Map<number, CanvasNode>();
+  #activePointers = new Set<number>();
 
   nextNodeId = 1;
   nodeMap = new Map<number, CanvasNode>();
@@ -121,6 +123,38 @@ export class CanvasRenderer implements CanvasRendererInterface {
     const [animation] = this.#animations.splice(index, 1);
     this.requestRender();
     return animation;
+  }
+
+  setPointerCapture(node: CanvasNode, pointerId: number) {
+    if (!this.#activePointers.has(pointerId)) {
+      throw new DOMException(
+        `No active pointer with id ${pointerId}.`,
+        'NotFoundError'
+      );
+    }
+    this.#capturedPointerTargets.set(pointerId, node);
+  }
+
+  releasePointerCapture(node: CanvasNode, pointerId: number) {
+    if (!this.#activePointers.has(pointerId)) {
+      throw new DOMException(
+        `No active pointer with id ${pointerId}.`,
+        'NotFoundError'
+      );
+    }
+    if (this.#capturedPointerTargets.get(pointerId) === node) {
+      this.#capturedPointerTargets.delete(pointerId);
+    }
+  }
+
+  releasePointerCaptures(node: CanvasNode) {
+    for (const [pointerId, capturedNode] of this.#capturedPointerTargets) {
+      if (capturedNode === node) this.#capturedPointerTargets.delete(pointerId);
+    }
+  }
+
+  hasPointerCapture(node: CanvasNode, pointerId: number) {
+    return this.#capturedPointerTargets.get(pointerId) === node;
   }
 
   drawToScreen() {
@@ -247,22 +281,29 @@ export class CanvasRenderer implements CanvasRendererInterface {
     return node.isConnected;
   }
 
-  dispatchEvent(eventName: CanvasNodeEventName, x: number, y: number) {
-    const hitCanvas = this.host.hitCtx.canvas;
-    const sampleX = Math.floor(x);
-    const sampleY = Math.floor(y);
-    if (sampleX < 0 || sampleY < 0) return;
-    if (sampleX >= hitCanvas.width) return;
-    if (sampleY >= hitCanvas.height) return;
+  dispatchEvent(
+    eventName: CanvasNodeEventName,
+    x: number,
+    y: number,
+    pointerId = 1
+  ) {
+    if (eventName === 'pointerdown') this.#activePointers.add(pointerId);
 
-    const pixel = this.host.hitCtx.getImageData(sampleX, sampleY, 1, 1).data;
-    const id = (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
-    if (id === 0) return;
+    const capturedTarget = this.#capturedPointerTargets.get(pointerId);
+    const target =
+      capturedTarget &&
+      (eventName === 'pointermove' || eventName === 'pointerup')
+        ? capturedTarget
+        : this.resolvePointerTarget(x, y);
+    if (!target) {
+      if (eventName === 'pointerup') {
+        this.#capturedPointerTargets.delete(pointerId);
+        this.#activePointers.delete(pointerId);
+      }
+      return;
+    }
 
-    const target = this.nodeMap.get(id);
-    if (!target) return;
-
-    const event = new PointerEvent(eventName, x, y, target);
+    const event = new PointerEvent(eventName, pointerId, x, y, target);
     let current: CanvasNode | null = target;
 
     while (current) {
@@ -270,6 +311,26 @@ export class CanvasRenderer implements CanvasRendererInterface {
       if (event.propagationStopped) break;
       current = current.parent;
     }
+
+    if (eventName === 'pointerup') {
+      this.#capturedPointerTargets.delete(pointerId);
+      this.#activePointers.delete(pointerId);
+    }
+  }
+
+  resolvePointerTarget(x: number, y: number) {
+    const hitCanvas = this.host.hitCtx.canvas;
+    const sampleX = Math.floor(x);
+    const sampleY = Math.floor(y);
+    if (sampleX < 0 || sampleY < 0) return null;
+    if (sampleX >= hitCanvas.width) return null;
+    if (sampleY >= hitCanvas.height) return null;
+
+    const pixel = this.host.hitCtx.getImageData(sampleX, sampleY, 1, 1).data;
+    const id = (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
+    if (id === 0) return null;
+
+    return this.nodeMap.get(id);
   }
 
   // Stubs.

@@ -47,6 +47,7 @@ export function useDragGesture(
 
   const handlePointerDown = (e: PointerEvent) => {
     e.stopPropagation();
+    e.currentTarget?.setPointerCapture(e.pointerId);
     startX = e.x;
     startY = e.y;
     baseX = tx.get();
@@ -94,8 +95,9 @@ export function useDragGesture(
     });
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: PointerEvent) => {
     isDragging.set(false);
+    e.currentTarget?.releasePointerCapture(e.pointerId);
 
     if (isSelected.get()) {
       const shouldDismiss =

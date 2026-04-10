@@ -35,17 +35,20 @@ class CanvasDispatch {
 }
 
 export class PointerEvent extends CanvasDispatch {
+  pointerId: number;
   x: number;
   y: number;
   #propagationStopped = false;
 
   constructor(
     type: CanvasNodeEventName,
+    pointerId: number,
     x: number,
     y: number,
     target: CanvasNode
   ) {
     super(type, true, target);
+    this.pointerId = pointerId;
     this.x = x;
     this.y = y;
   }
@@ -111,6 +114,18 @@ export abstract class CanvasNode {
     event.setCurrentTarget(null);
   }
 
+  setPointerCapture(pointerId: number) {
+    this.renderer.setPointerCapture(this, pointerId);
+  }
+
+  releasePointerCapture(pointerId: number) {
+    this.renderer.releasePointerCapture(this, pointerId);
+  }
+
+  hasPointerCapture(pointerId: number) {
+    return this.renderer.hasPointerCapture(this, pointerId);
+  }
+
   set parent(parent: CanvasParentNode | null) {
     this.#parent = parent;
     this.setConnected(parent?.isConnected === true);
@@ -122,6 +137,7 @@ export abstract class CanvasNode {
     if (isConnected) {
       this.renderer.nodeMap.set(this.id, this);
     } else {
+      this.renderer.releasePointerCaptures(this);
       this.renderer.nodeMap.delete(this.id);
     }
     if (this instanceof CanvasParentNode) {

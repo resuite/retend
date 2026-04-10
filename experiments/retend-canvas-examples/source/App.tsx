@@ -46,6 +46,14 @@ const App = () => {
       >
         <text style={style.label}>Animation</text>
       </rect>
+      <rect
+        style={style.fibonacciSphere}
+        onClick={() => {
+          router.navigate('/fibonacci-sphere');
+        }}
+      >
+        <text style={style.label}>Fibonacci Sphere</text>
+      </rect>
     </rect>
   );
 };
@@ -84,7 +92,7 @@ const style = {
       Length.Px(36),
       '#00000066'
     ),
-    translate: [Length.Px(0), Length.Px(-10)],
+    translate: [Length.Px(0), Length.Px(-60)],
   },
   boxShadows: {
     alignSelf: Alignment.Center,
@@ -100,7 +108,7 @@ const style = {
       Length.Px(36),
       '#00000066'
     ),
-    translate: [Length.Px(0), Length.Px(90)],
+    translate: [Length.Px(0), Length.Px(40)],
   },
   fittedContent: {
     alignSelf: Alignment.Center,
@@ -116,7 +124,7 @@ const style = {
       Length.Px(36),
       '#00000066'
     ),
-    translate: [Length.Px(0), Length.Px(190)],
+    translate: [Length.Px(0), Length.Px(140)],
   },
   animation: {
     alignSelf: Alignment.Center,
@@ -132,7 +140,23 @@ const style = {
       Length.Px(36),
       '#00000066'
     ),
-    translate: [Length.Px(0), Length.Px(290)],
+    translate: [Length.Px(0), Length.Px(240)],
+  },
+  fibonacciSphere: {
+    alignSelf: Alignment.Center,
+    justifySelf: Alignment.Center,
+    width: Length.Px(280),
+    height: Length.Px(80),
+    backgroundColor: '#f8fafc',
+    borderColor: '#cbd5e1',
+    borderWidth: Length.Px(1),
+    boxShadow: BoxShadow.Drop(
+      Length.Px(0),
+      Length.Px(18),
+      Length.Px(36),
+      '#00000066'
+    ),
+    translate: [Length.Px(0), Length.Px(340)],
   },
   label: {
     alignSelf: Alignment.Center,
