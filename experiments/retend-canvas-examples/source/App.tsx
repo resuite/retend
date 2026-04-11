@@ -1,10 +1,4 @@
-import {
-  Alignment,
-  BoxShadow,
-  type CanvasStyle,
-  Length,
-  TextAlign,
-} from 'retend-canvas';
+import { type CanvasStyle, Length } from 'retend-canvas';
 import { useRouter } from 'retend/router';
 
 const App = () => {
@@ -12,157 +6,72 @@ const App = () => {
 
   return (
     <rect style={style.container}>
-      <text style={style.title}>retend-canvas-examples</text>
-      <text style={style.subtitle}>Choose a demo</text>
+      <text style={style.title}>RETEND</text>
+      <text style={style.titleSub}>_CANVAS</text>
+      <rect style={style.rule} />
       <rect
-        style={style.stickers}
+        style={style.link}
         onClick={() => {
           router.navigate('/stickers');
         }}
       >
-        <text style={style.label}>Stickers</text>
+        <text style={style.linkText}>STICKERS</text>
+        <text style={style.linkArrow}>&gt;</text>
       </rect>
-      <rect
-        style={style.boxShadows}
-        onClick={() => {
-          router.navigate('/box-shadows');
-        }}
-      >
-        <text style={style.label}>Box Shadows</text>
-      </rect>
-      <rect
-        style={style.fittedContent}
-        onClick={() => {
-          router.navigate('/fitted-content');
-        }}
-      >
-        <text style={style.label}>Fitted Content</text>
-      </rect>
-      <rect
-        style={style.animation}
-        onClick={() => {
-          router.navigate('/animation');
-        }}
-      >
-        <text style={style.label}>Animation</text>
-      </rect>
-      <rect
-        style={style.fibonacciSphere}
-        onClick={() => {
-          router.navigate('/fibonacci-sphere');
-        }}
-      >
-        <text style={style.label}>Fibonacci Sphere</text>
-      </rect>
+      <text style={style.linkDesc}>drag / drop / physics</text>
     </rect>
   );
 };
 
 const style = {
   container: {
-    backgroundColor: 'white',
-    color: 'black',
-    fontFamily: 'Maple Mono',
+    backgroundColor: '#0a0a0a',
+    color: '#fafafa',
+    fontFamily: 'Outfit',
     fontSize: Length.Px(12),
     height: Length.Vh(100),
   },
   title: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
-    fontSize: Length.Px(28),
-    translate: [Length.Px(0), Length.Px(-140)],
+    translate: [Length.Px(60), Length.Px(100)],
+    fontSize: Length.Px(64),
+    fontWeight: 800,
+    color: '#fafafa',
   },
-  subtitle: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
-    color: '#94a3b8',
-    translate: [Length.Px(0), Length.Px(-100)],
+  titleSub: {
+    translate: [Length.Px(60), Length.Px(160)],
+    fontSize: Length.Px(64),
+    fontWeight: 800,
+    color: '#00ff88',
   },
-  stickers: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
+  rule: {
+    translate: [Length.Px(60), Length.Px(240)],
     width: Length.Px(280),
-    height: Length.Px(80),
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderWidth: Length.Px(1),
-    boxShadow: BoxShadow.Drop(
-      Length.Px(0),
-      Length.Px(18),
-      Length.Px(36),
-      '#00000066'
-    ),
-    translate: [Length.Px(0), Length.Px(-60)],
-  },
-  boxShadows: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
+    height: Length.Px(2),
+    backgroundColor: '#333',
+  } satisfies CanvasStyle,
+  link: {
+    translate: [Length.Px(60), Length.Px(300)],
     width: Length.Px(280),
-    height: Length.Px(80),
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderWidth: Length.Px(1),
-    boxShadow: BoxShadow.Drop(
-      Length.Px(0),
-      Length.Px(18),
-      Length.Px(36),
-      '#00000066'
-    ),
-    translate: [Length.Px(0), Length.Px(40)],
+    height: Length.Px(56),
+    backgroundColor: '#00ff88',
+  } satisfies CanvasStyle,
+  linkText: {
+    translate: [Length.Px(20), Length.Px(14)],
+    fontSize: Length.Px(18),
+    fontWeight: 700,
+    color: '#0a0a0a',
   },
-  fittedContent: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
-    width: Length.Px(280),
-    height: Length.Px(80),
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderWidth: Length.Px(1),
-    boxShadow: BoxShadow.Drop(
-      Length.Px(0),
-      Length.Px(18),
-      Length.Px(36),
-      '#00000066'
-    ),
-    translate: [Length.Px(0), Length.Px(140)],
+  linkArrow: {
+    translate: [Length.Px(244), Length.Px(14)],
+    fontSize: Length.Px(18),
+    fontWeight: 700,
+    color: '#0a0a0a',
   },
-  animation: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
-    width: Length.Px(280),
-    height: Length.Px(80),
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderWidth: Length.Px(1),
-    boxShadow: BoxShadow.Drop(
-      Length.Px(0),
-      Length.Px(18),
-      Length.Px(36),
-      '#00000066'
-    ),
-    translate: [Length.Px(0), Length.Px(240)],
-  },
-  fibonacciSphere: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
-    width: Length.Px(280),
-    height: Length.Px(80),
-    backgroundColor: '#f8fafc',
-    borderColor: '#cbd5e1',
-    borderWidth: Length.Px(1),
-    boxShadow: BoxShadow.Drop(
-      Length.Px(0),
-      Length.Px(18),
-      Length.Px(36),
-      '#00000066'
-    ),
-    translate: [Length.Px(0), Length.Px(340)],
-  },
-  label: {
-    alignSelf: Alignment.Center,
-    justifySelf: Alignment.Center,
-    textAlign: TextAlign.Center,
-    width: Length.Pct(100),
+  linkDesc: {
+    translate: [Length.Px(60), Length.Px(370)],
+    color: '#555',
+    fontSize: Length.Px(11),
+    fontWeight: 400,
   },
 } satisfies Record<string, CanvasStyle>;
 
