@@ -9,7 +9,7 @@ import {
 import type { CanvasStyle } from '../types';
 import type { CanvasContainer } from './container';
 
-import { type CanvasNode, type CanvasRange } from './node';
+import { type CanvasNode, type CanvasRange, CanvasFragment } from './node';
 
 export function write(handle: CanvasRange, newContent: CanvasNode[]) {
   const [start, end] = handle;
@@ -28,11 +28,23 @@ export function write(handle: CanvasRange, newContent: CanvasNode[]) {
     node.parent = null;
   }
 
+  const flattened: CanvasNode[] = [];
   for (const node of newContent) {
     if (node.parent) node.parent.remove(node);
   }
-  parent.children.splice(parent.children.indexOf(end), 0, ...newContent);
-  for (const node of newContent) node.parent = parent;
+  for (const node of newContent) {
+    if (node instanceof CanvasFragment) {
+      for (const subchild of node.children) {
+        subchild.parent = parent;
+        flattened.push(subchild);
+      }
+      node.children = [];
+    } else {
+      node.parent = parent;
+      flattened.push(node);
+    }
+  }
+  parent.children.splice(parent.children.indexOf(end), 0, ...flattened);
 
   // This will force a trigger of the append side effects.
   const content: CanvasNode[] = [];
