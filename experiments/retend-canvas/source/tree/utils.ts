@@ -125,3 +125,7 @@ export function setAttribute(
 
   if (node.isConnected) node.renderer.requestRender();
 }
+
+export function nodeIdToRgb(id: number) {
+  return `rgb(${(id >> 16) & 255}, ${(id >> 8) & 255}, ${id & 255})`;
+}

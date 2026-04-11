@@ -237,8 +237,9 @@ export class CanvasContainer<
     if (!transform) {
       throw new Error('emit called before layout.');
     }
+
     frame.pushSave();
-    frame.pushAlpha(opacity);
+    if (opacity !== 1) frame.pushAlpha(opacity);
     frame.pushTransform(transform);
 
     if (clipPath) {
@@ -252,10 +253,7 @@ export class CanvasContainer<
       this.clipValue = null;
     }
     this.paintContainer(frame);
-    if (overflow === Overflow.Hidden) {
-      const path = this.path;
-      if (path) frame.pushClip(path);
-    }
+    if (overflow === Overflow.Hidden && this.path) frame.pushClip(this.path);
 
     const prevScopeWidth = host.scopeWidth;
     const prevScopeHeight = host.scopeHeight;

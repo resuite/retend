@@ -44,6 +44,7 @@ import {
   setAttribute,
   write,
   CanvasRoot,
+  nodeIdToRgb,
 } from './tree';
 import { tickAnimations, type CanvasAnimation } from './tree/animations';
 
@@ -54,6 +55,11 @@ interface CanvasRenderingTypes {
   Container: CanvasContainer;
   Group: CanvasFragment;
   Host: CanvasHost;
+}
+
+interface ViewPort {
+  width: number;
+  height: number;
 }
 
 type CanvasRendererInterface = Renderer<CanvasRenderingTypes>;
@@ -72,7 +78,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
   observer: Observer | null;
   #state?: StateSnapshot;
   root: CanvasContainer;
-  #viewport: { width: number; height: number };
+  #viewport: ViewPort;
   #animations: CanvasAnimation[];
   #capturedPointerTargets = new Map<number, CanvasNode>();
   #activePointers = new Set<number>();
@@ -93,7 +99,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     supportsSetupEffects: true,
   };
 
-  constructor(host: CanvasHost, viewport: { width: number; height: number }) {
+  constructor(host: CanvasHost, viewport: ViewPort) {
     this.host = host;
     this.observer = null;
     this.root = new CanvasRoot(this);
@@ -103,8 +109,9 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.drawToScreen = this.drawToScreen.bind(this);
   }
 
-  updateViewport(viewport: { width: number; height: number }) {
+  updateViewport(viewport: ViewPort) {
     this.#viewport = viewport;
+    this.#invertedPathCache = new WeakMap();
     this.#frameDirty = true;
     this.requestRender();
   }
@@ -172,12 +179,12 @@ export class CanvasRenderer implements CanvasRendererInterface {
     const hitCanvas = this.host.hitCtx.canvas;
     const hitWidth = Math.round(this.#viewport.width);
     const hitHeight = Math.round(this.#viewport.height);
-    const shouldPaintHitCanvas = this.interactiveNodeCount > 0;
+    const paintHit = this.interactiveNodeCount > 0;
     this.#renderFrame = null;
     const hasRunningAnimations = tickAnimations(this.#animations);
     const { ctx } = this.host;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    if (shouldPaintHitCanvas) {
+    if (paintHit) {
       if (hitCanvas.width !== hitWidth || hitCanvas.height !== hitHeight) {
         hitCanvas.width = hitWidth;
         hitCanvas.height = hitHeight;
@@ -188,17 +195,20 @@ export class CanvasRenderer implements CanvasRendererInterface {
     this.host.scopeHeight = this.#viewport.height;
     if (this.#frameDirty || hasRunningAnimations) {
       this.root.layout();
-      this.#frame.reset(shouldPaintHitCanvas);
+      this.#frame.reset(paintHit);
       this.root.emit(this.#frame);
       this.#frameDirty = false;
     }
-    this.replayCommands(ctx, this.#frame.commands);
-    if (shouldPaintHitCanvas)
-      this.replayCommands(this.host.hitCtx, this.#frame.hitCommands, true);
+    this.replay(ctx, this.#frame.commands);
+    if (paintHit) this.replay(this.host.hitCtx, this.#frame.hitCommands, true);
     if (hasRunningAnimations) this.requestRender();
   }
 
+  #invertedPathCache = new WeakMap<Path2D, Path2D>();
+
   private invertedPath(path: Path2D) {
+    const inverted = this.#invertedPathCache.get(path);
+    if (inverted) return inverted;
     const p = new Path2D();
     p.rect(
       -10000,
@@ -207,14 +217,11 @@ export class CanvasRenderer implements CanvasRendererInterface {
       this.#viewport.height + 20000
     );
     p.addPath(path);
+    this.#invertedPathCache.set(path, p);
     return p;
   }
 
-  private static nodeIdToRgb(id: number) {
-    return `rgb(${(id >> 16) & 255}, ${(id >> 8) & 255}, ${id & 255})`;
-  }
-
-  replayCommands(
+  replay(
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     commands: FrameCommand[],
     isHit = false
@@ -246,7 +253,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
         case CommandKind.PathFill: {
           const payload = frame.pathFills[payloadIndex];
           if (isHit) {
-            ctx.fillStyle = CanvasRenderer.nodeIdToRgb(command.nodeId);
+            ctx.fillStyle = nodeIdToRgb(command.nodeId);
             ctx.fill(payload.path);
             break;
           }
@@ -278,7 +285,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
           const payload = frame.pathStrokes[payloadIndex];
           ctx.lineWidth = payload.lineWidth;
           ctx.strokeStyle = isHit
-            ? CanvasRenderer.nodeIdToRgb(command.nodeId)
+            ? nodeIdToRgb(command.nodeId)
             : payload.strokeStyle;
           ctx.setLineDash(payload.lineDash);
           ctx.stroke(payload.path);
