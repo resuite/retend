@@ -1,3 +1,4 @@
+import type { FrameBuilder } from '../frame-builder';
 import type { CanvasImageProps } from '../types';
 
 import { Length } from '../style';
@@ -68,12 +69,17 @@ export class CanvasImage extends CanvasContainer<CanvasImageProps> {
     return path;
   }
 
-  override paintContainer(): void {
-    this.paintPath();
-    const host = this.renderer.host;
-
+  override paintContainer(frame: FrameBuilder): void {
+    this.paintPath(frame);
     if (this.imageBitmap) {
-      host.ctx.drawImage(this.imageBitmap, 0, 0, this.width, this.height);
+      frame.pushImage(
+        {
+          image: this.imageBitmap,
+          width: this.width,
+          height: this.height,
+        },
+        this.id
+      );
     }
   }
 }

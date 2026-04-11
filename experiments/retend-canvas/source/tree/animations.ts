@@ -250,7 +250,8 @@ export function tickAnimations(animations: CanvasAnimation[]): boolean {
     const { target: node } = animation;
     const animatedStyle: Partial<CanvasStyle> = {};
 
-    animation.progress += now - animation.lastFrame;
+    const elapsed = now - animation.lastFrame;
+    if (elapsed >= 1) animation.progress += elapsed;
     animation.lastFrame = now;
 
     const tickState = resolveTickState(animation);

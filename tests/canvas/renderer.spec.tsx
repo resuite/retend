@@ -627,6 +627,23 @@ describe('duration', () => {
 });
 
 describe('pointer events', () => {
+  it('does not paint hit output for non-interactive scenes', () => {
+    const { renderer, host } = createCanvasAndRenderer(100, 100);
+    renderer.render(
+      <rect
+        style={{
+          width: Length.Px(100),
+          height: Length.Px(100),
+          backgroundColor: 'red',
+        }}
+      />
+    );
+
+    renderer.drawToScreen();
+
+    expect(host.hitCtx.getImageData(50, 50, 1, 1).data[3]).toBe(0);
+  });
+
   it('dispatches click event at a point', async () => {
     let clicked = false;
     const { renderer } = await render(() => (
@@ -801,6 +818,28 @@ describe('pointer events', () => {
     renderer.dispatchEvent('click', 150, 50);
 
     expect(clicked).toBe(true);
+  });
+
+  it('keeps stroked path hit testing stable across repeated frames', () => {
+    const { renderer, host } = createCanvasAndRenderer(100, 100);
+    renderer.render(
+      <path
+        d="M0 50 L100 50"
+        style={{
+          borderStyle: BorderStyle.Solid,
+          borderWidth: Length.Px(10),
+        }}
+        onClick={() => {}}
+      />
+    );
+
+    renderer.drawToScreen();
+    const first = host.hitCtx.getImageData(50, 50, 1, 1).data[3];
+    renderer.drawToScreen();
+    const second = host.hitCtx.getImageData(50, 50, 1, 1).data[3];
+
+    expect(first).toBeGreaterThan(0);
+    expect(second).toBeGreaterThan(0);
   });
 });
 

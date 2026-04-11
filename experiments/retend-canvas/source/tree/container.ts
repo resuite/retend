@@ -1,6 +1,7 @@
 import type { JSX } from 'retend/jsx-runtime';
 
 import type { CanvasRenderer } from '../canvas-renderer';
+import type { FrameBuilder, ResolvedShadow } from '../frame-builder';
 import type {
   CanvasStyle,
   CanvasContainerProps,
@@ -107,6 +108,7 @@ export class CanvasContainer<
     if (zIndexChanged && this.parent instanceof CanvasContainer) {
       this.parent.visualChildrenOrderChanged = true;
     }
+    if (this.isConnected) this.renderer.requestRender();
   }
 
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
@@ -217,55 +219,31 @@ export class CanvasContainer<
     host.scopeHeight = prevScopeHeight;
   }
 
-  override paint(): void {
+  override emit(frame: FrameBuilder): void {
     const host = this.renderer.host;
-    const hitCtx = host.hitCtx;
     const { clipPath, overflow, opacity = 1 } = this.computedStyles;
     const transform = this.layoutTransform;
-    const shouldPaintHitCanvas = this.renderer.interactiveNodeCount > 0;
     if (!transform) {
-      throw new Error('paint called before layout.');
+      throw new Error('emit called before layout.');
     }
+    frame.pushSave();
+    frame.pushAlpha(opacity);
+    frame.pushTransform(transform);
 
-    host.ctx.save();
-    if (shouldPaintHitCanvas) hitCtx.save();
-    host.ctx.globalAlpha *= opacity;
-    host.ctx.transform(
-      transform.a,
-      transform.b,
-      transform.c,
-      transform.d,
-      transform.e,
-      transform.f
-    );
-    if (shouldPaintHitCanvas) {
-      hitCtx.transform(
-        transform.a,
-        transform.b,
-        transform.c,
-        transform.d,
-        transform.e,
-        transform.f
-      );
-    }
     if (clipPath) {
       if (this.clipValue !== clipPath) {
         this.clip = new Path2D(clipPath);
         this.clipValue = clipPath;
       }
-      host.ctx.clip(this.clip!);
-      if (shouldPaintHitCanvas) hitCtx.clip(this.clip!);
+      frame.pushClip(this.clip);
     } else if (this.clipValue !== null) {
       this.clip = null;
       this.clipValue = null;
     }
-    this.paintContainer();
+    this.paintContainer(frame);
     if (overflow === Overflow.Hidden) {
       const path = this.path;
-      if (path) {
-        host.ctx.clip(path);
-        if (shouldPaintHitCanvas) hitCtx.clip(path);
-      }
+      if (path) frame.pushClip(path);
     }
 
     const prevScopeWidth = host.scopeWidth;
@@ -279,24 +257,22 @@ export class CanvasContainer<
       this.updateChildrenVisualOrder();
       this.visualChildrenOrderChanged = false;
     }
-    for (const child of this.visualChildren) child.paint();
+    for (const child of this.visualChildren) child.emit(frame);
 
     host.removeFromCascade(this.computedStyles);
 
     host.scopeWidth = prevScopeWidth;
     host.scopeHeight = prevScopeHeight;
-
-    host.ctx.restore();
-    if (shouldPaintHitCanvas) hitCtx.restore();
+    frame.pushRestore();
   }
 
-  protected paintContainer() {}
+  protected paintContainer(_frame: FrameBuilder) {}
 
   protected tracePath(): Path2D | null {
     return null;
   }
 
-  protected paintBorders(path: Path2D) {
+  protected paintBorders(path: Path2D, frame: FrameBuilder) {
     const { host } = this.renderer;
     const {
       borderStyle,
@@ -313,51 +289,39 @@ export class CanvasContainer<
       return;
     }
 
-    host.ctx.lineWidth = resolvedBorderWidth;
-    host.ctx.strokeStyle = borderColor;
+    let lineDash: number[] = [];
     if (resolvedBorderStyle === BorderStyle.Dashed) {
-      host.ctx.setLineDash([resolvedBorderWidth * 3, resolvedBorderWidth * 2]);
+      lineDash = [resolvedBorderWidth * 3, resolvedBorderWidth * 2];
     } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-      host.ctx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
-    } else {
-      host.ctx.setLineDash([]);
+      lineDash = [resolvedBorderWidth, resolvedBorderWidth];
     }
-    host.ctx.stroke(path);
-    host.ctx.setLineDash([]);
+    frame.pushPathStroke(
+      {
+        path,
+        strokeStyle: borderColor,
+        lineWidth: resolvedBorderWidth,
+        lineDash,
+      },
+      this.id
+    );
   }
 
-  protected drawShadows(tracedPath: Path2D, shadows: BoxShadowValue[]) {
-    if (!shadows.length) return;
-    const { host, viewport } = this.renderer;
+  protected drawShadows(shadows: BoxShadowValue[]) {
+    if (!shadows.length) return [];
+    const { host } = this.renderer;
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
 
-    for (const shadow of shadows) {
-      host.ctx.save();
-      if (shadow.inset) host.ctx.clip(tracedPath);
-
-      const invertedPath = new Path2D();
-      invertedPath.rect(
-        -10000,
-        -10000,
-        viewport.width + 20000,
-        viewport.height + 20000
-      );
-      invertedPath.addPath(tracedPath);
-      if (!shadow.inset) host.ctx.clip(invertedPath, 'evenodd');
-      host.ctx.shadowOffsetX = lengthToPx(shadow.offsetX, baseWidth, this);
-      host.ctx.shadowOffsetY = lengthToPx(shadow.offsetY, baseHeight, this);
-      host.ctx.shadowBlur = lengthToPx(shadow.blur, baseWidth, this);
-      host.ctx.shadowColor = shadow.color;
-
-      host.ctx.fillStyle = shadow.inset ? shadow.color : 'black';
-      if (shadow.inset) host.ctx.fill(invertedPath, 'evenodd');
-      else host.ctx.fill(tracedPath);
-      host.ctx.restore();
-    }
+    return shadows.map<ResolvedShadow>((shadow) => ({
+      inset: shadow.inset,
+      offsetX: lengthToPx(shadow.offsetX, baseWidth, this),
+      offsetY: lengthToPx(shadow.offsetY, baseHeight, this),
+      blur: lengthToPx(shadow.blur, baseWidth, this),
+      color: shadow.color,
+    }));
   }
 
-  protected paintPath() {
+  protected paintPath(frame: FrameBuilder) {
     const tracedPath = this.pathChanged ? this.tracePath() : this.path;
     this.pathChanged = false;
     if (!tracedPath) return;
@@ -368,30 +332,27 @@ export class CanvasContainer<
     const shadows = Array.isArray(boxShadow)
       ? (boxShadow as BoxShadowValue[])
       : [];
-    const dropShadows = shadows.filter((shadow) => !shadow.inset);
-    const insetShadows = shadows.filter((shadow) => shadow.inset);
+    const resolvedShadows = this.drawShadows(shadows);
+    const dropShadows = resolvedShadows.filter((shadow) => !shadow.inset);
+    const insetShadows = resolvedShadows.filter((shadow) => shadow.inset);
 
-    this.drawShadows(tracedPath, dropShadows);
-
-    host.ctx.fillStyle = backgroundColor;
-    host.ctx.fill(tracedPath);
-
-    this.drawShadows(tracedPath, insetShadows);
-    this.paintBorders(tracedPath);
+    frame.pushPathFill(
+      {
+        path: tracedPath,
+        fillStyle: backgroundColor,
+        dropShadows,
+        insetShadows,
+      },
+      this.id
+    );
+    this.paintBorders(tracedPath, frame);
 
     const shouldDrawToHitScreen =
-      this.renderer.interactiveNodeCount > 0 &&
+      frame.shouldPaintHitCanvas &&
       this.hasEventListeners &&
       host.getCascadedValue('pointerEvents') !== PointerEvents.None;
 
-    if (shouldDrawToHitScreen) {
-      const id = this.id;
-      const r = (id >> 16) & 255;
-      const g = (id >> 8) & 255;
-      const b = id & 255;
-      host.hitCtx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-      host.hitCtx.fill(tracedPath);
-    }
+    if (shouldDrawToHitScreen) frame.pushHitPathFill(tracedPath, this.id);
   }
 }
 
@@ -426,8 +387,8 @@ export class CanvasRect<
     return path;
   }
 
-  override paintContainer() {
-    this.paintPath();
+  override paintContainer(frame: FrameBuilder) {
+    this.paintPath(frame);
   }
 }
 
@@ -445,8 +406,8 @@ export class CanvasCircle extends CanvasContainer {
     return path;
   }
 
-  override paintContainer(): void {
-    this.paintPath();
+  override paintContainer(frame: FrameBuilder): void {
+    this.paintPath(frame);
   }
 }
 
@@ -477,7 +438,7 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
     if (key === 'd') this.pathChanged = true;
   }
 
-  override paintContainer(): void {
+  override paintContainer(frame: FrameBuilder): void {
     const host = this.renderer.host;
     const path = this.pathChanged ? this.tracePath() : this.path;
     this.pathChanged = false;
@@ -496,46 +457,44 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
     }
 
     if (resolvedBorderWidth && resolvedBorderStyle !== BorderStyle.None) {
-      host.ctx.lineWidth = resolvedBorderWidth;
-      host.ctx.strokeStyle = borderColor;
+      let lineDash: number[] = [];
       if (resolvedBorderStyle === BorderStyle.Dashed) {
-        host.ctx.setLineDash([
-          resolvedBorderWidth * 3,
-          resolvedBorderWidth * 2,
-        ]);
+        lineDash = [resolvedBorderWidth * 3, resolvedBorderWidth * 2];
       } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-        host.ctx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
-      } else {
-        host.ctx.setLineDash([]);
+        lineDash = [resolvedBorderWidth, resolvedBorderWidth];
       }
-      host.ctx.stroke(path);
-      host.ctx.setLineDash([]);
+      frame.pushPathStroke(
+        {
+          path,
+          strokeStyle: borderColor,
+          lineWidth: resolvedBorderWidth,
+          lineDash,
+        },
+        this.id
+      );
     }
 
     if (
-      this.renderer.interactiveNodeCount > 0 &&
+      frame.shouldPaintHitCanvas &&
       this.hasEventListeners &&
       resolvedBorderWidth &&
       resolvedBorderStyle !== BorderStyle.None
     ) {
-      const id = this.id;
-      const r = (id >> 16) & 255;
-      const g = (id >> 8) & 255;
-      const b = id & 255;
-      host.hitCtx.lineWidth = Math.max(resolvedBorderWidth, 1);
-      host.hitCtx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+      let lineDash: number[] = [];
       if (resolvedBorderStyle === BorderStyle.Dashed) {
-        host.hitCtx.setLineDash([
-          resolvedBorderWidth * 3,
-          resolvedBorderWidth * 2,
-        ]);
+        lineDash = [resolvedBorderWidth * 3, resolvedBorderWidth * 2];
       } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-        host.hitCtx.setLineDash([resolvedBorderWidth, resolvedBorderWidth]);
-      } else {
-        host.hitCtx.setLineDash([]);
+        lineDash = [resolvedBorderWidth, resolvedBorderWidth];
       }
-      host.hitCtx.stroke(path);
-      host.hitCtx.setLineDash([]);
+      frame.pushHitPathStroke(
+        {
+          path,
+          strokeStyle: '',
+          lineWidth: Math.max(resolvedBorderWidth, 1),
+          lineDash,
+        },
+        this.id
+      );
     }
   }
 }
@@ -607,8 +566,8 @@ export class CanvasShape extends CanvasContainer<CanvasShapeProps> {
     return path;
   }
 
-  override paintContainer(): void {
-    this.paintPath();
+  override paintContainer(frame: FrameBuilder): void {
+    this.paintPath(frame);
   }
 }
 

@@ -17,6 +17,7 @@ import {
 
 import type { AnimationDefinition, CanvasNodeEventName } from './types';
 
+import { CommandKind, FrameBuilder } from './frame-builder';
 import {
   CanvasAnchor,
   CanvasContainer,
@@ -75,6 +76,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
   nextNodeId = 1;
   nodeMap = new Map<number, CanvasNode>();
   #renderFrame: number | null = null;
+  #frame = new FrameBuilder();
+  #frameDirty = true;
 
   get viewport() {
     return this.#viewport;
@@ -97,10 +100,12 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   updateViewport(viewport: { width: number; height: number }) {
     this.#viewport = viewport;
+    this.#frameDirty = true;
     this.requestRender();
   }
 
   requestRender() {
+    this.#frameDirty = true;
     if (this.#renderFrame !== null) return;
     this.#renderFrame = requestAnimationFrame(this.drawToScreen);
   }
@@ -180,9 +185,209 @@ export class CanvasRenderer implements CanvasRendererInterface {
     }
     this.host.scopeWidth = this.#viewport.width;
     this.host.scopeHeight = this.#viewport.height;
-    this.root.layout();
-    this.root.paint();
+    if (this.#frameDirty || hasRunningAnimations) {
+      this.root.layout();
+      this.#frame.reset(shouldPaintHitCanvas);
+      this.root.emit(this.#frame);
+      this.#frameDirty = false;
+    }
+    this.replayCommands(this.host.ctx, this.#frame.commands);
+    if (shouldPaintHitCanvas) {
+      this.replayCommands(this.host.hitCtx, this.#frame.hitCommands, true);
+    }
     if (hasRunningAnimations) this.requestRender();
+  }
+
+  replayCommands(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    commands: Array<{
+      kind: number;
+      payload: number;
+      nodeId: number;
+    }>,
+    isHit = false
+  ) {
+    const frame = this.#frame;
+    const baseTransform = ctx.getTransform();
+    ctx.save();
+    if (isHit) ctx.setTransform(1, 0, 0, 1, 0, 0);
+    else ctx.setTransform(baseTransform);
+
+    for (const command of commands) {
+      switch (command.kind) {
+        case CommandKind.Save:
+          ctx.save();
+          break;
+        case CommandKind.Restore:
+          ctx.restore();
+          break;
+        case CommandKind.Transform: {
+          const matrix = frame.transforms[command.payload];
+          ctx.transform(
+            matrix.a,
+            matrix.b,
+            matrix.c,
+            matrix.d,
+            matrix.e,
+            matrix.f
+          );
+          break;
+        }
+        case CommandKind.Alpha:
+          ctx.globalAlpha *= frame.alphas[command.payload];
+          break;
+        case CommandKind.Clip:
+          ctx.clip(frame.clips[command.payload]);
+          break;
+        case CommandKind.PathFill: {
+          const payload = frame.pathFills[command.payload];
+          if (isHit) {
+            const id = command.nodeId;
+            const r = (id >> 16) & 255;
+            const g = (id >> 8) & 255;
+            const b = id & 255;
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fill(payload.path);
+            break;
+          }
+
+          for (const shadow of payload.dropShadows) {
+            ctx.save();
+            const invertedPath = new Path2D();
+            invertedPath.rect(
+              -10000,
+              -10000,
+              this.#viewport.width + 20000,
+              this.#viewport.height + 20000
+            );
+            invertedPath.addPath(payload.path);
+            ctx.clip(invertedPath, 'evenodd');
+            ctx.shadowOffsetX = shadow.offsetX;
+            ctx.shadowOffsetY = shadow.offsetY;
+            ctx.shadowBlur = shadow.blur;
+            ctx.shadowColor = shadow.color;
+            ctx.fillStyle = 'black';
+            ctx.fill(payload.path);
+            ctx.restore();
+          }
+
+          ctx.fillStyle = payload.fillStyle;
+          ctx.fill(payload.path);
+
+          for (const shadow of payload.insetShadows) {
+            ctx.save();
+            ctx.clip(payload.path);
+            const invertedPath = new Path2D();
+            invertedPath.rect(
+              -10000,
+              -10000,
+              this.#viewport.width + 20000,
+              this.#viewport.height + 20000
+            );
+            invertedPath.addPath(payload.path);
+            ctx.shadowOffsetX = shadow.offsetX;
+            ctx.shadowOffsetY = shadow.offsetY;
+            ctx.shadowBlur = shadow.blur;
+            ctx.shadowColor = shadow.color;
+            ctx.fillStyle = shadow.color;
+            ctx.fill(invertedPath, 'evenodd');
+            ctx.restore();
+          }
+          break;
+        }
+        case CommandKind.PathStroke: {
+          const payload = frame.pathStrokes[command.payload];
+          ctx.lineWidth = payload.lineWidth;
+          if (isHit) {
+            const id = command.nodeId;
+            const r = (id >> 16) & 255;
+            const g = (id >> 8) & 255;
+            const b = id & 255;
+            ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+          } else {
+            ctx.strokeStyle = payload.strokeStyle;
+          }
+          ctx.setLineDash(payload.lineDash);
+          ctx.stroke(payload.path);
+          break;
+        }
+        case CommandKind.Image: {
+          const payload = frame.images[command.payload];
+          ctx.drawImage(payload.image, 0, 0, payload.width, payload.height);
+          break;
+        }
+        case CommandKind.TextLine: {
+          const payload = frame.textLines[command.payload];
+          ctx.textBaseline = 'top';
+          ctx.font = payload.font;
+          ctx.fillStyle = payload.fillStyle;
+          ctx.fillText(payload.text, payload.x, payload.y);
+          break;
+        }
+        case CommandKind.Particles: {
+          const payload = frame.particles[command.payload];
+          const { positions, colorMap, sizeMap, shape, baseColor, baseSize } =
+            payload;
+          const isRect = shape === 'rect';
+          const hasColorMap = Array.isArray(colorMap);
+          const hasSizeMap =
+            sizeMap instanceof Float32Array || Array.isArray(sizeMap);
+
+          if (!hasColorMap) {
+            ctx.fillStyle = baseColor;
+            ctx.beginPath();
+
+            for (let i = 0; i < positions.length; i += 2) {
+              const cx = positions[i];
+              const cy = positions[i + 1];
+              const r = hasSizeMap ? sizeMap[i / 2] : baseSize;
+
+              if (isRect) {
+                ctx.rect(cx - r, cy - r, r * 2, r * 2);
+              } else {
+                ctx.moveTo(cx + r, cy);
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+              }
+            }
+            ctx.fill();
+            break;
+          }
+
+          const colorBatches = new Map<string, number[]>();
+          for (let i = 0; i < positions.length; i += 2) {
+            const color = colorMap[i / 2] ? colorMap[i / 2] : baseColor;
+            const batch = colorBatches.get(color);
+            if (batch) {
+              batch.push(i);
+              continue;
+            }
+            colorBatches.set(color, [i]);
+          }
+
+          for (const [color, batch] of colorBatches) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+
+            for (const i of batch) {
+              const cx = positions[i];
+              const cy = positions[i + 1];
+              const r = hasSizeMap ? sizeMap[i / 2] : baseSize;
+
+              if (isRect) {
+                ctx.rect(cx - r, cy - r, r * 2, r * 2);
+              } else {
+                ctx.moveTo(cx + r, cy);
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+              }
+            }
+
+            ctx.fill();
+          }
+          break;
+        }
+      }
+    }
+    ctx.restore();
   }
 
   render(app: JSX.Template): CanvasNode | CanvasNode[] {

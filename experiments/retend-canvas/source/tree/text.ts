@@ -6,6 +6,7 @@ import {
 
 import type { CurrentCascade } from '.';
 import type { CanvasRenderer } from '../canvas-renderer';
+import type { FrameBuilder } from '../frame-builder';
 
 import { FontStyle, TextAlign, WhiteSpace } from '../style';
 import { CanvasNode } from './node';
@@ -125,7 +126,7 @@ export class CanvasText extends CanvasNode {
     this.measure(host.scopeWidth);
   }
 
-  override paint(): void {
+  override emit(frame: FrameBuilder): void {
     const host = this.renderer.host;
     const textStyles = host.getAllCascadedValues();
     const index = this.parent?.children.indexOf(this) ?? -1;
@@ -133,15 +134,11 @@ export class CanvasText extends CanvasNode {
       return;
     }
 
-    host.ctx.textBaseline = 'top';
     const layout = this.#layout;
     if (!layout) {
-      throw new Error('paint called before layout.');
+      throw new Error('emit called before layout.');
     }
-    const fillStyle = host.ctx.fillStyle;
-    const font = host.ctx.font;
-    host.ctx.fillStyle = textStyles.color;
-    host.ctx.font = getFont(textStyles);
+    const font = getFont(textStyles);
     let y = 0;
     for (const line of layout.lines) {
       let x = 0;
@@ -150,10 +147,17 @@ export class CanvasText extends CanvasNode {
       } else if (textStyles.textAlign === TextAlign.Right) {
         x = host.scopeWidth - line.width;
       }
-      host.ctx.fillText(line.text, x, y);
+      frame.pushTextLine(
+        {
+          text: line.text,
+          x,
+          y,
+          font,
+          fillStyle: textStyles.color,
+        },
+        this.id
+      );
       y += this.#layoutLineHeight;
     }
-    host.ctx.font = font;
-    host.ctx.fillStyle = fillStyle;
   }
 }

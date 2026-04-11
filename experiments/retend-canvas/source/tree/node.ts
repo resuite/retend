@@ -1,4 +1,5 @@
 import type { CanvasRenderer } from '../canvas-renderer';
+import type { FrameBuilder } from '../frame-builder';
 import type { CanvasNodeEventName } from '../types';
 
 class CanvasDispatch {
@@ -156,7 +157,7 @@ export abstract class CanvasNode {
   }
 
   abstract layout(): void;
-  abstract paint(): void;
+  abstract emit(frame: FrameBuilder): void;
 }
 
 export abstract class CanvasParentNode extends CanvasNode {
@@ -207,7 +208,7 @@ export abstract class CanvasParentNode extends CanvasNode {
 }
 
 export class CanvasAnchor extends CanvasNode {
-  paint() {
+  emit(_frame: FrameBuilder) {
     // anchor nodes are not visible.
   }
   layout() {
@@ -218,9 +219,9 @@ export class CanvasAnchor extends CanvasNode {
 export type CanvasRange = [CanvasAnchor, CanvasAnchor];
 
 export class CanvasFragment extends CanvasParentNode {
-  paint() {
+  emit(_frame: FrameBuilder) {
     throw new Error(
-      'CanvasFragment cannot be painted. It must be merged into the Canvas tree.'
+      'CanvasFragment cannot be emitted. It must be merged into the Canvas tree.'
     );
   }
   layout() {

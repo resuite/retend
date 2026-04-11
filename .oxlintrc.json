@@ -28,6 +28,7 @@
     "unicorn/require-module-specifiers": "off",
     "unicorn/no-empty-file": "off",
     "unicorn/no-useless-spread": "warn",
+    "unicorn/require-post-message-target-origin": "off",
     "typescript/no-extraneous-class": "off",
     "typescript/triple-slash-reference": "warn",
     "typescript/consistent-type-imports": "error"

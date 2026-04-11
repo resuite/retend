@@ -134,3 +134,4 @@ dist
 .pnp.*
 .pnpm-store
 .ruff_cache
+tmp
