@@ -53,13 +53,18 @@ export type TextLinePayload = {
   fillStyle: string;
 };
 
+export type ColorBatch = {
+  color: string;
+  indices: number[];
+};
+
 export type ParticlesPayload = {
   positions: Float32Array | number[];
-  colorMap?: string | string[];
   sizeMap?: number | Float32Array | number[];
   shape: 'circle' | 'rect';
   baseColor: string;
   baseSize: number;
+  colorBatches?: ColorBatch[];
 };
 
 export class FrameBuilder {

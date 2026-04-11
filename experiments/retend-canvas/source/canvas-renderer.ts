@@ -17,7 +17,7 @@ import {
 
 import type { AnimationDefinition, CanvasNodeEventName } from './types';
 
-import { CommandKind, FrameBuilder } from './frame-builder';
+import { CommandKind, FrameBuilder, type FrameCommand } from './frame-builder';
 import {
   CanvasAnchor,
   CanvasContainer,
@@ -185,7 +185,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
     }
     this.host.scopeWidth = this.#viewport.width;
     this.host.scopeHeight = this.#viewport.height;
-    if (this.#frameDirty || hasRunningAnimations) {
+    const shouldRebuildFrame = this.#frameDirty || hasRunningAnimations;
+    if (shouldRebuildFrame) {
       this.root.layout();
       this.#frame.reset(shouldPaintHitCanvas);
       this.root.emit(this.#frame);
@@ -200,11 +201,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   replayCommands(
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-    commands: Array<{
-      kind: number;
-      payload: number;
-      nodeId: number;
-    }>,
+    commands: FrameCommand[],
     isHit = false
   ) {
     const frame = this.#frame;
@@ -214,6 +211,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
     else ctx.setTransform(baseTransform);
 
     for (const command of commands) {
+      const payloadIndex = command.payload;
       switch (command.kind) {
         case CommandKind.Save:
           ctx.save();
@@ -222,7 +220,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
           ctx.restore();
           break;
         case CommandKind.Transform: {
-          const matrix = frame.transforms[command.payload];
+          const matrix = frame.transforms[payloadIndex];
           ctx.transform(
             matrix.a,
             matrix.b,
@@ -234,13 +232,13 @@ export class CanvasRenderer implements CanvasRendererInterface {
           break;
         }
         case CommandKind.Alpha:
-          ctx.globalAlpha *= frame.alphas[command.payload];
+          ctx.globalAlpha *= frame.alphas[payloadIndex];
           break;
         case CommandKind.Clip:
-          ctx.clip(frame.clips[command.payload]);
+          ctx.clip(frame.clips[payloadIndex]);
           break;
         case CommandKind.PathFill: {
-          const payload = frame.pathFills[command.payload];
+          const payload = frame.pathFills[payloadIndex];
           if (isHit) {
             const id = command.nodeId;
             const r = (id >> 16) & 255;
@@ -296,7 +294,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
           break;
         }
         case CommandKind.PathStroke: {
-          const payload = frame.pathStrokes[command.payload];
+          const payload = frame.pathStrokes[payloadIndex];
           ctx.lineWidth = payload.lineWidth;
           if (isHit) {
             const id = command.nodeId;
@@ -312,12 +310,12 @@ export class CanvasRenderer implements CanvasRendererInterface {
           break;
         }
         case CommandKind.Image: {
-          const payload = frame.images[command.payload];
+          const payload = frame.images[payloadIndex];
           ctx.drawImage(payload.image, 0, 0, payload.width, payload.height);
           break;
         }
         case CommandKind.TextLine: {
-          const payload = frame.textLines[command.payload];
+          const payload = frame.textLines[payloadIndex];
           ctx.textBaseline = 'top';
           ctx.font = payload.font;
           ctx.fillStyle = payload.fillStyle;
@@ -325,15 +323,20 @@ export class CanvasRenderer implements CanvasRendererInterface {
           break;
         }
         case CommandKind.Particles: {
-          const payload = frame.particles[command.payload];
-          const { positions, colorMap, sizeMap, shape, baseColor, baseSize } =
-            payload;
+          const payload = frame.particles[payloadIndex];
+          const {
+            positions,
+            colorBatches,
+            sizeMap,
+            shape,
+            baseColor,
+            baseSize,
+          } = payload;
           const isRect = shape === 'rect';
-          const hasColorMap = Array.isArray(colorMap);
           const hasSizeMap =
             sizeMap instanceof Float32Array || Array.isArray(sizeMap);
 
-          if (!hasColorMap) {
+          if (!colorBatches) {
             ctx.fillStyle = baseColor;
             ctx.beginPath();
 
@@ -353,22 +356,11 @@ export class CanvasRenderer implements CanvasRendererInterface {
             break;
           }
 
-          const colorBatches = new Map<string, number[]>();
-          for (let i = 0; i < positions.length; i += 2) {
-            const color = colorMap[i / 2] ? colorMap[i / 2] : baseColor;
-            const batch = colorBatches.get(color);
-            if (batch) {
-              batch.push(i);
-              continue;
-            }
-            colorBatches.set(color, [i]);
-          }
-
-          for (const [color, batch] of colorBatches) {
+          for (const { color, indices } of colorBatches) {
             ctx.fillStyle = color;
             ctx.beginPath();
 
-            for (const i of batch) {
+            for (const i of indices) {
               const cx = positions[i];
               const cy = positions[i + 1];
               const r = hasSizeMap ? sizeMap[i / 2] : baseSize;

@@ -48,6 +48,10 @@ export class CanvasContainer<
   protected clipValue: string | null = null;
 
   protected pathChanged = true;
+  protected resolvedShadows: ResolvedShadow[] = [];
+  protected resolvedShadowsValue?: BoxShadowValue | BoxShadowValue[];
+  protected resolvedShadowsScopeWidth = -1;
+  protected resolvedShadowsScopeHeight = -1;
 
   protected visualChildrenOrderChanged = false;
   protected visualChildren: CanvasNode[] = [];
@@ -311,14 +315,27 @@ export class CanvasContainer<
     const { host } = this.renderer;
     const baseWidth = host.scopeWidth;
     const baseHeight = host.scopeHeight;
+    const boxShadow = this.computedStyles.boxShadow;
 
-    return shadows.map<ResolvedShadow>((shadow) => ({
+    if (
+      this.resolvedShadowsValue === boxShadow &&
+      this.resolvedShadowsScopeWidth === baseWidth &&
+      this.resolvedShadowsScopeHeight === baseHeight
+    ) {
+      return this.resolvedShadows;
+    }
+
+    this.resolvedShadows = shadows.map<ResolvedShadow>((shadow) => ({
       inset: shadow.inset,
       offsetX: lengthToPx(shadow.offsetX, baseWidth, this),
       offsetY: lengthToPx(shadow.offsetY, baseHeight, this),
       blur: lengthToPx(shadow.blur, baseWidth, this),
       color: shadow.color,
     }));
+    this.resolvedShadowsValue = boxShadow;
+    this.resolvedShadowsScopeWidth = baseWidth;
+    this.resolvedShadowsScopeHeight = baseHeight;
+    return this.resolvedShadows;
   }
 
   protected paintPath(frame: FrameBuilder) {
