@@ -6,9 +6,9 @@ import {
   Duration,
   AnimationFillMode,
   Easing,
-} from 'retend-canvas';
+} from 'retend-canvas-2d';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import 'retend-canvas/jsx-runtime';
+import 'retend-canvas-2d/jsx-runtime';
 import { createCanvasAndRenderer, render, pixelAt } from './setup.tsx';
 
 afterEach(() => {

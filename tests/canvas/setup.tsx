@@ -4,9 +4,9 @@ import {
   CanvasRenderer,
   CanvasHost,
   renderToCanvasContext,
-} from 'retend-canvas';
+} from 'retend-canvas-2d';
 import { beforeEach, afterEach } from 'vitest';
-import 'retend-canvas/jsx-runtime';
+import 'retend-canvas-2d/jsx-runtime';
 
 export function createOffscreenCanvas(
   width = 800,

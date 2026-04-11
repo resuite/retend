@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 //
-import 'retend-canvas/jsx-runtime';
+import 'retend-canvas-2d/jsx-runtime';
 import AppWorker from './worker.ts?worker';
 
 const worker = new AppWorker();

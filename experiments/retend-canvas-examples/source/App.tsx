@@ -1,4 +1,4 @@
-import { type CanvasStyle, Length } from 'retend-canvas';
+import { type CanvasStyle, Length } from 'retend-canvas-2d';
 import { useRouter } from 'retend/router';
 
 const App = () => {

@@ -1,5 +1,5 @@
 import { Cell, For } from 'retend';
-import { Alignment, BoxShadow, Length, TextAlign } from 'retend-canvas';
+import { Alignment, BoxShadow, Length, TextAlign } from 'retend-canvas-2d';
 import { useRouteQuery, useRouter } from 'retend/router';
 
 import { stickers } from './data';

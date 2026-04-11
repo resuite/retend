@@ -107,7 +107,7 @@ importers:
         specifier: ^6.2.1
         version: 6.4.1(@types/node@25.4.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
 
-  experiments/retend-canvas:
+  experiments/retend-canvas-2d:
     dependencies:
       '@chenglou/pretext':
         specifier: ^0.0.4
@@ -125,9 +125,9 @@ importers:
       retend:
         specifier: workspace:*
         version: link:../../packages/retend
-      retend-canvas:
+      retend-canvas-2d:
         specifier: workspace:*
-        version: link:../retend-canvas
+        version: link:../retend-canvas-2d
       vite:
         specifier: ^6.2.1
         version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
@@ -357,9 +357,9 @@ importers:
       retend:
         specifier: workspace:*
         version: link:../packages/retend
-      retend-canvas:
+      retend-canvas-2d:
         specifier: workspace:*
-        version: link:../experiments/retend-canvas
+        version: link:../experiments/retend-canvas-2d
       retend-server:
         specifier: workspace:*
         version: link:../packages/retend-server

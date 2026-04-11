@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 // oxlint-disable-next-line typescript/consistent-type-imports
-type CanvasModule = typeof import('retend-canvas');
+type CanvasModule = typeof import('retend-canvas-2d');
 type CanvasRenderer = InstanceType<CanvasModule['CanvasRenderer']>;
 type Scenario = {
   name: string;
@@ -232,7 +232,7 @@ describe('canvas benchmark', () => {
     const baseline = await loadBaselineRenderer();
     if (!baseline) return;
 
-    const current = await import('retend-canvas');
+    const current = await import('retend-canvas-2d');
     const report = {
       scenarios: {} as Record<
         string,

@@ -1,4 +1,4 @@
-import type { CanvasRenderer } from 'retend-canvas';
+import type { CanvasRenderer } from 'retend-canvas-2d';
 
 import { Cell, getActiveRenderer } from 'retend';
 

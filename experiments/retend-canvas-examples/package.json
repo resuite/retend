@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "retend": "workspace:*",
-    "retend-canvas": "workspace:*",
+    "retend-canvas-2d": "workspace:*",
     "vite": "^6.2.1"
   }
 }

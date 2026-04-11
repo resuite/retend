@@ -10,7 +10,7 @@ import {
   Length,
   PointerEvents,
   TextAlign,
-} from 'retend-canvas';
+} from 'retend-canvas-2d';
 
 import type { Sticker as StickerType } from './data';
 

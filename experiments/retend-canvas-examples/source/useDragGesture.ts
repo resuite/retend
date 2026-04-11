@@ -1,4 +1,4 @@
-import type { PointerEvent } from 'retend-canvas';
+import type { PointerEvent } from 'retend-canvas-2d';
 
 import { Cell } from 'retend';
 

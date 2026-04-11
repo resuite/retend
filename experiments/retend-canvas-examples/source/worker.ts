@@ -2,7 +2,7 @@ import {
   type CanvasNodeEventName,
   type CanvasRenderer,
   renderToCanvasContext,
-} from 'retend-canvas';
+} from 'retend-canvas-2d';
 import { createRouterRoot } from 'retend/router';
 
 import { createRouter } from './router';

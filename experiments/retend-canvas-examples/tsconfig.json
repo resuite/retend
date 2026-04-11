@@ -16,7 +16,7 @@
     "jsx": "react-jsx",
     "jsxImportSource": "retend",
     "skipLibCheck": true,
-    "types": ["retend-canvas/jsx-runtime"]
+    "types": ["retend-canvas-2d/jsx-runtime"]
   },
   "include": ["source"]
 }
