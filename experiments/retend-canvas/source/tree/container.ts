@@ -13,6 +13,7 @@ import {
   BorderStyle,
   type BoxShadowValue,
   Length,
+  type LengthValue,
   LengthUnit,
   Overflow,
   PointerEvents,
@@ -76,19 +77,14 @@ export class CanvasContainer<
   }
 
   checkForPathChange(style: CanvasStyle, previousStyles?: CanvasStyle) {
-    if (previousStyles) {
-      for (const key of PATH_CHANGE_PROPERTIES) {
-        if (previousStyles[key] !== style[key]) {
-          this.pathChanged = true;
-          return;
-        }
-      }
-    } else {
-      for (const key of PATH_CHANGE_PROPERTIES) {
-        if (style[key] !== undefined) {
-          this.pathChanged = true;
-          return;
-        }
+    for (const key of PATH_CHANGE_PROPERTIES) {
+      if (
+        previousStyles
+          ? previousStyles[key] !== style[key]
+          : style[key] !== undefined
+      ) {
+        this.pathChanged = true;
+        return;
       }
     }
   }
@@ -177,17 +173,24 @@ export class CanvasContainer<
       nextWidth = fittedSize.nextWidth;
       if (height.unit === LengthUnit.FitContent) nextHeight = fitContentHeight;
 
-      if (maxWidth?.unit === LengthUnit.FitContent) {
-        nextWidth = Math.min(nextWidth, fitContentWidth);
-      } else if (maxWidth) {
-        nextWidth = Math.min(nextWidth, lengthToPx(maxWidth, baseWidth, this));
-      }
-      if (maxHeight?.unit === LengthUnit.FitContent) {
-        nextHeight = Math.min(nextHeight, fitContentHeight);
-      } else if (maxHeight) {
-        const maxHeightValue = lengthToPx(maxHeight, baseHeight, this);
-        nextHeight = Math.min(nextHeight, maxHeightValue);
-      }
+      const constrain = (
+        val: number,
+        max: LengthValue | undefined,
+        fitVal: number,
+        base: number
+      ) =>
+        !max
+          ? val
+          : max.unit === LengthUnit.FitContent
+            ? Math.min(val, fitVal)
+            : Math.min(val, lengthToPx(max, base, this));
+      nextWidth = constrain(nextWidth, maxWidth, fitContentWidth, baseWidth);
+      nextHeight = constrain(
+        nextHeight,
+        maxHeight,
+        fitContentHeight,
+        baseHeight
+      );
     }
 
     if (this.width !== nextWidth || this.height !== nextHeight) {
@@ -277,64 +280,83 @@ export class CanvasContainer<
   }
 
   protected paintBorders(path: Path2D, frame: FrameBuilder) {
+    const border = this.resolveBorder();
+    if (border)
+      frame.pushPathStroke(
+        {
+          path,
+          strokeStyle: border.color,
+          lineWidth: border.width,
+          lineDash: border.lineDash,
+        },
+        this.id
+      );
+  }
+
+  protected resolveBorder(): {
+    width: number;
+    color: string;
+    lineDash: number[];
+  } | null {
     const { host } = this.renderer;
     const {
       borderStyle,
       borderWidth = Length.Px(0),
       borderColor = host.getCascadedValue('color'),
     } = this.computedStyles;
+    const width = borderWidth.value;
+    const style = borderStyle ?? (width ? BorderStyle.Solid : BorderStyle.None);
+    if (!width || style === BorderStyle.None) return null;
+    const lineDash =
+      style === BorderStyle.Dashed
+        ? [width * 3, width * 2]
+        : style === BorderStyle.Dotted
+          ? [width, width]
+          : [];
+    return { width, color: borderColor, lineDash };
+  }
 
-    const resolvedBorderWidth = borderWidth.value;
-    const resolvedBorderStyle =
-      borderStyle ??
-      (resolvedBorderWidth ? BorderStyle.Solid : BorderStyle.None);
-
-    if (!resolvedBorderWidth || resolvedBorderStyle === BorderStyle.None) {
-      return;
-    }
-
-    let lineDash: number[] = [];
-    if (resolvedBorderStyle === BorderStyle.Dashed) {
-      lineDash = [resolvedBorderWidth * 3, resolvedBorderWidth * 2];
-    } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-      lineDash = [resolvedBorderWidth, resolvedBorderWidth];
-    }
-    frame.pushPathStroke(
-      {
-        path,
-        strokeStyle: borderColor,
-        lineWidth: resolvedBorderWidth,
-        lineDash,
-      },
-      this.id
-    );
+  protected traceRoundedPath(): Path2D {
+    const { borderRadius = Length.Px(0) } = this.computedStyles;
+    const path = new Path2D();
+    const rv = borderRadius.value;
+    if (!rv) path.rect(0, 0, this.width, this.height);
+    else
+      path.roundRect(
+        0,
+        0,
+        this.width,
+        this.height,
+        Math.min(rv, this.width / 2, this.height / 2)
+      );
+    this.path = path;
+    return path;
   }
 
   protected drawShadows(shadows: BoxShadowValue[]) {
     if (!shadows.length) return [];
     const { host } = this.renderer;
-    const baseWidth = host.scopeWidth;
-    const baseHeight = host.scopeHeight;
+    const { scopeWidth: bw, scopeHeight: bh } = host;
     const boxShadow = this.computedStyles.boxShadow;
 
     if (
       this.resolvedShadowsValue === boxShadow &&
-      this.resolvedShadowsScopeWidth === baseWidth &&
-      this.resolvedShadowsScopeHeight === baseHeight
+      this.resolvedShadowsScopeWidth === bw &&
+      this.resolvedShadowsScopeHeight === bh
     ) {
       return this.resolvedShadows;
     }
 
-    this.resolvedShadows = shadows.map<ResolvedShadow>((shadow) => ({
-      inset: shadow.inset,
-      offsetX: lengthToPx(shadow.offsetX, baseWidth, this),
-      offsetY: lengthToPx(shadow.offsetY, baseHeight, this),
-      blur: lengthToPx(shadow.blur, baseWidth, this),
-      color: shadow.color,
+    this.resolvedShadows = shadows.map<ResolvedShadow>((s) => ({
+      inset: s.inset,
+      offsetX: lengthToPx(s.offsetX, bw, this),
+      offsetY: lengthToPx(s.offsetY, bh, this),
+      blur: lengthToPx(s.blur, bw, this),
+      color: s.color,
     }));
     this.resolvedShadowsValue = boxShadow;
-    this.resolvedShadowsScopeWidth = baseWidth;
-    this.resolvedShadowsScopeHeight = baseHeight;
+    this.resolvedShadowsScopeWidth = bw;
+    this.resolvedShadowsScopeHeight = bh;
     return this.resolvedShadows;
   }
 
@@ -350,8 +372,8 @@ export class CanvasContainer<
       ? (boxShadow as BoxShadowValue[])
       : [];
     const resolvedShadows = this.drawShadows(shadows);
-    const dropShadows = resolvedShadows.filter((shadow) => !shadow.inset);
-    const insetShadows = resolvedShadows.filter((shadow) => shadow.inset);
+    const dropShadows = resolvedShadows.filter((s) => !s.inset);
+    const insetShadows = resolvedShadows.filter((s) => s.inset);
 
     frame.pushPathFill(
       {
@@ -364,12 +386,13 @@ export class CanvasContainer<
     );
     this.paintBorders(tracedPath, frame);
 
-    const shouldDrawToHitScreen =
+    if (
       frame.shouldPaintHitCanvas &&
       this.hasEventListeners &&
-      host.getCascadedValue('pointerEvents') !== PointerEvents.None;
-
-    if (shouldDrawToHitScreen) frame.pushHitPathFill(tracedPath, this.id);
+      host.getCascadedValue('pointerEvents') !== PointerEvents.None
+    ) {
+      frame.pushHitPathFill(tracedPath, this.id);
+    }
   }
 }
 
@@ -389,19 +412,7 @@ export class CanvasRect<
   Props extends CanvasContainerProps = CanvasContainerProps,
 > extends CanvasContainer<Props> {
   override tracePath(): Path2D | null {
-    const { borderRadius = Length.Px(0) } = this.computedStyles;
-    const path = new Path2D();
-    const radiusValue = borderRadius.value;
-    if (!radiusValue) {
-      path.rect(0, 0, this.width, this.height);
-      this.path = path;
-      return path;
-    }
-
-    const radius = Math.min(radiusValue, this.width / 2, this.height / 2);
-    path.roundRect(0, 0, this.width, this.height, radius);
-    this.path = path;
-    return path;
+    return this.traceRoundedPath();
   }
 
   override paintContainer(frame: FrameBuilder) {
@@ -456,59 +467,27 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
   }
 
   override paintContainer(frame: FrameBuilder): void {
-    const host = this.renderer.host;
     const path = this.pathChanged ? this.tracePath() : this.path;
     this.pathChanged = false;
     if (!path) return;
-
-    const {
-      borderStyle,
-      borderWidth = Length.Px(0),
-      borderColor = host.getCascadedValue('color'),
-    } = this.computedStyles;
-    const resolvedBorderWidth = borderWidth.value;
-    let resolvedBorderStyle = borderStyle;
-    if (!resolvedBorderStyle) {
-      if (resolvedBorderWidth) resolvedBorderStyle = BorderStyle.Solid;
-      else resolvedBorderStyle = BorderStyle.None;
-    }
-
-    if (resolvedBorderWidth && resolvedBorderStyle !== BorderStyle.None) {
-      let lineDash: number[] = [];
-      if (resolvedBorderStyle === BorderStyle.Dashed) {
-        lineDash = [resolvedBorderWidth * 3, resolvedBorderWidth * 2];
-      } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-        lineDash = [resolvedBorderWidth, resolvedBorderWidth];
-      }
-      frame.pushPathStroke(
-        {
-          path,
-          strokeStyle: borderColor,
-          lineWidth: resolvedBorderWidth,
-          lineDash,
-        },
-        this.id
-      );
-    }
-
-    if (
-      frame.shouldPaintHitCanvas &&
-      this.hasEventListeners &&
-      resolvedBorderWidth &&
-      resolvedBorderStyle !== BorderStyle.None
-    ) {
-      let lineDash: number[] = [];
-      if (resolvedBorderStyle === BorderStyle.Dashed) {
-        lineDash = [resolvedBorderWidth * 3, resolvedBorderWidth * 2];
-      } else if (resolvedBorderStyle === BorderStyle.Dotted) {
-        lineDash = [resolvedBorderWidth, resolvedBorderWidth];
-      }
+    const border = this.resolveBorder();
+    if (!border) return;
+    frame.pushPathStroke(
+      {
+        path,
+        strokeStyle: border.color,
+        lineWidth: border.width,
+        lineDash: border.lineDash,
+      },
+      this.id
+    );
+    if (frame.shouldPaintHitCanvas && this.hasEventListeners) {
       frame.pushHitPathStroke(
         {
           path,
           strokeStyle: '',
-          lineWidth: Math.max(resolvedBorderWidth, 1),
-          lineDash,
+          lineWidth: Math.max(border.width, 1),
+          lineDash: border.lineDash,
         },
         this.id
       );

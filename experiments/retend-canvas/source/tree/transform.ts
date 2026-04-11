@@ -1,5 +1,3 @@
-import type { CanvasNode } from './node';
-
 import {
   Alignment,
   Angle,
@@ -16,33 +14,40 @@ const defaultOrigin = TransformOrigin.At(Length.Pct(50), Length.Pct(50));
 export function lengthToPx(
   value: LengthValue,
   baseSize: number,
-  node: CanvasNode
+  node: CanvasContainer
 ) {
-  const { renderer } = node;
-  const { host } = renderer;
-
-  if (value.unit === LengthUnit.Pct) {
-    return (value.value * baseSize) / 100;
-  }
-
-  if (value.unit === LengthUnit.Vw) {
-    const viewportWidth = renderer.viewport.width;
-    return (value.value * (viewportWidth || baseSize)) / 100;
-  }
-
-  if (value.unit === LengthUnit.Vh) {
-    const viewportHeight = renderer.viewport.height;
-    return (value.value * (viewportHeight || baseSize)) / 100;
-  }
-
+  if (value.unit === LengthUnit.Pct) return (value.value * baseSize) / 100;
+  if (value.unit === LengthUnit.Vw)
+    return (value.value * (node.renderer.viewport.width || baseSize)) / 100;
+  if (value.unit === LengthUnit.Vh)
+    return (value.value * (node.renderer.viewport.height || baseSize)) / 100;
   if (value.unit === LengthUnit.Lh) {
-    const lineHeight = host.getCascadedValue('lineHeight');
-    const fontSize = host.getCascadedValue('fontSize');
-    const lhInPx = lineHeight * fontSize.value;
-    return value.value * lhInPx;
+    const { host } = node.renderer;
+    return (
+      value.value *
+      host.getCascadedValue('lineHeight') *
+      host.getCascadedValue('fontSize').value
+    );
   }
-
   return value.value;
+}
+
+function resolvePosition(
+  origin: LengthValue | undefined,
+  parentSize: number,
+  selfAlign: number | undefined,
+  parentAlign: number | undefined,
+  size: number,
+  node: CanvasContainer
+): number {
+  if (origin !== undefined) return lengthToPx(origin, parentSize, node);
+  if (selfAlign === Alignment.Center) return (parentSize - size) / 2;
+  if (selfAlign === Alignment.End) return parentSize - size;
+  if (selfAlign === undefined) {
+    if (parentAlign === Alignment.Center) return (parentSize - size) / 2;
+    if (parentAlign === Alignment.End) return parentSize - size;
+  }
+  return 0;
 }
 
 export function resolveOrigin(
@@ -75,43 +80,24 @@ export function createTransformMatrix(
   } = style;
   let [scaleX, scaleY] = Array.isArray(scale) ? scale : [scale, scale];
 
-  const rotation = rotate.value;
-  let translateX = 0;
-  let translateY = 0;
-
-  if (style.left !== undefined) {
-    translateX = lengthToPx(style.left, parentWidth, container);
-  } else if (style.justifySelf === Alignment.Center) {
-    translateX = (parentWidth - width) / 2;
-  } else if (style.justifySelf === Alignment.End) {
-    translateX = parentWidth - width;
-  } else if (
-    style.justifySelf === undefined &&
-    container.parent instanceof CanvasContainer
-  ) {
-    if (container.parent.computedStyles.justifyItems === Alignment.Center) {
-      translateX = (parentWidth - width) / 2;
-    } else if (container.parent.computedStyles.justifyItems === Alignment.End) {
-      translateX = parentWidth - width;
-    }
-  }
-
-  if (style.top !== undefined) {
-    translateY = lengthToPx(style.top, parentHeight, container);
-  } else if (style.alignSelf === Alignment.Center) {
-    translateY = (parentHeight - height) / 2;
-  } else if (style.alignSelf === Alignment.End) {
-    translateY = parentHeight - height;
-  } else if (
-    style.alignSelf === undefined &&
-    container.parent instanceof CanvasContainer
-  ) {
-    if (container.parent.computedStyles.alignItems === Alignment.Center) {
-      translateY = (parentHeight - height) / 2;
-    } else if (container.parent.computedStyles.alignItems === Alignment.End) {
-      translateY = parentHeight - height;
-    }
-  }
+  const parent =
+    container.parent instanceof CanvasContainer ? container.parent : null;
+  const translateX = resolvePosition(
+    style.left,
+    parentWidth,
+    style.justifySelf,
+    parent?.computedStyles.justifyItems,
+    width,
+    container
+  );
+  const translateY = resolvePosition(
+    style.top,
+    parentHeight,
+    style.alignSelf,
+    parent?.computedStyles.alignItems,
+    height,
+    container
+  );
 
   let tx = 0;
   let ty = 0;
@@ -130,7 +116,7 @@ export function createTransformMatrix(
     .translateSelf(translateX, translateY)
     .translateSelf(tx, ty)
     .translateSelf(x, y)
-    .rotateSelf(rotation)
+    .rotateSelf(rotate.value)
     .scaleSelf(scaleX, scaleY)
     .translateSelf(-x, -y);
 }

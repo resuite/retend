@@ -33,24 +33,18 @@ export class CanvasParticles extends CanvasRect<CanvasParticlesProps> {
       this.#cachedPositions = positions;
       this.#cachedColorMap = colorMap;
       this.#cachedBaseColor = baseColor;
+      colorBatches = undefined;
       if (hasColorMap) {
         colorBatches = [];
         const batchMap = new Map<string, number[]>();
         for (let i = 0; i < positions.length; i += 2) {
-          let color = baseColor;
-          if (colorMap[i / 2]) color = colorMap[i / 2];
+          const color = colorMap[i / 2] ?? baseColor;
           const batch = batchMap.get(color);
-          if (batch) {
-            batch.push(i);
-            continue;
-          }
-          batchMap.set(color, [i]);
+          if (batch) batch.push(i);
+          else batchMap.set(color, [i]);
         }
-        for (const [color, indices] of batchMap) {
+        for (const [color, indices] of batchMap)
           colorBatches.push({ color, indices });
-        }
-      } else {
-        colorBatches = undefined;
       }
       this.#cachedColorBatches = colorBatches;
     }

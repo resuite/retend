@@ -67,6 +67,19 @@ export type ParticlesPayload = {
   colorBatches?: ColorBatch[];
 };
 
+const RESET_KEYS = [
+  'commands',
+  'hitCommands',
+  'transforms',
+  'alphas',
+  'clips',
+  'pathFills',
+  'pathStrokes',
+  'images',
+  'textLines',
+  'particles',
+] as const;
+
 export class FrameBuilder {
   shouldPaintHitCanvas = false;
   commands: FrameCommand[] = [];
@@ -82,48 +95,40 @@ export class FrameBuilder {
 
   reset(shouldPaintHitCanvas: boolean) {
     this.shouldPaintHitCanvas = shouldPaintHitCanvas;
-    this.commands.length = 0;
-    this.hitCommands.length = 0;
-    this.transforms.length = 0;
-    this.alphas.length = 0;
-    this.clips.length = 0;
-    this.pathFills.length = 0;
-    this.pathStrokes.length = 0;
-    this.images.length = 0;
-    this.textLines.length = 0;
-    this.particles.length = 0;
+    for (const k of RESET_KEYS) (this[k] as unknown[]).length = 0;
+  }
+
+  private push(cmd: FrameCommand) {
+    this.commands.push(cmd);
+    if (this.shouldPaintHitCanvas) this.hitCommands.push(cmd);
+  }
+
+  private pushPayload<T>(
+    store: T[],
+    kind: (typeof CommandKind)[keyof typeof CommandKind],
+    item: T,
+    nodeId: number
+  ) {
+    store.push(item);
+    this.commands.push({ kind, payload: store.length - 1, nodeId });
   }
 
   pushSave() {
-    this.commands.push({ kind: CommandKind.Save, payload: -1, nodeId: 0 });
-    if (this.shouldPaintHitCanvas) {
-      this.hitCommands.push({ kind: CommandKind.Save, payload: -1, nodeId: 0 });
-    }
+    this.push({ kind: CommandKind.Save, payload: -1, nodeId: 0 });
   }
 
   pushRestore() {
-    this.commands.push({ kind: CommandKind.Restore, payload: -1, nodeId: 0 });
-    if (this.shouldPaintHitCanvas) {
-      this.hitCommands.push({
-        kind: CommandKind.Restore,
-        payload: -1,
-        nodeId: 0,
-      });
-    }
+    this.push({ kind: CommandKind.Restore, payload: -1, nodeId: 0 });
   }
 
   pushTransform(transform: DOMMatrix | null) {
     if (!transform) return;
     this.transforms.push(transform);
-    const payload = this.transforms.length - 1;
-    this.commands.push({ kind: CommandKind.Transform, payload, nodeId: 0 });
-    if (this.shouldPaintHitCanvas) {
-      this.hitCommands.push({
-        kind: CommandKind.Transform,
-        payload,
-        nodeId: 0,
-      });
-    }
+    this.push({
+      kind: CommandKind.Transform,
+      payload: this.transforms.length - 1,
+      nodeId: 0,
+    });
   }
 
   pushAlpha(opacity: number) {
@@ -139,20 +144,15 @@ export class FrameBuilder {
   pushClip(path: Path2D | null) {
     if (!path) return;
     this.clips.push(path);
-    const payload = this.clips.length - 1;
-    this.commands.push({ kind: CommandKind.Clip, payload, nodeId: 0 });
-    if (this.shouldPaintHitCanvas) {
-      this.hitCommands.push({ kind: CommandKind.Clip, payload, nodeId: 0 });
-    }
+    this.push({
+      kind: CommandKind.Clip,
+      payload: this.clips.length - 1,
+      nodeId: 0,
+    });
   }
 
   pushPathFill(payload: PathFillPayload, nodeId: number) {
-    this.pathFills.push(payload);
-    this.commands.push({
-      kind: CommandKind.PathFill,
-      payload: this.pathFills.length - 1,
-      nodeId,
-    });
+    this.pushPayload(this.pathFills, CommandKind.PathFill, payload, nodeId);
   }
 
   pushHitPathFill(path: Path2D, nodeId: number) {
@@ -171,12 +171,7 @@ export class FrameBuilder {
   }
 
   pushPathStroke(payload: PathStrokePayload, nodeId: number) {
-    this.pathStrokes.push(payload);
-    this.commands.push({
-      kind: CommandKind.PathStroke,
-      payload: this.pathStrokes.length - 1,
-      nodeId,
-    });
+    this.pushPayload(this.pathStrokes, CommandKind.PathStroke, payload, nodeId);
   }
 
   pushHitPathStroke(payload: PathStrokePayload, nodeId: number) {
@@ -190,29 +185,14 @@ export class FrameBuilder {
   }
 
   pushImage(payload: ImagePayload, nodeId: number) {
-    this.images.push(payload);
-    this.commands.push({
-      kind: CommandKind.Image,
-      payload: this.images.length - 1,
-      nodeId,
-    });
+    this.pushPayload(this.images, CommandKind.Image, payload, nodeId);
   }
 
   pushTextLine(payload: TextLinePayload, nodeId: number) {
-    this.textLines.push(payload);
-    this.commands.push({
-      kind: CommandKind.TextLine,
-      payload: this.textLines.length - 1,
-      nodeId,
-    });
+    this.pushPayload(this.textLines, CommandKind.TextLine, payload, nodeId);
   }
 
   pushParticles(payload: ParticlesPayload, nodeId: number) {
-    this.particles.push(payload);
-    this.commands.push({
-      kind: CommandKind.Particles,
-      payload: this.particles.length - 1,
-      nodeId,
-    });
+    this.pushPayload(this.particles, CommandKind.Particles, payload, nodeId);
   }
 }

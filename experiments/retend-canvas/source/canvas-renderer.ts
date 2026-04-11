@@ -17,7 +17,12 @@ import {
 
 import type { AnimationDefinition, CanvasNodeEventName } from './types';
 
-import { CommandKind, FrameBuilder, type FrameCommand } from './frame-builder';
+import {
+  CommandKind,
+  FrameBuilder,
+  type FrameCommand,
+  type ResolvedShadow,
+} from './frame-builder';
 import {
   CanvasAnchor,
   CanvasContainer,
@@ -170,12 +175,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
     const shouldPaintHitCanvas = this.interactiveNodeCount > 0;
     this.#renderFrame = null;
     const hasRunningAnimations = tickAnimations(this.#animations);
-    this.host.ctx.clearRect(
-      0,
-      0,
-      this.host.ctx.canvas.width,
-      this.host.ctx.canvas.height
-    );
+    const { ctx } = this.host;
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     if (shouldPaintHitCanvas) {
       if (hitCanvas.width !== hitWidth || hitCanvas.height !== hitHeight) {
         hitCanvas.width = hitWidth;
@@ -185,18 +186,32 @@ export class CanvasRenderer implements CanvasRendererInterface {
     }
     this.host.scopeWidth = this.#viewport.width;
     this.host.scopeHeight = this.#viewport.height;
-    const shouldRebuildFrame = this.#frameDirty || hasRunningAnimations;
-    if (shouldRebuildFrame) {
+    if (this.#frameDirty || hasRunningAnimations) {
       this.root.layout();
       this.#frame.reset(shouldPaintHitCanvas);
       this.root.emit(this.#frame);
       this.#frameDirty = false;
     }
-    this.replayCommands(this.host.ctx, this.#frame.commands);
-    if (shouldPaintHitCanvas) {
+    this.replayCommands(ctx, this.#frame.commands);
+    if (shouldPaintHitCanvas)
       this.replayCommands(this.host.hitCtx, this.#frame.hitCommands, true);
-    }
     if (hasRunningAnimations) this.requestRender();
+  }
+
+  private invertedPath(path: Path2D) {
+    const p = new Path2D();
+    p.rect(
+      -10000,
+      -10000,
+      this.#viewport.width + 20000,
+      this.#viewport.height + 20000
+    );
+    p.addPath(path);
+    return p;
+  }
+
+  private static nodeIdToRgb(id: number) {
+    return `rgb(${(id >> 16) & 255}, ${(id >> 8) & 255}, ${id & 255})`;
   }
 
   replayCommands(
@@ -205,10 +220,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
     isHit = false
   ) {
     const frame = this.#frame;
-    const baseTransform = ctx.getTransform();
     ctx.save();
-    if (isHit) ctx.setTransform(1, 0, 0, 1, 0, 0);
-    else ctx.setTransform(baseTransform);
+    ctx.setTransform(isHit ? new DOMMatrix() : ctx.getTransform());
 
     for (const command of commands) {
       const payloadIndex = command.payload;
@@ -220,15 +233,8 @@ export class CanvasRenderer implements CanvasRendererInterface {
           ctx.restore();
           break;
         case CommandKind.Transform: {
-          const matrix = frame.transforms[payloadIndex];
-          ctx.transform(
-            matrix.a,
-            matrix.b,
-            matrix.c,
-            matrix.d,
-            matrix.e,
-            matrix.f
-          );
+          const m = frame.transforms[payloadIndex];
+          ctx.transform(m.a, m.b, m.c, m.d, m.e, m.f);
           break;
         }
         case CommandKind.Alpha:
@@ -240,30 +246,15 @@ export class CanvasRenderer implements CanvasRendererInterface {
         case CommandKind.PathFill: {
           const payload = frame.pathFills[payloadIndex];
           if (isHit) {
-            const id = command.nodeId;
-            const r = (id >> 16) & 255;
-            const g = (id >> 8) & 255;
-            const b = id & 255;
-            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fillStyle = CanvasRenderer.nodeIdToRgb(command.nodeId);
             ctx.fill(payload.path);
             break;
           }
 
           for (const shadow of payload.dropShadows) {
             ctx.save();
-            const invertedPath = new Path2D();
-            invertedPath.rect(
-              -10000,
-              -10000,
-              this.#viewport.width + 20000,
-              this.#viewport.height + 20000
-            );
-            invertedPath.addPath(payload.path);
-            ctx.clip(invertedPath, 'evenodd');
-            ctx.shadowOffsetX = shadow.offsetX;
-            ctx.shadowOffsetY = shadow.offsetY;
-            ctx.shadowBlur = shadow.blur;
-            ctx.shadowColor = shadow.color;
+            ctx.clip(this.invertedPath(payload.path), 'evenodd');
+            this.applyShadow(ctx, shadow);
             ctx.fillStyle = 'black';
             ctx.fill(payload.path);
             ctx.restore();
@@ -275,20 +266,10 @@ export class CanvasRenderer implements CanvasRendererInterface {
           for (const shadow of payload.insetShadows) {
             ctx.save();
             ctx.clip(payload.path);
-            const invertedPath = new Path2D();
-            invertedPath.rect(
-              -10000,
-              -10000,
-              this.#viewport.width + 20000,
-              this.#viewport.height + 20000
-            );
-            invertedPath.addPath(payload.path);
-            ctx.shadowOffsetX = shadow.offsetX;
-            ctx.shadowOffsetY = shadow.offsetY;
-            ctx.shadowBlur = shadow.blur;
-            ctx.shadowColor = shadow.color;
+            const inv = this.invertedPath(payload.path);
+            this.applyShadow(ctx, shadow);
             ctx.fillStyle = shadow.color;
-            ctx.fill(invertedPath, 'evenodd');
+            ctx.fill(inv, 'evenodd');
             ctx.restore();
           }
           break;
@@ -296,15 +277,9 @@ export class CanvasRenderer implements CanvasRendererInterface {
         case CommandKind.PathStroke: {
           const payload = frame.pathStrokes[payloadIndex];
           ctx.lineWidth = payload.lineWidth;
-          if (isHit) {
-            const id = command.nodeId;
-            const r = (id >> 16) & 255;
-            const g = (id >> 8) & 255;
-            const b = id & 255;
-            ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
-          } else {
-            ctx.strokeStyle = payload.strokeStyle;
-          }
+          ctx.strokeStyle = isHit
+            ? CanvasRenderer.nodeIdToRgb(command.nodeId)
+            : payload.strokeStyle;
           ctx.setLineDash(payload.lineDash);
           ctx.stroke(payload.path);
           break;
@@ -335,51 +310,45 @@ export class CanvasRenderer implements CanvasRendererInterface {
           const isRect = shape === 'rect';
           const hasSizeMap =
             sizeMap instanceof Float32Array || Array.isArray(sizeMap);
+          const drawAt = (i: number, r: number) => {
+            if (isRect)
+              ctx.rect(positions[i] - r, positions[i + 1] - r, r * 2, r * 2);
+            else {
+              ctx.moveTo(positions[i] + r, positions[i + 1]);
+              ctx.arc(positions[i], positions[i + 1], r, 0, Math.PI * 2);
+            }
+          };
 
           if (!colorBatches) {
             ctx.fillStyle = baseColor;
             ctx.beginPath();
-
-            for (let i = 0; i < positions.length; i += 2) {
-              const cx = positions[i];
-              const cy = positions[i + 1];
-              const r = hasSizeMap ? sizeMap[i / 2] : baseSize;
-
-              if (isRect) {
-                ctx.rect(cx - r, cy - r, r * 2, r * 2);
-              } else {
-                ctx.moveTo(cx + r, cy);
-                ctx.arc(cx, cy, r, 0, Math.PI * 2);
-              }
-            }
+            for (let i = 0; i < positions.length; i += 2)
+              drawAt(i, hasSizeMap ? sizeMap[i / 2] : baseSize);
             ctx.fill();
-            break;
-          }
-
-          for (const { color, indices } of colorBatches) {
-            ctx.fillStyle = color;
-            ctx.beginPath();
-
-            for (const i of indices) {
-              const cx = positions[i];
-              const cy = positions[i + 1];
-              const r = hasSizeMap ? sizeMap[i / 2] : baseSize;
-
-              if (isRect) {
-                ctx.rect(cx - r, cy - r, r * 2, r * 2);
-              } else {
-                ctx.moveTo(cx + r, cy);
-                ctx.arc(cx, cy, r, 0, Math.PI * 2);
-              }
+          } else {
+            for (const { color, indices } of colorBatches) {
+              ctx.fillStyle = color;
+              ctx.beginPath();
+              for (const i of indices)
+                drawAt(i, hasSizeMap ? sizeMap[i / 2] : baseSize);
+              ctx.fill();
             }
-
-            ctx.fill();
           }
           break;
         }
       }
     }
     ctx.restore();
+  }
+
+  private applyShadow(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    shadow: ResolvedShadow
+  ) {
+    ctx.shadowOffsetX = shadow.offsetX;
+    ctx.shadowOffsetY = shadow.offsetY;
+    ctx.shadowBlur = shadow.blur;
+    ctx.shadowColor = shadow.color;
   }
 
   render(app: JSX.Template): CanvasNode | CanvasNode[] {

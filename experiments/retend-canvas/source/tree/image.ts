@@ -1,7 +1,6 @@
 import type { FrameBuilder } from '../frame-builder';
 import type { CanvasImageProps } from '../types';
 
-import { Length } from '../style';
 import { WARNING_IMAGE_CHILDREN, WARNING_IMAGE_SVG } from '../warnings';
 import { CanvasContainer } from './container';
 
@@ -53,20 +52,7 @@ export class CanvasImage extends CanvasContainer<CanvasImageProps> {
   }
 
   override tracePath(): Path2D | null {
-    const { borderRadius = Length.Px(0) } = this.computedStyles;
-    const path = new Path2D();
-    const radiusValue = borderRadius.value;
-    if (!radiusValue) {
-      path.rect(0, 0, this.width, this.height);
-      this.path = path;
-
-      return path;
-    }
-
-    const radius = Math.min(radiusValue, this.width / 2, this.height / 2);
-    path.roundRect(0, 0, this.width, this.height, radius);
-    this.path = path;
-    return path;
+    return this.traceRoundedPath();
   }
 
   override paintContainer(frame: FrameBuilder): void {

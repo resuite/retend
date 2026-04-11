@@ -12,9 +12,12 @@ import { FontStyle, TextAlign, WhiteSpace } from '../style';
 import { CanvasNode } from './node';
 
 function getFont(styles: CurrentCascade) {
-  let fontStyle = 'normal';
-  if (styles.fontStyle === FontStyle.Italic) fontStyle = 'italic';
-  else if (styles.fontStyle === FontStyle.Oblique) fontStyle = 'oblique';
+  const fontStyle =
+    styles.fontStyle === FontStyle.Italic
+      ? 'italic'
+      : styles.fontStyle === FontStyle.Oblique
+        ? 'oblique'
+        : 'normal';
   return `${fontStyle} ${styles.fontWeight} ${styles.fontSize!.value}px ${styles.fontFamily}`;
 }
 
@@ -49,9 +52,8 @@ export class CanvasText extends CanvasNode {
     if (
       this.#cachedFullText !== null &&
       this.#cachedFullTextVersion === textVersion
-    ) {
+    )
       return this.#cachedFullText;
-    }
     let content = this.content;
     const index = this.parent?.children.indexOf(this) ?? -1;
     if (index !== -1) {
@@ -71,10 +73,7 @@ export class CanvasText extends CanvasNode {
   override measure(maxWidth?: number) {
     const host = this.renderer.host;
     const textStyles = host.getAllCascadedValues();
-    const index = this.parent?.children.indexOf(this) ?? -1;
-    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
-      return { width: 0, height: 0 };
-    }
+    if (!this.isLeadingText()) return { width: 0, height: 0 };
     const content = this.fullText;
 
     const font = host.ctx.font;
@@ -86,8 +85,10 @@ export class CanvasText extends CanvasNode {
       this.#preparedText !== content ||
       this.#preparedWhiteSpace !== textStyles.whiteSpace
     ) {
-      let whiteSpace: 'normal' | 'pre-wrap' = 'normal';
-      if (textStyles.whiteSpace === WhiteSpace.PreWrap) whiteSpace = 'pre-wrap';
+      const whiteSpace =
+        textStyles.whiteSpace === WhiteSpace.PreWrap
+          ? ('pre-wrap' as const)
+          : ('normal' as const);
       this.#prepared = prepareWithSegments(content, host.ctx.font, {
         whiteSpace,
       });
@@ -108,53 +109,43 @@ export class CanvasText extends CanvasNode {
       this.#layoutWidth = maxLineWidth;
       this.#layoutLineHeight = lineHeight;
     }
-    const layout = this.#layout;
     let width = 0;
-    for (const line of layout.lines) {
+    for (const line of this.#layout.lines) {
       if (line.width > width) width = line.width;
     }
     host.ctx.font = font;
-    return { width, height: layout.height };
+    return { width, height: this.#layout.height };
+  }
+
+  private isLeadingText(): boolean {
+    const index = this.parent?.children.indexOf(this) ?? -1;
+    return (
+      index < 1 || !(this.parent?.children[index - 1] instanceof CanvasText)
+    );
   }
 
   override layout(): void {
-    const host = this.renderer.host;
-    const index = this.parent?.children.indexOf(this) ?? -1;
-    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
-      return;
-    }
-    this.measure(host.scopeWidth);
+    if (!this.isLeadingText()) return;
+    this.measure(this.renderer.host.scopeWidth);
   }
 
   override emit(frame: FrameBuilder): void {
+    if (!this.isLeadingText()) return;
+    const layout = this.#layout;
+    if (!layout) throw new Error('emit called before layout.');
     const host = this.renderer.host;
     const textStyles = host.getAllCascadedValues();
-    const index = this.parent?.children.indexOf(this) ?? -1;
-    if (index > 0 && this.parent?.children[index - 1] instanceof CanvasText) {
-      return;
-    }
-
-    const layout = this.#layout;
-    if (!layout) {
-      throw new Error('emit called before layout.');
-    }
     const font = getFont(textStyles);
     let y = 0;
     for (const line of layout.lines) {
-      let x = 0;
-      if (textStyles.textAlign === TextAlign.Center) {
-        x = (host.scopeWidth - line.width) / 2;
-      } else if (textStyles.textAlign === TextAlign.Right) {
-        x = host.scopeWidth - line.width;
-      }
+      const x =
+        textStyles.textAlign === TextAlign.Center
+          ? (host.scopeWidth - line.width) / 2
+          : textStyles.textAlign === TextAlign.Right
+            ? host.scopeWidth - line.width
+            : 0;
       frame.pushTextLine(
-        {
-          text: line.text,
-          x,
-          y,
-          font,
-          fillStyle: textStyles.color,
-        },
+        { text: line.text, x, y, font, fillStyle: textStyles.color },
         this.id
       );
       y += this.#layoutLineHeight;
