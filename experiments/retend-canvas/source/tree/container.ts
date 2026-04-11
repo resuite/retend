@@ -53,6 +53,10 @@ export class CanvasContainer<
   protected resolvedShadowsValue?: BoxShadowValue | BoxShadowValue[];
   protected resolvedShadowsScopeWidth = -1;
   protected resolvedShadowsScopeHeight = -1;
+  protected resolvedShadowsViewportWidth = -1;
+  protected resolvedShadowsViewportHeight = -1;
+  protected resolvedShadowsLineHeight = -1;
+  protected resolvedShadowsFontSize = -1;
 
   protected visualChildrenOrderChanged = false;
   protected visualChildren: CanvasNode[] = [];
@@ -337,12 +341,19 @@ export class CanvasContainer<
     if (!shadows.length) return [];
     const { host } = this.renderer;
     const { scopeWidth: bw, scopeHeight: bh } = host;
+    const { width: vw, height: vh } = this.renderer.viewport;
+    const lineHeight = host.getCascadedValue('lineHeight');
+    const fontSize = host.getCascadedValue('fontSize').value;
     const boxShadow = this.computedStyles.boxShadow;
 
     if (
       this.resolvedShadowsValue === boxShadow &&
       this.resolvedShadowsScopeWidth === bw &&
-      this.resolvedShadowsScopeHeight === bh
+      this.resolvedShadowsScopeHeight === bh &&
+      this.resolvedShadowsViewportWidth === vw &&
+      this.resolvedShadowsViewportHeight === vh &&
+      this.resolvedShadowsLineHeight === lineHeight &&
+      this.resolvedShadowsFontSize === fontSize
     ) {
       return this.resolvedShadows;
     }
@@ -357,6 +368,10 @@ export class CanvasContainer<
     this.resolvedShadowsValue = boxShadow;
     this.resolvedShadowsScopeWidth = bw;
     this.resolvedShadowsScopeHeight = bh;
+    this.resolvedShadowsViewportWidth = vw;
+    this.resolvedShadowsViewportHeight = vh;
+    this.resolvedShadowsLineHeight = lineHeight;
+    this.resolvedShadowsFontSize = fontSize;
     return this.resolvedShadows;
   }
 

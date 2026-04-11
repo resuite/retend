@@ -28,7 +28,8 @@ export class CanvasParticles extends CanvasRect<CanvasParticlesProps> {
     if (
       this.#cachedPositions !== positions ||
       this.#cachedColorMap !== colorMap ||
-      this.#cachedBaseColor !== baseColor
+      this.#cachedBaseColor !== baseColor ||
+      hasColorMap
     ) {
       this.#cachedPositions = positions;
       this.#cachedColorMap = colorMap;
