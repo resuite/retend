@@ -176,11 +176,14 @@ export class CanvasRenderer implements CanvasRendererInterface {
   }
 
   drawToScreen() {
+    if (this.#renderFrame !== null) {
+      cancelAnimationFrame(this.#renderFrame);
+      this.#renderFrame = null;
+    }
     const hitCanvas = this.host.hitCtx.canvas;
     const hitWidth = Math.round(this.#viewport.width);
     const hitHeight = Math.round(this.#viewport.height);
     const paintHit = this.interactiveNodeCount > 0;
-    this.#renderFrame = null;
     const hasRunningAnimations = tickAnimations(this.#animations);
     const { ctx } = this.host;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -535,7 +538,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
  *
  * @param ctx - The 2D rendering context of a canvas element where the content will be drawn
  * @param App - A function that returns a JSX template to render
- * @returns A Promise that resolves to the CanvasRenderer instance after setup effects have run
+ * @returns A Promise that resolves to the CanvasRenderer instance after setup effects have run and the first frame has been painted
  *
  * @example
  * ```typescript
@@ -554,5 +557,6 @@ export async function renderToCanvasContext(
   setActiveRenderer(renderer);
   renderer.render(App());
   await runPendingSetupEffects();
+  renderer.drawToScreen();
   return renderer;
 }

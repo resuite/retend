@@ -32,7 +32,6 @@ export async function render(
   const canvas = createOffscreenCanvas(width, height);
   const ctx = canvas.getContext('2d')!;
   const renderer = await renderToCanvasContext(ctx, App);
-  renderer.drawToScreen();
   return { canvas, ctx, renderer };
 }
 
