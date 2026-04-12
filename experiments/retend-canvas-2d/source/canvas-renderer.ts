@@ -29,7 +29,7 @@ import {
   CanvasFragment,
   CanvasHost,
   CanvasNode,
-  PointerEvent,
+  CanvasPointerEvent,
   type CanvasRange,
   CanvasRect,
   CanvasCircle,
@@ -493,7 +493,7 @@ export class CanvasRenderer implements CanvasRendererInterface {
       return;
     }
 
-    const event = new PointerEvent(eventName, pointerId, x, y, target);
+    const event = new CanvasPointerEvent(eventName, pointerId, x, y, target);
     let current: CanvasNode | null = target;
 
     while (current) {

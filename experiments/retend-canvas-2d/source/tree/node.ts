@@ -35,7 +35,7 @@ class CanvasDispatch {
   }
 }
 
-export class PointerEvent extends CanvasDispatch {
+export class CanvasPointerEvent extends CanvasDispatch {
   pointerId: number;
   x: number;
   y: number;

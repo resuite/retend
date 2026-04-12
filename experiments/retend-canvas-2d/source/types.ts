@@ -19,7 +19,7 @@ import type {
   EasingValue,
 } from './style';
 import type { ANIMATABLE_PROPERTIES } from './tree/animations';
-import type { CanvasNode, PointerEvent } from './tree/node';
+import type { CanvasNode, CanvasPointerEvent } from './tree/node';
 
 export interface CanvasStyle {
   left?: LengthValue;
@@ -94,10 +94,10 @@ export type CanvasContainer<T> = {
 } & CanvasIntrinsicAttributes;
 
 export interface CanvasEventMap {
-  onPointerDown: PointerEvent;
-  onPointerMove: PointerEvent;
-  onPointerUp: PointerEvent;
-  onClick: PointerEvent;
+  onPointerDown: CanvasPointerEvent;
+  onPointerMove: CanvasPointerEvent;
+  onPointerUp: CanvasPointerEvent;
+  onClick: CanvasPointerEvent;
 }
 
 export type JsxCanvasEventHandlers<E> = {

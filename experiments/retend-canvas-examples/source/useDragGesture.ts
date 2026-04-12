@@ -1,4 +1,4 @@
-import type { PointerEvent } from 'retend-canvas-2d';
+import type { CanvasPointerEvent } from 'retend-canvas-2d';
 
 import { Cell } from 'retend';
 
@@ -45,7 +45,7 @@ export function useDragGesture(
   let lastMoveTime = 0;
   let dismissVelocityY = 0;
 
-  const handlePointerDown = (e: PointerEvent) => {
+  const handlePointerDown = (e: CanvasPointerEvent) => {
     e.stopPropagation();
     e.currentTarget?.setPointerCapture(e.pointerId);
     startX = e.x;
@@ -59,7 +59,7 @@ export function useDragGesture(
     hasMoved.set(false);
   };
 
-  const handlePointerMove = (e: PointerEvent) => {
+  const handlePointerMove = (e: CanvasPointerEvent) => {
     if (!isDragging.get()) return;
 
     const dx = e.x - startX;
@@ -95,7 +95,7 @@ export function useDragGesture(
     });
   };
 
-  const handlePointerUp = (e: PointerEvent) => {
+  const handlePointerUp = (e: CanvasPointerEvent) => {
     isDragging.set(false);
     e.currentTarget?.releasePointerCapture(e.pointerId);
 
