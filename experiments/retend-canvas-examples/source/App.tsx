@@ -19,6 +19,17 @@ const App = () => {
         <text style={style.linkArrow}>&gt;</text>
       </rect>
       <text style={style.linkDesc}>drag / drop / physics</text>
+
+      <rect
+        style={style.linkDino}
+        onClick={() => {
+          router.navigate('/dino');
+        }}
+      >
+        <text style={style.linkText}>DINO PIXEL</text>
+        <text style={style.linkArrow}>&gt;</text>
+      </rect>
+      <text style={style.linkDescDino}>jump / pixel / retro</text>
     </rect>
   );
 };
@@ -69,6 +80,18 @@ const style = {
   },
   linkDesc: {
     translate: [Length.Px(60), Length.Px(370)],
+    color: '#555',
+    fontSize: Length.Px(11),
+    fontWeight: 400,
+  },
+  linkDino: {
+    translate: [Length.Px(60), Length.Px(410)],
+    width: Length.Px(280),
+    height: Length.Px(56),
+    backgroundColor: '#ff4444',
+  } satisfies CanvasStyle,
+  linkDescDino: {
+    translate: [Length.Px(60), Length.Px(480)],
     color: '#555',
     fontSize: Length.Px(11),
     fontWeight: 400,

@@ -480,21 +480,11 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
   }
 
   override paintContainer(frame: FrameBuilder): void {
-    const path = this.pathChanged ? this.tracePath() : this.path;
-    this.pathChanged = false;
+    this.paintPath(frame);
+    const path = this.path;
     if (!path) return;
     const border = this.resolveBorder();
-    if (!border) return;
-    frame.pushPathStroke(
-      {
-        path,
-        strokeStyle: border.color,
-        lineWidth: border.width,
-        lineDash: border.lineDash,
-      },
-      this.id
-    );
-    if (frame.shouldPaintHitCanvas && this.hasEventListeners) {
+    if (frame.shouldPaintHitCanvas && this.hasEventListeners && border) {
       frame.pushHitPathStroke(
         {
           path,
