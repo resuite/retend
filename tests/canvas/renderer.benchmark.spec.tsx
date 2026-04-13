@@ -221,7 +221,7 @@ function measureScenario(
 
 async function loadBaselineRenderer() {
   try {
-    return (await import('../../tmp/retend-canvas-baseline/source/index.ts')) as CanvasModule;
+    return (await import('../../tmp/retend-canvas-baseline/source/index.ts')) as unknown as CanvasModule;
   } catch {
     return null;
   }

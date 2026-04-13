@@ -1,71 +1,6 @@
 import type { CanvasRenderer } from '../canvas-renderer';
 import type { FrameBuilder } from '../frame-builder';
-import type { CanvasNodeEventName } from '../types';
-
-class CanvasDispatch {
-  type: string;
-  cancelable: boolean;
-  defaultPrevented = false;
-  #target: CanvasNode;
-  #currentTarget: CanvasNode | null;
-
-  constructor(type: string, cancelable: boolean, target: CanvasNode) {
-    this.type = type;
-    this.cancelable = cancelable;
-    this.#target = target;
-    this.#currentTarget = null;
-  }
-
-  get target() {
-    return this.#target;
-  }
-
-  get currentTarget() {
-    return this.#currentTarget;
-  }
-
-  preventDefault() {
-    if (this.cancelable) {
-      this.defaultPrevented = true;
-    }
-  }
-
-  setCurrentTarget(currentTarget: CanvasNode | null) {
-    this.#currentTarget = currentTarget;
-  }
-}
-
-export class CanvasPointerEvent extends CanvasDispatch {
-  pointerId: number;
-  x: number;
-  y: number;
-  #propagationStopped = false;
-
-  constructor(
-    type: CanvasNodeEventName,
-    pointerId: number,
-    x: number,
-    y: number,
-    target: CanvasNode
-  ) {
-    super(type, true, target);
-    this.pointerId = pointerId;
-    this.x = x;
-    this.y = y;
-  }
-
-  get propagationStopped() {
-    return this.#propagationStopped;
-  }
-
-  stopPropagation() {
-    this.#propagationStopped = true;
-  }
-
-  stopImmediatePropagation() {
-    this.#propagationStopped = true;
-  }
-}
+import type { CanvasEvent } from './event';
 
 export abstract class CanvasNode {
   renderer: CanvasRenderer;
@@ -107,7 +42,7 @@ export abstract class CanvasNode {
     }
   }
 
-  dispatchEvent(event: CanvasDispatch) {
+  dispatchEvent(event: CanvasEvent) {
     event.setCurrentTarget(this);
     this.#eventListeners.get(event.type)?.call(this, event);
     event.setCurrentTarget(null);
@@ -202,7 +137,7 @@ export abstract class CanvasParentNode extends CanvasNode {
 }
 
 export class CanvasAnchor extends CanvasNode {
-  emit(_frame: FrameBuilder) {
+  emit() {
     // anchor nodes are not visible.
   }
   layout() {
@@ -213,7 +148,7 @@ export class CanvasAnchor extends CanvasNode {
 export type CanvasRange = [CanvasAnchor, CanvasAnchor];
 
 export class CanvasFragment extends CanvasParentNode {
-  emit(_frame: FrameBuilder) {
+  emit() {
     throw new Error(
       'CanvasFragment cannot be emitted. It must be merged into the Canvas tree.'
     );

@@ -1,8 +1,7 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import type { WorkerContextMessage } from './types';
-
 import { renderToCanvasContext, type CanvasRenderer } from '../canvas-renderer';
+import { type WorkerContextMessage } from './types';
 
 interface WorkerContextOptions {
   onInit?: () => void | Promise<void>;
@@ -34,36 +33,22 @@ export function setupWorkerContext(
     async (event: MessageEvent<WorkerContextMessage>) => {
       switch (event.data.type) {
         case 'init': {
-          if (renderer) return;
-          const ctx = event.data.canvas.getContext('2d');
-          if (!ctx) return;
+          const { canvas, dpr, width, height } = event.data;
+          const ctx = canvas.getContext('2d');
+          if (!ctx || renderer) return;
 
           renderer = await renderToCanvasContext(ctx, App);
           await options.onInit?.();
-          resizeRenderer(
-            renderer,
-            event.data.width,
-            event.data.height,
-            event.data.dpr
-          );
+          resizeRenderer(renderer, width, height, dpr);
           break;
         }
         case 'resize': {
-          resizeRenderer(
-            renderer,
-            event.data.width,
-            event.data.height,
-            event.data.dpr
-          );
+          const { width, height, dpr } = event.data;
+          resizeRenderer(renderer, width, height, dpr);
           break;
         }
         case 'event': {
-          renderer?.dispatchEvent(
-            event.data.eventName,
-            event.data.x,
-            event.data.y,
-            event.data.pointerId
-          );
+          renderer?.dispatchEvent(event.data);
           break;
         }
       }

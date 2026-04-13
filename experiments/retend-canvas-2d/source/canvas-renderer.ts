@@ -15,7 +15,8 @@ import {
   createNodesFromTemplate,
 } from 'retend';
 
-import type { AnimationDefinition, CanvasNodeEventName } from './types';
+import type { AnimationDefinition, CanvasKeyboardEventName } from './types';
+import type { WorkerContextEventMessage } from './worker-context/types';
 
 import {
   CommandKind,
@@ -29,6 +30,7 @@ import {
   CanvasFragment,
   CanvasHost,
   CanvasNode,
+  CanvasKeyboardEvent,
   CanvasPointerEvent,
   type CanvasRange,
   CanvasRect,
@@ -82,6 +84,10 @@ export class CanvasRenderer implements CanvasRendererInterface {
   #animations: CanvasAnimation[];
   #capturedPointerTargets = new Map<number, CanvasNode>();
   #activePointers = new Set<number>();
+  #keyboardListeners = {
+    keydown: new Set<(event: CanvasKeyboardEvent) => void>(),
+    keyup: new Set<(event: CanvasKeyboardEvent) => void>(),
+  };
   interactiveNodeCount = 0;
 
   nextNodeId = 1;
@@ -173,6 +179,20 @@ export class CanvasRenderer implements CanvasRendererInterface {
 
   hasPointerCapture(node: CanvasNode, pointerId: number) {
     return this.#capturedPointerTargets.get(pointerId) === node;
+  }
+
+  addKeyboardListener(
+    eventName: CanvasKeyboardEventName,
+    listener: (event: CanvasKeyboardEvent) => void
+  ) {
+    this.#keyboardListeners[eventName].add(listener);
+  }
+
+  removeKeyboardListener(
+    eventName: CanvasKeyboardEventName,
+    listener: (event: CanvasKeyboardEvent) => void
+  ) {
+    this.#keyboardListeners[eventName].delete(listener);
   }
 
   drawToScreen() {
@@ -465,46 +485,61 @@ export class CanvasRenderer implements CanvasRendererInterface {
     return node.isConnected;
   }
 
-  dispatchEvent(
-    eventName: CanvasNodeEventName,
-    x: number,
-    y: number,
-    pointerId = 1
-  ) {
-    const capturedTarget = this.#capturedPointerTargets.get(pointerId);
-    if (!capturedTarget && this.interactiveNodeCount === 0) {
-      if (eventName === 'pointerup') {
-        this.#capturedPointerTargets.delete(pointerId);
-        this.#activePointers.delete(pointerId);
+  dispatchEvent(message: WorkerContextEventMessage) {
+    switch (message.kind) {
+      case 'keyboard': {
+        const { eventName } = message.data;
+        const root = this.root;
+        const listeners = this.#keyboardListeners[eventName];
+        if (listeners.size === 0) return;
+        const keyboardEvent = new CanvasKeyboardEvent(eventName, root, message);
+        for (const listener of listeners) {
+          try {
+            listener(keyboardEvent);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        return;
       }
-      return;
-    }
-    if (eventName === 'pointerdown') this.#activePointers.add(pointerId);
-    const target =
-      capturedTarget &&
-      (eventName === 'pointermove' || eventName === 'pointerup')
-        ? capturedTarget
-        : this.resolvePointerTarget(x, y);
-    if (!target) {
-      if (eventName === 'pointerup') {
-        this.#capturedPointerTargets.delete(pointerId);
-        this.#activePointers.delete(pointerId);
+      case 'pointer': {
+        const { eventName, x, y, pointerId } = message.data;
+        const capturedTarget = this.#capturedPointerTargets.get(pointerId);
+        if (!capturedTarget && this.interactiveNodeCount === 0) {
+          if (eventName === 'pointerup') {
+            this.#capturedPointerTargets.delete(pointerId);
+            this.#activePointers.delete(pointerId);
+          }
+          return;
+        }
+        if (eventName === 'pointerdown') this.#activePointers.add(pointerId);
+        const target =
+          capturedTarget &&
+          (eventName === 'pointermove' || eventName === 'pointerup')
+            ? capturedTarget
+            : this.resolvePointerTarget(x, y);
+        if (!target) {
+          if (eventName === 'pointerup') {
+            this.#capturedPointerTargets.delete(pointerId);
+            this.#activePointers.delete(pointerId);
+          }
+          return;
+        }
+
+        const event = CanvasPointerEvent.fromMessage(message, target);
+        let current: CanvasNode | null = target;
+
+        while (current) {
+          current.dispatchEvent(event);
+          if (event.propagationStopped) break;
+          current = current.parent;
+        }
+
+        if (eventName === 'pointerup') {
+          this.#capturedPointerTargets.delete(pointerId);
+          this.#activePointers.delete(pointerId);
+        }
       }
-      return;
-    }
-
-    const event = new CanvasPointerEvent(eventName, pointerId, x, y, target);
-    let current: CanvasNode | null = target;
-
-    while (current) {
-      current.dispatchEvent(event);
-      if (event.propagationStopped) break;
-      current = current.parent;
-    }
-
-    if (eventName === 'pointerup') {
-      this.#capturedPointerTargets.delete(pointerId);
-      this.#activePointers.delete(pointerId);
     }
   }
 

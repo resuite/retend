@@ -1,4 +1,4 @@
-import type { CanvasNodeEventName } from '../types';
+import type { CanvasKeyboardEventName, CanvasNodeEventName } from '../types';
 
 export interface RendererRef {
   resize(width: number, height: number): void;
@@ -19,13 +19,35 @@ export interface WorkerContextResizeMessage {
   height: number;
 }
 
-export interface WorkerContextEventMessage {
+export interface WorkerContextPointerEventMessage {
   type: 'event';
-  eventName: CanvasNodeEventName;
-  x: number;
-  y: number;
-  pointerId: number;
+  kind?: 'pointer';
+  data: {
+    eventName: CanvasNodeEventName;
+    x: number;
+    y: number;
+    pointerId: number;
+  };
 }
+
+export interface WorkerContextKeyboardEventMessage {
+  type: 'event';
+  kind: 'keyboard';
+  data: {
+    eventName: CanvasKeyboardEventName;
+    key: string;
+    code: string;
+    repeat: boolean;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    metaKey: boolean;
+  };
+}
+
+export type WorkerContextEventMessage =
+  | WorkerContextPointerEventMessage
+  | WorkerContextKeyboardEventMessage;
 
 export type WorkerContextMessage =
   | WorkerContextInitMessage
@@ -38,3 +60,8 @@ export const WORKER_CONTEXT_EVENTS = [
   'pointermove',
   'pointerup',
 ] as const satisfies readonly CanvasNodeEventName[];
+
+export const WORKER_CONTEXT_KEYBOARD_EVENTS = [
+  'keydown',
+  'keyup',
+] as const satisfies readonly CanvasKeyboardEventName[];

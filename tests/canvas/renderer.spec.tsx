@@ -15,6 +15,38 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function pointerEvent(
+  eventName: 'click' | 'pointerdown' | 'pointermove' | 'pointerup',
+  x: number,
+  y: number,
+  pointerId = 1
+) {
+  return {
+    type: 'event' as const,
+    kind: 'pointer' as const,
+    data: { eventName, x, y, pointerId },
+  };
+}
+
+function keyboardEvent(
+  eventName: 'keydown' | 'keyup',
+  init: {
+    key: string;
+    code: string;
+    repeat: boolean;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+    metaKey: boolean;
+  }
+) {
+  return {
+    type: 'event' as const,
+    kind: 'keyboard' as const,
+    data: { eventName, ...init },
+  };
+}
+
 describe('rect rendering', () => {
   it('draws a filled rectangle', async () => {
     const { ctx } = await render(() => (
@@ -659,7 +691,7 @@ describe('pointer events', () => {
       />
     ));
 
-    renderer.dispatchEvent('click', 50, 50);
+    renderer.dispatchEvent(pointerEvent('click', 50, 50));
     expect(clicked).toBe(true);
   });
 
@@ -678,7 +710,7 @@ describe('pointer events', () => {
       />
     ));
 
-    renderer.dispatchEvent('click', 200, 200);
+    renderer.dispatchEvent(pointerEvent('click', 200, 200));
     expect(clicked).toBe(false);
   });
 
@@ -697,13 +729,13 @@ describe('pointer events', () => {
       />
     ));
 
-    renderer.dispatchEvent('click', 50, 50);
+    renderer.dispatchEvent(pointerEvent('click', 50, 50));
     expect(clicked).toBe(1);
 
     const rect = renderer.root.children[0] as any;
     renderer.setProperty(rect, 'onClick', null);
     renderer.drawToScreen();
-    renderer.dispatchEvent('click', 50, 50);
+    renderer.dispatchEvent(pointerEvent('click', 50, 50));
 
     expect(clicked).toBe(1);
   });
@@ -730,10 +762,10 @@ describe('pointer events', () => {
       />
     ));
 
-    renderer.dispatchEvent('pointerdown', 50, 50);
-    renderer.dispatchEvent('pointermove', 200, 200);
-    renderer.dispatchEvent('pointerup', 200, 200);
-    renderer.dispatchEvent('pointermove', 200, 200);
+    renderer.dispatchEvent(pointerEvent('pointerdown', 50, 50));
+    renderer.dispatchEvent(pointerEvent('pointermove', 200, 200));
+    renderer.dispatchEvent(pointerEvent('pointerup', 200, 200));
+    renderer.dispatchEvent(pointerEvent('pointermove', 200, 200));
 
     expect(events).toEqual(['down:50,50', 'move:200,200', 'up:200,200']);
   });
@@ -761,7 +793,7 @@ describe('pointer events', () => {
       />
     ));
 
-    renderer.dispatchEvent('pointerdown', 50, 50, 7);
+    renderer.dispatchEvent(pointerEvent('pointerdown', 50, 50, 7));
 
     expect(hasCaptureOnDown).toBe(true);
     expect(hasCaptureAfterRelease).toBe(false);
@@ -809,13 +841,13 @@ describe('pointer events', () => {
     );
 
     renderer.drawToScreen();
-    renderer.dispatchEvent('click', 75, 50);
+    renderer.dispatchEvent(pointerEvent('click', 75, 50));
     expect(clicked).toBe(true);
 
     clicked = false;
     renderer.updateViewport({ width: 200, height: 100 });
     renderer.drawToScreen();
-    renderer.dispatchEvent('click', 150, 50);
+    renderer.dispatchEvent(pointerEvent('click', 150, 50));
 
     expect(clicked).toBe(true);
   });
@@ -840,6 +872,58 @@ describe('pointer events', () => {
 
     expect(first).toBeGreaterThan(0);
     expect(second).toBeGreaterThan(0);
+  });
+});
+
+describe('keyboard events', () => {
+  const keyA = {
+    key: 'a',
+    code: 'KeyA',
+    repeat: false,
+    ctrlKey: false,
+    shiftKey: true,
+    altKey: false,
+    metaKey: false,
+  };
+
+  it('dispatches keydown to registered global listeners', () => {
+    const { renderer } = createCanvasAndRenderer(100, 100);
+    let seen: { key: string; shiftKey: boolean } | null = null;
+    const listener = (event: { key: string; shiftKey: boolean }) => {
+      seen = { key: event.key, shiftKey: event.shiftKey };
+    };
+    renderer.addKeyboardListener('keydown', listener);
+    renderer.dispatchEvent(keyboardEvent('keydown', keyA));
+    expect(seen).toEqual({ key: 'a', shiftKey: true });
+  });
+
+  it('does not call a removed global listener', () => {
+    const { renderer } = createCanvasAndRenderer(100, 100);
+    let keydowns = 0;
+    const listener = () => {
+      keydowns += 1;
+    };
+    renderer.addKeyboardListener('keydown', listener);
+    renderer.dispatchEvent(keyboardEvent('keydown', keyA));
+    renderer.removeKeyboardListener('keydown', listener);
+    renderer.dispatchEvent(keyboardEvent('keydown', keyA));
+    expect(keydowns).toBe(1);
+  });
+
+  it('routes events by keyboard event name', () => {
+    const { renderer } = createCanvasAndRenderer(100, 100);
+    let keydowns = 0;
+    let keyups = 0;
+    renderer.addKeyboardListener('keydown', () => {
+      keydowns += 1;
+    });
+    renderer.addKeyboardListener('keyup', () => {
+      keyups += 1;
+    });
+    renderer.dispatchEvent(keyboardEvent('keydown', keyA));
+    renderer.dispatchEvent(keyboardEvent('keyup', keyA));
+    expect(keydowns).toBe(1);
+    expect(keyups).toBe(1);
   });
 });
 

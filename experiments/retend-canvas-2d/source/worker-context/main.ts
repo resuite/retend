@@ -1,8 +1,10 @@
 import {
   WORKER_CONTEXT_EVENTS,
+  WORKER_CONTEXT_KEYBOARD_EVENTS,
   type RendererRef,
-  type WorkerContextEventMessage,
   type WorkerContextInitMessage,
+  type WorkerContextKeyboardEventMessage,
+  type WorkerContextPointerEventMessage,
   type WorkerContextResizeMessage,
 } from './types';
 
@@ -52,14 +54,33 @@ export function connectToWorkerContext(
     canvas.addEventListener(eventName, (event) => {
       if (!(event instanceof MouseEvent)) return;
       const { x, y } = getCoordinates(canvas, event);
-      const pointerEvent: WorkerContextEventMessage = {
+      const pointerEvent: WorkerContextPointerEventMessage = {
         type: 'event',
-        eventName,
-        x,
-        y,
-        pointerId: getPointerId(event),
+        kind: 'pointer',
+        data: { eventName, x, y, pointerId: getPointerId(event) },
       };
       appWorker.postMessage(pointerEvent);
+    });
+  }
+
+  for (const eventName of WORKER_CONTEXT_KEYBOARD_EVENTS) {
+    canvas.addEventListener(eventName, (event) => {
+      if (!(event instanceof KeyboardEvent)) return;
+      const payload: WorkerContextKeyboardEventMessage = {
+        type: 'event',
+        kind: 'keyboard',
+        data: {
+          eventName,
+          key: event.key,
+          code: event.code,
+          repeat: event.repeat,
+          ctrlKey: event.ctrlKey,
+          shiftKey: event.shiftKey,
+          altKey: event.altKey,
+          metaKey: event.metaKey,
+        },
+      };
+      appWorker.postMessage(payload);
     });
   }
 

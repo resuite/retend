@@ -18,8 +18,9 @@ import type {
   AnimationFillModeValue,
   EasingValue,
 } from './style';
+import type { CanvasPointerEvent } from './tree';
 import type { ANIMATABLE_PROPERTIES } from './tree/animations';
-import type { CanvasNode, CanvasPointerEvent } from './tree/node';
+import type { CanvasNode } from './tree/node';
 
 export interface CanvasStyle {
   left?: LengthValue;
@@ -109,6 +110,8 @@ export type RemoveOnPrefix<T extends string> = T extends `on${infer Rest}`
   : T;
 
 export type CanvasNodeEventName = RemoveOnPrefix<keyof CanvasEventMap>;
+
+export type CanvasKeyboardEventName = 'keydown' | 'keyup';
 
 export interface CanvasContainerProps extends JsxCanvasEventHandlers<CanvasContainerProps> {
   style?: CanvasStyleValue;

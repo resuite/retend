@@ -30,6 +30,19 @@ const App = () => {
         <text style={style.linkArrow}>&gt;</text>
       </rect>
       <text style={style.linkDescDino}>jump / pixel / retro</text>
+
+      <rect
+        style={style.linkKeyboard}
+        onClick={() => {
+          router.navigate('/keyboard');
+        }}
+      >
+        <text style={style.linkText}>KEYBOARD</text>
+        <text style={style.linkArrow}>&gt;</text>
+      </rect>
+      <text style={style.linkDescKeyboard}>
+        onKeyDown / focus via pointerdown
+      </text>
     </rect>
   );
 };
@@ -92,6 +105,18 @@ const style = {
   } satisfies CanvasStyle,
   linkDescDino: {
     translate: [Length.Px(60), Length.Px(480)],
+    color: '#555',
+    fontSize: Length.Px(11),
+    fontWeight: 400,
+  },
+  linkKeyboard: {
+    translate: [Length.Px(60), Length.Px(520)],
+    width: Length.Px(280),
+    height: Length.Px(56),
+    backgroundColor: '#a855f7',
+  } satisfies CanvasStyle,
+  linkDescKeyboard: {
+    translate: [Length.Px(60), Length.Px(590)],
     color: '#555',
     fontSize: Length.Px(11),
     fontWeight: 400,

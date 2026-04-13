@@ -9,6 +9,7 @@ import {
   WhiteSpace,
 } from '../style';
 
+export * from './event';
 export * from './node';
 export * from './utils';
 export * from './container';
