@@ -152,6 +152,73 @@ function getPropsDestructureStatement(component, propsName) {
   return firstStatement;
 }
 
+const noModuleJsx = {
+  meta: {
+    docs: {
+      description: 'disallow JSX at module level',
+    },
+    schema: [],
+    messages: {
+      unexpected: 'JSX must be declared within functions.',
+    },
+  },
+  create(context) {
+    return {
+      JSXElement(node) {
+        let parent = node.parent;
+        while (parent) {
+          if (
+            parent.type === 'ArrowFunctionExpression' ||
+            parent.type === 'FunctionExpression' ||
+            parent.type === 'FunctionDeclaration'
+          ) {
+            return;
+          }
+          parent = parent.parent;
+        }
+        context.report({ node, messageId: 'unexpected' });
+      },
+      JSXFragment(node) {
+        let parent = node.parent;
+        while (parent) {
+          if (
+            parent.type === 'ArrowFunctionExpression' ||
+            parent.type === 'FunctionExpression' ||
+            parent.type === 'FunctionDeclaration'
+          ) {
+            return;
+          }
+          parent = parent.parent;
+        }
+        context.report({ node, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const noInlineObjectType = {
+  meta: {
+    docs: {
+      description: 'disallow inline object types',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Use an interface or type statement instead of inline object type.',
+    },
+  },
+  create(context) {
+    return {
+      TSTypeLiteral(node) {
+        if (node.parent?.type === 'TSTypeAliasDeclaration') {
+          return;
+        }
+        context.report({ node, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
 const noClassName = {
   meta: {
     docs: {
@@ -1038,6 +1105,8 @@ export default {
     'max-component-lines': maxComponentLines,
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
     'no-classname': noClassName,
+    'no-inline-object-type': noInlineObjectType,
+    'no-module-jsx': noModuleJsx,
     'props-destructure-first': propsDestructureFirst,
     'no-templated-class': noTemplatedClass,
     'no-get-in-derived-async': noGetInDerivedAsync,
