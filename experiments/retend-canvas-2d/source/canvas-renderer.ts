@@ -84,7 +84,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
     keydown: new Set<Listener>(),
     keyup: new Set<Listener>(),
   };
-  interactiveNodeCount = 0;
 
   nextNodeId = 1;
   nodeMap = new Map<number, CanvasNode>();
@@ -104,7 +103,6 @@ export class CanvasRenderer implements CanvasRendererInterface {
   constructor(host: CanvasHost, viewport: ViewPort) {
     this.host = host;
     this.root = new CanvasRoot(this);
-    this.root.setConnected(true);
     this.#viewport = viewport;
     this.drawToScreen = this.drawToScreen.bind(this);
   }
@@ -188,28 +186,22 @@ export class CanvasRenderer implements CanvasRendererInterface {
     }
     const { ctx, hitCtx } = this.host;
     const hitCanvas = hitCtx.canvas;
-    const hitWidth = Math.round(this.#viewport.width);
-    const hitHeight = Math.round(this.#viewport.height);
-    const paintHit = this.interactiveNodeCount > 0;
+    hitCanvas.width = Math.round(this.#viewport.width);
+    hitCanvas.height = Math.round(this.#viewport.height);
     const hasRunningAnimations = tickAnimations(this.#animations);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
-    if (paintHit) {
-      if (hitCanvas.width !== hitWidth || hitCanvas.height !== hitHeight) {
-        hitCanvas.width = hitWidth;
-        hitCanvas.height = hitHeight;
-      }
-    }
+
     this.host.scopeWidth = this.#viewport.width;
     this.host.scopeHeight = this.#viewport.height;
     if (this.#frameDirty || hasRunningAnimations) {
       this.root.layout();
-      this.#frame.reset(paintHit);
+      this.#frame.reset();
       this.root.emit(this.#frame);
       this.#frameDirty = false;
     }
     replay(ctx, this.#frame.commands, this.#frame);
-    if (paintHit) replay(hitCtx, this.#frame.hitCommands, this.#frame, true);
+    replay(hitCtx, this.#frame.hitCommands, this.#frame, true);
     if (hasRunningAnimations) this.requestRender();
   }
 
@@ -321,10 +313,9 @@ export class CanvasRenderer implements CanvasRendererInterface {
     switch (message.kind) {
       case 'keyboard': {
         const { eventName } = message.data;
-        const root = this.root;
         const listeners = this.#keyListeners[eventName];
         if (listeners.size === 0) return;
-        const keyboardEvent = new CanvasKeyboardEvent(eventName, root, message);
+        const keyboardEvent = new CanvasKeyboardEvent(eventName, message);
         for (const listener of listeners) {
           try {
             listener(keyboardEvent);
@@ -337,40 +328,28 @@ export class CanvasRenderer implements CanvasRendererInterface {
       case 'pointer': {
         const { eventName, x, y, pointerId } = message.data;
         const capturedTarget = this.#capturedPointerTargets.get(pointerId);
-        if (!capturedTarget && this.interactiveNodeCount === 0) {
-          if (eventName === 'pointerup') {
-            this.#capturedPointerTargets.delete(pointerId);
-            this.#activePointers.delete(pointerId);
-          }
-          return;
-        }
         if (eventName === 'pointerdown') this.#activePointers.add(pointerId);
         const target =
           capturedTarget &&
           (eventName === 'pointermove' || eventName === 'pointerup')
             ? capturedTarget
             : this.resolvePointerTarget(x, y);
-        if (!target) {
-          if (eventName === 'pointerup') {
-            this.#capturedPointerTargets.delete(pointerId);
-            this.#activePointers.delete(pointerId);
+        if (target) {
+          const event = CanvasPointerEvent.fromMessage(message, target);
+          let current: CanvasNode | null = target;
+
+          while (current) {
+            current.dispatchEvent(event);
+            if (event.cancelBubble) break;
+            current = current.parent;
           }
-          return;
-        }
-
-        const event = CanvasPointerEvent.fromMessage(message, target);
-        let current: CanvasNode | null = target;
-
-        while (current) {
-          current.dispatchEvent(event);
-          if (event.propagationStopped) break;
-          current = current.parent;
         }
 
         if (eventName === 'pointerup') {
           this.#capturedPointerTargets.delete(pointerId);
           this.#activePointers.delete(pointerId);
         }
+        return;
       }
     }
   }

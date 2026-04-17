@@ -19,7 +19,7 @@ export interface WorkerContextResizeMessage {
   height: number;
 }
 
-export interface WorkerContextPointerEventMessage {
+export interface ContextPointerEventMessage {
   type: 'event';
   kind?: 'pointer';
   data: {
@@ -30,7 +30,7 @@ export interface WorkerContextPointerEventMessage {
   };
 }
 
-export interface WorkerContextKeyboardEventMessage {
+export interface ContextKeyboardEventMessage {
   type: 'event';
   kind: 'keyboard';
   data: {
@@ -46,8 +46,8 @@ export interface WorkerContextKeyboardEventMessage {
 }
 
 export type WorkerContextEventMessage =
-  | WorkerContextPointerEventMessage
-  | WorkerContextKeyboardEventMessage;
+  | ContextPointerEventMessage
+  | ContextKeyboardEventMessage;
 
 export type WorkerContextMessage =
   | WorkerContextInitMessage

@@ -3,8 +3,8 @@ import {
   WORKER_CONTEXT_KEYBOARD_EVENTS,
   type RendererRef,
   type WorkerContextInitMessage,
-  type WorkerContextKeyboardEventMessage,
-  type WorkerContextPointerEventMessage,
+  type ContextKeyboardEventMessage,
+  type ContextPointerEventMessage,
   type WorkerContextResizeMessage,
 } from './types';
 
@@ -54,7 +54,7 @@ export function connectToWorkerContext(
     canvas.addEventListener(eventName, (event) => {
       if (!(event instanceof MouseEvent)) return;
       const { x, y } = getCoordinates(canvas, event);
-      const pointerEvent: WorkerContextPointerEventMessage = {
+      const pointerEvent: ContextPointerEventMessage = {
         type: 'event',
         kind: 'pointer',
         data: { eventName, x, y, pointerId: getPointerId(event) },
@@ -66,7 +66,7 @@ export function connectToWorkerContext(
   for (const eventName of WORKER_CONTEXT_KEYBOARD_EVENTS) {
     canvas.addEventListener(eventName, (event) => {
       if (!(event instanceof KeyboardEvent)) return;
-      const payload: WorkerContextKeyboardEventMessage = {
+      const payload: ContextKeyboardEventMessage = {
         type: 'event',
         kind: 'keyboard',
         data: {

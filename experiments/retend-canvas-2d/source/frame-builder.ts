@@ -93,8 +93,8 @@ export class FrameBuilder {
   textLines: TextLinePayload[] = [];
   particles: ParticlesPayload[] = [];
 
-  reset(shouldPaintHitCanvas: boolean) {
-    this.shouldPaintHitCanvas = shouldPaintHitCanvas;
+  reset() {
+    this.shouldPaintHitCanvas = true;
     for (const k of RESET_KEYS) (this[k] as unknown[]).length = 0;
   }
 

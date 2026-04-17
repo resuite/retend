@@ -1,15 +1,16 @@
 import type { CanvasRenderer } from '../canvas-renderer';
 import type { FrameBuilder } from '../frame-builder';
-import type { CanvasEvent } from './event';
 
-export abstract class CanvasNode {
+const pointerEventListeners = new Map<CanvasNode, [string, EventListener][]>();
+
+export abstract class CanvasNode extends EventTarget {
   renderer: CanvasRenderer;
   id: number;
   #parent: CanvasParentNode | null = null;
   #isConnected = false;
-  #eventListeners = new Map<string, Function>();
 
   constructor(renderer: CanvasRenderer) {
+    super();
     this.renderer = renderer;
     this.id = renderer.nextNodeId;
     renderer.nextNodeId += 1;
@@ -23,29 +24,52 @@ export abstract class CanvasNode {
     return this.#parent;
   }
 
-  get hasEventListeners() {
-    return (
-      this.#eventListeners.has('click') ||
-      this.#eventListeners.has('pointerdown') ||
-      this.#eventListeners.has('pointermove') ||
-      this.#eventListeners.has('pointerup')
-    );
+  get isPointerInteractive() {
+    return Boolean(pointerEventListeners.get(this)?.length);
   }
 
-  protected setEventListener(type: string, callback: Function | null) {
-    const hadListeners = this.hasEventListeners;
-    if (callback) this.#eventListeners.set(type, callback);
-    else this.#eventListeners.delete(type);
-    if (hadListeners !== this.hasEventListeners && this.isConnected) {
-      this.renderer.interactiveNodeCount += this.hasEventListeners ? 1 : -1;
+  addEventListener(...args: Parameters<EventTarget['addEventListener']>): void {
+    const wasPointerInteractive = this.isPointerInteractive;
+    super.addEventListener(...args);
+    const type = args[0];
+    const listener = args[1];
+    if (
+      (type === 'click' || type.startsWith('pointer')) &&
+      typeof listener === 'function'
+    ) {
+      const listeners = pointerEventListeners.get(this) ?? [];
+      listeners.push([type, listener]);
+      pointerEventListeners.set(this, listeners);
+    }
+    if (
+      !wasPointerInteractive &&
+      this.isPointerInteractive &&
+      this.isConnected
+    ) {
       this.renderer.requestRender();
     }
   }
 
-  dispatchEvent(event: CanvasEvent) {
-    event.setCurrentTarget(this);
-    this.#eventListeners.get(event.type)?.call(this, event);
-    event.setCurrentTarget(null);
+  removeEventListener(
+    ...args: Parameters<EventTarget['removeEventListener']>
+  ): void {
+    const wasPointerInteractive = this.isPointerInteractive;
+    super.removeEventListener(...args);
+    const type = args[0];
+    if (type === 'click' || type.startsWith('pointer')) {
+      const listeners = pointerEventListeners.get(this);
+      if (listeners) {
+        const updated = listeners.filter(([t]) => t !== type);
+        pointerEventListeners.set(this, updated);
+      }
+    }
+    if (
+      wasPointerInteractive &&
+      !this.isPointerInteractive &&
+      this.isConnected
+    ) {
+      this.renderer.requestRender();
+    }
   }
 
   setPointerCapture(pointerId: number) {
@@ -65,15 +89,13 @@ export abstract class CanvasNode {
     this.setConnected(parent?.isConnected === true);
   }
 
-  setConnected(isConnected: boolean) {
+  protected setConnected(isConnected: boolean) {
     if (this.isConnected === isConnected) return;
     this.#isConnected = isConnected;
     if (isConnected) {
-      if (this.hasEventListeners) this.renderer.interactiveNodeCount += 1;
       this.renderer.nodeMap.set(this.id, this);
     } else {
       this.renderer.releasePointerCaptures(this);
-      if (this.hasEventListeners) this.renderer.interactiveNodeCount -= 1;
       this.renderer.nodeMap.delete(this.id);
     }
     if (this instanceof CanvasParentNode) {

@@ -7,6 +7,7 @@ import type {
   CanvasContainerProps,
   CanvasShapeProps,
   CanvasPathProps,
+  CanvasNodeEventName,
 } from '../types';
 
 import {
@@ -118,9 +119,12 @@ export class CanvasContainer<
   setAttribute<K extends keyof Props>(key: K, value: Props[K]) {
     const strKey = String(key);
     if (strKey.startsWith('on') && strKey.length > 2) {
-      const eventName = strKey.slice(2).toLowerCase();
-      const listener = typeof value === 'function' ? value : null;
-      this.setEventListener(eventName, listener);
+      const eventName = strKey.slice(2).toLowerCase() as CanvasNodeEventName;
+      const previousHandler = this.attributes[key] as EventListener | undefined;
+      if (previousHandler) this.removeEventListener(eventName, previousHandler);
+      if (typeof value === 'function') {
+        this.addEventListener(eventName, value as EventListener);
+      }
     }
     this.attributes[key] = value;
 
@@ -283,16 +287,15 @@ export class CanvasContainer<
 
   protected paintBorders(path: Path2D, frame: FrameBuilder) {
     const border = this.resolveBorder();
-    if (border)
-      frame.pushPathStroke(
-        {
-          path,
-          strokeStyle: border.color,
-          lineWidth: border.width,
-          lineDash: border.lineDash,
-        },
-        this.id
-      );
+    if (border) {
+      const payload = {
+        path,
+        strokeStyle: border.color,
+        lineWidth: border.width,
+        lineDash: border.lineDash,
+      };
+      frame.pushPathStroke(payload, this.id);
+    }
   }
 
   protected resolveBorder(): {
@@ -401,7 +404,7 @@ export class CanvasContainer<
 
     if (
       frame.shouldPaintHitCanvas &&
-      this.hasEventListeners &&
+      this.isPointerInteractive &&
       host.getCascadedValue('pointerEvents') !== PointerEvents.None
     ) {
       frame.pushHitPathFill(tracedPath, this.id);
@@ -412,6 +415,7 @@ export class CanvasContainer<
 export class CanvasRoot extends CanvasContainer {
   constructor(renderer: CanvasRenderer) {
     super(renderer);
+    this.setConnected(true);
     this.baseStyles = {
       width: Length.Pct(100),
       height: Length.Pct(100),
@@ -484,7 +488,7 @@ export class CanvasPath extends CanvasContainer<CanvasPathProps> {
     const path = this.path;
     if (!path) return;
     const border = this.resolveBorder();
-    if (frame.shouldPaintHitCanvas && this.hasEventListeners && border) {
+    if (frame.shouldPaintHitCanvas && this.isPointerInteractive && border) {
       frame.pushHitPathStroke(
         {
           path,

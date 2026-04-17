@@ -1,77 +1,45 @@
 import type { CanvasNodeEventName } from '../types';
 import type { CanvasKeyboardEventName } from '../types';
 import type {
-  WorkerContextKeyboardEventMessage,
-  WorkerContextPointerEventMessage,
+  ContextKeyboardEventMessage,
+  ContextPointerEventMessage,
 } from '../worker-context/types';
 import type { CanvasNode } from './node';
 
-export class CanvasEvent {
-  type: string;
-  cancelable: boolean;
-  defaultPrevented = false;
-  #target: CanvasNode;
-  #currentTarget: CanvasNode | null;
+export class CanvasEvent extends Event {}
 
-  constructor(type: string, cancelable: boolean, target: CanvasNode) {
-    this.type = type;
-    this.cancelable = cancelable;
+export class CanvasPointerEvent extends CanvasEvent {
+  #target: CanvasNode;
+
+  constructor(
+    public type: CanvasNodeEventName,
+    public pointerId: number,
+    public clientX: number,
+    public clientY: number,
+    target: CanvasNode
+  ) {
+    super(type, { bubbles: true, cancelable: true });
     this.#target = target;
-    this.#currentTarget = null;
   }
 
-  get target() {
+  get x() {
+    return this.clientX;
+  }
+
+  get y() {
+    return this.clientY;
+  }
+
+  override get target() {
     return this.#target;
   }
 
-  get currentTarget() {
-    return this.#currentTarget;
-  }
-
-  preventDefault() {
-    if (this.cancelable) {
-      this.defaultPrevented = true;
-    }
-  }
-
-  setCurrentTarget(currentTarget: CanvasNode | null) {
-    this.#currentTarget = currentTarget;
-  }
-}
-
-export class CanvasPointerEvent extends CanvasEvent {
-  pointerId: number;
-  x: number;
-  y: number;
-  #propagationStopped = false;
-
-  constructor(
-    type: CanvasNodeEventName,
-    pointerId: number,
-    x: number,
-    y: number,
-    target: CanvasNode
-  ) {
-    super(type, true, target);
-    this.pointerId = pointerId;
-    this.x = x;
-    this.y = y;
-  }
-
-  get propagationStopped() {
-    return this.#propagationStopped;
-  }
-
-  stopPropagation() {
-    this.#propagationStopped = true;
-  }
-
-  stopImmediatePropagation() {
-    this.#propagationStopped = true;
+  override get currentTarget() {
+    return super.currentTarget as CanvasNode | null;
   }
 
   static fromMessage(
-    message: WorkerContextPointerEventMessage,
+    message: ContextPointerEventMessage,
     target: CanvasNode
   ): CanvasPointerEvent {
     return new CanvasPointerEvent(
@@ -96,10 +64,9 @@ export class CanvasKeyboardEvent extends CanvasEvent {
 
   constructor(
     type: CanvasKeyboardEventName,
-    target: CanvasNode,
-    message: WorkerContextKeyboardEventMessage
+    message: ContextKeyboardEventMessage
   ) {
-    super(type, true, target);
+    super(type);
     const { data: init } = message;
     this.key = init.key;
     this.code = init.code;
