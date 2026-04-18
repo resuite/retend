@@ -208,11 +208,59 @@ const noInlineObjectType = {
     },
   },
   create(context) {
+    const checkParam = (param) => {
+      if (!param) {
+        return;
+      }
+
+      if (
+        param.type === 'Identifier' &&
+        param.typeAnnotation?.type === 'TSTypeAnnotation' &&
+        param.typeAnnotation.typeAnnotation?.type === 'TSTypeLiteral'
+      ) {
+        context.report({
+          node: param.typeAnnotation.typeAnnotation,
+          messageId: 'unexpected',
+        });
+        return;
+      }
+
+      if (param.type === 'AssignmentPattern') {
+        checkParam(param.left);
+      }
+    };
+
     return {
+      FunctionDeclaration(node) {
+        for (const param of node.params) {
+          checkParam(param);
+        }
+      },
+      ArrowFunctionExpression(node) {
+        for (const param of node.params) {
+          checkParam(param);
+        }
+      },
+      FunctionExpression(node) {
+        for (const param of node.params) {
+          checkParam(param);
+        }
+      },
       TSTypeLiteral(node) {
         if (node.parent?.type === 'TSTypeAliasDeclaration') {
           return;
         }
+
+        if (node.parent?.type === 'TSTypeAnnotation') {
+          const owner = node.parent.parent;
+          if (
+            owner?.type === 'Identifier' ||
+            owner?.type === 'AssignmentPattern'
+          ) {
+            return;
+          }
+        }
+
         context.report({ node, messageId: 'unexpected' });
       },
     };
