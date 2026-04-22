@@ -861,7 +861,7 @@ export class DOMRenderer {
  * Initializes the DOM renderer context, renders the application tree, appends the resulting
  * nodes to the target element, and executes any pending setup effects.
  *
- * @param {HTMLElement} element - The target DOM element to mount the application into.
+ * @param {Element | ShadowRoot} element - The target DOM element to mount the application into.
  * @param {() => JSX.Template} App - A function that returns the template to be rendered.
  */
 export function renderToDOM(element, App) {
