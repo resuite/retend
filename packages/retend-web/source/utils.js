@@ -493,7 +493,12 @@ export function normalizeClassValue(val, element) {
       }
 
       addCellListener(element, value, applyValue, false);
-      if (value.get()) {
+      const currentValue = value.get();
+      if (currentValue instanceof Promise) {
+        currentValue.then((newValue) => applyValue.bind(element)(newValue));
+        continue;
+      }
+      if (currentValue) {
         if (result) result += ' ';
         result += key;
       }

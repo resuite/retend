@@ -82,6 +82,30 @@ const runTests = () => {
     expect(element.getAttribute('class')).toBe('async-active');
   });
 
+  it('should not treat async object class conditions as truthy promises', async () => {
+    const enable = Cell.source(false);
+    const asyncCondition = Cell.derivedAsync(async (get) => {
+      const isEnabled = get(enable);
+      await timeout(10);
+      return isEnabled;
+    });
+
+    const element = render(<div class={{ 'async-active': asyncCondition }} />);
+
+    const initialClass = element.getAttribute('class');
+    expect(initialClass === null || initialClass === '').toBe(true);
+
+    await vi.advanceTimersByTimeAsync(20);
+
+    const resolvedClass = element.getAttribute('class');
+    expect(resolvedClass === null || resolvedClass === '').toBe(true);
+
+    enable.set(true);
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(element.getAttribute('class')).toBe('async-active');
+  });
+
   it('should handle mixed static and async derived classes', async () => {
     const asyncClass = Cell.derivedAsync(async () => {
       await timeout(10);
