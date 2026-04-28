@@ -4,8 +4,9 @@
 
 import chalk from 'chalk';
 import { createPromptModule } from 'inquirer';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 import ora from 'ora';
@@ -13,6 +14,7 @@ import semver from 'semver';
 
 import CONFIG from './config.json' with { type: 'json' };
 
+const require = createRequire(import.meta.url);
 const isBun =
   typeof process !== 'undefined' && process.versions && process.versions.bun;
 const npmUserAgent = process.env.npm_config_user_agent ?? '';
@@ -177,6 +179,7 @@ async function main() {
     }).start();
 
     await createProjectStructure(projectDir, answers);
+    formatProject(projectDir);
     await initializeGit(projectDir);
 
     spinner.succeed(
@@ -232,8 +235,19 @@ async function createProjectStructure(projectDir, answers) {
     createPackageJson(projectDir, answers),
     createConfigFile(projectDir, answers),
     createVSCodeFolder(projectDir, answers),
+    createZedFolder(projectDir),
     createDocsFiles(projectDir, answers),
   ]);
+}
+
+/**
+ * Function to format generated project files
+ * @param {string} projectDir - The directory where the project is created
+ */
+function formatProject(projectDir) {
+  const packageDir = path.dirname(require.resolve('oxfmt/package.json'));
+  const oxfmtBin = path.join(packageDir, 'bin/oxfmt');
+  execFileSync(oxfmtBin, ['--write', projectDir], { stdio: 'ignore' });
 }
 
 /**
@@ -431,9 +445,11 @@ const router = createRouter();
 router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
-renderToDOM(root, () => (
+const renderApp = () => (
   <RetendDevTools>{createRouterRoot(router)}</RetendDevTools>
-));
+);
+
+renderToDOM(root, renderApp);
 
 `;
 
@@ -451,13 +467,13 @@ renderToDOM(root, () => (
 async function createRouterFile(projectDir, answers) {
   const extension = answers.language === 'TypeScript' ? 'ts' : 'js';
   const content = `
- import { Router } from 'retend/router';
- import App from './App';
+import { Router } from 'retend/router';
+import App from './App';
 
- export function createRouter() {
-   return new Router({ routes: [{ path: '/', component: App }] });
- }
-   `.trim();
+export function createRouter() {
+  return new Router({ routes: [{ path: '/', component: App }] });
+}
+`.trim();
 
   await fs.writeFile(
     path.join(projectDir, `source/router.${extension}`),
@@ -501,26 +517,24 @@ async function createSimpleApp(projectDir, answers) {
     ? '"font-[inherit] bg-white border-2 mt-4 border-gray-300 rounded-[7px] px-[15px] py-[10px] hover:bg-gray-50 transition-colors"'
     : '{classes.button}';
 
-  const content = `import { Cell } from 'retend'${cssImport ? `\n${cssImport}` : ''}
+  const content = `import { Cell } from 'retend';${cssImport ? `\n${cssImport}` : ''}
 
- const App = () => {
-   const count = Cell.source(0);
-   const incrementCount = () => count.set(count.get() + 1);
+const App = () => {
+  const count = Cell.source(0);
+  const incrementCount = () => count.set(count.get() + 1);
 
-   return (
-     <div class=${containerClasses}>
-       <main class=${mainElementClasses}>
-         <h1 class=${headingClasses}>
-           ${answers.projectName}
-         </h1>
-         <p class=${paragraphClasses}>${textContent}</p>
-         <button class=${buttonClasses} type="button" onClick={incrementCount}>
-           Counter: {count}
-         </button>
-       </main>
-     </div>
-   );
- };
+  return (
+    <div class=${containerClasses}>
+      <main class=${mainElementClasses}>
+        <h1 class=${headingClasses}>${answers.projectName}</h1>
+        <p class=${paragraphClasses}>${textContent}</p>
+        <button class=${buttonClasses} type="button" onClick={incrementCount}>
+          Counter: {count}
+        </button>
+      </main>
+    </div>
+  );
+};
 
 export default App;
 `;
@@ -633,11 +647,14 @@ async function createPackageJson(projectDir, answers) {
       build: 'vite build',
       preview: 'vite preview',
       lint: 'oxlint .',
+      format: 'oxfmt --write .',
+      'format:check': 'oxfmt --check .',
     },
     dependencies: getRetendDependencies(commitHash, Boolean(answers.useSSG)),
     /** @type {Record<string, string>} */
     devDependencies: {
       vite: CONFIG.devDependencies.vite,
+      oxfmt: CONFIG.devDependencies.oxfmt,
       oxlint: CONFIG.devDependencies.oxlint,
       'retend-oxlint-plugin': CONFIG.devDependencies['retend-oxlint-plugin'],
     },
@@ -714,6 +731,8 @@ async function createConfigFile(projectDir, answers) {
             'retend/max-component-lines': 'error',
             'retend/max-jsx-components-per-file': 'error',
             'retend/no-classname': 'error',
+            'retend/no-inline-object-type': 'error',
+            'retend/no-module-jsx': 'error',
             'retend/props-destructure-first': 'error',
             'retend/no-templated-class': 'error',
             'retend/no-get-in-jsx': 'error',
@@ -742,7 +761,7 @@ async function createVSCodeFolder(projectDir, answers) {
   const vscodeDir = path.join(projectDir, '.vscode');
   await fs.mkdir(vscodeDir, { recursive: true });
 
-  const extensions = ['biomejs.biome', 'esbenp.prettier-vscode'];
+  const extensions = ['oxc.oxc-vscode'];
 
   if (answers.language === 'TypeScript') {
     extensions.push('ms-vscode.vscode-typescript-next');
@@ -751,16 +770,72 @@ async function createVSCodeFolder(projectDir, answers) {
   if (answers.useTailwind) {
     extensions.push('bradlc.vscode-tailwindcss');
   } else {
-    extensions.push('clinyong.vscode-css-modules', '1yasa.css-better-sorting');
+    extensions.push('clinyong.vscode-css-modules');
   }
 
   const extensionsContent = {
     recommendations: extensions,
   };
+  const settingsContent = {
+    'editor.defaultFormatter': 'oxc.oxc-vscode',
+    'editor.formatOnSave': false,
+    'editor.codeActionsOnSave': {
+      'source.format.oxc': 'always',
+      'source.fixAll.oxc': 'always',
+    },
+  };
+
+  await Promise.all([
+    fs.writeFile(
+      path.join(vscodeDir, 'extensions.json'),
+      JSON.stringify(extensionsContent, null, 2)
+    ),
+    fs.writeFile(
+      path.join(vscodeDir, 'settings.json'),
+      JSON.stringify(settingsContent, null, 2)
+    ),
+  ]);
+}
+
+/**
+ * Function to create the .zed folder with Oxc settings
+ * @param {string} projectDir - The directory where the project is created
+ */
+async function createZedFolder(projectDir) {
+  const zedDir = path.join(projectDir, '.zed');
+  await fs.mkdir(zedDir, { recursive: true });
+
+  const languageSettings = {
+    format_on_save: 'on',
+    prettier: { allowed: false },
+    formatter: [
+      { language_server: { name: 'oxfmt' } },
+      { code_action: 'source.fixAll.oxc' },
+    ],
+  };
+  const settingsContent = {
+    lsp: {
+      oxlint: {
+        initialization_options: {
+          settings: { run: 'onType' },
+        },
+      },
+      oxfmt: {
+        initialization_options: {
+          settings: { run: 'onSave' },
+        },
+      },
+    },
+    languages: {
+      JavaScript: languageSettings,
+      TypeScript: languageSettings,
+      TSX: languageSettings,
+    },
+  };
 
   await fs.writeFile(
-    path.join(vscodeDir, 'extensions.json'),
-    JSON.stringify(extensionsContent, null, 2)
+    path.join(zedDir, 'settings.json'),
+    JSON.stringify(settingsContent, null, 2)
   );
 }
 

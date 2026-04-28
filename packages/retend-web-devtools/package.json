@@ -1,6 +1,6 @@
 {
   "name": "retend-web-devtools",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "private": false,
   "description": "Retend DevTools for web apps.",
   "license": "MIT",
