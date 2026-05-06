@@ -732,6 +732,7 @@ async function createConfigFile(projectDir, answers) {
             'retend/max-jsx-components-per-file': 'error',
             'retend/no-classname': 'error',
             'retend/no-inline-object-type': 'error',
+            'retend/no-module-cell': 'warn',
             'retend/no-module-jsx': 'error',
             'retend/props-destructure-first': 'error',
             'retend/no-templated-class': 'error',

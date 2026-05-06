@@ -152,6 +152,83 @@ function getPropsDestructureStatement(component, propsName) {
   return firstStatement;
 }
 
+function isCellFactoryCall(node) {
+  if (node.type !== 'CallExpression') {
+    return false;
+  }
+
+  if (node.callee.type !== 'MemberExpression') {
+    return false;
+  }
+
+  if (node.callee.computed) {
+    return false;
+  }
+
+  if (node.callee.object.type !== 'Identifier') {
+    return false;
+  }
+
+  if (node.callee.object.name !== 'Cell') {
+    return false;
+  }
+
+  if (node.callee.property.type !== 'Identifier') {
+    return false;
+  }
+
+  return (
+    node.callee.property.name === 'source' ||
+    node.callee.property.name === 'derived'
+  );
+}
+
+function isInsideFunction(node) {
+  let parent = node.parent;
+
+  while (parent) {
+    if (
+      parent.type === 'ArrowFunctionExpression' ||
+      parent.type === 'FunctionExpression' ||
+      parent.type === 'FunctionDeclaration'
+    ) {
+      return true;
+    }
+
+    parent = parent.parent;
+  }
+
+  return false;
+}
+
+const noModuleCell = {
+  meta: {
+    docs: {
+      description: 'disallow Cell.source() and Cell.derived() at module scope',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Cells should ideally be declared in the render path. To share access to a cell across multiple distant components, consider a wrapper provider and the scopes API.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (!isCellFactoryCall(node)) {
+          return;
+        }
+
+        if (isInsideFunction(node)) {
+          return;
+        }
+
+        context.report({ node: node.callee.property, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
 const noModuleJsx = {
   meta: {
     docs: {
@@ -1154,6 +1231,7 @@ export default {
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
     'no-classname': noClassName,
     'no-inline-object-type': noInlineObjectType,
+    'no-module-cell': noModuleCell,
     'no-module-jsx': noModuleJsx,
     'props-destructure-first': propsDestructureFirst,
     'no-templated-class': noTemplatedClass,
