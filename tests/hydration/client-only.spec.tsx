@@ -1,4 +1,10 @@
-import { Cell, createUnique, runPendingSetupEffects } from 'retend';
+import {
+  Await,
+  Cell,
+  createUnique,
+  onSetup,
+  runPendingSetupEffects,
+} from 'retend';
 import { ClientOnly } from 'retend-server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -236,6 +242,48 @@ describe('ClientOnly', () => {
 
       expect(document.querySelector('#spa-content')).not.toBeNull();
       expect(document.querySelector('#spa-fb')).toBeNull();
+    });
+
+    it('should not activate Await children inserted by ClientOnly until async content resolves', async () => {
+      const loaded = Cell.source(false);
+
+      const Delayed = () => {
+        const delay = Cell.derivedAsync(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          return 'Ready';
+        });
+
+        return <span id="delayed">{delay}</span>;
+      };
+
+      const Content = () => {
+        onSetup(() => loaded.set(true));
+        return <Delayed />;
+      };
+
+      const template = () => (
+        <div id="root">
+          <ClientOnly>
+            <Await fallback={<span id="fallback">Boot</span>}>
+              <Content />
+            </Await>
+          </ClientOnly>
+        </div>
+      );
+
+      const root = render(template);
+      document.body.append(root);
+      await runPendingSetupEffects();
+
+      expect(document.querySelector('#fallback')).not.toBeNull();
+      expect(document.querySelector('#delayed')).toBeNull();
+      expect(loaded.get()).toBe(false);
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(document.querySelector('#fallback')).toBeNull();
+      expect(document.querySelector('#delayed')?.textContent).toBe('Ready');
+      expect(loaded.get()).toBe(true);
     });
   });
 });

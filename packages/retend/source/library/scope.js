@@ -130,7 +130,7 @@ class EffectNode {
     this.#active = true;
     const promises = [];
     for (const child of this.#children) {
-      if (!child.#enabled || child.#active) continue;
+      if (!child.#enabled || child.#suspended || child.#active) continue;
       promises.push(child.#runActivateFns());
     }
     await Promise.all(promises);
