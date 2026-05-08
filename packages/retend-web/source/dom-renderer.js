@@ -1,4 +1,4 @@
-/** @import { Observer, ReconcilerOptions, Renderer, __HMR_UpdatableFn, StateSnapshot } from "retend"; */
+/** @import { Observer, ReconcilerOptions, Renderer, __HMR_UpdatableFn, Scope, StateSnapshot } from "retend"; */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
@@ -7,6 +7,7 @@ import {
   Cell,
   branchState,
   createNodesFromTemplate,
+  createScope,
   getState,
   normalizeJsxChild,
   withState,
@@ -14,6 +15,7 @@ import {
   setActiveRenderer,
   runPendingSetupEffects,
   linkNodes,
+  useScopeContext,
 } from 'retend';
 
 import * as Ops from './dom-ops.js';
@@ -29,6 +31,11 @@ import {
 const COMMENT_NODE = 8;
 const TEXT_NODE = 3;
 const DOCUMENT_FRAGMENT_NODE = 11;
+/** @type {Scope<string>} */
+const NamespaceScope = createScope('retend-web:Namespace');
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const MATH_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
 
 /**
  * @typedef {Element & HiddenElementProperties} JsxElement
@@ -302,30 +309,6 @@ export class DOMRenderer {
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
     if (shadowRoot) return shadowRoot;
 
-    const tagname = parentNode.tagName;
-
-    // Client-side bailout for SVG and MathML elements.
-    //
-    // By default, elements are created using
-    // Document.createElement(), which will only yield HTML-namespaced elements.
-    //
-    // This means that we end up with SVG and MathML specific elements
-    // that look correct, but are not actually SVG or MathML elements.
-    // To fix this, we need to serialize the badly formed elements
-    // and recreate them using the namespace of the nearest svg or math parent.
-    //
-    // This will lead to a loss of interactivity, but idk, you win and you lose.
-    if (
-      (tagname === 'svg' || tagname === 'math') &&
-      childNode instanceof HTMLElement
-    ) {
-      const elementNamespace =
-        parentNode.namespaceURI ?? 'http://www.w3.org/1999/xhtml';
-      const temp = this.host.document.createElementNS(elementNamespace, 'div');
-      temp.innerHTML = /** @type {HTMLElement} */ (childNode).outerHTML;
-      parentNode.append(...temp.children);
-      return parentNode;
-    }
     if (Array.isArray(childNode)) {
       const children = childNode.filter(Boolean);
       parentNode.append(...children);
@@ -371,42 +354,65 @@ export class DOMRenderer {
    * @returns {JsxElement}
    */
   createContainer(tagname, props) {
-    if (this.#isHydrationModeEnabled) {
-      const hydration = this.#getHydrationState();
-      if (hydration) {
-        if (containerIsDynamic(tagname, props, isReactiveChild)) {
-          const branchCursor = hydration.cursor;
-          const activeBranch = getState();
-          const index = `${activeBranch.node.id}.${branchCursor}`;
-          hydration.cursor += 1;
+    let inheritedNamespace = HTML_NAMESPACE;
+    try {
+      inheritedNamespace = useScopeContext(NamespaceScope);
+    } catch {}
 
-          const staticNode = this.#table.get(index);
-          const hydrationNode =
-            staticNode && !this.#hydratedNodes.has(staticNode)
-              ? staticNode
-              : null;
-          if (hydrationNode) {
-            this.#hydratedNodes.add(hydrationNode);
-            const hydrationTask = Promise.resolve().then(() =>
-              this.#hydrateNode(hydrationNode, props)
-            );
-            this.#trackHydrationTask(activeBranch, hydrationTask);
-            return hydrationNode;
-          }
-        }
-        // @ts-expect-error: The types are different in hydration mode.
-        return new Skip(tagname);
-      }
+    const defaultNamespace = props?.xmlns ?? inheritedNamespace;
+    let ns;
+    if (tagname === 'svg') ns = SVG_NAMESPACE;
+    else if (tagname === 'math') ns = MATH_NAMESPACE;
+    else ns = defaultNamespace;
+
+    if (
+      props &&
+      props.xmlns === undefined &&
+      (tagname === 'svg' || tagname === 'math')
+    ) {
+      props.xmlns = ns;
     }
 
-    const defaultNamespace = props?.xmlns ?? 'http://www.w3.org/1999/xhtml';
-    let ns;
-    if (tagname === 'svg') {
-      ns = 'http://www.w3.org/2000/svg';
-    } else if (tagname === 'math') {
-      ns = 'http://www.w3.org/1998/Math/MathML';
-    } else {
-      ns = defaultNamespace;
+    const hydration = this.#isHydrationModeEnabled
+      ? this.#getHydrationState()
+      : null;
+    const isDynamic =
+      hydration && containerIsDynamic(tagname, props, isReactiveChild);
+
+    if (props && tagname !== 'retend-teleport' && 'children' in props) {
+      const childNamespace = tagname === 'foreignObject' ? HTML_NAMESPACE : ns;
+      const children = props.children;
+      props.children = () =>
+        NamespaceScope.Provider({
+          value: childNamespace,
+          children: () => children,
+          h: false,
+        });
+    }
+
+    if (hydration) {
+      if (isDynamic) {
+        const branchCursor = hydration.cursor;
+        const activeBranch = getState();
+        const index = `${activeBranch.node.id}.${branchCursor}`;
+        hydration.cursor += 1;
+
+        const staticNode = this.#table.get(index);
+        const hydrationNode =
+          staticNode && !this.#hydratedNodes.has(staticNode)
+            ? staticNode
+            : null;
+        if (hydrationNode) {
+          this.#hydratedNodes.add(hydrationNode);
+          const hydrationTask = Promise.resolve().then(() =>
+            this.#hydrateNode(hydrationNode, props)
+          );
+          this.#trackHydrationTask(activeBranch, hydrationTask);
+          return hydrationNode;
+        }
+      }
+      // @ts-expect-error: The types are different in hydration mode.
+      return new Skip(tagname);
     }
 
     /** @type {JsxElement} */ // @ts-expect-error
