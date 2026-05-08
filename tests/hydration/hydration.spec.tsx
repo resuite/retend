@@ -112,6 +112,29 @@ describe('Hydration', () => {
     expect(document.querySelector('#false-branch')).not.toBeNull();
   });
 
+  it('should preserve SVG namespaces through hydrated If blocks', async () => {
+    const show = Cell.source(true);
+    const template = () => (
+      <svg id="hydrated-svg">
+        {If(show, {
+          true: () => <circle id="hydrated-circle" />,
+          false: () => <rect id="hydrated-rect" />,
+        })}
+      </svg>
+    );
+
+    const { document } = await setupHydration(template);
+    expect(document.querySelector('#hydrated-circle')?.namespaceURI).toBe(
+      'http://www.w3.org/2000/svg'
+    );
+
+    show.set(false);
+
+    expect(document.querySelector('#hydrated-rect')?.namespaceURI).toBe(
+      'http://www.w3.org/2000/svg'
+    );
+  });
+
   it('should hydrate For blocks', async () => {
     const items = Cell.source(['Item 1', 'Item 2']);
     const template = () => (
