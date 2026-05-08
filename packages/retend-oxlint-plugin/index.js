@@ -152,6 +152,198 @@ function getPropsDestructureStatement(component, propsName) {
   return firstStatement;
 }
 
+function isCellFactoryCall(node) {
+  if (node.type !== 'CallExpression') {
+    return false;
+  }
+
+  if (node.callee.type !== 'MemberExpression') {
+    return false;
+  }
+
+  if (node.callee.computed) {
+    return false;
+  }
+
+  if (node.callee.object.type !== 'Identifier') {
+    return false;
+  }
+
+  if (node.callee.object.name !== 'Cell') {
+    return false;
+  }
+
+  if (node.callee.property.type !== 'Identifier') {
+    return false;
+  }
+
+  return (
+    node.callee.property.name === 'source' ||
+    node.callee.property.name === 'derived'
+  );
+}
+
+function isInsideFunction(node) {
+  let parent = node.parent;
+
+  while (parent) {
+    if (
+      parent.type === 'ArrowFunctionExpression' ||
+      parent.type === 'FunctionExpression' ||
+      parent.type === 'FunctionDeclaration'
+    ) {
+      return true;
+    }
+
+    parent = parent.parent;
+  }
+
+  return false;
+}
+
+const noModuleCell = {
+  meta: {
+    docs: {
+      description: 'disallow Cell.source() and Cell.derived() at module scope',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Cells should ideally be declared in the render path. To share access to a cell across multiple distant components, consider a wrapper provider and the scopes API.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (!isCellFactoryCall(node)) {
+          return;
+        }
+
+        if (isInsideFunction(node)) {
+          return;
+        }
+
+        context.report({ node: node.callee.property, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const noModuleJsx = {
+  meta: {
+    docs: {
+      description: 'disallow JSX at module level',
+    },
+    schema: [],
+    messages: {
+      unexpected: 'JSX must be declared within functions.',
+    },
+  },
+  create(context) {
+    return {
+      JSXElement(node) {
+        let parent = node.parent;
+        while (parent) {
+          if (
+            parent.type === 'ArrowFunctionExpression' ||
+            parent.type === 'FunctionExpression' ||
+            parent.type === 'FunctionDeclaration'
+          ) {
+            return;
+          }
+          parent = parent.parent;
+        }
+        context.report({ node, messageId: 'unexpected' });
+      },
+      JSXFragment(node) {
+        let parent = node.parent;
+        while (parent) {
+          if (
+            parent.type === 'ArrowFunctionExpression' ||
+            parent.type === 'FunctionExpression' ||
+            parent.type === 'FunctionDeclaration'
+          ) {
+            return;
+          }
+          parent = parent.parent;
+        }
+        context.report({ node, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const noInlineObjectType = {
+  meta: {
+    docs: {
+      description: 'disallow inline object types',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Use an interface or type statement instead of inline object type.',
+    },
+  },
+  create(context) {
+    const checkParam = (param) => {
+      if (!param) {
+        return;
+      }
+
+      if (
+        param.type === 'Identifier' &&
+        param.typeAnnotation?.type === 'TSTypeAnnotation' &&
+        param.typeAnnotation.typeAnnotation?.type === 'TSTypeLiteral'
+      ) {
+        context.report({
+          node: param.typeAnnotation.typeAnnotation,
+          messageId: 'unexpected',
+        });
+        return;
+      }
+
+      if (param.type === 'AssignmentPattern') {
+        checkParam(param.left);
+      }
+    };
+
+    return {
+      FunctionDeclaration(node) {
+        for (const param of node.params) {
+          checkParam(param);
+        }
+      },
+      ArrowFunctionExpression(node) {
+        for (const param of node.params) {
+          checkParam(param);
+        }
+      },
+      FunctionExpression(node) {
+        for (const param of node.params) {
+          checkParam(param);
+        }
+      },
+      TSTypeLiteral(node) {
+        if (node.parent?.type === 'TSTypeAliasDeclaration') {
+          return;
+        }
+
+        if (node.parent?.type === 'TSTypeAnnotation') {
+          const owner = node.parent.parent;
+          if (
+            owner?.type === 'Identifier' ||
+            owner?.type === 'AssignmentPattern'
+          ) {
+            return;
+          }
+        }
+
+        context.report({ node, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
 const noClassName = {
   meta: {
     docs: {
@@ -1038,6 +1230,9 @@ export default {
     'max-component-lines': maxComponentLines,
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
     'no-classname': noClassName,
+    'no-inline-object-type': noInlineObjectType,
+    'no-module-cell': noModuleCell,
+    'no-module-jsx': noModuleJsx,
     'props-destructure-first': propsDestructureFirst,
     'no-templated-class': noTemplatedClass,
     'no-get-in-derived-async': noGetInDerivedAsync,

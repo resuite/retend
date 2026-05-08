@@ -1,6 +1,6 @@
 {
   "name": "retend-oxlint-plugin",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "private": false,
   "description": "Oxlint rules for Retend projects.",
   "keywords": [

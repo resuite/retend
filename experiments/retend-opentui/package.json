@@ -1,6 +1,6 @@
 {
   "name": "retend-opentui",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "private": false,
   "description": "Retend terminal bindings for OpenTUI.",
   "keywords": [
