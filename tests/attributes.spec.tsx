@@ -184,11 +184,15 @@ describe('Attributes', () => {
         <svg id="unique-svg">
           {If(
             Cell.derived(() => slot.get() === 'first'),
-            () => <UniqueIcon id="icon" />
+            () => (
+              <UniqueIcon id="icon" />
+            )
           )}
           {If(
             Cell.derived(() => slot.get() === 'second'),
-            () => <UniqueIcon id="icon" />
+            () => (
+              <UniqueIcon id="icon" />
+            )
           )}
         </svg>
       );

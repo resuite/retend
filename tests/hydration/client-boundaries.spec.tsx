@@ -5,7 +5,7 @@ import {
   onSetup,
   runPendingSetupEffects,
 } from 'retend';
-import { ClientOnly } from 'retend-server';
+import { ClientOnly, ClientReady } from 'retend-server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { browserSetup, render, vDomSetup } from '../setup.tsx';
@@ -284,6 +284,106 @@ describe('ClientOnly', () => {
       expect(document.querySelector('#fallback')).toBeNull();
       expect(document.querySelector('#delayed')?.textContent).toBe('Ready');
       expect(loaded.get()).toBe(true);
+    });
+  });
+});
+
+describe('ClientReady', () => {
+  describe('SSR (serialization)', () => {
+    vDomSetup({ markDynamicNodes: true });
+
+    it('should render fallback during SSR', () => {
+      const template = () => (
+        <div id="root">
+          <ClientReady fallback={<span id="fallback">Loading...</span>}>
+            <span id="client-content">Client</span>
+          </ClientReady>
+        </div>
+      );
+
+      const rendered = render(template) as unknown as Element;
+      expect(rendered.querySelector('#fallback')).not.toBeNull();
+      expect(rendered.querySelector('#client-content')).toBeNull();
+    });
+  });
+
+  describe('Hydration', () => {
+    browserSetup();
+
+    it('should keep fallback visible until async client content resolves', async () => {
+      const loaded = Cell.source(false);
+
+      const Delayed = () => {
+        const delay = Cell.derivedAsync(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          return 'Ready';
+        });
+
+        return <span id="delayed">{delay}</span>;
+      };
+
+      const Content = () => {
+        onSetup(() => loaded.set(true));
+        return <Delayed />;
+      };
+
+      const template = () => (
+        <div id="root">
+          <ClientReady fallback={<span id="fallback">Boot</span>}>
+            <Content />
+          </ClientReady>
+        </div>
+      );
+
+      const { document } = await setupHydration(template);
+      await runPendingSetupEffects();
+
+      expect(document.querySelector('#fallback')).not.toBeNull();
+      expect(document.querySelector('#delayed')).toBeNull();
+      expect(loaded.get()).toBe(false);
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await runPendingSetupEffects();
+
+      expect(document.querySelector('#fallback')).toBeNull();
+      expect(document.querySelector('#delayed')?.textContent).toBe('Ready');
+      expect(loaded.get()).toBe(true);
+    });
+  });
+
+  describe('SPA (no hydration)', () => {
+    browserSetup();
+
+    it('should wait for initial async client content before removing fallback', async () => {
+      const Delayed = () => {
+        const delay = Cell.derivedAsync(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 30));
+          return 'Ready';
+        });
+
+        return <span id="spa-delayed">{delay}</span>;
+      };
+
+      const template = () => (
+        <div id="root">
+          <ClientReady fallback={<span id="spa-fallback">Boot</span>}>
+            <Delayed />
+          </ClientReady>
+        </div>
+      );
+
+      const root = render(template);
+      document.body.append(root);
+      await runPendingSetupEffects();
+
+      expect(document.querySelector('#spa-fallback')).not.toBeNull();
+      expect(document.querySelector('#spa-delayed')).toBeNull();
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await runPendingSetupEffects();
+
+      expect(document.querySelector('#spa-fallback')).toBeNull();
+      expect(document.querySelector('#spa-delayed')?.textContent).toBe('Ready');
     });
   });
 });

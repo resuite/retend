@@ -1,6 +1,6 @@
 ---
-title: 'ClientOnly'
-description: 'Render UI only in the browser for API-dependent components.'
+title: 'ClientOnly and ClientReady'
+description: 'Render UI only in the browser, with optional readiness gating for async client content.'
 ---
 
 # ClientOnly
@@ -28,6 +28,24 @@ function App() {
 ```
 
 During SSG, the `fallback` is rendered instead. Once the JavaScript loads and the component mounts in the browser, the real `children` replace the fallback.
+
+## ClientReady
+
+Use `<ClientReady>` when the browser-only subtree also has async work that should finish before the fallback disappears. It skips the subtree during SSG like `<ClientOnly>`, then keeps showing the fallback until the client subtree has mounted and its initial `<Await>` boundary has resolved.
+
+```tsx
+import { ClientReady } from 'retend-server';
+
+function App() {
+  return (
+    <ClientReady fallback={<BootScreen />}>
+      <Dashboard />
+    </ClientReady>
+  );
+}
+```
+
+This is useful for app shells, boot screens, and browser-only dashboards where showing an empty or half-prepared client subtree would be more distracting than keeping the loading UI visible for a little longer.
 
 ## When to Use It
 

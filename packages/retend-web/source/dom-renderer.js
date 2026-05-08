@@ -399,7 +399,9 @@ export class DOMRenderer {
 
         const staticNode = this.#table.get(index);
         const hydrationNode =
-          staticNode && !this.#hydratedNodes.has(staticNode) ? staticNode : null;
+          staticNode && !this.#hydratedNodes.has(staticNode)
+            ? staticNode
+            : null;
         if (hydrationNode) {
           this.#hydratedNodes.add(hydrationNode);
           const hydrationTask = Promise.resolve().then(() =>
