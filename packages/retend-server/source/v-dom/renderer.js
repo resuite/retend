@@ -3,6 +3,7 @@
 /** @import { JSX } from 'retend/jsx-runtime'; */
 
 import {
+  Block,
   Cell,
   createNodesFromTemplate,
   normalizeJsxChild,
@@ -283,6 +284,8 @@ export class VDOMRenderer {
 /** @param {any} value  */
 function isReactiveChild(value) {
   if (Cell.isCell(value)) return true;
+  if (value instanceof Block) return value.kind !== 0;
+  if (typeof value === 'function') return true;
   if (Array.isArray(value)) {
     for (const c of value) if (isReactiveChild(c)) return true;
   }

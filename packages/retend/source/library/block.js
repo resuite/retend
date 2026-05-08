@@ -41,12 +41,11 @@ export class Block {
       );
     }
 
+    const tagname = /** @type {string} */ (tagOrFn);
+    let container = renderer.createContainer(tagname, props);
     const children = createNodesFromTemplate(props.children, renderer);
     props.children = children;
-    let container = renderer.createContainer(
-      /** @type {string} */ (tagOrFn),
-      props
-    );
+
     for (const key in props) {
       if (key === 'children') continue;
       const value = props[key];

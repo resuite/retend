@@ -387,7 +387,9 @@ export class DOMRenderer {
               : null;
           if (hydrationNode) {
             this.#hydratedNodes.add(hydrationNode);
-            const hydrationTask = this.#hydrateNode(hydrationNode, props);
+            const hydrationTask = Promise.resolve().then(() =>
+              this.#hydrateNode(hydrationNode, props)
+            );
             this.#trackHydrationTask(activeBranch, hydrationTask);
             return hydrationNode;
           }
