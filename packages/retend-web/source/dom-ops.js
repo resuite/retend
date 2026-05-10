@@ -20,7 +20,7 @@ export function reconcile(segment, options, renderer) {
     onBeforeNodeRemove,
     retrieveOrSetItemKey,
     cacheFromLastRun,
-    onBeforeNodeMove,
+    onBeforeNodesMove,
     nodeLookAhead,
     newCache,
     newList,
@@ -98,7 +98,7 @@ export function reconcile(segment, options, renderer) {
         if (hasViableMoveAnchor) {
           const fullNodeSet = newCache.get(itemKey)?.nodes;
           if (fullNodeSet) {
-            onBeforeNodeMove?.(nodes);
+            onBeforeNodesMove?.(nodes);
             lastItemLastNode.after(...fullNodeSet);
           }
 
@@ -128,13 +128,13 @@ export function reconcile(segment, options, renderer) {
     }
 
     if (!batchTail) {
-      onBeforeNodeMove?.(nodes);
+      onBeforeNodesMove?.(nodes);
       lastInserted.after(.../** @type {*} */ (nodes));
     } else {
       const newPtr = batchTail;
       lastInserted.after(batchAddLike);
       batchTail = null;
-      onBeforeNodeMove?.(nodes);
+      onBeforeNodesMove?.(nodes);
       newPtr.after(.../** @type {*} */ (nodes));
     }
     lastInserted = nodes[nodes.length - 1] ?? lastInserted;

@@ -46,7 +46,7 @@ export interface ReconcilerOptions<Node> {
   /** Callback invoked just before a node is removed from the host environment. */
   onBeforeNodeRemove?: (node: Node, fromIndex: number) => void;
   /** Callback invoked just before a set of nodes are moved within the host environment. */
-  onBeforeNodeMove?: (nodes: Node[]) => void;
+  onBeforeNodesMove?: (nodes: Node[]) => void;
   /** The cache of data from the previous rendering run. */
   cacheFromLastRun: Map<any, ForCachedData<Node>>;
   /** The new cache being built during the current rendering run. */

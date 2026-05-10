@@ -114,6 +114,31 @@ const runTests = () => {
     expect(getTextContent(result)).toBe('1234');
   });
 
+  it('should call onBeforeNodesMove when keyed items move', () => {
+    const items = Cell.source([
+      { id: 1, text: 'First' },
+      { id: 2, text: 'Second' },
+    ]);
+    const movedNodes: unknown[][] = [];
+    const App = () => (
+      <div>
+        {For(
+          items,
+          (item) => (
+            <span>{item.text}</span>
+          ),
+          { key: 'id', onBeforeNodesMove: (nodes) => movedNodes.push(nodes) }
+        )}
+      </div>
+    );
+    render(App);
+
+    items.set([...items.get()].toReversed());
+
+    expect(movedNodes.length).toBeGreaterThan(0);
+    expect(movedNodes[0].length).toBe(1);
+  });
+
   it('should maintain element identity when items are reordered', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;

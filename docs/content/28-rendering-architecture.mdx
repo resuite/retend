@@ -156,7 +156,7 @@ The `reconcile` method implements Retend's efficient list diffing. The `Reconcil
 interface ReconcilerOptions<Node> {
   retrieveOrSetItemKey: (item: any, i: number) => any;
   onBeforeNodeRemove?: (node: Node, fromIndex: number) => void;
-  onBeforeNodeMove?: (nodes: Node[]) => void;
+  onBeforeNodesMove?: (nodes: Node[]) => void;
   cacheFromLastRun: Map<any, ForCachedData<Node>>;
   newCache: Map<any, ForCachedData<Node>>;
   newList: Iterable<any>;
