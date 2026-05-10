@@ -6,8 +6,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/client-only.d.ts",
-      "import": "./dist/client-only.js"
+      "types": "./dist/client-boundaries.d.ts",
+      "import": "./dist/client-boundaries.js"
     },
     "./server": {
       "types": "./dist/server.d.ts",
