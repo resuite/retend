@@ -363,6 +363,7 @@ export class DOMRenderer {
     let ns;
     if (tagname === 'svg') ns = SVG_NAMESPACE;
     else if (tagname === 'math') ns = MATH_NAMESPACE;
+    else if (tagname === 'retend-teleport') ns = HTML_NAMESPACE;
     else ns = defaultNamespace;
 
     if (
