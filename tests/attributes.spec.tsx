@@ -170,6 +170,10 @@ describe('Attributes', () => {
 
       expect(group?.namespaceURI).toBe(SVG_NAMESPACE);
       expect(circle?.namespaceURI).toBe(SVG_NAMESPACE);
+      expect(
+        Reflect.get(element.childNodes[0], '__retendTeleportedContainer')
+          ?.namespaceURI
+      ).toBe(HTML_NAMESPACE);
     });
 
     it('should preserve SVG namespaces for Unique components after moves', async () => {
