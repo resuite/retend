@@ -24,6 +24,7 @@ import { DOMRenderer } from 'retend-web';
  * @property {string} [transformOrigin] The transform origin used during the transition.
  * @property {boolean} [maintainWidthDuringTransition] If true, disables horizontal scaling during transitions.
  * @property {boolean} [maintainHeightDuringTransition] If true, disables vertical scaling during transitions.
+ * @property {boolean} [respectParentTransform] If false, ignores parent animations and transforms during transitions.
  */
 
 /**
@@ -161,6 +162,7 @@ function restoreTransition(elementState, handle, options) {
     transformOrigin = 'top left',
     maintainWidthDuringTransition,
     maintainHeightDuringTransition,
+    respectParentTransform = true,
   } = options;
   const elements = getHandleElements(handle);
   if (!elements.length) return;
@@ -221,9 +223,9 @@ function restoreTransition(elementState, handle, options) {
   // of the target element, making the bounding rect incorrect.
   // We need to recompute the new rect after all parent animations
   // have been scrubbed to the expected point on the document timeline.
-  const parentAnimations = [
-    ...new Set(elements.flatMap((element) => getAllParentAnimations(element))),
-  ];
+  const parentAnimations = respectParentTransform
+    ? [...new Set(elements.flatMap((element) => getAllParentAnimations(element)))]
+    : [];
   for (const animation of parentAnimations) {
     const currentTime = Number(animation.currentTime);
     animation.currentTime = currentTime + transition.duration;
@@ -245,8 +247,11 @@ function restoreTransition(elementState, handle, options) {
       if (newRect.width === 0 && !maintainWidthDuringTransition) continue;
       if (newRect.height === 0 && !maintainHeightDuringTransition) continue;
 
-      const parentTransform = getParentTransformMatrix(element);
+      const parentTransform = respectParentTransform
+        ? getParentTransformMatrix(element)
+        : new DOMMatrix();
       const isInvertible =
+        respectParentTransform &&
         Math.abs(
           parentTransform.a * parentTransform.d -
             parentTransform.b * parentTransform.c
