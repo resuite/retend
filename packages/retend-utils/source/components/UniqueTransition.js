@@ -224,7 +224,11 @@ function restoreTransition(elementState, handle, options) {
   // We need to recompute the new rect after all parent animations
   // have been scrubbed to the expected point on the document timeline.
   const parentAnimations = respectParentTransform
-    ? [...new Set(elements.flatMap((element) => getAllParentAnimations(element)))]
+    ? [
+        ...new Set(
+          elements.flatMap((element) => getAllParentAnimations(element))
+        ),
+      ]
     : [];
   for (const animation of parentAnimations) {
     const currentTime = Number(animation.currentTime);

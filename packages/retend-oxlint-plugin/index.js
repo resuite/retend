@@ -415,7 +415,31 @@ const propsDestructureFirst = {
           );
 
           if (!propsStatement) {
-            context.report({ node: component.body, messageId: 'destructure' });
+            let reported = false;
+            for (const statement of component.body.body) {
+              walkOwnBody(statement, (current) => {
+                if (current.type !== 'Identifier') {
+                  return true;
+                }
+
+                if (current.name !== propsName) {
+                  return true;
+                }
+
+                if (current.parent?.type === 'JSXSpreadAttribute') {
+                  return true;
+                }
+
+                context.report({ node: current, messageId: 'destructure' });
+                reported = true;
+                return false;
+              });
+
+              if (reported) {
+                break;
+              }
+            }
+
             continue;
           }
 
