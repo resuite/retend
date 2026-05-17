@@ -112,8 +112,11 @@ This component must be used within a `createUnique` component. See the [Unique I
 - `transitionTimingFunction` (string, default `'ease'`) — Easing function.
 - `maintainWidthDuringTransition` (boolean, optional) — Disable horizontal scaling during transitions.
 - `maintainHeightDuringTransition` (boolean, optional) — Disable vertical scaling during transitions.
+- `topLayer` (boolean, optional) — Place children in the browser top layer during transitions.
 - `onStart` (() => void, optional) — Called once when a transition starts.
 - `onEnd` (() => void, optional) — Called once when a transition ends.
+
+Generated transition styles are inserted before existing adopted styles, so app-level adopted styles can override them when needed.
 
 ### Basic Usage
 
