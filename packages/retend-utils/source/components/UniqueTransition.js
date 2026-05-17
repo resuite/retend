@@ -165,8 +165,8 @@ function restoreTransition(elementState, handle, options) {
     transitionDuration,
     transitionTimingFunction,
     transformOrigin = 'top left',
-    maintainWidthDuringTransition,
-    maintainHeightDuringTransition,
+    maintainWidthDuringTransition: maintainWidth,
+    maintainHeightDuringTransition: maintainHeight,
     respectParentTransform = true,
     onStart,
     onEnd,
@@ -227,8 +227,8 @@ function restoreTransition(elementState, handle, options) {
       if (!oldRect) continue;
       const newRect = nextRects.get(element);
       if (!newRect) continue;
-      if (newRect.width === 0 && !maintainWidthDuringTransition) continue;
-      if (newRect.height === 0 && !maintainHeightDuringTransition) continue;
+      if (newRect.width === 0 && !maintainWidth) continue;
+      if (newRect.height === 0 && !maintainHeight) continue;
 
       const parentTransform = respectParentTransform
         ? getParentTransformMatrix(element)
@@ -239,13 +239,11 @@ function restoreTransition(elementState, handle, options) {
           parentTransform.a * parentTransform.d -
             parentTransform.b * parentTransform.c
         ) > 1e-10;
-      const displacement = getInitialRelativeTransform(oldRect, newRect, {
-        maintainWidth: maintainWidthDuringTransition,
-        maintainHeight: maintainHeightDuringTransition,
-      });
+      const options = { maintainWidth, maintainHeight };
+      const transform = getInitialRelativeTransform(oldRect, newRect, options);
       const initialTransform = isInvertible
-        ? `${parentTransform.inverse().toString()} ${displacement}`
-        : displacement;
+        ? `${parentTransform.inverse().toString()} ${transform}`
+        : transform;
       const id = crypto.randomUUID();
       cssText += `[data-transitioning="${id}"] {
         transform: ${initialTransform};
