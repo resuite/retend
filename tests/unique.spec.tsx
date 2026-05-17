@@ -11,6 +11,7 @@ import {
   onSetup,
   runPendingSetupEffects,
 } from 'retend';
+import { UniqueTransition } from 'retend-utils/components';
 import { ShadowRoot } from 'retend-web';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -114,6 +115,56 @@ describe('Unique', () => {
         'Showing content: false, Unique Data ||'
       );
       body.replaceChildren();
+    });
+
+    it('should call UniqueTransition lifecycle callbacks once per transition', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const onStart = vi.fn();
+      const onEnd = vi.fn();
+      const getBoundingClientRect = vi
+        .spyOn(window.HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(() => new window.DOMRect(0, 0, 20, 20));
+
+      const UniqueContent = createUnique(() => {
+        return (
+          <UniqueTransition
+            transitionDuration="1ms"
+            onStart={onStart}
+            onEnd={onEnd}
+          >
+            <div>First</div>
+            <div>Second</div>
+          </UniqueTransition>
+        );
+      });
+
+      const { body } = window.document;
+      const show = Cell.source(false);
+      const element = render(
+        <div>
+          <UniqueContent id={uuid} />
+          {If(show, () => (
+            <UniqueContent id={uuid} />
+          ))}
+        </div>
+      );
+
+      try {
+        body.append(element);
+        await runPendingSetupEffects();
+
+        show.set(true);
+        await runPendingSetupEffects();
+        await timeout(50);
+
+        expect(onStart).toHaveBeenCalledTimes(1);
+        expect(onEnd).toHaveBeenCalledTimes(1);
+      } finally {
+        getBoundingClientRect.mockRestore();
+        body.replaceChildren();
+      }
     });
 
     it('should not rerun onSetup when a Unique component moves repeatedly', async () => {

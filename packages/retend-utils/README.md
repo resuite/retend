@@ -433,6 +433,8 @@ Parameters:
   - `transitionTimingFunction`: Optional. The easing function for the transition (e.g., `'ease-in-out'`). Default: `'ease'`.
   - `maintainWidthDuringTransition`: Optional. If true, disables horizontal scaling during transitions.
   - `maintainHeightDuringTransition`: Optional. If true, disables vertical scaling during transitions.
+  - `onStart`: Optional. Called once when a transition starts.
+  - `onEnd`: Optional. Called once when a transition ends.
 
 Returns:
 

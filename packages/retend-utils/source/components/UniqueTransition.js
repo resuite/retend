@@ -25,6 +25,8 @@ import { DOMRenderer } from 'retend-web';
  * @property {boolean} [maintainWidthDuringTransition] If true, disables horizontal scaling during transitions.
  * @property {boolean} [maintainHeightDuringTransition] If true, disables vertical scaling during transitions.
  * @property {boolean} [respectParentTransform] If false, ignores parent animations and transforms during transitions.
+ * @property {() => void} [onStart] Called when the transition starts.
+ * @property {() => void} [onEnd] Called when the transition ends.
  */
 
 /**
@@ -163,6 +165,8 @@ function restoreTransition(elementState, handle, options) {
     maintainWidthDuringTransition,
     maintainHeightDuringTransition,
     respectParentTransform = true,
+    onStart,
+    onEnd,
   } = options;
   const elements = getHandleElements(handle);
   if (!elements.length) return;
@@ -243,6 +247,8 @@ function restoreTransition(elementState, handle, options) {
     for (const anim of parentAnimations) {
       anim.currentTime = Number(anim.currentTime) - transition.duration;
     }
+    /** @type {Promise<Animation>[]} */
+    const finishedAnimations = [];
     for (const element of elements) {
       const oldRect = rects.get(element);
       if (!oldRect) continue;
@@ -281,14 +287,21 @@ function restoreTransition(elementState, handle, options) {
       if (element instanceof HTMLElement) {
         element.style.removeProperty('transform');
       }
-      animation.finished.finally(() => {
-        animation.cancel();
-        element.removeAttribute('data-transitioning');
-        if (element instanceof HTMLElement) {
-          element.style.removeProperty('transform-origin');
-        }
-      });
+      finishedAnimations.push(
+        animation.finished.finally(() => {
+          animation.cancel();
+          element.removeAttribute('data-transitioning');
+          if (element instanceof HTMLElement) {
+            element.style.removeProperty('transform-origin');
+          }
+        })
+      );
     }
+
+    onStart?.();
+    Promise.allSettled(finishedAnimations).then(() => {
+      onEnd?.();
+    });
   });
 }
 

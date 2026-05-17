@@ -551,6 +551,8 @@ A component that animates the children of a `createUnique(...)` component with s
   - `transitionTimingFunction`: Optional. String (e.g., 'ease-in-out') - Easing function. Default: 'ease'
   - `maintainWidthDuringTransition`: Optional. Boolean - Disables horizontal scaling. Default: false
   - `maintainHeightDuringTransition`: Optional. Boolean - Disables vertical scaling. Default: false
+  - `onStart`: Optional. Function - Called once when a transition starts.
+  - `onEnd`: Optional. Function - Called once when a transition ends.
 
 **Returns:**
 
