@@ -25,6 +25,7 @@ import { DOMRenderer } from 'retend-web';
  * @property {boolean} [maintainWidthDuringTransition] If true, disables horizontal scaling during transitions.
  * @property {boolean} [maintainHeightDuringTransition] If true, disables vertical scaling during transitions.
  * @property {boolean} [respectParentTransform] If false, ignores parent animations and transforms during transitions.
+ * @property {boolean} [topLayer] If true, the children are placed in the top layer during transitions.
  * @property {() => void} [onStart] Called when the transition starts.
  * @property {() => void} [onEnd] Called when the transition ends.
  */
@@ -164,10 +165,11 @@ function restoreTransition(elementState, handle, options) {
   const {
     transitionDuration,
     transitionTimingFunction,
-    transformOrigin = 'top left',
+    transformOrigin: origin = 'top left',
     maintainWidthDuringTransition: maintainWidth,
     maintainHeightDuringTransition: maintainHeight,
     respectParentTransform = true,
+    topLayer,
     onStart,
     onEnd,
   } = options;
@@ -245,19 +247,29 @@ function restoreTransition(elementState, handle, options) {
         ? `${parentTransform.inverse().toString()} ${transform}`
         : transform;
       const id = crypto.randomUUID();
-      cssText += `[data-transitioning="${id}"] {
-        transform: ${initialTransform};
-        transform-origin: ${transformOrigin};
-      }\n`;
+      cssText += createCss(id, initialTransform, origin, topLayer, newRect);
       transitionRules.set(element, { id, initialTransform });
     }
 
     if (transitionRules.size) {
       transitionStylesheet.replaceSync(cssText);
-      document.adoptedStyleSheets.push(transitionStylesheet);
+      document.adoptedStyleSheets = [
+        transitionStylesheet,
+        ...document.adoptedStyleSheets,
+      ];
     }
 
     for (const [element, { id, initialTransform }] of transitionRules) {
+      /** @type {string | null} */
+      let prevPopoverValue = null;
+      let previouslyOpen = false;
+      if (topLayer && element instanceof HTMLElement) {
+        prevPopoverValue = element.popover;
+        previouslyOpen = element.matches(':popover-open');
+        element.popover = 'manual';
+        if (!previouslyOpen) element.showPopover();
+      }
+
       element.setAttribute('data-transitioning', id);
       const keyframes = { transform: [initialTransform, 'none'] };
       const animation = element.animate(keyframes, transition);
@@ -265,7 +277,14 @@ function restoreTransition(elementState, handle, options) {
       const animationFinished = animation.finished.finally(() => {
         animation.cancel();
         element.removeAttribute('data-transitioning');
+        if (topLayer && element instanceof HTMLElement) {
+          if (prevPopoverValue !== null) {
+            element.popover = prevPopoverValue;
+            if (!previouslyOpen) element.hidePopover();
+          } else element.removeAttribute('popover');
+        }
       });
+
       finishedAnimations.push(animationFinished);
     }
 
@@ -277,6 +296,24 @@ function restoreTransition(elementState, handle, options) {
       onEnd?.();
     });
   });
+}
+
+/**
+ * @param {string} id
+ * @param {string} initialTransform
+ * @param {string} transformOrigin
+ * @param {boolean | undefined} topLayer
+ * @param {DOMRect} newRect
+ */
+function createCss(id, initialTransform, transformOrigin, topLayer, newRect) {
+  let cssText = `[data-transitioning="${id}"] {transform:${initialTransform};transform-origin:${transformOrigin};`;
+  if (topLayer) {
+    cssText += `
+      width:${newRect.width}px !important;height:${newRect.height}px !important;top:${newRect.top}px !important;left:${newRect.left}px !important;
+      :where(&) {background-color:transparent;color:inherit;overflow:visible;margin:0;border:0;padding:0;}`;
+  }
+  cssText += '}';
+  return cssText;
 }
 
 /**
