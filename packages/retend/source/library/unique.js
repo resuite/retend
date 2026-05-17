@@ -320,7 +320,9 @@ export function createUnique(renderFn) {
             }
           }
         };
-        host.addEventListener('retend:activate', teardown, { once: true });
+        const hasRestoreTarget = instance.journey.length > 1;
+        if (hasRestoreTarget) queueMicrotask(teardown);
+        else host.addEventListener('retend:activate', teardown, { once: true });
       };
     });
 
