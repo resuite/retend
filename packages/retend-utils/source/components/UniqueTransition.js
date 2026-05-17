@@ -89,6 +89,9 @@ function parseTransitionOptions(
       : Number(durationRaw.slice(0, -1)) * 1000;
 
     easing = styles.getPropertyValue(easingVar);
+
+    element.style.removeProperty(durationVar);
+    element.style.removeProperty(easingVar);
   } else {
     duration = transitionDuration.endsWith('ms')
       ? Number(transitionDuration.slice(0, -2))
@@ -180,41 +183,10 @@ function restoreTransition(elementState, handle, options) {
   }
   if (!anchor) return;
 
-  const { rects, animationState, transitions } = elementState;
+  const { rects } = elementState;
 
   requestAnimationFrame(() => {
-    const newAnimations = elements.flatMap((element) => {
-      return element.getAnimations({ subtree: true });
-    });
-
-    for (const newAnimation of newAnimations) {
-      if (!(newAnimation instanceof CSSAnimation)) continue;
-
-      const savedState = animationState.find((s) => {
-        if (!(newAnimation.effect instanceof KeyframeEffect)) return false;
-        return (
-          s.animationName === newAnimation.animationName &&
-          s.target === newAnimation.effect.target
-        );
-      });
-      if (savedState) {
-        newAnimation.currentTime = savedState.currentTime;
-      }
-    }
-
-    for (const transition of transitions) {
-      if (
-        !(transition.effect instanceof KeyframeEffect) ||
-        !transition.effect.target
-      ) {
-        continue;
-      }
-      const target = transition.effect.target;
-      target.animate(
-        transition.effect.getKeyframes(),
-        transition.effect.getTiming()
-      );
-    }
+    restoreSubtreeAnimationsAndTransitions(elements, elementState);
   });
 
   const transition = parseTransitionOptions(
@@ -228,11 +200,7 @@ function restoreTransition(elementState, handle, options) {
   // We need to recompute the new rect after all parent animations
   // have been scrubbed to the expected point on the document timeline.
   const parentAnimations = respectParentTransform
-    ? [
-        ...new Set(
-          elements.flatMap((element) => getAllParentAnimations(element))
-        ),
-      ]
+    ? [...new Set(elements.flatMap(getAllParentAnimations))]
     : [];
   for (const animation of parentAnimations) {
     const currentTime = Number(animation.currentTime);
@@ -247,8 +215,13 @@ function restoreTransition(elementState, handle, options) {
     for (const anim of parentAnimations) {
       anim.currentTime = Number(anim.currentTime) - transition.duration;
     }
+    let cssText = '';
     /** @type {Promise<Animation>[]} */
     const finishedAnimations = [];
+    /** @type {Map<Element, { initialTransform: string, id: string }>} */
+    const transitionRules = new Map();
+    const transitionStylesheet = new CSSStyleSheet();
+
     for (const element of elements) {
       const oldRect = rects.get(element);
       if (!oldRect) continue;
@@ -270,39 +243,78 @@ function restoreTransition(elementState, handle, options) {
         maintainWidth: maintainWidthDuringTransition,
         maintainHeight: maintainHeightDuringTransition,
       });
-      let initialTransform = displacement;
-      if (isInvertible) {
-        initialTransform = `${parentTransform.inverse().toString()} ${displacement}`;
-      }
+      const initialTransform = isInvertible
+        ? `${parentTransform.inverse().toString()} ${displacement}`
+        : displacement;
+      const id = crypto.randomUUID();
+      cssText += `[data-transitioning="${id}"] {
+        transform: ${initialTransform};
+        transform-origin: ${transformOrigin};
+      }\n`;
+      transitionRules.set(element, { id, initialTransform });
+    }
 
-      if (element instanceof HTMLElement) {
-        element.style.setProperty('transform', initialTransform);
-        element.style.setProperty('transform-origin', transformOrigin);
-      }
-      element.setAttribute('data-transitioning', '');
-      const animation = element.animate(
-        { transform: [initialTransform, 'none'] },
-        transition
-      );
-      if (element instanceof HTMLElement) {
-        element.style.removeProperty('transform');
-      }
-      finishedAnimations.push(
-        animation.finished.finally(() => {
-          animation.cancel();
-          element.removeAttribute('data-transitioning');
-          if (element instanceof HTMLElement) {
-            element.style.removeProperty('transform-origin');
-          }
-        })
-      );
+    if (transitionRules.size) {
+      transitionStylesheet.replaceSync(cssText);
+      document.adoptedStyleSheets.push(transitionStylesheet);
+    }
+
+    for (const [element, { id, initialTransform }] of transitionRules) {
+      element.setAttribute('data-transitioning', id);
+      const keyframes = { transform: [initialTransform, 'none'] };
+      const animation = element.animate(keyframes, transition);
+
+      const animationFinished = animation.finished.finally(() => {
+        animation.cancel();
+        element.removeAttribute('data-transitioning');
+      });
+      finishedAnimations.push(animationFinished);
     }
 
     onStart?.();
     Promise.allSettled(finishedAnimations).then(() => {
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => {
+        return s !== transitionStylesheet;
+      });
       onEnd?.();
     });
   });
+}
+
+/**
+ * @param {Element[]} elements
+ * @param {ElementUIState} elementState
+ */
+function restoreSubtreeAnimationsAndTransitions(elements, elementState) {
+  const { animationState, transitions } = elementState;
+
+  const newAnimations = elements.flatMap((element) => {
+    return element.getAnimations({ subtree: true });
+  });
+
+  for (const newAnimation of newAnimations) {
+    if (!(newAnimation instanceof CSSAnimation)) continue;
+
+    const savedState = animationState.find((s) => {
+      if (!(newAnimation.effect instanceof KeyframeEffect)) return false;
+      return (
+        s.animationName === newAnimation.animationName &&
+        s.target === newAnimation.effect.target
+      );
+    });
+    if (savedState) newAnimation.currentTime = savedState.currentTime;
+  }
+
+  for (const transition of transitions) {
+    if (!(transition.effect instanceof KeyframeEffect)) continue;
+    if (!transition.effect.target) continue;
+
+    const target = transition.effect.target;
+    target.animate(
+      transition.effect.getKeyframes(),
+      transition.effect.getTiming()
+    );
+  }
 }
 
 /**
