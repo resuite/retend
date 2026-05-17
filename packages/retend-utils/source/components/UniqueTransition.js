@@ -56,50 +56,34 @@ function getInitialRelativeTransform(from, to, options = {}) {
   return `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
 }
 
-const IS_DYNAMIC_CSS_EXPR = /(--)|(^calc\()/;
-
 /**
  *
  * @param {string | undefined} transitionDuration
- * @param {string | undefined} transitionTimingFunction
  * @param {HTMLElement} element
  */
-function parseTransitionOptions(
-  transitionDuration,
-  transitionTimingFunction,
-  element
-) {
+function parseTransitionDuration(transitionDuration, element) {
   let duration = 0;
-  let easing = transitionTimingFunction ?? 'ease';
 
-  if (!transitionDuration) return { duration, easing };
-
-  if (!transitionDuration.endsWith('s') || IS_DYNAMIC_CSS_EXPR.test(easing)) {
+  if (!transitionDuration) return duration;
+  if (!transitionDuration.endsWith('s')) {
     const durationVar = '--unique-transition-duration';
-    const easingVar = '--unique-transition-easing';
-
     // Allows us to dynamically resolve the duration, so
     // calc() or css vars can be passed in.
     element.style.setProperty(durationVar, transitionDuration);
-    element.style.setProperty(easingVar, easing);
-
     const styles = getComputedStyle(element);
     const durationRaw = styles.getPropertyValue(durationVar);
     duration = durationRaw.endsWith('ms')
       ? Number(durationRaw.slice(0, -2))
       : Number(durationRaw.slice(0, -1)) * 1000;
 
-    easing = styles.getPropertyValue(easingVar);
-
     element.style.removeProperty(durationVar);
-    element.style.removeProperty(easingVar);
   } else {
     duration = transitionDuration.endsWith('ms')
       ? Number(transitionDuration.slice(0, -2))
       : Number(transitionDuration.slice(0, -1)) * 1000;
   }
 
-  return { duration, easing };
+  return duration;
 }
 
 /**
@@ -163,8 +147,8 @@ function saveState(handle) {
  */
 function restoreTransition(elementState, handle, options) {
   const {
-    transitionDuration,
-    transitionTimingFunction,
+    transitionDuration = '200ms',
+    transitionTimingFunction = 'ease',
     transformOrigin: origin = 'top left',
     maintainWidthDuringTransition: maintainWidth,
     maintainHeightDuringTransition: maintainHeight,
@@ -191,11 +175,7 @@ function restoreTransition(elementState, handle, options) {
     restoreSubtreeAnimationsAndTransitions(elements, elementState);
   });
 
-  const transition = parseTransitionOptions(
-    transitionDuration,
-    transitionTimingFunction,
-    anchor
-  );
+  const duration = parseTransitionDuration(transitionDuration, anchor);
 
   // Animations on ancestors of the target may modify the positioning
   // of the target element, making the bounding rect incorrect.
@@ -206,23 +186,23 @@ function restoreTransition(elementState, handle, options) {
     : [];
   for (const animation of parentAnimations) {
     const currentTime = Number(animation.currentTime);
-    animation.currentTime = currentTime + transition.duration;
+    animation.currentTime = currentTime + duration;
   }
 
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     const nextRects = new Map();
     for (const element of elements) {
       nextRects.set(element, element.getBoundingClientRect());
     }
     for (const anim of parentAnimations) {
-      anim.currentTime = Number(anim.currentTime) - transition.duration;
+      anim.currentTime = Number(anim.currentTime) - duration;
     }
     let cssText = '';
     /** @type {Promise<Animation>[]} */
     const finishedAnimations = [];
-    /** @type {Map<Element, { initialTransform: string, id: string }>} */
-    const transitionRules = new Map();
-    const transitionStylesheet = new CSSStyleSheet();
+    /** @type {Map<Element, string>} */
+    const transitionIds = new Map();
+    const stylesheet = new CSSStyleSheet();
 
     for (const element of elements) {
       const oldRect = rects.get(element);
@@ -243,45 +223,61 @@ function restoreTransition(elementState, handle, options) {
         ) > 1e-10;
       const options = { maintainWidth, maintainHeight };
       const transform = getInitialRelativeTransform(oldRect, newRect, options);
-      const initialTransform = isInvertible
+      const initTransform = isInvertible
         ? `${parentTransform.inverse().toString()} ${transform}`
         : transform;
       const id = crypto.randomUUID();
-      cssText += createCss(id, initialTransform, origin, topLayer, newRect);
-      transitionRules.set(element, { id, initialTransform });
+      transitionIds.set(element, id);
+      cssText += `
+[data-transitioning="${id}"] {
+  transform-origin:${origin};
+  animation: animate-${id} ${transitionDuration} ${transitionTimingFunction} backwards !important;
+}
+[data-transitioning="${id}"][data-top-layer] {
+  width:${newRect.width}px !important;
+  height:${newRect.height}px !important;
+  top:${newRect.top}px !important;
+  left:${newRect.left}px !important;
+}
+:where([data-transitioning="${id}"]) {
+  background-color:transparent;
+  color:inherit;
+  overflow:visible;
+  margin:0;
+  border:0;
+  padding:0;
+}
+@keyframes animate-${id} {
+  from { transform: ${initTransform}; }
+  to { transform: none; }
+}`;
     }
 
-    if (transitionRules.size) {
-      transitionStylesheet.replaceSync(cssText);
-      document.adoptedStyleSheets = [
-        transitionStylesheet,
-        ...document.adoptedStyleSheets,
-      ];
+    if (transitionIds.size) {
+      stylesheet.replaceSync(cssText);
+      const stylesheets = [stylesheet, ...document.adoptedStyleSheets];
+      document.adoptedStyleSheets = stylesheets;
     }
 
-    for (const [element, { id, initialTransform }] of transitionRules) {
-      /** @type {string | null} */
-      let prevPopoverValue = null;
-      let previouslyOpen = false;
+    for (const [element, id] of transitionIds) {
+      element.setAttribute('data-transitioning', id);
       if (topLayer && element instanceof HTMLElement) {
-        prevPopoverValue = element.popover;
-        previouslyOpen = element.matches(':popover-open');
-        element.popover = 'manual';
-        if (!previouslyOpen) element.showPopover();
+        if (element.hasAttribute('popover')) elementCannotBePromoted();
+        else {
+          element.setAttribute('popover', 'manual');
+          element.setAttribute('data-top-layer', 'true');
+          element.showPopover();
+        }
       }
 
-      element.setAttribute('data-transitioning', id);
-      const keyframes = { transform: [initialTransform, 'none'] };
-      const animation = element.animate(keyframes, transition);
-
+      const [animation] = element.getAnimations(); // guaranteed to be the correct animation
+      if (!animation) continue;
       const animationFinished = animation.finished.finally(() => {
         animation.cancel();
         element.removeAttribute('data-transitioning');
-        if (topLayer && element instanceof HTMLElement) {
-          if (prevPopoverValue !== null) {
-            element.popover = prevPopoverValue;
-            if (!previouslyOpen) element.hidePopover();
-          } else element.removeAttribute('popover');
+        if (topLayer && element.hasAttribute('data-top-layer')) {
+          element.removeAttribute('data-top-layer');
+          element.removeAttribute('popover');
         }
       });
 
@@ -289,32 +285,19 @@ function restoreTransition(elementState, handle, options) {
     }
 
     onStart?.();
-    Promise.allSettled(finishedAnimations).then(() => {
-      document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => {
-        return s !== transitionStylesheet;
-      });
-      onEnd?.();
+    await Promise.allSettled(finishedAnimations);
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => {
+      return s !== stylesheet;
     });
+    onEnd?.();
   });
 }
 
-/**
- * @param {string} id
- * @param {string} initialTransform
- * @param {string} transformOrigin
- * @param {boolean | undefined} topLayer
- * @param {DOMRect} newRect
- */
-function createCss(id, initialTransform, transformOrigin, topLayer, newRect) {
-  let cssText = `[data-transitioning="${id}"] {transform:${initialTransform};transform-origin:${transformOrigin};`;
-  if (topLayer) {
-    cssText += `
-      width:${newRect.width}px !important;height:${newRect.height}px !important;top:${newRect.top}px !important;left:${newRect.left}px !important;
-      :where(&) {background-color:transparent;color:inherit;overflow:visible;margin:0;border:0;padding:0;}`;
-  }
-  cssText += '}';
-  return cssText;
-}
+const elementCannotBePromoted = () => {
+  console.error(
+    '[UniqueTransition] Popover elements cannot be promoted during unique transitions.'
+  );
+};
 
 /**
  * @param {Element[]} elements
