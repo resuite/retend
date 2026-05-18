@@ -250,12 +250,6 @@ async function restoreContext(context, routerCreateFn, options = {}) {
   await renderer.endHydration();
   router.attachWindowListeners(window);
 
-  const preloadedLinks = window.document.head.querySelectorAll(
-    '[data-retend-preload]'
-  );
-  for (const element of preloadedLinks) {
-    element.remove();
-  }
   await runPendingSetupEffects();
   globalThis.window.dispatchEvent(new Event('hydrationcompleted'));
 

@@ -339,7 +339,7 @@ async function stringifyArtifact(
       if (!hasLink) {
         const linkTag = document.createElement('link');
         linkTag.setAttribute('rel', 'stylesheet');
-        linkTag.setAttribute('href', link);
+        linkTag.setAttribute('href', `/${link}`);
         linkTag.setAttribute('data-retend-preload', 'true');
         document.head.append(linkTag);
       }
