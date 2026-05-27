@@ -2,7 +2,7 @@ import 'retend-web/jsx-runtime';
 import { renderToDOM } from 'retend-web';
 import { RetendDevTools } from 'retend-web-devtools';
 
-import App from './App';
+import App from './App.tsx';
 
 const root = document.getElementById('root');
 

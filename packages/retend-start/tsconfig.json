@@ -25,6 +25,6 @@
     "checkJs": true,
     "strict": true
   },
-  "include": ["index.js"],
+  "include": ["index.js", "source/**/*.js"],
   "exclude": ["node_modules/**/*", "dist"]
 }
