@@ -712,6 +712,21 @@ const noJsxControlFlow = {
         ) {
           context.report({ node: node.expression, messageId: 'logical' });
         }
+
+        if (node.expression.type === 'TemplateLiteral') {
+          for (const expression of node.expression.expressions) {
+            if (expression.type === 'ConditionalExpression') {
+              context.report({ node: expression, messageId: 'conditional' });
+            }
+
+            if (
+              expression.type === 'LogicalExpression' &&
+              expression.operator !== '??'
+            ) {
+              context.report({ node: expression, messageId: 'logical' });
+            }
+          }
+        }
       },
     };
   },
@@ -1089,6 +1104,117 @@ const noListenInOnSetup = {
   },
 };
 
+const preferBatchSet = {
+  meta: {
+    docs: {
+      description: 'prefer Cell.batch() for sequential cell .set() calls',
+    },
+    schema: [],
+    messages: {
+      unexpected: 'Wrap sequential cell .set() calls in a Cell.batch() call.',
+    },
+  },
+  create(context) {
+    return {
+      BlockStatement(node) {
+        let parent = node.parent;
+        while (parent) {
+          const callee = parent.parent?.callee;
+          const isBatchCall =
+            callee?.type === 'Identifier'
+              ? callee.name === 'batch'
+              : callee?.type === 'MemberExpression' &&
+                !callee.computed &&
+                callee.object.type === 'Identifier' &&
+                callee.object.name === 'Cell' &&
+                callee.property.type === 'Identifier' &&
+                callee.property.name === 'batch';
+
+          if (isBatchCall) {
+            if (parent.type === 'ArrowFunctionExpression') {
+              return;
+            }
+
+            if (parent.type === 'FunctionExpression') {
+              return;
+            }
+          }
+
+          parent = parent.parent;
+        }
+
+        const cellNames = new Set();
+        let scope = node;
+        while (scope) {
+          const body =
+            scope.type === 'BlockStatement'
+              ? scope.body
+              : scope.type === 'Program'
+                ? scope.body
+                : null;
+
+          if (body) {
+            for (const scopeStatement of body) {
+              if (scopeStatement.type !== 'VariableDeclaration') {
+                continue;
+              }
+
+              for (const declaration of scopeStatement.declarations) {
+                if (declaration.id.type !== 'Identifier') {
+                  continue;
+                }
+
+                if (!declaration.init) {
+                  continue;
+                }
+
+                if (!isCellFactoryCall(declaration.init)) {
+                  continue;
+                }
+
+                cellNames.add(declaration.id.name);
+              }
+            }
+          }
+
+          scope = scope.parent;
+        }
+
+        let previousSet = false;
+        let reportedRun = false;
+
+        for (const statement of node.body) {
+          const isSetCall =
+            statement.type === 'ExpressionStatement' &&
+            statement.expression.type === 'CallExpression' &&
+            statement.expression.callee.type === 'MemberExpression' &&
+            !statement.expression.callee.computed &&
+            statement.expression.callee.object.type === 'Identifier' &&
+            cellNames.has(statement.expression.callee.object.name) &&
+            statement.expression.callee.property.type === 'Identifier' &&
+            statement.expression.callee.property.name === 'set';
+
+          if (!isSetCall) {
+            previousSet = false;
+            reportedRun = false;
+            continue;
+          }
+
+          if (previousSet && !reportedRun) {
+            context.report({
+              node: statement.expression.callee.property,
+              messageId: 'unexpected',
+            });
+            reportedRun = true;
+          }
+
+          previousSet = true;
+        }
+      },
+    };
+  },
+};
+
 const preferRouterNavigation = {
   meta: {
     docs: {
@@ -1266,6 +1392,7 @@ export default {
     'no-jsx-map': noJsxMap,
     'no-listen-in-onsetup': noListenInOnSetup,
     'no-react-imports': noReactImports,
+    'prefer-batch-set': preferBatchSet,
     'prefer-router-navigation': preferRouterNavigation,
   },
 };

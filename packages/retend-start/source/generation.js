@@ -489,6 +489,7 @@ async function createConfigFile(projectDir, answers) {
             'retend/no-jsx-map': 'error',
             'retend/no-listen-in-onsetup': 'error',
             'retend/no-react-imports': 'error',
+            'retend/prefer-batch-set': 'error',
             'retend/prefer-router-navigation': 'error',
             'retend/props-destructure-first': 'error',
           },
