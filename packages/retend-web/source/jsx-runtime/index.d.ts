@@ -1085,7 +1085,6 @@ declare module 'retend/jsx-runtime' {
     };
 
     interface JsxNativeProps {
-      key?: string | number;
       ref?: import('retend').Cell<unknown>;
       children?: Children;
       dangerouslySetInnerHTML?: {

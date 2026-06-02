@@ -8,7 +8,6 @@ export namespace JSX {
   type ValueOrCell<T> = T | import('retend').Cell<T>;
 
   interface IntrinsicAttributes {
-    key?: JSX.ValueOrCell<string | number | undefined>;
     children?: Children;
   }
 
