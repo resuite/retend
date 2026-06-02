@@ -437,6 +437,7 @@ export function normalizeClassValue(val, element) {
       setClasses(newValue, this);
     }
 
+    addCellListener(element, val, applyValue, false);
     const value = val.get();
     if (value instanceof Promise) {
       value.then((resolvedValue) => {
@@ -446,7 +447,6 @@ export function normalizeClassValue(val, element) {
       return '';
     }
     currentClassToken = normalizeClassValue(value, element);
-    addCellListener(element, val, applyValue, false);
     return currentClassToken;
   }
 

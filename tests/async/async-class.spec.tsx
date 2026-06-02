@@ -122,6 +122,25 @@ const runTests = () => {
 
     expect(element.getAttribute('class')).toBe('static dynamic async-loaded');
   });
+
+  it('should update class on promise change', async () => {
+    const isReady = Cell.source(false);
+
+    const className = Cell.derivedAsync(async (get) => {
+      const ready = get(isReady);
+      await timeout(10);
+      return ready ? 'async-loaded' : 'async-loading';
+    });
+
+    const element = render(<div class={[className, 'button']} />);
+
+    await vi.advanceTimersByTimeAsync(20);
+    expect(element.getAttribute('class')).toBe('button async-loading');
+
+    isReady.set(true);
+    await vi.advanceTimersByTimeAsync(20);
+    expect(element.getAttribute('class')).toBe('button async-loaded');
+  });
 };
 
 describe('Async Class Attribute', () => {
