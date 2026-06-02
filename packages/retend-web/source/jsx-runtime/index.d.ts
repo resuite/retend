@@ -2471,6 +2471,8 @@ declare module 'retend/jsx-runtime' {
       colorInterpolation?: 'auto' | 'sRGB' | 'linearRGB';
       /** Specifies the color interpolation method to use for filter effects */
       colorInterpolationFilters?: 'auto' | 'sRGB' | 'linearRGB';
+      /** Defines a clipping path to be applied to the element. */
+      clipPath?: string;
       /** Specifies the color to paint the interior of the element */
       fill?: string;
       /** Specifies the opacity of the painting operation used to paint the interior of the element */
@@ -2485,6 +2487,8 @@ declare module 'retend/jsx-runtime' {
       fontStyle?: 'normal' | 'italic' | 'oblique';
       /** Specifies the font weight to use */
       fontWeight?: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
+      /** Specifies the opacity of the element */
+      opacity?: number | string;
       /** Specifies the color to paint along the outline of the element */
       stroke?: string;
       /** Specifies the width of the stroke on the element */
