@@ -201,6 +201,31 @@ function Label(props: { text: Cell<string> | string }) {
 }
 ```
 
+## useDerivedAsyncValue
+
+Normalizes a value that may be a static value, a `Cell`, or an `AsyncCell` into an `AsyncDerivedCell`. If the input is asynchronous, the returned cell resolves it through Retend's async derivation flow. If the input is synchronous, it tracks the cell or holds the static value as a constant.
+
+This is useful inside async-aware components that accept props which may or may not already be reactive.
+
+**Parameters:**
+
+- `property` (`AsyncCell<T>` | `Cell<T>` | `T`) — The value or cell to derive from.
+
+**Returns:** `AsyncDerivedCell<T>`
+
+```tsx
+import { Cell, type AsyncCell } from 'retend';
+import { useDerivedAsyncValue } from 'retend-utils/hooks';
+
+function AsyncLabel(props: {
+  text: AsyncCell<string> | Cell<string> | string;
+}) {
+  const text = useDerivedAsyncValue(props.text);
+
+  return <span>{text}</span>;
+}
+```
+
 ## useMatchMedia
 
 Creates a reactive `Cell` that tracks whether a CSS media query currently matches.

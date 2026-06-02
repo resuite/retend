@@ -15,6 +15,7 @@ This package provides a collection of utility hooks and components for [Retend](
     - [`useLocalStorage`](#uselocalstorage)
     - [`useSessionStorage`](#usesessionstorage)
     - [`useDerivedValue`](#usederivedvalue)
+    - [`useDerivedAsyncValue`](#usederivedasyncvalue)
     - [`useMatchMedia`](#usematchmedia)
     - [`useCursorPosition`](#usecursorposition)
   - [Components](#components)
@@ -264,6 +265,39 @@ function ExampleComponent(props) {
 
   return <p>Current value: {derivedValue}</p>;
 }
+```
+
+### `useDerivedAsyncValue`
+
+Creates an async derived cell from a static value, a synchronous cell, or an async cell. The returned cell resolves async cells through Retend's async derivation flow, tracks synchronous cells, or resolves to a constant for static values.
+
+Parameters:
+
+- `property` (AsyncCell<T> | Cell<T> | T): The input value or cell to derive from
+
+Returns:
+
+- `AsyncDerivedCell<T>`: An async derived cell that reflects the current value of the input
+
+Example:
+
+```tsx
+import { Cell } from 'retend';
+import { useDerivedAsyncValue } from 'retend-utils/hooks';
+
+function ExampleComponent(props) {
+  const { valueOrCell } = props;
+  const derivedValue = useDerivedAsyncValue(valueOrCell);
+
+  return <p>Current value: {derivedValue}</p>;
+}
+
+const asyncValue = Cell.derivedAsync(async () => fetchValue());
+
+// Can be used with static values, synchronous cells, or async cells:
+<ExampleComponent valueOrCell="static" />
+<ExampleComponent valueOrCell={Cell.source('reactive')} />
+<ExampleComponent valueOrCell={asyncValue} />
 ```
 
 ### `useMatchMedia`

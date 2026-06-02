@@ -240,6 +240,39 @@ function FlexibleComponent(props) {
 <FlexibleComponent valueOrCell={Cell.source('reactive')} />
 ```
 
+### useDerivedAsyncValue
+
+Creates an async derived cell from a static value, a synchronous cell, or an async cell.
+
+**Parameters:**
+
+- `valueOrCell` (T | Cell<T> | AsyncCell<T>) - Either a static value, a reactive cell, or an async cell
+
+**Returns:**
+
+- `AsyncDerivedCell<T>` - Async derived cell that resolves async cells, tracks synchronous cells, or remains constant for static values
+
+**Example:**
+
+```tsx
+import { Cell } from 'retend';
+import { useDerivedAsyncValue } from 'retend-utils/hooks';
+
+function FlexibleAsyncComponent(props) {
+  const { valueOrCell } = props;
+  const derivedValue = useDerivedAsyncValue(valueOrCell);
+
+  return <p>Current value: {derivedValue}</p>;
+}
+
+const asyncValue = Cell.derivedAsync(async () => fetchValue());
+
+// Can be used with static values, synchronous cells, or async cells:
+<FlexibleAsyncComponent valueOrCell="static" />
+<FlexibleAsyncComponent valueOrCell={Cell.source('reactive')} />
+<FlexibleAsyncComponent valueOrCell={asyncValue} />
+```
+
 ### useMatchMedia
 
 Creates a reactive cell that tracks the result of a media query.
