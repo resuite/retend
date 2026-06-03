@@ -324,8 +324,13 @@ const noInlineObjectType = {
         }
       },
       TSTypeLiteral(node) {
-        if (node.parent?.type === 'TSTypeAliasDeclaration') {
-          return;
+        let parent = node.parent;
+        while (parent) {
+          if (parent.type === 'TSTypeAliasDeclaration') {
+            return;
+          }
+
+          parent = parent.parent;
         }
 
         if (node.parent?.type === 'TSTypeAnnotation') {
