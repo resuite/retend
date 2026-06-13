@@ -84,7 +84,7 @@ export class Router extends EventTarget {
   #history = [];
   /** @type {RouterMiddleware[]} */
   #middlewares;
-  #maxRedirects = 100;
+  #maxRedirects;
   /** @type {RouterInternalState} */
   #internalState;
 
@@ -107,7 +107,7 @@ export class Router extends EventTarget {
     super();
     this.#routeTree = RouteTree.fromRouteRecords(routeOptions.routes);
     this.#stackMode = routeOptions.stackMode ?? false;
-    this.#maxRedirects = routeOptions.maxRedirects ?? 0;
+    this.#maxRedirects = routeOptions.maxRedirects ?? 100;
     this.useViewTransitions = routeOptions.useViewTransitions ?? false;
     this.#middlewares = routeOptions.middlewares ?? [];
     this.#internalState = { metadata: new Map(), routeChain: Cell.source([]) };
