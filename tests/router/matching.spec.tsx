@@ -214,6 +214,36 @@ describe('Router Matching', () => {
     expect(Object.fromEntries(params.entries())).toEqual({ id: '456' });
   });
 
+  it('should not keep params from failed sibling routes', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        {
+          path: '/users/:id',
+          name: 'user',
+          children: [
+            {
+              path: ':tab/settings',
+              name: 'settings',
+              component: () => 'Settings',
+            },
+            { path: 'profile', name: 'profile', component: () => 'Profile' },
+          ],
+        },
+      ]),
+    });
+    router.attachWindowListeners(window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/users/123/profile');
+    const route = router.getCurrentRoute();
+    expect(route.get().name).toBe('profile');
+    expect(Object.fromEntries(route.get().params.entries())).toEqual({
+      id: '123',
+    });
+  });
+
   it('should not match invalid paths', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;

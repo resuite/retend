@@ -409,6 +409,12 @@ export class RouteTree {
   async checkRoot(pathname, root, params, parent) {
     const pathSegments = pathname.split('/').filter(Boolean);
     const rootSegments = root.path.split('/').filter(Boolean);
+    const initialParams = new Map(params);
+    const fail = () => {
+      params.clear();
+      for (const [key, value] of initialParams) params.set(key, value);
+      return null;
+    };
 
     // Matches fallthrough to children if the root path is empty
     if (root.path === parent?.path || rootSegments.length === 0) {
@@ -439,7 +445,7 @@ export class RouteTree {
 
       // The target path is exhausted, but the root path is not.
       if (!pathSegment) {
-        return null;
+        return fail();
       }
 
       if (rootSegment === '*') {
@@ -460,7 +466,7 @@ export class RouteTree {
         const paramValue = params.get(paramName) ?? pathSegment;
 
         if (paramValue !== pathSegment) {
-          return null;
+          return fail();
         }
 
         params.set(paramName, paramValue);
@@ -471,7 +477,7 @@ export class RouteTree {
 
       // Mismatch in pathname: bail.
       if (rootSegment !== pathSegment) {
-        return null;
+        return fail();
       }
 
       i++;
@@ -505,7 +511,7 @@ export class RouteTree {
 
       if (matchedRoute.child === null) {
         if (resolved.children.length || !resolved.path.endsWith('*')) {
-          return null;
+          return fail();
         }
 
         if (encounteredCatchAllWildcardAtParameter) {
