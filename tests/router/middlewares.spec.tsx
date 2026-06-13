@@ -123,6 +123,54 @@ describe('Router Middlewares', () => {
     expect(router.getCurrentRoute().get().path).toBe('/old-path');
   });
 
+  it('should rematch route data after middleware redirects', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const observedRouteData: Array<{
+      name: string | null;
+      path: string;
+      fullPath: string;
+      id: string | undefined;
+    }> = [];
+
+    const redirectMiddleware = defineRouterMiddleware((details) => {
+      if (details.to.fullPath === '/private/123') {
+        return redirect('/login');
+      }
+      return;
+    });
+    const observingMiddleware = defineRouterMiddleware((details) => {
+      observedRouteData.push({
+        name: details.to.name,
+        path: details.to.path,
+        fullPath: details.to.fullPath,
+        id: details.to.params.get('id'),
+      });
+    });
+
+    const router = new Router({
+      routes: defineRoutes([
+        { path: '/private/:id', name: 'private', component: () => 'Private' },
+        { path: '/login', name: 'login', component: () => 'Login' },
+      ]),
+      middlewares: [redirectMiddleware, observingMiddleware],
+    });
+
+    router.attachWindowListeners(window);
+
+    await router.navigate('/private/123');
+    expect(router.getCurrentRoute().get().name).toBe('login');
+    expect(observedRouteData.length).toBeGreaterThan(0);
+    expect(
+      observedRouteData.every((routeData) =>
+        routeData.name === 'login' &&
+        routeData.path === '/login' &&
+        routeData.fullPath === '/login' &&
+        routeData.id === undefined
+      )
+    ).toBe(true);
+  });
+
   it('should handle async middleware operations', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;

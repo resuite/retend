@@ -218,10 +218,15 @@ export class Router extends EventTarget {
             continue;
           }
           this.#redirectStackCount++;
+          const nextMatchResult = await this.#routeTree.match(
+            middlewareResponse.path
+          );
+          const nextTargetMatch = nextMatchResult.leaf();
+          if (nextTargetMatch === null) return middlewareResponse.path;
           return this.#runMiddlewares(
             middlewareResponse.path,
-            matchResult,
-            targetMatch,
+            nextMatchResult,
+            nextTargetMatch,
             workingPath
           );
         }
