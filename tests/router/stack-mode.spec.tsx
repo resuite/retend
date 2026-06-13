@@ -59,6 +59,23 @@ const runFlatTests = () => {
     const { query } = router.getCurrentRoute().get();
     expect(query.get('id')).toBe('123');
   });
+
+  test('preserves history when back navigation is prevented', async () => {
+    await router.navigate('/about');
+    await router.navigate('/contact');
+    const preventBack = (event: Event) => {
+      const routeChange = event as CustomEvent<{ to: string }>;
+      if (routeChange.detail.to === '/about') event.preventDefault();
+    };
+
+    router.addEventListener('routechange', preventBack);
+    await router.back();
+    router.removeEventListener('routechange', preventBack);
+    expect(router.getCurrentRoute().get().path).toBe('/contact');
+
+    await router.back();
+    expect(router.getCurrentRoute().get().path).toBe('/about');
+  });
 };
 
 const runNestedTests = () => {

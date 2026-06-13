@@ -162,11 +162,12 @@ describe('Router Middlewares', () => {
     expect(router.getCurrentRoute().get().name).toBe('login');
     expect(observedRouteData.length).toBeGreaterThan(0);
     expect(
-      observedRouteData.every((routeData) =>
-        routeData.name === 'login' &&
-        routeData.path === '/login' &&
-        routeData.fullPath === '/login' &&
-        routeData.id === undefined
+      observedRouteData.every(
+        (routeData) =>
+          routeData.name === 'login' &&
+          routeData.path === '/login' &&
+          routeData.fullPath === '/login' &&
+          routeData.id === undefined
       )
     ).toBe(true);
   });

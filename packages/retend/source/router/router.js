@@ -577,13 +577,25 @@ export class Router extends EventTarget {
     this.#isNavigating = true;
     try {
       const oldHistoryLength = this.#history.length;
-      this.#history.pop();
+      const currentPath = this.#history.pop();
+      const restoreCurrentPath = () => {
+        if (
+          currentPath &&
+          this.#currentPath.get().fullPath === currentPath &&
+          this.#history.at(-1) !== currentPath
+        ) {
+          this.#history.push(currentPath);
+        }
+      };
       /** @type {string[]} */
       const transitionTypes = [];
 
       const callback = async () => {
         const wasLoaded = await this.#update(lastPath, false, transitionTypes);
-        if (!wasLoaded) return;
+        if (!wasLoaded) {
+          restoreCurrentPath();
+          return;
+        }
         const event = new RouteLoadCompletedEvent({
           fullPath: this.#currentPath.get().fullPath,
           oldHistoryLength,
@@ -593,7 +605,12 @@ export class Router extends EventTarget {
         });
         this.dispatchEvent(event);
       };
-      await this.#startTransition(callback, transitionTypes);
+      try {
+        await this.#startTransition(callback, transitionTypes);
+      } catch (error) {
+        restoreCurrentPath();
+        throw error;
+      }
     } finally {
       this.#isNavigating = false;
     }
