@@ -205,7 +205,7 @@ export class Router extends EventTarget {
       if (middlewareResponse instanceof RouterMiddlewareResponse) {
         if (middlewareResponse.type === 'redirect') {
           // Block deep redirects
-          if (this.#redirectStackCount > this.#maxRedirects) {
+          if (this.#redirectStackCount >= this.#maxRedirects) {
             const message = `Your router redirected too many times (${
               this.#maxRedirects
             }). This is probably due to a circular redirect in your route configuration.`;
