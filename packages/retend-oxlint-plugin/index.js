@@ -179,7 +179,8 @@ function isCellFactoryCall(node) {
 
   return (
     node.callee.property.name === 'source' ||
-    node.callee.property.name === 'derived'
+    node.callee.property.name === 'derived' ||
+    node.callee.property.name === 'task'
   );
 }
 
@@ -204,7 +205,8 @@ function isInsideFunction(node) {
 const noModuleCell = {
   meta: {
     docs: {
-      description: 'disallow Cell.source() and Cell.derived() at module scope',
+      description:
+        'disallow Cell.source(), Cell.derived(), and Cell.task() at module scope',
     },
     schema: [],
     messages: {
@@ -787,7 +789,7 @@ const componentStatementOrder = {
     schema: [],
     messages: {
       unexpected:
-        'Use Retend component order: props, Cell.source, Cell.derived, handlers, lifecycle, return.',
+        'Use Retend component order: props, Cell.source/Cell.task, Cell.derived, handlers, lifecycle, return.',
     },
   },
   create(context) {
@@ -821,7 +823,10 @@ const componentStatementOrder = {
                     declaration.init.callee.object.name === 'Cell' &&
                     declaration.init.callee.property.type === 'Identifier'
                   ) {
-                    if (declaration.init.callee.property.name === 'source') {
+                    if (
+                      declaration.init.callee.property.name === 'source' ||
+                      declaration.init.callee.property.name === 'task'
+                    ) {
                       order = 1;
                     }
 
