@@ -3,7 +3,7 @@ import type { JSX } from 'retend/jsx-runtime';
 export type InlineCodeProps = JSX.IntrinsicElements['code'];
 
 export function InlineCode(props: InlineCodeProps) {
-  const { key: _key, class: className, children, ...rest } = props;
+  const { class: className, children, ...rest } = props;
   return (
     <code
       class={[

@@ -30,12 +30,11 @@ export function createMDXComponents() {
       </h1>
     ),
     h2: (props: JSX.IntrinsicElements['h2']) => {
-      const { class: className, children, key, ...rest } = props;
+      const { class: className, children, ...rest } = props;
 
       return (
         <NavigableHeading
           as="h2"
-          key={key as JSX.IntrinsicAttributes['key']}
           class={['text-fg mt-10 mb-4 text-3xl tracking-tight', className]}
           {...rest}
         >
@@ -44,12 +43,11 @@ export function createMDXComponents() {
       );
     },
     h3: (props: JSX.IntrinsicElements['h3']) => {
-      const { class: className, children, key, ...rest } = props;
+      const { class: className, children, ...rest } = props;
 
       return (
         <NavigableHeading
           as="h3"
-          key={key as JSX.IntrinsicAttributes['key']}
           class={['text-fg mt-8 mb-3 text-2xl tracking-tight', className]}
           {...rest}
         >
@@ -58,12 +56,11 @@ export function createMDXComponents() {
       );
     },
     h4: (props: JSX.IntrinsicElements['h4']) => {
-      const { class: className, children, key, ...rest } = props;
+      const { class: className, children, ...rest } = props;
 
       return (
         <NavigableHeading
           as="h4"
-          key={key as JSX.IntrinsicAttributes['key']}
           class={['text-fg mt-7 mb-2 text-xl tracking-tight', className]}
           {...rest}
         >
