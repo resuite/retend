@@ -1,54 +1,31 @@
-| title                         | impact | impactDescription                               | tags               |
-| :---------------------------- | :----- | :---------------------------------------------- | :----------------- |
-| Teleport Selector Limitations | Medium | Prevents runtime errors from invalid selectors. | teleport, web, dom |
+| title                   | impact | impactDescription                               | tags               |
+| :---------------------- | :----- | :---------------------------------------------- | :----------------- |
+| Valid Teleport Selector | Medium | Prevents runtime errors from invalid selectors. | teleport, web, dom |
 
-# Teleport Selector Limitations
+# Valid Teleport Selector
 
 **Context**: Using Teleport to move elements in the DOM.
 
-**Rule**: Teleport only supports `#id` or `tagname` selectors. No class names or attribute selectors.
+**Rule**: Use either `#id` or `tagname` for static `<Teleport to>` values. The `valid-teleport-selector` lint rule enforces this for literal selectors.
 
 **Why**:
 
-- Teleport has a simple, fast selector implementation
-- Complex CSS selectors are not supported
-- Using unsupported selectors will cause errors or unexpected behavior
+Teleport resolves targets by ID or tag name. Keeping teleport targets simple makes the mount point predictable across client rendering, hydration, and server-rendered output.
 
 ## Examples
 
-### Invalid
-
 ```tsx
-// INVALID - class selector not supported
-<Teleport to=".modal-container">
-  <Modal />
-</Teleport>
-
-// INVALID - attribute selector not supported
-<Teleport to="[data-portal]">
-  <Tooltip />
-</Teleport>
-
-// INVALID - descendant selector not supported
-<Teleport to="body > .container">
-  <Overlay />
-</Teleport>
-```
-
-### Valid
-
-```tsx
-// VALID - ID selector
+// ID selector
 <Teleport to="#modal-root">
   <Modal />
 </Teleport>
 
-// VALID - tag name selector
+// Tag name selector
 <Teleport to="body">
   <Overlay />
 </Teleport>
 
-// VALID - HTML element ID
+// HTML element ID
 <Teleport to="#toast-container">
   <Toast message={message} />
 </Teleport>

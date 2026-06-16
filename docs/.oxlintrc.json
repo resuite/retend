@@ -16,7 +16,9 @@
     "retend/no-jsx-map": "error",
     "retend/no-listen-in-onsetup": "error",
     "retend/no-react-imports": "error",
-    "retend/prefer-router-navigation": "error"
+    "retend/task-define-at-component-level": "error",
+    "retend/prefer-router-navigation": "error",
+    "retend/valid-teleport-selector": "error"
   },
   "overrides": [
     {

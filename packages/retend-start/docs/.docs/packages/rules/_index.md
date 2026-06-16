@@ -69,7 +69,8 @@ This index centralizes detection hints so rule files can stay concise.
 | use-for-attribute            | STYLE   | rules/use-for-attribute.md            | `htmlFor=`                                 | replace with `for=`             |
 | button-type                  | WARNING | rules/button-type.md                  | `<button>` without `type`                  | add `type="button"`             |
 | self-closing-tags            | STYLE   | rules/self-closing-tags.md            | `<div></div>` with no children             | use `<div />`                   |
-| svg-xmlns                    | WARNING | rules/svg-xmlns.md                    | `<svg>` without `xmlns`                    | add `xmlns` on svg and children |
+| svg-xmlns                    | INFO    | rules/svg-xmlns.md                    | inline SVG markup guidance                 | none                            |
+| valid-teleport-selector      | WARNING | rules/teleport-selector-limitations.md | static `<Teleport to>` selector            | use a tag name or `#id`         |
 | refs-on-elements             | WARNING | rules/refs-on-elements.md             | `ref` used without Cell                    | use `Cell<HTMLElement           | null>` |
 | onconnected-not-layouteffect | WARNING | rules/onconnected-not-layouteffect.md | layout effect patterns                     | use `onConnected()`             |
 | prefer-input-component       | WARNING | rules/prefer-input-component.md       | manual input binding                       | use `Input` component           |

@@ -1,3 +1,37 @@
+function walkTree(root, visit) {
+  const stack = [root];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+
+    if (Array.isArray(current)) {
+      stack.push(...current);
+      continue;
+    }
+
+    if (!(current instanceof Object)) {
+      continue;
+    }
+
+    if (visit(current) === false) {
+      return;
+    }
+
+    for (const [key, value] of Object.entries(current)) {
+      if (key === 'parent') {
+        continue;
+      }
+
+      if (value instanceof Object) {
+        stack.push(value);
+      }
+    }
+  }
+}
+
 function walkOwnBody(root, visit) {
   const stack = [root];
 
@@ -184,7 +218,7 @@ function isCellFactoryCall(node) {
   );
 }
 
-function isInsideFunction(node) {
+function getContainingFunction(node) {
   let parent = node.parent;
 
   while (parent) {
@@ -193,13 +227,17 @@ function isInsideFunction(node) {
       parent.type === 'FunctionExpression' ||
       parent.type === 'FunctionDeclaration'
     ) {
-      return true;
+      return parent;
     }
 
     parent = parent.parent;
   }
 
-  return false;
+  return null;
+}
+
+function isInsideFunction(node) {
+  return getContainingFunction(node) !== null;
 }
 
 const noModuleCell = {
@@ -226,6 +264,46 @@ const noModuleCell = {
         }
 
         context.report({ node: node.callee.property, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const taskDefineAtComponentLevel = {
+  meta: {
+    docs: {
+      description: 'require Cell.task() declarations at component level',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Define Cell.task() in the component body, then call .runWith() inside handlers.',
+    },
+  },
+  create(context) {
+    return {
+      Program(node) {
+        for (const component of getTopLevelJsxComponents(node)) {
+          walkTree(component.body, (current) => {
+            if (!isCellFactoryCall(current)) {
+              return true;
+            }
+
+            if (current.callee.property.name !== 'task') {
+              return true;
+            }
+
+            if (getContainingFunction(current) === component) {
+              return true;
+            }
+
+            context.report({
+              node: current.callee.property,
+              messageId: 'unexpected',
+            });
+            return false;
+          });
+        }
       },
     };
   },
@@ -548,6 +626,88 @@ const noTemplatedClass = {
         });
 
         if (reported) {
+          return;
+        }
+      },
+    };
+  },
+};
+
+function getStaticJsxStringValue(attribute) {
+  if (
+    attribute.value?.type === 'Literal' ||
+    attribute.value?.type === 'StringLiteral'
+  ) {
+    return typeof attribute.value.value === 'string'
+      ? attribute.value.value
+      : null;
+  }
+
+  if (attribute.value?.type !== 'JSXExpressionContainer') {
+    return null;
+  }
+
+  if (
+    attribute.value.expression.type !== 'Literal' &&
+    attribute.value.expression.type !== 'StringLiteral'
+  ) {
+    return null;
+  }
+
+  return typeof attribute.value.expression.value === 'string'
+    ? attribute.value.expression.value
+    : null;
+}
+
+function isValidTeleportSelector(selector) {
+  return /^#[A-Za-z][\w-]*$/u.test(selector) || /^[A-Za-z][\w-]*$/u.test(selector);
+}
+
+const validTeleportSelector = {
+  meta: {
+    docs: {
+      description: 'enforce selectors supported by Teleport',
+    },
+    schema: [],
+    messages: {
+      unexpected: 'Teleport only supports tag names and #id selectors.',
+    },
+  },
+  create(context) {
+    return {
+      JSXElement(node) {
+        const openingElement = node.openingElement;
+        if (openingElement.name.type !== 'JSXIdentifier') {
+          return;
+        }
+
+        if (openingElement.name.name !== 'Teleport') {
+          return;
+        }
+
+        for (const attribute of openingElement.attributes) {
+          if (attribute.type !== 'JSXAttribute') {
+            continue;
+          }
+
+          if (attribute.name.type !== 'JSXIdentifier') {
+            continue;
+          }
+
+          if (attribute.name.name !== 'to') {
+            continue;
+          }
+
+          const selector = getStaticJsxStringValue(attribute);
+          if (selector === null) {
+            return;
+          }
+
+          if (isValidTeleportSelector(selector)) {
+            return;
+          }
+
+          context.report({ node: attribute, messageId: 'unexpected' });
           return;
         }
       },
@@ -1393,8 +1553,10 @@ export default {
     'no-inline-object-type': noInlineObjectType,
     'no-module-cell': noModuleCell,
     'no-module-jsx': noModuleJsx,
+    'task-define-at-component-level': taskDefineAtComponentLevel,
     'props-destructure-first': propsDestructureFirst,
     'no-templated-class': noTemplatedClass,
+    'valid-teleport-selector': validTeleportSelector,
     'no-get-in-derived-async': noGetInDerivedAsync,
     'no-get-in-jsx': noGetInJsx,
     'no-derived-in-jsx': noDerivedInJsx,

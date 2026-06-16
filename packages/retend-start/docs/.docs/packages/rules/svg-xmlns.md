@@ -1,30 +1,29 @@
-| title          | impact | impactDescription                               | tags                       |
-| :------------- | :----- | :---------------------------------------------- | :------------------------- |
-| SVG Namespaces | High   | Required for strict XML/SVG parsing compliance. | syntax, svg, compatibility |
+| title      | impact | impactDescription            | tags                       |
+| :--------- | :----- | :--------------------------- | :------------------------- |
+| SVG Markup | Info   | Guidance for inline SVG JSX. | syntax, svg, compatibility |
 
-# SVG Namespaces
+# SVG Markup
 
-**Rule**: All elements within an SVG (including the root `<svg>` and all its children like `<path>`, `<circle>`, etc.) MUST have the `xmlns` attribute set to `http://www.w3.org/2000/svg`.
+**Rule**: Write inline SVG as normal JSX. Preserve SVG attributes when they are part of the source markup.
 
 **Why**:
 
-- **Compliance**: Retend's JSX transform or runtime requires explicit namespaces for non-HTML elements to function correctly in strict environments.
-- **Consistency**: Ensures all SVG content is explicitly defined as such.
+Retend handles SVG elements in JSX without extra framework-specific attributes. Keep SVG markup close to the source asset so it remains easy to copy, edit, and compare.
 
 ## Examples
 
-### Invalid
+### Inline SVG
 
 ```tsx
-<svg width="100" height="100">
+<svg width="100" height="100" viewBox="0 0 100 100">
   <circle cx="50" cy="50" r="40" />
 </svg>
 ```
 
-### Valid
+### SVG Asset Markup
 
 ```tsx
-<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
-  <circle xmlns="http://www.w3.org/2000/svg" cx="50" cy="50" r="40" />
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="40" />
 </svg>
 ```
