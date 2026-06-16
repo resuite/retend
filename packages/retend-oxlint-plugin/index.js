@@ -240,6 +240,366 @@ function isInsideFunction(node) {
   return getContainingFunction(node) !== null;
 }
 
+function isStaticStringLiteral(node) {
+  if (node?.type !== 'Literal' && node?.type !== 'StringLiteral') {
+    return false;
+  }
+
+  return typeof node.value === 'string';
+}
+
+function isNullLiteral(node) {
+  return (
+    (node?.type === 'Literal' || node?.type === 'NullLiteral') &&
+    node.value === null
+  );
+}
+
+function isRetendCellCall(node, propertyName) {
+  if (node?.type !== 'CallExpression') {
+    return false;
+  }
+
+  if (node.callee.type !== 'MemberExpression') {
+    return false;
+  }
+
+  if (node.callee.computed) {
+    return false;
+  }
+
+  if (node.callee.object.type !== 'Identifier') {
+    return false;
+  }
+
+  if (node.callee.object.name !== 'Cell') {
+    return false;
+  }
+
+  if (node.callee.property.type !== 'Identifier') {
+    return false;
+  }
+
+  return node.callee.property.name === propertyName;
+}
+
+function isNamedCall(node, name) {
+  return (
+    node?.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === name
+  );
+}
+
+function unwrapExpression(node) {
+  let current = node;
+
+  while (
+    current?.type === 'ParenthesizedExpression' ||
+    current?.type === 'TSAsExpression' ||
+    current?.type === 'TSTypeAssertion' ||
+    current?.type === 'TSNonNullExpression'
+  ) {
+    current = current.expression;
+  }
+
+  return current;
+}
+
+function getReturnedExpressions(callback) {
+  const expressions = [];
+
+  if (!callback) {
+    return expressions;
+  }
+
+  if (callback.body.type !== 'BlockStatement') {
+    expressions.push(unwrapExpression(callback.body));
+    return expressions;
+  }
+
+  walkOwnBody(callback.body, (current) => {
+    if (current.type !== 'ReturnStatement') {
+      return true;
+    }
+
+    if (current.argument) {
+      expressions.push(unwrapExpression(current.argument));
+    }
+
+    return true;
+  });
+
+  return expressions;
+}
+
+function getJsxElementName(node) {
+  if (node.type === 'JSXIdentifier') {
+    return node.name;
+  }
+
+  if (node.type === 'JSXMemberExpression') {
+    return getJsxElementName(node.property);
+  }
+
+  if (node.type === 'JSXNamespacedName') {
+    return node.name.name;
+  }
+
+  return null;
+}
+
+function isJsxComponentElement(node) {
+  if (node?.type !== 'JSXElement') {
+    return false;
+  }
+
+  const name = getJsxElementName(node.openingElement.name);
+  return Boolean(name && /^[A-Z]/u.test(name));
+}
+
+function isProviderElementName(node) {
+  if (node.type === 'JSXIdentifier') {
+    return node.name === 'Provider';
+  }
+
+  if (node.type === 'JSXMemberExpression') {
+    return isProviderElementName(node.property);
+  }
+
+  return false;
+}
+
+function getJsxAttribute(node, name) {
+  for (const attribute of node.openingElement.attributes) {
+    if (attribute.type !== 'JSXAttribute') {
+      continue;
+    }
+
+    if (attribute.name.type !== 'JSXIdentifier') {
+      continue;
+    }
+
+    if (attribute.name.name === name) {
+      return attribute;
+    }
+  }
+
+  return null;
+}
+
+function getStaticStringFromAttribute(attribute) {
+  if (!attribute) {
+    return null;
+  }
+
+  if (isStaticStringLiteral(attribute.value)) {
+    return attribute.value.value;
+  }
+
+  if (attribute.value?.type !== 'JSXExpressionContainer') {
+    return null;
+  }
+
+  const expression = unwrapExpression(attribute.value.expression);
+  if (!isStaticStringLiteral(expression)) {
+    return null;
+  }
+
+  return expression.value;
+}
+
+function isInternalHref(value) {
+  return value.startsWith('/') && !value.startsWith('//');
+}
+
+function isResourceCreatingNode(node) {
+  if (node.type === 'NewExpression') {
+    if (node.callee.type !== 'Identifier') {
+      return false;
+    }
+
+    return (
+      node.callee.name === 'ResizeObserver' ||
+      node.callee.name === 'MutationObserver' ||
+      node.callee.name === 'IntersectionObserver'
+    );
+  }
+
+  if (node.type !== 'CallExpression') {
+    return false;
+  }
+
+  if (node.callee.type === 'Identifier') {
+    return (
+      node.callee.name === 'setInterval' ||
+      node.callee.name === 'requestAnimationFrame'
+    );
+  }
+
+  if (node.callee.type !== 'MemberExpression') {
+    return false;
+  }
+
+  if (node.callee.computed) {
+    return false;
+  }
+
+  if (node.callee.property.type !== 'Identifier') {
+    return false;
+  }
+
+  return (
+    node.callee.property.name === 'addEventListener' ||
+    node.callee.property.name === 'observe' ||
+    node.callee.property.name === 'subscribe'
+  );
+}
+
+function effectCallbackCreatesResource(callback) {
+  let createsResource = false;
+  const root =
+    callback.body.type === 'BlockStatement' ? callback.body : callback.body;
+
+  walkOwnBody(root, (current) => {
+    if (isResourceCreatingNode(current)) {
+      createsResource = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  return createsResource;
+}
+
+function effectCallbackReturnsCleanup(callback) {
+  if (callback.body.type !== 'BlockStatement') {
+    const expression = unwrapExpression(callback.body);
+    return (
+      expression?.type === 'ArrowFunctionExpression' ||
+      expression?.type === 'FunctionExpression'
+    );
+  }
+
+  let hasCleanup = false;
+
+  walkOwnBody(callback.body, (current) => {
+    if (current.type !== 'ReturnStatement') {
+      return true;
+    }
+
+    const expression = unwrapExpression(current.argument);
+    if (!expression) {
+      return true;
+    }
+
+    if (
+      expression.type === 'ArrowFunctionExpression' ||
+      expression.type === 'FunctionExpression' ||
+      expression.type === 'Identifier'
+    ) {
+      hasCleanup = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  return hasCleanup;
+}
+
+function findAnonymousJsxMarkup(expression) {
+  const node = unwrapExpression(expression);
+
+  if (!node) {
+    return null;
+  }
+
+  if (node.type === 'JSXFragment') {
+    return node;
+  }
+
+  if (node.type === 'JSXElement') {
+    return isJsxComponentElement(node) ? null : node;
+  }
+
+  if (node.type === 'ConditionalExpression') {
+    return (
+      findAnonymousJsxMarkup(node.consequent) ??
+      findAnonymousJsxMarkup(node.alternate)
+    );
+  }
+
+  if (node.type === 'LogicalExpression') {
+    return (
+      findAnonymousJsxMarkup(node.left) ?? findAnonymousJsxMarkup(node.right)
+    );
+  }
+
+  if (node.type === 'SequenceExpression') {
+    for (const expression of node.expressions) {
+      const anonymousJsx = findAnonymousJsxMarkup(expression);
+      if (anonymousJsx) {
+        return anonymousJsx;
+      }
+    }
+  }
+
+  if (node.type === 'ArrayExpression') {
+    for (const element of node.elements) {
+      const anonymousJsx = findAnonymousJsxMarkup(element);
+      if (anonymousJsx) {
+        return anonymousJsx;
+      }
+    }
+  }
+
+  return null;
+}
+
+function isSimpleHandlerExpression(expression) {
+  const node = unwrapExpression(expression);
+
+  if (!node) {
+    return false;
+  }
+
+  if (
+    node.type === 'CallExpression' ||
+    node.type === 'AssignmentExpression' ||
+    node.type === 'UpdateExpression' ||
+    node.type === 'AwaitExpression'
+  ) {
+    return true;
+  }
+
+  if (node.type !== 'UnaryExpression') {
+    return false;
+  }
+
+  return (
+    node.operator === 'void' &&
+    unwrapExpression(node.argument)?.type === 'CallExpression'
+  );
+}
+
+function isSimpleInlineHandler(callback) {
+  if (callback.body.type !== 'BlockStatement') {
+    return isSimpleHandlerExpression(callback.body);
+  }
+
+  if (callback.body.body.length !== 1) {
+    return false;
+  }
+
+  const statement = callback.body.body[0];
+  return (
+    statement.type === 'ExpressionStatement' &&
+    isSimpleHandlerExpression(statement.expression)
+  );
+}
+
 const noModuleCell = {
   meta: {
     docs: {
@@ -1543,6 +1903,441 @@ const preferRouterNavigation = {
   },
 };
 
+const noAnonymousForComponent = {
+  meta: {
+    docs: {
+      description: 'require For callbacks to render named item components',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        "Render a named component from `For()` instead of inline item markup. Use `For(items, (item) => <ItemRow item={item} />, { key: 'id' })`, then put the item's cells, handlers, lifecycle hooks, and JSX inside `ItemRow`.",
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (!isNamedCall(node, 'For')) {
+          return;
+        }
+
+        const callback = node.arguments[1];
+        if (callback?.type !== 'ArrowFunctionExpression') {
+          if (callback?.type !== 'FunctionExpression') {
+            return;
+          }
+        }
+
+        const returnedExpressions = getReturnedExpressions(callback);
+        for (const expression of returnedExpressions) {
+          const anonymousJsx = findAnonymousJsxMarkup(expression);
+          if (!anonymousJsx) {
+            continue;
+          }
+
+          context.report({ node: anonymousJsx, messageId: 'unexpected' });
+          return;
+        }
+      },
+    };
+  },
+};
+
+const noCellSetInDerived = {
+  meta: {
+    docs: {
+      description: 'disallow cell writes inside Cell.derived()',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Keep `Cell.derived()` pure. A derived cell should only read dependencies and return a value. Move this `.set()` call into an event handler, a task, or an explicit listener on the source cell that owns the write.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (!isRetendCellCall(node, 'derived')) {
+          return;
+        }
+
+        const callback = node.arguments[0];
+        if (callback?.type !== 'ArrowFunctionExpression') {
+          if (callback?.type !== 'FunctionExpression') {
+            return;
+          }
+        }
+
+        walkOwnBody(callback.body, (current) => {
+          if (current.type !== 'CallExpression') {
+            return true;
+          }
+
+          if (current.callee.type !== 'MemberExpression') {
+            return true;
+          }
+
+          if (current.callee.computed) {
+            return true;
+          }
+
+          if (current.callee.property.type !== 'Identifier') {
+            return true;
+          }
+
+          if (current.callee.property.name !== 'set') {
+            return true;
+          }
+
+          context.report({
+            node: current.callee.property,
+            messageId: 'unexpected',
+          });
+          return false;
+        });
+      },
+    };
+  },
+};
+
+const requireEffectCleanup = {
+  meta: {
+    docs: {
+      description:
+        'require cleanup from effects that create external resources',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'This Retend lifecycle effect creates an external resource but does not return cleanup. Store the listener, interval, animation frame, observer, or subscription handle, then return a function that removes the listener, clears the handle, disconnects the observer, or unsubscribes. Cleanup is how Retend prevents leaked work after the component is destroyed.',
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (!isNamedCall(node, 'onSetup')) {
+          if (!isNamedCall(node, 'onConnected')) {
+            return;
+          }
+        }
+
+        const callback = isNamedCall(node, 'onSetup')
+          ? node.arguments[0]
+          : node.arguments[1];
+        if (callback?.type !== 'ArrowFunctionExpression') {
+          if (callback?.type !== 'FunctionExpression') {
+            return;
+          }
+        }
+
+        if (!effectCallbackCreatesResource(callback)) {
+          return;
+        }
+
+        if (effectCallbackReturnsCleanup(callback)) {
+          return;
+        }
+
+        context.report({ node: callback, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const preferOnconnectedForRefDomUse = {
+  meta: {
+    docs: {
+      description: 'prefer onConnected() when setup code reads a DOM ref',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        '`onSetup()` can run before a DOM ref has been connected, so this `.get()` can still be null. Use `onConnected(ref, (element) => { ... })` and read the element from the callback parameter instead of calling `ref.get()` during setup.',
+    },
+  },
+  create(context) {
+    return {
+      Program(node) {
+        for (const component of getTopLevelJsxComponents(node)) {
+          if (component.body.type !== 'BlockStatement') {
+            continue;
+          }
+
+          const refNames = new Set();
+          for (const statement of component.body.body) {
+            if (statement.type !== 'VariableDeclaration') {
+              continue;
+            }
+
+            for (const declaration of statement.declarations) {
+              if (declaration.id.type !== 'Identifier') {
+                continue;
+              }
+
+              if (!isRetendCellCall(declaration.init, 'source')) {
+                continue;
+              }
+
+              if (!isNullLiteral(declaration.init.arguments[0])) {
+                continue;
+              }
+
+              refNames.add(declaration.id.name);
+            }
+          }
+
+          if (refNames.size === 0) {
+            continue;
+          }
+
+          walkTree(component.body, (current) => {
+            if (!isNamedCall(current, 'onSetup')) {
+              return true;
+            }
+
+            if (getContainingFunction(current) !== component) {
+              return true;
+            }
+
+            const callback = current.arguments[0];
+            if (callback?.type !== 'ArrowFunctionExpression') {
+              if (callback?.type !== 'FunctionExpression') {
+                return true;
+              }
+            }
+
+            walkOwnBody(callback.body, (inner) => {
+              if (inner.type !== 'CallExpression') {
+                return true;
+              }
+
+              if (inner.callee.type !== 'MemberExpression') {
+                return true;
+              }
+
+              if (inner.callee.computed) {
+                return true;
+              }
+
+              if (inner.callee.object.type !== 'Identifier') {
+                return true;
+              }
+
+              if (!refNames.has(inner.callee.object.name)) {
+                return true;
+              }
+
+              if (inner.callee.property.type !== 'Identifier') {
+                return true;
+              }
+
+              if (inner.callee.property.name !== 'get') {
+                return true;
+              }
+
+              context.report({
+                node: inner.callee.property,
+                messageId: 'unexpected',
+              });
+              return false;
+            });
+
+            return true;
+          });
+        }
+      },
+    };
+  },
+};
+
+const noRawRefCallback = {
+  meta: {
+    docs: {
+      description: 'disallow callback refs in Retend JSX',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Use a Retend ref cell instead of a callback ref. Declare `const elementRef = Cell.source<HTMLElement | null>(null)`, pass `ref={elementRef}`, and use `onConnected(elementRef, (element) => { ... })` for DOM work.',
+    },
+  },
+  create(context) {
+    return {
+      JSXAttribute(node) {
+        if (node.name.type !== 'JSXIdentifier') {
+          return;
+        }
+
+        if (node.name.name !== 'ref') {
+          return;
+        }
+
+        if (node.value?.type !== 'JSXExpressionContainer') {
+          return;
+        }
+
+        const expression = unwrapExpression(node.value.expression);
+        if (expression?.type !== 'ArrowFunctionExpression') {
+          if (expression?.type !== 'FunctionExpression') {
+            return;
+          }
+        }
+
+        context.report({ node: expression, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const requireScopeName = {
+  meta: {
+    docs: {
+      description: 'require createScope() to receive a readable name',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        "Pass a non-empty string name to `createScope()`, for example `createScope('Theme')`. Named scopes produce clearer missing-scope errors and make Retend HMR/debug output easier to understand.",
+    },
+  },
+  create(context) {
+    return {
+      CallExpression(node) {
+        if (!isNamedCall(node, 'createScope')) {
+          return;
+        }
+
+        const name = node.arguments[0];
+        if (!isStaticStringLiteral(name)) {
+          context.report({ node, messageId: 'unexpected' });
+          return;
+        }
+
+        if (name.value.trim().length > 0) {
+          return;
+        }
+
+        context.report({ node: name, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const noProviderInlineObjectValue = {
+  meta: {
+    docs: {
+      description: 'disallow inline object values on Retend scope providers',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Do not pass an inline object to a scope Provider. Give the value a name first, for example `const themeScopeValue = { theme, setTheme }`, then pass `value={themeScopeValue}`. Named provider values make scope shape explicit and easier to review.',
+    },
+  },
+  create(context) {
+    return {
+      JSXElement(node) {
+        if (!isProviderElementName(node.openingElement.name)) {
+          return;
+        }
+
+        const valueAttribute = getJsxAttribute(node, 'value');
+        if (valueAttribute?.value?.type !== 'JSXExpressionContainer') {
+          return;
+        }
+
+        const expression = unwrapExpression(valueAttribute.value.expression);
+        if (expression?.type !== 'ObjectExpression') {
+          return;
+        }
+
+        context.report({ node: expression, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const preferLinkForInternalAnchor = {
+  meta: {
+    docs: {
+      description: 'prefer router Link for internal anchors',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Use `Link` from \'retend/router\' for internal navigation. Plain `<a href="/...">` asks the browser to navigate directly, while `<Link href="/...">` lets the Retend router handle route state, active links, navigation events, and history updates.',
+    },
+  },
+  create(context) {
+    return {
+      JSXElement(node) {
+        if (node.openingElement.name.type !== 'JSXIdentifier') {
+          return;
+        }
+
+        if (node.openingElement.name.name !== 'a') {
+          return;
+        }
+
+        const hrefAttribute = getJsxAttribute(node, 'href');
+        const href = getStaticStringFromAttribute(hrefAttribute);
+        if (href === null) {
+          return;
+        }
+
+        if (!isInternalHref(href)) {
+          return;
+        }
+
+        context.report({ node: hrefAttribute.name, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const requireNamedHandlersForComplexJsxEvents = {
+  meta: {
+    docs: {
+      description: 'require named handlers for complex JSX event logic',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Move complex event logic into a named handler above the return statement. Inline handlers are only clear for one simple call or assignment, such as `onClick={() => open.set(false)}`. For multiple statements, branching, variables, awaits, or error handling, use `const handleClick = () => { ... }` and pass `onClick={handleClick}` so the event behavior has a name and can be reviewed separately from markup.',
+    },
+  },
+  create(context) {
+    return {
+      JSXAttribute(node) {
+        if (node.name.type !== 'JSXIdentifier') {
+          return;
+        }
+
+        if (!/^on[A-Z]/u.test(node.name.name)) {
+          return;
+        }
+
+        if (node.value?.type !== 'JSXExpressionContainer') {
+          return;
+        }
+
+        const expression = unwrapExpression(node.value.expression);
+        if (expression?.type !== 'ArrowFunctionExpression') {
+          if (expression?.type !== 'FunctionExpression') {
+            return;
+          }
+        }
+
+        if (isSimpleInlineHandler(expression)) {
+          return;
+        }
+
+        context.report({ node: expression, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
 export default {
   meta: {
     name: 'retend',
@@ -1551,6 +2346,8 @@ export default {
     'component-statement-order': componentStatementOrder,
     'max-component-lines': maxComponentLines,
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
+    'no-anonymous-for-component': noAnonymousForComponent,
+    'no-cell-set-in-derived': noCellSetInDerived,
     'no-classname': noClassName,
     'no-inline-object-type': noInlineObjectType,
     'no-module-cell': noModuleCell,
@@ -1565,8 +2362,16 @@ export default {
     'no-jsx-control-flow': noJsxControlFlow,
     'no-jsx-map': noJsxMap,
     'no-listen-in-onsetup': noListenInOnSetup,
+    'no-provider-inline-object-value': noProviderInlineObjectValue,
+    'no-raw-ref-callback': noRawRefCallback,
     'no-react-imports': noReactImports,
     'prefer-batch-set': preferBatchSet,
+    'prefer-link-for-internal-anchor': preferLinkForInternalAnchor,
+    'prefer-onconnected-for-ref-dom-use': preferOnconnectedForRefDomUse,
     'prefer-router-navigation': preferRouterNavigation,
+    'require-effect-cleanup': requireEffectCleanup,
+    'require-named-handlers-for-complex-jsx-events':
+      requireNamedHandlersForComplexJsxEvents,
+    'require-scope-name': requireScopeName,
   },
 };

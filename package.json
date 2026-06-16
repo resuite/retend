@@ -19,9 +19,9 @@
     "experiments/*"
   ],
   "scripts": {
-    "test": "pnpm --filter retend-test-suite exec vitest run",
+    "test": "pnpm --filter retend-test-suite exec vitest run && pnpm --filter retend-oxlint-plugin run test",
     "test:watch": "pnpm --filter retend-test-suite exec vitest",
-    "test:ci": "pnpm --filter retend-test-suite exec vitest run --reporter=verbose",
+    "test:ci": "pnpm --filter retend-test-suite exec vitest run --reporter=verbose && pnpm --filter retend-oxlint-plugin run test",
     "build": "pnpm run build-core && pnpm run build-web && pnpm run build-web-devtools && pnpm run build-ssg && pnpm run build-utils",
     "build-core": "pnpm --filter retend run build",
     "build-web": "pnpm --filter retend-web run build",

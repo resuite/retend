@@ -34,6 +34,12 @@ export function Button(props: ButtonProps) {
     className,
   ];
 
+  const handleExternalClick = (event: MouseEvent) => {
+    if (disabled) {
+      event.preventDefault();
+    }
+  };
+
   if (href && external) {
     return (
       <a
@@ -42,11 +48,7 @@ export function Button(props: ButtonProps) {
         target="_blank"
         rel="noreferrer"
         aria-disabled={disabled}
-        onClick={(event) => {
-          if (disabled) {
-            event.preventDefault();
-          }
-        }}
+        onClick={handleExternalClick}
       >
         {children}
       </a>
