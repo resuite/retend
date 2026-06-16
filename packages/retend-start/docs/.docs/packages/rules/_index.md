@@ -63,18 +63,18 @@ This index centralizes detection hints so rule files can stay concise.
 
 ## Events, Attributes & DOM
 
-| id                           | impact  | docs                                  | detection                                  | autofix                         |
-| ---------------------------- | ------- | ------------------------------------- | ------------------------------------------ | ------------------------------- | ------ |
-| lowercase-event-names        | WARNING | rules/lowercase-event-names.md        | `onclick=` or `onchange=`                  | use `onClick`, `onChange`       |
-| use-for-attribute            | STYLE   | rules/use-for-attribute.md            | `htmlFor=`                                 | replace with `for=`             |
-| button-type                  | WARNING | rules/button-type.md                  | `<button>` without `type`                  | add `type="button"`             |
-| self-closing-tags            | STYLE   | rules/self-closing-tags.md            | `<div></div>` with no children             | use `<div />`                   |
-| svg-xmlns                    | INFO    | rules/svg-xmlns.md                    | inline SVG markup guidance                 | none                            |
-| valid-teleport-selector      | WARNING | rules/teleport-selector-limitations.md | static `<Teleport to>` selector            | use a tag name or `#id`         |
-| refs-on-elements             | WARNING | rules/refs-on-elements.md             | `ref` used without Cell                    | use `Cell<HTMLElement           | null>` |
-| onconnected-not-layouteffect | WARNING | rules/onconnected-not-layouteffect.md | layout effect patterns                     | use `onConnected()`             |
-| prefer-input-component       | WARNING | rules/prefer-input-component.md       | manual input binding                       | use `Input` component           |
-| prefer-event-modifiers       | WARNING | rules/prefer-event-modifiers.md       | manual `event.preventDefault()` in handler | use event modifiers             |
+| id                           | impact  | docs                                   | detection                                  | autofix                   |
+| ---------------------------- | ------- | -------------------------------------- | ------------------------------------------ | ------------------------- | ------ |
+| lowercase-event-names        | WARNING | rules/lowercase-event-names.md         | `onclick=` or `onchange=`                  | use `onClick`, `onChange` |
+| use-for-attribute            | STYLE   | rules/use-for-attribute.md             | `htmlFor=`                                 | replace with `for=`       |
+| button-type                  | WARNING | rules/button-type.md                   | `<button>` without `type`                  | add `type="button"`       |
+| self-closing-tags            | STYLE   | rules/self-closing-tags.md             | `<div></div>` with no children             | use `<div />`             |
+| svg-xmlns                    | INFO    | rules/svg-xmlns.md                     | inline SVG markup guidance                 | none                      |
+| valid-teleport-selector      | WARNING | rules/teleport-selector-limitations.md | static `<Teleport to>` selector            | use a tag name or `#id`   |
+| refs-on-elements             | WARNING | rules/refs-on-elements.md              | `ref` used without Cell                    | use `Cell<HTMLElement     | null>` |
+| onconnected-not-layouteffect | WARNING | rules/onconnected-not-layouteffect.md  | layout effect patterns                     | use `onConnected()`       |
+| prefer-input-component       | WARNING | rules/prefer-input-component.md        | manual input binding                       | use `Input` component     |
+| prefer-event-modifiers       | WARNING | rules/prefer-event-modifiers.md        | manual `event.preventDefault()` in handler | use event modifiers       |
 
 ## Routing
 

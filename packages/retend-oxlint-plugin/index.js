@@ -660,7 +660,9 @@ function getStaticJsxStringValue(attribute) {
 }
 
 function isValidTeleportSelector(selector) {
-  return /^#[A-Za-z][\w-]*$/u.test(selector) || /^[A-Za-z][\w-]*$/u.test(selector);
+  return (
+    /^#[A-Za-z][\w-]*$/u.test(selector) || /^[A-Za-z][\w-]*$/u.test(selector)
+  );
 }
 
 const validTeleportSelector = {
