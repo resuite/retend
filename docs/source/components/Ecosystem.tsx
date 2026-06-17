@@ -12,11 +12,13 @@ import {
 import { FeatureCard } from './FeatureCard';
 import { SectionHeader } from './SectionHeader';
 
-function EcosystemCard(props: {
+interface EcosystemCardProps {
   title: string;
   description: string | JSX.Element;
   illustration: () => JSX.Element;
-}) {
+}
+
+function EcosystemCard(props: EcosystemCardProps) {
   const { title, description, illustration: Illustration } = props;
 
   return (

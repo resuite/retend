@@ -38,6 +38,34 @@ const headingIdFromLabel = (value: string) =>
     .trim()
     .replace(/\s+/gu, '-');
 
+interface DocHeading {
+  id: string;
+  selector: `#${string}`;
+  label: string;
+  depth: number;
+}
+
+interface MarkdownNodeData {
+  hProperties?: Record<string, string>;
+}
+
+interface MarkdownNode {
+  children?: unknown[];
+  data?: MarkdownNodeData;
+  depth?: number;
+  value?: string;
+}
+
+interface MarkdownTree {
+  children?: MarkdownNode[];
+}
+
+interface DocsMetadata {
+  headings: DocHeading[];
+  title: string;
+  description: string;
+}
+
 const headingLabelFromMarkdown = (value: string) => {
   let result = value.replace(/\[[^\]]*\]\([^)]*\)/gu, (segment) => {
     const closingBracket = segment.indexOf(']');
@@ -52,12 +80,7 @@ const headingLabelFromMarkdown = (value: string) => {
 
 const headingListFromMarkdown = (content: string) => {
   const headingIdCount = new Map<string, number>();
-  const headings: Array<{
-    id: string;
-    selector: `#${string}`;
-    label: string;
-    depth: number;
-  }> = [];
+  const headings: DocHeading[] = [];
   const lines = content.split('\n');
 
   for (const line of lines) {
@@ -99,65 +122,43 @@ const headingListFromMarkdown = (content: string) => {
   return headings;
 };
 
-export const addHeadingIds =
-  () =>
-  (tree: {
-    children?: Array<{
-      children?: unknown[];
-      data?: { hProperties?: Record<string, string> };
-      depth?: number;
-      value?: string;
-    }>;
-  }) => {
-    const headingIdCount = new Map<string, number>();
+export const addHeadingIds = () => (tree: MarkdownTree) => {
+  const headingIdCount = new Map<string, number>();
 
-    const textFromNode = (node: { children?: unknown[]; value?: string }) => {
-      let result = node.value ?? '';
-      if (Array.isArray(node.children)) {
-        for (const child of node.children) {
-          result += textFromNode(
-            child as { children?: unknown[]; value?: string }
-          );
-        }
+  const textFromNode = (node: MarkdownNode) => {
+    let result = node.value ?? '';
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) {
+        result += textFromNode(child as MarkdownNode);
       }
-      return result;
-    };
-
-    if (!Array.isArray(tree.children)) return;
-
-    for (const node of tree.children) {
-      if (node.depth !== 2 && node.depth !== 3 && node.depth !== 4) continue;
-
-      const label = textFromNode(node).trim();
-      if (label === '') continue;
-
-      let id = headingIdFromLabel(label);
-      if (id === '') continue;
-
-      const seenCount = headingIdCount.get(id) ?? 0;
-      headingIdCount.set(id, seenCount + 1);
-      if (seenCount > 0) {
-        id = `${id}-${seenCount}`;
-      }
-
-      node.data ??= {};
-      node.data.hProperties ??= {};
-      node.data.hProperties.id = id;
     }
+    return result;
   };
 
-export const docsMetadataByPath: Record<
-  string,
-  {
-    headings: Array<{
-      id: string;
-      label: string;
-      depth: number;
-    }>;
-    title: string;
-    description: string;
+  if (!Array.isArray(tree.children)) return;
+
+  for (const node of tree.children) {
+    if (node.depth !== 2 && node.depth !== 3 && node.depth !== 4) continue;
+
+    const label = textFromNode(node).trim();
+    if (label === '') continue;
+
+    let id = headingIdFromLabel(label);
+    if (id === '') continue;
+
+    const seenCount = headingIdCount.get(id) ?? 0;
+    headingIdCount.set(id, seenCount + 1);
+    if (seenCount > 0) {
+      id = `${id}-${seenCount}`;
+    }
+
+    node.data ??= {};
+    node.data.hProperties ??= {};
+    node.data.hProperties.id = id;
   }
-> = {};
+};
+
+export const docsMetadataByPath: Record<string, DocsMetadata> = {};
 
 const docsContentFiles = globSync('content/**/*.mdx', {
   cwd: docsRoot,

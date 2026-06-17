@@ -20,12 +20,17 @@
   },
   "type": "module",
   "exports": {
-    ".": "./index.js"
+    ".": "./index.js",
+    "./recommended": "./recommended.js",
+    "./recommended.json": "./recommended.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@oxlint/plugins": "^1.70.0"
   }
 }

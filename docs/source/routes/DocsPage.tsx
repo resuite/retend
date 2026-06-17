@@ -5,9 +5,17 @@ import { Link, useCurrentRoute } from 'retend/router';
 import { createMDXComponents } from '@/components/MDXComponents';
 import { GithubIcon } from '@/icons';
 
+import type { SidebarItem } from './docs/DocsSidebar';
+
 import { docPages } from './docs/docsData';
 import { DocsOnThisPage } from './docs/DocsOnThisPage';
 import { sidebarItems } from './docs/DocsSidebar';
+
+interface DocsPageMetadataProps {
+  params: Map<string, string>;
+}
+
+type FlatSidebarItem = Extract<SidebarItem, { type: 'link' }>;
 
 export function DocsPage() {
   const currentRoute = useCurrentRoute();
@@ -37,7 +45,7 @@ export function DocsPage() {
   const editHref = `https://github.com/resuite/retend/edit/main/docs/content/${activePage.sortKey}.mdx`;
   const components = createMDXComponents();
 
-  const flatItems: { href: string; label: string }[] = [];
+  const flatItems: FlatSidebarItem[] = [];
   for (const item of sidebarItems) {
     if (item.type === 'link') {
       flatItems.push(item);
@@ -121,7 +129,7 @@ export function DocsPage() {
   );
 }
 
-DocsPage.metadata = ({ params }: { params: Map<string, string> }) => {
+DocsPage.metadata = ({ params }: DocsPageMetadataProps) => {
   const section = params.get('section');
   const pageParam = params.get('page');
   const subpage = params.get('subpage');

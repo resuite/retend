@@ -3,7 +3,16 @@ import { Link, useCurrentRoute } from 'retend/router';
 
 import type { SidebarItem } from './DocsSidebar';
 
-function SidebarNode(props: { item: SidebarItem }) {
+interface SidebarNodeProps {
+  item: SidebarItem;
+}
+
+interface SidebarNavProps {
+  items: SidebarItem[];
+  toggle: () => void;
+}
+
+function SidebarNode(props: SidebarNodeProps) {
   const { item } = props;
   const currentRoute = useCurrentRoute();
 
@@ -74,10 +83,7 @@ function SidebarNode(props: { item: SidebarItem }) {
   );
 }
 
-export function SidebarNav(props: {
-  items: SidebarItem[];
-  toggle: () => void;
-}) {
+export function SidebarNav(props: SidebarNavProps) {
   const { items, toggle } = props;
 
   return (

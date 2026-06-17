@@ -5,7 +5,12 @@ import { sectionEntries } from './docsData';
 import { MobileMenuButton, MobileOverlay } from './DocsSidebarChrome';
 import { SidebarNav } from './DocsSidebarNav';
 
-const flatDocs: Array<{ href: string; label: string }> = [];
+interface FlatDocItem {
+  href: string;
+  label: string;
+}
+
+const flatDocs: FlatDocItem[] = [];
 for (const [, sectionData] of sectionEntries) {
   if (sectionData.pages && sectionData.pages.length > 0) {
     for (const docPage of sectionData.pages) {

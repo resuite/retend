@@ -1,13 +1,29 @@
 /// <reference types="vite/client" />
 import type { JSX } from 'retend/jsx-runtime';
 
+export interface DocHeading {
+  id: string;
+  selector: '' | `#${string}`;
+  label: string;
+  depth: number;
+}
+
+export interface DocPageComponentProps {
+  components: Record<string, unknown>;
+}
+
+export interface DocMetadata {
+  headings: DocHeading[];
+  title: string;
+  description: string;
+}
+
+interface DocModuleValue {
+  default: DocPage['Component'];
+}
+
 export interface DocPage {
-  headings: {
-    id: string;
-    selector: '' | `#${string}`;
-    label: string;
-    depth: number;
-  }[];
+  headings: DocHeading[];
   href: string;
   slug: string;
   label: string;
@@ -17,7 +33,7 @@ export interface DocPage {
   sortKey: string;
   title: string;
   description: string;
-  Component: (props: { components: Record<string, unknown> }) => JSX.Element;
+  Component: (props: DocPageComponentProps) => JSX.Element;
 }
 
 export interface DocSectionData {
@@ -26,13 +42,10 @@ export interface DocSectionData {
   pages: DocPage[];
 }
 
-type DocModule = Record<string, { default: DocPage['Component'] }>;
+type DocModule = Record<string, DocModuleValue>;
 
 const modules = import.meta.glob('../../../content/**/*.mdx', { eager: true });
-declare const __DOC_METADATA__: Record<
-  string,
-  { headings: DocPage['headings']; title: string; description: string }
->;
+declare const __DOC_METADATA__: Record<string, DocMetadata>;
 
 const normalizePathSegments = (relativePath: string): string[] =>
   relativePath
@@ -57,7 +70,7 @@ const createLabelFromSlug = (slug: string): string => {
 
 const createDocPage = ([filePath, mdxModule]: [
   string,
-  { default: DocPage['Component'] },
+  DocModuleValue,
 ]): DocPage => {
   const relativePath = filePath
     .replace('../../../content/', '')

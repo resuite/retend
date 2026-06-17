@@ -472,38 +472,7 @@ async function createConfigFile(projectDir, answers) {
       JSON.stringify(
         {
           $schema: './node_modules/oxlint/configuration_schema.json',
-          jsPlugins: ['./node_modules/retend-oxlint-plugin/index.js'],
-          rules: {
-            'retend/component-statement-order': 'error',
-            'retend/no-anonymous-for-component': 'error',
-            'retend/no-cell-set-in-derived': 'error',
-            'retend/max-component-lines': 'error',
-            'retend/max-jsx-components-per-file': 'error',
-            'retend/no-classname': 'error',
-            'retend/no-inline-object-type': 'error',
-            'retend/no-module-cell': 'warn',
-            'retend/no-module-jsx': 'error',
-            'retend/no-templated-class': 'error',
-            'retend/no-get-in-jsx': 'error',
-            'retend/no-derived-in-jsx': 'error',
-            'retend/no-get-in-derived-async': 'error',
-            'retend/no-jsx-control-flow': 'error',
-            'retend/no-jsx-map': 'error',
-            'retend/no-listen-in-onsetup': 'error',
-            'retend/no-provider-inline-object-value': 'error',
-            'retend/no-raw-ref-callback': 'error',
-            'retend/no-react-imports': 'error',
-            'retend/task-define-at-component-level': 'error',
-            'retend/prefer-batch-set': 'error',
-            'retend/prefer-link-for-internal-anchor': 'error',
-            'retend/prefer-onconnected-for-ref-dom-use': 'error',
-            'retend/prefer-router-navigation': 'error',
-            'retend/require-effect-cleanup': 'error',
-            'retend/require-named-handlers-for-complex-jsx-events': 'error',
-            'retend/require-scope-name': 'error',
-            'retend/valid-teleport-selector': 'error',
-            'retend/props-destructure-first': 'error',
-          },
+          extends: ['./node_modules/retend-oxlint-plugin/recommended.json'],
         },
         null,
         2
@@ -540,6 +509,7 @@ async function createVSCodeFolder(projectDir, answers) {
     'editor.defaultFormatter': 'oxc.oxc-vscode',
     'editor.formatOnSave': false,
     'editor.codeActionsOnSave': {
+      'source.organizeImports': 'always',
       'source.format.oxc': 'always',
       'source.fixAll.oxc': 'always',
     },
@@ -570,6 +540,7 @@ async function createZedFolder(projectDir) {
     prettier: { allowed: false },
     formatter: [
       { language_server: { name: 'oxfmt' } },
+      { code_action: 'source.organizeImports' },
       { code_action: 'source.fixAll.oxc' },
     ],
   };
@@ -588,6 +559,7 @@ async function createZedFolder(projectDir) {
     },
     languages: {
       JavaScript: languageSettings,
+      JSX: languageSettings,
       TypeScript: languageSettings,
       TSX: languageSettings,
     },

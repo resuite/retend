@@ -1,0 +1,39 @@
+const rules = {
+  'retend/component-statement-order': 'error',
+  'retend/max-component-lines': 'error',
+  'retend/max-jsx-components-per-file': 'error',
+  'retend/no-anonymous-for-component': 'error',
+  'retend/no-cell-set-in-derived': 'error',
+  'retend/no-classname': 'error',
+  'retend/no-derived-in-jsx': 'error',
+  'retend/no-get-in-derived-async': 'error',
+  'retend/no-get-in-jsx': 'error',
+  'retend/no-inline-object-type': 'error',
+  'retend/no-jsx-control-flow': 'error',
+  'retend/no-jsx-map': 'error',
+  'retend/no-listen-in-onsetup': 'error',
+  'retend/no-module-cell': 'warn',
+  'retend/no-module-jsx': 'error',
+  'retend/no-provider-inline-object-value': 'error',
+  'retend/no-raw-ref-callback': 'error',
+  'retend/no-react-imports': 'error',
+  'retend/no-templated-class': 'error',
+  'retend/prefer-batch-set': 'error',
+  'retend/prefer-link-for-internal-anchor': 'error',
+  'retend/prefer-onconnected-for-ref-dom-use': 'error',
+  'retend/prefer-router-navigation': 'error',
+  'retend/props-destructure-first': 'error',
+  'retend/require-effect-cleanup': 'error',
+  'retend/require-named-handlers-for-complex-jsx-events': 'error',
+  'retend/require-scope-name': 'error',
+  'retend/task-define-at-component-level': 'error',
+  'retend/valid-teleport-selector': 'error',
+};
+
+const recommended = {
+  jsPlugins: ['retend-oxlint-plugin'],
+  rules,
+};
+
+export { recommended, rules };
+export default recommended;
