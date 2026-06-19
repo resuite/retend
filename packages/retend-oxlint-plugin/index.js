@@ -308,58 +308,6 @@ function unwrapExpression(node) {
   return current;
 }
 
-function getReturnedExpressions(callback) {
-  const expressions = [];
-
-  if (!callback) {
-    return expressions;
-  }
-
-  if (callback.body.type !== 'BlockStatement') {
-    expressions.push(unwrapExpression(callback.body));
-    return expressions;
-  }
-
-  walkOwnBody(callback.body, (current) => {
-    if (current.type !== 'ReturnStatement') {
-      return true;
-    }
-
-    if (current.argument) {
-      expressions.push(unwrapExpression(current.argument));
-    }
-
-    return true;
-  });
-
-  return expressions;
-}
-
-function getJsxElementName(node) {
-  if (node.type === 'JSXIdentifier') {
-    return node.name;
-  }
-
-  if (node.type === 'JSXMemberExpression') {
-    return getJsxElementName(node.property);
-  }
-
-  if (node.type === 'JSXNamespacedName') {
-    return node.name.name;
-  }
-
-  return null;
-}
-
-function isJsxComponentElement(node) {
-  if (node?.type !== 'JSXElement') {
-    return false;
-  }
-
-  const name = getJsxElementName(node.openingElement.name);
-  return Boolean(name && /^[A-Z]/u.test(name));
-}
-
 function isProviderElementName(node) {
   if (node.type === 'JSXIdentifier') {
     return node.name === 'Provider';
@@ -509,55 +457,6 @@ function effectCallbackReturnsCleanup(callback) {
   });
 
   return hasCleanup;
-}
-
-function findAnonymousJsxMarkup(expression) {
-  const node = unwrapExpression(expression);
-
-  if (!node) {
-    return null;
-  }
-
-  if (node.type === 'JSXFragment') {
-    return node;
-  }
-
-  if (node.type === 'JSXElement') {
-    return isJsxComponentElement(node) ? null : node;
-  }
-
-  if (node.type === 'ConditionalExpression') {
-    return (
-      findAnonymousJsxMarkup(node.consequent) ??
-      findAnonymousJsxMarkup(node.alternate)
-    );
-  }
-
-  if (node.type === 'LogicalExpression') {
-    return (
-      findAnonymousJsxMarkup(node.left) ?? findAnonymousJsxMarkup(node.right)
-    );
-  }
-
-  if (node.type === 'SequenceExpression') {
-    for (const expression of node.expressions) {
-      const anonymousJsx = findAnonymousJsxMarkup(expression);
-      if (anonymousJsx) {
-        return anonymousJsx;
-      }
-    }
-  }
-
-  if (node.type === 'ArrayExpression') {
-    for (const element of node.elements) {
-      const anonymousJsx = findAnonymousJsxMarkup(element);
-      if (anonymousJsx) {
-        return anonymousJsx;
-      }
-    }
-  }
-
-  return null;
 }
 
 function isSimpleHandlerExpression(expression) {
@@ -1905,46 +1804,6 @@ const preferRouterNavigation = {
   },
 };
 
-const noAnonymousForComponent = {
-  meta: {
-    docs: {
-      description: 'require For callbacks to render named item components',
-    },
-    schema: [],
-    messages: {
-      unexpected:
-        "Render a named component from `For()` instead of inline item markup. Use `For(items, (item) => <ItemRow item={item} />, { key: 'id' })`, then put the item's cells, handlers, lifecycle hooks, and JSX inside `ItemRow`.",
-    },
-  },
-  createOnce(context) {
-    return {
-      CallExpression(node) {
-        if (!isNamedCall(node, 'For')) {
-          return;
-        }
-
-        const callback = node.arguments[1];
-        if (callback?.type !== 'ArrowFunctionExpression') {
-          if (callback?.type !== 'FunctionExpression') {
-            return;
-          }
-        }
-
-        const returnedExpressions = getReturnedExpressions(callback);
-        for (const expression of returnedExpressions) {
-          const anonymousJsx = findAnonymousJsxMarkup(expression);
-          if (!anonymousJsx) {
-            continue;
-          }
-
-          context.report({ node: anonymousJsx, messageId: 'unexpected' });
-          return;
-        }
-      },
-    };
-  },
-};
-
 const noCellSetInDerived = {
   meta: {
     docs: {
@@ -2348,7 +2207,6 @@ const plugin = {
     'component-statement-order': componentStatementOrder,
     'max-component-lines': maxComponentLines,
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
-    'no-anonymous-for-component': noAnonymousForComponent,
     'no-cell-set-in-derived': noCellSetInDerived,
     'no-classname': noClassName,
     'no-inline-object-type': noInlineObjectType,

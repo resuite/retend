@@ -2,7 +2,6 @@ const rules = {
   'retend/component-statement-order': 'error',
   'retend/max-component-lines': 'error',
   'retend/max-jsx-components-per-file': 'error',
-  'retend/no-anonymous-for-component': 'error',
   'retend/no-cell-set-in-derived': 'error',
   'retend/no-classname': 'error',
   'retend/no-derived-in-jsx': 'error',
