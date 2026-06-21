@@ -1,6 +1,13 @@
 import type { DOMRenderer } from 'retend-web';
 
-import { Cell, getActiveRenderer, onConnected } from 'retend';
+import {
+  Cell,
+  If,
+  getActiveRenderer,
+  onConnected,
+  onSetup,
+  runPendingSetupEffects,
+} from 'retend';
 import { describe, expect, it, vi } from 'vitest';
 
 import { browserSetup, timeout } from './setup.tsx';
@@ -252,5 +259,65 @@ describe('onConnected', () => {
     expect(callback2).toHaveBeenCalledWith(node);
 
     node.remove();
+  });
+
+  it('should call onSetup after onConnected', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const order: string[] = [];
+    const ref = Cell.source<HTMLElement | null>(null);
+    const Component = () => {
+      onConnected(ref, () => {
+        order.push('connected');
+      });
+      onSetup(() => {
+        order.push('setup');
+      });
+      return <div ref={ref} />;
+    };
+
+    renderer.host.document.body.append(renderer.render(<Component />) as Node);
+    await runPendingSetupEffects();
+
+    expect(order).toEqual(['connected', 'setup']);
+  });
+
+  it("should call onSetup's cleanup before onConnected's cleanup", async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const order: string[] = [];
+    const show = Cell.source(true);
+    const ref = Cell.source<HTMLElement | null>(null);
+    const Component = () => {
+      onConnected(ref, () => () => {
+        order.push('connected');
+      });
+      onSetup(() => () => {
+        order.push('setup');
+      });
+      return <div ref={ref} />;
+    };
+
+    renderer.host.document.body.append(
+      renderer.render(<div>{If(show, Component)}</div>) as Node
+    );
+    await runPendingSetupEffects();
+    show.set(false);
+    renderer.observer?.flush();
+
+    expect(order).toEqual(['setup', 'connected']);
+  });
+
+  it('should have refs connected in onSetup', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const connected = Cell.source(false);
+    const ref = Cell.source<HTMLElement | null>(null);
+    const Component = () => {
+      onSetup(() => connected.set(ref.get()?.isConnected ?? false));
+      return <div ref={ref} />;
+    };
+
+    renderer.host.document.body.append(renderer.render(<Component />) as Node);
+    await runPendingSetupEffects();
+
+    expect(connected.get()).toBe(true);
   });
 });
