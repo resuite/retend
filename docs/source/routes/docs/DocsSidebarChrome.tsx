@@ -49,14 +49,12 @@ export function MobileOverlay(props: MobileOverlayProps) {
 
   return (
     <>
-      {If(isOpen, {
-        true: () => (
-          <div
-            class="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={toggle}
-          />
-        ),
-      })}
+      {If(isOpen, () => (
+        <div
+          class="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={toggle}
+        />
+      ))}
     </>
   );
 }

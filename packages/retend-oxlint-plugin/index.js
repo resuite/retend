@@ -308,6 +308,48 @@ function unwrapExpression(node) {
   return current;
 }
 
+function getStaticPropertyName(property) {
+  if (property.type !== 'Property') {
+    return null;
+  }
+
+  if (property.key.type === 'Identifier') {
+    return property.key.name;
+  }
+
+  if (isStaticStringLiteral(property.key)) {
+    return property.key.value;
+  }
+
+  return null;
+}
+
+function isTrueOnlyConditionObject(node) {
+  if (node?.type !== 'ObjectExpression') {
+    return false;
+  }
+
+  let hasTrueBranch = false;
+  let hasFalseBranch = false;
+
+  for (const property of node.properties) {
+    const propertyName = getStaticPropertyName(property);
+    if (propertyName === null) {
+      return false;
+    }
+
+    if (propertyName === 'true') {
+      hasTrueBranch = true;
+    }
+
+    if (propertyName === 'false') {
+      hasFalseBranch = true;
+    }
+  }
+
+  return hasTrueBranch && !hasFalseBranch;
+}
+
 function isProviderElementName(node) {
   if (node.type === 'JSXIdentifier') {
     return node.name === 'Provider';
@@ -1110,6 +1152,42 @@ const noDerivedInJsx = {
       },
       ReturnStatement(node) {
         reportInlineDerived(node.argument);
+      },
+    };
+  },
+};
+
+const noIfThreeArgs = {
+  meta: {
+    docs: {
+      description: 'disallow legacy or noisy If() branch syntax',
+    },
+    schema: [],
+    messages: {
+      threeArgs:
+        'Do not pass a third argument to `If()`. Use `If(value, trueFn)` for a true-only branch, `If(value, { false: falseFn })` for a false-only branch, or `If(value, { true: trueFn, false: falseFn })` when both branches are present.',
+      trueOnlyObject:
+        'Do not use an object bag for a true-only `If()` branch. Pass the render function directly as the second argument: `If(value, trueFn)`.',
+    },
+  },
+  createOnce(context) {
+    return {
+      CallExpression(node) {
+        if (!isNamedCall(node, 'If')) {
+          return;
+        }
+
+        if (node.arguments.length >= 3) {
+          context.report({ node: node.arguments[2], messageId: 'threeArgs' });
+          return;
+        }
+
+        const branchArgument = unwrapExpression(node.arguments[1]);
+        if (!isTrueOnlyConditionObject(branchArgument)) {
+          return;
+        }
+
+        context.report({ node: branchArgument, messageId: 'trueOnlyObject' });
       },
     };
   },
@@ -2219,6 +2297,7 @@ const plugin = {
     'no-get-in-derived-async': noGetInDerivedAsync,
     'no-get-in-jsx': noGetInJsx,
     'no-derived-in-jsx': noDerivedInJsx,
+    'no-if-three-args': noIfThreeArgs,
     'no-jsx-control-flow': noJsxControlFlow,
     'no-jsx-map': noJsxMap,
     'no-listen-in-onsetup': noListenInOnSetup,

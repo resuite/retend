@@ -56,7 +56,6 @@ const Box = createUnique(() => {
 
   return (
     <UniqueTransition
-      topLayer
       transitionDuration="2000ms"
       transitionTimingFunction="ease-in-out"
     >

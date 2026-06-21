@@ -7,6 +7,7 @@ const rules = {
   'retend/no-derived-in-jsx': 'error',
   'retend/no-get-in-derived-async': 'error',
   'retend/no-get-in-jsx': 'error',
+  'retend/no-if-three-args': 'error',
   'retend/no-inline-object-type': 'error',
   'retend/no-jsx-control-flow': 'error',
   'retend/no-jsx-map': 'error',
