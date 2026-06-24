@@ -564,7 +564,7 @@ export class Router extends EventTarget {
     if (!this.#assertNotLocked(path)) return;
     this.#isNavigating = true;
     try {
-      await this.#load({ rawPath: path, replace: true });
+      await this.#load({ rawPath: path, navigate: true, replace: true });
     } finally {
       this.#isNavigating = false;
     }
@@ -650,9 +650,12 @@ export class Router extends EventTarget {
     if (this.#isNavigating) return;
     const window = /** @type {Window} */ (event.currentTarget);
     this.#isNavigating = true;
-    const path = getFullPath(window);
-    await this.#load({ rawPath: path, navigate: false });
-    this.#isNavigating = false;
+    try {
+      const path = getFullPath(window);
+      await this.#load({ rawPath: path, navigate: false });
+    } finally {
+      this.#isNavigating = false;
+    }
   };
 
   /** @param {Window} window */
