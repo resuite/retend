@@ -39,6 +39,37 @@ describe('Router Title Updates', () => {
     expect(window.document.title).toBe('About Page Title');
   });
 
+  it('should update window.document.title when replacing routes with titles', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        {
+          name: 'home',
+          path: '/',
+          component: () => 'Home Page',
+          title: 'Home Page Title',
+        },
+        {
+          name: 'about',
+          path: '/about',
+          component: () => 'About Us',
+          title: 'About Page Title',
+        },
+      ]),
+    });
+
+    router.attachWindowListeners(window);
+    window.document.body.append(createRouterRoot(router));
+
+    await router.navigate('/');
+    expect(window.document.title).toBe('Home Page Title');
+
+    await router.replace('/about');
+    expect(window.document.title).toBe('About Page Title');
+    expect(window.location.pathname).toBe('/about');
+  });
+
   it('should not update window.document.title if route has no title', async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;

@@ -83,7 +83,9 @@ function DashboardContent() {
   return (
     <div>
       {/* Retend sees both of these Async Cells and tells the boundary to wait for both! */}
-      {If(userData, { true: (u) => <h2>{u.name}'s Dashboard</h2> })}
+      {If(userData, (u) => (
+        <h2>{u.name}'s Dashboard</h2>
+      ))}
       {For(postsData, (p) => (
         <p>{p.title}</p>
       ))}

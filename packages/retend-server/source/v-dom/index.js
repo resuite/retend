@@ -100,12 +100,15 @@ export class VNode extends EventTarget {
       }
     }
 
+    for (const node of newNodes) {
+      if (node !== this) node.remove();
+    }
     const index = parentNode.childNodes.indexOf(this);
     parentNode.childNodes.splice(index, 1, ...newNodes);
     for (const node of newNodes) {
-      node.parentNode = this.parentNode;
+      node.parentNode = parentNode;
     }
-    this.parentNode = null;
+    if (!newNodes.includes(this)) this.parentNode = null;
   }
 
   /** @param {(string | VNode)[]} nodes */
@@ -120,6 +123,9 @@ export class VNode extends EventTarget {
           ? n
           : ownerDocument.createTextNode(n)
     );
+    for (const node of newNodes) {
+      node.remove();
+    }
     for (const node of this.childNodes) {
       node.parentNode = null;
     }

@@ -138,7 +138,9 @@ class EffectNode {
 
   async activate() {
     if (!this.#enabled || this.#active) return;
-    await new Promise((resolve) => setTimeout(resolve));
+    await new Promise((resolve) => {
+      queueMicrotask(() => resolve(undefined));
+    });
     await this.#runActivateFns();
     this.renderer?.host.dispatchEvent(new Event('retend:activate'));
   }
@@ -538,7 +540,7 @@ export async function runPendingSetupEffects() {
   renderer?.observer?.flush();
   node.enable();
   await node.activate();
-  await new Promise((resolve) => setTimeout(resolve));
+  await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
 }
 
 /** @type {Scope<__HMR_UpdatableFn[]>} */
