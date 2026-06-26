@@ -2,17 +2,17 @@
   "minNodeVersion": "^20.19.0 || >=22.12.0",
   "directories": ["public", "source", "source/styles"],
   "dependencies": {
-    "retend": "^0.0.30",
-    "retend-server": "^0.0.30",
-    "retend-utils": "^0.0.30",
-    "retend-web": "^0.0.30",
-    "retend-web-devtools": "^0.0.30"
+    "retend": "^0.0.31",
+    "retend-server": "^0.0.31",
+    "retend-utils": "^0.0.31",
+    "retend-web": "^0.0.31",
+    "retend-web-devtools": "^0.0.31"
   },
   "devDependencies": {
     "vite": "^8.0.0",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.50.0",
-    "retend-oxlint-plugin": "^0.0.30",
+    "retend-oxlint-plugin": "^0.0.31",
     "typescript": "^5.5.2",
     "tailwindcss": "^4.1.8",
     "@tailwindcss/vite": "^4.1.5"
