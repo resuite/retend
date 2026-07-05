@@ -1,8 +1,12 @@
 const rules = {
   'retend/component-statement-order': 'error',
+  'retend/invalid-event-modifiers': 'error',
   'retend/max-component-lines': 'error',
   'retend/max-jsx-components-per-file': 'error',
+  'retend/no-async-component': 'error',
+  'retend/no-cell-mutation-without-set': 'error',
   'retend/no-cell-set-in-derived': 'error',
+  'retend/no-cell-type-alias': 'error',
   'retend/no-classname': 'error',
   'retend/no-derived-in-jsx': 'error',
   'retend/no-get-in-derived-async': 'error',
@@ -19,6 +23,7 @@ const rules = {
   'retend/no-react-imports': 'error',
   'retend/no-templated-class': 'error',
   'retend/prefer-batch-set': 'error',
+  'retend/prefer-cell-task': 'error',
   'retend/prefer-link-for-internal-anchor': 'error',
   'retend/prefer-onconnected-for-ref-dom-use': 'error',
   'retend/prefer-router-navigation': 'error',
@@ -26,6 +31,7 @@ const rules = {
   'retend/require-effect-cleanup': 'error',
   'retend/require-named-handlers-for-complex-jsx-events': 'error',
   'retend/require-scope-name': 'error',
+  'retend/require-submit-prevent': 'error',
   'retend/task-define-at-component-level': 'error',
   'retend/valid-teleport-selector': 'error',
 };

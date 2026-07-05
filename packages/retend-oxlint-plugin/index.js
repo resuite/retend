@@ -543,6 +543,357 @@ function isSimpleInlineHandler(callback) {
   );
 }
 
+function containsAwaitExpression(root) {
+  let found = false;
+
+  walkOwnBody(root, (current) => {
+    if (current.type === 'AwaitExpression') {
+      found = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  return found;
+}
+
+function isCellSetCallWithReset(node, cellNames) {
+  if (node.type !== 'CallExpression') {
+    return false;
+  }
+
+  if (node.callee.type !== 'MemberExpression') {
+    return false;
+  }
+
+  if (node.callee.computed) {
+    return false;
+  }
+
+  if (node.callee.object.type !== 'Identifier') {
+    return false;
+  }
+
+  if (!cellNames.has(node.callee.object.name)) {
+    return false;
+  }
+
+  if (node.callee.property.type !== 'Identifier') {
+    return false;
+  }
+
+  if (node.callee.property.name !== 'set') {
+    return false;
+  }
+
+  const value = unwrapExpression(node.arguments[0]);
+  return (
+    isNullLiteral(value) || (value?.type === 'Literal' && value.value === false)
+  );
+}
+
+function containsCellSetReset(root, cellNames) {
+  let found = false;
+
+  walkOwnBody(root, (current) => {
+    if (isCellSetCallWithReset(current, cellNames)) {
+      found = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  return found;
+}
+
+function getComponentSourceCellNames(component) {
+  const cellNames = new Set();
+
+  if (component.body.type !== 'BlockStatement') {
+    return cellNames;
+  }
+
+  for (const statement of component.body.body) {
+    if (statement.type !== 'VariableDeclaration') {
+      continue;
+    }
+
+    for (const declaration of statement.declarations) {
+      if (declaration.id.type !== 'Identifier') {
+        continue;
+      }
+
+      if (!isRetendCellCall(declaration.init, 'source')) {
+        continue;
+      }
+
+      const initialValue = unwrapExpression(declaration.init.arguments[0]);
+      if (!isNullLiteral(initialValue) && initialValue?.value !== false) {
+        continue;
+      }
+
+      cellNames.add(declaration.id.name);
+    }
+  }
+
+  return cellNames;
+}
+
+const validEventModifiers = new Set([
+  'once',
+  'passive',
+  'prevent',
+  'self',
+  'stop',
+]);
+
+const mutatingCellValueMethods = new Set([
+  'copyWithin',
+  'fill',
+  'pop',
+  'push',
+  'reverse',
+  'shift',
+  'sort',
+  'splice',
+  'unshift',
+]);
+
+function getJsxAttributeName(node) {
+  if (node.name.type !== 'JSXIdentifier') {
+    return null;
+  }
+
+  return node.name.name;
+}
+
+function getRetendEventAttributeParts(attributeName) {
+  if (!/^on[A-Z]/u.test(attributeName)) {
+    return null;
+  }
+
+  const [eventName, ...modifiers] = attributeName.split('--');
+  return { eventName, modifiers };
+}
+
+function isCellGetCall(node) {
+  if (node?.type !== 'CallExpression') {
+    return false;
+  }
+
+  if (node.arguments.length > 0) {
+    return false;
+  }
+
+  if (node.callee.type !== 'MemberExpression') {
+    return false;
+  }
+
+  if (node.callee.computed) {
+    return false;
+  }
+
+  if (node.callee.property.type !== 'Identifier') {
+    return false;
+  }
+
+  return node.callee.property.name === 'get';
+}
+
+function containsCellGetCall(root) {
+  let found = false;
+  const expression = unwrapExpression(root);
+
+  walkTree(expression, (current) => {
+    if (isCellGetCall(current)) {
+      found = true;
+      return false;
+    }
+
+    return true;
+  });
+
+  return found;
+}
+
+const requireSubmitPrevent = {
+  meta: {
+    docs: {
+      description: 'require prevent on submit handlers',
+    },
+    schema: [],
+    messages: {
+      unexpected: 'Use the prevent event modifier on submit handlers.',
+    },
+  },
+  createOnce(context) {
+    return {
+      JSXElement(node) {
+        if (node.openingElement.name.type !== 'JSXIdentifier') {
+          return;
+        }
+
+        if (node.openingElement.name.name !== ['f', 'o', 'r', 'm'].join('')) {
+          return;
+        }
+
+        for (const attribute of node.openingElement.attributes) {
+          if (attribute.type !== 'JSXAttribute') {
+            continue;
+          }
+
+          const attributeName = getJsxAttributeName(attribute);
+          if (!attributeName) {
+            continue;
+          }
+
+          const eventParts = getRetendEventAttributeParts(attributeName);
+          if (eventParts?.eventName !== `on${'Submit'}`) {
+            continue;
+          }
+
+          if (eventParts.modifiers.includes('prevent')) {
+            continue;
+          }
+          context.report({ node: attribute.name, messageId: 'unexpected' });
+          return;
+        }
+      },
+    };
+  },
+};
+
+const invalidEventModifiers = {
+  meta: {
+    docs: {
+      description: 'disallow unknown Retend event modifiers',
+    },
+    schema: [],
+    messages: {
+      invalid: 'Unknown Retend event modifier.',
+      passivePrevent: '`--passive` cannot be combined with `--prevent`.',
+    },
+  },
+  createOnce(context) {
+    return {
+      JSXAttribute(node) {
+        const attributeName = getJsxAttributeName(node);
+        if (!attributeName) {
+          return;
+        }
+
+        const eventParts = getRetendEventAttributeParts(attributeName);
+        if (!eventParts || eventParts.modifiers.length === 0) {
+          return;
+        }
+
+        for (const modifier of eventParts.modifiers) {
+          if (validEventModifiers.has(modifier)) {
+            continue;
+          }
+          context.report({ node: node.name, messageId: 'invalid' });
+          return;
+        }
+
+        if (
+          eventParts.modifiers.includes('passive') &&
+          eventParts.modifiers.includes('prevent')
+        ) {
+          context.report({ node: node.name, messageId: 'passivePrevent' });
+        }
+      },
+    };
+  },
+};
+
+const noCellMutationWithoutSet = {
+  meta: {
+    docs: {
+      description: 'disallow direct mutation of Cell .get() values',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Do not mutate the value returned by `.get()`. Update the Cell with a new value instead.',
+    },
+  },
+  createOnce(context) {
+    return {
+      AssignmentExpression(node) {
+        if (!containsCellGetCall(node.left)) {
+          return;
+        }
+        context.report({ node: node.left, messageId: 'unexpected' });
+      },
+      CallExpression(node) {
+        if (node.callee.type !== 'MemberExpression') {
+          return;
+        }
+
+        if (node.callee.computed) {
+          return;
+        }
+
+        if (node.callee.property.type !== 'Identifier') {
+          return;
+        }
+
+        if (!mutatingCellValueMethods.has(node.callee.property.name)) {
+          return;
+        }
+
+        if (!containsCellGetCall(node.callee.object)) {
+          return;
+        }
+        context.report({ node: node.callee.property, messageId: 'unexpected' });
+      },
+      UnaryExpression(node) {
+        if (node.operator !== 'delete') {
+          return;
+        }
+
+        if (!containsCellGetCall(node.argument)) {
+          return;
+        }
+        context.report({ node, messageId: 'unexpected' });
+      },
+      UpdateExpression(node) {
+        if (!containsCellGetCall(node.argument)) {
+          return;
+        }
+        context.report({ node, messageId: 'unexpected' });
+      },
+    };
+  },
+};
+
+const noAsyncComponent = {
+  meta: {
+    docs: {
+      description: 'disallow async Retend JSX components',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Retend components should not be `async`. Put async work in cells, tasks, or lifecycle hooks.',
+    },
+  },
+  createOnce(context) {
+    return {
+      Program(node) {
+        for (const component of getTopLevelJsxComponents(node)) {
+          if (!component.async) {
+            continue;
+          }
+          context.report({ node: component, messageId: 'unexpected' });
+        }
+      },
+    };
+  },
+};
+
 const noModuleCell = {
   meta: {
     docs: {
@@ -604,6 +955,52 @@ const taskDefineAtComponentLevel = {
               node: current.callee.property,
               messageId: 'unexpected',
             });
+            return false;
+          });
+        }
+      },
+    };
+  },
+};
+
+const preferCellTask = {
+  meta: {
+    docs: {
+      description: 'prefer Cell.task() for async UI actions',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Use Cell.task() for async UI actions instead of try/catch/finally with manual loading state. Read task.pending and task.error for UI state.',
+    },
+  },
+  createOnce(context) {
+    return {
+      Program(node) {
+        for (const component of getTopLevelJsxComponents(node)) {
+          const sourceCellNames = getComponentSourceCellNames(component);
+          if (sourceCellNames.size === 0) {
+            continue;
+          }
+
+          walkTree(component.body, (current) => {
+            if (current.type !== 'TryStatement') {
+              return true;
+            }
+
+            if (!current.handler || !current.finalizer) {
+              return true;
+            }
+
+            if (!containsAwaitExpression(current.block)) {
+              return true;
+            }
+
+            if (!containsCellSetReset(current.finalizer, sourceCellNames)) {
+              return true;
+            }
+
+            context.report({ node: current, messageId: 'unexpected' });
             return false;
           });
         }
@@ -1538,6 +1935,52 @@ const noGetInDerivedAsync = {
   },
 };
 
+const noCellTypeAlias = {
+  meta: {
+    docs: {
+      description: 'disallow aliasing the Cell type import',
+    },
+    schema: [],
+    messages: {
+      unexpected:
+        'Do not alias the Retend Cell type. Import Cell directly and write `Cell<T>` instead of `CellType<T>`.',
+    },
+  },
+  createOnce(context) {
+    return {
+      ImportDeclaration(node) {
+        if (node.source.value !== 'retend') {
+          return;
+        }
+
+        for (const specifier of node.specifiers) {
+          if (specifier.type !== 'ImportSpecifier') {
+            continue;
+          }
+
+          if (specifier.imported.type !== 'Identifier') {
+            continue;
+          }
+
+          if (specifier.imported.name !== 'Cell') {
+            continue;
+          }
+
+          if (specifier.local.name === 'Cell') {
+            continue;
+          }
+
+          if (node.importKind !== 'type' && specifier.importKind !== 'type') {
+            continue;
+          }
+
+          context.report({ node: specifier.local, messageId: 'unexpected' });
+        }
+      },
+    };
+  },
+};
+
 const noReactImports = {
   meta: {
     docs: {
@@ -2283,9 +2726,13 @@ const plugin = {
   },
   rules: {
     'component-statement-order': componentStatementOrder,
+    'invalid-event-modifiers': invalidEventModifiers,
     'max-component-lines': maxComponentLines,
     'max-jsx-components-per-file': maxJsxComponentsPerFile,
+    'no-async-component': noAsyncComponent,
+    'no-cell-mutation-without-set': noCellMutationWithoutSet,
     'no-cell-set-in-derived': noCellSetInDerived,
+    'no-cell-type-alias': noCellTypeAlias,
     'no-classname': noClassName,
     'no-inline-object-type': noInlineObjectType,
     'no-module-cell': noModuleCell,
@@ -2305,6 +2752,7 @@ const plugin = {
     'no-raw-ref-callback': noRawRefCallback,
     'no-react-imports': noReactImports,
     'prefer-batch-set': preferBatchSet,
+    'prefer-cell-task': preferCellTask,
     'prefer-link-for-internal-anchor': preferLinkForInternalAnchor,
     'prefer-onconnected-for-ref-dom-use': preferOnconnectedForRefDomUse,
     'prefer-router-navigation': preferRouterNavigation,
@@ -2312,6 +2760,7 @@ const plugin = {
     'require-named-handlers-for-complex-jsx-events':
       requireNamedHandlersForComplexJsxEvents,
     'require-scope-name': requireScopeName,
+    'require-submit-prevent': requireSubmitPrevent,
   },
 };
 
