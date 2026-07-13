@@ -29,8 +29,29 @@ const controlFlowNames = new Set([
   'Await.Content',
 ]);
 
+function getTrackableOutputNodes(output: Node | Node[]): Node[] {
+  const nodes = Array.isArray(output) ? output : [output];
+  const trackableNodes: Node[] = [];
+
+  for (const node of nodes) {
+    if (node instanceof DocumentFragment) {
+      trackableNodes.push(...Array.from(node.childNodes));
+      continue;
+    }
+    trackableNodes.push(node);
+  }
+
+  return trackableNodes;
+}
+
+function normalizeTrackedOutput(output: Node | Node[]): Node | Node[] {
+  const trackableNodes = getTrackableOutputNodes(output);
+  if (trackableNodes.length === 1) return trackableNodes[0];
+  return trackableNodes;
+}
+
 export class DevToolsDOMRenderer extends DOMRenderer {
-  rootNode = Cell.source<ComponentTreeNode | null>(null);
+  rootNodes = Cell.source<Array<ComponentTreeNode>>([]);
   hoveredNode = Cell.source<ComponentTreeNode | null>(null);
   selectedNode = Cell.source<ComponentTreeNode | null>(null);
   highlightColor = Cell.source<HighlightColor>('amber');
@@ -77,7 +98,11 @@ export class DevToolsDOMRenderer extends DOMRenderer {
       siblingsCell.set([...siblingsCell.get(), treeNode]);
       return;
     }
-    this.rootNode.set(treeNode);
+
+    const roots = this.rootNodes.get();
+    if (!roots.includes(treeNode)) {
+      this.rootNodes.set([...roots, treeNode]);
+    }
   }
 
   detachTreeNode(treeNode: ComponentTreeNode) {
@@ -90,9 +115,15 @@ export class DevToolsDOMRenderer extends DOMRenderer {
         const siblings = siblingsCell.get();
         siblingsCell.set(siblings.filter((child) => child !== treeNode));
       }
+    } else {
+      const roots = this.rootNodes.get();
+      if (roots.includes(treeNode)) {
+        this.rootNodes.set(roots.filter((root) => root !== treeNode));
+      }
     }
-    if (treeNode === this.rootNode.get()) this.rootNode.set(null);
+
     if (treeNode === this.selectedNode.get()) this.selectedNode.set(null);
+    if (treeNode === this.hoveredNode.get()) this.hoveredNode.set(null);
   }
 
   override handleComponent(
@@ -123,15 +154,12 @@ export class DevToolsDOMRenderer extends DOMRenderer {
       value: treeNode,
       children: () => {
         const output = super.handleComponent(tagname, props, _, fileData);
-        treeNode.output = output;
-        if (Array.isArray(output)) {
-          for (const node of output) {
-            if (!this.outputs.has(node)) {
-              this.outputs.set(node, treeNode);
-            }
+        const trackableNodes = getTrackableOutputNodes(output);
+        treeNode.output = normalizeTrackedOutput(output);
+        for (const node of trackableNodes) {
+          if (!this.outputs.has(node)) {
+            this.outputs.set(node, treeNode);
           }
-        } else if (!this.outputs.has(output)) {
-          this.outputs.set(output, treeNode);
         }
         return output;
       },

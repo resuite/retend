@@ -20,9 +20,7 @@ export function ComponentName(props: ComponentNameProps) {
 
   const uniqueId = (() => {
     if (!Reflect.get(node.component, '__retendUnique')) return null;
-    const p = node.props;
-    if (!Array.isArray(p)) return null;
-    const propsData = p[0];
+    const propsData = node.props;
     if (!propsData || typeof propsData !== 'object') return null;
     const id = Reflect.get(propsData, 'id');
     return typeof id === 'string' ? id : null;

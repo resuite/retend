@@ -11,7 +11,7 @@ interface SearchResult {
 }
 
 interface UseComponentTreeSearchArgs {
-  root: ComponentTreeNode;
+  roots: Cell<Array<ComponentTreeNode>>;
   getNodeChildren: (node: ComponentTreeNode) => Cell<Array<ComponentTreeNode>>;
 }
 
@@ -20,18 +20,18 @@ function delay(ms: number): Promise<void> {
 }
 
 function collectAllNodes(
-  root: ComponentTreeNode,
+  roots: Array<ComponentTreeNode>,
   getChildren: (node: ComponentTreeNode) => Cell<Array<ComponentTreeNode>>
 ): Array<ComponentTreeNode> {
   const order: Array<ComponentTreeNode> = [];
-  const stack = [root];
+  const stack = roots.toReversed();
   while (stack.length > 0) {
     const node = stack.pop();
     if (node) {
       order.push(node);
       const children = getChildren(node).get();
-      for (const child of children) {
-        stack.push(child);
+      for (let index = children.length - 1; index >= 0; index -= 1) {
+        stack.push(children[index]);
       }
     }
   }
@@ -52,7 +52,7 @@ function fuzzyMatch(name: string, query: string): boolean {
 }
 
 export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
-  const { root, getNodeChildren } = args;
+  const { roots, getNodeChildren } = args;
   const devRenderer = useDevToolsRenderer();
   const searchQuery = Cell.source('');
   const normalizedSearchQuery = Cell.derived(() =>
@@ -61,7 +61,7 @@ export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
   const isSearching = Cell.derived(() => normalizedSearchQuery.get() !== '');
   const forceExpanded = isSearching;
 
-  const initialNodes = collectAllNodes(root, getNodeChildren);
+  const initialNodes = collectAllNodes(roots.get(), getNodeChildren);
   const searchResult = Cell.source<SearchResult>({
     visible: new Set(initialNodes),
     matchCount: 0,
@@ -69,6 +69,7 @@ export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
 
   const asyncSearch = Cell.derivedAsync(async (get) => {
     const query = get(normalizedSearchQuery);
+    const currentRoots = get(roots);
     if (query === '') {
       return {
         visible: new Set<ComponentTreeNode>(),
@@ -78,7 +79,7 @@ export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
 
     await delay(80);
 
-    const order = collectAllNodes(root, getNodeChildren);
+    const order = collectAllNodes(currentRoots, getNodeChildren);
     const visible = new Set<ComponentTreeNode>();
     const matchingBranch = new Set<ComponentTreeNode>();
     let matchCount = 0;
@@ -115,8 +116,12 @@ export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
   });
 
   asyncSearch.listen(async (result) => {
-    if (normalizedSearchQuery.get() !== '') {
-      searchResult.set(await result);
+    const queryAtStart = normalizedSearchQuery.get();
+    if (queryAtStart === '') return;
+
+    const nextResult = await result;
+    if (normalizedSearchQuery.get() === queryAtStart) {
+      searchResult.set(nextResult);
     }
   });
 
@@ -125,7 +130,7 @@ export function useComponentTreeSearch(args: UseComponentTreeSearchArgs) {
     let visibleNodes: Set<ComponentTreeNode>;
 
     if (query === '') {
-      visibleNodes = new Set(collectAllNodes(root, getNodeChildren));
+      visibleNodes = new Set(collectAllNodes(roots.get(), getNodeChildren));
     } else {
       visibleNodes = new Set(searchResult.get().visible);
     }

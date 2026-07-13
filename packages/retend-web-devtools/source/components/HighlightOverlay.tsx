@@ -9,9 +9,12 @@ import HighlightOverlayWorker from '@/workers/HighlightOverlay.worker?worker&inl
 export function HighlightOverlay() {
   const devRenderer = useDevToolsRenderer();
   const canvasRef = Cell.source<HTMLCanvasElement | null>(null);
-  let worker: Worker;
+  const options: AddEventListenerOptions = { capture: true };
+  let worker: Worker | null = null;
+  let isInterceptingClicks = false;
 
   const updateViewport = () => {
+    if (!worker) return;
     worker.postMessage(
       {
         type: 'resize',
@@ -21,6 +24,23 @@ export function HighlightOverlay() {
       },
       []
     );
+  };
+
+  const updateClickInterceptor = () => {
+    const shouldInterceptClicks =
+      devRenderer.isPickerActive.get() &&
+      devRenderer.hoveredNode.get() !== null;
+
+    if (shouldInterceptClicks === isInterceptingClicks) {
+      return;
+    }
+
+    if (shouldInterceptClicks) {
+      document.addEventListener('click', intercept, options);
+    } else {
+      document.removeEventListener('click', intercept, options);
+    }
+    isInterceptingClicks = shouldInterceptClicks;
   };
 
   const intercept = (event: Event) => {
@@ -44,22 +64,16 @@ export function HighlightOverlay() {
     if (selectedComponent) {
       devRenderer.selectedNode.set(selectedComponent);
       devRenderer.isPickerActive.set(false);
-      document.removeEventListener('click', intercept, options);
+      updateClickInterceptor();
     }
   };
 
-  const options = { capture: true };
-
   const updateTarget = () => {
+    updateClickInterceptor();
+
     const hoveredNode = devRenderer.hoveredNode.get();
     const hoveredElement = devRenderer.pickerHoveredElement.get();
     const selectedNode = devRenderer.selectedNode.get();
-
-    if (devRenderer.isPickerActive.get()) {
-      if (!hoveredNode)
-        document?.removeEventListener('click', intercept, options);
-      else document?.addEventListener('click', intercept, options);
-    }
 
     const { rect, label } = getHighlightInfo({
       node: hoveredNode,
@@ -73,7 +87,7 @@ export function HighlightOverlay() {
     });
 
     const color = devRenderer.highlightColor.get();
-    worker.postMessage(
+    worker?.postMessage(
       { type: 'target', rect, label, selectedRect, selectedLabel, color },
       []
     );
@@ -82,13 +96,17 @@ export function HighlightOverlay() {
   const updateCursorPosition = () => {
     const cursorPosition = devRenderer.pickerCursorPosition.get();
     const color = devRenderer.highlightColor.get();
-    worker.postMessage({ type: 'cursor', position: cursorPosition, color }, []);
+    worker?.postMessage(
+      { type: 'cursor', position: cursorPosition, color },
+      []
+    );
   };
 
   devRenderer.hoveredNode.listen(updateTarget);
   devRenderer.selectedNode.listen(updateTarget);
   devRenderer.highlightColor.listen(updateTarget);
   devRenderer.pickerHoveredElement.listen(updateTarget);
+  devRenderer.isPickerActive.listen(updateTarget);
   devRenderer.highlightColor.listen(updateCursorPosition);
   devRenderer.pickerCursorPosition.listen(updateCursorPosition);
 
@@ -115,8 +133,11 @@ export function HighlightOverlay() {
     window.addEventListener('scroll', updateTarget, true);
 
     return () => {
-      worker.postMessage({ type: 'dispose' }, []);
-      worker.terminate();
+      document.removeEventListener('click', intercept, options);
+      isInterceptingClicks = false;
+      worker?.postMessage({ type: 'dispose' }, []);
+      worker?.terminate();
+      worker = null;
       window.removeEventListener('resize', updateViewport);
       window.removeEventListener('resize', updateTarget);
       window.removeEventListener('scroll', updateTarget, true);

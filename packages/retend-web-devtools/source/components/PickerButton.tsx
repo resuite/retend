@@ -14,6 +14,7 @@ export function PickerButton() {
       pickerMoveHandler = undefined;
     }
     document.documentElement.style.cursor = '';
+    devRenderer.hoveredNode.set(null);
     devRenderer.pickerCursorPosition.set(null);
     devRenderer.pickerHoveredElement.set(null);
     devRenderer.isPickerActive.set(false);
@@ -40,8 +41,7 @@ export function PickerButton() {
 
       devRenderer.pickerHoveredElement.set(target);
 
-      const rootNode = devRenderer.rootNode.get();
-      if (!rootNode) {
+      if (devRenderer.rootNodes.get().length === 0) {
         devRenderer.hoveredNode.set(null);
         return;
       }

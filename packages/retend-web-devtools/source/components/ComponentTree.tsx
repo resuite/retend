@@ -9,6 +9,7 @@ export function ComponentTree() {
   const inspectorPanelIsOpen = Cell.derived(() => {
     return devRenderer.selectedNode.get() !== null;
   });
+  const hasRoots = Cell.derived(() => devRenderer.rootNodes.get().length > 0);
 
   return (
     <div
@@ -16,8 +17,8 @@ export function ComponentTree() {
       data-inspector-panel-open={inspectorPanelIsOpen}
       onPointerLeave={() => devRenderer.hoveredNode.set(null)}
     >
-      {If(devRenderer.rootNode, (root) => (
-        <ComponentTreeSearch root={root} />
+      {If(hasRoots, () => (
+        <ComponentTreeSearch roots={devRenderer.rootNodes} />
       ))}
     </div>
   );

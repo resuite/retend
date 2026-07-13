@@ -16,15 +16,28 @@ function extractIdentifierAt(
   const targetLine = lines[line - 1];
   if (!targetLine) return null;
 
-  if (column >= targetLine.length) return null;
-  if (!IDENTIFIER_START.test(targetLine[column])) return null;
+  let start = Math.max(0, column - 1);
+  if (start >= targetLine.length) return null;
 
-  let end = column + 1;
+  if (targetLine[start] === '<') {
+    start += 1;
+  }
+
+  while (
+    start < targetLine.length &&
+    !IDENTIFIER_START.test(targetLine[start])
+  ) {
+    start += 1;
+  }
+
+  if (start >= targetLine.length) return null;
+
+  let end = start + 1;
   while (end < targetLine.length && IDENTIFIER_PART.test(targetLine[end])) {
     end++;
   }
 
-  const identifier = targetLine.slice(column, end);
+  const identifier = targetLine.slice(start, end);
   if (identifier.endsWith('.')) return identifier.slice(0, -1);
   return identifier;
 }

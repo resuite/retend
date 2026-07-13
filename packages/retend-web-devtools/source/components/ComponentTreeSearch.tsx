@@ -1,4 +1,4 @@
-import { If } from 'retend';
+import { For, If, type Cell } from 'retend';
 
 import type { ComponentTreeNode } from '@/core/devtools-renderer';
 
@@ -9,13 +9,13 @@ import { useComponentTreeSearch } from '@/hooks/useComponentTreeSearch';
 import classes from '@/styles/ComponentTree.module.css';
 
 interface ComponentTreeSearchProps {
-  root: ComponentTreeNode;
+  roots: Cell<Array<ComponentTreeNode>>;
 }
 
 export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
   const devRenderer = useDevToolsRenderer();
   const search = useComponentTreeSearch({
-    root: props.root,
+    roots: props.roots,
     getNodeChildren: devRenderer.getNodeChildren.bind(devRenderer),
   });
 
@@ -46,12 +46,14 @@ export function ComponentTreeSearch(props: ComponentTreeSearchProps) {
         ))}
       </div>
 
-      <TreeNode
-        node={props.root}
-        depth={0}
-        forceExpanded={search.forceExpanded}
-        visibleNodes={search.visibleNodes}
-      />
+      {For(props.roots, (root) => (
+        <TreeNode
+          node={root}
+          depth={0}
+          forceExpanded={search.forceExpanded}
+          visibleNodes={search.visibleNodes}
+        />
+      ))}
     </>
   );
 }
