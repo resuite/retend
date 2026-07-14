@@ -1,7 +1,6 @@
 /** @import { VNode } from './v-dom/index.js' */
 /** @import {
  *    BuildOptions,
- *    ServerContext,
  *    RenderOptions,
  * } from './types.js'
  */
@@ -94,9 +93,7 @@ async function renderPath(options) {
   } = options;
 
   const window = buildWindowFromHtmlText(htmlShell, vdomModule.VWindow);
-  const renderer = new vdomModule.VDOMRenderer(window, {
-    markDynamicNodes: true,
-  });
+  const renderer = new vdomModule.VDOMRenderer(window);
 
   const globalData = new Map();
   globalData.set('env:ssr', true);
@@ -152,19 +149,6 @@ async function renderPath(options) {
     }
 
     await document.mountAllTeleports();
-
-    // The server context can restore useful information about
-    // the app for a client-side hydration.
-    /** @type {ServerContext} */
-    const ctx = {
-      path,
-    };
-    const payload = JSON.stringify(ctx);
-    document.body.append(
-      document.createMarkupNode(
-        `<script data-server-context type="application/json">${payload}</script>`
-      )
-    );
 
     const finalPath = currentRoute.get().fullPath;
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;

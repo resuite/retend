@@ -1,8 +1,7 @@
 /** @import { JsxElement } from './dom-renderer.js'; */
-import { AsyncCell, Block, Cell, useAwait } from 'retend';
+import { AsyncCell, Cell, useAwait } from 'retend';
 
 /** @import { DOMRenderer } from './dom-renderer.js'; */
-import { ShadowRootFragment } from './dom-ops.js';
 
 /** @typedef {Comment & { __commentRangeSymbol?: symbol }} ConnectedComment */
 
@@ -750,123 +749,11 @@ export function setAttribute(
   }
 }
 
-export class Skip {
-  /** @param {string} tag  */
-  constructor(tag) {
-    this.tag = tag;
-  }
-
-  toString() {
-    return this.tag;
-  }
-}
-
-export class DeferredHandleSymbol {
-  symbol = Symbol();
-
-  /** @param {Array<any>} handle  */
-  constructor(handle) {
-    this.sourceArray = handle;
-  }
-}
-
 /**
- * @param {string} tagname
- * @param {any} props
- * @param {Function} childChecker
+ * @param {string} _tagname
+ * @param {any} _props
+ * @param {Function} _childChecker
  */
-export function containerIsDynamic(tagname, props, childChecker) {
-  if (tagname === 'retend-teleport') return true;
-
-  for (const key in props) {
-    const value = props[key];
-    if (key === 'className' || key === 'class') {
-      if (isReactiveClass(value)) return true;
-      continue;
-    }
-    if (key === 'style') {
-      if (isReactiveStyle(value)) return true;
-      continue;
-    }
-    if (key.startsWith('on') && key.length > 2) {
-      return true;
-    }
-    if (Cell.isCell(value)) return true;
-    if (key === 'children' && childChecker(value)) return true;
-  }
+export function containerIsDynamic(_tagname, _props, _childChecker) {
   return false;
-}
-
-/** @param {any} value  */
-export function isReactiveChild(value) {
-  if (Cell.isCell(value)) return true;
-  if (value instanceof DeferredHandleSymbol) return true;
-  if (value instanceof Block) return value.kind !== 0;
-  if (typeof value === 'function') return true;
-  // @ts-expect-error
-  if (value instanceof Text && value.__isReactive) return true;
-  if (Array.isArray(value)) {
-    if (
-      value[0] instanceof DeferredHandleSymbol &&
-      value[0] === value[value.length - 1]
-    ) {
-      return true;
-    }
-    for (const child of value) {
-      if (isReactiveChild(child)) return true;
-    }
-  }
-  if (value instanceof ShadowRootFragment) return true;
-  return false;
-}
-
-/** @param {any} className */
-export function isReactiveClass(className) {
-  if (typeof className === 'string') return false;
-  if (Cell.isCell(className)) return true;
-  if (Array.isArray(className)) {
-    for (const child of className) {
-      if (isReactiveClass(child)) return true;
-    }
-  }
-  if (typeof className === 'object') {
-    for (const key in className) {
-      if (isReactiveClass(className[key])) return true;
-    }
-  }
-  return false;
-}
-
-/** @param {any} style */
-export function isReactiveStyle(style) {
-  if (typeof style === 'string') return false;
-  if (Cell.isCell(style)) return true;
-  if (typeof style === 'object') {
-    for (const key in style) {
-      if (isReactiveStyle(style[key])) return true;
-    }
-  }
-  return false;
-}
-
-/** @param {any} tree */
-export function flattenJSXChildren(tree) {
-  /** @type {any[]} tree */
-  const html = [];
-  const stack = [tree];
-
-  while (stack.length) {
-    const node = stack.pop();
-    if (Array.isArray(node)) {
-      for (let i = node.length - 1; i >= 0; i--) {
-        stack.push(node[i]);
-      }
-    } else if (node?.nodeType === 11) {
-      for (let i = node.childNodes.length - 1; i >= 0; i--) {
-        stack.push(node.childNodes[i]);
-      }
-    } else html.push(node);
-  }
-
-  return html;
 }

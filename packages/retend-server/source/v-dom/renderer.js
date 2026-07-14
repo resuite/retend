@@ -2,16 +2,10 @@
 /** @import * as VDom from './index.js' */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 
-import {
-  Block,
-  Cell,
-  createNodesFromTemplate,
-  normalizeJsxChild,
-  getState,
-} from 'retend';
+import { createNodesFromTemplate, normalizeJsxChild, getState } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
 
-import { VComment, VDocumentFragment, VNode, VText } from './index.js';
+import { VDocumentFragment, VNode } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
@@ -47,19 +41,13 @@ export class VDOMRenderer {
   staticStyleIds = new Set();
   markDynamicNodes = false;
 
-  /**
-   * Map of encountered control flow branches during rendering,
-   * to the number of nodes generated within them.
-   * @type {Map<StateSnapshot, number>}
-   */
-  #branches = new Map();
   #savedHandles = new Map();
   #savedHandleId = 0;
 
   /** @param {VDom.VWindow} host */
   constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
     this.host = host;
-    this.markDynamicNodes = markDynamicNodes;
+    this.markDynamicNodes = Boolean(markDynamicNodes);
     // @ts-expect-error: all static styles need is staticStyleIds set and a window
     Ops.writeStaticStyles(this);
     this.capabilities = {
@@ -153,18 +141,9 @@ export class VDOMRenderer {
   /**
    * @param {__HMR_UpdatableFn} tagname
    * @param {any[]} props
-   * @param {StateSnapshot} [snapshot]
+   * @param {StateSnapshot} [_snapshot]
    */
-  handleComponent(tagname, props, snapshot) {
-    if (snapshot && this.markDynamicNodes) {
-      this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
-      const component = tagname(...props);
-      /** @type {VDom.VNode[]} */
-      const nodes = createNodesFromTemplate(component, this);
-      return nodes.length === 1 ? nodes[0] : nodes;
-    }
-
-    // Repeated for performance.
+  handleComponent(tagname, props, _snapshot) {
     const component = tagname(...props);
     /** @type {VDom.VNode[]} */
     const nodes = createNodesFromTemplate(component, this);
@@ -216,32 +195,20 @@ export class VDOMRenderer {
 
   /**
    * @param {string} tagname
-   * @param {any} [props]
+   * @param {any} [_props]
    */
-  createContainer(tagname, props) {
+  createContainer(tagname, _props) {
     /** @type {JsxElement} */ // @ts-expect-error
     const element = this.host.document.createElement(tagname);
-    if (
-      this.markDynamicNodes &&
-      Ops.containerIsDynamic(tagname, props, isReactiveChild)
-    ) {
-      const currentBranch = getState();
-      const index = this.#branches.get(currentBranch) || 0;
-      const id = `${currentBranch.node.id}.${index}`;
-      element.setAttribute('data-dyn', id);
-      this.#branches.set(currentBranch, index + 1);
-    }
     return element;
   }
 
   /**
    * @param {string} text
-   * @param {boolean} [isReactive]
+   * @param {boolean} [_isReactive]
    */
-  createText(text, isReactive) {
-    const node = this.host.document.createTextNode(String(text));
-    if (this.markDynamicNodes && isReactive) node.__isReactive = true;
-    return node;
+  createText(text, _isReactive) {
+    return this.host.document.createTextNode(String(text));
   }
 
   /**
@@ -279,24 +246,4 @@ export class VDOMRenderer {
     anchorNode.__isTeleportAnchor = true;
     return anchorNode;
   }
-}
-
-/** @param {any} value  */
-function isReactiveChild(value) {
-  if (Cell.isCell(value)) return true;
-  if (value instanceof Block) return value.kind !== 0;
-  if (typeof value === 'function') return true;
-  if (Array.isArray(value)) {
-    for (const c of value) if (isReactiveChild(c)) return true;
-  }
-  if (value instanceof VDocumentFragment) {
-    for (const sc of value.childNodes) {
-      if (isReactiveChild(sc)) return true;
-    }
-  }
-  if (value instanceof Ops.ShadowRootFragment) return true;
-  if (value instanceof VText && value.__isReactive) return true;
-  // @ts-expect-error
-  if (value instanceof VComment && value.__commentRangeSymbol) return true;
-  return false;
 }
