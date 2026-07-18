@@ -15,9 +15,6 @@ import { createRouterRoot } from 'retend/router';
 
 import { addMetaListener } from './meta.js';
 
-const HYDRATION_CLEANUP = Symbol.for('retend.hydration.cleanup');
-let hydrating = false;
-
 export * from './render-to-string.js';
 
 /**
@@ -139,16 +136,8 @@ export * from './render-to-string.js';
  * @returns {Promise<Router>} The router instance used to create the application.
  */
 export async function hydrate(routerFn, options = {}) {
-  if (hydrating) {
-    throw new Error('A Retend hydration transaction is already in progress.');
-  }
-  hydrating = true;
   const rootId = options.rootId ?? 'app';
-  try {
-    return await hydrateRouter(routerFn, rootId, options);
-  } finally {
-    hydrating = false;
-  }
+  return hydrateRouter(routerFn, rootId, options);
 }
 
 /**
@@ -160,8 +149,6 @@ async function hydrateRouter(routerFn, rootId, options) {
   const root = document.getElementById(rootId);
   if (!root) throw new Error('No root element found');
   const previousContext = getGlobalContext();
-  const previousCleanup = previousContext.globalData.get(HYDRATION_CLEANUP);
-  previousCleanup?.();
   const renderer = new DOMRenderer(window);
   const context = { globalData: new Map(), renderer };
   setGlobalContext(context);
@@ -199,11 +186,6 @@ async function hydrateRouter(routerFn, rootId, options) {
         window.dispatchEvent(new Event('hydrationcompleted'));
       }
       addMetaListener(router, document);
-      const rootState = getState().node;
-      context.globalData.set(HYDRATION_CLEANUP, () => {
-        detachRouter();
-        rootState.dispose();
-      });
       return router;
     } catch (error) {
       detachRouter();
@@ -211,8 +193,7 @@ async function hydrateRouter(routerFn, rootId, options) {
     }
   } catch (error) {
     getState().node.dispose();
-    if (previousCleanup) setGlobalContext({ globalData: new Map() });
-    else setGlobalContext(previousContext);
+    setGlobalContext(previousContext);
     throw error;
   }
 }

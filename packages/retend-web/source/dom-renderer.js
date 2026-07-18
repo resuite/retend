@@ -92,12 +92,12 @@ export class DOMRenderer {
   /** @type {WeakMap<DOMHandle, HydrationFrame>} */
   #hydrationHandleFrames = new WeakMap();
   #initialHydrationWrites = new WeakSet();
+  /** @type {WeakMap<DOMHandle, 'rendered' | 'ignore-write'>} */
+  #initialHydrationRenderState = new WeakMap();
   #clientUpdatedHandles = new WeakSet();
   #clientRenderedNodes = new WeakSet();
   /** @type {WeakSet<Element>} */
   #opaqueHydrationContainers = new WeakSet();
-  /** @type {Map<DOMHandle, Node[]>} */
-  #deferredHydrationWrites = new Map();
   /** @type {Array<() => Promise<unknown> | unknown>} */
   #pendingHydrationTeleports = [];
   /** @param {Window} host */
@@ -132,7 +132,11 @@ export class DOMRenderer {
    * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
-    if (!this.#hydrating) return Ops.createGroupHandle(fragment, this);
+    if (!this.#hydrating) {
+      const handle = Ops.createGroupHandle(fragment, this);
+      if (this.#hydrationStack.length) this.#clientUpdatedHandles.add(handle);
+      return handle;
+    }
 
     const range = this.#claimRangeForHandle();
     if (!range) throw new HydrationMismatchError('Expected a dynamic range.');
@@ -176,12 +180,18 @@ export class DOMRenderer {
       this.isGroup(node) ? this.#getFragmentChildren(node) : node
     );
     if (this.#hydrating && this.#initialHydrationWrites.has(segment)) {
-      if (nodes.length === 0 || nodes.some((node) => !this.#isClaimed(node))) {
-        this.#deferredHydrationWrites.set(segment, nodes);
+      if (this.#initialHydrationRenderState.get(segment) === 'ignore-write') {
+        this.#initialHydrationRenderState.delete(segment);
         return;
       }
+      if (nodes.some((node) => !this.#isClaimed(node) && !node.isConnected)) {
+        throw new HydrationMismatchError('Unexpected dynamic range content.');
+      }
       this.#initialHydrationWrites.delete(segment);
+      this.#initialHydrationRenderState.delete(segment);
+      return;
     }
+
     const isClientUpdate = this.#clientUpdatedHandles.has(segment);
     if (
       this.#hydrating &&
@@ -190,11 +200,7 @@ export class DOMRenderer {
     ) {
       throw new HydrationMismatchError('Unexpected dynamic range content.');
     }
-    this.#deferredHydrationWrites.delete(segment);
-    const frame = this.#hydrationHandleFrames.get(segment);
-    if (this.#hydrating && nodes.length === 0 && frame) {
-      frame.nextChild = segment[1];
-    }
+
     const result = Ops.write(segment, nodes);
     const fragment = this.#hydrationHandleFragments.get(segment);
     if (fragment) {
@@ -238,16 +244,26 @@ export class DOMRenderer {
    * @param {ReconcilerOptions<Node>} options
    */
   reconcile(segment, options) {
-    this.#initialHydrationWrites.delete(segment);
+    const isInitialHydrationWrite =
+      this.#hydrating && this.#initialHydrationWrites.has(segment);
+    const isClientUpdate = this.#clientUpdatedHandles.has(segment);
     if (this.#hydrating) {
       for (const item of options.newCache.values()) {
         for (const node of item.nodes) {
-          if (!this.#isClaimed(node)) {
+          if (!this.#isClaimed(node) && !node.isConnected && !isClientUpdate) {
             throw new HydrationMismatchError('Unexpected list content.');
+          }
+          if (!this.#isClaimed(node) && isClientUpdate) {
+            this.#clientRenderedNodes.add(node);
           }
         }
       }
     }
+    if (isInitialHydrationWrite) {
+      this.#initialHydrationWrites.delete(segment);
+      return;
+    }
+
     const result = Ops.reconcile(segment, options, this);
     const fragment = this.#hydrationHandleFragments.get(segment);
     if (fragment) {
@@ -290,19 +306,29 @@ export class DOMRenderer {
       this.#hydrating && handle
         ? this.#hydrationHandleFrames.get(handle)
         : undefined;
-    if (this.#hydrating && handle && !frame) {
-      throw new HydrationMismatchError('Missing dynamic range ownership.');
-    }
-    const isSpeculativeInitialRender = Boolean(
-      frame &&
-      handle &&
-      this.#initialHydrationWrites.has(handle) &&
-      frame.nextChild === frame.end
+    const isInitialHydrationRender = Boolean(
+      frame && handle && this.#initialHydrationWrites.has(handle)
     );
+    const isSpeculativeInitialRender = Boolean(
+      isInitialHydrationRender && frame?.nextChild === frame?.end
+    );
+    const isProvisionalInitialRender = Boolean(
+      isSpeculativeInitialRender &&
+      handle &&
+      this.#initialHydrationRenderState.get(handle) === 'rendered'
+    );
+    if (isProvisionalInitialRender && handle) {
+      this.#initialHydrationRenderState.set(handle, 'ignore-write');
+    }
     const isClientUpdate = Boolean(
-      frame && handle && !this.#initialHydrationWrites.has(handle)
+      handle &&
+      (this.#clientUpdatedHandles.has(handle) ||
+        (frame && !this.#initialHydrationWrites.has(handle)))
     );
     if (isClientUpdate && handle) this.#clientUpdatedHandles.add(handle);
+    if (this.#hydrating && handle && !frame && !isClientUpdate) {
+      throw new HydrationMismatchError('Missing dynamic range ownership.');
+    }
     if (frame && handle && !isSpeculativeInitialRender && !isClientUpdate) {
       if (frame.nextChild === frame.end) {
         frame.nextChild = handle[0].nextSibling;
@@ -325,6 +351,9 @@ export class DOMRenderer {
       return nodes.length === 1 ? nodes[0] : nodes;
     } finally {
       this.#hydrating = wasHydrating;
+      if (isInitialHydrationRender && handle && !isProvisionalInitialRender) {
+        this.#initialHydrationRenderState.set(handle, 'rendered');
+      }
       if (frame && !isSpeculativeInitialRender && !isClientUpdate) {
         this.#removeFrameAndDescendants(frame);
       }
@@ -462,10 +491,6 @@ export class DOMRenderer {
       const element = /** @type {JsxElement} */ (claimed);
       const html = props?.dangerouslySetInnerHTML?.__html;
       if (html !== undefined) {
-        const current = Cell.isCell(html) ? html.get() : html;
-        if (!(current instanceof Promise) && element.innerHTML !== current) {
-          throw new HydrationMismatchError('Raw HTML content mismatch.');
-        }
         this.#opaqueHydrationContainers.add(element);
       }
       if (hasRenderableChildren) {
@@ -486,34 +511,25 @@ export class DOMRenderer {
   createText(text, _isReactive = false, isPending = false) {
     if (this.#hydrating) {
       const nextText = String(text);
-      const frame = this.#currentHydrationFrame();
-      const candidate = frame ? this.#skipHydrationSeparators(frame) : null;
-      if (
-        nextText === '' &&
-        candidate?.nodeType === COMMENT_NODE &&
-        candidate.textContent === 'retend:empty-text'
-      ) {
-        const marker = this.#claimHydrationChild(
-          (node) =>
-            node.nodeType === COMMENT_NODE &&
-            node.textContent === 'retend:empty-text',
-          'expected empty text'
-        );
-        const node = this.host.document.createTextNode('');
-        marker.replaceWith(node);
-        this.#markClaimed(node);
-        return node;
-      }
       const claimed = this.#claimHydrationChild(
-        (node) => node.nodeType === TEXT_NODE,
+        (node) =>
+          node.nodeType === TEXT_NODE ||
+          (node.nodeType === COMMENT_NODE &&
+            node.textContent === 'retend:empty-text'),
         'expected text'
       );
-      if (!isPending && claimed.textContent !== nextText) {
-        throw new HydrationMismatchError('Text content mismatch.');
-      } else if (!isPending || claimed.textContent === '') {
-        claimed.textContent = nextText;
+      let textNode;
+      if (claimed.nodeType === COMMENT_NODE) {
+        textNode = this.host.document.createTextNode('');
+        claimed.replaceWith(textNode);
+        this.#markClaimed(textNode);
+      } else {
+        textNode = /** @type {Text} */ (claimed);
       }
-      return /** @type {Text} */ (claimed);
+      if (!isPending || textNode.textContent === '') {
+        textNode.textContent = nextText;
+      }
+      return textNode;
     }
     return this.host.document.createTextNode(String(text));
   }
@@ -578,10 +594,10 @@ export class DOMRenderer {
     this.#hydrationHandleFrames = new WeakMap();
     this.#hydrationHandleFragments = new WeakMap();
     this.#initialHydrationWrites = new WeakSet();
+    this.#initialHydrationRenderState = new WeakMap();
     this.#clientUpdatedHandles = new WeakSet();
     this.#clientRenderedNodes = new WeakSet();
     this.#opaqueHydrationContainers = new WeakSet();
-    this.#deferredHydrationWrites.clear();
     this.#pendingHydrationTeleports = [];
     const roots = [root];
     for (let index = 0; index < roots.length; index++) {
@@ -629,13 +645,6 @@ export class DOMRenderer {
         stalled = resolved === 0;
       }
 
-      for (const [handle, nodes] of this.#deferredHydrationWrites) {
-        this.#initialHydrationWrites.delete(handle);
-        this.#clientUpdatedHandles.add(handle);
-        this.write(handle, nodes);
-      }
-      this.#deferredHydrationWrites.clear();
-
       if (this.#unclaimedHydrationRanges.size) {
         throw new HydrationMismatchError('Unclaimed dynamic range.');
       }
@@ -651,7 +660,6 @@ export class DOMRenderer {
       this.#hydrating = false;
       this.#hydrationRoots = [];
       this.#hydrationStack = [];
-      this.#deferredHydrationWrites.clear();
       this.#pendingHydrationTeleports = [];
       this.#unclaimedHydrationRanges.clear();
     }

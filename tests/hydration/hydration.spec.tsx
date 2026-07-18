@@ -52,6 +52,62 @@ describe('Hydration', () => {
     expect(completed).not.toHaveBeenCalled();
   });
 
+  it('rejects an initially divergent dynamic branch', async () => {
+    const serverVisible = Cell.source(true);
+    const clientVisible = Cell.source(false);
+    const serverTemplate = () => (
+      <div>
+        {If(serverVisible, () => (
+          <span id="server-branch">Server branch</span>
+        ))}
+      </div>
+    );
+    const clientTemplate = () => (
+      <div>
+        {If(clientVisible, () => (
+          <span>Client branch</span>
+        ))}
+      </div>
+    );
+    const html = await renderHydrationServerHtml(serverTemplate);
+    const { renderer, document } = createHydrationClientRenderer(html);
+
+    startHydration(renderer, clientTemplate);
+    await expect(renderer.endHydration()).rejects.toThrow(
+      'Unclaimed server node.'
+    );
+    expect(document.querySelector('#server-branch')?.textContent).toBe(
+      'Server branch'
+    );
+  });
+
+  it('rejects an initially divergent list length', async () => {
+    const serverItems = Cell.source(['A', 'B']);
+    const clientItems = Cell.source(['A']);
+    const serverTemplate = () => (
+      <ul>
+        {For(serverItems, (item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    );
+    const clientTemplate = () => (
+      <ul>
+        {For(clientItems, (item) => (
+          <li>{item}</li>
+        ))}
+      </ul>
+    );
+    const html = await renderHydrationServerHtml(serverTemplate);
+    const { renderer, document } = createHydrationClientRenderer(html);
+
+    startHydration(renderer, clientTemplate);
+    await expect(renderer.endHydration()).rejects.toThrow(
+      'Unclaimed server node.'
+    );
+    expect(document.querySelectorAll('li').length).toBe(2);
+  });
+
   it('does not mutate an element claimed as text before rejecting', async () => {
     const text = Cell.source('Client');
     const serverTemplate = () => (
@@ -73,7 +129,7 @@ describe('Hydration', () => {
     );
   });
 
-  it('does not mutate later elements after a resolved text mismatch', async () => {
+  it('updates differing text values and continues hydration', async () => {
     const serverTemplate = () => (
       <div>
         Server
@@ -93,12 +149,12 @@ describe('Hydration', () => {
     const html = await renderHydrationServerHtml(serverTemplate);
     const { renderer, document } = createHydrationClientRenderer(html);
 
-    expect(() => startHydration(renderer, clientTemplate)).toThrow(
-      'Text content mismatch.'
-    );
-    expect(document.querySelector('#after-text-mismatch')?.className).toBe(
-      'server'
-    );
+    startHydration(renderer, clientTemplate);
+    await renderer.endHydration();
+
+    const button = document.querySelector('#after-text-mismatch');
+    expect(button?.previousSibling?.textContent).toBe('Client');
+    expect(button?.className).toBe('client');
   });
 
   it('preserves server nodes owned by matching raw HTML', async () => {
@@ -123,7 +179,7 @@ describe('Hydration', () => {
     );
   });
 
-  it('rejects mismatched raw HTML before replacing server nodes', async () => {
+  it('updates mismatched raw HTML on the claimed host element', async () => {
     const ref = Cell.source<HTMLElement | null>(null);
     const serverTemplate = () => (
       <code
@@ -140,14 +196,16 @@ describe('Hydration', () => {
     );
     const html = await renderHydrationServerHtml(serverTemplate);
     const { renderer, document } = createHydrationClientRenderer(html);
+    const serverCode = document.querySelector('code');
 
-    expect(() => startHydration(renderer, clientTemplate)).toThrow(
-      'Raw HTML content mismatch.'
-    );
+    startHydration(renderer, clientTemplate);
+    await renderer.endHydration();
+
     const code = document.querySelector('code');
-    expect(code?.className).toBe('server');
-    expect(code?.innerHTML).toBe('<b>Server</b>');
-    expect(ref.peek()).toBeNull();
+    expect(code).toBe(serverCode);
+    expect(code?.className).toBe('client');
+    expect(code?.innerHTML).toBe('<i>Client</i>');
+    expect(ref.peek()).toBe(code);
   });
 
   it('does not delete an unrelated external Teleport container', async () => {
@@ -1932,7 +1990,7 @@ describe('Hydration', () => {
     expect(btn.textContent).toBe('Light count: 1');
   });
 
-  it('should report hydration mismatch errors', async () => {
+  it('updates differing reactive text during hydration', async () => {
     const text = Cell.source('Expected Content');
     const template = () => (
       <div id="mismatch-root">
@@ -1943,14 +2001,17 @@ describe('Hydration', () => {
     const html = await renderHydrationServerHtml(template);
 
     const corruptedHtml = html.replace('Expected Content', 'Different Content');
-    const { renderer: clientRenderer } =
+    const { renderer: clientRenderer, document } =
       createHydrationClientRenderer(corruptedHtml);
-    expect(() => startHydration(clientRenderer, template)).toThrow(
-      'Text content mismatch.'
+    startHydration(clientRenderer, template);
+    await clientRenderer.endHydration();
+
+    expect(document.querySelector('#mismatch-text')?.textContent).toBe(
+      'Expected Content'
     );
   });
 
-  it('should report hydration mismatch errors for resolved empty reactive text', async () => {
+  it('updates a differing server text node to resolved empty text', async () => {
     const text = Cell.source('');
     const template = () => (
       <div id="mismatch-empty-root">
@@ -1964,10 +2025,13 @@ describe('Hydration', () => {
       '<!--retend:empty-text-->',
       'Different Content'
     );
-    const { renderer: clientRenderer } =
+    const { renderer: clientRenderer, document } =
       createHydrationClientRenderer(corruptedHtml);
-    expect(() => startHydration(clientRenderer, template)).toThrow(
-      'Text content mismatch.'
+    startHydration(clientRenderer, template);
+    await clientRenderer.endHydration();
+
+    expect(document.querySelector('#mismatch-empty-text')?.textContent).toBe(
+      ''
     );
   });
 

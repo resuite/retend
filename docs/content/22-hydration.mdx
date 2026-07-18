@@ -64,6 +64,8 @@ hydrate(createRouter, {
 });
 ```
 
-## Development Mode
+## Hydration Contract
 
 `hydrate` uses the browser's current path, query, and hash as the initial router location. It hydrates roots marked with `data-retend-hydration="1"`; otherwise, it replaces the root contents with a client render.
+
+Server and client structure must match. A structural mismatch rejects hydration; Retend does not recover individual nodes. Differing text and `dangerouslySetInnerHTML` values are updated on the claimed node. Once a dynamic range is claimed, normal reactive updates may run while other async boundaries are still hydrating.

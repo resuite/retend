@@ -16,7 +16,7 @@ import { ClientOnly } from 'retend-server';
 import { hydrate, renderToString } from 'retend-server/client';
 import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
 import { UniqueTransition } from 'retend-utils/components';
-import { getGlobalContext, setGlobalContext } from 'retend/context';
+import { setGlobalContext } from 'retend/context';
 import {
   Outlet,
   Router,
@@ -166,46 +166,6 @@ describe('Hydration router + unique transition', () => {
     expect(window.document.querySelector('#app')?.children.length).toBe(1);
   });
 
-  it('disposes the previous hydration transaction before hydrating again', async () => {
-    window.document.body.setHTMLUnsafe('<div id="app"></div>');
-    window.history.replaceState(null, '', '/');
-    const removeListener = vi.spyOn(window, 'removeEventListener');
-
-    await hydrate(createRouter);
-    await hydrate(createRouter);
-
-    expect(
-      removeListener.mock.calls.some(([type]) => type === 'popstate')
-    ).toBe(true);
-    expect(window.document.querySelector('#app')?.children.length).toBe(1);
-  });
-
-  it('rejects overlapping hydration transactions', async () => {
-    let releaseNavigation = () => undefined;
-    const navigation = new Promise<void>((resolve) => {
-      releaseNavigation = resolve;
-    });
-    const createDelayedRouter = () => {
-      const router = createRouter();
-      const navigate = router.navigate;
-      router.navigate = async (...args) => {
-        await navigation;
-        return navigate(...args);
-      };
-      return router;
-    };
-    window.document.body.setHTMLUnsafe('<div id="app"></div>');
-    window.history.replaceState(null, '', '/');
-
-    const firstHydration = hydrate(createDelayedRouter);
-    await Promise.resolve();
-    await expect(hydrate(createRouter)).rejects.toThrow(
-      'A Retend hydration transaction is already in progress.'
-    );
-    releaseNavigation();
-    await firstHydration;
-  });
-
   it('detaches router listeners when hydration rejects', async () => {
     const createMismatchRouter = () =>
       new Router({
@@ -221,25 +181,6 @@ describe('Hydration router + unique transition', () => {
     expect(
       removeListener.mock.calls.some(([type]) => type === 'popstate')
     ).toBe(true);
-  });
-
-  it('does not restore a disposed application after replacement fails', async () => {
-    const createMismatchRouter = () =>
-      new Router({
-        routes: [{ path: '/', component: () => <main>Client</main> }],
-      });
-    window.document.body.setHTMLUnsafe('<div id="app"></div>');
-    window.history.replaceState(null, '', '/');
-    await hydrate(createRouter);
-    const disposedContext = getGlobalContext();
-    window.document.body.setHTMLUnsafe(
-      '<div id="app" data-retend-hydration="1"><aside>Server</aside></div>'
-    );
-
-    await expect(hydrate(createMismatchRouter)).rejects.toThrow();
-
-    expect(getGlobalContext()).not.toBe(disposedContext);
-    expect(getGlobalContext().renderer).toBeUndefined();
   });
 
   it('preserves the initial location hash', async () => {
