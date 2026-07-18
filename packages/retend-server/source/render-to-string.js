@@ -42,10 +42,7 @@ const rawTextElements = new Set(['SCRIPT', 'STYLE']);
  */
 export function renderToString(template, window, inRawTextElement = false) {
   if (/string|number|boolean/.test(typeof template)) {
-    if (inRawTextElement) {
-      return String(template);
-    }
-    return escapeHTML(template);
+    return inRawTextElement ? String(template) : escapeHTML(template);
   }
 
   if (
@@ -62,9 +59,7 @@ export function renderToString(template, window, inRawTextElement = false) {
      * even when the nodeType is Node.TEXT_NODE
      */
     if (template.nodeType === window.Node.TEXT_NODE) {
-      if (inRawTextElement) {
-        return template.textContent ?? '';
-      }
+      if (inRawTextElement) return template.textContent ?? '';
       if (template.textContent === '') return EMPTY_TEXT_MARKER;
       return escapeHTML(template.textContent ?? '');
     }
@@ -74,20 +69,15 @@ export function renderToString(template, window, inRawTextElement = false) {
     }
 
     if (template instanceof window.ShadowRoot) {
-      let text = '<template shadowrootmode="open">';
-      for (const child of template.childNodes) {
-        text += renderToString(child, window, false);
-      }
-      text += '</template>';
-      return text;
+      return `<template shadowrootmode="open">${renderChildren(
+        template.childNodes,
+        window,
+        false
+      )}</template>`;
     }
 
     if (template instanceof window.DocumentFragment) {
-      let textContent = '';
-      for (const child of template.childNodes) {
-        textContent += renderToString(child, window, inRawTextElement);
-      }
-      return textContent;
+      return renderChildren(template.childNodes, window, inRawTextElement);
     }
 
     if (template instanceof window.Element) {
@@ -110,18 +100,14 @@ export function renderToString(template, window, inRawTextElement = false) {
 
         let precededByTextNode = false;
         for (const child of template.childNodes) {
-          // Insert marker between consecutive text nodes to preserve whitespace
-          // This prevents text node merging during HTML parsing
-          const shouldSplit =
+          if (
             !isRawTextElement &&
             precededByTextNode &&
-            child.nodeType === window.Node.TEXT_NODE;
-
-          if (shouldSplit) {
-            text += `${SPLIT_TEXT_MARKER}${renderToString(child, window, false)}`;
-          } else {
-            text += renderToString(child, window, isRawTextElement);
+            child.nodeType === window.Node.TEXT_NODE
+          ) {
+            text += SPLIT_TEXT_MARKER;
           }
+          text += renderToString(child, window, isRawTextElement);
           precededByTextNode = child.nodeType === window.Node.TEXT_NODE;
         }
 
@@ -139,14 +125,23 @@ export function renderToString(template, window, inRawTextElement = false) {
   }
 
   if (Array.isArray(template)) {
-    let textContent = '';
-    for (const child of template) {
-      textContent += renderToString(child, window, inRawTextElement);
-    }
-    return textContent;
+    return renderChildren(template, window, inRawTextElement);
   }
 
   return '';
+}
+
+/**
+ * @param {Iterable<JSX.Template>} children
+ * @param {Window & globalThis | VDom.VWindow} window
+ * @param {boolean} inRawTextElement
+ */
+function renderChildren(children, window, inRawTextElement) {
+  let text = '';
+  for (const child of children) {
+    text += renderToString(child, window, inRawTextElement);
+  }
+  return text;
 }
 
 /**

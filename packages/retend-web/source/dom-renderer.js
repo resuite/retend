@@ -29,8 +29,10 @@ const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const MATH_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
 const TELEPORT_ANCHOR_PREFIX = 'retend:teleport:';
-const TELEPORT_CANCELED = Symbol.for('retend.teleport.canceled');
-const TELEPORT_DEFERRED = Symbol.for('retend.teleport.deferred');
+const HYDRATION_CLAIM = Symbol();
+const HYDRATION_RANGE_END = Symbol();
+const HYDRATION_FRAGMENT_CHILDREN = Symbol();
+const HYDRATION_HANDLE_STATE = Symbol();
 
 class HydrationMismatchError extends Error {}
 
@@ -38,9 +40,10 @@ class HydrationMismatchError extends Error {}
  * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
- * @typedef {{ parent: ParentNode, nextChild: ChildNode | null, end?: Comment | null, container?: ParentNode | null, range?: HydrationRange | null }} HydrationFrame
- * @typedef {{ start: Comment, end: Comment, frame: HydrationFrame, parentFrame: HydrationFrame }} HydrationRange
- * @typedef {{ parent: ParentNode, before: ChildNode | null }} HydrationPosition
+ * @typedef {{ parent: ParentNode, nextChild: ChildNode | null, end?: Comment, start?: Comment, parentFrame?: HydrationFrame, claimed?: boolean }} HydrationFrame
+ * @typedef {HydrationFrame & { start: Comment, end: Comment, parentFrame: HydrationFrame }} HydrationRange
+ * @typedef {{ parent?: ParentNode, before?: ChildNode | null, opaque?: boolean }} HydrationClaim
+ * @typedef {{ fragment?: DocumentFragment, frame?: HydrationFrame, phase?: 'initial' | 'rendered' | 'ignore-write', client?: boolean }} HydrationHandleState
  */
 
 /**
@@ -78,26 +81,6 @@ export class DOMRenderer {
   #hydrationRoots = [];
   /** @type {HydrationFrame[]} */
   #hydrationStack = [];
-  /** @type {WeakMap<Comment, Comment>} */
-  #hydrationRangeEnds = new WeakMap();
-  /** @type {Set<HydrationRange>} */
-  #unclaimedHydrationRanges = new Set();
-  #claimedNodes = new WeakSet();
-  /** @type {WeakMap<Node, HydrationPosition>} */
-  #claimedPositions = new WeakMap();
-  /** @type {WeakMap<DocumentFragment, Node[]>} */
-  #fragmentChildren = new WeakMap();
-  /** @type {WeakMap<DOMHandle, DocumentFragment>} */
-  #hydrationHandleFragments = new WeakMap();
-  /** @type {WeakMap<DOMHandle, HydrationFrame>} */
-  #hydrationHandleFrames = new WeakMap();
-  #initialHydrationWrites = new WeakSet();
-  /** @type {WeakMap<DOMHandle, 'rendered' | 'ignore-write'>} */
-  #initialHydrationRenderState = new WeakMap();
-  #clientUpdatedHandles = new WeakSet();
-  #clientRenderedNodes = new WeakSet();
-  /** @type {WeakSet<Element>} */
-  #opaqueHydrationContainers = new WeakSet();
   /** @type {Array<() => Promise<unknown> | unknown>} */
   #pendingHydrationTeleports = [];
   /** @param {Window} host */
@@ -134,40 +117,45 @@ export class DOMRenderer {
   createGroupHandle(fragment) {
     if (!this.#hydrating) {
       const handle = Ops.createGroupHandle(fragment, this);
-      if (this.#hydrationStack.length) this.#clientUpdatedHandles.add(handle);
+      if (this.#hydrationStack.length) {
+        Reflect.set(handle, HYDRATION_HANDLE_STATE, { client: true });
+      }
       return handle;
     }
 
-    const range = this.#claimRangeForHandle();
+    const frame = this.#currentHydrationFrame();
+    const range =
+      frame &&
+      (frame.start && !frame.claimed
+        ? /** @type {HydrationRange} */ (frame)
+        : this.#enterImmediateRange(frame));
     if (!range) throw new HydrationMismatchError('Expected a dynamic range.');
-
-    const children = this.#getFragmentChildren(fragment);
-    for (const child of children) {
+    range.claimed = true;
+    for (const child of this.#getFragmentChildren(fragment)) {
       if (!this.#isClaimed(child)) {
         throw new HydrationMismatchError('Unexpected dynamic range content.');
       }
     }
 
-    this.#markClaimed(range.end);
-    this.#claimedPositions.set(range.end, {
+    Reflect.set(range.end, HYDRATION_CLAIM, {
       parent: range.parentFrame.parent,
       before: range.end.nextSibling,
     });
     range.parentFrame.nextChild = range.end.nextSibling;
-    this.#removeFrameAndDescendants(range.frame);
-    /** @type {Node[]} */
-    const groupChildren = [range.start];
-    let child = range.start.nextSibling;
-    while (child && child !== range.end) {
-      groupChildren.push(child);
-      child = child.nextSibling;
-    }
-    groupChildren.push(range.end);
-    this.#fragmentChildren.set(fragment, groupChildren);
+    this.#removeFrameAndDescendants(range);
+
     const handle = /** @type {DOMHandle} */ ([range.start, range.end]);
-    this.#hydrationHandleFragments.set(handle, fragment);
-    this.#hydrationHandleFrames.set(handle, range.frame);
-    this.#initialHydrationWrites.add(handle);
+    Reflect.set(
+      fragment,
+      HYDRATION_FRAGMENT_CHILDREN,
+      this.#getHandleNodes(handle)
+    );
+
+    Reflect.set(handle, HYDRATION_HANDLE_STATE, {
+      fragment,
+      frame: range,
+      phase: 'initial',
+    });
     return handle;
   }
 
@@ -179,35 +167,40 @@ export class DOMRenderer {
     const nodes = newContent.flatMap((node) =>
       this.isGroup(node) ? this.#getFragmentChildren(node) : node
     );
-    if (this.#hydrating && this.#initialHydrationWrites.has(segment)) {
-      if (this.#initialHydrationRenderState.get(segment) === 'ignore-write') {
-        this.#initialHydrationRenderState.delete(segment);
+    const state = /** @type {HydrationHandleState | undefined} */ (
+      Reflect.get(segment, HYDRATION_HANDLE_STATE)
+    );
+
+    if (this.#hydrating && state?.phase) {
+      if (state.phase === 'ignore-write') {
+        state.phase = 'initial';
         return;
       }
       if (nodes.some((node) => !this.#isClaimed(node) && !node.isConnected)) {
         throw new HydrationMismatchError('Unexpected dynamic range content.');
       }
-      this.#initialHydrationWrites.delete(segment);
-      this.#initialHydrationRenderState.delete(segment);
+      state.phase = undefined;
       return;
     }
 
-    const isClientUpdate = this.#clientUpdatedHandles.has(segment);
     if (
       this.#hydrating &&
-      !isClientUpdate &&
+      !state?.client &&
       nodes.some((node) => !this.#isClaimed(node))
     ) {
       throw new HydrationMismatchError('Unexpected dynamic range content.');
     }
 
     const result = Ops.write(segment, nodes);
-    const fragment = this.#hydrationHandleFragments.get(segment);
-    if (fragment) {
-      this.#fragmentChildren.set(fragment, [segment[0], ...nodes, segment[1]]);
+    if (state?.fragment) {
+      Reflect.set(state.fragment, HYDRATION_FRAGMENT_CHILDREN, [
+        segment[0],
+        ...nodes,
+        segment[1],
+      ]);
     }
-    if (this.#hydrating && isClientUpdate) {
-      for (const node of nodes) this.#clientRenderedNodes.add(node);
+    if (this.#hydrating && state?.client) {
+      for (const node of nodes) this.#markClientNode(node);
     }
     return result;
   }
@@ -244,38 +237,31 @@ export class DOMRenderer {
    * @param {ReconcilerOptions<Node>} options
    */
   reconcile(segment, options) {
-    const isInitialHydrationWrite =
-      this.#hydrating && this.#initialHydrationWrites.has(segment);
-    const isClientUpdate = this.#clientUpdatedHandles.has(segment);
+    const state = /** @type {HydrationHandleState | undefined} */ (
+      Reflect.get(segment, HYDRATION_HANDLE_STATE)
+    );
     if (this.#hydrating) {
       for (const item of options.newCache.values()) {
         for (const node of item.nodes) {
-          if (!this.#isClaimed(node) && !node.isConnected && !isClientUpdate) {
+          if (!this.#isClaimed(node) && !node.isConnected && !state?.client) {
             throw new HydrationMismatchError('Unexpected list content.');
           }
-          if (!this.#isClaimed(node) && isClientUpdate) {
-            this.#clientRenderedNodes.add(node);
-          }
+          if (state?.client) this.#markClientNode(node);
         }
       }
     }
-    if (isInitialHydrationWrite) {
-      this.#initialHydrationWrites.delete(segment);
+    if (this.#hydrating && state?.phase) {
+      state.phase = undefined;
       return;
     }
 
     const result = Ops.reconcile(segment, options, this);
-    const fragment = this.#hydrationHandleFragments.get(segment);
-    if (fragment) {
-      /** @type {Node[]} */
-      const nodes = [segment[0]];
-      let node = segment[0].nextSibling;
-      while (node && node !== segment[1]) {
-        nodes.push(node);
-        node = node.nextSibling;
-      }
-      nodes.push(segment[1]);
-      this.#fragmentChildren.set(fragment, nodes);
+    if (state?.fragment) {
+      Reflect.set(
+        state.fragment,
+        HYDRATION_FRAGMENT_CHILDREN,
+        this.#getHandleNodes(segment)
+      );
     }
     return result;
   }
@@ -302,41 +288,28 @@ export class DOMRenderer {
     const handle = /** @type {DOMHandle | undefined} */ (
       snapshot?.data?.handle
     );
-    const frame =
-      this.#hydrating && handle
-        ? this.#hydrationHandleFrames.get(handle)
-        : undefined;
-    const isInitialHydrationRender = Boolean(
-      frame && handle && this.#initialHydrationWrites.has(handle)
+    const state = /** @type {HydrationHandleState | undefined} */ (
+      handle && Reflect.get(handle, HYDRATION_HANDLE_STATE)
     );
-    const isSpeculativeInitialRender = Boolean(
-      isInitialHydrationRender && frame?.nextChild === frame?.end
-    );
-    const isProvisionalInitialRender = Boolean(
-      isSpeculativeInitialRender &&
-      handle &&
-      this.#initialHydrationRenderState.get(handle) === 'rendered'
-    );
-    if (isProvisionalInitialRender && handle) {
-      this.#initialHydrationRenderState.set(handle, 'ignore-write');
-    }
-    const isClientUpdate = Boolean(
-      handle &&
-      (this.#clientUpdatedHandles.has(handle) ||
-        (frame && !this.#initialHydrationWrites.has(handle)))
-    );
-    if (isClientUpdate && handle) this.#clientUpdatedHandles.add(handle);
-    if (this.#hydrating && handle && !frame && !isClientUpdate) {
+    const frame = this.#hydrating ? state?.frame : undefined;
+    const initial = Boolean(frame && state?.phase);
+    const speculative = Boolean(initial && frame?.nextChild === frame?.end);
+    const provisional = Boolean(speculative && state?.phase === 'rendered');
+    if (provisional && state) state.phase = 'ignore-write';
+
+    const client = Boolean(state?.client || (frame && !state?.phase));
+    if (client && state) state.client = true;
+    if (this.#hydrating && handle && !frame && !client) {
       throw new HydrationMismatchError('Missing dynamic range ownership.');
     }
-    if (frame && handle && !isSpeculativeInitialRender && !isClientUpdate) {
-      if (frame.nextChild === frame.end) {
+    if (frame && handle && !speculative && !client) {
+      if (frame.nextChild === frame.end)
         frame.nextChild = handle[0].nextSibling;
-      }
       this.#hydrationStack.push(frame);
     }
+
     const wasHydrating = this.#hydrating;
-    if (isSpeculativeInitialRender || isClientUpdate) this.#hydrating = false;
+    if (speculative || client) this.#hydrating = false;
     try {
       // @ts-expect-error: Vite types are not ingrained
       if (import.meta.env?.DEV) {
@@ -346,15 +319,12 @@ export class DOMRenderer {
       if (import.meta.webpackHot) {
         return withHMRBoundaries(tagname, props, fileData, this);
       }
-      const template = tagname(...props);
-      const nodes = createNodesFromTemplate(template, this);
+      const nodes = createNodesFromTemplate(tagname(...props), this);
       return nodes.length === 1 ? nodes[0] : nodes;
     } finally {
       this.#hydrating = wasHydrating;
-      if (isInitialHydrationRender && handle && !isProvisionalInitialRender) {
-        this.#initialHydrationRenderState.set(handle, 'rendered');
-      }
-      if (frame && !isSpeculativeInitialRender && !isClientUpdate) {
+      if (initial && state && !provisional) state.phase = 'rendered';
+      if (frame && !speculative && !client) {
         this.#removeFrameAndDescendants(frame);
       }
     }
@@ -378,18 +348,15 @@ export class DOMRenderer {
         const shadowRoot =
           elementParent.shadowRoot ??
           elementParent.attachShadow({ mode: 'open' });
-        this.#markClaimed(shadowRoot);
         const frame = {
           parent: shadowRoot,
           nextChild: shadowRoot.firstChild,
-          container: shadowRoot,
         };
         this.#hydrationStack.push(frame);
         try {
           return Ops.appendShadowRoot(elementParent, childNode, this);
         } finally {
-          const index = this.#hydrationStack.lastIndexOf(frame);
-          if (index >= 0) this.#hydrationStack.splice(index, 1);
+          this.#removeFrameAndDescendants(frame);
         }
       }
     }
@@ -401,12 +368,9 @@ export class DOMRenderer {
       return this.#appendDuringHydration(parentNode, childNode);
     }
 
-    if (Array.isArray(childNode)) {
-      const children = childNode.filter(Boolean);
-      parentNode.append(...children);
-    } else {
-      parentNode.append(childNode);
-    }
+    parentNode.append(
+      ...(Array.isArray(childNode) ? childNode.filter(Boolean) : [childNode])
+    );
 
     return parentNode;
   }
@@ -432,7 +396,7 @@ export class DOMRenderer {
    * @returns {Node[]}
    */
   unwrapGroup(group) {
-    return this.#fragmentChildren.get(group) ?? Array.from(group.childNodes);
+    return this.#getFragmentChildren(group);
   }
 
   /**
@@ -461,10 +425,12 @@ export class DOMRenderer {
       props.xmlns = ns;
     }
 
-    const hasRenderableChildren = this.#hasRenderableChildren(props);
+    const hasChildren = Boolean(
+      props && tagname !== 'retend-teleport' && 'children' in props
+    );
     /** @type {HydrationFrame | null} */
     let hydrationFrame = null;
-    if (props && tagname !== 'retend-teleport' && 'children' in props) {
+    if (hasChildren) {
       const childNamespace = tagname === 'foreignObject' ? HTML_NAMESPACE : ns;
       const children = props.children;
       props.children = () => {
@@ -475,9 +441,7 @@ export class DOMRenderer {
             h: false,
           });
         } finally {
-          if (hydrationFrame) {
-            this.#removeFrameAndDescendants(hydrationFrame);
-          }
+          if (hydrationFrame) this.#removeFrameAndDescendants(hydrationFrame);
         }
       };
     }
@@ -489,13 +453,10 @@ export class DOMRenderer {
         return element.namespaceURI === ns && element.localName === tagname;
       }, `expected <${tagname}>`);
       const element = /** @type {JsxElement} */ (claimed);
-      const html = props?.dangerouslySetInnerHTML?.__html;
-      if (html !== undefined) {
-        this.#opaqueHydrationContainers.add(element);
+      if (props?.dangerouslySetInnerHTML?.__html !== undefined) {
+        Reflect.get(element, HYDRATION_CLAIM).opaque = true;
       }
-      if (hasRenderableChildren) {
-        hydrationFrame = this.#pushContainerFrame(element);
-      }
+      if (hasChildren) hydrationFrame = this.#pushContainerFrame(element);
       return element;
     }
 
@@ -522,13 +483,16 @@ export class DOMRenderer {
       if (claimed.nodeType === COMMENT_NODE) {
         textNode = this.host.document.createTextNode('');
         claimed.replaceWith(textNode);
-        this.#markClaimed(textNode);
+        Reflect.set(
+          textNode,
+          HYDRATION_CLAIM,
+          Reflect.get(claimed, HYDRATION_CLAIM)
+        );
       } else {
         textNode = /** @type {Text} */ (claimed);
       }
-      if (!isPending || textNode.textContent === '') {
+      if (!isPending || textNode.textContent === '')
         textNode.textContent = nextText;
-      }
       return textNode;
     }
     return this.host.document.createTextNode(String(text));
@@ -556,7 +520,14 @@ export class DOMRenderer {
    */
   scheduleTeleport(callback, id) {
     if (this.#hydrating) {
-      const anchorNode = this.#claimHydrationTeleportAnchor();
+      const anchorNode = /** @type {Comment} */ (
+        this.#claimHydrationChild(
+          (node) =>
+            node.nodeType === COMMENT_NODE &&
+            Boolean(node.textContent?.startsWith(TELEPORT_ANCHOR_PREFIX)),
+          'expected teleport anchor'
+        )
+      );
       const snapshot = branchState();
       this.#pendingHydrationTeleports.push(async () => {
         const stackDepth = this.#hydrationStack.length;
@@ -572,55 +543,21 @@ export class DOMRenderer {
     const anchorNode = this.host.document.createComment(
       id ? `${TELEPORT_ANCHOR_PREFIX}${id}` : 'retend:teleport'
     );
-    if (id) Reflect.set(anchorNode, '__retendTeleportId', id);
     const ref = Cell.source(anchorNode);
     const snapshot = branchState();
-    onConnected(ref, (node) => {
-      const result = withState(snapshot, () => callback(node, false));
-      if ([TELEPORT_CANCELED, TELEPORT_DEFERRED].includes(result)) return;
-      return result;
-    });
+    onConnected(
+      ref,
+      (node) => withState(snapshot, () => callback(node, false)) || undefined
+    );
     return anchorNode;
   }
 
   /** @param {ParentNode} root */
   enableHydrationMode(root) {
     this.#hydrating = true;
+    this.#hydrationRoots = [root];
     this.#hydrationStack = [{ parent: root, nextChild: root.firstChild }];
-    this.#hydrationRangeEnds = new WeakMap();
-    this.#unclaimedHydrationRanges.clear();
-    this.#claimedNodes = new WeakSet();
-    this.#claimedPositions = new WeakMap();
-    this.#hydrationHandleFrames = new WeakMap();
-    this.#hydrationHandleFragments = new WeakMap();
-    this.#initialHydrationWrites = new WeakSet();
-    this.#initialHydrationRenderState = new WeakMap();
-    this.#clientUpdatedHandles = new WeakSet();
-    this.#clientRenderedNodes = new WeakSet();
-    this.#opaqueHydrationContainers = new WeakSet();
     this.#pendingHydrationTeleports = [];
-    const roots = [root];
-    for (let index = 0; index < roots.length; index++) {
-      const rangeRoot = roots[index];
-      if (!rangeRoot) continue;
-      for (const element of rangeRoot.querySelectorAll('*')) {
-        if (element.shadowRoot) roots.push(element.shadowRoot);
-      }
-      const walker = this.host.document.createTreeWalker(rangeRoot, 128);
-      /** @type {Comment[]} */
-      const stack = [];
-      let node = walker.nextNode();
-      while (node) {
-        const comment = /** @type {Comment} */ (node);
-        if (comment.textContent === 'retend:range-start') stack.push(comment);
-        else if (comment.textContent === 'retend:range-end') {
-          const start = stack.pop();
-          if (start) this.#hydrationRangeEnds.set(start, comment);
-        }
-        node = walker.nextNode();
-      }
-    }
-    this.#hydrationRoots = roots;
   }
 
   async endHydration() {
@@ -631,7 +568,7 @@ export class DOMRenderer {
         let resolved = 0;
         for (const mount of pending) {
           const result = await mount();
-          if (result === TELEPORT_DEFERRED) {
+          if (result === false) {
             this.#pendingHydrationTeleports.push(mount);
           } else {
             resolved++;
@@ -645,15 +582,7 @@ export class DOMRenderer {
         stalled = resolved === 0;
       }
 
-      if (this.#unclaimedHydrationRanges.size) {
-        throw new HydrationMismatchError('Unclaimed dynamic range.');
-      }
-
       for (const root of this.#hydrationRoots) {
-        if (root !== this.#hydrationRoots[0] && !this.#isClaimed(root)) {
-          if (!(/** @type {Node} */ (root).isConnected)) continue;
-          throw new HydrationMismatchError('Unclaimed Teleport container.');
-        }
         this.#assertClaimedChildren(root);
       }
     } finally {
@@ -661,7 +590,6 @@ export class DOMRenderer {
       this.#hydrationRoots = [];
       this.#hydrationStack = [];
       this.#pendingHydrationTeleports = [];
-      this.#unclaimedHydrationRanges.clear();
     }
     await runPendingSetupEffects();
     this.host.dispatchEvent(new Event('hydrationcompleted'));
@@ -682,9 +610,7 @@ export class DOMRenderer {
       throw new HydrationMismatchError('Missing Teleport container.');
     }
     this.#markClaimed(container);
-    if (!this.#hydrationRoots.includes(container)) {
-      this.#hydrationRoots.push(container);
-    }
+    this.#hydrationRoots.push(container);
     this.#pushContainerFrame(container);
     return container;
   }
@@ -702,36 +628,51 @@ export class DOMRenderer {
     );
 
     if (parentNode.nodeType === DOCUMENT_FRAGMENT_NODE) {
-      const existing = this.#fragmentChildren.get(
-        /** @type {DocumentFragment} */ (parentNode)
-      );
-      const stored = existing ? [...existing] : [];
+      const stored = [
+        ...(Reflect.get(parentNode, HYDRATION_FRAGMENT_CHILDREN) ?? []),
+      ];
       for (const child of flatChildren) {
         if (!this.#isClaimed(child) && !child.isConnected) {
           throw new HydrationMismatchError('Unexpected inserted node.');
         }
         stored.push(child);
       }
-      this.#fragmentChildren.set(
-        /** @type {DocumentFragment} */ (parentNode),
-        stored
-      );
+      Reflect.set(parentNode, HYDRATION_FRAGMENT_CHILDREN, stored);
       return parentNode;
     }
 
     for (const child of flatChildren) {
-      if (child === parentNode) continue;
-      if (child.parentNode === parentNode) continue;
-      const position = this.#claimedPositions.get(child);
+      if (child === parentNode || child.parentNode === parentNode) continue;
+      const position = /** @type {HydrationClaim | undefined} */ (
+        Reflect.get(child, HYDRATION_CLAIM)
+      );
       if (!this.#isClaimed(child) || position?.parent !== parentNode) {
         throw new HydrationMismatchError('Unexpected inserted node.');
       }
-      const insertionPoint =
+      const before =
         position.before?.parentNode === parentNode ? position.before : null;
-      if (insertionPoint) insertionPoint.before(child);
+      if (before) before.before(child);
       else parentNode.append(child);
     }
     return parentNode;
+  }
+
+  /**
+   * @param {DOMHandle} handle
+   * @returns {Node[]}
+   */
+  #getHandleNodes(handle) {
+    /** @type {Node[]} */
+    const nodes = [handle[0]];
+    for (
+      let node = handle[0].nextSibling;
+      node && node !== handle[1];
+      node = node.nextSibling
+    ) {
+      nodes.push(node);
+    }
+    nodes.push(handle[1]);
+    return nodes;
   }
 
   /**
@@ -740,17 +681,14 @@ export class DOMRenderer {
    */
   #getFragmentChildren(fragment) {
     return (
-      this.#fragmentChildren.get(fragment) ?? Array.from(fragment.childNodes)
+      Reflect.get(fragment, HYDRATION_FRAGMENT_CHILDREN) ??
+      Array.from(fragment.childNodes)
     );
   }
 
   /** @param {ParentNode} parent */
   #pushContainerFrame(parent) {
-    const frame = {
-      parent,
-      nextChild: parent.firstChild,
-      container: parent,
-    };
+    const frame = { parent, nextChild: parent.firstChild };
     this.#hydrationStack.push(frame);
     return frame;
   }
@@ -765,14 +703,10 @@ export class DOMRenderer {
   #currentHydrationFrame() {
     while (this.#hydrationStack.length > 1) {
       const top = this.#hydrationStack[this.#hydrationStack.length - 1];
-      if (top.end && top.nextChild === top.end) break;
-      if (top.container && top.nextChild === null) {
-        this.#hydrationStack.pop();
-        continue;
-      }
-      break;
+      if (top.end || top.nextChild !== null) return top;
+      this.#hydrationStack.pop();
     }
-    return this.#hydrationStack[this.#hydrationStack.length - 1] ?? null;
+    return this.#hydrationStack[0] ?? null;
   }
 
   /**
@@ -807,47 +741,44 @@ export class DOMRenderer {
     }
 
     const start = /** @type {Comment} */ (node);
-    const end = this.#hydrationRangeEnds.get(start);
+    let end = /** @type {Comment | undefined} */ (
+      Reflect.get(start, HYDRATION_RANGE_END)
+    );
     if (!end) {
-      throw new HydrationMismatchError('Unmatched dynamic range.');
+      const stack = [start];
+      for (
+        let cursor = start.nextSibling;
+        cursor;
+        cursor = cursor.nextSibling
+      ) {
+        if (cursor.nodeType !== COMMENT_NODE) continue;
+        const comment = /** @type {Comment} */ (cursor);
+        if (comment.textContent === 'retend:range-start') stack.push(comment);
+        else if (comment.textContent === 'retend:range-end') {
+          const open = stack.pop();
+          if (open) Reflect.set(open, HYDRATION_RANGE_END, comment);
+          if (!stack.length) {
+            end = comment;
+            break;
+          }
+        }
+      }
     }
+    if (!end) throw new HydrationMismatchError('Unmatched dynamic range.');
 
-    this.#markClaimed(start);
-    this.#claimedPositions.set(start, {
+    Reflect.set(start, HYDRATION_CLAIM, {
       parent: frame.parent,
       before: start.nextSibling,
     });
-    /** @type {HydrationFrame} */
-    const rangeFrame = {
+    /** @type {HydrationRange} */
+    const range = {
       parent: frame.parent,
       nextChild: start.nextSibling,
-      end,
-      range: null,
-    };
-    const range = {
       start,
       end,
-      frame: rangeFrame,
       parentFrame: frame,
     };
-    rangeFrame.range = range;
-    this.#unclaimedHydrationRanges.add(range);
-    this.#hydrationStack.push(rangeFrame);
-    return range;
-  }
-
-  /**
-   * @returns {HydrationRange | null}
-   */
-  #claimRangeForHandle() {
-    const frame = this.#currentHydrationFrame();
-    if (!frame) return null;
-    const range =
-      frame.range && this.#unclaimedHydrationRanges.has(frame.range)
-        ? frame.range
-        : this.#enterImmediateRange(frame);
-    if (!range) return null;
-    this.#unclaimedHydrationRanges.delete(range);
+    this.#hydrationStack.push(range);
     return range;
   }
 
@@ -865,92 +796,55 @@ export class DOMRenderer {
     while (true) {
       const entered = this.#enterImmediateRange(frame);
       if (!entered) break;
-      frame = entered.frame;
+      frame = entered;
     }
 
     const node = this.#skipHydrationSeparators(frame);
-    if (!node || (frame.end && node === frame.end)) {
+    if (!node || node === frame.end || !predicate(node)) {
       throw new HydrationMismatchError(`Hydration error: ${expectation}.`);
     }
 
-    if (!predicate(node)) {
-      throw new HydrationMismatchError(`Hydration error: ${expectation}.`);
-    }
-
-    this.#claimedPositions.set(node, {
+    Reflect.set(node, HYDRATION_CLAIM, {
       parent: frame.parent,
       before: node.nextSibling,
     });
     frame.nextChild = node.nextSibling;
-    this.#markClaimed(node);
     return node;
-  }
-
-  /**
-   * @returns {Comment}
-   */
-  #claimHydrationTeleportAnchor() {
-    const claimed = this.#claimHydrationChild(
-      (node) =>
-        node.nodeType === COMMENT_NODE &&
-        Boolean(node.textContent?.startsWith(TELEPORT_ANCHOR_PREFIX)),
-      'expected teleport anchor'
-    );
-
-    const anchor = /** @type {Comment} */ (claimed);
-    Reflect.set(
-      anchor,
-      '__retendTeleportId',
-      anchor.textContent?.slice(TELEPORT_ANCHOR_PREFIX.length)
-    );
-    return anchor;
   }
 
   /** @param {Node | null | undefined} node */
   #isClaimed(node) {
-    return Boolean(node && this.#claimedNodes.has(node));
+    return Boolean(node && Reflect.has(node, HYDRATION_CLAIM));
   }
 
   /** @param {Node | null | undefined} node */
   #markClaimed(node) {
-    if (node) this.#claimedNodes.add(node);
+    if (node && !this.#isClaimed(node))
+      Reflect.set(node, HYDRATION_CLAIM, true);
+  }
+
+  /** @param {Node} node */
+  #markClientNode(node) {
+    if (node.nodeType !== ELEMENT_NODE) return this.#markClaimed(node);
+    const claim = Reflect.get(node, HYDRATION_CLAIM);
+    if (claim && typeof claim === 'object') claim.opaque = true;
+    else Reflect.set(node, HYDRATION_CLAIM, { opaque: true });
   }
 
   /** @param {ParentNode} parent */
   #assertClaimedChildren(parent) {
-    if (this.#opaqueHydrationContainers.has(/** @type {Element} */ (parent))) {
-      return;
-    }
-    const ElementCtor = /** @type {typeof Element | undefined} */ (
-      /** @type {*} */ (this.host).Element
-    );
+    if (Reflect.get(parent, HYDRATION_CLAIM)?.opaque) return;
     for (const node of parent.childNodes) {
-      if (this.#clientRenderedNodes.has(node)) continue;
       if (!this.#isClaimed(node)) {
         throw new HydrationMismatchError('Unclaimed server node.');
       }
 
-      if (ElementCtor && node instanceof ElementCtor) {
+      if (node.nodeType === ELEMENT_NODE) {
         const element = /** @type {Element} */ (node);
         this.#assertClaimedChildren(element);
         if (element.shadowRoot) this.#assertClaimedChildren(element.shadowRoot);
       }
     }
-  }
-
-  /** @param {Record<string, any> | null | undefined} props */
-  #hasRenderableChildren(props) {
-    if (!props || !('children' in props)) return false;
-    const children = props.children;
-    if (children === null || children === undefined || children === false) {
-      return false;
-    }
-    if (Array.isArray(children)) {
-      return children.some(
-        (child) => child !== null && child !== undefined && child !== false
-      );
-    }
-    return true;
   }
 }
 

@@ -136,62 +136,47 @@ export * from './render-to-string.js';
  * @returns {Promise<Router>} The router instance used to create the application.
  */
 export async function hydrate(routerFn, options = {}) {
-  const rootId = options.rootId ?? 'app';
-  return hydrateRouter(routerFn, rootId, options);
-}
-
-/**
- * @param {() => Router} routerFn
- * @param {string} rootId
- * @param {HydrationOptions} options
- */
-async function hydrateRouter(routerFn, rootId, options) {
-  const root = document.getElementById(rootId);
+  const root = document.getElementById(options.rootId ?? 'app');
   if (!root) throw new Error('No root element found');
+
   const previousContext = getGlobalContext();
   const renderer = new DOMRenderer(window);
-  const context = { globalData: new Map(), renderer };
-  setGlobalContext(context);
+  setGlobalContext({ globalData: new Map(), renderer });
 
+  let detachRouter = () => {};
   try {
     const router = routerFn();
-    const detachRouter = router.attachWindowListeners(window);
-    try {
-      const { location } = window;
-      await router.navigate(
-        location.pathname + location.search + location.hash
-      );
+    detachRouter = router.attachWindowListeners(window);
+    const { location } = window;
+    await router.navigate(location.pathname + location.search + location.hash);
 
-      const shouldHydrate = root.getAttribute('data-retend-hydration') === '1';
-      if (shouldHydrate) renderer.enableHydrationMode(root);
-      else root.replaceChildren();
-      const rendered = renderer.render(() =>
-        Await({
-          fallback: null,
-          children: () =>
-            options.wrap
-              ? options.wrap(() => createRouterRoot(router))
-              : createRouterRoot(router),
-        })
-      );
-      if (shouldHydrate) {
-        await renderer.endHydration();
-        root.removeAttribute('data-retend-hydration');
-      } else {
-        const nodes = Array.isArray(rendered) ? rendered : [rendered];
-        root.append(...nodes.filter((node) => node && !node.isConnected));
-        await waitForAsyncBoundaries();
-        await runPendingSetupEffects();
-        await waitForAsyncBoundaries();
-        window.dispatchEvent(new Event('hydrationcompleted'));
-      }
-      addMetaListener(router, document);
-      return router;
-    } catch (error) {
-      detachRouter();
-      throw error;
+    const shouldHydrate = root.getAttribute('data-retend-hydration') === '1';
+    if (shouldHydrate) renderer.enableHydrationMode(root);
+    else root.replaceChildren();
+
+    const rendered = renderer.render(() =>
+      Await({
+        children: () =>
+          options.wrap
+            ? options.wrap(() => createRouterRoot(router))
+            : createRouterRoot(router),
+      })
+    );
+    if (shouldHydrate) {
+      await renderer.endHydration();
+      root.removeAttribute('data-retend-hydration');
+    } else {
+      const nodes = Array.isArray(rendered) ? rendered : [rendered];
+      root.append(...nodes.filter((node) => node && !node.isConnected));
+      await waitForAsyncBoundaries();
+      await runPendingSetupEffects();
+      await waitForAsyncBoundaries();
+      window.dispatchEvent(new Event('hydrationcompleted'));
     }
+    addMetaListener(router, document);
+    return router;
   } catch (error) {
+    detachRouter();
     getState().node.dispose();
     setGlobalContext(previousContext);
     throw error;

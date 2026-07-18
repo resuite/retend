@@ -2,7 +2,12 @@
 /** @import * as VDom from './index.js' */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 
-import { createNodesFromTemplate, normalizeJsxChild, getState } from 'retend';
+import {
+  createNodesFromTemplate,
+  normalizeJsxChild,
+  getState,
+  withState,
+} from 'retend';
 import * as Ops from 'retend-web/dom-ops';
 
 import { VDocumentFragment, VNode } from './index.js';
@@ -137,9 +142,8 @@ export class VDOMRenderer {
    * @param {StateSnapshot} [_snapshot]
    */
   handleComponent(tagname, props, _snapshot) {
-    const component = tagname(...props);
     /** @type {VDom.VNode[]} */
-    const nodes = createNodesFromTemplate(component, this);
+    const nodes = createNodesFromTemplate(tagname(...props), this);
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
@@ -149,16 +153,11 @@ export class VDOMRenderer {
    */
   append(parentNode, childNode) {
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
-    if (shadowRoot) {
-      return shadowRoot;
-    }
+    if (shadowRoot) return shadowRoot;
 
-    if (Array.isArray(childNode)) {
-      const children = childNode.filter(Boolean);
-      parentNode.append(...children);
-    } else {
-      parentNode.append(childNode);
-    }
+    parentNode.append(
+      ...(Array.isArray(childNode) ? childNode.filter(Boolean) : [childNode])
+    );
 
     return parentNode;
   }
@@ -228,19 +227,10 @@ export class VDOMRenderer {
     const anchorNode = this.host.document.createComment(
       id ? `retend:teleport:${id}` : 'retend:teleport'
     );
-    if (id) Reflect.set(anchorNode, '__retendTeleportId', id);
-    const capturedScopes = getState().scopes;
-    this.host.document.teleportMounts.push(() => {
-      const state = getState();
-      const previousScopes = state.scopes;
-      state.scopes = capturedScopes;
-      try {
-        return callback(anchorNode, true);
-      } finally {
-        state.scopes = previousScopes;
-      }
-    });
-    anchorNode.__isTeleportAnchor = true;
+    const snapshot = { ...getState() };
+    this.host.document.teleportMounts.push(() =>
+      withState(snapshot, () => callback(anchorNode, true))
+    );
     return anchorNode;
   }
 }

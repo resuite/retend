@@ -1,12 +1,9 @@
-const TELEPORT_DEFERRED = Symbol.for('retend.teleport.deferred');
-
 export class VNode extends EventTarget {
   /** @type {VNode | null} */
   parentNode = null;
   /** @type {VNode[]} */
   childNodes = [];
   __isVNode = true;
-  __isTeleportAnchor = false;
   /** @type {VDocument | null} document */
   ownerDocument = null;
 
@@ -623,7 +620,7 @@ export class VDocument extends VNode {
     let resolved = 0;
     for (const mount of mounts) {
       const result = await mount();
-      if (result === TELEPORT_DEFERRED) this.teleportMounts.push(mount);
+      if (result === false) this.teleportMounts.push(mount);
       else resolved++;
     }
     return resolved;

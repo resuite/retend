@@ -9,9 +9,6 @@ import {
 import { getGlobalContext } from 'retend/context';
 /** @import { DOMRenderer } from './dom-renderer.js' */
 
-const TELEPORT_CANCELED = Symbol.for('retend.teleport.canceled');
-const TELEPORT_DEFERRED = Symbol.for('retend.teleport.deferred');
-
 /**
  * @typedef TeleportOnlyProps
  *
@@ -52,24 +49,20 @@ const TELEPORT_DEFERRED = Symbol.for('retend.teleport.deferred');
  * ```
  */
 export function Teleport(props) {
-  const { to: target, ...rest } = props;
+  const { to: target, children, ...rest } = props;
   const { globalData } = getGlobalContext();
 
-  if (!globalData.has('teleportCounter')) {
-    globalData.set('teleportCounter', { value: 0 });
-  }
-  const teleportCounter = globalData.get('teleportCounter');
+  const teleportCounter = globalData.get('teleportCounter') ?? { value: 0 };
+  globalData.set('teleportCounter', teleportCounter);
 
   const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
   const generatedTeleportId = `teleport/target/${teleportCounter.value++}`;
   let disposed = false;
-  /** @type {undefined | (() => void)} */
-  let mountedCleanup;
+  let mountedCleanup = () => {};
 
   const dispose = () => {
     disposed = true;
-    mountedCleanup?.();
-    mountedCleanup = undefined;
+    mountedCleanup();
   };
 
   onSetup(() => dispose);
@@ -80,8 +73,8 @@ export function Teleport(props) {
    */
   const mountTeleportedNodes = (anchor, canDefer) => {
     const source = /** @type {Node} */ (anchor);
-    const teleportId = /** @type {string} */ (
-      Reflect.get(source, '__retendTeleportId')
+    const teleportId = (source.textContent ?? '').slice(
+      'retend:teleport:'.length
     );
     const wasCanceled = disposed || !source.isConnected;
 
@@ -92,7 +85,7 @@ export function Teleport(props) {
           `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`
         );
       }
-      return wasCanceled ? TELEPORT_CANCELED : TELEPORT_DEFERRED;
+      return wasCanceled ? null : false;
     }
 
     if (wasCanceled) {
@@ -102,7 +95,7 @@ export function Teleport(props) {
             candidate.getAttribute('data-teleport-id') === teleportId
         )
         ?.remove();
-      return TELEPORT_CANCELED;
+      return null;
     }
 
     const hydratedContainer = renderer.claimHydrationTeleportContainer?.(
@@ -114,20 +107,17 @@ export function Teleport(props) {
     renderer.setProperty(newInstance, 'data-teleport-id', teleportId);
 
     for (const [key, value] of Object.entries(rest)) {
-      if (key === 'children') continue;
       renderer.setProperty(newInstance, key, value);
     }
     Reflect.set(source, '__retendTeleportedContainer', newInstance);
 
-    const children = createNodesFromTemplate(props.children, renderer);
-    for (const child of children) {
+    const nodes = createNodesFromTemplate(children, renderer);
+    for (const child of nodes) {
       linkNodes(newInstance, child, renderer);
     }
 
     if (!hydratedContainer) renderer.append(parent, newInstance);
-    queueMicrotask(() => {
-      renderer.observer?.flush();
-    });
+    queueMicrotask(() => renderer.observer?.flush());
 
     mountedCleanup = () => {
       Reflect.deleteProperty(source, '__retendTeleportedContainer');
@@ -136,8 +126,7 @@ export function Teleport(props) {
 
     if (disposed) {
       mountedCleanup();
-      mountedCleanup = undefined;
-      return TELEPORT_CANCELED;
+      return null;
     }
 
     return dispose;
