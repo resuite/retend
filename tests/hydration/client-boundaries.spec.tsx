@@ -16,7 +16,7 @@ import {
 
 describe('ClientOnly', () => {
   describe('SSR (serialization)', () => {
-    vDomSetup({ markDynamicNodes: true });
+    vDomSetup();
 
     it('should render nothing when no fallback is provided', () => {
       const template = () => (
@@ -290,7 +290,7 @@ describe('ClientOnly', () => {
 
 describe('ClientReady', () => {
   describe('SSR (serialization)', () => {
-    vDomSetup({ markDynamicNodes: true });
+    vDomSetup();
 
     it('should render fallback during SSR', () => {
       const template = () => (

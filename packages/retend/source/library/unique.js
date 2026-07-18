@@ -33,6 +33,9 @@ const UniqueScope = createScope('Unique');
  * @property {Set<UniqueMoveFn>} moveFns
  * @property {Array<() => void>} restoreFns
  * @property {Array<[any, UniqueProps<any>]>} journey
+ * @property {boolean} isRendered
+ * @property {ReturnType<typeof useAwait>} pendingAwait
+ * @property {() => void} render
  * @property {boolean} isStable
  * @property {number | null} idOfLastSavedHandle
  */
@@ -195,35 +198,67 @@ export function createUnique(renderFn) {
 
     if (!instance) {
       // First Instance of createUnique, create normally.
-      /** @type {SourceCell<UniqueProps<Props>>} */
-      let props;
+      group = renderer.createGroup();
+      handle = renderer.createGroupHandle(group);
       const state = branchState();
+      const range = { handle };
+      state.data = range;
       const moveFns = new Set();
-      const output = withState(state, () => {
+      const providerProps = [
+        { value: moveFns, children: () => renderFn(newInstance.props) },
+      ];
+      const props = withState(state, () => {
         // The cell is created here so that it persists within the unique
         // state's context. Outside, it would belong to the parent context, and be
         // destroyed when the parent context is destroyed.
-        props = Cell.source(nextProps);
-        return UniqueScope.Provider({
-          value: moveFns,
-          children: () => renderFn(props),
-        });
+        return Cell.source(nextProps);
       });
 
-      group = createGroupFromNodes(output, renderer);
-      handle = renderer.createGroupHandle(group);
-
-      instance = {
-        // @ts-expect-error - props is assigned within withState.
+      /** @type {UniqueCtx} */
+      const newInstance = {
         props,
         state,
         moveFns,
         restoreFns: [],
         journey: [[handle, nextProps]],
+        isRendered: false,
+        pendingAwait: awaitCtx,
+        render() {
+          const pendingAwait = newInstance.pendingAwait;
+          const commit = () => {
+            if (
+              instances.get(key) !== newInstance ||
+              newInstance.isRendered ||
+              newInstance.pendingAwait !== pendingAwait
+            ) {
+              return;
+            }
+            if (pendingAwait && !pendingAwait.done) {
+              instances.delete(key);
+              state.node.dispose();
+              return;
+            }
+            const output = withState(state, () =>
+              renderer.handleComponent(
+                UniqueScope.Provider,
+                providerProps,
+                state
+              )
+            );
+            const content = createGroupFromNodes(output, renderer);
+            renderer.write(range.handle, renderer.unwrapGroup(content));
+            newInstance.isRendered = true;
+          };
+          if (pendingAwait && !pendingAwait.done) {
+            pendingAwait.finished.then(commit);
+          } else commit();
+        },
         isStable: false,
         idOfLastSavedHandle: null,
       };
-      instances.set(key, instance);
+      instance = newInstance;
+      instances.set(key, newInstance);
+      newInstance.render();
     } else {
       group = renderer.createGroup();
       handle = renderer.createGroupHandle(group);
@@ -265,8 +300,16 @@ export function createUnique(renderFn) {
           queueMicrotask(() => runRestoreFns(instance));
         }
       };
-      if (awaitCtx && !awaitCtx.done) awaitCtx.finished.then(move);
-      else move();
+      if (!instance.isRendered) {
+        instance.journey = [[handle, nextProps]];
+        /** @type {{ handle: any }} */ (instance.state.data).handle = handle;
+        instance.pendingAwait = awaitCtx;
+        instance.render();
+      } else if (awaitCtx && !awaitCtx.done) {
+        awaitCtx.finished.then(() => {
+          if (awaitCtx.done) move();
+        });
+      } else move();
     }
 
     onSetup(() => {

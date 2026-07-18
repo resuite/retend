@@ -9,9 +9,12 @@ import {
   createScope,
   createUnique,
   getActiveRenderer,
+  onSetup,
+  setActiveRenderer,
   useScopeContext,
 } from 'retend';
-import { ShadowRoot, Teleport } from 'retend-web';
+import { DOMRenderer, ShadowRoot, Teleport } from 'retend-web';
+import { getGlobalContext, setGlobalContext } from 'retend/context';
 import { describe, expect, it, vi } from 'vitest';
 
 import { browserSetup, getTextContent, timeout } from '../setup.tsx';
@@ -24,6 +27,196 @@ import {
 
 describe('Hydration', () => {
   browserSetup();
+
+  it('aborts structural mismatches without reporting hydration success', async () => {
+    const setup = vi.fn();
+    const completed = vi.fn();
+    const serverTemplate = () => <div>Server</div>;
+    const clientTemplate = () => {
+      onSetup(setup);
+      return (
+        <div>
+          <hr />
+        </div>
+      );
+    };
+    const html = await renderHydrationServerHtml(serverTemplate);
+    const { renderer, root, window } = createHydrationClientRenderer(html);
+    window.addEventListener('hydrationcompleted', completed, { once: true });
+
+    expect(() => startHydration(renderer, clientTemplate)).toThrow(
+      'Hydration error: expected <hr>.'
+    );
+    expect(root?.textContent).toBe('Server');
+    expect(setup).not.toHaveBeenCalled();
+    expect(completed).not.toHaveBeenCalled();
+  });
+
+  it('does not mutate an element claimed as text before rejecting', async () => {
+    const text = Cell.source('Client');
+    const serverTemplate = () => (
+      <div>
+        <span id="server-subtree">
+          <b>Server</b>
+        </span>
+      </div>
+    );
+    const clientTemplate = () => <div>{text}</div>;
+    const html = await renderHydrationServerHtml(serverTemplate);
+    const { renderer, document } = createHydrationClientRenderer(html);
+
+    expect(() => startHydration(renderer, clientTemplate)).toThrow(
+      'Hydration error: expected text.'
+    );
+    expect(document.querySelector('#server-subtree')?.innerHTML).toBe(
+      '<b>Server</b>'
+    );
+  });
+
+  it('does not mutate later elements after a resolved text mismatch', async () => {
+    const serverTemplate = () => (
+      <div>
+        Server
+        <button id="after-text-mismatch" class="server">
+          Button
+        </button>
+      </div>
+    );
+    const clientTemplate = () => (
+      <div>
+        Client
+        <button id="after-text-mismatch" class="client">
+          Button
+        </button>
+      </div>
+    );
+    const html = await renderHydrationServerHtml(serverTemplate);
+    const { renderer, document } = createHydrationClientRenderer(html);
+
+    expect(() => startHydration(renderer, clientTemplate)).toThrow(
+      'Text content mismatch.'
+    );
+    expect(document.querySelector('#after-text-mismatch')?.className).toBe(
+      'server'
+    );
+  });
+
+  it('preserves server nodes owned by matching raw HTML', async () => {
+    const template = () => (
+      <code
+        id="highlighted-code"
+        dangerouslySetInnerHTML={{
+          __html: '<span class="rt-code-function">npx</span> retend',
+        }}
+      />
+    );
+    const html = await renderHydrationServerHtml(template);
+    const { renderer, document } = createHydrationClientRenderer(html);
+    const serverToken = document.querySelector('.rt-code-function');
+
+    startHydration(renderer, template);
+    await renderer.endHydration();
+
+    expect(document.querySelector('.rt-code-function')).toBe(serverToken);
+    expect(document.querySelector('#highlighted-code')?.textContent).toBe(
+      'npx retend'
+    );
+  });
+
+  it('rejects mismatched raw HTML before replacing server nodes', async () => {
+    const ref = Cell.source<HTMLElement | null>(null);
+    const serverTemplate = () => (
+      <code
+        class="server"
+        dangerouslySetInnerHTML={{ __html: '<b>Server</b>' }}
+      />
+    );
+    const clientTemplate = () => (
+      <code
+        class="client"
+        ref={ref}
+        dangerouslySetInnerHTML={{ __html: '<i>Client</i>' }}
+      />
+    );
+    const html = await renderHydrationServerHtml(serverTemplate);
+    const { renderer, document } = createHydrationClientRenderer(html);
+
+    expect(() => startHydration(renderer, clientTemplate)).toThrow(
+      'Raw HTML content mismatch.'
+    );
+    const code = document.querySelector('code');
+    expect(code?.className).toBe('server');
+    expect(code?.innerHTML).toBe('<b>Server</b>');
+    expect(ref.peek()).toBeNull();
+  });
+
+  it('does not delete an unrelated external Teleport container', async () => {
+    const template = () => <div id="owned-root">Owned</div>;
+    const html = await renderHydrationServerHtml(template);
+    window.document.body.setHTMLUnsafe(
+      `<div id="app">${html}</div><retend-teleport data-teleport-id="other-app/0"><span id="other-app-content">Other</span></retend-teleport>`
+    );
+    setGlobalContext({ globalData: new Map() });
+    const renderer = new DOMRenderer(window);
+    setActiveRenderer(renderer);
+    const root = window.document.querySelector('#app') as HTMLElement;
+    renderer.enableHydrationMode(root);
+
+    startHydration(renderer, template);
+    await renderer.endHydration();
+
+    expect(window.document.querySelector('#other-app-content')).not.toBeNull();
+  });
+
+  it('fires hydrationcompleted after setup effects', async () => {
+    const setup = vi.fn();
+    const Child = () => {
+      onSetup(setup);
+      return <span id="completion-child">Child</span>;
+    };
+    const template = () => <Child />;
+    const html = await renderHydrationServerHtml(template);
+    setup.mockClear();
+    const { renderer, window } = createHydrationClientRenderer(html);
+    let observedSetupCount = -1;
+    window.addEventListener(
+      'hydrationcompleted',
+      () => {
+        observedSetupCount = setup.mock.calls.length;
+      },
+      { once: true }
+    );
+
+    startHydration(renderer, template);
+    await renderer.endHydration();
+
+    expect(observedSetupCount).toBe(1);
+  });
+
+  it('activates setup effects inside a hydrated Teleport exactly once', async () => {
+    const setup = vi.fn();
+    const TeleportedChild = () => {
+      onSetup(setup);
+      return <span id="teleported-setup">Teleported</span>;
+    };
+    const template = () => (
+      <>
+        <div id="teleport-setup-target" />
+        <Teleport to="#teleport-setup-target">
+          <TeleportedChild />
+        </Teleport>
+      </>
+    );
+
+    const html = await renderHydrationServerHtml(template);
+    setup.mockClear();
+    const { renderer, document } = createHydrationClientRenderer(html);
+    startHydration(renderer, template);
+    await renderer.endHydration();
+
+    expect(document.querySelector('#teleported-setup')).not.toBeNull();
+    expect(setup).toHaveBeenCalledTimes(1);
+  });
 
   it('should hydrate a static string and add interactivity', async () => {
     const count = Cell.source(0);
@@ -407,6 +600,26 @@ describe('Hydration', () => {
     expect(f2?.textContent).toBe('B+');
   });
 
+  it('hydrates fragment props containing text around an element', async () => {
+    const Description = (props: { children: JSX.Template }) => (
+      <p id="fragment-description">{props.children}</p>
+    );
+    const template = () => (
+      <Description>
+        Coordinate loading states with{' '}
+        <code class="inline-code">{'<Await>'}</code>. Nested async data.
+      </Description>
+    );
+
+    const { document } = await setupHydration(template);
+    const description = document.querySelector('#fragment-description');
+
+    expect(description?.querySelector('code')?.textContent).toBe('<Await>');
+    expect(description?.textContent).toBe(
+      'Coordinate loading states with <Await>. Nested async data.'
+    );
+  });
+
   it('should hydrate document fragment children', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const FragmentChild = () => {
@@ -473,6 +686,27 @@ describe('Hydration', () => {
     expect(target).not.toBeNull();
     expect(teleported).not.toBeNull();
     expect(teleported?.textContent).toBe('Teleported content');
+  });
+
+  it('uses the serialized Teleport ID instead of the client counter', async () => {
+    const template = () => (
+      <div>
+        <div id="serialized-id-target" />
+        <Teleport to="#serialized-id-target">
+          <span id="serialized-id-content">Teleported</span>
+        </Teleport>
+      </div>
+    );
+    const html = await renderHydrationServerHtml(template);
+    const { renderer, document } = createHydrationClientRenderer(html);
+    getGlobalContext().globalData.set('teleportCounter', { value: 42 });
+
+    startHydration(renderer, template);
+    await renderer.endHydration();
+
+    const target = document.querySelector('#serialized-id-target');
+    expect(target?.querySelectorAll('retend-teleport').length).toBe(1);
+    expect(target?.querySelector('#serialized-id-content')).not.toBeNull();
   });
 
   it('should hydrate Teleport with dynamic content', async () => {
@@ -1657,7 +1891,6 @@ describe('Hydration', () => {
   });
 
   it('should report hydration mismatch errors', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const text = Cell.source('Expected Content');
     const template = () => (
       <div id="mismatch-root">
@@ -1670,20 +1903,12 @@ describe('Hydration', () => {
     const corruptedHtml = html.replace('Expected Content', 'Different Content');
     const { renderer: clientRenderer } =
       createHydrationClientRenderer(corruptedHtml);
-    startHydration(clientRenderer, template);
-    await clientRenderer.endHydration();
-
-    expect(consoleSpy).toHaveBeenCalled();
-    const errorCalls = consoleSpy.mock.calls.filter((call) =>
-      call[0]?.includes?.('Hydration error')
+    expect(() => startHydration(clientRenderer, template)).toThrow(
+      'Text content mismatch.'
     );
-    expect(errorCalls.length).toBeGreaterThan(0);
-
-    consoleSpy.mockRestore();
   });
 
   it('should report hydration mismatch errors for resolved empty reactive text', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const text = Cell.source('');
     const template = () => (
       <div id="mismatch-empty-root">
@@ -1694,21 +1919,14 @@ describe('Hydration', () => {
     const html = await renderHydrationServerHtml(template);
 
     const corruptedHtml = html.replace(
-      'id="mismatch-empty-text"></span>',
-      'id="mismatch-empty-text">Different Content</span>'
+      '<!--retend:empty-text-->',
+      'Different Content'
     );
     const { renderer: clientRenderer } =
       createHydrationClientRenderer(corruptedHtml);
-    startHydration(clientRenderer, template);
-    await clientRenderer.endHydration();
-
-    expect(consoleSpy).toHaveBeenCalled();
-    const errorCalls = consoleSpy.mock.calls.filter((call) =>
-      call[0]?.includes?.('Hydration error')
+    expect(() => startHydration(clientRenderer, template)).toThrow(
+      'Text content mismatch.'
     );
-    expect(errorCalls.length).toBeGreaterThan(0);
-
-    consoleSpy.mockRestore();
   });
 
   it('should hydrate For loop with items returning Fragments', async () => {
@@ -1759,39 +1977,6 @@ describe('Hydration', () => {
 
     expect(consoleSpy).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
-  });
-
-  it('should recover from unexpected DOM nodes during hydration', async () => {
-    const text = Cell.source('Dynamic Content');
-    const template = () => (
-      <div id="unexpected-node-root">
-        <span id="unexpected-static">Static</span>
-        <span id="unexpected-dynamic">{text}</span>
-        <span id="unexpected-trailing">Trailing</span>
-      </div>
-    );
-
-    const html = await renderHydrationServerHtml(template);
-
-    const tempDiv = window.document.createElement('div');
-    tempDiv.innerHTML = html;
-    const dynamicSpan = tempDiv.querySelector('#unexpected-dynamic');
-    const unexpectedSpan = window.document.createElement('span');
-    unexpectedSpan.id = 'unexpected-injected';
-    unexpectedSpan.textContent = 'Injected';
-    dynamicSpan?.before(unexpectedSpan);
-    const { renderer: clientRenderer, document } =
-      createHydrationClientRenderer(tempDiv.innerHTML);
-    startHydration(clientRenderer, template);
-    await clientRenderer.endHydration();
-
-    const root = document.querySelector('#unexpected-node-root');
-    expect(root).not.toBeNull();
-
-    text.set('Updated Content');
-    expect(document.querySelector('#unexpected-dynamic')?.textContent).toBe(
-      'Updated Content'
-    );
   });
 
   it('should preserve SVG key attributes during hydration', async () => {
@@ -2125,6 +2310,23 @@ describe('Hydration', () => {
     consoleSpy.mockRestore();
   });
 
+  it('preserves an empty reactive text slot before a sibling', async () => {
+    const value = Cell.source('');
+    const template = () => (
+      <div id="empty-text-slot">
+        {value}
+        <span>Next</span>
+      </div>
+    );
+
+    const { document } = await setupHydration(template);
+    const root = document.querySelector('#empty-text-slot');
+    expect(root?.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+
+    value.set('Before');
+    expect(root?.textContent).toBe('BeforeNext');
+  });
+
   it('should hydrate Scope Providers with Fragment children without losing content', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const TestScope = createScope<{ count: SourceCell<number> }>();
@@ -2226,6 +2428,47 @@ describe('Hydration', () => {
     expect(span.className).toBe('long-name');
   });
 
+  it('preserves focus and selection when a hydrated keyed item is reordered', async () => {
+    const items = Cell.source([
+      { id: 'a', value: 'Alpha' },
+      { id: 'b', value: 'Beta' },
+      { id: 'c', value: 'Gamma' },
+    ]);
+
+    const template = () => (
+      <ul id="focus-keyed-list">
+        {For(
+          items,
+          (item) => (
+            <li class="focus-keyed-item">
+              <input id={`focus-keyed-${item.id}`} value={item.value} />
+            </li>
+          ),
+          { key: 'id' }
+        )}
+      </ul>
+    );
+
+    const { document } = await setupHydration(template);
+    const input = document.querySelector('#focus-keyed-a') as HTMLInputElement;
+    const list = document.querySelector('#focus-keyed-list');
+    input.focus();
+    input.setSelectionRange(1, 4);
+
+    items.set([
+      { id: 'c', value: 'Gamma' },
+      { id: 'a', value: 'Alpha' },
+      { id: 'b', value: 'Beta' },
+    ]);
+
+    expect(list?.querySelectorAll('.focus-keyed-item').length).toBe(3);
+    expect(list?.children[0]?.querySelector('input')?.id).toBe('focus-keyed-c');
+    expect(list?.children[1]?.querySelector('input')).toBe(input);
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(1);
+    expect(input.selectionEnd).toBe(4);
+  });
+
   it('should hydrate For with keyed objects and support reordering', async () => {
     const items = Cell.source([
       { id: 'a', label: 'Alpha' },
@@ -2242,7 +2485,7 @@ describe('Hydration', () => {
               {item.label}
             </li>
           ),
-          (item) => item.id
+          { key: 'id' }
         )}
       </ul>
     );
@@ -2265,10 +2508,10 @@ describe('Hydration', () => {
     expect(list?.children[1]?.id).toBe('key-a');
     expect(list?.children[2]?.id).toBe('key-b');
 
-    items.set([{ id: 'b', label: 'Beta Updated' }]);
+    items.set([{ id: 'b', label: 'Beta' }]);
 
     expect(list?.querySelectorAll('.keyed-item').length).toBe(1);
-    expect(list?.children[0]?.textContent).toBe('Beta Updated');
+    expect(list?.children[0]?.textContent).toBe('Beta');
   });
 
   it('should hydrate multiple interleaved reactive text nodes in a single parent', async () => {

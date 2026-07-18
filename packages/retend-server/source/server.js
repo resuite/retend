@@ -129,6 +129,7 @@ async function renderPath(options) {
       console.warn('appElement not found while rendering', path);
       return;
     }
+    appElement.setAttribute('data-retend-hydration', '1');
     const renderedRoot = renderer.render(() =>
       retendModule.Await({
         fallback: null,
@@ -140,6 +141,15 @@ async function renderPath(options) {
 
     await router.navigate(path);
     await retendModule.waitForAsyncBoundaries();
+    let stalledTeleports = false;
+    while (document.teleportMounts.length) {
+      const resolved = await document.mountAllTeleports();
+      await retendModule.waitForAsyncBoundaries();
+      if (!resolved && stalledTeleports) {
+        throw new Error('Could not resolve Teleport target.');
+      }
+      stalledTeleports = resolved === 0;
+    }
 
     const pageTitle = document.title;
     if (pageTitle) {
@@ -147,8 +157,6 @@ async function renderPath(options) {
         .querySelector('title')
         ?.replaceChildren(document.createTextNode(pageTitle));
     }
-
-    await document.mountAllTeleports();
 
     const finalPath = currentRoute.get().fullPath;
     const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;

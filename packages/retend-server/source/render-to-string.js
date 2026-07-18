@@ -18,7 +18,8 @@ const voidElements = new Set([
   'WBR',
 ]);
 
-const SPLIT_TEXT_MARKER = '<!--@@-->';
+const SPLIT_TEXT_MARKER = '<!--retend:text-separator-->';
+const EMPTY_TEXT_MARKER = '<!--retend:empty-text-->';
 const rawTextElements = new Set(['SCRIPT', 'STYLE']);
 
 /**
@@ -64,6 +65,7 @@ export function renderToString(template, window, inRawTextElement = false) {
       if (inRawTextElement) {
         return template.textContent ?? '';
       }
+      if (template.textContent === '') return EMPTY_TEXT_MARKER;
       return escapeHTML(template.textContent ?? '');
     }
 
@@ -113,17 +115,14 @@ export function renderToString(template, window, inRawTextElement = false) {
           const shouldSplit =
             !isRawTextElement &&
             precededByTextNode &&
-            child.nodeType === window.Node.TEXT_NODE &&
-            (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
+            child.nodeType === window.Node.TEXT_NODE;
 
           if (shouldSplit) {
             text += `${SPLIT_TEXT_MARKER}${renderToString(child, window, false)}`;
           } else {
             text += renderToString(child, window, isRawTextElement);
           }
-          precededByTextNode =
-            child.nodeType === window.Node.TEXT_NODE &&
-            (Boolean(child.textContent?.trim()) || '__attributeCells' in child);
+          precededByTextNode = child.nodeType === window.Node.TEXT_NODE;
         }
 
         text += `</${tagName}>`;

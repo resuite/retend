@@ -66,13 +66,13 @@ export const browserSetup = () => {
   });
 };
 
-export const vDomSetup = (options?: { markDynamicNodes: boolean }) => {
+export const vDomSetup = () => {
   beforeEach(() => {
     const window = new VWindow();
     setGlobalContext({
       globalData: new Map(),
     });
-    setActiveRenderer(new VDOMRenderer(window, options));
+    setActiveRenderer(new VDOMRenderer(window));
   });
 
   afterEach(() => {

@@ -2,7 +2,6 @@
 
 import { Cell, AsyncCell } from '@adbl/cells';
 
-import { createGroupFromNodes } from '../_internals.js';
 import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
@@ -124,21 +123,16 @@ export function Switch(value, cases, defaultCase) {
     });
 
     const initialValue = value.get();
-    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-    let handle;
-    /** @type {ReturnType<typeof renderer.createGroup>} */
-    let group;
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
+    snapshot.data = { handle };
 
     if (initialValue instanceof Promise) {
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
       initialValue.then((resolved) => processValueChange(resolved));
       return group;
     }
 
-    const initialResults = callback(initialValue);
-    group = createGroupFromNodes(initialResults, renderer);
-    handle = renderer.createGroupHandle(group);
+    renderer.write(handle, callback(initialValue));
     return group;
   };
 }
@@ -252,21 +246,16 @@ Switch.OnProperty = (value, key, cases, defaultCase) => {
     });
 
     const initialValue = value.get();
-    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-    let handle;
-    /** @type {ReturnType<typeof renderer.createGroup>} */
-    let group;
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
+    snapshot.data = { handle };
 
     if (initialValue instanceof Promise) {
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
       initialValue.then((resolved) => processValueChange(resolved));
       return group;
     }
 
-    const initialResults = callback(initialValue);
-    group = createGroupFromNodes(initialResults, renderer);
-    handle = renderer.createGroupHandle(group);
+    renderer.write(handle, callback(initialValue));
     return group;
   };
 };

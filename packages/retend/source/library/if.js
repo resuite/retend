@@ -5,7 +5,6 @@ import { Cell, AsyncCell } from '@adbl/cells';
 import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
-import { linkNodes } from './utils.js';
 
 /**
  * @template T
@@ -143,9 +142,6 @@ export function If(value, fnOrObject, elseFn) {
       });
     };
 
-    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-    let handle;
-
     /**
      * @param {T} nextValue
      */
@@ -164,21 +160,16 @@ export function If(value, fnOrObject, elseFn) {
     });
 
     const initialValue = value.get();
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
+    stateSnapshot.data = { handle };
 
     if (initialValue instanceof Promise) {
-      const group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
       initialValue.then((resolved) => processValueChange(resolved));
       return group;
     }
 
-    const initialResults = callback(initialValue);
-    const group = renderer.createGroup();
-    const nodes = Array.isArray(initialResults)
-      ? initialResults
-      : [initialResults];
-    for (const child of nodes) linkNodes(group, child, renderer);
-    handle = renderer.createGroupHandle(group);
+    renderer.write(handle, callback(initialValue));
     return group;
   };
 }

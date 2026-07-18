@@ -109,6 +109,11 @@ class EffectNode {
     this.#setupFns.push(effect);
   }
 
+  /** @param {() => void} effect */
+  addDispose(effect) {
+    this.#disposeFns.push(effect);
+  }
+
   branch() {
     const newNode = new EffectNode();
     newNode.#enabled = this.#enabled;
@@ -146,7 +151,7 @@ class EffectNode {
   }
 
   #runDisposeFns() {
-    if (!this.#enabled || !this.#active) return;
+    if (!this.#enabled && this.#active) return;
     for (const effect of this.#disposeFns) {
       try {
         effect();
@@ -162,13 +167,7 @@ class EffectNode {
   }
 
   dispose() {
-    if (!this.renderer?.capabilities.supportsSetupEffects) {
-      for (const child of this.#children) child.localContext.destroy();
-      this.localContext.destroy();
-      this.localContext = Cell.context();
-    }
-
-    if (!this.#enabled || !this.#active) return;
+    if (!this.#enabled && this.#active) return;
     this.#runDisposeFns();
 
     for (const child of this.#children) {
@@ -182,10 +181,7 @@ class EffectNode {
     this.#disposeFns.length = 0;
     this.#children.length = 0;
 
-    if (!this.renderer?.capabilities.supportsSetupEffects) {
-      this.localContext.destroy();
-      this.localContext = Cell.context();
-    }
+    this.localContext = Cell.context();
   }
 
   detach() {

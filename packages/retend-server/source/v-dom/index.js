@@ -1,3 +1,5 @@
+const TELEPORT_DEFERRED = Symbol.for('retend.teleport.deferred');
+
 export class VNode extends EventTarget {
   /** @type {VNode | null} */
   parentNode = null;
@@ -275,7 +277,6 @@ export class VNode extends EventTarget {
 
 export class VText extends VNode {
   #textContent;
-  __isReactive;
   /**
    * @param {string} text
    * @param {VDocument} document
@@ -283,7 +284,6 @@ export class VText extends VNode {
   constructor(text, document) {
     super(document);
     this.#textContent = text;
-    this.__isReactive = false;
   }
 
   /** @override */
@@ -619,17 +619,14 @@ export class VDocument extends VNode {
   }
 
   async mountAllTeleports() {
-    let maxIterations = this.teleportMounts.length * 2 + 10; // Safety limit
-    while (this.teleportMounts.length > 0 && maxIterations-- > 0) {
-      const mount = this.teleportMounts.shift();
-      if (mount) {
-        const result = await mount();
-        // If mount returned false (failed due to not connected), re-queue it
-        if (result === false) {
-          this.teleportMounts.push(mount);
-        }
-      }
+    const mounts = this.teleportMounts.splice(0);
+    let resolved = 0;
+    for (const mount of mounts) {
+      const result = await mount();
+      if (result === TELEPORT_DEFERRED) this.teleportMounts.push(mount);
+      else resolved++;
     }
+    return resolved;
   }
 }
 

@@ -39,15 +39,12 @@ import { VDocumentFragment, VNode } from './index.js';
 export class VDOMRenderer {
   observer = null;
   staticStyleIds = new Set();
-  markDynamicNodes = false;
 
   #savedHandles = new Map();
   #savedHandleId = 0;
-
   /** @param {VDom.VWindow} host */
-  constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
+  constructor(host) {
     this.host = host;
-    this.markDynamicNodes = Boolean(markDynamicNodes);
     // @ts-expect-error: all static styles need is staticStyleIds set and a window
     Ops.writeStaticStyles(this);
     this.capabilities = {
@@ -130,11 +127,7 @@ export class VDOMRenderer {
    */
   setProperty(node, key, value) {
     // event listeners are not needed in the vdom.
-    if (key.startsWith('on') && key.length > 2) {
-      // @ts-expect-error
-      node.__hasEventListeners = true;
-      return node;
-    }
+    if (key.startsWith('on') && key.length > 2) return node;
     return Ops.setProperty(node, key, value);
   }
 
@@ -228,17 +221,21 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {(node: VDom.VNode) => Promise<any>} callback
+   * @param {(node: VDom.VNode, canDefer?: boolean) => Promise<any>} callback
+   * @param {string} [id]
    */
-  scheduleTeleport(callback) {
-    const anchorNode = this.host.document.createComment('teleport-anchor');
+  scheduleTeleport(callback, id) {
+    const anchorNode = this.host.document.createComment(
+      id ? `retend:teleport:${id}` : 'retend:teleport'
+    );
+    if (id) Reflect.set(anchorNode, '__retendTeleportId', id);
     const capturedScopes = getState().scopes;
     this.host.document.teleportMounts.push(() => {
       const state = getState();
       const previousScopes = state.scopes;
       state.scopes = capturedScopes;
       try {
-        return callback(anchorNode);
+        return callback(anchorNode, true);
       } finally {
         state.scopes = previousScopes;
       }

@@ -205,17 +205,20 @@ export function write(segment, newContent) {
   const end = segment[1];
 
   let nextNode = start.nextSibling;
+  let index = 0;
+  while (nextNode === newContent[index]) {
+    nextNode = nextNode.nextSibling;
+    index++;
+  }
+  if (nextNode === end && index === newContent.length) return;
+
+  nextNode = start.nextSibling;
   while (nextNode && nextNode !== end) {
     nextNode.remove();
     nextNode = start.nextSibling;
   }
   start.after(...newContent);
 }
-
-/**
- * @param {any[]} _segment
- */
-export function finalizeHydrationHandleSegment(_segment) {}
 
 /**
  * @param {string} text
@@ -262,5 +265,3 @@ export class ShadowRootFragment {
     this.props = props ?? {};
   }
 }
-
-export { containerIsDynamic } from './utils.js';

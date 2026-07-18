@@ -6,7 +6,6 @@ import { Cell, AsyncCell } from '@adbl/cells';
 import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
-import { linkNodes } from './utils.js';
 
 /**
  * @template {import('./renderer.js').RendererTypes} Types
@@ -200,6 +199,7 @@ export function For(list, fn, options) {
             scopes: base.scopes,
             node: base.node.branch(),
             renderer: base.renderer,
+            data: base.data,
           };
           const newNodes = withState(snapshot, () => {
             return renderer.handleComponent(fn, parameters, snapshot);
@@ -244,21 +244,18 @@ export function For(list, fn, options) {
     if (list instanceof AsyncCell) useAwait()?.waitUntil(list);
     list.listen(reactToListChanges);
 
-    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-    let handle;
-    /** @type {ReturnType<typeof renderer.createGroup>} */
-    let group;
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
     // First run, prior to any changes.
     let i = 0;
     // We get a snapshot of all current scopes to reuse when new
     // component instances are created.
     const base = branchState();
+    base.data = { handle };
     const _list = list.get();
 
     if (_list instanceof Promise) {
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
-      _list.then((resolved) => processListChanges(resolved));
+      _list.then(reactToListChanges);
       return group;
     }
 
@@ -278,6 +275,7 @@ export function For(list, fn, options) {
           scopes: base.scopes,
           node: base.node.branch(),
           renderer: base.renderer,
+          data: base.data,
         };
         const newNodes = withState(snapshot, () =>
           renderer.handleComponent(fn, parameters, snapshot)
@@ -290,13 +288,9 @@ export function For(list, fn, options) {
         cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
         i++;
       }
-      group = renderer.createGroup();
-      const nodes = Array.isArray(allNodes) ? allNodes : [allNodes];
-      for (const child of nodes) linkNodes(group, child, renderer);
-      handle = renderer.createGroupHandle(group);
+      renderer.write(handle, allNodes);
     } else {
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
+      renderer.write(handle, []);
     }
     return group;
   };

@@ -33,8 +33,8 @@ import { AsyncCell, Cell, useAwait } from 'retend';
  */
 export function createCommentPair(renderer) {
   const symbol = Symbol();
-  const rangeStart = renderer.host.document.createComment('[');
-  const rangeEnd = renderer.host.document.createComment(']');
+  const rangeStart = renderer.host.document.createComment('retend:range-start');
+  const rangeEnd = renderer.host.document.createComment('retend:range-end');
   Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
   Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 
@@ -301,6 +301,7 @@ export function copyCellListeners(source, target) {
 export function convertObjectToCssStylesheet(styles, useHost, element) {
   return `${useHost ? ':host{' : ''}${Object.entries(styles)
     .map(([key, value]) => {
+      const styleKey = normalizeStyleKey(key);
       if (Cell.isCell(/** @type any */ (value)) && element) {
         if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
         /**
@@ -308,7 +309,6 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
          * @param {string | Promise<any>} newValue
          */
         function applyStyle(newValue) {
-          const styleKey = normalizeStyleKey(key);
           if (newValue instanceof Promise) {
             newValue.then((resolvedValue) => {
               applyStyle.bind(this)(resolvedValue);
@@ -322,12 +322,13 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
         const raw = value.peek();
         if (raw instanceof Promise) {
           raw.then((resolvedValue) => applyStyle.bind(element)(resolvedValue));
-          return '';
+          const currentValue = element.style?.getPropertyValue(styleKey);
+          return currentValue ? `${styleKey}: ${currentValue}` : '';
         } else if (isSomewhatFalsy(value)) return '';
-        return `${normalizeStyleKey(key)}: ${raw}`;
+        return `${styleKey}: ${raw}`;
       }
       if (isSomewhatFalsy(value)) return '';
-      return `${normalizeStyleKey(key)}: ${value}`;
+      return `${styleKey}: ${value}`;
     })
     .join('; ')}${useHost ? '}' : ''}`;
 }
@@ -695,12 +696,12 @@ export function setAttribute(
       function applyInnerHTML(newValue) {
         if (newValue instanceof Promise) {
           newValue.then((resolved) => applyInnerHTML.bind(this)(resolved));
-        } else {
+        } else if (this.innerHTML !== newValue) {
           this.innerHTML = newValue;
         }
       }
       addCellListener(element, html, applyInnerHTML);
-    } else if (typeof html === 'string') {
+    } else if (typeof html === 'string' && element.innerHTML !== html) {
       element.innerHTML = html;
     }
     return;
@@ -747,13 +748,4 @@ export function setAttribute(
   } else {
     element.setAttribute(attributeName, value);
   }
-}
-
-/**
- * @param {string} _tagname
- * @param {any} _props
- * @param {Function} _childChecker
- */
-export function containerIsDynamic(_tagname, _props, _childChecker) {
-  return false;
 }

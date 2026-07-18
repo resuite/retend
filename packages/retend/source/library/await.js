@@ -6,11 +6,11 @@
 import { Cell } from '@adbl/cells';
 
 import { getGlobalContext } from '../context/index.js';
-import { getActiveRenderer, If, normalizeJsxChild } from './index.js';
+import { getActiveRenderer, normalizeJsxChild } from './index.js';
 import {
   createScope,
   branchState,
-  onSetup,
+  getState,
   useScopeContext,
   withState,
 } from './scope.js';
@@ -64,20 +64,36 @@ export function Await(props) {
     await Promise.all([...get(asyncCells).values()].map(get));
   });
   /** @type {Promise<void>} */
-  const waitingPromise = new Promise((resolve) => {
-    initialStateDone.listen(() => {
-      resolve();
-      // @ts-expect-error: Writable within Await.
-      value.done = true;
-      asyncHolders.delete(waitingPromise);
-    });
+  const finished = Promise.race([
+    new Promise((resolve) => {
+      initialStateDone.listen(() => {
+        // @ts-expect-error: Writable within Await.
+        value.done = true;
+        queueMicrotask(() => resolve(undefined));
+      });
+    }),
+    new Promise((resolve) => {
+      getState().node.addDispose(() => resolve(undefined));
+    }),
+  ]);
+  /** @type {Promise<void>} */
+  const waitingPromise = finished.then(() => {
+    asyncHolders.delete(waitingPromise);
   });
   asyncHolders.add(waitingPromise);
 
   /** @type {AwaitContext} */
   const value = {
     waitUntil(promise) {
-      if (initialStateDone.get()) return waitingPromise;
+      if (initialStateDone.get()) {
+        const current = promise.get();
+        const disposed = new Promise((resolve) => {
+          getState().node.addDispose(() => resolve(undefined));
+        });
+        const holder = Promise.race([current, disposed]);
+        asyncHolders.add(holder);
+        return holder.finally(() => asyncHolders.delete(holder));
+      }
       const set = asyncCells.peek();
       if (!set.has(promise)) {
         const newSet = new Set(set);
@@ -87,11 +103,16 @@ export function Await(props) {
       return waitingPromise;
     },
     done: false,
-    finished: waitingPromise,
+    finished,
   };
 
+  const group = renderer.createGroup();
+  const handle = renderer.createGroupHandle(group);
   const snapshot = branchState();
+  snapshot.data = { handle };
   snapshot.node.suspend();
+  const fallbackSnapshot = branchState();
+  fallbackSnapshot.data = { handle };
 
   const AwaitContent = () => {
     return AwaitScope.Provider({ value, children });
@@ -109,23 +130,27 @@ export function Await(props) {
     if (!isPending) initialStateDone.set(true);
   });
 
-  onSetup(() => {
-    return () => asyncHolders.delete(waitingPromise);
-  });
+  const showContent = () => {
+    fallbackSnapshot.node.dispose();
+    renderer.write(handle, Array.isArray(render) ? render : [render]);
+    snapshot.node.unsuspend();
+    snapshot.node.enable();
+    asyncCells.set(new Set());
+    snapshot.node.activate();
+  };
 
-  return If(initialStateDone, {
-    true: () => {
-      onSetup(() => {
-        snapshot.node.unsuspend();
-        snapshot.node.enable();
-        asyncCells.set(new Set());
-        // will dispose automatically from parent scope.
-        snapshot.node.activate();
-      });
-      return render;
-    },
-    false: () => fallback || null,
-  });
+  initialStateDone.listen(showContent);
+  if (initialStateDone.get()) showContent();
+  else {
+    const fallbackNodes = withState(fallbackSnapshot, () =>
+      renderer.handleComponent(() => fallback ?? null, [], fallbackSnapshot)
+    );
+    renderer.write(
+      handle,
+      Array.isArray(fallbackNodes) ? fallbackNodes : [fallbackNodes]
+    );
+  }
+  return group;
 }
 
 /**
@@ -155,11 +180,15 @@ export function useAwait() {
  */
 export async function waitForAsyncBoundaries() {
   const { globalData } = getGlobalContext();
-  /** @type {Set<any>} */
-  const holders = globalData.get(AsyncKey);
-  if (!holders?.size) return;
-  while (holders.size) {
+  while (true) {
     await Promise.resolve();
-    await Promise.all(holders);
+    /** @type {Set<any>} */
+    const holders = globalData.get(AsyncKey);
+    if (holders?.size) {
+      await Promise.all(holders);
+      continue;
+    }
+    await Promise.resolve();
+    if (!globalData.get(AsyncKey)?.size) return;
   }
 }
