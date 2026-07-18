@@ -151,7 +151,7 @@ class EffectNode {
   }
 
   #runDisposeFns() {
-    if (!this.#enabled && this.#active) return;
+    if (!this.#enabled && this.#active) return false;
     for (const effect of this.#disposeFns) {
       try {
         effect();
@@ -164,11 +164,11 @@ class EffectNode {
       child.#runDisposeFns();
     }
     this.localContext.destroy();
+    return true;
   }
 
   dispose() {
-    if (!this.#enabled && this.#active) return;
-    this.#runDisposeFns();
+    if (!this.#runDisposeFns()) return;
 
     for (const child of this.#children) {
       // prevents any side effects from being triggered in the

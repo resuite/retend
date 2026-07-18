@@ -709,6 +709,48 @@ describe('Hydration', () => {
     expect(target?.querySelector('#serialized-id-content')).not.toBeNull();
   });
 
+  it('claims serialized Teleport IDs without selector parsing', async () => {
+    const template = () => (
+      <div>
+        <div id="selector-safe-target" />
+        <Teleport to="#selector-safe-target">
+          <span id="selector-safe-content">Teleported</span>
+        </Teleport>
+      </div>
+    );
+    const html = await renderHydrationServerHtml(template);
+    const {
+      renderer,
+      document,
+      root,
+      window: clientWindow,
+    } = createHydrationClientRenderer(html);
+    const walker = document.createTreeWalker(
+      root as HTMLElement,
+      clientWindow.NodeFilter.SHOW_COMMENT
+    );
+    let anchor: Comment | null = null;
+    let node = walker.nextNode();
+    while (node) {
+      if (node.textContent?.startsWith('retend:teleport:')) {
+        anchor = node as Comment;
+        break;
+      }
+      node = walker.nextNode();
+    }
+    const teleportId = "teleport/'[selector]";
+    const container = document.querySelector('retend-teleport');
+    expect(anchor).not.toBeNull();
+    expect(container).not.toBeNull();
+    anchor!.textContent = `retend:teleport:${teleportId}`;
+    container!.setAttribute('data-teleport-id', teleportId);
+
+    startHydration(renderer, template);
+    await renderer.endHydration();
+
+    expect(document.querySelector('#selector-safe-content')).not.toBeNull();
+  });
+
   it('should hydrate Teleport with dynamic content', async () => {
     const content = Cell.source('Initial content');
     const template = () => (

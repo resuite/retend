@@ -96,8 +96,11 @@ export function Teleport(props) {
     }
 
     if (wasCanceled) {
-      parent
-        .querySelector(`retend-teleport[data-teleport-id='${teleportId}']`)
+      Array.from(parent.querySelectorAll('retend-teleport'))
+        .find(
+          (candidate) =>
+            candidate.getAttribute('data-teleport-id') === teleportId
+        )
         ?.remove();
       return TELEPORT_CANCELED;
     }

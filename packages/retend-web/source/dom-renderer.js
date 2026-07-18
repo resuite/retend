@@ -667,8 +667,9 @@ export class DOMRenderer {
    */
   claimHydrationTeleportContainer(target, id) {
     if (!this.#hydrating) return null;
-    const selector = `retend-teleport[data-teleport-id='${id}']`;
-    const container = target.querySelector(selector);
+    const container = Array.from(
+      target.querySelectorAll('retend-teleport')
+    ).find((candidate) => candidate.getAttribute('data-teleport-id') === id);
     if (!container) {
       throw new HydrationMismatchError('Missing Teleport container.');
     }

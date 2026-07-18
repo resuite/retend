@@ -289,6 +289,11 @@ describe('Hydration router + unique transition', () => {
 
     await hydrate(createRouter);
 
+    expect(
+      window.document
+        .querySelector('#app')
+        ?.hasAttribute('data-retend-hydration')
+    ).toBe(false);
     const hadHydrationError = consoleErrorSpy.mock.calls.some((call) =>
       String(call[0]).includes('Hydration error:')
     );

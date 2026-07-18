@@ -52,7 +52,7 @@ const runTests = () => {
     const result = toString(template, window);
 
     expect(result).toBe(
-      '<p>Coordinate loading states with<!--retend:text-separator--> <code>&lt;Await&gt;</code>. Nested async data.</p>'
+      '<p>Coordinate loading states with <code>&lt;Await&gt;</code>. Nested async data.</p>'
     );
   });
 

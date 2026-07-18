@@ -187,8 +187,10 @@ async function hydrateRouter(routerFn, rootId, options) {
               : createRouterRoot(router),
         })
       );
-      if (shouldHydrate) await renderer.endHydration();
-      else {
+      if (shouldHydrate) {
+        await renderer.endHydration();
+        root.removeAttribute('data-retend-hydration');
+      } else {
         const nodes = Array.isArray(rendered) ? rendered : [rendered];
         root.append(...nodes.filter((node) => node && !node.isConnected));
         await waitForAsyncBoundaries();
