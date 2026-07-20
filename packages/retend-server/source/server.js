@@ -122,9 +122,7 @@ async function renderPath(options) {
           children: () => retendRouterModule.createRouterRoot(router),
         })
       );
-      appElement.replaceChildren(
-        ...(Array.isArray(renderedRoot) ? renderedRoot : [renderedRoot])
-      );
+      appElement.replaceChildren(...[renderedRoot].flat());
 
       await router.navigate(path);
       await retendModule.waitForAsyncBoundaries();
@@ -169,16 +167,10 @@ async function renderPath(options) {
         new RedirectOutputArtifact('_redirects', `${redirectEntry}\n`)
       );
 
-      /** @type {string} */
-      let redirectFileName;
-
-      if (path === '/' || path.endsWith('/')) {
-        const normalizedPath = path === '/' ? '' : path.slice(1, -1);
-        redirectFileName = `${normalizedPath}/index.html`;
-        if (normalizedPath === '') redirectFileName = 'index.html';
-      } else {
-        redirectFileName = `${path.replace(/^\/+/, '')}.html`;
-      }
+      const normalizedPath = path === '/' ? '' : path.slice(1, -1);
+      const redirectFileName = path.endsWith('/')
+        ? `${normalizedPath ? `${normalizedPath}/` : ''}index.html`
+        : `${path.replace(/^\/+/, '')}.html`;
 
       outputs.push(
         new HtmlOutputArtifact(

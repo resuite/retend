@@ -63,43 +63,40 @@ export function Await(props) {
   const awaitList = Cell.derivedAsync(async (get) => {
     await Promise.all([...get(asyncCells).values()].map(get));
   });
+  /** @param {any} promise */
+  const untilDisposed = (promise) =>
+    Promise.race([
+      promise,
+      new Promise((resolve) =>
+        getState().node.addDispose(() => resolve(undefined))
+      ),
+    ]);
+  /** @param {Promise<any>} promise */
+  const track = (promise) => {
+    const tracked = promise.finally(() => asyncHolders.delete(tracked));
+    asyncHolders.add(tracked);
+    return tracked;
+  };
   /** @type {Promise<void>} */
-  const finished = Promise.race([
+  const finished = untilDisposed(
     new Promise((resolve) => {
       initialStateDone.listen(() => {
         // @ts-expect-error: Writable within Await.
         value.done = true;
         queueMicrotask(() => resolve(undefined));
       });
-    }),
-    new Promise((resolve) => {
-      getState().node.addDispose(() => resolve(undefined));
-    }),
-  ]);
-  /** @type {Promise<void>} */
-  const waitingPromise = finished.then(() => {
-    asyncHolders.delete(waitingPromise);
-  });
-  asyncHolders.add(waitingPromise);
+    })
+  );
+  const waitingPromise = track(finished);
 
   /** @type {AwaitContext} */
   const value = {
     waitUntil(promise) {
       if (initialStateDone.get()) {
-        const current = promise.get();
-        const disposed = new Promise((resolve) => {
-          getState().node.addDispose(() => resolve(undefined));
-        });
-        const holder = Promise.race([current, disposed]);
-        asyncHolders.add(holder);
-        return holder.finally(() => asyncHolders.delete(holder));
+        return track(untilDisposed(promise.get()));
       }
       const set = asyncCells.peek();
-      if (!set.has(promise)) {
-        const newSet = new Set(set);
-        newSet.add(promise);
-        asyncCells.set(newSet);
-      }
+      if (!set.has(promise)) asyncCells.set(new Set(set).add(promise));
       return waitingPromise;
     },
     done: false,
@@ -114,17 +111,15 @@ export function Await(props) {
   const fallbackSnapshot = branchState();
   fallbackSnapshot.data = { handle };
 
-  const AwaitContent = () => {
-    return AwaitScope.Provider({ value, children });
-  };
+  const AwaitContent = () => AwaitScope.Provider({ value, children });
   Object.defineProperty(AwaitContent, 'name', { value: 'Await.Content' });
 
-  const render = withState(snapshot, () => {
-    return normalizeJsxChild(
+  const render = withState(snapshot, () =>
+    normalizeJsxChild(
       renderer.handleComponent(AwaitContent, [], snapshot),
       renderer
-    );
-  });
+    )
+  );
 
   awaitList.pending.listen((isPending) => {
     if (!isPending) initialStateDone.set(true);
@@ -132,7 +127,7 @@ export function Await(props) {
 
   const showContent = () => {
     fallbackSnapshot.node.dispose();
-    renderer.write(handle, Array.isArray(render) ? render : [render]);
+    renderer.write(handle, [render].flat());
     snapshot.node.unsuspend();
     snapshot.node.enable();
     asyncCells.set(new Set());
@@ -145,10 +140,7 @@ export function Await(props) {
     const fallbackNodes = withState(fallbackSnapshot, () =>
       renderer.handleComponent(() => fallback ?? null, [], fallbackSnapshot)
     );
-    renderer.write(
-      handle,
-      Array.isArray(fallbackNodes) ? fallbackNodes : [fallbackNodes]
-    );
+    renderer.write(handle, [fallbackNodes].flat());
   }
   return group;
 }

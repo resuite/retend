@@ -92,63 +92,36 @@ export function If(value, fnOrObject, elseFn) {
     }
 
     /** @param {T} _value */
-    const callback = (_value) => {
-      return withState(stateSnapshot, () => {
+    const callback = (_value) =>
+      withState(stateSnapshot, () => {
+        let caller;
         if (typeof fnOrObject === 'function') {
-          if (_value) {
-            const newNodes = renderer.handleComponent(
-              fnOrObject,
-              [_value],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
-          if (elseFn) {
-            const newNodes = renderer.handleComponent(
-              elseFn,
-              [],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
+          caller = _value ? fnOrObject : elseFn;
+          if (!caller) return [];
+        } else if (typeof fnOrObject === 'object') {
+          if (_value && 'true' in fnOrObject) caller = fnOrObject.true;
+          else if (!_value && 'false' in fnOrObject) caller = fnOrObject.false;
+          else return [];
+        } else {
+          console.error(
+            'If expects a callback or condition object as the second argument.'
+          );
           return [];
         }
-
-        if (typeof fnOrObject === 'object') {
-          if (_value && 'true' in fnOrObject) {
-            const newNodes = renderer.handleComponent(
-              fnOrObject.true,
-              [_value],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
-
-          if (!_value && 'false' in fnOrObject) {
-            const newNodes = renderer.handleComponent(
-              fnOrObject.false,
-              [],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
-
-          return [];
-        }
-        console.error(
-          'If expects a callback or condition object as the second argument.'
+        const nodes = renderer.handleComponent(
+          caller,
+          _value ? [_value] : [],
+          stateSnapshot
         );
-        return [];
+        return [nodes].flat();
       });
-    };
 
     /**
      * @param {T} nextValue
      */
     const processValueChange = (nextValue) => {
       stateSnapshot.node.dispose();
-      const results = callback(nextValue);
-      renderer.write(handle, results);
+      renderer.write(handle, callback(nextValue));
       renderer.observer?.flush();
       stateSnapshot.node.activate();
     };
@@ -165,7 +138,7 @@ export function If(value, fnOrObject, elseFn) {
     stateSnapshot.data = { handle };
 
     if (initialValue instanceof Promise) {
-      initialValue.then((resolved) => processValueChange(resolved));
+      initialValue.then(processValueChange);
       return group;
     }
 

@@ -147,27 +147,26 @@ export async function hydrate(routerFn, options = {}) {
   try {
     const router = routerFn();
     detachRouter = router.attachWindowListeners(window);
-    const { location } = window;
     await router.navigate(location.pathname + location.search + location.hash);
 
-    const shouldHydrate = root.getAttribute('data-retend-hydration') === '1';
+    const shouldHydrate = root.dataset.retendHydration === '1';
     if (shouldHydrate) renderer.enableHydrationMode(root);
     else root.replaceChildren();
 
+    const routerRoot = () => createRouterRoot(router);
     const rendered = renderer.render(() =>
       Await({
         children: () =>
-          options.wrap
-            ? options.wrap(() => createRouterRoot(router))
-            : createRouterRoot(router),
+          options.wrap ? options.wrap(routerRoot) : routerRoot(),
       })
     );
     if (shouldHydrate) {
       await renderer.endHydration();
       root.removeAttribute('data-retend-hydration');
     } else {
-      const nodes = Array.isArray(rendered) ? rendered : [rendered];
-      root.append(...nodes.filter((node) => node && !node.isConnected));
+      root.append(
+        ...[rendered].flat().filter((node) => node && !node.isConnected)
+      );
       await waitForAsyncBoundaries();
       await runPendingSetupEffects();
       await waitForAsyncBoundaries();

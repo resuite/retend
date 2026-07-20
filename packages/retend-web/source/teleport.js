@@ -56,7 +56,6 @@ export function Teleport(props) {
   globalData.set('teleportCounter', teleportCounter);
 
   const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
-  const generatedTeleportId = `teleport/target/${teleportCounter.value++}`;
   let disposed = false;
   let mountedCleanup = () => {};
 
@@ -106,15 +105,12 @@ export function Teleport(props) {
       hydratedContainer ?? renderer.createContainer('retend-teleport', props);
     renderer.setProperty(newInstance, 'data-teleport-id', teleportId);
 
-    for (const [key, value] of Object.entries(rest)) {
+    for (const [key, value] of Object.entries(rest))
       renderer.setProperty(newInstance, key, value);
-    }
     Reflect.set(source, '__retendTeleportedContainer', newInstance);
 
-    const nodes = createNodesFromTemplate(children, renderer);
-    for (const child of nodes) {
+    for (const child of createNodesFromTemplate(children, renderer))
       linkNodes(newInstance, child, renderer);
-    }
 
     if (!hydratedContainer) renderer.append(parent, newInstance);
     queueMicrotask(() => renderer.observer?.flush());
@@ -124,13 +120,12 @@ export function Teleport(props) {
       newInstance.remove();
     };
 
-    if (disposed) {
-      mountedCleanup();
-      return null;
-    }
-
-    return dispose;
+    if (disposed) mountedCleanup();
+    return disposed ? null : dispose;
   };
 
-  return renderer.scheduleTeleport(mountTeleportedNodes, generatedTeleportId);
+  return renderer.scheduleTeleport(
+    mountTeleportedNodes,
+    `teleport/target/${teleportCounter.value++}`
+  );
 }

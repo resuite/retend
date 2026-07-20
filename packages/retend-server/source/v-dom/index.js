@@ -619,8 +619,7 @@ export class VDocument extends VNode {
     const mounts = this.teleportMounts.splice(0);
     let resolved = 0;
     for (const mount of mounts) {
-      const result = await mount();
-      if (result === false) this.teleportMounts.push(mount);
+      if ((await mount()) === false) this.teleportMounts.push(mount);
       else resolved++;
     }
     return resolved;

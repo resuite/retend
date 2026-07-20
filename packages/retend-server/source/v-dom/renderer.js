@@ -155,9 +155,7 @@ export class VDOMRenderer {
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
     if (shadowRoot) return shadowRoot;
 
-    parentNode.append(
-      ...(Array.isArray(childNode) ? childNode.filter(Boolean) : [childNode])
-    );
+    parentNode.append(...[childNode].flat().filter(Boolean));
 
     return parentNode;
   }
