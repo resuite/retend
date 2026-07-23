@@ -3,15 +3,14 @@
 /** @import { JSX } from 'retend/jsx-runtime'; */
 
 import {
-  Block,
-  Cell,
   createNodesFromTemplate,
   normalizeJsxChild,
   getState,
+  withState,
 } from 'retend';
 import * as Ops from 'retend-web/dom-ops';
 
-import { VComment, VDocumentFragment, VNode, VText } from './index.js';
+import { VDocumentFragment, VNode } from './index.js';
 
 /**
  * @typedef {VDom.VElement & { __attributeCells: any,__eventListenerList?: Map<any, any> }} JsxElement
@@ -45,21 +44,12 @@ import { VComment, VDocumentFragment, VNode, VText } from './index.js';
 export class VDOMRenderer {
   observer = null;
   staticStyleIds = new Set();
-  markDynamicNodes = false;
 
-  /**
-   * Map of encountered control flow branches during rendering,
-   * to the number of nodes generated within them.
-   * @type {Map<StateSnapshot, number>}
-   */
-  #branches = new Map();
   #savedHandles = new Map();
   #savedHandleId = 0;
-
   /** @param {VDom.VWindow} host */
-  constructor(host, { markDynamicNodes } = { markDynamicNodes: false }) {
+  constructor(host) {
     this.host = host;
-    this.markDynamicNodes = markDynamicNodes;
     // @ts-expect-error: all static styles need is staticStyleIds set and a window
     Ops.writeStaticStyles(this);
     this.capabilities = {
@@ -142,32 +132,18 @@ export class VDOMRenderer {
    */
   setProperty(node, key, value) {
     // event listeners are not needed in the vdom.
-    if (key.startsWith('on') && key.length > 2) {
-      // @ts-expect-error
-      node.__hasEventListeners = true;
-      return node;
-    }
+    if (key.startsWith('on') && key.length > 2) return node;
     return Ops.setProperty(node, key, value);
   }
 
   /**
    * @param {__HMR_UpdatableFn} tagname
    * @param {any[]} props
-   * @param {StateSnapshot} [snapshot]
+   * @param {StateSnapshot} [_snapshot]
    */
-  handleComponent(tagname, props, snapshot) {
-    if (snapshot && this.markDynamicNodes) {
-      this.#branches.set(snapshot, this.#branches.get(snapshot) || 0);
-      const component = tagname(...props);
-      /** @type {VDom.VNode[]} */
-      const nodes = createNodesFromTemplate(component, this);
-      return nodes.length === 1 ? nodes[0] : nodes;
-    }
-
-    // Repeated for performance.
-    const component = tagname(...props);
+  handleComponent(tagname, props, _snapshot) {
     /** @type {VDom.VNode[]} */
-    const nodes = createNodesFromTemplate(component, this);
+    const nodes = createNodesFromTemplate(tagname(...props), this);
     return nodes.length === 1 ? nodes[0] : nodes;
   }
 
@@ -177,16 +153,9 @@ export class VDOMRenderer {
    */
   append(parentNode, childNode) {
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
-    if (shadowRoot) {
-      return shadowRoot;
-    }
+    if (shadowRoot) return shadowRoot;
 
-    if (Array.isArray(childNode)) {
-      const children = childNode.filter(Boolean);
-      parentNode.append(...children);
-    } else {
-      parentNode.append(childNode);
-    }
+    parentNode.append(...[childNode].flat().filter(Boolean));
 
     return parentNode;
   }
@@ -216,32 +185,20 @@ export class VDOMRenderer {
 
   /**
    * @param {string} tagname
-   * @param {any} [props]
+   * @param {any} [_props]
    */
-  createContainer(tagname, props) {
+  createContainer(tagname, _props) {
     /** @type {JsxElement} */ // @ts-expect-error
     const element = this.host.document.createElement(tagname);
-    if (
-      this.markDynamicNodes &&
-      Ops.containerIsDynamic(tagname, props, isReactiveChild)
-    ) {
-      const currentBranch = getState();
-      const index = this.#branches.get(currentBranch) || 0;
-      const id = `${currentBranch.node.id}.${index}`;
-      element.setAttribute('data-dyn', id);
-      this.#branches.set(currentBranch, index + 1);
-    }
     return element;
   }
 
   /**
    * @param {string} text
-   * @param {boolean} [isReactive]
+   * @param {boolean} [_isReactive]
    */
-  createText(text, isReactive) {
-    const node = this.host.document.createTextNode(String(text));
-    if (this.markDynamicNodes && isReactive) node.__isReactive = true;
-    return node;
+  createText(text, _isReactive) {
+    return this.host.document.createTextNode(String(text));
   }
 
   /**
@@ -261,42 +218,17 @@ export class VDOMRenderer {
   }
 
   /**
-   * @param {(node: VDom.VNode) => Promise<any>} callback
+   * @param {(node: VDom.VNode, canDefer?: boolean) => Promise<any>} callback
+   * @param {string} [id]
    */
-  scheduleTeleport(callback) {
-    const anchorNode = this.host.document.createComment('teleport-anchor');
-    const capturedScopes = getState().scopes;
-    this.host.document.teleportMounts.push(() => {
-      const state = getState();
-      const previousScopes = state.scopes;
-      state.scopes = capturedScopes;
-      try {
-        return callback(anchorNode);
-      } finally {
-        state.scopes = previousScopes;
-      }
-    });
-    anchorNode.__isTeleportAnchor = true;
+  scheduleTeleport(callback, id) {
+    const anchorNode = this.host.document.createComment(
+      id ? `retend:teleport:${id}` : 'retend:teleport'
+    );
+    const snapshot = { ...getState() };
+    this.host.document.teleportMounts.push(() =>
+      withState(snapshot, () => callback(anchorNode, true))
+    );
     return anchorNode;
   }
-}
-
-/** @param {any} value  */
-function isReactiveChild(value) {
-  if (Cell.isCell(value)) return true;
-  if (value instanceof Block) return value.kind !== 0;
-  if (typeof value === 'function') return true;
-  if (Array.isArray(value)) {
-    for (const c of value) if (isReactiveChild(c)) return true;
-  }
-  if (value instanceof VDocumentFragment) {
-    for (const sc of value.childNodes) {
-      if (isReactiveChild(sc)) return true;
-    }
-  }
-  if (value instanceof Ops.ShadowRootFragment) return true;
-  if (value instanceof VText && value.__isReactive) return true;
-  // @ts-expect-error
-  if (value instanceof VComment && value.__commentRangeSymbol) return true;
-  return false;
 }

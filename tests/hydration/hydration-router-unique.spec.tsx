@@ -6,6 +6,7 @@ import {
   For,
   If,
   createUnique,
+  getActiveRenderer,
   onSetup,
   type SourceCell,
   setActiveRenderer,
@@ -117,15 +118,93 @@ function createRouter() {
 describe('Hydration router + unique transition', () => {
   browserSetup();
 
+  it('uses client rendering without hydration errors for an empty root', async () => {
+    window.document.body.setHTMLUnsafe('<div id="app"></div>');
+    window.history.replaceState(null, '', '/');
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    await hydrate(createRouter);
+
+    const errors = consoleErrorSpy.mock.calls.map((call) =>
+      call.map(String).join(' ')
+    );
+    consoleErrorSpy.mockRestore();
+    expect(window.document.querySelector('#app')?.children.length).toBe(1);
+    expect(
+      errors.filter((message) => message.includes('Hydration error:'))
+    ).toEqual([]);
+  });
+
+  it('uses client rendering for a whitespace-only root', async () => {
+    window.document.body.setHTMLUnsafe('<div id="app">\n  </div>');
+    window.history.replaceState(null, '', '/');
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    await hydrate(createRouter);
+
+    const errors = consoleErrorSpy.mock.calls.map((call) =>
+      call.map(String).join(' ')
+    );
+    consoleErrorSpy.mockRestore();
+    expect(window.document.querySelector('#app')?.children.length).toBe(1);
+    expect(
+      errors.filter((message) => message.includes('Hydration error:'))
+    ).toEqual([]);
+  });
+
+  it('hydrates in a fresh context after an earlier client render', async () => {
+    getActiveRenderer().render(() => <div>Earlier application</div>);
+    window.document.body.setHTMLUnsafe('<div id="app"></div>');
+    window.history.replaceState(null, '', '/');
+
+    await hydrate(createRouter);
+
+    expect(window.document.querySelector('#app')?.children.length).toBe(1);
+  });
+
+  it('detaches router listeners when hydration rejects', async () => {
+    const createMismatchRouter = () =>
+      new Router({
+        routes: [{ path: '/', component: () => <main>Client</main> }],
+      });
+    window.document.body.setHTMLUnsafe(
+      '<div id="app" data-retend-hydration="1"><aside>Server</aside></div>'
+    );
+    window.history.replaceState(null, '', '/');
+    const removeListener = vi.spyOn(window, 'removeEventListener');
+
+    await expect(hydrate(createMismatchRouter)).rejects.toThrow();
+    expect(
+      removeListener.mock.calls.some(([type]) => type === 'popstate')
+    ).toBe(true);
+  });
+
+  it('preserves the initial location hash', async () => {
+    const createHashRouter = () =>
+      new Router({
+        routes: [{ path: '/article', component: () => <div>Article</div> }],
+      });
+    window.document.body.setHTMLUnsafe('<div id="app"></div>');
+    window.history.replaceState(null, '', '/article#section1');
+
+    const router = await hydrate(createHashRouter);
+
+    expect(router.getCurrentRoute().get().fullPath).toBe('/article#section1');
+    expect(router.getCurrentRoute().get().hash).toBe('section1');
+    expect(window.location.hash).toBe('#section1');
+  });
+
   it('hydrates without mismatch errors', async () => {
     setGlobalContext({
       globalData: new Map(),
     });
 
     const serverWindow = new VWindow();
-    const serverRenderer = new VDOMRenderer(serverWindow, {
-      markDynamicNodes: true,
-    });
+    const serverRenderer = new VDOMRenderer(serverWindow);
     setActiveRenderer(serverRenderer);
 
     const serverRouter = createRouter();
@@ -140,10 +219,10 @@ describe('Hydration router + unique transition', () => {
     serverWindow.document.body.append(...serverNodes);
     await waitForAsyncBoundaries();
     const html = renderToString(serverWindow.document.body, serverWindow);
-
     window.document.body.setHTMLUnsafe(
-      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/"}</script>`
+      `<div id="app" data-retend-hydration="1">${html}</div>`
     );
+    window.history.replaceState(null, '', '/');
 
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
@@ -151,6 +230,11 @@ describe('Hydration router + unique transition', () => {
 
     await hydrate(createRouter);
 
+    expect(
+      window.document
+        .querySelector('#app')
+        ?.hasAttribute('data-retend-hydration')
+    ).toBe(false);
     const hadHydrationError = consoleErrorSpy.mock.calls.some((call) =>
       String(call[0]).includes('Hydration error:')
     );
@@ -223,9 +307,7 @@ describe('Hydration router + unique transition', () => {
     });
 
     const serverWindow = new VWindow();
-    const serverRenderer = new VDOMRenderer(serverWindow, {
-      markDynamicNodes: true,
-    });
+    const serverRenderer = new VDOMRenderer(serverWindow);
     setActiveRenderer(serverRenderer);
 
     const serverRouter = createStackRouter();
@@ -242,8 +324,9 @@ describe('Hydration router + unique transition', () => {
     const html = renderToString(serverWindow.document.body, serverWindow);
 
     window.document.body.setHTMLUnsafe(
-      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/gallery/1"}</script>`
+      `<div id="app" data-retend-hydration="1">${html}</div>`
     );
+    window.history.replaceState(null, '', '/gallery/1');
 
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
@@ -256,9 +339,9 @@ describe('Hydration router + unique transition', () => {
     );
     consoleErrorSpy.mockRestore();
 
-    expect(errors.some((message) => message.includes('Hydration error:'))).toBe(
-      false
-    );
+    expect(
+      errors.filter((message) => message.includes('Hydration error:'))
+    ).toEqual([]);
     expect(
       errors.some((message) => message.includes('after is not a function'))
     ).toBe(false);

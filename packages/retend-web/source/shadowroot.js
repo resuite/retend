@@ -1,5 +1,4 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
-import { createNodesFromTemplate, getActiveRenderer } from 'retend';
 
 import { ShadowRootFragment } from './dom-ops.js';
 
@@ -30,6 +29,5 @@ import { ShadowRootFragment } from './dom-ops.js';
  * have at most one `ShadowRoot` child.
  */
 export function ShadowRoot(props) {
-  props.children = createNodesFromTemplate(props.children, getActiveRenderer());
   return new ShadowRootFragment(props);
 }

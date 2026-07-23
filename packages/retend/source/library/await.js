@@ -6,11 +6,11 @@
 import { Cell } from '@adbl/cells';
 
 import { getGlobalContext } from '../context/index.js';
-import { getActiveRenderer, If, normalizeJsxChild } from './index.js';
+import { getActiveRenderer, normalizeJsxChild } from './index.js';
 import {
   createScope,
   branchState,
-  onSetup,
+  getState,
   useScopeContext,
   withState,
 } from './scope.js';
@@ -63,69 +63,86 @@ export function Await(props) {
   const awaitList = Cell.derivedAsync(async (get) => {
     await Promise.all([...get(asyncCells).values()].map(get));
   });
+  /** @param {any} promise */
+  const untilDisposed = (promise) =>
+    Promise.race([
+      promise,
+      new Promise((resolve) =>
+        getState().node.addDispose(() => resolve(undefined))
+      ),
+    ]);
+  /** @param {Promise<any>} promise */
+  const track = (promise) => {
+    const tracked = promise.finally(() => asyncHolders.delete(tracked));
+    asyncHolders.add(tracked);
+    return tracked;
+  };
   /** @type {Promise<void>} */
-  const waitingPromise = new Promise((resolve) => {
-    initialStateDone.listen(() => {
-      resolve();
-      // @ts-expect-error: Writable within Await.
-      value.done = true;
-      asyncHolders.delete(waitingPromise);
-    });
-  });
-  asyncHolders.add(waitingPromise);
+  const finished = untilDisposed(
+    new Promise((resolve) => {
+      initialStateDone.listen(() => {
+        // @ts-expect-error: Writable within Await.
+        value.done = true;
+        queueMicrotask(() => resolve(undefined));
+      });
+    })
+  );
+  const waitingPromise = track(finished);
 
   /** @type {AwaitContext} */
   const value = {
     waitUntil(promise) {
-      if (initialStateDone.get()) return waitingPromise;
-      const set = asyncCells.peek();
-      if (!set.has(promise)) {
-        const newSet = new Set(set);
-        newSet.add(promise);
-        asyncCells.set(newSet);
+      if (initialStateDone.get()) {
+        return track(untilDisposed(promise.get()));
       }
+      const set = asyncCells.peek();
+      if (!set.has(promise)) asyncCells.set(new Set(set).add(promise));
       return waitingPromise;
     },
     done: false,
-    finished: waitingPromise,
+    finished,
   };
 
+  const group = renderer.createGroup();
+  const handle = renderer.createGroupHandle(group);
   const snapshot = branchState();
+  snapshot.data = { handle };
   snapshot.node.suspend();
+  const fallbackSnapshot = branchState();
+  fallbackSnapshot.data = { handle };
 
-  const AwaitContent = () => {
-    return AwaitScope.Provider({ value, children });
-  };
+  const AwaitContent = () => AwaitScope.Provider({ value, children });
   Object.defineProperty(AwaitContent, 'name', { value: 'Await.Content' });
 
-  const render = withState(snapshot, () => {
-    return normalizeJsxChild(
+  const render = withState(snapshot, () =>
+    normalizeJsxChild(
       renderer.handleComponent(AwaitContent, [], snapshot),
       renderer
-    );
-  });
+    )
+  );
 
   awaitList.pending.listen((isPending) => {
     if (!isPending) initialStateDone.set(true);
   });
 
-  onSetup(() => {
-    return () => asyncHolders.delete(waitingPromise);
-  });
+  const showContent = () => {
+    fallbackSnapshot.node.dispose();
+    renderer.write(handle, [render].flat());
+    snapshot.node.unsuspend();
+    snapshot.node.enable();
+    asyncCells.set(new Set());
+    snapshot.node.activate();
+  };
 
-  return If(initialStateDone, {
-    true: () => {
-      onSetup(() => {
-        snapshot.node.unsuspend();
-        snapshot.node.enable();
-        asyncCells.set(new Set());
-        // will dispose automatically from parent scope.
-        snapshot.node.activate();
-      });
-      return render;
-    },
-    false: () => fallback || null,
-  });
+  initialStateDone.listen(showContent);
+  if (initialStateDone.get()) showContent();
+  else {
+    const fallbackNodes = withState(fallbackSnapshot, () =>
+      renderer.handleComponent(() => fallback ?? null, [], fallbackSnapshot)
+    );
+    renderer.write(handle, [fallbackNodes].flat());
+  }
+  return group;
 }
 
 /**
@@ -155,11 +172,15 @@ export function useAwait() {
  */
 export async function waitForAsyncBoundaries() {
   const { globalData } = getGlobalContext();
-  /** @type {Set<any>} */
-  const holders = globalData.get(AsyncKey);
-  if (!holders?.size) return;
-  while (holders.size) {
+  while (true) {
     await Promise.resolve();
-    await Promise.all(holders);
+    /** @type {Set<any>} */
+    const holders = globalData.get(AsyncKey);
+    if (holders?.size) {
+      await Promise.all(holders);
+      continue;
+    }
+    await Promise.resolve();
+    if (!globalData.get(AsyncKey)?.size) return;
   }
 }

@@ -610,6 +610,46 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should render after its first pending Await subtree is removed', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showAwait = Cell.source(true);
+      const showLive = Cell.source(false);
+      const ready = Cell.derivedAsync(
+        () => new Promise<string>(() => undefined)
+      );
+      const UniqueContent = createUnique(() => <div>Unique Data</div>);
+      const { body } = window.document;
+
+      body.append(
+        render(
+          <div>
+            {If(showAwait, () => (
+              <Await fallback={<span>Loading</span>}>
+                <UniqueContent id={uuid} />
+                <span>{ready}</span>
+              </Await>
+            ))}
+            <div class="live">
+              {If(showLive, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      showAwait.set(false);
+      showLive.set(true);
+      await runPendingSetupEffects();
+      await timeout();
+
+      expect(getTextContent(body.querySelector('.live')!)).toBe('Unique Data');
+      body.replaceChildren();
+    });
+
     it('should move a Unique component synchronously after Await has already resolved', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;

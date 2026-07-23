@@ -5,7 +5,6 @@ import { Cell, SourceCell, linkNodes } from 'retend';
 import {
   addCellListener,
   createCommentPair,
-  isMatchingCommentPair,
   setAttribute,
   writeStaticStyle,
 } from './utils.js';
@@ -206,188 +205,19 @@ export function write(segment, newContent) {
   const end = segment[1];
 
   let nextNode = start.nextSibling;
+  let index = 0;
+  while (nextNode === newContent[index]) {
+    nextNode = nextNode.nextSibling;
+    index++;
+  }
+  if (nextNode === end && index === newContent.length) return;
+
+  nextNode = start.nextSibling;
   while (nextNode && nextNode !== end) {
     nextNode.remove();
     nextNode = start.nextSibling;
   }
   start.after(...newContent);
-}
-
-/**
- * @param {any[]} segment
- */
-export function finalizeHydrationHandleSegment(segment) {
-  const next = resolveRangeSegment(segment);
-  if (!next) return;
-  segment[0] = next.start;
-  segment[1] = next.end;
-  segment.length = 2;
-}
-
-/**
- * @param {any[]} segment
- * @returns {{ start: Comment, end: Comment } | null}
- */
-function resolveRangeSegment(segment) {
-  const start = segment[0];
-  const end = segment[1];
-  if (
-    isComment(start) &&
-    isComment(end) &&
-    (isMatchingCommentPair(start, end) || isSerializedCommentPair(start, end))
-  ) {
-    return { start, end };
-  }
-
-  const deferredRange =
-    segment.find((value) => isDeferredMarker(value))?.sourceArray ?? [];
-  const deferredStart = deferredRange[0];
-  const deferredEnd = deferredRange[1];
-
-  let nextStart = isComment(deferredStart) ? deferredStart : null;
-  let nextEnd = isComment(deferredEnd) ? deferredEnd : null;
-
-  if (nextStart && !nextEnd) {
-    nextEnd = findCommentPairFromStart(nextStart);
-  } else if (nextEnd && !nextStart) {
-    nextStart = findCommentPairFromEnd(nextEnd);
-  }
-
-  if (
-    nextStart &&
-    nextEnd &&
-    (isMatchingCommentPair(nextStart, nextEnd) ||
-      isSerializedCommentPair(nextStart, nextEnd))
-  ) {
-    return { start: nextStart, end: nextEnd };
-  }
-
-  return synthesizeRangeAnchors(segment);
-}
-
-/**
- * @param {Comment} start
- * @param {Comment} end
- */
-function isSerializedCommentPair(start, end) {
-  if (start.textContent !== '[' || end.textContent !== ']') return false;
-  let depth = 1;
-  let cursor = start.nextSibling;
-  while (cursor) {
-    if (cursor.nodeType === 8) {
-      if (cursor.textContent === '[') depth += 1;
-      else if (cursor.textContent === ']') depth -= 1;
-    }
-    if (cursor === end) return depth === 0;
-    cursor = cursor.nextSibling;
-  }
-  return false;
-}
-
-/**
- * @param {unknown} value
- * @returns {value is Comment}
- */
-function isComment(value) {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'nodeType' in value &&
-    value.nodeType === 8
-  );
-}
-
-/**
- * @param {unknown} value
- * @returns {value is { sourceArray: unknown[], symbol?: symbol }}
- */
-function isDeferredMarker(value) {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'sourceArray' in value &&
-    Array.isArray(value.sourceArray)
-  );
-}
-
-/**
- * @param {Comment} start
- * @returns {Comment | null}
- */
-function findCommentPairFromStart(start) {
-  const symbol = Reflect.get(start, '__commentRangeSymbol');
-  if (!symbol) return null;
-
-  let cursor = start.nextSibling;
-  while (cursor) {
-    if (
-      isComment(cursor) &&
-      Reflect.get(cursor, '__commentRangeSymbol') === symbol
-    ) {
-      return cursor;
-    }
-    cursor = cursor.nextSibling;
-  }
-  return null;
-}
-
-/**
- * @param {Comment} end
- * @returns {Comment | null}
- */
-function findCommentPairFromEnd(end) {
-  const symbol = Reflect.get(end, '__commentRangeSymbol');
-  if (!symbol) return null;
-
-  let cursor = end.previousSibling;
-  while (cursor) {
-    if (
-      isComment(cursor) &&
-      Reflect.get(cursor, '__commentRangeSymbol') === symbol
-    ) {
-      return cursor;
-    }
-    cursor = cursor.previousSibling;
-  }
-  return null;
-}
-
-/**
- * @param {unknown} value
- * @returns {value is Node}
- */
-function isNodeLike(value) {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'nodeType' in value &&
-    typeof value.nodeType === 'number' &&
-    'ownerDocument' in value
-  );
-}
-
-/**
- * @param {any[]} segment
- * @returns {{ start: Comment, end: Comment } | null}
- */
-function synthesizeRangeAnchors(segment) {
-  const contentNodes = segment.filter((value) => isNodeLike(value));
-  const first = contentNodes[0];
-  const last = contentNodes[contentNodes.length - 1];
-  if (!first || !last) return null;
-  if (!first.parentNode || first.parentNode !== last.parentNode) return null;
-  if (!first.ownerDocument) return null;
-
-  const deferred = segment.find((value) => isDeferredMarker(value));
-  const symbol = deferred?.symbol ?? Symbol();
-  const start = first.ownerDocument.createComment('[');
-  const end = first.ownerDocument.createComment(']');
-  Reflect.set(start, '__commentRangeSymbol', symbol);
-  Reflect.set(end, '__commentRangeSymbol', symbol);
-
-  first.parentNode.insertBefore(start, first);
-  first.parentNode.insertBefore(end, last.nextSibling);
-  return { start, end };
 }
 
 /**
@@ -435,5 +265,3 @@ export class ShadowRootFragment {
     this.props = props ?? {};
   }
 }
-
-export { containerIsDynamic } from './utils.js';

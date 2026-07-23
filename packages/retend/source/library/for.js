@@ -6,7 +6,6 @@ import { Cell, AsyncCell } from '@adbl/cells';
 import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
-import { linkNodes } from './utils.js';
 
 /**
  * @template {import('./renderer.js').RendererTypes} Types
@@ -167,21 +166,20 @@ export function For(list, fn, options) {
      * @param {V & {[Symbol.iterator]: () => Iterator<V>} | Promise<any>} listValue
      */
     const reactToListChanges = (listValue) => {
-      if (listValue instanceof Promise) {
-        listValue.then((resolved) => processListChanges(resolved));
-        return;
-      }
-      processListChanges(listValue);
+      if (listValue instanceof Promise) listValue.then(processListChanges);
+      else processListChanges(listValue);
     };
 
     /**
      * @param {any} listValue
+     * @param {boolean} [initial]
      */
-    const processListChanges = (listValue) => {
+    const processListChanges = (listValue, initial = false) => {
       const newList =
         typeof listValue?.[Symbol.iterator] === 'function' ? listValue : [];
       const newCache = new Map();
       const effectNodesToActivate = [];
+      const initialNodes = [];
       /** @type {Map<unknown, { itemKey: any, lastItemLastNode: unknown | null }>} */
       const nodeLookAhead = new Map();
 
@@ -189,53 +187,53 @@ export function For(list, fn, options) {
       let lastItemLastNode = null;
       for (const item of newList) {
         const itemKey = retrieveOrSetItemKey(item, index);
-        const cachedResult = cacheFromLastRun.get(itemKey);
-        let firstNode = null;
-        let lastNode = null;
-        if (cachedResult === undefined) {
-          const i = Cell.source(index);
-          const parameters = [item, i, list];
+        let result = cacheFromLastRun.get(itemKey);
+        if (result === undefined) {
+          const itemIndex = Cell.source(index);
+          const parameters = [item, itemIndex, list];
           /** @type {StateSnapshot} */
           const snapshot = {
             scopes: base.scopes,
             node: base.node.branch(),
             renderer: base.renderer,
+            data: base.data,
           };
-          const newNodes = withState(snapshot, () => {
-            return renderer.handleComponent(fn, parameters, snapshot);
-          });
-          effectNodesToActivate.push(snapshot.node);
-          const nodes = flattenNodes(newNodes, renderer);
+          const nodes = flattenNodes(
+            withState(snapshot, () =>
+              renderer.handleComponent(fn, parameters, snapshot)
+            ),
+            renderer
+          );
           trackNodes(nodes);
-          newCache.set(itemKey, { nodes, index: i, snapshot });
-          firstNode = nodes[0];
-          lastNode = nodes[nodes.length - 1];
+          result = { nodes, index: itemIndex, snapshot };
+          if (!initial) effectNodesToActivate.push(snapshot.node);
         } else {
           /** @type {import('@adbl/cells').SourceCell<number>} */
-          (cachedResult.index).set(index);
-          newCache.set(itemKey, cachedResult);
-          const nodes = cachedResult.nodes;
-          firstNode = nodes[0];
-          lastNode = nodes[nodes.length - 1];
+          (result.index).set(index);
         }
-        if (firstNode) {
-          nodeLookAhead.set(firstNode, { itemKey, lastItemLastNode });
+        newCache.set(itemKey, result);
+        const { nodes } = result;
+        if (initial) initialNodes.push(...nodes);
+        else if (nodes[0]) {
+          nodeLookAhead.set(nodes[0], { itemKey, lastItemLastNode });
         }
-        lastItemLastNode = lastNode;
+        lastItemLastNode = nodes[nodes.length - 1];
         index++;
       }
 
-      const reconciliationOptions = {
-        cacheFromLastRun,
-        onBeforeNodeRemove,
-        onBeforeNodesMove,
-        retrieveOrSetItemKey,
-        newCache,
-        newList,
-        nodeLookAhead,
-      };
-      renderer.reconcile(handle, reconciliationOptions);
-      renderer.observer?.flush();
+      if (initial) renderer.write(handle, initialNodes);
+      else {
+        renderer.reconcile(handle, {
+          cacheFromLastRun,
+          onBeforeNodeRemove,
+          onBeforeNodesMove,
+          retrieveOrSetItemKey,
+          newCache,
+          newList,
+          nodeLookAhead,
+        });
+        renderer.observer?.flush();
+      }
 
       cacheFromLastRun = newCache;
       for (const node of effectNodesToActivate) node.activate();
@@ -244,60 +242,20 @@ export function For(list, fn, options) {
     if (list instanceof AsyncCell) useAwait()?.waitUntil(list);
     list.listen(reactToListChanges);
 
-    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-    let handle;
-    /** @type {ReturnType<typeof renderer.createGroup>} */
-    let group;
-    // First run, prior to any changes.
-    let i = 0;
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
     // We get a snapshot of all current scopes to reuse when new
     // component instances are created.
     const base = branchState();
-    const _list = list.get();
+    base.data = { handle };
+    const initialList = list.get();
 
-    if (_list instanceof Promise) {
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
-      _list.then((resolved) => processListChanges(resolved));
+    if (initialList instanceof Promise) {
+      initialList.then(reactToListChanges);
       return group;
     }
 
-    if (
-      _list !== null &&
-      _list !== undefined &&
-      _list[Symbol.iterator] !== undefined
-    ) {
-      const allNodes = [];
-      for (const item of _list) {
-        const index = Cell.source(i);
-        const parameters = [item, index, list];
-        // We have to split the snapshot so that each For item render
-        // can have its own effect context without polluting the others.
-        /** @type {StateSnapshot} */
-        const snapshot = {
-          scopes: base.scopes,
-          node: base.node.branch(),
-          renderer: base.renderer,
-        };
-        const newNodes = withState(snapshot, () =>
-          renderer.handleComponent(fn, parameters, snapshot)
-        );
-        const nodes = flattenNodes(newNodes, renderer);
-        trackNodes(nodes);
-        allNodes.push(...nodes);
-
-        const itemKey = retrieveOrSetItemKey(item, i);
-        cacheFromLastRun.set(itemKey, { index, nodes, snapshot });
-        i++;
-      }
-      group = renderer.createGroup();
-      const nodes = Array.isArray(allNodes) ? allNodes : [allNodes];
-      for (const child of nodes) linkNodes(group, child, renderer);
-      handle = renderer.createGroupHandle(group);
-    } else {
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
-    }
+    processListChanges(initialList, true);
     return group;
   };
 }

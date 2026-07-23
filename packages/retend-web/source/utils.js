@@ -1,8 +1,7 @@
 /** @import { JsxElement } from './dom-renderer.js'; */
-import { AsyncCell, Block, Cell, useAwait } from 'retend';
+import { AsyncCell, Cell, useAwait } from 'retend';
 
 /** @import { DOMRenderer } from './dom-renderer.js'; */
-import { ShadowRootFragment } from './dom-ops.js';
 
 /** @typedef {Comment & { __commentRangeSymbol?: symbol }} ConnectedComment */
 
@@ -34,8 +33,8 @@ import { ShadowRootFragment } from './dom-ops.js';
  */
 export function createCommentPair(renderer) {
   const symbol = Symbol();
-  const rangeStart = renderer.host.document.createComment('[');
-  const rangeEnd = renderer.host.document.createComment(']');
+  const rangeStart = renderer.host.document.createComment('retend:range-start');
+  const rangeEnd = renderer.host.document.createComment('retend:range-end');
   Reflect.set(rangeStart, '__commentRangeSymbol', symbol);
   Reflect.set(rangeEnd, '__commentRangeSymbol', symbol);
 
@@ -302,6 +301,7 @@ export function copyCellListeners(source, target) {
 export function convertObjectToCssStylesheet(styles, useHost, element) {
   return `${useHost ? ':host{' : ''}${Object.entries(styles)
     .map(([key, value]) => {
+      const styleKey = normalizeStyleKey(key);
       if (Cell.isCell(/** @type any */ (value)) && element) {
         if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
         /**
@@ -309,7 +309,6 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
          * @param {string | Promise<any>} newValue
          */
         function applyStyle(newValue) {
-          const styleKey = normalizeStyleKey(key);
           if (newValue instanceof Promise) {
             newValue.then((resolvedValue) => {
               applyStyle.bind(this)(resolvedValue);
@@ -323,12 +322,13 @@ export function convertObjectToCssStylesheet(styles, useHost, element) {
         const raw = value.peek();
         if (raw instanceof Promise) {
           raw.then((resolvedValue) => applyStyle.bind(element)(resolvedValue));
-          return '';
+          const currentValue = element.style?.getPropertyValue(styleKey);
+          return currentValue ? `${styleKey}: ${currentValue}` : '';
         } else if (isSomewhatFalsy(value)) return '';
-        return `${normalizeStyleKey(key)}: ${raw}`;
+        return `${styleKey}: ${raw}`;
       }
       if (isSomewhatFalsy(value)) return '';
-      return `${normalizeStyleKey(key)}: ${value}`;
+      return `${styleKey}: ${value}`;
     })
     .join('; ')}${useHost ? '}' : ''}`;
 }
@@ -696,12 +696,12 @@ export function setAttribute(
       function applyInnerHTML(newValue) {
         if (newValue instanceof Promise) {
           newValue.then((resolved) => applyInnerHTML.bind(this)(resolved));
-        } else {
+        } else if (this.innerHTML !== newValue) {
           this.innerHTML = newValue;
         }
       }
       addCellListener(element, html, applyInnerHTML);
-    } else if (typeof html === 'string') {
+    } else if (typeof html === 'string' && element.innerHTML !== html) {
       element.innerHTML = html;
     }
     return;
@@ -748,125 +748,4 @@ export function setAttribute(
   } else {
     element.setAttribute(attributeName, value);
   }
-}
-
-export class Skip {
-  /** @param {string} tag  */
-  constructor(tag) {
-    this.tag = tag;
-  }
-
-  toString() {
-    return this.tag;
-  }
-}
-
-export class DeferredHandleSymbol {
-  symbol = Symbol();
-
-  /** @param {Array<any>} handle  */
-  constructor(handle) {
-    this.sourceArray = handle;
-  }
-}
-
-/**
- * @param {string} tagname
- * @param {any} props
- * @param {Function} childChecker
- */
-export function containerIsDynamic(tagname, props, childChecker) {
-  if (tagname === 'retend-teleport') return true;
-
-  for (const key in props) {
-    const value = props[key];
-    if (key === 'className' || key === 'class') {
-      if (isReactiveClass(value)) return true;
-      continue;
-    }
-    if (key === 'style') {
-      if (isReactiveStyle(value)) return true;
-      continue;
-    }
-    if (key.startsWith('on') && key.length > 2) {
-      return true;
-    }
-    if (Cell.isCell(value)) return true;
-    if (key === 'children' && childChecker(value)) return true;
-  }
-  return false;
-}
-
-/** @param {any} value  */
-export function isReactiveChild(value) {
-  if (Cell.isCell(value)) return true;
-  if (value instanceof DeferredHandleSymbol) return true;
-  if (value instanceof Block) return value.kind !== 0;
-  if (typeof value === 'function') return true;
-  // @ts-expect-error
-  if (value instanceof Text && value.__isReactive) return true;
-  if (Array.isArray(value)) {
-    if (
-      value[0] instanceof DeferredHandleSymbol &&
-      value[0] === value[value.length - 1]
-    ) {
-      return true;
-    }
-    for (const child of value) {
-      if (isReactiveChild(child)) return true;
-    }
-  }
-  if (value instanceof ShadowRootFragment) return true;
-  return false;
-}
-
-/** @param {any} className */
-export function isReactiveClass(className) {
-  if (typeof className === 'string') return false;
-  if (Cell.isCell(className)) return true;
-  if (Array.isArray(className)) {
-    for (const child of className) {
-      if (isReactiveClass(child)) return true;
-    }
-  }
-  if (typeof className === 'object') {
-    for (const key in className) {
-      if (isReactiveClass(className[key])) return true;
-    }
-  }
-  return false;
-}
-
-/** @param {any} style */
-export function isReactiveStyle(style) {
-  if (typeof style === 'string') return false;
-  if (Cell.isCell(style)) return true;
-  if (typeof style === 'object') {
-    for (const key in style) {
-      if (isReactiveStyle(style[key])) return true;
-    }
-  }
-  return false;
-}
-
-/** @param {any} tree */
-export function flattenJSXChildren(tree) {
-  /** @type {any[]} tree */
-  const html = [];
-  const stack = [tree];
-
-  while (stack.length) {
-    const node = stack.pop();
-    if (Array.isArray(node)) {
-      for (let i = node.length - 1; i >= 0; i--) {
-        stack.push(node[i]);
-      }
-    } else if (node?.nodeType === 11) {
-      for (let i = node.childNodes.length - 1; i >= 0; i--) {
-        stack.push(node.childNodes[i]);
-      }
-    } else html.push(node);
-  }
-
-  return html;
 }
