@@ -1,4 +1,12 @@
-import { Await, Cell, For, If, Switch, getActiveRenderer } from 'retend';
+import {
+  Await,
+  Cell,
+  For,
+  If,
+  Switch,
+  getActiveRenderer,
+  waitForAsyncBoundaries,
+} from 'retend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -545,6 +553,32 @@ const runTests = () => {
 
     await vi.advanceTimersByTimeAsync(20);
     expect(getTextContent(result)).toBe('First | Second');
+  });
+
+  it('stops waiting when an initially pending Await is disposed', async () => {
+    vi.useRealTimers();
+    const show = Cell.source(true);
+    const pending = Cell.derivedAsync(async () => new Promise(() => {}));
+    const renderer = getActiveRenderer();
+
+    renderer.render(() => (
+      <div>
+        {If(show, () => (
+          <Await fallback={null}>
+            <span>{pending}</span>
+          </Await>
+        ))}
+      </div>
+    ));
+    const waiting = waitForAsyncBoundaries();
+    await Promise.resolve();
+    show.set(false);
+
+    const completed = await Promise.race([
+      waiting.then(() => true),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), 100)),
+    ]);
+    expect(completed).toBe(true);
   });
 };
 

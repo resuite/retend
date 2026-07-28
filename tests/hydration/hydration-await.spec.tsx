@@ -1,16 +1,32 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { Await, Cell, For, If, Switch } from 'retend';
+import { Await, Cell, For, If, Switch, waitForAsyncBoundaries } from 'retend';
 import { Teleport, ShadowRoot } from 'retend-web';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { browserSetup, timeout } from '../setup.tsx';
-import { setupHydration } from './hydration-helpers.tsx';
+import {
+  createHydrationClientRenderer,
+  renderHydrationServerHtml,
+  startHydration,
+} from './hydration-helpers.tsx';
 
 type TemplateFn = () => JSX.Template;
 
-const setupAwaitHydration = (templateFn: TemplateFn) =>
-  setupHydration(templateFn, true);
+const setupAwaitHydration = async (templateFn: TemplateFn) => {
+  const html = await renderHydrationServerHtml(templateFn, true);
+  const { renderer, document, root, window } =
+    createHydrationClientRenderer(html);
+  startHydration(renderer, templateFn, true);
+  const waitForBoundaries = waitForAsyncBoundaries();
+  await Promise.resolve();
+  if (vi.isFakeTimers()) await vi.runAllTimersAsync();
+  await waitForBoundaries;
+  await Promise.resolve();
+  const preEndHtml = document.querySelector('#app')?.innerHTML;
+  await renderer.endHydration();
+  return { html, window, document, root, renderer, preEndHtml };
+};
 
 const getHydrationErrors = (spy: ReturnType<typeof vi.spyOn>) =>
   spy.mock.calls.filter((call) => String(call[0]).includes('Hydration error'));
@@ -123,11 +139,18 @@ describe('Hydration Await', () => {
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      const { document } = await setupAwaitHydration(template);
+      const { document, preEndHtml } = await setupAwaitHydration(template);
 
+      const hydratedHtml = document.querySelector('#app')?.innerHTML;
       expect(document.querySelector('#await-fallback')).toBeNull();
-      expect(document.querySelector('#first')?.textContent).toBe('First');
-      expect(document.querySelector('#second')?.textContent).toBe('Second');
+      expect(
+        document.querySelector('#first')?.textContent,
+        `pre-end DOM: ${preEndHtml}; hydrated DOM: ${hydratedHtml}`
+      ).toBe('First');
+      expect(
+        document.querySelector('#second')?.textContent,
+        `pre-end DOM: ${preEndHtml}; hydrated DOM: ${hydratedHtml}`
+      ).toBe('Second');
 
       expect(getHydrationErrors(errorSpy).length).toBe(0);
     } finally {
@@ -510,6 +533,124 @@ describe('Hydration Await', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+
+  it('completes hydration after async work created by a deferred Teleport', async () => {
+    const text = Cell.source('Server');
+    const template = () => (
+      <>
+        <div id="deferred-async-target" />
+        <Teleport to="#deferred-async-target">
+          {() => {
+            const asyncText = Cell.derivedAsync(async (get) => {
+              const value = get(text);
+              await Promise.resolve();
+              return value;
+            });
+            return <span id="deferred-async-text">{asyncText}</span>;
+          }}
+        </Teleport>
+      </>
+    );
+    const html = await renderHydrationServerHtml(template, true);
+    text.set('Client');
+    const { renderer, document, window } = createHydrationClientRenderer(html);
+    let completedText = '';
+    window.addEventListener(
+      'hydrationcompleted',
+      () => {
+        completedText =
+          document.querySelector('#deferred-async-text')?.textContent ?? '';
+      },
+      { once: true }
+    );
+
+    startHydration(renderer, template, true);
+    await renderer.endHydration();
+
+    expect(completedText).toBe('Client');
+    expect(document.querySelector('#deferred-async-text')?.textContent).toBe(
+      'Client'
+    );
+  });
+
+  it('retries a Teleport after async work creates its target', async () => {
+    vi.useRealTimers();
+    const template = () => (
+      <>
+        <div id="outer-teleport-target" />
+        <Teleport to="#outer-teleport-target">
+          {() => {
+            const ready = Cell.derivedAsync(async () => {
+              await timeout(10);
+              return true;
+            });
+            return (
+              <Await fallback={null}>
+                {If(ready, () => (
+                  <div id="late-teleport-target" />
+                ))}
+              </Await>
+            );
+          }}
+        </Teleport>
+        <Teleport to="#late-teleport-target">
+          <span id="late-teleport-content">Mounted</span>
+        </Teleport>
+      </>
+    );
+
+    const { document } = await setupAwaitHydration(template);
+
+    expect(document.querySelector('#late-teleport-content')?.textContent).toBe(
+      'Mounted'
+    );
+  });
+
+  it('hydrates sibling Teleports that resolve in a different client order', async () => {
+    let client = false;
+    const template = () => {
+      const first = Cell.derivedAsync(async () => {
+        await timeout(client ? 5 : 20);
+        return true;
+      });
+      const second = Cell.derivedAsync(async () => {
+        await timeout(client ? 20 : 5);
+        return true;
+      });
+      return (
+        <>
+          <div id="ordered-teleport-target" />
+          <Await fallback={null}>
+            {If(first, () => (
+              <Teleport to="#ordered-teleport-target">
+                <span id="first-ordered-teleport">First</span>
+              </Teleport>
+            ))}
+          </Await>
+          <Await fallback={null}>
+            {If(second, () => (
+              <Teleport to="#ordered-teleport-target">
+                <span id="second-ordered-teleport">Second</span>
+              </Teleport>
+            ))}
+          </Await>
+        </>
+      );
+    };
+
+    const html = await renderHydrationServerHtml(template, true);
+    client = true;
+    const { renderer, document } = createHydrationClientRenderer(html);
+    startHydration(renderer, template, true);
+    const waiting = waitForAsyncBoundaries();
+    await vi.runAllTimersAsync();
+    await waiting;
+    await renderer.endHydration();
+
+    const target = document.querySelector('#ordered-teleport-target');
+    expect(target?.querySelectorAll('#first-ordered-teleport').length).toBe(1);
+    expect(target?.querySelectorAll('#second-ordered-teleport').length).toBe(1);
   });
 
   it('handles ShadowRoot within Await during hydration', async () => {

@@ -5,7 +5,6 @@ import { Cell, AsyncCell } from '@adbl/cells';
 import { useAwait } from './await.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
-import { linkNodes } from './utils.js';
 
 /**
  * @template T
@@ -93,66 +92,36 @@ export function If(value, fnOrObject, elseFn) {
     }
 
     /** @param {T} _value */
-    const callback = (_value) => {
-      return withState(stateSnapshot, () => {
+    const callback = (_value) =>
+      withState(stateSnapshot, () => {
+        let caller;
         if (typeof fnOrObject === 'function') {
-          if (_value) {
-            const newNodes = renderer.handleComponent(
-              fnOrObject,
-              [_value],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
-          if (elseFn) {
-            const newNodes = renderer.handleComponent(
-              elseFn,
-              [],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
+          caller = _value ? fnOrObject : elseFn;
+          if (!caller) return [];
+        } else if (typeof fnOrObject === 'object') {
+          if (_value && 'true' in fnOrObject) caller = fnOrObject.true;
+          else if (!_value && 'false' in fnOrObject) caller = fnOrObject.false;
+          else return [];
+        } else {
+          console.error(
+            'If expects a callback or condition object as the second argument.'
+          );
           return [];
         }
-
-        if (typeof fnOrObject === 'object') {
-          if (_value && 'true' in fnOrObject) {
-            const newNodes = renderer.handleComponent(
-              fnOrObject.true,
-              [_value],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
-
-          if (!_value && 'false' in fnOrObject) {
-            const newNodes = renderer.handleComponent(
-              fnOrObject.false,
-              [],
-              stateSnapshot
-            );
-            return Array.isArray(newNodes) ? newNodes : [newNodes];
-          }
-
-          return [];
-        }
-        console.error(
-          'If expects a callback or condition object as the second argument.'
+        const nodes = renderer.handleComponent(
+          caller,
+          _value ? [_value] : [],
+          stateSnapshot
         );
-        return [];
+        return [nodes].flat();
       });
-    };
-
-    /** @type {ReturnType<typeof renderer.createGroupHandle>} */
-    let handle;
 
     /**
      * @param {T} nextValue
      */
     const processValueChange = (nextValue) => {
       stateSnapshot.node.dispose();
-      const results = callback(nextValue);
-      renderer.write(handle, results);
+      renderer.write(handle, callback(nextValue));
       renderer.observer?.flush();
       stateSnapshot.node.activate();
     };
@@ -164,21 +133,16 @@ export function If(value, fnOrObject, elseFn) {
     });
 
     const initialValue = value.get();
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
+    stateSnapshot.data = { handle };
 
     if (initialValue instanceof Promise) {
-      const group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
-      initialValue.then((resolved) => processValueChange(resolved));
+      initialValue.then(processValueChange);
       return group;
     }
 
-    const initialResults = callback(initialValue);
-    const group = renderer.createGroup();
-    const nodes = Array.isArray(initialResults)
-      ? initialResults
-      : [initialResults];
-    for (const child of nodes) linkNodes(group, child, renderer);
-    handle = renderer.createGroupHandle(group);
+    renderer.write(handle, callback(initialValue));
     return group;
   };
 }

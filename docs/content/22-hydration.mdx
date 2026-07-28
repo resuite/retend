@@ -64,8 +64,8 @@ hydrate(createRouter, {
 });
 ```
 
-## Development Mode
+## Hydration Contract
 
-In development, `hydrate` behaves differently. Since there's no pre-rendered HTML during `vite dev`, it falls back to normal client-side rendering (SPA mode). This means you can use the same entry point for both development and production without any conditional logic.
+`hydrate` uses the browser's current path, query, and hash as the initial router location. It hydrates roots marked with `data-retend-hydration="1"`; otherwise, it replaces the root contents with a client render.
 
-If the server context script tag (`<script data-server-context>`) is missing when running in production, `hydrate` logs a warning and falls back to SPA mode automatically.
+Server and client structure must match. A structural mismatch rejects hydration; Retend does not recover individual nodes. Differing text and `dangerouslySetInnerHTML` values are updated on the claimed node. Once a dynamic range is claimed, normal reactive updates may run while other async boundaries are still hydrating.

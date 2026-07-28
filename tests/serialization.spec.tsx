@@ -35,7 +35,25 @@ const runTests = () => {
       </div>
     );
     const result = toString(template, window);
-    expect(result).toContain('<div>Hello <!--@@-->World<!--@@-->!</div>');
+    expect(result).toContain(
+      '<div>Hello <!--retend:text-separator-->World<!--retend:text-separator-->!</div>'
+    );
+  });
+
+  it('preserves a whitespace-only text node between text and an element', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const template = (
+      <p>
+        Coordinate loading states with <code>{'<Await>'}</code>. Nested async
+        data.
+      </p>
+    );
+    const result = toString(template, window);
+
+    expect(result).toBe(
+      '<p>Coordinate loading states with <code>&lt;Await&gt;</code>. Nested async data.</p>'
+    );
   });
 
   it('should handle void elements correctly', async () => {
@@ -286,8 +304,8 @@ const runTests = () => {
   });
 };
 
-const dynamicTests = () => {
-  it('should mark elements with event listeners as dynamic when option is enabled', async () => {
+const reactiveTests = () => {
+  it('serializes elements with event listeners', async () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = (
@@ -296,322 +314,46 @@ const dynamicTests = () => {
       </button>
     );
     const result = toString(element, window);
-    expect(result).toContain(
-      '<button data-dyn="0.0" type="button">Click me</button>'
-    );
+
+    expect(result).toBe('<button type="button">Click me</button>');
   });
 
-  it('should mark elements with reactive attributes as dynamic when option is enabled', async () => {
+  it('serializes reactive attributes at their current value', async () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const element = <div class={Cell.source('test-class')}>Content</div>;
     const result = toString(element, window);
-    expect(result).toContain(
-      '<div data-dyn="0.0" class="test-class">Content</div>'
-    );
+
+    expect(result).toBe('<div class="test-class">Content</div>');
   });
 
-  it('should mark element as reactive if it has a reactive attribute', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const element = <div title={Cell.source('dynamic-title')}>Content</div>;
-    const result = toString(element, window);
-    expect(result).toContain('data-dyn="0.0"');
-  });
-
-  it('should mark an element as dynamic if it is held by a ref', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const ref = Cell.source('dynamic-ref');
-    const element = <div ref={ref}>Content</div>;
-    const result = toString(element, window);
-    expect(result).toContain('data-dyn="0.0"');
-  });
-
-  it('should not mark static elements as dynamic when option is enabled', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const element = <div class="static">Static content</div>;
-    const result = toString(element, window);
-    expect(result).not.toContain('data-dyn');
-  });
-
-  it('should assign incremental dynamic ids to multiple dynamic elements', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <button type="button" onClick={() => {}}>
-          Button 1
-        </button>
-        <div class={Cell.source('class1')}>Div 1</div>
-        <span>Static</span>
-        <button type="button" onClick={() => {}}>
-          Button 2
-        </button>
-      </div>
-    );
-    const result = toString(element, window);
-    expect(result).toBe(
-      '<div><button data-dyn="0.0" type="button">Button 1</button><div data-dyn="0.1" class="class1">Div 1</div><span>Static</span><button data-dyn="0.2" type="button">Button 2</button></div>'
-    );
-  });
-
-  it('should mark elements with reactive text content as dynamic if they have dynamic text node children', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const element = <div>{Cell.source('Dynamic text')}</div>;
-    const result = toString(element, window);
-    expect(result).toContain('<div data-dyn');
-  });
-
-  it('should only consider immediate children when checking for dynamism', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <div>
-          <button type="button" onClick={() => {}}>
-            Click
-          </button>
-        </div>
-      </div>
-    );
-    const result = toString(element, window);
-    expect(result).toBe(
-      '<div><div><button data-dyn="0.0" type="button">Click</button></div></div>'
-    );
-  });
-
-  it('should mark the container for a For loop as reactive', async () => {
+  it('serializes reactive control flow with structural ranges', async () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
     const items = Cell.source(['Item 1']);
-    const element = (
-      <ul>
-        {For(items, (item) => (
-          <li>{item}</li>
-        ))}
-      </ul>
-    );
-    const result = toString(element, window);
-    expect(result).toContain('<ul data-dyn="0.0">');
-  });
-
-  it('should mark the container for a If as reactive', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
     const condition = Cell.source(true);
     const element = (
       <div>
+        <ul>
+          {For(items, (item) => (
+            <li>{item}</li>
+          ))}
+        </ul>
         {If(condition, {
           true: () => <span>True</span>,
         })}
       </div>
     );
     const result = toString(element, window);
-    expect(result).toContain('<div data-dyn="0.0">');
-  });
 
-  it('should mark an element as reactive if it has a shadowroot', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div>
-        <ShadowRoot>
-          <div>Shadow content</div>
-        </ShadowRoot>
-      </div>
+    expect(result).toBe(
+      '<div><ul><!--retend:range-start--><li>Item 1</li><!--retend:range-end--></ul><!--retend:range-start--><span>True</span><!--retend:range-end--></div>'
     );
-    const result = toString(element, window);
-    expect(result).toContain('<div data-dyn="0.0">');
   });
 
-  it('should increment for very large subtrees', async () => {
+  it('serializes nested reactive ranges', async () => {
     const renderer = getActiveRenderer() as VDOMRenderer;
     const { host: window } = renderer;
-    const size = 100;
-    const element = (
-      <div>
-        {For(Array.from({ length: size }), (i) => (
-          <div onClick={() => {}}>{i}</div>
-        ))}
-      </div>
-    );
-    const result = toString(element, window);
-    for (let i = 0; i < size; i++) {
-      expect(result).toContain(`data-dyn="0.${i}"`);
-    }
-  });
-
-  it('should handle deeply nested dynamic elements', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-    const element = (
-      <div onClick={() => {}}>
-        <div onClick={() => {}}>
-          <div onClick={() => {}}>
-            <div onClick={() => {}}>
-              <div onClick={() => {}}>Deeply nested</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-    const result = toString(element, window);
-    for (let i = 0; i < 5; i++) {
-      expect(result).toContain(`data-dyn="0.${i}"`);
-    }
-  });
-};
-
-const multiDimensionalMarkerTests = () => {
-  it('should use multi-dimensional markers for For loop items', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-
-    const items = Cell.source(['Item 1', 'Item 2', 'Item 3']);
-    const element = (
-      <div>
-        {For(items, (item) => (
-          <button key={item} type="button" onClick={() => {}}>
-            {item}
-          </button>
-        ))}
-      </div>
-    );
-    const result = toString(element, window);
-    // Container gets data-dyn="0.0", items get data-dyn="0.0.X.0" format
-    expect(result).toContain('data-dyn="0.0"');
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
-  });
-
-  it('should use multi-dimensional markers for If branches', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-
-    const condition = Cell.source(true);
-    const element = (
-      <div>
-        {If(condition, {
-          true: () => <button onClick={() => {}}>True Button</button>,
-          false: () => <button onClick={() => {}}>False Button</button>,
-        })}
-      </div>
-    );
-    const result = toString(element, window);
-    // Container gets data-dyn="0.0", if branch gets data-dyn="0.0.X" format (shorter than For loops)
-    expect(result).toContain('data-dyn="0.0"');
-    expect(result).toMatch(/data-dyn="0\.0\.\d+"/);
-  });
-
-  it('should create separate branches for multiple For loops', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-
-    const items1 = Cell.source(['a', 'b']);
-    const items2 = Cell.source(['c', 'd']);
-    const element = (
-      <div>
-        {For(items1, (item) => (
-          <span key={item} onClick={() => {}}>
-            {item}
-          </span>
-        ))}
-        {For(items2, (item) => (
-          <span key={item} onClick={() => {}}>
-            {item}
-          </span>
-        ))}
-      </div>
-    );
-    const result = toString(element, window);
-    // Container gets data-dyn="0.0", each For loop creates its own branch
-    expect(result).toContain('data-dyn="0.0"');
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
-    expect(result).toMatch(/data-dyn="0\.1\.\d+\.0"/);
-  });
-
-  it('should handle nested For loops with multi-dimensional markers', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-
-    const outerItems = Cell.source(['X', 'Y']);
-    const innerItems = ['1', '2'];
-    const element = (
-      <div>
-        {For(outerItems, (outer) => (
-          <div key={outer}>
-            <button onClick={() => {}}>Outer {outer}</button>
-            {For(innerItems, (inner) => (
-              <span key={inner} onClick={() => {}}>
-                {outer}-{inner}
-              </span>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
-    const result = toString(element, window);
-    // Container: data-dyn="0.0"
-    // Outer loop items: data-dyn="0.0.X.0" (where X is the item index)
-    // Inner loop items: data-dyn="0.0.X.Y" (where Y is the inner item index within that outer item)
-    expect(result).toContain('data-dyn="0.0"');
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.1"/);
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.2"/);
-  });
-
-  it('should increment indices correctly within a branch', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-
-    const items = Cell.source(['Item 1', 'Item 2', 'Item 3']);
-    const element = (
-      <div>
-        {For(items, (item, _index) => (
-          <button key={item} type="button" onClick={() => {}}>
-            {item}
-          </button>
-        ))}
-      </div>
-    );
-    const result = toString(element, window);
-    // Container: data-dyn="0.0"
-    // Each item gets data-dyn="0.0.X.0" where X is the item index
-    expect(result).toContain('data-dyn="0.0"');
-    expect(result).toMatch(/data-dyn="0\.0\.0\.0"/);
-    expect(result).toMatch(/data-dyn="0\.0\.1\.0"/);
-    expect(result).toMatch(/data-dyn="0\.0\.2\.0"/);
-  });
-
-  it('should handle For with reactive items and dynamic children', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-
-    const items = Cell.source(['a', 'b']);
-    const element = (
-      <ul>
-        {For(items, (item) => (
-          <li key={item}>
-            <button onClick={() => {}}>{item}</button>
-            <span class={Cell.source('class-' + item)}>Text</span>
-          </li>
-        ))}
-      </ul>
-    );
-    const result = toString(element, window);
-    // Container: data-dyn="0.0"
-    // Each li contains multiple dynamic elements with sequential indices
-    expect(result).toContain('data-dyn="0.0"');
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.1"/);
-  });
-
-  it('should handle deeply nested control flow structures', async () => {
-    const renderer = getActiveRenderer() as VDOMRenderer;
-    const { host: window } = renderer;
-
     const items = Cell.source(['a']);
     const condition = Cell.source(true);
     const element = (
@@ -619,23 +361,31 @@ const multiDimensionalMarkerTests = () => {
         {For(items, (item) => (
           <div key={item}>
             {If(condition, {
-              true: () => (
-                <span>
-                  <button onClick={() => {}}>Deep</button>
-                </span>
-              ),
+              true: () => <button onClick={() => {}}>Deep</button>,
             })}
           </div>
         ))}
       </div>
     );
     const result = toString(element, window);
-    // Container: data-dyn="0.0"
-    // For item: data-dyn="0.0.X.0"
-    // If branch: data-dyn="0.0.X.0.Y.0"
-    // Button: data-dyn="0.0.X.0.Y.0.Z.0"
-    expect(result).toContain('data-dyn="0.0"');
-    expect(result).toMatch(/data-dyn="0\.0\.\d+\.0"/);
+
+    expect(result).toBe(
+      '<div><!--retend:range-start--><div><!--retend:range-start--><button>Deep</button><!--retend:range-end--></div><!--retend:range-end--></div>'
+    );
+  });
+
+  it('serializes an empty reactive text slot explicitly', async () => {
+    const renderer = getActiveRenderer() as VDOMRenderer;
+    const { host: window } = renderer;
+    const element = (
+      <div>
+        {Cell.source('')}
+        <span>Next</span>
+      </div>
+    );
+    const result = toString(element, window);
+
+    expect(result).toBe('<div><!--retend:empty-text--><span>Next</span></div>');
   });
 };
 
@@ -650,9 +400,8 @@ describe('JSX Serialization', () => {
     runTests();
   });
 
-  describe('VDom (Dynamic)', () => {
-    vDomSetup({ markDynamicNodes: true });
-    dynamicTests();
-    multiDimensionalMarkerTests();
+  describe('VDom (Reactive)', () => {
+    vDomSetup();
+    reactiveTests();
   });
 });

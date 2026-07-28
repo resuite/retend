@@ -1,6 +1,11 @@
 /** @import { JSX } from 'retend/jsx-runtime' */
 
-import { getActiveRenderer, linkNodes, createNodesFromTemplate } from 'retend';
+import {
+  getActiveRenderer,
+  linkNodes,
+  createNodesFromTemplate,
+  onSetup,
+} from 'retend';
 import { getGlobalContext } from 'retend/context';
 /** @import { DOMRenderer } from './dom-renderer.js' */
 
@@ -44,57 +49,83 @@ import { getGlobalContext } from 'retend/context';
  * ```
  */
 export function Teleport(props) {
-  const { to: target, ...rest } = props;
+  const { to: target, children, ...rest } = props;
   const { globalData } = getGlobalContext();
 
-  if (!globalData.has('teleportCounter')) {
-    globalData.set('teleportCounter', { value: 0 });
-  }
-  const teleportCounter = globalData.get('teleportCounter');
+  const teleportCounter = globalData.get('teleportCounter') ?? { value: 0 };
+  globalData.set('teleportCounter', teleportCounter);
 
   const renderer = /** @type {DOMRenderer} */ (getActiveRenderer());
-  /** @type {string | undefined} */
-  const teleportId = `teleport/target/${teleportCounter.value++}`;
+  let disposed = false;
+  let mountedCleanup = () => {};
 
-  /** @param {Node} [anchor] */
-  const mountTeleportedNodes = async (anchor) => {
-    if (anchor && !anchor.isConnected) return false;
+  const dispose = () => {
+    disposed = true;
+    mountedCleanup();
+  };
+
+  onSetup(() => dispose);
+
+  /**
+   * @param {Node} [anchor]
+   * @param {boolean} [canDefer]
+   */
+  const mountTeleportedNodes = (anchor, canDefer) => {
+    const source = /** @type {Node} */ (anchor);
+    const teleportId = (source.textContent ?? '').slice(
+      'retend:teleport:'.length
+    );
+    const wasCanceled = disposed || !source.isConnected;
 
     const parent = renderer.host.document.querySelector(target);
     if (!parent) {
-      const message = `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`;
-      console.error(message);
-      return;
+      if (!wasCanceled && !canDefer) {
+        console.error(
+          `Could not find teleport target, ${target} is not a matched id or tagname in the DOM.`
+        );
+      }
+      return wasCanceled ? null : false;
     }
 
-    props.children = createNodesFromTemplate(props.children, renderer);
-    const newInstance = renderer.createContainer('retend-teleport', props);
+    if (wasCanceled) {
+      Array.from(parent.querySelectorAll('retend-teleport'))
+        .find(
+          (candidate) =>
+            candidate.getAttribute('data-teleport-id') === teleportId
+        )
+        ?.remove();
+      return null;
+    }
+
+    const hydratedContainer = renderer.claimHydrationTeleportContainer?.(
+      parent,
+      teleportId
+    );
+    const newInstance =
+      hydratedContainer ?? renderer.createContainer('retend-teleport', props);
     renderer.setProperty(newInstance, 'data-teleport-id', teleportId);
 
-    for (const [key, value] of Object.entries(rest)) {
-      if (key === 'children') continue;
+    for (const [key, value] of Object.entries(rest))
       renderer.setProperty(newInstance, key, value);
-    }
-    if (anchor) {
-      Reflect.set(anchor, '__retendTeleportedContainer', newInstance);
-    }
+    Reflect.set(source, '__retendTeleportedContainer', newInstance);
 
-    const children = createNodesFromTemplate(props.children, renderer);
-    for (const child of children) {
+    for (const child of createNodesFromTemplate(children, renderer))
       linkNodes(newInstance, child, renderer);
-    }
 
-    renderer.append(parent, newInstance);
-    queueMicrotask(() => {
-      renderer.observer?.flush();
-    });
-    return () => {
-      if (anchor) {
-        Reflect.deleteProperty(anchor, '__retendTeleportedContainer');
-      }
+    if (!hydratedContainer) renderer.append(parent, newInstance);
+    queueMicrotask(() => renderer.observer?.flush());
+
+    mountedCleanup = () => {
+      Reflect.deleteProperty(source, '__retendTeleportedContainer');
       newInstance.remove();
     };
+
+    if (disposed) mountedCleanup();
+    return disposed ? null : dispose;
   };
 
-  return renderer.scheduleTeleport(mountTeleportedNodes);
+  return renderer.scheduleTeleport(
+    mountTeleportedNodes,
+    `teleport/target/${teleportCounter.value++}`
+  );
 }

@@ -1,10 +1,12 @@
 import {
+  Await,
   onConnected,
   Cell,
   For,
   If,
   createUnique,
   setActiveRenderer,
+  waitForAsyncBoundaries,
 } from 'retend';
 import { hydrate, renderToString } from 'retend-server/client';
 import { VDOMRenderer, VWindow } from 'retend-server/v-dom';
@@ -101,20 +103,26 @@ describe('Hydration parent dialog close', () => {
     });
 
     const serverWindow = new VWindow();
-    const serverRenderer = new VDOMRenderer(serverWindow, {
-      markDynamicNodes: true,
-    });
+    const serverRenderer = new VDOMRenderer(serverWindow);
     setActiveRenderer(serverRenderer);
 
     const serverRouter = createRouter();
     await serverRouter.navigate('/parent');
-    const serverRoot = createRouterRoot(serverRouter);
-    serverWindow.document.body.append(serverRoot);
+    const serverRoot = serverRenderer.render(() =>
+      Await({
+        fallback: null,
+        children: () => createRouterRoot(serverRouter),
+      })
+    );
+    const serverNodes = Array.isArray(serverRoot) ? serverRoot : [serverRoot];
+    serverWindow.document.body.append(...serverNodes);
+    await waitForAsyncBoundaries();
     const html = renderToString(serverWindow.document.body, serverWindow);
 
     window.document.body.setHTMLUnsafe(
-      `<div id="app">${html}</div><script data-server-context type="application/json">{"path":"/parent"}</script>`
+      `<div id="app" data-retend-hydration="1">${html}</div>`
     );
+    window.history.replaceState(null, '', '/parent');
 
     const consoleErrorSpy = vi
       .spyOn(console, 'error')

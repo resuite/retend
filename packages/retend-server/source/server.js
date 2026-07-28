@@ -1,12 +1,11 @@
 /** @import { VNode } from './v-dom/index.js' */
 /** @import {
  *    BuildOptions,
- *    ServerContext,
  *    RenderOptions,
  * } from './types.js'
  */
 /** @import { ChildNode } from 'domhandler' */
-/** @import { VWindow, VDOMRenderer } from './v-dom/index.js'; */
+/** @import { VWindow } from './v-dom/index.js'; */
 
 import { Comment, Element, Text } from 'domhandler';
 import { parseDocument } from 'htmlparser2';
@@ -94,123 +93,94 @@ async function renderPath(options) {
   } = options;
 
   const window = buildWindowFromHtmlText(htmlShell, vdomModule.VWindow);
-  const renderer = new vdomModule.VDOMRenderer(window, {
-    markDynamicNodes: true,
-  });
+  const renderer = new vdomModule.VDOMRenderer(window);
 
-  const globalData = new Map();
-  globalData.set('env:ssr', true);
-  const globalContextStore = {
-    renderer,
-    path,
-    globalData,
-  };
   /** @type {(HtmlOutputArtifact | RedirectOutputArtifact)[]} */
   const outputs = [];
 
-  await asyncLocalStorage.run(globalContextStore, async () => {
-    const store = asyncLocalStorage.getStore();
-    if (!store) throw new Error('No store found');
+  await asyncLocalStorage.run(
+    { renderer, path, globalData: new Map([['env:ssr', true]]) },
+    async () => {
+      const { document, location } = window;
+      location.href = path;
 
-    const { path } = store;
-    /** @type {VDOMRenderer} */ // @ts-expect-error
-    const renderer = retendModule.getActiveRenderer();
-    const { host: window } = renderer;
+      const router = routerModule.createRouter();
+      const currentRoute = router.getCurrentRoute();
+      // @ts-expect-error: window is mocked by vdom.
+      router.attachWindowListeners(window);
 
-    const { document, location } = window;
-    location.href = path;
+      addMetaListener(router, document);
 
-    const router = routerModule.createRouter();
-    const currentRoute = router.getCurrentRoute();
-    // @ts-expect-error: window is mocked by vdom.
-    router.attachWindowListeners(window);
+      const appElement = document.querySelector(rootSelector);
+      if (!appElement) {
+        console.warn('appElement not found while rendering', path);
+        return;
+      }
+      appElement.setAttribute('data-retend-hydration', '1');
+      const renderedRoot = renderer.render(() =>
+        retendModule.Await({
+          children: () => retendRouterModule.createRouterRoot(router),
+        })
+      );
+      appElement.replaceChildren(...[renderedRoot].flat());
 
-    addMetaListener(router, document);
+      await router.navigate(path);
+      await retendModule.waitForAsyncBoundaries();
+      let stalledTeleports = false;
+      while (document.teleportMounts.length) {
+        const resolved = await document.mountAllTeleports();
+        await retendModule.waitForAsyncBoundaries();
+        if (!resolved && stalledTeleports) {
+          throw new Error('Could not resolve Teleport target.');
+        }
+        stalledTeleports = resolved === 0;
+      }
 
-    const appElement = document.querySelector(rootSelector);
-    if (!appElement) {
-      console.warn('appElement not found while rendering', path);
-      return;
-    }
-    const renderedRoot = renderer.render(() =>
-      retendModule.Await({
-        fallback: null,
-        children: () => retendRouterModule.createRouterRoot(router),
-      })
-    );
-    const nodes = Array.isArray(renderedRoot) ? renderedRoot : [renderedRoot];
-    appElement.replaceChildren(...nodes);
+      if (document.title) {
+        document
+          .querySelector('title')
+          ?.replaceChildren(document.createTextNode(document.title));
+      }
 
-    await router.navigate(path);
-    await retendModule.waitForAsyncBoundaries();
+      const finalPath = currentRoute.get().fullPath;
+      const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
 
-    const pageTitle = document.title;
-    if (pageTitle) {
-      document
-        .querySelector('title')
-        ?.replaceChildren(document.createTextNode(pageTitle));
-    }
+      const stringify = () => {
+        const contents = `<!DOCTYPE html>${renderToString(document, window)}`;
+        window.close(); // destroys timeouts and intervals.
+        return contents;
+      };
 
-    await document.mountAllTeleports();
+      outputs.push(new HtmlOutputArtifact(name, window, stringify));
+      if (path === finalPath || skipRedirects) return;
 
-    // The server context can restore useful information about
-    // the app for a client-side hydration.
-    /** @type {ServerContext} */
-    const ctx = {
-      path,
-    };
-    const payload = JSON.stringify(ctx);
-    document.body.append(
-      document.createMarkupNode(
-        `<script data-server-context type="application/json">${payload}</script>`
-      )
-    );
+      // Add redirect to both HTML and _redirects file
+      const redirectContent = generateRedirectHtmlContent(finalPath);
+      const redirectWindow = buildWindowFromHtmlText(
+        redirectContent,
+        vdomModule.VWindow
+      );
 
-    const finalPath = currentRoute.get().fullPath;
-    const name = `${finalPath.replace(/^\//, '') || 'index'}.html`;
+      // Create redirect entry for _redirects file
+      const redirectEntry = `${path} ${finalPath} 301`;
+      outputs.push(
+        new RedirectOutputArtifact('_redirects', `${redirectEntry}\n`)
+      );
 
-    const stringify = () => {
-      const htmlContents = renderToString(document, window);
-      const contents = `<!DOCTYPE html>${htmlContents}`;
-      window.close(); // destroys timeouts and intervals.
-      return contents;
-    };
-
-    outputs.push(new HtmlOutputArtifact(name, window, stringify));
-    if (path === finalPath || skipRedirects) return;
-
-    // Add redirect to both HTML and _redirects file
-    const redirectContent = generateRedirectHtmlContent(finalPath);
-    const redirectWindow = buildWindowFromHtmlText(
-      redirectContent,
-      vdomModule.VWindow
-    );
-
-    // Create redirect entry for _redirects file
-    const redirectEntry = `${path} ${finalPath} 301`;
-    outputs.push(
-      new RedirectOutputArtifact('_redirects', `${redirectEntry}\n`)
-    );
-
-    /** @type {string} */
-    let redirectFileName;
-
-    if (path === '/' || path.endsWith('/')) {
       const normalizedPath = path === '/' ? '' : path.slice(1, -1);
-      redirectFileName = `${normalizedPath}/index.html`;
-      if (normalizedPath === '') redirectFileName = 'index.html';
-    } else {
-      redirectFileName = `${path.replace(/^\/+/, '')}.html`;
-    }
+      const redirectFileName = path.endsWith('/')
+        ? `${normalizedPath ? `${normalizedPath}/` : ''}index.html`
+        : `${path.replace(/^\/+/, '')}.html`;
 
-    outputs.push(
-      new HtmlOutputArtifact(
-        redirectFileName,
-        redirectWindow,
-        () => redirectContent
-      )
-    );
-  });
+      outputs.push(
+        new HtmlOutputArtifact(
+          redirectFileName,
+          redirectWindow,
+          () => redirectContent
+        )
+      );
+    }
+  );
 
   return outputs;
 }

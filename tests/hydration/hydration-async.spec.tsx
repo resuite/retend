@@ -1,12 +1,14 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { Cell, For, If, Switch } from 'retend';
+import { Cell, For, If, Switch, waitForAsyncBoundaries } from 'retend';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { browserSetup, timeout } from '../setup.tsx';
 import {
+  createHydrationClientRenderer,
   renderHydrationServerHtml,
   setupHydration as setupAsyncHydrationHelper,
+  startHydration as startHydrationFlow,
 } from './hydration-helpers.tsx';
 
 const setupHydration = (templateFn: () => JSX.Template) =>
@@ -54,7 +56,33 @@ describe('Hydration async', () => {
     vi.useRealTimers();
   });
 
-  it('serializes unresolved control-flow ranges with explicit open/close comment markers', async () => {
+  it('stops waiting for late async work when its branch is disposed', async () => {
+    vi.useRealTimers();
+    const show = Cell.source(false);
+    const template = () => (
+      <div>
+        {If(show, () => {
+          const pending = Cell.derivedAsync(async () => new Promise(() => {}));
+          return <span>{pending}</span>;
+        })}
+      </div>
+    );
+    const html = await setupServerRender(template);
+    const { renderer } = createHydrationClientRenderer(html);
+    startHydrationFlow(renderer, template, true);
+    await waitForAsyncBoundaries();
+
+    show.set(true);
+    show.set(false);
+
+    const completed = await Promise.race([
+      renderer.endHydration().then(() => true),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), 100)),
+    ]);
+    expect(completed).toBe(true);
+  });
+
+  it('serializes unresolved control-flow ranges with structural comment markers', async () => {
     const gate = Cell.source(true);
     const mode = Cell.source<'idle' | 'done'>('idle');
     const items = Cell.source(['A', 'B']);
@@ -103,61 +131,11 @@ describe('Hydration async', () => {
 
     const html = await setupServerRender(template);
 
-    const openCount = (html.match(/<!--\[-->/g) ?? []).length;
-    const closeCount = (html.match(/<!--\]-->/g) ?? []).length;
+    const openCount = (html.match(/<!--retend:range-start-->/g) ?? []).length;
+    const closeCount = (html.match(/<!--retend:range-end-->/g) ?? []).length;
 
     expect(openCount).toBeGreaterThanOrEqual(3);
     expect(closeCount).toBe(openCount);
-  });
-
-  it('skips static serialized range content when live async control-flow range is still pending', async () => {
-    const show = Cell.source(true);
-    const template = () => {
-      const liveShow = Cell.derivedAsync(async (get) => {
-        const value = get(show);
-        await timeout(20);
-        return value;
-      });
-
-      return (
-        <div id="range-root">
-          <span id="range-before">Before</span>
-          <div id="range-container">
-            {If(liveShow, {
-              true: () => <span id="range-payload">Payload</span>,
-              false: () => <span id="range-empty">Empty</span>,
-            })}
-          </div>
-          <span id="range-after">After</span>
-        </div>
-      );
-    };
-
-    const { document } = await setupHydration(template);
-    const container = document.querySelector('#range-container');
-    const openComment = Array.from(container?.childNodes ?? []).find(
-      (node) => node.nodeType === Node.COMMENT_NODE && node.textContent === '['
-    );
-    const closeComment = Array.from(container?.childNodes ?? []).find(
-      (node) => node.nodeType === Node.COMMENT_NODE && node.textContent === ']'
-    );
-
-    expect(container).not.toBeNull();
-    expect(document.querySelector('#range-payload')?.textContent).toBe(
-      'Payload'
-    );
-    expect(openComment).not.toBeUndefined();
-    expect(closeComment).not.toBeUndefined();
-
-    await vi.advanceTimersByTimeAsync(30);
-    expect(document.querySelectorAll('#range-payload').length).toBe(1);
-    expect(document.querySelector('#range-empty')).toBeNull();
-
-    show.set(false);
-    await vi.advanceTimersByTimeAsync(30);
-    expect(document.querySelector('#range-payload')).toBeNull();
-    expect(document.querySelector('#range-empty')?.textContent).toBe('Empty');
-    expect(errorSpy?.mock.calls.length ?? 0).toBe(0);
   });
 
   it('keeps interactive siblings working while an earlier async control-flow range is unresolved', async () => {
@@ -807,7 +785,9 @@ describe('Hydration async', () => {
       );
     };
 
-    const { document } = await setupHydration(template);
+    const html = await setupServerRender(template);
+    const { renderer, document } = createHydrationClientRenderer(html);
+    startHydrationFlow(renderer, template, true);
     const preHydrationInside = document.querySelector(
       '#inside-btn'
     ) as HTMLButtonElement | null;
@@ -821,6 +801,8 @@ describe('Hydration async', () => {
     expect(outsideCount?.textContent).toBe('1');
 
     await vi.advanceTimersByTimeAsync(80);
+    await waitForAsyncBoundaries();
+    await renderer.endHydration();
     const hydratedInside = document.querySelector(
       '#inside-btn'
     ) as HTMLButtonElement | null;
@@ -996,6 +978,11 @@ describe('Hydration async', () => {
 
   it('hydrates pending async style value without Await', async () => {
     const color = Cell.source('red');
+    const serverTemplate = () => (
+      <p id="async-style" style={{ color: 'red' }}>
+        Styled
+      </p>
+    );
 
     const template = () => {
       const asyncColor = Cell.derivedAsync(async (get) => {
@@ -1011,10 +998,17 @@ describe('Hydration async', () => {
       );
     };
 
-    const { document } = await setupHydration(template);
+    const html = await renderHydrationServerHtml(serverTemplate);
+    const { renderer, document } = createHydrationClientRenderer(html);
+    expect(
+      (document.querySelector('#async-style') as HTMLElement | null)?.style
+        .color
+    ).toBe('red');
+    startHydrationFlow(renderer, template);
+    await renderer.endHydration();
     const node = document.querySelector('#async-style') as HTMLElement | null;
 
-    expect(node?.style.color).toBe('');
+    expect(node?.style.color).toBe('red');
 
     await vi.advanceTimersByTimeAsync(30);
     expect(node?.style.color).toBe('red');
@@ -1266,17 +1260,25 @@ describe('Hydration async', () => {
     expect(container).not.toBeNull();
     const switchContainer = container as Element;
     const initialComments = getCommentNodes(switchContainer);
-    expect(initialComments.some((node) => node.textContent === '[')).toBe(true);
-    expect(initialComments.some((node) => node.textContent === ']')).toBe(true);
+    expect(
+      initialComments.some((node) => node.textContent === 'retend:range-start')
+    ).toBe(true);
+    expect(
+      initialComments.some((node) => node.textContent === 'retend:range-end')
+    ).toBe(true);
 
     await vi.advanceTimersByTimeAsync(30);
     expect(document.querySelector('#switch-idle')?.textContent).toBe('Idle');
     const children = Array.from(switchContainer.childNodes);
     const openIndex = children.findIndex(
-      (node) => node.nodeType === Node.COMMENT_NODE && node.textContent === '['
+      (node) =>
+        node.nodeType === Node.COMMENT_NODE &&
+        node.textContent === 'retend:range-start'
     );
     const closeIndex = children.findIndex(
-      (node) => node.nodeType === Node.COMMENT_NODE && node.textContent === ']'
+      (node) =>
+        node.nodeType === Node.COMMENT_NODE &&
+        node.textContent === 'retend:range-end'
     );
     const idleIndex = children.findIndex(
       (node) =>
@@ -1331,17 +1333,29 @@ describe('Hydration async', () => {
       );
     };
 
-    const { document } = await setupHydration(template);
+    const html = await setupServerRender(template);
+    const { renderer, document } = createHydrationClientRenderer(html);
+    const serverList = document.querySelector('#nested-list');
+    const serverItems = Array.from(document.querySelectorAll('.nested-item'));
+    startHydrationFlow(renderer, template, true);
 
     expect(document.querySelector('#nested-list')).not.toBeNull();
     expect(document.querySelector('#nested-empty')).toBeNull();
+    expect(document.querySelectorAll('.nested-item').length).toBe(2);
 
     await vi.advanceTimersByTimeAsync(15);
-    expect(document.querySelector('#nested-list')).not.toBeNull();
-    expect(document.querySelectorAll('.nested-item').length).toBe(0);
+    expect(document.querySelector('#nested-list')).toBe(serverList);
+    expect(Array.from(document.querySelectorAll('.nested-item'))).toEqual(
+      serverItems
+    );
 
     await vi.advanceTimersByTimeAsync(20);
-    expect(document.querySelectorAll('.nested-item').length).toBe(2);
+    await waitForAsyncBoundaries();
+    await renderer.endHydration();
+    expect(document.querySelector('#nested-list')).toBe(serverList);
+    expect(Array.from(document.querySelectorAll('.nested-item'))).toEqual(
+      serverItems
+    );
 
     items.set(['X', 'Y', 'Z']);
     await vi.advanceTimersByTimeAsync(30);

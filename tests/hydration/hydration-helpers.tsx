@@ -1,12 +1,6 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import {
-  Await,
-  branchState,
-  setActiveRenderer,
-  waitForAsyncBoundaries,
-  withState,
-} from 'retend';
+import { Await, setActiveRenderer, waitForAsyncBoundaries } from 'retend';
 import { renderToString } from 'retend-server/client';
 import { VDOMRenderer, type VNode, VWindow } from 'retend-server/v-dom';
 import { DOMRenderer } from 'retend-web';
@@ -27,9 +21,7 @@ export const renderHydrationServerHtml = async (
 ) => {
   resetHydrationContext();
   const serverWindow = new VWindow();
-  const serverRenderer = new VDOMRenderer(serverWindow, {
-    markDynamicNodes: true,
-  });
+  const serverRenderer = new VDOMRenderer(serverWindow);
   setActiveRenderer(serverRenderer);
   const serverTemplate = isAsync
     ? () =>
@@ -49,18 +41,28 @@ export const renderHydrationServerHtml = async (
     }
     await waitForBoundaries;
   }
-  await serverWindow.document.mountAllTeleports();
+  let stalledTeleports = false;
+  while (serverWindow.document.teleportMounts.length) {
+    const resolved = await serverWindow.document.mountAllTeleports();
+    const waitForBoundaries = waitForAsyncBoundaries();
+    if (vi.isFakeTimers()) await vi.runAllTimersAsync();
+    await waitForBoundaries;
+    if (!resolved && stalledTeleports) {
+      throw new Error('Could not resolve Teleport target.');
+    }
+    stalledTeleports = resolved === 0;
+  }
   return renderToString(serverWindow.document.body, serverWindow);
 };
 
 export const createHydrationClientRenderer = (html: string) => {
-  const shell = `<div id="app">${html}</div>`;
+  const shell = `<div id="app" data-retend-hydration="1">${html}</div>`;
   window.document.body.setHTMLUnsafe(shell);
   resetHydrationContext();
   const renderer = new DOMRenderer(window);
   setActiveRenderer(renderer);
-  renderer.enableHydrationMode();
   const root = window.document.querySelector('#app') as HTMLElement | null;
+  renderer.enableHydrationMode(root as HTMLElement);
   return {
     renderer,
     document: window.document,
@@ -75,8 +77,12 @@ export const startHydration = (
   isAsync = false
 ) => {
   if (isAsync) {
-    const hydrationRoot = branchState();
-    withState(hydrationRoot, () => renderer.render(templateFn));
+    renderer.render(() =>
+      Await({
+        fallback: null,
+        children: templateFn,
+      })
+    );
     return;
   }
   renderer.render(templateFn);
@@ -90,6 +96,15 @@ export const setupHydration = async (
   const { renderer, document, root, window } =
     createHydrationClientRenderer(html);
   startHydration(renderer, templateFn, isAsync);
+  if (isAsync) {
+    const waitForBoundaries = waitForAsyncBoundaries();
+    if (vi.isFakeTimers()) {
+      await Promise.resolve();
+      await vi.runAllTimersAsync();
+    }
+    await waitForBoundaries;
+    await Promise.resolve();
+  }
   await renderer.endHydration();
 
   return { html, window, document, root, renderer };

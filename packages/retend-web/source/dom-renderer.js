@@ -3,44 +3,49 @@
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
 import {
-  Await,
   Cell,
   branchState,
   createNodesFromTemplate,
   createScope,
-  getState,
   normalizeJsxChild,
   withState,
   onConnected,
   setActiveRenderer,
   runPendingSetupEffects,
-  linkNodes,
   useScopeContext,
+  waitForAsyncBoundaries,
 } from 'retend';
 
 import * as Ops from './dom-ops.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
-import {
-  DeferredHandleSymbol,
-  Skip,
-  containerIsDynamic,
-  flattenJSXChildren,
-  isReactiveChild,
-} from './utils.js';
 
-const COMMENT_NODE = 8;
+const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
+const COMMENT_NODE = 8;
 const DOCUMENT_FRAGMENT_NODE = 11;
 /** @type {Scope<string>} */
 const NamespaceScope = createScope('retend-web:Namespace');
 const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const MATH_NAMESPACE = 'http://www.w3.org/1998/Math/MathML';
+const TELEPORT_ANCHOR_PREFIX = 'retend:teleport:';
+const HYDRATION = Symbol();
+/** @type {(value: any) => any} */
+const getHydrationData = (value) => value?.[HYDRATION];
+/** @type {(value: any) => any} */
+const hydrationData = (value) => (value[HYDRATION] ??= {});
+
+class HydrationMismatchError extends Error {}
 
 /**
  * @typedef {Element & HiddenElementProperties} JsxElement
  * @typedef {[ConnectedComment, ConnectedComment]} DOMHandle
  * @typedef {Renderer<DOMRenderingTypes>} DOMRendererInterface
+ * @typedef {{ parent: ParentNode, nextChild: ChildNode | null, parentFrame?: HydrationFrame, end?: Comment, start?: Comment, claimed?: boolean }} HydrationFrame
+ * @typedef {HydrationFrame & { start: Comment, end: Comment, parentFrame: HydrationFrame }} HydrationRange
+ * @typedef {{ parent?: ParentNode, before?: ChildNode | null, opaque?: boolean }} HydrationClaim
+ * @typedef {{ roots: ParentNode[], frame: HydrationFrame | null, teleports: Array<() => Promise<unknown> | unknown> }} HydrationContext
+ * @typedef {{ fragment?: DocumentFragment, frame?: HydrationFrame, phase?: 1 | 2 | 3, client?: boolean }} HydrationHandleState
  */
 
 /**
@@ -71,22 +76,10 @@ export class DOMRenderer {
   observer = null;
   staticStyleIds = new Set();
 
-  #isHydrationModeEnabled = false;
-
-  /** @type {Array<{ callback: () => Promise<*> }>} */
-  #scheduledHydrationTeleports = [];
-  /** @type {Set<Promise<void>>} */
-  #pendingHydrationTasks = new Set();
-  /** @type {Set<any[]>} */
-  #deferredHydrationHandles = new Set();
-
-  #hydratingBranchCount = 0;
-  /** @type {Map<string, JsxElement>} */
-  #table = new Map();
-  #hydratedNodes = new WeakSet();
   #savedHandles = new Map();
   #savedHandleId = 0;
-
+  /** @type {HydrationContext | null} */
+  #hydration = null;
   /** @param {Window} host */
   constructor(host) {
     this.host = host;
@@ -102,17 +95,9 @@ export class DOMRenderer {
    * @returns {Node | Node[]}
    */
   render(app) {
-    const rootBranch = getState();
-    if (!this.#isHydrationModeEnabled) {
-      return normalizeJsxChild(app, this);
-    }
-
-    this.#enterHydrationBranch(rootBranch);
-    try {
-      return normalizeJsxChild(app, this);
-    } finally {
-      this.#leaveHydrationBranch(rootBranch);
-    }
+    const result = normalizeJsxChild(app, this);
+    if (this.#hydration?.frame) queueMicrotask(() => this.observer?.flush());
+    return result;
   }
 
   /**
@@ -127,17 +112,41 @@ export class DOMRenderer {
    * @returns {DOMHandle}
    */
   createGroupHandle(fragment) {
-    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      /** @type {DeferredHandleSymbol[]} */ // @ts-expect-error
-      const array = fragment;
-      const symbol = new DeferredHandleSymbol([]);
-      array.splice(0, 0, symbol);
-      array.push(symbol);
-      this.#deferredHydrationHandles.add(array);
-      // @ts-expect-error
-      return array;
+    const hydration = this.#hydration;
+    if (!hydration?.frame) {
+      const handle = Ops.createGroupHandle(fragment, this);
+      if (hydration) hydrationData(handle).client = true;
+      return handle;
     }
-    return Ops.createGroupHandle(fragment, this);
+
+    const frame = this.#currentHydrationFrame();
+    const range =
+      frame?.start && !frame.claimed
+        ? /** @type {HydrationRange} */ (frame)
+        : frame && this.#enterImmediateRange(frame);
+    if (!range) throw new HydrationMismatchError('Expected a dynamic range.');
+    range.claimed = true;
+    if (
+      this.#getFragmentChildren(fragment).some((node) => !this.#isClaimed(node))
+    ) {
+      throw new HydrationMismatchError('Unexpected dynamic range content.');
+    }
+
+    hydrationData(range.end).claim = {
+      parent: range.parentFrame.parent,
+      before: range.end.nextSibling,
+    };
+    range.parentFrame.nextChild = range.end.nextSibling;
+    hydration.frame = range.parentFrame;
+
+    const handle = /** @type {DOMHandle} */ ([range.start, range.end]);
+    hydrationData(fragment).children = this.#getHandleNodes(handle);
+    Object.assign(hydrationData(handle), {
+      fragment,
+      frame: range,
+      phase: 1,
+    });
+    return handle;
   }
 
   /**
@@ -145,15 +154,46 @@ export class DOMRenderer {
    * @param {Node[]} newContent
    */
   write(segment, newContent) {
-    if (this.#isHydrationModeEnabled) {
-      Ops.finalizeHydrationHandleSegment(segment);
-      if (this.#getHydrationState()) {
-        //@ts-expect-error
-        segment.splice(1, segment.length - 2, ...newContent);
-        return segment;
+    const nodes = newContent.flatMap((node) =>
+      this.isGroup(node) ? this.#getFragmentChildren(node) : node
+    );
+    const state = /** @type {HydrationHandleState | undefined} */ (
+      getHydrationData(segment)
+    );
+    const hydrating = Boolean(this.#hydration?.frame);
+
+    if (hydrating && state?.phase) {
+      if (state.phase === 3) {
+        state.phase = 1;
+        return;
       }
+      if (nodes.some((node) => !this.#isClaimed(node) && !node.isConnected)) {
+        throw new HydrationMismatchError('Unexpected dynamic range content.');
+      }
+      state.phase = undefined;
+      return;
     }
-    return Ops.write(segment, newContent);
+
+    if (
+      hydrating &&
+      !state?.client &&
+      nodes.some((node) => !this.#isClaimed(node))
+    ) {
+      throw new HydrationMismatchError('Unexpected dynamic range content.');
+    }
+
+    const result = Ops.write(segment, nodes);
+    if (state?.fragment) {
+      hydrationData(state.fragment).children = [
+        segment[0],
+        ...nodes,
+        segment[1],
+      ];
+    }
+    if (hydrating && state?.client) {
+      for (const node of nodes) this.#markClientNode(node);
+    }
+    return result;
   }
 
   /**
@@ -161,9 +201,6 @@ export class DOMRenderer {
    * @returns {number}
    */
   save(handle) {
-    if (this.#isHydrationModeEnabled) {
-      Ops.finalizeHydrationHandleSegment(handle);
-    }
     const id = this.#savedHandleId++;
     const nodes = [];
     let node = handle[0].nextSibling;
@@ -191,24 +228,29 @@ export class DOMRenderer {
    * @param {ReconcilerOptions<Node>} options
    */
   reconcile(segment, options) {
-    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      Ops.finalizeHydrationHandleSegment(segment);
-    }
-    // On first reconcile pass, a range may already contain untracked nodes
-    // (e.g. server-rendered content before first async client resolve).
-    // Clear them once so reconcile does not duplicate content.
-    const cacheFromLastRun = options.cacheFromLastRun;
-    if (cacheFromLastRun && cacheFromLastRun.size === 0) {
-      const start = segment[0];
-      const end = segment[1];
-      let cursor = start?.nextSibling;
-      while (cursor && cursor !== end) {
-        const next = cursor.nextSibling;
-        cursor.remove();
-        cursor = next;
+    const state = /** @type {HydrationHandleState | undefined} */ (
+      getHydrationData(segment)
+    );
+    if (this.#hydration?.frame) {
+      for (const { nodes } of options.newCache.values()) {
+        for (const node of nodes) {
+          if (!this.#isClaimed(node) && !node.isConnected && !state?.client) {
+            throw new HydrationMismatchError('Unexpected list content.');
+          }
+          if (state?.client) this.#markClientNode(node);
+        }
+      }
+      if (state?.phase) {
+        state.phase = undefined;
+        return;
       }
     }
-    return Ops.reconcile(segment, options, this);
+
+    const result = Ops.reconcile(segment, options, this);
+    if (state?.fragment) {
+      hydrationData(state.fragment).children = this.#getHandleNodes(segment);
+    }
+    return result;
   }
 
   /**
@@ -219,56 +261,45 @@ export class DOMRenderer {
    * @returns {N}
    */
   setProperty(node, key, value) {
-    if (!this.#isHydrationModeEnabled) {
-      return Ops.setProperty(node, key, value);
-    }
-    // Allow retend:collection even for Skip objects during hydration,
-    // so the For cache can be updated when Skip is resolved to real DOM.
-    if (
-      this.#getHydrationState() &&
-      node instanceof Skip &&
-      key !== 'retend:collection'
-    ) {
-      return node;
-    }
     return Ops.setProperty(node, key, value);
   }
 
   /**
    * @param {__HMR_UpdatableFn} tagname
    * @param {any[]} props
-   * @param {StateSnapshot} [_]
+   * @param {StateSnapshot} [snapshot]
    * @param {JSX.JSXDevFileData} [fileData]
    * @returns {Node | Node[]}
    */
-  handleComponent(tagname, props, _, fileData) {
-    if (!this.#isHydrationModeEnabled) {
-      // @ts-expect-error: Vite types are not ingrained
-      if (import.meta.env?.DEV) {
-        return withHMRBoundaries(tagname, props, fileData, this);
-      }
-      // @ts-expect-error: Rspack types are not ingrained
-      if (import.meta.webpackHot) {
-        return withHMRBoundaries(tagname, props, fileData, this);
-      }
-      const template = tagname(...props);
-      const nodes = createNodesFromTemplate(template, this);
-      return nodes.length === 1 ? nodes[0] : nodes;
+  handleComponent(tagname, props, snapshot, fileData) {
+    const handle = /** @type {DOMHandle | undefined} */ (
+      snapshot?.data?.handle
+    );
+    const state = /** @type {HydrationHandleState | undefined} */ (
+      handle && getHydrationData(handle)
+    );
+    const hydration = this.#hydration;
+    const cursor = hydration?.frame;
+    const frame = cursor ? state?.frame : undefined;
+    const phase = frame && state?.phase;
+    const speculative = Boolean(phase && frame.nextChild === frame.end);
+    const provisional = speculative && phase === 2;
+    if (provisional && state) state.phase = 3;
+
+    const client = Boolean(state?.client || (frame && !phase));
+    if (client && state) state.client = true;
+    if (cursor && handle && !frame && !client) {
+      throw new HydrationMismatchError('Missing dynamic range ownership.');
+    }
+    if (hydration && frame && handle && !speculative && !client) {
+      if (frame.nextChild === frame.end)
+        frame.nextChild = handle[0].nextSibling;
+      hydration.frame = frame;
+    } else if (hydration && (speculative || client)) {
+      hydration.frame = null;
     }
 
-    const branch = getState();
-    this.#enterHydrationBranch(branch);
     try {
-      if (tagname === Await) {
-        return withState(branchState(), () => {
-          const nodes = createNodesFromTemplate(props[0]?.children, this);
-          const group = this.createGroup();
-          const children = Array.isArray(nodes) ? nodes : [nodes];
-          for (const child of children) linkNodes(group, child, this);
-          this.createGroupHandle(group);
-          return group;
-        });
-      }
       // @ts-expect-error: Vite types are not ingrained
       if (import.meta.env?.DEV) {
         return withHMRBoundaries(tagname, props, fileData, this);
@@ -277,12 +308,14 @@ export class DOMRenderer {
       if (import.meta.webpackHot) {
         return withHMRBoundaries(tagname, props, fileData, this);
       }
-      const template = tagname(...props);
-      /** @type {Node[]} */
-      const nodes = createNodesFromTemplate(template, this);
+      const nodes = createNodesFromTemplate(tagname(...props), this);
       return nodes.length === 1 ? nodes[0] : nodes;
     } finally {
-      this.#leaveHydrationBranch(branch);
+      if (phase && state && !provisional) state.phase = 2;
+      if (hydration) {
+        if (speculative || client) hydration.frame = cursor ?? null;
+        else if (frame?.parentFrame) hydration.frame = frame.parentFrame;
+      }
     }
   }
 
@@ -291,31 +324,40 @@ export class DOMRenderer {
    * @param {Node | Node[]} childNode
    */
   append(_parentNode, childNode) {
-    const parentNode = /** @type {Element} */ (_parentNode);
-    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      // During hydration, groups are represented as plain arrays.
-      // We must still collect children into them so that
-      // normalizeJsxChild can build up fragment content.
-      if (Array.isArray(_parentNode)) {
-        if (Array.isArray(childNode)) {
-          _parentNode.push(...childNode);
-        } else if (childNode) {
-          _parentNode.push(childNode);
+    const parentNode = /** @type {Element | DocumentFragment | ShadowRoot} */ (
+      _parentNode
+    );
+    const hydration = this.#hydration;
+
+    if (hydration?.frame && childNode instanceof Ops.ShadowRootFragment) {
+      const HTMLElementCtor = /** @type {typeof HTMLElement | undefined} */ (
+        /** @type {*} */ (this.host).HTMLElement
+      );
+      if (HTMLElementCtor && parentNode instanceof HTMLElementCtor) {
+        const elementParent = /** @type {HTMLElement} */ (parentNode);
+        const shadowRoot =
+          elementParent.shadowRoot ??
+          elementParent.attachShadow({ mode: 'open' });
+        const frame = {
+          parent: shadowRoot,
+          nextChild: shadowRoot.firstChild,
+          parentFrame: /** @type {HydrationFrame} */ (hydration.frame),
+        };
+        hydration.frame = frame;
+        try {
+          return Ops.appendShadowRoot(elementParent, childNode, this);
+        } finally {
+          hydration.frame = frame.parentFrame;
         }
       }
-      return parentNode;
     }
 
     const shadowRoot = Ops.appendShadowRoot(parentNode, childNode, this);
     if (shadowRoot) return shadowRoot;
+    if (hydration?.frame)
+      return this.#appendDuringHydration(parentNode, childNode);
 
-    if (Array.isArray(childNode)) {
-      const children = childNode.filter(Boolean);
-      parentNode.append(...children);
-    } else {
-      parentNode.append(childNode);
-    }
-
+    parentNode.append(...[childNode].flat().filter(Boolean));
     return parentNode;
   }
 
@@ -332,10 +374,6 @@ export class DOMRenderer {
    * @returns {DocumentFragment}
    */
   createGroup() {
-    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      // @ts-expect-error
-      return [];
-    }
     return this.host.document.createDocumentFragment();
   }
 
@@ -344,8 +382,7 @@ export class DOMRenderer {
    * @returns {Node[]}
    */
   unwrapGroup(group) {
-    if (Array.isArray(group)) return [...group];
-    return Array.from(group.childNodes);
+    return this.#getFragmentChildren(group);
   }
 
   /**
@@ -374,73 +411,73 @@ export class DOMRenderer {
       props.xmlns = ns;
     }
 
-    const hydration = this.#isHydrationModeEnabled
-      ? this.#getHydrationState()
-      : null;
-    const isDynamic =
-      hydration && containerIsDynamic(tagname, props, isReactiveChild);
-
-    if (props && tagname !== 'retend-teleport' && 'children' in props) {
+    const hasChildren = Boolean(
+      props && tagname !== 'retend-teleport' && 'children' in props
+    );
+    /** @type {HydrationFrame | null} */
+    let hydrationFrame = null;
+    if (hasChildren) {
       const childNamespace = tagname === 'foreignObject' ? HTML_NAMESPACE : ns;
       const children = props.children;
-      props.children = () =>
-        NamespaceScope.Provider({
-          value: childNamespace,
-          children: () => children,
-          h: false,
-        });
-    }
-
-    if (hydration) {
-      if (isDynamic) {
-        const branchCursor = hydration.cursor;
-        const activeBranch = getState();
-        const index = `${activeBranch.node.id}.${branchCursor}`;
-        hydration.cursor += 1;
-
-        const staticNode = this.#table.get(index);
-        const hydrationNode =
-          staticNode && !this.#hydratedNodes.has(staticNode)
-            ? staticNode
-            : null;
-        if (hydrationNode) {
-          this.#hydratedNodes.add(hydrationNode);
-          const hydrationTask = Promise.resolve().then(() =>
-            this.#hydrateNode(hydrationNode, props)
-          );
-          this.#trackHydrationTask(activeBranch, hydrationTask);
-          return hydrationNode;
+      props.children = () => {
+        try {
+          return NamespaceScope.Provider({
+            value: childNamespace,
+            children: () => children,
+            h: false,
+          });
+        } finally {
+          if (hydrationFrame?.parentFrame && this.#hydration)
+            this.#hydration.frame = hydrationFrame.parentFrame;
         }
-      }
-      // @ts-expect-error: The types are different in hydration mode.
-      return new Skip(tagname);
+      };
     }
 
-    /** @type {JsxElement} */ // @ts-expect-error
-    const element = this.host.document.createElementNS(ns, tagname);
-    return element;
+    if (this.#hydration?.frame) {
+      const claimed = this.#claimHydrationChild((node) => {
+        if (node.nodeType !== ELEMENT_NODE) return false;
+        const element = /** @type {Element} */ (node);
+        return element.namespaceURI === ns && element.localName === tagname;
+      }, `expected <${tagname}>`);
+      const element = /** @type {JsxElement} */ (claimed);
+      if (props?.dangerouslySetInnerHTML?.__html !== undefined) {
+        hydrationData(element).claim.opaque = true;
+      }
+      if (hasChildren) hydrationFrame = this.#pushContainerFrame(element);
+      return element;
+    }
+
+    return /** @type {JsxElement} */ (
+      /** @type {unknown} */ (this.host.document.createElementNS(ns, tagname))
+    );
   }
 
   /**
    * @param {string} text
-   * @param {boolean} [isReactive]
-   * @param {boolean} [isPending]
    * @returns {Text}
    */
-  createText(text, isReactive, isPending) {
-    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      if (isReactive) {
-        const node = this.host.document.createTextNode(text);
-        // @ts-expect-error
-        node.__isReactive = true;
-        // @ts-expect-error
-        if (isPending) node.__isPending = true;
-        return node;
+  createText(text, _isReactive = false, isPending = false) {
+    if (this.#hydration?.frame) {
+      const claimed = this.#claimHydrationChild(
+        (node) =>
+          node.nodeType === TEXT_NODE ||
+          (node.nodeType === COMMENT_NODE &&
+            node.textContent === 'retend:empty-text'),
+        'expected text'
+      );
+      let textNode;
+      if (claimed.nodeType === COMMENT_NODE) {
+        textNode = this.host.document.createTextNode('');
+        claimed.replaceWith(textNode);
+        hydrationData(textNode).claim = getHydrationData(claimed).claim;
+      } else {
+        textNode = /** @type {Text} */ (claimed);
       }
-      // @ts-expect-error
-      return new Skip(text);
+      if (!isPending || textNode.textContent === '')
+        textNode.textContent = String(text);
+      return textNode;
     }
-    return this.host.document.createTextNode(text);
+    return this.host.document.createTextNode(String(text));
   }
 
   /**
@@ -456,411 +493,325 @@ export class DOMRenderer {
    * @returns {child is Node}
    */
   isNode(child) {
-    if (child instanceof Node || child instanceof Ops.ShadowRootFragment) {
-      return true;
-    }
-    if (child instanceof DeferredHandleSymbol && this.#isHydrationModeEnabled) {
-      return this.#getHydrationState() !== null;
-    }
-    if (!(child instanceof Skip) || !this.#isHydrationModeEnabled) {
-      return false;
-    }
-    return this.#getHydrationState() !== null;
+    return child instanceof Node || child instanceof Ops.ShadowRootFragment;
   }
 
   /**
-   * @param {(node?: Node) => Promise<*>} callback
+   * @param {(node?: Node, canDefer?: boolean) => Promise<*> | *} callback
+   * @param {string} [id]
    */
-  scheduleTeleport(callback) {
-    if (this.#isHydrationModeEnabled && this.#getHydrationState()) {
-      const branch = getState();
-      const capturedScopes = branch.scopes;
-      let resolveTask = () => {};
-      /** @type {Promise<void>} */
-      const pendingTask = new Promise((resolve) => {
-        resolveTask = () => resolve();
+  scheduleTeleport(callback, id) {
+    const hydration = this.#hydration;
+    if (hydration?.frame) {
+      const anchorNode = /** @type {Comment} */ (
+        this.#claimHydrationChild(
+          (node) =>
+            node.nodeType === COMMENT_NODE &&
+            Boolean(node.textContent?.startsWith(TELEPORT_ANCHOR_PREFIX)),
+          'expected teleport anchor'
+        )
+      );
+      const snapshot = branchState();
+      hydration.teleports.push(async () => {
+        const frame = hydration.frame;
+        try {
+          return await withState(snapshot, () => callback(anchorNode, true));
+        } finally {
+          hydration.frame = frame;
+        }
       });
-      this.#trackHydrationTask(branch, pendingTask);
-      this.#scheduledHydrationTeleports.push({
-        callback: async () => {
-          const previousScopes = branch.scopes;
-          branch.scopes = capturedScopes;
-          this.#enterHydrationBranch(branch);
-          try {
-            return await callback();
-          } finally {
-            this.#leaveHydrationBranch(branch);
-            branch.scopes = previousScopes;
-            resolveTask();
-          }
-        },
-      });
-      return new Skip('teleport');
+      return anchorNode;
     }
-    const anchorNode = this.host.document.createComment('teleport-anchor');
+
+    const anchorNode = this.host.document.createComment(
+      id ? `${TELEPORT_ANCHOR_PREFIX}${id}` : 'retend:teleport'
+    );
     const ref = Cell.source(anchorNode);
     const snapshot = branchState();
-    onConnected(ref, (node) => withState(snapshot, () => callback(node)));
+    onConnected(
+      ref,
+      (node) => withState(snapshot, () => callback(node, false)) || undefined
+    );
     return anchorNode;
   }
 
-  enableHydrationMode() {
-    /** @type {Map<string, JsxElement>} */
-    const dynamicNodeTable = new Map();
-    /** @type {ParentNode[]} */
-    const roots = [document];
-
-    while (roots.length > 0) {
-      const root = /** @type {ParentNode} */ (roots.pop());
-      const dynamicNodes = /** @type {NodeListOf<JsxElement>} */ (
-        root.querySelectorAll('[data-dyn]')
-      );
-      for (const node of dynamicNodes) {
-        dynamicNodeTable.set(String(node.getAttribute('data-dyn')), node);
-        if (node.shadowRoot) roots.push(node.shadowRoot);
-      }
-    }
-
-    this.#isHydrationModeEnabled = true;
-    this.#pendingHydrationTasks.clear();
-    this.#hydratingBranchCount = 0;
-    this.#hydratedNodes = new WeakSet();
-    this.#table = dynamicNodeTable;
-  }
-
-  /**
-   * @param {any} props
-   * @param {ParentNode} staticNode
-   */
-  async #hydrateNode(staticNode, props) {
-    // staticNode.removeAttribute('data-dyn');
-    for (const key in props) {
-      if (key !== 'children') this.setProperty(staticNode, key, props[key]);
-    }
-
-    const { children } = props;
-    const staticIsElement = staticNode instanceof Element;
-
-    const isShadowRoot =
-      children instanceof Ops.ShadowRootFragment && staticIsElement;
-
-    if (isShadowRoot) {
-      const root =
-        staticNode.shadowRoot ?? staticNode.attachShadow({ mode: 'open' });
-      this.#hydrateNode(root, children.props);
-      return;
-    }
-    if (!Array.isArray(children)) return;
-    const resolvedChildren = flattenJSXChildren(children);
-    const domChildren = staticNode.childNodes;
-    let nodeIndex = 0;
-    let domIndex = 0;
-
-    while (true) {
-      const node = resolvedChildren[nodeIndex];
-      const domNode = domChildren[domIndex];
-      if (domNode?.nodeType === COMMENT_NODE && domNode.textContent === '@@') {
-        // Skip HTML separators added by the serializer.
-        domNode.remove();
-        continue;
-      }
-
-      const isShadowRoot =
-        node instanceof Ops.ShadowRootFragment && staticIsElement;
-
-      if (isShadowRoot) {
-        const root =
-          staticNode.shadowRoot ?? staticNode.attachShadow({ mode: 'open' });
-        this.#hydrateNode(root, node.props);
-        nodeIndex++;
-        continue;
-      }
-
-      if (!node) break;
-      const nodeType = typeof node;
-      const skip =
-        node === domNode ||
-        node instanceof Skip ||
-        nodeType === 'string' ||
-        nodeType === 'number';
-
-      if (skip) {
-        // When a Skip node is encountered during hydration, we need to update
-        // any For cache that references it to use the actual DOM node instead.
-        // This ensures reconcile can call node.remove() later.
-        if (node instanceof Skip && domNode) {
-          const collection = Reflect.get(node, '__retend_collection_ref');
-          if (Array.isArray(collection)) {
-            const idx = collection.indexOf(node);
-            if (idx !== -1) {
-              collection[idx] = domNode;
-            }
-          }
-        }
-        nodeIndex++;
-        domIndex++;
-        continue;
-      }
-
-      if (
-        node instanceof DeferredHandleSymbol &&
-        domNode?.nodeType === COMMENT_NODE
-      ) {
-        const nextNode = resolvedChildren[nodeIndex + 1];
-        const isEmptyLiveRange =
-          nextNode instanceof DeferredHandleSymbol && nextNode === node;
-
-        // If live range is unresolved (only `[` and `]`) but server DOM still
-        // contains content inside the serialized range, skip that static range
-        // while hydrating the parent and bind both boundary comments now.
-        if (isEmptyLiveRange && domNode.textContent === '[') {
-          const range = this.#findSerializedRangeCloseComment(
-            /** @type {Comment} */ (domNode)
-          );
-          if (range) {
-            const { close: closingComment, offset } = range;
-            Reflect.set(domNode, '__commentRangeSymbol', node.symbol);
-            Reflect.set(closingComment, '__commentRangeSymbol', node.symbol);
-            node.sourceArray.length = 0;
-            node.sourceArray.push(domNode, closingComment);
-            nodeIndex += 2;
-            domIndex += offset + 1;
-            continue;
-          }
-        }
-
-        Reflect.set(domNode, '__commentRangeSymbol', node.symbol);
-        if (node.sourceArray[0]?.nodeType === COMMENT_NODE) {
-          // This is end comment marker.
-          node.sourceArray.push(domNode);
-        } else {
-          // this is start comment marker
-          node.sourceArray.length = 0;
-          node.sourceArray.push(domNode);
-        }
-        nodeIndex++;
-        domIndex++;
-        continue;
-      }
-
-      if (
-        node instanceof DeferredHandleSymbol &&
-        node.sourceArray.length === 1
-      ) {
-        const boundary = node.sourceArray[0];
-        if (
-          boundary?.nodeType === COMMENT_NODE &&
-          boundary.textContent === '['
-        ) {
-          const range = this.#findSerializedRangeCloseComment(boundary);
-          if (range) {
-            node.sourceArray.push(range.close);
-            nodeIndex++;
-            continue;
-          }
-        }
-        if (
-          boundary?.nodeType === COMMENT_NODE &&
-          boundary.textContent === ']'
-        ) {
-          const range = this.#findSerializedRangeOpenComment(boundary);
-          if (range) {
-            node.sourceArray.unshift(range.open);
-            nodeIndex++;
-            continue;
-          }
-        }
-      }
-
-      // @ts-expect-error
-      if (node instanceof Text && node.__isReactive) {
-        if (domNode?.nodeType === TEXT_NODE) {
-          if (
-            domNode.textContent !== node.textContent &&
-            // @ts-expect-error
-            !node.__isPending
-          ) {
-            console.error(
-              'Hydration error: Expected text',
-              node.textContent,
-              'but got',
-              domNode.textContent
-            );
-          }
-          // @ts-expect-error
-          node.__isPending = false;
-          node.textContent = domNode.textContent;
-          domNode.replaceWith(node);
-          domIndex++;
-        } else if (domNode) {
-          staticNode.insertBefore(node, domNode);
-        } else {
-          staticNode.appendChild(node);
-        }
-        nodeIndex++;
-        continue;
-      }
-
-      console.error('Hydration error: Expected', node, 'but got', domNode);
-      nodeIndex++;
-      domIndex++;
-    }
-  }
-
-  /**
-   * @param {Comment} startComment
-   * @returns {{ close: Comment, offset: number } | null}
-   */
-  #findSerializedRangeCloseComment(startComment) {
-    if (startComment.textContent !== '[') return null;
-    let depth = 1;
-    let cursor = startComment.nextSibling;
-    let offset = 1;
-    while (cursor) {
-      if (cursor.nodeType === COMMENT_NODE) {
-        if (cursor.textContent === '[') depth += 1;
-        else if (cursor.textContent === ']') {
-          depth -= 1;
-          if (depth === 0)
-            return { close: /** @type {Comment} */ (cursor), offset };
-        }
-      }
-      cursor = cursor.nextSibling;
-      offset += 1;
-    }
-    return null;
-  }
-
-  /**
-   * @param {Comment} endComment
-   * @returns {{ open: Comment } | null}
-   */
-  #findSerializedRangeOpenComment(endComment) {
-    if (endComment.textContent !== ']') return null;
-    let depth = 1;
-    let cursor = endComment.previousSibling;
-    while (cursor) {
-      if (cursor.nodeType === COMMENT_NODE) {
-        if (cursor.textContent === ']') depth += 1;
-        else if (cursor.textContent === '[') {
-          depth -= 1;
-          if (depth === 0) return { open: /** @type {Comment} */ (cursor) };
-        }
-      }
-      cursor = cursor.previousSibling;
-    }
-    return null;
+  /** @param {ParentNode} root */
+  enableHydrationMode(root) {
+    this.#hydration = {
+      roots: [root],
+      frame: { parent: root, nextChild: root.firstChild },
+      teleports: [],
+    };
   }
 
   async endHydration() {
-    for (const mount of this.#scheduledHydrationTeleports) {
-      await mount.callback();
-      this.#flushObserverMountedNodes();
+    const hydration = this.#hydration;
+    if (!hydration) return;
+    try {
+      let stalled = false;
+      do {
+        const pending = hydration.teleports.splice(0);
+        let resolved = 0;
+        for (const mount of pending) {
+          if ((await mount()) === false) hydration.teleports.push(mount);
+          else resolved++;
+        }
+        await waitForAsyncBoundaries();
+        if (hydration.teleports.length && !resolved && stalled) {
+          throw new HydrationMismatchError('Unresolved Teleport target.');
+        }
+        stalled = resolved === 0;
+      } while (hydration.teleports.length);
+
+      for (const root of hydration.roots) this.#assertClaimedChildren(root);
+    } finally {
+      this.#hydration = null;
     }
-    await Promise.all(this.#pendingHydrationTasks);
-    this.#flushObserverMountedNodes();
-    for (const handle of this.#deferredHydrationHandles) {
-      Ops.finalizeHydrationHandleSegment(handle);
+    await runPendingSetupEffects();
+    this.host.dispatchEvent(new Event('hydrationcompleted'));
+    await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
+  }
+
+  /**
+   * @param {ParentNode} target
+   * @param {string} id
+   * @returns {Element | null}
+   */
+  claimHydrationTeleportContainer(target, id) {
+    const hydration = this.#hydration;
+    if (!hydration?.frame) return null;
+    const container = Array.from(
+      target.querySelectorAll('retend-teleport')
+    ).find((candidate) => candidate.getAttribute('data-teleport-id') === id);
+    if (!container) {
+      throw new HydrationMismatchError('Missing Teleport container.');
     }
-    this.#isHydrationModeEnabled = false;
-    this.#table = new Map();
-    this.#hydratedNodes = new WeakSet();
-    this.#hydratingBranchCount = 0;
-    this.#scheduledHydrationTeleports = [];
-    this.#pendingHydrationTasks.clear();
-    this.#deferredHydrationHandles.clear();
-    this.#flushObserverMountedNodes();
+    this.#markClaimed(container);
+    hydration.roots.push(container);
+    this.#pushContainerFrame(container);
+    return container;
   }
 
   /**
-   * @param {StateSnapshot} branch
+   * @param {ParentNode} parentNode
+   * @param {Node | Node[]} childNode
    */
-  #ensureHydrationBranch(branch) {
-    if (branch.data) return branch.data;
-    const state = {
-      cursor: 0,
-      renderDepth: 0,
-      pendingHydrations: 0,
-      hydrating: true,
-    };
-    branch.data = state;
-    this.#hydratingBranchCount += 1;
-    return state;
-  }
-
-  /**
-   * @param {StateSnapshot} branch
-   */
-  #enterHydrationBranch(branch) {
-    if (!this.#isHydrationModeEnabled) return;
-    const state = this.#ensureHydrationBranch(branch);
-    state.renderDepth += 1;
-  }
-
-  /**
-   * @param {StateSnapshot} branch
-   */
-  #leaveHydrationBranch(branch) {
-    if (!this.#isHydrationModeEnabled) return;
-    const state = branch.data;
-    if (!state) return;
-    state.renderDepth = Math.max(0, state.renderDepth - 1);
-    if (state.renderDepth === 0) {
-      this.#flushObserverMountedNodes();
-    }
-    this.#maybeCompleteHydrationBranch(state);
-  }
-
-  /**
-   * @param {StateSnapshot} branch
-   * @param {Promise<void>} task
-   */
-  #trackHydrationTask(branch, task) {
-    if (!this.#isHydrationModeEnabled) return;
-    const state = this.#ensureHydrationBranch(branch);
-    state.pendingHydrations += 1;
-    this.#pendingHydrationTasks.add(task);
-    task.finally(() => {
-      this.#pendingHydrationTasks.delete(task);
-      const activeState = branch.data;
-      if (!activeState) return;
-      activeState.pendingHydrations = Math.max(
-        0,
-        activeState.pendingHydrations - 1
+  #appendDuringHydration(parentNode, childNode) {
+    const children = (Array.isArray(childNode) ? childNode : [childNode])
+      .filter(Boolean)
+      .flatMap((child) =>
+        this.isGroup(child) ? this.#getFragmentChildren(child) : child
       );
-      this.#maybeCompleteHydrationBranch(activeState);
-      this.#flushObserverMountedNodes();
-    });
-  }
 
-  #flushObserverMountedNodes() {
-    this.observer?.flush();
-  }
-
-  /**
-   * @param {{ cursor: number, renderDepth: number, pendingHydrations: number, hydrating: boolean }} state
-   */
-  #maybeCompleteHydrationBranch(state) {
-    if (!state.hydrating) return;
-    const branchIsIdle =
-      state.renderDepth === 0 && state.pendingHydrations === 0;
-    if (!branchIsIdle) return;
-    state.hydrating = false;
-    this.#hydratingBranchCount = Math.max(0, this.#hydratingBranchCount - 1);
-  }
-
-  /**
-   * Returns the hydration state for the current branch, or null if not hydrating.
-   */
-  #getHydrationState() {
-    if (!this.#isHydrationModeEnabled) return null;
-    const hydration = getState().data;
-    if (!hydration || !hydration.hydrating) {
-      return this.#hydratingBranchCount > 0
-        ? { cursor: 0, renderDepth: 0, pendingHydrations: 0, hydrating: true }
-        : null;
+    if (parentNode.nodeType === DOCUMENT_FRAGMENT_NODE) {
+      if (
+        children.some((node) => !this.#isClaimed(node) && !node.isConnected)
+      ) {
+        throw new HydrationMismatchError('Unexpected inserted node.');
+      }
+      (hydrationData(parentNode).children ??= []).push(...children);
+      return parentNode;
     }
-    return hydration;
+
+    for (const child of children) {
+      if (child === parentNode || child.parentNode === parentNode) continue;
+      const position = /** @type {HydrationClaim | undefined} */ (
+        getHydrationData(child)?.claim
+      );
+      if (!position || position.parent !== parentNode) {
+        throw new HydrationMismatchError('Unexpected inserted node.');
+      }
+      const before =
+        position.before?.parentNode === parentNode ? position.before : null;
+      if (before) before.before(child);
+      else parentNode.append(child);
+    }
+    return parentNode;
+  }
+
+  /**
+   * @param {DOMHandle} handle
+   * @returns {Node[]}
+   */
+  #getHandleNodes(handle) {
+    /** @type {Node[]} */
+    const nodes = [];
+    for (
+      let node = /** @type {ChildNode | null} */ (handle[0]);
+      node;
+      node = node.nextSibling
+    ) {
+      nodes.push(node);
+      if (node === handle[1]) break;
+    }
+    return nodes;
+  }
+
+  /**
+   * @param {DocumentFragment} fragment
+   * @returns {Node[]}
+   */
+  #getFragmentChildren(fragment) {
+    return (
+      getHydrationData(fragment)?.children ?? Array.from(fragment.childNodes)
+    );
+  }
+
+  /** @param {ParentNode} parent */
+  #pushContainerFrame(parent) {
+    const hydration = /** @type {HydrationContext} */ (this.#hydration);
+    const frame = {
+      parent,
+      nextChild: parent.firstChild,
+      parentFrame: /** @type {HydrationFrame} */ (hydration.frame),
+    };
+    hydration.frame = frame;
+    return frame;
+  }
+
+  /** @returns {HydrationFrame | null} */
+  #currentHydrationFrame() {
+    const hydration = this.#hydration;
+    let frame = hydration?.frame;
+    while (frame?.parentFrame && !frame.end && frame.nextChild === null) {
+      frame = frame.parentFrame;
+    }
+    if (hydration && frame) hydration.frame = frame;
+    return frame ?? null;
+  }
+
+  /**
+   * @param {HydrationFrame} frame
+   * @returns {ChildNode | null}
+   */
+  #skipHydrationSeparators(frame) {
+    let node = frame.nextChild;
+    if (node && node.parentNode !== frame.parent) {
+      throw new HydrationMismatchError('Hydration cursor was displaced.');
+    }
+    while (
+      node?.nodeType === COMMENT_NODE &&
+      node.textContent === 'retend:text-separator'
+    ) {
+      this.#markClaimed(node);
+      node = node.nextSibling;
+    }
+    return (frame.nextChild = node);
+  }
+
+  /**
+   * @param {HydrationFrame} frame
+   * @returns {HydrationRange | null}
+   */
+  #enterImmediateRange(frame) {
+    const node = this.#skipHydrationSeparators(frame);
+    if (
+      node?.nodeType !== COMMENT_NODE ||
+      node.textContent !== 'retend:range-start'
+    ) {
+      return null;
+    }
+
+    const start = /** @type {Comment} */ (node);
+    let end = /** @type {Comment | undefined} */ (getHydrationData(start)?.end);
+    if (!end) {
+      const stack = [start];
+      for (
+        let cursor = start.nextSibling;
+        cursor;
+        cursor = cursor.nextSibling
+      ) {
+        if (cursor.nodeType !== COMMENT_NODE) continue;
+        const comment = /** @type {Comment} */ (cursor);
+        if (comment.textContent === 'retend:range-start') stack.push(comment);
+        else if (comment.textContent === 'retend:range-end') {
+          const open = stack.pop();
+          if (open) hydrationData(open).end = comment;
+          if (!stack.length) {
+            end = comment;
+            break;
+          }
+        }
+      }
+    }
+    if (!end) throw new HydrationMismatchError('Unmatched dynamic range.');
+
+    hydrationData(start).claim = {
+      parent: frame.parent,
+      before: start.nextSibling,
+    };
+    /** @type {HydrationRange} */
+    const range = {
+      parent: frame.parent,
+      nextChild: start.nextSibling,
+      start,
+      end,
+      parentFrame: frame,
+    };
+    /** @type {HydrationContext} */ (this.#hydration).frame = range;
+    return range;
+  }
+
+  /**
+   * @param {(node: ChildNode) => boolean} predicate
+   * @param {string} expectation
+   * @returns {ChildNode}
+   */
+  #claimHydrationChild(predicate, expectation) {
+    let frame = this.#currentHydrationFrame();
+    if (!frame) {
+      throw new HydrationMismatchError('Missing structural frame.');
+    }
+
+    while (true) {
+      const entered = this.#enterImmediateRange(frame);
+      if (!entered) break;
+      frame = entered;
+    }
+
+    const node = this.#skipHydrationSeparators(frame);
+    if (!node || node === frame.end || !predicate(node)) {
+      throw new HydrationMismatchError(`Hydration error: ${expectation}.`);
+    }
+
+    hydrationData(node).claim = {
+      parent: frame.parent,
+      before: node.nextSibling,
+    };
+    frame.nextChild = node.nextSibling;
+    return node;
+  }
+
+  /** @param {Node | null | undefined} node */
+  #isClaimed(node) {
+    return Boolean(node && getHydrationData(node)?.claim);
+  }
+
+  /** @param {Node | null | undefined} node */
+  #markClaimed(node) {
+    if (node) hydrationData(node).claim ??= true;
+  }
+
+  /** @param {Node} node */
+  #markClientNode(node) {
+    const claim = (hydrationData(node).claim ??= {});
+    if (node.nodeType === ELEMENT_NODE) claim.opaque = true;
+  }
+
+  /** @param {ParentNode} parent */
+  #assertClaimedChildren(parent) {
+    if (getHydrationData(parent)?.claim?.opaque) return;
+    for (const node of parent.childNodes) {
+      if (!this.#isClaimed(node)) {
+        throw new HydrationMismatchError('Unclaimed server node.');
+      }
+
+      if (node.nodeType === ELEMENT_NODE) {
+        const element = /** @type {Element} */ (node);
+        this.#assertClaimedChildren(element);
+        if (element.shadowRoot) this.#assertClaimedChildren(element.shadowRoot);
+      }
+    }
   }
 }
 
@@ -877,6 +828,6 @@ export function renderToDOM(element, App) {
   const renderer = new DOMRenderer(window);
   setActiveRenderer(renderer);
   const root = renderer.render(App);
-  element.append(...(Array.isArray(root) ? root : [root]));
+  element.append(...[root].flat());
   runPendingSetupEffects();
 }
