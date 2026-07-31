@@ -249,6 +249,8 @@ export function Panel() {
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
+              aria-label="Toggle Retend DevTools"
+              title="Toggle Retend DevTools"
             >
               RT
             </button>

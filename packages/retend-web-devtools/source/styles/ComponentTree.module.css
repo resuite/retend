@@ -7,7 +7,7 @@
   user-select: none;
 
   &[data-inspector-panel-open] {
-    padding-bottom: 900px;
+    padding-bottom: calc(var(--retend-devtools-panel-height) / 2);
   }
 }
 
@@ -22,7 +22,7 @@
   top: 0;
   background: var(--retend-devtools-panel-bg);
   z-index: 10;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .searchIconWrap {
@@ -44,6 +44,10 @@
   line-height: 1.2;
   padding: 0.125rem 0;
   outline: none;
+
+  &:focus-visible {
+    box-shadow: inset 0 -2px var(--retend-devtools-tree-accent);
+  }
 
   &::placeholder {
     color: var(--retend-devtools-tree-muted);

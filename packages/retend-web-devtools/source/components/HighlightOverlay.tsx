@@ -27,9 +27,7 @@ export function HighlightOverlay() {
   };
 
   const updateClickInterceptor = () => {
-    const shouldInterceptClicks =
-      devRenderer.isPickerActive.get() &&
-      devRenderer.hoveredNode.get() !== null;
+    const shouldInterceptClicks = devRenderer.isPickerActive.get();
 
     if (shouldInterceptClicks === isInterceptingClicks) {
       return;
@@ -52,9 +50,9 @@ export function HighlightOverlay() {
     if (!(target instanceof Element)) {
       return;
     }
-    const rect = target.getBoundingClientRect();
-    const cursorX = rect.left + rect.width / 2;
-    const cursorY = rect.top + rect.height / 2;
+    const pointerEvent = event as MouseEvent;
+    const cursorX = pointerEvent.clientX;
+    const cursorY = pointerEvent.clientY;
     const selectedComponent = matchToComponentNode({
       target,
       cursorX,
@@ -63,9 +61,9 @@ export function HighlightOverlay() {
     });
     if (selectedComponent) {
       devRenderer.selectedNode.set(selectedComponent);
-      devRenderer.isPickerActive.set(false);
-      updateClickInterceptor();
     }
+    devRenderer.isPickerActive.set(false);
+    updateClickInterceptor();
   };
 
   const updateTarget = () => {

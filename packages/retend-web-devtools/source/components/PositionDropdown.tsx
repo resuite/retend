@@ -1,4 +1,4 @@
-import { Cell, For, If } from 'retend';
+import { Cell, For, If, onSetup } from 'retend';
 
 import type { PanelState } from '@/hooks/usePanelState';
 
@@ -36,8 +36,31 @@ export function PositionDropdown({ panel }: { panel: PanelState }) {
     closeDropdown();
   };
 
-  // Close dropdown on click outside logic could be here if we can attach to document
-  // but for simplicity clicking a button will set it and close.
+  const onDocumentPointerDown = (event: PointerEvent) => {
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    const path = event.composedPath();
+    const isInsideDropdown = path.some(
+      (item) =>
+        item instanceof HTMLElement &&
+        item.dataset.positionDropdown !== undefined
+    );
+    if (isInsideDropdown) return;
+    closeDropdown();
+  };
+
+  const onDocumentKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') closeDropdown();
+  };
+
+  onSetup(() => {
+    document.addEventListener('pointerdown', onDocumentPointerDown, true);
+    document.addEventListener('keydown', onDocumentKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+      document.removeEventListener('keydown', onDocumentKeyDown);
+    };
+  });
 
   const positions: Array<{
     value: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -51,10 +74,12 @@ export function PositionDropdown({ panel }: { panel: PanelState }) {
   ];
 
   return (
-    <div class={dropdownClasses.dropdownContainer}>
+    <div class={dropdownClasses.dropdownContainer} data-position-dropdown>
       <button
         type="button"
-        title="Position Panel"
+        title="Position panel"
+        aria-label="Position panel"
+        aria-expanded={isOpen}
         class={[
           headerButtonClasses.headerButton,
           { [headerButtonClasses.headerButtonActive]: isOpen },
