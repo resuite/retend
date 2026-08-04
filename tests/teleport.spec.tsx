@@ -1,6 +1,12 @@
 import type { DOMRenderer } from 'retend-web';
 
-import { Cell, createScope, getActiveRenderer, useScopeContext } from 'retend';
+import {
+  Cell,
+  createScope,
+  getActiveRenderer,
+  runPendingSetupEffects,
+  useScopeContext,
+} from 'retend';
 import { Teleport } from 'retend-web';
 import { assert, describe, expect, it, vi } from 'vitest';
 
@@ -33,7 +39,7 @@ describe('Teleport', () => {
       // The anchor should be in the original location
       expect(result.tagName).toBe('DIV');
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       // The teleported content should be in the target
       const teleported = target.querySelector('retend-teleport');
@@ -60,7 +66,7 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       // The teleported content should be in the target
       const teleported = target.querySelector('retend-teleport');
@@ -90,7 +96,7 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       const teleported = target.querySelector('retend-teleport');
       assert(teleported);
@@ -118,7 +124,7 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       expect(consoleSpy).toHaveBeenCalledWith(
         'Could not find teleport target, #nonexistent-target is not a matched id or tagname in the DOM.'
@@ -150,7 +156,7 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       // Both teleports should be in the target
       const teleports = target.querySelectorAll('retend-teleport');
@@ -186,7 +192,7 @@ describe('Teleport', () => {
       const result = renderer.render(App) as HTMLElement;
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       const teleported = target.querySelector('retend-teleport');
       assert(teleported);
@@ -214,7 +220,7 @@ describe('Teleport', () => {
       const anchor = result.childNodes[0];
       expect(anchor.nodeType).toBe(window.Node.COMMENT_NODE);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       const teleported = target.querySelector('retend-teleport');
       assert(teleported);

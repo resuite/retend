@@ -1,11 +1,4 @@
-import {
-  Cell,
-  If,
-  Switch,
-  createUnique,
-  getActiveRenderer,
-  runPendingSetupEffects,
-} from 'retend';
+import { Cell, If, Switch, createUnique, runPendingSetupEffects } from 'retend';
 import { Teleport } from 'retend-web';
 import { describe, expect, it } from 'vitest';
 
@@ -163,7 +156,7 @@ describe('Attributes', () => {
         </svg>
       );
       document.body.append(element);
-      getActiveRenderer().observer?.flush();
+      await runPendingSetupEffects();
 
       const group = target.querySelector('#teleported-group');
       const circle = target.querySelector('#teleported-circle');

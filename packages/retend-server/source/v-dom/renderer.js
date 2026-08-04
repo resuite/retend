@@ -42,7 +42,6 @@ import { VDocumentFragment, VNode } from './index.js';
  * @implements {VDOMRendererInterface}
  */
 export class VDOMRenderer {
-  observer = null;
   staticStyleIds = new Set();
 
   #savedHandles = new Map();
@@ -54,7 +53,7 @@ export class VDOMRenderer {
     Ops.writeStaticStyles(this);
     this.capabilities = {
       supportsSetupEffects: false,
-      supportsObserverConnectedCallbacks: false,
+      supportsConnectedCallbacks: false,
     };
   }
 

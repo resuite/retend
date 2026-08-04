@@ -7,7 +7,7 @@ description: 'Handle component creation and cleanup.'
 
 Because Retend components run exactly once to build your interface, the component lifecycle is very simple. You really only need to think about two moments: when a component is created, and when it is destroyed.
 
-Retend gives you two functions for running code at these specific times: `onSetup` and `onConnected`. Both run when the component initializes, and both let you return a "cleanup" function that runs when the component is destroyed.
+Retend gives you two functions for running code at these specific times: `onSetup` and `onConnected`. `onSetup` runs once per component instance, with its cleanup running when the component is destroyed. `onConnected` follows a referenced element's connection to the renderer: its callback runs when the element becomes connected, and its cleanup runs when the element is no longer connected. `onConnected` is only supported by renderers that opt in, like the DOM renderer in `retend-web`; in renderers without support it is a no-op.
 
 ## `onSetup`
 
@@ -38,7 +38,7 @@ The cleanup function is critical. If you start a timer or an event listener, ret
 
 Sometimes you need to interact directly with a rendered element, for example, to measure its size, draw on a canvas, or attach a third-party library.
 
-If you try to do this inside `onSetup`, the element might not be on the screen yet. `onConnected` solves this. You give it a reference to an element, and it guarantees the element is ready to use before your code runs.
+`onConnected` ties your code to a specific element's connection. You give it a reference to an element, and your callback runs with the element itself whenever the element becomes connected. If the element is removed and added back, the callback runs again — and the cleanup you return runs whenever the element is no longer connected. In the DOM renderer, "connected" means the element is part of the document.
 
 ```tsx
 import { onConnected, Cell } from 'retend';

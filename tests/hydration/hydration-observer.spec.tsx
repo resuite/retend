@@ -23,10 +23,10 @@ const startHydration = (
   startHydrationFlow(renderer, templateFn);
 };
 
-describe('Hydration onConnected flushing', () => {
+describe('Hydration onConnected activation', () => {
   browserSetup();
 
-  it('flushes root onConnected callbacks before child hydration gate resolves', async () => {
+  it('activates root onConnected callbacks when hydration completes', async () => {
     const mounted = vi.fn();
     const template = () => {
       const ref = Cell.source<HTMLElement | null>(null);
@@ -44,12 +44,13 @@ describe('Hydration onConnected flushing', () => {
     startHydration(renderer, template);
     await timeout(0);
 
-    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(mounted).toHaveBeenCalledTimes(0);
 
     await renderer.endHydration();
+    expect(mounted).toHaveBeenCalledTimes(1);
   });
 
-  it('flushes multiple callbacks in the same hydration commit', async () => {
+  it('activates multiple callbacks in the same hydration completion', async () => {
     const mountedA = vi.fn();
     const mountedB = vi.fn();
     const template = () => {
@@ -73,13 +74,15 @@ describe('Hydration onConnected flushing', () => {
     startHydration(renderer, template);
     await timeout(0);
 
-    expect(mountedA).toHaveBeenCalledTimes(1);
-    expect(mountedB).toHaveBeenCalledTimes(1);
+    expect(mountedA).toHaveBeenCalledTimes(0);
+    expect(mountedB).toHaveBeenCalledTimes(0);
 
     await renderer.endHydration();
+    expect(mountedA).toHaveBeenCalledTimes(1);
+    expect(mountedB).toHaveBeenCalledTimes(1);
   });
 
-  it('flushes nested component callbacks before hydration completes', async () => {
+  it('activates nested component callbacks when hydration completes', async () => {
     const mounted = vi.fn();
     const Child = () => {
       const ref = Cell.source<HTMLElement | null>(null);
@@ -100,12 +103,13 @@ describe('Hydration onConnected flushing', () => {
     startHydration(renderer, template);
     await timeout(0);
 
-    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(mounted).toHaveBeenCalledTimes(0);
 
     await renderer.endHydration();
+    expect(mounted).toHaveBeenCalledTimes(1);
   });
 
-  it('flushes callbacks in hydrated control-flow branches', async () => {
+  it('activates callbacks in hydrated control-flow branches', async () => {
     const show = Cell.source(true);
     const mounted = vi.fn();
     const template = () => (
@@ -129,9 +133,10 @@ describe('Hydration onConnected flushing', () => {
     startHydration(renderer, template);
     await timeout(0);
 
-    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(mounted).toHaveBeenCalledTimes(0);
 
     await renderer.endHydration();
+    expect(mounted).toHaveBeenCalledTimes(1);
   });
 
   it('flushes teleported callbacks during teleport hydration mount', async () => {
@@ -208,7 +213,7 @@ describe('Hydration onConnected flushing', () => {
     expect(callOrder).toEqual(['first', 'second']);
   });
 
-  it('uses endHydration as a final safety flush for queued refs', async () => {
+  it('activates queued refs at endHydration', async () => {
     const template = () => (
       <div id="final-flush-root">
         <div id="final-flush-target">Target</div>
@@ -229,7 +234,7 @@ describe('Hydration onConnected flushing', () => {
     expect(mounted).toHaveBeenCalledTimes(1);
   });
 
-  it('does not duplicate callbacks across commit flush and final safety flush', async () => {
+  it('does not duplicate callbacks when hydration completes', async () => {
     const mounted = vi.fn();
     const template = () => {
       const ref = Cell.source<HTMLElement | null>(null);
@@ -246,7 +251,7 @@ describe('Hydration onConnected flushing', () => {
     const { renderer } = await setupHydrationRenderer(template);
     startHydration(renderer, template);
     await timeout(0);
-    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(mounted).toHaveBeenCalledTimes(0);
 
     await renderer.endHydration();
     expect(mounted).toHaveBeenCalledTimes(1);

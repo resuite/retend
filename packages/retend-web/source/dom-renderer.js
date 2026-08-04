@@ -1,4 +1,4 @@
-/** @import { Observer, ReconcilerOptions, Renderer, __HMR_UpdatableFn, Scope, StateSnapshot } from "retend"; */
+/** @import { ReconcilerOptions, Renderer, __HMR_UpdatableFn, Scope, StateSnapshot } from "retend"; */
 /** @import { JSX } from 'retend/jsx-runtime'; */
 /** @import { ConnectedComment, HiddenElementProperties } from './utils.js'; */
 
@@ -72,8 +72,6 @@ class HydrationMismatchError extends Error {}
 export class DOMRenderer {
   /** @type {Window} */
   host;
-  /** @type {Observer | null} */
-  observer = null;
   staticStyleIds = new Set();
 
   #savedHandles = new Map();
@@ -86,7 +84,7 @@ export class DOMRenderer {
     Ops.writeStaticStyles(this);
     this.capabilities = {
       supportsSetupEffects: true,
-      supportsObserverConnectedCallbacks: true,
+      supportsConnectedCallbacks: true,
     };
   }
 
@@ -95,9 +93,7 @@ export class DOMRenderer {
    * @returns {Node | Node[]}
    */
   render(app) {
-    const result = normalizeJsxChild(app, this);
-    if (this.#hydration?.frame) queueMicrotask(() => this.observer?.flush());
-    return result;
+    return normalizeJsxChild(app, this);
   }
 
   /**

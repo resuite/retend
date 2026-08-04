@@ -1,5 +1,5 @@
 /** @import { JSX } from '../jsx-runtime/types.ts' */
-/** @import { onConnected, CleanupFn } from './observer.js' */
+
 /** @import { Renderer } from './renderer.js'; */
 import { Cell } from '@adbl/cells';
 
@@ -52,9 +52,77 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
  * @property {any} [data]
  */
 
+/** @typedef {() => void} CleanupFn */
+/** @typedef {void | CleanupFn | Promise<void | CleanupFn>} EffectResult */
+/** @template T @typedef {(node: T) => EffectResult} MountFn */
+/** @typedef {() => EffectResult} SetupFn */
+/** @typedef {{
+ *   ref: Cell<unknown | null>,
+ *   callback: MountFn<unknown>,
+ *   renderer: Renderer<any>,
+ *   current?: unknown | null,
+ *   result?: EffectResult,
+ * }} ConnectedEffect */
+
+/** @param {CleanupFn | undefined} cleanup */
+function runCleanup(cleanup) {
+  try {
+    cleanup?.();
+  } catch (error) {
+    console.error('Cleanup effect failed:', error);
+  }
+}
+
+/** @param {ConnectedEffect} effect */
+function unmountConnectedEffect(effect) {
+  const cleanup = effect.result;
+  effect.current = null;
+  effect.result = undefined;
+  if (typeof cleanup === 'function') runCleanup(cleanup);
+}
+
 /**
- * @typedef {(() => CleanupFn | undefined) | (() => Promise<CleanupFn | undefined>) | (() => void | Promise<void>) } SetupFn
+ * @param {ConnectedEffect} effect
+ * @param {unknown | null} next
  */
+function updateConnectedEffect(effect, next) {
+  if (effect.current === undefined) return;
+  const { renderer } = effect;
+
+  if (
+    effect.current !== null &&
+    (effect.current !== next || !renderer.isActive(effect.current))
+  ) {
+    unmountConnectedEffect(effect);
+  }
+  if (next === null || effect.current === next || !renderer.isActive(next)) {
+    return;
+  }
+
+  effect.current = next;
+  try {
+    const result = effect.callback(next);
+    effect.result = result;
+    if (!(result instanceof Promise)) return;
+
+    result.then(
+      (cleanup) => {
+        if (
+          effect.result === result &&
+          effect.current === next &&
+          renderer.isActive(next)
+        ) {
+          effect.result = cleanup;
+        } else if (cleanup) {
+          runCleanup(cleanup);
+        }
+      },
+      (error) => console.error('Error mounting node:', error)
+    );
+  } catch (error) {
+    console.error('Error mounting node:', error);
+  }
+}
 
 /**
  * Represents a node managing effects and cleanup within a hierarchy.
@@ -69,6 +137,8 @@ class EffectNode {
   #disposeFns = [];
   /** @type {Array<EffectNode>} */
   #children = [];
+  /** @type {ConnectedEffect[]} */
+  #connectedEffects = [];
 
   #enabled = false;
   #suspended = false;
@@ -114,6 +184,32 @@ class EffectNode {
     this.#disposeFns.push(effect);
   }
 
+  /** @template T @param {Cell<T | null>} ref @param {MountFn<T>} callback */
+  addConnected(ref, callback) {
+    const renderer = this.renderer;
+    if (!renderer?.capabilities.supportsConnectedCallbacks) return;
+
+    /** @type {ConnectedEffect} */
+    const effect = {
+      ref,
+      callback: /** @type {MountFn<unknown>} */ (callback),
+      renderer,
+    };
+    this.#connectedEffects.push(effect);
+    ref.listen((next) => updateConnectedEffect(effect, next));
+  }
+
+  #activateConnectedEffects() {
+    for (const effect of this.#connectedEffects) {
+      if (effect.current === undefined) effect.current = null;
+      updateConnectedEffect(effect, effect.ref.peek());
+    }
+    for (const child of this.#children) {
+      if (child.#enabled && !child.#suspended)
+        child.#activateConnectedEffects();
+    }
+  }
+
   branch() {
     const newNode = new EffectNode();
     newNode.#enabled = this.#enabled;
@@ -142,7 +238,9 @@ class EffectNode {
   }
 
   async activate() {
-    if (!this.#enabled || this.#active) return;
+    if (!this.#enabled) return;
+    this.#activateConnectedEffects();
+    if (this.#active) return;
     await new Promise((resolve) => {
       queueMicrotask(() => resolve(undefined));
     });
@@ -152,23 +250,24 @@ class EffectNode {
 
   #runDisposeFns() {
     if (!this.#enabled && this.#active) return false;
-    for (const effect of this.#disposeFns) {
-      try {
-        effect();
-      } catch (error) {
-        console.error('Cleanup effect failed:', error);
-      }
-    }
+    for (const effect of this.#disposeFns) runCleanup(effect);
     this.#active = false;
-    for (const child of this.#children) {
-      child.#runDisposeFns();
-    }
+    for (const child of this.#children) child.#runDisposeFns();
     this.localContext.destroy();
     return true;
   }
 
+  #runConnectedDisposeFns() {
+    for (const effect of this.#connectedEffects) {
+      unmountConnectedEffect(effect);
+    }
+    this.#connectedEffects.length = 0;
+    for (const child of this.#children) child.#runConnectedDisposeFns();
+  }
+
   dispose() {
     if (!this.#runDisposeFns()) return;
+    this.#runConnectedDisposeFns();
 
     for (const child of this.#children) {
       // prevents any side effects from being triggered in the
@@ -180,27 +279,7 @@ class EffectNode {
     this.#setupFns.length = 0;
     this.#disposeFns.length = 0;
     this.#children.length = 0;
-
     this.localContext = Cell.context();
-  }
-
-  detach() {
-    const node = new EffectNode();
-    node.#setupFns = [...this.#setupFns];
-    node.#disposeFns = [...this.#disposeFns];
-    node.#children = [...this.#children];
-
-    this.dispose();
-    return node;
-  }
-
-  /** @param {EffectNode} node  */
-  attach(node) {
-    this.#active = node.#active;
-    this.#enabled = node.#enabled;
-    this.#children = [...node.#children];
-    this.#setupFns = [...node.#setupFns];
-    this.#disposeFns = [...node.#disposeFns];
   }
 }
 
@@ -455,6 +534,30 @@ export function withState(snapshot, callback) {
 }
 
 /**
+ * Registers a callback to be called when the node referenced by the provided `ref` is connected to the host environment.
+ * If the node is already connected, the callback is called immediately.
+ * The callback can return a cleanup function that will be called when the node is disconnected.
+ *
+ * @example
+ * // Mount a callback when a node is connected to the DOM
+ * const nodeRef = Cell.source<HTMLDivElement | null>(null);
+ * onConnected(nodeRef, (node) => {
+ *   console.log('Node connected:', node);
+ *   return () => console.log('Node disconnected:', node);
+ * });
+ *
+ * const node = <div ref={nodeRef}>Hello, world!</div>;
+ *
+ * @template T
+ * @param {Cell<T | null>} ref - A `Cell` containing the node to observe
+ * @param {MountFn<T>} callback - A function that will be called when the node is connected
+ * @see {@link onSetup} for effects tied to the component instance.
+ */
+export function onConnected(ref, callback) {
+  getState().node.addConnected(ref, callback);
+}
+
+/**
  * A hook for managing side effects with cleanup, tied to a component's logical lifecycle.
  *
  * The callback runs once when a component instance is initialized, ideal for tasks
@@ -527,13 +630,12 @@ export function onSetup(callback) {
  * @see {@link onSetup} for registering effects that will be run by this function.
  */
 export async function runPendingSetupEffects() {
-  const { node, renderer } = getState();
+  const { node } = getState();
   if (!(node instanceof RootEffectNode)) {
     const message =
       'runPendingSetupEffects() can only be called at the root level of a component tree.';
     throw new Error(message);
   }
-  renderer?.observer?.flush();
   node.enable();
   await node.activate();
   await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));

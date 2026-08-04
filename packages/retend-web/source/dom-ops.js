@@ -38,7 +38,6 @@ export function reconcile(segment, options, renderer) {
   // before removing A, result in a removal and reinsertion of several unchanged nodes.
   for (const [key, value] of cacheFromLastRun) {
     if (newCache.has(key)) continue;
-    value.snapshot.node.dispose();
     // There was a previous optimization to try and remove contiguous nodes
     // at once with range.deleteContents(), but it was not worth it.
     for (const node of value.nodes) {

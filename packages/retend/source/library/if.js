@@ -122,7 +122,6 @@ export function If(value, fnOrObject, elseFn) {
     const processValueChange = (nextValue) => {
       stateSnapshot.node.dispose();
       renderer.write(handle, callback(nextValue));
-      renderer.observer?.flush();
       stateSnapshot.node.activate();
     };
 

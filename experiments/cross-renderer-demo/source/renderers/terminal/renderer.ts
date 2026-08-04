@@ -474,10 +474,9 @@ export class TerminalHost extends EventTarget {
 export class TerminalRenderer implements Renderer<TerminalRendererTypes> {
   host: TerminalHost;
   root: BoxNode;
-  observer = null;
   capabilities = {
     supportsSetupEffects: true,
-    supportsObserverConnectedCallbacks: false,
+    supportsConnectedCallbacks: false,
   };
   #renderPending = false;
 

@@ -113,7 +113,6 @@ export function Teleport(props) {
       linkNodes(newInstance, child, renderer);
 
     if (!hydratedContainer) renderer.append(parent, newInstance);
-    queueMicrotask(() => renderer.observer?.flush());
 
     mountedCleanup = () => {
       Reflect.deleteProperty(source, '__retendTeleportedContainer');
