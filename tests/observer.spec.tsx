@@ -393,6 +393,29 @@ describe('onConnected', () => {
     expect(order).toEqual(['connected', 'setup']);
   });
 
+  it('should support onConnected without setup effects', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const node = renderer.host.document.createElement('div');
+    const ref = Cell.source<HTMLElement | null>(node);
+    const connected = vi.fn();
+    const setup = vi.fn();
+
+    renderer.capabilities.supportsSetupEffects = false;
+    try {
+      onConnected(ref, connected);
+      onSetup(setup);
+
+      renderer.host.document.body.append(node);
+      await runPendingSetupEffects();
+
+      expect(connected).toHaveBeenCalledWith(node);
+      expect(setup).not.toHaveBeenCalled();
+    } finally {
+      renderer.capabilities.supportsSetupEffects = true;
+      node.remove();
+    }
+  });
+
   it("should call onSetup's cleanup before onConnected's cleanup", async () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const order: string[] = [];

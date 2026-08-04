@@ -153,11 +153,17 @@ class EffectNode {
   }
 
   enable() {
-    if (this.renderer?.capabilities.supportsSetupEffects) {
-      this.#enabled = true;
-      for (const child of this.#children) {
-        if (!child.#suspended) child.enable();
-      }
+    const { capabilities } = this.renderer ?? {};
+    if (
+      !capabilities?.supportsSetupEffects &&
+      !capabilities?.supportsConnectedCallbacks
+    ) {
+      return;
+    }
+
+    this.#enabled = true;
+    for (const child of this.#children) {
+      if (!child.#suspended) child.enable();
     }
   }
 
@@ -176,6 +182,7 @@ class EffectNode {
 
   /** @param {SetupFn} effect  */
   add(effect) {
+    if (!this.renderer?.capabilities.supportsSetupEffects) return;
     this.#setupFns.push(effect);
   }
 
