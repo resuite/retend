@@ -1,3 +1,5 @@
+import { onSetup } from 'retend';
+
 import { PickerIcon } from '@/components/icons';
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
 import classes from '@/styles/PickerButton.module.css';
@@ -79,6 +81,8 @@ export function PickerButton() {
   devRenderer.isPickerActive.listen((isActive) => {
     if (!isActive && pickerMoveHandler) stopPicker();
   });
+
+  onSetup(() => stopPicker);
 
   return (
     <button

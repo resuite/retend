@@ -2,7 +2,6 @@ import type { Cell } from '@adbl/cells';
 
 import type { Environments } from '../context/index.js';
 import type { JSX } from '../jsx-runtime/index.js';
-import type { Observer } from './observer.js';
 import type { __HMR_UpdatableFn, StateSnapshot } from './scope.js';
 
 /**
@@ -33,8 +32,8 @@ export interface RendererTypes {
 export interface Capabilities {
   /** Whether the renderer supports executing setup effects. */
   supportsSetupEffects?: boolean;
-  /** Whether the renderer supports the observer.onConnected API */
-  supportsObserverConnectedCallbacks?: boolean;
+  /** Whether the renderer supports onConnected callbacks. */
+  supportsConnectedCallbacks?: boolean;
 }
 
 /**
@@ -86,8 +85,6 @@ export interface Renderer<
 > {
   /** The instance of the host environment where the renderer is operating. */
   host: Host;
-  /** An observer instance for watching the node environment and firing callbacks on renderer-defined connections. */
-  observer: Observer | null;
   /** Renders a JSX template and returns the resulting node(s). */
   render(app: JSX.Template): Node | Node[];
   /** Configuration flags indicating which features this renderer supports. */

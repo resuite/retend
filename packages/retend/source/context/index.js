@@ -1,5 +1,4 @@
 // @ts-nocheck: globalThis is not typed.
-/** @import { Observer } from '../library/observer.js' */
 /** @import { Renderer } from '../library/renderer.js' */
 
 /** @type {typeof globalThis.CustomEvent} */
@@ -27,7 +26,6 @@ export const CustomEvent =
  * Each environment provides its own window interface optimized for that context.
  *
  * @typedef {{
- *    observer?: Observer
  *    globalData: Map<PropertyKey, any>
  *    renderer?: Renderer<any>
  * }} Environments

@@ -1,6 +1,6 @@
 import type { DOMRenderer } from 'retend-web';
 
-import { Cell, getActiveRenderer } from 'retend';
+import { Cell, getActiveRenderer, runPendingSetupEffects } from 'retend';
 import { describe, expect, it, vi } from 'vitest';
 
 import { useResizeObserver } from '../../packages/retend-utils/source/hooks/use-resize-observer.js';
@@ -23,7 +23,7 @@ class TestResizeObserver {
 describe('useResizeObserver', () => {
   browserSetup();
 
-  it('observes connected elements and disconnects after cleanup', () => {
+  it('observes connected elements and disconnects after cleanup', async () => {
     TestResizeObserver.instances = [];
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
 
@@ -39,7 +39,7 @@ describe('useResizeObserver', () => {
     ) as HTMLElement;
 
     renderer.host.document.body.append(element);
-    renderer.observer?.flush();
+    await runPendingSetupEffects();
 
     expect(TestResizeObserver.instances).toHaveLength(1);
     expect(TestResizeObserver.instances[0].callback).toBe(callback);
@@ -49,7 +49,7 @@ describe('useResizeObserver', () => {
     );
 
     element.remove();
-    renderer.observer?.flush();
+    await runPendingSetupEffects();
 
     expect(TestResizeObserver.instances[0].unobserve).toHaveBeenCalledWith(
       element
@@ -59,7 +59,7 @@ describe('useResizeObserver', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shares one observer across multiple targets', () => {
+  it('shares one observer across multiple targets', async () => {
     TestResizeObserver.instances = [];
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
 
@@ -77,7 +77,7 @@ describe('useResizeObserver', () => {
     ) as HTMLElement;
 
     renderer.host.document.body.append(first, second);
-    renderer.observer?.flush();
+    await runPendingSetupEffects();
 
     expect(TestResizeObserver.instances).toHaveLength(1);
     expect(TestResizeObserver.instances[0].observe).toHaveBeenCalledWith(
@@ -90,12 +90,12 @@ describe('useResizeObserver', () => {
     );
 
     first.remove();
-    renderer.observer?.flush();
+    await runPendingSetupEffects();
 
     expect(TestResizeObserver.instances[0].disconnect).not.toHaveBeenCalled();
 
     second.remove();
-    renderer.observer?.flush();
+    await runPendingSetupEffects();
 
     expect(TestResizeObserver.instances[0].disconnect).toHaveBeenCalledTimes(1);
 

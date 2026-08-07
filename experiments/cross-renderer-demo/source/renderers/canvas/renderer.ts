@@ -403,10 +403,9 @@ export class CanvasRenderer {
   host: CanvasRendererTypes['Host'];
   ctx: CanvasRenderingContext2D;
   root: BoxNode;
-  observer = null;
   capabilities = {
     supportsSetupEffects: true,
-    supportsObserverConnectedCallbacks: false,
+    supportsConnectedCallbacks: false,
   };
 
   constructor(host: HTMLCanvasElement) {

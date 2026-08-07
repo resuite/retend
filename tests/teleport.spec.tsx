@@ -1,6 +1,13 @@
 import type { DOMRenderer } from 'retend-web';
 
-import { Cell, createScope, getActiveRenderer, useScopeContext } from 'retend';
+import {
+  Cell,
+  createScope,
+  getActiveRenderer,
+  onConnected,
+  runPendingSetupEffects,
+  useScopeContext,
+} from 'retend';
 import { Teleport } from 'retend-web';
 import { assert, describe, expect, it, vi } from 'vitest';
 
@@ -33,7 +40,7 @@ describe('Teleport', () => {
       // The anchor should be in the original location
       expect(result.tagName).toBe('DIV');
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       // The teleported content should be in the target
       const teleported = target.querySelector('retend-teleport');
@@ -60,7 +67,7 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       // The teleported content should be in the target
       const teleported = target.querySelector('retend-teleport');
@@ -90,7 +97,7 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       const teleported = target.querySelector('retend-teleport');
       assert(teleported);
@@ -118,7 +125,7 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       expect(consoleSpy).toHaveBeenCalledWith(
         'Could not find teleport target, #nonexistent-target is not a matched id or tagname in the DOM.'
@@ -150,13 +157,39 @@ describe('Teleport', () => {
 
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       // Both teleports should be in the target
       const teleports = target.querySelectorAll('retend-teleport');
       expect(teleports.length).toBe(2);
       expect(getTextContent(teleports[0])).toBe('First teleport');
       expect(getTextContent(teleports[1])).toBe('Second teleport');
+    });
+
+    it('should activate connected effects whose refs are teleported', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const target = window.document.createElement('div');
+      target.id = 'teleported-ref-target';
+      window.document.body.append(target);
+      const connected = vi.fn();
+
+      const Panel = () => {
+        const ref = Cell.source<HTMLElement | null>(null);
+        onConnected(ref, connected);
+        return (
+          <Teleport to="#teleported-ref-target">
+            <div ref={ref}>Teleported ref</div>
+          </Teleport>
+        );
+      };
+
+      const result = renderer.render(<Panel />) as Node;
+      window.document.body.append(result);
+      await runPendingSetupEffects();
+
+      expect(connected).toHaveBeenCalledTimes(1);
+      expect(connected.mock.calls[0][0].isConnected).toBe(true);
     });
 
     it('should preserve scope context for teleported children', async () => {
@@ -186,7 +219,7 @@ describe('Teleport', () => {
       const result = renderer.render(App) as HTMLElement;
       window.document.body.append(result);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       const teleported = target.querySelector('retend-teleport');
       assert(teleported);
@@ -214,7 +247,7 @@ describe('Teleport', () => {
       const anchor = result.childNodes[0];
       expect(anchor.nodeType).toBe(window.Node.COMMENT_NODE);
 
-      renderer.observer?.flush();
+      await runPendingSetupEffects();
 
       const teleported = target.querySelector('retend-teleport');
       assert(teleported);

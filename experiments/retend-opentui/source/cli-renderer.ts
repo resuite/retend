@@ -27,7 +27,6 @@ import {
   runPendingSetupEffects,
   setActiveRenderer,
   type StateSnapshot,
-  type Observer,
   type ReconcilerOptions,
   type Renderer,
   type RendererTypes,
@@ -55,17 +54,15 @@ const syntaxStyle = SyntaxStyle.create();
  */
 export class OpenTuiRenderer implements Renderer<OpenTuiRendererOptions> {
   host: EventTarget;
-  observer: Observer | null;
   #state?: StateSnapshot;
 
   capabilities: Capabilities = {
-    supportsObserverConnectedCallbacks: true,
+    supportsConnectedCallbacks: true,
     supportsSetupEffects: true,
   };
 
   constructor(public cliRenderer: CliRenderer) {
     this.host = new EventTarget();
-    this.observer = null;
   }
 
   render(app: JSX.Template): Renderable | Renderable[] {

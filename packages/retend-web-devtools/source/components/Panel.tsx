@@ -15,7 +15,6 @@ const VITE_STYLE_ID = '__retend-web-devtools-styling';
 export function Panel() {
   const devRenderer = useDevToolsRenderer();
   const panel = usePanelState();
-  const divRef = Cell.source<HTMLElement | null>(null);
   const panelRef = Cell.source<HTMLDivElement | null>(null);
   const inspectorIsOpen = Cell.derived(
     () => devRenderer.selectedNode.get() !== null
@@ -178,20 +177,25 @@ export function Panel() {
     }
   };
 
-  onConnected(divRef, (div) => {
+  // The host can connect before its ShadowRoot is attached, so wait for a node inside it.
+  onConnected(panelRef, (panelElement) => {
+    const shadowRoot = panelElement.getRootNode();
+    if (!(shadowRoot instanceof window.ShadowRoot)) return;
+
     requestAnimationFrame(() => {
       const styleTag = document.getElementById(VITE_STYLE_ID);
       if (!styleTag) return;
+
       const stylesheet = new CSSStyleSheet();
       stylesheet.replace(styleTag.innerHTML).then((sheet) => {
-        div.shadowRoot?.adoptedStyleSheets.push(sheet);
+        shadowRoot.adoptedStyleSheets.push(sheet);
       });
     });
   });
 
   return (
     <Teleport to="body">
-      <retend-web-devtools ref={divRef} style={{ display: 'contents' }}>
+      <retend-web-devtools style={{ display: 'contents' }}>
         <ShadowRoot>
           <div
             ref={panelRef}
@@ -249,6 +253,8 @@ export function Panel() {
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
+              aria-label="Toggle Retend DevTools"
+              title="Toggle Retend DevTools"
             >
               RT
             </button>

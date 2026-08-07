@@ -473,4 +473,4 @@ function ViewSwitcher() {
 - `packages/retend/source/library/if.js`
 - `packages/retend/source/library/for.js`
 - `packages/retend/source/library/switch.js`
-- `packages/retend/source/library/observer.js`
+- `packages/retend/source/library/scope.js`

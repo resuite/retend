@@ -82,76 +82,62 @@ function walkOwnBody(root, visit) {
   }
 }
 
-function getTopLevelJsxComponents(program) {
-  const components = [];
+function isFunctionNode(node) {
+  return (
+    node?.type === 'FunctionDeclaration' ||
+    node?.type === 'ArrowFunctionExpression' ||
+    node?.type === 'FunctionExpression'
+  );
+}
+
+function getTopLevelFunctions(program, componentsOnly = false) {
+  const functions = [];
 
   for (const statement of program.body) {
-    let node = statement;
-
-    if (
+    const node =
       statement.type === 'ExportDefaultDeclaration' ||
       statement.type === 'ExportNamedDeclaration'
-    ) {
-      if (!statement.declaration) {
-        continue;
-      }
+        ? statement.declaration
+        : statement;
 
-      node = statement.declaration;
+    if (isFunctionNode(node)) {
+      if (!componentsOnly || /^[A-Z]/u.test(node.id?.name ?? '')) {
+        functions.push(node);
+      }
+      continue;
     }
 
-    const candidates = [];
-
-    if (node.type === 'FunctionDeclaration' && node.id?.name) {
-      if (/^[A-Z]/u.test(node.id.name)) {
-        candidates.push(node);
-      }
+    if (node?.type !== 'VariableDeclaration') {
+      continue;
     }
 
-    if (node.type === 'VariableDeclaration') {
-      for (const declaration of node.declarations) {
-        if (declaration.id.type !== 'Identifier') {
-          continue;
-        }
-
-        if (!/^[A-Z]/u.test(declaration.id.name)) {
-          continue;
-        }
-
-        if (declaration.init?.type !== 'ArrowFunctionExpression') {
-          if (declaration.init?.type !== 'FunctionExpression') {
-            continue;
-          }
-        }
-
-        candidates.push(declaration.init);
+    for (const declaration of node.declarations) {
+      if (
+        isFunctionNode(declaration.init) &&
+        (!componentsOnly ||
+          (declaration.id.type === 'Identifier' &&
+            /^[A-Z]/u.test(declaration.id.name)))
+      ) {
+        functions.push(declaration.init);
       }
-    }
-
-    for (const component of candidates) {
-      let containsJsx = false;
-      walkOwnBody(component.body, (current) => {
-        if (current.type === 'JSXElement') {
-          containsJsx = true;
-          return false;
-        }
-
-        if (current.type === 'JSXFragment') {
-          containsJsx = true;
-          return false;
-        }
-
-        return true;
-      });
-
-      if (!containsJsx) {
-        continue;
-      }
-
-      components.push(component);
     }
   }
 
-  return components;
+  return functions;
+}
+
+function getTopLevelJsxComponents(program) {
+  return getTopLevelFunctions(program, true).filter((component) => {
+    let containsJsx = false;
+    walkOwnBody(component.body, (current) => {
+      if (current.type === 'JSXElement' || current.type === 'JSXFragment') {
+        containsJsx = true;
+        return false;
+      }
+      return true;
+    });
+    return containsJsx;
+  });
 }
 
 function getPropsDestructureStatement(component, propsName) {
@@ -641,6 +627,159 @@ function getComponentSourceCellNames(component) {
   return cellNames;
 }
 
+const asyncBooleanStateNamePattern =
+  /(?:^|_)(?:busy|loading|pending|saving|sending|submitting|uploading|working|processing|refreshing|retrying|deleting|creating|updating|fetching|requesting|inflight|in_flight)(?:$|_)/iu;
+const asyncErrorStateNamePattern = /(?:^|_)(?:error|failure)(?:$|_)/iu;
+const activeAsyncValuePattern =
+  /^(?:busy|creating|deleting|fetching|loading|pending|processing|refreshing|requesting|retrying|saving|sending|submitting|updating|uploading|working)$/u;
+const settledAsyncValuePattern =
+  /^(?:complete|completed|done|error|failed|failure|idle|ready|saved|sent|success)$/u;
+
+function getStaticLiteralValue(node) {
+  const value = unwrapExpression(node);
+  if (isNullLiteral(value)) {
+    return null;
+  }
+  if (value?.type === 'Literal' || value?.type === 'StringLiteral') {
+    return value.value;
+  }
+  return undefined;
+}
+
+function collectAsyncEvents(root, sourceNames) {
+  const events = [];
+
+  function visit(current, allowFunction = false) {
+    if (!current) {
+      return;
+    }
+    if (Array.isArray(current)) {
+      for (const item of current) visit(item, allowFunction);
+      return;
+    }
+    if (!(current instanceof Object)) {
+      return;
+    }
+    if (!allowFunction && isFunctionNode(current)) {
+      return;
+    }
+    if (current.type === 'AwaitExpression') {
+      visit(current.argument);
+      events.push({ type: 'await' });
+      return;
+    }
+    if (isRetendCellCall(current, 'batch')) {
+      for (const argument of current.arguments) {
+        visit(isFunctionNode(argument) ? argument.body : argument, true);
+      }
+      return;
+    }
+    if (
+      current.type === 'CallExpression' &&
+      current.callee.type === 'MemberExpression' &&
+      !current.callee.computed &&
+      current.callee.object.type === 'Identifier' &&
+      sourceNames.has(current.callee.object.name) &&
+      current.callee.property.type === 'Identifier' &&
+      current.callee.property.name === 'set'
+    ) {
+      events.push({
+        type: 'set',
+        cell: current.callee.object.name,
+        value: getStaticLiteralValue(current.arguments[0]),
+      });
+      return;
+    }
+    for (const [key, value] of Object.entries(current)) {
+      if (key !== 'parent' && key !== 'type') visit(value);
+    }
+  }
+
+  visit(root, true);
+  return events;
+}
+
+function hasAsyncTransition(events, cell, starts, ends) {
+  let started = false;
+  let awaited = false;
+
+  for (const event of events) {
+    if (event.type === 'await') {
+      awaited ||= started;
+      continue;
+    }
+    if (event.cell !== cell) {
+      continue;
+    }
+    if (starts(event.value)) {
+      started = true;
+      continue;
+    }
+    if (started && awaited && ends(event.value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isManualAsyncCell(name, initialValue, events) {
+  const normalizedName = name
+    .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
+    .toLowerCase();
+  const isActive = (value) =>
+    value === true || activeAsyncValuePattern.test(value);
+  const isSettled = (value) =>
+    value === false || settledAsyncValuePattern.test(value);
+  const isReset = (value) => value === null || value === '';
+
+  if (
+    typeof initialValue === 'boolean' &&
+    asyncBooleanStateNamePattern.test(normalizedName)
+  ) {
+    return hasAsyncTransition(events, name, isActive, isSettled);
+  }
+  if (
+    typeof initialValue === 'string' &&
+    (activeAsyncValuePattern.test(initialValue) ||
+      settledAsyncValuePattern.test(initialValue))
+  ) {
+    return hasAsyncTransition(events, name, isActive, isSettled);
+  }
+  if (
+    asyncErrorStateNamePattern.test(normalizedName) &&
+    isReset(initialValue)
+  ) {
+    return hasAsyncTransition(
+      events,
+      name,
+      isReset,
+      (value) => !isReset(value)
+    );
+  }
+  return false;
+}
+
+function containsCallToName(root, name) {
+  const expression = unwrapExpression(root);
+  if (expression?.type === 'Identifier' && expression.name === name) {
+    return true;
+  }
+
+  let found = false;
+  walkTree(root, (current) => {
+    if (
+      current.type === 'CallExpression' &&
+      current.callee.type === 'Identifier' &&
+      current.callee.name === name
+    ) {
+      found = true;
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
 const validEventModifiers = new Set([
   'once',
   'passive',
@@ -1003,6 +1142,129 @@ const preferCellTask = {
             context.report({ node: current, messageId: 'unexpected' });
             return false;
           });
+        }
+      },
+    };
+  },
+};
+
+const noManualAsyncState = {
+  meta: {
+    docs: {
+      description:
+        'disallow Cell.source() values that manually mirror async lifecycle state',
+    },
+    schema: [],
+    messages: {
+      task: '`{{operation}}` manually mirrors async lifecycle state in {{cells}}. Define this explicitly triggered operation with `Cell.task()` and read `.pending` / `.error` instead. Keep `Cell.source()` only for independent UI or synchronous validation state.',
+      derivedAsync:
+        '`{{operation}}` manually mirrors automatically loaded async state in {{cells}}. Use `Cell.derivedAsync()` and read `.pending` / `.error`; call `.revalidate()` for explicit retries.',
+      generic:
+        "`{{operation}}` manually mirrors async lifecycle state in {{cells}}. Use `Cell.task()` for explicitly triggered work or `Cell.derivedAsync()` for automatically evaluated/reactive work, and read the primitive's `.pending` / `.error` state.",
+    },
+  },
+  createOnce(context) {
+    return {
+      Program(node) {
+        for (const scope of getTopLevelFunctions(node)) {
+          if (scope.body.type !== 'BlockStatement') {
+            continue;
+          }
+
+          const sourceCells = new Map();
+          const operations = [];
+
+          for (const statement of scope.body.body) {
+            if (
+              statement.type === 'FunctionDeclaration' &&
+              statement.async &&
+              statement.id?.name
+            ) {
+              operations.push({
+                name: statement.id.name,
+                node: statement,
+                body: statement.body,
+              });
+              continue;
+            }
+
+            if (statement.type !== 'VariableDeclaration') {
+              continue;
+            }
+
+            for (const declaration of statement.declarations) {
+              if (declaration.id.type !== 'Identifier') {
+                continue;
+              }
+              if (isRetendCellCall(declaration.init, 'source')) {
+                sourceCells.set(
+                  declaration.id.name,
+                  getStaticLiteralValue(declaration.init.arguments[0])
+                );
+              }
+              if (isFunctionNode(declaration.init) && declaration.init.async) {
+                operations.push({
+                  name: declaration.id.name,
+                  node: declaration.init,
+                  body: declaration.init.body,
+                });
+              }
+            }
+          }
+
+          for (const operation of operations) {
+            const events = collectAsyncEvents(operation.body, sourceCells);
+            if (!events.some((event) => event.type === 'await')) {
+              continue;
+            }
+
+            const manualStateCells = [...sourceCells]
+              .filter(([name, initialValue]) =>
+                isManualAsyncCell(name, initialValue, events)
+              )
+              .map(([name]) => name);
+            if (manualStateCells.length === 0) {
+              continue;
+            }
+
+            let automaticallyTriggered = false;
+            let eventHandler = false;
+            walkTree(scope.body, (current) => {
+              if (
+                (isNamedCall(current, 'onSetup') ||
+                  isNamedCall(current, 'onConnected')) &&
+                current.arguments.some((argument) =>
+                  containsCallToName(argument, operation.name)
+                )
+              ) {
+                automaticallyTriggered = true;
+              }
+
+              if (
+                current.type === 'JSXAttribute' &&
+                /^on[A-Z]/u.test(getJsxAttributeName(current) ?? '') &&
+                current.value?.type === 'JSXExpressionContainer' &&
+                containsCallToName(current.value.expression, operation.name)
+              ) {
+                eventHandler = true;
+              }
+
+              return !(automaticallyTriggered && eventHandler);
+            });
+
+            context.report({
+              node: operation.node,
+              messageId: automaticallyTriggered
+                ? 'derivedAsync'
+                : eventHandler
+                  ? 'task'
+                  : 'generic',
+              data: {
+                operation: operation.name,
+                cells: manualStateCells.map((name) => `\`${name}\``).join(', '),
+              },
+            });
+          }
         }
       },
     };
@@ -2736,6 +2998,7 @@ const plugin = {
     'no-classname': noClassName,
     'no-inline-object-type': noInlineObjectType,
     'no-module-cell': noModuleCell,
+    'no-manual-async-state': noManualAsyncState,
     'no-module-jsx': noModuleJsx,
     'task-define-at-component-level': taskDefineAtComponentLevel,
     'props-destructure-first': propsDestructureFirst,

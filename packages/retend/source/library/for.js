@@ -223,6 +223,10 @@ export function For(list, fn, options) {
 
       if (initial) renderer.write(handle, initialNodes);
       else {
+        for (const [itemKey, { snapshot }] of cacheFromLastRun) {
+          if (newCache.has(itemKey)) continue;
+          snapshot.node.dispose();
+        }
         renderer.reconcile(handle, {
           cacheFromLastRun,
           onBeforeNodeRemove,
@@ -232,7 +236,6 @@ export function For(list, fn, options) {
           newList,
           nodeLookAhead,
         });
-        renderer.observer?.flush();
       }
 
       cacheFromLastRun = newCache;

@@ -46,7 +46,6 @@ function createSwitch(value, cases, defaultCase, key) {
     const processValueChange = (nextValue) => {
       snapshot.node.dispose();
       renderer.write(handle, callback(nextValue));
-      renderer.observer?.flush();
       snapshot.node.activate();
     };
 

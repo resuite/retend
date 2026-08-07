@@ -12,6 +12,16 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+
+  &:hover {
+    color: var(--retend-devtools-accent);
+    border-color: var(--retend-devtools-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--retend-devtools-accent);
+    outline-offset: 2px;
+  }
 }
 
 .headerButtonActive {
