@@ -145,6 +145,7 @@ function trackScopeReference(Scope, fileName) {
   }
 
   ScopeList.set(Scope[__HMR_SYMBOLS.HmrId], Scope);
+
   onSetup(() => () => ScopeList.delete(Scope[__HMR_SYMBOLS.HmrId]));
 }
 
