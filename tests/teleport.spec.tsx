@@ -4,6 +4,7 @@ import {
   Cell,
   createScope,
   getActiveRenderer,
+  onConnected,
   runPendingSetupEffects,
   useScopeContext,
 } from 'retend';
@@ -163,6 +164,32 @@ describe('Teleport', () => {
       expect(teleports.length).toBe(2);
       expect(getTextContent(teleports[0])).toBe('First teleport');
       expect(getTextContent(teleports[1])).toBe('Second teleport');
+    });
+
+    it('should activate connected effects whose refs are teleported', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const target = window.document.createElement('div');
+      target.id = 'teleported-ref-target';
+      window.document.body.append(target);
+      const connected = vi.fn();
+
+      const Panel = () => {
+        const ref = Cell.source<HTMLElement | null>(null);
+        onConnected(ref, connected);
+        return (
+          <Teleport to="#teleported-ref-target">
+            <div ref={ref}>Teleported ref</div>
+          </Teleport>
+        );
+      };
+
+      const result = renderer.render(<Panel />) as Node;
+      window.document.body.append(result);
+      await runPendingSetupEffects();
+
+      expect(connected).toHaveBeenCalledTimes(1);
+      expect(connected.mock.calls[0][0].isConnected).toBe(true);
     });
 
     it('should preserve scope context for teleported children', async () => {

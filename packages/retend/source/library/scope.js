@@ -203,7 +203,16 @@ class EffectNode {
       renderer,
     };
     this.#connectedEffects.push(effect);
-    ref.listen((next) => updateConnectedEffect(effect, next));
+    ref.listen((next) => {
+      updateConnectedEffect(effect, next);
+      if (next === null || renderer.isActive(next)) return;
+
+      queueMicrotask(() => {
+        if (!this.#enabled || !this.#connectedEffects.includes(effect)) return;
+        if (effect.current === undefined) effect.current = null;
+        updateConnectedEffect(effect, effect.ref.peek());
+      });
+    });
   }
 
   #activateConnectedEffects() {
