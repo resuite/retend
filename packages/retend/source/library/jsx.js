@@ -1,5 +1,6 @@
 /** @import { JSX } from '../jsx-runtime/index.js'; */
-import { Block, FragmentPlaceholder } from './block.js';
+import { Block } from './block.js';
+import { FragmentPlaceholder } from './fragment.js';
 
 /**
  * @param {string | Function} tagOrFn

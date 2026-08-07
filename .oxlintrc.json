@@ -12,6 +12,7 @@
     "no-shadow": "off",
     "no-await-in-loop": "off",
     "react/react-in-jsx-scope": "off",
+    "react/jsx-key": "off",
     "react/no-unknown-property": "off",
     "react/jsx-max-depth": "off",
     "react/jsx-props-no-spreading": "off",

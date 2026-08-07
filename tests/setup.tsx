@@ -99,3 +99,15 @@ export const getTextContent = (element: Node | VNode) => {
 
   return text;
 };
+
+/**
+ * Reads the text of a single leaf node (element or text node) from the ref,
+ * dispatching to the right read path for the current renderer.
+ */
+export const textOf = (node: NodeLike): string | null => {
+  const { host: window } = getActiveRenderer() as DOMRenderer;
+  if (node.nodeType === window.Node.TEXT_NODE) {
+    return node.textContent;
+  }
+  return getTextContent(node);
+};

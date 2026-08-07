@@ -5,15 +5,11 @@
 /** @import { AsyncCell } from '@adbl/cells'; */
 import { Cell } from '@adbl/cells';
 
+import { getSafeScopeContext } from '../_internals.js';
 import { getGlobalContext } from '../context/index.js';
+import { useFragmentCtx } from './fragment.js';
 import { getActiveRenderer, normalizeJsxChild } from './index.js';
-import {
-  createScope,
-  branchState,
-  getState,
-  useScopeContext,
-  withState,
-} from './scope.js';
+import { createScope, branchState, getState, withState } from './scope.js';
 
 /**
  * @typedef {{
@@ -55,6 +51,7 @@ export function Await(props) {
   const { children, fallback } = props;
   const { globalData } = getGlobalContext();
   const renderer = getActiveRenderer();
+  const fragmentCtx = useFragmentCtx();
   const asyncHolders = globalData.get(AsyncKey) ?? new Set();
   globalData.set(AsyncKey, asyncHolders);
   const initialStateDone = Cell.source(false);
@@ -127,6 +124,7 @@ export function Await(props) {
 
   const showContent = () => {
     fallbackSnapshot.node.dispose();
+    fragmentCtx?.correlate(group, [render].flat(), handle);
     renderer.write(handle, [render].flat());
     snapshot.node.unsuspend();
     snapshot.node.enable();
@@ -140,7 +138,9 @@ export function Await(props) {
     const fallbackNodes = withState(fallbackSnapshot, () =>
       renderer.handleComponent(() => fallback ?? null, [], fallbackSnapshot)
     );
-    renderer.write(handle, [fallbackNodes].flat());
+    const fallbackLogical = [fallbackNodes].flat();
+    fragmentCtx?.correlate(group, fallbackLogical, handle);
+    renderer.write(handle, fallbackLogical);
   }
   return group;
 }
@@ -155,11 +155,7 @@ export function Await(props) {
  * @returns {AwaitContext | null}
  */
 export function useAwait() {
-  try {
-    return useScopeContext(AwaitScope);
-  } catch {
-    return null;
-  }
+  return getSafeScopeContext(AwaitScope);
 }
 
 /**

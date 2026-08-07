@@ -1,5 +1,6 @@
 export * from './jsx.js';
 export * from './block.js';
+export { FragmentPlaceholder } from './fragment.js';
 export * from './for.js';
 export * from './if.js';
 export * from './switch.js';

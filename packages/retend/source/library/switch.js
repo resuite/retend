@@ -3,6 +3,7 @@
 import { Cell, AsyncCell } from '@adbl/cells';
 
 import { useAwait } from './await.js';
+import { useFragmentCtx } from './fragment.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
 
@@ -34,6 +35,7 @@ function createSwitch(value, cases, defaultCase, key) {
 
     const snapshot = branchState();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+    const fragmentCtx = useFragmentCtx();
 
     /** @param {any} current */
     const callback = (current) =>
@@ -45,7 +47,9 @@ function createSwitch(value, cases, defaultCase, key) {
     /** @param {any} nextValue */
     const processValueChange = (nextValue) => {
       snapshot.node.dispose();
-      renderer.write(handle, callback(nextValue));
+      const nextNodes = callback(nextValue);
+      fragmentCtx?.correlate(group, nextNodes, handle);
+      renderer.write(handle, nextNodes);
       snapshot.node.activate();
     };
 
@@ -63,7 +67,9 @@ function createSwitch(value, cases, defaultCase, key) {
       initialValue.then(processValueChange);
       return group;
     }
-    renderer.write(handle, callback(initialValue));
+    const nodes = callback(initialValue);
+    fragmentCtx?.correlate(group, nodes, handle);
+    renderer.write(handle, nodes);
     return group;
   };
 }

@@ -1,13 +1,14 @@
 /** @import { Renderer } from './renderer.js' */
-import { AsyncCell } from '@adbl/cells';
+import { AsyncCell, SourceCell } from '@adbl/cells';
 
 import { useAwait } from './await.js';
+import { Fragment, FragmentPlaceholder, useFragmentCtx } from './fragment.js';
 import { createNodesFromTemplate, linkNodes } from './utils.js';
 
 export class Block {
   /**
    * @param {string | Function | FragmentPlaceholder} tagOrFn
-   * @param {*} props
+   * @param {any} props
    * @param {*} fileData
    */
   constructor(tagOrFn, props, fileData) {
@@ -27,9 +28,15 @@ export class Block {
     const { fileData, kind, props, tagOrFn } = this;
 
     if (kind === 2) {
-      const group = renderer.createGroup();
-      linkNodes(group, props?.children, renderer);
-      return group;
+      if (!('ref' in props && props.ref instanceof SourceCell)) {
+        const group = renderer.createGroup();
+        const children = createNodesFromTemplate(props?.children, renderer);
+        linkNodes(group, children, renderer);
+        const parentFragmentRefCtx = useFragmentCtx();
+        parentFragmentRefCtx?.correlate(group, children);
+        return group;
+      }
+      return Fragment(props, renderer);
     }
 
     if (kind === 1) {
@@ -56,5 +63,3 @@ export class Block {
     return linkNodes(container, children, renderer);
   }
 }
-
-export class FragmentPlaceholder {}

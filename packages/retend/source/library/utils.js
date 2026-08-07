@@ -2,6 +2,7 @@
 import { AsyncCell, Cell } from '@adbl/cells';
 
 import { Block } from './block.js';
+import { useFragmentCtx } from './fragment.js';
 import { useAwait } from './index.js';
 
 /**
@@ -121,6 +122,8 @@ export function normalizeJsxChild(child, renderer) {
       stack.push(child[i]);
     }
 
+    /** @type {any[]} */
+    const collected = [];
     while (stack.length > 0) {
       const subchild = stack.pop();
       if (Array.isArray(subchild)) {
@@ -131,10 +134,12 @@ export function normalizeJsxChild(child, renderer) {
       }
 
       if (subchild instanceof Block) {
-        renderer.append(
-          group,
-          normalizeJsxChild(subchild.instantiate(renderer), renderer)
+        const normalized = normalizeJsxChild(
+          subchild.instantiate(renderer),
+          renderer
         );
+        collected.push(normalized);
+        renderer.append(group, normalized);
         continue;
       }
 
@@ -152,8 +157,10 @@ export function normalizeJsxChild(child, renderer) {
         normalized = createTextNode(subchild, renderer);
       }
 
+      collected.push(normalized);
       renderer.append(group, normalized);
     }
+    useFragmentCtx()?.correlate(group, collected);
     return group;
   }
 
