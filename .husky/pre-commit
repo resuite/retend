@@ -1,1 +1,17 @@
+# Formatting works on all platforms.
+#
+# `pnpm lint` (oxlint) cannot run on Android/Termux: its JS-plugin support
+# allocates a 4 GiB, 2 GiB-aligned block per thread that Android's bionic
+# libc cannot satisfy, so oxlint panics with SIGABRT. Skip lint there; it
+# still runs on every other platform.
+#
+# NOTE: When upgrading oxlint, verify that the JS-plugin allocator no longer
+# panics on Android (try `oxlint packages/retend-web-devtools`) before
+# removing this skip. If it works, re-enable lint on all platforms.
+if [ -n "$ANDROID_ROOT" ] || [ "$(node -p 'process.platform' 2>/dev/null)" = "android" ]; then
+  echo "Skipping pnpm lint on Android (oxlint JS-plugin allocator is unsupported on bionic)"
+  pnpm format
+  exit $?
+fi
+
 pnpm format && pnpm lint
