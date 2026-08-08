@@ -328,6 +328,104 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should skip a removed middle Unique handle when restoring', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showSecond = Cell.source(true);
+      const showThird = Cell.source(true);
+
+      const UniqueContent = createUnique(() => <div>Unique Data</div>);
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              <UniqueContent id={uuid} />
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="third">
+              {If(showThird, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showThird.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.second')!)).toBe(
+        'Unique Data'
+      );
+
+      showThird.set(true);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showSecond.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showThird.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.first')!)).toBe('Unique Data');
+
+      body.replaceChildren();
+    });
+
+    it('should skip a removed middle Unique handle when the latest handle is removed in the same update', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showSecond = Cell.source(true);
+      const showThird = Cell.source(true);
+
+      const UniqueContent = createUnique(() => <div>Unique Data</div>);
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              <UniqueContent id={uuid} />
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="third">
+              {If(showThird, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showSecond.set(false);
+      showThird.set(false);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('Unique Data');
+      expect(getTextContent(body.querySelector('.second')!)).toBe('');
+      expect(getTextContent(body.querySelector('.third')!)).toBe('');
+
+      body.replaceChildren();
+    });
+
     it('should move a Unique component that returns multiple elements', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;

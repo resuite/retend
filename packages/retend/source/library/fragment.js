@@ -47,13 +47,10 @@ export function useFragmentCtx() {
 export function FragmentPlaceholder(_props) {}
 
 /**
- *
- * @param {FragmentProps & { ref: SourceCell<any[] | null> }} props
  * @param {Renderer<any>} renderer
+ * @returns {{ handleToNodes: WeakMap<any, any>, groupToNodes: WeakMap<any, any> }}
  */
-export function Fragment(props, renderer) {
-  const { ref, children } = props;
-  const parentCtx = useFragmentCtx();
+export function getGlobalFragmentStash(renderer) {
   const { globalData } = getGlobalContext();
   let allStashes = globalData.get(FragmentStashSymbol);
   if (!allStashes) {
@@ -69,15 +66,38 @@ export function Fragment(props, renderer) {
     allStashes.set(renderer, rendererStash);
   }
 
-  const { handleToNodes, groupToNodes } = rendererStash;
+  return rendererStash;
+}
+
+/**
+ * Allows fragment group correlation outside of a fragment context, specifically
+ * for Unique, since it manages many groups over the lifetime of the application.
+ * @param {any} group
+ * @param {any[]} nodes
+ * @param {Renderer<any>} renderer
+ * @param {any} [handle]
+ */
+export function correlate(group, nodes, renderer, handle) {
+  const { groupToNodes, handleToNodes } = getGlobalFragmentStash(renderer);
+  groupToNodes.set(group, nodes);
+  if (handle) handleToNodes.set(handle, nodes);
+}
+
+/**
+ *
+ * @param {FragmentProps & { ref: SourceCell<any[] | null> }} props
+ * @param {Renderer<any>} renderer
+ */
+export function Fragment(props, renderer) {
+  const { ref, children } = props;
+  const parentCtx = useFragmentCtx();
+  const { handleToNodes, groupToNodes } = getGlobalFragmentStash(renderer);
 
   /** @type {FragmentContext} */
   const context = {
     correlate(group, nodes, handle) {
       groupToNodes.set(group, nodes);
-      if (handle) {
-        handleToNodes.set(handle, nodes);
-      }
+      if (handle) handleToNodes.set(handle, nodes);
     },
   };
 
