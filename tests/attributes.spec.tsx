@@ -21,6 +21,21 @@ const runTests = () => {
     id.set('another-id');
     expect(element.getAttribute('id')).toBe('another-id');
   });
+
+  it('should set a reactive transform attribute on an SVG group', () => {
+    const offset = Cell.source(10);
+    const transform = Cell.derived(() => `translate(${offset.get()} 0)`);
+    const element = render(
+      <svg>
+        <g transform={transform} />
+      </svg>
+    );
+    const group = element.querySelector('g');
+
+    expect(group?.getAttribute('transform')).toBe('translate(10 0)');
+    offset.set(20);
+    expect(group?.getAttribute('transform')).toBe('translate(20 0)');
+  });
 };
 
 describe('Attributes', () => {

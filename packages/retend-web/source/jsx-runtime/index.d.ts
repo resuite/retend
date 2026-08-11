@@ -2488,6 +2488,8 @@ declare module 'retend/jsx-runtime' {
       fontWeight?: 'normal' | 'bold' | 'bolder' | 'lighter' | number;
       /** Specifies the opacity of the element */
       opacity?: number | string;
+      /** Specifies the transformation to apply to the element. */
+      transform?: string;
       /** Specifies the color to paint along the outline of the element */
       stroke?: string;
       /** Specifies the width of the stroke on the element */
@@ -2995,8 +2997,6 @@ declare module 'retend/jsx-runtime' {
       rx?: number | string;
       /** Specifies the vertical corner radius of the rectangle */
       ry?: number | string;
-      /** Specifies the transformation to apply to the element. */
-      transform?: string;
     }
 
     interface JsxSVGStopElement
