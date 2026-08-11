@@ -345,6 +345,393 @@ const runTests = () => {
       expect(node).toBeInstanceOf(renderer.host.HTMLElement);
     }
   });
+
+  it('should update the ref when a reactive If switches branches', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(
+          condition,
+          () => (
+            <div>yes</div>
+          ),
+          () => (
+            <span>no</span>
+          )
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual(['yes']);
+
+    condition.set(false);
+    const nodes = ref.get();
+    expect(nodes).toHaveLength(1);
+    expect(nodes![0]).toBeInstanceOf(renderer.host.HTMLElement);
+    expect(textOf(nodes![0] as NodeLike)).toBe('no');
+  });
+
+  it('should keep the ref in sync as a reactive If toggles back and forth', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(
+          condition,
+          () => (
+            <div>yes</div>
+          ),
+          () => (
+            <span>no</span>
+          )
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+
+    condition.set(false);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('no');
+
+    condition.set(true);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+  });
+
+  it('should empty the ref when a reactive If without an else branch turns falsy', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(condition, () => (
+          <div>yes</div>
+        ))}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+
+    condition.set(false);
+    expect(ref.get()).toEqual([]);
+
+    condition.set(true);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+  });
+
+  it('should update the ref for the object form of a reactive If', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(condition, {
+          true: () => <b>yes</b>,
+          false: () => <i>no</i>,
+        })}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+
+    condition.set(false);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('no');
+  });
+
+  it('should update the ref through nested Ifs when either condition changes', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const outer = Cell.source(true);
+    const inner = Cell.source(false);
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(
+          outer,
+          () =>
+            If(
+              inner,
+              () => <b>both</b>,
+              () => <i>outer only</i>
+            ),
+          () => (
+            <span>neither</span>
+          )
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('outer only');
+
+    inner.set(true);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('both');
+
+    outer.set(false);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('neither');
+  });
+
+  it('should update the ref to the full set of nodes of the new branch', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(
+          condition,
+          () => (
+            <>
+              <b>1</b>
+              <b>2</b>
+            </>
+          ),
+          () => (
+            <u>none</u>
+          )
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      '1',
+      '2',
+    ]);
+
+    condition.set(false);
+    const nodes = ref.get();
+    expect(nodes).toHaveLength(1);
+    expect(textOf(nodes![0] as NodeLike)).toBe('none');
+
+    condition.set(true);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      '1',
+      '2',
+    ]);
+  });
+
+  it('should keep document order in the ref across updates of several reactive Ifs', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const a = Cell.source(true);
+    const b = Cell.source(false);
+    const App = () => (
+      <Fragment ref={ref}>
+        <div>head</div>
+        {If(a, () => (
+          <b>one</b>
+        ))}
+        {If(
+          b,
+          () => (
+            <i>two</i>
+          ),
+          () => (
+            <u>two-fallback</u>
+          )
+        )}
+        <div>tail</div>
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'head',
+      'one',
+      'two-fallback',
+      'tail',
+    ]);
+
+    a.set(false);
+    b.set(true);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'head',
+      'two',
+      'tail',
+    ]);
+
+    a.set(true);
+    b.set(false);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'head',
+      'one',
+      'two-fallback',
+      'tail',
+    ]);
+  });
+
+  it('should update the ref when a reactive If swaps a component branch', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const Item = () => <li>item</li>;
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(
+          condition,
+          () => (
+            <Item />
+          ),
+          () => (
+            <span>none</span>
+          )
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('item');
+
+    condition.set(false);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('none');
+
+    condition.set(true);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('item');
+  });
+
+  it('should update the ref to text nodes produced by a reactive If branch', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<unknown[] | null>(null);
+    const condition = Cell.source(true);
+    const App = () => (
+      <Fragment ref={ref}>
+        {If(
+          condition,
+          () => 'plain text',
+          () => 'fallback text'
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect((ref.get()![0] as Node).textContent).toBe('plain text');
+
+    condition.set(false);
+    const nodes = ref.get();
+    expect(nodes).toHaveLength(1);
+    expect((nodes![0] as Node).nodeType).toBe(renderer.host.Node.TEXT_NODE);
+    expect((nodes![0] as Node).textContent).toBe('fallback text');
+  });
+
+  it('should expose an If passed as props.children through a component wrapped by a Fragment', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const Card = (props: { children: JSX.Children }) => (
+      <div>{props.children}</div>
+    );
+    const App = () => (
+      <Fragment ref={ref}>
+        <Card>
+          {If(
+            condition,
+            () => (
+              <b>yes</b>
+            ),
+            () => (
+              <i>no</i>
+            )
+          )}
+        </Card>
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    const nodes = ref.get();
+    expect(nodes).toHaveLength(1);
+    expect(nodes![0]).toBeInstanceOf(renderer.host.HTMLElement);
+    expect(textOf(nodes![0] as NodeLike)).toBe('yes');
+  });
+
+  it('should expose an If forwarded through props.children into a Fragment ref', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const Card = (props: { children: JSX.Children }) => (
+      <Fragment ref={ref}>{props.children}</Fragment>
+    );
+    const App = () => (
+      <Card>
+        {If(
+          condition,
+          () => (
+            <b>yes</b>
+          ),
+          () => (
+            <i>no</i>
+          )
+        )}
+      </Card>
+    );
+
+    renderer.render(<App />);
+    const nodes = ref.get();
+    expect(nodes).toHaveLength(1);
+    expect(nodes![0]).toBeInstanceOf(renderer.host.HTMLElement);
+    expect(textOf(nodes![0] as NodeLike)).toBe('yes');
+  });
+
+  it('should update the ref when an If forwarded through props.children changes branches', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const Card = (props: { children: JSX.Children }) => (
+      <Fragment ref={ref}>{props.children}</Fragment>
+    );
+    const App = () => (
+      <Card>
+        {If(
+          condition,
+          () => (
+            <b>yes</b>
+          ),
+          () => (
+            <i>no</i>
+          )
+        )}
+      </Card>
+    );
+
+    renderer.render(<App />);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+
+    condition.set(false);
+    expect(ref.get()).toHaveLength(1);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('no');
+
+    condition.set(true);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+  });
+
+  it('should empty the ref when an If without an else forwarded through props.children turns falsy', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const condition = Cell.source(true);
+    const Card = (props: { children: JSX.Children }) => (
+      <Fragment ref={ref}>{props.children}</Fragment>
+    );
+    const App = () => (
+      <Card>
+        {If(condition, () => (
+          <b>yes</b>
+        ))}
+      </Card>
+    );
+
+    renderer.render(<App />);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+
+    condition.set(false);
+    expect(ref.get()).toEqual([]);
+
+    condition.set(true);
+    expect(textOf(ref.get()![0] as NodeLike)).toBe('yes');
+  });
 };
 
 describe('If Block Fragment Refs', () => {

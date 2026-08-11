@@ -5,9 +5,11 @@ import { getSafeScopeContext } from '../_internals.js';
 import { getGlobalContext } from '../context/index.js';
 import { createScope } from './scope.js';
 import { createNodesFromTemplate, linkNodes } from './utils.js';
+
 /**
  * @typedef {Object} FragmentContext
  * @property {(group: any, nodes: any, handle?: any) => void} correlate
+ * @property {() => void} invalidate
  */
 
 /**
@@ -84,31 +86,10 @@ export function correlate(group, nodes, renderer, handle) {
 }
 
 /**
- *
- * @param {FragmentProps & { ref: SourceCell<any[] | null> }} props
- * @param {Renderer<any>} renderer
+ * @param {any[]} nodes
+ * @param {WeakMap<any, any[]>} groupToNodes
  */
-export function Fragment(props, renderer) {
-  const { ref, children } = props;
-  const parentCtx = useFragmentCtx();
-  const { handleToNodes, groupToNodes } = getGlobalFragmentStash(renderer);
-
-  /** @type {FragmentContext} */
-  const context = {
-    correlate(group, nodes, handle) {
-      groupToNodes.set(group, nodes);
-      if (handle) handleToNodes.set(handle, nodes);
-    },
-  };
-
-  const nodes = /** @type {object[]} */ (
-    TrackedFragmentScope.Provider({
-      value: context,
-      h: false,
-      children: () => createNodesFromTemplate(children, renderer),
-    })
-  );
-
+function resolveLeafs(nodes, groupToNodes) {
   const leafs = [];
   /** @type {object[]} */
   const stack = [];
@@ -123,7 +104,44 @@ export function Fragment(props, renderer) {
     }
   }
 
-  ref.set(leafs);
+  return leafs;
+}
+
+/**
+ *
+ * @param {FragmentProps & { ref: SourceCell<any[] | null> }} props
+ * @param {Renderer<any>} renderer
+ */
+export function Fragment(props, renderer) {
+  const { ref, children } = props;
+  const parentCtx = useFragmentCtx();
+  let initialized = false;
+  const { handleToNodes, groupToNodes } = getGlobalFragmentStash(renderer);
+
+  /** @type {FragmentContext} */
+  const context = {
+    correlate(group, nodes, handle) {
+      groupToNodes.set(group, nodes);
+      if (handle) handleToNodes.set(handle, nodes);
+      context.invalidate();
+    },
+    invalidate() {
+      if (!initialized) return;
+      ref.set(resolveLeafs(nodes, groupToNodes));
+      parentCtx?.invalidate();
+    },
+  };
+
+  const nodes = /** @type {object[]} */ (
+    TrackedFragmentScope.Provider({
+      value: context,
+      h: false,
+      children: () => createNodesFromTemplate(children, renderer),
+    })
+  );
+
+  ref.set(resolveLeafs(nodes, groupToNodes));
+  initialized = true;
   const group = renderer.createGroup();
   linkNodes(group, nodes, renderer);
   parentCtx?.correlate(group, nodes);

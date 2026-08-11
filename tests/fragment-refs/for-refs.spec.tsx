@@ -1,3 +1,5 @@
+import type { JSX } from 'retend/jsx-runtime';
+
 import { Cell, For, Fragment, If, getActiveRenderer } from 'retend';
 import { describe, expect, it } from 'vitest';
 
@@ -219,6 +221,205 @@ const runTests = () => {
     for (const node of nodes!) {
       expect(node).toBeInstanceOf(renderer.host.HTMLElement);
     }
+  });
+
+  it('should update the ref when a reactive For replaces its items', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const items = Cell.source([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+      { id: 'c', name: 'C' },
+    ]);
+    const App = () => (
+      <Fragment ref={ref}>
+        {For(
+          items,
+          (item) => (
+            <li>{item.name}</li>
+          ),
+          { key: 'id' }
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'A',
+      'B',
+      'C',
+    ]);
+
+    items.set([
+      { id: 'x', name: 'X' },
+      { id: 'y', name: 'Y' },
+      { id: 'z', name: 'Z' },
+    ]);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'X',
+      'Y',
+      'Z',
+    ]);
+
+    items.set([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+      { id: 'c', name: 'C' },
+    ]);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'A',
+      'B',
+      'C',
+    ]);
+  });
+
+  it('should update the ref to the new document order when a keyed reactive For is reordered', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const items = Cell.source([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+      { id: 'c', name: 'C' },
+    ]);
+    const App = () => (
+      <Fragment ref={ref}>
+        {For(
+          items,
+          (item) => (
+            <li>{item.name}</li>
+          ),
+          { key: 'id' }
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    const first = ref.get()!;
+    expect(first.map((node) => textOf(node as NodeLike))).toEqual([
+      'A',
+      'B',
+      'C',
+    ]);
+
+    items.set([
+      { id: 'c', name: 'C' },
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+    ]);
+    const second = ref.get()!;
+    expect(second.map((node) => textOf(node as NodeLike))).toEqual([
+      'C',
+      'A',
+      'B',
+    ]);
+    // Keyed For moves nodes rather than recreating them, so the ref keeps the
+    // same node identities and only their order changes.
+    expect(second[0]).toBe(first[2]);
+    expect(second[1]).toBe(first[0]);
+    expect(second[2]).toBe(first[1]);
+  });
+
+  it('should empty the ref when a reactive For becomes empty', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const items = Cell.source([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+    ]);
+    const App = () => (
+      <Fragment ref={ref}>
+        {For(
+          items,
+          (item) => (
+            <li>{item.name}</li>
+          ),
+          { key: 'id' }
+        )}
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'A',
+      'B',
+    ]);
+
+    items.set([]);
+    expect(ref.get()).toEqual([]);
+
+    items.set([{ id: 'a', name: 'A' }]);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual(['A']);
+  });
+
+  it('should expose a For forwarded through props.children into a Fragment ref', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const items = Cell.source([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+    ]);
+    const List = (props: { children: JSX.Children }) => (
+      <Fragment ref={ref}>{props.children}</Fragment>
+    );
+    const App = () => (
+      <List>
+        {For(
+          items,
+          (item) => (
+            <li>{item.name}</li>
+          ),
+          { key: 'id' }
+        )}
+      </List>
+    );
+
+    renderer.render(<App />);
+    const nodes = ref.get();
+    expect(nodes!.map((node) => textOf(node as NodeLike))).toEqual(['A', 'B']);
+    for (const node of nodes!) {
+      expect(node).toBeInstanceOf(renderer.host.HTMLElement);
+    }
+  });
+
+  it('should update the ref when a For forwarded through props.children is reordered', () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    const items = Cell.source([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+    ]);
+    const List = (props: { children: JSX.Children }) => (
+      <Fragment ref={ref}>{props.children}</Fragment>
+    );
+    const App = () => (
+      <List>
+        {For(
+          items,
+          (item) => (
+            <li>{item.name}</li>
+          ),
+          { key: 'id' }
+        )}
+      </List>
+    );
+
+    renderer.render(<App />);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'A',
+      'B',
+    ]);
+
+    items.set([
+      { id: 'b', name: 'B' },
+      { id: 'a', name: 'A' },
+    ]);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'B',
+      'A',
+    ]);
+
+    items.set([]);
+    expect(ref.get()).toEqual([]);
   });
 };
 
