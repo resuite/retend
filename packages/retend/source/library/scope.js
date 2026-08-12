@@ -382,7 +382,7 @@ export function createScope(name) {
   });
 
   /// @ts-expect-error: Vite types are not ingrained.
-  if (import.meta.env?.DEV) {
+  if (import.meta.hot) {
     /// @ts-expect-error: Not used in production.
     Scope.Provider.__isScopeProviderOf = Scope;
   }
@@ -413,7 +413,7 @@ export function useScopeContext(Scope) {
 
   if (!relatedScopeData) {
     // @ts-expect-error: Vite types is not ingrained.
-    if (import.meta.env?.DEV) {
+    if (import.meta.hot) {
       // In HMR, scopes can change referential identity.
       // `HmrId` helps identify them across reloads.
       // Its not fool proof, but it works.
