@@ -1,7 +1,13 @@
 import { Await, Cell, For, Fragment, getActiveRenderer } from 'retend';
 import { describe, expect, it } from 'vitest';
 
-import { browserSetup, textOf, vDomSetup, type NodeLike } from '../setup.tsx';
+import {
+  browserSetup,
+  textOf,
+  timeout,
+  vDomSetup,
+  type NodeLike,
+} from '../setup.tsx';
 
 const pendingText = () =>
   Cell.derivedAsync(() => new Promise<string>(() => undefined));
@@ -123,6 +129,76 @@ const runTests = () => {
     expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
       'a',
       'b',
+    ]);
+  });
+
+  it('should update the ref when Await finishes rendering its content', async () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    let resolvePending!: (value: string) => void;
+    const pending = Cell.derivedAsync(
+      () =>
+        new Promise<string>((resolve) => {
+          resolvePending = resolve;
+        })
+    );
+    const App = () => (
+      <Fragment ref={ref}>
+        <Await fallback={<span>Loading</span>}>
+          <div>{pending}</div>
+        </Await>
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'Loading',
+    ]);
+
+    resolvePending('Ready');
+    await timeout();
+
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'Ready',
+    ]);
+  });
+
+  it('should update the ref when a nested Await finishes rendering', async () => {
+    const renderer = getActiveRenderer();
+    const ref = Cell.source<HTMLElement[] | null>(null);
+    let resolveInner!: (value: string) => void;
+    const inner = Cell.derivedAsync(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveInner = resolve;
+        })
+    );
+    const App = () => (
+      <Fragment ref={ref}>
+        <Await fallback={<span>OuterLoading</span>}>
+          <Await fallback={<span>InnerLoading</span>}>
+            <div>{inner}</div>
+          </Await>
+        </Await>
+      </Fragment>
+    );
+
+    renderer.render(<App />);
+    // The outer Await has no async dependency of its own, so it resolves
+    // independently and reveals the inner Await's fallback.
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'OuterLoading',
+    ]);
+
+    await timeout();
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'InnerLoading',
+    ]);
+
+    resolveInner('Ready');
+    await timeout();
+    expect(ref.get()!.map((node) => textOf(node as NodeLike))).toEqual([
+      'Ready',
     ]);
   });
 };

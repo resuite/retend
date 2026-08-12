@@ -1,7 +1,14 @@
 import type { JSX } from 'retend/jsx-runtime';
 
-import { Cell, Fragment, getActiveRenderer } from 'retend';
-import { describe, expect, it } from 'vitest';
+import {
+  Cell,
+  Fragment,
+  If,
+  getActiveRenderer,
+  getState,
+  onConnected,
+} from 'retend';
+import { describe, expect, it, vi } from 'vitest';
 
 import { browserSetup, textOf, vDomSetup, type NodeLike } from '../setup.tsx';
 
@@ -264,5 +271,53 @@ describe('Simple Fragment Refs', () => {
   describe('VDom', () => {
     vDomSetup();
     runTests();
+  });
+});
+
+describe('Simple Fragment Refs (Browser only)', () => {
+  browserSetup();
+
+  it('should fire onConnected and its cleanup when the first element of a fragment changes', async () => {
+    const renderer = getActiveRenderer();
+    const mounted = vi.fn();
+    const cleanup = vi.fn();
+    const condition = Cell.source(true);
+
+    const MyWrapper = (props: { children: JSX.Children }) => {
+      const ref = Cell.source<HTMLElement[] | null>(null);
+      const firstElementRef = Cell.derived(() => ref.get()?.[0] ?? null);
+      onConnected(firstElementRef, (el) => {
+        mounted(el);
+        return cleanup;
+      });
+      return <Fragment ref={ref}>{props.children}</Fragment>;
+    };
+
+    const App = () => (
+      <MyWrapper>
+        {If(
+          condition,
+          () => (
+            <div>yes</div>
+          ),
+          () => (
+            <span>no</span>
+          )
+        )}
+      </MyWrapper>
+    );
+
+    const result = renderer.render(<App />) as unknown as Node;
+    window.document.body.append(result);
+    await getState().node.activate();
+
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(textOf(mounted.mock.calls[0][0] as NodeLike)).toBe('yes');
+    expect(cleanup).not.toHaveBeenCalled();
+
+    condition.set(false);
+    expect(mounted).toHaveBeenCalledTimes(2);
+    expect(textOf(mounted.mock.calls[1][0] as NodeLike)).toBe('no');
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });
