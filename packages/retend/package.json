@@ -50,7 +50,7 @@
     "build": "node scripts/build.js"
   },
   "dependencies": {
-    "@adbl/cells": "^0.0.26",
+    "@adbl/cells": "^0.0.27",
     "csstype": "^3.2.3"
   },
   "devDependencies": {

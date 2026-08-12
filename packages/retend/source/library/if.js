@@ -3,6 +3,7 @@
 import { Cell, AsyncCell } from '@adbl/cells';
 
 import { useAwait } from './await.js';
+import { useFragmentCtx } from './fragment.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
 
@@ -86,6 +87,7 @@ export function If(value, fnOrObject, elseFn) {
 
     const stateSnapshot = branchState();
     if (value instanceof AsyncCell) useAwait()?.waitUntil(value);
+    const fragmentCtx = useFragmentCtx();
 
     if (typeof fnOrObject === 'function' && !fnOrObject.name) {
       Object.defineProperty(fnOrObject, 'name', { value: 'If.True' });
@@ -121,7 +123,9 @@ export function If(value, fnOrObject, elseFn) {
      */
     const processValueChange = (nextValue) => {
       stateSnapshot.node.dispose();
-      renderer.write(handle, callback(nextValue));
+      const nextNodes = callback(nextValue);
+      fragmentCtx?.correlate(group, nextNodes, handle);
+      renderer.write(handle, nextNodes);
       stateSnapshot.node.activate();
     };
 
@@ -141,7 +145,9 @@ export function If(value, fnOrObject, elseFn) {
       return group;
     }
 
-    renderer.write(handle, callback(initialValue));
+    const nodes = callback(initialValue);
+    fragmentCtx?.correlate(group, nodes, handle);
+    renderer.write(handle, nodes);
     return group;
   };
 }

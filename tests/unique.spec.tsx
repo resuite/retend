@@ -5,11 +5,13 @@ import {
   Cell,
   If,
   Switch,
+  createScope,
   createUnique,
   getActiveRenderer,
   onMove,
   onSetup,
   runPendingSetupEffects,
+  useScopeContext,
 } from 'retend';
 import { UniqueTransition } from 'retend-utils/components';
 import { ShadowRoot } from 'retend-web';
@@ -229,6 +231,61 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should not run setup cleanups when a Unique moves before its old location is disposed', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const setupFn = vi.fn();
+      const cleanupFn = vi.fn();
+
+      const UniqueContent = createUnique(() => {
+        onSetup(() => {
+          setupFn();
+          return cleanupFn;
+        });
+        return <div>Unique Data</div>;
+      });
+
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+      const { body } = window.document;
+      const element = render(
+        <div>
+          {/* `.second` first so its If listener fires before the first's */}
+          <div class="second">
+            {If(showSecond, () => (
+              <UniqueContent id={uuid} />
+            ))}
+          </div>
+          <div class="first">
+            {If(showFirst, () => (
+              <UniqueContent id={uuid} />
+            ))}
+          </div>
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+      expect(setupFn).toHaveBeenCalledTimes(1);
+
+      // The second If's listener fires first, so the Unique moves to `.second`
+      // while `.first` is still mounted. The old location's dispose cascade
+      // then reaches the instance — its cleanups must not run, since the
+      // instance is moving, not dying.
+      showSecond.set(true);
+      showFirst.set(false);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('');
+      expect(getTextContent(body.querySelector('.second')!)).toBe(
+        'Unique Data'
+      );
+      expect(setupFn).toHaveBeenCalledTimes(1);
+      expect(cleanupFn).not.toHaveBeenCalled();
+      body.replaceChildren();
+    });
+
     it('should clean up onMove callbacks when a child unmounts', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;
@@ -325,6 +382,104 @@ describe('Unique', () => {
         'Unique Data'
       );
       expect(moveFn).not.toHaveBeenCalled();
+      body.replaceChildren();
+    });
+
+    it('should skip a removed middle Unique handle when restoring', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showSecond = Cell.source(true);
+      const showThird = Cell.source(true);
+
+      const UniqueContent = createUnique(() => <div>Unique Data</div>);
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              <UniqueContent id={uuid} />
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="third">
+              {If(showThird, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showThird.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.second')!)).toBe(
+        'Unique Data'
+      );
+
+      showThird.set(true);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showSecond.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showThird.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.first')!)).toBe('Unique Data');
+
+      body.replaceChildren();
+    });
+
+    it('should skip a removed middle Unique handle when the latest handle is removed in the same update', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showSecond = Cell.source(true);
+      const showThird = Cell.source(true);
+
+      const UniqueContent = createUnique(() => <div>Unique Data</div>);
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              <UniqueContent id={uuid} />
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="third">
+              {If(showThird, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.third')!)).toBe('Unique Data');
+
+      showSecond.set(false);
+      showThird.set(false);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('Unique Data');
+      expect(getTextContent(body.querySelector('.second')!)).toBe('');
+      expect(getTextContent(body.querySelector('.third')!)).toBe('');
+
       body.replaceChildren();
     });
 
@@ -970,6 +1125,158 @@ describe('Unique', () => {
       expect(getTextContent(body)).toBe('');
       expect(setupFn).toHaveBeenCalledTimes(1); // isn't called again.
       expect(cleanupFn).toHaveBeenCalledTimes(1); // is called!
+      body.replaceChildren();
+    });
+
+    it('should still run new setup fns inside of Unique components after move', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+      const showChild = Cell.source(false);
+      const childSetup = vi.fn();
+      const childCleanup = vi.fn();
+
+      const Child = () => {
+        onSetup(() => {
+          childSetup();
+          return childCleanup;
+        });
+        return <span>Child</span>;
+      };
+      const UniqueContent = createUnique(() => (
+        <div>{If(showChild, Child)}</div>
+      ));
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            <div class="first">
+              {If(showFirst, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+            <div class="second">
+              {If(showSecond, () => (
+                <UniqueContent id={uuid} />
+              ))}
+            </div>
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      expect(childSetup).not.toHaveBeenCalled();
+
+      showSecond.set(true);
+      showFirst.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.first')!)).toBe('');
+      expect(getTextContent(body.querySelector('.second')!)).toBe('');
+
+      showChild.set(true);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.second')!)).toBe('Child');
+      expect(childSetup).toHaveBeenCalledTimes(1);
+      expect(childCleanup).not.toHaveBeenCalled();
+
+      showChild.set(false);
+      await runPendingSetupEffects();
+      expect(childCleanup).toHaveBeenCalledTimes(1);
+
+      showChild.set(true);
+      await runPendingSetupEffects();
+      expect(childSetup).toHaveBeenCalledTimes(2);
+      expect(childCleanup).toHaveBeenCalledTimes(1);
+      body.replaceChildren();
+    });
+
+    it('should not disturb nested scopes and effects inside children of Unique components during move', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const value = Cell.source(0);
+      const showApp = Cell.source(true);
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+      const childSetup = vi.fn();
+      const childCleanup = vi.fn();
+      const valueListener = vi.fn();
+      const ValueScope = createScope<typeof value>('UniqueMoveValue');
+
+      const Child = () => {
+        const scopedValue = useScopeContext(ValueScope);
+        scopedValue.listen(valueListener);
+        onSetup(() => {
+          childSetup();
+          return childCleanup;
+        });
+        return <span>{scopedValue}</span>;
+      };
+      const UniqueContent = createUnique(() => (
+        <ValueScope.Provider value={value}>
+          <Child />
+        </ValueScope.Provider>
+      ));
+
+      const { body } = window.document;
+      body.append(
+        render(
+          <div>
+            {If(showApp, () => (
+              <>
+                <div class="first">
+                  {If(showFirst, () => (
+                    <UniqueContent id={uuid} />
+                  ))}
+                </div>
+                <div class="second">
+                  {If(showSecond, () => (
+                    <UniqueContent id={uuid} />
+                  ))}
+                </div>
+              </>
+            ))}
+          </div>
+        )
+      );
+      await runPendingSetupEffects();
+
+      expect(childSetup).toHaveBeenCalledTimes(1);
+      expect(childCleanup).not.toHaveBeenCalled();
+      expect(getTextContent(body.querySelector('.first')!)).toBe('0');
+
+      value.set(1);
+      expect(valueListener).toHaveBeenCalledTimes(1);
+
+      showSecond.set(true);
+      showFirst.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.second')!)).toBe('1');
+      expect(childSetup).toHaveBeenCalledTimes(1);
+      expect(childCleanup).not.toHaveBeenCalled();
+
+      value.set(2);
+      expect(valueListener).toHaveBeenCalledTimes(2);
+
+      showFirst.set(true);
+      showSecond.set(false);
+      await runPendingSetupEffects();
+      expect(getTextContent(body.querySelector('.first')!)).toBe('2');
+      expect(childSetup).toHaveBeenCalledTimes(1);
+      expect(childCleanup).not.toHaveBeenCalled();
+
+      value.set(3);
+      expect(valueListener).toHaveBeenCalledTimes(3);
+
+      showApp.set(false);
+      await runPendingSetupEffects();
+      expect(childCleanup).toHaveBeenCalledTimes(1);
+
+      value.set(4);
+      expect(valueListener).toHaveBeenCalledTimes(3);
       body.replaceChildren();
     });
 

@@ -2,10 +2,10 @@
 /** @import { SourceCell } from '@adbl/cells' */
 /** @import { StateSnapshot, Scope } from '../library/scope.js' */
 /** @import { Renderer } from '../library/renderer.js' */
+/** @import { FragmentContext } from './fragment.js' */
 
 import { Cell } from '@adbl/cells';
 
-import { createGroupFromNodes } from '../_internals.js';
 import { getGlobalContext } from '../context/index.js';
 import {
   __HMR_SYMBOLS,
@@ -17,6 +17,7 @@ import {
   withState,
 } from '../library/scope.js';
 import { useAwait } from './await.js';
+import { correlate, TrackedFragmentScope, useFragmentCtx } from './fragment.js';
 
 const StashSymbol = Symbol('UniqueStash');
 /** @type {Scope<Set<UniqueMoveFn>>} */
@@ -30,9 +31,11 @@ const UniqueScope = createScope('Unique');
  * @typedef UniqueCtx
  * @property {SourceCell<UniqueProps<any>>} props
  * @property {StateSnapshot} state
+ * @property {unknown[]} logicalNodes
  * @property {Set<UniqueMoveFn>} moveFns
  * @property {Array<() => void>} restoreFns
- * @property {Array<[any, UniqueProps<any>]>} journey
+ * @property {Array<[any, any, UniqueProps<any>, FragmentContext | null]>} journey
+ * Handle, group, props and fragment context corresponding to a point in the journey
  * @property {ReturnType<typeof useAwait>} pendingAwait
  * @property {(() => void) | undefined} render
  * @property {boolean} isStable
@@ -191,29 +194,69 @@ export function createUnique(renderFn) {
     if (!instances) stash.set(renderer, (instances = new Map()));
 
     let instance = instances.get(key);
-    let group;
-    /** @type {any} */
-    let handle;
+    /** @type {FragmentContext | null} */
+    const fragmentCtx = useFragmentCtx();
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
 
     if (!instance) {
-      // First Instance of createUnique, create normally.
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
-      const state = branchState();
+      // A Unique instance owns its lifecycle independently of every location
+      // it visits. Location teardown leaves it alive; journey teardown calls
+      // dispose() on this retained branch directly.
+      const state = branchState('retained');
       state.data = { handle };
       const moveFns = new Set();
+      /** @type {UniqueCtx} */
+      let newInstance;
+      /**
+       * The fragment context of the location the instance is currently rendered
+       * at (the last point in its journey). This is resolved at call time because
+       * the provider is shared across every location the instance visits, so the
+       * enclosing fragment can change between points.
+       * @returns {FragmentContext | null}
+       */
+      const getActiveFragmentCtx = () => {
+        const journey = newInstance?.journey;
+        if (!journey || journey.length === 0) return null;
+        return journey[journey.length - 1][3] ?? null;
+      };
+      /** @type {FragmentContext} */
+      const trackedFragmentProviderProps = {
+        correlate(group, nodes, handle) {
+          // The reasoning for this is to allow the reactive primitives within the
+          // Unique.Content to still be correlated globally, even if the Unique itself is not
+          // inside a TrackedFragmentScope, for the case where it could later move into one.
+          // The alternative would be to always correlate reactive groups regardless of whether
+          // they are inside a TrackedFragmentScope or not, which would be less efficient.
+          correlate(group, nodes, renderer, handle);
+          // Re-resolve the enclosing fragment's ref so it tracks nodes that
+          // changed inside the Unique (e.g. a reactive If switching branches).
+          getActiveFragmentCtx()?.invalidate();
+        },
+        invalidate() {
+          getActiveFragmentCtx()?.invalidate();
+        },
+      };
       const providerProps = [
-        { value: moveFns, children: () => renderFn(newInstance.props) },
+        {
+          value: moveFns,
+          children: () =>
+            TrackedFragmentScope.Provider({
+              value: trackedFragmentProviderProps,
+              children: () => renderFn(newInstance.props),
+            }),
+        },
       ];
       const props = withState(state, () => Cell.source(nextProps));
 
       /** @type {UniqueCtx} */
-      const newInstance = {
+      newInstance = {
         props,
         state,
+        logicalNodes: [],
         moveFns,
         restoreFns: [],
-        journey: [[handle, nextProps]],
+        journey: [[handle, group, nextProps, fragmentCtx]],
         pendingAwait: awaitCtx,
         render() {
           const pendingAwait = newInstance.pendingAwait;
@@ -229,17 +272,21 @@ export function createUnique(renderFn) {
               state.node.dispose();
               return;
             }
-            const content = createGroupFromNodes(
-              withState(state, () =>
-                renderer.handleComponent(
-                  UniqueScope.Provider,
-                  providerProps,
-                  state
-                )
-              ),
-              renderer
+            const Provider = UniqueScope.Provider;
+            const raw = withState(state, () =>
+              renderer.handleComponent(Provider, providerProps, state)
             );
-            renderer.write(state.data.handle, renderer.unwrapGroup(content));
+            const logicalNodes = Array.isArray(raw) ? raw : raw ? [raw] : [];
+            // Checking the last handle/group helps us avoid a scenario where a pending instance point
+            // is dropped before it can be resolved, or another instance point supercedes it
+            const [currentHandle, currentGroup] =
+              newInstance.journey[newInstance.journey.length - 1];
+            newInstance.logicalNodes = logicalNodes;
+            correlate(currentGroup, logicalNodes, renderer, currentHandle);
+            // The stash now reflects the freshly committed nodes, so re-resolve
+            // any enclosing fragment refs that include this instance.
+            getActiveFragmentCtx()?.invalidate();
+            renderer.write(currentHandle, logicalNodes);
             newInstance.render = undefined;
           };
           if (pendingAwait && !pendingAwait.done)
@@ -253,8 +300,6 @@ export function createUnique(renderFn) {
       instances.set(key, newInstance);
       newInstance.render?.();
     } else {
-      group = renderer.createGroup();
-      handle = renderer.createGroupHandle(group);
       instance.props.set(nextProps);
 
       // In the case where there are multiple awaiting instances, we
@@ -264,12 +309,12 @@ export function createUnique(renderFn) {
         const instance = instances.get(key);
         if (!instance) return;
 
+        const previousPoint = instance.journey[instance.journey.length - 1];
+        const [previousHandle, previousGroup] = previousPoint;
         if (length !== instance.journey.length || !instance.isStable) {
           // Next instance, when last instance is not yet stable.
           // Move the nodes, but do not run move effects.
-          const previousHandle =
-            instance.journey[instance.journey.length - 1][0];
-          instance.journey.push([handle, nextProps]);
+          instance.journey.push([handle, group, nextProps, fragmentCtx]);
           instance.idOfLastSavedHandle = renderer.save(previousHandle);
           renderer.restore(instance.idOfLastSavedHandle, handle);
           instance.idOfLastSavedHandle = null;
@@ -281,7 +326,7 @@ export function createUnique(renderFn) {
           // active instance however, we need to run both save() and restore()
           // on the fly.
           instance.idOfLastSavedHandle = save(instance, renderer);
-          instance.journey.push([handle, nextProps]);
+          instance.journey.push([handle, group, nextProps, fragmentCtx]);
           renderer.restore(instance.idOfLastSavedHandle, handle);
           instance.idOfLastSavedHandle = null;
           // Yes this is not ideal, but abeg.
@@ -292,9 +337,17 @@ export function createUnique(renderFn) {
           // This is the best we can do without a major rearchitect.
           queueMicrotask(() => runRestoreFns(instance));
         }
+        // The nodes physically left the previous group, so it now contains
+        // nothing — update its correlation (and the old handle's) to match.
+        correlate(previousGroup, [], renderer, previousHandle);
+        previousPoint[3]?.invalidate();
+        // The moved nodes are the same ones, so the new group maps to the
+        // last committed logical nodes.
+        correlate(group, instance.logicalNodes, renderer, handle);
+        fragmentCtx?.invalidate();
       };
       if (instance.render) {
-        instance.journey = [[handle, nextProps]];
+        instance.journey = [[handle, group, nextProps, fragmentCtx]];
         /** @type {{ handle: any }} */ (instance.state.data).handle = handle;
         instance.pendingAwait = awaitCtx;
         instance.render();
@@ -312,29 +365,27 @@ export function createUnique(renderFn) {
       return () => {
         const hmrContext = __HMR_SYMBOLS.getHMRContext();
         if (hmrContext?.current) {
-          instance.state.node.enable();
           instance.state.node.dispose();
           instances.delete(key);
           return;
         }
-        // This detaches it from the parent node, preventing
-        // dispose() from cascading, and keeping its context alive
-        // when moved.
         const isLastHandle =
           instance.journey[instance.journey.length - 1][0] === handle;
         if (isLastHandle) {
-          instance.state.node.disable();
           instance.idOfLastSavedHandle = save(instance, renderer);
         }
 
         const teardown = () => {
           const index = instance.journey.findIndex(([item]) => item === handle);
-          if (index !== -1) instance.journey.splice(index, 1);
+          if (index !== -1) {
+            const [removed] = instance.journey.splice(index, 1);
+            const removedGroup = removed[1];
+            correlate(removedGroup, [], renderer, handle);
+          }
 
           if (instance.journey.length == 0) {
             // The Unique component's journey has ended, there are no more handles.
             // Restoring to nothing helps flush the renderer state.
-            instance.state.node.enable(); // needed for dispose()
             instance.state.node.dispose();
             if (instance.idOfLastSavedHandle !== null) {
               renderer.restore(instance.idOfLastSavedHandle, null);
@@ -343,11 +394,13 @@ export function createUnique(renderFn) {
             instances.delete(key);
           } else {
             // There is no forward handle to restore, so we restore to the last one in the journey.
-            const [last, lastProps] =
+            const [lastHandle, lastGroup, lastProps, lastFragmentCtx] =
               instance.journey[instance.journey.length - 1];
             if (isLastHandle && instance.idOfLastSavedHandle !== null) {
               instance.props.set(lastProps);
-              renderer.restore(instance.idOfLastSavedHandle, last);
+              correlate(lastGroup, instance.logicalNodes, renderer, lastHandle);
+              renderer.restore(instance.idOfLastSavedHandle, lastHandle);
+              lastFragmentCtx?.invalidate();
               runRestoreFns(instance);
               // Reset to indicate the saved state has been used and we're ready
               // for a new save cycle. This allows save() to call moveFns in

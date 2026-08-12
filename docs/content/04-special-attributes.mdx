@@ -125,7 +125,6 @@ Since `ref={cell}` is just a prop, you can pass it down to child components manu
 import { Cell, onSetup } from 'retend';
 
 function MyInput(props) {
-  // We take the 'ref' from props and pass it to the internal input
   return <input ref={props.ref} class="custom-input" />;
 }
 
@@ -133,10 +132,78 @@ export function ParentComponent() {
   const inputRef = Cell.source(null);
 
   onSetup(() => {
-    // We can access the child's input here!
     inputRef.get()?.focus();
   });
 
   return <MyInput ref={inputRef} />;
 }
 ```
+
+### Fragment refs
+
+A Fragment ref stores the nodes that a Fragment renders. Use a Fragment ref when you need to inspect or process multiple nodes without adding a wrapper element.
+
+To create a Fragment ref:
+
+1. Create a source cell with an initial value of `null`.
+2. Pass the cell to the Fragment's `ref` attribute.
+3. Read the rendered nodes with the cell's `get()` method.
+
+```tsx
+import { Cell, Fragment } from 'retend';
+
+export function MessageGroup() {
+  const nodesRef = Cell.source<Node[] | null>(null);
+
+  const logNodes = () => {
+    console.log(nodesRef.get());
+  };
+
+  return (
+    <>
+      <Fragment ref={nodesRef}>
+        <p>First message</p>
+        <p>Second message</p>
+      </Fragment>
+      <button onClick={logNodes}>Log messages</button>
+    </>
+  );
+}
+```
+
+Retend updates the ref cell whenever the Fragment's rendered content changes. The cell contains:
+
+- Each rendered element and text node, in document order.
+- An empty array when the Fragment renders no nodes.
+
+For example, the following ref changes when `showSuccess` changes:
+
+```tsx
+import { Cell, Fragment, If } from 'retend';
+
+export function StatusMessage() {
+  const showSuccess = Cell.source(true);
+  const nodesRef = Cell.source<Node[] | null>(null);
+
+  return (
+    <>
+      <Fragment ref={nodesRef}>
+        {If(
+          showSuccess,
+          () => (
+            <p>Saved</p>
+          ),
+          () => (
+            <p>Save failed</p>
+          )
+        )}
+      </Fragment>
+      <button onClick={() => showSuccess.set(!showSuccess.get())}>
+        Toggle status
+      </button>
+    </>
+  );
+}
+```
+
+Use an element ref when you need one specific element instead of the complete Fragment output.

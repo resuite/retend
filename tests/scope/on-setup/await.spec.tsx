@@ -51,6 +51,66 @@ describe('onSetup with Await', () => {
     expect(setupFn).toHaveBeenCalledTimes(1);
   });
 
+  it('activates setup only after all content is committed', async () => {
+    const setupFn = vi.fn();
+    let resolveFirst!: () => void;
+    let resolveSecond!: () => void;
+    let contentWhenSetupRan: string | null = null;
+    let result!: HTMLElement;
+
+    const first = Cell.derivedAsync(async () => {
+      await new Promise<void>((resolve) => {
+        resolveFirst = resolve;
+      });
+      return 'First';
+    });
+    const second = Cell.derivedAsync(async () => {
+      await new Promise<void>((resolve) => {
+        resolveSecond = resolve;
+      });
+      return 'Second';
+    });
+    const Child = () => {
+      onSetup(() => {
+        contentWhenSetupRan = getTextContent(result);
+        setupFn();
+      });
+      return (
+        <span>
+          {first} {second}
+        </span>
+      );
+    };
+    const App = () => (
+      <div>
+        <Await fallback={<span>Loading</span>}>
+          <Child />
+        </Await>
+      </div>
+    );
+
+    const renderer = getActiveRenderer();
+    result = renderer.render(App) as HTMLElement;
+    window.document.body.append(result);
+    await runPendingSetupEffects();
+
+    expect(getTextContent(result)).toBe('Loading');
+    expect(setupFn).not.toHaveBeenCalled();
+
+    resolveFirst();
+    await timeout();
+    expect(getTextContent(result)).toBe('Loading');
+    expect(setupFn).not.toHaveBeenCalled();
+
+    resolveSecond();
+    await timeout();
+    await timeout();
+
+    expect(getTextContent(result)).toBe('First Second');
+    expect(setupFn).toHaveBeenCalledTimes(1);
+    expect(contentWhenSetupRan).toBe('First Second');
+  });
+
   it('registers cleanup only after Await resolves', async () => {
     const cleanupFn = vi.fn();
     const setupFn = vi.fn(() => cleanupFn);

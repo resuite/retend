@@ -15,9 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { browserSetup, timeout } from './setup.tsx';
 
 const activateEffects = async () => {
-  const node = getState().node;
-  node.enable();
-  await node.activate();
+  await getState().node.activate();
 };
 
 describe('onConnected', () => {
@@ -477,7 +475,9 @@ describe('onConnected', () => {
     const connected: number[] = [];
     const Item = (item: number) => {
       const ref = Cell.source<HTMLElement | null>(null);
-      onConnected(ref, () => connected.push(item));
+      onConnected(ref, () => {
+        connected.push(item);
+      });
       return <span ref={ref}>{item}</span>;
     };
 

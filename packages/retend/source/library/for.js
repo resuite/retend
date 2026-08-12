@@ -4,6 +4,7 @@
 import { Cell, AsyncCell } from '@adbl/cells';
 
 import { useAwait } from './await.js';
+import { useFragmentCtx } from './fragment.js';
 import { getActiveRenderer } from './renderer.js';
 import { branchState, withState } from './scope.js';
 
@@ -124,9 +125,10 @@ export function For(list, fn, options) {
     // REACTIVE LISTS
     // -----------------------------------------------
     const { key, onBeforeNodeRemove, onBeforeNodesMove } = options ?? {};
-    /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: StateSnapshot }>} */
+    /** @type {Map<any, { index: Cell<number>,  nodes: unknown[], snapshot: StateSnapshot, groupedNodes: unknown[] }>} */
     let cacheFromLastRun = new Map();
     const autoKeys = new WeakMap();
+    const fragmentCtx = useFragmentCtx();
 
     /**
      * @param {any} item
@@ -177,9 +179,11 @@ export function For(list, fn, options) {
     const processListChanges = (listValue, initial = false) => {
       const newList =
         typeof listValue?.[Symbol.iterator] === 'function' ? listValue : [];
+      /** @type {typeof cacheFromLastRun} */
       const newCache = new Map();
       const effectNodesToActivate = [];
       const initialNodes = [];
+      const initialGroupedNodes = [];
       /** @type {Map<unknown, { itemKey: any, lastItemLastNode: unknown | null }>} */
       const nodeLookAhead = new Map();
 
@@ -198,34 +202,46 @@ export function For(list, fn, options) {
             renderer: base.renderer,
             data: base.data,
           };
-          const nodes = flattenNodes(
-            withState(snapshot, () =>
-              renderer.handleComponent(fn, parameters, snapshot)
-            ),
-            renderer
+          const raw = withState(snapshot, () =>
+            renderer.handleComponent(fn, parameters, snapshot)
           );
+          // We store the unflattened version of the nodes so we can use groups
+          // as references for retrieval in the Fragment ref context.
+          const groupedNodes = Array.isArray(raw) ? raw : [raw];
+          const nodes = flattenNodes(groupedNodes, renderer);
           trackNodes(nodes);
-          result = { nodes, index: itemIndex, snapshot };
+          result = { nodes, index: itemIndex, snapshot, groupedNodes };
           if (!initial) effectNodesToActivate.push(snapshot.node);
         } else {
           /** @type {import('@adbl/cells').SourceCell<number>} */
           (result.index).set(index);
         }
         newCache.set(itemKey, result);
-        const { nodes } = result;
-        if (initial) initialNodes.push(...nodes);
-        else if (nodes[0]) {
+        const { nodes, groupedNodes } = result;
+        if (initial) {
+          initialNodes.push(...nodes);
+          initialGroupedNodes.push(...groupedNodes);
+        } else if (nodes[0]) {
           nodeLookAhead.set(nodes[0], { itemKey, lastItemLastNode });
         }
         lastItemLastNode = nodes[nodes.length - 1];
         index++;
       }
 
-      if (initial) renderer.write(handle, initialNodes);
-      else {
+      if (initial) {
+        fragmentCtx?.correlate(group, initialGroupedNodes, handle);
+        renderer.write(handle, initialNodes);
+      } else {
         for (const [itemKey, { snapshot }] of cacheFromLastRun) {
           if (newCache.has(itemKey)) continue;
           snapshot.node.dispose();
+        }
+        if (fragmentCtx) {
+          const logicalNodes = [];
+          for (const [, result] of newCache) {
+            logicalNodes.push(...result.groupedNodes);
+          }
+          fragmentCtx.correlate(group, logicalNodes, handle);
         }
         renderer.reconcile(handle, {
           cacheFromLastRun,
