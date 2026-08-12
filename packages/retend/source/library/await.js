@@ -102,9 +102,8 @@ export function Await(props) {
 
   const group = renderer.createGroup();
   const handle = renderer.createGroupHandle(group);
-  const snapshot = branchState();
+  const snapshot = branchState('deferred');
   snapshot.data = { handle };
-  snapshot.node.suspend();
   const fallbackSnapshot = branchState();
   fallbackSnapshot.data = { handle };
 
@@ -126,8 +125,6 @@ export function Await(props) {
     fallbackSnapshot.node.dispose();
     fragmentCtx?.correlate(group, [render].flat(), handle);
     renderer.write(handle, [render].flat());
-    snapshot.node.unsuspend();
-    snapshot.node.enable();
     asyncCells.set(new Set());
     snapshot.node.activate();
   };

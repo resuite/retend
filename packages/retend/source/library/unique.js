@@ -200,12 +200,10 @@ export function createUnique(renderFn) {
     const handle = renderer.createGroupHandle(group);
 
     if (!instance) {
-      const state = branchState();
-      // Preserve this instance's scope (listeners and derived cells) when it
-      // moves between locations: a location's dispose cascade will not run
-      // its cleanups, destroy its subtree, or kill its local context. The
-      // node is still torn down explicitly once its journey ends.
-      state.node.protectFromDispose();
+      // A Unique instance owns its lifecycle independently of every location
+      // it visits. Location teardown leaves it alive; journey teardown calls
+      // dispose() on this retained branch directly.
+      const state = branchState('retained');
       state.data = { handle };
       const moveFns = new Set();
       /** @type {UniqueCtx} */
@@ -367,7 +365,6 @@ export function createUnique(renderFn) {
       return () => {
         const hmrContext = __HMR_SYMBOLS.getHMRContext();
         if (hmrContext?.current) {
-          instance.state.node.enable();
           instance.state.node.dispose();
           instances.delete(key);
           return;
@@ -389,7 +386,6 @@ export function createUnique(renderFn) {
           if (instance.journey.length == 0) {
             // The Unique component's journey has ended, there are no more handles.
             // Restoring to nothing helps flush the renderer state.
-            instance.state.node.enable(); // needed for dispose()
             instance.state.node.dispose();
             if (instance.idOfLastSavedHandle !== null) {
               renderer.restore(instance.idOfLastSavedHandle, null);

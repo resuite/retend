@@ -52,6 +52,16 @@ import { createNodesFromTemplate, normalizeJsxChild } from './utils.js';
  * @property {any} [data]
  */
 
+/** @typedef {'normal' | 'deferred' | 'retained'} LifecycleMode */
+
+const EffectPhase = Object.freeze({
+  Blocked: 0,
+  Deferred: 1,
+  Eligible: 2,
+  Active: 3,
+  Orphaned: 4,
+});
+/** @typedef {0 | 1 | 2 | 3 | 4} EffectPhaseValue */
 /** @typedef {() => void} CleanupFn */
 /** @typedef {void | CleanupFn | Promise<void | CleanupFn>} EffectResult */
 /** @template T @typedef {(node: T) => EffectResult} MountFn */
@@ -126,7 +136,7 @@ function updateConnectedEffect(effect, next) {
 
 /**
  * Represents a node managing effects and cleanup within a hierarchy.
- * Allows enabling/disabling, forking child nodes, and disposing by cleaning effects and children.
+ * Supports deferred activation, retained ownership, child branches, and disposal.
  */
 class EffectNode {
   #id = '0';
@@ -140,60 +150,46 @@ class EffectNode {
   /** @type {ConnectedEffect[]} */
   #connectedEffects = [];
 
-  #enabled = false;
-  #suspended = false;
-  #active = false;
-  /**
-   * When set, a parent's dispose cascade has no effect on this node: its
-   * cleanups do not run, its subtree is not destroyed, and its local context
-   * survives. Used by createUnique to keep a moving instance's scope alive;
-   * only an explicit dispose() (which clears the protection) tears it down.
-   */
-  #disposeProtected = false;
+  /** @type {EffectPhaseValue} */
+  #phase;
+  #retained;
   localContext = Cell.context();
   /** @type {Renderer<any>} | undefined */
   renderer = getActiveRenderer();
+
+  /** @param {LifecycleMode} [lifecycle] */
+  constructor(lifecycle = 'normal') {
+    this.#phase =
+      lifecycle === 'deferred' ? EffectPhase.Deferred : EffectPhase.Blocked;
+    this.#retained = lifecycle === 'retained';
+  }
 
   /** The hierarchical ID of this node (e.g., "0.1.2") */
   get id() {
     return this.#id;
   }
 
-  enable() {
+  #enableSubtree() {
     const { capabilities } = this.renderer ?? {};
     if (
-      !capabilities?.supportsSetupEffects &&
-      !capabilities?.supportsConnectedCallbacks
+      this.#phase === EffectPhase.Orphaned ||
+      this.#phase === EffectPhase.Deferred ||
+      (!capabilities?.supportsSetupEffects &&
+        !capabilities?.supportsConnectedCallbacks)
     ) {
       return;
     }
 
-    this.#enabled = true;
-    for (const child of this.#children) {
-      if (!child.#suspended) child.enable();
+    if (this.#phase === EffectPhase.Blocked) {
+      this.#phase = EffectPhase.Eligible;
     }
+    for (const child of this.#children) child.#enableSubtree();
   }
 
-  suspend() {
-    this.#suspended = true;
-  }
-
-  unsuspend() {
-    this.#suspended = false;
-  }
-
-  disable() {
-    this.#enabled = false;
-    for (const child of this.#children) child.disable();
-  }
-
-  /**
-   * Marks this node so a parent's dispose cascade has no effect on it — its
-   * cleanups are deferred, its subtree is not destroyed, and its local
-   * context survives. The node is still torn down by an explicit dispose().
-   */
-  protectFromDispose() {
-    this.#disposeProtected = true;
+  #canActivate() {
+    return (
+      this.#phase === EffectPhase.Eligible || this.#phase === EffectPhase.Active
+    );
   }
 
   /** @param {SetupFn} effect  */
@@ -224,7 +220,8 @@ class EffectNode {
       if (next === null || renderer.isActive(next)) return;
 
       queueMicrotask(() => {
-        if (!this.#enabled || !this.#connectedEffects.includes(effect)) return;
+        if (!this.#canActivate() || !this.#connectedEffects.includes(effect))
+          return;
         if (effect.current === undefined) effect.current = null;
         updateConnectedEffect(effect, effect.ref.peek());
       });
@@ -237,21 +234,23 @@ class EffectNode {
       updateConnectedEffect(effect, effect.ref.peek());
     }
     for (const child of this.#children) {
-      if (child.#enabled && !child.#suspended)
-        child.#activateConnectedEffects();
+      if (child.#canActivate()) child.#activateConnectedEffects();
     }
   }
 
-  branch() {
-    const newNode = new EffectNode();
-    newNode.#enabled = this.#enabled;
+  /** @param {LifecycleMode} [lifecycle] */
+  branch(lifecycle = 'normal') {
+    const newNode = new EffectNode(lifecycle);
+    if (lifecycle !== 'deferred' && this.#canActivate()) {
+      newNode.#phase = EffectPhase.Eligible;
+    }
     newNode.#id = `${this.#id}.${this.#children.length}`;
     this.#children.push(newNode);
     return newNode;
   }
 
-  async #runActivateFns() {
-    if (!this.#enabled || this.#active) return;
+  async #runSetupFns() {
+    if (this.#phase !== EffectPhase.Eligible) return;
     for (const effect of this.#setupFns) {
       try {
         const cleanup = await effect();
@@ -260,58 +259,54 @@ class EffectNode {
         console.error(error);
       }
     }
-    this.#active = true;
-    const promises = [];
-    for (const child of this.#children) {
-      if (!child.#enabled || child.#suspended || child.#active) continue;
-      promises.push(child.#runActivateFns());
-    }
-    await Promise.all(promises);
+    this.#phase = EffectPhase.Active;
+    await Promise.all(
+      this.#children
+        .filter((child) => child.#phase === EffectPhase.Eligible)
+        .map((child) => child.#runSetupFns())
+    );
   }
 
   async activate() {
-    if (!this.#enabled) return;
+    if (this.#phase === EffectPhase.Deferred) {
+      this.#phase = EffectPhase.Blocked;
+      this.#enableSubtree();
+    }
+    if (!this.#canActivate()) return;
     this.#activateConnectedEffects();
-    if (this.#active) return;
+    if (this.#phase === EffectPhase.Active) return;
     await new Promise((resolve) => {
       queueMicrotask(() => resolve(undefined));
     });
-    await this.#runActivateFns();
+    await this.#runSetupFns();
     this.renderer?.host.dispatchEvent(new Event('retend:activate'));
   }
 
-  #runDisposeFns() {
-    if (!this.#enabled && this.#active) return false;
-    // A preserved node (e.g. a Unique being moved) must not run its cleanups
-    // either: the cascade reaching it is a location teardown, not the end of
-    // its journey. An explicit dispose() clears the protection first.
-    if (this.#disposeProtected) return false;
+  /** @param {boolean} cascading */
+  #runDisposeFns(cascading) {
+    if (cascading && this.#retained) return;
     for (const effect of this.#disposeFns) runCleanup(effect);
-    this.#active = false;
-    for (const child of this.#children) child.#runDisposeFns();
+    if (cascading) this.#phase = EffectPhase.Orphaned;
+    else if (this.#phase === EffectPhase.Active) {
+      this.#phase = EffectPhase.Eligible;
+    }
+    for (const child of this.#children) child.#runDisposeFns(true);
     this.localContext.destroy();
-    return true;
   }
 
-  #runConnectedDisposeFns() {
+  /** @param {boolean} cascading */
+  #runConnectedDisposeFns(cascading) {
+    if (cascading && this.#retained) return;
     for (const effect of this.#connectedEffects) {
       unmountConnectedEffect(effect);
     }
     this.#connectedEffects.length = 0;
-    for (const child of this.#children) child.#runConnectedDisposeFns();
+    for (const child of this.#children) child.#runConnectedDisposeFns(true);
   }
 
   dispose() {
-    this.#disposeProtected = false;
-    if (!this.#runDisposeFns()) return;
-    this.#runConnectedDisposeFns();
-
-    for (const child of this.#children) {
-      // prevents any side effects from being triggered in the
-      // (soon to be) orphaned subtrees, when any of their control
-      // structures receives changes.
-      child.disable();
-    }
+    this.#runDisposeFns(false);
+    this.#runConnectedDisposeFns(false);
 
     this.#setupFns.length = 0;
     this.#disposeFns.length = 0;
@@ -320,7 +315,11 @@ class EffectNode {
   }
 }
 
-class RootEffectNode extends EffectNode {}
+class RootEffectNode extends EffectNode {
+  constructor() {
+    super('deferred');
+  }
+}
 
 const SNAPSHOT_KEY = Symbol('__ACTIVE_SCOPE_SNAPSHOT__');
 
@@ -457,10 +456,13 @@ export class MissingScopeError extends Error {
  * effect lifecycle node to the currently active node tree.
  *
  * This function is used to create an isolated execution branch for components,
- * which can then be resumed or isolated using `withState`. Because
+ * which can then be restored or isolated using `withState`. Because
  * this eagerly branches the effect lifecycle tree, the newly created nodes
  * should eventually be activated or disposed to avoid memory leaks.
  *
+ * @param {LifecycleMode} [lifecycle='normal'] The lifecycle behavior for the branch:
+ *   `deferred` ignores ancestor activation until activated directly, while
+ *   `retained` ignores ancestor disposal until explicitly disposed.
  * @returns {StateSnapshot} A state branch containing the current scope chain and a newly forked effect node.
  *
  * @example
@@ -479,9 +481,9 @@ export class MissingScopeError extends Error {
  * });
  * ```
  */
-export function branchState() {
+export function branchState(lifecycle = 'normal') {
   const { scopes, node } = getState();
-  const branched = node.branch();
+  const branched = node.branch(lifecycle);
   return {
     scopes,
     node: branched,
@@ -673,7 +675,6 @@ export async function runPendingSetupEffects() {
       'runPendingSetupEffects() can only be called at the root level of a component tree.';
     throw new Error(message);
   }
-  node.enable();
   await node.activate();
   await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
 }
