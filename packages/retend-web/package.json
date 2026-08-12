@@ -1,6 +1,6 @@
 {
   "name": "retend-web",
-  "version": "0.0.32",
+  "version": "0.0.33",
   "private": false,
   "description": "A modern reactive framework for fluid, dynamic web apps.",
   "keywords": [
