@@ -229,6 +229,61 @@ describe('Unique', () => {
       body.replaceChildren();
     });
 
+    it('should not run setup cleanups when a Unique moves before its old location is disposed', async () => {
+      const renderer = getActiveRenderer() as DOMRenderer;
+      const { host: window } = renderer;
+      const uuid = crypto.randomUUID();
+      const setupFn = vi.fn();
+      const cleanupFn = vi.fn();
+
+      const UniqueContent = createUnique(() => {
+        onSetup(() => {
+          setupFn();
+          return cleanupFn;
+        });
+        return <div>Unique Data</div>;
+      });
+
+      const showFirst = Cell.source(true);
+      const showSecond = Cell.source(false);
+      const { body } = window.document;
+      const element = render(
+        <div>
+          {/* `.second` first so its If listener fires before the first's */}
+          <div class="second">
+            {If(showSecond, () => (
+              <UniqueContent id={uuid} />
+            ))}
+          </div>
+          <div class="first">
+            {If(showFirst, () => (
+              <UniqueContent id={uuid} />
+            ))}
+          </div>
+        </div>
+      );
+
+      body.append(element);
+      await runPendingSetupEffects();
+      expect(setupFn).toHaveBeenCalledTimes(1);
+
+      // The second If's listener fires first, so the Unique moves to `.second`
+      // while `.first` is still mounted. The old location's dispose cascade
+      // then reaches the instance — its cleanups must not run, since the
+      // instance is moving, not dying.
+      showSecond.set(true);
+      showFirst.set(false);
+      await runPendingSetupEffects();
+
+      expect(getTextContent(body.querySelector('.first')!)).toBe('');
+      expect(getTextContent(body.querySelector('.second')!)).toBe(
+        'Unique Data'
+      );
+      expect(setupFn).toHaveBeenCalledTimes(1);
+      expect(cleanupFn).not.toHaveBeenCalled();
+      body.replaceChildren();
+    });
+
     it('should clean up onMove callbacks when a child unmounts', async () => {
       const renderer = getActiveRenderer() as DOMRenderer;
       const { host: window } = renderer;

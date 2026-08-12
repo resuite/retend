@@ -143,6 +143,13 @@ class EffectNode {
   #enabled = false;
   #suspended = false;
   #active = false;
+  /**
+   * When set, a parent's dispose cascade has no effect on this node: its
+   * cleanups do not run, its subtree is not destroyed, and its local context
+   * survives. Used by createUnique to keep a moving instance's scope alive;
+   * only an explicit dispose() (which clears the protection) tears it down.
+   */
+  #disposeProtected = false;
   localContext = Cell.context();
   /** @type {Renderer<any>} | undefined */
   renderer = getActiveRenderer();
@@ -178,6 +185,15 @@ class EffectNode {
   disable() {
     this.#enabled = false;
     for (const child of this.#children) child.disable();
+  }
+
+  /**
+   * Marks this node so a parent's dispose cascade has no effect on it — its
+   * cleanups are deferred, its subtree is not destroyed, and its local
+   * context survives. The node is still torn down by an explicit dispose().
+   */
+  protectFromDispose() {
+    this.#disposeProtected = true;
   }
 
   /** @param {SetupFn} effect  */
@@ -266,6 +282,10 @@ class EffectNode {
 
   #runDisposeFns() {
     if (!this.#enabled && this.#active) return false;
+    // A preserved node (e.g. a Unique being moved) must not run its cleanups
+    // either: the cascade reaching it is a location teardown, not the end of
+    // its journey. An explicit dispose() clears the protection first.
+    if (this.#disposeProtected) return false;
     for (const effect of this.#disposeFns) runCleanup(effect);
     this.#active = false;
     for (const child of this.#children) child.#runDisposeFns();
@@ -282,6 +302,7 @@ class EffectNode {
   }
 
   dispose() {
+    this.#disposeProtected = false;
     if (!this.#runDisposeFns()) return;
     this.#runConnectedDisposeFns();
 
