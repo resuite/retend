@@ -638,6 +638,11 @@ declare module 'retend/jsx-runtime' {
       ariaDescribedBy?: string;
 
       /**
+       * Defines a string value that describes or annotates the current element.
+       */
+      ariaDescription?: string;
+
+      /**
        * Identifies the element that provides a detailed description of the element.
        */
       ariaDetails?: string;
@@ -2445,6 +2450,737 @@ declare module 'retend/jsx-runtime' {
       xmp: JsxHtmlElement<HTMLElement>;
     }
 
+    /** Additional event handler attributes accepted by MathML elements. */
+    interface JsxMathMLAdditionalEventHandlers<E> {
+      /** Fired after printing has completed or a print preview has closed. */
+      onAfterPrint?: (this: E, event: Event) => void;
+      /** Fired before printing begins or a print preview opens. */
+      onBeforePrint?: (this: E, event: Event) => void;
+      /** Fired before the document is unloaded. */
+      onBeforeUnload?: (this: E, event: BeforeUnloadEvent) => void;
+      /** Fired when a rendering context is lost. */
+      onContextLost?: (this: E, event: Event) => void;
+      /** Fired when a rendering context is restored. */
+      onContextRestored?: (this: E, event: Event) => void;
+      /** Fired when the URL fragment identifier changes. */
+      onHashChange?: (this: E, event: HashChangeEvent) => void;
+      /** Fired when the user agent language preferences change. */
+      onLanguageChange?: (this: E, event: Event) => void;
+      /** Fired when a message is received. */
+      onMessage?: (this: E, event: MessageEvent) => void;
+      /** Fired when an incoming message cannot be deserialized. */
+      onMessageError?: (this: E, event: MessageEvent) => void;
+      /** Fired when the user agent loses network connectivity. */
+      onOffline?: (this: E, event: Event) => void;
+      /** Fired when the user agent regains network connectivity. */
+      onOnline?: (this: E, event: Event) => void;
+      /** Fired when the current page is being hidden during session history navigation. */
+      onPageHide?: (this: E, event: PageTransitionEvent) => void;
+      /** Fired when the current page is shown during session history navigation. */
+      onPageShow?: (this: E, event: PageTransitionEvent) => void;
+      /** Fired when the active session history entry changes. */
+      onPopState?: (this: E, event: PopStateEvent) => void;
+      /** Fired when a previously unhandled promise rejection gains a handler. */
+      onRejectionHandled?: (this: E, event: PromiseRejectionEvent) => void;
+      /** Fired when a storage area changes in another document. */
+      onStorage?: (this: E, event: StorageEvent) => void;
+      /** Fired when a promise rejection has no handler. */
+      onUnhandledRejection?: (this: E, event: PromiseRejectionEvent) => void;
+      /** Fired when the document is being unloaded. */
+      onUnload?: (this: E, event: Event) => void;
+    }
+
+    /**
+     * Attributes accepted by Full MathML 4 (Presentation + Content MathML).
+     *
+     * MathML is context-sensitive, but JSX intrinsic element types are keyed only
+     * by tag name. Keep the complete MathML attribute vocabulary here, then use
+     * element-specific interfaces below for the most common presentation tags.
+     */
+    interface JsxMathMLElement<E = MathMLElement>
+      extends
+        JSXGlobalAttributes,
+        JsxAriaAttributes,
+        JsxGlobalEventHandlers<E>,
+        JsxMathMLAdditionalEventHandlers<E>,
+        DatasetAttributes,
+        JsxNativeProps {
+      /** Specifies whether an overscript is treated as an accent. */
+      accent?: Booleanish;
+      /** Specifies whether an underscript is treated as an accent. */
+      accentunder?: Booleanish;
+      /** Specifies the interaction performed by an `<maction>` element. */
+      actiontype?: string;
+      /** Controls alignment for MathML layout elements such as tables and stacks. */
+      align?: string;
+      /** Provides alternative text for content such as an `<mglyph>` image. */
+      alt?: string;
+      /** Provides a textual alternative for the complete mathematical expression. */
+      alttext?: string;
+      /** Names an argument used by MathML intent annotations. */
+      arg?: string;
+      /** Requests Attribution Reporting registration for a MathML link. */
+      attributionsrc?: string;
+      /** Requests focus for the element when the document becomes active. */
+      autofocus?: Booleanish;
+      /** Specifies the numeric base used to interpret a Content MathML number. */
+      base?: number | string;
+      /** Specifies whether a fraction uses a bevelled rather than stacked layout. */
+      bevelled?: Booleanish;
+      /** Identifies the content dictionary containing a Content MathML symbol. */
+      cd?: string;
+      /** Specifies how characters align within elementary-math carries. */
+      charalign?: 'center' | 'left' | 'right';
+      /** Controls spacing between characters in elementary-math carries. */
+      charspacing?: 'loose' | 'medium' | 'tight' | number | string;
+      /** Specifies the closing fence rendered by `<mfenced>`. */
+      close?: string;
+      /** Specifies whether a Content MathML interval includes or excludes its endpoints. */
+      closure?: string;
+      /** Specifies horizontal alignment for one or more MathML table columns. */
+      columnalign?: string;
+      /** Specifies line styles between MathML table columns. */
+      columnlines?: string;
+      /** Specifies spacing between MathML table columns. */
+      columnspacing?: string;
+      /** Specifies how many MathML table columns a cell spans. */
+      columnspan?: number | string;
+      /** Specifies widths for MathML table columns. */
+      columnwidth?: string;
+      /** Specifies strike-through marks used for elementary-math carries. */
+      crossout?: string;
+      /** Specifies the character used as the decimal alignment point. */
+      decimalpoint?: string;
+      /** Identifies a definition for a Content MathML symbol or construct. */
+      definitionURL?: string;
+      /** Specifies horizontal alignment of a fraction denominator. */
+      denomalign?: 'center' | 'left' | 'right';
+      /** Adjusts the depth below the baseline of MathML padded or space content. */
+      depth?: number | string;
+      /** Selects block or inline layout for the top-level `<math>` element. */
+      display?: 'block' | 'inline';
+      /** Controls whether display-style mathematical layout is used. */
+      displaystyle?: Booleanish;
+      /** Indicates that a MathML link should download its target and optionally names the file. */
+      download?: Booleanish | string;
+      /** Identifies the encoding used by an annotation or Content MathML value. */
+      encoding?: string;
+      /** Specifies whether MathML table columns should have equal widths. */
+      equalcolumns?: Booleanish;
+      /** Specifies whether MathML table rows should have equal heights. */
+      equalrows?: Booleanish;
+      /** Specifies the image resource used by `<mglyph>`. */
+      filename?: string;
+      /** Specifies whether an operator is prefix, infix, or postfix. */
+      form?: 'infix' | 'postfix' | 'prefix';
+      /** Specifies the line style drawn around a MathML table. */
+      frame?: 'dashed' | 'none' | 'solid';
+      /** Specifies spacing between a MathML table frame and its contents. */
+      framespacing?: string;
+      /** Adjusts or specifies the height of MathML layout content. */
+      height?: number | string;
+      /** Specifies the target URL of a MathML link or external resource. */
+      href?: string;
+      /** Specifies the language of a linked resource. */
+      hreflang?: string;
+      /** Specifies alignment of a line after a MathML line break. */
+      indentalign?: 'auto' | 'center' | 'id' | 'left' | 'right';
+      /** Overrides indentation alignment for the first line. */
+      indentalignfirst?:
+        | 'auto'
+        | 'center'
+        | 'id'
+        | 'indentalign'
+        | 'left'
+        | 'right';
+      /** Overrides indentation alignment for the last line. */
+      indentalignlast?:
+        | 'auto'
+        | 'center'
+        | 'id'
+        | 'indentalign'
+        | 'left'
+        | 'right';
+      /** Specifies the indentation amount following a MathML line break. */
+      indentshift?: number | string;
+      /** Overrides the indentation amount for the first line. */
+      indentshiftfirst?: 'indentshift' | number | string;
+      /** Overrides the indentation amount for the last line. */
+      indentshiftlast?: 'indentshift' | number | string;
+      /** Identifies an element whose position is used as an indentation target. */
+      indenttarget?: string;
+      /** Specifies the default line-break style for infix operators. */
+      infixlinebreakstyle?: 'after' | 'before' | 'duplicate';
+      /** Provides semantic intent for a MathML expression. */
+      intent?: string;
+      /** Specifies whether an operator should use a large glyph in display style. */
+      largeop?: Booleanish;
+      /** Specifies left overhang for an elementary-math carry. */
+      leftoverhang?: number | string;
+      /** Specifies the number of digits or positions affected by an elementary-math line. */
+      length?: number | string;
+      /** Controls whether and how a line break occurs at an operator. */
+      linebreak?:
+        | 'auto'
+        | 'badbreak'
+        | 'goodbreak'
+        | 'indentingnewline'
+        | 'newline'
+        | 'nobreak';
+      /** Specifies the multiplication character shown when a line break occurs. */
+      linebreakmultchar?: string;
+      /** Specifies how an operator is positioned around a line break. */
+      linebreakstyle?: 'after' | 'before' | 'duplicate' | 'infixlinebreakstyle';
+      /** Specifies additional vertical leading between broken lines. */
+      lineleading?: number | string;
+      /** Specifies the thickness of the fraction bar. */
+      linethickness?: 'medium' | 'thick' | 'thin' | number | string;
+      /** Specifies the placement of an elementary-math carry relative to its column. */
+      location?: 'e' | 'n' | 'ne' | 'nw' | 's' | 'se' | 'sw' | 'w';
+      /** Selects the notation used for elementary-math long division. */
+      longdivstyle?: string;
+      /** Specifies the opening quote used to render an `<ms>` string. */
+      lquote?: string;
+      /** Specifies spacing before a MathML operator or padded expression. */
+      lspace?: number | string;
+      /** Specifies the background color of a MathML element. */
+      mathbackground?: string;
+      /** Specifies the foreground color of a MathML element. */
+      mathcolor?: string;
+      /** Specifies the font size used for mathematical text. */
+      mathsize?: 'big' | 'normal' | 'small' | number | string;
+      /** Specifies the mathematical typographic variant used for token content. */
+      mathvariant?: MathVariant;
+      /** Specifies the minimum spacing between a table label and its adjacent cell. */
+      minlabelspacing?: number | string;
+      /** Specifies the maximum stretched size of an operator. */
+      maxsize?: 'infinity' | number | string;
+      /** Specifies the minimum stretched size of an operator. */
+      minsize?: number | string;
+      /** Allows under/overscripts on a large operator to move to sub/superscript positions in inline style. */
+      movablelimits?: Booleanish;
+      /** Specifies the thickness of an elementary-math horizontal line. */
+      mslinethickness?: 'medium' | 'thick' | 'thin' | number | string;
+      /** Provides the name associated with a MathML construct where defined by Content MathML. */
+      name?: string;
+      /** Provides a cryptographic nonce used by Content Security Policy. */
+      nonce?: string;
+      /** Specifies one or more notations drawn around `<menclose>` content. */
+      notation?: string;
+      /** Specifies horizontal alignment of a fraction numerator. */
+      numalign?: 'center' | 'left' | 'right';
+      /** Specifies the opening fence rendered by `<mfenced>`. */
+      open?: string;
+      /** Specifies numeric or lexicographic ordering where Content MathML defines an order. */
+      order?: 'lexicographic' | 'numeric';
+      /** Specifies how an over-wide mathematical expression should be handled. */
+      overflow?: 'elide' | 'linebreak' | 'scale' | 'scroll' | 'truncate';
+      /** Specifies the column position of a row or group in elementary-math layout. */
+      position?: number | string;
+      /** Controls the referrer information sent when following a MathML link. */
+      referrerpolicy?: HTMLAttributeReferrerPolicy | string;
+      /** Describes the relationship between the current document and a linked resource. */
+      rel?: string;
+      /** Specifies right overhang for an elementary-math carry. */
+      rightoverhang?: number | string;
+      /** Specifies vertical alignment for one or more MathML table rows or cells. */
+      rowalign?: string;
+      /** Specifies line styles between MathML table rows. */
+      rowlines?: string;
+      /** Specifies spacing between MathML table rows. */
+      rowspacing?: string;
+      /** Specifies how many MathML table rows a cell spans. */
+      rowspan?: number | string;
+      /** Specifies the closing quote used to render an `<ms>` string. */
+      rquote?: string;
+      /** Specifies spacing after a MathML operator. */
+      rspace?: number | string;
+      /** Adjusts the script level used to scale mathematical content. */
+      scriptlevel?: number | string;
+      /** Specifies the minimum font size reached by script-level scaling. */
+      scriptminsize?: number | string;
+      /** Specifies the scale factor applied for each increase in script level. */
+      scriptsizemultiplier?: number | string;
+      /** Selects which child of an `<maction>` element is active. */
+      selection?: number | string;
+      /** Specifies the sequence of separator characters inserted by `<mfenced>`. */
+      separators?: string;
+      /** Offsets elementary-math rows or groups by a number of columns. */
+      shift?: number | string;
+      /** Specifies the side on which MathML table labels are placed. */
+      side?: 'left' | 'leftoverlap' | 'right' | 'rightoverlap';
+      /** Specifies an external resource associated with a MathML annotation or glyph. */
+      src?: string;
+      /** Specifies the column used to align rows in elementary-math stacks. */
+      stackalign?: 'center' | 'decimalpoint' | 'left' | 'right';
+      /** Specifies whether an operator may stretch to match surrounding content. */
+      stretchy?: Booleanish;
+      /** Specifies the minimum shift used to position a subscript. */
+      subscriptshift?: number | string;
+      /** Specifies the minimum shift used to position a superscript. */
+      superscriptshift?: number | string;
+      /** Specifies whether a stretchy operator should be symmetric about the math axis. */
+      symmetric?: Booleanish;
+      /** Specifies the element position in sequential keyboard navigation. */
+      tabindex?: Numberish;
+      /** Specifies where a MathML link target should be opened. */
+      target?: string;
+      /** Identifies the type or interpretation of a Content MathML token. */
+      type?: string;
+      /** Specifies vertical alignment for an `<mglyph>` image relative to the baseline. */
+      valign?: number | string;
+      /** Moves `<mpadded>` content vertically relative to its normal position. */
+      voffset?: number | string;
+      /** Adjusts or specifies the width of MathML layout content. */
+      width?: 'auto' | number | string;
+      /** Associates a MathML element with another element by identifier. */
+      xref?: string;
+      /** Specifies the natural language of MathML content using the XML namespace. */
+      'xml:lang'?: string;
+      /** Controls XML whitespace handling for MathML content. */
+      'xml:space'?: 'default' | 'preserve';
+      /** Allows namespaced attributes used by MathML extensions and XML vocabularies. */
+      [attribute: `${string}:${string}`]: string | undefined;
+    }
+
+    /** Attributes for the top-level `<math>` element. */
+    interface JsxMathElement extends JsxMathMLElement {
+      /** Selects block or inline layout for the top-level `<math>` element. */
+      display?: 'block' | 'inline';
+    }
+
+    /** Attributes for MathML annotations and annotation XML payloads. */
+    interface JsxMathAnnotationElement extends JsxMathMLElement {
+      /** Identifies the encoding used by an annotation or Content MathML value. */
+      encoding?: string;
+      /** Specifies an external resource associated with a MathML annotation or glyph. */
+      src?: string;
+    }
+
+    /** Attributes for `<maction>`, which binds interactive behavior to a sub-expression. */
+    interface JsxMathActionElement extends JsxMathMLElement {
+      /** Specifies the interaction performed by an `<maction>` element. */
+      actiontype?: string;
+      /** Selects which child of an `<maction>` element is active. */
+      selection?: number | string;
+    }
+
+    /** Attributes for `<menclose>`, which draws notation around its contents. */
+    interface JsxMathEncloseElement extends JsxMathMLElement {
+      /** Specifies one or more notations drawn around `<menclose>` content. */
+      notation?: string;
+    }
+
+    /** Attributes for `<mfenced>`, which renders an expression between fences. */
+    interface JsxMathFencedElement extends JsxMathMLElement {
+      /** Specifies the closing fence rendered by `<mfenced>`. */
+      close?: string;
+      /** Specifies the opening fence rendered by `<mfenced>`. */
+      open?: string;
+      /** Specifies the sequence of separator characters inserted by `<mfenced>`. */
+      separators?: string;
+    }
+
+    /** Attributes for `<mfrac>`, which renders a fraction. */
+    interface JsxMathFracElement extends JsxMathMLElement {
+      /** Specifies horizontal alignment of a fraction denominator. */
+      denomalign?: 'center' | 'left' | 'right';
+      /** Specifies the thickness of the fraction bar. */
+      linethickness?: number | string;
+      /** Specifies horizontal alignment of a fraction numerator. */
+      numalign?: 'center' | 'left' | 'right';
+    }
+
+    /** MathML mathematical glyph style variants. */
+    type MathVariant =
+      | 'normal'
+      | 'bold'
+      | 'italic'
+      | 'bold-italic'
+      | 'double-struck'
+      | 'bold-fraktur'
+      | 'script'
+      | 'bold-script'
+      | 'fraktur'
+      | 'sans-serif'
+      | 'bold-sans-serif'
+      | 'sans-serif-italic'
+      | 'sans-serif-bold-italic'
+      | 'monospace'
+      | 'initial'
+      | 'tailed'
+      | 'looped'
+      | 'stretched';
+
+    /** Attributes for `<mi>`, which represents an identifier. */
+    interface JsxMathIdentifierElement extends JsxMathMLElement {
+      /** Specifies the mathematical typographic variant used for token content. */
+      mathvariant?: MathVariant;
+    }
+
+    /** Attributes for `<mmultiscripts>`, which attaches pre- and post-scripts. */
+    interface JsxMathMultiScriptsElement extends JsxMathMLElement {
+      /** Specifies the minimum shift used to position a subscript. */
+      subscriptshift?: number | string;
+      /** Specifies the minimum shift used to position a superscript. */
+      superscriptshift?: number | string;
+    }
+
+    /** Attributes for `<mo>`, which represents an operator, fence, separator, or accent. */
+    interface JsxMathOperatorElement extends JsxMathMLElement {
+      /** Specifies whether an overscript is treated as an accent. */
+      accent?: Booleanish;
+      /** Specifies whether an operator is prefix, infix, or postfix. */
+      form?: 'infix' | 'prefix' | 'postfix';
+      /** Specifies whether an operator should use a large glyph in display style. */
+      largeop?: Booleanish;
+      /** Specifies spacing before a MathML operator or padded expression. */
+      lspace?: number | string;
+      /** Specifies the maximum stretched size of an operator. */
+      maxsize?: number | string;
+      /** Specifies the minimum stretched size of an operator. */
+      minsize?: number | string;
+      /** Allows under/overscripts on a large operator to move to sub/superscript positions in inline style. */
+      movablelimits?: Booleanish;
+      /** Specifies spacing after a MathML operator. */
+      rspace?: number | string;
+      /** Specifies whether an operator may stretch to match surrounding content. */
+      stretchy?: Booleanish;
+      /** Specifies whether a stretchy operator should be symmetric about the math axis. */
+      symmetric?: Booleanish;
+    }
+
+    /** Attributes for `<mover>`, which places an overscript over a base. */
+    interface JsxMathOverElement extends JsxMathMLElement {
+      /** Specifies whether an overscript is treated as an accent. */
+      accent?: Booleanish;
+    }
+
+    /** Attributes for `<mpadded>`, which adjusts the dimensions or position of its contents. */
+    interface JsxMathPaddedElement extends JsxMathMLElement {
+      /** Adjusts the depth below the baseline of MathML padded or space content. */
+      depth?: number | string;
+      /** Adjusts or specifies the height of MathML layout content. */
+      height?: number | string;
+      /** Specifies spacing before a MathML operator or padded expression. */
+      lspace?: number | string;
+      /** Moves `<mpadded>` content vertically relative to its normal position. */
+      voffset?: number | string;
+      /** Adjusts or specifies the width of MathML layout content. */
+      width?: number | string;
+    }
+
+    /** Attributes for `<ms>`, which represents a string literal. */
+    interface JsxMathStringLiteralElement extends JsxMathMLElement {
+      /** Specifies the opening quote used to render an `<ms>` string. */
+      lquote?: string;
+      /** Specifies the closing quote used to render an `<ms>` string. */
+      rquote?: string;
+    }
+
+    /** Attributes for `<mspace>`, which inserts explicit mathematical space. */
+    interface JsxMathSpaceElement extends JsxMathMLElement {
+      /** Adjusts the depth below the baseline of MathML padded or space content. */
+      depth?: number | string;
+      /** Adjusts or specifies the height of MathML layout content. */
+      height?: number | string;
+      /** Adjusts or specifies the width of MathML layout content. */
+      width?: number | string;
+    }
+
+    /** Attributes for `<mstyle>`, which applies inherited MathML style settings. */
+    interface JsxMathStyleElement extends JsxMathMLElement {
+      /** Specifies the minimum font size reached by script-level scaling. */
+      scriptminsize?: number | string;
+      /** Specifies the scale factor applied for each increase in script level. */
+      scriptsizemultiplier?: number | string;
+    }
+
+    /** Attributes for `<msub>`, which attaches a subscript to a base. */
+    interface JsxMathSubElement extends JsxMathMLElement {
+      /** Specifies the minimum shift used to position a subscript. */
+      subscriptshift?: number | string;
+    }
+
+    /** Attributes for `<msubsup>`, which attaches both a subscript and superscript. */
+    interface JsxMathSubSupElement extends JsxMathMLElement {
+      /** Specifies the minimum shift used to position a subscript. */
+      subscriptshift?: number | string;
+      /** Specifies the minimum shift used to position a superscript. */
+      superscriptshift?: number | string;
+    }
+
+    /** Attributes for `<msup>`, which attaches a superscript to a base. */
+    interface JsxMathSupElement extends JsxMathMLElement {
+      /** Specifies the minimum shift used to position a superscript. */
+      superscriptshift?: number | string;
+    }
+
+    /** Vertical alignment values used by MathML table and stack layout. */
+    type MathAlignment = 'axis' | 'baseline' | 'bottom' | 'center' | 'top';
+    /** Horizontal alignment values for MathML table columns and cells. */
+    type MathColumnAlignment = 'center' | 'left' | 'right';
+    /** Line styles used for MathML table frames and separators. */
+    type MathLineStyle = 'dashed' | 'none' | 'solid';
+
+    /** Attributes for `<mtable>`, which lays out tabular mathematics. */
+    interface JsxMathTableElement extends JsxMathMLElement {
+      /** Controls alignment for MathML layout elements such as tables and stacks. */
+      align?: MathAlignment | `${MathAlignment} ${number}`;
+      /** Specifies horizontal alignment for one or more MathML table columns. */
+      columnalign?: string;
+      /** Specifies line styles between MathML table columns. */
+      columnlines?: string;
+      /** Specifies spacing between MathML table columns. */
+      columnspacing?: number | string;
+      /** Specifies widths for MathML table columns. */
+      columnwidth?: string;
+      /** Specifies whether MathML table columns should have equal widths. */
+      equalcolumns?: Booleanish;
+      /** Specifies whether MathML table rows should have equal heights. */
+      equalrows?: Booleanish;
+      /** Specifies the line style drawn around a MathML table. */
+      frame?: MathLineStyle;
+      /** Specifies spacing between a MathML table frame and its contents. */
+      framespacing?: string;
+      /** Specifies vertical alignment for one or more MathML table rows or cells. */
+      rowalign?: string;
+      /** Specifies line styles between MathML table rows. */
+      rowlines?: string;
+      /** Specifies spacing between MathML table rows. */
+      rowspacing?: number | string;
+      /** Adjusts or specifies the width of MathML layout content. */
+      width?: 'auto' | number | string;
+    }
+
+    /** Attributes for `<mtd>`, a cell in a MathML table. */
+    interface JsxMathTableCellElement extends JsxMathMLElement {
+      /** Specifies horizontal alignment for one or more MathML table columns. */
+      columnalign?: MathColumnAlignment;
+      /** Specifies how many MathML table columns a cell spans. */
+      columnspan?: number | string;
+      /** Specifies vertical alignment for one or more MathML table rows or cells. */
+      rowalign?: MathAlignment;
+      /** Specifies how many MathML table rows a cell spans. */
+      rowspan?: number | string;
+    }
+
+    /** Attributes for `<mtr>`, a row in a MathML table. */
+    interface JsxMathTableRowElement extends JsxMathMLElement {
+      /** Specifies horizontal alignment for one or more MathML table columns. */
+      columnalign?: string;
+      /** Specifies vertical alignment for one or more MathML table rows or cells. */
+      rowalign?: MathAlignment;
+    }
+
+    /** Attributes for `<munder>`, which places an underscript beneath a base. */
+    interface JsxMathUnderElement extends JsxMathMLElement {
+      /** Specifies whether an underscript is treated as an accent. */
+      accentunder?: Booleanish;
+    }
+
+    /** Attributes for `<munderover>`, which places both under- and overscripts around a base. */
+    interface JsxMathUnderOverElement extends JsxMathMLElement {
+      /** Specifies whether an overscript is treated as an accent. */
+      accent?: Booleanish;
+      /** Specifies whether an underscript is treated as an accent. */
+      accentunder?: Booleanish;
+    }
+
+    /** Maps Full MathML 4 element names to their JSX attribute types. */
+    interface JsxMathElementMap {
+      a: JsxMathMLElement;
+      abs: JsxMathMLElement;
+      and: JsxMathMLElement;
+      annotation: JsxMathAnnotationElement;
+      'annotation-xml': JsxMathAnnotationElement;
+      apply: JsxMathMLElement;
+      approx: JsxMathMLElement;
+      arccos: JsxMathMLElement;
+      arccosh: JsxMathMLElement;
+      arccot: JsxMathMLElement;
+      arccoth: JsxMathMLElement;
+      arccsc: JsxMathMLElement;
+      arccsch: JsxMathMLElement;
+      arcsec: JsxMathMLElement;
+      arcsech: JsxMathMLElement;
+      arcsin: JsxMathMLElement;
+      arcsinh: JsxMathMLElement;
+      arctan: JsxMathMLElement;
+      arctanh: JsxMathMLElement;
+      arg: JsxMathMLElement;
+      bind: JsxMathMLElement;
+      bvar: JsxMathMLElement;
+      card: JsxMathMLElement;
+      cartesianproduct: JsxMathMLElement;
+      cbytes: JsxMathMLElement;
+      ceiling: JsxMathMLElement;
+      cerror: JsxMathMLElement;
+      ci: JsxMathMLElement;
+      cn: JsxMathMLElement;
+      codomain: JsxMathMLElement;
+      complexes: JsxMathMLElement;
+      compose: JsxMathMLElement;
+      condition: JsxMathMLElement;
+      conjugate: JsxMathMLElement;
+      cos: JsxMathMLElement;
+      cosh: JsxMathMLElement;
+      cot: JsxMathMLElement;
+      coth: JsxMathMLElement;
+      cs: JsxMathMLElement;
+      csc: JsxMathMLElement;
+      csch: JsxMathMLElement;
+      csymbol: JsxMathMLElement;
+      curl: JsxMathMLElement;
+      degree: JsxMathMLElement;
+      determinant: JsxMathMLElement;
+      diff: JsxMathMLElement;
+      divergence: JsxMathMLElement;
+      divide: JsxMathMLElement;
+      domain: JsxMathMLElement;
+      domainofapplication: JsxMathMLElement;
+      emptyset: JsxMathMLElement;
+      eq: JsxMathMLElement;
+      equivalent: JsxMathMLElement;
+      eulergamma: JsxMathMLElement;
+      exists: JsxMathMLElement;
+      exp: JsxMathMLElement;
+      exponentiale: JsxMathMLElement;
+      factorial: JsxMathMLElement;
+      factorof: JsxMathMLElement;
+      false: JsxMathMLElement;
+      floor: JsxMathMLElement;
+      forall: JsxMathMLElement;
+      gcd: JsxMathMLElement;
+      geq: JsxMathMLElement;
+      grad: JsxMathMLElement;
+      gt: JsxMathMLElement;
+      ident: JsxMathMLElement;
+      image: JsxMathMLElement;
+      imaginary: JsxMathMLElement;
+      imaginaryi: JsxMathMLElement;
+      implies: JsxMathMLElement;
+      in: JsxMathMLElement;
+      infinity: JsxMathMLElement;
+      int: JsxMathMLElement;
+      integers: JsxMathMLElement;
+      intersect: JsxMathMLElement;
+      interval: JsxMathMLElement;
+      inverse: JsxMathMLElement;
+      lambda: JsxMathMLElement;
+      laplacian: JsxMathMLElement;
+      lcm: JsxMathMLElement;
+      leq: JsxMathMLElement;
+      limit: JsxMathMLElement;
+      list: JsxMathMLElement;
+      ln: JsxMathMLElement;
+      log: JsxMathMLElement;
+      logbase: JsxMathMLElement;
+      lowlimit: JsxMathMLElement;
+      lt: JsxMathMLElement;
+      maction: JsxMathActionElement;
+      maligngroup: JsxMathMLElement;
+      malignmark: JsxMathMLElement;
+      math: JsxMathElement;
+      matrix: JsxMathMLElement;
+      matrixrow: JsxMathMLElement;
+      max: JsxMathMLElement;
+      mean: JsxMathMLElement;
+      median: JsxMathMLElement;
+      menclose: JsxMathEncloseElement;
+      merror: JsxMathMLElement;
+      mfenced: JsxMathFencedElement;
+      mfrac: JsxMathFracElement;
+      mglyph: JsxMathMLElement;
+      mi: JsxMathIdentifierElement;
+      min: JsxMathMLElement;
+      minus: JsxMathMLElement;
+      mlongdiv: JsxMathMLElement;
+      mmultiscripts: JsxMathMultiScriptsElement;
+      mn: JsxMathMLElement;
+      mo: JsxMathOperatorElement;
+      mode: JsxMathMLElement;
+      moment: JsxMathMLElement;
+      momentabout: JsxMathMLElement;
+      mover: JsxMathOverElement;
+      mpadded: JsxMathPaddedElement;
+      mphantom: JsxMathMLElement;
+      mprescripts: JsxMathMLElement;
+      mroot: JsxMathMLElement;
+      mrow: JsxMathMLElement;
+      ms: JsxMathStringLiteralElement;
+      mscarries: JsxMathMLElement;
+      mscarry: JsxMathMLElement;
+      msgroup: JsxMathMLElement;
+      msline: JsxMathMLElement;
+      mspace: JsxMathSpaceElement;
+      msqrt: JsxMathMLElement;
+      msrow: JsxMathMLElement;
+      mstack: JsxMathMLElement;
+      mstyle: JsxMathStyleElement;
+      msub: JsxMathSubElement;
+      msubsup: JsxMathSubSupElement;
+      msup: JsxMathSupElement;
+      mtable: JsxMathTableElement;
+      mtd: JsxMathTableCellElement;
+      mtext: JsxMathMLElement;
+      mtr: JsxMathTableRowElement;
+      munder: JsxMathUnderElement;
+      munderover: JsxMathUnderOverElement;
+      naturalnumbers: JsxMathMLElement;
+      neq: JsxMathMLElement;
+      none: JsxMathMLElement;
+      not: JsxMathMLElement;
+      notanumber: JsxMathMLElement;
+      notin: JsxMathMLElement;
+      notprsubset: JsxMathMLElement;
+      notsubset: JsxMathMLElement;
+      or: JsxMathMLElement;
+      otherwise: JsxMathMLElement;
+      outerproduct: JsxMathMLElement;
+      partialdiff: JsxMathMLElement;
+      pi: JsxMathMLElement;
+      piece: JsxMathMLElement;
+      piecewise: JsxMathMLElement;
+      plus: JsxMathMLElement;
+      power: JsxMathMLElement;
+      primes: JsxMathMLElement;
+      product: JsxMathMLElement;
+      prsubset: JsxMathMLElement;
+      quotient: JsxMathMLElement;
+      rationals: JsxMathMLElement;
+      real: JsxMathMLElement;
+      reals: JsxMathMLElement;
+      rem: JsxMathMLElement;
+      root: JsxMathMLElement;
+      scalarproduct: JsxMathMLElement;
+      sdev: JsxMathMLElement;
+      sec: JsxMathMLElement;
+      sech: JsxMathMLElement;
+      selector: JsxMathMLElement;
+      semantics: JsxMathMLElement;
+      sep: JsxMathMLElement;
+      set: JsxMathMLElement;
+      setdiff: JsxMathMLElement;
+      share: JsxMathMLElement;
+      sin: JsxMathMLElement;
+      sinh: JsxMathMLElement;
+      subset: JsxMathMLElement;
+      sum: JsxMathMLElement;
+      tan: JsxMathMLElement;
+      tanh: JsxMathMLElement;
+      tendsto: JsxMathMLElement;
+      times: JsxMathMLElement;
+      transpose: JsxMathMLElement;
+      true: JsxMathMLElement;
+      union: JsxMathMLElement;
+      uplimit: JsxMathMLElement;
+      variance: JsxMathMLElement;
+      vector: JsxMathMLElement;
+      vectorproduct: JsxMathMLElement;
+      xor: JsxMathMLElement;
+    }
+
     /** Interface for common SVG presentation attributes */
     interface SVGPresentationAttributes {
       /** Specifies how an object is aligned along the font baseline */
@@ -3153,7 +3889,9 @@ declare module 'retend/jsx-runtime' {
     type ElementTypes<T extends keyof IntrinsicElementsBase> = Container<
       IntrinsicElementsBase[T]
     >;
-    type IntrinsicElementsBase = JsxHtmlElementMap & JsxSvgElementMap;
+    type IntrinsicElementsBase = JsxHtmlElementMap &
+      JsxSvgElementMap &
+      JsxMathElementMap;
     type IntrinsicElementsInner = {
       [key in keyof IntrinsicElementsBase]: ElementTypes<key>;
     } & Record<`${string}-${string}`, ElementTypes<'div'>>;
