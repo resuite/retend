@@ -1,5 +1,5 @@
 {
   "deno.enable": false,
   "cSpell.words": ["retend", "routeerror", "routelockprevented"],
-  "typescript.tsdk": "packages/retend/node_modules/typescript/lib/",
+  "typescript.tsdk": "packages/retend/node_modules/typescript/lib/"
 }

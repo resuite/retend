@@ -108,7 +108,7 @@ const renderer = await renderToCanvasContext(ctx, App);
 | Element       | Description                                            |
 | ------------- | ------------------------------------------------------ |
 | `<rect>`      | Rectangular box, optionally rounded via `borderRadius` |
-| `<circle>`    | Circle inscribed in the element’s width/height box      |
+| `<circle>`    | Circle inscribed in the element’s width/height box     |
 | `<text>`      | Inline text node with full text-cascade support        |
 | `<img>`       | Bitmap image loaded from a URL                         |
 | `<path>`      | Arbitrary SVG path string via the `d` prop             |
@@ -136,7 +136,7 @@ import { BoxShadow, Length } from 'retend-canvas-2d';
       'rgba(0,0,0,0.3)'
     ),
   }}
-/>
+/>;
 ```
 
 ### Layout
@@ -158,12 +158,12 @@ import { BoxShadow, Length } from 'retend-canvas-2d';
 
 ### Transforms
 
-| Property          | Type                                      | Description                                                      |
-| ----------------- | ----------------------------------------- | ---------------------------------------------------------------- |
-| `rotate`          | `AngleValue`                              | Rotation, e.g. `Angle.Deg(45)`                                   |
-| `scale`           | `number \| [number, number]`             | Uniform or `[x, y]` scale                                        |
-| `translate`       | `LengthValue \| [LengthValue, LengthValue]` | Translation offset                                            |
-| `transformOrigin` | `TransformOriginValue`                    | Origin point, e.g. `TransformOrigin.At(Length.Pct(50), Length.Pct(50))` |
+| Property          | Type                                        | Description                                                             |
+| ----------------- | ------------------------------------------- | ----------------------------------------------------------------------- |
+| `rotate`          | `AngleValue`                                | Rotation, e.g. `Angle.Deg(45)`                                          |
+| `scale`           | `number \| [number, number]`                | Uniform or `[x, y]` scale                                               |
+| `translate`       | `LengthValue \| [LengthValue, LengthValue]` | Translation offset                                                      |
+| `transformOrigin` | `TransformOriginValue`                      | Origin point, e.g. `TransformOrigin.At(Length.Pct(50), Length.Pct(50))` |
 
 ### Typography
 

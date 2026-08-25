@@ -1,0 +1,48 @@
+{
+  "name": "retend-gpui",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "retend-gpui": "./dist/cli.js"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime/index.d.ts",
+      "import": "./dist/jsx-runtime/index.js"
+    },
+    "./plugins/vite": {
+      "types": "./dist/plugins/vite.d.ts",
+      "import": "./dist/plugins/vite.js"
+    },
+    "./plugins/hmr": {
+      "types": "./dist/plugins/hmr.d.ts",
+      "import": "./dist/plugins/hmr.js"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint -c .oxlintrc.json .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gpuix/native": "0.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "retend": "workspace:*",
+    "retend-oxlint-plugin": "workspace:*",
+    "typescript": "^5.8.2",
+    "vite": "^8.0.0",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "retend": "*",
+    "vite": "^8.0.0"
+  }
+}

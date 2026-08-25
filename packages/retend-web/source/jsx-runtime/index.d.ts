@@ -1076,12 +1076,13 @@ declare module 'retend/jsx-runtime' {
     }
 
     type JsxGlobalEventHandlers<E> = {
-      [K in keyof GlobalEvents]?: (this: E, event: GlobalEvents[K]) => void;
+      [K in keyof GlobalEvents]?: EventHandlerValue<
+        (this: E, event: GlobalEvents[K]) => void
+      >;
     } & {
-      [K in keyof GlobalEventModifiers]?: (
-        this: E,
-        event: GlobalEventModifiers[K]
-      ) => void;
+      [K in keyof GlobalEventModifiers]?: EventHandlerValue<
+        (this: E, event: GlobalEventModifiers[K]) => void
+      >;
     };
 
     interface JsxNativeProps {
