@@ -1,6 +1,8 @@
 # Retend GPUI Vite integration decisions
 
-This document records architecture decisions for Vite-based development, hot module replacement, bundling, and production builds in `retend-gpui`. It is not an implementation-status document: sections marked as planned describe accepted target behavior that is not yet exposed by the prototype.
+This document records architecture decisions for Vite-based development, hot module replacement, bundling, and production builds in `retend-gpui`. Development-time behavior described here is implemented by the current prototype; the production build sections remain planned and describe accepted target behavior that is not yet exposed.
+
+References to GPUiX describe the current native bridge (`@gpuix/native` 0.4.0), which the prototype still uses. The planned replacement of that bridge with a Retend-specific native bridge is governed separately by `NATIVE.md`; where the two documents describe the same area differently (for example the development error overlay), VITE.md describes the current GPUiX-based implementation and NATIVE.md describes the target design for the replacement bridge.
 
 ## HMR semantics
 
@@ -10,7 +12,7 @@ The native GPUI window and `RetendGpuiRenderer` instance remain alive. Applicati
 
 ## Development command and Vite ownership
 
-`retend-gpui dev` is the top-level development command. It creates Vite programmatically in middleware mode with `appType: 'custom'`, so GPUI development does not bind an otherwise-unused HTTP port.
+`retend-gpui dev` is the top-level development command. It creates the Vite dev server programmatically with `createServer()`. The middleware mode, `appType: 'custom'`, and disabled WebSocket server are configured by the `retendGpui()` plugin's `config()` hook, so GPUI development does not bind an otherwise-unused HTTP port. The command fails clearly when the resolved Vite configuration does not contain the `retend-gpui` plugin.
 
 Vite still owns the development infrastructure inside that command: configuration, plugins, transforms, file watching, module graphs, HMR calculation, and the dedicated `gpui` environment.
 
@@ -20,9 +22,11 @@ Node.js is the supported development application runtime for the initial impleme
 
 ## Vite/child transport
 
-The GPUI development command should launch the GPUI application runtime with Node's `child_process.fork()` and use the built-in IPC channel for communication between the parent Vite environment and that application process.
+The GPUI development command launches the GPUI application runtime with Node's `child_process.fork()` and uses the built-in IPC channel for communication between the parent Vite environment and that application process.
 
-The GPUI application process hosts the Vite `ModuleRunner` for the running application. HMR and module-runner messages travel through `process.send()` / `process.on('message')` rather than introducing a WebSocket server, TCP socket, or stdio framing protocol.
+The single fork IPC channel is multiplexed by a `channel` field on each message. Control messages on the `retend-gpui` channel cover the supervisor protocol: `init` (application module path, entry path, app name, and initial window options), `application-ready`, `application-startup-error`, and `close-application`. Vite hot-channel and module-runner payloads travel on the `vite` channel. The `IpcHotChannel` class adapts that channel to Vite's hot-channel transport interface so the environment needs no WebSocket server, TCP socket, or stdio framing protocol.
+
+The GPUI application process hosts the Vite `ModuleRunner` for the running application, with a custom transport that sends and receives those `vite`-channel payloads over `process.send()` / `process.on('message')`.
 
 ## Process supervision
 
@@ -40,11 +44,11 @@ If the user intentionally closes the final GPUI window, the application process 
 
 ## HMR implementation boundary
 
-For now, `retend-gpui` will implement a parallel GPUI-specific HMR path.
+`retend-gpui` implements a parallel GPUI-specific HMR path, mirroring the structure of `retend-web/plugins/hmr`.
 
-Do not refactor or modify the existing `retend-web` HMR implementation as part of this work. The existing browser HMR path is considered stable and hard-won. Retend core is also off limits for HMR-related changes.
+The GPUI path consumes the HMR primitives that already exist in Retend core for the browser renderer (`__HMR_SYMBOLS`, component invalidator cells, `branchState()`/`withState()`) without modifying them. Do not refactor or modify the existing `retend-web` HMR implementation or Retend core as part of GPUI HMR work; the existing browser HMR path is considered stable and hard-won.
 
-Some behavior may therefore be duplicated between web and GPUI initially. Any later extraction of shared HMR infrastructure should be a separate decision made after the GPUI implementation has proven itself.
+Some behavior is therefore duplicated between web and GPUI. Any later extraction of shared HMR infrastructure should be a separate decision made after the GPUI implementation has proven itself.
 
 ## Component boundaries
 
@@ -56,11 +60,13 @@ On invalidation, the component function is rerun and the renderer replaces that 
 
 ## Vite environment
 
-`retend-gpui` should use a dedicated Vite environment named `gpui` rather than reusing Vite's `ssr` environment.
+`retend-gpui` uses a dedicated Vite environment named `gpui` (a server-consumer environment with `keepProcessEnv: true`) rather than reusing Vite's `ssr` environment. The WebSocket server is disabled and per-environment start/end events are enabled during development so the supervisor can observe environment lifecycle.
 
 The GPUI environment should own its own module graph, HMR graph, resolution behavior, and future environment-specific build configuration. GPUI is a first-class native target, not an SSR alias.
 
-GPUI application code runs with full Node.js capabilities in both development and production. The `gpui` environment should resolve Node built-ins normally and expose the ordinary Node runtime surface, including `process`, filesystem APIs, child processes, networking, and native addons. Do not introduce a restricted capability layer for the initial runtime.
+GPUI application code runs with full Node.js capabilities in both development and production. The `gpui` environment resolves Node built-ins normally and exposes the ordinary Node runtime surface, including `process`, filesystem APIs, child processes, networking, and native addons. Do not introduce a restricted capability layer for the initial runtime.
+
+The framework packages `retend`, `retend-gpui`, and `@adbl/cells` are externalized in the `gpui` environment, excluded from `optimizeDeps`, and deduped, so applications always run against the same module instances the runtime itself loaded rather than bundled copies.
 
 ## Application instances and windows
 
@@ -94,7 +100,7 @@ The GPUI application has two explicit, required modules in the Vite plugin confi
 
 The GPUI runtime owns application bootstrap for Vite-managed applications. It evaluates the configured `application` module, reads its default-exported application class, constructs exactly one instance for the application runtime, and awaits its `init()` method before creating any window. The runtime, not the module, owns construction so application instantiation has no required module-evaluation side effect and full reload can create a fresh instance deterministically. The application instance's `context` object must already exist immediately after construction and retain stable object identity for the lifetime of that application instance; `init()` may populate or mutate that object, but must not replace it. It then evaluates the configured `entry` module once in the shared application module runtime and reads its default-exported per-window root component. The initial window is bootstrapped as an independent Retend root with its own GPUI renderer and window execution context; later windows repeat the same per-window bootstrap while reusing the same module runtime and application instance. Application code accesses only `application.context` through `useAppContext()`. `useAppContext()` is intentionally a thin accessor: it returns the current context object without adding runtime guards for calls made before `init()` completes or after `cleanup()` begins. Normal runtime sequencing should make those calls unnecessary, and the API should not add extra lifecycle-state machinery solely to defend against them. The application lifecycle is separate from Retend component/window lifecycle and must not require a synthetic renderer or cross-window Retend state tree.
 
-`useAppContext()` must be strongly typed to the concrete `context` type of the configured application class. Because the `application` module path is configuration-dependent, `retend-gpui dev` should generate a small declaration bridge in generated/cache state rather than in application source. That declaration should import the configured application module type and augment the public GPUI app-context type from the instance's `context` property. Regenerate the declaration on every dev-server start and whenever Vite configuration changes, so changes to the configured `application` path are reflected automatically. Ordinary edits to the application's `context` type do not require regeneration because TypeScript follows the imported module type. Generate the bridge as an ambient type package at `node_modules/@types/retend-gpui-app/index.d.ts`, so normal TypeScript `@types` discovery loads it without requiring a committed source declaration or a `tsconfig.json` include/reference change.
+`useAppContext()` is strongly typed to the concrete `context` type of the configured application class. Because the `application` module path is configuration-dependent, the plugin generates a small declaration bridge in generated state rather than in application source. The declaration imports the configured application module type and augments the public `GpuiAppContextTypes` interface of `retend-gpui` from the instance's `context` property via `declare module 'retend-gpui'`. The bridge is regenerated in the plugin's `configResolved` hook, so it refreshes on every dev-server start and whenever Vite configuration changes. Ordinary edits to the application's `context` type do not require regeneration because TypeScript follows the imported module type. The bridge is written as an ambient type package at `node_modules/@types/retend-gpui-app/index.d.ts`, so normal TypeScript `@types` discovery loads it without requiring a committed source declaration or a `tsconfig.json` include/reference change.
 
 Initial window configuration therefore belongs to the required `window` property of `retendGpui()` rather than the application entry module. Vite-managed applications must provide this initial window configuration explicitly. Within `window`, `width` and `height` are required. `title` is optional and defaults to `app.name`, while remaining explicitly configurable for per-window titles. Minimum and maximum size constraints are optional. `location` is optional and defaults to `/`. `renderToGpui()` remains available as the lower-level programmatic API for applications that are not using the Vite-managed application integration.
 
@@ -102,7 +108,9 @@ The configured entry module is itself an HMR boundary for the application root. 
 
 ## HMR propagation
 
-Match the existing browser HMR behavior for now: JSX, TSX, and MDX application modules are unconditionally self-accepting HMR boundaries. Changes to ordinary JavaScript or TypeScript dependencies propagate through Vite's module graph until they reach the nearest accepting JSX, TSX, or MDX module, which remounts its affected component exports.
+Match the existing browser HMR behavior: JSX, TSX, and MDX application modules are unconditionally self-accepting HMR boundaries. The plugin transform injects an `import.meta.hot.accept` callback into every JSX, TSX, and MDX module outside `node_modules`, and into the configured entry module even when it is plain TypeScript. The injected callback calls the GPUI `hotReloadModule()` runtime with the old and new module namespaces. Changes to ordinary JavaScript or TypeScript dependencies propagate through Vite's module graph until they reach the nearest accepting JSX, TSX, or MDX module, which remounts its affected component exports.
+
+The plugin's `hotUpdate` hook walks the importer chain of the changed modules before dispatching: if an update reaches the configured `application` module, it invalidates the affected modules in the environment module graph and sends a `full-reload` instead of a normal update.
 
 If an update propagates to the configured application entrypoint without reaching an earlier accepting JSX, TSX, or MDX boundary, the entrypoint accepts the update and remounts the application root.
 
@@ -112,9 +120,11 @@ Do not add special mixed-export invalidation yet. If a self-accepting JSX, TSX, 
 
 ## Component export matching
 
-GPUI HMR should identify updatable components at runtime rather than through AST heuristics or naming conventions.
+GPUI HMR identifies updatable components at runtime rather than through AST heuristics or naming conventions.
 
-When an accepting JSX, TSX, or MDX module updates, compare the old and new module exports by export key. Ignore non-function exports and function exports that were never rendered as components. Functions that have actually been rendered acquire the GPUI HMR component invalidator; those invalidators are transferred to the corresponding replacement exports and their affected component instances are remounted. The default export follows the same export-key matching rule as named exports.
+When an accepting JSX, TSX, or MDX module updates, compare the old and new module exports by export key. Ignore non-function exports and function exports that were never rendered as components. Functions that have actually been rendered acquire the GPUI HMR component invalidator; those invalidators are transferred to the corresponding replacement exports and their affected component instances are remounted. The default export follows the same export-key matching rule as named exports. A rendered export whose replacement no longer exports a function under the same key is an HMR error, not a silent skip.
+
+Router bindings participate in the same export-key matching: route registrations that point at a replaced component export are remapped to the replacement function so existing routes render the updated component without a full reload.
 
 ## HMR failure semantics
 
@@ -132,9 +142,9 @@ If the configured application entry fails to transform or evaluate before the ro
 
 ## Development error overlay
 
-Development errors should be reported both in the terminal and through a native Vite-style GPUI error overlay. The overlay should cover transform errors, module-evaluation errors, and component-remount errors, and should clear automatically after the next successful update.
+Development errors are reported both in the terminal and through a native Vite-style GPUI error overlay. The overlay covers transform errors, module-evaluation errors, and component-remount errors, and clears automatically after the next successful update.
 
-The overlay is owned by `retend-gpui` as a renderer-level development layer outside the application's Retend tree. It must not depend on application components being able to evaluate or render, so errors can still be displayed when the application tree itself is unavailable or broken.
+The overlay is owned by `retend-gpui` as a renderer-level development layer outside the application's Retend tree: the renderer creates the overlay nodes directly through its native host rather than mounting Retend components, and every live window shows it. It does not depend on application components being able to evaluate or render, so errors can still be displayed when the application tree itself is unavailable or broken. When the planned native bridge from `NATIVE.md` replaces GPUiX, development overlay UI is expected to move into a runtime-owned Retend wrapper tree beneath the immutable native root; that migration is a bridge decision, not a change to these error-reporting semantics.
 
 ## Entrypoint updates
 
@@ -144,9 +154,9 @@ The configured application entrypoint is the HMR boundary for the root component
 
 The GPUI application process and Vite/dev-server share one development-command lifetime. Any unexpected application-process exit shuts down Vite and makes `retend-gpui dev` fail; the application is not automatically respawned. An intentional close of the final GPUI window also ends the application process and causes `retend-gpui dev` to exit, but successfully.
 
-A Vite full reload is not the same as a Vite/dev-server restart. On a full reload, keep the existing GPUI application process and native windows alive, but dispose the current renderer-independent application context and all of its application-lifetime resources, reset the application/module runtime state, create a fresh application context, and remount the application into the existing windows. A full reload therefore preserves the current window graph while discarding and recreating application-level and module-level runtime state. Preserve each window's current location and history across that remount rather than resetting navigation to the location originally used when the window was created.
+A Vite full reload is not the same as a Vite/dev-server restart. On a full reload, keep the existing GPUI application process and native windows alive, but dispose the current renderer-independent application context and all of its application-lifetime resources, reset the application/module runtime state, create a fresh application context, and remount the application into the existing windows. Concretely, the child process runs the old application instance's `cleanup()`, unmounts every window's renderer (clearing the rendered tree but keeping the native windows), clears the shared Retend `globalData` map, re-imports the application and entry modules through the ModuleRunner (module invalidation having already been applied server-side by the plugin's `hotUpdate` hook), constructs and `init()`s a fresh application instance, and remounts the root into each existing renderer. A full reload therefore preserves the current window graph while discarding and recreating application-level and module-level runtime state. Preserve each window's current location and history across that remount rather than resetting navigation to the location originally used when the window was created.
 
-Changes to `vite.config.ts` or any other server/configuration condition that requires a Vite restart are full application-process restart boundaries. Reload the Vite configuration and development environment, terminate the existing GPUI application process, and then launch a fresh application process containing only the initial configured window. Do not reconstruct windows that existed before the restart.
+Changes to `vite.config.ts` or any other server/configuration condition that requires a Vite restart are full application-process restart boundaries. Reload the Vite configuration and development environment, terminate the existing GPUI application process, and then launch a fresh application process containing only the initial configured window. Do not reconstruct windows that existed before the restart. The supervisor detects these restarts through the plugin's per-environment start event: whenever the `gpui` environment listens again, the supervisor replaces the running application child with a fresh one.
 
 ## Planned production build
 
