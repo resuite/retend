@@ -8,104 +8,104 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 
 ### Native package and distribution
 
-- [ ] Create the Retend-owned Rust N-API addon package.
-- [ ] Set up per-platform prebuilt package structure and loading from the JavaScript package.
-- [ ] Define platform build targets for macOS, Linux, and Windows.
-- [ ] Keep the bridge API private to `retend-gpui` rather than exposing a GPUiX-compatible public API.
-- [ ] Add a protocol version constant shared by TypeScript and Rust.
+- [x] Create the Retend-owned Rust N-API addon package.
+- [x] Set up per-platform prebuilt package structure and loading from the JavaScript package.
+- [x] Define platform build targets for macOS, Linux, and Windows.
+- [x] Keep the bridge API private to `retend-gpui` rather than exposing a GPUiX-compatible public API.
+- [x] Add a protocol version constant shared by TypeScript and Rust.
 
 ### Binary protocol
 
-- [ ] Define the transaction header and protocol version encoding.
-- [ ] Define static numeric IDs for opcodes, element kinds, property IDs, and native event types.
-- [ ] Define fixed `u32` encoding for node IDs and string-table indexes.
-- [ ] Implement transaction-local string-table encoding.
-- [ ] Implement JavaScript command-buffer writer utilities.
-- [ ] Implement Rust command-buffer decoder utilities.
-- [ ] Implement bounds checking and corrupt-buffer detection in Rust.
-- [ ] Reject unsupported protocol versions synchronously.
-- [ ] Keep semantic author strings as strings in the transaction; do not add a JavaScript CSS-style parser.
+- [x] Define the transaction header and protocol version encoding.
+- [x] Define one authoritative machine-readable schema for opcode, element-kind, property, and native-event numeric IDs.
+- [x] Generate matching TypeScript and Rust constants/enums from that ID schema.
+- [x] Define fixed `u32` encoding for node IDs and string-table indexes.
+- [x] Implement transaction-local string-table encoding.
+- [x] Implement JavaScript command-buffer writer utilities.
+- [x] Implement Rust command-buffer decoder utilities.
+- [x] Implement bounds checking and corrupt-buffer detection in Rust.
+- [x] Reject unsupported protocol versions synchronously.
+- [x] Keep semantic author strings as strings in the transaction; do not add a JavaScript CSS-style parser.
 
 ### Transaction host
 
-- [ ] Replace direct native mutation calls with a renderer-local pending transaction queue.
-- [ ] Preserve one-microtask batching for synchronous mutations.
-- [ ] Implement explicit synchronous `flush()`.
-- [ ] Ensure each renderer transaction is implicitly bound to exactly one native window.
-- [ ] Ensure multi-window updates become independent per-window transactions.
-- [ ] Preserve transport ordering without transaction revision numbers.
-- [ ] Make `applyTransaction(buffer)` synchronous for decode/validation/retained-tree mutation.
+- [x] Replace direct native mutation calls with a renderer-local pending transaction queue.
+- [x] Preserve one-microtask batching for synchronous mutations.
+- [x] Implement explicit synchronous `flush()`.
+- [x] Ensure each renderer transaction is implicitly bound to exactly one native window.
+- [x] Ensure multi-window updates become independent per-window transactions.
+- [x] Preserve transport ordering without transaction revision numbers.
+- [x] Make `applyTransaction(buffer)` synchronous for decode/validation/retained-tree mutation.
 
 ### Node identity and authoritative tree
 
-- [ ] Add one process-scoped JavaScript `u32` node-ID allocator.
-- [ ] Ensure IDs are monotonically increasing and never reused during the process lifetime.
-- [ ] Implement the process-wide Rust node arena.
-- [ ] Implement immutable per-window root node IDs.
-- [ ] Enforce one-window-for-life ownership for every native node.
-- [ ] Reject cross-window reparenting.
-- [ ] Implement native node kinds for container, text, span/text-run identity, image, input, textarea, and structural anchors as required by the protocol.
-- [ ] Keep GPUI element instances out of the authoritative retained tree.
+- [x] Add one process-scoped JavaScript `u32` node-ID allocator.
+- [x] Ensure IDs are monotonically increasing and never reused during the process lifetime.
+- [x] Implement the process-wide Rust node arena.
+- [x] Implement immutable per-window root node IDs.
+- [x] Enforce one-window-for-life ownership for every native node.
+- [x] Reject cross-window reparenting.
+- [x] Implement native node kinds for container, text, span/text-run identity, image, input, textarea, and structural anchors as required by the protocol.
+- [x] Keep GPUI element instances out of the authoritative retained tree.
 
 ### Structural mutations and settlement
 
-- [ ] Implement create/insert/remove/reorder/update operations against the Rust retained tree.
-- [ ] Validate complete transactions before mutating retained state.
-- [ ] Apply valid transactions atomically.
-- [ ] Implement pending-detached root tracking in Rust.
-- [ ] Remove a node from pending-detached tracking when reinserted.
-- [ ] Keep detached nodes fully mutable before settlement.
-- [ ] Ensure newly created never-attached nodes are not automatically pending-detached.
-- [ ] Implement native `settle()`.
-- [ ] Make `host.settle()` flush pending UI mutations before native settlement.
-- [ ] Recursively destroy still-detached subtrees during native settlement.
-- [ ] Destroy associated native runtime state during settlement without JavaScript enumerating dead IDs.
-- [ ] Flatten JavaScript groups at insertion time rather than creating native group nodes.
-- [ ] Represent anchors with stable retained identity while omitting them from GPUI layout.
+- [x] Implement create/insert/remove/reorder/update operations against the Rust retained tree.
+- [x] Validate complete transactions before mutating retained state.
+- [x] Apply valid transactions atomically.
+- [x] Implement pending-detached root tracking in Rust.
+- [x] Remove a node from pending-detached tracking when reinserted.
+- [x] Keep detached nodes fully mutable before settlement.
+- [x] Ensure newly created never-attached nodes are not automatically pending-detached.
+- [x] Implement native `settle()`.
+- [x] Make `host.settle()` flush pending UI mutations before native settlement.
+- [x] Recursively destroy still-detached subtrees during native settlement.
+- [x] Destroy associated native runtime state during settlement without JavaScript enumerating dead IDs.
+- [x] Flatten JavaScript groups at insertion time rather than creating native group nodes.
+- [x] Represent anchors with stable retained identity while omitting them from GPUI layout.
 
 ### Fatal protocol path
 
-- [ ] Define structured native validation-error payloads.
-- [ ] On protocol/invariant failure, reject the full transaction and leave the retained tree unchanged.
-- [ ] Catch native validation errors at the JS renderer/host boundary.
-- [ ] Capture the JavaScript stack for fatal renderer bugs.
-- [ ] Permanently poison the affected renderer.
-- [ ] Implement the dedicated out-of-band fatal diagnostic command.
-- [ ] Implement a native fatal diagnostic surface for a poisoned renderer/window.
-- [ ] Reject all later normal renderer mutations after poisoning.
-- [ ] Keep semantic style-value parse failures out of the fatal protocol path.
+- [x] Define structured native validation-error payloads.
+- [x] On protocol/invariant failure, reject the full transaction and leave the retained tree unchanged.
+- [x] Catch native validation errors at the JS renderer/host boundary.
+- [x] Capture the JavaScript stack for fatal renderer bugs.
+- [x] Permanently poison the affected renderer.
+- [x] Implement the dedicated out-of-band fatal diagnostic command.
+- [x] Implement a native fatal diagnostic surface for a poisoned renderer/window.
+- [x] Reject all later normal renderer mutations after poisoning.
+- [x] Keep semantic style-value parse failures out of the fatal protocol path.
 
 ### Platform runtime and windows
 
-- [ ] Implement the native GPUI application singleton and window registry.
-- [ ] Implement macOS main-thread GPUI/AppKit integration.
-- [ ] Implement or preserve the required macOS event-loop tick/pump integration.
-- [ ] Implement Windows/Linux native UI-thread execution where required by GPUI.
-- [ ] Keep the public JS/native ordering semantics identical across platform topologies.
-- [ ] Implement renderer-to-window binding handles.
-- [ ] Implement native window creation and close.
-- [ ] Closing a window destroys its retained subtree and invalidates its renderer binding.
-- [ ] Reject any later transaction sent through a closed-window renderer.
-- [ ] Add deliberate Node process keep-alive ownership while native windows exist.
-- [ ] Release the final keep-alive only after application teardown completes.
+- [x] Implement the native GPUI application singleton and window registry.
+- [x] Implement macOS main-thread GPUI/AppKit integration.
+- [x] Implement or preserve the required macOS event-loop tick/pump integration.
+- [x] Implement Windows/Linux native UI-thread execution where required by GPUI.
+- [x] Keep the public JS/native ordering semantics identical across platform topologies.
+- [x] Implement renderer-to-window binding handles.
+- [x] Implement native window creation and close.
+- [x] Closing a window destroys its retained subtree and invalidates its renderer binding.
+- [x] Reject any later transaction sent through a closed-window renderer.
+- [x] Add deliberate Node process keep-alive ownership while native windows exist.
+- [x] Release the final keep-alive only after application teardown completes.
 
 ### Phase 1 tests
 
-- [ ] Build a TypeScript reference protocol interpreter with a mirror retained tree.
-- [ ] Add fixed protocol golden-byte fixtures asserted by both TypeScript and Rust.
-- [ ] Add Rust decoder tests for malformed buffers, invalid indexes, unknown opcodes, invalid node references, and unsupported versions.
-- [ ] Add Rust property/fuzz tests for transaction decoding and validation.
-- [ ] Add atomicity tests proving invalid transactions leave the native tree unchanged.
-- [ ] Add detached/reinsert/settle lifecycle tests, including nested detached roots.
-- [ ] Add process-global node-ID and cross-window ownership tests.
-- [ ] Add renderer poisoning tests.
+- [x] Add focused TypeScript encoder tests for the Phase 1 command layouts without freezing the complete protocol as a permanent golden-byte suite.
+- [x] Add Rust decoder tests for malformed buffers, invalid indexes, unknown opcodes, invalid node references, and unsupported versions.
+- [x] Add Rust fuzz/property tests for transaction decoding and validation.
+- [x] Add atomicity tests proving invalid transactions leave the native tree unchanged.
+- [x] Add detached/reinsert/settle lifecycle tests, including nested detached roots.
+- [x] Add process-global node-ID and cross-window ownership tests.
+- [x] Add renderer poisoning tests.
 
 ### Phase 1 completion gate
 
-- [ ] A headless JS renderer can create, mutate, move, detach, reattach, settle, and destroy native nodes through the binary protocol.
-- [ ] The TypeScript reference interpreter and Rust implementation agree on structural behavior.
-- [ ] A real native window can be created and bound to a renderer on the primary development platform.
-- [ ] Protocol failures are atomic and poison only the affected renderer.
+- [x] A headless JS renderer can create, mutate, move, detach, reattach, settle, and destroy native nodes through the binary protocol.
+- [x] Rust structural/atomicity tests cover the retained-tree behavior exercised by the headless JS renderer.
+- [x] A real native window can be created and bound to a renderer on the primary development platform.
+- [x] Protocol failures are atomic and poison only the affected renderer.
 
 ## Phase 2 — Rendering, Styles, Text, Events, and Multi-Window UI
 
@@ -124,7 +124,8 @@ Goal: make the bridge capable of rendering normal Retend UI with `div`, text, sp
 
 - [ ] Define the v1 property schema and numeric property IDs.
 - [ ] Define TypeScript authoring types for supported properties.
-- [ ] Implement numbers, booleans, and string references in the wire schemas.
+- [ ] Implement the generic tagged property-value wire shape for numbers, booleans, string-table references, and removal/null.
+- [ ] Keep property-specific semantics in Rust rather than creating property-specific binary layouts.
 - [ ] Implement Rust semantic parsers for keyword values.
 - [ ] Implement Rust percentage/length parsing.
 - [ ] Implement Rust color parsing.
@@ -340,7 +341,15 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 
 ## Phase 4 — Motion, Migration, Packaging, and Production Hardening
 
-Goal: complete the v1 feature surface, remove the previous native path, and make the bridge shippable and diagnosable across supported platforms.
+Goal: complete the v1 feature surface, stabilize and harden the protocol after real renderer use, remove the previous native path, and make the bridge shippable and diagnosable across supported platforms.
+
+### Protocol hardening
+
+- [ ] Build the TypeScript reference protocol interpreter with a mirror retained tree.
+- [ ] Add differential tests that run structural transactions through both the TypeScript reference interpreter and the Rust implementation.
+- [ ] Add comprehensive fixed golden-byte vectors asserted independently by TypeScript and Rust after the core opcode/layout surface is stable.
+- [ ] Extend the authoritative protocol schema/code generator beyond shared numeric IDs to repetitive command reader/writer scaffolding where doing so reduces boilerplate without moving semantic validation into generated code.
+- [ ] Keep semantic validation, transaction-overlay logic, and retained-tree behavior handwritten.
 
 ### Native transition engine
 

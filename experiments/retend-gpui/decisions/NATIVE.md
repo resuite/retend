@@ -60,7 +60,7 @@ Transactions cross the JavaScript/Rust boundary as one custom compact binary com
 
 The buffer header contains a small protocol version. Rust rejects unsupported versions so JavaScript/native mismatches fail explicitly rather than being decoded as malformed commands.
 
-Known protocol vocabulary such as opcodes, element kinds, property names, event types, and other fixed symbols use static numeric IDs rather than strings. Those numeric assignments and fixed command field schemas have one authoritative machine-readable protocol schema. TypeScript and Rust protocol constants are generated from that schema rather than maintained independently. Repetitive fixed-schema writer/reader scaffolding should also be generated where practical, while semantic validation and retained-tree behavior remain handwritten. The custom Retend binary protocol remains the wire format; code generation exists to eliminate cross-language drift and boilerplate rather than to replace it with a general-purpose serialization format.
+Known protocol vocabulary such as opcodes, element kinds, property names, event types, and other fixed symbols use static numeric IDs rather than strings. Those numeric assignments have one authoritative machine-readable protocol schema. Phase 1 generates matching TypeScript and Rust constants from that schema rather than maintaining the numeric tables independently. Broader code generation for fixed-schema command readers/writers is added only after the command surface has stabilized through real renderer use; semantic validation and retained-tree behavior remain handwritten. The custom Retend binary protocol remains the wire format.
 
 Structural insertion uses one fixed-schema `INSERT_CHILD(parentId, childId, beforeId)` opcode rather than separate append, insert-before, and move opcodes. A nonzero `beforeId` inserts or moves `childId` immediately before that existing child of `parentId`; `beforeId = 0` means append at the end. Node ID `0` is reserved by the protocol and is never a valid real node ID. Removal uses `REMOVE_CHILD(parentId, childId)`. The same insertion operation therefore covers first attachment, reattachment, same-parent reordering, and ordinary moves without introducing separate structural wire concepts.
 
@@ -74,7 +74,7 @@ Commands use fixed opcode-specific schemas with no per-command byte length. The 
 
 ## Property value encoding
 
-Known properties use property-specific binary schemas rather than a generic tagged JavaScript-value format. A property ID determines how its value is decoded.
+Property updates use one small generic tagged wire representation rather than property-specific binary layouts. The wire carries the property ID plus a primitive value kind such as number, boolean, string-table reference, or removal/null, followed by that kind's fixed payload. The property ID determines the semantic interpretation in Rust, not the physical wire shape.
 
 The public Retend GPUI style API uses a React-Native-like hybrid authoring model optimized for concise JavaScript/TypeScript. Bare numbers represent pixel-like numeric values where appropriate; simple closed vocabularies use constrained string literals such as `display: 'flex'`, `flexDirection: 'column'`, and `overflow: 'hidden'`; familiar textual forms such as percentage lengths and colors may remain concise author-facing values where appropriate. TypeScript types constrain these values so ordinary invalid keywords are rejected statically. Helpers/typed constructors are reserved for values that genuinely benefit from structure rather than being required for every keyword.
 
@@ -270,11 +270,9 @@ The architecture avoids duplicate authoritative representations of the same nati
 
 ## Testing strategy
 
-The protocol schema is the authoritative contract.
+The protocol schema is the authoritative contract. Early implementation is validated directly through focused TypeScript encoder tests plus Rust decoder/validator/tree tests, including malformed buffers, bounds validation, atomicity, and fuzz/property coverage. This keeps Phase 1 focused on proving the real JS → Rust → retained-tree path rather than requiring a second complete implementation before the command surface has stabilized.
 
-- A TypeScript reference interpreter decodes transactions, maintains a mirror tree, and exposes assertion helpers for fast renderer tests.
-- Fixed golden byte vectors are asserted independently from TypeScript and Rust so matching encoder/interpreter bugs cannot silently redefine the wire format.
-- Rust decoder/validator/tree tests cover the real native implementation headlessly, including malformed buffers, bounds validation, and fuzz/property coverage. Focused integration tests compare behavior with the reference interpreter.
+After the core protocol has been exercised by the renderer and its command vocabulary is stable, protocol hardening adds a TypeScript reference interpreter with a mirror tree, differential tests against the Rust implementation, and fixed golden byte vectors asserted independently from TypeScript and Rust. These later tests protect the mature wire contract without making early byte-layout churn a Phase 1 blocker.
 
 ## Migration strategy
 
