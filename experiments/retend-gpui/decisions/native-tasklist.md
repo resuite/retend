@@ -16,26 +16,26 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 
 ### Binary protocol
 
-- [x] Define the transaction header and protocol version encoding.
+- [x] Define the command-batch header and protocol version encoding.
 - [x] Define one authoritative machine-readable schema for opcode, element-kind, property, and native-event numeric IDs.
 - [x] Generate matching TypeScript and Rust constants/enums from that ID schema.
 - [x] Define fixed `u32` encoding for node IDs and string-table indexes.
-- [x] Implement transaction-local string-table encoding.
+- [x] Implement batch-local string-table encoding.
 - [x] Implement JavaScript command-buffer writer utilities.
 - [x] Implement Rust command-buffer decoder utilities.
 - [x] Implement bounds checking and corrupt-buffer detection in Rust.
 - [x] Reject unsupported protocol versions synchronously.
-- [x] Keep semantic author strings as strings in the transaction; do not add a JavaScript CSS-style parser.
+- [x] Keep semantic author strings as strings in the command batch; do not add a JavaScript CSS-style parser.
 
-### Transaction host
+### Command host
 
-- [x] Replace direct native mutation calls with a renderer-local pending transaction queue.
+- [x] Replace direct native mutation calls with a renderer-local pending command queue.
 - [x] Preserve one-microtask batching for synchronous mutations.
 - [x] Implement explicit synchronous `flush()`.
-- [x] Ensure each renderer transaction is implicitly bound to exactly one native window.
-- [x] Ensure multi-window updates become independent per-window transactions.
-- [x] Preserve transport ordering without transaction revision numbers.
-- [x] Make `applyTransaction(buffer)` synchronous for decode/validation/retained-tree mutation.
+- [x] Ensure each renderer command batch is implicitly bound to exactly one native window.
+- [x] Ensure multi-window updates become independent per-window command batches.
+- [x] Preserve transport ordering without public batch revision numbers.
+- [x] Make `applyCommandBatch(buffer)` synchronous for decode and ordered retained-tree mutation.
 
 ### Node identity and authoritative tree
 
@@ -51,8 +51,9 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 ### Structural mutations and settlement
 
 - [x] Implement create/insert/remove/reorder/update operations against the Rust retained tree.
-- [x] Validate complete transactions before mutating retained state.
-- [x] Apply valid transactions atomically.
+- [x] Decode the complete command batch before mutating retained state.
+- [x] Validate every command completely before that command mutates retained state.
+- [x] Retain successfully applied command prefixes when a later command fails.
 - [x] Implement pending-detached root tracking in Rust.
 - [x] Remove a node from pending-detached tracking when reinserted.
 - [x] Keep detached nodes fully mutable before settlement.
@@ -64,17 +65,18 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 - [x] Flatten JavaScript groups at insertion time rather than creating native group nodes.
 - [x] Represent anchors with stable retained identity while omitting them from GPUI layout.
 
-### Fatal protocol path
+### Fatal bridge path
 
-- [x] Define structured native validation-error payloads.
-- [x] On protocol/invariant failure, reject the full transaction and leave the retained tree unchanged.
-- [x] Catch native validation errors at the JS renderer/host boundary.
+- [x] Define structured native bridge-failure payloads.
+- [x] On command/invariant failure, preserve the valid prefix, leave the failing command unapplied, and poison the affected native window before releasing the retained-tree lock.
+- [x] On wire-format failure, poison the affected native window without mutating retained state.
+- [x] Catch native bridge failures at the JS renderer/host boundary.
 - [x] Capture the JavaScript stack for fatal renderer bugs.
 - [x] Permanently poison the affected renderer.
 - [x] Implement the dedicated out-of-band fatal diagnostic command.
 - [x] Implement a native fatal diagnostic surface for a poisoned renderer/window.
 - [x] Reject all later normal renderer mutations after poisoning.
-- [x] Keep semantic style-value parse failures out of the fatal protocol path.
+- [x] Keep semantic style-value parse failures out of the fatal bridge path.
 
 ### Platform runtime and windows
 
@@ -86,7 +88,7 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 - [x] Implement renderer-to-window binding handles.
 - [x] Implement native window creation and close.
 - [x] Closing a window destroys its retained subtree and invalidates its renderer binding.
-- [x] Reject any later transaction sent through a closed-window renderer.
+- [x] Reject any later command batch sent through a closed-window renderer.
 - [x] Add deliberate Node process keep-alive ownership while native windows exist.
 - [x] Release the final keep-alive only after application teardown completes.
 
@@ -94,8 +96,8 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 
 - [x] Add focused TypeScript encoder tests for the Phase 1 command layouts without freezing the complete protocol as a permanent golden-byte suite.
 - [x] Add Rust decoder tests for malformed buffers, invalid indexes, unknown opcodes, invalid node references, and unsupported versions.
-- [x] Add Rust fuzz/property tests for transaction decoding and validation.
-- [x] Add atomicity tests proving invalid transactions leave the native tree unchanged.
+- [x] Add Rust fuzz/property tests for command-batch decoding and command validation.
+- [x] Add tests proving a failing command makes no partial mutation while earlier valid commands remain applied.
 - [x] Add detached/reinsert/settle lifecycle tests, including nested detached roots.
 - [x] Add process-global node-ID and cross-window ownership tests.
 - [x] Add renderer poisoning tests.
@@ -103,9 +105,9 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 ### Phase 1 completion gate
 
 - [x] A headless JS renderer can create, mutate, move, detach, reattach, settle, and destroy native nodes through the binary protocol.
-- [x] Rust structural/atomicity tests cover the retained-tree behavior exercised by the headless JS renderer.
+- [x] Rust structural/command-failure tests cover the retained-tree behavior exercised by the headless JS renderer.
 - [x] A real native window can be created and bound to a renderer on the primary development platform.
-- [x] Protocol failures are atomic and poison only the affected renderer.
+- [x] Hard failures poison only the affected renderer; wire failures mutate nothing and command failures retain only the valid prefix.
 
 ## Phase 2 — Rendering, Styles, Text, Events, and Multi-Window UI
 
@@ -116,9 +118,11 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [ ] Implement retained-tree-to-GPUI render traversal per window.
 - [ ] Construct a fresh GPUI element tree for each render.
 - [ ] Map stable Retend IDs to GPUI `ElementId`s where persistent GPUI state requires them.
-- [ ] Keep GPUI-bound objects in the native execution context rather than in transaction-owned retained data.
-- [ ] Add dirty-window scheduling after successful transactions.
-- [ ] Ensure one committed transaction schedules one coherent render update.
+- [ ] Keep GPUI-bound objects in the native execution context rather than in retained-tree data.
+- [ ] Collect GPUI/runtime-effect intents during command application and execute them only after the complete batch succeeds.
+- [ ] Discard runtime-effect intents and skip normal rendering when a batch poisons its window.
+- [ ] Add dirty-window scheduling after successful command batches.
+- [ ] Ensure one successful command batch advances one committed generation and schedules one coherent render update.
 
 ### Style schema and native parsing
 
@@ -130,7 +134,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [ ] Implement Rust percentage/length parsing.
 - [ ] Implement Rust color parsing.
 - [ ] Implement Rust transition-duration/delay/timing parsing needed by later motion support.
-- [ ] Store parsed Retend-native values after transaction application.
+- [ ] Store parsed Retend-native values during command application.
 - [ ] Implement fail-soft behavior for invalid semantic style values.
 - [ ] Send complete resolved author-style snapshots from JavaScript.
 - [ ] Keep GPUI defaults, Retend intrinsic defaults, and inherited/computed style out of JavaScript snapshots.
@@ -210,7 +214,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### Renderer migration
 
-- [ ] Port `gpui-renderer.ts` and its host mutation path onto `NativeTransactionHost` and the Retend-owned transaction protocol.
+- [ ] Port `gpui-renderer.ts` and its host mutation path onto `NativeCommandHost` and the Retend-owned command protocol.
 - [ ] Make normal Retend GPUI renderer/window creation use the Retend-owned native binding rather than the GPUiX native renderer.
 - [ ] Preserve the JavaScript node lifecycle contract on the migrated renderer, including permanent destroyed-node state, reactive cleanup, ref cleanup, and stale-event rejection.
 - [ ] Route the Phase 2 style, event, window, and development-overlay behavior through the migrated renderer rather than maintaining a second native-only implementation path.
@@ -235,7 +239,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 ### Phase 2 completion gate
 
 - [ ] A normal Retend application renders styled `div`, text, nested spans, and images in one or more native windows through the Retend-owned bridge.
-- [ ] `gpui-renderer.ts` and the normal development/runtime renderer path use the Retend-owned transaction host and native binding for the Phase 2 feature surface.
+- [ ] `gpui-renderer.ts` and the normal development/runtime renderer path use the Retend-owned command host and native binding for the Phase 2 feature surface.
 - [ ] No active normal renderer path depends on GPUiX; Phase 3 can add stateful native capabilities directly to the migrated renderer.
 - [ ] Pointer and keyboard events reach the correct Retend targets and propagate with the documented semantics.
 - [ ] Resizing and window lifecycle changes arrive through native events rather than polling.
@@ -358,10 +362,10 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 ### Protocol hardening
 
 - [ ] Build the TypeScript reference protocol interpreter with a mirror retained tree.
-- [ ] Add differential tests that run structural transactions through both the TypeScript reference interpreter and the Rust implementation.
+- [ ] Add differential tests that run structural command batches through both the TypeScript reference interpreter and the Rust implementation.
 - [ ] Add comprehensive fixed golden-byte vectors asserted independently by TypeScript and Rust after the core opcode/layout surface is stable.
 - [ ] Extend the authoritative protocol schema/code generator beyond shared numeric IDs to repetitive command reader/writer scaffolding where doing so reduces boilerplate without moving semantic validation into generated code.
-- [ ] Keep semantic validation, transaction-overlay logic, and retained-tree behavior handwritten.
+- [ ] Keep semantic validation, direct command application, and retained-tree behavior handwritten.
 
 ### Native transition engine
 
@@ -413,7 +417,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Hardening and performance
 
-- [ ] Profile transaction decode/validation costs.
+- [ ] Profile command-batch decode/application costs.
 - [ ] Profile retained-tree snapshot/locking strategy under frequent updates.
 - [ ] Replace coarse locking only if profiling shows it is required.
 - [ ] Profile native event delivery under heavy mousemove/scroll input.

@@ -1,0 +1,128 @@
+import { afterEach, describe, expect, it } from 'vitest';
+
+import {
+  ElementKind,
+  NativeRendererFatalError,
+  NativeCommandHost,
+  PropertyId,
+} from '../source/native/host';
+
+const activeHosts = new Set<NativeCommandHost>();
+
+interface DebugNode {
+  id: number;
+  children: number[];
+  text: string | null;
+}
+
+interface DebugTree {
+  nodes: DebugNode[];
+  poisoned: boolean;
+}
+
+function createHost(headless = true): NativeCommandHost {
+  const host = new NativeCommandHost({ headless });
+  activeHosts.add(host);
+  return host;
+}
+
+afterEach(() => {
+  for (const host of activeHosts) host.close();
+  activeHosts.clear();
+});
+
+describe('Retend-owned native bridge', () => {
+  it('flushes synchronous mutations in one queued microtask', async () => {
+    const host = createHost();
+    const node = host.createText('batched');
+
+    expect(
+      (host.debugTree() as DebugTree).nodes.some((item) => item.id === node)
+    ).toBe(false);
+    await Promise.resolve();
+    expect(
+      (host.debugTree() as DebugTree).nodes.some((item) => item.id === node)
+    ).toBe(true);
+  });
+
+  it('creates, mutates, moves, detaches, reattaches, settles, and destroys nodes', () => {
+    const host = createHost();
+    const parent = host.createNode(ElementKind.Container);
+    const first = host.createText('first');
+    const second = host.createText('second');
+    host.insertChild(host.rootId, parent);
+    host.insertChild(parent, first);
+    host.insertChild(parent, second);
+    host.flush();
+
+    host.insertChild(parent, second, first);
+    host.removeChild(parent, first);
+    host.setProperty(first, PropertyId.Opacity, 0.5);
+    host.insertChild(parent, first);
+    host.settle();
+
+    const afterMove = host.debugTree() as DebugTree;
+    const parentNode = afterMove.nodes.find((node) => node.id === parent);
+    expect(parentNode?.children).toEqual([second, first]);
+    expect(afterMove.nodes.find((node) => node.id === first)?.text).toBe(
+      'first'
+    );
+
+    host.removeChild(parent, first);
+    host.settle();
+    const afterSettle = host.debugTree() as DebugTree;
+    expect(afterSettle.nodes.some((node) => node.id === first)).toBe(false);
+  });
+
+  it('allocates node IDs process-globally across renderer windows', () => {
+    const first = createHost();
+    const second = createHost();
+    const firstChild = first.createNode(ElementKind.Container);
+    const secondChild = second.createNode(ElementKind.Container);
+
+    expect(second.rootId).toBeGreaterThan(first.rootId);
+    expect(firstChild).not.toBe(secondChild);
+    expect(
+      new Set([first.rootId, second.rootId, firstChild, secondChild]).size
+    ).toBe(4);
+  });
+
+  it('rejects cross-window ownership and poisons only the bad renderer', () => {
+    const first = createHost();
+    const second = createHost();
+    const foreignNode = first.createNode(ElementKind.Container);
+    first.insertChild(first.rootId, foreignNode);
+    first.flush();
+
+    second.insertChild(second.rootId, foreignNode);
+    let failure: NativeRendererFatalError | null = null;
+    try {
+      second.flush();
+    } catch (error) {
+      expect(error).toBeInstanceOf(NativeRendererFatalError);
+      failure = error as NativeRendererFatalError;
+    }
+    expect(failure?.nativeFailure?.code).toBe('CROSS_WINDOW_NODE');
+    expect(second.poisoned).toBe(true);
+
+    const localNode = first.createText('still alive');
+    first.insertChild(first.rootId, localNode);
+    expect(() => first.flush()).not.toThrow();
+    expect(first.poisoned).toBe(false);
+  });
+
+  it('retains a valid command prefix when a later command poisons the renderer', () => {
+    const host = createHost();
+    const node = host.createNode(ElementKind.Container);
+    host.insertChild(host.rootId, node);
+    host.insertChild(host.rootId, 0xffff_fffe);
+
+    expect(() => host.flush()).toThrow(NativeRendererFatalError);
+    const after = host.debugTree() as DebugTree;
+    const root = after.nodes.find((item) => item.id === host.rootId);
+
+    expect(after.nodes.some((item) => item.id === node)).toBe(true);
+    expect(root?.children).toContain(node);
+    expect(after.poisoned).toBe(true);
+  });
+});

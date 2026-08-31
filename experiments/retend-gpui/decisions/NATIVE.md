@@ -6,13 +6,13 @@ This document defines the architecture, implementation model, and v1 scope for t
 
 The Rust native bridge ships as an N-API addon with prebuilt per-platform binaries. Node remains the main process and GPUI is embedded through the addon. Packaging uses a main JavaScript package plus per-platform binary packages such as `darwin-arm64` and `linux-x64`.
 
-Shipping applications use the appropriate platform application bundle around the runtime. The binary transaction protocol is independent of the embedding topology; the N-API bridge implementation itself is runtime-specific.
+Shipping applications use the appropriate platform application bundle around the runtime. The binary command protocol is independent of the embedding topology; the N-API bridge implementation itself is runtime-specific.
 
-## Transaction boundary
+## Command-batch boundary
 
-Synchronous native mutations accumulate in the JavaScript host queue and one queued microtask flushes them as a single native transaction. Explicit renderer/host `flush()` calls synchronously drain the current queue.
+Synchronous native mutations accumulate in the JavaScript host queue and one queued microtask flushes them as a single ordered command batch. Explicit renderer/host `flush()` calls synchronously drain the current queue.
 
-JavaScript batches all Retend-driven native mutations for one update into an ordered transaction. Rust validates the complete transaction before mutating its authoritative native tree. If any operation is invalid, the entire transaction fails and the native tree remains unchanged. Once validated, Rust applies the transaction atomically and performs the corresponding GPUI reconciliation/render work once. Retend reconciliation remains in JavaScript; Rust does not implement framework-level keyed or component reconciliation semantics.
+Command batches reduce N-API crossings, preserve mutation ordering, and give rendering one coherent notification boundary. They are not retained-tree rollback transactions. Rust decodes the complete binary buffer before mutation, then applies decoded commands directly and in order while holding the retained-tree lock. Each command validates all of its operands and invariants before changing retained state, so the failing command itself leaves no partial mutation. If a later command fails, the successfully applied prefix remains in the retained tree and Rust poisons the affected window before releasing the lock. A successful batch advances the window's committed retained-state generation and schedules the corresponding GPUI reconciliation/render work once. Retend reconciliation remains in JavaScript; Rust does not implement framework-level keyed or component reconciliation semantics.
 
 ## Boundary ownership
 
@@ -22,41 +22,47 @@ Retend GPUI uses a Retend-specific native bridge with a contract designed around
 
 On macOS, AppKit/GPUI runs on the process main thread and the embedded bridge pumps the GPUI/AppKit event loop through the main-thread integration/tick model. On Windows and Linux, GPUI may run its blocking event loop on a dedicated native UI thread, with JavaScript communicating through the in-process bridge.
 
-The public JS/native protocol is topology-independent. Command ordering, transaction semantics, event delivery, renderer behavior, and multi-window behavior have the same contract whether GPUI work executes on the process main thread or a dedicated native UI thread.
+The public JS/native protocol is topology-independent. Command ordering, command-batch failure semantics, event delivery, renderer behavior, and multi-window behavior have the same contract whether GPUI work executes on the process main thread or a dedicated native UI thread.
 
-## Transaction validation threading
+## Command-batch application and threading
 
-The N-API `applyTransaction(buffer)` call decodes, validates, and atomically updates the retained native tree before returning to JavaScript. Rust decodes the command stream into a transaction-local ordered operation list and validates that sequence against the current `NativeTree` plus a transaction-local structural overlay containing only staged facts such as newly created node IDs, parent overrides, removals, and other structural state needed to validate later operations in the same transaction. The authoritative tree is not cloned and is not mutated during validation. Once the complete operation sequence is valid, Rust replays the already-validated operations into `NativeTree`; a failure during that replay is an internal bridge bug rather than an application/protocol validation outcome. The retained tree stores parsed Retend-native plain Rust data rather than GPUI-bound objects. Author-facing semantic strings are carried through the transaction string table and parsed by Rust during transaction application; parsed values are stored so rendering does not repeatedly parse them.
+The N-API `applyCommandBatch(buffer)` call decodes the complete binary buffer before touching retained state. Unsupported versions, unknown opcodes, truncated values, corrupt indexes, invalid UTF-8, and other wire-format failures therefore leave the retained tree unchanged. After decoding, Rust acquires the retained-tree lock and applies commands directly in order. Each command performs every fallible reference, ownership, kind, cycle, and parentage check before mutation. Once a command begins changing retained state, its application has no expected failure path.
 
-The native GPUI execution context reads retained data and owns GPUI-bound runtime objects such as `FocusHandle`s, `ScrollHandle`s, text-input state, and animation state keyed by stable node IDs. Successful transactions schedule dirty/render work for that execution context. On macOS this is the process-main-thread GPUI/AppKit integration; on Windows and Linux it may be a dedicated native UI thread.
+If every command succeeds, Rust records one committed retained-state generation, releases the lock, and schedules one dirty/render notification for the affected window. If a command fails, commands before it remain applied, the failing command makes no partial change, and Rust poisons that window while it still holds the lock. The failed batch does not advance the normal committed generation or schedule a normal render. Any render already waiting on the lock observes the poisoned state and uses the fatal diagnostic path rather than traversing the applied prefix as normal UI.
 
-The retained tree and GPUI-bound runtime state have separate ownership. The transaction path mutates retained plain data; the GPUI execution context owns live GPUI objects. Snapshot/locking strategy is an implementation detail that should be chosen from profiling rather than assumed up front.
+The retained tree stores parsed Retend-native plain Rust data rather than GPUI-bound objects. Author-facing semantic strings are carried through the batch-local string table and parsed by Rust during command application; parsed values are stored so rendering does not repeatedly parse them. Property-level semantic parse failures follow their fail-soft rules and are not hard command failures.
+
+The native GPUI execution context reads retained data and owns GPUI-bound runtime objects such as `FocusHandle`s, `ScrollHandle`s, text-input state, image state, and animation state keyed by stable node IDs. Command application may collect runtime-effect intents, but it does not install callbacks, create or destroy GPUI-bound objects, or perform other externally visible runtime work while a later command can still fail. Rust processes those effects only after the complete batch succeeds. On failure it discards them and enters the fatal path. On macOS the execution context is the process-main-thread GPUI/AppKit integration; on Windows and Linux it may be a dedicated native UI thread.
+
+The retained tree and GPUI-bound runtime state have separate ownership. The command-batch path mutates retained plain data; the GPUI execution context owns live GPUI objects. Snapshot/locking strategy is an implementation detail that should be chosen from profiling rather than assumed up front.
 
 Synchronous validation and submission do not imply synchronous visual completion. Native commands return after ordered submission; native queries wait for the native work needed to produce their result.
 
-## Transaction scope
+## Command-batch scope
 
-Each native transaction targets exactly one native window. An application update that affects multiple windows is split into separate per-window transactions, each validated and committed independently; there is no process-wide atomic transaction spanning multiple windows.
+Each native command batch targets exactly one native window. An application update that affects multiple windows is split into separate per-window batches. Their ordering, success, failure, poisoning, and render generations remain independent; there is no process-wide batch or commit spanning multiple windows.
 
-## Transaction validation errors
+## Command-batch failures
 
-A native transaction validation failure is a fatal Retend GPUI renderer bug, not a recoverable application error. Rust rejects the transaction atomically and synchronously returns structured failure details to JavaScript. JavaScript catches that failure at the renderer/host boundary, captures a JavaScript stack trace, permanently poisons the current renderer, and sends one dedicated out-of-band fatal diagnostic command back to Rust carrying the native failure details and JavaScript stack. That fatal-reporting command is outside the normal transaction protocol and remains available specifically for this poisoned-renderer path.
+A hard command failure is a fatal Retend GPUI renderer bug, not a recoverable application error. Hard failures include invalid node references, cross-window references, duplicate live IDs, structural cycles, broken parentage, unsupported commands, and other JS/Rust contract violations. Wire-format failures happen before mutation. A hard failure during command application leaves the valid prefix applied, makes no partial change for the failing command, and poisons the affected native window before Rust releases the retained-tree lock or returns to JavaScript.
 
-Once poisoned, the renderer accepts no further normal mutations or transactions. Rust stops normal Retend rendering for that binding and presents a native fatal diagnostic surface containing both the native transaction failure and the JavaScript stack. No automatic rollback, retry, tree reconstruction, or best-effort continuation is attempted.
+Rust synchronously returns structured failure details to JavaScript after native poisoning is established. JavaScript catches the failure at the renderer/host boundary, captures a JavaScript stack trace, and sends one dedicated out-of-band fatal diagnostic update to Rust. That command attaches the JavaScript stack to the already-poisoned native failure and remains available specifically for this diagnostic path.
 
-In development, the native fatal screen may expose a manual Reload action. Reload tears down the poisoned JavaScript renderer/application instance and creates a fresh renderer/application binding for the same existing native window; it does not recreate the OS window. A native window that has actually closed remains permanently invalid and cannot be rebound.
+Once poisoned, the renderer accepts no further normal mutations, command batches, settlement calls, imperative commands, events, or queries. Rust stops normal Retend rendering for that binding and presents a native fatal diagnostic surface containing both the native command failure and the JavaScript stack. The applied command prefix is retained only for teardown and diagnostics. No rollback, retry, tree reconstruction, or best-effort continuation is attempted. Closing or replacing the poisoned binding destroys every retained node and GPUI-bound runtime object owned by that window, including attached, detached, and never-attached nodes created before the failure.
+
+In development, the native fatal screen may expose a manual Reload action. Reload tears down the poisoned JavaScript renderer/application binding and all of its retained/runtime state, then creates a fresh binding for the same existing native window; it does not recreate the OS window. A native window that has actually closed remains permanently invalid and cannot be rebound.
 
 ## Semantic application-value errors
 
-Structurally valid transactions are not rejected merely because an application supplied a semantically invalid style value. Malformed protocol data, invalid node references, unsupported opcodes, corrupt indexes, and other JS/Rust contract violations remain fatal renderer bugs. By contrast, property-level parse failures such as an invalid color, length, or transition declaration fail soft according to that property's semantics and do not poison the renderer. Fatal transaction validation is reserved for protocol/invariant violations rather than ordinary bad application input.
+A structurally valid command is not rejected merely because an application supplied a semantically invalid style value. Malformed protocol data, invalid node references, unsupported opcodes, corrupt indexes, and other JS/Rust contract violations remain fatal renderer bugs. By contrast, property-level parse failures such as an invalid color, length, or transition declaration fail soft according to that property's semantics and do not poison the renderer. Fatal command failure is reserved for protocol/invariant violations rather than ordinary bad application input.
 
-## Transaction ordering
+## Command ordering
 
-Transactions do not carry explicit revision or sequence numbers. The native bridge is synchronous, and transaction ordering is guaranteed by the transport and single in-flight application model rather than by an additional protocol-level revision state machine.
+Command batches do not carry an explicit public revision or sequence number. The synchronous bridge and renderer-local queue preserve submission order. Rust maintains the internal per-window committed, submission, and render/layout generations needed for dirty scheduling, imperative command ordering, and query read barriers; those generations are runtime bookkeeping rather than fields in the public mutation buffer.
 
 ## Binary protocol
 
-Transactions cross the JavaScript/Rust boundary as one custom compact binary command buffer rather than structured N-API values or JSON. The protocol uses fixed opcodes and primitive encodings tailored to Retend GPUI instead of a generic serialization library.
+Command batches cross the JavaScript/Rust boundary as one custom compact binary buffer rather than structured N-API values or JSON. The protocol uses fixed opcodes and primitive encodings tailored to Retend GPUI instead of a generic serialization library.
 
 The buffer header contains a small protocol version. Rust rejects unsupported versions so JavaScript/native mismatches fail explicitly rather than being decoded as malformed commands.
 
@@ -64,11 +70,11 @@ Known protocol vocabulary such as opcodes, element kinds, property names, event 
 
 Structural insertion uses one fixed-schema `INSERT_CHILD(parentId, childId, beforeId)` opcode rather than separate append, insert-before, and move opcodes. A nonzero `beforeId` inserts or moves `childId` immediately before that existing child of `parentId`; `beforeId = 0` means append at the end. Node ID `0` is reserved by the protocol and is never a valid real node ID. Removal uses `REMOVE_CHILD(parentId, childId)`. The same insertion operation therefore covers first attachment, reattachment, same-parent reordering, and ordinary moves without introducing separate structural wire concepts.
 
-Each transaction contains its own string table. Dynamic strings are encoded once per transaction and operations reference compact string-table indexes. The table is transaction-local; there is no persistent cross-transaction string interning state.
+Each command batch contains its own string table. Dynamic strings are encoded once per batch and operations reference compact string-table indexes. The table is batch-local; there is no persistent cross-batch string interning state.
 
-On the JavaScript side, command bytes and string-table bytes are built in separate growable regions. At flush time, the host allocates one final contiguous transaction buffer sized for the header, command stream, and string table, then copies the two regions into `HEADER → COMMANDS → STRING TABLE` order and fills the header offsets/counts. This keeps encoding simple and makes the final native payload contiguous without relying on repeated relocation or backpatching of a single growing buffer.
+On the JavaScript side, command bytes and string-table bytes are built in separate growable regions. At flush time, the host allocates one final contiguous command-batch buffer sized for the header, command stream, and string table, then copies the two regions into `HEADER → COMMANDS → STRING TABLE` order and fills the header offsets/counts. This keeps encoding simple and makes the final native payload contiguous without relying on repeated relocation or backpatching of a single growing buffer.
 
-The transaction layout is `HEADER → COMMAND STREAM → STRING TABLE`. The header records the command-stream extent plus the string-table offset and count, allowing Rust to validate table bounds once and resolve string indexes directly while decoding commands.
+The command-batch layout is `HEADER → COMMAND STREAM → STRING TABLE`. The header records the command-stream extent plus the string-table offset and count, allowing Rust to validate table bounds once and resolve string indexes directly while decoding commands.
 
 Commands use fixed opcode-specific schemas with no per-command byte length. The decoder determines each payload shape from its opcode. Unknown opcodes, truncated payloads, and malformed fixed-schema payloads are fatal protocol errors.
 
@@ -78,25 +84,25 @@ Property updates use one small generic tagged wire representation rather than pr
 
 The public Retend GPUI style API uses a React-Native-like hybrid authoring model optimized for concise JavaScript/TypeScript. Bare numbers represent pixel-like numeric values where appropriate; simple closed vocabularies use constrained string literals such as `display: 'flex'`, `flexDirection: 'column'`, and `overflow: 'hidden'`; familiar textual forms such as percentage lengths and colors may remain concise author-facing values where appropriate. TypeScript types constrain these values so ordinary invalid keywords are rejected statically. Helpers/typed constructors are reserved for values that genuinely benefit from structure rather than being required for every keyword.
 
-The JavaScript encoder stays intentionally lightweight. It serializes values according to their ordinary runtime shape rather than implementing a CSS-like semantic parser or normalizer. Numbers and booleans cross as native numeric/boolean fields; author-facing strings such as `'flex'`, `'50%'`, `'#fff'`, `'200ms'`, or `'ease-out'` cross through the transaction-local string table. Fixed protocol vocabulary such as property IDs, element kinds, event types, and opcodes still uses static numeric IDs.
+The JavaScript encoder stays intentionally lightweight. It serializes values according to their ordinary runtime shape rather than implementing a CSS-like semantic parser or normalizer. Numbers and booleans cross as native numeric/boolean fields; author-facing strings such as `'flex'`, `'50%'`, `'#fff'`, `'200ms'`, or `'ease-out'` cross through the batch-local string table. Fixed protocol vocabulary such as property IDs, element kinds, event types, and opcodes still uses static numeric IDs.
 
-Rust owns semantic style decoding. During transaction validation/application it interprets each property's incoming value according to that property's schema, parses textual semantic values where needed, converts them into parsed Retend-native representations, and stores those parsed values so GPUI rendering does not repeatedly reparse them. Property-level parse failures remain fail-soft application-value errors rather than protocol failures.
+Rust owns semantic style decoding. During command application it interprets each property's incoming value according to that property's schema, parses textual semantic values where needed, converts them into parsed Retend-native representations, and stores those parsed values so GPUI rendering does not repeatedly reparse them. Property-level parse failures remain fail-soft application-value errors rather than protocol failures.
 
 `MOTION.md` values such as CSS-style durations and timing functions remain concise author-facing strings and are parsed natively. The style API is specific to `retend-gpui`; other Retend renderers define their style surfaces independently.
 
 ## Node identity
 
-JavaScript allocates stable node IDs before sending transactions and owns the process-lifetime non-reuse guarantee. Rust treats those IDs as cross-boundary handles, rejects collisions with currently live nodes or duplicate creates in one transaction, and remains the owner of the actual native nodes. Rust does not retain tombstones for destroyed IDs merely to revalidate the JavaScript allocator.
+JavaScript allocates stable node IDs before sending command batches and owns the process-lifetime non-reuse guarantee. Rust treats those IDs as cross-boundary handles, rejects collisions with currently live nodes or duplicate creates in one batch, and remains the owner of the actual native nodes. Rust does not retain tombstones for destroyed IDs merely to revalidate the JavaScript allocator.
 
 Node IDs are globally unique across the process and are never reused after deletion. Node ID `0` is permanently reserved as the null/sentinel ID and is never allocated to a real node. JavaScript allocates real node IDs monotonically from the remaining `u32` space starting at `1`; stale references therefore cannot accidentally resolve to a later node that reused the same ID. Allocation is owned by one process-scoped JavaScript runtime singleton shared by every renderer/window. Renderer replacement, application remounts, and development full reloads continue using the same allocator; it resets only when the Node process exits.
 
 ## Detached node lifetime
 
-`retend:activate` is the formal structural-update-settled boundary. Native nodes may be temporarily detached while Retend restructures the tree, including moves performed by `Unique`. Rust tracks this directly from its authoritative parent/child tree: whenever an existing node is removed from its parent and left parentless, that node becomes a pending-detached root, even if its former parent was already pending-detached; reinsertion removes that node from the set. Pending-detached nodes remain fully mutable before settlement: text, style, listener, custom-property, and subtree mutations are valid and are preserved if the node is reattached. Settlement is not encoded as an opcode in the UI transaction protocol. The JavaScript host exposes a renderer-scoped `settle()` lifecycle operation that synchronously flushes all pending UI mutations for that renderer/window and then invokes the separate native `settle()` call, so callers cannot observe or invoke the boundary in the wrong order. `retend:activate` uses this operation. Rust recursively destroys every root still in the pending-detached set. Newly created nodes that have not yet been attached are not considered pending-detached merely because their parent is null. This prevents nested detached subtrees from being orphaned or leaked and keeps lifecycle control separate from ordinary UI mutation encoding.
+`retend:activate` is the formal structural-update-settled boundary. Native nodes may be temporarily detached while Retend restructures the tree, including moves performed by `Unique`. Rust tracks this directly from its authoritative parent/child tree: whenever an existing node is removed from its parent and left parentless, that node becomes a pending-detached root, even if its former parent was already pending-detached; reinsertion removes that node from the set. Pending-detached nodes remain fully mutable before settlement: text, style, listener, custom-property, and subtree mutations are valid and are preserved if the node is reattached. Settlement is not encoded as an opcode in the UI command-batch protocol. The JavaScript host exposes a renderer-scoped `settle()` lifecycle operation that synchronously flushes all pending UI mutations for that renderer/window and then invokes the separate native `settle()` call, so callers cannot observe or invoke the boundary in the wrong order. `retend:activate` uses this operation. Rust recursively destroys every root still in the pending-detached set. Newly created nodes that have not yet been attached are not considered pending-detached merely because their parent is null. This prevents nested detached subtrees from being orphaned or leaked and keeps lifecycle control separate from ordinary UI mutation encoding.
 
 ## Integer widths
 
-Node IDs and transaction string-table indexes are encoded as fixed unsigned 32-bit integers. The protocol does not use varints or narrower index widths; predictable decoding and one integer convention are preferred over marginal buffer-size savings.
+Node IDs and batch-local string-table indexes are encoded as fixed unsigned 32-bit integers. The protocol does not use varints or narrower index widths; predictable decoding and one integer convention are preferred over marginal buffer-size savings.
 
 ## Stale native events
 
@@ -138,11 +144,11 @@ Pointer payloads contain `clientX`, `clientY`, `button`, `buttons`, `detail`, mo
 
 Mouse-move events are coalesced before delivery to JavaScript so a busy JS thread does not accumulate a backlog of stale pointer positions. While a mouse-move delivery is pending, newer mouse-move events replace the pending payload with the latest pointer state rather than enqueueing every intermediate move. Discrete events such as mouse down/up/click are not coalesced by this rule and retain their ordering.
 
-Rust sends events back to JavaScript as structured N-API objects rather than binary event buffers. Rendering mutations use the optimized binary transaction path, while reverse event delivery uses straightforward typed callbacks unless profiling later justifies specialization.
+Rust sends events back to JavaScript as structured N-API objects rather than binary event buffers. Rendering mutations use the optimized binary command-batch path, while reverse event delivery uses straightforward typed callbacks unless profiling later justifies specialization.
 
 Retend GPUI nodes expose an EventTarget-compatible API but do not inherit from the built-in JavaScript `EventTarget` class. `addEventListener()`, `removeEventListener()`, and `dispatchEvent()` are implemented by Retend over its own listener registry so the renderer can implement logical capture/target/bubble propagation, listener snapshotting, native-subscription bookkeeping, and node-tree semantics directly. `node instanceof EventTarget` is not a compatibility goal.
 
-For native-backed event types, listener registration follows connectivity. If `renderer.isActive(node)` is false, listener changes may remain batched with the node's ordinary pending native work. If `renderer.isActive(node)` is true, adding or removing the native-backed listener becomes effective synchronously. If the node became logically active before its pending UI transaction reached Rust, the host first flushes that transaction and then synchronizes the native subscription. No separate `nativeCreated`/`committed` lifecycle state is introduced for this purpose, and native subscription mechanics remain internal to the renderer/bridge.
+For native-backed event types, listener registration follows connectivity. If `renderer.isActive(node)` is false, listener changes may remain batched with the node's ordinary pending native work. If `renderer.isActive(node)` is true, adding or removing the native-backed listener becomes effective synchronously. If the node became logically active before its pending UI command batch reached Rust, the host first flushes that batch and then synchronizes the native subscription. No separate `nativeCreated`/`committed` lifecycle state is introduced for this purpose, and native subscription mechanics remain internal to the renderer/bridge.
 
 For pointer and other targeted events, Rust resolves the native hit target and sends one structured event containing that target identity to JavaScript. Retend performs capture, target, and bubble propagation over the Retend parent chain. JavaScript snapshots the complete logical propagation path once before invoking listeners, so tree mutations during dispatch do not change the current event path.
 
@@ -160,7 +166,7 @@ Native commands that do not need to return native state to JavaScript are synchr
 
 The API shape therefore communicates two distinctions: property access is local JS state, while method calls are operations; among methods, asynchronous return values are reserved for native queries that return state to JavaScript rather than being used merely as a generic indication that a call crossed the JS/Rust boundary.
 
-Native queries are read barriers. Before a query executes, the host synchronously flushes that renderer's pending mutation queue, then orders the query after all earlier submitted native commands. Layout-dependent queries request and await a GPUI render/layout generation that contains that committed work. The implementation therefore needs an internal per-window render/layout fence or generation mechanism even though public transaction buffers do not carry sequence numbers. A mutation followed by `await node.measure()` observes that mutation, and `input.setSelectionRange(...)` followed by `await input.getSelection()` observes the submitted selection command. Callers do not need an explicit `renderer.flush()` merely to obtain read-after-write semantics.
+Native queries are read barriers. Before a query executes, the host synchronously flushes that renderer's pending mutation queue, then orders the query after all earlier submitted native commands. Layout-dependent queries request and await a GPUI render/layout generation that contains that committed work. The implementation therefore needs an internal per-window render/layout fence or generation mechanism even though public command-batch buffers do not carry sequence numbers. A mutation followed by `await node.measure()` observes that mutation, and `input.setSelectionRange(...)` followed by `await input.getSelection()` observes the submitted selection command. Callers do not need an explicit `renderer.flush()` merely to obtain read-after-write semantics.
 
 The v1 layout/query surface includes `await node.measure()`, returning border-box `x`, `y`, `width`, `height`, `scrollWidth`, and `scrollHeight`, plus `await node.getScrollOffset()`. Client-box variants, per-line text rectangles, and `elementFromPoint` are outside the v1 surface.
 
@@ -171,7 +177,6 @@ Synchronous native commands mean synchronous submission, not synchronous GPUI co
 ## Focus ownership
 
 Focus behavior follows GPUI rather than adding Retend-specific detach rules. A retained Rust node keeps its persistent `FocusHandle` while detached. GPUI may continue to store that handle as the window's focused handle even when the element is absent from the current rendered frame; while absent it is not present in the dispatch tree and does not receive normal focused-element keyboard/input routing. If the same node is rendered again with the same handle, GPUI recognizes it as focused again. Retend does not manually blur on detach or stage structural rendering solely to preserve focus.
-
 
 Public focus navigation uses browser-style `tabIndex` rather than exposing GPUI-specific `tab_stop`/`tab_index` controls. Rust maps `tabIndex < 0` to a focusable handle that is skipped by sequential Tab navigation, and `tabIndex >= 0` to a GPUI tab stop with the corresponding tab index. Naturally interactive intrinsics such as text inputs receive their normal default Tab behavior when `tabIndex` is omitted, while plain containers do not.
 
@@ -199,10 +204,9 @@ Overflow follows browser-style scroll-container semantics. `overflow: 'hidden'`,
 
 ## Renderer/window binding
 
-Closing a native window permanently invalidates its bound renderer. Rust destroys that window's entire retained native subtree as part of close, invalidates the binding, and any later transaction sent through that renderer is a developer error.
+Closing a native window permanently invalidates its bound renderer. Rust destroys that window's entire retained native subtree as part of close, invalidates the binding, and any later command batch sent through that renderer is a developer error.
 
-
-Each JavaScript renderer/host is permanently bound to one native window. Transactions are sent through that bound renderer, so the binary transaction buffer does not carry a window ID; the native bridge already knows the destination window from the bound renderer handle.
+Each JavaScript renderer/host is permanently bound to one native window. Command batches are sent through that bound renderer, so the binary mutation buffer does not carry a window ID; the native bridge already knows the destination window from the bound renderer handle.
 
 ## Process lifetime
 
@@ -270,7 +274,7 @@ The architecture avoids duplicate authoritative representations of the same nati
 
 ## Testing strategy
 
-The protocol schema is the authoritative contract. Early implementation is validated directly through focused TypeScript encoder tests plus Rust decoder/validator/tree tests, including malformed buffers, bounds validation, atomicity, and fuzz/property coverage. This keeps Phase 1 focused on proving the real JS → Rust → retained-tree path rather than requiring a second complete implementation before the command surface has stabilized.
+The protocol schema is the authoritative contract. Early implementation is validated directly through focused TypeScript encoder tests plus Rust decoder/validator/tree tests. Coverage includes malformed buffers and bounds failures before mutation, per-command validation before mutation, valid-prefix retention after a later hard failure, immediate native poisoning, isolation of unaffected windows, teardown of every node owned by a poisoned window, and fuzz/property testing. This keeps Phase 1 focused on proving the real JS → Rust → retained-tree path rather than requiring a second complete implementation before the command surface has stabilized.
 
 After the core protocol has been exercised by the renderer and its command vocabulary is stable, protocol hardening adds a TypeScript reference interpreter with a mirror tree, differential tests against the Rust implementation, and fixed golden byte vectors asserted independently from TypeScript and Rust. These later tests protect the mature wire contract without making early byte-layout churn a Phase 1 blocker.
 
