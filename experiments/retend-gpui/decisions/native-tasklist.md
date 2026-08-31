@@ -109,7 +109,7 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 
 ## Phase 2 — Rendering, Styles, Text, Events, and Multi-Window UI
 
-Goal: make the bridge capable of rendering normal Retend UI with `div`, text, spans, images, styles, pointer/keyboard events, and independent native windows.
+Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, with `div`, text, spans, images, styles, pointer/keyboard events, and independent native windows. Phase 3 must build on this renderer rather than on a parallel native test harness or the previous GPUiX path.
 
 ### GPUI render pipeline
 
@@ -208,9 +208,19 @@ Goal: make the bridge capable of rendering normal Retend UI with `div`, text, sp
 - [ ] Remove the overlay after a successful update.
 - [ ] Allow the wrapper to show errors before the application entry has successfully mounted.
 
+### Renderer migration
+
+- [ ] Port `gpui-renderer.ts` and its host mutation path onto `NativeTransactionHost` and the Retend-owned transaction protocol.
+- [ ] Make normal Retend GPUI renderer/window creation use the Retend-owned native binding rather than the GPUiX native renderer.
+- [ ] Preserve the JavaScript node lifecycle contract on the migrated renderer, including permanent destroyed-node state, reactive cleanup, ref cleanup, and stale-event rejection.
+- [ ] Route the Phase 2 style, event, window, and development-overlay behavior through the migrated renderer rather than maintaining a second native-only implementation path.
+- [ ] Port Phase 2-capable examples to the v1 intrinsic/style/event surface and run them through the migrated renderer.
+- [ ] Ensure the renderer surface needed by Phase 3 extends this migrated path directly; do not keep a separate GPUiX renderer as the implementation target for focus, queries, scrolling, or text controls.
+- [ ] Leave only genuinely residual GPUiX compatibility/dead-code cleanup for Phase 4; no active normal renderer path may depend on GPUiX after this phase.
+
 ### Phase 2 tests
 
-- [ ] Add renderer conformance tests for `div`, text nodes, mixed content, and spans.
+- [ ] Add renderer conformance tests for `div`, text nodes, mixed content, and spans through the migrated Retend-owned renderer path.
 - [ ] Add nested-span inheritance/override tests.
 - [ ] Add unsupported-span-style and invalid-child tests.
 - [ ] Add native style parser tests, including fail-soft invalid values.
@@ -224,7 +234,9 @@ Goal: make the bridge capable of rendering normal Retend UI with `div`, text, sp
 
 ### Phase 2 completion gate
 
-- [ ] A normal Retend application can render styled `div`, text, nested spans, and images in one or more native windows.
+- [ ] A normal Retend application renders styled `div`, text, nested spans, and images in one or more native windows through the Retend-owned bridge.
+- [ ] `gpui-renderer.ts` and the normal development/runtime renderer path use the Retend-owned transaction host and native binding for the Phase 2 feature surface.
+- [ ] No active normal renderer path depends on GPUiX; Phase 3 can add stateful native capabilities directly to the migrated renderer.
 - [ ] Pointer and keyboard events reach the correct Retend targets and propagate with the documented semantics.
 - [ ] Resizing and window lifecycle changes arrive through native events rather than polling.
 - [ ] Recoverable development errors render without replacing the native root/window.
@@ -339,9 +351,9 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 - [ ] `input` and `textarea` support native IME, selection, controlled values, and documented browser-like event semantics.
 - [ ] Detached/reattached nodes preserve the native state that `NATIVE.md` requires.
 
-## Phase 4 — Motion, Migration, Packaging, and Production Hardening
+## Phase 4 — Motion, Legacy Cleanup, Packaging, and Production Hardening
 
-Goal: complete the v1 feature surface, stabilize and harden the protocol after real renderer use, remove the previous native path, and make the bridge shippable and diagnosable across supported platforms.
+Goal: complete the v1 feature surface, stabilize and harden the protocol after real renderer use in Phases 2 and 3, remove residual GPUiX artifacts, and make the bridge shippable and diagnosable across supported platforms.
 
 ### Protocol hardening
 
@@ -371,7 +383,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Full Vite/dev integration
 
-- [ ] Replace any GPUiX-specific native assumptions in `VITE.md` implementation paths.
+- [ ] Remove any residual GPUiX-specific assumptions from `VITE.md` and development-runtime implementation paths after the Phase 2 renderer migration.
 - [ ] Preserve native windows across application full reload.
 - [ ] Run application cleanup before replacing the JavaScript application instance.
 - [ ] Remount existing window roots after full reload using fresh renderers/bindings as required by the lifecycle contract.
@@ -379,16 +391,15 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [ ] Ensure application crashes remain distinguishable from dev-server/config restarts.
 - [ ] Wire native fatal-screen manual reload into the development lifecycle.
 
-### Migration to the new bridge
+### Legacy GPUiX cleanup
 
-- [ ] Port `gpui-renderer.ts`/host functionality onto the new transaction protocol and bridge.
-- [ ] Remove direct `@gpuix/native` imports from source and JSX types.
-- [ ] Remove GPUiX-specific renderer/host code after parity with the v1 contract.
-- [ ] Port examples to the v1 intrinsic/style/event API.
-- [ ] Port renderer tests to the TypeScript reference interpreter and real Rust bridge tiers.
-- [ ] Update package exports and native loader paths.
-- [ ] Update README/docs to describe the Retend-owned bridge rather than GPUiX.
-- [ ] Remove the `@gpuix/native` dependency.
+- [ ] Remove any remaining direct `@gpuix/native` imports from source and JSX types that were not eliminated by the Phase 2 renderer migration.
+- [ ] Delete residual GPUiX-specific renderer/host code once the Phase 2/3 Retend-owned path has full v1 parity.
+- [ ] Port any remaining examples that could not move during Phase 2 because they depend on Phase 3 or motion functionality.
+- [ ] Port/finalize renderer tests across the TypeScript reference interpreter and real Rust bridge tiers.
+- [ ] Finalize package exports and native loader paths for production distribution.
+- [ ] Update README/docs to describe only the Retend-owned bridge.
+- [ ] Remove the `@gpuix/native` dependency after all remaining legacy references are gone.
 
 ### Prebuilt binaries and packaging
 

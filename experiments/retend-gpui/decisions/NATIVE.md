@@ -86,7 +86,7 @@ Rust owns semantic style decoding. During transaction validation/application it 
 
 ## Node identity
 
-JavaScript allocates stable node IDs before sending transactions. Rust treats those IDs as cross-boundary handles, validates uniqueness and lifetime, and remains the owner of the actual native nodes.
+JavaScript allocates stable node IDs before sending transactions and owns the process-lifetime non-reuse guarantee. Rust treats those IDs as cross-boundary handles, rejects collisions with currently live nodes or duplicate creates in one transaction, and remains the owner of the actual native nodes. Rust does not retain tombstones for destroyed IDs merely to revalidate the JavaScript allocator.
 
 Node IDs are globally unique across the process and are never reused after deletion. Node ID `0` is permanently reserved as the null/sentinel ID and is never allocated to a real node. JavaScript allocates real node IDs monotonically from the remaining `u32` space starting at `1`; stale references therefore cannot accidentally resolve to a later node that reused the same ID. Allocation is owned by one process-scoped JavaScript runtime singleton shared by every renderer/window. Renderer replacement, application remounts, and development full reloads continue using the same allocator; it resets only when the Node process exits.
 
