@@ -13,27 +13,31 @@ struct RetendRootView {
 
 impl Render for RetendRootView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        let fatal = crate::runtime().lock().ok().and_then(|tree| {
-            tree.windows
-                .get(&self.window_id)
-                .and_then(|window| window.fatal.clone())
+        let content = crate::runtime().lock().ok().and_then(|tree| {
+            let window = tree.windows.get(&self.window_id)?;
+            if let Some(fatal) = window.fatal.as_ref() {
+                return Some(
+                    div()
+                        .size_full()
+                        .p_6()
+                        .bg(rgb(0x1a1111))
+                        .text_color(rgb(0xff8a8a))
+                        .child("Retend GPUI fatal renderer error")
+                        .child(fatal.native_failure.clone())
+                        .child(fatal.javascript_stack.clone())
+                        .into_any_element(),
+                );
+            }
+
+            Some(crate::render::build(&tree, window.root_id))
         });
 
         let root = div()
             .size_full()
             .bg(rgb(0xffffff))
             .text_color(rgb(0x000000));
-        match fatal {
-            Some(fatal) => root.child(
-                div()
-                    .size_full()
-                    .p_6()
-                    .bg(rgb(0x1a1111))
-                    .text_color(rgb(0xff8a8a))
-                    .child("Retend GPUI fatal renderer error")
-                    .child(fatal.native_failure)
-                    .child(fatal.javascript_stack),
-            ),
+        match content {
+            Some(content) => root.child(content),
             None => root,
         }
     }

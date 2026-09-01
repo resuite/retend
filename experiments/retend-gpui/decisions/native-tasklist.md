@@ -115,37 +115,37 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### GPUI render pipeline
 
-- [ ] Implement retained-tree-to-GPUI render traversal per window.
-- [ ] Construct a fresh GPUI element tree for each render.
+- [x] Implement retained-tree-to-GPUI render traversal per window.
+- [x] Construct a fresh GPUI element tree for each render.
 - [ ] Map stable Retend IDs to GPUI `ElementId`s where persistent GPUI state requires them.
-- [ ] Keep GPUI-bound objects in the native execution context rather than in retained-tree data.
+- [x] Keep GPUI-bound objects in the native execution context rather than in retained-tree data.
 - [ ] Collect GPUI/runtime-effect intents during command application and execute them only after the complete batch succeeds.
 - [ ] Discard runtime-effect intents and skip normal rendering when a batch poisons its window.
-- [ ] Add dirty-window scheduling after successful command batches.
+- [x] Add dirty-window scheduling after successful command batches.
 - [ ] Ensure one successful command batch advances one committed generation and schedules one coherent render update.
 
 ### Style schema and native parsing
 
-- [ ] Define the v1 property schema and numeric property IDs.
+- [x] Define the v1 property schema and numeric property IDs.
 - [ ] Define TypeScript authoring types for supported properties.
-- [ ] Implement the generic tagged property-value wire shape for numbers, booleans, string-table references, and removal/null.
-- [ ] Keep property-specific semantics in Rust rather than creating property-specific binary layouts.
+- [x] Implement the generic tagged property-value wire shape for numbers, booleans, string-table references, and removal/null.
+- [x] Keep property-specific semantics in Rust rather than creating property-specific binary layouts.
 - [ ] Implement Rust semantic parsers for keyword values.
-- [ ] Implement Rust percentage/length parsing.
-- [ ] Implement Rust color parsing.
+- [x] Implement Rust percentage/length parsing.
+- [x] Implement Rust color parsing.
 - [ ] Implement Rust transition-duration/delay/timing parsing needed by later motion support.
 - [ ] Store parsed Retend-native values during command application.
 - [ ] Implement fail-soft behavior for invalid semantic style values.
 - [ ] Send complete resolved author-style snapshots from JavaScript.
 - [ ] Keep GPUI defaults, Retend intrinsic defaults, and inherited/computed style out of JavaScript snapshots.
-- [ ] Implement block as the default `div` display behavior.
-- [ ] Make flex opt-in with `display: 'flex'`.
-- [ ] Preserve explicit Retend root background/text-color defaults.
+- [x] Implement block as the default `div` display behavior.
+- [x] Make flex opt-in with `display: 'flex'`.
+- [x] Preserve explicit Retend root background/text-color defaults.
 
 ### Basic intrinsic rendering
 
-- [ ] Implement `div` rendering.
-- [ ] Implement dedicated native text nodes.
+- [x] Implement `div` rendering.
+- [x] Implement dedicated native text nodes.
 - [ ] Implement shaped text leaves for contiguous text runs.
 - [ ] Implement `span` as a styled text run rather than a GPUI box.
 - [ ] Flatten nested spans into nested styled ranges.
@@ -227,7 +227,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [ ] Add renderer conformance tests for `div`, text nodes, mixed content, and spans through the migrated Retend-owned renderer path.
 - [ ] Add nested-span inheritance/override tests.
 - [ ] Add unsupported-span-style and invalid-child tests.
-- [ ] Add native style parser tests, including fail-soft invalid values.
+- [x] Add native style parser tests, including fail-soft invalid values.
 - [ ] Add image source replacement tests.
 - [ ] Add event bubbling/non-bubbling tests.
 - [ ] Add listener snapshot/mutation-during-dispatch tests.

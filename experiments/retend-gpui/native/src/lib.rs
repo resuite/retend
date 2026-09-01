@@ -3,6 +3,8 @@
 mod platform;
 mod protocol;
 mod protocol_generated;
+mod render;
+mod style;
 mod tree;
 
 use std::sync::{Mutex, OnceLock};
@@ -122,7 +124,6 @@ impl NativeRendererBinding {
     #[napi]
     pub fn settle(&self) -> Result<()> {
         with_runtime(|tree| tree.settle(self.window_id))?;
-        platform::invalidate_window(self.window_id);
         Ok(())
     }
 

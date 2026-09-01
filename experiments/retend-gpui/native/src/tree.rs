@@ -2,8 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
 
-use crate::protocol::{Command, PropertyValue};
-use crate::protocol_generated::{ElementKind, PropertyId};
+use crate::protocol::Command;
+use crate::protocol_generated::ElementKind;
+use crate::style::NativeStyle;
 use crate::BridgeFailure;
 
 pub type NodeId = u32;
@@ -29,7 +30,7 @@ pub struct NativeNode {
     pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
     pub text: Option<String>,
-    pub properties: HashMap<PropertyId, PropertyValue>,
+    pub style: NativeStyle,
 }
 
 impl NativeNode {
@@ -40,7 +41,7 @@ impl NativeNode {
             parent: None,
             children: Vec::new(),
             text: None,
-            properties: HashMap::new(),
+            style: NativeStyle::default(),
         }
     }
 }
@@ -245,7 +246,29 @@ impl NativeTree {
         command: Command,
     ) -> Result<(), BridgeFailure> {
         match command {
-            Command::CreateNode { id, kind } => self.create(index, window_id, id, kind),
+            Command::CreateNode { id, kind } => match kind {
+                ElementKind::Container | ElementKind::Anchor => {
+                    self.create(index, window_id, id, kind)
+                }
+                ElementKind::Root => invalid(
+                    index,
+                    "INVALID_NODE_KIND",
+                    "Root nodes are created only when a native window is created.",
+                ),
+                ElementKind::Text => invalid(
+                    index,
+                    "INVALID_NODE_KIND",
+                    "Text nodes must be created with CREATE_TEXT.",
+                ),
+                ElementKind::Span
+                | ElementKind::Image
+                | ElementKind::Input
+                | ElementKind::Textarea => invalid(
+                    index,
+                    "UNSUPPORTED_ELEMENT_KIND",
+                    format!("{kind:?} rendering is not implemented yet."),
+                ),
+            },
             Command::CreateText { id, text } => {
                 self.create(index, window_id, id, ElementKind::Text)?;
                 self.nodes.get_mut(&id).unwrap().text = Some(text);
@@ -268,11 +291,16 @@ impl NativeTree {
                 property,
                 value,
             } => {
-                let properties = &mut self.node_mut(window_id, index, id)?.properties;
-                if matches!(value, PropertyValue::Null) {
-                    properties.remove(&property);
-                } else {
-                    properties.insert(property, value);
+                if !self
+                    .node_mut(window_id, index, id)?
+                    .style
+                    .set_property(property, &value)
+                {
+                    return invalid(
+                        index,
+                        "UNSUPPORTED_PROPERTY",
+                        format!("{property:?} is not implemented by the native renderer yet."),
+                    );
                 }
                 Ok(())
             }
@@ -390,10 +418,7 @@ impl NativeTree {
                 "The immutable window root cannot become a child node.",
             );
         }
-        if !matches!(
-            parent_kind,
-            ElementKind::Root | ElementKind::Container | ElementKind::Span
-        ) {
+        if !matches!(parent_kind, ElementKind::Root | ElementKind::Container) {
             return invalid(
                 index,
                 "INVALID_PARENT_KIND",
@@ -508,13 +533,62 @@ impl NativeTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::Command;
+    use crate::protocol::{Command, PropertyValue};
+    use crate::protocol_generated::PropertyId;
 
     fn setup() -> (NativeTree, WindowId, NodeId) {
         let mut tree = NativeTree::default();
         let root = 1;
         let window = tree.create_window(root).unwrap();
         (tree, window, root)
+    }
+
+    #[test]
+    fn set_property_stores_supported_values_in_parsed_native_style() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Width,
+                    value: PropertyValue::String("25%".into()),
+                },
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(
+            tree.nodes[&2].style.width,
+            Some(crate::style::LengthValue::Percent(25.0))
+        );
+    }
+
+    #[test]
+    fn unrepresentable_f64_style_values_fail_soft_after_narrowing() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Width,
+                    value: PropertyValue::Number(1e300),
+                },
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(tree.nodes[&2].style.width, None);
+        assert!(tree.windows[&window].fatal.is_none());
     }
 
     #[test]
