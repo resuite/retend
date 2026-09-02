@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
 
-use crate::protocol::Command;
-use crate::protocol_generated::ElementKind;
+use crate::protocol::{Command, PropertyValue};
+use crate::protocol_generated::{ElementKind, PropertyId};
 use crate::style::NativeStyle;
 use crate::BridgeFailure;
 
@@ -24,23 +24,30 @@ pub struct FatalDiagnostic {
     pub javascript_stack: String,
 }
 
+#[derive(Clone, Debug)]
+pub enum NodeData {
+    Root,
+    Container,
+    Text(String),
+    Image { src: Option<String> },
+    Anchor,
+}
+
 pub struct NativeNode {
     pub window_id: WindowId,
-    pub kind: ElementKind,
+    pub data: NodeData,
     pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
-    pub text: Option<String>,
     pub style: NativeStyle,
 }
 
 impl NativeNode {
-    fn new(window_id: WindowId, kind: ElementKind) -> Self {
+    fn new(window_id: WindowId, data: NodeData) -> Self {
         Self {
             window_id,
-            kind,
+            data,
             parent: None,
             children: Vec::new(),
-            text: None,
             style: NativeStyle::default(),
         }
     }
@@ -78,7 +85,7 @@ impl NativeTree {
         })?;
         let window_id = self.next_window_id;
         self.nodes
-            .insert(root_id, NativeNode::new(window_id, ElementKind::Root));
+            .insert(root_id, NativeNode::new(window_id, NodeData::Root));
         self.windows.insert(
             window_id,
             WindowState {
@@ -184,10 +191,11 @@ impl NativeTree {
         #[derive(Serialize)]
         struct NodeSnapshot<'a> {
             id: NodeId,
-            kind: ElementKind,
+            kind: &'static str,
             parent: Option<NodeId>,
             children: &'a [NodeId],
-            text: &'a Option<String>,
+            text: Option<&'a str>,
+            src: Option<&'a str>,
         }
 
         let mut pending_detached: Vec<_> = window.pending_detached.iter().copied().collect();
@@ -196,12 +204,22 @@ impl NativeTree {
             .nodes
             .iter()
             .filter(|(_, node)| node.window_id == window_id)
-            .map(|(&id, node)| NodeSnapshot {
-                id,
-                kind: node.kind,
-                parent: node.parent,
-                children: &node.children,
-                text: &node.text,
+            .map(|(&id, node)| {
+                let (kind, text, src) = match &node.data {
+                    NodeData::Root => ("Root", None, None),
+                    NodeData::Container => ("Container", None, None),
+                    NodeData::Text(text) => ("Text", Some(text.as_str()), None),
+                    NodeData::Image { src } => ("Image", None, src.as_deref()),
+                    NodeData::Anchor => ("Anchor", None, None),
+                };
+                NodeSnapshot {
+                    id,
+                    kind,
+                    parent: node.parent,
+                    children: &node.children,
+                    text,
+                    src,
+                }
             })
             .collect();
         nodes.sort_by_key(|node| node.id);
@@ -247,9 +265,11 @@ impl NativeTree {
     ) -> Result<(), BridgeFailure> {
         match command {
             Command::CreateNode { id, kind } => match kind {
-                ElementKind::Container | ElementKind::Anchor => {
-                    self.create(index, window_id, id, kind)
+                ElementKind::Container => self.create(index, window_id, id, NodeData::Container),
+                ElementKind::Image => {
+                    self.create(index, window_id, id, NodeData::Image { src: None })
                 }
+                ElementKind::Anchor => self.create(index, window_id, id, NodeData::Anchor),
                 ElementKind::Root => invalid(
                     index,
                     "INVALID_NODE_KIND",
@@ -260,49 +280,65 @@ impl NativeTree {
                     "INVALID_NODE_KIND",
                     "Text nodes must be created with CREATE_TEXT.",
                 ),
-                ElementKind::Span
-                | ElementKind::Image
-                | ElementKind::Input
-                | ElementKind::Textarea => invalid(
+                ElementKind::Input | ElementKind::Textarea => invalid(
                     index,
                     "UNSUPPORTED_ELEMENT_KIND",
                     format!("{kind:?} rendering is not implemented yet."),
                 ),
             },
             Command::CreateText { id, text } => {
-                self.create(index, window_id, id, ElementKind::Text)?;
-                self.nodes.get_mut(&id).unwrap().text = Some(text);
-                Ok(())
+                self.create(index, window_id, id, NodeData::Text(text))
             }
             Command::UpdateText { id, text } => {
                 let node = self.node_mut(window_id, index, id)?;
-                if node.kind != ElementKind::Text {
-                    return invalid(
+                match &mut node.data {
+                    NodeData::Text(current) => {
+                        *current = text;
+                        Ok(())
+                    }
+                    _ => invalid(
                         index,
                         "INVALID_NODE_KIND",
                         format!("UPDATE_TEXT target {id} is not a text node."),
-                    );
+                    ),
                 }
-                node.text = Some(text);
-                Ok(())
             }
             Command::SetProperty {
                 id,
                 property,
                 value,
             } => {
-                if !self
-                    .node_mut(window_id, index, id)?
-                    .style
-                    .set_property(property, &value)
-                {
-                    return invalid(
+                let node = self.node_mut(window_id, index, id)?;
+                if property == PropertyId::Src {
+                    if let NodeData::Image { src } = &mut node.data {
+                        return match value {
+                            PropertyValue::Null => {
+                                *src = None;
+                                Ok(())
+                            }
+                            PropertyValue::String(value) => {
+                                let is_http = url::Url::parse(&value)
+                                    .is_ok_and(|url| matches!(url.scheme(), "http" | "https"));
+                                *src = is_http.then_some(value);
+                                Ok(())
+                            }
+                            _ => invalid(
+                                index,
+                                "INVALID_PROPERTY_VALUE",
+                                "Image src must be an HTTP(S) URL string or null.",
+                            ),
+                        };
+                    }
+                }
+                if node.style.set_property(property, &value) {
+                    Ok(())
+                } else {
+                    invalid(
                         index,
                         "UNSUPPORTED_PROPERTY",
                         format!("{property:?} is not implemented by the native renderer yet."),
-                    );
+                    )
                 }
-                Ok(())
             }
             Command::InsertChild {
                 parent_id,
@@ -321,7 +357,7 @@ impl NativeTree {
         index: usize,
         window_id: WindowId,
         id: NodeId,
-        kind: ElementKind,
+        data: NodeData,
     ) -> Result<(), BridgeFailure> {
         if id == 0 {
             return invalid(
@@ -337,7 +373,7 @@ impl NativeTree {
                 format!("Node ID {id} already exists."),
             );
         }
-        self.nodes.insert(id, NativeNode::new(window_id, kind));
+        self.nodes.insert(id, NativeNode::new(window_id, data));
         Ok(())
     }
 
@@ -407,7 +443,14 @@ impl NativeTree {
         child_id: NodeId,
         before_id: NodeId,
     ) -> Result<(), BridgeFailure> {
-        let parent_kind = self.node(window_id, index, parent_id)?.kind;
+        let (parent_accepts_children, parent_kind) =
+            match &self.node(window_id, index, parent_id)?.data {
+                NodeData::Root => (true, "Root"),
+                NodeData::Container => (true, "Container"),
+                NodeData::Text(_) => (false, "Text"),
+                NodeData::Image { .. } => (false, "Image"),
+                NodeData::Anchor => (false, "Anchor"),
+            };
         let child_parent = self.node(window_id, index, child_id)?.parent;
         let root_id = self.windows[&window_id].root_id;
 
@@ -418,11 +461,11 @@ impl NativeTree {
                 "The immutable window root cannot become a child node.",
             );
         }
-        if !matches!(parent_kind, ElementKind::Root | ElementKind::Container) {
+        if !parent_accepts_children {
             return invalid(
                 index,
                 "INVALID_PARENT_KIND",
-                format!("{parent_kind:?} nodes cannot contain native children."),
+                format!("{parent_kind} nodes cannot contain native children."),
             );
         }
         if parent_id == child_id {
@@ -566,6 +609,125 @@ mod tests {
             tree.nodes[&2].style.width,
             Some(crate::style::LengthValue::Percent(25.0))
         );
+    }
+
+    #[test]
+    fn image_src_replaces_and_clears_without_poisoning() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Image,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Src,
+                    value: PropertyValue::String("https://example.com/first.png".into()),
+                },
+            ],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { src } if src.as_deref() == Some("https://example.com/first.png")
+        ));
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::Src,
+                value: PropertyValue::String("https://example.com/second.png".into()),
+            }],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { src }
+                if src.as_deref() == Some("https://example.com/second.png")
+        ));
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::Src,
+                value: PropertyValue::Null,
+            }],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { src } if src.is_none()
+        ));
+        assert!(tree.windows[&window].fatal.is_none());
+    }
+
+    #[test]
+    fn relative_image_src_is_outside_the_current_native_surface() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Image,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Src,
+                    value: PropertyValue::String("image.png".into()),
+                },
+            ],
+        )
+        .unwrap();
+
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { src } if src.is_none()
+        ));
+        assert!(tree.windows[&window].fatal.is_none());
+    }
+
+    #[test]
+    fn invalid_image_src_type_is_fatal_and_preserves_the_previous_source() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Image,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Src,
+                    value: PropertyValue::String("https://example.com/image.png".into()),
+                },
+            ],
+        )
+        .unwrap();
+
+        let error = tree
+            .apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Src,
+                    value: PropertyValue::Number(42.0),
+                }],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, "INVALID_PROPERTY_VALUE");
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { src }
+                if src.as_deref() == Some("https://example.com/image.png")
+        ));
+        assert!(tree.windows[&window].fatal.is_some());
     }
 
     #[test]
@@ -916,12 +1078,25 @@ mod tests {
         assert_eq!(error.code, "POISONED_RENDERER");
     }
 
+    fn structural_node_id() -> impl proptest::strategy::Strategy<Value = u32> {
+        proptest::prop_oneof![
+            8 => 2u32..10,
+            1 => proptest::strategy::Just(0),
+            1 => proptest::strategy::Just(1),
+            1 => proptest::strategy::Just(u32::MAX),
+            3 => proptest::num::u32::ANY,
+        ]
+    }
+
     proptest::proptest! {
         #[test]
-        fn arbitrary_structural_batches_never_panic(
-            raw in proptest::collection::vec((0u8..4, proptest::num::u32::ANY, proptest::num::u32::ANY, proptest::num::u32::ANY), 0..64)
+        fn arbitrary_command_batches_never_panic(
+            raw in proptest::collection::vec(
+                (0u8..7, structural_node_id(), structural_node_id(), structural_node_id()),
+                0..64,
+            )
         ) {
-            let (mut tree, window, root) = setup();
+            let (mut tree, window, _) = setup();
             let commands: Vec<Command> = raw
                 .into_iter()
                 .map(|(tag, first, second, third)| match tag {
@@ -929,23 +1104,125 @@ mod tests {
                         id: first,
                         kind: ElementKind::Container,
                     },
-                    1 => Command::InsertChild {
-                        parent_id: if first == 0 { root } else { first },
+                    1 => Command::CreateText {
+                        id: first,
+                        text: second.to_string(),
+                    },
+                    2 => Command::CreateNode {
+                        id: first,
+                        kind: ElementKind::Image,
+                    },
+                    3 => Command::CreateNode {
+                        id: first,
+                        kind: ElementKind::Anchor,
+                    },
+                    4 => Command::InsertChild {
+                        parent_id: first,
                         child_id: second,
                         before_id: third,
                     },
-                    2 => Command::RemoveChild {
-                        parent_id: if first == 0 { root } else { first },
+                    5 => Command::RemoveChild {
+                        parent_id: first,
                         child_id: second,
                     },
                     _ => Command::SetProperty {
-                        id: if first == 0 { root } else { first },
-                        property: PropertyId::Opacity,
-                        value: PropertyValue::Number(f64::from(second)),
+                        id: first,
+                        property: if third % 2 == 0 {
+                            PropertyId::Color
+                        } else {
+                            PropertyId::Width
+                        },
+                        value: if third % 2 == 0 {
+                            PropertyValue::String("#336699".into())
+                        } else {
+                            PropertyValue::Number(f64::from(second))
+                        },
                     },
                 })
                 .collect();
             let _ = tree.apply_commands(window, commands);
+        }
+
+        #[test]
+        fn valid_stateful_sequences_exercise_structural_and_image_lifecycle(
+            ops in proptest::collection::vec(proptest::num::u8::ANY, 0..64)
+        ) {
+            let (mut tree, window, root) = setup();
+            let container = 2;
+            let image = u32::MAX;
+            let anchor = u32::MAX - 1;
+            tree.apply_commands(
+                window,
+                vec![
+                    Command::CreateNode { id: container, kind: ElementKind::Container },
+                    Command::CreateNode { id: image, kind: ElementKind::Image },
+                    Command::CreateNode { id: anchor, kind: ElementKind::Anchor },
+                    Command::InsertChild { parent_id: root, child_id: container, before_id: 0 },
+                    Command::InsertChild { parent_id: root, child_id: image, before_id: 0 },
+                    Command::InsertChild { parent_id: root, child_id: anchor, before_id: 0 },
+                ],
+            ).unwrap();
+
+            for value in ops {
+                let other_parent = |parent| if parent == root { container } else { root };
+                let result = match value % 5 {
+                    0 => tree.apply_commands(window, vec![Command::InsertChild {
+                        parent_id: other_parent(tree.nodes[&image].parent.unwrap()),
+                        child_id: image,
+                        before_id: 0,
+                    }]),
+                    1 => {
+                        let parent = tree.nodes[&image].parent.unwrap();
+                        tree.apply_commands(window, vec![
+                            Command::RemoveChild { parent_id: parent, child_id: image },
+                            Command::SetProperty {
+                                id: image,
+                                property: PropertyId::Src,
+                                value: PropertyValue::String(format!("https://example.com/{value}.png")),
+                            },
+                            Command::InsertChild {
+                                parent_id: other_parent(parent),
+                                child_id: image,
+                                before_id: 0,
+                            },
+                        ])
+                    }
+                    2 => tree.apply_commands(window, vec![Command::SetProperty {
+                        id: image,
+                        property: PropertyId::Src,
+                        value: if value & 1 == 0 {
+                            PropertyValue::Null
+                        } else {
+                            PropertyValue::String(format!("https://example.com/{value}.png"))
+                        },
+                    }]),
+                    3 => {
+                        let parent = tree.nodes[&image].parent.unwrap();
+                        let mut commands = Vec::new();
+                        if tree.nodes[&anchor].parent != Some(parent) {
+                            commands.push(Command::InsertChild { parent_id: parent, child_id: anchor, before_id: 0 });
+                        }
+                        commands.push(Command::InsertChild { parent_id: parent, child_id: anchor, before_id: image });
+                        tree.apply_commands(window, commands)
+                    }
+                    _ => tree.apply_commands(window, vec![Command::SetProperty {
+                        id: if value & 1 == 0 { image } else { container },
+                        property: PropertyId::Width,
+                        value: PropertyValue::Number(f64::from(value)),
+                    }]),
+                };
+                proptest::prop_assert!(result.is_ok());
+                proptest::prop_assert!(tree.windows[&window].fatal.is_none());
+
+                for (&id, node) in &tree.nodes {
+                    if let Some(parent) = node.parent {
+                        proptest::prop_assert!(tree.nodes[&parent].children.contains(&id));
+                    }
+                    for child in &node.children {
+                        proptest::prop_assert_eq!(tree.nodes[child].parent, Some(id));
+                    }
+                }
+            }
         }
     }
 }

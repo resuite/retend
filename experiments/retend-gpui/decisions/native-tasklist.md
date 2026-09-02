@@ -45,7 +45,7 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 - [x] Implement immutable per-window root node IDs.
 - [x] Enforce one-window-for-life ownership for every native node.
 - [x] Reject cross-window reparenting.
-- [x] Implement native node kinds for container, text, span/text-run identity, image, input, textarea, and structural anchors as required by the protocol.
+- [x] Implement native node kinds for container, text, image, input, textarea, and structural anchors as required by the protocol.
 - [x] Keep GPUI element instances out of the authoritative retained tree.
 
 ### Structural mutations and settlement
@@ -111,7 +111,7 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 
 ## Phase 2 — Rendering, Styles, Text, Events, and Multi-Window UI
 
-Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, with `div`, text, spans, images, styles, pointer/keyboard events, and independent native windows. Phase 3 must build on this renderer rather than on a parallel native test harness or the previous GPUiX path.
+Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, with `div`, text, images, styles, pointer/keyboard events, and independent native windows. Phase 3 must build on this renderer rather than on a parallel native test harness or the previous GPUiX path.
 
 ### GPUI render pipeline
 
@@ -146,18 +146,13 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 - [x] Implement `div` rendering.
 - [x] Implement dedicated native text nodes.
-- [ ] Implement shaped text leaves for contiguous text runs.
-- [ ] Implement `span` as a styled text run rather than a GPUI box.
-- [ ] Flatten nested spans into nested styled ranges.
-- [ ] Apply outer span text styles as inherited run styles and inner span overrides on top.
-- [ ] Preserve a distinct node ID for every span for refs and event targeting.
-- [ ] Reject box-layout styles on spans with a descriptive development error.
-- [ ] Reject layout-bearing element children inside spans.
-- [ ] Implement mixed text/element lowering as separate text leaves and element boxes.
-- [ ] Implement `img` by mapping Retend `src` to GPUI image sources.
-- [ ] Delegate loading, decoding, caching, intrinsic metadata, and rendering to GPUI's image/asset system.
-- [ ] Replace the GPUI image source reactively when `src` changes.
-- [ ] Release node-owned image state when the Retend image node is destroyed.
+- [x] Render native text nodes through GPUI `Text` with stable Retend-derived `ElementId`s.
+- [x] Let GPUI own text shaping, wrapping, accessibility, and inherited text styling.
+- [x] Render mixed text/element content as ordinary GPUI children in source order.
+- [x] Implement `img` for HTTP(S) `src` URLs through GPUI image sources; bundled asset-path resolution remains owned by the later Vite asset pipeline.
+- [x] Delegate loading, decoding, caching, intrinsic metadata, and rendering to GPUI's image/asset system.
+- [x] Replace the GPUI image source on the next render when retained `src` changes, including clear/re-add transitions, while preserving the stable image `ElementId` and layout participation.
+- [x] Keep image loading/animation/cache state GPUI-owned rather than duplicating node-owned image state in Retend.
 - [ ] Reject unsupported intrinsic tags with a descriptive render-time error.
 
 ### Native event transport
@@ -166,7 +161,6 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [ ] Implement structured Rust→JS N-API event delivery.
 - [ ] Include `targetId` derived from native hit testing.
 - [ ] Implement pointer payload fields: `clientX`, `clientY`, `button`, `buttons`, `detail`, modifiers, and `timeStamp`.
-- [ ] Implement text-range hit targeting for spans.
 - [ ] Implement native event subscription bookkeeping keyed by node ID/event type.
 - [ ] Make listener registration/removal effective synchronously for active nodes.
 - [ ] Flush pending insertion before synchronizing a listener on a logically active but not-yet-submitted node.
@@ -224,21 +218,18 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### Phase 2 tests
 
-- [ ] Add renderer conformance tests for `div`, text nodes, mixed content, and spans through the migrated Retend-owned renderer path.
-- [ ] Add nested-span inheritance/override tests.
-- [ ] Add unsupported-span-style and invalid-child tests.
+- [ ] Add renderer conformance tests for `div`, text nodes, and mixed content through the migrated Retend-owned renderer path.
 - [x] Add native style parser tests, including fail-soft invalid values.
-- [ ] Add image source replacement tests.
+- [x] Add image source replacement tests.
 - [ ] Add event bubbling/non-bubbling tests.
 - [ ] Add listener snapshot/mutation-during-dispatch tests.
 - [ ] Add stale-event and mousemove-coalescing tests.
-- [ ] Add span text-range targeting tests.
 - [ ] Add multi-window isolation tests.
 - [ ] Add native resize-event tests.
 
 ### Phase 2 completion gate
 
-- [ ] A normal Retend application renders styled `div`, text, nested spans, and images in one or more native windows through the Retend-owned bridge.
+- [ ] A normal Retend application renders styled `div`, text, and images in one or more native windows through the Retend-owned bridge.
 - [ ] `gpui-renderer.ts` and the normal development/runtime renderer path use the Retend-owned command host and native binding for the Phase 2 feature surface.
 - [ ] No active normal renderer path depends on GPUiX; Phase 3 can add stateful native capabilities directly to the migrated renderer.
 - [ ] Pointer and keyboard events reach the correct Retend targets and propagate with the documented semantics.

@@ -85,9 +85,6 @@ export class CommandBatchWriter {
   }
 
   createNode(id: number, kind: ElementKindValue): void {
-    if (kind === ElementKind.Root || kind === ElementKind.Text) {
-      throw new Error('Root and text nodes use dedicated creation paths.');
-    }
     this.#command(Opcode.CreateNode);
     this.#commands.writeU32(this.#nodeId(id));
     this.#commands.writeU8(kind);

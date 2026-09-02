@@ -12,6 +12,7 @@ napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+url = "2"
 gpui = { git = "https://github.com/remorses/zed", rev = "8b94defe56992b3ca4ffd4853ace741d8168111a", default-features = false, features = ["font-kit"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -27,6 +28,7 @@ gpui_platform = { git = "https://github.com/remorses/zed", rev = "8b94defe56992b
 napi-build = "2"
 
 [dev-dependencies]
+gpui = { git = "https://github.com/remorses/zed", rev = "8b94defe56992b3ca4ffd4853ace741d8168111a", default-features = false, features = ["font-kit", "test-support"] }
 proptest = "1"
 
 [profile.release]

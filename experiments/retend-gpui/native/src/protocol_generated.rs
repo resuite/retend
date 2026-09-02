@@ -32,11 +32,10 @@ protocol_enum!(ElementKind: u8 {
   Root = 1,
   Container = 2,
   Text = 3,
-  Span = 4,
-  Image = 5,
-  Input = 6,
-  Textarea = 7,
-  Anchor = 8,
+  Image = 4,
+  Input = 5,
+  Textarea = 6,
+  Anchor = 7,
 });
 protocol_enum!(ValueKind: u8 {
   Null = 0,

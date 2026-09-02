@@ -13,6 +13,7 @@ interface DebugNode {
   id: number;
   children: number[];
   text: string | null;
+  src: string | null;
 }
 
 interface DebugTree {
@@ -72,6 +73,42 @@ describe('Retend-owned native bridge', () => {
     host.settle();
     const afterSettle = host.debugTree() as DebugTree;
     expect(afterSettle.nodes.some((node) => node.id === first)).toBe(false);
+  });
+
+  it('creates images and replaces their retained source', () => {
+    const host = createHost();
+    const image = host.createNode(ElementKind.Image);
+    host.setProperty(image, PropertyId.Src, 'https://example.com/first.png');
+    host.insertChild(host.rootId, image);
+    host.flush();
+
+    expect(
+      (host.debugTree() as DebugTree).nodes.find((node) => node.id === image)
+        ?.src
+    ).toBe('https://example.com/first.png');
+
+    host.setProperty(image, PropertyId.Src, 'https://example.com/second.png');
+    host.flush();
+    expect(
+      (host.debugTree() as DebugTree).nodes.find((node) => node.id === image)
+        ?.src
+    ).toBe('https://example.com/second.png');
+  });
+
+  it('leaves node-kind semantic validation to Rust', () => {
+    for (const kind of [ElementKind.Root, ElementKind.Text]) {
+      const host = createHost();
+      host.createNode(kind);
+      let failure: NativeRendererFatalError | null = null;
+      try {
+        host.flush();
+      } catch (error) {
+        expect(error).toBeInstanceOf(NativeRendererFatalError);
+        failure = error as NativeRendererFatalError;
+      }
+      expect(failure?.nativeFailure?.code).toBe('INVALID_NODE_KIND');
+      expect(host.poisoned).toBe(true);
+    }
   });
 
   it('allocates node IDs process-globally across renderer windows', () => {

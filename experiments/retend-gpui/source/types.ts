@@ -328,7 +328,7 @@ export interface GpuiTextareaCustomProps extends GpuiInputCustomProps {
  * Custom props for `<img>`.
  */
 export interface GpuiImgCustomProps {
-  /** Image source URL or asset path. */
+  /** HTTP(S) image URL. Bundled asset imports are added with the native Vite asset pipeline. */
   src?: string;
   /** How the image should scale within its bounds. */
   objectFit?: 'fill' | 'contain' | 'cover' | 'scaleDown' | 'none';

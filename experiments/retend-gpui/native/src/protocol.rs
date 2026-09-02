@@ -237,13 +237,6 @@ fn decode_command(reader: &mut Reader<'_>, strings: &[&str]) -> Result<Command, 
                 "UNKNOWN_ELEMENT_KIND",
                 "element kind",
             )?;
-            if matches!(kind, ElementKind::Root | ElementKind::Text) {
-                return Err(BridgeFailure::wire(
-                    "INVALID_NODE_KIND",
-                    "Root and text nodes cannot be created with CREATE_NODE.",
-                    Some(kind_offset),
-                ));
-            }
             Ok(Command::CreateNode { id, kind })
         }
         Opcode::CreateText => Ok(Command::CreateText {

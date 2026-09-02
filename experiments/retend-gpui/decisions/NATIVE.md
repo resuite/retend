@@ -110,27 +110,21 @@ Native events cross from the GPUI/native event loop to Node's JavaScript thread 
 
 ## Intrinsic element set
 
-The v1 intrinsic set is `div`, `span`, `img`, `input`, and `textarea`.
+The v1 intrinsic set is `div`, `img`, `input`, and `textarea`.
 
-Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be added through the versioned numeric protocol vocabulary.
+Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be added through the versioned numeric protocol vocabulary.
 
 ### Image handling
 
-`img` delegates loading, decoding, caching, intrinsic image metadata, and rendering to GPUI's image/asset system. Retend maps its public `src` value into the appropriate GPUI image source, replaces that source reactively when `src` changes, and releases node-owned image state when the Retend node is destroyed.
+`img` delegates loading, decoding, caching, intrinsic image metadata, and rendering to GPUI's image system. The current native bridge accepts HTTP(S) `src` URLs only. Bundled or relative asset paths are not part of the Phase 2 image surface; `VITE.md` defines the later production asset pipeline that emits ordinary assets as bundle resources and resolves Vite asset imports against that resource directory. Rust stores only an accepted URL string. `null` removes the source; a non-string/non-null wire value is a renderer contract failure, while a string that is not a valid HTTP(S) URL fails soft as an invalid application value and leaves the source absent. A source update is reflected on the next fresh GPUI render. When `src` is absent or cleared, Retend still renders the same stable-ID GPUI `Img` with an empty custom source, preserving its styled layout participation and GPUI element identity without initiating a resource load. GPUI owns loading state, animation state, and shared resource caching, so Retend does not maintain or explicitly evict a second image cache when a node is destroyed.
 
-### Text runs and mixed content
+### Text and mixed content
 
-Contiguous bare text and spans are lowered into one shaped text leaf. Rust concatenates their text, builds the corresponding styled ranges, and uses GPUI text shaping/wrapping for the result. Mixed content such as `<div>text <img/> more</div>` lowers into separate children: a text leaf, the image box, then another text leaf. The parent lays those children out according to its configured GPUI display/layout style.
+Each dedicated Retend text node lowers directly to GPUI's `Text` element. GPUI owns text shaping, wrapping, accessibility, and inherited text styling. Retend does not concatenate neighboring text nodes or maintain a parallel styled-range representation.
 
-A span may contain only content representable by the text-run model. Element children requiring independent layout are invalid. Nested spans are supported and flattened into nested styled ranges. Inner spans inherit the enclosing span's text-run styles and override only the properties they explicitly define. Every nested span keeps its own stable Retend/bridge node ID for refs, parentage, and text-range event targeting.
+Text inherits properties such as color, font family, font weight, and font size from its containing styled element. Mixed content such as `<div>text <img/> more</div>` lowers to ordinary GPUI children in source order: a text element, the image element, then another text element. The parent lays those children out according to its configured GPUI display/layout style.
 
-## Span identity model
-
-`span` is an inline interactive text-run node, not a general box element. It keeps stable Retend/bridge identity and parent linkage so refs and event targeting work, but it does not lower to an independent GPUI box or focusable element. Rust maps pointer interaction through GPUI text-range hit testing back to the span's stable node ID and sends normal Retend events with that span as the target.
-
-Spans support text-run styling and text-range pointer events such as click, mouseenter, and mouseleave. They do not support box-layout properties such as width, height, padding, border, background, or positioning; applying box-only styles to a span is a clear development error. Spans are not focusable, do not support `tabIndex`, and have no box-oriented imperative commands. Span measurement may be added later through text-range bounds but is out of v1 scope.
-
-A span may contain only text or other text content supported by the text-run model; element children that require independent layout are invalid. The contract is: spans participate in text styling, identity, refs, and events, but they are not boxes.
+The v1 native renderer has no `span` or nested inline text-run model. Inline range styling and text-range event targeting are outside the v1 surface; introducing them later requires an explicit text-run abstraction rather than hidden range bookkeeping inside ordinary text rendering.
 
 ## Event vocabulary and payloads
 
