@@ -49,30 +49,30 @@ describe('Retend-owned native bridge', () => {
   it('creates, mutates, moves, detaches, reattaches, settles, and destroys nodes', () => {
     const host = createHost();
     const parent = host.createNode(ElementKind.Container);
-    const first = host.createText('first');
-    const second = host.createText('second');
+    const image = host.createNode(ElementKind.Image);
+    const text = host.createText('second');
     host.insertChild(host.rootId, parent);
-    host.insertChild(parent, first);
-    host.insertChild(parent, second);
+    host.insertChild(parent, image);
+    host.insertChild(parent, text);
     host.flush();
 
-    host.insertChild(parent, second, first);
-    host.removeChild(parent, first);
-    host.setProperty(first, PropertyId.Opacity, 0.5);
-    host.insertChild(parent, first);
+    host.insertChild(parent, text, image);
+    host.removeChild(parent, image);
+    host.setProperty(image, PropertyId.Src, 'https://example.com/detached.png');
+    host.insertChild(parent, image);
     host.settle();
 
     const afterMove = host.debugTree() as DebugTree;
     const parentNode = afterMove.nodes.find((node) => node.id === parent);
-    expect(parentNode?.children).toEqual([second, first]);
-    expect(afterMove.nodes.find((node) => node.id === first)?.text).toBe(
-      'first'
+    expect(parentNode?.children).toEqual([text, image]);
+    expect(afterMove.nodes.find((node) => node.id === image)?.src).toBe(
+      'https://example.com/detached.png'
     );
 
-    host.removeChild(parent, first);
+    host.removeChild(parent, image);
     host.settle();
     const afterSettle = host.debugTree() as DebugTree;
-    expect(afterSettle.nodes.some((node) => node.id === first)).toBe(false);
+    expect(afterSettle.nodes.some((node) => node.id === image)).toBe(false);
   });
 
   it('creates images and replaces their retained source', () => {

@@ -36,10 +36,8 @@ function App() {
         height: '100%',
       }}
     >
-      <text>Count: {count}</text>
-      <div onClick={() => count.set(count.get() + 1)}>
-        <text>Increment</text>
-      </div>
+      <div>Count: {count}</div>
+      <div onClick={() => count.set(count.get() + 1)}>Increment</div>
     </div>
   );
 }
@@ -138,26 +136,18 @@ The component passed to `renderToGpui` must return Retend JSX. `retend-gpui` doe
 
 ## Elements
 
-The renderer currently supports these GPUiX intrinsic elements:
+The v1 Retend GPUI intrinsic surface is deliberately small:
 
 - `div`
-- `text`
 - `img`
-- `svg`
-- `canvas`
 - `input`
 - `textarea`
-- `anchored`
-- `code`
-- `diff`
-- `markdown`
-- `virtual-list`
 
-GPUiX does not have a native `button` element. Build buttons as Retend components using a supported element, usually `div`, and attach an `onClick` handler.
+Text is ordinary JSX content rather than a `<text>` intrinsic. `input` and `textarea` remain part of the v1 intrinsic vocabulary, but their Retend-owned native editor/focus/selection implementation belongs to Phase 3. Build higher-level controls and widgets as Retend components from these primitives.
 
 ## Events
 
-Use JSX event props for the events GPUiX reports:
+The normal renderer still uses GPUiX for events until the Retend-owned Phase 2 event transport is migrated. On that current path, use JSX event props for the events GPUiX reports:
 
 ```tsx
 <input
@@ -168,7 +158,7 @@ Use JSX event props for the events GPUiX reports:
 />
 ```
 
-Supported events are `toggleFile`, `showMore`, `lineClick`, `linkClick`, `change`, `submit`, `click`, `mouseDown`, `mouseUp`, `mouseEnter`, `mouseLeave`, `mouseMove`, `mouseDownOutside`, `keyDown`, `keyUp`, `focus`, `blur`, and `scroll`.
+Supported events are `change`, `submit`, `click`, `mouseDown`, `mouseUp`, `mouseEnter`, `mouseLeave`, `mouseMove`, `mouseDownOutside`, `keyDown`, `keyUp`, `focus`, `blur`, and `scroll`.
 
 GPUiX event handlers receive an `EventPayload` from `@gpuix/native`. The payload fields depend on the event. Input changes, for example, expose the new value as `event.value`.
 
@@ -182,14 +172,14 @@ const color = Cell.derived(() =>
   label.get() === 'Ready' ? '#00aa66' : '#777777'
 );
 
-return <text style={{ color }}>{label}</text>;
+return <div style={{ color }}>{label}</div>;
 ```
 
-The renderer also handles asynchronous Retend values used for text, control flow, intrinsic properties, and top-level style properties. Cells inside nested pseudo-state styles such as `hover` and `active` are not watched recursively. Resolve those values before passing the style object when they need to update reactively.
+The renderer also handles asynchronous Retend values used for text, control flow, intrinsic properties, and top-level style properties.
 
-Styles use GPUiX's style vocabulary rather than CSS. Common layout properties include `display`, `flexDirection`, `gap`, `padding`, `width`, `height`, `alignItems`, and `justifyContent`. Retend GPUI provides browser-like normal flow by default: unstyled `div` elements are full-width blocks, while unstyled `text` elements use intrinsic width and flow inline with adjacent text. Explicit flex or grid layout opts a container out of that normal-flow behavior. Colors use hexadecimal strings such as `#ffffff`, and fills use `backgroundColor` rather than the CSS shorthand `background`.
+The Retend-owned Phase 2 bridge parses its typed authoring vocabulary into Retend-native Rust values. Its current static surface covers block/flex layout, flex direction/wrapping/alignment, gaps, dimensions, padding/margins, relative/absolute positioning, colors/opacity, borders, and basic inherited text styling. Numbers are logical pixels; dimensions also accept `auto`, pixel strings, and percentages. The normal renderer is migrated onto that native style path later in Phase 2. Stateful overflow/scroll behavior belongs to Phase 3 and the target style-driven transition/pseudo-state model belongs to Phase 4.
 
-The application root defaults to a white background with black text, matching the browser's basic canvas/text defaults. Explicit root `backgroundColor` and `color` styles override these defaults. Check the GPUiX documentation for the complete style and element property list.
+The application root defaults to a white background with black text. Explicit root `backgroundColor` and `color` styles override these defaults.
 
 ## Window options
 

@@ -3,19 +3,13 @@ import type { AsyncDerivedCell, Cell, SourceCell } from 'retend';
 
 import type { GpuiElement } from '../gpui-renderer.js';
 import type {
-  GpuiAnchoredCustomProps,
-  GpuiCodeCustomProps,
-  GpuiDiffCustomProps,
   GpuiElementType,
   GpuiEventType,
   GpuiImgCustomProps,
   GpuiInputCustomProps,
-  GpuiMarkdownCustomProps,
   GpuiMotionProps,
   GpuiStyle,
-  GpuiSvgCustomProps,
   GpuiTextareaCustomProps,
-  GpuiVirtualListCustomProps,
 } from '../types.js';
 import 'retend/jsx-runtime';
 
@@ -24,22 +18,14 @@ type ReactiveProps<Props> = {
   [Key in keyof Props]?: ReactiveValue<Props[Key]>;
 };
 type ReactiveStyle = {
-  [Key in Exclude<keyof GpuiStyle, 'hover' | 'active'>]?: ReactiveValue<
-    GpuiStyle[Key]
-  >;
-} & Pick<GpuiStyle, 'hover' | 'active'>;
+  [Key in keyof GpuiStyle]?: ReactiveValue<GpuiStyle[Key]>;
+};
 type EventHandler = (event: EventPayload) => void;
 
 interface CustomPropsByTag {
   img: GpuiImgCustomProps;
-  svg: GpuiSvgCustomProps;
   input: GpuiInputCustomProps;
   textarea: GpuiTextareaCustomProps;
-  anchored: GpuiAnchoredCustomProps;
-  code: GpuiCodeCustomProps;
-  diff: GpuiDiffCustomProps;
-  markdown: GpuiMarkdownCustomProps;
-  'virtual-list': GpuiVirtualListCustomProps;
 }
 
 declare module 'retend/jsx-runtime' {
@@ -73,8 +59,8 @@ declare module 'retend/jsx-runtime' {
      */
     interface GpuiElementProps extends IntrinsicAttributes, ReactiveEventProps {
       /**
-       * Style object forwarded to GPUiX. Individual properties may be `Cell`s
-       * for reactive updates; `hover` and `active` are static pseudo-states.
+       * Retend GPUI author style. Individual properties may be `Cell`s for
+       * reactive updates before the resolved snapshot crosses the native bridge.
        */
       style?: ValueOrCell<ReactiveStyle>;
       /**
@@ -96,7 +82,7 @@ declare module 'retend/jsx-runtime' {
 
     /**
      * Intrinsic element map for GPUI JSX. Augments `retend/jsx-runtime`
-     * so `<div>`, `<code>`, `<input>` etc. are typed with GPUI props.
+     * with the Retend GPUI v1 intrinsic set.
      * Import `"retend-gpui/jsx-runtime"` in your `tsconfig.json` types to enable.
      */
     interface IntrinsicElements extends GpuiIntrinsicElements {}

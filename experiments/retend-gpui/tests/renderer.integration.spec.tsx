@@ -10,7 +10,7 @@ import {
   waitForAsyncBoundaries,
 } from 'retend';
 import { Router } from 'retend/router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { GpuiElement } from '../source/gpui-renderer';
 import type { GpuiColor } from '../source/types';
@@ -85,13 +85,19 @@ describeNative('Retend GPUI native integration', () => {
     detach();
   });
 
+  it('rejects tags outside the Retend GPUI intrinsic surface', () => {
+    const { renderer } = createRenderer();
+    expect(() => renderer.createContainer('text')).toThrow(
+      'text is ordinary JSX content'
+    );
+    expect(() => renderer.createContainer('code')).toThrow(
+      'Unsupported Retend GPUI intrinsic element: <code>'
+    );
+  });
+
   it('defaults the application root to a white canvas with black text', () => {
     const { renderer, native } = createRenderer();
-    renderer.render(() => (
-      <div>
-        <text>plain text</text>
-      </div>
-    ));
+    renderer.render(() => <div>plain text</div>);
 
     const tree = JSON.parse(native.getTreeJson());
     expect(tree.style).toMatchObject({
@@ -123,18 +129,15 @@ describeNative('Retend GPUI native integration', () => {
   it('lays out unstyled text at its intrinsic inline width', () => {
     const { renderer, native } = createRenderer();
     const parentRef = Cell.source<GpuiElement | null>(null);
-    const textRef = Cell.source<GpuiElement | null>(null);
-    renderer.render(() => (
-      <div ref={parentRef} style={{ width: 420 }}>
-        <text ref={textRef}>short</text>
-      </div>
-    ));
+    renderer.render(() => <div ref={parentRef} style={{ width: 420 }} />);
+
+    const parent = parentRef.get();
+    if (!parent) throw new Error('Expected parent ref to resolve.');
+    const text = renderer.createText('short');
+    renderer.append(parent, text);
     renderer.flush();
     native.flush();
 
-    const parent = parentRef.get();
-    const text = textRef.get();
-    if (!parent || !text) throw new Error('Expected refs to resolve.');
     const parentBounds = native.getElementBounds(parent.id);
     const textBounds = native.getElementBounds(text.id);
     expect(textBounds?.[2]).toBeLessThan(parentBounds?.[2] ?? 0);
@@ -142,20 +145,17 @@ describeNative('Retend GPUI native integration', () => {
 
   it('lays out adjacent unstyled text inline', () => {
     const { renderer, native } = createRenderer();
-    const firstRef = Cell.source<GpuiElement | null>(null);
-    const secondRef = Cell.source<GpuiElement | null>(null);
-    renderer.render(() => (
-      <div style={{ width: 420 }}>
-        <text ref={firstRef}>first</text>
-        <text ref={secondRef}>second</text>
-      </div>
-    ));
+    const parentRef = Cell.source<GpuiElement | null>(null);
+    renderer.render(() => <div ref={parentRef} style={{ width: 420 }} />);
+
+    const parent = parentRef.get();
+    if (!parent) throw new Error('Expected parent ref to resolve.');
+    const first = renderer.createText('first');
+    const second = renderer.createText('second');
+    renderer.append(parent, [first, second]);
     renderer.flush();
     native.flush();
 
-    const first = firstRef.get();
-    const second = secondRef.get();
-    if (!first || !second) throw new Error('Expected refs to resolve.');
     const firstBounds = native.getElementBounds(first.id);
     const secondBounds = native.getElementBounds(second.id);
     expect(secondBounds?.[0]).toBeGreaterThan(firstBounds?.[0] ?? 0);
@@ -165,9 +165,7 @@ describeNative('Retend GPUI native integration', () => {
   it('lets explicit root colors override the application defaults', () => {
     const { renderer, native } = createRenderer();
     renderer.render(() => (
-      <div style={{ backgroundColor: '#112233', color: '#ddeeff' }}>
-        <text>custom</text>
-      </div>
+      <div style={{ backgroundColor: '#112233', color: '#ddeeff' }}>custom</div>
     ));
 
     const tree = JSON.parse(native.getTreeJson());
@@ -185,18 +183,10 @@ describeNative('Retend GPUI native integration', () => {
     activeRenderer = renderer;
 
     function App() {
-      return (
-        <div>
-          <text>before</text>
-        </div>
-      );
+      return <div>before</div>;
     }
     function NextApp() {
-      return (
-        <div>
-          <text>after</text>
-        </div>
-      );
+      return <div>after</div>;
     }
 
     renderer.render(() => <App />);
@@ -266,12 +256,10 @@ describeNative('Retend GPUI native integration', () => {
           true: () => (
             <div>
               outer:
-              {If(inner, () => (
-                <text>inner</text>
-              ))}
+              {If(inner, () => 'inner')}
             </div>
           ),
-          false: () => <text>fallback</text>,
+          false: () => 'fallback',
         })}
       </div>
     ));
@@ -301,15 +289,7 @@ describeNative('Retend GPUI native integration', () => {
     ]);
 
     renderer.render(() => (
-      <div>
-        {For(
-          items,
-          (item) => (
-            <text>{item.label}</text>
-          ),
-          { key: 'id' }
-        )}
-      </div>
+      <div>{For(items, (item) => item.label, { key: 'id' })}</div>
     ));
     const idsBefore = native.findByType('text').toSorted();
 
@@ -329,15 +309,7 @@ describeNative('Retend GPUI native integration', () => {
     ]);
 
     renderer.render(() => (
-      <div>
-        {For(
-          items,
-          (item) => (
-            <text>{item.label}</text>
-          ),
-          { key: 'id' }
-        )}
-      </div>
+      <div>{For(items, (item) => item.label, { key: 'id' })}</div>
     ));
 
     items.set([
@@ -415,12 +387,12 @@ describeNative('Retend GPUI native integration', () => {
     const { renderer, native } = createRenderer();
     const show = Cell.source(true);
     const color = Cell.source<GpuiColor>('#ffffff');
-    const code = Cell.source('const first = true;');
+    const text = Cell.source('first');
 
     renderer.render(() => (
       <div>
         {If(show, () => (
-          <code code={code} style={{ color }} />
+          <div style={{ color }}>{text}</div>
         ))}
       </div>
     ));
@@ -429,14 +401,16 @@ describeNative('Retend GPUI native integration', () => {
     renderer.flush();
     await new Promise((resolve) => setTimeout(resolve, 1));
     renderer.flush();
-    expect(native.findByType('code')).toEqual([]);
+    expect(native.getAllText()).not.toContain('first');
 
+    const applyBatch = vi.spyOn(native, 'applyBatch');
     Cell.batch(() => {
       color.set('#000000');
-      code.set('const stale = true;');
+      text.set('stale');
     });
     renderer.flush();
-    expect(native.findByType('code')).toEqual([]);
+
+    expect(applyBatch).not.toHaveBeenCalled();
   });
 
   it('keeps shared reactive state isolated across renderer roots', () => {
@@ -448,8 +422,8 @@ describeNative('Retend GPUI native integration', () => {
     firstRenderer.render(() => (
       <div>
         {If(shared, {
-          true: () => <text>first: true</text>,
-          false: () => <text>first: false</text>,
+          true: () => 'first: true',
+          false: () => 'first: false',
         })}
       </div>
     ));
@@ -462,8 +436,8 @@ describeNative('Retend GPUI native integration', () => {
     secondRenderer.render(() => (
       <div>
         {If(shared, {
-          true: () => <text>second: true</text>,
-          false: () => <text>second: false</text>,
+          true: () => 'second: true',
+          false: () => 'second: false',
         })}
       </div>
     ));
@@ -519,17 +493,17 @@ describeNative('Retend GPUI native integration', () => {
       await Promise.resolve();
       return 'loaded';
     });
-    const code = Cell.derivedAsync(async () => {
+    const src = Cell.derivedAsync(async () => {
       await Promise.resolve();
-      return 'const loaded = true;';
+      return 'https://example.com/loaded.png';
     });
-    const codeRef = Cell.source<GpuiElement | null>(null);
+    const imageRef = Cell.source<GpuiElement | null>(null);
 
     renderer.render(() => (
-      <Await fallback={<text>loading</text>}>
+      <Await fallback="loading">
         <div style={{ borderColor }}>
-          <text>{status}</text>
-          <code ref={codeRef} code={code} />
+          {status}
+          <img ref={imageRef} src={src} />
         </div>
       </Await>
     ));
@@ -539,10 +513,10 @@ describeNative('Retend GPUI native integration', () => {
     renderer.flush();
     expect(native.getAllText()).toContain('loaded');
 
-    const codeNode = codeRef.get();
-    if (!codeNode) throw new Error('Expected async code ref to resolve.');
-    expect(
-      JSON.parse(native.getCustomProp(codeNode.id, 'code') ?? 'null')
-    ).toBe('const loaded = true;');
+    const image = imageRef.get();
+    if (!image) throw new Error('Expected async image ref to resolve.');
+    expect(JSON.parse(native.getCustomProp(image.id, 'src') ?? 'null')).toBe(
+      'https://example.com/loaded.png'
+    );
   });
 });

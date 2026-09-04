@@ -1,29 +1,52 @@
 use std::sync::Arc;
 
-use gpui::{div, img, prelude::*, AnyElement, ElementId, ImageCacheError, ImageSource, Text};
+use gpui::{
+    div, img, prelude::*, AnyElement, ElementId, ImageCacheError, ImageSource, StyledImage, Text,
+};
 
-use crate::tree::{NativeTree, NodeData, NodeId};
+use crate::tree::{ImageObjectFit, NativeTree, NodeData, NodeId};
+
+fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
+    match value {
+        ImageObjectFit::Fill => gpui::ObjectFit::Fill,
+        ImageObjectFit::Contain => gpui::ObjectFit::Contain,
+        ImageObjectFit::Cover => gpui::ObjectFit::Cover,
+        ImageObjectFit::ScaleDown => gpui::ObjectFit::ScaleDown,
+        ImageObjectFit::None => gpui::ObjectFit::None,
+    }
+}
 
 /// Builds a fresh GPUI element tree directly from the authoritative retained tree.
 pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
     let node = &tree.nodes[&id];
     match &node.data {
-        NodeData::Root | NodeData::Container => node
-            .style
-            .apply(div())
-            .children(node.children.iter().map(|child_id| build(tree, *child_id)))
-            .into_any_element(),
+        NodeData::Root | NodeData::Container => {
+            let element = match node.style.as_deref() {
+                Some(style) => style.apply(div()),
+                None => div().block(),
+            };
+            element
+                .children(node.children.iter().map(|child_id| build(tree, *child_id)))
+                .into_any_element()
+        }
         NodeData::Text(text) => {
             Text::new(ElementId::Integer(u64::from(id)), text.clone().into()).into_any_element()
         }
-        NodeData::Image { src } => {
+        NodeData::Image { src, object_fit } => {
             let source = src.clone().map(ImageSource::from).unwrap_or_else(|| {
                 ImageSource::Custom(Arc::new(|_, _| {
                     Some(Err(ImageCacheError::Asset("image source is unset".into())))
                 }))
             });
-            node.style
-                .apply(img(source))
+            let image = img(source);
+            let mut image = match node.style.as_deref() {
+                Some(style) => style.apply(image),
+                None => image.block(),
+            };
+            if let Some(object_fit) = object_fit {
+                image = image.object_fit(to_gpui_object_fit(*object_fit));
+            }
+            image
                 .id(ElementId::Integer(u64::from(id)))
                 .into_any_element()
         }
@@ -50,6 +73,140 @@ mod tests {
 
     const SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#;
     const AFTER_IMAGE: &str = "after-image";
+
+    #[test]
+    fn container_styles_are_applied_to_gpui() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AlignItems,
+                    value: PropertyValue::String("center".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Gap,
+                    value: PropertyValue::Number(8.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Padding,
+                    value: PropertyValue::Number(12.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Margin,
+                    value: PropertyValue::Number(3.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Position,
+                    value: PropertyValue::String("absolute".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Top,
+                    value: PropertyValue::Number(4.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::BorderWidth,
+                    value: PropertyValue::Number(2.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::BorderColor,
+                    value: PropertyValue::String("#336699".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::BorderRadius,
+                    value: PropertyValue::Number(6.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::FontSize,
+                    value: PropertyValue::Number(18.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::TextAlign,
+                    value: PropertyValue::String("center".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::LineHeight,
+                    value: PropertyValue::Number(24.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::WhiteSpace,
+                    value: PropertyValue::String("nowrap".into()),
+                },
+            ],
+        )
+        .unwrap();
+
+        let mut element = build(&tree, 2);
+        let actual = element
+            .downcast_mut::<gpui::Div>()
+            .expect("native containers must render as GPUI Divs");
+        let mut expected = div()
+            .block()
+            .p(px(12.0))
+            .m(px(3.0))
+            .top(px(4.0))
+            .border(px(2.0))
+            .border_color(gpui::rgba(0x336699ff))
+            .rounded(px(6.0))
+            .text_size(px(18.0))
+            .text_center()
+            .line_height(px(24.0))
+            .whitespace_nowrap();
+        expected.style().align_items = Some(gpui::AlignItems::Center);
+        expected.style().gap.width = Some(px(8.0).into());
+        expected.style().gap.height = Some(px(8.0).into());
+        expected.style().position = Some(gpui::Position::Absolute);
+
+        assert_eq!(actual.style(), expected.style());
+    }
+
+    #[test]
+    fn image_render_maps_object_fit_to_gpui() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Image,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::ObjectFit,
+                    value: PropertyValue::String("cover".into()),
+                },
+            ],
+        )
+        .unwrap();
+
+        let mut element = build(&tree, 2);
+        element
+            .downcast_mut::<gpui::Stateful<gpui::Img>>()
+            .expect("native images must render as stateful GPUI Img elements");
+        assert!(matches!(
+            to_gpui_object_fit(ImageObjectFit::Cover),
+            gpui::ObjectFit::Cover
+        ));
+    }
 
     #[test]
     fn native_text_uses_gpui_text_with_the_retend_node_id() {

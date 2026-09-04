@@ -222,13 +222,16 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   /**
    * Creates a native element for an intrinsic tag.
    *
-   * @param tagName - One of {@link GPUI_ELEMENT_TYPES} (e.g. `"div"`, `"code"`).
-   * @returns The created `GpuiElement` and enqueues a `createElement` mutation.
-   * @throws If the tag is not supported by GPUiX.
+   * @param tagName - One of the Retend GPUI v1 intrinsic tags.
+   * @returns The created `GpuiElement` and enqueues a native creation mutation.
+   * @throws If the tag is not part of the Retend GPUI intrinsic surface.
    */
   createContainer(tagName: string): GpuiElement {
     if (!GPUI_ELEMENT_TYPES.includes(tagName as GpuiElementType)) {
-      throw new Error(`Unsupported GPUiX intrinsic element: <${tagName}>.`);
+      throw new Error(
+        `Unsupported Retend GPUI intrinsic element: <${tagName}>. ` +
+          'Supported tags are <div>, <img>, <input>, and <textarea>; text is ordinary JSX content.'
+      );
     }
 
     const node = new GpuiElement(this.#nextId++, tagName);

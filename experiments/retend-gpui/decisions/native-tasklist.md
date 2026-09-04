@@ -45,7 +45,7 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 - [x] Implement immutable per-window root node IDs.
 - [x] Enforce one-window-for-life ownership for every native node.
 - [x] Reject cross-window reparenting.
-- [x] Implement native node kinds for container, text, image, input, textarea, and structural anchors as required by the protocol.
+- [x] Reserve protocol element kinds for container, text, image, input, textarea, and structural anchors; instantiate retained variants in the phase that owns each element's native state.
 - [x] Keep GPUI element instances out of the authoritative retained tree.
 
 ### Structural mutations and settlement
@@ -117,7 +117,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 - [x] Implement retained-tree-to-GPUI render traversal per window.
 - [x] Construct a fresh GPUI element tree for each render.
-- [ ] Map stable Retend IDs to GPUI `ElementId`s where persistent GPUI state requires them.
+- [x] Map stable Retend IDs to GPUI `ElementId`s for the Phase 2 elements that require persistent GPUI state; add IDs to later stateful container/control paths only when those features need them.
 - [x] Keep GPUI-bound objects in the native execution context rather than in retained-tree data.
 - [ ] Collect GPUI/runtime-effect intents during command application and execute them only after the complete batch succeeds.
 - [ ] Discard runtime-effect intents and skip normal rendering when a batch poisons its window.
@@ -127,15 +127,15 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 ### Style schema and native parsing
 
 - [x] Define the v1 property schema and numeric property IDs.
-- [ ] Define TypeScript authoring types for supported properties.
+- [x] Define TypeScript authoring types for the supported Phase 2 static style surface.
 - [x] Implement the generic tagged property-value wire shape for numbers, booleans, string-table references, and removal/null.
 - [x] Keep property-specific semantics in Rust rather than creating property-specific binary layouts.
-- [ ] Implement Rust semantic parsers for keyword values.
+- [x] Implement Rust semantic parsers for Phase 2 keyword values.
 - [x] Implement Rust percentage/length parsing.
 - [x] Implement Rust color parsing.
 - [ ] Implement Rust transition-duration/delay/timing parsing needed by later motion support.
-- [ ] Store parsed Retend-native values during command application.
-- [ ] Implement fail-soft behavior for invalid semantic style values.
+- [x] Store parsed Retend-native values for supported Phase 2 styles during command application.
+- [x] Implement fail-soft behavior for invalid semantic style values.
 - [ ] Send complete resolved author-style snapshots from JavaScript.
 - [ ] Keep GPUI defaults, Retend intrinsic defaults, and inherited/computed style out of JavaScript snapshots.
 - [x] Implement block as the default `div` display behavior.
@@ -150,10 +150,11 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Let GPUI own text shaping, wrapping, accessibility, and inherited text styling.
 - [x] Render mixed text/element content as ordinary GPUI children in source order.
 - [x] Implement `img` for HTTP(S) `src` URLs through GPUI image sources; bundled asset-path resolution remains owned by the later Vite asset pipeline.
+- [x] Parse and apply the current image-specific `objectFit` authoring property natively.
 - [x] Delegate loading, decoding, caching, intrinsic metadata, and rendering to GPUI's image/asset system.
 - [x] Replace the GPUI image source on the next render when retained `src` changes, including clear/re-add transitions, while preserving the stable image `ElementId` and layout participation.
 - [x] Keep image loading/animation/cache state GPUI-owned rather than duplicating node-owned image state in Retend.
-- [ ] Reject unsupported intrinsic tags with a descriptive render-time error.
+- [x] Reject unsupported intrinsic tags with a descriptive render-time error.
 
 ### Native event transport
 

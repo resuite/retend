@@ -24,12 +24,24 @@ pub struct FatalDiagnostic {
     pub javascript_stack: String,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImageObjectFit {
+    Fill,
+    Contain,
+    Cover,
+    ScaleDown,
+    None,
+}
+
 #[derive(Clone, Debug)]
 pub enum NodeData {
     Root,
     Container,
     Text(String),
-    Image { src: Option<String> },
+    Image {
+        src: Option<String>,
+        object_fit: Option<ImageObjectFit>,
+    },
     Anchor,
 }
 
@@ -38,7 +50,7 @@ pub struct NativeNode {
     pub data: NodeData,
     pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
-    pub style: NativeStyle,
+    pub style: Option<Box<NativeStyle>>,
 }
 
 impl NativeNode {
@@ -48,7 +60,7 @@ impl NativeNode {
             data,
             parent: None,
             children: Vec::new(),
-            style: NativeStyle::default(),
+            style: None,
         }
     }
 }
@@ -209,7 +221,7 @@ impl NativeTree {
                     NodeData::Root => ("Root", None, None),
                     NodeData::Container => ("Container", None, None),
                     NodeData::Text(text) => ("Text", Some(text.as_str()), None),
-                    NodeData::Image { src } => ("Image", None, src.as_deref()),
+                    NodeData::Image { src, .. } => ("Image", None, src.as_deref()),
                     NodeData::Anchor => ("Anchor", None, None),
                 };
                 NodeSnapshot {
@@ -266,9 +278,15 @@ impl NativeTree {
         match command {
             Command::CreateNode { id, kind } => match kind {
                 ElementKind::Container => self.create(index, window_id, id, NodeData::Container),
-                ElementKind::Image => {
-                    self.create(index, window_id, id, NodeData::Image { src: None })
-                }
+                ElementKind::Image => self.create(
+                    index,
+                    window_id,
+                    id,
+                    NodeData::Image {
+                        src: None,
+                        object_fit: None,
+                    },
+                ),
                 ElementKind::Anchor => self.create(index, window_id, id, NodeData::Anchor),
                 ElementKind::Root => invalid(
                     index,
@@ -309,8 +327,8 @@ impl NativeTree {
                 value,
             } => {
                 let node = self.node_mut(window_id, index, id)?;
-                if property == PropertyId::Src {
-                    if let NodeData::Image { src } = &mut node.data {
+                if let NodeData::Image { src, object_fit } = &mut node.data {
+                    if property == PropertyId::Src {
                         return match value {
                             PropertyValue::Null => {
                                 *src = None;
@@ -329,16 +347,54 @@ impl NativeTree {
                             ),
                         };
                     }
+                    if property == PropertyId::ObjectFit {
+                        return match value {
+                            PropertyValue::Null => {
+                                *object_fit = None;
+                                Ok(())
+                            }
+                            PropertyValue::String(value) => {
+                                *object_fit = match value.as_str() {
+                                    "fill" => Some(ImageObjectFit::Fill),
+                                    "contain" => Some(ImageObjectFit::Contain),
+                                    "cover" => Some(ImageObjectFit::Cover),
+                                    "scaleDown" => Some(ImageObjectFit::ScaleDown),
+                                    "none" => Some(ImageObjectFit::None),
+                                    _ => None,
+                                };
+                                Ok(())
+                            }
+                            _ => invalid(
+                                index,
+                                "INVALID_PROPERTY_VALUE",
+                                "Image objectFit must be a supported string or null.",
+                            ),
+                        };
+                    }
                 }
-                if node.style.set_property(property, &value) {
-                    Ok(())
-                } else {
-                    invalid(
+                if matches!(&node.data, NodeData::Text(_) | NodeData::Anchor) {
+                    return invalid(
                         index,
                         "UNSUPPORTED_PROPERTY",
-                        format!("{property:?} is not implemented by the native renderer yet."),
-                    )
+                        format!("{property:?} cannot be set on this node kind."),
+                    );
                 }
+                if let Some(style) = node.style.as_mut() {
+                    if style.set_property(property, &value) {
+                        return Ok(());
+                    }
+                } else {
+                    let mut style = Box::<NativeStyle>::default();
+                    if style.set_property(property, &value) {
+                        node.style = Some(style);
+                        return Ok(());
+                    }
+                }
+                invalid(
+                    index,
+                    "UNSUPPORTED_PROPERTY",
+                    format!("{property:?} is not implemented by the native renderer yet."),
+                )
             }
             Command::InsertChild {
                 parent_id,
@@ -606,9 +662,39 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            tree.nodes[&2].style.width,
+            tree.nodes[&2]
+                .style
+                .as_deref()
+                .and_then(|style| style.width),
             Some(crate::style::LengthValue::Percent(25.0))
         );
+    }
+
+    #[test]
+    fn text_nodes_reject_direct_style_properties() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![Command::CreateText {
+                id: 2,
+                text: "plain".into(),
+            }],
+        )
+        .unwrap();
+
+        let error = tree
+            .apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Opacity,
+                    value: PropertyValue::Number(0.5),
+                }],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
+        assert!(tree.nodes[&2].style.is_none());
     }
 
     #[test]
@@ -631,7 +717,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             &tree.nodes[&2].data,
-            NodeData::Image { src } if src.as_deref() == Some("https://example.com/first.png")
+            NodeData::Image { src, .. } if src.as_deref() == Some("https://example.com/first.png")
         ));
 
         tree.apply_commands(
@@ -645,7 +731,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             &tree.nodes[&2].data,
-            NodeData::Image { src }
+            NodeData::Image { src, .. }
                 if src.as_deref() == Some("https://example.com/second.png")
         ));
 
@@ -660,9 +746,53 @@ mod tests {
         .unwrap();
         assert!(matches!(
             &tree.nodes[&2].data,
-            NodeData::Image { src } if src.is_none()
+            NodeData::Image { src, .. } if src.is_none()
         ));
         assert!(tree.windows[&window].fatal.is_none());
+    }
+
+    #[test]
+    fn image_object_fit_is_parsed_into_retained_image_state() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Image,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::ObjectFit,
+                    value: PropertyValue::String("cover".into()),
+                },
+            ],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image {
+                object_fit: Some(ImageObjectFit::Cover),
+                ..
+            }
+        ));
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::ObjectFit,
+                value: PropertyValue::String("not-a-fit".into()),
+            }],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image {
+                object_fit: None,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -686,7 +816,7 @@ mod tests {
 
         assert!(matches!(
             &tree.nodes[&2].data,
-            NodeData::Image { src } if src.is_none()
+            NodeData::Image { src, .. } if src.is_none()
         ));
         assert!(tree.windows[&window].fatal.is_none());
     }
@@ -724,7 +854,7 @@ mod tests {
         assert_eq!(error.code, "INVALID_PROPERTY_VALUE");
         assert!(matches!(
             &tree.nodes[&2].data,
-            NodeData::Image { src }
+            NodeData::Image { src, .. }
                 if src.as_deref() == Some("https://example.com/image.png")
         ));
         assert!(tree.windows[&window].fatal.is_some());
@@ -749,7 +879,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(tree.nodes[&2].style.width, None);
+        assert_eq!(
+            tree.nodes[&2]
+                .style
+                .as_deref()
+                .and_then(|style| style.width),
+            None
+        );
         assert!(tree.windows[&window].fatal.is_none());
     }
 
