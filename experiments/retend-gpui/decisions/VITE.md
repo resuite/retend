@@ -2,7 +2,7 @@
 
 This document records architecture decisions for Vite-based development, hot module replacement, bundling, and production builds in `retend-gpui`. Development-time behavior described here is implemented by the current prototype; the production build sections remain planned and describe accepted target behavior that is not yet exposed.
 
-References to GPUiX describe the current native bridge (`@gpuix/native` 0.4.0), which the prototype still uses. The planned replacement of that bridge with a Retend-specific native bridge is governed separately by `NATIVE.md`; where the two documents describe the same area differently (for example the development error overlay), VITE.md describes the current GPUiX-based implementation and NATIVE.md describes the target design for the replacement bridge.
+`NATIVE.md` governs the Retend-owned native bridge and renderer/runtime behavior. This document owns the Vite development, HMR, bundling, and production integration layered on that bridge.
 
 ## HMR semantics
 
@@ -78,13 +78,13 @@ Each native window is otherwise an independent Retend root. Creating a window pe
 
 The GPUI application process uses one Retend `globalData` map. Window isolation comes from each window's renderer and the state snapshots captured while rendering through that renderer, not from async-local execution contexts or per-window global maps. Before a window root is mounted, its renderer is made active; later renderer-owned callbacks restore their captured Retend state synchronously with `withState()`. Native events are dispatched through the renderer that owns the native host, and HMR boundaries retain the renderer/state of the component instance they update. GPUI must not use `AsyncLocalStorage` merely to recover window identity across asynchronous work.
 
-Application-facing access to the current native window comes from a public `useWindow()` API backed by the window's Retend scope. It returns a stable object bound to that native window, so retaining it across asynchronous work does not lose the window identity. The object exposes readonly `width` and `height` Cells populated from GPUiX's `getWindowSize()`, a writable `title` Cell that updates the native window title, an `open(options)` method, and a `close()` method for the current window. GPUiX 0.4.0 currently reports a fixed placeholder size, so live resize updates remain an upstream limitation until `getWindowSize()` is fixed. Application-wide resources are accessed through the separate public `useAppContext()` API, which returns only the configured application's `context` value rather than the application instance itself. The runtime-owned `init()` and `cleanup()` methods are therefore not reachable through the normal ambient application API.
+Application-facing access to the current native window comes from a public `useWindow()` API backed by the window's Retend scope. It returns a stable object bound to that native window, so retaining it across asynchronous work does not lose the window identity. The object exposes readonly `width` and `height` Cells updated from Retend-owned native resize events, a writable `title` Cell that updates the native window title, an `open(options)` method, and a `close()` method for the current window. Application-wide resources are accessed through the separate public `useAppContext()` API, which returns only the configured application's `context` value rather than the application instance itself. The runtime-owned `init()` and `cleanup()` methods are therefore not reachable through the normal ambient application API.
 
-The intended multi-window API remains `useWindow().open(options)`, but GPUiX 0.4.0 only supports one production window/application instance and rejects a second `GpuixRenderer.init()` on the same macOS thread. The current prototype therefore exercises only the initial configured window; native multi-window support is deferred until the bridge can represent one GPUI application with multiple independently addressable windows.
+The multi-window API is `useWindow().open(options)`. Native multi-window support is completed by the Retend-owned Phase 2 window surface so one GPUI application can own multiple independently addressable windows.
 
 The GPUI window runtime should expose the window-local location/history/navigation behavior needed by Retend's existing router. A router associated with a GPUI window should observe that window's seeded `location`, and router navigation should update only that window's location and history. `location` is an application path rather than an HTTP/network URL.
 
-The intended `window.open(options)` API is asynchronous and should resolve only after the native window starts. While GPUiX 0.4.0 remains single-window-only, development rejects `window.open()` explicitly instead of attempting a second `GpuixRenderer.init()` and crashing the application process.
+The `window.open(options)` API is asynchronous and resolves only after the native window starts. Until the Phase 2 multi-window surface is complete, development rejects additional window creation explicitly.
 
 The resolved value is a lightweight lifecycle-only window handle. The handle is an `EventTarget` and emits a `close` event when that window terminates. It also exposes `close()`, which requests that the application close that specific window; the eventual `close` event is the lifecycle notification that the window has actually ended.
 
@@ -144,7 +144,7 @@ If the configured application entry fails to transform or evaluate before the ro
 
 Development errors are reported both in the terminal and through a native Vite-style GPUI error overlay. The overlay covers transform errors, module-evaluation errors, and component-remount errors, and clears automatically after the next successful update.
 
-The overlay is owned by `retend-gpui` as a renderer-level development layer outside the application's Retend tree: the renderer creates the overlay nodes directly through its native host rather than mounting Retend components, and every live window shows it. It does not depend on application components being able to evaluate or render, so errors can still be displayed when the application tree itself is unavailable or broken. When the planned native bridge from `NATIVE.md` replaces GPUiX, development overlay UI is expected to move into a runtime-owned Retend wrapper tree beneath the immutable native root; that migration is a bridge decision, not a change to these error-reporting semantics.
+The overlay is owned by `retend-gpui` as a renderer-level development layer outside the application's Retend tree: the renderer creates the overlay nodes directly through its native host rather than mounting Retend components, and every live window shows it. It does not depend on application components being able to evaluate or render, so errors can still be displayed when the application tree itself is unavailable or broken. The remaining Phase 2 development-root work moves this UI into a stable runtime-owned Retend wrapper beneath the immutable native root without changing these error-reporting semantics.
 
 ## Entrypoint updates
 
@@ -162,13 +162,13 @@ Changes to `vite.config.ts` or any other server/configuration condition that req
 
 The current prototype deliberately rejects `vite build`; build-only options such as target and embedded Node runtime version are not part of the public plugin type until this build path exists. Canonical `app` metadata is different: it is part of the shared application definition now because development identity and eventual production packaging consume the same fields. The accepted production design is that the GPUI Vite integration should participate in `vite build` and produce a self-contained application artifact rather than only a JavaScript bundle.
 
-The GPUI Vite plugin should bundle the application code, its JavaScript dependencies, required native runtime assets such as the GPUiX native binding, and a Node.js runtime. The resulting production artifact must be runnable on a machine without a separately installed Node.js runtime.
+The GPUI Vite plugin should bundle the application code, its JavaScript dependencies, the matching Retend GPUI native addon, and a Node.js runtime. The resulting production artifact must be runnable on a machine without a separately installed Node.js runtime.
 
 The plugin may need custom build hooks to collect and package platform-specific native files and the matching Node.js runtime alongside the JavaScript output.
 
 Production builds should follow Tauri's model for cross-targeting and release integration rather than promising that every host can fully build and sign every target. Build, native application bundling, and signing/notarization integration belong to the GPUI build system, but the capabilities of a particular build depend on the selected target, host platform, available toolchain, and configured credentials.
 
-Production builds target one explicit platform/architecture at a time, such as `darwin-arm64` or `win32-x64`. Cross-target builds are allowed when matching Node.js, GPUiX, and target toolchain artifacts are available. A cross-target build is not automatically guaranteed to support the target platform's full release-signing workflow from the current host.
+Production builds target one explicit platform/architecture at a time, such as `darwin-arm64` or `win32-x64`. Cross-target builds are allowed when matching Node.js, Retend GPUI native addon, and target toolchain artifacts are available. A cross-target build is not automatically guaranteed to support the target platform's full release-signing workflow from the current host.
 
 The canonical target configuration lives in the GPUI Vite plugin, for example `retendGpui({ target: 'darwin-arm64' })`. Do not make an environment variable or separate CLI flag the primary configuration surface.
 
@@ -176,7 +176,7 @@ The `target` option is optional. When omitted, the build targets the current hos
 
 The embedded Node.js runtime version is configurable through the GPUI Vite plugin. If no Node version is specified, use the version of Node.js currently running the build. A pinned version can be supplied when reproducible CI or application compatibility requires it.
 
-The production runtime should use Node's Single Executable Application (SEA) mechanism. The platform application's main executable is the selected Node runtime with the built application JavaScript embedded into it. Platform-specific native assets such as the GPUiX `.node` binding remain real files inside the native application bundle and are loaded by the SEA at runtime.
+The production runtime should use Node's Single Executable Application (SEA) mechanism. The platform application's main executable is the selected Node runtime with the built application JavaScript embedded into it. The platform-specific Retend GPUI `.node` addon remains a real file inside the native application bundle and is loaded by the SEA at runtime.
 
 The production JavaScript should be bundled into a single standalone SEA entry rather than emitted as a filesystem-loaded JavaScript chunk graph. Vite should inline application and JavaScript dependency code required by the entrypoint; production code splitting must not require the SEA to load ordinary JavaScript chunks from disk.
 
@@ -186,7 +186,7 @@ Application identity and package metadata are configured explicitly through cano
 
 The required core fields are `app.name`, `app.identifier`, `app.version`, and `app.icon`. `app.identifier` must be a stable reverse-DNS identifier such as `com.example.myapp`. Production uses this identifier exactly as configured. Development automatically derives a distinct identifier by appending `.dev`, for example `com.example.myapp.dev`, so the development app can coexist with an installed production build without requiring a separate user-configured identifier. `app.version` must be valid SemVer, and platform-specific package versions should be derived from that canonical version rather than configured independently. `app.description` and `app.publisher` are optional.
 
-`app.icon` is the generic cross-platform source icon. Platform-specific overrides live under their corresponding platform sections, for example `app.macos.icon` and `app.windows.icon`. The `app` configuration should include the obvious production/package metadata now, rather than introducing a narrowly development-scoped identity shape and replacing it later. In the current GPUiX 0.4.0 development host, Retend can set the child process title from `app.name`, but GPUiX does not expose native application bundle/name/icon identity controls; the macOS Dock may therefore still show Node's identity/icon until the native host supports configured application metadata.
+`app.icon` is the generic cross-platform source icon. Platform-specific overrides live under their corresponding platform sections, for example `app.macos.icon` and `app.windows.icon`. The `app` configuration should include the obvious production/package metadata now, rather than introducing a narrowly development-scoped identity shape and replacing it later. In the current development host, Retend sets the child process title from `app.name`, but native application bundle/name/icon identity controls are not implemented yet; the macOS Dock may therefore still show Node's identity/icon until the native host supports configured application metadata.
 
 ## Public plugin exports
 
@@ -196,6 +196,6 @@ Expose the GPUI HMR runtime from `retend-gpui/plugins/hmr`. The Vite transform s
 
 Applications must explicitly register `retendGpui()` in `vite.config.ts`. `retend-gpui dev` should load that Vite configuration and fail clearly if the GPUI plugin/environment is not present rather than injecting the plugin automatically. Development and production builds should therefore share the same explicit Vite configuration.
 
-`vite build` should emit the platform-native application bundle for the selected target, not merely an intermediate directory or JavaScript artifact. That bundle must contain the Node.js runtime, bundled application code and dependencies, and the matching GPUiX native assets required to run the application on the target system.
+`vite build` should emit the platform-native application bundle for the selected target, not merely an intermediate directory or JavaScript artifact. That bundle must contain the Node.js runtime, bundled application code and dependencies, and the matching Retend GPUI native addon required to run the application on the target system.
 
 Signing and notarization should be integrated into the same build/bundling system when the required credentials and target-platform tooling are available. Local builds must not require release credentials. Release CI should prefer native runners for each target platform when that is what the platform's signing or packaging tooling requires, while still allowing supported cross-target build paths where practical.

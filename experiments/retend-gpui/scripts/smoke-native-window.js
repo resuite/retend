@@ -1,10 +1,6 @@
 import assert from 'node:assert/strict';
 
-import {
-  ElementKind,
-  NativeCommandHost,
-  PropertyId,
-} from '../dist/native/host.js';
+import { RetendGpuiRenderer } from '../dist/gpui-renderer.js';
 
 const failureTimer = setTimeout(() => {
   console.error('Retend GPUI native window teardown did not complete.');
@@ -12,24 +8,38 @@ const failureTimer = setTimeout(() => {
 }, 5_000);
 failureTimer.unref();
 
-const host = new NativeCommandHost({ headless: false });
-assert.ok(host.windowId > 0, 'native window must have a window ID');
-assert.ok(host.rootId > 0, 'native window must have a root node ID');
+const renderer = new RetendGpuiRenderer();
+renderer.init({ title: 'Retend GPUI smoke', width: 640, height: 420 });
+assert.ok(renderer.host.rootId > 0, 'native window must have a root node ID');
 
-const panel = host.createNode(ElementKind.Container);
-const label = host.createText('Retend GPUI native Phase 2');
-host.setProperty(panel, PropertyId.Width, '75%');
-host.setProperty(panel, PropertyId.BackgroundColor, '#eef2ffff');
-host.setProperty(panel, PropertyId.Color, '#172554ff');
-host.setProperty(panel, PropertyId.FontSize, 24);
-host.insertChild(panel, label);
-host.insertChild(host.rootId, panel);
-host.flush();
+const panel = renderer.createContainer('div');
+const label = renderer.createText('Retend GPUI native Phase 2');
+renderer.setProperty(panel, 'style', {
+  width: '75%',
+  backgroundColor: '#eef2ff',
+  color: '#172554',
+  fontSize: 24,
+});
+renderer.append(panel, label);
+renderer.render(() => panel);
+renderer.flush();
 
-await new Promise((resolve) => setTimeout(resolve, 32));
-host.close();
-assert.throws(
-  () => host.createText('after close'),
-  /closed Retend GPUI renderer/
+const tree = renderer.host.debugTree();
+assert.equal(
+  tree.nodes.find((node) => node.id === panel.id)?.parent,
+  tree.root_id
 );
-console.log('Retend GPUI native window lifecycle smoke test passed.');
+assert.equal(
+  tree.nodes.find((node) => node.id === label.id)?.text,
+  'Retend GPUI native Phase 2'
+);
+
+renderer.host.setWindowTitle('Retend GPUI smoke updated');
+await new Promise((resolve) => setTimeout(resolve, 32));
+renderer.dispose();
+assert.throws(
+  () => renderer.init(),
+  /cannot be initialized again/,
+  'renderer disposal must be terminal'
+);
+console.log('Retend GPUI migrated native renderer smoke test passed.');

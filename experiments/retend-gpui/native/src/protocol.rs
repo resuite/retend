@@ -34,6 +34,10 @@ pub enum Command {
         property: PropertyId,
         value: PropertyValue,
     },
+    SetStyle {
+        id: u32,
+        properties: Vec<(PropertyId, PropertyValue)>,
+    },
     InsertChild {
         parent_id: u32,
         child_id: u32,
@@ -247,43 +251,26 @@ fn decode_command(reader: &mut Reader<'_>, strings: &[&str]) -> Result<Command, 
             id: reader.read_u32()?,
             text: read_string(reader, strings)?,
         }),
-        Opcode::SetProperty => {
+        Opcode::SetProperty => Ok(Command::SetProperty {
+            id: reader.read_u32()?,
+            property: read_property(reader)?,
+            value: read_property_value(reader, strings)?,
+        }),
+        Opcode::SetStyle => {
             let id = reader.read_u32()?;
-            let property_offset = reader.pos;
-            let property = parse_enum(
-                reader.read_u16()?,
-                property_offset,
-                "UNKNOWN_PROPERTY",
-                "property ID",
+            let count = reader.read_u16()? as usize;
+            let mut properties = reserved_vec(
+                count,
+                reader.pos - 2,
+                "Style property count could not be reserved safely.",
             )?;
-            let value_offset = reader.pos;
-            let value_kind = parse_enum(
-                reader.read_u8()?,
-                value_offset,
-                "UNKNOWN_VALUE_KIND",
-                "property value kind",
-            )?;
-            let value = match value_kind {
-                ValueKind::Null => PropertyValue::Null,
-                ValueKind::Number => PropertyValue::Number(reader.read_f64()?),
-                ValueKind::Boolean => match reader.read_u8()? {
-                    0 => PropertyValue::Boolean(false),
-                    1 => PropertyValue::Boolean(true),
-                    value => {
-                        return Err(BridgeFailure::wire(
-                            "INVALID_BOOLEAN",
-                            format!("Boolean payload must be 0 or 1, got {value}."),
-                            Some(reader.pos - 1),
-                        ))
-                    }
-                },
-                ValueKind::String => PropertyValue::String(read_string(reader, strings)?),
-            };
-            Ok(Command::SetProperty {
-                id,
-                property,
-                value,
-            })
+            for _ in 0..count {
+                properties.push((
+                    read_property(reader)?,
+                    read_property_value(reader, strings)?,
+                ));
+            }
+            Ok(Command::SetStyle { id, properties })
         }
         Opcode::InsertChild => Ok(Command::InsertChild {
             parent_id: reader.read_u32()?,
@@ -294,6 +281,43 @@ fn decode_command(reader: &mut Reader<'_>, strings: &[&str]) -> Result<Command, 
             parent_id: reader.read_u32()?,
             child_id: reader.read_u32()?,
         }),
+    }
+}
+
+fn read_property(reader: &mut Reader<'_>) -> Result<PropertyId, BridgeFailure> {
+    let offset = reader.pos;
+    parse_enum(
+        reader.read_u16()?,
+        offset,
+        "UNKNOWN_PROPERTY",
+        "property ID",
+    )
+}
+
+fn read_property_value(
+    reader: &mut Reader<'_>,
+    strings: &[&str],
+) -> Result<PropertyValue, BridgeFailure> {
+    let offset = reader.pos;
+    let kind = parse_enum(
+        reader.read_u8()?,
+        offset,
+        "UNKNOWN_VALUE_KIND",
+        "property value kind",
+    )?;
+    match kind {
+        ValueKind::Null => Ok(PropertyValue::Null),
+        ValueKind::Number => Ok(PropertyValue::Number(reader.read_f64()?)),
+        ValueKind::Boolean => match reader.read_u8()? {
+            0 => Ok(PropertyValue::Boolean(false)),
+            1 => Ok(PropertyValue::Boolean(true)),
+            value => Err(BridgeFailure::wire(
+                "INVALID_BOOLEAN",
+                format!("Boolean payload must be 0 or 1, got {value}."),
+                Some(reader.pos - 1),
+            )),
+        },
+        ValueKind::String => Ok(PropertyValue::String(read_string(reader, strings)?)),
     }
 }
 

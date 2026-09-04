@@ -7,7 +7,8 @@
     "UpdateText": 3,
     "SetProperty": 4,
     "InsertChild": 5,
-    "RemoveChild": 6
+    "RemoveChild": 6,
+    "SetStyle": 7
   },
   "elementKinds": {
     "Root": 1,

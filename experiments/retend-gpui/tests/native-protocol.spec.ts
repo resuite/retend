@@ -39,10 +39,10 @@ describe('Retend GPUI native command-batch encoder', () => {
   it('encodes each primitive property tag and payload without semantic parsing', () => {
     const writer = new CommandBatchWriter();
     writer.createNode(1, ElementKind.Container);
-    writer.setProperty(1, PropertyId.Width, '50%');
-    writer.setProperty(1, PropertyId.Opacity, 0.5);
+    writer.setProperty(1, PropertyId.Placeholder, 'hello');
+    writer.setProperty(1, PropertyId.MinRows, 3);
     writer.setProperty(1, PropertyId.ReadOnly, true);
-    writer.setProperty(1, PropertyId.Color, null);
+    writer.setProperty(1, PropertyId.Value, null);
 
     const bytes = writer.finish();
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -57,15 +57,15 @@ describe('Retend GPUI native command-batch encoder', () => {
 
     expect(view.getUint8(offset)).toBe(Opcode.SetProperty);
     expect(view.getUint32(offset + 1, true)).toBe(1);
-    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.Width);
+    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.Placeholder);
     expect(view.getUint8(offset + 7)).toBe(ValueKind.String);
     expect(view.getUint32(offset + 8, true)).toBe(0);
     offset += 12;
 
     expect(view.getUint8(offset)).toBe(Opcode.SetProperty);
-    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.Opacity);
+    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.MinRows);
     expect(view.getUint8(offset + 7)).toBe(ValueKind.Number);
-    expect(view.getFloat64(offset + 8, true)).toBe(0.5);
+    expect(view.getFloat64(offset + 8, true)).toBe(3);
     offset += 16;
 
     expect(view.getUint8(offset)).toBe(Opcode.SetProperty);
@@ -75,15 +75,56 @@ describe('Retend GPUI native command-batch encoder', () => {
     offset += 9;
 
     expect(view.getUint8(offset)).toBe(Opcode.SetProperty);
-    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.Color);
+    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.Value);
     expect(view.getUint8(offset + 7)).toBe(ValueKind.Null);
     offset += 8;
 
     expect(offset).toBe(view.getUint32(16, true));
     const stringOffset = view.getUint32(16, true);
     expect(new TextDecoder().decode(bytes.subarray(stringOffset + 4))).toBe(
-      '50%'
+      'hello'
     );
+  });
+
+  it('encodes a complete style snapshot as one command', () => {
+    const writer = new CommandBatchWriter();
+    writer.setStyle(7, [
+      [PropertyId.Width, '50%'],
+      [PropertyId.Opacity, 0.5],
+      [PropertyId.Color, null],
+    ]);
+
+    const bytes = writer.finish();
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    expect(view.getUint32(12, true)).toBe(1);
+    expect(view.getUint32(8, true)).toBe(28);
+    expect(view.getUint32(20, true)).toBe(1);
+
+    let offset = COMMAND_BATCH_HEADER_BYTES;
+    expect(view.getUint8(offset)).toBe(Opcode.SetStyle);
+    expect(view.getUint32(offset + 1, true)).toBe(7);
+    expect(view.getUint16(offset + 5, true)).toBe(3);
+    expect(view.getUint16(offset + 7, true)).toBe(PropertyId.Width);
+    expect(view.getUint8(offset + 9)).toBe(ValueKind.String);
+    expect(view.getUint32(offset + 10, true)).toBe(0);
+    expect(view.getUint16(offset + 14, true)).toBe(PropertyId.Opacity);
+    expect(view.getUint8(offset + 16)).toBe(ValueKind.Number);
+    expect(view.getFloat64(offset + 17, true)).toBe(0.5);
+    expect(view.getUint16(offset + 25, true)).toBe(PropertyId.Color);
+    expect(view.getUint8(offset + 27)).toBe(ValueKind.Null);
+  });
+
+  it('rejects style snapshots whose property count cannot fit the wire format', () => {
+    const writer = new CommandBatchWriter();
+    const oversized = Array.from({ length: 0x1_0000 }) as [
+      PropertyId,
+      string | number | boolean | null,
+    ][];
+
+    expect(() => writer.setStyle(1, oversized)).toThrow(
+      'A native style snapshot cannot exceed 65,535 properties.'
+    );
+    expect(writer.isEmpty).toBe(true);
   });
 
   it('encodes append and before-node insertion fields explicitly', () => {

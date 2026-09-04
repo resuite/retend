@@ -36,9 +36,6 @@
     "test:native": "vitest run tests/native-bridge.integration.spec.ts",
     "test:all": "pnpm run test && pnpm run test:native"
   },
-  "dependencies": {
-    "@gpuix/native": "0.4.0"
-  },
   "devDependencies": {
     "@types/node": "^22.7.5",
     "retend": "workspace:*",

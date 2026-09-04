@@ -25,9 +25,11 @@ pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
                 Some(style) => style.apply(div()),
                 None => div().block(),
             };
-            element
-                .children(node.children.iter().map(|child_id| build(tree, *child_id)))
-                .into_any_element()
+            let element =
+                element.children(node.children.iter().map(|child_id| build(tree, *child_id)));
+            #[cfg(test)]
+            let element = element.debug_selector(move || format!("retend-node-{id}"));
+            element.into_any_element()
         }
         NodeData::Text(text) => {
             Text::new(ElementId::Integer(u64::from(id)), text.clone().into()).into_any_element()
@@ -85,70 +87,43 @@ mod tests {
                     id: 2,
                     kind: ElementKind::Container,
                 },
-                Command::SetProperty {
+                Command::SetStyle {
                     id: 2,
-                    property: PropertyId::AlignItems,
-                    value: PropertyValue::String("center".into()),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Gap,
-                    value: PropertyValue::Number(8.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Padding,
-                    value: PropertyValue::Number(12.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Margin,
-                    value: PropertyValue::Number(3.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Position,
-                    value: PropertyValue::String("absolute".into()),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Top,
-                    value: PropertyValue::Number(4.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::BorderWidth,
-                    value: PropertyValue::Number(2.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::BorderColor,
-                    value: PropertyValue::String("#336699".into()),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::BorderRadius,
-                    value: PropertyValue::Number(6.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::FontSize,
-                    value: PropertyValue::Number(18.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::TextAlign,
-                    value: PropertyValue::String("center".into()),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::LineHeight,
-                    value: PropertyValue::Number(24.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::WhiteSpace,
-                    value: PropertyValue::String("nowrap".into()),
+                    properties: vec![
+                        (
+                            PropertyId::AlignItems,
+                            PropertyValue::String("center".into()),
+                        ),
+                        (PropertyId::Gap, PropertyValue::Number(8.0)),
+                        (PropertyId::Padding, PropertyValue::Number(12.0)),
+                        (PropertyId::Margin, PropertyValue::Number(3.0)),
+                        (
+                            PropertyId::Position,
+                            PropertyValue::String("absolute".into()),
+                        ),
+                        (PropertyId::Top, PropertyValue::Number(4.0)),
+                        (PropertyId::BorderWidth, PropertyValue::Number(2.0)),
+                        (
+                            PropertyId::BorderColor,
+                            PropertyValue::String("#336699".into()),
+                        ),
+                        (PropertyId::BorderRadius, PropertyValue::Number(6.0)),
+                        (
+                            PropertyId::BackgroundColor,
+                            PropertyValue::String("#112233".into()),
+                        ),
+                        (PropertyId::Color, PropertyValue::String("#ddeeff".into())),
+                        (PropertyId::FontSize, PropertyValue::Number(18.0)),
+                        (
+                            PropertyId::TextAlign,
+                            PropertyValue::String("center".into()),
+                        ),
+                        (PropertyId::LineHeight, PropertyValue::Number(24.0)),
+                        (
+                            PropertyId::WhiteSpace,
+                            PropertyValue::String("nowrap".into()),
+                        ),
+                    ],
                 },
             ],
         )
@@ -166,6 +141,8 @@ mod tests {
             .border(px(2.0))
             .border_color(gpui::rgba(0x336699ff))
             .rounded(px(6.0))
+            .bg(gpui::rgba(0x112233ff))
+            .text_color(gpui::rgba(0xddeeffff))
             .text_size(px(18.0))
             .text_center()
             .line_height(px(24.0))
@@ -229,6 +206,166 @@ mod tests {
         assert_eq!(text.text().as_ref(), "hello");
     }
 
+    struct LayoutTestView {
+        tree: Rc<RefCell<NativeTree>>,
+    }
+
+    impl Render for LayoutTestView {
+        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+            div().size_full().child(build(&self.tree.borrow(), 1))
+        }
+    }
+
+    #[gpui::test]
+    fn default_block_child_tracks_the_containing_width(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Container,
+                    },
+                    Command::CreateNode {
+                        id: 3,
+                        kind: ElementKind::Container,
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![(PropertyId::Width, PropertyValue::Number(420.0))],
+                    },
+                    Command::InsertChild {
+                        parent_id: 1,
+                        child_id: 2,
+                        before_id: 0,
+                    },
+                    Command::InsertChild {
+                        parent_id: 2,
+                        child_id: 3,
+                        before_id: 0,
+                    },
+                ],
+            )
+            .unwrap();
+
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            move |_, _| LayoutTestView { tree }
+        });
+        cx.run_until_parked();
+
+        let outer = cx.debug_bounds("retend-node-2").unwrap();
+        let inner = cx.debug_bounds("retend-node-3").unwrap();
+        assert_eq!(outer.size.width, px(420.0));
+        assert_eq!(inner.size.width, outer.size.width);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![(PropertyId::Width, PropertyValue::Number(240.0))],
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+
+        let outer = cx.debug_bounds("retend-node-2").unwrap();
+        let inner = cx.debug_bounds("retend-node-3").unwrap();
+        assert_eq!(outer.size.width, px(240.0));
+        assert_eq!(inner.size.width, outer.size.width);
+    }
+
+    #[gpui::test]
+    fn text_keeps_intrinsic_width_and_adjacent_text_advances_layout(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Container,
+                    },
+                    Command::CreateText {
+                        id: 3,
+                        text: "short".into(),
+                    },
+                    Command::CreateNode {
+                        id: 4,
+                        kind: ElementKind::Container,
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (PropertyId::Width, PropertyValue::Number(420.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(1.0)),
+                            (PropertyId::Height, PropertyValue::Number(1.0)),
+                        ],
+                    },
+                    Command::InsertChild {
+                        parent_id: 1,
+                        child_id: 2,
+                        before_id: 0,
+                    },
+                    Command::InsertChild {
+                        parent_id: 2,
+                        child_id: 3,
+                        before_id: 0,
+                    },
+                    Command::InsertChild {
+                        parent_id: 2,
+                        child_id: 4,
+                        before_id: 0,
+                    },
+                ],
+            )
+            .unwrap();
+
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            move |_, _| LayoutTestView { tree }
+        });
+        cx.run_until_parked();
+
+        let parent = cx.debug_bounds("retend-node-2").unwrap();
+        let marker_before = cx.debug_bounds("retend-node-4").unwrap();
+        assert!(marker_before.origin.x > parent.origin.x);
+        assert!(marker_before.origin.x < parent.origin.x + parent.size.width);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::CreateText {
+                        id: 5,
+                        text: " more text".into(),
+                    },
+                    Command::InsertChild {
+                        parent_id: 2,
+                        child_id: 5,
+                        before_id: 4,
+                    },
+                ],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+
+        let marker_after = cx.debug_bounds("retend-node-4").unwrap();
+        assert!(marker_after.origin.x > marker_before.origin.x);
+    }
+
     struct ImageTestView {
         tree: Rc<RefCell<NativeTree>>,
     }
@@ -283,15 +420,12 @@ mod tests {
                         property: PropertyId::Src,
                         value: PropertyValue::String(FIRST.into()),
                     },
-                    Command::SetProperty {
+                    Command::SetStyle {
                         id: 2,
-                        property: PropertyId::Width,
-                        value: PropertyValue::Number(120.0),
-                    },
-                    Command::SetProperty {
-                        id: 2,
-                        property: PropertyId::Height,
-                        value: PropertyValue::Number(40.0),
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(120.0)),
+                            (PropertyId::Height, PropertyValue::Number(40.0)),
+                        ],
                     },
                 ],
             )

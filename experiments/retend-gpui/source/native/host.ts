@@ -1,4 +1,8 @@
-import type { NativeRendererBinding, NativeBridgeFailure } from './addon.js';
+import type {
+  NativeBridgeFailure,
+  NativeRendererBinding,
+  NativeWindowOptions,
+} from './addon.js';
 import type {
   ElementKind as ElementKindValue,
   PropertyId as PropertyIdValue,
@@ -16,6 +20,8 @@ import { acquireNativeRuntime, releaseNativeRuntime } from './runtime.js';
 
 interface NativeCommandHostOptions {
   headless?: boolean;
+  window?: NativeWindowOptions;
+  onClose?: () => void;
 }
 
 export class NativeRendererFatalError extends Error {
@@ -29,7 +35,7 @@ export class NativeRendererFatalError extends Error {
   }
 }
 
-/** @internal Phase-1 host for the Retend-owned binary native bridge. */
+/** @internal Host for the Retend-owned binary native bridge. */
 export class NativeCommandHost {
   readonly rootId: number;
   readonly #binding: NativeRendererBinding;
@@ -39,15 +45,20 @@ export class NativeCommandHost {
   #fatalFailure: NativeBridgeFailure | undefined;
   #closed = false;
   readonly #headless: boolean;
+  readonly #onClose?: () => void;
 
   constructor(options: NativeCommandHostOptions = {}) {
     this.#headless = options.headless ?? true;
+    this.#onClose = options.onClose;
     this.rootId = allocateNativeNodeId();
     this.#binding = new (loadNativeAddon().NativeRendererBinding)(
       this.rootId,
-      this.#headless
+      this.#headless,
+      options.window
     );
-    if (!this.#headless) acquireNativeRuntime(this.#binding);
+    if (!this.#headless) {
+      acquireNativeRuntime(this.#binding, () => this.#handleNativeClose(false));
+    }
   }
 
   get windowId(): number {
@@ -56,6 +67,10 @@ export class NativeCommandHost {
 
   get poisoned(): boolean {
     return this.#fatalFailure !== undefined;
+  }
+
+  get closed(): boolean {
+    return this.#closed || this.#binding.isClosed();
   }
 
   createNode(kind: ElementKindValue = ElementKind.Container): number {
@@ -88,6 +103,20 @@ export class NativeCommandHost {
     this.#assertUsable();
     this.#writer.setProperty(id, property, value);
     this.#requestFlush();
+  }
+
+  setStyle(
+    id: number,
+    properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
+  ): void {
+    this.#assertUsable();
+    this.#writer.setStyle(id, properties);
+    this.#requestFlush();
+  }
+
+  setWindowTitle(title: string): void {
+    this.#assertUsable();
+    this.#binding.setWindowTitle(title);
   }
 
   insertChild(parentId: number, childId: number, beforeId = 0): void {
@@ -132,6 +161,10 @@ export class NativeCommandHost {
 
   close(): void {
     if (this.#closed) return;
+    if (this.#binding.isClosed()) {
+      this.#handleNativeClose(true);
+      return;
+    }
     try {
       if (!this.poisoned) this.flush();
     } finally {
@@ -151,8 +184,7 @@ export class NativeCommandHost {
 
   #assertUsable(): void {
     if (this.#closed || this.#binding.isClosed()) {
-      if (!this.#closed && !this.#headless) releaseNativeRuntime(this.#binding);
-      this.#closed = true;
+      if (!this.#closed) this.#handleNativeClose(true);
       throw new Error(
         'A closed Retend GPUI renderer cannot accept native work.'
       );
@@ -163,6 +195,13 @@ export class NativeCommandHost {
         this.#fatalFailure
       );
     }
+  }
+
+  #handleNativeClose(releaseRuntime: boolean): void {
+    if (this.#closed) return;
+    this.#closed = true;
+    if (releaseRuntime && !this.#headless) releaseNativeRuntime(this.#binding);
+    this.#onClose?.();
   }
 
   #fail(error: unknown): never {

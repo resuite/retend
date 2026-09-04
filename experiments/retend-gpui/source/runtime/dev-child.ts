@@ -186,39 +186,23 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     );
     await runPendingSetupEffects();
     record.renderer.flush();
-    record.renderer.host.startFrameLoop();
   };
 
   const createWindowRecord = (options: GpuiWindowOptions): WindowRecord => {
     const id = String(nextWindowId++);
     const title = options.title ?? message.appName;
-    const window = createRuntimeWindow(
-      { width: options.width, height: options.height, title },
-      {
-        async open(_nextOptions) {
-          throw new Error(
-            'Opening additional windows is not supported by @gpuix/native 0.4.0.'
-          );
-        },
-        close() {
-          closeWindow(id);
-        },
-        setTitle(nextTitle) {
-          windows.get(id)?.renderer.host.setWindowTitle(nextTitle);
-        },
-      }
-    );
-    const renderer = new RetendGpuiRenderer(undefined, {
-      hmr: true,
-      onWindowSize: ({ width, height }) => window.updateSize(width, height),
+    const window = createRuntimeWindow(title, {
+      close() {
+        closeWindow(id);
+      },
+      setTitle(nextTitle) {
+        windows.get(id)?.renderer.host.setWindowTitle(nextTitle);
+      },
     });
+    const renderer = new RetendGpuiRenderer({ hmr: true });
     const record: WindowRecord = { id, renderer, window };
 
-    const {
-      location = '/',
-      closeWithOpener: _closeWithOpener,
-      ...nativeOptions
-    } = options;
+    const { location = '/', ...nativeOptions } = options;
     nativeOptions.title = title;
     try {
       renderer.host.resetLocation(location);
@@ -365,7 +349,6 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
 
     if (entryError) {
       initialRecord.renderer.showDevelopmentError(entryError);
-      initialRecord.renderer.host.startFrameLoop();
     }
 
     sendControl({ channel: 'retend-gpui', type: 'application-ready' });

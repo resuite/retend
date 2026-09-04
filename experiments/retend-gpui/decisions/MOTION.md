@@ -12,7 +12,7 @@ That freedom should not produce unrelated interaction models. `retend-gpui` and 
 
 Transitions and animations belong to the element's style vocabulary. Ordinary style changes are what trigger transitions; applications should not need a separate declarative `initial` / `animate` state model.
 
-The current GPUI `motion` prop and its `GpuiMotionProps` shape are therefore not the target public API. GPUI motion should instead be expressed through style properties analogous to CSS and to the existing `retend-canvas-2d` precedent.
+Retend GPUI does not expose a separate `motion` prop or `GpuiMotionProps` shape. Motion is expressed through style properties analogous to CSS and to the existing `retend-canvas-2d` precedent.
 
 For example, the intended transition shape is conceptually:
 
@@ -46,13 +46,13 @@ Transition durations and delays use CSS-style string values rather than numeric 
 
 Transition and animation timing functions use CSS-style string values. Support the standard named curves such as `'linear'`, `'ease'`, `'ease-in'`, `'ease-out'`, and `'ease-in-out'`, as well as CSS `cubic-bezier(...)` values.
 
-For the initial implementation, the animatable-property set is limited to what GPUiX's existing native motion bridge already supports: `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius`. Do not extend `@gpuix/native` as part of this work. Broader GPUI animation support can be reconsidered separately later.
+For the initial implementation, the Retend-owned native transition engine supports `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius`. Broader GPUI animation support can be added to that engine separately later.
 
 Follow the existing `retend-canvas-2d` convention for transitioning multiple properties: `transitionProperty` may be a single explicit animatable GPUI property name or an array of explicit property names. `transitionDuration`, `transitionDelay`, and `transitionTimingFunction` remain single shared values rather than parallel per-property lists.
 
 Interrupted transitions restart from the element's currently rendered/interpolated value rather than from the previous declared target. A new style change during an active transition therefore continues smoothly from the visible state, matching browser CSS transition behavior.
 
-If a declared transition cannot be represented by GPUiX's current native motion layer for the actual endpoint values, Retend GPUI applies the new resolved style value immediately rather than throwing. For example, percentage-based or mixed percentage/pixel dimension changes should not attempt a transition while GPUiX only supports numeric pixel motion for those properties.
+If a declared transition cannot be represented by the Retend-owned native transition engine for the actual endpoint values, Retend GPUI applies the new resolved style value immediately rather than throwing. For example, percentage-based or mixed percentage/pixel dimension changes may fall back to an immediate update while the initial engine supports only numeric pixel interpolation for those properties.
 
 If a property is removed from `transitionProperty` while its transition is running, cancel that transition immediately and snap the property to its resolved style value.
 
@@ -62,9 +62,7 @@ Reactive style updates are coalesced until the renderer commits the resolved sty
 
 Initial render does not trigger transitions. Mounting establishes the element's initial resolved style immediately; transitions only begin on subsequent committed changes to properties named by `transitionProperty`, matching browser CSS behavior.
 
-For `hover` pseudo-state styles, keep non-transitioned hover properties on GPUiX's native pseudo-state path. If a hover property is also named by `transitionProperty`, do not pass that property through the native `hover` style. Instead, install internal `mouseEnter` / `mouseLeave` handling that updates the transition target once at each hover boundary, while GPUiX's native motion engine performs the frame-by-frame interpolation. Internal hover handling must compose with user-provided mouse enter/leave handlers rather than replacing them.
-
-Apply the same split-path rule to `active` pseudo-state styles. Keep non-transitioned active properties on GPUiX's native pseudo-state path. If an active property is named by `transitionProperty`, withhold it from the native `active` style and drive it through renderer-internal press/release handling that updates the transition target at those boundaries. Expose GPUI's native `mouse_up_out` event through GPUiX as `mouseUpOut` so a press that begins on the element and releases outside can clear synthesized active state correctly. `mouseUpOut` is also part of the normal public GPUI event surface as `onMouseUpOut`. Use `mouseUp` and `mouseUpOut` for release; do not approximate outside release with `mouseLeave`, because leaving while the pointer is still held should not end the active state. Renderer-internal active handling must compose with user-provided `onMouseUp` / `onMouseUpOut` and other mouse handlers rather than replacing them.
+`hover` and `active` pseudo-state resolution is native-owned. Rust tracks hover/pressed state, resolves the winning author-style snapshot, and either applies the resulting property immediately or retargets the native transition state. JavaScript does not synthesize pseudo-state transitions from user event handlers, so internal interaction state cannot conflict with application listeners.
 
 When multiple pseudo-states define the same transitioned property, Retend GPUI uses the explicit precedence `active > hover > base`. Pressing while hovered transitions from the hover value to the active value. Releasing while still inside transitions back to the hover value; releasing outside transitions back to the base value.
 
@@ -78,7 +76,7 @@ Transition lifecycle events such as `onTransitionRun`, `onTransitionStart`, `onT
 
 ## Animations
 
-Keyframe animations are deferred from the initial GPUI motion implementation because the current GPUiX native motion bridge does not expose keyframe support and `retend-gpui` will not extend the native layer yet. The CSS-style animation API described below remains the intended future direction rather than part of the first implementation.
+Keyframe animations are deferred from the initial GPUI motion implementation. The CSS-style animation API described below remains the intended future direction rather than part of the first transition-engine implementation.
 
 Use CSS-style animation longhands and keyframe definitions, following the same mental model already used by `retend-canvas-2d`.
 

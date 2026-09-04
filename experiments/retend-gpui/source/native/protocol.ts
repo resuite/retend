@@ -110,22 +110,25 @@ export class CommandBatchWriter {
     this.#command(Opcode.SetProperty);
     this.#commands.writeU32(this.#nodeId(id));
     this.#commands.writeU16(property);
-    if (value === null) {
-      this.#commands.writeU8(ValueKind.Null);
-      return;
+    this.#writePropertyValue(value);
+  }
+
+  setStyle(
+    id: number,
+    properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
+  ): void {
+    if (properties.length > 0xffff) {
+      throw new RangeError(
+        'A native style snapshot cannot exceed 65,535 properties.'
+      );
     }
-    if (typeof value === 'number') {
-      this.#commands.writeU8(ValueKind.Number);
-      this.#commands.writeF64(value);
-      return;
+    this.#command(Opcode.SetStyle);
+    this.#commands.writeU32(this.#nodeId(id));
+    this.#commands.writeU16(properties.length);
+    for (const [property, value] of properties) {
+      this.#commands.writeU16(property);
+      this.#writePropertyValue(value);
     }
-    if (typeof value === 'boolean') {
-      this.#commands.writeU8(ValueKind.Boolean);
-      this.#commands.writeU8(value ? 1 : 0);
-      return;
-    }
-    this.#commands.writeU8(ValueKind.String);
-    this.#commands.writeU32(this.#string(value));
   }
 
   insertChild(parentId: number, childId: number, beforeId = 0): void {
@@ -164,6 +167,21 @@ export class CommandBatchWriter {
   #command(opcode: number): void {
     this.#commands.writeU8(opcode);
     this.#commandCount += 1;
+  }
+
+  #writePropertyValue(value: ProtocolPropertyValue): void {
+    if (value === null) {
+      this.#commands.writeU8(ValueKind.Null);
+    } else if (typeof value === 'number') {
+      this.#commands.writeU8(ValueKind.Number);
+      this.#commands.writeF64(value);
+    } else if (typeof value === 'boolean') {
+      this.#commands.writeU8(ValueKind.Boolean);
+      this.#commands.writeU8(value ? 1 : 0);
+    } else {
+      this.#commands.writeU8(ValueKind.String);
+      this.#commands.writeU32(this.#string(value));
+    }
   }
 
   #nodeId(value: number): number {

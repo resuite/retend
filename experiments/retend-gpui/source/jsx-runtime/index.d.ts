@@ -1,15 +1,10 @@
-import type { EventPayload } from '@gpuix/native';
 import type { AsyncDerivedCell, Cell, SourceCell } from 'retend';
 
 import type { GpuiElement } from '../gpui-renderer.js';
 import type {
   GpuiElementType,
-  GpuiEventType,
   GpuiImgCustomProps,
-  GpuiInputCustomProps,
-  GpuiMotionProps,
   GpuiStyle,
-  GpuiTextareaCustomProps,
 } from '../types.js';
 import 'retend/jsx-runtime';
 
@@ -20,23 +15,12 @@ type ReactiveProps<Props> = {
 type ReactiveStyle = {
   [Key in keyof GpuiStyle]?: ReactiveValue<GpuiStyle[Key]>;
 };
-type EventHandler = (event: EventPayload) => void;
-
 interface CustomPropsByTag {
   img: GpuiImgCustomProps;
-  input: GpuiInputCustomProps;
-  textarea: GpuiTextareaCustomProps;
 }
 
 declare module 'retend/jsx-runtime' {
   namespace JSX {
-    /**
-     * Reactive event props mapped from `GpuiEventType` to `on*` handlers.
-     * A handler Cell may become `null` or `undefined` to remove the listener.
-     */
-    type ReactiveEventProps = {
-      [Type in GpuiEventType as `on${Capitalize<Type>}`]?: EventHandlerValue<EventHandler>;
-    };
     /**
      * Reactive custom props for a given intrinsic tag.
      * Tags without custom props resolve to an empty object.
@@ -57,7 +41,7 @@ declare module 'retend/jsx-runtime' {
     /**
      * Props shared by all GPUI intrinsic elements.
      */
-    interface GpuiElementProps extends IntrinsicAttributes, ReactiveEventProps {
+    interface GpuiElementProps extends IntrinsicAttributes {
       /**
        * Retend GPUI author style. Individual properties may be `Cell`s for
        * reactive updates before the resolved snapshot crosses the native bridge.
@@ -70,14 +54,6 @@ declare module 'retend/jsx-runtime' {
       ref?:
         | SourceCell<GpuiElement | null>
         | ((node: GpuiElement | null) => void);
-      /** Whether the element should receive focus on mount. */
-      autoFocus?: ValueOrCell<boolean>;
-      /** Tab order index for focus navigation. */
-      tabIndex?: ValueOrCell<number>;
-      /** Test identifier forwarded as a custom prop for automation. */
-      testId?: ValueOrCell<string>;
-      /** Motion animation spec driving GPUiX's native animation system. */
-      motion?: ValueOrCell<GpuiMotionProps>;
     }
 
     /**

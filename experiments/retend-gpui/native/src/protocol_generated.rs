@@ -27,6 +27,7 @@ protocol_enum!(Opcode: u8 {
   SetProperty = 4,
   InsertChild = 5,
   RemoveChild = 6,
+  SetStyle = 7,
 });
 protocol_enum!(ElementKind: u8 {
   Root = 1,

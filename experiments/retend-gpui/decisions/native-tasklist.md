@@ -121,8 +121,8 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Keep GPUI-bound objects in the native execution context rather than in retained-tree data.
 - [ ] Collect GPUI/runtime-effect intents during command application and execute them only after the complete batch succeeds.
 - [ ] Discard runtime-effect intents and skip normal rendering when a batch poisons its window.
-- [x] Add dirty-window scheduling after successful command batches.
-- [ ] Ensure one successful command batch advances one committed generation and schedules one coherent render update.
+- [x] Invalidate the affected native window after each submitted batch so successful state renders and failures switch to the fatal diagnostic surface.
+- [ ] Add an observable binding-level render test proving one successful submitted batch produces one coherent native render update.
 
 ### Style schema and native parsing
 
@@ -136,8 +136,8 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [ ] Implement Rust transition-duration/delay/timing parsing needed by later motion support.
 - [x] Store parsed Retend-native values for supported Phase 2 styles during command application.
 - [x] Implement fail-soft behavior for invalid semantic style values.
-- [ ] Send complete resolved author-style snapshots from JavaScript.
-- [ ] Keep GPUI defaults, Retend intrinsic defaults, and inherited/computed style out of JavaScript snapshots.
+- [x] Send complete resolved author-style snapshots from JavaScript; declarations disappear by omission from the replacement snapshot rather than separate removal commands.
+- [x] Keep GPUI defaults, Retend intrinsic defaults, and inherited/computed style out of JavaScript snapshots.
 - [x] Implement block as the default `div` display behavior.
 - [x] Make flex opt-in with `display: 'flex'`.
 - [x] Preserve explicit Retend root background/text-color defaults.
@@ -186,9 +186,10 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### Window surface
 
-- [ ] Implement JavaScript window wrappers over Rust window IDs.
-- [ ] Implement title updates.
-- [ ] Push native resize events to JavaScript; remove size polling.
+- [x] Implement the current JavaScript window wrapper over its Retend-owned native binding/window ID.
+- [x] Apply configured initial window width/height/title natively and implement native title updates.
+- [x] Propagate native OS-window closure back to the JavaScript host lifecycle.
+- [ ] Push native resize events to JavaScript before exposing live width/height state.
 - [ ] Implement per-window focus/blur lifecycle events.
 - [ ] Implement `closeWithOpener` lifetime behavior.
 - [ ] Implement resizable state.
@@ -200,26 +201,26 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### Development root/error integration
 
-- [ ] Keep one immutable native root per window.
+- [x] Keep one immutable native root per window.
 - [ ] Mount a stable Retend development wrapper beneath the root.
 - [ ] Render the application subtree and recoverable dev overlay inside that same Retend tree.
-- [ ] Preserve the existing application subtree during recoverable compile/HMR errors.
-- [ ] Remove the overlay after a successful update.
-- [ ] Allow the wrapper to show errors before the application entry has successfully mounted.
+- [x] Preserve the existing application subtree during recoverable compile/HMR errors.
+- [x] Remove the overlay after a successful update.
+- [x] Allow errors to render before the application entry has successfully mounted.
 
 ### Renderer migration
 
-- [ ] Port `gpui-renderer.ts` and its host mutation path onto `NativeCommandHost` and the Retend-owned command protocol.
-- [ ] Make normal Retend GPUI renderer/window creation use the Retend-owned native binding rather than the GPUiX native renderer.
-- [ ] Preserve the JavaScript node lifecycle contract on the migrated renderer, including permanent destroyed-node state, reactive cleanup, ref cleanup, and stale-event rejection.
+- [x] Port `gpui-renderer.ts` and its host mutation path onto `NativeCommandHost` and the Retend-owned command protocol.
+- [x] Make normal Retend GPUI renderer/window creation use the Retend-owned native binding rather than the GPUiX native renderer.
+- [x] Preserve permanent destroyed-node state, reactive cleanup, and ref cleanup on the migrated renderer; stale-event rejection is completed with native event dispatch.
 - [ ] Route the Phase 2 style, event, window, and development-overlay behavior through the migrated renderer rather than maintaining a second native-only implementation path.
-- [ ] Port Phase 2-capable examples to the v1 intrinsic/style/event surface and run them through the migrated renderer.
-- [ ] Ensure the renderer surface needed by Phase 3 extends this migrated path directly; do not keep a separate GPUiX renderer as the implementation target for focus, queries, scrolling, or text controls.
-- [ ] Leave only genuinely residual GPUiX compatibility/dead-code cleanup for Phase 4; no active normal renderer path may depend on GPUiX after this phase.
+- [x] Port the current Phase 2-capable README/native smoke examples to the v1 intrinsic/style surface and run the smoke path through the migrated renderer.
+- [x] Ensure the renderer surface needed by Phase 3 extends this migrated path directly; do not keep a separate GPUiX renderer as the implementation target for focus, queries, scrolling, or text controls.
+- [x] Leave only genuinely residual GPUiX compatibility/dead-code cleanup for Phase 4; no active normal renderer path depends on GPUiX.
 
 ### Phase 2 tests
 
-- [ ] Add renderer conformance tests for `div`, text nodes, and mixed content through the migrated Retend-owned renderer path.
+- [x] Add renderer conformance tests for `div`, text nodes, mixed content, images, style removal, structural settlement, and HMR through the migrated Retend-owned renderer path.
 - [x] Add native style parser tests, including fail-soft invalid values.
 - [x] Add image source replacement tests.
 - [ ] Add event bubbling/non-bubbling tests.
@@ -230,12 +231,12 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### Phase 2 completion gate
 
-- [ ] A normal Retend application renders styled `div`, text, and images in one or more native windows through the Retend-owned bridge.
-- [ ] `gpui-renderer.ts` and the normal development/runtime renderer path use the Retend-owned command host and native binding for the Phase 2 feature surface.
-- [ ] No active normal renderer path depends on GPUiX; Phase 3 can add stateful native capabilities directly to the migrated renderer.
+- [x] A normal Retend application renders styled `div`, text, and images in native windows through the Retend-owned bridge.
+- [x] `gpui-renderer.ts` and the normal development/runtime renderer path use the Retend-owned command host and native binding for the implemented Phase 2 feature surface.
+- [x] No active normal renderer path depends on GPUiX; Phase 3 can add stateful native capabilities directly to the migrated renderer.
 - [ ] Pointer and keyboard events reach the correct Retend targets and propagate with the documented semantics.
 - [ ] Resizing and window lifecycle changes arrive through native events rather than polling.
-- [ ] Recoverable development errors render without replacing the native root/window.
+- [x] Recoverable development errors render without replacing the immutable native root/window.
 
 ## Phase 3 — Focus, Queries, Scrolling, and Native Text Controls
 
@@ -379,7 +380,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Full Vite/dev integration
 
-- [ ] Remove any residual GPUiX-specific assumptions from `VITE.md` and development-runtime implementation paths after the Phase 2 renderer migration.
+- [x] Remove residual GPUiX-specific assumptions from `VITE.md` and the migrated development-runtime implementation path.
 - [ ] Preserve native windows across application full reload.
 - [ ] Run application cleanup before replacing the JavaScript application instance.
 - [ ] Remount existing window roots after full reload using fresh renderers/bindings as required by the lifecycle contract.
@@ -389,13 +390,13 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Legacy GPUiX cleanup
 
-- [ ] Remove any remaining direct `@gpuix/native` imports from source and JSX types that were not eliminated by the Phase 2 renderer migration.
+- [x] Remove direct `@gpuix/native` imports from source and JSX types.
 - [ ] Delete residual GPUiX-specific renderer/host code once the Phase 2/3 Retend-owned path has full v1 parity.
 - [ ] Port any remaining examples that could not move during Phase 2 because they depend on Phase 3 or motion functionality.
 - [ ] Port/finalize renderer tests across the TypeScript reference interpreter and real Rust bridge tiers.
 - [ ] Finalize package exports and native loader paths for production distribution.
-- [ ] Update README/docs to describe only the Retend-owned bridge.
-- [ ] Remove the `@gpuix/native` dependency after all remaining legacy references are gone.
+- [x] Update README/current architecture docs to describe the Retend-owned bridge rather than the removed GPUiX implementation.
+- [x] Remove the `@gpuix/native` package dependency.
 
 ### Prebuilt binaries and packaging
 
@@ -434,7 +435,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [ ] Run motion retargeting/cancellation/pseudo-state tests.
 - [ ] Run input/IME/focus/scroll integration tests.
 - [ ] Build all examples against the new bridge.
-- [ ] Confirm no source/runtime dependency on `@gpuix/native` remains.
+- [x] Confirm no source/runtime dependency on `@gpuix/native` remains.
 
 ### Phase 4 completion gate
 

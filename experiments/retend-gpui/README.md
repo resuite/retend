@@ -1,18 +1,16 @@
 # retend-gpui
 
-`retend-gpui` renders [Retend](https://github.com/resuite/retend) components with GPUiX and GPUI. It is for native desktop interfaces built with Retend's JSX and reactive cells, using GPUiX's native renderer underneath.
+`retend-gpui` renders [Retend](https://github.com/resuite/retend) components with GPUI through Retend's own native bridge. It is for native desktop interfaces built with Retend's JSX and reactive cells.
 
 ## Status
 
-This package is experimental. The API and the supported GPUiX properties may change as GPUiX and the Retend renderer integration develop.
+This package is experimental. The Retend-owned native protocol and renderer API are still under development.
 
 ## Install
 
 ```bash
 pnpm add retend retend-gpui
 ```
-
-`retend-gpui` installs its compatible `@gpuix/native` dependency automatically. Use the same package manager to install it in applications that do not use pnpm.
 
 ## Quick start
 
@@ -37,7 +35,6 @@ function App() {
       }}
     >
       <div>Count: {count}</div>
-      <div onClick={() => count.set(count.get() + 1)}>Increment</div>
     </div>
   );
 }
@@ -49,7 +46,7 @@ await renderToGpui(App, {
 });
 ```
 
-The renderer creates the GPUiX window, renders the component, and starts GPUiX's frame processing. `renderToGpui` resolves with the `RetendGpuiRenderer` if the application needs to inspect or dispose of the renderer later.
+The renderer opens a GPUI window through the Retend-owned native binding and submits the Retend tree through the binary command protocol. `renderToGpui` resolves with the `RetendGpuiRenderer` if the application needs to inspect or dispose of the renderer later.
 
 ## Vite development
 
@@ -96,7 +93,7 @@ export default defineConfig({
 });
 ```
 
-Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process. The current GPUiX 0.4.0 development host supports one production native window; multi-window support is deferred until the native bridge can address multiple windows independently.
+Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process. Additional application windows remain deferred until the Phase 2 native window surface is completed.
 
 Components read process-wide resources with `useAppContext()`. The development command generates the configured context type under `node_modules/@types/retend-gpui-app`.
 TypeScript discovers it automatically unless `compilerOptions.types` limits the loaded packages. In that case, add `"retend-gpui-app"` to that list after the existing GPUI JSX type.
@@ -108,15 +105,11 @@ export default function App() {
   const { database } = useAppContext();
   const window = useWindow();
 
-  return (
-    <div onClick={() => window.title.set('Details')}>
-      {database ? 'Database ready' : 'Database unavailable'}
-    </div>
-  );
+  return <div>{database ? window.title : 'Database unavailable'}</div>;
 }
 ```
 
-`useWindow()` returns the window associated with the current Retend root. Its `width` and `height` Cells are populated from GPUiX's `getWindowSize()`, and setting its `title` Cell updates the OS title. GPUiX 0.4.0 currently reports a fixed placeholder size, so live resize updates depend on an upstream GPUiX fix.
+`useWindow()` returns the window associated with the current Retend root. Its `title` Cell reflects the configured title and writes through to the native OS window; `window.close()` requests native window closure. Live resize state and additional-window APIs are not exposed until their native event/lifecycle implementation exists.
 
 ## TypeScript and JSX
 
@@ -136,31 +129,16 @@ The component passed to `renderToGpui` must return Retend JSX. `retend-gpui` doe
 
 ## Elements
 
-The v1 Retend GPUI intrinsic surface is deliberately small:
+The currently implemented Retend GPUI intrinsic surface is deliberately small:
 
 - `div`
 - `img`
-- `input`
-- `textarea`
 
-Text is ordinary JSX content rather than a `<text>` intrinsic. `input` and `textarea` remain part of the v1 intrinsic vocabulary, but their Retend-owned native editor/focus/selection implementation belongs to Phase 3. Build higher-level controls and widgets as Retend components from these primitives.
+Text is ordinary JSX content rather than a `<text>` intrinsic. `input` and `textarea` are reserved for Phase 3 and are rejected by the current renderer rather than compiling and poisoning the native binding.
 
 ## Events
 
-The normal renderer still uses GPUiX for events until the Retend-owned Phase 2 event transport is migrated. On that current path, use JSX event props for the events GPUiX reports:
-
-```tsx
-<input
-  value={query}
-  placeholder="Search"
-  onChange={(event) => query.set(event.value ?? '')}
-  onSubmit={submit}
-/>
-```
-
-Supported events are `change`, `submit`, `click`, `mouseDown`, `mouseUp`, `mouseEnter`, `mouseLeave`, `mouseMove`, `mouseDownOutside`, `keyDown`, `keyUp`, `focus`, `blur`, and `scroll`.
-
-GPUiX event handlers receive an `EventPayload` from `@gpuix/native`. The payload fields depend on the event. Input changes, for example, expose the new value as `event.value`.
+JSX event props are not exposed yet. They are added with the Retend-owned native event transport so a typed handler cannot silently do nothing.
 
 ## Reactive values
 
@@ -177,31 +155,27 @@ return <div style={{ color }}>{label}</div>;
 
 The renderer also handles asynchronous Retend values used for text, control flow, intrinsic properties, and top-level style properties.
 
-The Retend-owned Phase 2 bridge parses its typed authoring vocabulary into Retend-native Rust values. Its current static surface covers block/flex layout, flex direction/wrapping/alignment, gaps, dimensions, padding/margins, relative/absolute positioning, colors/opacity, borders, and basic inherited text styling. Numbers are logical pixels; dimensions also accept `auto`, pixel strings, and percentages. The normal renderer is migrated onto that native style path later in Phase 2. Stateful overflow/scroll behavior belongs to Phase 3 and the target style-driven transition/pseudo-state model belongs to Phase 4.
+The Retend-owned Phase 2 bridge parses its typed authoring vocabulary into Retend-native Rust values. The normal renderer publishes each resolved author style as one complete sparse snapshot; declarations disappear when they are omitted from the next replacement snapshot. Its current static surface covers block/flex layout, flex direction/wrapping/alignment, gaps, dimensions, padding/margins, relative/absolute positioning, colors/opacity, borders, and basic inherited text styling. Numbers are logical pixels; dimensions also accept `auto`, pixel strings, and percentages. Stateful overflow/scroll behavior belongs to Phase 3 and the target style-driven transition/pseudo-state model belongs to Phase 4.
 
 The application root defaults to a white background with black text. Explicit root `backgroundColor` and `color` styles override these defaults.
 
 ## Window options
 
-Pass GPUiX window options as the second argument to `renderToGpui`:
+`renderToGpui` accepts the window options currently implemented by the Retend-owned bridge:
 
 ```tsx
 await renderToGpui(App, {
   title: 'My app',
   width: 900,
   height: 600,
-  minWidth: 480,
-  minHeight: 320,
 });
 ```
 
-The available options come from `WindowOptions` in `@gpuix/native`.
+Initial width, height, and title are applied to the native GPUI window. Minimum/maximum size, resizable/fullscreen state, and live resize reporting are not exposed until their native implementations exist.
 
 ## Platform notes
 
-On macOS, GPUiX needs JavaScript to call `tick()` while the application is running. `renderToGpui` starts that loop for you. On Linux and Windows, GPUiX owns the UI thread and the package does not start a JavaScript frame timer.
-
-Because this renderer uses GPUiX's native bindings, your application must run in an environment supported by the installed `@gpuix/native` version. It will not run in a browser.
+The Retend-owned runtime pumps the embedded GPUI event loop process-wide where the platform requires it. Applications do not run a renderer-specific JavaScript frame timer. `retend-gpui` is a native renderer and does not run in a browser.
 
 ## Lower-level API
 
@@ -215,7 +189,7 @@ renderer.init({ title: 'My app', width: 900, height: 600 });
 renderer.render(App);
 ```
 
-Call `renderer.flush()` after making changes when you manage rendering manually. Call `renderer.dispose()` when the application is finished with the renderer. `renderer.host` exposes the `GpuiHost`, which batches native mutations and manages the platform frame loop.
+Call `renderer.flush()` after making changes when you manage rendering manually. Call `renderer.dispose()` when the application is finished with the renderer. `renderer.host` exposes the window-local navigation facade and Retend-owned native command host.
 
 ## Troubleshooting
 
@@ -223,17 +197,9 @@ Call `renderer.flush()` after making changes when you manage rendering manually.
 
 If the renderer throws an error for an element, check that the tag is in the supported list above. HTML elements such as `button`, `section`, and `span` are not automatically available.
 
-### Window does not update on macOS
-
-Use `renderToGpui`, or start the host frame loop after manual initialization:
-
-```ts
-renderer.host.startFrameLoop();
-```
-
 ### Development Dock identity on macOS
 
-The dev child sets its process title from `app.name`, but GPUiX 0.4.0 does not expose APIs for native application bundle identity or Dock icons. The Dock may therefore still show Node's icon/identity even when `app.name` and `app.icon` are configured. Those fields remain canonical metadata for a future native development host and production bundle.
+The dev child sets its process title from `app.name`, but native application bundle identity and Dock-icon integration are not implemented yet. The Dock may therefore still show Node's icon/identity even when `app.name` and `app.icon` are configured. Those fields remain canonical production metadata.
 
 ### JSX types are missing
 

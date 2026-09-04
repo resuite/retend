@@ -9,11 +9,18 @@ export interface NativeBridgeFailure {
   offset?: number;
 }
 
+export interface NativeWindowOptions {
+  title?: string;
+  width?: number;
+  height?: number;
+}
+
 export interface NativeRendererBinding {
   readonly windowId: number;
   applyCommandBatch(buffer: Uint8Array): void;
   settle(): void;
   reportFatal(javascriptStack: string): void;
+  setWindowTitle(title: string): void;
   close(): void;
   isClosed(): boolean;
   debugTreeJson(): string;
@@ -22,7 +29,8 @@ export interface NativeRendererBinding {
 interface NativeAddon {
   NativeRendererBinding: new (
     rootId: number,
-    headless: boolean
+    headless: boolean,
+    options?: NativeWindowOptions
   ) => NativeRendererBinding;
   tick(): boolean;
 }

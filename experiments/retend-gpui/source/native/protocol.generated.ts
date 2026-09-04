@@ -10,6 +10,7 @@ export const Opcode = {
   SetProperty: 4,
   InsertChild: 5,
   RemoveChild: 6,
+  SetStyle: 7,
 } as const;
 
 export type Opcode = (typeof Opcode)[keyof typeof Opcode];

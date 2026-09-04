@@ -1,9 +1,4 @@
-import type { EventPayload } from '@gpuix/native';
-
 import type { GpuiStyle } from '../types.js';
-
-/** Handler for a native GPUI event delivered to a `GpuiElement`. */
-export type GpuiEventHandler = (event: EventPayload) => void;
 
 /**
  * Base node in the GPUI retained tree.
@@ -71,16 +66,14 @@ export abstract class GpuiParentNode extends GpuiNode {
 }
 
 /**
- * Host-level element backed by a native GPUiX node.
+ * Host-level element backed by a retained node in the Retend-owned native bridge.
  * Created via `RetendGpuiRenderer.createContainer` for each intrinsic tag.
  */
 export class GpuiElement extends GpuiParentNode {
-  /** Flattened native children synced to GPUiX via `appendChild`/`insertBefore`/`removeChild`. */
+  /** Flattened native children synchronized through the Retend command protocol. */
   nativeChildren: GpuiElement[] = [];
-  /** Resolved style object; published to native via `setStyle` mutations. */
+  /** Resolved author-style snapshot. */
   style: GpuiStyle = {};
-  /** Native event handlers keyed by `GpuiEventType`. */
-  readonly eventHandlers = new Map<string, GpuiEventHandler>();
 
   /**
    * @param id - Unique native identifier assigned by the renderer.

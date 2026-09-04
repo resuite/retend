@@ -28,7 +28,7 @@ The public JS/native protocol is topology-independent. Command ordering, command
 
 The N-API `applyCommandBatch(buffer)` call decodes the complete binary buffer before touching retained state. Unsupported versions, unknown opcodes, truncated values, corrupt indexes, invalid UTF-8, and other wire-format failures therefore leave the retained tree unchanged. After decoding, Rust acquires the retained-tree lock and applies commands directly in order. Each command performs every fallible reference, ownership, kind, cycle, and parentage check before mutation. Once a command begins changing retained state, its application has no expected failure path.
 
-If every command succeeds, Rust records one committed retained-state generation, releases the lock, and schedules one dirty/render notification for the affected window. If a command fails, commands before it remain applied, the failing command makes no partial change, and Rust poisons that window while it still holds the lock. The failed batch does not advance the normal committed generation or schedule a normal render. Any render already waiting on the lock observes the poisoned state and uses the fatal diagnostic path rather than traversing the applied prefix as normal UI.
+If every command succeeds, Rust releases the lock and schedules one dirty/render notification for the affected window. If a command fails, commands before it remain applied, the failing command makes no partial change, and Rust poisons that window while it still holds the lock. The window is invalidated so the fatal diagnostic surface replaces normal rendering; no retained-tree generation counter is needed merely to describe that transition.
 
 The retained tree stores parsed Retend-native plain Rust data rather than GPUI-bound objects. Author-facing semantic strings are carried through the batch-local string table and parsed by Rust during command application; parsed values are stored so rendering does not repeatedly parse them. Property-level semantic parse failures follow their fail-soft rules and are not hard command failures.
 
@@ -40,7 +40,7 @@ Synchronous validation and submission do not imply synchronous visual completion
 
 ## Command-batch scope
 
-Each native command batch targets exactly one native window. An application update that affects multiple windows is split into separate per-window batches. Their ordering, success, failure, poisoning, and render generations remain independent; there is no process-wide batch or commit spanning multiple windows.
+Each native command batch targets exactly one native window. An application update that affects multiple windows is split into separate per-window batches. Their ordering, success, failure, poisoning, and render scheduling remain independent; there is no process-wide batch or commit spanning multiple windows.
 
 ## Command-batch failures
 
@@ -58,7 +58,7 @@ A structurally valid command is not rejected merely because an application suppl
 
 ## Command ordering
 
-Command batches do not carry an explicit public revision or sequence number. The synchronous bridge and renderer-local queue preserve submission order. Rust maintains the internal per-window committed, submission, and render/layout generations needed for dirty scheduling, imperative command ordering, and query read barriers; those generations are runtime bookkeeping rather than fields in the public mutation buffer.
+Command batches do not carry an explicit public revision or sequence number. The synchronous bridge and renderer-local queue preserve submission order. Dirty scheduling therefore does not require a retained-tree generation counter. Later imperative queries add only the explicit native completion/read barriers they actually need rather than pre-allocating revision bookkeeping in the retained model.
 
 ## Binary protocol
 
@@ -110,9 +110,9 @@ Native events cross from the GPUI/native event loop to Node's JavaScript thread 
 
 ## Intrinsic element set
 
-The v1 intrinsic set is `div`, `img`, `input`, and `textarea`.
+The currently supported JSX intrinsic set is `div` and `img`.
 
-Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`. Phase 2 renders `div`, text content, and `img`; `input` and `textarea` remain v1 intrinsics but their persistent editor/focus/selection implementation belongs to Phase 3. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be added through the versioned numeric protocol vocabulary.
+Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`. The protocol reserves numeric element kinds for `input` and `textarea`, but those tags are not exposed or accepted by the renderer until Phase 3 implements their persistent editor/focus/selection state. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be activated through the versioned numeric protocol vocabulary when their owning phase is implemented.
 
 ### Image handling
 
@@ -242,7 +242,7 @@ Rust retains Retend-native node and render state as the authoritative native tre
 
 ## Style updates and defaults
 
-JavaScript resolves Retend-side reactivity and sends the complete current author-style snapshot for a node rather than per-property diffs. The snapshot contains only author-declared/resolved values; JavaScript does not inject GPUI defaults, Retend intrinsic defaults, or computed inherited values. Rust converts that sparse author style into native style refinements, applies Retend-native defaults where required, and relies on GPUI's default/refinement and inheritance machinery for the final effective style.
+JavaScript resolves Retend-side reactivity and sends the complete current author-style snapshot for a node rather than per-property diffs. The snapshot contains only author-declared/resolved values; JavaScript does not inject GPUI defaults, Retend intrinsic defaults, or computed inherited values. Each snapshot replaces the previous sparse author style atomically, so omitting a declaration removes it without a separate removal command. Rust converts that sparse author style into native style refinements, applies Retend-native defaults where required, and relies on GPUI's default/refinement and inheritance machinery for the final effective style.
 
 A Retend `div` defaults to block layout. Flex is opt-in with `display: 'flex'`. Phase 2's static native style surface covers flex direction/wrapping/alignment, gaps, dimensions, padding/margins, relative/absolute positioning, colors/opacity, borders, and basic inherited text style. Overflow/scroll state is Phase 3 and transition/pseudo-state state is Phase 4. Root background and text color defaults are explicit Retend policy. Effective/computed style is not mirrored to JavaScript; native state is queried when required.
 

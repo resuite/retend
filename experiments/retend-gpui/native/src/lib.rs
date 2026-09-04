@@ -82,6 +82,14 @@ fn with_runtime<T>(
     action(&mut *lock_runtime()?).map_err(bridge_error)
 }
 
+#[napi(object)]
+#[derive(Clone, Default)]
+pub struct NativeWindowOptions {
+    pub title: Option<String>,
+    pub width: Option<f64>,
+    pub height: Option<f64>,
+}
+
 #[napi]
 pub struct NativeRendererBinding {
     window_id: WindowId,
@@ -90,10 +98,10 @@ pub struct NativeRendererBinding {
 #[napi]
 impl NativeRendererBinding {
     #[napi(constructor)]
-    pub fn new(root_id: u32, headless: bool) -> Result<Self> {
+    pub fn new(root_id: u32, headless: bool, options: Option<NativeWindowOptions>) -> Result<Self> {
         let window_id = with_runtime(|tree| tree.create_window(root_id))?;
         if !headless {
-            if let Err(error) = platform::open_window(window_id) {
+            if let Err(error) = platform::open_window(window_id, options.unwrap_or_default()) {
                 lock_runtime()?.close_window(window_id);
                 return Err(Error::new(Status::GenericFailure, error));
             }
@@ -131,6 +139,18 @@ impl NativeRendererBinding {
     pub fn report_fatal(&self, javascript_stack: String) -> Result<()> {
         with_runtime(|tree| tree.attach_javascript_stack(self.window_id, javascript_stack))?;
         platform::invalidate_window(self.window_id);
+        Ok(())
+    }
+
+    #[napi]
+    pub fn set_window_title(&self, title: String) -> Result<()> {
+        if self.is_closed()? {
+            return Err(bridge_error(BridgeFailure::binding(
+                "CLOSED_WINDOW",
+                "Renderer window has already closed.",
+            )));
+        }
+        platform::set_window_title(self.window_id, title);
         Ok(())
     }
 

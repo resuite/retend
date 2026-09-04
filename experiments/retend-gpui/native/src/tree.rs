@@ -372,29 +372,38 @@ impl NativeTree {
                         };
                     }
                 }
+                invalid(
+                    index,
+                    "UNSUPPORTED_PROPERTY",
+                    format!("{property:?} is not an intrinsic property for this node kind."),
+                )
+            }
+            Command::SetStyle { id, properties } => {
+                let node = self.node_mut(window_id, index, id)?;
                 if matches!(&node.data, NodeData::Text(_) | NodeData::Anchor) {
                     return invalid(
                         index,
                         "UNSUPPORTED_PROPERTY",
-                        format!("{property:?} cannot be set on this node kind."),
+                        "Text and anchor nodes cannot receive author-style snapshots.",
                     );
                 }
-                if let Some(style) = node.style.as_mut() {
-                    if style.set_property(property, &value) {
-                        return Ok(());
-                    }
-                } else {
-                    let mut style = Box::<NativeStyle>::default();
-                    if style.set_property(property, &value) {
-                        node.style = Some(style);
-                        return Ok(());
+                if properties.is_empty() {
+                    node.style = None;
+                    return Ok(());
+                }
+
+                let mut style = Box::<NativeStyle>::default();
+                for (property, value) in properties {
+                    if !style.set_property(property, &value) {
+                        return invalid(
+                            index,
+                            "UNSUPPORTED_PROPERTY",
+                            format!("{property:?} is not part of the native style surface."),
+                        );
                     }
                 }
-                invalid(
-                    index,
-                    "UNSUPPORTED_PROPERTY",
-                    format!("{property:?} is not implemented by the native renderer yet."),
-                )
+                node.style = Some(style);
+                Ok(())
             }
             Command::InsertChild {
                 parent_id,
@@ -642,8 +651,15 @@ mod tests {
         (tree, window, root)
     }
 
+    fn style(id: NodeId, property: PropertyId, value: PropertyValue) -> Command {
+        Command::SetStyle {
+            id,
+            properties: vec![(property, value)],
+        }
+    }
+
     #[test]
-    fn set_property_stores_supported_values_in_parsed_native_style() {
+    fn style_snapshot_replaces_the_previous_sparse_style() {
         let (mut tree, window, _) = setup();
         tree.apply_commands(
             window,
@@ -652,10 +668,12 @@ mod tests {
                     id: 2,
                     kind: ElementKind::Container,
                 },
-                Command::SetProperty {
+                Command::SetStyle {
                     id: 2,
-                    property: PropertyId::Width,
-                    value: PropertyValue::String("25%".into()),
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::String("25%".into())),
+                        (PropertyId::Color, PropertyValue::String("#ffffff".into())),
+                    ],
                 },
             ],
         )
@@ -668,10 +686,101 @@ mod tests {
                 .and_then(|style| style.width),
             Some(crate::style::LengthValue::Percent(25.0))
         );
+
+        tree.apply_commands(
+            window,
+            vec![style(
+                2,
+                PropertyId::Color,
+                PropertyValue::String("#22c55e".into()),
+            )],
+        )
+        .unwrap();
+        assert_eq!(
+            tree.nodes[&2]
+                .style
+                .as_deref()
+                .and_then(|style| style.width),
+            None
+        );
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetStyle {
+                id: 2,
+                properties: Vec::new(),
+            }],
+        )
+        .unwrap();
+        assert!(tree.nodes[&2].style.is_none());
     }
 
     #[test]
-    fn text_nodes_reject_direct_style_properties() {
+    fn style_snapshot_rejects_unsupported_properties_without_replacing_style() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Width, PropertyValue::Number(80.0)),
+            ],
+        )
+        .unwrap();
+
+        let error = tree
+            .apply_commands(
+                window,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![
+                        (PropertyId::Height, PropertyValue::Number(40.0)),
+                        (PropertyId::Src, PropertyValue::String("invalid".into())),
+                    ],
+                }],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
+        let retained = tree.nodes[&2].style.as_deref().unwrap();
+        assert_eq!(
+            retained.width,
+            Some(crate::style::LengthValue::Pixels(80.0))
+        );
+        assert_eq!(retained.height, None);
+    }
+
+    #[test]
+    fn set_property_does_not_accept_style_properties() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![Command::CreateNode {
+                id: 2,
+                kind: ElementKind::Container,
+            }],
+        )
+        .unwrap();
+
+        let error = tree
+            .apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Width,
+                    value: PropertyValue::Number(80.0),
+                }],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
+        assert!(tree.nodes[&2].style.is_none());
+    }
+
+    #[test]
+    fn text_nodes_reject_style_snapshots() {
         let (mut tree, window, _) = setup();
         tree.apply_commands(
             window,
@@ -685,11 +794,7 @@ mod tests {
         let error = tree
             .apply_commands(
                 window,
-                vec![Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Opacity,
-                    value: PropertyValue::Number(0.5),
-                }],
+                vec![style(2, PropertyId::Opacity, PropertyValue::Number(0.5))],
             )
             .unwrap_err();
 
@@ -870,11 +975,7 @@ mod tests {
                     id: 2,
                     kind: ElementKind::Container,
                 },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Width,
-                    value: PropertyValue::Number(1e300),
-                },
+                style(2, PropertyId::Width, PropertyValue::Number(1e300)),
             ],
         )
         .unwrap();
@@ -935,11 +1036,7 @@ mod tests {
                     parent_id: root,
                     child_id: 2,
                 },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Opacity,
-                    value: PropertyValue::Number(0.5),
-                },
+                style(2, PropertyId::Opacity, PropertyValue::Number(0.5)),
                 Command::InsertChild {
                     parent_id: root,
                     child_id: 2,
@@ -1261,19 +1358,19 @@ mod tests {
                         parent_id: first,
                         child_id: second,
                     },
-                    _ => Command::SetProperty {
-                        id: first,
-                        property: if third % 2 == 0 {
+                    _ => style(
+                        first,
+                        if third % 2 == 0 {
                             PropertyId::Color
                         } else {
                             PropertyId::Width
                         },
-                        value: if third % 2 == 0 {
+                        if third % 2 == 0 {
                             PropertyValue::String("#336699".into())
                         } else {
                             PropertyValue::Number(f64::from(second))
                         },
-                    },
+                    ),
                 })
                 .collect();
             let _ = tree.apply_commands(window, commands);
@@ -1341,11 +1438,14 @@ mod tests {
                         commands.push(Command::InsertChild { parent_id: parent, child_id: anchor, before_id: image });
                         tree.apply_commands(window, commands)
                     }
-                    _ => tree.apply_commands(window, vec![Command::SetProperty {
-                        id: if value & 1 == 0 { image } else { container },
-                        property: PropertyId::Width,
-                        value: PropertyValue::Number(f64::from(value)),
-                    }]),
+                    _ => tree.apply_commands(
+                        window,
+                        vec![style(
+                            if value & 1 == 0 { image } else { container },
+                            PropertyId::Width,
+                            PropertyValue::Number(f64::from(value)),
+                        )],
+                    ),
                 };
                 proptest::prop_assert!(result.is_ok());
                 proptest::prop_assert!(tree.windows[&window].fatal.is_none());

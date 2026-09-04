@@ -5,10 +5,17 @@ use gpui::{
     WindowHandle, WindowOptions,
 };
 
-use crate::tree::WindowId;
+use crate::{tree::WindowId, NativeWindowOptions};
 
 struct RetendRootView {
     window_id: WindowId,
+}
+
+fn root_container() -> gpui::Div {
+    div()
+        .size_full()
+        .bg(rgb(0xffffff))
+        .text_color(rgb(0x000000))
 }
 
 impl Render for RetendRootView {
@@ -32,10 +39,7 @@ impl Render for RetendRootView {
             Some(crate::render::build(&tree, window.root_id))
         });
 
-        let root = div()
-            .size_full()
-            .bg(rgb(0xffffff))
-            .text_color(rgb(0x000000));
+        let root = root_container();
         match content {
             Some(content) => root.child(content),
             None => root,
@@ -43,24 +47,44 @@ impl Render for RetendRootView {
     }
 }
 
+fn window_dimensions(options: &NativeWindowOptions) -> Result<(f32, f32), String> {
+    let width = options.width.unwrap_or(800.0);
+    let height = options.height.unwrap_or(600.0);
+    if !width.is_finite()
+        || !height.is_finite()
+        || width <= 0.0
+        || height <= 0.0
+        || width > f64::from(f32::MAX)
+        || height > f64::from(f32::MAX)
+    {
+        return Err("Native window width and height must be finite positive values.".to_string());
+    }
+    Ok((width as f32, height as f32))
+}
+
 fn open_gpui_window(
     window_id: WindowId,
+    options: NativeWindowOptions,
     cx: &mut App,
 ) -> Result<WindowHandle<RetendRootView>, String> {
-    let bounds = Bounds::centered(None, size(px(800.0), px(600.0)), cx);
-    cx.open_window(
-        WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(bounds)),
-            ..Default::default()
-        },
-        move |window, cx| {
-            window.on_window_should_close(cx, move |_window, _cx| {
-                mark_window_closed(window_id);
-                true
-            });
-            cx.new(|_| RetendRootView { window_id })
-        },
-    )
+    let (width, height) = window_dimensions(&options)?;
+    let bounds = Bounds::centered(None, size(px(width), px(height)), cx);
+    let mut window_options = WindowOptions {
+        window_bounds: Some(WindowBounds::Windowed(bounds)),
+        ..Default::default()
+    };
+    if let Some(title) = options.title {
+        if let Some(titlebar) = window_options.titlebar.as_mut() {
+            titlebar.title = Some(title.into());
+        }
+    }
+    cx.open_window(window_options, move |window, cx| {
+        window.on_window_should_close(cx, move |_window, _cx| {
+            mark_window_closed(window_id);
+            true
+        });
+        cx.new(|_| RetendRootView { window_id })
+    })
     .map_err(|error| error.to_string())
 }
 
@@ -89,8 +113,10 @@ mod imp {
         APP.with(|app| app.borrow().as_ref().map(f))
     }
 
-    pub fn open_window(window_id: WindowId) -> Result<(), String> {
-        if let Some(result) = with_app(|app| app.update(|cx| open_gpui_window(window_id, cx))) {
+    pub fn open_window(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
+        if let Some(result) =
+            with_app(|app| app.update(|cx| open_gpui_window(window_id, options.clone(), cx)))
+        {
             let window = result?;
             WINDOWS.with(|windows| {
                 windows.borrow_mut().insert(window_id, window);
@@ -105,15 +131,16 @@ mod imp {
         let startup_error_for_app = startup_error.clone();
         let app =
             Application::with_platform(platform.clone()).with_quit_mode(QuitMode::LastWindowClosed);
-        let app_handle = app.run_embedded(move |cx| match open_gpui_window(window_id, cx) {
-            Ok(window) => {
-                *opened_window_for_app.borrow_mut() = Some(window);
-                cx.activate(true);
-            }
-            Err(error) => {
-                *startup_error_for_app.borrow_mut() = Some(error);
-            }
-        });
+        let app_handle =
+            app.run_embedded(move |cx| match open_gpui_window(window_id, options, cx) {
+                Ok(window) => {
+                    *opened_window_for_app.borrow_mut() = Some(window);
+                    cx.activate(true);
+                }
+                Err(error) => {
+                    *startup_error_for_app.borrow_mut() = Some(error);
+                }
+            });
 
         if let Some(error) = startup_error.borrow_mut().take() {
             app_handle.update(|cx| cx.quit());
@@ -154,6 +181,17 @@ mod imp {
         });
     }
 
+    pub fn set_window_title(window_id: WindowId, title: String) {
+        let Some(window) = WINDOWS.with(|windows| windows.borrow().get(&window_id).copied()) else {
+            return;
+        };
+        with_app(|app| {
+            app.update(|cx| {
+                let _ = window.update(cx, |_view, window, _cx| window.set_window_title(&title));
+            });
+        });
+    }
+
     pub fn remove_registered_window(window_id: WindowId) {
         WINDOWS.with(|windows| {
             windows.borrow_mut().remove(&window_id);
@@ -189,9 +227,11 @@ mod imp {
     enum UiCommand {
         Open {
             window_id: WindowId,
+            options: NativeWindowOptions,
             response: std::sync::mpsc::SyncSender<Result<(), String>>,
         },
         Invalidate(WindowId),
+        SetTitle(WindowId, String),
         Close(WindowId),
         Forget(WindowId),
     }
@@ -222,10 +262,11 @@ mod imp {
                             match command {
                                 UiCommand::Open {
                                     window_id,
+                                    options,
                                     response,
                                 } => {
                                     let result = cx
-                                        .update(|cx| open_gpui_window(window_id, cx))
+                                        .update(|cx| open_gpui_window(window_id, options, cx))
                                         .map_err(|error| error.to_string())
                                         .and_then(|result| result);
                                     let quit = result.is_err() && windows.is_empty();
@@ -243,6 +284,13 @@ mod imp {
                                 UiCommand::Invalidate(window_id) => {
                                     if let Some(window) = windows.get(&window_id).copied() {
                                         let _ = window.update(cx, |_view, _window, cx| cx.notify());
+                                    }
+                                }
+                                UiCommand::SetTitle(window_id, title) => {
+                                    if let Some(window) = windows.get(&window_id).copied() {
+                                        let _ = window.update(cx, |_view, window, _cx| {
+                                            window.set_window_title(&title)
+                                        });
                                     }
                                 }
                                 UiCommand::Close(window_id) => {
@@ -270,11 +318,12 @@ mod imp {
         Ok(sender)
     }
 
-    pub fn open_window(window_id: WindowId) -> Result<(), String> {
+    pub fn open_window(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
         let (response, receiver) = sync_channel(1);
         command_sender()?
             .unbounded_send(UiCommand::Open {
                 window_id,
+                options,
                 response,
             })
             .map_err(|_| "The GPUI UI thread is not running".to_string())?;
@@ -299,6 +348,10 @@ mod imp {
         send(UiCommand::Close(window_id));
     }
 
+    pub fn set_window_title(window_id: WindowId, title: String) {
+        send(UiCommand::SetTitle(window_id, title));
+    }
+
     pub fn remove_registered_window(window_id: WindowId) {
         send(UiCommand::Forget(window_id));
     }
@@ -312,11 +365,12 @@ mod imp {
 mod imp {
     use super::*;
 
-    pub fn open_window(_window_id: WindowId) -> Result<(), String> {
+    pub fn open_window(_window_id: WindowId, _options: NativeWindowOptions) -> Result<(), String> {
         Err("Retend GPUI does not support this operating system".to_string())
     }
 
     pub fn invalidate_window(_window_id: WindowId) {}
+    pub fn set_window_title(_window_id: WindowId, _title: String) {}
     pub fn close_window(_window_id: WindowId) {}
     pub fn remove_registered_window(_window_id: WindowId) {}
     pub fn tick() -> Result<bool, String> {
@@ -325,4 +379,42 @@ mod imp {
 }
 
 use imp::remove_registered_window;
-pub use imp::{close_window, invalidate_window, open_window, tick};
+pub use imp::{close_window, invalidate_window, open_window, set_window_title, tick};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn configured_window_dimensions_replace_platform_defaults() {
+        assert_eq!(
+            window_dimensions(&NativeWindowOptions {
+                width: Some(1200.0),
+                height: Some(900.0),
+                ..Default::default()
+            })
+            .unwrap(),
+            (1200.0, 900.0)
+        );
+        assert_eq!(
+            window_dimensions(&NativeWindowOptions::default()).unwrap(),
+            (800.0, 600.0)
+        );
+        assert!(window_dimensions(&NativeWindowOptions {
+            width: Some(0.0),
+            height: Some(600.0),
+            ..Default::default()
+        })
+        .is_err());
+    }
+
+    #[test]
+    fn native_window_root_uses_retend_canvas_defaults() {
+        let mut actual = root_container();
+        let mut expected = div()
+            .size_full()
+            .bg(rgb(0xffffff))
+            .text_color(rgb(0x000000));
+        assert_eq!(actual.style(), expected.style());
+    }
+}

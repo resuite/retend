@@ -133,10 +133,6 @@ importers:
         version: 6.4.1(@types/node@26.1.2)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
 
   experiments/retend-gpui:
-    dependencies:
-      '@gpuix/native':
-        specifier: 0.4.0
-        version: 0.4.0
     devDependencies:
       '@types/node':
         specifier: ^22.7.5
@@ -159,9 +155,6 @@ importers:
 
   experiments/retend-gpui-examples:
     dependencies:
-      '@gpuix/native':
-        specifier: 0.4.0
-        version: 0.4.0
       retend:
         specifier: workspace:*
         version: link:../../packages/retend
@@ -974,39 +967,6 @@ packages:
 
   '@fontsource-variable/inter@5.2.8':
     resolution: {integrity: sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ==}
-
-  '@gpuix/native-darwin-arm64@0.4.0':
-    resolution: {integrity: sha512-9Q2RrumKpeHhNE0gTNkYINDvlysPpr/fCslwaiRXbtwl9Tz8Ry0R+Pq6semoaMPVVZx4BM268e4juPtPFV6WqA==}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@gpuix/native-darwin-x64@0.4.0':
-    resolution: {integrity: sha512-gmTum1bADvDsxgkv4BNfjdxQ+Nx04QRDYmRc7wFuJb7M20gay/jVdsgrsUL+fNasTsfiLnYajf+YKS5OcZP9cg==}
-    cpu: [x64]
-    os: [darwin]
-
-  '@gpuix/native-linux-arm64-gnu@0.4.0':
-    resolution: {integrity: sha512-KKvI758LxgWKNEWctvFBKNr/9FRYsr2gBfLNIy8c2mFvjzJmvEo6I43Ve8ck6AP1yLchzK5vmiOUpGpRuIdwmA==}
-    cpu: [arm64]
-    os: [linux]
-
-  '@gpuix/native-linux-x64-gnu@0.4.0':
-    resolution: {integrity: sha512-dzZjYuWml10a2KGP0ZsnuZI1POS/i7Yn4naRVliF7chVN5CqvQdyBkLlBN4DITnNaBW4FIAdgo4zAMscuUhFzw==}
-    cpu: [x64]
-    os: [linux]
-
-  '@gpuix/native-win32-arm64-msvc@0.4.0':
-    resolution: {integrity: sha512-g7OgtOyKe5pS4NbaK09WP3cFOm3pIbOyVK2kl02+/XAKg1XPWAlgVx2GvXARWvWsm2YpCV8S2qOEu7T++kfECw==}
-    cpu: [arm64]
-    os: [win32]
-
-  '@gpuix/native-win32-x64-msvc@0.4.0':
-    resolution: {integrity: sha512-T11cRtupmbJOKx+NrbPXdzkebVzl2GzJ24fNwCYpmA9OBgcJZe0AMNCu+KjiTVlZLsZ4yEy/41YQiSAcEy/h4A==}
-    cpu: [x64]
-    os: [win32]
-
-  '@gpuix/native@0.4.0':
-    resolution: {integrity: sha512-Ajmv7aBjcze+umGWFeMcY3JXzXP8LolF8sPEPF+UfKTon60fD5V295cBDPV2zKpg/gRc6TdbB3/bKWv/WHDjzw==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -5035,33 +4995,6 @@ snapshots:
     optional: true
 
   '@fontsource-variable/inter@5.2.8': {}
-
-  '@gpuix/native-darwin-arm64@0.4.0':
-    optional: true
-
-  '@gpuix/native-darwin-x64@0.4.0':
-    optional: true
-
-  '@gpuix/native-linux-arm64-gnu@0.4.0':
-    optional: true
-
-  '@gpuix/native-linux-x64-gnu@0.4.0':
-    optional: true
-
-  '@gpuix/native-win32-arm64-msvc@0.4.0':
-    optional: true
-
-  '@gpuix/native-win32-x64-msvc@0.4.0':
-    optional: true
-
-  '@gpuix/native@0.4.0':
-    optionalDependencies:
-      '@gpuix/native-darwin-arm64': 0.4.0
-      '@gpuix/native-darwin-x64': 0.4.0
-      '@gpuix/native-linux-arm64-gnu': 0.4.0
-      '@gpuix/native-linux-x64-gnu': 0.4.0
-      '@gpuix/native-win32-arm64-msvc': 0.4.0
-      '@gpuix/native-win32-x64-msvc': 0.4.0
 
   '@img/colour@1.1.0': {}
 
