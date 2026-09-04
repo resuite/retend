@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
     div, prelude::*, px, rgb, size, App, Bounds, Context, Render, Window, WindowBounds,
@@ -129,8 +129,9 @@ mod imp {
         let startup_error = Rc::new(RefCell::new(None));
         let opened_window_for_app = opened_window.clone();
         let startup_error_for_app = startup_error.clone();
-        let app =
-            Application::with_platform(platform.clone()).with_quit_mode(QuitMode::LastWindowClosed);
+        let app = Application::with_platform(platform.clone())
+            .with_http_client(Arc::new(reqwest_client::ReqwestClient::new()))
+            .with_quit_mode(QuitMode::LastWindowClosed);
         let app_handle =
             app.run_embedded(move |cx| match open_gpui_window(window_id, options, cx) {
                 Ok(window) => {
@@ -254,7 +255,9 @@ mod imp {
         thread::Builder::new()
             .name("retend-gpui-ui".to_string())
             .spawn(move || {
-                gpui_platform::application().run(move |cx| {
+                gpui_platform::application()
+                    .with_http_client(Arc::new(reqwest_client::ReqwestClient::new()))
+                    .run(move |cx| {
                     cx.activate(true);
                     cx.spawn(async move |cx| {
                         let mut windows = HashMap::new();
