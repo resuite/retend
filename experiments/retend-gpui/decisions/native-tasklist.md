@@ -119,10 +119,8 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Construct a fresh GPUI element tree for each render.
 - [x] Map stable Retend IDs to GPUI `ElementId`s for the Phase 2 elements that require persistent GPUI state; add IDs to later stateful container/control paths only when those features need them.
 - [x] Keep GPUI-bound objects in the native execution context rather than in retained-tree data.
-- [ ] Collect GPUI/runtime-effect intents during command application and execute them only after the complete batch succeeds.
-- [ ] Discard runtime-effect intents and skip normal rendering when a batch poisons its window.
 - [x] Invalidate the affected native window after each submitted batch so successful state renders and failures switch to the fatal diagnostic surface.
-- [ ] Add an observable binding-level render test proving one successful submitted batch produces one coherent native render update.
+- [x] Add an observable binding-level render test proving one successful submitted batch produces one coherent native render update.
 
 ### Style schema and native parsing
 
@@ -210,7 +208,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### Renderer migration
 
-- [x] Port `gpui-renderer.ts` and its host mutation path onto `NativeCommandHost` and the Retend-owned command protocol.
+- [x] Port `gpui-renderer.ts` and its host mutation path onto `GpuiHost` and the Retend-owned command protocol.
 - [x] Make normal Retend GPUI renderer/window creation use the Retend-owned native binding rather than the GPUiX native renderer.
 - [x] Preserve permanent destroyed-node state, reactive cleanup, and ref cleanup on the migrated renderer; stale-event rejection is completed with native event dispatch.
 - [ ] Route the Phase 2 style, event, window, and development-overlay behavior through the migrated renderer rather than maintaining a second native-only implementation path.

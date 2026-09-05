@@ -382,7 +382,30 @@ mod imp {
 }
 
 use imp::remove_registered_window;
-pub use imp::{close_window, invalidate_window, open_window, set_window_title, tick};
+pub use imp::{close_window, open_window, set_window_title, tick};
+
+#[cfg(test)]
+thread_local! {
+    static TEST_INVALIDATIONS: std::cell::RefCell<Vec<(WindowId, Option<String>)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub fn invalidate_window(window_id: WindowId) {
+    #[cfg(test)]
+    TEST_INVALIDATIONS.with(|invalidations| {
+        let snapshot = crate::runtime()
+            .try_lock()
+            .ok()
+            .and_then(|tree| tree.debug_window_json(window_id).ok());
+        invalidations.borrow_mut().push((window_id, snapshot));
+    });
+    imp::invalidate_window(window_id);
+}
+
+#[cfg(test)]
+pub(crate) fn take_test_invalidations() -> Vec<(WindowId, Option<String>)> {
+    TEST_INVALIDATIONS.with(|invalidations| std::mem::take(&mut *invalidations.borrow_mut()))
+}
 
 #[cfg(test)]
 mod tests {

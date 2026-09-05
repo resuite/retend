@@ -1,11 +1,25 @@
 import type {
+  NativeBridgeFailure,
+  NativeRendererBinding,
+} from './native/addon.js';
+import type {
   ElementKind as ElementKindValue,
   PropertyId as PropertyIdValue,
 } from './native/protocol.generated.js';
 import type { ProtocolPropertyValue } from './native/protocol.js';
 import type { GpuiWindowOptions } from './window.js';
 
-import { NativeCommandHost } from './native/host.js';
+import {
+  loadNativeAddon,
+  NativeRendererFatalError,
+  parseNativeBridgeFailure,
+} from './native/addon.js';
+import { allocateNativeNodeId } from './native/node-id.js';
+import { CommandBatchWriter } from './native/protocol.js';
+import {
+  acquireNativeRuntime,
+  releaseNativeRuntime,
+} from './native/runtime.js';
 
 const LOCATION_BASE = 'retend://app/';
 
@@ -104,14 +118,19 @@ export interface GpuiHostOptions {
 }
 
 /**
- * Window-local JavaScript host plus the Retend-owned native command bridge.
- * Navigation remains JavaScript-owned; rendering mutations go only through
- * {@link NativeCommandHost}.
+ * Window-local Retend host backed directly by the Retend-owned native command
+ * protocol. Navigation remains JavaScript-owned.
  */
 export class GpuiHost extends EventTarget {
   readonly #headless: boolean;
-  #native: NativeCommandHost | null = null;
+  #writer = new CommandBatchWriter();
   readonly #navigation = new GpuiNavigation(this);
+  #binding: NativeRendererBinding | null = null;
+  #rootId = 0;
+  #flushScheduled = false;
+  #flushing = false;
+  #fatalFailure: NativeBridgeFailure | undefined;
+  #closed = false;
 
   readonly location = this.#navigation;
   readonly history = this.#navigation;
@@ -123,23 +142,24 @@ export class GpuiHost extends EventTarget {
   }
 
   get isInitialized(): boolean {
-    return this.#native !== null;
+    return this.#binding !== null;
   }
 
   get rootId(): number {
-    return this.#requireNative().rootId;
+    this.#requireBinding();
+    return this.#rootId;
   }
 
   get poisoned(): boolean {
-    return this.#native?.poisoned ?? false;
+    return this.#fatalFailure !== undefined;
   }
 
   get nativeClosed(): boolean {
-    return this.#native?.closed ?? false;
+    return this.#binding !== null && (this.#closed || this.#binding.isClosed());
   }
 
   init(options: GpuiWindowOptions = {}): void {
-    if (this.#native)
+    if (this.#binding)
       throw new Error('Retend GPUI host is already initialized.');
     for (const [name, value] of [
       ['width', options.width],
@@ -151,20 +171,30 @@ export class GpuiHost extends EventTarget {
         );
       }
     }
+
     this.document.title = options.title ?? '';
-    this.#native = new NativeCommandHost({
-      headless: this.#headless,
-      window: {
+    this.#rootId = allocateNativeNodeId();
+    this.#writer = new CommandBatchWriter();
+    this.#flushScheduled = false;
+    this.#flushing = false;
+    this.#closed = false;
+    this.#fatalFailure = undefined;
+    this.#binding = new (loadNativeAddon().NativeRendererBinding)(
+      this.#rootId,
+      this.#headless,
+      {
         title: options.title,
         width: options.width,
         height: options.height,
-      },
-      onClose: () => this.dispatchEvent(new Event('close')),
-    });
+      }
+    );
+    if (!this.#headless) {
+      acquireNativeRuntime(this.#binding, () => this.#handleNativeClose(false));
+    }
   }
 
   setWindowTitle(title: string): void {
-    this.#requireNative().setWindowTitle(title);
+    this.#assertUsable().setWindowTitle(title);
     this.document.title = title;
   }
 
@@ -173,15 +203,25 @@ export class GpuiHost extends EventTarget {
   }
 
   createNode(kind: ElementKindValue): number {
-    return this.#requireNative().createNode(kind);
+    this.#assertUsable();
+    const id = allocateNativeNodeId();
+    this.#writer.createNode(id, kind);
+    this.#requestFlush();
+    return id;
   }
 
   createText(text: string): number {
-    return this.#requireNative().createText(text);
+    this.#assertUsable();
+    const id = allocateNativeNodeId();
+    this.#writer.createText(id, text);
+    this.#requestFlush();
+    return id;
   }
 
   updateText(id: number, text: string): void {
-    this.#requireNative().updateText(id, text);
+    this.#assertUsable();
+    this.#writer.updateText(id, text);
+    this.#requestFlush();
   }
 
   setProperty(
@@ -189,48 +229,141 @@ export class GpuiHost extends EventTarget {
     property: PropertyIdValue,
     value: ProtocolPropertyValue
   ): void {
-    this.#requireNative().setProperty(id, property, value);
+    this.#assertUsable();
+    this.#writer.setProperty(id, property, value);
+    this.#requestFlush();
   }
 
   setStyle(
     id: number,
     properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
   ): void {
-    this.#requireNative().setStyle(id, properties);
+    this.#assertUsable();
+    this.#writer.setStyle(id, properties);
+    this.#requestFlush();
   }
 
   insertChild(parentId: number, childId: number, beforeId = 0): void {
-    this.#requireNative().insertChild(parentId, childId, beforeId);
+    this.#assertUsable();
+    this.#writer.insertChild(parentId, childId, beforeId);
+    this.#requestFlush();
   }
 
   removeChild(parentId: number, childId: number): void {
-    this.#requireNative().removeChild(parentId, childId);
+    this.#assertUsable();
+    this.#writer.removeChild(parentId, childId);
+    this.#requestFlush();
   }
 
   flush(): void {
-    this.#requireNative().flush();
+    const binding = this.#assertUsable();
+    if (this.#flushing || this.#writer.isEmpty) return;
+    this.#flushing = true;
+    try {
+      binding.applyCommandBatch(this.#writer.finish());
+    } catch (error) {
+      this.#fail(error);
+    } finally {
+      this.#flushing = false;
+      if (!this.#writer.isEmpty) this.#requestFlush();
+    }
   }
 
   settle(): void {
-    this.#requireNative().settle();
+    this.flush();
+    this.#requireBinding().settle();
   }
 
   close(): void {
-    this.#native?.close();
-    this.#native = null;
+    const binding = this.#binding;
+    if (!binding) return;
+    try {
+      if (this.#closed || binding.isClosed()) {
+        this.#handleNativeClose(true);
+        return;
+      }
+      try {
+        if (!this.poisoned) this.flush();
+      } finally {
+        this.#closed = true;
+        try {
+          binding.close();
+        } finally {
+          if (!this.#headless) releaseNativeRuntime(binding);
+        }
+      }
+    } finally {
+      this.#binding = null;
+    }
   }
 
   /** @internal Test/diagnostic retained-tree snapshot. */
   debugTree(): unknown {
-    return this.#requireNative().debugTree();
+    return JSON.parse(this.#requireBinding().debugTreeJson());
   }
 
-  #requireNative(): NativeCommandHost {
-    if (!this.#native) {
+  #requestFlush(): void {
+    if (this.#flushScheduled) return;
+    this.#flushScheduled = true;
+    queueMicrotask(() => {
+      this.#flushScheduled = false;
+      if (!this.poisoned && !this.#closed) this.flush();
+    });
+  }
+
+  #requireBinding(): NativeRendererBinding {
+    if (!this.#binding) {
       throw new Error(
         'RetendGpuiRenderer.init() must be called before native work.'
       );
     }
-    return this.#native;
+    return this.#binding;
+  }
+
+  #assertUsable(): NativeRendererBinding {
+    const binding = this.#requireBinding();
+    if (this.#closed || binding.isClosed()) {
+      if (!this.#closed) this.#handleNativeClose(true);
+      throw new Error(
+        'A closed Retend GPUI renderer cannot accept native work.'
+      );
+    }
+    if (this.poisoned) {
+      throw new NativeRendererFatalError(
+        'This Retend GPUI renderer is permanently poisoned after a native bridge failure.',
+        this.#fatalFailure
+      );
+    }
+    return binding;
+  }
+
+  #handleNativeClose(releaseRuntime: boolean): void {
+    if (this.#closed) return;
+    this.#closed = true;
+    if (releaseRuntime && !this.#headless && this.#binding) {
+      releaseNativeRuntime(this.#binding);
+    }
+    this.dispatchEvent(new Event('close'));
+  }
+
+  #fail(error: unknown): never {
+    const nativeFailure = parseNativeBridgeFailure(error) ?? {
+      code: 'NATIVE_BRIDGE_ERROR',
+      message: error instanceof Error ? error.message : String(error),
+    };
+    const javascriptStack =
+      new Error('Retend GPUI command-batch submission failed here.').stack ??
+      'JavaScript stack unavailable.';
+    this.#fatalFailure = nativeFailure;
+    try {
+      this.#requireBinding().reportFatal(javascriptStack);
+    } catch {
+      // The original native failure remains the primary diagnostic.
+    }
+    throw new NativeRendererFatalError(
+      `Retend GPUI rejected a native command batch: ${nativeFailure.message}`,
+      nativeFailure,
+      { cause: error }
+    );
   }
 }

@@ -15,6 +15,17 @@ export interface NativeWindowOptions {
   height?: number;
 }
 
+export class NativeRendererFatalError extends Error {
+  constructor(
+    message: string,
+    readonly nativeFailure?: NativeBridgeFailure,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
+    this.name = 'NativeRendererFatalError';
+  }
+}
+
 export interface NativeRendererBinding {
   readonly windowId: number;
   applyCommandBatch(buffer: Uint8Array): void;

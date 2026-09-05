@@ -1,13 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  ElementKind,
-  NativeRendererFatalError,
-  NativeCommandHost,
-  PropertyId,
-} from '../source/native/host';
+import { GpuiHost } from '../source/gpui-host';
+import { NativeRendererFatalError } from '../source/native/addon';
+import { ElementKind, PropertyId } from '../source/native/protocol';
 
-const activeHosts = new Set<NativeCommandHost>();
+const activeHosts = new Set<GpuiHost>();
 
 interface DebugNode {
   id: number;
@@ -21,8 +18,9 @@ interface DebugTree {
   poisoned: boolean;
 }
 
-function createHost(headless = true): NativeCommandHost {
-  const host = new NativeCommandHost({ headless });
+function createHost(headless = true): GpuiHost {
+  const host = new GpuiHost({ headless });
+  host.init();
   activeHosts.add(host);
   return host;
 }

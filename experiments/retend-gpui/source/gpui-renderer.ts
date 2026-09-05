@@ -28,7 +28,7 @@ import type { GpuiElementType, GpuiStyle } from './types.js';
 import type { GpuiWindowOptions } from './window.js';
 
 import { GpuiHost } from './gpui-host.js';
-import { ElementKind, PropertyId } from './native/host.js';
+import { ElementKind, PropertyId } from './native/protocol.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
 import {
   GpuiAnchor,

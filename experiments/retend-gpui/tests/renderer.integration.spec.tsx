@@ -15,11 +15,8 @@ import type { GpuiElement } from '../source/gpui-renderer';
 import type { GpuiColor, GpuiStyle } from '../source/types';
 
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
-import {
-  ElementKind,
-  NativeRendererFatalError,
-  PropertyId,
-} from '../source/native/host';
+import { NativeRendererFatalError } from '../source/native/addon';
+import { ElementKind, PropertyId } from '../source/native/protocol';
 import { hotReloadModule } from '../source/plugins/hmr';
 
 interface DebugNode {

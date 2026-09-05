@@ -177,3 +177,130 @@ impl NativeRendererBinding {
 pub fn tick() -> Result<bool> {
     platform::tick().map_err(|error| Error::new(Status::GenericFailure, error))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    use serde_json::{json, Value};
+
+    use super::*;
+    use crate::{
+        protocol::HEADER_BYTES,
+        protocol_generated::{ElementKind, Opcode, PROTOCOL_MAGIC, PROTOCOL_VERSION},
+    };
+
+    static NEXT_TEST_ROOT: AtomicU32 = AtomicU32::new(0xe000_0000);
+
+    fn command_batch(commands: &[u8], command_count: u32) -> Buffer {
+        let mut bytes = vec![0; HEADER_BYTES];
+        bytes[0..4].copy_from_slice(&PROTOCOL_MAGIC.to_le_bytes());
+        bytes[4..6].copy_from_slice(&PROTOCOL_VERSION.to_le_bytes());
+        bytes[8..12].copy_from_slice(&(commands.len() as u32).to_le_bytes());
+        bytes[12..16].copy_from_slice(&command_count.to_le_bytes());
+        bytes[16..20].copy_from_slice(&((HEADER_BYTES + commands.len()) as u32).to_le_bytes());
+        bytes.extend_from_slice(commands);
+        Buffer::from(bytes)
+    }
+
+    fn new_binding() -> (NativeRendererBinding, u32) {
+        let root_id = NEXT_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        (
+            NativeRendererBinding::new(root_id, true, None).unwrap(),
+            root_id,
+        )
+    }
+
+    fn invalidation_snapshot(binding: &NativeRendererBinding) -> Value {
+        let invalidations = platform::take_test_invalidations();
+        assert_eq!(
+            invalidations.len(),
+            1,
+            "each submission must invalidate exactly once"
+        );
+        assert_eq!(invalidations[0].0, binding.window_id);
+        serde_json::from_str(
+            invalidations[0]
+                .1
+                .as_deref()
+                .expect("invalidation must happen after releasing the retained-tree lock"),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn binding_invalidates_once_after_successful_and_empty_batches() {
+        let (binding, root_id) = new_binding();
+        let child_id = root_id + 1;
+        platform::take_test_invalidations();
+
+        let mut commands = vec![Opcode::CreateNode as u8];
+        commands.extend_from_slice(&child_id.to_le_bytes());
+        commands.push(ElementKind::Container as u8);
+        commands.push(Opcode::InsertChild as u8);
+        commands.extend_from_slice(&root_id.to_le_bytes());
+        commands.extend_from_slice(&child_id.to_le_bytes());
+        commands.extend_from_slice(&0u32.to_le_bytes());
+        binding
+            .apply_command_batch(command_batch(&commands, 2))
+            .unwrap();
+
+        let snapshot = invalidation_snapshot(&binding);
+        assert_eq!(snapshot["poisoned"], false);
+        let root = snapshot["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["id"].as_u64() == Some(u64::from(root_id)))
+            .unwrap();
+        assert_eq!(root["children"], json!([child_id]));
+
+        binding.apply_command_batch(command_batch(&[], 0)).unwrap();
+        let snapshot = invalidation_snapshot(&binding);
+        assert_eq!(snapshot["poisoned"], false);
+        assert_eq!(snapshot["nodes"].as_array().unwrap().len(), 2);
+        binding.close().unwrap();
+    }
+
+    #[test]
+    fn binding_command_failure_invalidates_once_after_poisoning() {
+        let (binding, root_id) = new_binding();
+        let valid_id = root_id + 1;
+        let invalid_id = root_id + 2;
+        platform::take_test_invalidations();
+
+        let mut commands = vec![Opcode::CreateNode as u8];
+        commands.extend_from_slice(&valid_id.to_le_bytes());
+        commands.push(ElementKind::Container as u8);
+        commands.push(Opcode::CreateNode as u8);
+        commands.extend_from_slice(&invalid_id.to_le_bytes());
+        commands.push(ElementKind::Root as u8);
+        assert!(binding
+            .apply_command_batch(command_batch(&commands, 2))
+            .is_err());
+
+        let snapshot = invalidation_snapshot(&binding);
+        assert_eq!(snapshot["poisoned"], true);
+        assert!(snapshot["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|node| node["id"].as_u64() == Some(u64::from(valid_id))));
+        binding.close().unwrap();
+    }
+
+    #[test]
+    fn binding_decode_failure_invalidates_once_after_poisoning() {
+        let (binding, _) = new_binding();
+        platform::take_test_invalidations();
+
+        assert!(binding.apply_command_batch(Buffer::from(vec![0])).is_err());
+
+        let snapshot = invalidation_snapshot(&binding);
+        assert_eq!(snapshot["poisoned"], true);
+        assert!(snapshot["fatal"]["native_failure"]
+            .as_str()
+            .is_some_and(|failure| failure.contains("TRUNCATED_HEADER")));
+        binding.close().unwrap();
+    }
+}
