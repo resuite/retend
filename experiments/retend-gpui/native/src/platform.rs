@@ -50,10 +50,9 @@ impl Render for RetendRootView {
             Some(crate::render::build(&tree, window.root_id))
         });
 
-        let root = root_container();
         match content {
-            Some(content) => root.child(content),
-            None => root,
+            Some(content) => content,
+            None => root_container().into_any_element(),
         }
     }
 }
@@ -405,7 +404,7 @@ pub fn invalidate_window(window_id: WindowId) {
     #[cfg(test)]
     TEST_INVALIDATIONS.with(|invalidations| {
         let snapshot = crate::runtime()
-            .try_lock()
+            .lock()
             .ok()
             .and_then(|tree| tree.debug_window_json(window_id).ok());
         invalidations.borrow_mut().push((window_id, snapshot));

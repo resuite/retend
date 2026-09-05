@@ -733,7 +733,13 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       }
       return;
     }
-    if (!(node instanceof GpuiElement) || node.destroyed) return;
+    if (
+      !(node instanceof GpuiElement) ||
+      node instanceof GpuiText ||
+      node.destroyed
+    ) {
+      return;
+    }
 
     if (key === 'style') {
       this.#bindStyle(node, value);

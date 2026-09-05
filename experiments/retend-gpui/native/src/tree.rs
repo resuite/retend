@@ -389,7 +389,9 @@ impl NativeTree {
                                     "fill" => Some(ImageObjectFit::Fill),
                                     "contain" => Some(ImageObjectFit::Contain),
                                     "cover" => Some(ImageObjectFit::Cover),
-                                    "scaleDown" => Some(ImageObjectFit::ScaleDown),
+                                    "scaleDown" | "scale-down" => {
+                                        Some(ImageObjectFit::ScaleDown)
+                                    }
                                     "none" => Some(ImageObjectFit::None),
                                     _ => None,
                                 };
@@ -938,6 +940,23 @@ mod tests {
             &tree.nodes[&2].data,
             NodeData::Image {
                 object_fit: Some(ImageObjectFit::Cover),
+                ..
+            }
+        ));
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::ObjectFit,
+                value: PropertyValue::String("scale-down".into()),
+            }],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image {
+                object_fit: Some(ImageObjectFit::ScaleDown),
                 ..
             }
         ));

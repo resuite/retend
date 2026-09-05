@@ -147,6 +147,19 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(image.children).toEqual([]);
   });
 
+  it('ignores style property assignments on text nodes without poisoning the bridge', () => {
+    const renderer = createRenderer();
+    const text = renderer.createText('plain');
+    renderer.render(() => <div>{text}</div>);
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+
+    renderer.setProperty(text, 'style', { color: '#ffffff' });
+    renderer.flush();
+
+    expect(setStyle).not.toHaveBeenCalled();
+    expect(debugTree(renderer).poisoned).toBe(false);
+  });
+
   it('renders div and text under the immutable native window root', () => {
     const renderer = createRenderer();
     const rootRef = Cell.source<GpuiElement | null>(null);

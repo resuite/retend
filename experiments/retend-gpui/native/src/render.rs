@@ -16,11 +16,26 @@ fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
     }
 }
 
-/// Builds a fresh GPUI element tree directly from the authoritative retained tree.
 pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
     let node = &tree.nodes[&id];
     match &node.data {
-        NodeData::Root | NodeData::Container => {
+        NodeData::Root => {
+            let element = div()
+                .size_full()
+                .bg(gpui::rgb(0xffffff))
+                .text_color(gpui::rgb(0x000000))
+                .block();
+            let element = match node.style.as_deref() {
+                Some(style) => style.apply(element),
+                None => element,
+            };
+            let element =
+                element.children(node.children.iter().map(|child_id| build(tree, *child_id)));
+            #[cfg(test)]
+            let element = element.debug_selector(move || format!("retend-node-{id}"));
+            element.into_any_element()
+        }
+        NodeData::Container => {
             let element = match node.style.as_deref() {
                 Some(style) => style.apply(div()),
                 None => div().block(),
