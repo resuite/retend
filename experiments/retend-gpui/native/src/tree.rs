@@ -69,6 +69,7 @@ pub struct WindowState {
     pub root_id: NodeId,
     pub pending_detached: HashSet<NodeId>,
     pub fatal: Option<FatalDiagnostic>,
+    pub reload_requested: bool,
 }
 
 #[derive(Default)]
@@ -104,9 +105,42 @@ impl NativeTree {
                 root_id,
                 pending_detached: HashSet::new(),
                 fatal: None,
+                reload_requested: false,
             },
         );
         Ok(window_id)
+    }
+
+    pub fn reload_window(&mut self, window_id: WindowId) -> Result<(), BridgeFailure> {
+        let root_id = {
+            let window = self.windows.get(&window_id).ok_or_else(|| {
+                BridgeFailure::binding("CLOSED_WINDOW", "Renderer window has already closed.")
+            })?;
+            if window.fatal.is_none() {
+                return Err(BridgeFailure::binding(
+                    "RENDERER_NOT_FATAL",
+                    "Renderer state can only reload after a fatal bridge failure.",
+                ));
+            }
+            window.root_id
+        };
+
+        self.nodes.retain(|_, node| node.window_id != window_id);
+        self.nodes
+            .insert(root_id, NativeNode::new(window_id, NodeData::Root));
+        let window = self
+            .windows
+            .get_mut(&window_id)
+            .expect("validated renderer window must still exist during reload");
+        window.pending_detached.clear();
+        window.fatal = None;
+        window.reload_requested = true;
+        Ok(())
+    }
+
+    pub fn take_reload_requested(&mut self, window_id: WindowId) -> Result<bool, BridgeFailure> {
+        let window = self.window(window_id)?;
+        Ok(std::mem::take(&mut window.reload_requested))
     }
 
     pub fn apply_commands(
@@ -253,7 +287,7 @@ impl NativeTree {
         if window.fatal.is_some() {
             return Err(BridgeFailure::binding(
                 "POISONED_RENDERER",
-                "Renderer is permanently poisoned after a fatal bridge failure.",
+                "Renderer cannot accept commands until reloaded after a fatal bridge failure.",
             ));
         }
         Ok(())
@@ -656,6 +690,36 @@ mod tests {
             id,
             properties: vec![(property, value)],
         }
+    }
+
+    #[test]
+    fn fatal_window_reload_keeps_the_window_root_and_resets_renderer_state() {
+        let (mut tree, window, root) = setup();
+        tree.apply_commands(
+            window,
+            vec![Command::CreateNode {
+                id: 2,
+                kind: ElementKind::Root,
+            }],
+        )
+        .unwrap_err();
+        tree.reload_window(window).unwrap();
+        assert!(tree.take_reload_requested(window).unwrap());
+        assert!(!tree.take_reload_requested(window).unwrap());
+        assert!(tree.windows[&window].fatal.is_none());
+        assert_eq!(tree.windows[&window].root_id, root);
+        assert_eq!(tree.nodes.len(), 1);
+        tree.apply_commands(
+            window,
+            vec![Command::CreateText {
+                id: 2,
+                text: "fresh".into(),
+            }],
+        )
+        .unwrap();
+
+        assert_eq!(tree.reload_window(window).unwrap_err().code, "RENDERER_NOT_FATAL");
+        assert!(tree.nodes.contains_key(&2));
     }
 
     #[test]
@@ -1288,12 +1352,27 @@ mod tests {
     }
 
     #[test]
-    fn fatal_stack_requires_poisoned_renderer() {
+    fn fatal_stack_requires_failure() {
         let (mut tree, window, _) = setup();
-        let error = tree
-            .attach_javascript_stack(window, "stack".into())
-            .unwrap_err();
-        assert_eq!(error.code, "RENDERER_NOT_POISONED");
+        assert_eq!(
+            tree.attach_javascript_stack(window, "stack".into())
+                .unwrap_err()
+                .code,
+            "RENDERER_NOT_POISONED"
+        );
+        tree.apply_commands(
+            window,
+            vec![Command::CreateNode {
+                id: 0,
+                kind: ElementKind::Container,
+            }],
+        )
+        .unwrap_err();
+        tree.attach_javascript_stack(window, "stack".into()).unwrap();
+        assert_eq!(
+            tree.windows[&window].fatal.as_ref().unwrap().javascript_stack,
+            "stack"
+        );
     }
 
     #[test]

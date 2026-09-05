@@ -202,6 +202,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   constructor(options: RetendGpuiRendererOptions = {}) {
     this.#hmr = options.hmr ?? false;
     this.host = new GpuiHost({ headless: options.headless });
+    this.host.addEventListener('fatal', () => this.#discardLogicalTree());
   }
 
   /**
@@ -240,14 +241,20 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     }
 
     this.#state = branchState();
-    return withState(this.#state, () => {
-      const result = normalizeJsxChild(app, this);
-      const root = this.#materializeRoot(result);
-      this.#root = root;
-      this.#mountNativeRoot(root);
-      this.host.flush();
-      return result;
-    });
+    try {
+      return withState(this.#state, () => {
+        const result = normalizeJsxChild(app, this);
+        const root = this.#materializeRoot(result);
+        this.#root = root;
+        this.#mountNativeRoot(root);
+        this.host.flush();
+        return result;
+      });
+    } catch (error) {
+      this.#discardLogicalTree();
+      this.host.discardPendingCommands();
+      throw error;
+    }
   }
 
   /** Creates a logical group node with no native counterpart. */
@@ -484,7 +491,15 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     this.#devErrorRoot = root;
     this.#devErrorText = text;
     this.#mountNativeRoot(root);
-    this.flush();
+    try {
+      this.flush();
+    } catch (error) {
+      this.#devErrorRoot = null;
+      this.#devErrorText = null;
+      this.#markDestroyedSubtree(root);
+      this.host.discardPendingCommands();
+      throw error;
+    }
   }
 
   /**
@@ -502,22 +517,12 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     this.host.settle();
   }
 
-  /**
-   * Disposes the renderer, closes its native binding, and destroys all owned nodes.
-   * Throws if disposal would leak renderer-owned logical nodes.
-   */
+  /** Disposes the renderer and closes its native window. */
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
-    if (!this.host.isInitialized) return;
-
-    try {
-      if (this.host.poisoned || this.host.nativeClosed)
-        this.#discardLogicalTree();
-      else this.#clearTree();
-    } finally {
-      this.host.close();
-    }
+    this.#discardLogicalTree();
+    this.host.close();
   }
 
   /**
@@ -525,7 +530,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * Used by development full reloads before mounting a fresh application root.
    */
   unmount(): void {
-    if (this.#disposed) return;
+    if (this.#disposed || (!this.#state && this.#nodesById.size === 0)) return;
     this.#clearTree();
   }
 

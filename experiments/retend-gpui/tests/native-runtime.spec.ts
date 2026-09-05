@@ -11,11 +11,15 @@ import {
   releaseNativeRuntime,
 } from '../source/native/runtime';
 
-function fakeBinding(isClosed: () => boolean): NativeRendererBinding {
+function fakeBinding(
+  isClosed: () => boolean,
+  takeReloadRequested: () => boolean
+): NativeRendererBinding {
   return {
     windowId: 1,
     applyCommandBatch() {},
     settle() {},
+    takeReloadRequested,
     reportFatal() {},
     setWindowTitle() {},
     close() {},
@@ -29,15 +33,29 @@ afterEach(() => {
 });
 
 describe('native runtime lifecycle', () => {
-  it('reports a natively closed binding exactly once', async () => {
+  it('delivers reload requests and reports native close exactly once', async () => {
     vi.useFakeTimers();
     let closed = false;
-    const binding = fakeBinding(() => closed);
+    let reloadRequested = false;
+    const binding = fakeBinding(
+      () => closed,
+      () => {
+        const requested = reloadRequested;
+        reloadRequested = false;
+        return requested;
+      }
+    );
     const onClose = vi.fn();
-    acquireNativeRuntime(binding, onClose);
+    const onReload = vi.fn();
+    acquireNativeRuntime(binding, onClose, onReload);
+
+    reloadRequested = true;
+    await vi.advanceTimersByTimeAsync(300);
+    expect(onReload).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(300);
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onReload).toHaveBeenCalledOnce();
 
     closed = true;
     await vi.advanceTimersByTimeAsync(300);

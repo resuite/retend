@@ -1,7 +1,4 @@
-import type {
-  NativeBridgeFailure,
-  NativeRendererBinding,
-} from './native/addon.js';
+import type { NativeRendererBinding } from './native/addon.js';
 import type {
   ElementKind as ElementKindValue,
   PropertyId as PropertyIdValue,
@@ -129,8 +126,6 @@ export class GpuiHost extends EventTarget {
   #rootId = 0;
   #flushScheduled = false;
   #flushing = false;
-  #fatalFailure: NativeBridgeFailure | undefined;
-  #closed = false;
 
   readonly location = this.#navigation;
   readonly history = this.#navigation;
@@ -148,14 +143,6 @@ export class GpuiHost extends EventTarget {
   get rootId(): number {
     this.#requireBinding();
     return this.#rootId;
-  }
-
-  get poisoned(): boolean {
-    return this.#fatalFailure !== undefined;
-  }
-
-  get nativeClosed(): boolean {
-    return this.#binding !== null && (this.#closed || this.#binding.isClosed());
   }
 
   init(options: GpuiWindowOptions = {}): void {
@@ -177,8 +164,6 @@ export class GpuiHost extends EventTarget {
     this.#writer = new CommandBatchWriter();
     this.#flushScheduled = false;
     this.#flushing = false;
-    this.#closed = false;
-    this.#fatalFailure = undefined;
     this.#binding = new (loadNativeAddon().NativeRendererBinding)(
       this.#rootId,
       this.#headless,
@@ -189,12 +174,16 @@ export class GpuiHost extends EventTarget {
       }
     );
     if (!this.#headless) {
-      acquireNativeRuntime(this.#binding, () => this.#handleNativeClose(false));
+      acquireNativeRuntime(
+        this.#binding,
+        () => this.#handleNativeClose(),
+        () => this.dispatchEvent(new Event('reload'))
+      );
     }
   }
 
   setWindowTitle(title: string): void {
-    this.#assertUsable().setWindowTitle(title);
+    this.#requireBinding().setWindowTitle(title);
     this.document.title = title;
   }
 
@@ -203,7 +192,7 @@ export class GpuiHost extends EventTarget {
   }
 
   createNode(kind: ElementKindValue): number {
-    this.#assertUsable();
+    this.#requireBinding();
     const id = allocateNativeNodeId();
     this.#writer.createNode(id, kind);
     this.#requestFlush();
@@ -211,7 +200,7 @@ export class GpuiHost extends EventTarget {
   }
 
   createText(text: string): number {
-    this.#assertUsable();
+    this.#requireBinding();
     const id = allocateNativeNodeId();
     this.#writer.createText(id, text);
     this.#requestFlush();
@@ -219,7 +208,7 @@ export class GpuiHost extends EventTarget {
   }
 
   updateText(id: number, text: string): void {
-    this.#assertUsable();
+    this.#requireBinding();
     this.#writer.updateText(id, text);
     this.#requestFlush();
   }
@@ -229,7 +218,7 @@ export class GpuiHost extends EventTarget {
     property: PropertyIdValue,
     value: ProtocolPropertyValue
   ): void {
-    this.#assertUsable();
+    this.#requireBinding();
     this.#writer.setProperty(id, property, value);
     this.#requestFlush();
   }
@@ -238,25 +227,25 @@ export class GpuiHost extends EventTarget {
     id: number,
     properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
   ): void {
-    this.#assertUsable();
+    this.#requireBinding();
     this.#writer.setStyle(id, properties);
     this.#requestFlush();
   }
 
   insertChild(parentId: number, childId: number, beforeId = 0): void {
-    this.#assertUsable();
+    this.#requireBinding();
     this.#writer.insertChild(parentId, childId, beforeId);
     this.#requestFlush();
   }
 
   removeChild(parentId: number, childId: number): void {
-    this.#assertUsable();
+    this.#requireBinding();
     this.#writer.removeChild(parentId, childId);
     this.#requestFlush();
   }
 
   flush(): void {
-    const binding = this.#assertUsable();
+    const binding = this.#requireBinding();
     if (this.#flushing || this.#writer.isEmpty) return;
     this.#flushing = true;
     try {
@@ -274,27 +263,17 @@ export class GpuiHost extends EventTarget {
     this.#requireBinding().settle();
   }
 
+  /** @internal Discards queued commands that belong to an abandoned JS root. */
+  discardPendingCommands(): void {
+    this.#writer = new CommandBatchWriter();
+  }
+
   close(): void {
     const binding = this.#binding;
     if (!binding) return;
-    try {
-      if (this.#closed || binding.isClosed()) {
-        this.#handleNativeClose(true);
-        return;
-      }
-      try {
-        if (!this.poisoned) this.flush();
-      } finally {
-        this.#closed = true;
-        try {
-          binding.close();
-        } finally {
-          if (!this.#headless) releaseNativeRuntime(binding);
-        }
-      }
-    } finally {
-      this.#binding = null;
-    }
+    this.#binding = null;
+    if (!this.#headless) releaseNativeRuntime(binding);
+    binding.close();
   }
 
   /** @internal Test/diagnostic retained-tree snapshot. */
@@ -307,7 +286,13 @@ export class GpuiHost extends EventTarget {
     this.#flushScheduled = true;
     queueMicrotask(() => {
       this.#flushScheduled = false;
-      if (!this.poisoned && !this.#closed) this.flush();
+      if (!this.#binding || this.#writer.isEmpty) return;
+      try {
+        this.flush();
+      } catch (error) {
+        if (this.#binding && !(error instanceof NativeRendererFatalError))
+          throw error;
+      }
     });
   }
 
@@ -320,29 +305,9 @@ export class GpuiHost extends EventTarget {
     return this.#binding;
   }
 
-  #assertUsable(): NativeRendererBinding {
-    const binding = this.#requireBinding();
-    if (this.#closed || binding.isClosed()) {
-      if (!this.#closed) this.#handleNativeClose(true);
-      throw new Error(
-        'A closed Retend GPUI renderer cannot accept native work.'
-      );
-    }
-    if (this.poisoned) {
-      throw new NativeRendererFatalError(
-        'This Retend GPUI renderer is permanently poisoned after a native bridge failure.',
-        this.#fatalFailure
-      );
-    }
-    return binding;
-  }
-
-  #handleNativeClose(releaseRuntime: boolean): void {
-    if (this.#closed) return;
-    this.#closed = true;
-    if (releaseRuntime && !this.#headless && this.#binding) {
-      releaseNativeRuntime(this.#binding);
-    }
+  #handleNativeClose(): void {
+    if (!this.#binding) return;
+    this.#binding = null;
     this.dispatchEvent(new Event('close'));
   }
 
@@ -351,15 +316,25 @@ export class GpuiHost extends EventTarget {
       code: 'NATIVE_BRIDGE_ERROR',
       message: error instanceof Error ? error.message : String(error),
     };
-    const javascriptStack =
-      new Error('Retend GPUI command-batch submission failed here.').stack ??
-      'JavaScript stack unavailable.';
-    this.#fatalFailure = nativeFailure;
-    try {
-      this.#requireBinding().reportFatal(javascriptStack);
-    } catch {
-      // The original native failure remains the primary diagnostic.
+
+    if (nativeFailure.code === 'CLOSED_WINDOW') {
+      this.#handleNativeClose();
+      throw error;
     }
+
+    if (nativeFailure.code !== 'POISONED_RENDERER') {
+      const javascriptStack =
+        new Error('Retend GPUI command-batch submission failed here.').stack ??
+        'JavaScript stack unavailable.';
+      try {
+        this.#requireBinding().reportFatal(javascriptStack);
+      } catch {
+        // The original native failure remains the primary diagnostic.
+      }
+      this.dispatchEvent(new Event('fatal'));
+      this.#writer = new CommandBatchWriter();
+    }
+
     throw new NativeRendererFatalError(
       `Retend GPUI rejected a native command batch: ${nativeFailure.message}`,
       nativeFailure,

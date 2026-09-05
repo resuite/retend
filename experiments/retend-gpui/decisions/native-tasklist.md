@@ -72,11 +72,24 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 - [x] On wire-format failure, poison the affected native window without mutating retained state.
 - [x] Catch native bridge failures at the JS renderer/host boundary.
 - [x] Capture the JavaScript stack for fatal renderer bugs.
-- [x] Permanently poison the affected renderer.
+- [x] Mark the affected Rust window renderer state fatal after a hard bridge failure.
 - [x] Implement the dedicated out-of-band fatal diagnostic command.
 - [x] Implement a native fatal diagnostic surface for a poisoned renderer/window.
-- [x] Reject all later normal renderer mutations after poisoning.
+- [x] Reject later normal renderer mutations in Rust while that window's renderer state remains fatal.
 - [x] Keep semantic style-value parse failures out of the fatal bridge path.
+
+### Fatal root lifecycle
+
+- [x] Treat a fatal native bridge failure as failure of the current window's Retend root, not of the process-wide application, native window, `GpuiHost`, or renderer object.
+- [x] Keep fatal/poison state authoritative in Rust only; do not mirror it or cache the fatal failure as lifecycle state in JavaScript.
+- [x] After Rust returns the structured failure, capture the JavaScript stack and send it back through the dedicated fatal diagnostic path.
+- [x] Discard the current JavaScript root wholesale without submitting cleanup/removal commands to the fatal Rust renderer state.
+- [x] Dispose the failed root's Retend state branch, effects, Cell-owned subscriptions, refs, logical nodes, and pending renderer cleanup work.
+- [x] Keep the process-wide `GpuiApplication`, unrelated windows, the affected native window, `GpuiHost`, and renderer object alive while the native fatal diagnostic surface is shown.
+- [x] On native Reload, reset that window's fatal Rust renderer state in place, then rerun the same window entry/root component to create a fresh Retend root and fresh root state/effects.
+- [x] Do not reinitialize or replace the process-wide `GpuiApplication` when reloading a single failed window root.
+- [x] Let any stale post-failure native work be rejected by Rust rather than maintaining a duplicate JavaScript poison guard.
+- [x] Add lifecycle tests covering root/reactive teardown, cleanup-command discard, partial-render recovery, Rust cross-window isolation and stale-reload rejection, native Reload signal delivery, and closed-window classification.
 
 ### Platform runtime and windows
 
@@ -384,7 +397,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [ ] Remount existing window roots after full reload using fresh renderers/bindings as required by the lifecycle contract.
 - [ ] Ensure Vite/server restart still terminates the application process and recreates configured initial windows.
 - [ ] Ensure application crashes remain distinguishable from dev-server/config restarts.
-- [ ] Wire native fatal-screen manual reload into the development lifecycle.
+- [x] Wire native fatal-screen manual reload into the development lifecycle.
 
 ### Legacy GPUiX cleanup
 

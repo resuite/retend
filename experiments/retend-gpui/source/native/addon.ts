@@ -30,6 +30,7 @@ export interface NativeRendererBinding {
   readonly windowId: number;
   applyCommandBatch(buffer: Uint8Array): void;
   settle(): void;
+  takeReloadRequested(): boolean;
   reportFatal(javascriptStack: string): void;
   setWindowTitle(title: string): void;
   close(): void;

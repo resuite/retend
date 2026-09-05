@@ -14,6 +14,7 @@ import {
 
 import { setAppContext, type GpuiApplication } from '../application.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
+import { NativeRendererFatalError } from '../native/addon.js';
 import {
   createRuntimeWindow,
   WindowScope,
@@ -160,16 +161,22 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     return entryModule.default as __HMR_UpdatableFn;
   });
 
-  const showDevelopmentError = (error: unknown): void => {
-    for (const record of windows.values()) {
-      record.renderer.showDevelopmentError(error);
+  const showDevelopmentError = (
+    error: unknown,
+    records: Iterable<WindowRecord> = windows.values()
+  ): void => {
+    for (const record of records) {
+      try {
+        record.renderer.showDevelopmentError(error);
+      } catch (cause) {
+        if (!(cause instanceof NativeRendererFatalError)) throw cause;
+      }
     }
   };
 
   const clearDevelopmentErrors = (): void => {
-    for (const record of windows.values()) {
+    for (const record of windows.values())
       record.renderer.clearDevelopmentError();
-    }
   };
 
   const mountWindow = async (
@@ -186,6 +193,43 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     );
     await runPendingSetupEffects();
     record.renderer.flush();
+  };
+
+  const recoverWindow = async (
+    record: WindowRecord,
+    Root?: __HMR_UpdatableFn | null
+  ): Promise<void> => {
+    if (Root === undefined) {
+      try {
+        Root = await entryTask.get();
+      } catch (error) {
+        showDevelopmentError(error, [record]);
+        return;
+      }
+    }
+
+    const error = entryTask.error.peek();
+    if (error || !Root) {
+      showDevelopmentError(
+        error ?? new Error('The GPUI application entry is unavailable.'),
+        [record]
+      );
+      return;
+    }
+
+    try {
+      await mountWindow(record, Root);
+    } catch (error) {
+      if (error instanceof NativeRendererFatalError) return;
+      try {
+        record.renderer.unmount();
+      } catch (cause) {
+        if (cause instanceof NativeRendererFatalError) return;
+        throw cause;
+      }
+      showDevelopmentError(error, [record]);
+      console.error('[retend-gpui] application root failed:', error);
+    }
   };
 
   const createWindowRecord = (options: GpuiWindowOptions): WindowRecord => {
@@ -217,6 +261,9 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     renderer.host.addEventListener('close', () => closeWindow(id), {
       once: true,
     });
+    renderer.host.addEventListener('reload', () => {
+      void recoverWindow(record).catch(console.error);
+    });
     return record;
   };
 
@@ -238,7 +285,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     }
 
     for (const record of windows.values()) {
-      if (!record.renderer.hasRoot) await mountWindow(record, Root);
+      if (!record.renderer.hasRoot) await recoverWindow(record, Root);
       else record.renderer.clearDevelopmentError();
     }
   };
@@ -328,28 +375,13 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     await loadApplication();
 
     const Root = await entryTask.runWith(undefined);
-    let entryError: unknown = entryTask.error.peek();
+    const entryError = entryTask.error.peek();
     if (entryError) {
       console.error('[retend-gpui] application entry failed:', entryError);
     }
 
     const initialRecord = createWindowRecord(message.options);
-
-    if (!entryError && Root) {
-      try {
-        await mountWindow(initialRecord, Root);
-      } catch (error) {
-        entryError = error;
-        initialRecord.renderer.unmount();
-        console.error('[retend-gpui] application root failed:', error);
-      }
-    } else if (!entryError) {
-      entryError = new Error('The GPUI application entry is unavailable.');
-    }
-
-    if (entryError) {
-      initialRecord.renderer.showDevelopmentError(entryError);
-    }
+    await recoverWindow(initialRecord, Root);
 
     sendControl({ channel: 'retend-gpui', type: 'application-ready' });
   } catch (error) {

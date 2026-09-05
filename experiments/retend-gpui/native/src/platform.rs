@@ -20,8 +20,9 @@ fn root_container() -> gpui::Div {
 
 impl Render for RetendRootView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        let window_id = self.window_id;
         let content = crate::runtime().lock().ok().and_then(|tree| {
-            let window = tree.windows.get(&self.window_id)?;
+            let window = tree.windows.get(&window_id)?;
             if let Some(fatal) = window.fatal.as_ref() {
                 return Some(
                     div()
@@ -32,6 +33,16 @@ impl Render for RetendRootView {
                         .child("Retend GPUI fatal renderer error")
                         .child(fatal.native_failure.clone())
                         .child(fatal.javascript_stack.clone())
+                        .child(
+                            div()
+                                .id("retend-fatal-reload")
+                                .child("Reload")
+                                .on_click(move |_, _, _| {
+                                    if let Ok(mut tree) = crate::runtime().lock() {
+                                        let _ = tree.reload_window(window_id);
+                                    }
+                                }),
+                        )
                         .into_any_element(),
                 );
             }

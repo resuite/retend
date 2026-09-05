@@ -1,15 +1,19 @@
 import { loadNativeAddon, type NativeRendererBinding } from './addon.js';
 
-const bindings = new Map<NativeRendererBinding, (() => void) | undefined>();
+const bindings = new Map<
+  NativeRendererBinding,
+  readonly [onClose?: () => void, onReload?: () => void]
+>();
 const pumpsNativeEvents = process.platform === 'darwin';
 let runtimeTimer: ReturnType<typeof setInterval> | null = null;
 
 /** @internal Keeps Node alive while at least one real native window exists. */
 export function acquireNativeRuntime(
   binding: NativeRendererBinding,
-  onClose?: () => void
+  onClose?: () => void,
+  onReload?: () => void
 ): void {
-  bindings.set(binding, onClose);
+  bindings.set(binding, [onClose, onReload]);
   runtimeTimer ??= setInterval(runNativeRuntime, pumpsNativeEvents ? 8 : 250);
 }
 
@@ -21,10 +25,13 @@ export function releaseNativeRuntime(binding: NativeRendererBinding): void {
 
 function runNativeRuntime(): void {
   const running = !pumpsNativeEvents || loadNativeAddon().tick();
-  for (const [binding, onClose] of bindings) {
-    if (!binding.isClosed()) continue;
-    bindings.delete(binding);
-    onClose?.();
+  for (const [binding, [onClose, onReload]] of bindings) {
+    if (binding.isClosed()) {
+      bindings.delete(binding);
+      onClose?.();
+      continue;
+    }
+    if (binding.takeReloadRequested()) onReload?.();
   }
   if (running && (pumpsNativeEvents || bindings.size > 0)) return;
 

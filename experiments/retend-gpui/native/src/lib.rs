@@ -136,6 +136,11 @@ impl NativeRendererBinding {
     }
 
     #[napi]
+    pub fn take_reload_requested(&self) -> Result<bool> {
+        with_runtime(|tree| tree.take_reload_requested(self.window_id))
+    }
+
+    #[napi]
     pub fn report_fatal(&self, javascript_stack: String) -> Result<()> {
         with_runtime(|tree| tree.attach_javascript_stack(self.window_id, javascript_stack))?;
         platform::invalidate_window(self.window_id);

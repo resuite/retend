@@ -1,7 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GpuiHost } from '../source/gpui-host';
-import { NativeRendererFatalError } from '../source/native/addon';
+import {
+  loadNativeAddon,
+  NativeRendererFatalError,
+} from '../source/native/addon';
 import { ElementKind, PropertyId } from '../source/native/protocol';
 
 const activeHosts = new Set<GpuiHost>();
@@ -28,6 +31,7 @@ function createHost(headless = true): GpuiHost {
 afterEach(() => {
   for (const host of activeHosts) host.close();
   activeHosts.clear();
+  vi.restoreAllMocks();
 });
 
 describe('Retend-owned native bridge', () => {
@@ -105,7 +109,7 @@ describe('Retend-owned native bridge', () => {
         failure = error as NativeRendererFatalError;
       }
       expect(failure?.nativeFailure?.code).toBe('INVALID_NODE_KIND');
-      expect(host.poisoned).toBe(true);
+      expect((host.debugTree() as DebugTree).poisoned).toBe(true);
     }
   });
 
@@ -138,12 +142,12 @@ describe('Retend-owned native bridge', () => {
       failure = error as NativeRendererFatalError;
     }
     expect(failure?.nativeFailure?.code).toBe('CROSS_WINDOW_NODE');
-    expect(second.poisoned).toBe(true);
+    expect((second.debugTree() as DebugTree).poisoned).toBe(true);
 
     const localNode = first.createText('still alive');
     first.insertChild(first.rootId, localNode);
     expect(() => first.flush()).not.toThrow();
-    expect(first.poisoned).toBe(false);
+    expect((first.debugTree() as DebugTree).poisoned).toBe(false);
   });
 
   it('retains a valid command prefix when a later command poisons the renderer', () => {
@@ -159,5 +163,58 @@ describe('Retend-owned native bridge', () => {
     expect(after.nodes.some((item) => item.id === node)).toBe(true);
     expect(root?.children).toContain(node);
     expect(after.poisoned).toBe(true);
+  });
+
+  it('treats CLOSED_WINDOW as closure instead of a fatal renderer failure', () => {
+    const host = createHost();
+    const fatal = vi.fn();
+    const close = vi.fn();
+    host.addEventListener('fatal', fatal);
+    host.addEventListener('close', close);
+    vi.spyOn(
+      loadNativeAddon().NativeRendererBinding.prototype,
+      'applyCommandBatch'
+    ).mockImplementationOnce(() => {
+      throw new Error(
+        'RETEND_GPUI_FAILURE:{"code":"CLOSED_WINDOW","message":"Renderer window has already closed."}'
+      );
+    });
+
+    host.createText('queued');
+    let failure: unknown;
+    try {
+      host.flush();
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toBeInstanceOf(NativeRendererFatalError);
+    expect(fatal).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledOnce();
+    expect(host.isInitialized).toBe(false);
+  });
+
+  it('leaves post-failure rejection to Rust', () => {
+    const host = createHost();
+    const reportFatal = vi.spyOn(
+      loadNativeAddon().NativeRendererBinding.prototype,
+      'reportFatal'
+    );
+    host.createNode(ElementKind.Input);
+    expect(() => host.flush()).toThrow(NativeRendererFatalError);
+
+    host.createText('late');
+    let failure: unknown;
+    try {
+      host.flush();
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(NativeRendererFatalError);
+    expect((failure as NativeRendererFatalError).nativeFailure?.code).toBe(
+      'POISONED_RENDERER'
+    );
+    expect(reportFatal).toHaveBeenCalledOnce();
   });
 });

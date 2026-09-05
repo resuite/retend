@@ -30,6 +30,7 @@ interface DebugNode {
 
 interface DebugTree {
   root_id: number;
+  poisoned: boolean;
   pending_detached: number[];
   nodes: DebugNode[];
 }
@@ -133,7 +134,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
         `Unsupported Retend GPUI intrinsic element: <${tag}>`
       );
     }
-    expect(renderer.host.poisoned).toBe(false);
   });
 
   it('renders div and text under the immutable native window root', () => {
@@ -440,19 +440,82 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(renderer.hasRoot).toBe(false);
   });
 
-  it('can dispose cleanly after Rust poisons the renderer', () => {
+  it('discards the failed root and its reactive work', async () => {
     const renderer = createRenderer();
     const ref = Cell.source<GpuiElement | null>(null);
-    renderer.render(() => <div ref={ref}>mounted</div>);
+    const color = Cell.source<GpuiColor>('#ffffff');
+    const text = Cell.source('mounted');
+    renderer.render(() => (
+      <div ref={ref} style={{ color }}>
+        {text}
+      </div>
+    ));
     const node = ref.get();
     if (!node) throw new Error('Expected mounted ref to resolve.');
 
     renderer.host.createNode(ElementKind.Input);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
-    expect(() => renderer.dispose()).not.toThrow();
-    activeRenderer = null;
+    expect(renderer.hasRoot).toBe(false);
+    expect(renderer.host.isInitialized).toBe(true);
     expect(node.destroyed).toBe(true);
     expect(ref.get()).toBeNull();
+
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+    const updateText = vi.spyOn(renderer.host, 'updateText');
+    Cell.batch(() => {
+      color.set('#000000');
+      text.set('stale');
+    });
+    await Promise.resolve();
+
+    expect(setStyle).not.toHaveBeenCalled();
+    expect(updateText).not.toHaveBeenCalled();
+  });
+
+  it('discards commands queued by fatal cleanup', () => {
+    const renderer = createRenderer();
+    renderer.render(() => <div>mounted</div>);
+    renderer.host.addEventListener('fatal', () => {
+      renderer.host.createText('cleanup');
+    });
+
+    renderer.host.createNode(ElementKind.Input);
+    expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
+    expect(() => renderer.flush()).not.toThrow();
+  });
+
+  it('cleans partial renderer state when render throws', () => {
+    const renderer = createRenderer();
+    expect(() =>
+      renderer.render(() => {
+        renderer.createText('partial');
+        throw new Error('render failed');
+      })
+    ).toThrow('render failed');
+
+    expect(renderer.hasRoot).toBe(false);
+    expect(() => renderer.flush()).not.toThrow();
+    expect(renderer.host.debugTree()).toEqual(
+      expect.objectContaining({
+        nodes: [expect.objectContaining({ kind: 'Root' })],
+      })
+    );
+
+    renderer.showDevelopmentError('render failed');
+    expect(collectText(debugTree(renderer))).toEqual(['render failed']);
+  });
+
+  it('does not leave a partial development overlay on a fatal renderer', () => {
+    const renderer = createRenderer();
+    renderer.render(() => <div>mounted</div>);
+    renderer.host.createNode(ElementKind.Input);
+    expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
+
+    expect(() => renderer.showDevelopmentError('ordinary error')).toThrow(
+      NativeRendererFatalError
+    );
+    expect(renderer.hasRoot).toBe(false);
+    expect(() => renderer.flush()).not.toThrow();
   });
 
   it('cannot be initialized again after disposal', () => {
