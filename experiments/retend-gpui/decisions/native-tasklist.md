@@ -45,7 +45,7 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 - [x] Implement immutable per-window root node IDs.
 - [x] Enforce one-window-for-life ownership for every native node.
 - [x] Reject cross-window reparenting.
-- [x] Reserve protocol element kinds for container, text, image, input, textarea, and structural anchors; instantiate retained variants in the phase that owns each element's native state.
+- [x] Reserve protocol element kinds for container, text, image, input, and textarea; instantiate retained variants in the phase that owns each element's native state.
 - [x] Keep GPUI element instances out of the authoritative retained tree.
 
 ### Structural mutations and settlement
@@ -63,7 +63,7 @@ Goal: establish the JS/Rust boundary, authoritative Rust tree, renderer/window b
 - [x] Recursively destroy still-detached subtrees during native settlement.
 - [x] Destroy associated native runtime state during settlement without JavaScript enumerating dead IDs.
 - [x] Flatten JavaScript groups at insertion time rather than creating native group nodes.
-- [x] Represent anchors with stable retained identity while omitting them from GPUI layout.
+- [x] Keep Retend groups and range anchors JavaScript-only and project them out when synchronizing native children.
 
 ### Fatal bridge path
 
@@ -144,7 +144,6 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Implement Rust semantic parsers for Phase 2 keyword values.
 - [x] Implement Rust percentage/length parsing.
 - [x] Implement Rust color parsing.
-- [ ] Implement Rust transition-duration/delay/timing parsing needed by later motion support.
 - [x] Store parsed Retend-native values for supported Phase 2 styles during command application.
 - [x] Implement fail-soft behavior for invalid semantic style values.
 - [x] Send complete resolved author-style snapshots from JavaScript; declarations disappear by omission from the replacement snapshot rather than separate removal commands.
@@ -178,7 +177,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [ ] Flush pending insertion before synchronizing a listener on a logically active but not-yet-submitted node.
 - [ ] Coalesce `mousemove` latest-wins while delivery is pending.
 - [ ] Keep discrete native events ordered and uncoalesced.
-- [ ] Drop stale events whose target ID is destroyed or detached when JS dispatch begins.
+- [ ] Drop stale events whose target ID is destroyed or not currently presented in the native window when JS dispatch begins.
 
 ### Retend event dispatch
 
@@ -213,10 +212,10 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 ### Development root/error integration
 
 - [x] Keep one immutable native root per window.
-- [ ] Mount a stable Retend development wrapper beneath the root.
-- [ ] Render the application subtree and recoverable dev overlay inside that same Retend tree.
-- [x] Preserve the existing application subtree during recoverable compile/HMR errors.
-- [x] Remove the overlay after a successful update.
+- [x] Mount application output directly beneath that root through a JavaScript-only logical root, without an implicit layout container.
+- [x] Keep recoverable development UI renderer-owned outside the application's Retend tree.
+- [x] Preserve the existing application subtree during recoverable compile/HMR errors while temporarily presenting the development overlay.
+- [x] Remove the overlay after a successful update and restore the preserved application subtree.
 - [x] Allow errors to render before the application entry has successfully mounted.
 
 ### Renderer migration

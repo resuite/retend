@@ -22,7 +22,6 @@ export const ElementKind = {
   Image: 4,
   Input: 5,
   Textarea: 6,
-  Anchor: 7,
 } as const;
 
 export type ElementKind = (typeof ElementKind)[keyof typeof ElementKind];

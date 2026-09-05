@@ -42,7 +42,6 @@ pub enum NodeData {
         src: Option<String>,
         object_fit: Option<ImageObjectFit>,
     },
-    Anchor,
 }
 
 pub struct NativeNode {
@@ -256,7 +255,6 @@ impl NativeTree {
                     NodeData::Container => ("Container", None, None),
                     NodeData::Text(text) => ("Text", Some(text.as_str()), None),
                     NodeData::Image { src, .. } => ("Image", None, src.as_deref()),
-                    NodeData::Anchor => ("Anchor", None, None),
                 };
                 NodeSnapshot {
                     id,
@@ -321,7 +319,6 @@ impl NativeTree {
                         object_fit: None,
                     },
                 ),
-                ElementKind::Anchor => self.create(index, window_id, id, NodeData::Anchor),
                 ElementKind::Root => invalid(
                     index,
                     "INVALID_NODE_KIND",
@@ -414,11 +411,11 @@ impl NativeTree {
             }
             Command::SetStyle { id, properties } => {
                 let node = self.node_mut(window_id, index, id)?;
-                if matches!(&node.data, NodeData::Text(_) | NodeData::Anchor) {
+                if matches!(&node.data, NodeData::Text(_)) {
                     return invalid(
                         index,
                         "UNSUPPORTED_PROPERTY",
-                        "Text and anchor nodes cannot receive author-style snapshots.",
+                        "Text nodes cannot receive author-style snapshots.",
                     );
                 }
                 if properties.is_empty() {
@@ -548,7 +545,6 @@ impl NativeTree {
                 NodeData::Container => (true, "Container"),
                 NodeData::Text(_) => (false, "Text"),
                 NodeData::Image { .. } => (false, "Image"),
-                NodeData::Anchor => (false, "Anchor"),
             };
         let child_parent = self.node(window_id, index, child_id)?.parent;
         let root_id = self.windows[&window_id].root_id;
@@ -1404,7 +1400,7 @@ mod tests {
         #[test]
         fn arbitrary_command_batches_never_panic(
             raw in proptest::collection::vec(
-                (0u8..7, structural_node_id(), structural_node_id(), structural_node_id()),
+                (0u8..6, structural_node_id(), structural_node_id(), structural_node_id()),
                 0..64,
             )
         ) {
@@ -1424,16 +1420,12 @@ mod tests {
                         id: first,
                         kind: ElementKind::Image,
                     },
-                    3 => Command::CreateNode {
-                        id: first,
-                        kind: ElementKind::Anchor,
-                    },
-                    4 => Command::InsertChild {
+                    3 => Command::InsertChild {
                         parent_id: first,
                         child_id: second,
                         before_id: third,
                     },
-                    5 => Command::RemoveChild {
+                    4 => Command::RemoveChild {
                         parent_id: first,
                         child_id: second,
                     },
@@ -1462,22 +1454,19 @@ mod tests {
             let (mut tree, window, root) = setup();
             let container = 2;
             let image = u32::MAX;
-            let anchor = u32::MAX - 1;
             tree.apply_commands(
                 window,
                 vec![
                     Command::CreateNode { id: container, kind: ElementKind::Container },
                     Command::CreateNode { id: image, kind: ElementKind::Image },
-                    Command::CreateNode { id: anchor, kind: ElementKind::Anchor },
                     Command::InsertChild { parent_id: root, child_id: container, before_id: 0 },
                     Command::InsertChild { parent_id: root, child_id: image, before_id: 0 },
-                    Command::InsertChild { parent_id: root, child_id: anchor, before_id: 0 },
                 ],
             ).unwrap();
 
             for value in ops {
                 let other_parent = |parent| if parent == root { container } else { root };
-                let result = match value % 5 {
+                let result = match value % 4 {
                     0 => tree.apply_commands(window, vec![Command::InsertChild {
                         parent_id: other_parent(tree.nodes[&image].parent.unwrap()),
                         child_id: image,
@@ -1508,15 +1497,6 @@ mod tests {
                             PropertyValue::String(format!("https://example.com/{value}.png"))
                         },
                     }]),
-                    3 => {
-                        let parent = tree.nodes[&image].parent.unwrap();
-                        let mut commands = Vec::new();
-                        if tree.nodes[&anchor].parent != Some(parent) {
-                            commands.push(Command::InsertChild { parent_id: parent, child_id: anchor, before_id: 0 });
-                        }
-                        commands.push(Command::InsertChild { parent_id: parent, child_id: anchor, before_id: image });
-                        tree.apply_commands(window, commands)
-                    }
                     _ => tree.apply_commands(
                         window,
                         vec![style(

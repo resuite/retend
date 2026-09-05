@@ -77,11 +77,13 @@ export class GpuiElement extends GpuiParentNode {
 
   /**
    * @param id - Unique native identifier assigned by the renderer.
-   * @param tagName - Intrinsic tag name (e.g. `"div"`, `"code"`).
+   * @param tagName - Intrinsic tag name (e.g. `"div"`, `"img"`).
+   * @param acceptsChildren - Whether this native element can contain logical children.
    */
   constructor(
     readonly id: number,
-    readonly tagName: string
+    readonly tagName: string,
+    readonly acceptsChildren = true
   ) {
     super();
   }
@@ -99,9 +101,16 @@ export class GpuiText extends GpuiElement {
     id: number,
     public content: string
   ) {
-    super(id, 'text');
+    super(id, 'text', false);
   }
 }
+
+/**
+ * Renderer-owned logical root bound to the immutable native window root.
+ * It has no native node ID and projects its native-backed children directly
+ * under the window root.
+ */
+export class GpuiRoot extends GpuiParentNode {}
 
 /**
  * Logical grouping node with no native counterpart.

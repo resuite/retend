@@ -16,8 +16,7 @@
     "Text": 3,
     "Image": 4,
     "Input": 5,
-    "Textarea": 6,
-    "Anchor": 7
+    "Textarea": 6
   },
   "valueKinds": {
     "Null": 0,

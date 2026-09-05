@@ -35,7 +35,9 @@ declare module 'retend/jsx-runtime' {
      * be a plain value or a `Cell` for fine-grained reactivity.
      */
     type GpuiIntrinsicElements = {
-      [Tag in GpuiElementType]: GpuiElementProps & ReactiveCustomProps<Tag>;
+      [Tag in GpuiElementType]: GpuiElementProps &
+        ReactiveCustomProps<Tag> &
+        (Tag extends 'img' ? { children?: never } : {});
     };
 
     /**

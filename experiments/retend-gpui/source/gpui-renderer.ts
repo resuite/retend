@@ -35,6 +35,7 @@ import {
   GpuiElement,
   GpuiGroup,
   GpuiNode,
+  GpuiRoot,
   GpuiText,
   GpuiParentNode,
   type GpuiRange,
@@ -188,8 +189,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   };
 
   #state?: StateSnapshot;
-  #root: GpuiElement | null = null;
-  #mountedNativeRoot: GpuiElement | null = null;
+  #root: GpuiRoot | null = null;
+  #mountedNativeRoots: GpuiElement[] = [];
   #nodesById = new Map<number, GpuiElement>();
   #pendingDestroy = new Set<GpuiNode>();
   #destroyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -244,9 +245,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     try {
       return withState(this.#state, () => {
         const result = normalizeJsxChild(app, this);
-        const root = this.#materializeRoot(result);
+        const root = new GpuiRoot();
         this.#root = root;
-        this.#mountNativeRoot(root);
+        this.#applyStructureMutation(appendNodes(root, result));
         this.host.flush();
         return result;
       });
@@ -280,7 +281,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     const tag = tagName as GpuiElementType;
     const node = new GpuiElement(
       this.host.createNode(ELEMENT_KIND_BY_TAG[tag]),
-      tag
+      tag,
+      tag === 'div'
     );
     this.#nodesById.set(node.id, node);
     return node;
@@ -368,6 +370,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     parent: GpuiElement | GpuiGroup,
     child: GpuiNode | GpuiNode[]
   ): GpuiNode {
+    if (parent instanceof GpuiElement && !parent.acceptsChildren) {
+      throw new Error(`<${parent.tagName}> cannot contain GPUI children.`);
+    }
     this.#applyStructureMutation(appendNodes(parent, child));
     return parent;
   }
@@ -490,7 +495,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     this.append(root, text);
     this.#devErrorRoot = root;
     this.#devErrorText = text;
-    this.#mountNativeRoot(root);
+    this.#mountNativeRoots([root]);
     try {
       this.flush();
     } catch (error) {
@@ -512,7 +517,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
     this.#devErrorRoot = null;
     this.#devErrorText = null;
-    this.#mountNativeRoot(this.#root);
+    this.#syncWindowRoot();
     this.#markDestroyedSubtree(root);
     this.host.settle();
   }
@@ -543,7 +548,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       if (!node.destroyed) node.markDestroyed();
     }
     this.#pendingDestroy.clear();
-    this.#mountedNativeRoot = null;
+    this.#mountedNativeRoots = [];
     this.#root = null;
     this.#devErrorRoot = null;
     this.#devErrorText = null;
@@ -558,8 +563,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     this.#state = undefined;
 
     const nativeRoots = this.#collectOwnedNativeRoots();
+    const mountedRoots = new Set(this.#mountedNativeRoots);
     for (const root of nativeRoots) {
-      if (root === this.#mountedNativeRoot) {
+      if (mountedRoots.has(root)) {
         this.host.removeChild(this.host.rootId, root.id);
       } else {
         // Cycling an unattached root through the immutable window root makes it
@@ -568,7 +574,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
         this.host.removeChild(this.host.rootId, root.id);
       }
     }
-    this.#mountedNativeRoot = null;
+    this.#mountedNativeRoots = [];
     this.#root = null;
     this.#devErrorRoot = null;
     this.#devErrorText = null;
@@ -586,30 +592,30 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     }
   }
 
-  #materializeRoot(result: GpuiNode): GpuiElement {
-    if (result instanceof GpuiElement) return result;
-
-    const root = this.createContainer('div');
-    this.#applyStructureMutation(appendNodes(root, result));
-    return root;
+  #syncWindowRoot(): void {
+    if (this.#devErrorRoot) return;
+    this.#mountNativeRoots(this.#root ? collectNativeChildren(this.#root) : []);
   }
 
-  #mountNativeRoot(root: GpuiElement | null): void {
-    if (this.#mountedNativeRoot === root) return;
-    if (this.#mountedNativeRoot) {
-      this.host.removeChild(this.host.rootId, this.#mountedNativeRoot.id);
-    }
-    if (root) this.host.insertChild(this.host.rootId, root.id);
-    this.#mountedNativeRoot = root;
+  #mountNativeRoots(desired: readonly GpuiElement[]): void {
+    const working = this.#mountedNativeRoots.filter((node) => !node.destroyed);
+    this.#syncNativeSequence(this.host.rootId, working, desired);
+    this.#mountedNativeRoots = [...desired];
   }
 
   #applyStructureMutation(mutation: StructureMutation): void {
     const nativeParents = new Set<GpuiElement>();
+    let windowRootAffected = false;
     for (const parent of mutation.affectedParents) {
+      if (parent === this.#root) {
+        windowRootAffected = true;
+        continue;
+      }
       const nativeParent = this.#nearestNativeParent(parent);
       if (nativeParent && !nativeParent.destroyed)
         nativeParents.add(nativeParent);
     }
+    if (windowRootAffected) this.#syncWindowRoot();
     for (const parent of nativeParents) this.#syncNativeChildren(parent);
 
     if (mutation.detachedNodes.size > 0) {
@@ -630,13 +636,21 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
   #syncNativeChildren(parent: GpuiElement): void {
     const desired = collectNativeChildren(parent);
-    const desiredSet = new Set(desired);
     const working = parent.nativeChildren.filter((child) => !child.destroyed);
+    this.#syncNativeSequence(parent.id, working, desired);
+    parent.nativeChildren = desired;
+  }
 
+  #syncNativeSequence(
+    parentId: number,
+    working: GpuiElement[],
+    desired: readonly GpuiElement[]
+  ): void {
+    const desiredSet = new Set(desired);
     for (let index = working.length - 1; index >= 0; index -= 1) {
       const child = working[index];
       if (desiredSet.has(child)) continue;
-      this.host.removeChild(parent.id, child.id);
+      this.host.removeChild(parentId, child.id);
       working.splice(index, 1);
     }
 
@@ -648,23 +662,23 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       if (currentIndex !== -1) working.splice(currentIndex, 1);
 
       const before = working[index];
-      this.host.insertChild(parent.id, child.id, before?.id ?? 0);
+      this.host.insertChild(parentId, child.id, before?.id ?? 0);
       working.splice(index, 0, child);
     }
-
-    parent.nativeChildren = desired;
   }
 
   #scheduleDestroy(): void {
     if (this.#destroyTimer !== null) return;
+    // Retend moves and retained-handle restoration can continue through
+    // microtasks after lifecycle activation. Defer permanent destruction to
+    // the next turn so all same-update reinsertions can complete first.
     this.#destroyTimer = setTimeout(() => {
       this.#destroyTimer = null;
       const pending = [...this.#pendingDestroy];
       this.#pendingDestroy.clear();
       let settle = false;
       for (const node of pending) {
-        if (node.destroyed || node.parent !== null || this.isActive(node))
-          continue;
+        if (node.destroyed || node.parent !== null) continue;
         this.#destroyDetached(node);
         settle = true;
       }

@@ -36,7 +36,6 @@ protocol_enum!(ElementKind: u8 {
   Image = 4,
   Input = 5,
   Textarea = 6,
-  Anchor = 7,
 });
 protocol_enum!(ValueKind: u8 {
   Null = 0,

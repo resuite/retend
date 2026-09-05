@@ -52,7 +52,6 @@ pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
                 .id(ElementId::Integer(u64::from(id)))
                 .into_any_element()
         }
-        NodeData::Anchor => gpui::Empty.into_any_element(),
     }
 }
 

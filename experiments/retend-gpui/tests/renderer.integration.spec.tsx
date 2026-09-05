@@ -21,7 +21,7 @@ import { hotReloadModule } from '../source/plugins/hmr';
 
 interface DebugNode {
   id: number;
-  kind: 'Root' | 'Container' | 'Text' | 'Image' | 'Anchor';
+  kind: 'Root' | 'Container' | 'Text' | 'Image';
   parent: number | null;
   children: number[];
   text: string | null;
@@ -136,6 +136,17 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     }
   });
 
+  it('rejects logical children on leaf native elements before bridge submission', () => {
+    const renderer = createRenderer();
+    const image = renderer.createContainer('img');
+    const child = renderer.createText('invalid child');
+
+    expect(() => renderer.append(image, child)).toThrow(
+      '<img> cannot contain GPUI children.'
+    );
+    expect(image.children).toEqual([]);
+  });
+
   it('renders div and text under the immutable native window root', () => {
     const renderer = createRenderer();
     const rootRef = Cell.source<GpuiElement | null>(null);
@@ -150,6 +161,29 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(nodes.get(tree.root_id)?.children).toEqual([root.id]);
     expect(nodes.get(root.id)?.kind).toBe('Container');
     expect(collectText(tree)).toEqual(['hello']);
+  });
+
+  it('projects top-level fragment content directly under the immutable root', () => {
+    const renderer = createRenderer();
+    const imageRef = Cell.source<GpuiElement | null>(null);
+    renderer.render(() => (
+      <>
+        before
+        <img ref={imageRef} src="https://example.com/root.png" />
+        after
+      </>
+    ));
+
+    const tree = debugTree(renderer);
+    const nodes = nodeMap(tree);
+    const root = nodes.get(tree.root_id);
+    expect(root?.children.map((id) => nodes.get(id)?.kind)).toEqual([
+      'Text',
+      'Image',
+      'Text',
+    ]);
+    expect(idsByKind(tree, 'Container')).toEqual([]);
+    expect(collectText(tree)).toEqual(['before', 'after']);
   });
 
   it('updates ordinary text through CREATE_TEXT/UPDATE_TEXT semantics', () => {
