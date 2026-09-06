@@ -31,9 +31,7 @@ import type { GpuiWindowOptions } from './window.js';
 import {
   createNativeEvent,
   parseEventProperty,
-  setNodeEventContext,
-  type GpuiNativeEventMetadata,
-  type GpuiNodeEventContext,
+  type NativeTransportEventId,
   type ParsedEventProperty,
 } from './events.js';
 import { GpuiHost } from './gpui-host.js';
@@ -47,6 +45,7 @@ import {
   GpuiRoot,
   GpuiText,
   GpuiParentNode,
+  type GpuiNodeEventOwner,
   type GpuiRange,
 } from './tree/nodes.js';
 import {
@@ -207,9 +206,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   #devErrorText: GpuiText | null = null;
   #disposed = false;
   readonly #hmr: boolean;
-  readonly #eventContext: GpuiNodeEventContext = {
-    nativeSubscriptionChanged: (node, metadata, enabled) =>
-      this.#syncNativeSubscription(node, metadata, enabled),
+  readonly #nodeEventOwner: GpuiNodeEventOwner = {
+    nativeSubscriptionChanged: (node, eventId, enabled) =>
+      this.#syncNativeSubscription(node, eventId, enabled),
     reportListenerError: (error) => {
       console.error('[retend-gpui] event listener failed:', error);
       this.host.reportApplicationError(error);
@@ -265,8 +264,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     try {
       return withState(this.#state, () => {
         const result = normalizeJsxChild(app, this);
-        const root = new GpuiRoot();
-        setNodeEventContext(root, this.#eventContext);
+        const root = new GpuiRoot(this.#nodeEventOwner);
         this.#root = root;
         this.#applyStructureMutation(appendNodes(root, result));
         this.host.flush();
@@ -281,9 +279,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
   /** Creates a logical group node with no native counterpart. */
   createGroup(): GpuiGroup {
-    const group = new GpuiGroup();
-    setNodeEventContext(group, this.#eventContext);
-    return group;
+    return new GpuiGroup(this.#nodeEventOwner);
   }
 
   /**
@@ -305,10 +301,10 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     const node = new GpuiElement(
       this.host.createNode(ELEMENT_KIND_BY_TAG[tag]),
       tag,
-      tag === 'div'
+      tag === 'div',
+      this.#nodeEventOwner
     );
     this.#nodesById.set(node.id, node);
-    setNodeEventContext(node, this.#eventContext);
     return node;
   }
 
@@ -318,9 +314,12 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * @param text - Initial text content.
    */
   createText(text: string): GpuiText {
-    const node = new GpuiText(this.host.createText(text), text);
+    const node = new GpuiText(
+      this.host.createText(text),
+      text,
+      this.#nodeEventOwner
+    );
     this.#nodesById.set(node.id, node);
-    setNodeEventContext(node, this.#eventContext);
     return node;
   }
 
@@ -840,7 +839,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
   #syncNativeSubscription(
     node: GpuiNode,
-    metadata: GpuiNativeEventMetadata,
+    eventId: NativeTransportEventId,
     enabled: boolean
   ): void {
     if (
@@ -854,8 +853,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
     const active = this.isActive(node);
     if (active) this.host.flush();
-    if (enabled) this.host.subscribeEvent(node.id, metadata.id);
-    else this.host.unsubscribeEvent(node.id, metadata.id);
+    if (enabled) this.host.subscribeEvent(node.id, eventId);
+    else this.host.unsubscribeEvent(node.id, eventId);
     if (active) this.host.flush();
   }
 

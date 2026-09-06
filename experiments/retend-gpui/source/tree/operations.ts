@@ -79,8 +79,8 @@ export function appendNodes(
 }
 
 export function createRange(group: GpuiGroup): GpuiRange {
-  const start = new GpuiAnchor();
-  const end = new GpuiAnchor();
+  const start = new GpuiAnchor(group.eventOwner);
+  const end = new GpuiAnchor(group.eventOwner);
   start.parent = group;
   end.parent = group;
   group.children.unshift(start);

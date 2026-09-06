@@ -3,9 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   GpuiKeyboardEvent,
   GpuiMouseEvent,
-  NATIVE_EVENT_METADATA,
   createNativeEvent,
-  setNodeEventContext,
 } from '../source/events';
 import { NativeEventId } from '../source/native/protocol.generated';
 import { GpuiElement } from '../source/tree/nodes';
@@ -122,14 +120,29 @@ describe('Retend GPUI event dispatch', () => {
     expect(target.dispatchEvent(new Event('custom'))).toBe(true);
   });
 
+  it('restores dispatch state so the same Event can be dispatched again', () => {
+    const first = new GpuiElement(1, 'div');
+    const second = new GpuiElement(2, 'div');
+    const event = new Event('custom');
+
+    first.dispatchEvent(event);
+    expect(event.target).toBe(first);
+    expect(event.currentTarget).toBeNull();
+    expect(event.eventPhase).toBe(Event.NONE);
+    expect(event.composedPath()).toEqual([]);
+
+    second.dispatchEvent(event);
+    expect(event.target).toBe(second);
+    expect(event.eventPhase).toBe(Event.NONE);
+  });
+
   it('reports listener exceptions and continues the remaining listeners', () => {
-    const target = new GpuiElement(1, 'div');
     const reportListenerError = vi.fn();
-    const second = vi.fn();
-    setNodeEventContext(target, {
+    const target = new GpuiElement(1, 'div', true, {
       nativeSubscriptionChanged() {},
       reportListenerError,
     });
+    const second = vi.fn();
     target.addEventListener('custom', () => {
       throw new Error('listener failed');
     });
@@ -219,9 +232,8 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('synchronizes only the first and last listener for native-backed types', () => {
-    const target = new GpuiElement(1, 'div');
     const nativeSubscriptionChanged = vi.fn();
-    setNodeEventContext(target, {
+    const target = new GpuiElement(1, 'div', true, {
       nativeSubscriptionChanged,
       reportListenerError() {},
     });
@@ -234,11 +246,9 @@ describe('Retend GPUI event dispatch', () => {
     target.removeEventListener('click', second);
     target.addEventListener('custom', first);
 
-    const click = NATIVE_EVENT_METADATA.find((entry) => entry.type === 'click');
-    expect(click).toBeDefined();
     expect(nativeSubscriptionChanged.mock.calls).toEqual([
-      [target, click, true],
-      [target, click, false],
+      [target, NativeEventId.Click, true],
+      [target, NativeEventId.Click, false],
     ]);
   });
 });
