@@ -17,6 +17,7 @@ import type { GpuiColor, GpuiStyle } from '../source/types';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeRendererFatalError } from '../source/native/addon';
 import { ElementKind, PropertyId } from '../source/native/protocol';
+import { NativeEventId } from '../source/native/protocol.generated';
 import { hotReloadModule } from '../source/plugins/hmr';
 
 interface DebugNode {
@@ -136,6 +137,111 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     }
   });
 
+  it('registers JSX native events and synchronizes active listener changes immediately', () => {
+    const renderer = createRenderer();
+    const rootRef = Cell.source<GpuiElement | null>(null);
+    const subscribe = vi.spyOn(renderer.host, 'subscribeEvent');
+    const unsubscribe = vi.spyOn(renderer.host, 'unsubscribeEvent');
+    const click = vi.fn();
+
+    renderer.render(() => <div ref={rootRef} onClick={click} />);
+    const root = rootRef.get();
+    if (!root) throw new Error('Expected root ref to resolve.');
+    expect(subscribe).toHaveBeenCalledWith(root.id, NativeEventId.Click);
+
+    const move = vi.fn();
+    root.addEventListener('mousemove', move);
+    expect(subscribe).toHaveBeenCalledWith(root.id, NativeEventId.MouseMove);
+
+    root.removeEventListener('mousemove', move);
+    expect(unsubscribe).toHaveBeenCalledWith(root.id, NativeEventId.MouseMove);
+  });
+
+  it('preserves Retend event-modifier ordering for descendant events', () => {
+    const renderer = createRenderer();
+    const root = renderer.createContainer('div');
+    const selfThenStop = renderer.createContainer('div');
+    const stopThenSelf = renderer.createContainer('div');
+    const firstChild = renderer.createContainer('div');
+    const secondChild = renderer.createContainer('div');
+    renderer.append(selfThenStop, firstChild);
+    renderer.append(stopThenSelf, secondChild);
+    renderer.append(root, [selfThenStop, stopThenSelf]);
+    renderer.render(() => root);
+
+    const rootListener = vi.fn();
+    const selfThenStopListener = vi.fn();
+    const stopThenSelfListener = vi.fn();
+    root.addEventListener('click', rootListener);
+    renderer.setProperty(
+      selfThenStop,
+      'onClick--self--stop',
+      selfThenStopListener
+    );
+    renderer.setProperty(
+      stopThenSelf,
+      'onClick--stop--self',
+      stopThenSelfListener
+    );
+
+    firstChild.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(selfThenStopListener).not.toHaveBeenCalled();
+    expect(rootListener).not.toHaveBeenCalled();
+
+    secondChild.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(stopThenSelfListener).not.toHaveBeenCalled();
+    expect(rootListener).toHaveBeenCalledOnce();
+  });
+
+  it('types and applies passive semantics to JSX event modifiers', () => {
+    const renderer = createRenderer();
+    const targetRef = Cell.source<GpuiElement | null>(null);
+    const listener = vi.fn((event: Event) => event.preventDefault());
+    renderer.render(() => <div ref={targetRef} onClick--passive={listener} />);
+    const target = targetRef.get();
+    if (!target) throw new Error('Expected event target ref to resolve.');
+    const event = new Event('click', { bubbles: true, cancelable: true });
+
+    expect(target.dispatchEvent(event)).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it('flushes a pending active insertion before its native event subscription', () => {
+    const renderer = createRenderer();
+    const parentRef = Cell.source<GpuiElement | null>(null);
+    renderer.render(() => <div ref={parentRef} />);
+    const parent = parentRef.get();
+    if (!parent) throw new Error('Expected parent ref to resolve.');
+
+    const child = renderer.createContainer('div');
+    const flush = vi.spyOn(renderer.host, 'flush');
+    const subscribe = vi.spyOn(renderer.host, 'subscribeEvent');
+    renderer.append(parent, child);
+    child.addEventListener('click', () => {});
+
+    expect(flush).toHaveBeenCalledTimes(2);
+    expect(subscribe).toHaveBeenCalledWith(child.id, NativeEventId.Click);
+    expect(flush.mock.invocationCallOrder[0]).toBeLessThan(
+      subscribe.mock.invocationCallOrder[0]
+    );
+    expect(subscribe.mock.invocationCallOrder[0]).toBeLessThan(
+      flush.mock.invocationCallOrder[1]
+    );
+  });
+
+  it('leaves detached native listener registration batched', () => {
+    const renderer = createRenderer();
+    const node = renderer.createContainer('div');
+    const flush = vi.spyOn(renderer.host, 'flush');
+    const subscribe = vi.spyOn(renderer.host, 'subscribeEvent');
+
+    node.addEventListener('click', () => {});
+
+    expect(subscribe).toHaveBeenCalledWith(node.id, NativeEventId.Click);
+    expect(flush).not.toHaveBeenCalled();
+  });
+
   it('rejects logical children on leaf native elements before bridge submission', () => {
     const renderer = createRenderer();
     const image = renderer.createContainer('img');
@@ -157,6 +263,30 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     renderer.flush();
 
     expect(setStyle).not.toHaveBeenCalled();
+    expect(debugTree(renderer).poisoned).toBe(false);
+  });
+
+  it('routes listener exceptions through the application error path without poisoning', () => {
+    const renderer = createRenderer();
+    const ref = Cell.source<GpuiElement | null>(null);
+    const applicationErrors: unknown[] = [];
+    const afterFailure = vi.fn();
+    renderer.host.addEventListener('applicationerror', (event) => {
+      applicationErrors.push((event as CustomEvent<unknown>).detail);
+    });
+    renderer.render(() => <div ref={ref}>event target</div>);
+    const node = ref.get();
+    if (!node) throw new Error('Expected event target ref to resolve.');
+
+    node.addEventListener('custom', () => {
+      throw new Error('listener failure');
+    });
+    node.addEventListener('custom', afterFailure);
+    node.dispatchEvent(new Event('custom'));
+
+    expect(applicationErrors).toHaveLength(1);
+    expect(applicationErrors[0]).toBeInstanceOf(Error);
+    expect(afterFailure).toHaveBeenCalledOnce();
     expect(debugTree(renderer).poisoned).toBe(false);
   });
 

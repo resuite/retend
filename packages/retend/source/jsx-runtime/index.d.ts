@@ -7,6 +7,12 @@ export namespace JSX {
     | import('retend').AsyncDerivedCell<T>;
   type ValueOrCell<T> = T | import('retend').Cell<T>;
   type EventHandlerValue<Handler> = ValueOrCell<Handler | null | undefined>;
+  type EventModifier = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
+  type EventModifierHandlers<Events extends object> = {
+    [Key in keyof Events as Key extends string
+      ? `${Key}--${EventModifier}`
+      : never]?: Events[Key];
+  };
 
   interface IntrinsicAttributes {
     children?: Children;

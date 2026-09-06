@@ -11,6 +11,8 @@ export const Opcode = {
   InsertChild: 5,
   RemoveChild: 6,
   SetStyle: 7,
+  SubscribeEvent: 8,
+  UnsubscribeEvent: 9,
 } as const;
 
 export type Opcode = (typeof Opcode)[keyof typeof Opcode];

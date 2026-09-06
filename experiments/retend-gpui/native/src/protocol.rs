@@ -1,7 +1,7 @@
 use std::{fmt::Display, str};
 
 use crate::protocol_generated::{
-    ElementKind, Opcode, PropertyId, ValueKind, PROTOCOL_MAGIC, PROTOCOL_VERSION,
+    ElementKind, NativeEventId, Opcode, PropertyId, ValueKind, PROTOCOL_MAGIC, PROTOCOL_VERSION,
 };
 use crate::BridgeFailure;
 
@@ -46,6 +46,14 @@ pub enum Command {
     RemoveChild {
         parent_id: u32,
         child_id: u32,
+    },
+    SubscribeEvent {
+        id: u32,
+        event: NativeEventId,
+    },
+    UnsubscribeEvent {
+        id: u32,
+        event: NativeEventId,
     },
 }
 
@@ -281,7 +289,25 @@ fn decode_command(reader: &mut Reader<'_>, strings: &[&str]) -> Result<Command, 
             parent_id: reader.read_u32()?,
             child_id: reader.read_u32()?,
         }),
+        Opcode::SubscribeEvent => Ok(Command::SubscribeEvent {
+            id: reader.read_u32()?,
+            event: read_native_event(reader)?,
+        }),
+        Opcode::UnsubscribeEvent => Ok(Command::UnsubscribeEvent {
+            id: reader.read_u32()?,
+            event: read_native_event(reader)?,
+        }),
     }
+}
+
+fn read_native_event(reader: &mut Reader<'_>) -> Result<NativeEventId, BridgeFailure> {
+    let offset = reader.pos;
+    parse_enum(
+        reader.read_u16()?,
+        offset,
+        "UNKNOWN_NATIVE_EVENT",
+        "native event ID",
+    )
 }
 
 fn read_property(reader: &mut Reader<'_>) -> Result<PropertyId, BridgeFailure> {
@@ -361,6 +387,34 @@ mod tests {
         bytes[4..6].copy_from_slice(&version.to_le_bytes());
         bytes[16..20].copy_from_slice(&(HEADER_BYTES as u32).to_le_bytes());
         bytes
+    }
+
+    #[test]
+    fn decodes_native_event_subscription_commands() {
+        let mut bytes = empty_batch(PROTOCOL_VERSION);
+        bytes.push(Opcode::SubscribeEvent as u8);
+        bytes.extend_from_slice(&7u32.to_le_bytes());
+        bytes.extend_from_slice(&(NativeEventId::Click as u16).to_le_bytes());
+        bytes.push(Opcode::UnsubscribeEvent as u8);
+        bytes.extend_from_slice(&7u32.to_le_bytes());
+        bytes.extend_from_slice(&(NativeEventId::Click as u16).to_le_bytes());
+        bytes[8..12].copy_from_slice(&14u32.to_le_bytes());
+        bytes[12..16].copy_from_slice(&2u32.to_le_bytes());
+        bytes[16..20].copy_from_slice(&((HEADER_BYTES + 14) as u32).to_le_bytes());
+
+        assert_eq!(
+            decode_command_batch(&bytes).unwrap(),
+            vec![
+                Command::SubscribeEvent {
+                    id: 7,
+                    event: NativeEventId::Click,
+                },
+                Command::UnsubscribeEvent {
+                    id: 7,
+                    event: NativeEventId::Click,
+                },
+            ]
+        );
     }
 
     #[test]

@@ -1,6 +1,10 @@
-import type { NativeRendererBinding } from './native/addon.js';
+import type {
+  NativeEventPayload,
+  NativeRendererBinding,
+} from './native/addon.js';
 import type {
   ElementKind as ElementKindValue,
+  NativeEventId as NativeEventIdValue,
   PropertyId as PropertyIdValue,
 } from './native/protocol.generated.js';
 import type { ProtocolPropertyValue } from './native/protocol.js';
@@ -112,6 +116,8 @@ class GpuiNavigation {
 export interface GpuiHostOptions {
   /** Creates the retained native tree without opening an OS window. */
   headless?: boolean;
+  /** @internal Receives structured native events for this window. */
+  onNativeEvent?: (event: NativeEventPayload) => void;
 }
 
 /**
@@ -120,6 +126,7 @@ export interface GpuiHostOptions {
  */
 export class GpuiHost extends EventTarget {
   readonly #headless: boolean;
+  readonly #onNativeEvent?: (event: NativeEventPayload) => void;
   #writer = new CommandBatchWriter();
   readonly #navigation = new GpuiNavigation(this);
   #binding: NativeRendererBinding | null = null;
@@ -134,6 +141,7 @@ export class GpuiHost extends EventTarget {
   constructor(options: GpuiHostOptions = {}) {
     super();
     this.#headless = options.headless ?? false;
+    this.#onNativeEvent = options.onNativeEvent;
   }
 
   get isInitialized(): boolean {
@@ -171,7 +179,8 @@ export class GpuiHost extends EventTarget {
         title: options.title,
         width: options.width,
         height: options.height,
-      }
+      },
+      this.#onNativeEvent
     );
     if (!this.#headless) {
       acquireNativeRuntime(
@@ -185,6 +194,13 @@ export class GpuiHost extends EventTarget {
   setWindowTitle(title: string): void {
     this.#requireBinding().setWindowTitle(title);
     this.document.title = title;
+  }
+
+  /** @internal Reports a recoverable application error to this window runtime. */
+  reportApplicationError(error: unknown): void {
+    this.dispatchEvent(
+      new CustomEvent('applicationerror', { detail: error, cancelable: false })
+    );
   }
 
   resetLocation(path: string): void {
@@ -244,6 +260,18 @@ export class GpuiHost extends EventTarget {
     this.#requestFlush();
   }
 
+  subscribeEvent(id: number, event: NativeEventIdValue): void {
+    this.#requireBinding();
+    this.#writer.subscribeEvent(id, event);
+    this.#requestFlush();
+  }
+
+  unsubscribeEvent(id: number, event: NativeEventIdValue): void {
+    this.#requireBinding();
+    this.#writer.unsubscribeEvent(id, event);
+    this.#requestFlush();
+  }
+
   flush(): void {
     const binding = this.#requireBinding();
     if (this.#flushing || this.#writer.isEmpty) return;
@@ -274,6 +302,11 @@ export class GpuiHost extends EventTarget {
     this.#binding = null;
     if (!this.#headless) releaseNativeRuntime(binding);
     binding.close();
+  }
+
+  /** @internal Whether a native node is currently attached under this window root. */
+  isNodePresented(id: number): boolean {
+    return this.#requireBinding().isNodePresented(id);
   }
 
   /** @internal Test/diagnostic retained-tree snapshot. */

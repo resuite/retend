@@ -3,12 +3,16 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::protocol::{Command, PropertyValue};
-use crate::protocol_generated::{ElementKind, PropertyId};
+use crate::protocol_generated::{ElementKind, NativeEventId, PropertyId};
 use crate::style::NativeStyle;
 use crate::BridgeFailure;
 
 pub type NodeId = u32;
 pub type WindowId = u32;
+
+pub(crate) fn event_bit(event: NativeEventId) -> u32 {
+    1 << (event as u32 - 1)
+}
 
 fn invalid<T>(
     index: usize,
@@ -50,6 +54,7 @@ pub struct NativeNode {
     pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
     pub style: Option<Box<NativeStyle>>,
+    pub subscriptions: u32,
 }
 
 impl NativeNode {
@@ -60,6 +65,7 @@ impl NativeNode {
             parent: None,
             children: Vec::new(),
             style: None,
+            subscriptions: 0,
         }
     }
 }
@@ -67,6 +73,7 @@ impl NativeNode {
 pub struct WindowState {
     pub root_id: NodeId,
     pub pending_detached: HashSet<NodeId>,
+    pub mousedownoutside_subscribers: HashSet<NodeId>,
     pub fatal: Option<FatalDiagnostic>,
     pub reload_requested: bool,
 }
@@ -103,6 +110,7 @@ impl NativeTree {
             WindowState {
                 root_id,
                 pending_detached: HashSet::new(),
+                mousedownoutside_subscribers: HashSet::new(),
                 fatal: None,
                 reload_requested: false,
             },
@@ -132,6 +140,7 @@ impl NativeTree {
             .get_mut(&window_id)
             .expect("validated renderer window must still exist during reload");
         window.pending_detached.clear();
+        window.mousedownoutside_subscribers.clear();
         window.fatal = None;
         window.reload_requested = true;
         Ok(())
@@ -220,6 +229,93 @@ impl NativeTree {
         destroyed
     }
 
+    pub fn is_presented(&self, window_id: WindowId, id: NodeId) -> bool {
+        let Some(window) = self.windows.get(&window_id) else {
+            return false;
+        };
+        let mut current = Some(id);
+        while let Some(node_id) = current {
+            if node_id == window.root_id {
+                return true;
+            }
+            let Some(node) = self.nodes.get(&node_id) else {
+                return false;
+            };
+            if node.window_id != window_id {
+                return false;
+            }
+            current = node.parent;
+        }
+        false
+    }
+
+    pub fn subscription_mask_in_path(&self, window_id: WindowId, target_id: NodeId) -> u32 {
+        let Some(window) = self.windows.get(&window_id) else {
+            return 0;
+        };
+        let mut current = Some(target_id);
+        let mut subscriptions = 0;
+        while let Some(id) = current {
+            let Some(node) = self.nodes.get(&id) else {
+                return 0;
+            };
+            if node.window_id != window_id {
+                return 0;
+            }
+            subscriptions |= node.subscriptions;
+            if id == window.root_id {
+                return subscriptions;
+            }
+            current = node.parent;
+        }
+        0
+    }
+
+    pub fn has_subscription_in_path(
+        &self,
+        window_id: WindowId,
+        target_id: NodeId,
+        event: NativeEventId,
+    ) -> bool {
+        self.subscription_mask_in_path(window_id, target_id) & event_bit(event) != 0
+    }
+
+    pub fn has_mousedownoutside_subscribers(&self, window_id: WindowId) -> bool {
+        self.windows
+            .get(&window_id)
+            .is_some_and(|window| !window.mousedownoutside_subscribers.is_empty())
+    }
+
+    pub fn outside_subscribers(&self, window_id: WindowId, target_id: NodeId) -> Vec<NodeId> {
+        if !self.is_presented(window_id, target_id) {
+            return Vec::new();
+        }
+        let Some(window) = self.windows.get(&window_id) else {
+            return Vec::new();
+        };
+        let mut subscribers: Vec<_> = window
+            .mousedownoutside_subscribers
+            .iter()
+            .copied()
+            .filter(|id| {
+                self.is_presented(window_id, *id) && !self.is_descendant_or_self(target_id, *id)
+            })
+            .collect();
+        subscribers.sort_unstable();
+        subscribers
+    }
+
+    fn is_descendant_or_self(&self, id: NodeId, ancestor_id: NodeId) -> bool {
+        let mut current = Some(id);
+        while let Some(node_id) = current {
+            if node_id == ancestor_id {
+                return true;
+            }
+            current = self.nodes.get(&node_id).and_then(|node| node.parent);
+        }
+        false
+    }
+
     pub fn debug_window_json(&self, window_id: WindowId) -> Result<String, BridgeFailure> {
         let window = self.windows.get(&window_id).ok_or_else(|| {
             BridgeFailure::binding("INVALID_WINDOW", "Renderer window does not exist.")
@@ -295,6 +391,11 @@ impl NativeTree {
         let Some(node) = self.nodes.remove(&id) else {
             return;
         };
+        if node.subscriptions & event_bit(NativeEventId::MouseDownOutside) != 0 {
+            if let Some(window) = self.windows.get_mut(&node.window_id) {
+                window.mousedownoutside_subscribers.remove(&id);
+            }
+        }
         for child_id in node.children {
             self.destroy_subtree(child_id, destroyed);
         }
@@ -447,6 +548,30 @@ impl NativeTree {
                 parent_id,
                 child_id,
             } => self.remove(window_id, index, parent_id, child_id),
+            Command::SubscribeEvent { id, event } => {
+                let bit = event_bit(event);
+                let node = self.node_mut(window_id, index, id)?;
+                let inserted = node.subscriptions & bit == 0;
+                node.subscriptions |= bit;
+                if inserted && event == NativeEventId::MouseDownOutside {
+                    self.window(window_id)?
+                        .mousedownoutside_subscribers
+                        .insert(id);
+                }
+                Ok(())
+            }
+            Command::UnsubscribeEvent { id, event } => {
+                let bit = event_bit(event);
+                let node = self.node_mut(window_id, index, id)?;
+                let removed = node.subscriptions & bit != 0;
+                node.subscriptions &= !bit;
+                if removed && event == NativeEventId::MouseDownOutside {
+                    self.window(window_id)?
+                        .mousedownoutside_subscribers
+                        .remove(&id);
+                }
+                Ok(())
+            }
         }
     }
 
@@ -688,6 +813,99 @@ mod tests {
             id,
             properties: vec![(property, value)],
         }
+    }
+
+    #[test]
+    fn native_event_subscriptions_follow_presented_paths_and_outside_targets() {
+        let (mut tree, window, root) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::CreateNode {
+                    id: 3,
+                    kind: ElementKind::Container,
+                },
+                Command::CreateNode {
+                    id: 4,
+                    kind: ElementKind::Container,
+                },
+                Command::SubscribeEvent {
+                    id: 2,
+                    event: NativeEventId::Click,
+                },
+                Command::SubscribeEvent {
+                    id: 2,
+                    event: NativeEventId::MouseDownOutside,
+                },
+                Command::SubscribeEvent {
+                    id: 3,
+                    event: NativeEventId::MouseDownOutside,
+                },
+                Command::SubscribeEvent {
+                    id: 4,
+                    event: NativeEventId::MouseDownOutside,
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 2,
+                    before_id: 0,
+                },
+                Command::InsertChild {
+                    parent_id: 2,
+                    child_id: 3,
+                    before_id: 0,
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 4,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+
+        assert!(tree.is_presented(window, 3));
+        assert!(tree.has_subscription_in_path(window, 3, NativeEventId::Click));
+        assert!(tree.has_mousedownoutside_subscribers(window));
+        assert_eq!(tree.outside_subscribers(window, 3), vec![4]);
+        assert_eq!(tree.outside_subscribers(window, 2), vec![3, 4]);
+        assert_eq!(tree.outside_subscribers(window, 4), vec![2, 3]);
+
+        tree.apply_commands(
+            window,
+            vec![Command::UnsubscribeEvent {
+                id: 2,
+                event: NativeEventId::Click,
+            }],
+        )
+        .unwrap();
+        assert!(!tree.has_subscription_in_path(window, 3, NativeEventId::Click));
+
+        tree.apply_commands(
+            window,
+            vec![Command::RemoveChild {
+                parent_id: root,
+                child_id: 2,
+            }],
+        )
+        .unwrap();
+        assert!(!tree.is_presented(window, 3));
+        assert!(tree.outside_subscribers(window, 3).is_empty());
+        tree.settle(window).unwrap();
+
+        tree.apply_commands(
+            window,
+            vec![Command::UnsubscribeEvent {
+                id: 4,
+                event: NativeEventId::MouseDownOutside,
+            }],
+        )
+        .unwrap();
+        assert!(!tree.has_mousedownoutside_subscribers(window));
     }
 
     #[test]

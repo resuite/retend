@@ -1,10 +1,233 @@
 use std::sync::Arc;
 
 use gpui::{
-    div, img, prelude::*, AnyElement, ElementId, ImageCacheError, ImageSource, StyledImage, Text,
+    div, img, prelude::*, AnyElement, App, ClickEvent, ElementId, ImageCacheError, ImageSource,
+    KeyDownEvent, KeyUpEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    NavigationDirection, StyledImage, Text, Window,
 };
 
-use crate::tree::{ImageObjectFit, NativeTree, NodeData, NodeId};
+use crate::{
+    events,
+    protocol_generated::NativeEventId,
+    tree::{event_bit, ImageObjectFit, NativeTree, NodeData, NodeId, WindowId},
+};
+
+fn event_interest(window_id: WindowId, target_id: NodeId, event: NativeEventId) -> bool {
+    crate::runtime()
+        .lock()
+        .is_ok_and(|tree| tree.has_subscription_in_path(window_id, target_id, event))
+}
+
+#[derive(Clone, Copy)]
+struct EventInterest {
+    mouse_down: bool,
+    mouse_up: bool,
+    mouse_move: bool,
+    click: bool,
+    hover: bool,
+    key_down: bool,
+    key_up: bool,
+}
+
+impl EventInterest {
+    fn for_node(tree: &NativeTree, window_id: WindowId, id: NodeId) -> Self {
+        let subscriptions = tree.subscription_mask_in_path(window_id, id);
+        let in_path = |event| subscriptions & event_bit(event) != 0;
+        Self {
+            mouse_down: in_path(NativeEventId::MouseDown)
+                || tree.has_mousedownoutside_subscribers(window_id),
+            mouse_up: in_path(NativeEventId::MouseUp),
+            mouse_move: in_path(NativeEventId::MouseMove),
+            click: in_path(NativeEventId::Click) || in_path(NativeEventId::DblClick),
+            hover: in_path(NativeEventId::MouseEnter) || in_path(NativeEventId::MouseLeave),
+            key_down: in_path(NativeEventId::KeyDown),
+            key_up: in_path(NativeEventId::KeyUp),
+        }
+    }
+
+    fn any(self) -> bool {
+        self.mouse_down
+            || self.mouse_up
+            || self.mouse_move
+            || self.click
+            || self.hover
+            || self.key_down
+            || self.key_up
+    }
+}
+
+fn emit_mouse_down(window_id: WindowId, target_id: NodeId, event: &MouseDownEvent, cx: &mut App) {
+    let (subscribed, outside) = crate::runtime()
+        .lock()
+        .map(|tree| {
+            (
+                tree.has_subscription_in_path(window_id, target_id, NativeEventId::MouseDown),
+                tree.outside_subscribers(window_id, target_id),
+            )
+        })
+        .unwrap_or_default();
+    if subscribed {
+        events::emit(
+            window_id,
+            events::mouse_down(NativeEventId::MouseDown, target_id, event),
+        );
+    }
+    for id in &outside {
+        events::emit(
+            window_id,
+            events::mouse_down(NativeEventId::MouseDownOutside, *id, event),
+        );
+    }
+    if subscribed || !outside.is_empty() {
+        cx.stop_propagation();
+    }
+}
+
+fn emit_mouse_up(window_id: WindowId, target_id: NodeId, event: &MouseUpEvent, cx: &mut App) {
+    if !event_interest(window_id, target_id, NativeEventId::MouseUp) {
+        return;
+    }
+    events::emit(
+        window_id,
+        events::mouse_up(NativeEventId::MouseUp, target_id, event),
+    );
+    cx.stop_propagation();
+}
+
+fn emit_mouse_move(window_id: WindowId, target_id: NodeId, event: &MouseMoveEvent, cx: &mut App) {
+    if !event_interest(window_id, target_id, NativeEventId::MouseMove) {
+        return;
+    }
+    events::emit(window_id, events::mouse_move(target_id, event));
+    cx.stop_propagation();
+}
+
+fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &mut App) {
+    let click = event_interest(window_id, target_id, NativeEventId::Click);
+    let double_click =
+        event.click_count() == 2 && event_interest(window_id, target_id, NativeEventId::DblClick);
+    if click {
+        events::emit(
+            window_id,
+            events::click(NativeEventId::Click, target_id, event),
+        );
+    }
+    if double_click {
+        events::emit(
+            window_id,
+            events::click(NativeEventId::DblClick, target_id, event),
+        );
+    }
+    if click || double_click {
+        cx.stop_propagation();
+    }
+}
+
+fn emit_key_down(window_id: WindowId, target_id: NodeId, event: &KeyDownEvent, cx: &mut App) {
+    if !event_interest(window_id, target_id, NativeEventId::KeyDown) {
+        return;
+    }
+    events::emit(window_id, events::key_down(target_id, event));
+    cx.stop_propagation();
+}
+
+fn emit_key_up(window_id: WindowId, target_id: NodeId, event: &KeyUpEvent, cx: &mut App) {
+    if !event_interest(window_id, target_id, NativeEventId::KeyUp) {
+        return;
+    }
+    events::emit(window_id, events::key_up(target_id, event));
+    cx.stop_propagation();
+}
+
+fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &Window) {
+    let event = if hovered {
+        NativeEventId::MouseEnter
+    } else {
+        NativeEventId::MouseLeave
+    };
+    let subscribed = crate::runtime()
+        .lock()
+        .is_ok_and(|tree| tree.has_subscription_in_path(window_id, target_id, event));
+    if subscribed {
+        events::emit(
+            window_id,
+            events::hover(
+                event,
+                target_id,
+                window.mouse_position(),
+                window.modifiers(),
+            ),
+        );
+    }
+}
+
+macro_rules! with_native_events {
+    ($element:expr, $interest:expr, $window_id:expr, $id:expr) => {{
+        let mut element = $element;
+        let interest = $interest;
+        let window_id = $window_id;
+        let id = $id;
+        if interest.mouse_down {
+            element = element
+                .on_mouse_down(MouseButton::Left, move |event, _, cx| {
+                    emit_mouse_down(window_id, id, event, cx)
+                })
+                .on_mouse_down(MouseButton::Right, move |event, _, cx| {
+                    emit_mouse_down(window_id, id, event, cx)
+                })
+                .on_mouse_down(MouseButton::Middle, move |event, _, cx| {
+                    emit_mouse_down(window_id, id, event, cx)
+                })
+                .on_mouse_down(
+                    MouseButton::Navigate(NavigationDirection::Back),
+                    move |event, _, cx| emit_mouse_down(window_id, id, event, cx),
+                )
+                .on_mouse_down(
+                    MouseButton::Navigate(NavigationDirection::Forward),
+                    move |event, _, cx| emit_mouse_down(window_id, id, event, cx),
+                );
+        }
+        if interest.mouse_up {
+            element = element
+                .on_mouse_up(MouseButton::Left, move |event, _, cx| {
+                    emit_mouse_up(window_id, id, event, cx)
+                })
+                .on_mouse_up(MouseButton::Right, move |event, _, cx| {
+                    emit_mouse_up(window_id, id, event, cx)
+                })
+                .on_mouse_up(MouseButton::Middle, move |event, _, cx| {
+                    emit_mouse_up(window_id, id, event, cx)
+                })
+                .on_mouse_up(
+                    MouseButton::Navigate(NavigationDirection::Back),
+                    move |event, _, cx| emit_mouse_up(window_id, id, event, cx),
+                )
+                .on_mouse_up(
+                    MouseButton::Navigate(NavigationDirection::Forward),
+                    move |event, _, cx| emit_mouse_up(window_id, id, event, cx),
+                );
+        }
+        if interest.mouse_move {
+            element = element
+                .on_mouse_move(move |event, _, cx| emit_mouse_move(window_id, id, event, cx));
+        }
+        if interest.click {
+            element = element.on_click(move |event, _, cx| emit_click(window_id, id, event, cx));
+        }
+        if interest.hover {
+            element = element
+                .on_hover(move |hovered, window, _| emit_hover(window_id, id, *hovered, window));
+        }
+        if interest.key_down {
+            element =
+                element.on_key_down(move |event, _, cx| emit_key_down(window_id, id, event, cx));
+        }
+        if interest.key_up {
+            element = element.on_key_up(move |event, _, cx| emit_key_up(window_id, id, event, cx));
+        }
+        element
+    }};
+}
 
 fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
     match value {
@@ -31,9 +254,18 @@ pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
             };
             let element =
                 element.children(node.children.iter().map(|child_id| build(tree, *child_id)));
-            #[cfg(test)]
-            let element = element.debug_selector(move || format!("retend-node-{id}"));
-            element.into_any_element()
+            let interest = EventInterest::for_node(tree, node.window_id, id);
+            if interest.any() {
+                let element = element.id(ElementId::Integer(u64::from(id)));
+                let element = with_native_events!(element, interest, node.window_id, id);
+                #[cfg(test)]
+                let element = element.debug_selector(move || format!("retend-node-{id}"));
+                element.into_any_element()
+            } else {
+                #[cfg(test)]
+                let element = element.debug_selector(move || format!("retend-node-{id}"));
+                element.into_any_element()
+            }
         }
         NodeData::Container => {
             let element = match node.style.as_deref() {
@@ -42,9 +274,18 @@ pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
             };
             let element =
                 element.children(node.children.iter().map(|child_id| build(tree, *child_id)));
-            #[cfg(test)]
-            let element = element.debug_selector(move || format!("retend-node-{id}"));
-            element.into_any_element()
+            let interest = EventInterest::for_node(tree, node.window_id, id);
+            if interest.any() {
+                let element = element.id(ElementId::Integer(u64::from(id)));
+                let element = with_native_events!(element, interest, node.window_id, id);
+                #[cfg(test)]
+                let element = element.debug_selector(move || format!("retend-node-{id}"));
+                element.into_any_element()
+            } else {
+                #[cfg(test)]
+                let element = element.debug_selector(move || format!("retend-node-{id}"));
+                element.into_any_element()
+            }
         }
         NodeData::Text(text) => {
             Text::new(ElementId::Integer(u64::from(id)), text.clone().into()).into_any_element()
@@ -63,9 +304,9 @@ pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
             if let Some(object_fit) = object_fit {
                 image = image.object_fit(to_gpui_object_fit(*object_fit));
             }
-            image
-                .id(ElementId::Integer(u64::from(id)))
-                .into_any_element()
+            let image = image.id(ElementId::Integer(u64::from(id)));
+            let interest = EventInterest::for_node(tree, node.window_id, id);
+            with_native_events!(image, interest, node.window_id, id).into_any_element()
         }
     }
 }
@@ -146,7 +387,7 @@ mod tests {
         let mut element = build(&tree, 2);
         let actual = element
             .downcast_mut::<gpui::Div>()
-            .expect("native containers must render as GPUI Divs");
+            .expect("static native containers must remain plain GPUI Divs");
         let mut expected = div()
             .block()
             .p(px(12.0))
@@ -167,6 +408,58 @@ mod tests {
         expected.style().position = Some(gpui::Position::Absolute);
 
         assert_eq!(actual.style(), expected.style());
+    }
+
+    #[test]
+    fn event_interest_only_makes_the_interested_branch_stateful() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::CreateNode {
+                    id: 3,
+                    kind: ElementKind::Container,
+                },
+                Command::CreateNode {
+                    id: 4,
+                    kind: ElementKind::Container,
+                },
+                Command::SubscribeEvent {
+                    id: 2,
+                    event: NativeEventId::MouseEnter,
+                },
+                Command::InsertChild {
+                    parent_id: 1,
+                    child_id: 2,
+                    before_id: 0,
+                },
+                Command::InsertChild {
+                    parent_id: 2,
+                    child_id: 3,
+                    before_id: 0,
+                },
+                Command::InsertChild {
+                    parent_id: 1,
+                    child_id: 4,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+
+        let mut descendant = build(&tree, 3);
+        descendant
+            .downcast_mut::<gpui::Stateful<gpui::Div>>()
+            .expect("ancestor hover capture must make descendants interactive");
+        let mut unrelated = build(&tree, 4);
+        unrelated
+            .downcast_mut::<gpui::Div>()
+            .expect("uninterested branches must stay plain GPUI Divs");
     }
 
     #[test]

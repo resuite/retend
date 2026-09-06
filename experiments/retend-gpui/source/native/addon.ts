@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
+import type { NativeEventId } from './protocol.generated.js';
+
 export interface NativeBridgeFailure {
   code: string;
   message: string;
@@ -14,6 +16,57 @@ export interface NativeWindowOptions {
   width?: number;
   height?: number;
 }
+
+interface NativeEventBase {
+  targetId: number;
+  timeStamp: number;
+  altKey: boolean;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+}
+
+type NativeMouseEventId =
+  | typeof NativeEventId.Click
+  | typeof NativeEventId.DblClick
+  | typeof NativeEventId.MouseDown
+  | typeof NativeEventId.MouseUp
+  | typeof NativeEventId.MouseEnter
+  | typeof NativeEventId.MouseLeave
+  | typeof NativeEventId.MouseMove
+  | typeof NativeEventId.MouseDownOutside;
+
+type NativeKeyboardEventId =
+  | typeof NativeEventId.KeyDown
+  | typeof NativeEventId.KeyUp;
+
+type NativePayloadById<Id extends number, Fields> = Id extends number
+  ? NativeEventBase & Fields & { eventId: Id }
+  : never;
+
+export type NativeMouseEventPayload = NativePayloadById<
+  NativeMouseEventId,
+  {
+    clientX: number;
+    clientY: number;
+    button: number;
+    buttons: number;
+    detail: number;
+  }
+>;
+
+export type NativeKeyboardEventPayload = NativePayloadById<
+  NativeKeyboardEventId,
+  {
+    key: string;
+    keyChar?: string;
+    repeat: boolean;
+  }
+>;
+
+export type NativeEventPayload =
+  | NativeMouseEventPayload
+  | NativeKeyboardEventPayload;
 
 export class NativeRendererFatalError extends Error {
   constructor(
@@ -35,6 +88,7 @@ export interface NativeRendererBinding {
   setWindowTitle(title: string): void;
   close(): void;
   isClosed(): boolean;
+  isNodePresented(id: number): boolean;
   debugTreeJson(): string;
 }
 
@@ -42,7 +96,8 @@ interface NativeAddon {
   NativeRendererBinding: new (
     rootId: number,
     headless: boolean,
-    options?: NativeWindowOptions
+    options?: NativeWindowOptions,
+    onEvent?: (event: NativeEventPayload) => void
   ) => NativeRendererBinding;
   tick(): boolean;
 }

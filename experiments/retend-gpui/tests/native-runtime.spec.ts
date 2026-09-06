@@ -24,6 +24,7 @@ function fakeBinding(
     setWindowTitle() {},
     close() {},
     isClosed,
+    isNodePresented: () => true,
     debugTreeJson: () => '{}',
   };
 }

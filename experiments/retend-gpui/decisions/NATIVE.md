@@ -130,7 +130,7 @@ The v1 native renderer has no `span` or nested inline text-run model. Inline ran
 
 ## Event vocabulary and payloads
 
-The native protocol event vocabulary contains `click`, `dblclick`, `mousedown`, `mouseup`, `mouseenter`, `mouseleave`, `mousemove`, `keydown`, `keyup`, `input`, `change`, `focus`, `blur`, `scroll`, and the non-DOM extension `mousedownoutside`. JSX props keep React-style casing such as `onMouseDown`; protocol event names use their explicitly defined lowercase forms.
+The native protocol event vocabulary contains `click`, `dblclick`, `mousedown`, `mouseup`, `mouseenter`, `mouseleave`, `mousemove`, `keydown`, `keyup`, `input`, `change`, `focus`, `blur`, `scroll`, `compositionstart`, `compositionupdate`, `compositionend`, and the non-DOM extension `mousedownoutside`. JSX props keep React-style casing such as `onMouseDown`; protocol event names use their explicitly defined lowercase forms.
 
 Application-defined custom events remain entirely in JavaScript and do not enter the native protocol vocabulary. Native event types carry propagation metadata. `mouseenter`, `mouseleave`, `focus`, `blur`, and element `scroll` are non-bubbling; ordinary pointer/button/key events such as `click`, `mousedown`, `mouseup`, `mousemove`, `keydown`, and `keyup` bubble. Capture and target behavior follows each event type's metadata.
 
@@ -146,7 +146,7 @@ Retend GPUI nodes expose an EventTarget-compatible API but do not inherit from t
 
 For native-backed event types, listener registration follows connectivity. If `renderer.isActive(node)` is false, listener changes may remain batched with the node's ordinary pending native work. If `renderer.isActive(node)` is true, adding or removing the native-backed listener becomes effective synchronously. If the node became logically active before its pending UI command batch reached Rust, the host first flushes that batch and then synchronizes the native subscription. No separate `nativeCreated`/`committed` lifecycle state is introduced for this purpose, and native subscription mechanics remain internal to the renderer/bridge.
 
-For pointer and other targeted events, Rust resolves the native hit target and sends one structured event containing that target identity to JavaScript. Retend performs capture, target, and bubble propagation over the Retend parent chain. JavaScript snapshots the complete logical propagation path once before invoking listeners, so tree mutations during dispatch do not change the current event path.
+For pointer and other targeted events, Rust resolves the native hit target and sends one structured event containing that target identity to JavaScript. Retend performs capture, target, and bubble propagation over the Retend parent chain. JavaScript snapshots the complete logical propagation path once before invoking listeners, so tree mutations during dispatch do not change the current event path. `mousedownoutside` is the exception: Rust selects each subscribed node whose subtree does not contain the hit target and emits a separate target-only event for that subscriber; JavaScript does not capture or bubble that extension through ancestors.
 
 For each node reached during dispatch, JavaScript snapshots that node's current listener list before invoking it, matching DOM semantics. Listeners added during that node's dispatch do not run for the current event, while listeners removed before their turn are skipped. Event objects support `stopPropagation()` and `stopImmediatePropagation()`.
 

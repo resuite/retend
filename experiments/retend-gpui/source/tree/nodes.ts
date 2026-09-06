@@ -1,11 +1,18 @@
 import type { GpuiStyle } from '../types.js';
 
+import {
+  addNodeEventListener,
+  clearNodeEventListeners,
+  dispatchNodeEvent,
+  removeNodeEventListener,
+} from '../events.js';
+
 /**
  * Base node in the GPUI retained tree.
  * Provides lifecycle management and keyed cleanup callbacks that are
  * automatically disposed when the node is destroyed or replaced.
  */
-export abstract class GpuiNode {
+export abstract class GpuiNode implements EventTarget {
   /** Parent in the logical tree, or `null` if detached. */
   parent: GpuiParentNode | null = null;
   /** Abort signal that fires when the node is destroyed; use for reactive subscriptions. */
@@ -16,6 +23,26 @@ export abstract class GpuiNode {
   /** Whether `markDestroyed` has been called. */
   get destroyed(): boolean {
     return this.#destroyed;
+  }
+
+  addEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions
+  ): void {
+    addNodeEventListener(this, type, callback, options);
+  }
+
+  removeEventListener(
+    type: string,
+    callback: EventListenerOrEventListenerObject | null,
+    options?: boolean | EventListenerOptions
+  ): void {
+    removeNodeEventListener(this, type, callback, options);
+  }
+
+  dispatchEvent(event: Event): boolean {
+    return dispatchNodeEvent(this, event);
   }
 
   /**
@@ -44,6 +71,7 @@ export abstract class GpuiNode {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.lifecycle.abort();
+    clearNodeEventListeners(this);
     for (const cleanup of this.#cleanup.values()) this.#runCleanup(cleanup);
     this.#cleanup.clear();
   }

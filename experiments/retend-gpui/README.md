@@ -138,7 +138,7 @@ Text is ordinary JSX content rather than a `<text>` intrinsic. `input` and `text
 
 ## Events
 
-JSX event props are not exposed yet. They are added with the Retend-owned native event transport so a typed handler cannot silently do nothing.
+Retend GPUI exposes JSX handlers for native pointer/button events and `keydown`/`keyup`, plus the `mousedownoutside` extension. Retend owns capture/target/bubble propagation over the logical node tree, and GPUI nodes also expose `addEventListener()`, `removeEventListener()`, and `dispatchEvent()` for imperative/custom events. `mouseenter` and `mouseleave` are non-bubbling; `mousedownoutside` is target-only for each qualifying subscriber. Native sources for focus/blur, input/change/composition, and element scroll are completed with the Phase 3 focus, text-input, and scrolling state systems.
 
 ## Reactive values
 

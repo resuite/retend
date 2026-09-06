@@ -10,6 +10,7 @@
  * import type { GpuiStyle } from "retend-gpui";
  * ```
  */
+export { GpuiEvent, GpuiKeyboardEvent, GpuiMouseEvent } from './events.js';
 export * from './gpui-host.js';
 export * from './gpui-renderer.js';
 export { useAppContext } from './application.js';

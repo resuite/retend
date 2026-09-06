@@ -99,6 +99,7 @@ fn open_gpui_window(
 }
 
 fn mark_window_closed(window_id: WindowId) {
+    crate::events::unregister(window_id);
     if let Ok(mut tree) = crate::runtime().lock() {
         tree.close_window(window_id);
     }

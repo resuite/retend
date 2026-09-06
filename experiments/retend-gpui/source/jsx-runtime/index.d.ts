@@ -1,5 +1,6 @@
 import type { AsyncDerivedCell, Cell, SourceCell } from 'retend';
 
+import type { GpuiKeyboardEvent, GpuiMouseEvent } from '../events.js';
 import type { GpuiElement } from '../gpui-renderer.js';
 import type {
   GpuiElementType,
@@ -40,10 +41,26 @@ declare module 'retend/jsx-runtime' {
         (Tag extends 'img' ? { children?: never } : {});
     };
 
+    interface GpuiNativeEvents {
+      onClick?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onDblClick?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onMouseDown?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onMouseUp?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onMouseEnter?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onMouseLeave?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onMouseMove?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onMouseDownOutside?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onKeyDown?: ReactiveValue<(event: GpuiKeyboardEvent) => void>;
+      onKeyUp?: ReactiveValue<(event: GpuiKeyboardEvent) => void>;
+    }
+
+    type GpuiNativeEventModifiers = EventModifierHandlers<GpuiNativeEvents>;
+
     /**
      * Props shared by all GPUI intrinsic elements.
      */
-    interface GpuiElementProps extends IntrinsicAttributes {
+    interface GpuiElementProps
+      extends IntrinsicAttributes, GpuiNativeEvents, GpuiNativeEventModifiers {
       /**
        * Retend GPUI author style. Individual properties may be `Cell`s for
        * reactive updates before the resolved snapshot crosses the native bridge.

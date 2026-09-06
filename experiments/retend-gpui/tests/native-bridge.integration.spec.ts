@@ -77,6 +77,19 @@ describe('Retend-owned native bridge', () => {
     expect(afterSettle.nodes.some((node) => node.id === image)).toBe(false);
   });
 
+  it('reports exact native presentation state for event stale-target checks', () => {
+    const host = createHost();
+    const node = host.createNode(ElementKind.Container);
+    host.insertChild(host.rootId, node);
+    host.flush();
+
+    expect(host.isNodePresented(node)).toBe(true);
+
+    host.removeChild(host.rootId, node);
+    host.flush();
+    expect(host.isNodePresented(node)).toBe(false);
+  });
+
   it('creates images and replaces their retained source', () => {
     const host = createHost();
     const image = host.createNode(ElementKind.Image);

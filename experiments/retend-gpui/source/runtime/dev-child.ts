@@ -264,6 +264,9 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     renderer.host.addEventListener('reload', () => {
       void recoverWindow(record).catch(console.error);
     });
+    renderer.host.addEventListener('applicationerror', (event) => {
+      showDevelopmentError((event as CustomEvent<unknown>).detail, [record]);
+    });
     return record;
   };
 

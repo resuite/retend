@@ -6,6 +6,7 @@ import {
   PropertyId,
   ValueKind,
   type ElementKind as ElementKindValue,
+  type NativeEventId as NativeEventIdValue,
   type PropertyId as PropertyIdValue,
 } from './protocol.generated.js';
 
@@ -142,6 +143,18 @@ export class CommandBatchWriter {
     this.#command(Opcode.RemoveChild);
     this.#commands.writeU32(this.#nodeId(parentId));
     this.#commands.writeU32(this.#nodeId(childId));
+  }
+
+  subscribeEvent(id: number, event: NativeEventIdValue): void {
+    this.#command(Opcode.SubscribeEvent);
+    this.#commands.writeU32(this.#nodeId(id));
+    this.#commands.writeU16(event);
+  }
+
+  unsubscribeEvent(id: number, event: NativeEventIdValue): void {
+    this.#command(Opcode.UnsubscribeEvent);
+    this.#commands.writeU32(this.#nodeId(id));
+    this.#commands.writeU16(event);
   }
 
   finish(): Uint8Array {

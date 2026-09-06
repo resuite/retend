@@ -168,31 +168,32 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 
 ### Native event transport
 
-- [ ] Define the static native event metadata table.
-- [ ] Implement structured Rust→JS N-API event delivery.
-- [ ] Include `targetId` derived from native hit testing.
-- [ ] Implement pointer payload fields: `clientX`, `clientY`, `button`, `buttons`, `detail`, modifiers, and `timeStamp`.
-- [ ] Implement native event subscription bookkeeping keyed by node ID/event type.
-- [ ] Make listener registration/removal effective synchronously for active nodes.
-- [ ] Flush pending insertion before synchronizing a listener on a logically active but not-yet-submitted node.
-- [ ] Coalesce `mousemove` latest-wins while delivery is pending.
-- [ ] Keep discrete native events ordered and uncoalesced.
-- [ ] Drop stale events whose target ID is destroyed or not currently presented in the native window when JS dispatch begins.
+- [x] Define the static native event metadata table.
+- [x] Implement structured Rust→JS N-API event delivery.
+- [x] Include `targetId` derived from native hit testing.
+- [x] Implement pointer payload fields: `clientX`, `clientY`, `button`, `buttons`, `detail`, modifiers, and `timeStamp`.
+- [x] Implement native event subscription bookkeeping keyed by node ID/event type.
+- [x] Make listener registration/removal effective synchronously for active nodes.
+- [x] Flush pending insertion before synchronizing a listener on a logically active but not-yet-submitted node.
+- [x] Coalesce `mousemove` latest-wins while delivery is pending.
+- [x] Keep discrete native events ordered and uncoalesced.
+- [x] Drop stale events whose target ID is destroyed or not currently presented in the native window when JS dispatch begins.
 
 ### Retend event dispatch
 
-- [ ] Implement Retend-owned `addEventListener`, `removeEventListener`, and `dispatchEvent` registry behavior.
-- [ ] Keep Retend nodes EventTarget-compatible without relying on built-in `EventTarget` inheritance.
-- [ ] Snapshot the complete propagation path before dispatch.
-- [ ] Snapshot each node's listener list before invoking that node.
-- [ ] Suppress listeners removed before their turn.
-- [ ] Exclude listeners added during the current node dispatch.
-- [ ] Implement capture, target, and bubble phases according to event metadata.
-- [ ] Implement non-bubbling `mouseenter`, `mouseleave`, `focus`, `blur`, and element `scroll` semantics.
-- [ ] Implement `stopPropagation()` and `stopImmediatePropagation()`.
-- [ ] Route listener exceptions through the normal Retend application/dev error path without poisoning the renderer.
-- [ ] Limit `preventDefault()` to Retend-side default actions; do not imply cancellation of already-completed native behavior.
-- [ ] Implement the `mousedownoutside` native extension.
+- [x] Implement Retend-owned `addEventListener`, `removeEventListener`, and `dispatchEvent` registry behavior.
+- [x] Keep Retend nodes EventTarget-compatible without relying on built-in `EventTarget` inheritance.
+- [x] Snapshot the complete propagation path before dispatch.
+- [x] Snapshot each node's listener list before invoking that node.
+- [x] Suppress listeners removed before their turn.
+- [x] Exclude listeners added during the current node dispatch.
+- [x] Implement capture, target, and bubble phases according to event metadata.
+- [x] Implement non-bubbling `mouseenter` and `mouseleave` semantics.
+- [ ] Implement non-bubbling `focus`, `blur`, and element `scroll` semantics with their Phase 3 native sources.
+- [x] Implement `stopPropagation()` and `stopImmediatePropagation()`.
+- [x] Route listener exceptions through the normal Retend application/dev error path without poisoning the renderer.
+- [x] Limit `preventDefault()` to Retend-side default actions; do not imply cancellation of already-completed native behavior.
+- [x] Implement the `mousedownoutside` native extension.
 
 ### Window surface
 
@@ -233,9 +234,9 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Add renderer conformance tests for `div`, text nodes, mixed content, images, style removal, structural settlement, and HMR through the migrated Retend-owned renderer path.
 - [x] Add native style parser tests, including fail-soft invalid values.
 - [x] Add image source replacement tests.
-- [ ] Add event bubbling/non-bubbling tests.
-- [ ] Add listener snapshot/mutation-during-dispatch tests.
-- [ ] Add stale-event and mousemove-coalescing tests.
+- [x] Add event bubbling/non-bubbling tests.
+- [x] Add listener snapshot/mutation-during-dispatch tests.
+- [x] Add stale-event and mousemove-coalescing tests.
 - [ ] Add multi-window isolation tests.
 - [ ] Add native resize-event tests.
 

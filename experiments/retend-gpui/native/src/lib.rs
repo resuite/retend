@@ -1,5 +1,6 @@
 #![deny(clippy::all)]
 
+mod events;
 mod platform;
 mod protocol;
 mod protocol_generated;
@@ -9,7 +10,7 @@ mod tree;
 
 use std::sync::{Mutex, OnceLock};
 
-use napi::bindgen_prelude::Buffer;
+use napi::bindgen_prelude::{Buffer, Function};
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 
@@ -98,10 +99,22 @@ pub struct NativeRendererBinding {
 #[napi]
 impl NativeRendererBinding {
     #[napi(constructor)]
-    pub fn new(root_id: u32, headless: bool, options: Option<NativeWindowOptions>) -> Result<Self> {
+    pub fn new(
+        root_id: u32,
+        headless: bool,
+        options: Option<NativeWindowOptions>,
+        on_event: Option<Function<'_, events::NativeEventPayload, ()>>,
+    ) -> Result<Self> {
         let window_id = with_runtime(|tree| tree.create_window(root_id))?;
+        if let Some(callback) = on_event {
+            if let Err(error) = events::register(window_id, callback) {
+                lock_runtime()?.close_window(window_id);
+                return Err(error);
+            }
+        }
         if !headless {
             if let Err(error) = platform::open_window(window_id, options.unwrap_or_default()) {
+                events::unregister(window_id);
                 lock_runtime()?.close_window(window_id);
                 return Err(Error::new(Status::GenericFailure, error));
             }
@@ -162,6 +175,7 @@ impl NativeRendererBinding {
     #[napi]
     pub fn close(&self) -> Result<()> {
         platform::close_window(self.window_id);
+        events::unregister(self.window_id);
         lock_runtime()?.close_window(self.window_id);
         Ok(())
     }
@@ -170,6 +184,12 @@ impl NativeRendererBinding {
     pub fn is_closed(&self) -> Result<bool> {
         let tree = lock_runtime()?;
         Ok(!tree.windows.contains_key(&self.window_id))
+    }
+
+    #[napi]
+    pub fn is_node_presented(&self, id: u32) -> Result<bool> {
+        let tree = lock_runtime()?;
+        Ok(tree.is_presented(self.window_id, id))
     }
 
     #[napi]
@@ -211,7 +231,7 @@ mod tests {
     fn new_binding() -> (NativeRendererBinding, u32) {
         let root_id = NEXT_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
         (
-            NativeRendererBinding::new(root_id, true, None).unwrap(),
+            NativeRendererBinding::new(root_id, true, None, None).unwrap(),
             root_id,
         )
     }

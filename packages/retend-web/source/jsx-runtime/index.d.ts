@@ -562,19 +562,7 @@ declare module 'retend/jsx-runtime' {
       onWheel: WheelEvent;
     }
 
-    type Modifiers = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
-    type AddModifierSuffix<
-      T extends string | number | bigint | boolean | null | undefined,
-    > = `${T}--${Modifiers}`;
-    type RemoveModifierSuffix<U> = U extends `${infer T}--${Modifiers}`
-      ? T
-      : never;
-
-    type GlobalEventModifiers = {
-      [modifier in AddModifierSuffix<
-        keyof GlobalEvents
-      >]: GlobalEvents[RemoveModifierSuffix<modifier>];
-    };
+    type GlobalEventModifiers = EventModifierHandlers<GlobalEvents>;
 
     interface JsxAriaAttributes {
       /**
