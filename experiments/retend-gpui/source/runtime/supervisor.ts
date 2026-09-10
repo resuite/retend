@@ -1,5 +1,4 @@
-import { fork, type ChildProcess } from 'node:child_process';
-import path from 'node:path';
+import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 import type { RetendGpuiPluginApi } from '../plugins/vite.js';
@@ -20,6 +19,10 @@ export function startDevApplication(
   root: string,
   api: RetendGpuiPluginApi
 ): DevApplicationProcess {
+  const launch = api.launch;
+  if (!launch) {
+    throw new Error('Retend GPUI Vite configuration has not been resolved.');
+  }
   const child = fork(CHILD_ENTRY, [], {
     cwd: root,
     stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
@@ -36,7 +39,7 @@ export function startDevApplication(
 
   const onChildError = (error: Error): void => {
     ready.reject(error);
-    if (intentionalExit || closePromise) done.resolve();
+    if (intentionalExit) done.resolve();
     else done.reject(error);
     killIfRunning('SIGTERM');
   };
@@ -61,7 +64,7 @@ export function startDevApplication(
       )
     );
 
-    if (intentionalExit || closePromise || code === 0) {
+    if (intentionalExit || code === 0) {
       done.resolve();
     } else {
       done.reject(
@@ -73,34 +76,24 @@ export function startDevApplication(
   child.send({
     channel: 'retend-gpui',
     type: 'init',
-    appName: api.options.app.name,
-    application: path.resolve(root, api.options.application),
-    entry: path.resolve(root, api.options.entry),
-    options: {
-      ...api.options.window,
-      title: api.options.window.title ?? api.options.app.name,
-      location: api.options.window.location ?? '/',
-    },
+    ...launch,
   } satisfies GpuiControlMessage);
 
-  const close = (): Promise<void> => {
-    closePromise ??= shutdown(child);
-    return closePromise;
-  };
+  const close = (): Promise<void> => (closePromise ??= shutdown());
 
-  async function shutdown(activeChild: ChildProcess): Promise<void> {
+  async function shutdown(): Promise<void> {
     intentionalExit = true;
-    if (activeChild.exitCode !== null || activeChild.signalCode !== null) {
+    if (child.exitCode !== null || child.signalCode !== null) {
       done.resolve();
       return;
     }
 
     const exited = new Promise<void>((resolve) =>
-      activeChild.once('exit', () => resolve())
+      child.once('exit', () => resolve())
     );
-    if (activeChild.connected) {
+    if (child.connected) {
       try {
-        activeChild.send({
+        child.send({
           channel: 'retend-gpui',
           type: 'close-application',
         } satisfies GpuiControlMessage);

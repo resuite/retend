@@ -35,91 +35,52 @@ import {
   type ParsedEventProperty,
 } from './events.js';
 import { GpuiHost } from './gpui-host.js';
-import { ElementKind, PropertyId } from './native/protocol.js';
+import { ElementKind, PropertyId } from './native/protocol.generated.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
 import {
+  collectNativeChildren,
+  flattenGroups,
   GpuiAnchor,
+  GpuiDivElement,
   GpuiElement,
   GpuiGroup,
+  GpuiImageElement,
+  GpuiInputElement,
   GpuiNode,
   GpuiRoot,
   GpuiText,
   GpuiParentNode,
-  type GpuiNodeEventOwner,
+  type GpuiNativeNode,
   type GpuiRange,
 } from './tree/nodes.js';
 import {
   appendNodes,
-  collectNativeChildren,
   createRange,
-  flattenGroups,
   getRangeNodes,
   writeRange,
-  type StructureMutation,
 } from './tree/operations.js';
-import { GPUI_ELEMENT_TYPES } from './types.js';
-const IGNORED_PROPS = new Set([
-  'children',
-  'className',
-  'key',
-  'retend:collection',
-]);
-const STYLE_PROPERTY_IDS = {
-  display: PropertyId.Display,
-  flexDirection: PropertyId.FlexDirection,
-  flexWrap: PropertyId.FlexWrap,
-  flexGrow: PropertyId.FlexGrow,
-  flexShrink: PropertyId.FlexShrink,
-  alignItems: PropertyId.AlignItems,
-  alignSelf: PropertyId.AlignSelf,
-  alignContent: PropertyId.AlignContent,
-  justifyContent: PropertyId.JustifyContent,
-  gap: PropertyId.Gap,
-  rowGap: PropertyId.RowGap,
-  columnGap: PropertyId.ColumnGap,
-  width: PropertyId.Width,
-  height: PropertyId.Height,
-  minWidth: PropertyId.MinWidth,
-  minHeight: PropertyId.MinHeight,
-  maxWidth: PropertyId.MaxWidth,
-  maxHeight: PropertyId.MaxHeight,
-  padding: PropertyId.Padding,
-  paddingTop: PropertyId.PaddingTop,
-  paddingRight: PropertyId.PaddingRight,
-  paddingBottom: PropertyId.PaddingBottom,
-  paddingLeft: PropertyId.PaddingLeft,
-  margin: PropertyId.Margin,
-  marginTop: PropertyId.MarginTop,
-  marginRight: PropertyId.MarginRight,
-  marginBottom: PropertyId.MarginBottom,
-  marginLeft: PropertyId.MarginLeft,
-  position: PropertyId.Position,
-  top: PropertyId.Top,
-  right: PropertyId.Right,
-  bottom: PropertyId.Bottom,
-  left: PropertyId.Left,
-  backgroundColor: PropertyId.BackgroundColor,
-  color: PropertyId.Color,
-  opacity: PropertyId.Opacity,
-  borderWidth: PropertyId.BorderWidth,
-  borderColor: PropertyId.BorderColor,
-  borderRadius: PropertyId.BorderRadius,
-  fontSize: PropertyId.FontSize,
-  fontFamily: PropertyId.FontFamily,
-  fontWeight: PropertyId.FontWeight,
-  textAlign: PropertyId.TextAlign,
-  lineHeight: PropertyId.LineHeight,
-  whiteSpace: PropertyId.WhiteSpace,
-} satisfies Record<keyof GpuiStyle, PropertyIdValue>;
+const STYLE_PROPERTY_RANGE = [PropertyId.Display, PropertyId.Overflow] as const;
+const IMAGE_PROPERTY_RANGE = [PropertyId.Src, PropertyId.ObjectFit] as const;
+
+function propertyIdInRange(
+  property: string,
+  [minimum, maximum]: readonly [PropertyIdValue, PropertyIdValue]
+): PropertyIdValue | undefined {
+  const name = property[0]?.toUpperCase() + property.slice(1);
+  const id = (PropertyId as Record<string, PropertyIdValue | undefined>)[name];
+  return id !== undefined && id >= minimum && id <= maximum ? id : undefined;
+}
 
 const ELEMENT_KIND_BY_TAG = {
   div: ElementKind.Container,
   img: ElementKind.Image,
+  input: ElementKind.Input,
 } satisfies Record<GpuiElementType, ElementKindValue>;
 
-const IMAGE_PROPERTY_IDS = {
-  src: PropertyId.Src,
-  objectFit: PropertyId.ObjectFit,
+const ELEMENT_FACTORIES = {
+  div: GpuiDivElement,
+  img: GpuiImageElement,
+  input: GpuiInputElement,
 } as const;
 
 function protocolPropertyValue(value: unknown): ProtocolPropertyValue {
@@ -160,6 +121,11 @@ export interface RetendGpuiRendererOptions {
   headless?: boolean;
 }
 
+interface DevelopmentError {
+  root: GpuiElement;
+  text: GpuiText;
+}
+
 interface GpuiRenderingTypes extends RendererTypes {
   Node: GpuiNode;
   Handle: GpuiRange;
@@ -198,22 +164,13 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
   #state?: StateSnapshot;
   #root: GpuiRoot | null = null;
-  #mountedNativeRoots: GpuiElement[] = [];
-  #nodesById = new Map<number, GpuiElement>();
+  #mountedNativeRoots = new Set<GpuiNativeNode>();
+  #nodesById = new Map<number, GpuiNativeNode>();
   #pendingDestroy = new Set<GpuiNode>();
   #destroyTimer: ReturnType<typeof setTimeout> | null = null;
-  #devErrorRoot: GpuiElement | null = null;
-  #devErrorText: GpuiText | null = null;
+  #devError: DevelopmentError | null = null;
   #disposed = false;
   readonly #hmr: boolean;
-  readonly #nodeEventOwner: GpuiNodeEventOwner = {
-    nativeSubscriptionChanged: (node, eventId, enabled) =>
-      this.#syncNativeSubscription(node, eventId, enabled),
-    reportListenerError: (error) => {
-      console.error('[retend-gpui] event listener failed:', error);
-      this.host.reportApplicationError(error);
-    },
-  };
 
   /** Creates a renderer. */
   constructor(options: RetendGpuiRendererOptions = {}) {
@@ -222,7 +179,48 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       headless: options.headless,
       onNativeEvent: (event) => this.#dispatchNativeEvent(event),
     });
-    this.host.addEventListener('fatal', () => this.#discardLogicalTree());
+    this.host.addEventListener('fatal', () => this.#discardTree());
+  }
+
+  /** @internal Synchronizes a logical node move with the native tree. */
+  moveNode(
+    node: GpuiNode,
+    previous: GpuiParentNode | null,
+    parent: GpuiParentNode | null,
+    position: number
+  ): void {
+    if (!(node instanceof GpuiElement || node instanceof GpuiText)) return;
+    const previousId = previous && this.#nativeParentId(previous);
+    const parentId = parent && this.#nativeParentId(parent);
+    if (parent && parentId != null) {
+      let before: GpuiNativeNode | undefined;
+      for (let index = position + 1; index < parent.children.length; index++) {
+        const child = parent.children[index];
+        if (child instanceof GpuiElement || child instanceof GpuiText) {
+          before = child;
+          break;
+        }
+      }
+      this.host.insertChild(parentId, node.id, before?.id ?? 0);
+    } else if (previousId != null) {
+      this.host.removeChild(previousId, node.id);
+    }
+    if (previous === this.#root && previousId != null)
+      this.#mountedNativeRoots.delete(node);
+    if (parent === this.#root && parentId != null)
+      this.#mountedNativeRoots.add(node);
+  }
+
+  /** @internal Schedules settlement after a node leaves a logical range. */
+  releaseNode(node: GpuiNode): void {
+    this.#pendingDestroy.add(node);
+    this.#scheduleDestroy();
+  }
+
+  /** @internal Reports a node listener failure to the application. */
+  reportListenerError(error: unknown): void {
+    console.error('[retend-gpui] event listener failed:', error);
+    this.host.reportApplicationError(error);
   }
 
   /**
@@ -264,46 +262,55 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     try {
       return withState(this.#state, () => {
         const result = normalizeJsxChild(app, this);
-        const root = new GpuiRoot(this.#nodeEventOwner);
+        const root = new GpuiRoot(this.host, this);
         this.#root = root;
-        this.#applyStructureMutation(appendNodes(root, result));
+        appendNodes(root, result);
         this.host.flush();
         return result;
       });
     } catch (error) {
-      this.#discardLogicalTree();
+      this.#discardTree();
       this.host.discardPendingCommands();
       throw error;
     }
   }
 
+  /** Mounts a root, runs pending setup effects, and submits the final mutations. */
+  async mount(app: JSX.Template): Promise<GpuiNode | GpuiNode[]> {
+    setActiveRenderer(this);
+    const result = this.render(app);
+    await runPendingSetupEffects();
+    this.flush();
+    return result;
+  }
+
   /** Creates a logical group node with no native counterpart. */
   createGroup(): GpuiGroup {
-    return new GpuiGroup(this.#nodeEventOwner);
+    return new GpuiGroup(this.host, this);
   }
 
   /**
-   * Creates a native element for an intrinsic tag.
+   * Creates the concrete native element class for an intrinsic tag.
    *
    * @param tagName - One of the Retend GPUI v1 intrinsic tags.
-   * @returns The created `GpuiElement` and enqueues a native creation mutation.
    * @throws If the tag is not part of the Retend GPUI intrinsic surface.
    */
+  createContainer(tagName: 'div'): GpuiDivElement;
+  createContainer(tagName: 'img'): GpuiImageElement;
+  createContainer(tagName: 'input'): GpuiInputElement;
+  createContainer(tagName: string): GpuiElement;
   createContainer(tagName: string): GpuiElement {
-    if (!GPUI_ELEMENT_TYPES.includes(tagName as GpuiElementType)) {
+    const Factory = ELEMENT_FACTORIES[tagName as GpuiElementType];
+    if (!Factory) {
       throw new Error(
         `Unsupported Retend GPUI intrinsic element: <${tagName}>. ` +
-          'Supported tags are <div> and <img>; text is ordinary JSX content.'
+          'Supported tags are <div>, <img>, and <input>; text is ordinary JSX content.'
       );
     }
 
     const tag = tagName as GpuiElementType;
-    const node = new GpuiElement(
-      this.host.createNode(ELEMENT_KIND_BY_TAG[tag]),
-      tag,
-      tag === 'div',
-      this.#nodeEventOwner
-    );
+    const id = this.host.createNode(ELEMENT_KIND_BY_TAG[tag]);
+    const node = new Factory(id, this.host, this);
     this.#nodesById.set(node.id, node);
     return node;
   }
@@ -317,7 +324,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     const node = new GpuiText(
       this.host.createText(text),
       text,
-      this.#nodeEventOwner
+      this.host,
+      this
     );
     this.#nodesById.set(node.id, node);
     return node;
@@ -357,7 +365,13 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * @returns The same node for chaining.
    */
   setProperty<N extends GpuiNode>(node: N, key: string, value: unknown): N {
-    if (IGNORED_PROPS.has(key)) return node;
+    if (
+      key === 'children' ||
+      key === 'className' ||
+      key === 'key' ||
+      key === 'retend:collection'
+    )
+      return node;
 
     if (key === 'ref' && value instanceof SourceCell) {
       value.set(node);
@@ -397,7 +411,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     if (parent instanceof GpuiElement && !parent.acceptsChildren) {
       throw new Error(`<${parent.tagName}> cannot contain GPUI children.`);
     }
-    this.#applyStructureMutation(appendNodes(parent, child));
+    appendNodes(parent, child);
     return parent;
   }
 
@@ -418,7 +432,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * @param newContent - Nodes to place inside the range.
    */
   write(handle: GpuiRange, newContent: GpuiNode[]): void {
-    this.#applyStructureMutation(writeRange(handle, newContent));
+    writeRange(handle, newContent);
   }
 
   /**
@@ -442,7 +456,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       const cached = options.newCache.get(key);
       if (cached) nextNodes.push(...cached.nodes);
     }
-    this.#applyStructureMutation(writeRange(handle, nextNodes));
+    writeRange(handle, nextNodes);
   }
 
   /**
@@ -500,8 +514,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
           ? error
           : (JSON.stringify(error, null, 2) ?? String(error));
 
-    if (this.#devErrorText) {
-      this.updateText(message, this.#devErrorText);
+    if (this.#devError) {
+      this.updateText(message, this.#devError.text);
       this.flush();
       return;
     }
@@ -517,14 +531,12 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       whiteSpace: 'normal',
     });
     this.append(root, text);
-    this.#devErrorRoot = root;
-    this.#devErrorText = text;
+    this.#devError = { root, text };
     this.#mountNativeRoots([root]);
     try {
       this.flush();
     } catch (error) {
-      this.#devErrorRoot = null;
-      this.#devErrorText = null;
+      this.#devError = null;
       this.#markDestroyedSubtree(root);
       this.host.discardPendingCommands();
       throw error;
@@ -536,11 +548,10 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * No-ops if no overlay is showing.
    */
   clearDevelopmentError(): void {
-    const root = this.#devErrorRoot;
+    const root = this.#devError?.root;
     if (!root) return;
 
-    this.#devErrorRoot = null;
-    this.#devErrorText = null;
+    this.#devError = null;
     this.#syncWindowRoot();
     this.#markDestroyedSubtree(root);
     this.host.settle();
@@ -550,7 +561,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
-    this.#discardLogicalTree();
+    this.#discardTree();
     this.host.close();
   }
 
@@ -560,55 +571,18 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    */
   unmount(): void {
     if (this.#disposed || (!this.#state && this.#nodesById.size === 0)) return;
-    this.#clearTree();
-  }
-
-  #discardLogicalTree(): void {
-    if (this.#destroyTimer !== null) clearTimeout(this.#destroyTimer);
-    this.#destroyTimer = null;
-    const roots = this.#collectOwnedNativeRoots();
-    for (const root of roots) this.#markDestroyedSubtree(root);
-    for (const node of this.#pendingDestroy) {
-      if (!node.destroyed) node.markDestroyed();
-    }
-    this.#pendingDestroy.clear();
-    this.#mountedNativeRoots = [];
-    this.#root = null;
-    this.#devErrorRoot = null;
-    this.#devErrorText = null;
-    this.#state?.node.dispose();
-    this.#state = undefined;
-  }
-
-  #clearTree(): void {
-    if (this.#destroyTimer !== null) clearTimeout(this.#destroyTimer);
-    this.#destroyTimer = null;
-    this.#state?.node.dispose();
-    this.#state = undefined;
-
-    const nativeRoots = this.#collectOwnedNativeRoots();
     const mountedRoots = new Set(this.#mountedNativeRoots);
-    for (const root of nativeRoots) {
-      if (mountedRoots.has(root)) {
-        this.host.removeChild(this.host.rootId, root.id);
-      } else {
+    const roots = this.#takeOwnedRoots();
+    for (const root of roots) {
+      if (!mountedRoots.has(root)) {
         // Cycling an unattached root through the immutable window root makes it
         // settlement-eligible without adding a separate destroy opcode.
         this.host.insertChild(this.host.rootId, root.id);
-        this.host.removeChild(this.host.rootId, root.id);
       }
+      this.host.removeChild(this.host.rootId, root.id);
     }
-    this.#mountedNativeRoots = [];
-    this.#root = null;
-    this.#devErrorRoot = null;
-    this.#devErrorText = null;
-    for (const root of nativeRoots) this.#markDestroyedSubtree(root);
-    for (const node of this.#pendingDestroy) {
-      if (!node.destroyed) node.markDestroyed();
-    }
-    this.#pendingDestroy.clear();
+    this.#destroyOwnedNodes(roots);
     this.host.settle();
-
     if (this.#nodesById.size !== 0) {
       throw new Error(
         `RetendGpuiRenderer teardown left ${this.#nodesById.size} native node(s) owned.`
@@ -616,79 +590,58 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     }
   }
 
+  #discardTree(): void {
+    this.#destroyOwnedNodes(this.#takeOwnedRoots());
+  }
+
+  #takeOwnedRoots(): GpuiNativeNode[] {
+    if (this.#destroyTimer !== null) clearTimeout(this.#destroyTimer);
+    this.#destroyTimer = null;
+    this.#state?.node.dispose();
+    this.#state = undefined;
+    const roots = [...this.#nodesById.values()].filter(
+      (node) =>
+        !hasAncestor(
+          node.parent,
+          (ancestor) =>
+            ancestor instanceof GpuiElement &&
+            this.#nodesById.get(ancestor.id) === ancestor
+        )
+    );
+    this.#mountedNativeRoots.clear();
+    this.#root = null;
+    this.#devError = null;
+    return roots;
+  }
+
+  #destroyOwnedNodes(roots: readonly GpuiNativeNode[]): void {
+    for (const root of roots) this.#markDestroyedSubtree(root);
+    for (const node of this.#pendingDestroy) {
+      if (!node.destroyed) node.markDestroyed();
+    }
+    this.#pendingDestroy.clear();
+  }
+
   #syncWindowRoot(): void {
-    if (this.#devErrorRoot) return;
+    if (this.#devError) return;
     this.#mountNativeRoots(this.#root ? collectNativeChildren(this.#root) : []);
   }
 
-  #mountNativeRoots(desired: readonly GpuiElement[]): void {
-    const working = this.#mountedNativeRoots.filter((node) => !node.destroyed);
-    this.#syncNativeSequence(this.host.rootId, working, desired);
-    this.#mountedNativeRoots = [...desired];
+  #mountNativeRoots(desired: readonly GpuiNativeNode[]): void {
+    const retained = new Set(desired);
+    for (const node of this.#mountedNativeRoots) {
+      if (!node.destroyed && !retained.has(node))
+        this.host.removeChild(this.host.rootId, node.id);
+    }
+    for (const node of desired)
+      this.host.insertChild(this.host.rootId, node.id);
+    this.#mountedNativeRoots = retained;
   }
 
-  #applyStructureMutation(mutation: StructureMutation): void {
-    const nativeParents = new Set<GpuiElement>();
-    let windowRootAffected = false;
-    for (const parent of mutation.affectedParents) {
-      if (parent === this.#root) {
-        windowRootAffected = true;
-        continue;
-      }
-      const nativeParent = this.#nearestNativeParent(parent);
-      if (nativeParent && !nativeParent.destroyed)
-        nativeParents.add(nativeParent);
-    }
-    if (windowRootAffected) this.#syncWindowRoot();
-    for (const parent of nativeParents) this.#syncNativeChildren(parent);
-
-    if (mutation.detachedNodes.size > 0) {
-      for (const node of mutation.detachedNodes) this.#pendingDestroy.add(node);
-      this.#scheduleDestroy();
-    }
-  }
-
-  #nearestNativeParent(node: GpuiParentNode): GpuiElement | null {
-    if (node instanceof GpuiElement) return node;
-    let current = node.parent;
-    while (current) {
-      if (current instanceof GpuiElement) return current;
-      current = current.parent;
-    }
-    return null;
-  }
-
-  #syncNativeChildren(parent: GpuiElement): void {
-    const desired = collectNativeChildren(parent);
-    const working = parent.nativeChildren.filter((child) => !child.destroyed);
-    this.#syncNativeSequence(parent.id, working, desired);
-    parent.nativeChildren = desired;
-  }
-
-  #syncNativeSequence(
-    parentId: number,
-    working: GpuiElement[],
-    desired: readonly GpuiElement[]
-  ): void {
-    const desiredSet = new Set(desired);
-    for (let index = working.length - 1; index >= 0; index -= 1) {
-      const child = working[index];
-      if (desiredSet.has(child)) continue;
-      this.host.removeChild(parentId, child.id);
-      working.splice(index, 1);
-    }
-
-    for (let index = 0; index < desired.length; index += 1) {
-      const child = desired[index];
-      if (working[index] === child) continue;
-
-      const currentIndex = working.indexOf(child);
-      if (currentIndex !== -1) working.splice(currentIndex, 1);
-
-      const before = working[index];
-      this.host.insertChild(parentId, child.id, before?.id ?? 0);
-      working.splice(index, 0, child);
-    }
+  #nativeParentId(parent: GpuiParentNode): number | undefined {
+    if (parent instanceof GpuiElement && !parent.destroyed) return parent.id;
+    if (parent === this.#root && !this.#devError) return this.host.rootId;
+    return undefined;
   }
 
   #scheduleDestroy(): void {
@@ -703,45 +656,20 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       let settle = false;
       for (const node of pending) {
         if (node.destroyed || node.parent !== null) continue;
-        this.#destroyDetached(node);
+        this.#markDestroyedSubtree(node);
         settle = true;
       }
       if (settle) this.host.settle();
     }, 0);
   }
 
-  #destroyDetached(node: GpuiNode): void {
-    if (node instanceof GpuiElement) {
-      this.#markDestroyedSubtree(node);
-      return;
-    }
-    if (node instanceof GpuiParentNode) {
-      for (const child of node.children.slice()) this.#destroyDetached(child);
-      node.children.length = 0;
-    }
-    node.markDestroyed();
-  }
-
-  #collectOwnedNativeRoots(): GpuiElement[] {
-    const owned = new Set(this.#nodesById.values());
-    return [...owned].filter(
-      (node) =>
-        !hasAncestor(
-          node.parent,
-          (ancestor) => ancestor instanceof GpuiElement && owned.has(ancestor)
-        )
-    );
-  }
-
   #markDestroyedSubtree(node: GpuiNode): void {
     if (node instanceof GpuiParentNode) {
-      const children = node.children.slice();
-      node.children.length = 0;
-      for (const child of children) this.#markDestroyedSubtree(child);
+      for (const child of node.children.splice(0))
+        this.#markDestroyedSubtree(child);
     }
 
-    if (node instanceof GpuiElement) {
-      node.nativeChildren = [];
+    if (node instanceof GpuiElement || node instanceof GpuiText) {
       this.#nodesById.delete(node.id);
     }
     node.parent = null;
@@ -763,11 +691,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       return;
     }
 
-    if (
-      !(node instanceof GpuiElement) ||
-      node instanceof GpuiText ||
-      node.destroyed
-    ) {
+    if (!(node instanceof GpuiElement) || node.destroyed) {
       return;
     }
 
@@ -776,12 +700,14 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       return;
     }
 
-    if (node.tagName === 'img' && Object.hasOwn(IMAGE_PROPERTY_IDS, key)) {
-      this.host.setProperty(
-        node.id,
-        IMAGE_PROPERTY_IDS[key as keyof typeof IMAGE_PROPERTY_IDS],
-        protocolPropertyValue(value)
-      );
+    let property: PropertyIdValue | undefined;
+    if (key === 'tabIndex') property = PropertyId.TabIndex;
+    else if (node.tagName === 'img')
+      property = propertyIdInRange(key, IMAGE_PROPERTY_RANGE);
+    else if (node.tagName === 'input' && key === 'value')
+      property = PropertyId.Value;
+    if (property !== undefined) {
+      this.host.setProperty(node.id, property, protocolPropertyValue(value));
     }
   }
 
@@ -801,47 +727,42 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     }
 
     const callback = value as EventListenerOrEventListenerObject;
-    let listener: EventListener = (event) => {
+    const options: AddEventListenerOptions = {};
+    const actions: string[] = [];
+    for (const modifier of property.modifiers) {
+      if (modifier === 'once' || modifier === 'passive')
+        options[modifier] = true;
+      else if (
+        modifier === 'self' ||
+        modifier === 'prevent' ||
+        modifier === 'stop'
+      )
+        actions.unshift(modifier);
+      else console.warn(`Unknown event listener modifier: ${modifier}`);
+    }
+    const listener: EventListener = (event) => {
+      for (const action of actions) {
+        if (action === 'self' && event.target !== event.currentTarget) return;
+        if (action === 'prevent') event.preventDefault();
+        if (action === 'stop') event.stopPropagation();
+      }
       if (typeof callback === 'function') callback.call(node, event);
       else callback.handleEvent(event);
     };
-    const options: AddEventListenerOptions = {};
-    for (const modifier of property.modifiers) {
-      const previous = listener;
-      if (modifier === 'self') {
-        listener = (event) => {
-          if (event.target !== event.currentTarget) return;
-          previous(event);
-        };
-      } else if (modifier === 'prevent') {
-        listener = (event) => {
-          event.preventDefault();
-          previous(event);
-        };
-      } else if (modifier === 'stop') {
-        listener = (event) => {
-          event.stopPropagation();
-          previous(event);
-        };
-      } else if (modifier === 'once') {
-        options.once = true;
-      } else if (modifier === 'passive') {
-        options.passive = true;
-      } else {
-        console.warn(`Unknown event listener modifier: ${modifier}`);
-      }
-    }
     node.addEventListener(property.type, listener, options);
     node.setCleanup(cleanupKey, () =>
       node.removeEventListener(property.type, listener)
     );
   }
 
-  #syncNativeSubscription(
+  /** @internal Synchronizes native subscriptions for node listeners. */
+  nativeSubscriptionChanged(
     node: GpuiNode,
     eventId: NativeTransportEventId,
     enabled: boolean
   ): void {
+    // Native event subscriptions are element-only: text renders as a plain
+    // GPUI Text with no hit-testing, so subscriptions could never deliver.
     if (
       !(node instanceof GpuiElement) ||
       node.destroyed ||
@@ -881,10 +802,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
     const resolved: Record<string, unknown> = {};
     node.style = resolved as GpuiStyle;
-    const publish = () => {
-      if (!controller.signal.aborted && !node.destroyed)
-        this.#publishStyle(node);
-    };
+    let initializing = true;
 
     for (const [property, propertyValue] of Object.entries(value)) {
       if (!Cell.isCell(propertyValue)) {
@@ -892,30 +810,21 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
         continue;
       }
 
-      const update = (nextValue: unknown) => {
+      this.#watchCell(propertyValue, controller.signal, (nextValue) => {
         resolved[property] = nextValue;
-        publish();
-      };
-      const initialValue = this.#watchCell(
-        propertyValue,
-        controller.signal,
-        update,
-        false
-      );
-      if (initialValue instanceof Promise) void initialValue.then(update);
-      else resolved[property] = initialValue;
+        if (!initializing && !node.destroyed) this.#publishStyle(node);
+      });
     }
 
-    publish();
+    initializing = false;
+    if (!controller.signal.aborted && !node.destroyed) this.#publishStyle(node);
   }
 
   #publishStyle(node: GpuiElement): void {
     const properties: [PropertyIdValue, ProtocolPropertyValue][] = [];
     for (const [property, value] of Object.entries(node.style)) {
       if (value === undefined) continue;
-      const id = (
-        STYLE_PROPERTY_IDS as Record<string, PropertyIdValue | undefined>
-      )[property];
+      const id = propertyIdInRange(property, STYLE_PROPERTY_RANGE);
       if (id === undefined) {
         throw new Error(`Unsupported Retend GPUI style property: ${property}.`);
       }
@@ -927,19 +836,16 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   #watchCell(
     cell: Cell<unknown>,
     signal: AbortSignal,
-    update: (value: unknown) => void,
-    emitInitial = true
-  ): unknown {
+    update: (value: unknown) => void
+  ): void {
     if (cell instanceof AsyncCell) useAwait()?.waitUntil(cell);
     const resolve = (value: unknown) => {
       if (signal.aborted) return;
       if (value instanceof Promise) void value.then(resolve);
       else update(value);
     };
-    const initialValue = cell.get();
-    if (emitInitial) resolve(initialValue);
+    resolve(cell.get());
     cell.listen(resolve, { signal });
-    return initialValue;
   }
 }
 
@@ -963,12 +869,18 @@ export async function renderToGpui(
 ): Promise<RetendGpuiRenderer> {
   const renderer = new RetendGpuiRenderer();
   renderer.init(options);
-  setActiveRenderer(renderer);
-  renderer.render(App);
-  await runPendingSetupEffects();
-  renderer.flush();
+  await renderer.mount(App);
   return renderer;
 }
 
-export { GpuiAnchor, GpuiElement, GpuiGroup, GpuiNode, GpuiText };
+export {
+  GpuiAnchor,
+  GpuiDivElement,
+  GpuiElement,
+  GpuiGroup,
+  GpuiImageElement,
+  GpuiInputElement,
+  GpuiNode,
+  GpuiText,
+};
 export type { GpuiRange };

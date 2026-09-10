@@ -77,8 +77,9 @@ async function runDev(): Promise<void> {
     });
   };
 
-  const detachEnvironmentReady = onRetendGpuiEnvironmentReady(({ root, api }) =>
-    replaceApplication(root, api)
+  const detachEnvironmentReady = onRetendGpuiEnvironmentReady(
+    server,
+    ({ root, api }) => replaceApplication(root, api)
   );
 
   try {

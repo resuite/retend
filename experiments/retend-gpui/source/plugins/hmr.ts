@@ -31,8 +31,6 @@ type HmrContext = {
   new: unknown[];
 };
 
-let activeHmrContext: HmrContext | null = null;
-
 /**
  * Transfers live Retend component invalidators from an old module to its replacement.
  * Also migrates router bindings so existing routes point at the new component.
@@ -81,7 +79,8 @@ export function hotReloadModule(
     old: Object.values(oldModule),
     new: Object.values(newModule),
   };
-  activeHmrContext = context;
+  const { globalData } = getGlobalContext();
+  globalData.set(__HMR_SYMBOLS.HMRContextKey, context);
 
   try {
     for (const { previous, next, invalidator, routes } of updates) {
@@ -102,7 +101,7 @@ export function hotReloadModule(
       }
     }
   } finally {
-    activeHmrContext = null;
+    globalData.delete(__HMR_SYMBOLS.HMRContextKey);
   }
 
   if (errors.length > 0) {
@@ -189,28 +188,21 @@ export function withHMRBoundaries(
   const snapshot: StateSnapshot = branchState();
 
   const refresh = (fn: __HMR_UpdatableFn): void => {
-    const { globalData } = getGlobalContext();
-    globalData.set(__HMR_SYMBOLS.HMRContextKey, activeHmrContext);
+    if (withState(snapshot, () => instanceIsCoveredByParentUpdate(fn))) return;
+
+    snapshot.node.dispose();
+    renderer.write(handle, []);
+    renderer.flush();
+
     try {
-      if (withState(snapshot, () => instanceIsCoveredByParentUpdate(fn)))
-        return;
-
-      snapshot.node.dispose();
-      renderer.write(handle, []);
-      renderer.flush();
-
-      try {
-        withState(snapshot, () => {
-          renderer.write(handle, renderComponent(invalidator, props, renderer));
-        });
-      } finally {
-        withState(snapshot, () => invalidator.listen(refresh));
-        void snapshot.node.activate();
-      }
-      renderer.flush();
+      withState(snapshot, () => {
+        renderer.write(handle, renderComponent(invalidator, props, renderer));
+      });
     } finally {
-      globalData.set(__HMR_SYMBOLS.HMRContextKey, null);
+      withState(snapshot, () => invalidator.listen(refresh));
+      void snapshot.node.activate();
     }
+    renderer.flush();
   };
 
   withState(snapshot, () => {

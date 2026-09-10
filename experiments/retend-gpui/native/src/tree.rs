@@ -4,13 +4,15 @@ use serde::Serialize;
 
 use crate::protocol::{Command, PropertyValue};
 use crate::protocol_generated::{ElementKind, NativeEventId, PropertyId};
-use crate::style::NativeStyle;
+use crate::style::{NativeStyle, OverflowValue};
 use crate::BridgeFailure;
 
 pub type NodeId = u32;
 pub type WindowId = u32;
+pub type InputSnapshot = (String, u64);
+pub type FocusTarget = (isize, Option<InputSnapshot>);
 
-pub(crate) fn event_bit(event: NativeEventId) -> u32 {
+pub(crate) const fn event_bit(event: NativeEventId) -> u32 {
     1 << (event as u32 - 1)
 }
 
@@ -46,6 +48,10 @@ pub enum NodeData {
         src: Option<String>,
         object_fit: Option<ImageObjectFit>,
     },
+    Input {
+        value: String,
+        value_revision: u64,
+    },
 }
 
 pub struct NativeNode {
@@ -55,6 +61,7 @@ pub struct NativeNode {
     pub children: Vec<NodeId>,
     pub style: Option<Box<NativeStyle>>,
     pub subscriptions: u32,
+    pub tab_index: Option<isize>,
 }
 
 impl NativeNode {
@@ -66,7 +73,13 @@ impl NativeNode {
             children: Vec::new(),
             style: None,
             subscriptions: 0,
+            tab_index: None,
         }
+    }
+
+    pub(crate) fn effective_tab_index(&self) -> Option<isize> {
+        self.tab_index
+            .or_else(|| matches!(self.data, NodeData::Input { .. }).then_some(0))
     }
 }
 
@@ -75,7 +88,6 @@ pub struct WindowState {
     pub pending_detached: HashSet<NodeId>,
     pub mousedownoutside_subscribers: HashSet<NodeId>,
     pub fatal: Option<FatalDiagnostic>,
-    pub reload_requested: bool,
 }
 
 #[derive(Default)]
@@ -86,21 +98,26 @@ pub struct NativeTree {
 }
 
 impl NativeTree {
-    pub fn create_window(&mut self, root_id: NodeId) -> Result<WindowId, BridgeFailure> {
-        if root_id == 0 {
-            return Err(BridgeFailure::binding(
+    fn ensure_unused_id(&self, id: NodeId) -> Result<(), BridgeFailure> {
+        if id == 0 {
+            return Err(BridgeFailure::new(
                 "INVALID_NODE_ID",
                 "Node ID 0 is reserved by the protocol.",
             ));
         }
-        if self.nodes.contains_key(&root_id) {
-            return Err(BridgeFailure::binding(
+        if self.nodes.contains_key(&id) {
+            return Err(BridgeFailure::new(
                 "DUPLICATE_NODE_ID",
-                format!("Node ID {root_id} already exists."),
+                format!("Node ID {id} already exists."),
             ));
         }
+        Ok(())
+    }
+
+    pub fn create_window(&mut self, root_id: NodeId) -> Result<WindowId, BridgeFailure> {
+        self.ensure_unused_id(root_id)?;
         self.next_window_id = self.next_window_id.checked_add(1).ok_or_else(|| {
-            BridgeFailure::binding("WINDOW_ID_EXHAUSTED", "Window ID space exhausted.")
+            BridgeFailure::new("WINDOW_ID_EXHAUSTED", "Window ID space exhausted.")
         })?;
         let window_id = self.next_window_id;
         self.nodes
@@ -112,43 +129,29 @@ impl NativeTree {
                 pending_detached: HashSet::new(),
                 mousedownoutside_subscribers: HashSet::new(),
                 fatal: None,
-                reload_requested: false,
             },
         );
         Ok(window_id)
     }
 
     pub fn reload_window(&mut self, window_id: WindowId) -> Result<(), BridgeFailure> {
-        let root_id = {
-            let window = self.windows.get(&window_id).ok_or_else(|| {
-                BridgeFailure::binding("CLOSED_WINDOW", "Renderer window has already closed.")
-            })?;
-            if window.fatal.is_none() {
-                return Err(BridgeFailure::binding(
-                    "RENDERER_NOT_FATAL",
-                    "Renderer state can only reload after a fatal bridge failure.",
-                ));
-            }
-            window.root_id
-        };
-
-        self.nodes.retain(|_, node| node.window_id != window_id);
-        self.nodes
-            .insert(root_id, NativeNode::new(window_id, NodeData::Root));
         let window = self
             .windows
             .get_mut(&window_id)
-            .expect("validated renderer window must still exist during reload");
+            .ok_or_else(BridgeFailure::closed_window)?;
+        if window.fatal.is_none() {
+            return Err(BridgeFailure::new(
+                "RENDERER_NOT_FATAL",
+                "Renderer state can only reload after a fatal bridge failure.",
+            ));
+        }
+        self.nodes.retain(|_, node| node.window_id != window_id);
+        self.nodes
+            .insert(window.root_id, NativeNode::new(window_id, NodeData::Root));
         window.pending_detached.clear();
         window.mousedownoutside_subscribers.clear();
         window.fatal = None;
-        window.reload_requested = true;
         Ok(())
-    }
-
-    pub fn take_reload_requested(&mut self, window_id: WindowId) -> Result<bool, BridgeFailure> {
-        let window = self.window(window_id)?;
-        Ok(std::mem::take(&mut window.reload_requested))
     }
 
     pub fn apply_commands(
@@ -204,7 +207,7 @@ impl NativeTree {
         javascript_stack: String,
     ) -> Result<(), BridgeFailure> {
         let fatal = self.window(window_id)?.fatal.as_mut().ok_or_else(|| {
-            BridgeFailure::binding(
+            BridgeFailure::new(
                 "RENDERER_NOT_POISONED",
                 "Renderer has no native failure to attach a JavaScript stack to.",
             )
@@ -229,46 +232,46 @@ impl NativeTree {
         destroyed
     }
 
-    pub fn is_presented(&self, window_id: WindowId, id: NodeId) -> bool {
-        let Some(window) = self.windows.get(&window_id) else {
+    fn walk_presented_path(
+        &self,
+        window_id: WindowId,
+        id: NodeId,
+        mut visit: impl FnMut(&NativeNode),
+    ) -> bool {
+        let Some(root_id) = self.windows.get(&window_id).map(|window| window.root_id) else {
             return false;
         };
         let mut current = Some(id);
-        while let Some(node_id) = current {
-            if node_id == window.root_id {
-                return true;
-            }
-            let Some(node) = self.nodes.get(&node_id) else {
+        while let Some(id) = current {
+            let Some(node) = self
+                .nodes
+                .get(&id)
+                .filter(|node| node.window_id == window_id)
+            else {
                 return false;
             };
-            if node.window_id != window_id {
-                return false;
+            visit(node);
+            if id == root_id {
+                return true;
             }
             current = node.parent;
         }
         false
     }
 
+    pub fn is_presented(&self, window_id: WindowId, id: NodeId) -> bool {
+        self.walk_presented_path(window_id, id, |_| {})
+    }
+
     pub fn subscription_mask_in_path(&self, window_id: WindowId, target_id: NodeId) -> u32 {
-        let Some(window) = self.windows.get(&window_id) else {
-            return 0;
-        };
-        let mut current = Some(target_id);
         let mut subscriptions = 0;
-        while let Some(id) = current {
-            let Some(node) = self.nodes.get(&id) else {
-                return 0;
-            };
-            if node.window_id != window_id {
-                return 0;
-            }
-            subscriptions |= node.subscriptions;
-            if id == window.root_id {
-                return subscriptions;
-            }
-            current = node.parent;
+        if self.walk_presented_path(window_id, target_id, |node| {
+            subscriptions |= node.subscriptions
+        }) {
+            subscriptions
+        } else {
+            0
         }
-        0
     }
 
     pub fn has_subscription_in_path(
@@ -278,6 +281,79 @@ impl NativeTree {
         event: NativeEventId,
     ) -> bool {
         self.subscription_mask_in_path(window_id, target_id) & event_bit(event) != 0
+    }
+
+    fn validated_node(
+        &self,
+        window_id: WindowId,
+        id: NodeId,
+    ) -> Result<&NativeNode, BridgeFailure> {
+        self.ensure_binding_usable(window_id)?;
+        let node = self
+            .nodes
+            .get(&id)
+            .ok_or_else(|| BridgeFailure::destroyed_node(id))?;
+        if node.window_id != window_id {
+            return Err(BridgeFailure::new(
+                "CROSS_WINDOW_NODE",
+                format!("Node ID {id} belongs to another window."),
+            ));
+        }
+        Ok(node)
+    }
+
+    pub fn validate_node(&self, window_id: WindowId, id: NodeId) -> Result<(), BridgeFailure> {
+        self.validated_node(window_id, id).map(|_| ())
+    }
+
+    pub fn node_focus_target(
+        &self,
+        window_id: WindowId,
+        id: NodeId,
+    ) -> Result<Option<FocusTarget>, BridgeFailure> {
+        let node = self.validated_node(window_id, id)?;
+        let Some(tab_index) = node.effective_tab_index() else {
+            return Ok(None);
+        };
+        let input = match &node.data {
+            NodeData::Input {
+                value,
+                value_revision,
+            } => Some((value.clone(), *value_revision)),
+            _ => None,
+        };
+        Ok(Some((tab_index, input)))
+    }
+
+    pub fn input_snapshot(
+        &self,
+        window_id: WindowId,
+        id: NodeId,
+    ) -> Result<InputSnapshot, BridgeFailure> {
+        match &self.validated_node(window_id, id)?.data {
+            NodeData::Input {
+                value,
+                value_revision,
+            } => Ok((value.clone(), *value_revision)),
+            _ => Err(BridgeFailure::new(
+                "INVALID_NODE_KIND",
+                format!("Node ID {id} is not a native text input."),
+            )),
+        }
+    }
+
+
+    pub fn node_overflow(
+        &self,
+        window_id: WindowId,
+        id: NodeId,
+    ) -> Result<OverflowValue, BridgeFailure> {
+        Ok(self
+            .validated_node(window_id, id)?
+            .style
+            .as_deref()
+            .map(|style| style.overflow)
+            .unwrap_or_default())
     }
 
     pub fn has_mousedownoutside_subscribers(&self, window_id: WindowId) -> bool {
@@ -293,32 +369,23 @@ impl NativeTree {
         let Some(window) = self.windows.get(&window_id) else {
             return Vec::new();
         };
+        let target_path: HashSet<_> = std::iter::successors(Some(target_id), |id| {
+            self.nodes.get(id).and_then(|node| node.parent)
+        })
+        .collect();
         let mut subscribers: Vec<_> = window
             .mousedownoutside_subscribers
             .iter()
             .copied()
-            .filter(|id| {
-                self.is_presented(window_id, *id) && !self.is_descendant_or_self(target_id, *id)
-            })
+            .filter(|id| self.is_presented(window_id, *id) && !target_path.contains(id))
             .collect();
         subscribers.sort_unstable();
         subscribers
     }
 
-    fn is_descendant_or_self(&self, id: NodeId, ancestor_id: NodeId) -> bool {
-        let mut current = Some(id);
-        while let Some(node_id) = current {
-            if node_id == ancestor_id {
-                return true;
-            }
-            current = self.nodes.get(&node_id).and_then(|node| node.parent);
-        }
-        false
-    }
-
     pub fn debug_window_json(&self, window_id: WindowId) -> Result<String, BridgeFailure> {
         let window = self.windows.get(&window_id).ok_or_else(|| {
-            BridgeFailure::binding("INVALID_WINDOW", "Renderer window does not exist.")
+            BridgeFailure::new("INVALID_WINDOW", "Renderer window does not exist.")
         })?;
         #[derive(Serialize)]
         struct Snapshot<'a> {
@@ -351,6 +418,7 @@ impl NativeTree {
                     NodeData::Container => ("Container", None, None),
                     NodeData::Text(text) => ("Text", Some(text.as_str()), None),
                     NodeData::Image { src, .. } => ("Image", None, src.as_deref()),
+                    NodeData::Input { .. } => ("Input", None, None),
                 };
                 NodeSnapshot {
                     id,
@@ -371,15 +439,16 @@ impl NativeTree {
             fatal: &window.fatal,
             nodes,
         })
-        .map_err(|error| BridgeFailure::binding("SERIALIZATION_ERROR", error.to_string()))
+        .map_err(|error| BridgeFailure::new("SERIALIZATION_ERROR", error.to_string()))
     }
 
     fn ensure_binding_usable(&self, window_id: WindowId) -> Result<(), BridgeFailure> {
-        let window = self.windows.get(&window_id).ok_or_else(|| {
-            BridgeFailure::binding("CLOSED_WINDOW", "Renderer window has already closed.")
-        })?;
+        let window = self
+            .windows
+            .get(&window_id)
+            .ok_or_else(BridgeFailure::closed_window)?;
         if window.fatal.is_some() {
-            return Err(BridgeFailure::binding(
+            return Err(BridgeFailure::new(
                 "POISONED_RENDERER",
                 "Renderer cannot accept commands until reloaded after a fatal bridge failure.",
             ));
@@ -409,33 +478,41 @@ impl NativeTree {
         command: Command,
     ) -> Result<(), BridgeFailure> {
         match command {
-            Command::CreateNode { id, kind } => match kind {
-                ElementKind::Container => self.create(index, window_id, id, NodeData::Container),
-                ElementKind::Image => self.create(
-                    index,
-                    window_id,
-                    id,
-                    NodeData::Image {
+            Command::CreateNode { id, kind } => {
+                let data = match kind {
+                    ElementKind::Container => NodeData::Container,
+                    ElementKind::Image => NodeData::Image {
                         src: None,
                         object_fit: None,
                     },
-                ),
-                ElementKind::Root => invalid(
-                    index,
-                    "INVALID_NODE_KIND",
-                    "Root nodes are created only when a native window is created.",
-                ),
-                ElementKind::Text => invalid(
-                    index,
-                    "INVALID_NODE_KIND",
-                    "Text nodes must be created with CREATE_TEXT.",
-                ),
-                ElementKind::Input | ElementKind::Textarea => invalid(
-                    index,
-                    "UNSUPPORTED_ELEMENT_KIND",
-                    format!("{kind:?} rendering is not implemented yet."),
-                ),
-            },
+                    ElementKind::Input => NodeData::Input {
+                        value: String::new(),
+                        value_revision: 0,
+                    },
+                    ElementKind::Root => {
+                        return invalid(
+                            index,
+                            "INVALID_NODE_KIND",
+                            "Root nodes are created only when a native window is created.",
+                        )
+                    }
+                    ElementKind::Text => {
+                        return invalid(
+                            index,
+                            "INVALID_NODE_KIND",
+                            "Text nodes must be created with CREATE_TEXT.",
+                        )
+                    }
+                    ElementKind::Textarea => {
+                        return invalid(
+                            index,
+                            "UNSUPPORTED_ELEMENT_KIND",
+                            "Textarea rendering is not implemented yet.",
+                        )
+                    }
+                };
+                self.create(index, window_id, id, data)
+            }
             Command::CreateText { id, text } => {
                 self.create(index, window_id, id, NodeData::Text(text))
             }
@@ -458,59 +535,103 @@ impl NativeTree {
                 property,
                 value,
             } => {
-                let node = self.node_mut(window_id, index, id)?;
-                if let NodeData::Image { src, object_fit } = &mut node.data {
-                    if property == PropertyId::Src {
-                        return match value {
-                            PropertyValue::Null => {
-                                *src = None;
-                                Ok(())
+                let NativeNode {
+                    data, tab_index, ..
+                } = self.node_mut(window_id, index, id)?;
+                match (property, data) {
+                    (PropertyId::TabIndex, _) => {
+                        *tab_index = match value {
+                            PropertyValue::Null => None,
+                            PropertyValue::Number(value)
+                                if value.is_finite()
+                                    && value.fract() == 0.0
+                                    && value >= isize::MIN as f64
+                                    && value <= isize::MAX as f64 =>
+                            {
+                                Some(value as isize)
                             }
-                            PropertyValue::String(value) => {
-                                let is_http = url::Url::parse(&value)
-                                    .is_ok_and(|url| matches!(url.scheme(), "http" | "https"));
-                                *src = is_http.then_some(value);
-                                Ok(())
+                            _ => {
+                                return invalid(
+                                    index,
+                                    "INVALID_PROPERTY_VALUE",
+                                    "tabIndex must be an integer or null.",
+                                )
                             }
-                            _ => invalid(
-                                index,
-                                "INVALID_PROPERTY_VALUE",
-                                "Image src must be an HTTP(S) URL string or null.",
-                            ),
                         };
+                        Ok(())
                     }
-                    if property == PropertyId::ObjectFit {
-                        return match value {
-                            PropertyValue::Null => {
-                                *object_fit = None;
-                                Ok(())
+                    (
+                        PropertyId::Value,
+                        NodeData::Input {
+                            value: current,
+                            value_revision,
+                        },
+                    ) => {
+                        let value = match value {
+                            PropertyValue::Null => String::new(),
+                            PropertyValue::String(value) => value,
+                            _ => {
+                                return invalid(
+                                    index,
+                                    "INVALID_PROPERTY_VALUE",
+                                    "Input value must be a string or null.",
+                                );
                             }
-                            PropertyValue::String(value) => {
-                                *object_fit = match value.as_str() {
-                                    "fill" => Some(ImageObjectFit::Fill),
-                                    "contain" => Some(ImageObjectFit::Contain),
-                                    "cover" => Some(ImageObjectFit::Cover),
-                                    "scaleDown" | "scale-down" => {
-                                        Some(ImageObjectFit::ScaleDown)
-                                    }
-                                    "none" => Some(ImageObjectFit::None),
-                                    _ => None,
-                                };
-                                Ok(())
-                            }
-                            _ => invalid(
-                                index,
-                                "INVALID_PROPERTY_VALUE",
-                                "Image objectFit must be a supported string or null.",
-                            ),
                         };
+                        let next_revision = value_revision.checked_add(1).ok_or_else(|| {
+                            BridgeFailure::command(
+                                index,
+                                "VALUE_REVISION_EXHAUSTED",
+                                "Input value revision space exhausted.",
+                            )
+                        })?;
+                        *current = value;
+                        *value_revision = next_revision;
+                        Ok(())
                     }
+                    (PropertyId::Src, NodeData::Image { src, .. }) => {
+                        *src = match value {
+                            PropertyValue::Null => None,
+                            PropertyValue::String(value) => url::Url::parse(&value)
+                                .is_ok_and(|url| matches!(url.scheme(), "http" | "https"))
+                                .then_some(value),
+                            _ => {
+                                return invalid(
+                                    index,
+                                    "INVALID_PROPERTY_VALUE",
+                                    "Image src must be an HTTP(S) URL string or null.",
+                                )
+                            }
+                        };
+                        Ok(())
+                    }
+                    (PropertyId::ObjectFit, NodeData::Image { object_fit, .. }) => {
+                        *object_fit = match value {
+                            PropertyValue::Null => None,
+                            PropertyValue::String(value) => match value.as_str() {
+                                "fill" => Some(ImageObjectFit::Fill),
+                                "contain" => Some(ImageObjectFit::Contain),
+                                "cover" => Some(ImageObjectFit::Cover),
+                                "scaleDown" | "scale-down" => Some(ImageObjectFit::ScaleDown),
+                                "none" => Some(ImageObjectFit::None),
+                                _ => None,
+                            },
+                            _ => {
+                                return invalid(
+                                    index,
+                                    "INVALID_PROPERTY_VALUE",
+                                    "Image objectFit must be a supported string or null.",
+                                )
+                            }
+                        };
+                        Ok(())
+                    }
+                    (property, _) => invalid(
+                        index,
+                        "UNSUPPORTED_PROPERTY",
+                        format!("{property:?} is not an intrinsic property for this node kind."),
+                    ),
                 }
-                invalid(
-                    index,
-                    "UNSUPPORTED_PROPERTY",
-                    format!("{property:?} is not an intrinsic property for this node kind."),
-                )
             }
             Command::SetStyle { id, properties } => {
                 let node = self.node_mut(window_id, index, id)?;
@@ -548,27 +669,21 @@ impl NativeTree {
                 parent_id,
                 child_id,
             } => self.remove(window_id, index, parent_id, child_id),
-            Command::SubscribeEvent { id, event } => {
-                let bit = event_bit(event);
+            Command::SubscribeEvent { id, event } | Command::UnsubscribeEvent { id, event } => {
+                let subscribe = matches!(command, Command::SubscribeEvent { .. });
                 let node = self.node_mut(window_id, index, id)?;
-                let inserted = node.subscriptions & bit == 0;
-                node.subscriptions |= bit;
-                if inserted && event == NativeEventId::MouseDownOutside {
-                    self.window(window_id)?
-                        .mousedownoutside_subscribers
-                        .insert(id);
+                if subscribe {
+                    node.subscriptions |= event_bit(event);
+                } else {
+                    node.subscriptions &= !event_bit(event);
                 }
-                Ok(())
-            }
-            Command::UnsubscribeEvent { id, event } => {
-                let bit = event_bit(event);
-                let node = self.node_mut(window_id, index, id)?;
-                let removed = node.subscriptions & bit != 0;
-                node.subscriptions &= !bit;
-                if removed && event == NativeEventId::MouseDownOutside {
-                    self.window(window_id)?
-                        .mousedownoutside_subscribers
-                        .remove(&id);
+                if event == NativeEventId::MouseDownOutside {
+                    let subscribers = &mut self.window(window_id)?.mousedownoutside_subscribers;
+                    if subscribe {
+                        subscribers.insert(id);
+                    } else {
+                        subscribers.remove(&id);
+                    }
                 }
                 Ok(())
             }
@@ -582,20 +697,10 @@ impl NativeTree {
         id: NodeId,
         data: NodeData,
     ) -> Result<(), BridgeFailure> {
-        if id == 0 {
-            return invalid(
-                index,
-                "INVALID_NODE_ID",
-                "Node ID 0 is reserved by the protocol.",
-            );
-        }
-        if self.nodes.contains_key(&id) {
-            return invalid(
-                index,
-                "DUPLICATE_NODE_ID",
-                format!("Node ID {id} already exists."),
-            );
-        }
+        self.ensure_unused_id(id).map_err(|mut error| {
+            error.command_index = Some(index);
+            error
+        })?;
         self.nodes.insert(id, NativeNode::new(window_id, data));
         Ok(())
     }
@@ -634,9 +739,9 @@ impl NativeTree {
     }
 
     fn window(&mut self, window_id: WindowId) -> Result<&mut WindowState, BridgeFailure> {
-        self.windows.get_mut(&window_id).ok_or_else(|| {
-            BridgeFailure::binding("CLOSED_WINDOW", "Renderer window has already closed.")
-        })
+        self.windows
+            .get_mut(&window_id)
+            .ok_or_else(BridgeFailure::closed_window)
     }
 
     fn child_position(
@@ -672,6 +777,7 @@ impl NativeTree {
                 NodeData::Container => (true, "Container"),
                 NodeData::Text(_) => (false, "Text"),
                 NodeData::Image { .. } => (false, "Image"),
+                NodeData::Input { .. } => (false, "Input"),
             };
         let child_parent = self.node(window_id, index, child_id)?.parent;
         let root_id = self.windows[&window_id].root_id;
@@ -920,8 +1026,6 @@ mod tests {
         )
         .unwrap_err();
         tree.reload_window(window).unwrap();
-        assert!(tree.take_reload_requested(window).unwrap());
-        assert!(!tree.take_reload_requested(window).unwrap());
         assert!(tree.windows[&window].fatal.is_none());
         assert_eq!(tree.windows[&window].root_id, root);
         assert_eq!(tree.nodes.len(), 1);
@@ -934,7 +1038,10 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(tree.reload_window(window).unwrap_err().code, "RENDERER_NOT_FATAL");
+        assert_eq!(
+            tree.reload_window(window).unwrap_err().code,
+            "RENDERER_NOT_FATAL"
+        );
         assert!(tree.nodes.contains_key(&2));
     }
 
@@ -1601,9 +1708,14 @@ mod tests {
             }],
         )
         .unwrap_err();
-        tree.attach_javascript_stack(window, "stack".into()).unwrap();
+        tree.attach_javascript_stack(window, "stack".into())
+            .unwrap();
         assert_eq!(
-            tree.windows[&window].fatal.as_ref().unwrap().javascript_stack,
+            tree.windows[&window]
+                .fatal
+                .as_ref()
+                .unwrap()
+                .javascript_stack,
             "stack"
         );
     }

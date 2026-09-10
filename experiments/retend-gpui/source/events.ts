@@ -1,7 +1,10 @@
 import type {
   NativeEventPayload,
+  NativeFocusEventPayload,
   NativeKeyboardEventPayload,
   NativeMouseEventPayload,
+  NativeScrollEventPayload,
+  NativeTextEventPayload,
 } from './native/addon.js';
 import type { GpuiNode } from './tree/nodes.js';
 
@@ -15,37 +18,43 @@ export interface GpuiNativeEventMetadata {
   readonly captures: boolean;
 }
 
+type NativeEventKind = 'mouse' | 'keyboard' | 'text' | 'focus' | 'scroll';
+type NativeEventDefinition = readonly [
+  type: string,
+  kind: NativeEventKind,
+  bubbles: boolean,
+  captures: boolean,
+];
+
+const NATIVE_EVENTS = {
+  [NativeEventId.Click]: ['click', 'mouse', true, true],
+  [NativeEventId.DblClick]: ['dblclick', 'mouse', true, true],
+  [NativeEventId.MouseDown]: ['mousedown', 'mouse', true, true],
+  [NativeEventId.MouseUp]: ['mouseup', 'mouse', true, true],
+  [NativeEventId.MouseEnter]: ['mouseenter', 'mouse', false, true],
+  [NativeEventId.MouseLeave]: ['mouseleave', 'mouse', false, true],
+  [NativeEventId.MouseMove]: ['mousemove', 'mouse', true, true],
+  [NativeEventId.KeyDown]: ['keydown', 'keyboard', true, true],
+  [NativeEventId.KeyUp]: ['keyup', 'keyboard', true, true],
+  [NativeEventId.Input]: ['input', 'text', true, true],
+  [NativeEventId.Change]: ['change', 'text', true, true],
+  [NativeEventId.Focus]: ['focus', 'focus', false, true],
+  [NativeEventId.Blur]: ['blur', 'focus', false, true],
+  [NativeEventId.Scroll]: ['scroll', 'scroll', false, true],
+  [NativeEventId.MouseDownOutside]: ['mousedownoutside', 'mouse', false, false],
+} as const satisfies Record<NativeTransportEventId, NativeEventDefinition>;
+
+const EVENT_METADATA = new Map<string, GpuiNativeEventMetadata>(
+  Object.entries(NATIVE_EVENTS).map(([id, [type, , bubbles, captures]]) => [
+    type,
+    { id: Number(id) as NativeTransportEventId, bubbles, captures },
+  ])
+);
+
 export function nativeEventMetadataByType(
   type: string
 ): GpuiNativeEventMetadata | undefined {
-  switch (type) {
-    case 'click':
-      return { id: NativeEventId.Click, bubbles: true, captures: true };
-    case 'dblclick':
-      return { id: NativeEventId.DblClick, bubbles: true, captures: true };
-    case 'mousedown':
-      return { id: NativeEventId.MouseDown, bubbles: true, captures: true };
-    case 'mouseup':
-      return { id: NativeEventId.MouseUp, bubbles: true, captures: true };
-    case 'mouseenter':
-      return { id: NativeEventId.MouseEnter, bubbles: false, captures: true };
-    case 'mouseleave':
-      return { id: NativeEventId.MouseLeave, bubbles: false, captures: true };
-    case 'mousemove':
-      return { id: NativeEventId.MouseMove, bubbles: true, captures: true };
-    case 'keydown':
-      return { id: NativeEventId.KeyDown, bubbles: true, captures: true };
-    case 'keyup':
-      return { id: NativeEventId.KeyUp, bubbles: true, captures: true };
-    case 'mousedownoutside':
-      return {
-        id: NativeEventId.MouseDownOutside,
-        bubbles: false,
-        captures: false,
-      };
-    default:
-      return undefined;
-  }
+  return EVENT_METADATA.get(type);
 }
 
 export interface ParsedEventProperty {
@@ -84,87 +93,122 @@ export class GpuiEvent extends Event {
   }
 }
 
-export class GpuiMouseEvent extends GpuiEvent {
+export class GpuiInputEvent extends GpuiEvent {
+  readonly value: string;
+
+  constructor(type: 'input' | 'change', payload: NativeTextEventPayload) {
+    super(type, { bubbles: true, cancelable: false }, payload.timeStamp);
+    this.value = payload.value;
+  }
+}
+
+export class GpuiFocusEvent extends GpuiEvent {
+  constructor(type: 'focus' | 'blur', payload: NativeFocusEventPayload) {
+    super(type, { bubbles: false, cancelable: false }, payload.timeStamp);
+  }
+}
+
+export class GpuiScrollEvent extends GpuiEvent {
+  readonly scrollX: number;
+  readonly scrollY: number;
+
+  constructor(payload: NativeScrollEventPayload) {
+    super('scroll', { bubbles: false, cancelable: false }, payload.timeStamp);
+    this.scrollX = payload.scrollX;
+    this.scrollY = payload.scrollY;
+  }
+}
+
+class GpuiModifierEvent extends GpuiEvent {
+  readonly altKey: boolean;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+  readonly shiftKey: boolean;
+
+  constructor(
+    type: string,
+    payload: NativeMouseEventPayload | NativeKeyboardEventPayload,
+    bubbles: boolean
+  ) {
+    super(type, { bubbles, cancelable: true }, payload.timeStamp);
+    this.altKey = payload.altKey;
+    this.ctrlKey = payload.ctrlKey;
+    this.metaKey = payload.metaKey;
+    this.shiftKey = payload.shiftKey;
+  }
+}
+
+export class GpuiMouseEvent extends GpuiModifierEvent {
   readonly clientX: number;
   readonly clientY: number;
   readonly button: number;
   readonly buttons: number;
   readonly detail: number;
-  readonly altKey: boolean;
-  readonly ctrlKey: boolean;
-  readonly metaKey: boolean;
-  readonly shiftKey: boolean;
 
   constructor(
     type: string,
     payload: NativeMouseEventPayload,
     bubbles: boolean
   ) {
-    super(type, { bubbles, cancelable: true }, payload.timeStamp);
+    super(type, payload, bubbles);
     this.clientX = payload.clientX;
     this.clientY = payload.clientY;
     this.button = payload.button;
     this.buttons = payload.buttons;
     this.detail = payload.detail;
-    this.altKey = payload.altKey;
-    this.ctrlKey = payload.ctrlKey;
-    this.metaKey = payload.metaKey;
-    this.shiftKey = payload.shiftKey;
   }
 }
 
-export class GpuiKeyboardEvent extends GpuiEvent {
+export class GpuiKeyboardEvent extends GpuiModifierEvent {
   readonly key: string;
   readonly keyChar?: string;
   readonly repeat: boolean;
-  readonly altKey: boolean;
-  readonly ctrlKey: boolean;
-  readonly metaKey: boolean;
-  readonly shiftKey: boolean;
 
   constructor(
     type: string,
     payload: NativeKeyboardEventPayload,
     bubbles: boolean
   ) {
-    super(type, { bubbles, cancelable: true }, payload.timeStamp);
+    super(type, payload, bubbles);
     this.key = payload.key;
     this.keyChar = payload.keyChar;
     this.repeat = payload.repeat;
-    this.altKey = payload.altKey;
-    this.ctrlKey = payload.ctrlKey;
-    this.metaKey = payload.metaKey;
-    this.shiftKey = payload.shiftKey;
   }
 }
 
-function unreachableNativeEvent(payload: never): never {
-  throw new Error(`Unknown Retend GPUI native event ID: ${String(payload)}`);
-}
-
 export function createNativeEvent(payload: NativeEventPayload): Event {
-  switch (payload.eventId) {
-    case NativeEventId.Click:
-      return new GpuiMouseEvent('click', payload, true);
-    case NativeEventId.DblClick:
-      return new GpuiMouseEvent('dblclick', payload, true);
-    case NativeEventId.MouseDown:
-      return new GpuiMouseEvent('mousedown', payload, true);
-    case NativeEventId.MouseUp:
-      return new GpuiMouseEvent('mouseup', payload, true);
-    case NativeEventId.MouseEnter:
-      return new GpuiMouseEvent('mouseenter', payload, false);
-    case NativeEventId.MouseLeave:
-      return new GpuiMouseEvent('mouseleave', payload, false);
-    case NativeEventId.MouseMove:
-      return new GpuiMouseEvent('mousemove', payload, true);
-    case NativeEventId.KeyDown:
-      return new GpuiKeyboardEvent('keydown', payload, true);
-    case NativeEventId.KeyUp:
-      return new GpuiKeyboardEvent('keyup', payload, true);
-    case NativeEventId.MouseDownOutside:
-      return new GpuiMouseEvent('mousedownoutside', payload, false);
-    default:
-      return unreachableNativeEvent(payload);
+  const definition = NATIVE_EVENTS[payload.eventId] as
+    | NativeEventDefinition
+    | undefined;
+  if (!definition) {
+    throw new Error(`Unknown Retend GPUI native event ID: ${payload.eventId}`);
+  }
+
+  const [type, kind, bubbles] = definition;
+  switch (kind) {
+    case 'mouse':
+      return new GpuiMouseEvent(
+        type,
+        payload as NativeMouseEventPayload,
+        bubbles
+      );
+    case 'keyboard':
+      return new GpuiKeyboardEvent(
+        type,
+        payload as NativeKeyboardEventPayload,
+        bubbles
+      );
+    case 'text':
+      return new GpuiInputEvent(
+        type as 'input' | 'change',
+        payload as NativeTextEventPayload
+      );
+    case 'focus':
+      return new GpuiFocusEvent(
+        type as 'focus' | 'blur',
+        payload as NativeFocusEventPayload
+      );
+    case 'scroll':
+      return new GpuiScrollEvent(payload as NativeScrollEventPayload);
   }
 }

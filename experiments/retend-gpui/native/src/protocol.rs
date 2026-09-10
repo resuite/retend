@@ -15,45 +15,59 @@ pub enum PropertyValue {
     String(String),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Command {
+// Field order here is the binary wire order as well as the retained command shape.
+macro_rules! commands {
+    ($reader:ident, $strings:ident; $($name:ident { $($field:ident: $type:ty = $read:expr),* $(,)? }),* $(,)?) => {
+        #[derive(Debug, PartialEq)]
+        pub enum Command { $($name { $($field: $type),* }),* }
+
+        fn decode_command($reader: &mut Reader<'_>, $strings: &[&str]) -> Result<Command, BridgeFailure> {
+            let opcode = $reader.read_enum(Reader::read_u8, "UNKNOWN_OPCODE", "opcode")?;
+            Ok(match opcode {
+                $(Opcode::$name => Command::$name { $($field: $read),* }),*
+            })
+        }
+    };
+}
+
+commands! { reader, strings;
     CreateNode {
-        id: u32,
-        kind: ElementKind,
+        id: u32 = reader.read_u32()?,
+        kind: ElementKind = reader.read_enum(Reader::read_u8, "UNKNOWN_ELEMENT_KIND", "element kind")?,
     },
     CreateText {
-        id: u32,
-        text: String,
+        id: u32 = reader.read_u32()?,
+        text: String = read_string(reader, strings)?,
     },
     UpdateText {
-        id: u32,
-        text: String,
+        id: u32 = reader.read_u32()?,
+        text: String = read_string(reader, strings)?,
     },
     SetProperty {
-        id: u32,
-        property: PropertyId,
-        value: PropertyValue,
+        id: u32 = reader.read_u32()?,
+        property: PropertyId = reader.read_enum(Reader::read_u16, "UNKNOWN_PROPERTY", "property ID")?,
+        value: PropertyValue = read_property_value(reader, strings)?,
     },
     SetStyle {
-        id: u32,
-        properties: Vec<(PropertyId, PropertyValue)>,
+        id: u32 = reader.read_u32()?,
+        properties: Vec<(PropertyId, PropertyValue)> = read_style(reader, strings)?,
     },
     InsertChild {
-        parent_id: u32,
-        child_id: u32,
-        before_id: u32,
+        parent_id: u32 = reader.read_u32()?,
+        child_id: u32 = reader.read_u32()?,
+        before_id: u32 = reader.read_u32()?,
     },
     RemoveChild {
-        parent_id: u32,
-        child_id: u32,
+        parent_id: u32 = reader.read_u32()?,
+        child_id: u32 = reader.read_u32()?,
     },
     SubscribeEvent {
-        id: u32,
-        event: NativeEventId,
+        id: u32 = reader.read_u32()?,
+        event: NativeEventId = reader.read_enum(Reader::read_u16, "UNKNOWN_NATIVE_EVENT", "native event ID")?,
     },
     UnsubscribeEvent {
-        id: u32,
-        event: NativeEventId,
+        id: u32 = reader.read_u32()?,
+        event: NativeEventId = reader.read_enum(Reader::read_u16, "UNKNOWN_NATIVE_EVENT", "native event ID")?,
     },
 }
 
@@ -72,13 +86,28 @@ impl<'a> Reader<'a> {
         }
     }
 
+    fn read_enum<T, N>(
+        &mut self,
+        read: impl FnOnce(&mut Self) -> Result<N, BridgeFailure>,
+        code: &'static str,
+        name: &'static str,
+    ) -> Result<T, BridgeFailure>
+    where
+        T: TryFrom<N, Error = ()>,
+        N: Copy + Display,
+    {
+        let offset = self.pos;
+        let value = read(self)?;
+        T::try_from(value).map_err(|()| {
+            BridgeFailure::wire(code, format!("Unknown {name} {value}."), Some(offset))
+        })
+    }
+
     fn read<const N: usize>(&mut self) -> Result<[u8; N], BridgeFailure> {
-        self.require(N)?;
-        let value = self.bytes[self.pos..self.pos + N]
+        Ok(self
+            .read_bytes(N)?
             .try_into()
-            .expect("validated slice length must match fixed read width");
-        self.pos += N;
-        Ok(value)
+            .expect("validated slice length must match fixed read width"))
     }
 
     fn read_u8(&mut self) -> Result<u8, BridgeFailure> {
@@ -236,101 +265,30 @@ fn decode_strings(bytes: &[u8], offset: usize, count: usize) -> Result<Vec<&str>
     Ok(strings)
 }
 
-fn decode_command(reader: &mut Reader<'_>, strings: &[&str]) -> Result<Command, BridgeFailure> {
-    let opcode_offset = reader.pos;
-    let opcode = parse_enum(reader.read_u8()?, opcode_offset, "UNKNOWN_OPCODE", "opcode")?;
-    match opcode {
-        Opcode::CreateNode => {
-            let id = reader.read_u32()?;
-            let kind_offset = reader.pos;
-            let kind = parse_enum(
-                reader.read_u8()?,
-                kind_offset,
-                "UNKNOWN_ELEMENT_KIND",
-                "element kind",
-            )?;
-            Ok(Command::CreateNode { id, kind })
-        }
-        Opcode::CreateText => Ok(Command::CreateText {
-            id: reader.read_u32()?,
-            text: read_string(reader, strings)?,
-        }),
-        Opcode::UpdateText => Ok(Command::UpdateText {
-            id: reader.read_u32()?,
-            text: read_string(reader, strings)?,
-        }),
-        Opcode::SetProperty => Ok(Command::SetProperty {
-            id: reader.read_u32()?,
-            property: read_property(reader)?,
-            value: read_property_value(reader, strings)?,
-        }),
-        Opcode::SetStyle => {
-            let id = reader.read_u32()?;
-            let count = reader.read_u16()? as usize;
-            let mut properties = reserved_vec(
-                count,
-                reader.pos - 2,
-                "Style property count could not be reserved safely.",
-            )?;
-            for _ in 0..count {
-                properties.push((
-                    read_property(reader)?,
-                    read_property_value(reader, strings)?,
-                ));
-            }
-            Ok(Command::SetStyle { id, properties })
-        }
-        Opcode::InsertChild => Ok(Command::InsertChild {
-            parent_id: reader.read_u32()?,
-            child_id: reader.read_u32()?,
-            before_id: reader.read_u32()?,
-        }),
-        Opcode::RemoveChild => Ok(Command::RemoveChild {
-            parent_id: reader.read_u32()?,
-            child_id: reader.read_u32()?,
-        }),
-        Opcode::SubscribeEvent => Ok(Command::SubscribeEvent {
-            id: reader.read_u32()?,
-            event: read_native_event(reader)?,
-        }),
-        Opcode::UnsubscribeEvent => Ok(Command::UnsubscribeEvent {
-            id: reader.read_u32()?,
-            event: read_native_event(reader)?,
-        }),
+fn read_style(
+    reader: &mut Reader<'_>,
+    strings: &[&str],
+) -> Result<Vec<(PropertyId, PropertyValue)>, BridgeFailure> {
+    let count = reader.read_u16()? as usize;
+    let mut properties = reserved_vec(
+        count,
+        reader.pos - 2,
+        "Style property count could not be reserved safely.",
+    )?;
+    for _ in 0..count {
+        properties.push((
+            reader.read_enum(Reader::read_u16, "UNKNOWN_PROPERTY", "property ID")?,
+            read_property_value(reader, strings)?,
+        ));
     }
-}
-
-fn read_native_event(reader: &mut Reader<'_>) -> Result<NativeEventId, BridgeFailure> {
-    let offset = reader.pos;
-    parse_enum(
-        reader.read_u16()?,
-        offset,
-        "UNKNOWN_NATIVE_EVENT",
-        "native event ID",
-    )
-}
-
-fn read_property(reader: &mut Reader<'_>) -> Result<PropertyId, BridgeFailure> {
-    let offset = reader.pos;
-    parse_enum(
-        reader.read_u16()?,
-        offset,
-        "UNKNOWN_PROPERTY",
-        "property ID",
-    )
+    Ok(properties)
 }
 
 fn read_property_value(
     reader: &mut Reader<'_>,
     strings: &[&str],
 ) -> Result<PropertyValue, BridgeFailure> {
-    let offset = reader.pos;
-    let kind = parse_enum(
-        reader.read_u8()?,
-        offset,
-        "UNKNOWN_VALUE_KIND",
-        "property value kind",
-    )?;
+    let kind = reader.read_enum(Reader::read_u8, "UNKNOWN_VALUE_KIND", "property value kind")?;
     match kind {
         ValueKind::Null => Ok(PropertyValue::Null),
         ValueKind::Number => Ok(PropertyValue::Number(reader.read_f64()?)),
@@ -360,20 +318,6 @@ fn read_string(reader: &mut Reader<'_>, strings: &[&str]) -> Result<String, Brid
                 Some(offset),
             )
         })
-}
-
-fn parse_enum<T, N>(
-    value: N,
-    offset: usize,
-    code: &'static str,
-    name: &'static str,
-) -> Result<T, BridgeFailure>
-where
-    T: TryFrom<N, Error = ()>,
-    N: Copy + Display,
-{
-    T::try_from(value)
-        .map_err(|()| BridgeFailure::wire(code, format!("Unknown {name} {value}."), Some(offset)))
 }
 
 #[cfg(test)]

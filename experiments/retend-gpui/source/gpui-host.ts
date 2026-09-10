@@ -1,6 +1,7 @@
 import type {
   NativeEventPayload,
   NativeRendererBinding,
+  NativeTransportPayload,
 } from './native/addon.js';
 import type {
   ElementKind as ElementKindValue,
@@ -8,7 +9,11 @@ import type {
   PropertyId as PropertyIdValue,
 } from './native/protocol.generated.js';
 import type { ProtocolPropertyValue } from './native/protocol.js';
-import type { GpuiWindowOptions } from './window.js';
+import type {
+  GpuiMeasurement,
+  GpuiScrollOffset,
+  GpuiSelection,
+} from './types.js';
 
 import {
   loadNativeAddon,
@@ -17,10 +22,8 @@ import {
 } from './native/addon.js';
 import { allocateNativeNodeId } from './native/node-id.js';
 import { CommandBatchWriter } from './native/protocol.js';
-import {
-  acquireNativeRuntime,
-  releaseNativeRuntime,
-} from './native/runtime.js';
+import { nativeRuntime } from './native/runtime.js';
+import { validateGpuiWindowOptions, type GpuiWindowOptions } from './window.js';
 
 const LOCATION_BASE = 'retend://app/';
 
@@ -136,7 +139,6 @@ export class GpuiHost extends EventTarget {
 
   readonly location = this.#navigation;
   readonly history = this.#navigation;
-  readonly document = { title: '' };
 
   constructor(options: GpuiHostOptions = {}) {
     super();
@@ -156,18 +158,8 @@ export class GpuiHost extends EventTarget {
   init(options: GpuiWindowOptions = {}): void {
     if (this.#binding)
       throw new Error('Retend GPUI host is already initialized.');
-    for (const [name, value] of [
-      ['width', options.width],
-      ['height', options.height],
-    ] as const) {
-      if (value !== undefined && (!Number.isFinite(value) || value <= 0)) {
-        throw new TypeError(
-          `Native window ${name} must be a finite positive number.`
-        );
-      }
-    }
+    validateGpuiWindowOptions(options);
 
-    this.document.title = options.title ?? '';
     this.#rootId = allocateNativeNodeId();
     this.#writer = new CommandBatchWriter();
     this.#flushScheduled = false;
@@ -175,25 +167,14 @@ export class GpuiHost extends EventTarget {
     this.#binding = new (loadNativeAddon().NativeRendererBinding)(
       this.#rootId,
       this.#headless,
-      {
-        title: options.title,
-        width: options.width,
-        height: options.height,
-      },
-      this.#onNativeEvent
+      options,
+      (payload) => this.#handleNativeEvent(payload)
     );
-    if (!this.#headless) {
-      acquireNativeRuntime(
-        this.#binding,
-        () => this.#handleNativeClose(),
-        () => this.dispatchEvent(new Event('reload'))
-      );
-    }
+    if (!this.#headless) nativeRuntime.acquire();
   }
 
   setWindowTitle(title: string): void {
     this.#requireBinding().setWindowTitle(title);
-    this.document.title = title;
   }
 
   /** @internal Reports a recoverable application error to this window runtime. */
@@ -287,8 +268,47 @@ export class GpuiHost extends EventTarget {
   }
 
   settle(): void {
-    this.flush();
-    this.#requireBinding().settle();
+    this.#flushBinding().settle();
+  }
+
+  focusNode(id: number): void {
+    this.#flushBinding().focusNode(id);
+  }
+
+  blurNode(id: number): void {
+    this.#flushBinding().blurNode(id);
+  }
+
+  setSelectionRangeNode(id: number, start: number, end: number): void {
+    this.#flushBinding().setSelectionRangeNode(id, start, end);
+  }
+
+  selectNode(id: number): void {
+    this.#flushBinding().selectNode(id);
+  }
+
+  async getSelectionNode(id: number): Promise<GpuiSelection> {
+    return this.#query((binding) => binding.getSelectionNode(id));
+  }
+
+  scrollToNode(id: number, x: number, y: number): void {
+    this.#flushBinding().scrollToNode(id, x, y);
+  }
+
+  scrollByNode(id: number, x: number, y: number): void {
+    this.#flushBinding().scrollByNode(id, x, y);
+  }
+
+  scrollIntoViewNode(id: number): void {
+    this.#flushBinding().scrollIntoViewNode(id);
+  }
+
+  async getScrollOffsetNode(id: number): Promise<GpuiScrollOffset> {
+    return this.#query((binding) => binding.getScrollOffsetNode(id));
+  }
+
+  async measureNode(id: number): Promise<GpuiMeasurement> {
+    return this.#query((binding) => binding.measureNode(id));
   }
 
   /** @internal Discards queued commands that belong to an abandoned JS root. */
@@ -300,7 +320,7 @@ export class GpuiHost extends EventTarget {
     const binding = this.#binding;
     if (!binding) return;
     this.#binding = null;
-    if (!this.#headless) releaseNativeRuntime(binding);
+    if (!this.#headless) nativeRuntime.release();
     binding.close();
   }
 
@@ -329,6 +349,19 @@ export class GpuiHost extends EventTarget {
     });
   }
 
+  #flushBinding(): NativeRendererBinding {
+    this.flush();
+    return this.#requireBinding();
+  }
+
+  #query<T>(
+    execute: (binding: NativeRendererBinding) => Promise<T>
+  ): Promise<T> {
+    return execute(this.#flushBinding()).catch((error: unknown) =>
+      this.#nativeQueryError(error)
+    );
+  }
+
   #requireBinding(): NativeRendererBinding {
     if (!this.#binding) {
       throw new Error(
@@ -341,7 +374,56 @@ export class GpuiHost extends EventTarget {
   #handleNativeClose(): void {
     if (!this.#binding) return;
     this.#binding = null;
+    if (!this.#headless) nativeRuntime.release();
     this.dispatchEvent(new Event('close'));
+  }
+
+  #handleNativeEvent(payload: NativeTransportPayload): void {
+    if (payload.event) {
+      this.#onNativeEvent?.(payload.event);
+      return;
+    }
+    const event = payload.window;
+    switch (event.kind) {
+      case 'close':
+        this.#handleNativeClose();
+        return;
+      case 'resize':
+        this.dispatchEvent(
+          new CustomEvent('resize', {
+            detail: { width: event.width, height: event.height },
+          })
+        );
+        this.flush();
+        return;
+      case 'focus':
+      case 'blur':
+      case 'reload':
+        this.dispatchEvent(new Event(event.kind));
+        return;
+      default:
+        throw new Error(
+          `Unknown native window event: ${String(Reflect.get(event as object, 'kind'))}`
+        );
+    }
+  }
+
+  #nativeQueryError(cause: unknown): never {
+    const failure = parseNativeBridgeFailure(cause);
+    if (!failure) throw cause;
+    if (failure.code === 'CLOSED_WINDOW') this.#handleNativeClose();
+    if (failure.code === 'POISONED_RENDERER') {
+      throw new NativeRendererFatalError(
+        `Retend GPUI native query failed: ${failure.message}`,
+        failure
+      );
+    }
+    const error = new Error(
+      `Retend GPUI native query failed: ${failure.message}`
+    );
+    error.name = 'NativeNodeQueryError';
+    Object.defineProperty(error, 'code', { value: failure.code });
+    throw error;
   }
 
   #fail(error: unknown): never {

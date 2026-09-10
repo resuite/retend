@@ -1,10 +1,21 @@
 import type { AsyncDerivedCell, Cell, SourceCell } from 'retend';
 
-import type { GpuiKeyboardEvent, GpuiMouseEvent } from '../events.js';
-import type { GpuiElement } from '../gpui-renderer.js';
+import type {
+  GpuiFocusEvent,
+  GpuiInputEvent,
+  GpuiKeyboardEvent,
+  GpuiMouseEvent,
+  GpuiScrollEvent,
+} from '../events.js';
+import type {
+  GpuiDivElement,
+  GpuiImageElement,
+  GpuiInputElement,
+} from '../gpui-renderer.js';
 import type {
   GpuiElementType,
   GpuiImgCustomProps,
+  GpuiInputCustomProps,
   GpuiStyle,
 } from '../types.js';
 import 'retend/jsx-runtime';
@@ -18,6 +29,16 @@ type ReactiveStyle = {
 };
 interface CustomPropsByTag {
   img: GpuiImgCustomProps;
+  input: GpuiInputCustomProps;
+}
+interface ElementByTag {
+  div: GpuiDivElement;
+  img: GpuiImageElement;
+  input: GpuiInputElement;
+}
+interface GpuiInputNativeEvents {
+  onInput?: ReactiveValue<(event: GpuiInputEvent) => void>;
+  onChange?: ReactiveValue<(event: GpuiInputEvent) => void>;
 }
 
 declare module 'retend/jsx-runtime' {
@@ -37,8 +58,14 @@ declare module 'retend/jsx-runtime' {
      */
     type GpuiIntrinsicElements = {
       [Tag in GpuiElementType]: GpuiElementProps &
-        ReactiveCustomProps<Tag> &
-        (Tag extends 'img' ? { children?: never } : {});
+        ReactiveCustomProps<Tag> & {
+          ref?:
+            | SourceCell<ElementByTag[Tag] | null>
+            | ((node: ElementByTag[Tag] | null) => void);
+        } & (Tag extends 'input'
+          ? GpuiInputNativeEvents & EventModifierHandlers<GpuiInputNativeEvents>
+          : {}) &
+        (Tag extends 'div' ? {} : { children?: never });
     };
 
     interface GpuiNativeEvents {
@@ -52,6 +79,9 @@ declare module 'retend/jsx-runtime' {
       onMouseDownOutside?: ReactiveValue<(event: GpuiMouseEvent) => void>;
       onKeyDown?: ReactiveValue<(event: GpuiKeyboardEvent) => void>;
       onKeyUp?: ReactiveValue<(event: GpuiKeyboardEvent) => void>;
+      onFocus?: ReactiveValue<(event: GpuiFocusEvent) => void>;
+      onBlur?: ReactiveValue<(event: GpuiFocusEvent) => void>;
+      onScroll?: ReactiveValue<(event: GpuiScrollEvent) => void>;
     }
 
     type GpuiNativeEventModifiers = EventModifierHandlers<GpuiNativeEvents>;
@@ -66,13 +96,8 @@ declare module 'retend/jsx-runtime' {
        * reactive updates before the resolved snapshot crosses the native bridge.
        */
       style?: ValueOrCell<ReactiveStyle>;
-      /**
-       * Ref to the underlying `GpuiElement`. Accepts a `SourceCell` or callback.
-       * Callback refs are invoked with `null` on cleanup.
-       */
-      ref?:
-        | SourceCell<GpuiElement | null>
-        | ((node: GpuiElement | null) => void);
+      /** Native tab order. Negative values remain programmatically focusable. */
+      tabIndex?: ReactiveValue<number | null>;
     }
 
     /**

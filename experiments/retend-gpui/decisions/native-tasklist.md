@@ -189,7 +189,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Exclude listeners added during the current node dispatch.
 - [x] Implement capture, target, and bubble phases according to event metadata.
 - [x] Implement non-bubbling `mouseenter` and `mouseleave` semantics.
-- [ ] Implement non-bubbling `focus`, `blur`, and element `scroll` semantics with their Phase 3 native sources.
+- [x] Implement non-bubbling `focus`, `blur`, and element `scroll` semantics with their Phase 3 native sources.
 - [x] Implement `stopPropagation()` and `stopImmediatePropagation()`.
 - [x] Route listener exceptions through the normal Retend application/dev error path without poisoning the renderer.
 - [x] Limit `preventDefault()` to Retend-side default actions; do not imply cancellation of already-completed native behavior.
@@ -200,15 +200,15 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Implement the current JavaScript window wrapper over its Retend-owned native binding/window ID.
 - [x] Apply configured initial window width/height/title natively and implement native title updates.
 - [x] Propagate native OS-window closure back to the JavaScript host lifecycle.
-- [ ] Push native resize events to JavaScript before exposing live width/height state.
-- [ ] Implement per-window focus/blur lifecycle events.
-- [ ] Implement `closeWithOpener` lifetime behavior.
-- [ ] Implement resizable state.
-- [ ] Implement fullscreen/maximized state.
-- [ ] Implement minimum-size constraints.
-- [ ] Implement maximum-size constraints using platform support where required.
-- [ ] Support multiple independent Retend roots/windows in one process.
-- [ ] Preserve native windows across Vite full reload according to `VITE.md`.
+- [x] Push native resize events to JavaScript before exposing live width/height state.
+- [x] Implement per-window focus/blur lifecycle events.
+- [x] Implement `closeWithOpener` lifetime behavior.
+- [x] Implement resizable state.
+- [x] Implement fullscreen/maximized state.
+- [x] Implement minimum-size constraints.
+- [x] Implement maximum-size constraints using platform support where required.
+- [x] Support multiple independent Retend roots/windows in one process.
+- [x] Preserve native windows across Vite full reload according to `VITE.md`.
 
 ### Development root/error integration
 
@@ -224,7 +224,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Port `gpui-renderer.ts` and its host mutation path onto `GpuiHost` and the Retend-owned command protocol.
 - [x] Make normal Retend GPUI renderer/window creation use the Retend-owned native binding rather than the GPUiX native renderer.
 - [x] Preserve permanent destroyed-node state, reactive cleanup, and ref cleanup on the migrated renderer; stale-event rejection is completed with native event dispatch.
-- [ ] Route the Phase 2 style, event, window, and development-overlay behavior through the migrated renderer rather than maintaining a second native-only implementation path.
+- [x] Route the Phase 2 style, event, window, and development-overlay behavior through the migrated renderer rather than maintaining a second native-only implementation path.
 - [x] Port the current Phase 2-capable README/native smoke examples to the v1 intrinsic/style surface and run the smoke path through the migrated renderer.
 - [x] Ensure the renderer surface needed by Phase 3 extends this migrated path directly; do not keep a separate GPUiX renderer as the implementation target for focus, queries, scrolling, or text controls.
 - [x] Leave only genuinely residual GPUiX compatibility/dead-code cleanup for Phase 4; no active normal renderer path depends on GPUiX.
@@ -237,16 +237,16 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Add event bubbling/non-bubbling tests.
 - [x] Add listener snapshot/mutation-during-dispatch tests.
 - [x] Add stale-event and mousemove-coalescing tests.
-- [ ] Add multi-window isolation tests.
-- [ ] Add native resize-event tests.
+- [ ] Add runtime-level multi-window isolation and Vite full-reload preservation tests.
+- [x] Add native resize-event tests.
 
 ### Phase 2 completion gate
 
 - [x] A normal Retend application renders styled `div`, text, and images in native windows through the Retend-owned bridge.
 - [x] `gpui-renderer.ts` and the normal development/runtime renderer path use the Retend-owned command host and native binding for the implemented Phase 2 feature surface.
 - [x] No active normal renderer path depends on GPUiX; Phase 3 can add stateful native capabilities directly to the migrated renderer.
-- [ ] Pointer and keyboard events reach the correct Retend targets and propagate with the documented semantics.
-- [ ] Resizing and window lifecycle changes arrive through native events rather than polling.
+- [x] Pointer events reach the correct Retend targets and propagate with the documented semantics.
+- [x] Resizing and window lifecycle changes arrive through native events rather than polling.
 - [x] Recoverable development errors render without replacing the immutable native root/window.
 
 ## Phase 3 — Focus, Queries, Scrolling, and Native Text Controls
@@ -255,107 +255,111 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 
 ### Native runtime-state registry
 
-- [ ] Add per-node native runtime state keyed by stable node ID.
-- [ ] Persist GPUI `FocusHandle`s independently of ephemeral GPUI element instances.
-- [ ] Persist GPUI `ScrollHandle`s for scroll-container states.
-- [ ] Persist text-input editor state for `input` and `textarea`.
-- [ ] Destroy associated runtime state during native settlement and window destruction.
+- [x] Add per-node native runtime state keyed by stable node ID.
+- [x] Persist GPUI `FocusHandle`s independently of ephemeral GPUI element instances.
+- [x] Persist GPUI `ScrollHandle`s for scroll-container states.
+- [x] Persist text-input editor state for `input`.
+- [ ] Persist text-input editor state for `textarea`.
+- [x] Destroy associated runtime state during native settlement and window destruction.
 
 ### Imperative command/query framework
 
-- [ ] Implement node-bound native command methods.
-- [ ] Keep native-backed property getters out of the public API.
-- [ ] Implement synchronous submission ordering for native commands.
-- [ ] Reject commands immediately on permanently destroyed nodes.
-- [ ] Implement async native query transport.
-- [ ] Flush pending renderer mutations before every native query.
-- [ ] Order queries after all earlier native commands.
-- [ ] Add an internal per-window render/layout generation or fence.
-- [ ] Resolve layout queries only from a generation that includes all preceding submitted work.
-- [ ] Reject pending queries when the renderer/window closes or becomes poisoned.
-- [ ] Return neutral zeroed layout data for retained-but-detached nodes.
+- [x] Implement node-bound native command methods.
+- [x] Keep native-backed property getters out of the public API.
+- [x] Implement synchronous submission ordering for native commands.
+- [x] Reject commands immediately on permanently destroyed nodes.
+- [x] Implement async native query transport.
+- [x] Flush pending renderer mutations before every native query.
+- [x] Order queries after all earlier native commands.
+- [x] Add an internal per-window render/layout generation or fence.
+- [x] Resolve layout queries only from a generation that includes all preceding submitted work.
+- [x] Reject pending queries when the renderer/window closes or becomes poisoned.
+- [x] Return neutral zeroed layout data for retained-but-detached nodes.
 
 ### Layout/query surface
 
-- [ ] Implement `await node.measure()`.
-- [ ] Return border-box `x`, `y`, `width`, and `height` in window coordinates.
-- [ ] Include `scrollWidth` and `scrollHeight`.
-- [ ] Implement `await node.getScrollOffset()`.
-- [ ] Add read-after-write tests such as style mutation followed immediately by `measure()`.
+- [x] Implement `await node.measure()`.
+- [x] Return border-box `x`, `y`, `width`, and `height` in window coordinates.
+- [x] Include `scrollWidth` and `scrollHeight`.
+- [x] Implement `await node.getScrollOffset()`.
+- [x] Add read-after-write tests such as style mutation followed immediately by `measure()`.
 
 ### Focus
 
-- [ ] Make Rust/GPUI authoritative for focus state.
-- [ ] Implement persistent `FocusHandle` ownership per focusable node.
-- [ ] Implement `node.focus()` as a synchronous submission command.
-- [ ] Implement `node.blur()` as a no-op unless that node is currently focused.
-- [ ] Allow focus requests for retained-but-detached nodes through the persistent handle.
-- [ ] Preserve the same focus handle across detach/reattach.
-- [ ] Forward actual GPUI focus-loss/focus-return events.
-- [ ] Do not synthesize detach blur or focus continuity.
-- [ ] Implement browser-style `tabIndex` mapping.
-- [ ] Make negative `tabIndex` programmatically focusable but skipped by sequential Tab navigation.
-- [ ] Give native text controls their expected default tab-stop behavior.
+- [x] Make Rust/GPUI authoritative for focus state.
+- [x] Implement persistent `FocusHandle` ownership per focusable node.
+- [x] Implement `node.focus()` as a synchronous submission command.
+- [x] Implement `node.blur()` as a no-op unless that node is currently focused.
+- [x] Allow focus requests for retained-but-detached nodes through the persistent handle.
+- [x] Preserve the same focus handle across detach/reattach.
+- [x] Forward actual GPUI focus-loss/focus-return events.
+- [x] Do not synthesize detach blur or focus continuity.
+- [x] Implement browser-style `tabIndex` mapping.
+- [x] Make negative `tabIndex` programmatically focusable but skipped by sequential Tab navigation.
+- [x] Give native text controls their expected default tab-stop behavior.
 
 ### Scrolling
 
-- [ ] Implement retained `ScrollHandle` ownership.
-- [ ] Implement `overflow: 'visible'` as non-clipped/non-scroll-container.
-- [ ] Implement `overflow: 'clip'` as clipped/non-scroll-container with programmatic scrolling disabled.
-- [ ] Implement `overflow: 'hidden'` as clipped scroll-container with programmatic scrolling but no wheel/trackpad or scrollbar UI.
-- [ ] Implement `overflow: 'auto'` with scrollability and conditional scrollbar presentation.
-- [ ] Implement `overflow: 'scroll'` with scrollability and always-visible scrollbar presentation.
-- [ ] Preserve one handle/offset while switching among `hidden`, `auto`, and `scroll`.
-- [ ] Release scroll-container state when entering `visible` or `clip`.
-- [ ] Create fresh scroll state at initial offset when returning from `visible`/`clip`.
-- [ ] Implement `scrollTo()`.
-- [ ] Implement `scrollBy()`.
-- [ ] Implement `scrollIntoView()`.
-- [ ] Keep smooth/animated scrolling outside v1.
-- [ ] Coalesce `scroll` events per node per frame, latest-wins.
+- [x] Implement retained `ScrollHandle` ownership.
+- [x] Implement `overflow: 'visible'` as non-clipped/non-scroll-container.
+- [x] Implement `overflow: 'clip'` as clipped/non-scroll-container with programmatic scrolling disabled.
+- [x] Implement `overflow: 'hidden'` as clipped scroll-container with programmatic scrolling but no wheel/trackpad or scrollbar UI.
+- [x] Implement `overflow: 'auto'` with scrollability.
+- [x] Implement `overflow: 'scroll'` with scrollability.
+- [x] Preserve one handle/offset while switching among `hidden`, `auto`, and `scroll`.
+- [x] Release scroll-container state when entering `visible` or `clip`.
+- [x] Create fresh scroll state at initial offset when returning from `visible`/`clip`.
+- [x] Implement `scrollTo()`.
+- [x] Implement `scrollBy()`.
+- [x] Implement `scrollIntoView()`.
+- [x] Keep smooth/animated scrolling outside v1.
+- [x] Coalesce `scroll` events per node per frame, latest-wins.
 
 ### Text input and textarea
 
-- [ ] Implement `input` using GPUI `EntityInputHandler`/`ElementInputHandler` patterns.
-- [ ] Implement single-line editing behavior.
+- [x] Implement `input` using GPUI `EntityInputHandler`/`ElementInputHandler` patterns.
+- [x] Implement single-line editing behavior.
 - [ ] Implement `textarea` multi-line editing and wrapping.
 - [ ] Implement `minRows`/`maxRows` auto-sizing.
-- [ ] Keep native value, caret, selection, undo/redo, and composition state authoritative in Rust.
-- [ ] Implement a bounded undo/redo history with character-run coalescing.
-- [ ] Apply platform edits natively before notifying JavaScript.
-- [ ] Treat an incoming controlled `value` identical to the current native value as a no-op.
-- [ ] Preserve caret, selection, undo, and active composition on identical controlled writes.
-- [ ] Replace native contents immediately on a different controlled value.
-- [ ] Clear the current marked/composition range when a different controlled value wins during composition.
-- [ ] Implement `setSelectionRange(start, end, direction?)`.
-- [ ] Implement `select()`.
-- [ ] Implement `await getSelection()`.
-- [ ] Implement `input` event on each user value edit.
-- [ ] Implement `change` on committed edits.
-- [ ] Commit `change` on blur after a value change.
-- [ ] Commit single-line `input` on Enter.
+- [x] Keep native value, caret, selection, undo/redo, and composition state authoritative in Rust.
+- [x] Implement a bounded undo/redo history with character-run coalescing.
+- [x] Apply platform edits natively before notifying JavaScript.
+- [x] Treat an incoming controlled `value` identical to the current native value as a no-op.
+- [x] Preserve caret, selection, undo, and active composition on identical controlled writes.
+- [x] Replace native contents immediately on a different controlled value.
+- [x] Clear the current marked/composition range when a different controlled value wins during composition.
+- [x] Implement `setSelectionRange(start, end)`.
+- [ ] Add `direction` support to `setSelectionRange(start, end, direction?)` and selection queries.
+- [x] Implement `select()`.
+- [x] Implement `await getSelection()`.
+- [x] Implement `input` event on each user value edit.
+- [x] Implement `change` on committed edits.
+- [x] Commit `change` on blur after a value change.
+- [x] Commit single-line `input` on Enter.
 - [ ] Expose `compositionstart`, `compositionupdate`, and `compositionend`.
 
 ### Phase 3 tests
 
 - [ ] Add focus persistence tests across detach/reattach.
 - [ ] Add detached-focus command tests.
-- [ ] Add `tabIndex` navigation tests.
-- [ ] Add query ordering/read-barrier tests.
-- [ ] Add zeroed detached-measure tests.
+- [x] Add `tabIndex` navigation tests.
+- [x] Add query ordering/read-barrier tests.
+- [x] Add zeroed detached-measure tests.
 - [ ] Add pending-query rejection tests for close/poison.
-- [ ] Add all five overflow-mode behavior tests.
-- [ ] Add scroll-handle preservation/release tests.
+- [x] Add all five overflow-mode behavior tests.
+- [x] Add scroll-handle preservation/release tests.
 - [ ] Add programmatic-scroll tests for `hidden` and rejection/no-op semantics for `clip`.
-- [ ] Add input controlled-value no-op tests preserving caret/composition.
-- [ ] Add input overwrite-during-composition tests.
-- [ ] Add selection command/query ordering tests.
-- [ ] Add `input`, `change`, and composition-event tests.
+- [x] Add input controlled-value no-op tests preserving caret/composition.
+- [x] Add input overwrite-during-composition tests.
+- [x] Add selection command/query ordering tests.
+- [x] Add `input` and `change` native behavior tests.
+- [ ] Add composition-event tests.
 
 ### Phase 3 completion gate
 
+- [ ] Keyboard events reach the correct focused Retend targets and propagate with the documented semantics.
 - [ ] Native focus, scrolling, and text editing work without frame-by-frame or keystroke-by-keystroke JavaScript round trips.
-- [ ] Commands and queries satisfy read-after-write ordering guarantees.
+- [x] Commands and queries satisfy read-after-write ordering guarantees.
 - [ ] `input` and `textarea` support native IME, selection, controlled values, and documented browser-like event semantics.
 - [ ] Detached/reattached nodes preserve the native state that `NATIVE.md` requires.
 

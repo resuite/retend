@@ -1,41 +1,33 @@
-import { loadNativeAddon, type NativeRendererBinding } from './addon.js';
+import { loadNativeAddon } from './addon.js';
 
-const bindings = new Map<
-  NativeRendererBinding,
-  readonly [onClose?: () => void, onReload?: () => void]
->();
-const pumpsNativeEvents = process.platform === 'darwin';
-let runtimeTimer: ReturnType<typeof setInterval> | null = null;
+/** Owns process liveness and the macOS GPUI event pump. */
+class NativeRuntime {
+  readonly #pumpsNativeEvents = process.platform === 'darwin';
+  #windows = 0;
+  #timer: ReturnType<typeof setInterval> | null = null;
 
-/** @internal Keeps Node alive while at least one real native window exists. */
-export function acquireNativeRuntime(
-  binding: NativeRendererBinding,
-  onClose?: () => void,
-  onReload?: () => void
-): void {
-  bindings.set(binding, [onClose, onReload]);
-  runtimeTimer ??= setInterval(runNativeRuntime, pumpsNativeEvents ? 8 : 250);
-}
-
-/** @internal Releases process liveness after a renderer/window tears down. */
-export function releaseNativeRuntime(binding: NativeRendererBinding): void {
-  bindings.delete(binding);
-  runNativeRuntime();
-}
-
-function runNativeRuntime(): void {
-  const running = !pumpsNativeEvents || loadNativeAddon().tick();
-  for (const [binding, [onClose, onReload]] of bindings) {
-    if (binding.isClosed()) {
-      bindings.delete(binding);
-      onClose?.();
-      continue;
+  acquire(): void {
+    this.#windows++;
+    if (this.#pumpsNativeEvents) {
+      this.#timer ??= setInterval(() => this.#run(), 8);
     }
-    if (binding.takeReloadRequested()) onReload?.();
   }
-  if (running && (pumpsNativeEvents || bindings.size > 0)) return;
 
-  bindings.clear();
-  if (runtimeTimer !== null) clearInterval(runtimeTimer);
-  runtimeTimer = null;
+  release(): void {
+    if (this.#windows > 0) this.#windows--;
+    if (this.#windows === 0) this.#stop();
+  }
+
+  #stop(): void {
+    this.#windows = 0;
+    if (this.#timer !== null) clearInterval(this.#timer);
+    this.#timer = null;
+  }
+
+  #run(): void {
+    if (this.#windows > 0 && !loadNativeAddon().tick()) this.#stop();
+  }
 }
+
+/** Process-wide native runtime shared by every GPUI window. */
+export const nativeRuntime = new NativeRuntime();

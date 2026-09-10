@@ -4,10 +4,18 @@ use std::{
     time::Instant,
 };
 
-use gpui::{
-    ClickEvent, KeyDownEvent, KeyUpEvent, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, NavigationDirection, Pixels, Point,
+#[cfg(target_os = "macos")]
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
 };
+
+use gpui::{
+    ClickEvent, Keystroke, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    NavigationDirection, Pixels, Point,
+};
+#[cfg(target_os = "macos")]
+use napi::bindgen_prelude::{Env, FunctionRef, JsValuesTuple};
 use napi::{
     bindgen_prelude::Function,
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -22,6 +30,66 @@ use crate::{
 
 #[napi(object)]
 #[derive(Clone, Debug)]
+pub struct NativeWindowEventPayload {
+    pub kind: String,
+    pub width: Option<f64>,
+    pub height: Option<f64>,
+}
+
+impl NativeWindowEventPayload {
+    fn new(kind: &str) -> Self {
+        Self {
+            kind: kind.to_string(),
+            width: None,
+            height: None,
+        }
+    }
+
+    pub fn resize(width: f64, height: f64) -> Self {
+        Self {
+            kind: "resize".to_string(),
+            width: Some(width),
+            height: Some(height),
+        }
+    }
+
+    pub fn activation(active: bool) -> Self {
+        Self::new(if active { "focus" } else { "blur" })
+    }
+
+    pub fn close() -> Self {
+        Self::new("close")
+    }
+
+    pub fn reload() -> Self {
+        Self::new("reload")
+    }
+}
+
+#[napi(object)]
+pub struct NativeTransportPayload {
+    pub event: Option<NativeEventPayload>,
+    pub window: Option<NativeWindowEventPayload>,
+}
+
+impl NativeTransportPayload {
+    fn event(event: NativeEventPayload) -> Self {
+        Self {
+            event: Some(event),
+            window: None,
+        }
+    }
+
+    fn window(window: NativeWindowEventPayload) -> Self {
+        Self {
+            event: None,
+            window: Some(window),
+        }
+    }
+}
+
+#[napi(object)]
+#[derive(Clone, Debug, Default)]
 pub struct NativeEventPayload {
     pub event_id: u16,
     pub target_id: NodeId,
@@ -38,6 +106,9 @@ pub struct NativeEventPayload {
     pub key: String,
     pub key_char: Option<String>,
     pub repeat: bool,
+    pub scroll_x: f64,
+    pub scroll_y: f64,
+    pub value: Option<String>,
 }
 
 fn event_clock() -> &'static Instant {
@@ -51,23 +122,25 @@ impl NativeEventPayload {
             event_id: event as u16,
             target_id,
             time_stamp: event_clock().elapsed().as_secs_f64() * 1_000.0,
-            client_x: 0.0,
-            client_y: 0.0,
-            button: 0,
-            buttons: 0,
-            detail: 0,
-            alt_key: false,
-            ctrl_key: false,
-            meta_key: false,
-            shift_key: false,
-            key: String::new(),
-            key_char: None,
-            repeat: false,
+            ..Self::default()
         }
     }
 
     fn is_mouse_move(&self) -> bool {
         self.event_id == NativeEventId::MouseMove as u16
+    }
+
+    pub fn scroll(target_id: NodeId, x: f64, y: f64) -> Self {
+        let mut payload = Self::new(NativeEventId::Scroll, target_id);
+        payload.scroll_x = x;
+        payload.scroll_y = y;
+        payload
+    }
+
+    pub fn text(event: NativeEventId, target_id: NodeId, value: String) -> Self {
+        let mut payload = Self::new(event, target_id);
+        payload.value = Some(value);
+        payload
     }
 }
 
@@ -83,23 +156,13 @@ fn apply_position(payload: &mut NativeEventPayload, position: Point<Pixels>) {
     payload.client_y = f64::from(f32::from(position.y));
 }
 
-fn button_code(button: MouseButton) -> i32 {
+fn button_values(button: MouseButton) -> (i32, u32) {
     match button {
-        MouseButton::Left => 0,
-        MouseButton::Middle => 1,
-        MouseButton::Right => 2,
-        MouseButton::Navigate(NavigationDirection::Back) => 3,
-        MouseButton::Navigate(NavigationDirection::Forward) => 4,
-    }
-}
-
-fn button_mask(button: MouseButton) -> u32 {
-    match button {
-        MouseButton::Left => 1,
-        MouseButton::Right => 2,
-        MouseButton::Middle => 4,
-        MouseButton::Navigate(NavigationDirection::Back) => 8,
-        MouseButton::Navigate(NavigationDirection::Forward) => 16,
+        MouseButton::Left => (0, 1),
+        MouseButton::Middle => (1, 4),
+        MouseButton::Right => (2, 2),
+        MouseButton::Navigate(NavigationDirection::Back) => (3, 8),
+        MouseButton::Navigate(NavigationDirection::Forward) => (4, 16),
     }
 }
 
@@ -108,11 +171,8 @@ pub fn mouse_down(
     target_id: NodeId,
     event: &MouseDownEvent,
 ) -> NativeEventPayload {
-    let mut payload = NativeEventPayload::new(event_id, target_id);
-    apply_position(&mut payload, event.position);
-    apply_modifiers(&mut payload, event.modifiers);
-    payload.button = button_code(event.button);
-    payload.buttons = button_mask(event.button);
+    let mut payload = mouse_event(event_id, target_id, event.position, event.modifiers);
+    (payload.button, payload.buttons) = button_values(event.button);
     payload.detail = event.click_count as u32;
     payload
 }
@@ -122,39 +182,34 @@ pub fn mouse_up(
     target_id: NodeId,
     event: &MouseUpEvent,
 ) -> NativeEventPayload {
-    let mut payload = NativeEventPayload::new(event_id, target_id);
-    apply_position(&mut payload, event.position);
-    apply_modifiers(&mut payload, event.modifiers);
-    payload.button = button_code(event.button);
-    payload.buttons = 0;
+    let mut payload = mouse_event(event_id, target_id, event.position, event.modifiers);
+    payload.button = button_values(event.button).0;
     payload.detail = event.click_count as u32;
     payload
 }
 
 pub fn mouse_move(target_id: NodeId, event: &MouseMoveEvent) -> NativeEventPayload {
-    let mut payload = NativeEventPayload::new(NativeEventId::MouseMove, target_id);
-    apply_position(&mut payload, event.position);
-    apply_modifiers(&mut payload, event.modifiers);
-    payload.button = event.pressed_button.map(button_code).unwrap_or(0);
-    payload.buttons = event.pressed_button.map(button_mask).unwrap_or(0);
-    payload.detail = 0;
+    let mut payload = mouse_event(
+        NativeEventId::MouseMove,
+        target_id,
+        event.position,
+        event.modifiers,
+    );
+    (payload.button, payload.buttons) = event.pressed_button.map(button_values).unwrap_or_default();
     payload
 }
 
 pub fn click(event_id: NativeEventId, target_id: NodeId, event: &ClickEvent) -> NativeEventPayload {
-    let mut payload = NativeEventPayload::new(event_id, target_id);
-    apply_position(&mut payload, event.position());
-    apply_modifiers(&mut payload, event.modifiers());
+    let mut payload = mouse_event(event_id, target_id, event.position(), event.modifiers());
     payload.detail = event.click_count() as u32;
-    payload.buttons = 0;
     payload.button = match event {
-        ClickEvent::Mouse(event) => button_code(event.up.button),
+        ClickEvent::Mouse(event) => button_values(event.up.button).0,
         ClickEvent::Keyboard(_) | ClickEvent::Touch(_) => 0,
     };
     payload
 }
 
-pub fn hover(
+pub fn mouse_event(
     event_id: NativeEventId,
     target_id: NodeId,
     position: Point<Pixels>,
@@ -163,85 +218,76 @@ pub fn hover(
     let mut payload = NativeEventPayload::new(event_id, target_id);
     apply_position(&mut payload, position);
     apply_modifiers(&mut payload, modifiers);
-    payload.button = 0;
-    payload.buttons = 0;
-    payload.detail = 0;
     payload
 }
 
-pub fn key_down(target_id: NodeId, event: &KeyDownEvent) -> NativeEventPayload {
-    let mut payload = NativeEventPayload::new(NativeEventId::KeyDown, target_id);
-    apply_modifiers(&mut payload, event.keystroke.modifiers);
-    payload.key = event.keystroke.key.clone();
-    payload.key_char = event.keystroke.key_char.clone();
-    payload.repeat = event.is_held;
+pub fn key_event(
+    event_id: NativeEventId,
+    target_id: NodeId,
+    keystroke: &Keystroke,
+    repeat: bool,
+) -> NativeEventPayload {
+    let mut payload = NativeEventPayload::new(event_id, target_id);
+    apply_modifiers(&mut payload, keystroke.modifiers);
+    payload.key = keystroke.key.clone();
+    payload.key_char = keystroke.key_char.clone();
+    payload.repeat = repeat;
     payload
-}
-
-pub fn key_up(target_id: NodeId, event: &KeyUpEvent) -> NativeEventPayload {
-    let mut payload = NativeEventPayload::new(NativeEventId::KeyUp, target_id);
-    apply_modifiers(&mut payload, event.keystroke.modifiers);
-    payload.key = event.keystroke.key.clone();
-    payload.key_char = event.keystroke.key_char.clone();
-    payload.repeat = false;
-    payload
-}
-
-struct MoveSlotState {
-    payload: Option<NativeEventPayload>,
-    queued: bool,
 }
 
 struct MoveSlot {
-    state: Mutex<MoveSlotState>,
+    payload: Mutex<Option<NativeEventPayload>>,
 }
 
 impl MoveSlot {
     fn new() -> Self {
         Self {
-            state: Mutex::new(MoveSlotState {
-                payload: None,
-                queued: false,
-            }),
+            payload: Mutex::new(None),
         }
     }
 
     fn replace_and_mark_queued(&self, payload: NativeEventPayload) -> bool {
-        let Ok(mut state) = self.state.lock() else {
-            return false;
-        };
-        state.payload = Some(payload);
-        if state.queued {
-            return false;
-        }
-        state.queued = true;
-        true
+        self.payload
+            .lock()
+            .is_ok_and(|mut pending| pending.replace(payload).is_none())
     }
 
     fn take_for_delivery(&self) -> Result<NativeEventPayload> {
-        let mut state = self.state.lock().map_err(|_| {
-            Error::new(
-                Status::GenericFailure,
-                "Native mouse-move queue lock was poisoned.",
-            )
-        })?;
-        let payload = state.payload.take().ok_or_else(|| {
-            Error::new(
-                Status::GenericFailure,
-                "Native mouse-move delivery was scheduled without a payload.",
-            )
-        })?;
-        state.queued = false;
-        Ok(payload)
+        self.payload
+            .lock()
+            .map_err(|_| {
+                Error::new(
+                    Status::GenericFailure,
+                    "Native mouse-move queue lock was poisoned.",
+                )
+            })?
+            .take()
+            .ok_or_else(|| {
+                Error::new(
+                    Status::GenericFailure,
+                    "Native mouse-move delivery was scheduled without a payload.",
+                )
+            })
     }
 }
 
 enum EventDelivery {
     Discrete(NativeEventPayload),
     MouseMove(Arc<MoveSlot>),
+    Window(NativeWindowEventPayload),
 }
 
-type EventCallback = ThreadsafeFunction<EventDelivery, (), NativeEventPayload, Status, false>;
+type EventCallback = ThreadsafeFunction<EventDelivery, (), NativeTransportPayload, Status, false>;
+
+impl EventDelivery {
+    fn into_payload(self) -> Result<NativeTransportPayload> {
+        match self {
+            Self::Discrete(event) => Ok(NativeTransportPayload::event(event)),
+            Self::MouseMove(slot) => Ok(NativeTransportPayload::event(slot.take_for_delivery()?)),
+            Self::Window(window) => Ok(NativeTransportPayload::window(window)),
+        }
+    }
+}
 
 #[derive(Default)]
 struct EventQueue {
@@ -262,26 +308,25 @@ impl EventQueue {
         slot.replace_and_mark_queued(payload)
             .then_some(EventDelivery::MouseMove(slot))
     }
+
+    fn schedule_window(&mut self, payload: NativeWindowEventPayload) -> EventDelivery {
+        self.current_move = None;
+        EventDelivery::Window(payload)
+    }
 }
 
 struct EventTransport {
-    callback: Arc<EventCallback>,
+    callback: EventCallback,
     queue: Mutex<EventQueue>,
 }
 
 impl EventTransport {
-    fn new(callback: Function<'_, NativeEventPayload, ()>) -> Result<Self> {
+    fn new(callback: Function<'_, NativeTransportPayload, ()>) -> Result<Self> {
         let callback = callback
             .build_threadsafe_function::<EventDelivery>()
-            .build_callback(|context| {
-                let payload = match context.value {
-                    EventDelivery::Discrete(payload) => payload,
-                    EventDelivery::MouseMove(slot) => slot.take_for_delivery()?,
-                };
-                Ok(payload)
-            })?;
+            .build_callback(|context| context.value.into_payload())?;
         Ok(Self {
-            callback: Arc::new(callback),
+            callback,
             queue: Mutex::new(EventQueue::default()),
         })
     }
@@ -295,6 +340,16 @@ impl EventTransport {
                 .call(delivery, ThreadsafeFunctionCallMode::NonBlocking);
         }
     }
+
+    fn emit_window(&self, payload: NativeWindowEventPayload) -> bool {
+        let Ok(mut queue) = self.queue.lock() else {
+            return false;
+        };
+        self.callback.call(
+            queue.schedule_window(payload),
+            ThreadsafeFunctionCallMode::NonBlocking,
+        ) == Status::Ok
+    }
 }
 
 static TRANSPORTS: OnceLock<Mutex<HashMap<WindowId, Arc<EventTransport>>>> = OnceLock::new();
@@ -303,7 +358,74 @@ fn transports() -> &'static Mutex<HashMap<WindowId, Arc<EventTransport>>> {
     TRANSPORTS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-pub fn register(window_id: WindowId, callback: Function<'_, NativeEventPayload, ()>) -> Result<()> {
+fn transport(window_id: WindowId) -> Option<Arc<EventTransport>> {
+    transports().lock().ok()?.get(&window_id).cloned()
+}
+
+fn report_window_delivery(delivered: bool, _kind: &str, _window_id: WindowId) -> bool {
+    #[cfg(not(test))]
+    if !delivered {
+        eprintln!(
+            "[retend-gpui] failed to deliver native window event `{_kind}` for window {_window_id}"
+        );
+    }
+    delivered
+}
+
+#[cfg(target_os = "macos")]
+struct DirectWindowCallback {
+    env: Env,
+    callback: FunctionRef<NativeTransportPayload, ()>,
+}
+
+#[cfg(target_os = "macos")]
+thread_local! {
+    static DIRECT_WINDOW_CALLBACKS: RefCell<HashMap<WindowId, Rc<DirectWindowCallback>>> = RefCell::new(HashMap::new());
+    static DIRECT_WINDOW_DELIVERY: Cell<bool> = const { Cell::new(false) };
+}
+
+#[cfg(target_os = "macos")]
+fn call_direct(callback: &DirectWindowCallback, payload: NativeWindowEventPayload) -> bool {
+    callback
+        .callback
+        .borrow_back(&callback.env)
+        .and_then(|function| function.call(NativeTransportPayload::window(payload)))
+        .is_ok()
+}
+
+#[cfg(target_os = "macos")]
+pub fn with_direct_window_delivery<T>(f: impl FnOnce() -> T) -> T {
+    struct Reset<'a>(&'a Cell<bool>, bool);
+    impl Drop for Reset<'_> {
+        fn drop(&mut self) {
+            self.0.set(self.1);
+        }
+    }
+
+    DIRECT_WINDOW_DELIVERY.with(|active| {
+        let _reset = Reset(active, active.replace(true));
+        f()
+    })
+}
+
+#[cfg(target_os = "macos")]
+pub fn in_direct_window_delivery() -> bool {
+    DIRECT_WINDOW_DELIVERY.with(Cell::get)
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn in_direct_window_delivery() -> bool {
+    false
+}
+
+pub fn register(
+    window_id: WindowId,
+    callback: Function<'_, NativeTransportPayload, ()>,
+) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    let env: Env = callback.env().into();
+    #[cfg(target_os = "macos")]
+    let direct_callback = callback.create_ref()?;
     let transport = Arc::new(EventTransport::new(callback)?);
     transports()
         .lock()
@@ -314,6 +436,16 @@ pub fn register(window_id: WindowId, callback: Function<'_, NativeEventPayload, 
             )
         })?
         .insert(window_id, transport);
+    #[cfg(target_os = "macos")]
+    DIRECT_WINDOW_CALLBACKS.with(|callbacks| {
+        callbacks.borrow_mut().insert(
+            window_id,
+            Rc::new(DirectWindowCallback {
+                env,
+                callback: direct_callback,
+            }),
+        );
+    });
     Ok(())
 }
 
@@ -321,16 +453,57 @@ pub fn unregister(window_id: WindowId) {
     if let Ok(mut transports) = transports().lock() {
         transports.remove(&window_id);
     }
+    #[cfg(target_os = "macos")]
+    DIRECT_WINDOW_CALLBACKS.with(|callbacks| {
+        callbacks.borrow_mut().remove(&window_id);
+    });
 }
 
 pub fn emit(window_id: WindowId, payload: NativeEventPayload) {
+    if let Some(transport) = transport(window_id) {
+        transport.emit(payload);
+    }
+}
+
+pub fn emit_window(window_id: WindowId, payload: NativeWindowEventPayload) -> bool {
+    let kind = payload.kind.clone();
+    #[cfg(target_os = "macos")]
+    let delivered = if kind == "resize" && in_direct_window_delivery() {
+        DIRECT_WINDOW_CALLBACKS.with(|callbacks| {
+            callbacks
+                .borrow()
+                .get(&window_id)
+                .is_some_and(|callback| call_direct(callback, payload))
+        })
+    } else {
+        transport(window_id).is_some_and(|transport| transport.emit_window(payload))
+    };
+    #[cfg(not(target_os = "macos"))]
+    let delivered = transport(window_id).is_some_and(|transport| transport.emit_window(payload));
+
+    report_window_delivery(delivered, &kind, window_id)
+}
+
+pub fn emit_close(window_id: WindowId) -> bool {
     let transport = transports()
         .lock()
         .ok()
-        .and_then(|transports| transports.get(&window_id).cloned());
-    if let Some(transport) = transport {
-        transport.emit(payload);
-    }
+        .and_then(|mut transports| transports.remove(&window_id));
+
+    #[cfg(target_os = "macos")]
+    let direct =
+        DIRECT_WINDOW_CALLBACKS.with(|callbacks| callbacks.borrow_mut().remove(&window_id));
+    #[cfg(target_os = "macos")]
+    let delivered = if in_direct_window_delivery() {
+        direct.is_some_and(|callback| call_direct(&callback, NativeWindowEventPayload::close()))
+    } else {
+        transport.is_some_and(|transport| transport.emit_window(NativeWindowEventPayload::close()))
+    };
+    #[cfg(not(target_os = "macos"))]
+    let delivered =
+        transport.is_some_and(|transport| transport.emit_window(NativeWindowEventPayload::close()));
+
+    report_window_delivery(delivered, "close", window_id)
 }
 
 #[cfg(test)]

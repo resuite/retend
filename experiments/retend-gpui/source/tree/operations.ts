@@ -1,86 +1,67 @@
 import {
   GpuiAnchor,
-  GpuiElement,
   GpuiGroup,
   type GpuiNode,
   type GpuiParentNode,
   type GpuiRange,
 } from './nodes.js';
 
-export interface StructureMutation {
-  affectedParents: Set<GpuiParentNode>;
-  detachedNodes: Set<GpuiNode>;
-}
-
-function createMutation(): StructureMutation {
-  return { affectedParents: new Set(), detachedNodes: new Set() };
-}
-
-function detachNode(node: GpuiNode, mutation: StructureMutation): void {
+function detachNode(node: GpuiNode, moving = false): void {
   const parent = node.parent;
   if (!parent) return;
-
   const index = parent.children.indexOf(node);
   if (index !== -1) parent.children.splice(index, 1);
   node.parent = null;
-  mutation.affectedParents.add(parent);
+  if (!moving) node.renderer?.moveNode(node, parent, null, 0);
 }
 
-function flattenContent(
-  input: readonly GpuiNode[],
-  mutation: StructureMutation
-): GpuiNode[] {
+function flattenContent(input: readonly GpuiNode[]): GpuiNode[] {
   const nodes: GpuiNode[] = [];
-  const visit = (node: GpuiNode): void => {
-    if (!(node instanceof GpuiGroup)) {
-      nodes.push(node);
-      return;
-    }
-
-    detachNode(node, mutation);
-    for (const child of node.children.splice(0)) {
-      child.parent = null;
-      visit(child);
-    }
-  };
-
-  for (const node of input) visit(node);
+  for (const node of input) {
+    if (node instanceof GpuiGroup) {
+      detachNode(node);
+      const children = node.children.splice(0);
+      for (const child of children) child.parent = null;
+      nodes.push(...flattenContent(children));
+    } else nodes.push(node);
+  }
   return nodes;
 }
 
-export function* flattenGroups(
-  nodes: readonly GpuiNode[]
-): Generator<GpuiNode> {
-  for (const node of nodes) {
-    if (node instanceof GpuiGroup) yield* flattenGroups(node.children);
-    else yield node;
+function insertNode(
+  parent: GpuiParentNode,
+  node: GpuiNode,
+  before?: GpuiNode
+): void {
+  if (node.parent === parent) {
+    const index = parent.children.indexOf(node);
+    if (parent.children[index + 1] === before) return;
   }
+  const previous = node.parent;
+  detachNode(node, true);
+  const position = before
+    ? parent.children.indexOf(before)
+    : parent.children.length;
+  parent.children.splice(position, 0, node);
+  node.parent = parent;
+  node.renderer?.moveNode(node, previous, parent, position);
 }
 
 export function appendNodes(
   parent: GpuiParentNode,
   input: GpuiNode | readonly GpuiNode[]
-): StructureMutation {
+): void {
   const roots = Array.isArray(input) ? input : [input];
   if (roots.includes(parent)) {
     throw new Error('A GPUI node cannot be appended to itself.');
   }
 
-  const mutation = createMutation();
-  const nodes = flattenContent(roots, mutation);
-  for (const node of nodes) detachNode(node, mutation);
-  for (const node of nodes) {
-    node.parent = parent;
-    parent.children.push(node);
-  }
-
-  mutation.affectedParents.add(parent);
-  return mutation;
+  for (const node of flattenContent(roots)) insertNode(parent, node);
 }
 
 export function createRange(group: GpuiGroup): GpuiRange {
-  const start = new GpuiAnchor(group.eventOwner);
-  const end = new GpuiAnchor(group.eventOwner);
+  const start = new GpuiAnchor(group.host, group.renderer);
+  const end = new GpuiAnchor(group.host, group.renderer);
   start.parent = group;
   end.parent = group;
   group.children.unshift(start);
@@ -103,15 +84,15 @@ export function getRangeNodes(range: GpuiRange): GpuiNode[] {
 export function writeRange(
   range: GpuiRange,
   newContent: readonly GpuiNode[]
-): StructureMutation {
+): void {
   const [start, end] = range;
   const parent = start.parent;
   if (!parent || parent !== end.parent) {
     throw new Error('GPUI range anchors must share the same parent.');
   }
 
-  let startIndex = parent.children.indexOf(start);
-  let endIndex = parent.children.indexOf(end);
+  const startIndex = parent.children.indexOf(start);
+  const endIndex = parent.children.indexOf(end);
   if (startIndex === -1 || endIndex <= startIndex) {
     throw new Error('GPUI range anchors are out of order.');
   }
@@ -120,42 +101,22 @@ export function writeRange(
   }
 
   const current = parent.children.slice(startIndex + 1, endIndex);
-  const mutation = createMutation();
-  const hadGroup = newContent.some((node) => node instanceof GpuiGroup);
-  const nodes = flattenContent(newContent, mutation);
+  const nodes = flattenContent(newContent);
   if (
-    !hadGroup &&
     current.length === nodes.length &&
     current.every((node, index) => node === nodes[index])
-  ) {
-    return mutation;
+  )
+    return;
+  const retained = new Set(nodes);
+  for (const node of current) {
+    if (retained.has(node)) continue;
+    detachNode(node);
+    node.renderer?.releaseNode(node);
   }
-
-  const currentSet = new Set(current);
-  for (const node of nodes) {
-    if (node.parent !== parent || !currentSet.has(node)) {
-      detachNode(node, mutation);
-    }
+  let before: GpuiNode = end;
+  for (let index = nodes.length - 1; index >= 0; index--) {
+    const node = nodes[index];
+    insertNode(parent, node, before);
+    before = node;
   }
-
-  startIndex = parent.children.indexOf(start);
-  endIndex = parent.children.indexOf(end);
-
-  const nextSet = new Set(nodes);
-  for (const node of parent.children.slice(startIndex + 1, endIndex)) {
-    if (nextSet.has(node)) continue;
-    node.parent = null;
-    mutation.detachedNodes.add(node);
-  }
-
-  for (const node of nodes) node.parent = parent;
-  parent.children.splice(startIndex + 1, endIndex - startIndex - 1, ...nodes);
-  mutation.affectedParents.add(parent);
-  return mutation;
-}
-
-export function collectNativeChildren(parent: GpuiParentNode): GpuiElement[] {
-  return [...flattenGroups(parent.children)].filter(
-    (node): node is GpuiElement => node instanceof GpuiElement
-  );
 }

@@ -6,11 +6,16 @@ import {
   type EnvironmentModuleNode,
   type Plugin,
   type ResolvedConfig,
+  type ViteDevServer,
 } from 'vite';
 
-import type { GpuiWindowOptions } from '../window.js';
+import type { DevRuntimeConfig } from '../runtime/protocol.js';
 
 import { IpcHotChannel } from '../runtime/ipc-hot-channel.js';
+import {
+  validateGpuiWindowOptions,
+  type GpuiWindowOptions,
+} from '../window.js';
 
 /** Stable Vite plugin name used for lookup via `getRetendGpuiPluginApi`. */
 export const RETEND_GPUI_PLUGIN_NAME = 'retend-gpui';
@@ -20,16 +25,20 @@ export interface RetendGpuiEnvironmentReadyEvent {
   api: RetendGpuiPluginApi;
 }
 
-const environmentReadyListeners = new Set<
-  (event: RetendGpuiEnvironmentReadyEvent) => void
->();
+interface RetendGpuiDevServer extends ViteDevServer {
+  __retendGpuiEnvironmentReady?: (
+    event: RetendGpuiEnvironmentReadyEvent
+  ) => void;
+}
 
 /** @internal Watches for a fresh GPUI environment after Vite restarts. */
 export function onRetendGpuiEnvironmentReady(
+  server: ViteDevServer,
   listener: (event: RetendGpuiEnvironmentReadyEvent) => void
 ): () => void {
-  environmentReadyListeners.add(listener);
-  return () => environmentReadyListeners.delete(listener);
+  const owner = server as RetendGpuiDevServer;
+  owner.__retendGpuiEnvironmentReady = listener;
+  return () => delete owner.__retendGpuiEnvironmentReady;
 }
 
 /** Canonical application identity used by development and future packaging. */
@@ -48,6 +57,12 @@ export interface RetendGpuiAppMetadata {
   windows?: RetendGpuiPlatformMetadata;
 }
 
+/** Initial Vite-managed window configuration. */
+export interface RetendGpuiInitialWindowOptions extends GpuiWindowOptions {
+  width: number;
+  height: number;
+}
+
 /**
  * Options for the `retendGpui` Vite plugin.
  */
@@ -59,7 +74,7 @@ export interface RetendGpuiOptions {
   /** Path to the application entry module, relative to Vite root (e.g. `"source/main.tsx"`). */
   entry: string;
   /** Default window options used for the initial dev window spawned by the supervisor. */
-  window: GpuiWindowOptions;
+  window: RetendGpuiInitialWindowOptions;
 }
 
 /**
@@ -67,8 +82,8 @@ export interface RetendGpuiOptions {
  * Provides access to resolved options and the shared hot channel.
  */
 export interface RetendGpuiPluginApi {
-  /** Resolved plugin options. */
-  options: RetendGpuiOptions;
+  /** Concrete development launch configuration after Vite resolves its root. */
+  launch: DevRuntimeConfig | null;
   /** IPC-backed Vite hot channel shared between server and child processes. */
   hotChannel: IpcHotChannel;
 }
@@ -78,7 +93,10 @@ export type RetendGpuiPlugin = Plugin & { api: RetendGpuiPluginApi };
 
 function validateOptions(options: RetendGpuiOptions): void {
   if (!options.app) throw new Error('retendGpui() requires `app` metadata.');
-  if (!options.app.name) throw new Error('retendGpui() requires `app.name`.');
+  for (const name of ['name', 'icon'] as const) {
+    if (!options.app[name])
+      throw new Error(`retendGpui() requires \`app.${name}\`.`);
+  }
   if (!/^[a-zA-Z][\w-]*(\.[a-zA-Z][\w-]*)+$/.test(options.app.identifier)) {
     throw new Error(
       'retendGpui() requires `app.identifier` to be a reverse-DNS identifier.'
@@ -91,19 +109,17 @@ function validateOptions(options: RetendGpuiOptions): void {
   ) {
     throw new Error('retendGpui() requires `app.version` to be valid SemVer.');
   }
-  if (!options.app.icon) throw new Error('retendGpui() requires `app.icon`.');
-  if (!options.application) {
-    throw new Error('retendGpui() requires an `application` path.');
+  for (const name of ['application', 'entry'] as const) {
+    if (!options[name])
+      throw new Error(`retendGpui() requires an \`${name}\` path.`);
   }
-  if (!options.entry) throw new Error('retendGpui() requires an `entry` path.');
   if (!options.window)
     throw new Error('retendGpui() requires `window` options.');
-  if (!Number.isFinite(options.window.width)) {
-    throw new Error('retendGpui() requires a numeric `window.width`.');
+  for (const name of ['width', 'height'] as const) {
+    if (options.window[name] === undefined)
+      throw new Error(`retendGpui() requires \`window.${name}\`.`);
   }
-  if (!Number.isFinite(options.window.height)) {
-    throw new Error('retendGpui() requires a numeric `window.height`.');
-  }
+  validateGpuiWindowOptions(options.window);
 }
 
 function updateReachesApplication(
@@ -142,14 +158,18 @@ function writeAppContextTypes(root: string, application: string): void {
   fs.mkdirSync(targetDirectory, { recursive: true });
   fs.writeFileSync(
     path.join(targetDirectory, 'index.d.ts'),
-    `import type Application from ${JSON.stringify(importPath)};\n\n` +
-      `type ConfiguredAppContext = InstanceType<typeof Application>['context'];\n\n` +
-      `declare module 'retend-gpui' {\n` +
-      `  interface GpuiAppContextTypes {\n` +
-      `    application: ConfiguredAppContext;\n` +
-      `  }\n` +
-      `}\n\n` +
-      `export {};\n`
+    `import type Application from ${JSON.stringify(importPath)};
+
+type ConfiguredAppContext = InstanceType<typeof Application>['context'];
+
+declare module 'retend-gpui' {
+  interface GpuiAppContextTypes {
+    application: ConfiguredAppContext;
+  }
+}
+
+export {};
+`
   );
 }
 
@@ -181,12 +201,10 @@ function writeAppContextTypes(root: string, application: string): void {
 export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
   validateOptions(options);
   const hotChannel = new IpcHotChannel();
-  let application = '';
-  let entry = '';
 
   const plugin: RetendGpuiPlugin = {
     name: RETEND_GPUI_PLUGIN_NAME,
-    api: { options, hotChannel },
+    api: { launch: null, hotChannel },
 
     config() {
       return {
@@ -225,9 +243,12 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
                 const listen = environment.listen.bind(environment);
                 environment.listen = async (server) => {
                   await listen(server);
-                  for (const listener of environmentReadyListeners) {
-                    listener({ root: config.root, api: plugin.api });
-                  }
+                  (
+                    server as RetendGpuiDevServer
+                  ).__retendGpuiEnvironmentReady?.({
+                    root: config.root,
+                    api: plugin.api,
+                  });
                 };
                 return environment;
               },
@@ -243,10 +264,18 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
           'Retend GPUI production builds are not implemented yet. Use `retend-gpui dev` for the current prototype.'
         );
       }
-      application = normalizePath(
-        path.resolve(config.root, options.application)
-      );
-      entry = normalizePath(path.resolve(config.root, options.entry));
+      plugin.api.launch = {
+        appName: options.app.name,
+        application: normalizePath(
+          path.resolve(config.root, options.application)
+        ),
+        entry: normalizePath(path.resolve(config.root, options.entry)),
+        options: {
+          ...options.window,
+          title: options.window.title ?? options.app.name,
+          location: options.window.location ?? '/',
+        },
+      };
       writeAppContextTypes(config.root, options.application);
     },
 
@@ -255,7 +284,9 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
     },
 
     hotUpdate({ modules, timestamp }) {
-      if (!updateReachesApplication(modules, application)) return;
+      const application = plugin.api.launch?.application;
+      if (!application || !updateReachesApplication(modules, application))
+        return;
 
       const invalidatedModules = new Set<EnvironmentModuleNode>();
       for (const module of modules) {
@@ -274,13 +305,14 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       if (id.includes('node_modules')) return null;
 
       const cleanId = normalizePath(id.split('?', 1)[0]);
-      if (cleanId === application) return null;
+      const launch = plugin.api.launch;
+      if (!launch || cleanId === launch.application) return null;
 
       const isComponentModule =
         cleanId.endsWith('.jsx') ||
         cleanId.endsWith('.tsx') ||
         cleanId.endsWith('.mdx');
-      if (!isComponentModule && cleanId !== entry) return null;
+      if (!isComponentModule && cleanId !== launch.entry) return null;
 
       return {
         code: `

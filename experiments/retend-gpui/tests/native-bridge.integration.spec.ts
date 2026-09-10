@@ -77,6 +77,90 @@ describe('Retend-owned native bridge', () => {
     expect(afterSettle.nodes.some((node) => node.id === image)).toBe(false);
   });
 
+  it('flushes retained mutations before imperative focus and rejects settled nodes', () => {
+    const host = createHost();
+    const binding = loadNativeAddon().NativeRendererBinding.prototype;
+    const applyBatch = vi.spyOn(binding, 'applyCommandBatch');
+    const focusNode = vi.spyOn(binding, 'focusNode');
+    const node = host.createNode(ElementKind.Container);
+    host.setProperty(node, PropertyId.TabIndex, -1);
+    host.insertChild(host.rootId, node);
+
+    host.focusNode(node);
+    expect(applyBatch).toHaveBeenCalled();
+    expect(focusNode).toHaveBeenCalledWith(node);
+    expect(applyBatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      focusNode.mock.invocationCallOrder.at(-1) ?? 0
+    );
+
+    host.removeChild(host.rootId, node);
+    host.settle();
+    expect(() => host.focusNode(node)).toThrow('Node ID');
+  });
+
+  it('flushes pending mutations before async measure queries and rejects destroyed nodes', async () => {
+    const host = createHost();
+    const binding = loadNativeAddon().NativeRendererBinding.prototype;
+    const applyBatch = vi.spyOn(binding, 'applyCommandBatch');
+    const measureNode = vi.spyOn(binding, 'measureNode');
+    const node = host.createNode(ElementKind.Container);
+    host.setStyle(node, [[PropertyId.Width, 120]]);
+    host.insertChild(host.rootId, node);
+
+    await expect(host.measureNode(node)).resolves.toEqual({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      scrollWidth: 0,
+      scrollHeight: 0,
+    });
+    expect(applyBatch).toHaveBeenCalled();
+    expect(measureNode).toHaveBeenCalledWith(node);
+    expect(applyBatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      measureNode.mock.invocationCallOrder.at(-1) ?? 0
+    );
+
+    host.removeChild(host.rootId, node);
+    host.settle();
+    await expect(host.measureNode(node)).rejects.toThrow('Node ID');
+  });
+
+  it('flushes before scroll commands and scroll-offset queries', async () => {
+    const host = createHost();
+    const binding = loadNativeAddon().NativeRendererBinding.prototype;
+    const applyBatch = vi.spyOn(binding, 'applyCommandBatch');
+    const scrollToNode = vi.spyOn(binding, 'scrollToNode');
+    const scrollByNode = vi.spyOn(binding, 'scrollByNode');
+    const scrollIntoViewNode = vi.spyOn(binding, 'scrollIntoViewNode');
+    const getScrollOffsetNode = vi.spyOn(binding, 'getScrollOffsetNode');
+    const node = host.createNode(ElementKind.Container);
+    host.setStyle(node, [[PropertyId.Overflow, 'scroll']]);
+    host.insertChild(host.rootId, node);
+
+    host.scrollToNode(node, 10, 20);
+    expect(scrollToNode).toHaveBeenCalledWith(node, 10, 20);
+    expect(applyBatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      scrollToNode.mock.invocationCallOrder.at(-1) ?? 0
+    );
+
+    host.scrollByNode(node, -5, 15);
+    expect(scrollByNode).toHaveBeenCalledWith(node, -5, 15);
+    host.scrollIntoViewNode(node);
+    expect(scrollIntoViewNode).toHaveBeenCalledWith(node);
+    await expect(host.getScrollOffsetNode(node)).resolves.toEqual({
+      x: 0,
+      y: 0,
+    });
+    expect(getScrollOffsetNode).toHaveBeenCalledWith(node);
+
+    host.removeChild(host.rootId, node);
+    host.settle();
+    expect(() => host.scrollToNode(node, 0, 0)).toThrow('Node ID');
+    expect(() => host.scrollIntoViewNode(node)).toThrow('Node ID');
+    await expect(host.getScrollOffsetNode(node)).rejects.toThrow('Node ID');
+  });
+
   it('reports exact native presentation state for event stale-target checks', () => {
     const host = createHost();
     const node = host.createNode(ElementKind.Container);
@@ -214,7 +298,7 @@ describe('Retend-owned native bridge', () => {
       loadNativeAddon().NativeRendererBinding.prototype,
       'reportFatal'
     );
-    host.createNode(ElementKind.Input);
+    host.createNode(ElementKind.Textarea);
     expect(() => host.flush()).toThrow(NativeRendererFatalError);
 
     host.createText('late');

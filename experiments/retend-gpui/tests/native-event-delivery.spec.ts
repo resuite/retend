@@ -1,14 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
-  NativeEventPayload,
   NativeMouseEventPayload,
+  NativeTransportPayload,
+  NativeWindowOptions,
 } from '../source/native/addon';
 
 const native = vi.hoisted(() => ({
-  onEvent: undefined as ((event: NativeEventPayload) => void) | undefined,
+  onEvent: undefined as ((event: NativeTransportPayload) => void) | undefined,
   presented: true,
-  closed: false,
+  applyCalls: 0,
+  options: undefined as NativeWindowOptions | undefined,
 }));
 
 vi.mock('../source/native/addon', async (importOriginal) => {
@@ -20,27 +22,21 @@ vi.mock('../source/native/addon', async (importOriginal) => {
     constructor(
       _rootId: number,
       _headless: boolean,
-      _options?: unknown,
-      onEvent?: (event: NativeEventPayload) => void
+      options?: NativeWindowOptions,
+      onEvent?: (event: NativeTransportPayload) => void
     ) {
+      native.options = options;
       native.onEvent = onEvent;
       native.presented = true;
-      native.closed = false;
     }
 
-    applyCommandBatch(): void {}
-    settle(): void {}
-    takeReloadRequested(): boolean {
-      return false;
+    applyCommandBatch(): void {
+      native.applyCalls++;
     }
+    settle(): void {}
     reportFatal(): void {}
     setWindowTitle(): void {}
-    close(): void {
-      native.closed = true;
-    }
-    isClosed(): boolean {
-      return native.closed;
-    }
+    close(): void {}
     isNodePresented(): boolean {
       return native.presented;
     }
@@ -96,10 +92,102 @@ afterEach(() => {
   renderer = null;
   native.onEvent = undefined;
   native.presented = true;
-  native.closed = false;
+  native.applyCalls = 0;
+  native.options = undefined;
 });
 
 describe('native event delivery', () => {
+  it('rejects invalid native window options at the renderer boundary', () => {
+    const current = new RetendGpuiRenderer({ headless: true });
+    expect(() => current.init({ width: 0 })).toThrow('finite positive');
+    expect(() => current.init({ minWidth: 900, maxWidth: 800 })).toThrow(
+      'minWidth cannot exceed maxWidth'
+    );
+    expect(() => current.init({ fullscreen: true, maximized: true })).toThrow(
+      'cannot both be true'
+    );
+  });
+
+  it('forwards native window state and size constraints at creation', () => {
+    const current = new RetendGpuiRenderer({ headless: true });
+    current.init({
+      width: 900,
+      height: 600,
+      resizable: false,
+      maximized: true,
+      minWidth: 500,
+      minHeight: 400,
+      maxWidth: 1200,
+      maxHeight: 900,
+    });
+    renderer = current;
+
+    expect(native.options).toEqual({
+      title: undefined,
+      width: 900,
+      height: 600,
+      resizable: false,
+      fullscreen: undefined,
+      maximized: true,
+      minWidth: 500,
+      minHeight: 400,
+      maxWidth: 1200,
+      maxHeight: 900,
+    });
+  });
+
+  it('forwards native resize and activation changes through the window host', () => {
+    const renderer = createRenderer();
+    const sizes: unknown[] = [];
+    const focus = vi.fn();
+    const blur = vi.fn();
+    const reload = vi.fn();
+    const close = vi.fn();
+    renderer.host.addEventListener('resize', (event) => {
+      sizes.push((event as CustomEvent<unknown>).detail);
+    });
+    renderer.host.addEventListener('focus', focus);
+    renderer.host.addEventListener('blur', blur);
+    renderer.host.addEventListener('reload', reload);
+    renderer.host.addEventListener('close', close);
+
+    native.onEvent?.({
+      window: { kind: 'resize', width: 1024, height: 720 },
+    });
+    native.onEvent?.({ window: { kind: 'focus' } });
+    native.onEvent?.({ window: { kind: 'blur' } });
+    native.onEvent?.({ window: { kind: 'reload' } });
+
+    expect(sizes).toEqual([{ width: 1024, height: 720 }]);
+    expect(focus).toHaveBeenCalledOnce();
+    expect(blur).toHaveBeenCalledOnce();
+    expect(reload).toHaveBeenCalledOnce();
+
+    native.onEvent?.({ window: { kind: 'close' } });
+    expect(close).toHaveBeenCalledOnce();
+    expect(renderer.host.isInitialized).toBe(false);
+  });
+
+  it('flushes mutations produced by a native resize before returning to native', () => {
+    const renderer = createRenderer();
+    renderer.host.addEventListener('resize', () => {
+      renderer.host.createText('resized');
+    });
+
+    native.onEvent?.({
+      window: { kind: 'resize', width: 1024, height: 720 },
+    });
+
+    expect(native.applyCalls).toBe(1);
+  });
+
+  it('rejects unknown native window event kinds', () => {
+    createRenderer();
+    expect(() =>
+      native.onEvent?.({ window: { kind: 'future-window-event' } } as never)
+    ).toThrow('Unknown native window event');
+  });
+
   it('maps the native target into Retend propagation with the native payload intact', () => {
     const renderer = createRenderer();
     const parent = renderer.createContainer('div');
@@ -118,7 +206,7 @@ describe('native event delivery', () => {
       received = event as GpuiMouseEvent;
     });
 
-    native.onEvent?.(mouseEvent(NativeEventId.Click, child.id));
+    native.onEvent?.({ event: mouseEvent(NativeEventId.Click, child.id) });
 
     expect(calls).toEqual(['child', 'parent']);
     expect(received).toBeInstanceOf(GpuiMouseEvent);
@@ -143,12 +231,12 @@ describe('native event delivery', () => {
     const payload = mouseEvent(NativeEventId.Click, target.id);
 
     native.presented = false;
-    native.onEvent?.(payload);
+    native.onEvent?.({ event: payload });
     expect(listener).not.toHaveBeenCalled();
 
     native.presented = true;
     renderer.unmount();
-    native.onEvent?.(payload);
+    native.onEvent?.({ event: payload });
     expect(listener).not.toHaveBeenCalled();
   });
 
@@ -164,7 +252,9 @@ describe('native event delivery', () => {
     ancestor.addEventListener('mousedownoutside', ancestorListener);
     subscriber.addEventListener('mousedownoutside', subscriberListener);
 
-    native.onEvent?.(mouseEvent(NativeEventId.MouseDownOutside, subscriber.id));
+    native.onEvent?.({
+      event: mouseEvent(NativeEventId.MouseDownOutside, subscriber.id),
+    });
 
     expect(subscriberListener).toHaveBeenCalledOnce();
     expect(ancestorListener).not.toHaveBeenCalled();

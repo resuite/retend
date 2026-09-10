@@ -552,3 +552,44 @@ test('prefer-cell-task allows try catch without loading finalizer', () => {
 
   assert.equal(reports.length, 0);
 });
+
+function jsxExpressionContainer(expression) {
+  return { type: 'JSXExpressionContainer', expression };
+}
+
+test('no-jsx-map reports .map() in JSX', () => {
+  const reports = runVisitor(
+    'no-jsx-map',
+    'JSXExpressionContainer',
+    jsxExpressionContainer(call(member('items', 'map'), []))
+  );
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, 'unexpected');
+});
+
+test('no-jsx-map reports Array.from() in JSX', () => {
+  const reports = runVisitor(
+    'no-jsx-map',
+    'JSXExpressionContainer',
+    jsxExpressionContainer(call(member('Array', 'from'), []))
+  );
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, 'unexpectedFrom');
+});
+
+test('no-jsx-map allows other member calls in JSX', () => {
+  for (const expression of [
+    call(member('items', 'filter'), []),
+    call(member('items', 'from'), []),
+  ]) {
+    const reports = runVisitor(
+      'no-jsx-map',
+      'JSXExpressionContainer',
+      jsxExpressionContainer(expression)
+    );
+
+    assert.equal(reports.length, 0);
+  }
+});

@@ -14,7 +14,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GpuiElement } from '../source/gpui-renderer';
 import type { GpuiColor, GpuiStyle } from '../source/types';
 
-import { RetendGpuiRenderer } from '../source/gpui-renderer';
+import {
+  GpuiDivElement,
+  GpuiImageElement,
+  GpuiInputElement,
+  GpuiText,
+  RetendGpuiRenderer,
+} from '../source/gpui-renderer';
 import { NativeRendererFatalError } from '../source/native/addon';
 import { ElementKind, PropertyId } from '../source/native/protocol';
 import { NativeEventId } from '../source/native/protocol.generated';
@@ -22,7 +28,7 @@ import { hotReloadModule } from '../source/plugins/hmr';
 
 interface DebugNode {
   id: number;
-  kind: 'Root' | 'Container' | 'Text' | 'Image';
+  kind: 'Root' | 'Container' | 'Text' | 'Image' | 'Input';
   parent: number | null;
   children: number[];
   text: string | null;
@@ -103,6 +109,48 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(popstateCount).toBe(1);
   });
 
+  it('keeps independent renderer roots isolated across remounts', () => {
+    const first = new RetendGpuiRenderer({ headless: true });
+    const second = new RetendGpuiRenderer({ headless: true });
+    first.init();
+    second.init();
+    const firstText = Cell.source('first');
+    const secondText = Cell.source('second');
+    const firstRootId = first.host.rootId;
+    const secondRootId = second.host.rootId;
+
+    try {
+      first.host.resetLocation('/first/detail');
+      second.host.resetLocation('/second/detail');
+      setActiveRenderer(first);
+      first.render(() => <div>{firstText}</div>);
+      setActiveRenderer(second);
+      second.render(() => <div>{secondText}</div>);
+
+      firstText.set('first-updated');
+      expect(collectText(debugTree(first))).toEqual(['first-updated']);
+      expect(collectText(debugTree(second))).toEqual(['second']);
+
+      first.unmount();
+      second.unmount();
+      firstText.set('first-remounted');
+      setActiveRenderer(first);
+      first.render(() => <div>{firstText}</div>);
+      setActiveRenderer(second);
+      second.render(() => <div>{secondText}</div>);
+
+      expect(first.host.rootId).toBe(firstRootId);
+      expect(second.host.rootId).toBe(secondRootId);
+      expect(first.host.location.href).toBe('/first/detail');
+      expect(second.host.location.href).toBe('/second/detail');
+      expect(collectText(debugTree(first))).toEqual(['first-remounted']);
+      expect(collectText(debugTree(second))).toEqual(['second']);
+    } finally {
+      first.dispose();
+      second.dispose();
+    }
+  });
+
   it('supports Retend Router navigation through the window host', async () => {
     const renderer = createRenderer();
     const router = new Router({
@@ -130,24 +178,99 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(() => renderer.createContainer('text')).toThrow(
       'text is ordinary JSX content'
     );
-    for (const tag of ['code', 'input', 'textarea']) {
+    expect(() => renderer.createContainer('input')).not.toThrow();
+    for (const tag of ['code', 'textarea']) {
       expect(() => renderer.createContainer(tag)).toThrow(
         `Unsupported Retend GPUI intrinsic element: <${tag}>`
       );
     }
   });
 
-  it('registers JSX native events and synchronizes active listener changes immediately', () => {
+  it('exposes tabIndex with native focus and blur commands', () => {
     const renderer = createRenderer();
-    const rootRef = Cell.source<GpuiElement | null>(null);
+    const targetRef = Cell.source<GpuiElement | null>(null);
+    const focusNode = vi.spyOn(renderer.host, 'focusNode');
+    const blurNode = vi.spyOn(renderer.host, 'blurNode');
+    const subscribe = vi.spyOn(renderer.host, 'subscribeEvent');
+    const handleFocus = () => {};
+    const handleBlur = () => {};
+
+    renderer.render(() => (
+      <div
+        ref={targetRef}
+        tabIndex={-1}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+      />
+    ));
+    const target = targetRef.get();
+    if (!target) throw new Error('Expected focus target ref to resolve.');
+
+    expect(subscribe).toHaveBeenCalledWith(target.id, NativeEventId.Focus);
+    expect(subscribe).toHaveBeenCalledWith(target.id, NativeEventId.Blur);
+
+    target.focus();
+    target.blur();
+    expect(focusNode).toHaveBeenCalledWith(target.id);
+    expect(blurNode).toHaveBeenCalledWith(target.id);
+
+    renderer.unmount();
+    expect(() => target.focus()).toThrow('destroyed Retend GPUI node');
+    expect(() => target.blur()).toThrow('destroyed Retend GPUI node');
+  });
+
+  it('scopes text-selection APIs to native input elements', async () => {
+    const renderer = createRenderer();
+    const div = renderer.createContainer('div');
+    const image = renderer.createContainer('img');
+    const input = renderer.createContainer('input');
+    const setSelection = vi
+      .spyOn(renderer.host, 'setSelectionRangeNode')
+      .mockImplementation(() => {});
+    const select = vi
+      .spyOn(renderer.host, 'selectNode')
+      .mockImplementation(() => {});
+    const getSelection = vi
+      .spyOn(renderer.host, 'getSelectionNode')
+      .mockResolvedValue({ start: 1, end: 3 });
+
+    expect(div).toBeInstanceOf(GpuiDivElement);
+    expect(image).toBeInstanceOf(GpuiImageElement);
+    expect(input).toBeInstanceOf(GpuiInputElement);
+    expect('select' in div).toBe(false);
+    expect('setSelectionRange' in image).toBe(false);
+    expect('getSelection' in div).toBe(false);
+
+    input.setSelectionRange(1, 3);
+    input.select();
+    await expect(input.getSelection()).resolves.toEqual({ start: 1, end: 3 });
+
+    expect(setSelection).toHaveBeenCalledWith(input.id, 1, 3);
+    expect(select).toHaveBeenCalledWith(input.id);
+    expect(getSelection).toHaveBeenCalledWith(input.id);
+  });
+
+  it('registers JSX native events on the element types that expose them', () => {
+    const renderer = createRenderer();
+    const rootRef = Cell.source<GpuiDivElement | null>(null);
+    const inputRef = Cell.source<GpuiInputElement | null>(null);
     const subscribe = vi.spyOn(renderer.host, 'subscribeEvent');
     const unsubscribe = vi.spyOn(renderer.host, 'unsubscribeEvent');
     const click = vi.fn();
+    const input = vi.fn();
+    const change = vi.fn();
 
-    renderer.render(() => <div ref={rootRef} onClick={click} />);
+    renderer.render(() => (
+      <div ref={rootRef} onClick={click}>
+        <input ref={inputRef} onInput={input} onChange={change} />
+      </div>
+    ));
     const root = rootRef.get();
-    if (!root) throw new Error('Expected root ref to resolve.');
+    const inputNode = inputRef.get();
+    if (!root || !inputNode) throw new Error('Expected refs to resolve.');
     expect(subscribe).toHaveBeenCalledWith(root.id, NativeEventId.Click);
+    expect(subscribe).toHaveBeenCalledWith(inputNode.id, NativeEventId.Input);
+    expect(subscribe).toHaveBeenCalledWith(inputNode.id, NativeEventId.Change);
 
     const move = vi.fn();
     root.addEventListener('mousemove', move);
@@ -242,6 +365,34 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(flush).not.toHaveBeenCalled();
   });
 
+  it('exposes node-bound scrolling and maps overflow through the native style vocabulary', async () => {
+    const renderer = createRenderer();
+    const ref = Cell.source<GpuiElement | null>(null);
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+    const scrollToNode = vi.spyOn(renderer.host, 'scrollToNode');
+    const scrollByNode = vi.spyOn(renderer.host, 'scrollByNode');
+    const scrollIntoViewNode = vi.spyOn(renderer.host, 'scrollIntoViewNode');
+    renderer.render(() => (
+      <div ref={ref} style={{ width: 100, height: 50, overflow: 'scroll' }}>
+        <div style={{ height: 200 }} />
+      </div>
+    ));
+    const node = ref.get();
+    if (!node) throw new Error('Expected scroll container ref to resolve.');
+
+    expect(setStyle).toHaveBeenCalledWith(
+      node.id,
+      expect.arrayContaining([[PropertyId.Overflow, 'scroll']])
+    );
+    node.scrollTo(10, 20);
+    node.scrollBy(-5, 15);
+    node.scrollIntoView();
+    expect(scrollToNode).toHaveBeenCalledWith(node.id, 10, 20);
+    expect(scrollByNode).toHaveBeenCalledWith(node.id, -5, 15);
+    expect(scrollIntoViewNode).toHaveBeenCalledWith(node.id);
+    await expect(node.getScrollOffset()).resolves.toEqual({ x: 0, y: 0 });
+  });
+
   it('rejects logical children on leaf native elements before bridge submission', () => {
     const renderer = createRenderer();
     const image = renderer.createContainer('img');
@@ -288,6 +439,28 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(applicationErrors[0]).toBeInstanceOf(Error);
     expect(afterFailure).toHaveBeenCalledOnce();
     expect(debugTree(renderer).poisoned).toBe(false);
+  });
+
+  it('exposes asynchronous measure() on native elements and rejects destroyed nodes', async () => {
+    const renderer = createRenderer();
+    const ref = Cell.source<GpuiElement | null>(null);
+    const measureNode = vi.spyOn(renderer.host, 'measureNode');
+    renderer.render(() => <div ref={ref} style={{ width: 120, height: 48 }} />);
+    const node = ref.get();
+    if (!node) throw new Error('Expected measured node ref to resolve.');
+
+    await expect(node.measure()).resolves.toEqual({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      scrollWidth: 0,
+      scrollHeight: 0,
+    });
+    expect(measureNode).toHaveBeenCalledWith(node.id);
+
+    renderer.unmount();
+    await expect(node.measure()).rejects.toThrow('destroyed Retend GPUI node');
   });
 
   it('renders div and text under the immutable native window root', () => {
@@ -337,6 +510,88 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(collectText(debugTree(renderer))).toEqual(['before']);
     label.set('after');
     expect(collectText(debugTree(renderer))).toEqual(['after']);
+  });
+
+  it('keeps reactive text identity through detach and reinsert, then cleans it up', async () => {
+    const renderer = createRenderer();
+    const label = Cell.source('before');
+    const ref = Cell.source<GpuiElement | null>(null);
+    renderer.render(() => <div ref={ref}>{label}</div>);
+    const parent = ref.get();
+    if (!parent) throw new Error('Expected parent ref to resolve.');
+    const text = parent.children[0];
+    if (!(text instanceof GpuiText)) throw new Error('Expected text child.');
+    const cleanup = vi.fn();
+    text.setCleanup('test', cleanup);
+
+    const group = renderer.createGroup();
+    const handle = renderer.createGroupHandle(group);
+    renderer.append(parent, group);
+    renderer.write(handle, [text]);
+    renderer.write(handle, []);
+    expect(text.parent).toBeNull();
+    renderer.flush();
+    renderer.write(handle, [text]);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+
+    label.set('after');
+    expect(collectText(debugTree(renderer))).toEqual(['after']);
+    expect(idsByKind(debugTree(renderer), 'Text')).toEqual([text.id]);
+    expect(text.content).toBe('after');
+    expect(text.destroyed).toBe(false);
+    expect(text.lifecycle.signal.aborted).toBe(false);
+    expect(cleanup).not.toHaveBeenCalled();
+
+    renderer.write(handle, []);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    expect(text.destroyed).toBe(true);
+    expect(text.lifecycle.signal.aborted).toBe(true);
+    expect(text.renderer).toBeUndefined();
+    expect(text.host).toBeUndefined();
+    expect(cleanup).toHaveBeenCalledOnce();
+    expect(idsByKind(debugTree(renderer), 'Text')).toEqual([]);
+    const updateText = vi.spyOn(renderer.host, 'updateText');
+    label.set('stale');
+    renderer.updateText('also stale', text);
+    renderer.flush();
+    expect(updateText).not.toHaveBeenCalled();
+    expect(text.content).toBe('after');
+    expect(() => renderer.unmount()).not.toThrow();
+    expect(cleanup).toHaveBeenCalledOnce();
+  });
+
+  it('cleans up top-level and never-attached text on unmount', () => {
+    const renderer = createRenderer();
+    const mounted = renderer.createText('mounted');
+    const detached = renderer.createText('detached');
+    renderer.render(() => mounted);
+    expect(collectText(debugTree(renderer))).toEqual(['mounted']);
+
+    renderer.unmount();
+    for (const text of [mounted, detached]) {
+      expect(text.destroyed).toBe(true);
+      expect(text.lifecycle.signal.aborted).toBe(true);
+      expect(text.parent).toBeNull();
+      expect(text.renderer).toBeUndefined();
+      expect(text.host).toBeUndefined();
+    }
+    expect(idsByKind(debugTree(renderer), 'Text')).toEqual([]);
+  });
+
+  it('keeps native event subscriptions element-only', () => {
+    const renderer = createRenderer();
+    const text = renderer.createText('listener');
+    renderer.render(() => text);
+    const subscribe = vi.spyOn(renderer.host, 'subscribeEvent');
+    const unsubscribe = vi.spyOn(renderer.host, 'unsubscribeEvent');
+
+    // Text has no native hit-testing, so listeners stay local-only.
+    const listener = () => {};
+    text.addEventListener('click', listener);
+    text.removeEventListener('click', listener);
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(unsubscribe).not.toHaveBeenCalled();
+    expect(debugTree(renderer).poisoned).toBe(false);
   });
 
   it('preserves mixed text and image source order', () => {
@@ -630,7 +885,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const node = ref.get();
     if (!node) throw new Error('Expected mounted ref to resolve.');
 
-    renderer.host.createNode(ElementKind.Input);
+    renderer.host.createNode(ElementKind.Textarea);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
     expect(renderer.hasRoot).toBe(false);
     expect(renderer.host.isInitialized).toBe(true);
@@ -656,7 +911,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       renderer.host.createText('cleanup');
     });
 
-    renderer.host.createNode(ElementKind.Input);
+    renderer.host.createNode(ElementKind.Textarea);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
     expect(() => renderer.flush()).not.toThrow();
   });
@@ -685,7 +940,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
   it('does not leave a partial development overlay on a fatal renderer', () => {
     const renderer = createRenderer();
     renderer.render(() => <div>mounted</div>);
-    renderer.host.createNode(ElementKind.Input);
+    renderer.host.createNode(ElementKind.Textarea);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
 
     expect(() => renderer.showDevelopmentError('ordinary error')).toThrow(

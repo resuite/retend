@@ -6,8 +6,11 @@ export interface DevRuntimeInitMessage {
   appName: string;
   application: string;
   entry: string;
-  options: GpuiWindowOptions;
+  options: GpuiWindowOptions &
+    Required<Pick<GpuiWindowOptions, 'title' | 'location'>>;
 }
+
+export type DevRuntimeConfig = Omit<DevRuntimeInitMessage, 'channel' | 'type'>;
 
 export type GpuiControlMessage =
   | DevRuntimeInitMessage

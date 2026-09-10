@@ -80,10 +80,32 @@ export interface GpuiStyle {
   textAlign?: 'left' | 'center' | 'right';
   lineHeight?: number;
   whiteSpace?: 'normal' | 'nowrap';
+  overflow?: 'visible' | 'clip' | 'hidden' | 'auto' | 'scroll';
 }
 
-/** Phase 2 intrinsic tag names. Text remains ordinary JSX content. */
-export const GPUI_ELEMENT_TYPES = ['div', 'img'] as const;
+/** Border-box layout data returned by {@link GpuiElement.measure}. */
+export interface GpuiScrollOffset {
+  x: number;
+  y: number;
+}
+
+export interface GpuiMeasurement {
+  /** Left edge in window coordinates. */
+  x: number;
+  /** Top edge in window coordinates. */
+  y: number;
+  /** Border-box width. */
+  width: number;
+  /** Border-box height. */
+  height: number;
+  /** Width of the element's scrollable content extent. */
+  scrollWidth: number;
+  /** Height of the element's scrollable content extent. */
+  scrollHeight: number;
+}
+
+/** Native intrinsic tag names. Text remains ordinary JSX content. */
+export const GPUI_ELEMENT_TYPES = ['div', 'img', 'input'] as const;
 
 /** Union of currently supported intrinsic element tag names. */
 export type GpuiElementType = (typeof GPUI_ELEMENT_TYPES)[number];
@@ -96,4 +118,14 @@ export interface GpuiImgCustomProps {
   src?: string;
   /** How the image should scale within its bounds. */
   objectFit?: 'fill' | 'contain' | 'cover' | 'scaleDown' | 'none';
+}
+
+export interface GpuiInputCustomProps {
+  /** Controlled single-line native value. */
+  value?: string;
+}
+
+export interface GpuiSelection {
+  start: number;
+  end: number;
 }

@@ -1,3 +1,5 @@
+import { getGlobalContext } from 'retend/context';
+
 /**
  * Process-wide lifecycle contract for a Vite-managed GPUI application.
  * The context object keeps the same identity from construction through cleanup.
@@ -20,14 +22,23 @@ export type GpuiAppContext = GpuiAppContextTypes extends {
   ? Context
   : GpuiAppContextTypes['default'];
 
-let applicationContext: object = {};
-
 /** @internal Installs the context owned by the active application runtime. */
 export function setAppContext(context: object): void {
-  applicationContext = context;
+  getGlobalContext().globalData.set('retend-gpui:application-context', context);
+}
+
+/** @internal Removes the context when the owning application runtime is cleaned up. */
+export function clearAppContext(): void {
+  getGlobalContext().globalData.delete('retend-gpui:application-context');
 }
 
 /** Returns the process-wide context owned by the configured application. */
 export function useAppContext(): GpuiAppContext {
-  return applicationContext as GpuiAppContext;
+  const context = getGlobalContext().globalData.get(
+    'retend-gpui:application-context'
+  );
+  if (!context) {
+    throw new Error('useAppContext() requires an active GPUI application.');
+  }
+  return context as GpuiAppContext;
 }

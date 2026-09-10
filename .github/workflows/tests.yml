@@ -24,3 +24,25 @@ jobs:
       - run: pnpm --filter retend-test-suite exec playwright install chromium
       - run: pnpm run build
       - run: pnpm run test
+
+  gpui:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir experiments/retend-gpui run typecheck
+      - run: pnpm --dir experiments/retend-gpui run lint
+      - run: pnpm --dir experiments/retend-gpui run protocol:check
+      - run: pnpm --dir experiments/retend-gpui run native:build
+      - run: pnpm --dir experiments/retend-gpui run test:all
+      - run: pnpm --dir experiments/retend-gpui run build

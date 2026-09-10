@@ -1,18 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  GpuiFocusEvent,
+  GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
+  GpuiScrollEvent,
   createNativeEvent,
 } from '../source/events';
+import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
-import { GpuiElement } from '../source/tree/nodes';
+import { GpuiDivElement, type GpuiElement } from '../source/tree/nodes';
 import { appendNodes } from '../source/tree/operations';
 
 function tree(): [GpuiElement, GpuiElement, GpuiElement] {
-  const root = new GpuiElement(1, 'div');
-  const parent = new GpuiElement(2, 'div');
-  const target = new GpuiElement(3, 'div');
+  const root = new GpuiDivElement(1);
+  const parent = new GpuiDivElement(2);
+  const target = new GpuiDivElement(3);
   appendNodes(root, parent);
   appendNodes(parent, target);
   return [root, parent, target];
@@ -55,7 +59,7 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('snapshots each node listener list while honoring removals before their turn', () => {
-    const target = new GpuiElement(1, 'div');
+    const target = new GpuiDivElement(1);
     const calls: string[] = [];
     const removed = () => calls.push('removed');
     const added = () => calls.push('added');
@@ -88,7 +92,7 @@ describe('Retend GPUI event dispatch', () => {
     expect(calls).toEqual(['parent-1', 'parent-2']);
 
     calls.length = 0;
-    const target2 = new GpuiElement(4, 'div');
+    const target2 = new GpuiDivElement(4);
     target2.addEventListener('click', (event) => {
       calls.push('target-1');
       event.stopImmediatePropagation();
@@ -111,7 +115,7 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('returns false only when a cancelable Retend-side default is prevented', () => {
-    const target = new GpuiElement(1, 'div');
+    const target = new GpuiDivElement(1);
     target.addEventListener('custom', (event) => event.preventDefault());
 
     expect(
@@ -121,8 +125,8 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('restores dispatch state so the same Event can be dispatched again', () => {
-    const first = new GpuiElement(1, 'div');
-    const second = new GpuiElement(2, 'div');
+    const first = new GpuiDivElement(1);
+    const second = new GpuiDivElement(2);
     const event = new Event('custom');
 
     first.dispatchEvent(event);
@@ -137,11 +141,11 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('reports listener exceptions and continues the remaining listeners', () => {
-    const reportListenerError = vi.fn();
-    const target = new GpuiElement(1, 'div', true, {
-      nativeSubscriptionChanged() {},
-      reportListenerError,
-    });
+    const renderer = new RetendGpuiRenderer();
+    const reportListenerError = vi
+      .spyOn(renderer, 'reportListenerError')
+      .mockImplementation(() => {});
+    const target = new GpuiDivElement(1, renderer.host, renderer);
     const second = vi.fn();
     target.addEventListener('custom', () => {
       throw new Error('listener failed');
@@ -195,10 +199,59 @@ describe('Retend GPUI event dispatch', () => {
     expect((keyboard as GpuiKeyboardEvent).keyChar).toBe('A');
     expect((keyboard as GpuiKeyboardEvent).repeat).toBe(true);
     expect((keyboard as GpuiKeyboardEvent).shiftKey).toBe(true);
+
+    const input = createNativeEvent({
+      eventId: NativeEventId.Input,
+      targetId: 1,
+      timeStamp: 15.5,
+      value: 'edited',
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    expect(input).toBeInstanceOf(GpuiInputEvent);
+    expect(input.type).toBe('input');
+    expect(input.bubbles).toBe(true);
+    expect(input.cancelable).toBe(false);
+    expect((input as GpuiInputEvent).value).toBe('edited');
+
+    const focus = createNativeEvent({
+      eventId: NativeEventId.Focus,
+      targetId: 1,
+      timeStamp: 16,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    expect(focus).toBeInstanceOf(GpuiFocusEvent);
+    expect(focus.bubbles).toBe(false);
+    expect(focus.cancelable).toBe(false);
+    expect(focus.timeStamp).toBe(16);
+
+    const scroll = createNativeEvent({
+      eventId: NativeEventId.Scroll,
+      targetId: 1,
+      timeStamp: 17,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      scrollX: 12,
+      scrollY: 34,
+    });
+    expect(scroll).toBeInstanceOf(GpuiScrollEvent);
+    expect(scroll.type).toBe('scroll');
+    expect(scroll.bubbles).toBe(false);
+    expect(scroll.cancelable).toBe(false);
+    expect(scroll.timeStamp).toBe(17);
+    expect((scroll as GpuiScrollEvent).scrollX).toBe(12);
+    expect((scroll as GpuiScrollEvent).scrollY).toBe(34);
   });
 
   it('makes passive listeners unable to prevent default', () => {
-    const target = new GpuiElement(1, 'div');
+    const target = new GpuiDivElement(1);
     const event = new Event('custom', { cancelable: true });
     target.addEventListener('custom', (current) => current.preventDefault(), {
       passive: true,
@@ -232,11 +285,11 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('synchronizes only the first and last listener for native-backed types', () => {
-    const nativeSubscriptionChanged = vi.fn();
-    const target = new GpuiElement(1, 'div', true, {
-      nativeSubscriptionChanged,
-      reportListenerError() {},
-    });
+    const renderer = new RetendGpuiRenderer();
+    const nativeSubscriptionChanged = vi
+      .spyOn(renderer, 'nativeSubscriptionChanged')
+      .mockImplementation(() => {});
+    const target = new GpuiDivElement(1, renderer.host, renderer);
     const first = () => {};
     const second = () => {};
 
@@ -244,11 +297,15 @@ describe('Retend GPUI event dispatch', () => {
     target.addEventListener('click', second);
     target.removeEventListener('click', first);
     target.removeEventListener('click', second);
+    target.addEventListener('scroll', first);
+    target.removeEventListener('scroll', first);
     target.addEventListener('custom', first);
 
     expect(nativeSubscriptionChanged.mock.calls).toEqual([
       [target, NativeEventId.Click, true],
       [target, NativeEventId.Click, false],
+      [target, NativeEventId.Scroll, true],
+      [target, NativeEventId.Scroll, false],
     ]);
   });
 });

@@ -1,5 +1,11 @@
-import type { NativeTransportEventId } from '../events.js';
-import type { GpuiStyle } from '../types.js';
+import type { GpuiHost } from '../gpui-host.js';
+import type { RetendGpuiRenderer } from '../gpui-renderer.js';
+import type {
+  GpuiMeasurement,
+  GpuiScrollOffset,
+  GpuiSelection,
+  GpuiStyle,
+} from '../types.js';
 
 import { nativeEventMetadataByType } from '../events.js';
 
@@ -10,7 +16,6 @@ interface ListenerRecord {
   readonly passive: boolean;
   readonly signal?: AbortSignal;
   abortHandler?: () => void;
-  removed: boolean;
 }
 
 interface DispatchState {
@@ -21,16 +26,6 @@ interface DispatchState {
   stopped: boolean;
   immediateStopped: boolean;
   passive: boolean;
-}
-
-/** Renderer-owned hooks required by a node's event target implementation. */
-export interface GpuiNodeEventOwner {
-  nativeSubscriptionChanged(
-    node: GpuiNode,
-    eventId: NativeTransportEventId,
-    enabled: boolean
-  ): void;
-  reportListenerError(error: unknown): void;
 }
 
 function captureOption(
@@ -56,18 +51,25 @@ export abstract class GpuiNode implements EventTarget {
   parent: GpuiParentNode | null = null;
   /** Abort signal that fires when the node is destroyed; use for reactive subscriptions. */
   readonly lifecycle = new AbortController();
-  #eventOwner?: GpuiNodeEventOwner;
+  #host?: GpuiHost;
+  #renderer?: RetendGpuiRenderer;
   #destroyed = false;
   #cleanup = new Map<unknown, () => void>();
-  #listeners = new Map<string, ListenerRecord[]>();
+  #listeners = new Map<string, Set<ListenerRecord>>();
 
-  constructor(eventOwner?: GpuiNodeEventOwner) {
-    this.#eventOwner = eventOwner;
+  constructor(host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    this.#host = host;
+    this.#renderer = renderer;
   }
 
-  /** Renderer-owned event hooks inherited by related logical nodes. */
-  get eventOwner(): GpuiNodeEventOwner | undefined {
-    return this.#eventOwner;
+  /** Native host shared by related logical nodes. */
+  get host(): GpuiHost | undefined {
+    return this.#host;
+  }
+
+  /** Renderer responsible for logical tree changes and subscriptions. */
+  get renderer(): RetendGpuiRenderer | undefined {
+    return this.#renderer;
   }
 
   /** Whether `markDestroyed` has been called. */
@@ -86,25 +88,20 @@ export abstract class GpuiNode implements EventTarget {
 
     const capture = captureOption(options);
     let records = this.#listeners.get(type);
-    if (!records) this.#listeners.set(type, (records = []));
-    if (
-      records.some(
-        (record) => record.callback === callback && record.capture === capture
-      )
-    ) {
-      return;
+    if (!records) this.#listeners.set(type, (records = new Set()));
+    for (const record of records) {
+      if (record.callback === callback && record.capture === capture) return;
     }
 
-    const first = records.length === 0;
+    const first = records.size === 0;
     const record: ListenerRecord = {
       callback,
       capture,
       once: typeof options === 'object' ? (options.once ?? false) : false,
       passive: typeof options === 'object' ? (options.passive ?? false) : false,
       signal,
-      removed: false,
     };
-    records.push(record);
+    records.add(record);
     if (signal) {
       record.abortHandler = () =>
         this.removeEventListener(type, callback, { capture });
@@ -123,11 +120,12 @@ export abstract class GpuiNode implements EventTarget {
     if (!records) return;
 
     const capture = captureOption(options);
-    const record = records.find(
-      (candidate) =>
-        candidate.callback === callback && candidate.capture === capture
-    );
-    if (record) this.#removeRecord(type, record);
+    for (const record of records) {
+      if (record.callback === callback && record.capture === capture) {
+        this.#removeRecord(type, record);
+        return;
+      }
+    }
   }
 
   dispatchEvent(event: Event): boolean {
@@ -162,20 +160,7 @@ export abstract class GpuiNode implements EventTarget {
         }
       }
 
-      if (!state.stopped) {
-        state.currentTarget = this;
-        state.phase = Event.AT_TARGET;
-        state.immediateStopped = false;
-        const snapshot = [...(this.#listeners.get(event.type) ?? [])];
-        for (const capture of [true, false]) {
-          for (const record of snapshot) {
-            if (record.removed || record.capture !== capture) continue;
-            this.#invokeListener(event.type, record, event, state);
-            if (state.immediateStopped) break;
-          }
-          if (state.immediateStopped) break;
-        }
-      }
+      if (!state.stopped) this.#invokeNode(event, state, Event.AT_TARGET);
 
       const bubbles = metadata?.bubbles ?? event.bubbles;
       if (bubbles && !state.stopped) {
@@ -221,12 +206,12 @@ export abstract class GpuiNode implements EventTarget {
     this.lifecycle.abort();
     for (const records of this.#listeners.values()) {
       for (const record of records) {
-        record.removed = true;
         cleanupAbort(record);
       }
     }
     this.#listeners.clear();
-    this.#eventOwner = undefined;
+    this.#host = undefined;
+    this.#renderer = undefined;
     for (const cleanup of this.#cleanup.values()) this.#runCleanup(cleanup);
     this.#cleanup.clear();
   }
@@ -234,20 +219,14 @@ export abstract class GpuiNode implements EventTarget {
   #syncNativeSubscription(type: string, enabled: boolean): void {
     const metadata = nativeEventMetadataByType(type);
     if (metadata)
-      this.#eventOwner?.nativeSubscriptionChanged(this, metadata.id, enabled);
+      this.#renderer?.nativeSubscriptionChanged(this, metadata.id, enabled);
   }
 
   #removeRecord(type: string, record: ListenerRecord): void {
-    if (record.removed) return;
     const records = this.#listeners.get(type);
-    if (!records) return;
-    const index = records.indexOf(record);
-    if (index === -1) return;
-
-    records.splice(index, 1);
-    record.removed = true;
+    if (!records?.delete(record)) return;
     cleanupAbort(record);
-    if (records.length === 0) {
+    if (records.size === 0) {
       this.#listeners.delete(type);
       this.#syncNativeSubscription(type, false);
     }
@@ -259,7 +238,7 @@ export abstract class GpuiNode implements EventTarget {
     event: Event,
     state: DispatchState
   ): void {
-    if (record.removed) return;
+    if (!this.#listeners.get(type)?.has(record)) return;
     if (record.once) this.#removeRecord(type, record);
     state.passive = record.passive;
     try {
@@ -267,7 +246,7 @@ export abstract class GpuiNode implements EventTarget {
         record.callback.call(this, event);
       else record.callback.handleEvent(event);
     } catch (error) {
-      if (this.#eventOwner) this.#eventOwner.reportListenerError(error);
+      if (this.#renderer) this.#renderer.reportListenerError(error);
       else console.error('[retend-gpui] event listener failed:', error);
     } finally {
       state.passive = false;
@@ -278,70 +257,63 @@ export abstract class GpuiNode implements EventTarget {
     event: Event,
     state: DispatchState,
     phase: number,
-    capture: boolean
+    capture?: boolean
   ): void {
     state.currentTarget = this;
     state.phase = phase;
     state.immediateStopped = false;
     const snapshot = [...(this.#listeners.get(event.type) ?? [])];
-    for (const record of snapshot) {
-      if (record.removed || record.capture !== capture) continue;
-      this.#invokeListener(event.type, record, event, state);
+    for (const currentCapture of capture === undefined
+      ? [true, false]
+      : [capture]) {
+      for (const record of snapshot) {
+        if (record.capture !== currentCapture) continue;
+        this.#invokeListener(event.type, record, event, state);
+        if (state.immediateStopped) break;
+      }
       if (state.immediateStopped) break;
     }
   }
 
   #patchEvent(event: Event, state: DispatchState): () => void {
-    const keys = [
-      'target',
-      'currentTarget',
-      'eventPhase',
-      'cancelBubble',
-      'composedPath',
-      'stopPropagation',
-      'stopImmediatePropagation',
-      'preventDefault',
-    ] as const;
-    const descriptors = keys.map(
-      (key) => [key, Object.getOwnPropertyDescriptor(event, key)] as const
-    );
     const preventDefault = event.preventDefault.bind(event);
 
-    Object.defineProperties(event, {
-      target: { configurable: true, get: () => state.target },
-      currentTarget: { configurable: true, get: () => state.currentTarget },
-      eventPhase: { configurable: true, get: () => state.phase },
+    const properties: PropertyDescriptorMap = {
+      target: { get: () => state.target },
+      currentTarget: { get: () => state.currentTarget },
+      eventPhase: { get: () => state.phase },
       cancelBubble: {
-        configurable: true,
         get: () => state.stopped,
         set: (value: boolean) => {
           if (value) state.stopped = true;
         },
       },
       composedPath: {
-        configurable: true,
         value: () => [...state.path],
       },
       stopPropagation: {
-        configurable: true,
         value: () => {
           state.stopped = true;
         },
       },
       stopImmediatePropagation: {
-        configurable: true,
         value: () => {
           state.stopped = true;
           state.immediateStopped = true;
         },
       },
       preventDefault: {
-        configurable: true,
         value: () => {
           if (!state.passive) preventDefault();
         },
       },
+    };
+
+    const descriptors = Object.entries(properties).map(([key, descriptor]) => {
+      descriptor.configurable = true;
+      return [key, Object.getOwnPropertyDescriptor(event, key)] as const;
     });
+    Object.defineProperties(event, properties);
 
     return () => {
       for (const [key, descriptor] of descriptors) {
@@ -376,9 +348,7 @@ export abstract class GpuiParentNode extends GpuiNode {
  * Host-level element backed by a retained node in the Retend-owned native bridge.
  * Created via `RetendGpuiRenderer.createContainer` for each intrinsic tag.
  */
-export class GpuiElement extends GpuiParentNode {
-  /** Flattened native children synchronized through the Retend command protocol. */
-  nativeChildren: GpuiElement[] = [];
+export abstract class GpuiElement extends GpuiParentNode {
   /** Resolved author-style snapshot. */
   style: GpuiStyle = {};
 
@@ -386,35 +356,139 @@ export class GpuiElement extends GpuiParentNode {
    * @param id - Unique native identifier assigned by the renderer.
    * @param tagName - Intrinsic tag name (e.g. `"div"`, `"img"`).
    * @param acceptsChildren - Whether this native element can contain logical children.
-   * @param eventOwner - Renderer hooks for native event synchronization and errors.
+   * @param host - Native host for imperative operations.
+   * @param renderer - Renderer for logical tree changes and subscriptions.
    */
   constructor(
     readonly id: number,
     readonly tagName: string,
     readonly acceptsChildren = true,
-    eventOwner?: GpuiNodeEventOwner
+    host?: GpuiHost,
+    renderer?: RetendGpuiRenderer
   ) {
-    super(eventOwner);
+    super(host, renderer);
+  }
+
+  protected assertAlive(action: string): void {
+    if (this.destroyed)
+      throw new Error(`Cannot ${action} a destroyed Retend GPUI node.`);
+  }
+
+  protected requireHost(action: string): GpuiHost {
+    this.assertAlive(action);
+    const host = this.host;
+    if (!host)
+      throw new Error(
+        `Cannot ${action} a Retend GPUI node without a native host.`
+      );
+    return host;
+  }
+
+  /** Requests native keyboard focus for this element. */
+  focus(): void {
+    this.assertAlive('focus');
+    this.host?.focusNode(this.id);
+  }
+
+  /** Releases native keyboard focus when this element currently owns it. */
+  blur(): void {
+    this.assertAlive('blur');
+    this.host?.blurNode(this.id);
+  }
+
+  /** Scrolls this element to an absolute native scroll offset. */
+  scrollTo(x: number, y: number): void {
+    this.assertAlive('scroll');
+    this.host?.scrollToNode(this.id, x, y);
+  }
+
+  /** Scrolls this element relative to its current native scroll offset. */
+  scrollBy(x: number, y: number): void {
+    this.assertAlive('scroll');
+    this.host?.scrollByNode(this.id, x, y);
+  }
+
+  /** Scrolls the nearest native scroll containers enough to reveal this element. */
+  scrollIntoView(): void {
+    this.assertAlive('scroll into view');
+    this.host?.scrollIntoViewNode(this.id);
+  }
+
+  /** Reads the current authoritative native scroll offset. */
+  async getScrollOffset(): Promise<GpuiScrollOffset> {
+    return this.requireHost('read scroll state from').getScrollOffsetNode(
+      this.id
+    );
+  }
+
+  /** Reads committed native border-box and scroll-content layout. */
+  async measure(): Promise<GpuiMeasurement> {
+    return this.requireHost('measure').measureNode(this.id);
+  }
+}
+
+/** Native `<div>` element. */
+export class GpuiDivElement extends GpuiElement {
+  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    super(id, 'div', true, host, renderer);
+  }
+}
+
+/** Native `<img>` element. */
+export class GpuiImageElement extends GpuiElement {
+  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    super(id, 'img', false, host, renderer);
+  }
+}
+
+/** Native `<input>` element. */
+export class GpuiInputElement extends GpuiElement {
+  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    super(id, 'input', false, host, renderer);
+  }
+  /** Sets the authoritative native text selection using UTF-16 offsets. */
+  setSelectionRange(start: number, end: number): void {
+    this.requireHost('set selection on').setSelectionRangeNode(
+      this.id,
+      start,
+      end
+    );
+  }
+
+  /** Selects all native text in this control. */
+  select(): void {
+    this.requireHost('select text in').selectNode(this.id);
+  }
+
+  /** Reads the authoritative native text selection. */
+  async getSelection(): Promise<GpuiSelection> {
+    return this.requireHost('read selection from').getSelectionNode(this.id);
   }
 }
 
 /**
- * Text node, represented natively as a `text` element.
+ * Native-backed text leaf with content and shared node lifecycle behavior.
+ * Text is not an element and has no styling, layout, focus, or scrolling APIs.
  */
-export class GpuiText extends GpuiElement {
+export class GpuiText extends GpuiNode {
   /**
    * @param id - Unique native identifier.
    * @param content - Current text content.
-   * @param eventOwner - Renderer hooks for native event synchronization and errors.
+   * @param host - Native host for imperative operations.
+   * @param renderer - Renderer for logical tree changes and subscriptions.
    */
   constructor(
-    id: number,
+    readonly id: number,
     public content: string,
-    eventOwner?: GpuiNodeEventOwner
+    host?: GpuiHost,
+    renderer?: RetendGpuiRenderer
   ) {
-    super(id, 'text', false, eventOwner);
+    super(host, renderer);
   }
 }
+
+/** Nodes backed by a retained native identifier, including text leaves. */
+export type GpuiNativeNode = GpuiElement | GpuiText;
 
 /**
  * Renderer-owned logical root bound to the immutable native window root.
@@ -442,3 +516,23 @@ export class GpuiAnchor extends GpuiNode {}
  * can be atomically replaced via `writeRange`.
  */
 export type GpuiRange = readonly [GpuiAnchor, GpuiAnchor];
+
+export function* flattenGroups(
+  nodes: readonly GpuiNode[]
+): Generator<GpuiNode> {
+  for (const node of nodes) {
+    if (node instanceof GpuiGroup) yield* flattenGroups(node.children);
+    else yield node;
+  }
+}
+
+export function collectNativeChildren(
+  parent: GpuiParentNode
+): GpuiNativeNode[] {
+  const children: GpuiNativeNode[] = [];
+  for (const node of flattenGroups(parent.children)) {
+    if (node instanceof GpuiElement || node instanceof GpuiText)
+      children.push(node);
+  }
+  return children;
+}

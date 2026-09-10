@@ -171,9 +171,11 @@ await renderToGpui(App, {
 });
 ```
 
-Initial width, height, and title are applied to the native GPUI window. Minimum/maximum size, resizable/fullscreen state, and live resize reporting are not exposed until their native implementations exist.
+Initial width, height, title, resizable state, fullscreen/maximized state, and minimum/maximum size constraints are applied by the native window bridge. Vite-managed applications can open additional independent windows through `useWindow().open(options)`. `useWindow().width` and `height` are readonly Cells kept current by native resize events, while the bound window object emits per-window `focus` and `blur` lifecycle events.
 
 ## Platform notes
+
+The macOS GPUI backend is a patched `gpui-pre-macos` 0.3.4 snapshot. The patched crate lives in the sibling `gpui-pre` repo (`crates/gpui-pre-macos`), not in this tree. The patch adds an embedded NSApplication / CFRunLoop pump so GPUI can run inside the Node/napi process.
 
 The Retend-owned runtime pumps the embedded GPUI event loop process-wide where the platform requires it. Applications do not run a renderer-specific JavaScript frame timer. `retend-gpui` is a native renderer and does not run in a browser.
 

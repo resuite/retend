@@ -1,16 +1,51 @@
-use std::sync::Arc;
+use std::{cell::Cell, rc::Rc, sync::Arc};
 
 use gpui::{
-    div, img, prelude::*, AnyElement, App, ClickEvent, ElementId, ImageCacheError, ImageSource,
-    KeyDownEvent, KeyUpEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    NavigationDirection, StyledImage, Text, Window,
+    actions, div, img, prelude::*, AnyElement, App, Bounds, ClickEvent, Element, ElementId,
+    GlobalElementId, ImageCacheError, ImageSource, InspectorElementId, KeyBinding, KeyDownEvent,
+    KeyUpEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    NavigationDirection, Pixels, Point, StyledImage, Text, Window,
 };
 
 use crate::{
     events,
     protocol_generated::NativeEventId,
+    runtime_state::RuntimeStateRegistry,
     tree::{event_bit, ImageObjectFit, NativeTree, NodeData, NodeId, WindowId},
 };
+
+actions!(retend, [FocusNext, FocusPrevious]);
+
+pub(crate) fn init(cx: &mut App) {
+    gpui_base::init(cx);
+    cx.bind_keys([
+        KeyBinding::new("tab", FocusNext, None),
+        KeyBinding::new("shift-tab", FocusPrevious, None),
+        KeyBinding::new("tab", FocusNext, Some("Input")),
+        KeyBinding::new("shift-tab", FocusPrevious, Some("Input")),
+    ]);
+    cx.on_action::<FocusNext>(|_, cx| {
+        if let Some(window) = cx.active_window() {
+            cx.defer(move |cx| {
+                _ = window.update(cx, |_, window, cx| window.focus_next(cx));
+            });
+        }
+    });
+    cx.on_action::<FocusPrevious>(|_, cx| {
+        if let Some(window) = cx.active_window() {
+            cx.defer(move |cx| {
+                _ = window.update(cx, |_, window, cx| window.focus_prev(cx));
+            });
+        }
+    });
+}
+
+pub(crate) fn root_container() -> gpui::Div {
+    div()
+        .size_full()
+        .bg(gpui::rgb(0xffffff))
+        .text_color(gpui::rgb(0x000000))
+}
 
 fn event_interest(window_id: WindowId, target_id: NodeId, event: NativeEventId) -> bool {
     crate::runtime()
@@ -18,41 +53,36 @@ fn event_interest(window_id: WindowId, target_id: NodeId, event: NativeEventId) 
         .is_ok_and(|tree| tree.has_subscription_in_path(window_id, target_id, event))
 }
 
+const RENDER_EVENT_MASK: u32 = event_bit(NativeEventId::MouseDown)
+    | event_bit(NativeEventId::MouseUp)
+    | event_bit(NativeEventId::MouseMove)
+    | event_bit(NativeEventId::Click)
+    | event_bit(NativeEventId::DblClick)
+    | event_bit(NativeEventId::MouseEnter)
+    | event_bit(NativeEventId::MouseLeave)
+    | event_bit(NativeEventId::KeyDown)
+    | event_bit(NativeEventId::KeyUp);
+
 #[derive(Clone, Copy)]
 struct EventInterest {
-    mouse_down: bool,
-    mouse_up: bool,
-    mouse_move: bool,
-    click: bool,
-    hover: bool,
-    key_down: bool,
-    key_up: bool,
+    subscriptions: u32,
+    outside_mouse_down: bool,
 }
 
 impl EventInterest {
     fn for_node(tree: &NativeTree, window_id: WindowId, id: NodeId) -> Self {
-        let subscriptions = tree.subscription_mask_in_path(window_id, id);
-        let in_path = |event| subscriptions & event_bit(event) != 0;
         Self {
-            mouse_down: in_path(NativeEventId::MouseDown)
-                || tree.has_mousedownoutside_subscribers(window_id),
-            mouse_up: in_path(NativeEventId::MouseUp),
-            mouse_move: in_path(NativeEventId::MouseMove),
-            click: in_path(NativeEventId::Click) || in_path(NativeEventId::DblClick),
-            hover: in_path(NativeEventId::MouseEnter) || in_path(NativeEventId::MouseLeave),
-            key_down: in_path(NativeEventId::KeyDown),
-            key_up: in_path(NativeEventId::KeyUp),
+            subscriptions: tree.subscription_mask_in_path(window_id, id),
+            outside_mouse_down: tree.has_mousedownoutside_subscribers(window_id),
         }
     }
 
+    fn has(self, event: NativeEventId) -> bool {
+        self.subscriptions & event_bit(event) != 0
+    }
+
     fn any(self) -> bool {
-        self.mouse_down
-            || self.mouse_up
-            || self.mouse_move
-            || self.click
-            || self.hover
-            || self.key_down
-            || self.key_up
+        self.outside_mouse_down || self.subscriptions & RENDER_EVENT_MASK != 0
     }
 }
 
@@ -83,23 +113,25 @@ fn emit_mouse_down(window_id: WindowId, target_id: NodeId, event: &MouseDownEven
     }
 }
 
-fn emit_mouse_up(window_id: WindowId, target_id: NodeId, event: &MouseUpEvent, cx: &mut App) {
-    if !event_interest(window_id, target_id, NativeEventId::MouseUp) {
-        return;
-    }
-    events::emit(
-        window_id,
-        events::mouse_up(NativeEventId::MouseUp, target_id, event),
-    );
-    cx.stop_propagation();
+macro_rules! bubbling_events {
+    ($($handler:ident($event:ident: $ty:ty, $id:ident): $kind:ident => $payload:expr;)+) => {
+        $(fn $handler(window_id: WindowId, $id: NodeId, $event: &$ty, cx: &mut App) {
+            if event_interest(window_id, $id, NativeEventId::$kind) {
+                events::emit(window_id, $payload);
+                cx.stop_propagation();
+            }
+        })+
+    };
 }
 
-fn emit_mouse_move(window_id: WindowId, target_id: NodeId, event: &MouseMoveEvent, cx: &mut App) {
-    if !event_interest(window_id, target_id, NativeEventId::MouseMove) {
-        return;
-    }
-    events::emit(window_id, events::mouse_move(target_id, event));
-    cx.stop_propagation();
+bubbling_events! {
+    emit_mouse_up(event: MouseUpEvent, id): MouseUp =>
+        events::mouse_up(NativeEventId::MouseUp, id, event);
+    emit_mouse_move(event: MouseMoveEvent, id): MouseMove => events::mouse_move(id, event);
+    emit_key_down(event: KeyDownEvent, id): KeyDown =>
+        events::key_event(NativeEventId::KeyDown, id, &event.keystroke, event.is_held);
+    emit_key_up(event: KeyUpEvent, id): KeyUp =>
+        events::key_event(NativeEventId::KeyUp, id, &event.keystroke, false);
 }
 
 fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &mut App) {
@@ -123,35 +155,16 @@ fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &m
     }
 }
 
-fn emit_key_down(window_id: WindowId, target_id: NodeId, event: &KeyDownEvent, cx: &mut App) {
-    if !event_interest(window_id, target_id, NativeEventId::KeyDown) {
-        return;
-    }
-    events::emit(window_id, events::key_down(target_id, event));
-    cx.stop_propagation();
-}
-
-fn emit_key_up(window_id: WindowId, target_id: NodeId, event: &KeyUpEvent, cx: &mut App) {
-    if !event_interest(window_id, target_id, NativeEventId::KeyUp) {
-        return;
-    }
-    events::emit(window_id, events::key_up(target_id, event));
-    cx.stop_propagation();
-}
-
 fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &Window) {
     let event = if hovered {
         NativeEventId::MouseEnter
     } else {
         NativeEventId::MouseLeave
     };
-    let subscribed = crate::runtime()
-        .lock()
-        .is_ok_and(|tree| tree.has_subscription_in_path(window_id, target_id, event));
-    if subscribed {
+    if event_interest(window_id, target_id, event) {
         events::emit(
             window_id,
-            events::hover(
+            events::mouse_event(
                 event,
                 target_id,
                 window.mouse_position(),
@@ -161,72 +174,59 @@ fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &Wi
     }
 }
 
-macro_rules! with_native_events {
-    ($element:expr, $interest:expr, $window_id:expr, $id:expr) => {{
-        let mut element = $element;
-        let interest = $interest;
-        let window_id = $window_id;
-        let id = $id;
-        if interest.mouse_down {
-            element = element
-                .on_mouse_down(MouseButton::Left, move |event, _, cx| {
-                    emit_mouse_down(window_id, id, event, cx)
-                })
-                .on_mouse_down(MouseButton::Right, move |event, _, cx| {
-                    emit_mouse_down(window_id, id, event, cx)
-                })
-                .on_mouse_down(MouseButton::Middle, move |event, _, cx| {
-                    emit_mouse_down(window_id, id, event, cx)
-                })
-                .on_mouse_down(
-                    MouseButton::Navigate(NavigationDirection::Back),
-                    move |event, _, cx| emit_mouse_down(window_id, id, event, cx),
-                )
-                .on_mouse_down(
-                    MouseButton::Navigate(NavigationDirection::Forward),
-                    move |event, _, cx| emit_mouse_down(window_id, id, event, cx),
-                );
+macro_rules! with_mouse_buttons {
+    ($element:ident, $method:ident, $handler:ident, $window_id:ident, $id:ident) => {
+        for button in [
+            MouseButton::Left,
+            MouseButton::Right,
+            MouseButton::Middle,
+            MouseButton::Navigate(NavigationDirection::Back),
+            MouseButton::Navigate(NavigationDirection::Forward),
+        ] {
+            $element = $element.$method(button, move |event, _, cx| {
+                $handler($window_id, $id, event, cx)
+            });
         }
-        if interest.mouse_up {
-            element = element
-                .on_mouse_up(MouseButton::Left, move |event, _, cx| {
-                    emit_mouse_up(window_id, id, event, cx)
-                })
-                .on_mouse_up(MouseButton::Right, move |event, _, cx| {
-                    emit_mouse_up(window_id, id, event, cx)
-                })
-                .on_mouse_up(MouseButton::Middle, move |event, _, cx| {
-                    emit_mouse_up(window_id, id, event, cx)
-                })
-                .on_mouse_up(
-                    MouseButton::Navigate(NavigationDirection::Back),
-                    move |event, _, cx| emit_mouse_up(window_id, id, event, cx),
-                )
-                .on_mouse_up(
-                    MouseButton::Navigate(NavigationDirection::Forward),
-                    move |event, _, cx| emit_mouse_up(window_id, id, event, cx),
-                );
-        }
-        if interest.mouse_move {
-            element = element
-                .on_mouse_move(move |event, _, cx| emit_mouse_move(window_id, id, event, cx));
-        }
-        if interest.click {
-            element = element.on_click(move |event, _, cx| emit_click(window_id, id, event, cx));
-        }
-        if interest.hover {
-            element = element
-                .on_hover(move |hovered, window, _| emit_hover(window_id, id, *hovered, window));
-        }
-        if interest.key_down {
-            element =
-                element.on_key_down(move |event, _, cx| emit_key_down(window_id, id, event, cx));
-        }
-        if interest.key_up {
-            element = element.on_key_up(move |event, _, cx| emit_key_up(window_id, id, event, cx));
-        }
-        element
-    }};
+    };
+}
+
+fn with_native_events<T: StatefulInteractiveElement>(
+    mut element: T,
+    interest: EventInterest,
+    window_id: WindowId,
+    id: NodeId,
+    runtime: &RuntimeStateRegistry,
+) -> T {
+    if let Some(focus) = runtime.tracked_focus_handle(id) {
+        element = element.track_focus(&focus);
+    }
+    if let Some(scroll) = runtime.scroll_handle(id) {
+        element = element.track_scroll(&scroll);
+    }
+    if interest.has(NativeEventId::MouseDown) || interest.outside_mouse_down {
+        with_mouse_buttons!(element, on_mouse_down, emit_mouse_down, window_id, id);
+    }
+    if interest.has(NativeEventId::MouseUp) {
+        with_mouse_buttons!(element, on_mouse_up, emit_mouse_up, window_id, id);
+    }
+    if interest.has(NativeEventId::MouseMove) {
+        element =
+            element.on_mouse_move(move |event, _, cx| emit_mouse_move(window_id, id, event, cx));
+    }
+    if interest.has(NativeEventId::Click) || interest.has(NativeEventId::DblClick) {
+        element = element.on_click(move |event, _, cx| emit_click(window_id, id, event, cx));
+    }
+    if interest.has(NativeEventId::MouseEnter) || interest.has(NativeEventId::MouseLeave) {
+        element =
+            element.on_hover(move |hovered, window, _| emit_hover(window_id, id, *hovered, window));
+    }
+    if interest.has(NativeEventId::KeyDown) {
+        element = element.on_key_down(move |event, _, cx| emit_key_down(window_id, id, event, cx));
+    }
+    if interest.has(NativeEventId::KeyUp) {
+        element = element.on_key_up(move |event, _, cx| emit_key_up(window_id, id, event, cx));
+    }
+    element
 }
 
 fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
@@ -239,25 +239,205 @@ fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
     }
 }
 
-pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
+type PaintCallback = Box<dyn FnOnce(Bounds<Pixels>, &mut Window, &mut App)>;
+
+/// Preserves Retend's post-paint bounds publication on GPUI versions without
+/// the old `on_painted` element extension.
+struct PaintObserver {
+    inner: AnyElement,
+    callback: Option<PaintCallback>,
+}
+
+impl PaintObserver {
+    fn new(
+        inner: AnyElement,
+        callback: impl FnOnce(Bounds<Pixels>, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        Self {
+            inner,
+            callback: Some(Box::new(callback)),
+        }
+    }
+}
+
+impl IntoElement for PaintObserver {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for PaintObserver {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.inner.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.prepaint(window, cx);
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        _prepaint: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.paint(window, cx);
+        if let Some(callback) = self.callback.take() {
+            callback(bounds, window, cx);
+        }
+    }
+}
+
+pub fn build_with_runtime(
+    tree: &NativeTree,
+    id: NodeId,
+    runtime_state: &RuntimeStateRegistry,
+    generation: u64,
+) -> AnyElement {
+    let inner = build_inner(
+        tree,
+        id,
+        runtime_state,
+        generation,
+        EventInterest::for_node(tree, tree.nodes[&id].window_id, id),
+    );
+    let runtime_state = runtime_state.clone();
+    PaintObserver::new(inner, move |_, window, _| {
+        // Complete queries after the subtree paints. GPUI suppresses refresh
+        // mid-draw, so any remaining layout work waits for the next frame.
+        if runtime_state.finish_frame(generation) {
+            window.on_next_frame(move |window, _| {
+                if runtime_state.finish_frame(generation) {
+                    window.refresh();
+                }
+            });
+        }
+    })
+    .into_any_element()
+}
+
+fn build_inner(
+    tree: &NativeTree,
+    id: NodeId,
+    runtime_state: &RuntimeStateRegistry,
+    generation: u64,
+    interest: EventInterest,
+) -> AnyElement {
     let node = &tree.nodes[&id];
-    match &node.data {
-        NodeData::Root => {
-            let element = div()
-                .size_full()
-                .bg(gpui::rgb(0xffffff))
-                .text_color(gpui::rgb(0x000000))
-                .block();
-            let element = match node.style.as_deref() {
+    if let NodeData::Text(text) = &node.data {
+        return Text::new(ElementId::Integer(u64::from(id)), text.clone().into())
+            .into_any_element();
+    }
+    let interest = EventInterest {
+        subscriptions: interest.subscriptions | node.subscriptions,
+        ..interest
+    };
+    let runtime = runtime_state.clone();
+    let scroll_handle = runtime_state.scroll_handle(id);
+    // Extents only matter where a direct text child's box is otherwise
+    // unrecorded; div/image children already report their own bounds.
+    let has_text_child = node
+        .children
+        .iter()
+        .any(|child_id| matches!(tree.nodes[child_id].data, NodeData::Text(_)));
+    let tracks_content = has_text_child
+        && !node
+            .style
+            .as_deref()
+            .is_some_and(|style| style.display == crate::style::DisplayValue::None);
+    let staged_content = (tracks_content && scroll_handle.is_none())
+        .then(|| Rc::new(Cell::new(None::<Point<Pixels>>)));
+    let painted_content = staged_content.clone();
+    let content_scroll_handle = scroll_handle.clone().filter(|_| tracks_content);
+    let record_bounds = move |bounds: Bounds<Pixels>, _: &mut Window, _: &mut App| {
+        runtime.record_bounds(generation, id, bounds);
+        let bottom_right = if let Some(handle) = &content_scroll_handle {
+            (0..handle.children_count())
+                .filter_map(|index| handle.bounds_for_item(index))
+                .map(|bounds| bounds.bottom_right())
+                .reduce(|a, b| a.max(&b))
+        } else {
+            painted_content.as_ref().and_then(|content| content.get())
+        };
+        if let Some(bottom_right) = bottom_right {
+            // Prepaint can be speculative. Publish only when the parent paints, and
+            // keep the extent relative and pre-scroll so later commands can move it.
+            runtime.record_content_extent(generation, id, bottom_right - bounds.origin);
+        }
+    };
+    let element = match &node.data {
+        NodeData::Root | NodeData::Container | NodeData::Input { .. } => {
+            let element = if matches!(node.data, NodeData::Root) {
+                root_container()
+            } else {
+                div()
+            };
+            let mut element = match node.style.as_deref() {
                 Some(style) => style.apply(element),
-                None => element,
+                None => element.block(),
             };
-            let element =
-                element.children(node.children.iter().map(|child_id| build(tree, *child_id)));
-            let interest = EventInterest::for_node(tree, node.window_id, id);
-            if interest.any() {
-                let element = element.id(ElementId::Integer(u64::from(id)));
-                let element = with_native_events!(element, interest, node.window_id, id);
+            element = if matches!(node.data, NodeData::Input { .. }) {
+                let input = runtime_state
+                    .input(id)
+                    .expect("native input runtime state must be initialized before rendering");
+                element.child(gpui_base::input::Input::new(&input))
+            } else {
+                element.children(node.children.iter().map(|child_id| {
+                    build_inner(tree, *child_id, runtime_state, generation, interest)
+                }))
+            };
+            if let Some(content) = staged_content {
+                element = element.on_children_prepainted(move |children, _, _| {
+                    content.set(
+                        children
+                            .into_iter()
+                            .map(|bounds| bounds.bottom_right())
+                            .reduce(|a, b| a.max(&b)),
+                    );
+                });
+            }
+            if interest.any()
+                || runtime_state.is_interactive(id)
+                || matches!(node.data, NodeData::Input { .. })
+            {
+                let element = with_native_events(
+                    element.id(ElementId::Integer(u64::from(id))),
+                    interest,
+                    node.window_id,
+                    id,
+                    runtime_state,
+                );
                 #[cfg(test)]
                 let element = element.debug_selector(move || format!("retend-node-{id}"));
                 element.into_any_element()
@@ -267,29 +447,7 @@ pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
                 element.into_any_element()
             }
         }
-        NodeData::Container => {
-            let element = match node.style.as_deref() {
-                Some(style) => style.apply(div()),
-                None => div().block(),
-            };
-            let element =
-                element.children(node.children.iter().map(|child_id| build(tree, *child_id)));
-            let interest = EventInterest::for_node(tree, node.window_id, id);
-            if interest.any() {
-                let element = element.id(ElementId::Integer(u64::from(id)));
-                let element = with_native_events!(element, interest, node.window_id, id);
-                #[cfg(test)]
-                let element = element.debug_selector(move || format!("retend-node-{id}"));
-                element.into_any_element()
-            } else {
-                #[cfg(test)]
-                let element = element.debug_selector(move || format!("retend-node-{id}"));
-                element.into_any_element()
-            }
-        }
-        NodeData::Text(text) => {
-            Text::new(ElementId::Integer(u64::from(id)), text.clone().into()).into_any_element()
-        }
+        NodeData::Text(_) => unreachable!("text leaves return before bounds tracking"),
         NodeData::Image { src, object_fit } => {
             let source = src.clone().map(ImageSource::from).unwrap_or_else(|| {
                 ImageSource::Custom(Arc::new(|_, _| {
@@ -304,11 +462,17 @@ pub fn build(tree: &NativeTree, id: NodeId) -> AnyElement {
             if let Some(object_fit) = object_fit {
                 image = image.object_fit(to_gpui_object_fit(*object_fit));
             }
-            let image = image.id(ElementId::Integer(u64::from(id)));
-            let interest = EventInterest::for_node(tree, node.window_id, id);
-            with_native_events!(image, interest, node.window_id, id).into_any_element()
+            let image = with_native_events(
+                image.id(ElementId::Integer(u64::from(id))),
+                interest,
+                node.window_id,
+                id,
+                runtime_state,
+            );
+            image.into_any_element()
         }
-    }
+    };
+    PaintObserver::new(element, record_bounds).into_any_element()
 }
 
 #[cfg(test)]
@@ -316,20 +480,69 @@ mod tests {
     use std::{
         cell::RefCell,
         rc::Rc,
-        sync::{Arc, Mutex},
+        sync::{mpsc, Arc, Mutex},
     };
 
     use gpui::{
         http_client::{AsyncBody, FakeHttpClient, Response},
-        px, Context, Render, TestAppContext, Window,
+        point, px, Context, Render, TestAppContext, Window,
     };
 
     use super::*;
     use crate::protocol::{Command, PropertyValue};
     use crate::protocol_generated::{ElementKind, PropertyId};
+    use crate::runtime_state::{
+        LayoutOperation, MeasureResponder, Measurement, ScrollOffset, ScrollResponder,
+    };
+    use crate::style::OverflowValue;
 
     const SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#;
     const AFTER_IMAGE: &str = "after-image";
+
+    fn test_inner(
+        tree: &NativeTree,
+        id: NodeId,
+        runtime: &RuntimeStateRegistry,
+        generation: u64,
+    ) -> AnyElement {
+        let window = tree.nodes[&id].window_id;
+        build_inner(
+            tree,
+            id,
+            runtime,
+            generation,
+            EventInterest::for_node(tree, window, id),
+        )
+    }
+
+    fn observed_inner(element: &mut AnyElement) -> &mut AnyElement {
+        &mut element
+            .downcast_mut::<PaintObserver>()
+            .expect("measured native elements must use the post-paint observer")
+            .inner
+    }
+
+    fn container(id: NodeId) -> Command {
+        Command::CreateNode {
+            id,
+            kind: ElementKind::Container,
+        }
+    }
+
+    fn insert(parent_id: NodeId, child_id: NodeId) -> Command {
+        Command::InsertChild {
+            parent_id,
+            child_id,
+            before_id: 0,
+        }
+    }
+
+    fn remove(parent_id: NodeId, child_id: NodeId) -> Command {
+        Command::RemoveChild {
+            parent_id,
+            child_id,
+        }
+    }
 
     #[test]
     fn container_styles_are_applied_to_gpui() {
@@ -338,10 +551,7 @@ mod tests {
         tree.apply_commands(
             window,
             vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
+                container(2),
                 Command::SetStyle {
                     id: 2,
                     properties: vec![
@@ -384,10 +594,12 @@ mod tests {
         )
         .unwrap();
 
-        let mut element = build(&tree, 2);
-        let actual = element
+        let runtime_state = RuntimeStateRegistry::default();
+        let generation = runtime_state.begin_frame(&tree, window);
+        let mut rendered = test_inner(&tree, 2, &runtime_state, generation);
+        let actual = observed_inner(&mut rendered)
             .downcast_mut::<gpui::Div>()
-            .expect("static native containers must remain plain GPUI Divs");
+            .expect("static native containers must keep a plain GPUI Div internally");
         let mut expected = div()
             .block()
             .p(px(12.0))
@@ -417,47 +629,29 @@ mod tests {
         tree.apply_commands(
             window,
             vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
-                Command::CreateNode {
-                    id: 3,
-                    kind: ElementKind::Container,
-                },
-                Command::CreateNode {
-                    id: 4,
-                    kind: ElementKind::Container,
-                },
+                container(2),
+                container(3),
+                container(4),
                 Command::SubscribeEvent {
                     id: 2,
                     event: NativeEventId::MouseEnter,
                 },
-                Command::InsertChild {
-                    parent_id: 1,
-                    child_id: 2,
-                    before_id: 0,
-                },
-                Command::InsertChild {
-                    parent_id: 2,
-                    child_id: 3,
-                    before_id: 0,
-                },
-                Command::InsertChild {
-                    parent_id: 1,
-                    child_id: 4,
-                    before_id: 0,
-                },
+                insert(1, 2),
+                insert(2, 3),
+                insert(1, 4),
             ],
         )
         .unwrap();
 
-        let mut descendant = build(&tree, 3);
-        descendant
+        let runtime_state = RuntimeStateRegistry::default();
+        let generation = runtime_state.begin_frame(&tree, window);
+        let mut descendant = test_inner(&tree, 3, &runtime_state, generation);
+        observed_inner(&mut descendant)
             .downcast_mut::<gpui::Stateful<gpui::Div>>()
             .expect("ancestor hover capture must make descendants interactive");
-        let mut unrelated = build(&tree, 4);
-        unrelated
+
+        let mut unrelated = test_inner(&tree, 4, &runtime_state, generation);
+        observed_inner(&mut unrelated)
             .downcast_mut::<gpui::Div>()
             .expect("uninterested branches must stay plain GPUI Divs");
     }
@@ -482,10 +676,12 @@ mod tests {
         )
         .unwrap();
 
-        let mut element = build(&tree, 2);
-        element
+        let runtime_state = RuntimeStateRegistry::default();
+        let generation = runtime_state.begin_frame(&tree, window);
+        let mut rendered = test_inner(&tree, 2, &runtime_state, generation);
+        observed_inner(&mut rendered)
             .downcast_mut::<gpui::Stateful<gpui::Img>>()
-            .expect("native images must render as stateful GPUI Img elements");
+            .expect("native images must keep a stateful GPUI Img internally");
         assert!(matches!(
             to_gpui_object_fit(ImageObjectFit::Cover),
             gpui::ObjectFit::Cover
@@ -505,21 +701,989 @@ mod tests {
         )
         .unwrap();
 
-        let mut element = build(&tree, 2);
-        let text = element
+        let runtime_state = RuntimeStateRegistry::default();
+        let generation = runtime_state.begin_frame(&tree, window);
+        let mut rendered = test_inner(&tree, 2, &runtime_state, generation);
+        let text = rendered
             .downcast_mut::<Text>()
             .expect("native text nodes must render as GPUI Text");
         assert_eq!(text.id(), Some(&ElementId::Integer(2)));
         assert_eq!(text.text().as_ref(), "hello");
     }
 
-    struct LayoutTestView {
+    struct QueryLayoutTestView {
         tree: Rc<RefCell<NativeTree>>,
+        runtime_state: RuntimeStateRegistry,
+        window_id: WindowId,
     }
 
-    impl Render for LayoutTestView {
+    impl Render for QueryLayoutTestView {
         fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-            div().size_full().child(build(&self.tree.borrow(), 1))
+            let tree = self.tree.borrow();
+            let generation = self.runtime_state.begin_frame(&tree, self.window_id);
+            for (&id, node) in tree
+                .nodes
+                .iter()
+                .filter(|(_, node)| node.window_id == self.window_id)
+            {
+                self.runtime_state.sync_scroll(
+                    id,
+                    node.style
+                        .as_deref()
+                        .map(|style| style.overflow)
+                        .unwrap_or_default(),
+                );
+            }
+            build_with_runtime(&tree, 1, &self.runtime_state, generation)
+        }
+    }
+
+    fn finish_test_frames(cx: &mut gpui::VisualTestContext) {
+        for _ in 0..10 {
+            cx.run_until_parked();
+            if cx.update(|window, cx| window.simulate_next_frame(cx)) == 0 {
+                return;
+            }
+        }
+        panic!("render completion kept requesting frames");
+    }
+
+    fn request_measure(
+        runtime_state: &RuntimeStateRegistry,
+        id: NodeId,
+    ) -> mpsc::Receiver<Result<Measurement, crate::BridgeFailure>> {
+        let (sender, receiver) = mpsc::channel();
+        runtime_state.enqueue_layout(LayoutOperation::Measure(
+            id,
+            MeasureResponder::new(move |result| {
+                sender
+                    .send(result)
+                    .expect("measure test receiver must remain alive");
+            }),
+        ));
+        receiver
+    }
+
+    fn request_scroll_offset(
+        runtime_state: &RuntimeStateRegistry,
+        id: NodeId,
+    ) -> mpsc::Receiver<Result<ScrollOffset, crate::BridgeFailure>> {
+        let (sender, receiver) = mpsc::channel();
+        runtime_state.enqueue_layout(LayoutOperation::ScrollOffset(
+            id,
+            OverflowValue::Scroll,
+            ScrollResponder::new(move |result| {
+                sender
+                    .send(result)
+                    .expect("scroll test receiver must remain alive");
+            }),
+        ));
+        receiver
+    }
+
+    fn scroll(runtime: &RuntimeStateRegistry, id: NodeId, y: f32, relative: bool) {
+        runtime.enqueue_layout(LayoutOperation::Scroll(
+            id,
+            OverflowValue::Scroll,
+            0.0,
+            y,
+            relative,
+        ));
+    }
+
+    fn request_scroll_into_view(runtime: &RuntimeStateRegistry, id: NodeId) {
+        runtime.enqueue_layout(LayoutOperation::ScrollIntoView(id));
+    }
+
+    #[gpui::test]
+    fn measure_queries_resolve_from_a_committed_generation_and_observe_later_writes(
+        cx: &mut TestAppContext,
+    ) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(300.0)),
+                            (PropertyId::Height, PropertyValue::Number(80.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let first = request_measure(&runtime_state, 2);
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        let first = first.try_recv().unwrap().unwrap();
+        assert_eq!(first.width, 100.0);
+        assert_eq!(first.height, 50.0);
+        assert_eq!(first.scroll_width, 300.0);
+        assert_eq!(first.scroll_height, 80.0);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(140.0)),
+                            (PropertyId::Height, PropertyValue::Number(60.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(240.0)),
+                            (PropertyId::Height, PropertyValue::Number(80.0)),
+                        ],
+                    },
+                ],
+            )
+            .unwrap();
+        let second = request_measure(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+
+        let second = second.try_recv().unwrap().unwrap();
+        assert_eq!(second.width, 140.0);
+        assert_eq!(second.height, 60.0);
+        assert_eq!(second.scroll_width, 240.0);
+        assert_eq!(second.scroll_height, 80.0);
+
+        tree.borrow_mut()
+            .apply_commands(window_id, vec![remove(1, 2)])
+            .unwrap();
+        let detached = request_measure(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+
+        assert_eq!(
+            detached.try_recv().unwrap().unwrap(),
+            Measurement::default()
+        );
+    }
+
+    #[gpui::test]
+    fn parent_content_extents_include_text_updates_and_overflow(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    Command::CreateText {
+                        id: 4,
+                        text: "a fairly long text value".into(),
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::AlignItems,
+                                PropertyValue::String("start".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(30.0)),
+                            (PropertyId::Height, PropertyValue::Number(6.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![(PropertyId::FlexShrink, PropertyValue::Number(0.0))],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(3, 4),
+                ],
+            )
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let initial = request_measure(&runtime_state, 2);
+        let inner = request_measure(&runtime_state, 3);
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+        let initial = initial.try_recv().unwrap().unwrap();
+        let inner = inner.try_recv().unwrap().unwrap();
+        assert_eq!((initial.width, initial.height), (30.0, 6.0));
+        assert!(initial.scroll_width > initial.width);
+        assert!(initial.scroll_height > initial.height);
+        assert!(inner.width > initial.width, "intrinsic text width survives");
+        assert_eq!(inner.scroll_width, inner.width);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::UpdateText {
+                    id: 4,
+                    text: "a much longer reactive text value".into(),
+                }],
+            )
+            .unwrap();
+        let updated = request_measure(&runtime_state, 2);
+        let updated_inner = request_measure(&runtime_state, 3);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let updated = updated.try_recv().unwrap().unwrap();
+        let updated_inner = updated_inner.try_recv().unwrap().unwrap();
+        assert!(updated.scroll_width > initial.scroll_width);
+        assert!(updated_inner.width > inner.width);
+        assert_eq!(updated.scroll_height, initial.scroll_height);
+
+        tree.borrow_mut()
+            .apply_commands(window_id, vec![remove(1, 2)])
+            .unwrap();
+        let detached = request_measure(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            detached.try_recv().unwrap().unwrap(),
+            Measurement::default()
+        );
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    insert(1, 2),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![(
+                            PropertyId::Display,
+                            PropertyValue::String("none".into()),
+                        )],
+                    },
+                ],
+            )
+            .unwrap();
+        let hidden = request_measure(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(hidden.try_recv().unwrap().unwrap(), Measurement::default());
+    }
+
+    #[gpui::test]
+    fn parent_content_extents_follow_scroll_query_barriers_and_ancestor_shifts(
+        cx: &mut TestAppContext,
+    ) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    Command::CreateText {
+                        id: 4,
+                        text: "a fairly long text value that wraps across several narrow lines"
+                            .into(),
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(20.0)),
+                            (PropertyId::Height, PropertyValue::Number(5.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(20.0)),
+                            (PropertyId::Height, PropertyValue::Number(5.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(3, 4),
+                ],
+            )
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let initial = request_measure(&runtime_state, 2);
+        let initial_scroll = request_measure(&runtime_state, 3);
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+        let initial = initial.try_recv().unwrap().unwrap();
+        let initial_scroll = initial_scroll.try_recv().unwrap().unwrap();
+        // Text clamps to the scroller width, so only height overflows.
+        assert_eq!(initial_scroll.scroll_width, 20.0);
+        assert!(initial_scroll.scroll_height > initial_scroll.height);
+        // The ancestor's measurement depends on the scroller's published extent;
+        // without it only the 20px scroller box would count.
+        assert_eq!(initial.scroll_width, 20.0);
+        assert_eq!(initial.scroll_height, initial_scroll.scroll_height);
+
+        let before = request_measure(&runtime_state, 2);
+        scroll(&runtime_state, 3, 12.0, false);
+        let first = request_measure(&runtime_state, 2);
+        scroll(&runtime_state, 3, 24.0, false);
+        let second = request_measure(&runtime_state, 2);
+        scroll(&runtime_state, 3, -12.0, true);
+        let restored = request_measure(&runtime_state, 2);
+        let scroller = request_measure(&runtime_state, 3);
+        let offset = request_scroll_offset(&runtime_state, 3);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(before.try_recv().unwrap().unwrap(), initial);
+        for (query, y) in [(first, 12.0), (second, 24.0), (restored, 12.0)] {
+            let measured = query.try_recv().unwrap().unwrap();
+            assert_eq!(measured.scroll_width, initial.scroll_width);
+            assert_eq!(measured.scroll_height, initial.scroll_height - y);
+            assert_eq!((measured.x, measured.y), (initial.x, initial.y));
+        }
+        assert_eq!(scroller.try_recv().unwrap().unwrap(), initial_scroll);
+        assert_eq!(
+            offset.try_recv().unwrap().unwrap(),
+            ScrollOffset { x: 0.0, y: 12.0 }
+        );
+
+        // Repaint while already scrolled: the stored extent must still be pre-scroll.
+        let repainted = request_measure(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let repainted = repainted.try_recv().unwrap().unwrap();
+        assert_eq!(repainted.scroll_width, initial.scroll_width);
+        assert_eq!(repainted.scroll_height, initial.scroll_height - 12.0);
+
+        scroll(&runtime_state, 3, 0.0, false);
+        let reset = request_measure(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(reset.try_recv().unwrap().unwrap(), initial);
+    }
+
+    #[gpui::test]
+    fn scroll_handles_preserve_offsets_for_scroll_container_states_and_reset_when_released(
+        cx: &mut TestAppContext,
+    ) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(200.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let first = request_scroll_offset(&runtime_state, 2);
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+        assert_eq!(first.try_recv().unwrap().unwrap(), ScrollOffset::default());
+
+        scroll(&runtime_state, 2, 60.0, false);
+        let scrolled = request_scroll_offset(&runtime_state, 2);
+        let measured = request_measure(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            scrolled.try_recv().unwrap().unwrap(),
+            ScrollOffset { x: 0.0, y: 60.0 }
+        );
+        let measured = measured.try_recv().unwrap().unwrap();
+        assert_eq!(measured.scroll_height, 200.0);
+
+        for overflow in ["hidden", "auto", "scroll"] {
+            tree.borrow_mut()
+                .apply_commands(
+                    window_id,
+                    vec![Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String(overflow.into())),
+                        ],
+                    }],
+                )
+                .unwrap();
+            let offset = request_scroll_offset(&runtime_state, 2);
+            view.update(cx, |_, cx| cx.notify());
+            finish_test_frames(cx);
+            assert_eq!(offset.try_recv().unwrap().unwrap().y, 60.0);
+        }
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(50.0)),
+                        (
+                            PropertyId::Overflow,
+                            PropertyValue::String("visible".into()),
+                        ),
+                    ],
+                }],
+            )
+            .unwrap();
+        let released = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            released.try_recv().unwrap().unwrap(),
+            ScrollOffset::default()
+        );
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(50.0)),
+                        (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                    ],
+                }],
+            )
+            .unwrap();
+        let recreated = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            recreated.try_recv().unwrap().unwrap(),
+            ScrollOffset::default()
+        );
+
+        scroll(&runtime_state, 2, 30.0, false);
+        tree.borrow_mut()
+            .apply_commands(window_id, vec![remove(1, 2)])
+            .unwrap();
+        let detached = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(detached.try_recv().unwrap().unwrap().y, 30.0);
+
+        tree.borrow_mut()
+            .apply_commands(window_id, vec![insert(1, 2)])
+            .unwrap();
+        let reattached = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(reattached.try_recv().unwrap().unwrap().y, 30.0);
+    }
+
+    #[gpui::test]
+    fn scroll_into_view_waits_for_layout_and_orders_later_queries_after_the_scroll(
+        cx: &mut TestAppContext,
+    ) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    container(4),
+                    container(5),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String("auto".into())),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(200.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(140.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 5,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(3, 4),
+                    insert(3, 5),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        request_scroll_into_view(&runtime_state, 5);
+        let offset = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+
+        assert_eq!(
+            offset
+                .try_recv()
+                .expect("scrollIntoView query must resolve before GPUI parks")
+                .unwrap(),
+            ScrollOffset { x: 0.0, y: 110.0 }
+        );
+    }
+
+    #[gpui::test]
+    fn ordered_scroll_commands_refresh_reveal_bounds_and_clamp_relative_offsets(
+        cx: &mut TestAppContext,
+    ) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    container(4),
+                    container(5),
+                    container(6),
+                    container(7),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String("auto".into())),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(240.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(100.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 5,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 6,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(100.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 7,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(3, 4),
+                    insert(3, 5),
+                    insert(3, 6),
+                    insert(3, 7),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        let offset_after = |runtime_state: &RuntimeStateRegistry,
+                            view: &gpui::Entity<QueryLayoutTestView>,
+                            cx: &mut gpui::VisualTestContext| {
+            let offset = request_scroll_offset(runtime_state, 2);
+            view.update(cx, |_, cx| cx.notify());
+            finish_test_frames(cx);
+            offset
+                .try_recv()
+                .expect("ordered scroll query must resolve before GPUI parks")
+                .unwrap()
+        };
+
+        request_scroll_into_view(&runtime_state, 7);
+        scroll(&runtime_state, 2, 10.0, false);
+        assert_eq!(offset_after(&runtime_state, &view, cx).y, 10.0);
+
+        scroll(&runtime_state, 2, 0.0, false);
+        request_scroll_into_view(&runtime_state, 7);
+        assert_eq!(offset_after(&runtime_state, &view, cx).y, 190.0);
+
+        request_scroll_into_view(&runtime_state, 7);
+        request_scroll_into_view(&runtime_state, 5);
+        assert_eq!(offset_after(&runtime_state, &view, cx).y, 100.0);
+
+        scroll(&runtime_state, 2, 1_000.0, false);
+        scroll(&runtime_state, 2, -10.0, true);
+        assert_eq!(offset_after(&runtime_state, &view, cx).y, 180.0);
+
+        scroll(&runtime_state, 2, 20.0, false);
+        let ordered_read = request_scroll_offset(&runtime_state, 2);
+        scroll(&runtime_state, 2, 40.0, false);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            ordered_read
+                .try_recv()
+                .expect("query must resolve before a later scroll command")
+                .unwrap()
+                .y,
+            20.0
+        );
+        assert_eq!(offset_after(&runtime_state, &view, cx).y, 40.0);
+
+        scroll(&runtime_state, 2, 50.0, false);
+        let measured = request_measure(&runtime_state, 5);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            measured
+                .try_recv()
+                .expect("measure after scroll must resolve from the next layout generation")
+                .unwrap()
+                .y,
+            50.0
+        );
+    }
+
+    #[gpui::test]
+    fn auto_sized_root_retains_viewport_geometry(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::SetStyle {
+                        id: 1,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::String("auto".into())),
+                            (PropertyId::Height, PropertyValue::String("auto".into())),
+                        ],
+                    },
+                    container(2),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![(PropertyId::Height, PropertyValue::Number(25.0))],
+                    },
+                    insert(1, 2),
+                ],
+            )
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let measured = request_measure(&runtime_state, 1);
+        let (_, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        let viewport = cx.update(|window, _| window.viewport_size());
+        assert!(viewport.height > px(25.0));
+        // A nested auto-height Div would shrink to the child instead of the viewport.
+        let root = cx.debug_bounds("retend-node-1").unwrap();
+        assert_eq!(root.origin, point(px(0.0), px(0.0)));
+        assert_eq!(root.size, viewport);
+        let measured = measured.try_recv().unwrap().unwrap();
+        assert_eq!((measured.x, measured.y), (0.0, 0.0));
+        assert_eq!(measured.width, f64::from(f32::from(viewport.width)));
+        assert_eq!(measured.height, f64::from(f32::from(viewport.height)));
+    }
+
+    #[gpui::test]
+    fn root_paint_completes_children_and_skipped_queries_without_an_extra_frame(
+        cx: &mut TestAppContext,
+    ) {
+        struct View {
+            tree: Rc<RefCell<NativeTree>>,
+            runtime: RuntimeStateRegistry,
+            window_id: WindowId,
+            renders: Rc<std::cell::Cell<usize>>,
+        }
+        impl Render for View {
+            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+                self.renders.set(self.renders.get() + 1);
+                let tree = self.tree.borrow();
+                let generation = self.runtime.begin_frame(&tree, self.window_id);
+                build_with_runtime(&tree, 1, &self.runtime, generation)
+            }
+        }
+
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    Command::CreateText {
+                        id: 3,
+                        text: "rendered child".into(),
+                    },
+                    container(4),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(123.0)),
+                            (PropertyId::Height, PropertyValue::Number(45.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![(
+                            PropertyId::Display,
+                            PropertyValue::String("none".into()),
+                        )],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(1, 4),
+                ],
+            )
+            .unwrap();
+        let runtime = RuntimeStateRegistry::default();
+        let child = request_measure(&runtime, 2);
+
+        let skipped = request_measure(&runtime, 4);
+        let renders = Rc::new(std::cell::Cell::new(0));
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime = runtime.clone();
+            let renders = renders.clone();
+            move |_, _| View {
+                tree,
+                runtime,
+                window_id,
+                renders,
+            }
+        });
+        cx.run_until_parked();
+        let child = child.try_recv().unwrap().unwrap();
+        assert_eq!((child.width, child.height), (123.0, 45.0));
+        assert_eq!(skipped.try_recv().unwrap().unwrap(), Measurement::default());
+        assert_eq!(
+            cx.update(|window, cx| window.simulate_next_frame(cx)),
+            0,
+            "completion must not request another frame"
+        );
+        assert_eq!(renders.get(), 1, "query completion must not refresh");
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: 1,
+                    properties: vec![(PropertyId::Display, PropertyValue::String("none".into()))],
+                }],
+            )
+            .unwrap();
+        let root = request_measure(&runtime, 1);
+        let child = request_measure(&runtime, 2);
+        view.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+        assert_eq!(root.try_recv().unwrap().unwrap(), Measurement::default());
+        assert_eq!(child.try_recv().unwrap().unwrap(), Measurement::default());
+        assert_eq!(
+            cx.update(|window, cx| window.simulate_next_frame(cx)),
+            0,
+            "hidden-root completion must not request another frame"
+        );
+        assert_eq!(renders.get(), 2);
+    }
+
+    #[gpui::test]
+    fn overflow_does_not_paint_extra_retend_quads(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(200.0)),
+                            (
+                                PropertyId::BackgroundColor,
+                                PropertyValue::String("#ff0000".into()),
+                            ),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                ],
+            )
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        for (overflow, display) in [
+            ("auto", "block"),
+            ("scroll", "block"),
+            ("hidden", "block"),
+            ("clip", "block"),
+            ("auto", "none"),
+            ("scroll", "none"),
+        ] {
+            tree.borrow_mut()
+                .apply_commands(
+                    window_id,
+                    vec![Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String(overflow.into())),
+                            (PropertyId::Display, PropertyValue::String(display.into())),
+                        ],
+                    }],
+                )
+                .unwrap();
+            view.update(cx, |_, cx| cx.notify());
+            finish_test_frames(cx);
+            let quads = cx.update(|window, _| window.painted_quads());
+            let content = quads
+                .iter()
+                .find(|quad| quad.background == gpui::rgb(0xff0000).into());
+            assert_eq!(content.is_some(), display != "none");
+            assert_eq!(
+                quads.len(),
+                if display == "none" { 1 } else { 2 },
+                "{overflow} / {display} must paint only the root and visible content"
+            );
         }
     }
 
@@ -531,35 +1695,27 @@ mod tests {
             .apply_commands(
                 window,
                 vec![
-                    Command::CreateNode {
-                        id: 2,
-                        kind: ElementKind::Container,
-                    },
-                    Command::CreateNode {
-                        id: 3,
-                        kind: ElementKind::Container,
-                    },
+                    container(2),
+                    container(3),
                     Command::SetStyle {
                         id: 2,
                         properties: vec![(PropertyId::Width, PropertyValue::Number(420.0))],
                     },
-                    Command::InsertChild {
-                        parent_id: 1,
-                        child_id: 2,
-                        before_id: 0,
-                    },
-                    Command::InsertChild {
-                        parent_id: 2,
-                        child_id: 3,
-                        before_id: 0,
-                    },
+                    insert(1, 2),
+                    insert(2, 3),
                 ],
             )
             .unwrap();
 
+        let runtime_state = RuntimeStateRegistry::default();
         let (view, cx) = cx.add_window_view({
             let tree = tree.clone();
-            move |_, _| LayoutTestView { tree }
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id: window,
+            }
         });
         cx.run_until_parked();
 
@@ -594,18 +1750,12 @@ mod tests {
             .apply_commands(
                 window,
                 vec![
-                    Command::CreateNode {
-                        id: 2,
-                        kind: ElementKind::Container,
-                    },
+                    container(2),
                     Command::CreateText {
                         id: 3,
                         text: "short".into(),
                     },
-                    Command::CreateNode {
-                        id: 4,
-                        kind: ElementKind::Container,
-                    },
+                    container(4),
                     Command::SetStyle {
                         id: 2,
                         properties: vec![
@@ -620,28 +1770,22 @@ mod tests {
                             (PropertyId::Height, PropertyValue::Number(1.0)),
                         ],
                     },
-                    Command::InsertChild {
-                        parent_id: 1,
-                        child_id: 2,
-                        before_id: 0,
-                    },
-                    Command::InsertChild {
-                        parent_id: 2,
-                        child_id: 3,
-                        before_id: 0,
-                    },
-                    Command::InsertChild {
-                        parent_id: 2,
-                        child_id: 4,
-                        before_id: 0,
-                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(2, 4),
                 ],
             )
             .unwrap();
 
+        let runtime_state = RuntimeStateRegistry::default();
         let (view, cx) = cx.add_window_view({
             let tree = tree.clone();
-            move |_, _| LayoutTestView { tree }
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id: window,
+            }
         });
         cx.run_until_parked();
 
@@ -671,20 +1815,58 @@ mod tests {
 
         let marker_after = cx.debug_bounds("retend-node-4").unwrap();
         assert!(marker_after.origin.x > marker_before.origin.x);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![Command::UpdateText {
+                    id: 3,
+                    text: "a longer reactive text value".into(),
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+
+        let marker_updated = cx.debug_bounds("retend-node-4").unwrap();
+        assert!(marker_updated.origin.x > marker_after.origin.x);
+        assert!(marker_updated.origin.x < parent.origin.x + parent.size.width);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![Command::UpdateText {
+                    id: 3,
+                    text: "short".into(),
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+
+        let marker_restored = cx.debug_bounds("retend-node-4").unwrap();
+        assert_eq!(marker_restored.origin.x, marker_after.origin.x);
     }
 
     struct ImageTestView {
         tree: Rc<RefCell<NativeTree>>,
+        runtime_state: RuntimeStateRegistry,
+        window_id: WindowId,
     }
 
     impl Render for ImageTestView {
         fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-            div().flex().child(build(&self.tree.borrow(), 2)).child(
-                div()
-                    .w(px(1.0))
-                    .h(px(1.0))
-                    .debug_selector(|| AFTER_IMAGE.into()),
-            )
+            let tree = self.tree.borrow();
+            let generation = self.runtime_state.begin_frame(&tree, self.window_id);
+            div()
+                .flex()
+                .child(test_inner(&tree, 2, &self.runtime_state, generation))
+                .child(
+                    div()
+                        .w(px(1.0))
+                        .h(px(1.0))
+                        .debug_selector(|| AFTER_IMAGE.into()),
+                )
         }
     }
 
@@ -738,9 +1920,15 @@ mod tests {
             )
             .unwrap();
 
+        let runtime_state = RuntimeStateRegistry::default();
         let (view, cx) = cx.add_window_view({
             let tree = tree.clone();
-            move |_, _| ImageTestView { tree }
+            let runtime_state = runtime_state.clone();
+            move |_, _| ImageTestView {
+                tree,
+                runtime_state,
+                window_id: window,
+            }
         });
         cx.run_until_parked();
         assert!(requests.lock().unwrap().iter().any(|uri| uri == FIRST));

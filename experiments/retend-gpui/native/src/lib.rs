@@ -5,16 +5,19 @@ mod platform;
 mod protocol;
 mod protocol_generated;
 mod render;
+mod runtime_state;
 mod style;
 mod tree;
 
 use std::sync::{Mutex, OnceLock};
 
-use napi::bindgen_prelude::{Buffer, Function};
-use napi::{Error, Result, Status};
+use napi::bindgen_prelude::{Buffer, Function, Object, ToNapiValue};
+use napi::{Env, Error, Result, Status};
 use napi_derive::napi;
 
+use platform::{InputOperation, WindowOperation};
 use protocol::decode_command_batch;
+use runtime_state::{LayoutOperation, QueryResponder};
 use tree::{NativeTree, WindowId};
 
 #[derive(Debug, serde::Serialize)]
@@ -44,8 +47,12 @@ impl BridgeFailure {
         }
     }
 
-    fn binding(code: &'static str, message: impl Into<String>) -> Self {
-        Self::new(code, message)
+    fn closed_window() -> Self {
+        Self::new("CLOSED_WINDOW", "Renderer window has already closed.")
+    }
+
+    fn destroyed_node(id: u32) -> Self {
+        Self::new("DESTROYED_NODE", format!("Node ID {id} no longer exists."))
     }
 
     fn wire(code: &'static str, message: impl Into<String>, offset: Option<usize>) -> Self {
@@ -83,17 +90,96 @@ fn with_runtime<T>(
     action(&mut *lock_runtime()?).map_err(bridge_error)
 }
 
+fn scroll_coordinate(value: f64) -> Result<f32> {
+    if !value.is_finite() || value.abs() > f64::from(f32::MAX) {
+        return Err(bridge_error(BridgeFailure::new(
+            "INVALID_SCROLL_OFFSET",
+            "Scroll coordinates must be finite values within GPUI limits.",
+        )));
+    }
+    Ok(value as f32)
+}
+
 #[napi(object)]
 #[derive(Clone, Default)]
 pub struct NativeWindowOptions {
     pub title: Option<String>,
     pub width: Option<f64>,
     pub height: Option<f64>,
+    pub resizable: Option<bool>,
+    pub fullscreen: Option<bool>,
+    pub maximized: Option<bool>,
+    pub min_width: Option<f64>,
+    pub min_height: Option<f64>,
+    pub max_width: Option<f64>,
+    pub max_height: Option<f64>,
+}
+
+#[napi(object)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct NativeMeasurement {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub scroll_width: f64,
+    pub scroll_height: f64,
+}
+
+#[napi(object)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct NativeScrollOffset {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[napi(object)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct NativeSelection {
+    pub start: u32,
+    pub end: u32,
 }
 
 #[napi]
 pub struct NativeRendererBinding {
     window_id: WindowId,
+    headless: bool,
+}
+
+impl NativeRendererBinding {
+    fn dispatch(&self, operation: WindowOperation) -> bool {
+        platform::dispatch(self.window_id, operation)
+    }
+
+    fn query<'env, T: Clone + Default + Send + ToNapiValue + 'static>(
+        &self,
+        env: &'env Env,
+        submit: impl FnOnce(QueryResponder<T>) -> bool,
+    ) -> Result<Object<'env>> {
+        let (deferred, promise) = env.create_deferred()?;
+        let responder = QueryResponder::new(move |result| match result {
+            Ok(value) => deferred.resolve(move |_| Ok(value)),
+            Err(failure) => deferred.reject(bridge_error(failure)),
+        });
+        if self.headless {
+            responder.respond(Ok(T::default()));
+        } else if !submit(responder.clone()) {
+            responder.respond(Err(BridgeFailure::closed_window()));
+        }
+        Ok(promise)
+    }
+
+    fn scroll_node(&self, id: u32, x: f64, y: f64, relative: bool) -> Result<()> {
+        let overflow = with_runtime(|tree| tree.node_overflow(self.window_id, id))?;
+        if !overflow.is_scroll_container() || self.headless {
+            return Ok(());
+        }
+        let (x, y) = (scroll_coordinate(x)?, scroll_coordinate(y)?);
+        self.dispatch(WindowOperation::Layout(LayoutOperation::Scroll(
+            id, overflow, x, y, relative,
+        )));
+        Ok(())
+    }
 }
 
 #[napi]
@@ -103,7 +189,7 @@ impl NativeRendererBinding {
         root_id: u32,
         headless: bool,
         options: Option<NativeWindowOptions>,
-        on_event: Option<Function<'_, events::NativeEventPayload, ()>>,
+        on_event: Option<Function<'_, events::NativeTransportPayload, ()>>,
     ) -> Result<Self> {
         let window_id = with_runtime(|tree| tree.create_window(root_id))?;
         if let Some(callback) = on_event {
@@ -119,7 +205,10 @@ impl NativeRendererBinding {
                 return Err(Error::new(Status::GenericFailure, error));
             }
         }
-        Ok(Self { window_id })
+        Ok(Self {
+            window_id,
+            headless,
+        })
     }
 
     #[napi(getter)]
@@ -144,13 +233,101 @@ impl NativeRendererBinding {
 
     #[napi]
     pub fn settle(&self) -> Result<()> {
-        with_runtime(|tree| tree.settle(self.window_id))?;
+        let destroyed = with_runtime(|tree| tree.settle(self.window_id))?;
+        if !destroyed.is_empty() {
+            self.dispatch(WindowOperation::DestroyRuntimeNodes(destroyed));
+        }
         Ok(())
     }
 
     #[napi]
-    pub fn take_reload_requested(&self) -> Result<bool> {
-        with_runtime(|tree| tree.take_reload_requested(self.window_id))
+    pub fn focus_node(&self, id: u32) -> Result<()> {
+        if let Some((tab_index, input)) =
+            with_runtime(|tree| tree.node_focus_target(self.window_id, id))?
+        {
+            self.dispatch(WindowOperation::Focus(id, tab_index, input));
+        }
+        Ok(())
+    }
+
+    #[napi]
+    pub fn blur_node(&self, id: u32) -> Result<()> {
+        with_runtime(|tree| tree.validate_node(self.window_id, id))?;
+        self.dispatch(WindowOperation::Blur(id));
+        Ok(())
+    }
+
+    #[napi]
+    pub fn set_selection_range_node(&self, id: u32, start: u32, end: u32) -> Result<()> {
+        let input = with_runtime(|tree| tree.input_snapshot(self.window_id, id))?;
+        if !self.headless {
+            self.dispatch(WindowOperation::Input(
+                id,
+                input,
+                InputOperation::SetSelection(start, end),
+            ));
+        }
+        Ok(())
+    }
+
+    #[napi]
+    pub fn select_node(&self, id: u32) -> Result<()> {
+        let input = with_runtime(|tree| tree.input_snapshot(self.window_id, id))?;
+        if !self.headless {
+            self.dispatch(WindowOperation::Input(id, input, InputOperation::Select));
+        }
+        Ok(())
+    }
+
+    #[napi]
+    pub fn get_selection_node<'env>(&self, env: &'env Env, id: u32) -> Result<Object<'env>> {
+        let input = with_runtime(|tree| tree.input_snapshot(self.window_id, id))?;
+        self.query(env, |responder| {
+            self.dispatch(WindowOperation::Input(
+                id,
+                input,
+                InputOperation::GetSelection(responder),
+            ))
+        })
+    }
+
+    #[napi]
+    pub fn scroll_to_node(&self, id: u32, x: f64, y: f64) -> Result<()> {
+        self.scroll_node(id, x, y, false)
+    }
+
+    #[napi]
+    pub fn scroll_by_node(&self, id: u32, x: f64, y: f64) -> Result<()> {
+        self.scroll_node(id, x, y, true)
+    }
+
+    #[napi]
+    pub fn scroll_into_view_node(&self, id: u32) -> Result<()> {
+        with_runtime(|tree| tree.validate_node(self.window_id, id))?;
+        if !self.headless {
+            self.dispatch(WindowOperation::Layout(LayoutOperation::ScrollIntoView(id)));
+        }
+        Ok(())
+    }
+
+    #[napi]
+    pub fn get_scroll_offset_node<'env>(&self, env: &'env Env, id: u32) -> Result<Object<'env>> {
+        let overflow = with_runtime(|tree| tree.node_overflow(self.window_id, id))?;
+        self.query(env, |responder| {
+            self.dispatch(WindowOperation::Layout(LayoutOperation::ScrollOffset(
+                id, overflow, responder,
+            )))
+        })
+    }
+
+    #[napi]
+    pub fn measure_node<'env>(&self, env: &'env Env, id: u32) -> Result<Object<'env>> {
+        with_runtime(|tree| tree.validate_node(self.window_id, id))?;
+        self.query(env, |responder| {
+            self.dispatch(WindowOperation::Layout(LayoutOperation::Measure(
+                id, responder,
+            )))
+        })
     }
 
     #[napi]
@@ -162,13 +339,10 @@ impl NativeRendererBinding {
 
     #[napi]
     pub fn set_window_title(&self, title: String) -> Result<()> {
-        if self.is_closed()? {
-            return Err(bridge_error(BridgeFailure::binding(
-                "CLOSED_WINDOW",
-                "Renderer window has already closed.",
-            )));
+        if !lock_runtime()?.windows.contains_key(&self.window_id) {
+            return Err(bridge_error(BridgeFailure::closed_window()));
         }
-        platform::set_window_title(self.window_id, title);
+        self.dispatch(WindowOperation::SetTitle(title));
         Ok(())
     }
 
@@ -178,12 +352,6 @@ impl NativeRendererBinding {
         events::unregister(self.window_id);
         lock_runtime()?.close_window(self.window_id);
         Ok(())
-    }
-
-    #[napi]
-    pub fn is_closed(&self) -> Result<bool> {
-        let tree = lock_runtime()?;
-        Ok(!tree.windows.contains_key(&self.window_id))
     }
 
     #[napi]

@@ -31,6 +31,15 @@ const packageDir = path.join(nativeRoot, 'npm', targetKey);
 const packageDestination = path.join(packageDir, targetName);
 fs.mkdirSync(packageDir, { recursive: true });
 fs.copyFileSync(source, packageDestination);
+if (process.platform === 'darwin') {
+  const signed = spawnSync('codesign', [
+    '--force',
+    '--sign',
+    '-',
+    packageDestination,
+  ]);
+  if (signed.status !== 0) process.exit(signed.status ?? 1);
+}
 const manifest = {
   name: `@retend-gpui/native-${targetKey}`,
   version: '0.0.0',

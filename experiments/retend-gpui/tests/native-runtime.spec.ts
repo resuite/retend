@@ -1,69 +1,54 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { NativeRendererBinding } from '../source/native/addon';
-
-vi.mock('../source/native/addon', () => ({
-  loadNativeAddon: () => ({ tick: () => true }),
+const native = vi.hoisted(() => ({
+  tick: vi.fn(() => true),
 }));
 
-import {
-  acquireNativeRuntime,
-  releaseNativeRuntime,
-} from '../source/native/runtime';
+vi.mock('../source/native/addon', () => ({
+  loadNativeAddon: () => ({ tick: native.tick }),
+}));
 
-function fakeBinding(
-  isClosed: () => boolean,
-  takeReloadRequested: () => boolean
-): NativeRendererBinding {
-  return {
-    windowId: 1,
-    applyCommandBatch() {},
-    settle() {},
-    takeReloadRequested,
-    reportFatal() {},
-    setWindowTitle() {},
-    close() {},
-    isClosed,
-    isNodePresented: () => true,
-    debugTreeJson: () => '{}',
-  };
-}
+import { nativeRuntime } from '../source/native/runtime';
 
 afterEach(() => {
   vi.useRealTimers();
+  native.tick.mockReset();
+  native.tick.mockReturnValue(true);
 });
 
-describe('native runtime lifecycle', () => {
-  it('delivers reload requests and reports native close exactly once', async () => {
-    vi.useFakeTimers();
-    let closed = false;
-    let reloadRequested = false;
-    const binding = fakeBinding(
-      () => closed,
-      () => {
-        const requested = reloadRequested;
-        reloadRequested = false;
-        return requested;
-      }
-    );
-    const onClose = vi.fn();
-    const onReload = vi.fn();
-    acquireNativeRuntime(binding, onClose, onReload);
+describe('NativeRuntime', () => {
+  it.runIf(process.platform === 'darwin')(
+    'keeps pumping until the last acquired native window is released',
+    () => {
+      vi.useFakeTimers();
+      nativeRuntime.acquire();
+      nativeRuntime.acquire();
 
-    reloadRequested = true;
-    await vi.advanceTimersByTimeAsync(300);
-    expect(onReload).toHaveBeenCalledOnce();
-    expect(onClose).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(8);
+      expect(native.tick).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(300);
-    expect(onReload).toHaveBeenCalledOnce();
+      nativeRuntime.release();
+      vi.advanceTimersByTime(8);
+      expect(native.tick).toHaveBeenCalledTimes(2);
 
-    closed = true;
-    await vi.advanceTimersByTimeAsync(300);
-    expect(onClose).toHaveBeenCalledOnce();
+      nativeRuntime.release();
+      nativeRuntime.release();
+      vi.advanceTimersByTime(80);
+      expect(native.tick).toHaveBeenCalledTimes(2);
+    }
+  );
 
-    await vi.advanceTimersByTimeAsync(300);
-    expect(onClose).toHaveBeenCalledOnce();
-    releaseNativeRuntime(binding);
-  });
+  it.runIf(process.platform === 'darwin')(
+    'stops pumping when the native application terminates',
+    () => {
+      vi.useFakeTimers();
+      native.tick.mockReturnValue(false);
+      nativeRuntime.acquire();
+
+      vi.advanceTimersByTime(8);
+      expect(native.tick).toHaveBeenCalledOnce();
+      vi.advanceTimersByTime(80);
+      expect(native.tick).toHaveBeenCalledOnce();
+    }
+  );
 });

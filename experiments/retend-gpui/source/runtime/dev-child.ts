@@ -1,9 +1,4 @@
-import {
-  Cell,
-  runPendingSetupEffects,
-  setActiveRenderer,
-  type __HMR_UpdatableFn,
-} from 'retend';
+import { type __HMR_UpdatableFn } from 'retend';
 import { setGlobalContext } from 'retend/context';
 import {
   ESModulesEvaluator,
@@ -12,12 +7,17 @@ import {
   type ModuleRunnerTransportHandlers,
 } from 'vite/module-runner';
 
-import { setAppContext, type GpuiApplication } from '../application.js';
+import {
+  clearAppContext,
+  setAppContext,
+  type GpuiApplication,
+} from '../application.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
 import { NativeRendererFatalError } from '../native/addon.js';
 import {
-  createRuntimeWindow,
+  RuntimeGpuiWindow,
   WindowScope,
+  type GpuiWindowHandle,
   type GpuiWindowOptions,
 } from '../window.js';
 import {
@@ -28,23 +28,9 @@ import {
   type GpuiControlMessage,
 } from './protocol.js';
 
-interface ApplicationModule {
-  default?: new () => GpuiApplication<object>;
-}
-
-interface EntryModule {
-  default?: unknown;
-}
-
 interface HotPayload {
   type?: string;
   err?: unknown;
-}
-
-interface WindowRecord {
-  id: string;
-  renderer: RetendGpuiRenderer;
-  window: ReturnType<typeof createRuntimeWindow>;
 }
 
 function sendControl(message: GpuiControlMessage): void {
@@ -54,14 +40,9 @@ function sendControl(message: GpuiControlMessage): void {
   process.send(message);
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
   const globalData = new Map<PropertyKey, unknown>();
-  const windows = new Map<string, WindowRecord>();
-  let nextWindowId = 1;
+  const windows = new Set<RuntimeGpuiWindow>();
   let runner: ModuleRunner | null = null;
   let application: GpuiApplication<object> | null = null;
   let shutdownPromise: Promise<void> | null = null;
@@ -69,14 +50,10 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
   process.title = message.appName;
   setGlobalContext({ globalData });
 
-  const closeWindow = (id: string): void => {
-    const record = windows.get(id);
-    if (!record) return;
-
-    windows.delete(id);
-    record.window.dispose();
-    record.renderer.dispose();
-
+  const closeWindow = (window: RuntimeGpuiWindow): void => {
+    if (!windows.delete(window)) return;
+    window.dispose();
+    window.renderer.dispose();
     if (windows.size === 0 && !shutdownPromise) void shutdown();
   };
 
@@ -89,7 +66,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     } catch (error) {
       console.error('[retend-gpui] application cleanup failed:', error);
     } finally {
-      setAppContext({});
+      clearAppContext();
     }
   };
 
@@ -99,7 +76,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       process.off('disconnect', onDisconnect);
       await cleanupApplication();
 
-      for (const id of windows.keys()) closeWindow(id);
+      for (const window of windows) closeWindow(window);
 
       try {
         await runner?.close();
@@ -112,21 +89,23 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     return shutdownPromise;
   };
 
-  const loadApplication = async (): Promise<void> => {
-    const activeRunner = runner;
-    if (!activeRunner)
-      throw new Error('The GPUI module runner is unavailable.');
-
-    const applicationModule = await activeRunner.import<ApplicationModule>(
-      message.application
-    );
-    const Application = applicationModule.default;
-    if (typeof Application !== 'function') {
-      throw new TypeError(
-        `The Retend GPUI application module must default-export an application class: ${message.application}`
-      );
+  async function loadDefault<T extends Function>(
+    path: string,
+    description: string
+  ): Promise<T> {
+    if (!runner) throw new Error('The GPUI module runner is unavailable.');
+    const module = await runner.import<Record<string, unknown>>(path);
+    if (typeof module.default !== 'function') {
+      throw new TypeError(`The Retend GPUI ${description}: ${path}`);
     }
+    return module.default as T;
+  }
 
+  const loadApplication = async (): Promise<void> => {
+    const Application = await loadDefault<new () => GpuiApplication<object>>(
+      message.application,
+      'application module must default-export an application class'
+    );
     const instance = new Application();
     const initialContext = instance.context;
     if (
@@ -147,167 +126,152 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     setAppContext(initialContext);
   };
 
-  const entryTask = Cell.task(async (_input: void) => {
-    const activeRunner = runner;
-    if (!activeRunner)
-      throw new Error('The GPUI module runner is unavailable.');
-
-    const entryModule = await activeRunner.import<EntryModule>(message.entry);
-    if (typeof entryModule.default !== 'function') {
-      throw new TypeError(
-        `The Retend GPUI entry module must default-export a component function: ${message.entry}`
-      );
-    }
-    return entryModule.default as __HMR_UpdatableFn;
-  });
+  let entry: Promise<__HMR_UpdatableFn> | undefined;
+  let entryFailed = false;
+  const loadEntry = (reload = false): Promise<__HMR_UpdatableFn> => {
+    if (!reload && entry) return entry;
+    entryFailed = false;
+    const pending = loadDefault<__HMR_UpdatableFn>(
+      message.entry,
+      'entry module must default-export a component function'
+    );
+    entry = pending;
+    void pending.catch(() => {
+      if (entry === pending) entryFailed = true;
+    });
+    return pending;
+  };
 
   const showDevelopmentError = (
     error: unknown,
-    records: Iterable<WindowRecord> = windows.values()
+    targets: Iterable<RuntimeGpuiWindow> = windows
   ): void => {
-    for (const record of records) {
+    for (const window of targets) {
       try {
-        record.renderer.showDevelopmentError(error);
+        window.renderer.showDevelopmentError(error);
       } catch (cause) {
         if (!(cause instanceof NativeRendererFatalError)) throw cause;
       }
     }
   };
 
-  const clearDevelopmentErrors = (): void => {
-    for (const record of windows.values())
-      record.renderer.clearDevelopmentError();
-  };
-
-  const mountWindow = async (
-    record: WindowRecord,
-    Root: __HMR_UpdatableFn
-  ): Promise<void> => {
-    setActiveRenderer(record.renderer);
-    record.renderer.clearDevelopmentError();
-    record.renderer.render(() =>
-      WindowScope.Provider({
-        value: record.window,
-        children: () => record.renderer.handleComponent(Root, []),
-      })
-    );
-    await runPendingSetupEffects();
-    record.renderer.flush();
-  };
-
   const recoverWindow = async (
-    record: WindowRecord,
-    Root?: __HMR_UpdatableFn | null
+    window: RuntimeGpuiWindow,
+    Root?: __HMR_UpdatableFn
   ): Promise<void> => {
     if (Root === undefined) {
       try {
-        Root = await entryTask.get();
+        Root = await loadEntry();
       } catch (error) {
-        showDevelopmentError(error, [record]);
+        showDevelopmentError(error, [window]);
         return;
       }
     }
 
-    const error = entryTask.error.peek();
-    if (error || !Root) {
-      showDevelopmentError(
-        error ?? new Error('The GPUI application entry is unavailable.'),
-        [record]
-      );
-      return;
-    }
-
     try {
-      await mountWindow(record, Root);
+      const Component = Root;
+      window.renderer.clearDevelopmentError();
+      await window.renderer.mount(() =>
+        WindowScope.Provider({
+          value: window,
+          children: () => window.renderer.handleComponent(Component, []),
+        })
+      );
     } catch (error) {
       if (error instanceof NativeRendererFatalError) return;
       try {
-        record.renderer.unmount();
+        window.renderer.unmount();
       } catch (cause) {
         if (cause instanceof NativeRendererFatalError) return;
         throw cause;
       }
-      showDevelopmentError(error, [record]);
+      showDevelopmentError(error, [window]);
       console.error('[retend-gpui] application root failed:', error);
     }
   };
 
-  const createWindowRecord = (options: GpuiWindowOptions): WindowRecord => {
-    const id = String(nextWindowId++);
-    const title = options.title ?? message.appName;
-    const window = createRuntimeWindow(title, {
-      close() {
-        closeWindow(id);
-      },
-      setTitle(nextTitle) {
-        windows.get(id)?.renderer.host.setWindowTitle(nextTitle);
-      },
-    });
+  const createWindow = async (
+    options: DevRuntimeInitMessage['options']
+  ): Promise<RuntimeGpuiWindow> => {
     const renderer = new RetendGpuiRenderer({ hmr: true });
-    const record: WindowRecord = { id, renderer, window };
+    renderer.host.resetLocation(options.location);
 
-    const { location = '/', ...nativeOptions } = options;
-    nativeOptions.title = title;
+    const initialSize = Promise.withResolvers<readonly [number, number]>();
+    const onInitialResize = (event: Event): void => {
+      const { width, height } = (event as CustomEvent).detail;
+      initialSize.resolve([width, height]);
+    };
+    const onInitialClose = (): void => {
+      renderer.host.removeEventListener('resize', onInitialResize);
+      initialSize.reject(
+        new Error('The native GPUI window closed during creation.')
+      );
+    };
+    renderer.host.addEventListener('resize', onInitialResize, { once: true });
+    renderer.host.addEventListener('close', onInitialClose, { once: true });
+
     try {
-      renderer.host.resetLocation(location);
-      renderer.init(nativeOptions);
+      renderer.init(options);
     } catch (error) {
-      window.dispose();
+      renderer.host.removeEventListener('resize', onInitialResize);
+      renderer.host.removeEventListener('close', onInitialClose);
       renderer.dispose();
       throw error;
     }
 
-    windows.set(id, record);
-    renderer.host.addEventListener('close', () => closeWindow(id), {
+    const [width, height] = await initialSize.promise;
+    if (!renderer.host.isInitialized) {
+      renderer.dispose();
+      throw new Error('The native GPUI window closed during creation.');
+    }
+
+    const window = new RuntimeGpuiWindow(
+      options.title,
+      width,
+      height,
+      renderer,
+      { close: closeWindow, open: openWindow }
+    );
+    windows.add(window);
+    renderer.host.addEventListener('close', () => closeWindow(window), {
       once: true,
     });
+    renderer.host.removeEventListener('close', onInitialClose);
     renderer.host.addEventListener('reload', () => {
-      void recoverWindow(record).catch(console.error);
+      void recoverWindow(window).catch(console.error);
     });
     renderer.host.addEventListener('applicationerror', (event) => {
-      showDevelopmentError((event as CustomEvent<unknown>).detail, [record]);
+      showDevelopmentError((event as CustomEvent<unknown>).detail, [window]);
     });
-    return record;
+    return window;
   };
 
-  const recoverEntry = async (reload = false): Promise<void> => {
-    let Root: __HMR_UpdatableFn | null;
-    if (reload || !entryTask.pending.peek()) {
-      Root = await entryTask.runWith(undefined);
-    } else {
-      Root = await entryTask.get();
-    }
+  async function openWindow(
+    options: GpuiWindowOptions
+  ): Promise<GpuiWindowHandle> {
+    const Root = await loadEntry();
+    const window = await createWindow({
+      ...options,
+      title: options.title ?? message.appName,
+      location: options.location ?? '/',
+    });
+    await recoverWindow(window, Root);
+    return window.handle;
+  }
 
-    const error = entryTask.error.peek();
-    if (error || !Root) {
-      const failure =
-        error ?? new Error('The GPUI application entry is unavailable.');
-      showDevelopmentError(failure);
-      console.error('[retend-gpui] application entry failed:', failure);
-      return;
-    }
-
-    for (const record of windows.values()) {
-      if (!record.renderer.hasRoot) await recoverWindow(record, Root);
-      else record.renderer.clearDevelopmentError();
-    }
-  };
-
-  const prepareFullReload = async (): Promise<void> => {
-    await cleanupApplication();
-    for (const record of windows.values()) record.renderer.unmount();
-    globalData.clear();
-  };
-
-  const finishFullReload = async (): Promise<void> => {
+  const recoverEntry = async (): Promise<void> => {
+    let Root: __HMR_UpdatableFn;
     try {
-      await loadApplication();
+      Root = await loadEntry(true);
     } catch (error) {
-      console.error('[retend-gpui] application reload failed:', error);
-      await shutdown(1);
+      showDevelopmentError(error);
+      console.error('[retend-gpui] application entry failed:', error);
       return;
     }
-    await recoverEntry(true);
+    for (const window of windows) {
+      if (!window.renderer.hasRoot) await recoverWindow(window, Root);
+      else window.renderer.clearDevelopmentError();
+    }
   };
 
   const applyHotMessage = async (
@@ -317,14 +281,26 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     const payload = value as HotPayload;
     if (payload.type === 'error') showDevelopmentError(payload.err ?? value);
 
-    if (payload.type === 'full-reload') await prepareFullReload();
+    if (payload.type === 'full-reload') {
+      await cleanupApplication();
+      for (const window of windows) window.renderer.unmount();
+      globalData.clear();
+    }
     await handlers.onMessage(value as never);
 
     if (payload.type === 'full-reload') {
-      await finishFullReload();
+      try {
+        await loadApplication();
+      } catch (error) {
+        console.error('[retend-gpui] application reload failed:', error);
+        await shutdown(1);
+        return;
+      }
+      await recoverEntry();
     } else if (payload.type === 'update') {
-      if (entryTask.error.peek()) await recoverEntry();
-      else clearDevelopmentErrors();
+      if (entryFailed) await recoverEntry();
+      else
+        for (const window of windows) window.renderer.clearDevelopmentError();
     }
   };
 
@@ -377,21 +353,20 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
 
     await loadApplication();
 
-    const Root = await entryTask.runWith(undefined);
-    const entryError = entryTask.error.peek();
-    if (entryError) {
-      console.error('[retend-gpui] application entry failed:', entryError);
-    }
+    const Root = await loadEntry().catch((error: unknown) => {
+      console.error('[retend-gpui] application entry failed:', error);
+      return undefined;
+    });
 
-    const initialRecord = createWindowRecord(message.options);
-    await recoverWindow(initialRecord, Root);
+    const initialWindow = await createWindow(message.options);
+    await recoverWindow(initialWindow, Root);
 
     sendControl({ channel: 'retend-gpui', type: 'application-ready' });
   } catch (error) {
     sendControl({
       channel: 'retend-gpui',
       type: 'application-startup-error',
-      message: errorMessage(error),
+      message: error instanceof Error ? error.message : String(error),
     });
     await shutdown(1);
   }
