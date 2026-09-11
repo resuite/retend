@@ -97,6 +97,22 @@ afterEach(() => {
 });
 
 describe('native event delivery', () => {
+  it('flushes pending mutations and an active subscription in one batch', () => {
+    const renderer = createRenderer();
+    const target = renderer.createContainer('div');
+    renderer.render(() => target);
+    renderer.flush();
+    native.applyCalls = 0;
+
+    renderer.host.createText('pending');
+    const listener = vi.fn();
+    target.addEventListener('click', listener);
+    expect(native.applyCalls).toBe(1);
+
+    renderer.host.createText('also pending');
+    target.removeEventListener('click', listener);
+    expect(native.applyCalls).toBe(2);
+  });
   it('rejects invalid native window options at the renderer boundary', () => {
     const current = new RetendGpuiRenderer({ headless: true });
     expect(() => current.init({ width: 0 })).toThrow('finite positive');

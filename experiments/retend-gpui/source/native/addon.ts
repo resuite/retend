@@ -141,6 +141,7 @@ interface NativeAddon {
 
 const require = createRequire(import.meta.url);
 const supportedTarget = /^(darwin|linux|win32)-(arm64|x64)$/;
+let nativeAddon: NativeAddon | undefined;
 
 const FAILURE_PREFIX = 'RETEND_GPUI_FAILURE:';
 
@@ -159,6 +160,7 @@ export function parseNativeBridgeFailure(
 }
 
 export function loadNativeAddon(): NativeAddon {
+  if (nativeAddon) return nativeAddon;
   const target = `${process.platform}-${process.arch}`;
   const localPath = fileURLToPath(
     new URL(
@@ -166,14 +168,18 @@ export function loadNativeAddon(): NativeAddon {
       import.meta.url
     )
   );
-  if (fs.existsSync(localPath)) return require(localPath) as NativeAddon;
+  if (fs.existsSync(localPath)) {
+    nativeAddon = require(localPath) as NativeAddon;
+    return nativeAddon;
+  }
 
   if (!supportedTarget.test(target)) {
     throw new Error(`Retend GPUI does not support native target ${target}.`);
   }
   const packageName = `@retend-gpui/native-${target}`;
   try {
-    return require(packageName) as NativeAddon;
+    nativeAddon = require(packageName) as NativeAddon;
+    return nativeAddon;
   } catch (error) {
     if (
       error instanceof Error &&

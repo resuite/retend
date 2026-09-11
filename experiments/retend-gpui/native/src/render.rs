@@ -135,9 +135,13 @@ bubbling_events! {
 }
 
 fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &mut App) {
-    let click = event_interest(window_id, target_id, NativeEventId::Click);
+    let subscriptions = crate::runtime()
+        .lock()
+        .map(|tree| tree.subscription_mask_in_path(window_id, target_id))
+        .unwrap_or_default();
+    let click = subscriptions & event_bit(NativeEventId::Click) != 0;
     let double_click =
-        event.click_count() == 2 && event_interest(window_id, target_id, NativeEventId::DblClick);
+        event.click_count() == 2 && subscriptions & event_bit(NativeEventId::DblClick) != 0;
     if click {
         events::emit(
             window_id,
@@ -239,8 +243,6 @@ fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
     }
 }
 
-type PaintCallback = Box<dyn FnOnce(Bounds<Pixels>, &mut Window, &mut App)>;
-
 /// Preserves Retend's post-paint bounds publication on GPUI versions without
 /// the old `on_painted` element extension.
 struct PaintObserver {
@@ -248,14 +250,66 @@ struct PaintObserver {
     callback: Option<PaintCallback>,
 }
 
+enum PaintCallback {
+    Finish {
+        runtime: RuntimeStateRegistry,
+        generation: u64,
+    },
+    Bounds {
+        runtime: RuntimeStateRegistry,
+        generation: u64,
+        id: NodeId,
+        content_scroll_handle: Option<gpui::ScrollHandle>,
+        painted_content: Option<Rc<Cell<Option<Point<Pixels>>>>>,
+    },
+}
+
+impl PaintCallback {
+    fn painted(self, bounds: Bounds<Pixels>, window: &mut Window) {
+        match self {
+            Self::Finish {
+                runtime,
+                generation,
+            } => {
+                // GPUI suppresses refresh mid-draw, so defer remaining layout work.
+                if runtime.finish_frame(generation) {
+                    window.on_next_frame(move |window, _| {
+                        if runtime.finish_frame(generation) {
+                            window.refresh();
+                        }
+                    });
+                }
+            }
+            Self::Bounds {
+                runtime,
+                generation,
+                id,
+                content_scroll_handle,
+                painted_content,
+            } => {
+                runtime.record_bounds(generation, id, bounds);
+                let bottom_right = if let Some(handle) = &content_scroll_handle {
+                    (0..handle.children_count())
+                        .filter_map(|index| handle.bounds_for_item(index))
+                        .map(|bounds| bounds.bottom_right())
+                        .reduce(|a, b| a.max(&b))
+                } else {
+                    painted_content.as_ref().and_then(|content| content.get())
+                };
+                if let Some(bottom_right) = bottom_right {
+                    // Prepaint can be speculative. Publish only after paint.
+                    runtime.record_content_extent(generation, id, bottom_right - bounds.origin);
+                }
+            }
+        }
+    }
+}
+
 impl PaintObserver {
-    fn new(
-        inner: AnyElement,
-        callback: impl FnOnce(Bounds<Pixels>, &mut Window, &mut App) + 'static,
-    ) -> Self {
+    fn new(inner: AnyElement, callback: PaintCallback) -> Self {
         Self {
             inner,
-            callback: Some(Box::new(callback)),
+            callback: Some(callback),
         }
     }
 }
@@ -314,7 +368,7 @@ impl Element for PaintObserver {
     ) {
         self.inner.paint(window, cx);
         if let Some(callback) = self.callback.take() {
-            callback(bounds, window, cx);
+            callback.painted(bounds, window);
         }
     }
 }
@@ -332,18 +386,13 @@ pub fn build_with_runtime(
         generation,
         EventInterest::for_node(tree, tree.nodes[&id].window_id, id),
     );
-    let runtime_state = runtime_state.clone();
-    PaintObserver::new(inner, move |_, window, _| {
-        // Complete queries after the subtree paints. GPUI suppresses refresh
-        // mid-draw, so any remaining layout work waits for the next frame.
-        if runtime_state.finish_frame(generation) {
-            window.on_next_frame(move |window, _| {
-                if runtime_state.finish_frame(generation) {
-                    window.refresh();
-                }
-            });
-        }
-    })
+    PaintObserver::new(
+        inner,
+        PaintCallback::Finish {
+            runtime: runtime_state.clone(),
+            generation,
+        },
+    )
     .into_any_element()
 }
 
@@ -380,21 +429,12 @@ fn build_inner(
         .then(|| Rc::new(Cell::new(None::<Point<Pixels>>)));
     let painted_content = staged_content.clone();
     let content_scroll_handle = scroll_handle.clone().filter(|_| tracks_content);
-    let record_bounds = move |bounds: Bounds<Pixels>, _: &mut Window, _: &mut App| {
-        runtime.record_bounds(generation, id, bounds);
-        let bottom_right = if let Some(handle) = &content_scroll_handle {
-            (0..handle.children_count())
-                .filter_map(|index| handle.bounds_for_item(index))
-                .map(|bounds| bounds.bottom_right())
-                .reduce(|a, b| a.max(&b))
-        } else {
-            painted_content.as_ref().and_then(|content| content.get())
-        };
-        if let Some(bottom_right) = bottom_right {
-            // Prepaint can be speculative. Publish only when the parent paints, and
-            // keep the extent relative and pre-scroll so later commands can move it.
-            runtime.record_content_extent(generation, id, bottom_right - bounds.origin);
-        }
+    let record_bounds = PaintCallback::Bounds {
+        runtime,
+        generation,
+        id,
+        content_scroll_handle,
+        painted_content,
     };
     let element = match &node.data {
         NodeData::Root | NodeData::Container | NodeData::TextControl { .. } => {
@@ -849,7 +889,9 @@ mod tests {
         let min_height = first.try_recv().unwrap().unwrap().height;
 
         let mut measure = |commands: Vec<Command>| {
-            tree.borrow_mut().apply_commands(window_id, commands).unwrap();
+            tree.borrow_mut()
+                .apply_commands(window_id, commands)
+                .unwrap();
             view.update(cx, |_, cx| cx.notify());
             finish_test_frames(cx);
 
@@ -872,7 +914,8 @@ mod tests {
         assert!(max_height > min_height);
         assert_eq!(overflow_height, max_height);
 
-        let wrapped = "This long single line must wrap repeatedly when the textarea becomes narrow.";
+        let wrapped =
+            "This long single line must wrap repeatedly when the textarea becomes narrow.";
         let wide_height = measure(vec![Command::SetProperty {
             id: 2,
             property: PropertyId::Value,

@@ -53,6 +53,7 @@ struct RuntimeState {
     text_control: HashMap<NodeId, TextControlRuntimeState>,
     scroll: HashMap<NodeId, ScrollState>,
     generation: u64,
+    prepared_revision: Option<(WindowId, u64)>,
     frame: FrameLayout,
     pending: VecDeque<(u64, LayoutOperation)>,
 }
@@ -129,6 +130,7 @@ struct ScrollState {
 #[derive(Default)]
 struct FrameLayout {
     window_id: Option<WindowId>,
+    revision: Option<u64>,
     nodes: HashMap<NodeId, FrameNode>,
 }
 
@@ -190,12 +192,19 @@ thread_local! {
 
 fn emit_text_event(window_id: WindowId, id: NodeId, event: NativeEventId, value: String) {
     #[cfg(test)]
-    TEST_TEXT_EVENTS.with(|events| events.borrow_mut().push((window_id, id, event, value.clone())));
+    TEST_TEXT_EVENTS.with(|events| {
+        events
+            .borrow_mut()
+            .push((window_id, id, event, value.clone()))
+    });
     if crate::runtime()
         .lock()
         .is_ok_and(|tree| tree.has_subscription_in_path(window_id, id, event))
     {
-        events::emit(window_id, events::NativeEventPayload::text(event, id, value));
+        events::emit(
+            window_id,
+            events::NativeEventPayload::text(event, id, value),
+        );
     }
 }
 
@@ -336,13 +345,7 @@ impl RuntimeStateRegistry {
                     editor
                 });
                 let events = subscribe_text_control_events(
-                    cx,
-                    &editor,
-                    window,
-                    runtime,
-                    kind,
-                    window_id,
-                    id,
+                    cx, &editor, window, runtime, kind, window_id, id,
                 );
                 (TextControlEditor::Input(editor), events)
             }
@@ -354,13 +357,7 @@ impl RuntimeStateRegistry {
                     editor
                 });
                 let events = subscribe_text_control_events(
-                    cx,
-                    &editor,
-                    window,
-                    runtime,
-                    kind,
-                    window_id,
-                    id,
+                    cx, &editor, window, runtime, kind, window_id, id,
                 );
                 (TextControlEditor::Textarea(editor), events)
             }
@@ -431,27 +428,44 @@ impl RuntimeStateRegistry {
             .map(|scroll| scroll.handle.clone())
     }
 
+    pub fn needs_preparation(&self, tree: &NativeTree, window_id: WindowId) -> bool {
+        let revision = (window_id, tree.windows[&window_id].revision);
+        let mut state = self.0.borrow_mut();
+        if state.prepared_revision == Some(revision) {
+            return false;
+        }
+        state.prepared_revision = Some(revision);
+        true
+    }
+
     pub fn begin_frame(&self, tree: &NativeTree, window_id: WindowId) -> u64 {
         let mut state = self.0.borrow_mut();
         state.generation = state.generation.saturating_add(1);
         let generation = state.generation;
-        state.frame.window_id = Some(window_id);
-        state.frame.nodes.clear();
-        state.frame.nodes.extend(
-            tree.nodes
+        let revision = Some(tree.windows[&window_id].revision);
+        if state.frame.window_id != Some(window_id) || state.frame.revision != revision {
+            state.frame.window_id = Some(window_id);
+            state.frame.revision = revision;
+            state.frame.nodes.retain(|id, _| {
+                tree.nodes
+                    .get(id)
+                    .is_some_and(|node| node.window_id == window_id)
+            });
+            for (&id, node) in tree
+                .nodes
                 .iter()
                 .filter(|(_, node)| node.window_id == window_id)
-                .map(|(&id, node)| {
-                    (
-                        id,
-                        FrameNode {
-                            parent: node.parent,
-                            children: node.children.clone(),
-                            ..FrameNode::default()
-                        },
-                    )
-                }),
-        );
+            {
+                let frame_node = state.frame.nodes.entry(id).or_default();
+                frame_node.parent = node.parent;
+                frame_node.children.clone_from(&node.children);
+            }
+        }
+        // Layout can change without a tree mutation. Never retain unpainted geometry.
+        for node in state.frame.nodes.values_mut() {
+            node.bounds = None;
+            node.content_extent = None;
+        }
         generation
     }
 
@@ -618,6 +632,7 @@ impl RuntimeStateRegistry {
         state.scroll.clear();
         state.pending.clear();
         state.frame = FrameLayout::default();
+        state.prepared_revision = None;
     }
 }
 
@@ -694,12 +709,9 @@ fn subscribe_text_control_events<T: 'static, M: InputModeKind + 'static>(
     id: NodeId,
 ) -> Subscription {
     cx.subscribe_in(editor, window, move |_, editor, event, _, cx| match event {
-        InputEvent::Change => handle_text_control_change(
-            &runtime,
-            window_id,
-            id,
-            editor.read(cx).value().to_string(),
-        ),
+        InputEvent::Change => {
+            handle_text_control_change(&runtime, window_id, id, editor.read(cx).value().to_string())
+        }
         _ => handle_text_control_commit(&runtime, kind, window_id, id, event),
     })
 }
@@ -810,13 +822,18 @@ fn shift_descendant_bounds(state: &mut RuntimeState, ancestor: NodeId, dx: f32, 
     if dx == 0.0 && dy == 0.0 {
         return;
     }
-    for id in descendant_ids(&state.frame, ancestor) {
-        if let Some(bounds) = state
-            .frame
-            .nodes
-            .get_mut(&id)
-            .and_then(|node| node.bounds.as_mut())
-        {
+    let mut pending = state
+        .frame
+        .nodes
+        .get(&ancestor)
+        .map(|node| node.children.clone())
+        .unwrap_or_default();
+    while let Some(id) = pending.pop() {
+        let Some(node) = state.frame.nodes.get_mut(&id) else {
+            continue;
+        };
+        pending.extend(node.children.iter().copied());
+        if let Some(bounds) = node.bounds.as_mut() {
             bounds.origin.x = px(f32::from(bounds.origin.x) - dx);
             bounds.origin.y = px(f32::from(bounds.origin.y) - dy);
         }
@@ -948,19 +965,102 @@ fn logical_scroll_offset(handle: &ScrollHandle) -> ScrollOffset {
     }
 }
 
-fn descendant_ids(frame: &FrameLayout, ancestor: NodeId) -> Vec<NodeId> {
+fn descendant_ids(frame: &FrameLayout, ancestor: NodeId) -> impl Iterator<Item = NodeId> + '_ {
     let mut pending = frame
         .nodes
         .get(&ancestor)
         .map(|node| node.children.clone())
         .unwrap_or_default();
-    let mut descendants = Vec::with_capacity(pending.len());
-    while let Some(id) = pending.pop() {
-        let Some(node) = frame.nodes.get(&id) else {
-            continue;
-        };
-        pending.extend(node.children.iter().copied());
-        descendants.push(id);
+    std::iter::from_fn(move || {
+        while let Some(id) = pending.pop() {
+            let Some(node) = frame.nodes.get(&id) else {
+                continue;
+            };
+            pending.extend(node.children.iter().copied());
+            return Some(id);
+        }
+        None
+    })
+}
+
+#[cfg(test)]
+mod frame_tests {
+    use super::*;
+    use crate::protocol::Command;
+    use crate::protocol_generated::ElementKind;
+
+    #[test]
+    fn unchanged_frames_reuse_topology_but_clear_geometry() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::InsertChild {
+                    parent_id: 1,
+                    child_id: 2,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        let runtime = RuntimeStateRegistry::default();
+        let generation = runtime.begin_frame(&tree, window);
+        assert!(runtime.needs_preparation(&tree, window));
+        assert!(!runtime.needs_preparation(&tree, window));
+        let children = runtime.0.borrow().frame.nodes[&1].children.as_ptr();
+        runtime.record_bounds(generation, 2, Bounds::default());
+        runtime.record_content_extent(generation, 2, point(px(10.0), px(20.0)));
+        runtime.begin_frame(&tree, window);
+        {
+            let state = runtime.0.borrow();
+            assert_eq!(children, state.frame.nodes[&1].children.as_ptr());
+            assert!(state.frame.nodes[&2].bounds.is_none());
+            assert!(state.frame.nodes[&2].content_extent.is_none());
+        }
+        // A callback from the previous paint cannot restore stale geometry.
+        runtime.record_bounds(generation, 2, Bounds::default());
+        assert!(runtime.0.borrow().frame.nodes[&2].bounds.is_none());
+
+        tree.apply_commands(
+            window,
+            vec![Command::RemoveChild {
+                parent_id: 1,
+                child_id: 2,
+            }],
+        )
+        .unwrap();
+        runtime.begin_frame(&tree, window);
+        assert!(runtime.needs_preparation(&tree, window));
+        assert!(runtime.0.borrow().frame.nodes[&1].children.is_empty());
+        assert_eq!(runtime.0.borrow().frame.nodes[&2].parent, None);
+        tree.settle(window).unwrap();
+        runtime.begin_frame(&tree, window);
+        assert!(!runtime.0.borrow().frame.nodes.contains_key(&2));
+        runtime.clear();
+        assert!(runtime.needs_preparation(&tree, window));
     }
-    descendants
+
+    #[test]
+    fn preparation_revision_is_window_local() {
+        let mut tree = NativeTree::default();
+        let first = tree.create_window(1).unwrap();
+        let second = tree.create_window(2).unwrap();
+        let runtime = RuntimeStateRegistry::default();
+        assert!(runtime.needs_preparation(&tree, first));
+        tree.apply_commands(
+            second,
+            vec![Command::CreateText {
+                id: 3,
+                text: "other window".into(),
+            }],
+        )
+        .unwrap();
+        assert!(!runtime.needs_preparation(&tree, first));
+        assert!(runtime.needs_preparation(&tree, second));
+    }
 }

@@ -290,7 +290,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
-  it('flushes a pending active insertion before its native event subscription', () => {
+  it('flushes a pending active insertion together with its native event subscription', () => {
     const renderer = createRenderer();
     const parentRef = Cell.source<GpuiElement | null>(null);
     renderer.render(() => <div ref={parentRef} />);
@@ -303,13 +303,10 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     renderer.append(parent, child);
     child.addEventListener('click', () => {});
 
-    expect(flush).toHaveBeenCalledTimes(2);
+    expect(flush).toHaveBeenCalledOnce();
     expect(subscribe).toHaveBeenCalledWith(child.id, NativeEventId.Click);
-    expect(flush.mock.invocationCallOrder[0]).toBeLessThan(
-      subscribe.mock.invocationCallOrder[0]
-    );
     expect(subscribe.mock.invocationCallOrder[0]).toBeLessThan(
-      flush.mock.invocationCallOrder[1]
+      flush.mock.invocationCallOrder[0]
     );
   });
 

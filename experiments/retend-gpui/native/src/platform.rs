@@ -103,16 +103,8 @@ fn focus_runtime_node<T: 'static>(
         ensure_text_control_entity(runtime_state, window_id, id, snapshot, window, cx)
             .focus_handle(cx)
     });
-    ensure_focus_state(
-        runtime_state,
-        window_id,
-        window,
-        cx,
-        id,
-        tab_index,
-        handle,
-    )
-    .focus(window, cx);
+    ensure_focus_state(runtime_state, window_id, window, cx, id, tab_index, handle)
+        .focus(window, cx);
 }
 
 pub(crate) fn prepare_frame<T: 'static>(
@@ -123,6 +115,9 @@ pub(crate) fn prepare_frame<T: 'static>(
     cx: &mut Context<T>,
 ) -> u64 {
     let generation = runtime_state.begin_frame(tree, window_id);
+    if !runtime_state.needs_preparation(tree, window_id) {
+        return generation;
+    }
     for (&id, node) in tree
         .nodes
         .iter()
@@ -157,15 +152,7 @@ pub(crate) fn prepare_frame<T: 'static>(
                 let handle = text_control
                     .as_ref()
                     .map(|control| control.focus_handle(cx));
-                ensure_focus_state(
-                    runtime_state,
-                    window_id,
-                    window,
-                    cx,
-                    id,
-                    tab_index,
-                    handle,
-                );
+                ensure_focus_state(runtime_state, window_id, window, cx, id, tab_index, handle);
             }
             None => runtime_state.disable_focus(id),
         }
@@ -325,13 +312,7 @@ impl Render for RetendRootView {
                 );
             }
 
-            let generation = prepare_frame(
-                &tree,
-                &self.runtime_state,
-                window_id,
-                window,
-                cx,
-            );
+            let generation = prepare_frame(&tree, &self.runtime_state, window_id, window, cx);
             Some(crate::render::build_with_runtime(
                 &tree,
                 native_window.root_id,
@@ -836,13 +817,7 @@ mod tests {
     impl Render for FocusTreeView {
         fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let tree = self.tree.borrow();
-            let generation = prepare_frame(
-                &tree,
-                &self.runtime_state,
-                self.window_id,
-                window,
-                cx,
-            );
+            let generation = prepare_frame(&tree, &self.runtime_state, self.window_id, window, cx);
             crate::render::build_with_runtime(
                 &tree,
                 tree.windows[&self.window_id].root_id,

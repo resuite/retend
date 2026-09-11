@@ -801,7 +801,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     }
 
     const active = this.isActive(node);
-    if (active) this.host.flush();
+    // Keep pending mutations and the subscription in the same ordered batch.
     if (enabled) this.host.subscribeEvent(node.id, eventId);
     else this.host.unsubscribeEvent(node.id, eventId);
     if (active) this.host.flush();

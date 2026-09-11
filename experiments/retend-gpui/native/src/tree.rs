@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+};
 
 use serde::Serialize;
 
@@ -129,6 +132,8 @@ impl NativeNode {
 
 pub struct WindowState {
     pub root_id: NodeId,
+    pub revision: u64,
+    presented_paths: RefCell<HashMap<NodeId, Option<u32>>>,
     pub pending_detached: HashSet<NodeId>,
     pub mousedownoutside_subscribers: HashSet<NodeId>,
     pub fatal: Option<FatalDiagnostic>,
@@ -170,6 +175,8 @@ impl NativeTree {
             window_id,
             WindowState {
                 root_id,
+                revision: 0,
+                presented_paths: RefCell::default(),
                 pending_detached: HashSet::new(),
                 mousedownoutside_subscribers: HashSet::new(),
                 fatal: None,
@@ -192,6 +199,8 @@ impl NativeTree {
         self.nodes.retain(|_, node| node.window_id != window_id);
         self.nodes
             .insert(window.root_id, NativeNode::new(window_id, NodeData::Root));
+        window.revision = window.revision.wrapping_add(1);
+        window.presented_paths.get_mut().clear();
         window.pending_detached.clear();
         window.mousedownoutside_subscribers.clear();
         window.fatal = None;
@@ -204,6 +213,11 @@ impl NativeTree {
         commands: Vec<Command>,
     ) -> Result<(), BridgeFailure> {
         self.ensure_binding_usable(window_id)?;
+        if !commands.is_empty() {
+            let window = self.window(window_id)?;
+            window.revision = window.revision.wrapping_add(1);
+            window.presented_paths.get_mut().clear();
+        }
         for (index, command) in commands.into_iter().enumerate() {
             if let Err(error) = self.apply_command(window_id, index, command) {
                 self.poison_native(window_id, &error)
@@ -226,6 +240,11 @@ impl NativeTree {
             {
                 self.destroy_subtree(id, &mut destroyed);
             }
+        }
+        if !destroyed.is_empty() {
+            let window = self.window(window_id)?;
+            window.revision = window.revision.wrapping_add(1);
+            window.presented_paths.get_mut().clear();
         }
         Ok(destroyed)
     }
@@ -304,18 +323,30 @@ impl NativeTree {
     }
 
     pub fn is_presented(&self, window_id: WindowId, id: NodeId) -> bool {
-        self.walk_presented_path(window_id, id, |_| {})
+        self.presented_subscription_mask(window_id, id).is_some()
     }
 
     pub fn subscription_mask_in_path(&self, window_id: WindowId, target_id: NodeId) -> u32 {
-        let mut subscriptions = 0;
-        if self.walk_presented_path(window_id, target_id, |node| {
-            subscriptions |= node.subscriptions
-        }) {
-            subscriptions
-        } else {
-            0
+        self.presented_subscription_mask(window_id, target_id)
+            .unwrap_or_default()
+    }
+
+    fn presented_subscription_mask(&self, window_id: WindowId, id: NodeId) -> Option<u32> {
+        let window = self.windows.get(&window_id)?;
+        // Do not retain arbitrary IDs supplied by callers in the event cache.
+        if self.nodes.get(&id)?.window_id != window_id {
+            return None;
         }
+        if let Some(mask) = window.presented_paths.borrow().get(&id) {
+            return *mask;
+        }
+        let mut subscriptions = 0;
+        let presented = self.walk_presented_path(window_id, id, |node| {
+            subscriptions |= node.subscriptions;
+        });
+        let mask = presented.then_some(subscriptions);
+        window.presented_paths.borrow_mut().insert(id, mask);
+        mask
     }
 
     pub fn has_subscription_in_path(
