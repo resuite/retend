@@ -95,6 +95,8 @@ export class Router extends EventTarget {
    * @type {boolean}
    */
   useViewTransitions;
+  /** @type {string} */
+  linkTag;
   Outlet = Outlet;
   Link = Link;
 
@@ -109,6 +111,7 @@ export class Router extends EventTarget {
     this.#stackMode = routeOptions.stackMode ?? false;
     this.#maxRedirects = routeOptions.maxRedirects ?? 100;
     this.useViewTransitions = routeOptions.useViewTransitions ?? false;
+    this.linkTag = routeOptions.linkTag ?? 'a';
     this.#middlewares = routeOptions.middlewares ?? [];
     this.#internalState = { metadata: new Map(), routeChain: Cell.source([]) };
     const initialPath = /** @type {RouteData} */ ({
@@ -939,7 +942,7 @@ export function Link(props = {}) {
   };
   props.active = active;
 
-  return h('a', props, ...IgnoredHProps);
+  return h(router.linkTag, props, ...IgnoredHProps);
 }
 
 /**
