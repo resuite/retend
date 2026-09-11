@@ -203,7 +203,7 @@ router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
 const renderApp = () => (
-  <RetendDevTools>{createRouterRoot(router)}</RetendDevTools>
+  <RetendDevTools>{() => createRouterRoot(router)}</RetendDevTools>
 );
 
 renderToDOM(root, renderApp);

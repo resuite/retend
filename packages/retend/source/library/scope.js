@@ -411,7 +411,7 @@ export function useScopeContext(Scope) {
     link = link.parent;
   }
 
-  if (!relatedScopeData) {
+  if (!link) {
     // @ts-expect-error: Vite types is not ingrained.
     if (import.meta.hot) {
       // In HMR, scopes can change referential identity.
