@@ -1,22 +1,22 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet, VecDeque},
-    rc::Rc,
+    rc::{Rc, Weak},
     sync::{Arc, Mutex},
 };
 
 use gpui::{
-    point, px, App, AppContext, Bounds, Context, Entity, FocusHandle, Pixels, Point, ScrollHandle,
-    Subscription, Window,
+    point, px, App, AppContext, Bounds, Context, Entity, EntityInputHandler, FocusHandle,
+    Focusable, Pixels, Point, ScrollHandle, Subscription, Window,
 };
-use gpui_base::input::{InputEvent, InputState};
+use gpui_base::input::{InputBaseState, InputEvent, InputModeKind, InputState, TextareaState};
 
 use crate::{
     events,
     protocol_generated::NativeEventId,
     style::OverflowValue,
-    tree::{NativeTree, NodeId, WindowId},
-    BridgeFailure, NativeMeasurement, NativeScrollOffset,
+    tree::{NativeTree, NodeId, TextControlKind, WindowId},
+    BridgeFailure, NativeMeasurement, NativeScrollOffset, NativeSelection,
 };
 
 pub type Measurement = NativeMeasurement;
@@ -50,7 +50,7 @@ pub struct RuntimeStateRegistry(Rc<RefCell<RuntimeState>>);
 #[derive(Default)]
 struct RuntimeState {
     focus: HashMap<NodeId, FocusState>,
-    input: HashMap<NodeId, InputRuntimeState>,
+    text_control: HashMap<NodeId, TextControlRuntimeState>,
     scroll: HashMap<NodeId, ScrollState>,
     generation: u64,
     frame: FrameLayout,
@@ -63,9 +63,59 @@ struct FocusState {
     enabled: bool,
 }
 
-struct InputRuntimeState {
-    editor: Entity<InputState>,
+pub struct TextControlConfig<'a> {
+    pub kind: TextControlKind,
+    pub value: &'a str,
+    pub value_revision: u64,
+    pub min_rows: Option<u32>,
+    pub max_rows: Option<u32>,
+}
+
+#[derive(Clone)]
+pub enum TextControlEditor {
+    Input(Entity<InputState>),
+    Textarea(Entity<TextareaState>),
+}
+
+impl TextControlEditor {
+    pub fn focus_handle<T: 'static>(&self, cx: &mut Context<T>) -> FocusHandle {
+        match self {
+            Self::Input(editor) => editor.read(cx).focus_handle(cx),
+            Self::Textarea(editor) => editor.read(cx).focus_handle(cx),
+        }
+    }
+
+    pub fn set_selection(&self, start: u32, end: u32, cx: &mut App) {
+        match self {
+            Self::Input(editor) => set_editor_selection(editor, start, end, cx),
+            Self::Textarea(editor) => set_editor_selection(editor, start, end, cx),
+        }
+    }
+
+    pub fn select_all(&self, window: &mut Window, cx: &mut App) {
+        match self {
+            Self::Input(editor) => editor.update(cx, |editor, cx| editor.select_all(window, cx)),
+            Self::Textarea(editor) => editor.update(cx, |editor, cx| editor.select_all(window, cx)),
+        }
+    }
+
+    pub fn selection(
+        &self,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Result<NativeSelection, BridgeFailure> {
+        match self {
+            Self::Input(editor) => editor_selection(editor, window, cx),
+            Self::Textarea(editor) => editor_selection(editor, window, cx),
+        }
+    }
+}
+
+struct TextControlRuntimeState {
+    editor: TextControlEditor,
     value_revision: u64,
+    min_rows: Option<u32>,
+    max_rows: Option<u32>,
     last_value: String,
     dirty: bool,
     _events: Subscription,
@@ -218,75 +268,110 @@ impl RuntimeStateRegistry {
             .map(|focus| focus.handle.clone())
     }
 
-    pub fn ensure_input<T: 'static>(
+    pub fn ensure_text_control<T: 'static>(
         &self,
         window_id: WindowId,
         id: NodeId,
-        value: &str,
-        value_revision: u64,
+        config: TextControlConfig<'_>,
         window: &mut Window,
         cx: &mut Context<T>,
-    ) -> Entity<InputState> {
-        let existing = self.0.borrow_mut().input.get_mut(&id).map(|input| {
-            let revision_changed = input.value_revision != value_revision;
-            input.value_revision = value_revision;
-            (input.editor.clone(), revision_changed)
-        });
-        if let Some((editor, revision_changed)) = existing {
+    ) -> TextControlEditor {
+        let TextControlConfig {
+            kind,
+            value,
+            value_revision,
+            min_rows,
+            max_rows,
+        } = config;
+        let existing = self
+            .0
+            .borrow_mut()
+            .text_control
+            .get_mut(&id)
+            .map(|control| {
+                let revision_changed = control.value_revision != value_revision;
+                let rows_changed = control.min_rows != min_rows || control.max_rows != max_rows;
+                control.value_revision = value_revision;
+                control.min_rows = min_rows;
+                control.max_rows = max_rows;
+                (control.editor.clone(), revision_changed, rows_changed)
+            });
+        if let Some((editor, revision_changed, rows_changed)) = existing {
+            if rows_changed {
+                if let TextControlEditor::Textarea(editor) = &editor {
+                    editor.update(cx, |editor, cx| {
+                        configure_textarea(editor, min_rows, max_rows, cx)
+                    });
+                }
+            }
             if revision_changed {
-                let value = single_line(value);
-                if editor.read(cx).value().as_ref() != value.as_str() {
-                    editor.update(cx, |editor, cx| editor.set_value(value.clone(), window, cx));
-                    if let Some(input) = self.0.borrow_mut().input.get_mut(&id) {
-                        input.last_value = value;
-                        input.dirty = false;
+                let value = text_control_value(kind, value);
+                let current = match &editor {
+                    TextControlEditor::Input(editor) => editor.read(cx).value().to_string(),
+                    TextControlEditor::Textarea(editor) => editor.read(cx).value().to_string(),
+                };
+                if current != value {
+                    match &editor {
+                        TextControlEditor::Input(editor) => editor
+                            .update(cx, |editor, cx| editor.set_value(value.clone(), window, cx)),
+                        TextControlEditor::Textarea(editor) => editor
+                            .update(cx, |editor, cx| editor.set_value(value.clone(), window, cx)),
+                    }
+                    if let Some(control) = self.0.borrow_mut().text_control.get_mut(&id) {
+                        control.last_value = value;
+                        control.dirty = false;
                     }
                 }
             }
             return editor;
         }
 
-        let value = single_line(value);
-        let editor = cx.new(|cx| {
-            let mut editor = InputState::new(window, cx);
-            editor.set_value(value.clone(), window, cx);
-            editor
-        });
+        let value = text_control_value(kind, value);
         let runtime = Rc::downgrade(&self.0);
-        let events = cx.subscribe_in(&editor, window, move |_, editor, event, _, cx| {
-            let Some(runtime) = runtime.upgrade() else {
-                return;
-            };
-            let mut state = runtime.borrow_mut();
-            let Some(input) = state.input.get_mut(&id) else {
-                return;
-            };
-            let event = match event {
-                InputEvent::Change => {
-                    let value = editor.read(cx).value().to_string();
-                    if input.last_value == value {
-                        return;
-                    }
-                    input.last_value = value;
-                    input.dirty = true;
-                    NativeEventId::Input
-                }
-                InputEvent::PressEnter { .. } | InputEvent::Blur
-                    if std::mem::take(&mut input.dirty) =>
-                {
-                    NativeEventId::Change
-                }
-                _ => return,
-            };
-            let value = input.last_value.clone();
-            drop(state);
-            emit_text_event(window_id, id, event, value);
-        });
-        self.0.borrow_mut().input.insert(
+        let (editor, events) = match kind {
+            TextControlKind::Input => {
+                let editor = cx.new(|cx| {
+                    let mut editor = InputState::new(window, cx);
+                    editor.set_value(value.clone(), window, cx);
+                    editor
+                });
+                let events = subscribe_text_control_events(
+                    cx,
+                    &editor,
+                    window,
+                    runtime,
+                    kind,
+                    window_id,
+                    id,
+                );
+                (TextControlEditor::Input(editor), events)
+            }
+            TextControlKind::Textarea => {
+                let editor = cx.new(|cx| {
+                    let mut editor = TextareaState::new(window, cx);
+                    configure_textarea(&mut editor, min_rows, max_rows, cx);
+                    editor.set_value(value.clone(), window, cx);
+                    editor
+                });
+                let events = subscribe_text_control_events(
+                    cx,
+                    &editor,
+                    window,
+                    runtime,
+                    kind,
+                    window_id,
+                    id,
+                );
+                (TextControlEditor::Textarea(editor), events)
+            }
+        };
+        self.0.borrow_mut().text_control.insert(
             id,
-            InputRuntimeState {
+            TextControlRuntimeState {
                 editor: editor.clone(),
                 value_revision,
+                min_rows,
+                max_rows,
                 last_value: value,
                 dirty: false,
                 _events: events,
@@ -295,12 +380,26 @@ impl RuntimeStateRegistry {
         editor
     }
 
-    pub fn input(&self, id: NodeId) -> Option<Entity<InputState>> {
+    pub fn text_control(&self, id: NodeId) -> Option<TextControlEditor> {
         self.0
             .borrow()
-            .input
+            .text_control
             .get(&id)
-            .map(|input| input.editor.clone())
+            .map(|control| control.editor.clone())
+    }
+
+    pub fn input(&self, id: NodeId) -> Option<Entity<InputState>> {
+        match self.text_control(id)? {
+            TextControlEditor::Input(editor) => Some(editor),
+            TextControlEditor::Textarea(_) => None,
+        }
+    }
+
+    pub fn textarea(&self, id: NodeId) -> Option<Entity<TextareaState>> {
+        match self.text_control(id)? {
+            TextControlEditor::Textarea(editor) => Some(editor),
+            TextControlEditor::Input(_) => None,
+        }
     }
 
     pub fn ensure_scroll(&self, id: NodeId) -> ScrollHandle {
@@ -470,7 +569,7 @@ impl RuntimeStateRegistry {
             let mut state = self.0.borrow_mut();
             for id in &ids {
                 state.focus.remove(id);
-                state.input.remove(id);
+                state.text_control.remove(id);
                 state.scroll.remove(id);
                 state.frame.nodes.remove(id);
             }
@@ -515,10 +614,162 @@ impl RuntimeStateRegistry {
         );
         let mut state = self.0.borrow_mut();
         state.focus.clear();
-        state.input.clear();
+        state.text_control.clear();
         state.scroll.clear();
         state.pending.clear();
         state.frame = FrameLayout::default();
+    }
+}
+
+fn utf16_to_utf8_offset(value: &str, target: usize) -> usize {
+    let mut utf16 = 0;
+    for (byte, character) in value.char_indices() {
+        let next = utf16 + character.len_utf16();
+        if target < next {
+            return byte;
+        }
+        if target == next {
+            return byte + character.len_utf8();
+        }
+        utf16 = next;
+    }
+    value.len()
+}
+
+fn set_editor_selection<M: InputModeKind + 'static>(
+    editor: &Entity<InputBaseState<M>>,
+    start: u32,
+    end: u32,
+    cx: &mut App,
+) {
+    editor.update(cx, |editor, cx| {
+        let start = start.min(end) as usize;
+        let end = end as usize;
+        let value = editor.value();
+        editor.set_selected_range(
+            utf16_to_utf8_offset(value.as_ref(), start)..utf16_to_utf8_offset(value.as_ref(), end),
+            cx,
+        );
+    });
+}
+
+fn editor_selection<M: InputModeKind + 'static>(
+    editor: &Entity<InputBaseState<M>>,
+    window: &mut Window,
+    cx: &mut App,
+) -> Result<NativeSelection, BridgeFailure> {
+    editor.update(cx, |editor, cx| {
+        let selection = editor
+            .selected_text_range(false, window, cx)
+            .ok_or_else(|| {
+                BridgeFailure::new(
+                    "SELECTION_UNAVAILABLE",
+                    "Native text-control selection is unavailable.",
+                )
+            })?;
+        Ok(NativeSelection {
+            start: u32::try_from(selection.range.start).map_err(|_| {
+                BridgeFailure::new(
+                    "SELECTION_RANGE_EXHAUSTED",
+                    "Native text-control selection exceeds the bridge UTF-16 offset range.",
+                )
+            })?,
+            end: u32::try_from(selection.range.end).map_err(|_| {
+                BridgeFailure::new(
+                    "SELECTION_RANGE_EXHAUSTED",
+                    "Native text-control selection exceeds the bridge UTF-16 offset range.",
+                )
+            })?,
+        })
+    })
+}
+
+fn subscribe_text_control_events<T: 'static, M: InputModeKind + 'static>(
+    cx: &mut Context<T>,
+    editor: &Entity<InputBaseState<M>>,
+    window: &mut Window,
+    runtime: Weak<RefCell<RuntimeState>>,
+    kind: TextControlKind,
+    window_id: WindowId,
+    id: NodeId,
+) -> Subscription {
+    cx.subscribe_in(editor, window, move |_, editor, event, _, cx| match event {
+        InputEvent::Change => handle_text_control_change(
+            &runtime,
+            window_id,
+            id,
+            editor.read(cx).value().to_string(),
+        ),
+        _ => handle_text_control_commit(&runtime, kind, window_id, id, event),
+    })
+}
+
+fn handle_text_control_change(
+    runtime: &Weak<RefCell<RuntimeState>>,
+    window_id: WindowId,
+    id: NodeId,
+    value: String,
+) {
+    let Some(runtime) = runtime.upgrade() else {
+        return;
+    };
+    let mut state = runtime.borrow_mut();
+    let Some(control) = state.text_control.get_mut(&id) else {
+        return;
+    };
+    if control.last_value == value {
+        return;
+    }
+    control.last_value = value.clone();
+    control.dirty = true;
+    drop(state);
+    emit_text_event(window_id, id, NativeEventId::Input, value);
+}
+
+fn handle_text_control_commit(
+    runtime: &Weak<RefCell<RuntimeState>>,
+    kind: TextControlKind,
+    window_id: WindowId,
+    id: NodeId,
+    event: &InputEvent,
+) {
+    let Some(runtime) = runtime.upgrade() else {
+        return;
+    };
+    let mut state = runtime.borrow_mut();
+    let Some(control) = state.text_control.get_mut(&id) else {
+        return;
+    };
+    let commit = match event {
+        InputEvent::PressEnter { .. } if kind == TextControlKind::Input => &mut control.dirty,
+        InputEvent::Blur => &mut control.dirty,
+        _ => return,
+    };
+    if !std::mem::take(commit) {
+        return;
+    }
+    let value = control.last_value.clone();
+    drop(state);
+    emit_text_event(window_id, id, NativeEventId::Change, value);
+}
+
+fn configure_textarea(
+    editor: &mut TextareaState,
+    min_rows: Option<u32>,
+    max_rows: Option<u32>,
+    cx: &mut Context<TextareaState>,
+) {
+    let (min_rows, max_rows) = match (min_rows, max_rows) {
+        (None, None) => (2, 2),
+        (min_rows, max_rows) => (min_rows.unwrap_or(1), max_rows.unwrap_or(u32::MAX)),
+    };
+    editor.set_auto_grow(min_rows as usize, max_rows as usize, cx);
+}
+
+fn text_control_value(kind: TextControlKind, value: &str) -> String {
+    match kind {
+        TextControlKind::Input => single_line(value),
+        TextControlKind::Textarea => value.to_owned(),
     }
 }
 

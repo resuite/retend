@@ -397,7 +397,7 @@ fn build_inner(
         }
     };
     let element = match &node.data {
-        NodeData::Root | NodeData::Container | NodeData::Input { .. } => {
+        NodeData::Root | NodeData::Container | NodeData::TextControl { .. } => {
             let element = if matches!(node.data, NodeData::Root) {
                 root_container()
             } else {
@@ -407,15 +407,24 @@ fn build_inner(
                 Some(style) => style.apply(element),
                 None => element.block(),
             };
-            element = if matches!(node.data, NodeData::Input { .. }) {
-                let input = runtime_state
-                    .input(id)
-                    .expect("native input runtime state must be initialized before rendering");
-                element.child(gpui_base::input::Input::new(&input))
-            } else {
-                element.children(node.children.iter().map(|child_id| {
+            element = match &node.data {
+                NodeData::TextControl { kind, .. } => match kind {
+                    crate::tree::TextControlKind::Input => {
+                        let input = runtime_state.input(id).expect(
+                            "native input runtime state must be initialized before rendering",
+                        );
+                        element.child(gpui_base::input::Input::new(&input))
+                    }
+                    crate::tree::TextControlKind::Textarea => {
+                        let textarea = runtime_state.textarea(id).expect(
+                            "native textarea runtime state must be initialized before rendering",
+                        );
+                        element.child(gpui_base::input::Textarea::new(&textarea))
+                    }
+                },
+                _ => element.children(node.children.iter().map(|child_id| {
                     build_inner(tree, *child_id, runtime_state, generation, interest)
-                }))
+                })),
             };
             if let Some(content) = staged_content {
                 element = element.on_children_prepainted(move |children, _, _| {
@@ -429,7 +438,7 @@ fn build_inner(
             }
             if interest.any()
                 || runtime_state.is_interactive(id)
-                || matches!(node.data, NodeData::Input { .. })
+                || matches!(node.data, NodeData::TextControl { .. })
             {
                 let element = with_native_events(
                     element.id(ElementId::Integer(u64::from(id))),
@@ -718,22 +727,15 @@ mod tests {
     }
 
     impl Render for QueryLayoutTestView {
-        fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let tree = self.tree.borrow();
-            let generation = self.runtime_state.begin_frame(&tree, self.window_id);
-            for (&id, node) in tree
-                .nodes
-                .iter()
-                .filter(|(_, node)| node.window_id == self.window_id)
-            {
-                self.runtime_state.sync_scroll(
-                    id,
-                    node.style
-                        .as_deref()
-                        .map(|style| style.overflow)
-                        .unwrap_or_default(),
-                );
-            }
+            let generation = crate::platform::prepare_frame(
+                &tree,
+                &self.runtime_state,
+                self.window_id,
+                window,
+                cx,
+            );
             build_with_runtime(&tree, 1, &self.runtime_state, generation)
         }
     }
@@ -793,6 +795,121 @@ mod tests {
 
     fn request_scroll_into_view(runtime: &RuntimeStateRegistry, id: NodeId) {
         runtime.enqueue_layout(LayoutOperation::ScrollIntoView(id));
+    }
+
+    #[gpui::test]
+    fn textarea_auto_grow_wraps_and_respects_row_bounds(cx: &mut TestAppContext) {
+        cx.update(init);
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Textarea,
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::Value,
+                        value: PropertyValue::String("a".into()),
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::MinRows,
+                        value: PropertyValue::Number(3.0),
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::MaxRows,
+                        value: PropertyValue::Number(4.0),
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![(PropertyId::Width, PropertyValue::Number(600.0))],
+                    },
+                    insert(1, 2),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let first = request_measure(&runtime_state, 2);
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+        let min_height = first.try_recv().unwrap().unwrap().height;
+
+        let mut measure = |commands: Vec<Command>| {
+            tree.borrow_mut().apply_commands(window_id, commands).unwrap();
+            view.update(cx, |_, cx| cx.notify());
+            finish_test_frames(cx);
+
+            let measured = request_measure(&runtime_state, 2);
+            view.update(cx, |_, cx| cx.notify());
+            finish_test_frames(cx);
+            measured.try_recv().unwrap().unwrap().height
+        };
+
+        let max_height = measure(vec![Command::SetProperty {
+            id: 2,
+            property: PropertyId::Value,
+            value: PropertyValue::String("a\nb\nc\nd".into()),
+        }]);
+        let overflow_height = measure(vec![Command::SetProperty {
+            id: 2,
+            property: PropertyId::Value,
+            value: PropertyValue::String("a\nb\nc\nd\ne\nf\ng\nh".into()),
+        }]);
+        assert!(max_height > min_height);
+        assert_eq!(overflow_height, max_height);
+
+        let wrapped = "This long single line must wrap repeatedly when the textarea becomes narrow.";
+        let wide_height = measure(vec![Command::SetProperty {
+            id: 2,
+            property: PropertyId::Value,
+            value: PropertyValue::String(wrapped.into()),
+        }]);
+        let narrow_height = measure(vec![Command::SetStyle {
+            id: 2,
+            properties: vec![(PropertyId::Width, PropertyValue::Number(120.0))],
+        }]);
+        assert!(narrow_height > wide_height);
+        assert_eq!(narrow_height, max_height);
+
+        let default_height = measure(vec![
+            Command::SetProperty {
+                id: 2,
+                property: PropertyId::MinRows,
+                value: PropertyValue::Null,
+            },
+            Command::SetProperty {
+                id: 2,
+                property: PropertyId::MaxRows,
+                value: PropertyValue::Null,
+            },
+            Command::SetProperty {
+                id: 2,
+                property: PropertyId::Value,
+                value: PropertyValue::String("reset".into()),
+            },
+        ]);
+        assert!(default_height < min_height);
+
+        let default_wrapped_height = measure(vec![Command::SetProperty {
+            id: 2,
+            property: PropertyId::Value,
+            value: PropertyValue::String(wrapped.into()),
+        }]);
+        assert_eq!(default_wrapped_height, default_height);
     }
 
     #[gpui::test]

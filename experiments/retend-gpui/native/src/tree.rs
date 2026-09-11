@@ -9,8 +9,23 @@ use crate::BridgeFailure;
 
 pub type NodeId = u32;
 pub type WindowId = u32;
-pub type InputSnapshot = (String, u64);
-pub type FocusTarget = (isize, Option<InputSnapshot>);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TextControlKind {
+    Input,
+    Textarea,
+}
+
+#[derive(Clone, Debug)]
+pub struct TextControlSnapshot {
+    pub kind: TextControlKind,
+    pub value: String,
+    pub value_revision: u64,
+    pub min_rows: Option<u32>,
+    pub max_rows: Option<u32>,
+}
+
+pub type FocusTarget = (isize, Option<TextControlSnapshot>);
 
 pub(crate) const fn event_bit(event: NativeEventId) -> u32 {
     1 << (event as u32 - 1)
@@ -22,6 +37,32 @@ fn invalid<T>(
     message: impl Into<String>,
 ) -> Result<T, BridgeFailure> {
     Err(BridgeFailure::command(index, code, message))
+}
+
+fn textarea_rows(index: usize, value: PropertyValue) -> Result<Option<u32>, BridgeFailure> {
+    match value {
+        PropertyValue::Null => Ok(None),
+        PropertyValue::Number(value)
+            if value.is_finite()
+                && value.fract() == 0.0
+                && value >= 1.0
+                && value <= u32::MAX as f64 =>
+        {
+            Ok(Some(value as u32))
+        }
+        PropertyValue::Number(_) => Ok(None),
+        _ => invalid(
+            index,
+            "INVALID_PROPERTY_VALUE",
+            "Textarea row counts must be numbers or null.",
+        ),
+    }
+}
+
+fn normalize_textarea_rows(min_rows: &mut Option<u32>, max_rows: &mut Option<u32>) {
+    if let (Some(min), Some(max)) = (*min_rows, *max_rows) {
+        *max_rows = Some(max.max(min));
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -48,9 +89,12 @@ pub enum NodeData {
         src: Option<String>,
         object_fit: Option<ImageObjectFit>,
     },
-    Input {
+    TextControl {
+        kind: TextControlKind,
         value: String,
         value_revision: u64,
+        min_rows: Option<u32>,
+        max_rows: Option<u32>,
     },
 }
 
@@ -79,7 +123,7 @@ impl NativeNode {
 
     pub(crate) fn effective_tab_index(&self) -> Option<isize> {
         self.tab_index
-            .or_else(|| matches!(self.data, NodeData::Input { .. }).then_some(0))
+            .or_else(|| matches!(self.data, NodeData::TextControl { .. }).then_some(0))
     }
 }
 
@@ -315,33 +359,50 @@ impl NativeTree {
         let Some(tab_index) = node.effective_tab_index() else {
             return Ok(None);
         };
-        let input = match &node.data {
-            NodeData::Input {
+        let text_control = match &node.data {
+            NodeData::TextControl {
+                kind,
                 value,
                 value_revision,
-            } => Some((value.clone(), *value_revision)),
+                min_rows,
+                max_rows,
+            } => Some(TextControlSnapshot {
+                kind: *kind,
+                value: value.clone(),
+                value_revision: *value_revision,
+                min_rows: *min_rows,
+                max_rows: *max_rows,
+            }),
             _ => None,
         };
-        Ok(Some((tab_index, input)))
+        Ok(Some((tab_index, text_control)))
     }
 
-    pub fn input_snapshot(
+    pub fn text_control_snapshot(
         &self,
         window_id: WindowId,
         id: NodeId,
-    ) -> Result<InputSnapshot, BridgeFailure> {
+    ) -> Result<TextControlSnapshot, BridgeFailure> {
         match &self.validated_node(window_id, id)?.data {
-            NodeData::Input {
+            NodeData::TextControl {
+                kind,
                 value,
                 value_revision,
-            } => Ok((value.clone(), *value_revision)),
+                min_rows,
+                max_rows,
+            } => Ok(TextControlSnapshot {
+                kind: *kind,
+                value: value.clone(),
+                value_revision: *value_revision,
+                min_rows: *min_rows,
+                max_rows: *max_rows,
+            }),
             _ => Err(BridgeFailure::new(
                 "INVALID_NODE_KIND",
-                format!("Node ID {id} is not a native text input."),
+                format!("Node ID {id} is not a native text control."),
             )),
         }
     }
-
 
     pub fn node_overflow(
         &self,
@@ -418,7 +479,14 @@ impl NativeTree {
                     NodeData::Container => ("Container", None, None),
                     NodeData::Text(text) => ("Text", Some(text.as_str()), None),
                     NodeData::Image { src, .. } => ("Image", None, src.as_deref()),
-                    NodeData::Input { .. } => ("Input", None, None),
+                    NodeData::TextControl { kind, .. } => (
+                        match kind {
+                            TextControlKind::Input => "Input",
+                            TextControlKind::Textarea => "Textarea",
+                        },
+                        None,
+                        None,
+                    ),
                 };
                 NodeSnapshot {
                     id,
@@ -485,9 +553,12 @@ impl NativeTree {
                         src: None,
                         object_fit: None,
                     },
-                    ElementKind::Input => NodeData::Input {
+                    ElementKind::Input => NodeData::TextControl {
+                        kind: TextControlKind::Input,
                         value: String::new(),
                         value_revision: 0,
+                        min_rows: None,
+                        max_rows: None,
                     },
                     ElementKind::Root => {
                         return invalid(
@@ -503,13 +574,13 @@ impl NativeTree {
                             "Text nodes must be created with CREATE_TEXT.",
                         )
                     }
-                    ElementKind::Textarea => {
-                        return invalid(
-                            index,
-                            "UNSUPPORTED_ELEMENT_KIND",
-                            "Textarea rendering is not implemented yet.",
-                        )
-                    }
+                    ElementKind::Textarea => NodeData::TextControl {
+                        kind: TextControlKind::Textarea,
+                        value: String::new(),
+                        value_revision: 0,
+                        min_rows: None,
+                        max_rows: None,
+                    },
                 };
                 self.create(index, window_id, id, data)
             }
@@ -562,9 +633,10 @@ impl NativeTree {
                     }
                     (
                         PropertyId::Value,
-                        NodeData::Input {
+                        NodeData::TextControl {
                             value: current,
                             value_revision,
+                            ..
                         },
                     ) => {
                         let value = match value {
@@ -574,7 +646,7 @@ impl NativeTree {
                                 return invalid(
                                     index,
                                     "INVALID_PROPERTY_VALUE",
-                                    "Input value must be a string or null.",
+                                    "Text-control value must be a string or null.",
                                 );
                             }
                         };
@@ -582,11 +654,37 @@ impl NativeTree {
                             BridgeFailure::command(
                                 index,
                                 "VALUE_REVISION_EXHAUSTED",
-                                "Input value revision space exhausted.",
+                                "Text-control value revision space exhausted.",
                             )
                         })?;
                         *current = value;
                         *value_revision = next_revision;
+                        Ok(())
+                    }
+                    (
+                        PropertyId::MinRows,
+                        NodeData::TextControl {
+                            kind: TextControlKind::Textarea,
+                            min_rows,
+                            max_rows,
+                            ..
+                        },
+                    ) => {
+                        *min_rows = textarea_rows(index, value)?;
+                        normalize_textarea_rows(min_rows, max_rows);
+                        Ok(())
+                    }
+                    (
+                        PropertyId::MaxRows,
+                        NodeData::TextControl {
+                            kind: TextControlKind::Textarea,
+                            min_rows,
+                            max_rows,
+                            ..
+                        },
+                    ) => {
+                        *max_rows = textarea_rows(index, value)?;
+                        normalize_textarea_rows(min_rows, max_rows);
                         Ok(())
                     }
                     (PropertyId::Src, NodeData::Image { src, .. }) => {
@@ -777,7 +875,13 @@ impl NativeTree {
                 NodeData::Container => (true, "Container"),
                 NodeData::Text(_) => (false, "Text"),
                 NodeData::Image { .. } => (false, "Image"),
-                NodeData::Input { .. } => (false, "Input"),
+                NodeData::TextControl { kind, .. } => (
+                    false,
+                    match kind {
+                        TextControlKind::Input => "Input",
+                        TextControlKind::Textarea => "Textarea",
+                    },
+                ),
             };
         let child_parent = self.node(window_id, index, child_id)?.parent;
         let root_id = self.windows[&window_id].root_id;
@@ -1043,6 +1147,87 @@ mod tests {
             "RENDERER_NOT_FATAL"
         );
         assert!(tree.nodes.contains_key(&2));
+    }
+
+    #[test]
+    fn textarea_retains_multiline_value_and_row_bounds() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Textarea,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Value,
+                    value: PropertyValue::String("first\nsecond".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::MinRows,
+                    value: PropertyValue::Number(2.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::MaxRows,
+                    value: PropertyValue::Number(6.0),
+                },
+            ],
+        )
+        .unwrap();
+
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::TextControl {
+                kind: TextControlKind::Textarea,
+                value,
+                min_rows: Some(2),
+                max_rows: Some(6),
+                ..
+            } if value == "first\nsecond"
+        ));
+
+        tree.apply_commands(
+            window,
+            vec![
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::MinRows,
+                    value: PropertyValue::Number(6.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::MaxRows,
+                    value: PropertyValue::Number(2.0),
+                },
+            ],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::TextControl {
+                min_rows: Some(6),
+                max_rows: Some(6),
+                ..
+            }
+        ));
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::MinRows,
+                value: PropertyValue::Number(0.0),
+            }],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::TextControl { min_rows: None, .. }
+        ));
+        assert!(tree.windows[&window].fatal.is_none());
     }
 
     #[test]

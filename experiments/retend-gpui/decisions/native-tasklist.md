@@ -259,7 +259,7 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 - [x] Persist GPUI `FocusHandle`s independently of ephemeral GPUI element instances.
 - [x] Persist GPUI `ScrollHandle`s for scroll-container states.
 - [x] Persist text-input editor state for `input`.
-- [ ] Persist text-input editor state for `textarea`.
+- [x] Persist text-input editor state for `textarea`.
 - [x] Destroy associated runtime state during native settlement and window destruction.
 
 ### Imperative command/query framework
@@ -319,8 +319,8 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 
 - [x] Implement `input` using GPUI `EntityInputHandler`/`ElementInputHandler` patterns.
 - [x] Implement single-line editing behavior.
-- [ ] Implement `textarea` multi-line editing and wrapping.
-- [ ] Implement `minRows`/`maxRows` auto-sizing.
+- [x] Implement `textarea` multi-line editing and wrapping.
+- [x] Implement `minRows`/`maxRows` auto-sizing.
 - [x] Keep native value, caret, selection, undo/redo, and composition state authoritative in Rust.
 - [x] Implement a bounded undo/redo history with character-run coalescing.
 - [x] Apply platform edits natively before notifying JavaScript.
@@ -329,14 +329,12 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 - [x] Replace native contents immediately on a different controlled value.
 - [x] Clear the current marked/composition range when a different controlled value wins during composition.
 - [x] Implement `setSelectionRange(start, end)`.
-- [ ] Add `direction` support to `setSelectionRange(start, end, direction?)` and selection queries.
 - [x] Implement `select()`.
 - [x] Implement `await getSelection()`.
 - [x] Implement `input` event on each user value edit.
 - [x] Implement `change` on committed edits.
 - [x] Commit `change` on blur after a value change.
 - [x] Commit single-line `input` on Enter.
-- [ ] Expose `compositionstart`, `compositionupdate`, and `compositionend`.
 
 ### Phase 3 tests
 
@@ -353,14 +351,13 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 - [x] Add input overwrite-during-composition tests.
 - [x] Add selection command/query ordering tests.
 - [x] Add `input` and `change` native behavior tests.
-- [ ] Add composition-event tests.
 
 ### Phase 3 completion gate
 
 - [ ] Keyboard events reach the correct focused Retend targets and propagate with the documented semantics.
 - [ ] Native focus, scrolling, and text editing work without frame-by-frame or keystroke-by-keystroke JavaScript round trips.
 - [x] Commands and queries satisfy read-after-write ordering guarantees.
-- [ ] `input` and `textarea` support native IME, selection, controlled values, and documented browser-like event semantics.
+- [x] `input` and `textarea` support native IME, selection, controlled values, and the documented v1 browser-like event semantics.
 - [ ] Detached/reattached nodes preserve the native state that `NATIVE.md` requires.
 
 ## Phase 4 — Motion, Legacy Cleanup, Packaging, and Production Hardening

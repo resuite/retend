@@ -441,11 +441,7 @@ export class GpuiImageElement extends GpuiElement {
   }
 }
 
-/** Native `<input>` element. */
-export class GpuiInputElement extends GpuiElement {
-  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
-    super(id, 'input', false, host, renderer);
-  }
+abstract class GpuiTextControlElement extends GpuiElement {
   /** Sets the authoritative native text selection using UTF-16 offsets. */
   setSelectionRange(start: number, end: number): void {
     this.requireHost('set selection on').setSelectionRangeNode(
@@ -463,6 +459,20 @@ export class GpuiInputElement extends GpuiElement {
   /** Reads the authoritative native text selection. */
   async getSelection(): Promise<GpuiSelection> {
     return this.requireHost('read selection from').getSelectionNode(this.id);
+  }
+}
+
+/** Native `<input>` element. */
+export class GpuiInputElement extends GpuiTextControlElement {
+  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    super(id, 'input', false, host, renderer);
+  }
+}
+
+/** Native `<textarea>` element. */
+export class GpuiTextareaElement extends GpuiTextControlElement {
+  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    super(id, 'textarea', false, host, renderer);
   }
 }
 

@@ -105,7 +105,7 @@ export interface GpuiMeasurement {
 }
 
 /** Native intrinsic tag names. Text remains ordinary JSX content. */
-export const GPUI_ELEMENT_TYPES = ['div', 'img', 'input'] as const;
+export const GPUI_ELEMENT_TYPES = ['div', 'img', 'input', 'textarea'] as const;
 
 /** Union of currently supported intrinsic element tag names. */
 export type GpuiElementType = (typeof GPUI_ELEMENT_TYPES)[number];
@@ -123,6 +123,15 @@ export interface GpuiImgCustomProps {
 export interface GpuiInputCustomProps {
   /** Controlled single-line native value. */
   value?: string;
+}
+
+export interface GpuiTextareaCustomProps {
+  /** Controlled multi-line native value. */
+  value?: string;
+  /** Minimum visible row count while auto-sizing. */
+  minRows?: number;
+  /** Maximum visible row count while auto-sizing. */
+  maxRows?: number;
 }
 
 export interface GpuiSelection {

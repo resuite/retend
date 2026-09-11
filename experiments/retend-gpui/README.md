@@ -133,12 +133,14 @@ The currently implemented Retend GPUI intrinsic surface is deliberately small:
 
 - `div`
 - `img`
+- `input`
+- `textarea`
 
-Text is ordinary JSX content rather than a `<text>` intrinsic. `input` and `textarea` are reserved for Phase 3 and are rejected by the current renderer rather than compiling and poisoning the native binding.
+Text is ordinary JSX content rather than a `<text>` intrinsic. `input` uses the native single-line editor, while `textarea` uses the native multi-line editor with wrapping and optional `minRows`/`maxRows` auto-sizing.
 
 ## Events
 
-Retend GPUI exposes JSX handlers for native pointer/button events and `keydown`/`keyup`, plus the `mousedownoutside` extension. Retend owns capture/target/bubble propagation over the logical node tree, and GPUI nodes also expose `addEventListener()`, `removeEventListener()`, and `dispatchEvent()` for imperative/custom events. `mouseenter` and `mouseleave` are non-bubbling; `mousedownoutside` is target-only for each qualifying subscriber. Native sources for focus/blur, input/change/composition, and element scroll are completed with the Phase 3 focus, text-input, and scrolling state systems.
+Retend GPUI exposes JSX handlers for native pointer/button events and `keydown`/`keyup`, plus the `mousedownoutside` extension. Retend owns capture/target/bubble propagation over the logical node tree, and GPUI nodes also expose `addEventListener()`, `removeEventListener()`, and `dispatchEvent()` for imperative/custom events. `mouseenter` and `mouseleave` are non-bubbling; `mousedownoutside` is target-only for each qualifying subscriber. Native sources for focus/blur, input/change, and element scroll are completed with the Phase 3 focus, text-input, and scrolling state systems. IME/composition remains native editor state; separate JavaScript composition lifecycle events are outside v1.
 
 ## Reactive values
 

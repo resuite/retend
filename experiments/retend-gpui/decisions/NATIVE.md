@@ -112,9 +112,9 @@ Native events cross from the GPUI/native event loop to Node's JavaScript thread 
 
 ## Intrinsic element set
 
-The currently supported JSX intrinsic set is `div` and `img`.
+The currently supported JSX intrinsic set is `div`, `img`, `input`, and `textarea`.
 
-Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`. The protocol reserves numeric element kinds for `input` and `textarea`, but those tags are not exposed or accepted by the renderer until Phase 3 implements their persistent editor/focus/selection state. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be activated through the versioned numeric protocol vocabulary when their owning phase is implemented.
+Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`. `input` and `textarea` use the persistent native editor/focus/selection state implemented in Phase 3. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be activated through the versioned numeric protocol vocabulary when their owning phase is implemented.
 
 ### Image handling
 
@@ -130,7 +130,7 @@ The v1 native renderer has no `span` or nested inline text-run model. Inline ran
 
 ## Event vocabulary and payloads
 
-The native protocol event vocabulary contains `click`, `dblclick`, `mousedown`, `mouseup`, `mouseenter`, `mouseleave`, `mousemove`, `keydown`, `keyup`, `input`, `change`, `focus`, `blur`, `scroll`, `compositionstart`, `compositionupdate`, `compositionend`, and the non-DOM extension `mousedownoutside`. JSX props keep React-style casing such as `onMouseDown`; protocol event names use their explicitly defined lowercase forms.
+The native protocol event vocabulary contains `click`, `dblclick`, `mousedown`, `mouseup`, `mouseenter`, `mouseleave`, `mousemove`, `keydown`, `keyup`, `input`, `change`, `focus`, `blur`, `scroll`, and the non-DOM extension `mousedownoutside`. JSX props keep React-style casing such as `onMouseDown`; protocol event names use their explicitly defined lowercase forms.
 
 Application-defined custom events remain entirely in JavaScript and do not enter the native protocol vocabulary. Native event types carry propagation metadata. `mouseenter`, `mouseleave`, `focus`, `blur`, and element `scroll` are non-bubbling; ordinary pointer/button/key events such as `click`, `mousedown`, `mouseup`, `mousemove`, `keydown`, and `keyup` bubble. Capture and target behavior follows each event type's metadata.
 
@@ -184,11 +184,11 @@ Explicit focus requests on retained-but-detached nodes are forwarded directly to
 
 Rust owns live editing state for native text controls: current value, selection, caret, undo/redo state, and IME/composition state. Platform input is applied natively first and the resulting changes are reported to JavaScript as events. JavaScript does not participate in a synchronous round trip for each keystroke or composition update. An explicit later Retend `value` update remains authoritative as a programmatic overwrite of the current native value. If the incoming `value` string is identical to the current native editor value, Rust treats it as a no-op and does not disturb caret, selection, composition, or undo state; only a genuinely different string performs a programmatic replacement. A genuinely different programmatic value also wins immediately during an active IME composition: Rust replaces the editor contents and clears the current marked/composition range rather than deferring the overwrite until composition ends.
 
-Programmatic text selection is part of the public input/textarea node API. Native commands `setSelectionRange(start, end, direction?)` and `select()` are synchronous. `getSelection()` is an asynchronous native query returning the current Rust-owned selection state. This follows the general imperative API rule: native commands are synchronous methods, native queries are asynchronous verb-named methods, and property getters never perform native work.
+Programmatic text selection is part of the public input/textarea node API. Native commands `setSelectionRange(start, end)` and `select()` are synchronous. `getSelection()` is an asynchronous native query returning the current Rust-owned `{ start, end }` selection. This follows the general imperative API rule: native commands are synchronous methods, native queries are asynchronous verb-named methods, and property getters never perform native work.
 
 `input` and `textarea` are backed by `gpui-base`'s native input engine, which implements GPUI's `EntityInputHandler`/`ElementInputHandler` pattern for focus, IME, selection, mouse selection, marked ranges, platform text-input integration, and bounded/coalesced undo history. Retend does not duplicate that editor state; its adapter owns only retained node association, controlled-value reconciliation, imperative bridge commands, and event translation. `input` is single-line; `textarea` adds multi-line wrapping and `minRows`/`maxRows` auto-sizing.
 
-Text-editing events use browser-like semantics. `input` fires whenever user editing changes the control value and carries the authoritative native value. `change` carries that same authoritative value when an edited value is committed rather than on every keystroke; losing focus after the value changed commits the edit, and Enter commits a single-line `input`. IME composition lifecycle is exposed separately through `compositionstart`, `compositionupdate`, and `compositionend`, while the native editor remains authoritative for marked/composition state.
+Text-editing events use browser-like semantics. `input` fires whenever user editing changes the control value and carries the authoritative native value. `change` carries that same authoritative value when an edited value is committed rather than on every keystroke; losing focus after the value changed commits the edit, and Enter commits a single-line `input`.
 
 ## Scroll ownership
 

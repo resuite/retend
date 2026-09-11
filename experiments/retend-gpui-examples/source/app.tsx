@@ -6,6 +6,8 @@ import { WindowSection } from './sections/window-section';
 export default function App() {
   return (
     <div style={{ padding: 24, gap: 16 }}>
+      <textarea />
+      <div />
       <WindowSection />
       <FocusSection />
       <MeasureSection />

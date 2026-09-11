@@ -1,18 +1,19 @@
 use std::{collections::HashMap, sync::Arc};
 
 use gpui::{
-    div, prelude::*, px, rgb, size, App, Bounds, Context, Entity, EntityInputHandler, Focusable,
-    Render, Subscription, Window, WindowBounds, WindowHandle, WindowOptions,
+    div, prelude::*, px, rgb, size, App, Bounds, Context, Render, Subscription, Window,
+    WindowBounds, WindowHandle, WindowOptions,
 };
-use gpui_base::input::InputState;
 
 #[cfg(test)]
 use crate::runtime_state::MeasureResponder;
 
 use crate::{
     protocol_generated::NativeEventId,
-    runtime_state::{LayoutOperation, QueryResponder, RuntimeStateRegistry},
-    tree::{InputSnapshot, NativeTree, NodeData, NodeId, WindowId},
+    runtime_state::{
+        LayoutOperation, QueryResponder, RuntimeStateRegistry, TextControlConfig, TextControlEditor,
+    },
+    tree::{NativeTree, NodeData, NodeId, TextControlSnapshot, WindowId},
     NativeSelection, NativeWindowOptions,
 };
 
@@ -66,30 +67,27 @@ fn ensure_focus_state<T: 'static>(
     handle
 }
 
-fn utf16_to_utf8_offset(value: &str, target: usize) -> usize {
-    let mut utf16 = 0;
-    for (byte, character) in value.char_indices() {
-        let next = utf16 + character.len_utf16();
-        if target < next {
-            return byte;
-        }
-        if target == next {
-            return byte + character.len_utf8();
-        }
-        utf16 = next;
-    }
-    value.len()
-}
-
-fn ensure_input_entity<T: 'static>(
+fn ensure_text_control_entity<T: 'static>(
     runtime_state: &RuntimeStateRegistry,
     window_id: WindowId,
     id: NodeId,
-    snapshot: &InputSnapshot,
+    snapshot: &TextControlSnapshot,
     window: &mut Window,
     cx: &mut Context<T>,
-) -> Entity<InputState> {
-    runtime_state.ensure_input(window_id, id, &snapshot.0, snapshot.1, window, cx)
+) -> TextControlEditor {
+    runtime_state.ensure_text_control(
+        window_id,
+        id,
+        TextControlConfig {
+            kind: snapshot.kind,
+            value: &snapshot.value,
+            value_revision: snapshot.value_revision,
+            min_rows: snapshot.min_rows,
+            max_rows: snapshot.max_rows,
+        },
+        window,
+        cx,
+    )
 }
 
 fn focus_runtime_node<T: 'static>(
@@ -97,13 +95,12 @@ fn focus_runtime_node<T: 'static>(
     window_id: WindowId,
     id: NodeId,
     tab_index: isize,
-    input: Option<&InputSnapshot>,
+    text_control: Option<&TextControlSnapshot>,
     window: &mut Window,
     cx: &mut Context<T>,
 ) {
-    let handle = input.map(|snapshot| {
-        ensure_input_entity(runtime_state, window_id, id, snapshot, window, cx)
-            .read(cx)
+    let handle = text_control.map(|snapshot| {
+        ensure_text_control_entity(runtime_state, window_id, id, snapshot, window, cx)
             .focus_handle(cx)
     });
     ensure_focus_state(
@@ -118,50 +115,7 @@ fn focus_runtime_node<T: 'static>(
     .focus(window, cx);
 }
 
-fn set_input_selection(input: &Entity<InputState>, start: u32, end: u32, cx: &mut App) {
-    input.update(cx, |input, cx| {
-        let start = start.min(end) as usize;
-        let end = end as usize;
-        let value = input.value();
-        input.set_selected_range(
-            utf16_to_utf8_offset(value.as_ref(), start)..utf16_to_utf8_offset(value.as_ref(), end),
-            cx,
-        );
-    });
-}
-
-fn input_selection(
-    input: &Entity<InputState>,
-    window: &mut Window,
-    cx: &mut App,
-) -> Result<NativeSelection, crate::BridgeFailure> {
-    input.update(cx, |input, cx| {
-        let selection = input
-            .selected_text_range(false, window, cx)
-            .ok_or_else(|| {
-                crate::BridgeFailure::new(
-                    "SELECTION_UNAVAILABLE",
-                    "Native input selection is unavailable.",
-                )
-            })?;
-        Ok(NativeSelection {
-            start: u32::try_from(selection.range.start).map_err(|_| {
-                crate::BridgeFailure::new(
-                    "SELECTION_RANGE_EXHAUSTED",
-                    "Native input selection exceeds the bridge UTF-16 offset range.",
-                )
-            })?,
-            end: u32::try_from(selection.range.end).map_err(|_| {
-                crate::BridgeFailure::new(
-                    "SELECTION_RANGE_EXHAUSTED",
-                    "Native input selection exceeds the bridge UTF-16 offset range.",
-                )
-            })?,
-        })
-    })
-}
-
-fn prepare_frame<T: 'static>(
+pub(crate) fn prepare_frame<T: 'static>(
     tree: &NativeTree,
     runtime_state: &RuntimeStateRegistry,
     window_id: WindowId,
@@ -174,20 +128,35 @@ fn prepare_frame<T: 'static>(
         .iter()
         .filter(|(_, node)| node.window_id == window_id)
     {
-        let input = if let NodeData::Input {
+        let text_control = if let NodeData::TextControl {
+            kind,
             value,
             value_revision,
+            min_rows,
+            max_rows,
         } = &node.data
         {
-            Some(runtime_state.ensure_input(window_id, id, value, *value_revision, window, cx))
+            Some(runtime_state.ensure_text_control(
+                window_id,
+                id,
+                TextControlConfig {
+                    kind: *kind,
+                    value,
+                    value_revision: *value_revision,
+                    min_rows: *min_rows,
+                    max_rows: *max_rows,
+                },
+                window,
+                cx,
+            ))
         } else {
             None
         };
         match node.effective_tab_index() {
             Some(tab_index) => {
-                let handle = input
+                let handle = text_control
                     .as_ref()
-                    .map(|input| input.read(cx).focus_handle(cx));
+                    .map(|control| control.focus_handle(cx));
                 ensure_focus_state(
                     runtime_state,
                     window_id,
@@ -211,7 +180,7 @@ fn prepare_frame<T: 'static>(
     generation
 }
 
-pub(crate) enum InputOperation {
+pub(crate) enum TextControlOperation {
     SetSelection(u32, u32),
     Select,
     GetSelection(QueryResponder<NativeSelection>),
@@ -219,9 +188,9 @@ pub(crate) enum InputOperation {
 
 pub(crate) enum WindowOperation {
     Invalidate,
-    Focus(NodeId, isize, Option<InputSnapshot>),
+    Focus(NodeId, isize, Option<TextControlSnapshot>),
     Blur(NodeId),
-    Input(NodeId, InputSnapshot, InputOperation),
+    TextControl(NodeId, TextControlSnapshot, TextControlOperation),
     Layout(LayoutOperation),
     DestroyRuntimeNodes(Vec<NodeId>),
     SetTitle(String),
@@ -232,7 +201,7 @@ impl WindowOperation {
     fn reject_closed(self) {
         match self {
             Self::Layout(operation) => operation.reject(closed_window_query_failure()),
-            Self::Input(_, _, InputOperation::GetSelection(responder)) => {
+            Self::TextControl(_, _, TextControlOperation::GetSelection(responder)) => {
                 responder.respond(Err(closed_window_query_failure()))
             }
             _ => {}
@@ -260,13 +229,13 @@ fn execute_window_operation(
         );
         match &operation {
             WindowOperation::Invalidate => {}
-            WindowOperation::Focus(id, tab_index, input) => {
+            WindowOperation::Focus(id, tab_index, text_control) => {
                 focus_runtime_node(
                     runtime,
                     window_id,
                     *id,
                     *tab_index,
-                    input.as_ref(),
+                    text_control.as_ref(),
                     window,
                     cx,
                 );
@@ -280,17 +249,16 @@ fn execute_window_operation(
                 }
                 window.blur(cx);
             }
-            WindowOperation::Input(id, snapshot, operation) => {
-                let input = ensure_input_entity(runtime, window_id, *id, snapshot, window, cx);
+            WindowOperation::TextControl(id, snapshot, operation) => {
+                let control =
+                    ensure_text_control_entity(runtime, window_id, *id, snapshot, window, cx);
                 match operation {
-                    InputOperation::SetSelection(start, end) => {
-                        set_input_selection(&input, *start, *end, cx);
+                    TextControlOperation::SetSelection(start, end) => {
+                        control.set_selection(*start, *end, cx);
                     }
-                    InputOperation::Select => {
-                        input.update(cx, |input, cx| input.select_all(window, cx));
-                    }
-                    InputOperation::GetSelection(responder) => {
-                        responder.respond(input_selection(&input, window, cx));
+                    TextControlOperation::Select => control.select_all(window, cx),
+                    TextControlOperation::GetSelection(responder) => {
+                        responder.respond(control.selection(window, cx));
                     }
                 }
             }
@@ -850,7 +818,7 @@ fn take_test_focus_events() -> Vec<(WindowId, NodeId, NativeEventId)> {
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
-    use gpui::{EntityInputHandler, Keystroke, TestApp, TestAppContext};
+    use gpui::{EntityInputHandler, Focusable, Keystroke, TestApp, TestAppContext};
 
     use super::*;
     use crate::{
@@ -917,13 +885,13 @@ mod tests {
         (tree, window_id)
     }
 
-    fn input_tree(value: Option<&str>) -> (Rc<RefCell<NativeTree>>, WindowId) {
+    fn text_control_tree(
+        kind: ElementKind,
+        value: Option<&str>,
+    ) -> (Rc<RefCell<NativeTree>>, WindowId) {
         let tree = Rc::new(RefCell::new(NativeTree::default()));
         let window_id = tree.borrow_mut().create_window(1).unwrap();
-        let mut commands = vec![Command::CreateNode {
-            id: 2,
-            kind: ElementKind::Input,
-        }];
+        let mut commands = vec![Command::CreateNode { id: 2, kind }];
         if let Some(value) = value {
             commands.push(Command::SetProperty {
                 id: 2,
@@ -940,6 +908,14 @@ mod tests {
             .apply_commands(window_id, commands)
             .unwrap();
         (tree, window_id)
+    }
+
+    fn input_tree(value: Option<&str>) -> (Rc<RefCell<NativeTree>>, WindowId) {
+        text_control_tree(ElementKind::Input, value)
+    }
+
+    fn textarea_tree(value: Option<&str>) -> (Rc<RefCell<NativeTree>>, WindowId) {
+        text_control_tree(ElementKind::Textarea, value)
     }
 
     #[gpui::test]
@@ -1131,27 +1107,78 @@ mod tests {
     }
 
     #[gpui::test]
-    fn imperative_input_focus_before_first_frame_uses_editor_handle(
+    fn native_textarea_accepts_multiline_platform_text_and_commits_on_blur(
         cx: &mut TestAppContext,
     ) {
         cx.update(crate::render::init);
+        let (tree, window_id) = textarea_tree(None);
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+            runtime_state.focus_handle(2).unwrap().focus(window, cx);
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        crate::runtime_state::take_test_text_events();
+
+        cx.simulate_input(window.into(), "b");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(Keystroke::parse("enter").unwrap(), cx);
+        })
+        .unwrap();
+        let value = cx.update(|cx| {
+            runtime_state
+                .textarea(2)
+                .unwrap()
+                .read(cx)
+                .value()
+                .to_string()
+        });
+        assert_eq!(value, "b\n");
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![
+                (window_id, 2, NativeEventId::Input, "b".into()),
+                (window_id, 2, NativeEventId::Input, "b\n".into()),
+            ]
+        );
+
+        cx.simulate_input(window.into(), "c");
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Input, "b\nc".into())]
+        );
+
+        cx.update_window(window.into(), |_, window, cx| window.blur(cx))
+            .unwrap();
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Change, "b\nc".into())]
+        );
+    }
+
+    #[gpui::test]
+    fn imperative_input_focus_before_first_frame_uses_editor_handle(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
         let (tree, window_id) = input_tree(Some("a"));
-        let snapshot = tree.borrow().input_snapshot(window_id, 2).unwrap();
+        let snapshot = tree.borrow().text_control_snapshot(window_id, 2).unwrap();
         let runtime_state = RuntimeStateRegistry::default();
         let window = cx.add_window({
             let tree = tree.clone();
             let runtime_state = runtime_state.clone();
             move |window, cx| {
                 window.activate_window();
-                focus_runtime_node(
-                    &runtime_state,
-                    window_id,
-                    2,
-                    0,
-                    Some(&snapshot),
-                    window,
-                    cx,
-                );
+                focus_runtime_node(&runtime_state, window_id, 2, 0, Some(&snapshot), window, cx);
                 FocusTreeView {
                     tree,
                     runtime_state,
@@ -1180,66 +1207,66 @@ mod tests {
     }
 
     #[gpui::test]
-    fn native_selection_uses_utf16_offsets_and_pending_controlled_value(
+    fn native_text_control_selection_uses_utf16_offsets_and_pending_controlled_value(
         cx: &mut TestAppContext,
     ) {
         cx.update(crate::render::init);
-        let (tree, window_id) = input_tree(Some("old"));
-        let runtime_state = RuntimeStateRegistry::default();
-        let window = cx.add_window({
-            let tree = tree.clone();
-            let runtime_state = runtime_state.clone();
-            move |_, _| FocusTreeView {
-                tree,
-                runtime_state,
-                window_id,
-            }
-        });
-        cx.update_window(window.into(), |_, window, cx| {
-            window.activate_window();
-            window.draw(cx).clear(cx);
-        })
-        .unwrap();
-
-        tree.borrow_mut()
-            .apply_commands(
-                window_id,
-                vec![Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Value,
-                    value: PropertyValue::String("a😀b".into()),
-                }],
-            )
+        for kind in [ElementKind::Input, ElementKind::Textarea] {
+            let (tree, window_id) = text_control_tree(kind, Some("old"));
+            let runtime_state = RuntimeStateRegistry::default();
+            let window = cx.add_window({
+                let tree = tree.clone();
+                let runtime_state = runtime_state.clone();
+                move |_, _| FocusTreeView {
+                    tree,
+                    runtime_state,
+                    window_id,
+                }
+            });
+            cx.update_window(window.into(), |_, window, cx| {
+                window.activate_window();
+                window.draw(cx).clear(cx);
+            })
             .unwrap();
-        let snapshot = tree.borrow().input_snapshot(window_id, 2).unwrap();
 
-        cx.update(|cx| {
-            window
-                .update(cx, |_, window, cx| {
-                    let input = ensure_input_entity(
-                        &runtime_state,
-                        window_id,
-                        2,
-                        &snapshot,
-                        window,
-                        cx,
-                    );
-                    assert_eq!(input.read(cx).value().as_ref(), "a😀b");
-
-                    set_input_selection(&input, 3, 3, cx);
-                    assert_eq!(
-                        input_selection(&input, window, cx).unwrap(),
-                        NativeSelection { start: 3, end: 3 }
-                    );
-
-                    input.update(cx, |input, cx| input.select_all(window, cx));
-                    assert_eq!(
-                        input_selection(&input, window, cx).unwrap(),
-                        NativeSelection { start: 0, end: 4 }
-                    );
-                })
+            tree.borrow_mut()
+                .apply_commands(
+                    window_id,
+                    vec![Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::Value,
+                        value: PropertyValue::String("a😀b".into()),
+                    }],
+                )
                 .unwrap();
-        });
+            let snapshot = tree.borrow().text_control_snapshot(window_id, 2).unwrap();
+
+            cx.update(|cx| {
+                window
+                    .update(cx, |_, window, cx| {
+                        let control = ensure_text_control_entity(
+                            &runtime_state,
+                            window_id,
+                            2,
+                            &snapshot,
+                            window,
+                            cx,
+                        );
+                        control.set_selection(3, 3, cx);
+                        assert_eq!(
+                            control.selection(window, cx).unwrap(),
+                            NativeSelection { start: 3, end: 3 }
+                        );
+
+                        control.select_all(window, cx);
+                        assert_eq!(
+                            control.selection(window, cx).unwrap(),
+                            NativeSelection { start: 0, end: 4 }
+                        );
+                    })
+                    .unwrap();
+            });
+        }
     }
 
     #[gpui::test]
@@ -1259,10 +1286,7 @@ mod tests {
         cx.update_window(window.into(), |_, window, cx| {
             window.activate_window();
             window.draw(cx).clear(cx);
-            runtime_state
-                .focus_handle(2)
-                .unwrap()
-                .focus(window, cx);
+            runtime_state.focus_handle(2).unwrap().focus(window, cx);
             window.draw(cx).clear(cx);
         })
         .unwrap();
@@ -1303,6 +1327,84 @@ mod tests {
     }
 
     #[gpui::test]
+    fn identical_controlled_textarea_write_preserves_selection_and_composition(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = textarea_tree(Some("a\nb"));
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+
+        let textarea = runtime_state.textarea(2).unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            textarea.update(cx, |textarea, cx| {
+                textarea.set_selected_range(2..2, cx);
+                textarea.replace_and_mark_text_in_range(None, "X", Some(1..1), window, cx);
+            });
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let before = cx
+            .update_window(window.into(), |_, window, cx| {
+                textarea.update(cx, |textarea, cx| {
+                    (
+                        textarea.value().to_string(),
+                        textarea
+                            .selected_text_range(false, window, cx)
+                            .unwrap()
+                            .range,
+                        textarea.marked_text_range(window, cx),
+                    )
+                })
+            })
+            .unwrap();
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Value,
+                    value: PropertyValue::String(before.0.clone()),
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let identical = cx
+            .update_window(window.into(), |_, window, cx| {
+                textarea.update(cx, |textarea, cx| {
+                    (
+                        textarea.value().to_string(),
+                        textarea
+                            .selected_text_range(false, window, cx)
+                            .unwrap()
+                            .range,
+                        textarea.marked_text_range(window, cx),
+                    )
+                })
+            })
+            .unwrap();
+        assert_eq!(identical, before);
+    }
+
+    #[gpui::test]
     fn identical_controlled_input_write_preserves_selection_and_composition(
         cx: &mut TestAppContext,
     ) {
@@ -1338,10 +1440,7 @@ mod tests {
                 input.update(cx, |input, cx| {
                     (
                         input.value().to_string(),
-                        input
-                            .selected_text_range(false, window, cx)
-                            .unwrap()
-                            .range,
+                        input.selected_text_range(false, window, cx).unwrap().range,
                         input.marked_text_range(window, cx),
                     )
                 })
@@ -1368,10 +1467,7 @@ mod tests {
                 input.update(cx, |input, cx| {
                     (
                         input.value().to_string(),
-                        input
-                            .selected_text_range(false, window, cx)
-                            .unwrap()
-                            .range,
+                        input.selected_text_range(false, window, cx).unwrap().range,
                         input.marked_text_range(window, cx),
                     )
                 })
@@ -1399,10 +1495,7 @@ mod tests {
                 input.update(cx, |input, cx| {
                     (
                         input.value().to_string(),
-                        input
-                            .selected_text_range(false, window, cx)
-                            .unwrap()
-                            .range,
+                        input.selected_text_range(false, window, cx).unwrap().range,
                         input.marked_text_range(window, cx),
                     )
                 })

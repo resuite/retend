@@ -46,6 +46,7 @@ import {
   GpuiGroup,
   GpuiImageElement,
   GpuiInputElement,
+  GpuiTextareaElement,
   GpuiNode,
   GpuiRoot,
   GpuiText,
@@ -75,12 +76,14 @@ const ELEMENT_KIND_BY_TAG = {
   div: ElementKind.Container,
   img: ElementKind.Image,
   input: ElementKind.Input,
+  textarea: ElementKind.Textarea,
 } satisfies Record<GpuiElementType, ElementKindValue>;
 
 const ELEMENT_FACTORIES = {
   div: GpuiDivElement,
   img: GpuiImageElement,
   input: GpuiInputElement,
+  textarea: GpuiTextareaElement,
 } as const;
 
 function protocolPropertyValue(value: unknown): ProtocolPropertyValue {
@@ -298,13 +301,14 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   createContainer(tagName: 'div'): GpuiDivElement;
   createContainer(tagName: 'img'): GpuiImageElement;
   createContainer(tagName: 'input'): GpuiInputElement;
+  createContainer(tagName: 'textarea'): GpuiTextareaElement;
   createContainer(tagName: string): GpuiElement;
   createContainer(tagName: string): GpuiElement {
     const Factory = ELEMENT_FACTORIES[tagName as GpuiElementType];
     if (!Factory) {
       throw new Error(
         `Unsupported Retend GPUI intrinsic element: <${tagName}>. ` +
-          'Supported tags are <div>, <img>, and <input>; text is ordinary JSX content.'
+          'Supported tags are <div>, <img>, <input>, and <textarea>; text is ordinary JSX content.'
       );
     }
 
@@ -704,8 +708,15 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     if (key === 'tabIndex') property = PropertyId.TabIndex;
     else if (node.tagName === 'img')
       property = propertyIdInRange(key, IMAGE_PROPERTY_RANGE);
-    else if (node.tagName === 'input' && key === 'value')
+    else if (
+      (node.tagName === 'input' || node.tagName === 'textarea') &&
+      key === 'value'
+    )
       property = PropertyId.Value;
+    else if (node.tagName === 'textarea' && key === 'minRows')
+      property = PropertyId.MinRows;
+    else if (node.tagName === 'textarea' && key === 'maxRows')
+      property = PropertyId.MaxRows;
     if (property !== undefined) {
       this.host.setProperty(node.id, property, protocolPropertyValue(value));
     }
@@ -880,6 +891,7 @@ export {
   GpuiGroup,
   GpuiImageElement,
   GpuiInputElement,
+  GpuiTextareaElement,
   GpuiNode,
   GpuiText,
 };

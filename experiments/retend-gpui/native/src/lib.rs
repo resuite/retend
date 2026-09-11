@@ -15,7 +15,7 @@ use napi::bindgen_prelude::{Buffer, Function, Object, ToNapiValue};
 use napi::{Env, Error, Result, Status};
 use napi_derive::napi;
 
-use platform::{InputOperation, WindowOperation};
+use platform::{TextControlOperation, WindowOperation};
 use protocol::decode_command_batch;
 use runtime_state::{LayoutOperation, QueryResponder};
 use tree::{NativeTree, WindowId};
@@ -259,12 +259,12 @@ impl NativeRendererBinding {
 
     #[napi]
     pub fn set_selection_range_node(&self, id: u32, start: u32, end: u32) -> Result<()> {
-        let input = with_runtime(|tree| tree.input_snapshot(self.window_id, id))?;
+        let control = with_runtime(|tree| tree.text_control_snapshot(self.window_id, id))?;
         if !self.headless {
-            self.dispatch(WindowOperation::Input(
+            self.dispatch(WindowOperation::TextControl(
                 id,
-                input,
-                InputOperation::SetSelection(start, end),
+                control,
+                TextControlOperation::SetSelection(start, end),
             ));
         }
         Ok(())
@@ -272,21 +272,25 @@ impl NativeRendererBinding {
 
     #[napi]
     pub fn select_node(&self, id: u32) -> Result<()> {
-        let input = with_runtime(|tree| tree.input_snapshot(self.window_id, id))?;
+        let control = with_runtime(|tree| tree.text_control_snapshot(self.window_id, id))?;
         if !self.headless {
-            self.dispatch(WindowOperation::Input(id, input, InputOperation::Select));
+            self.dispatch(WindowOperation::TextControl(
+                id,
+                control,
+                TextControlOperation::Select,
+            ));
         }
         Ok(())
     }
 
     #[napi]
     pub fn get_selection_node<'env>(&self, env: &'env Env, id: u32) -> Result<Object<'env>> {
-        let input = with_runtime(|tree| tree.input_snapshot(self.window_id, id))?;
+        let control = with_runtime(|tree| tree.text_control_snapshot(self.window_id, id))?;
         self.query(env, |responder| {
-            self.dispatch(WindowOperation::Input(
+            self.dispatch(WindowOperation::TextControl(
                 id,
-                input,
-                InputOperation::GetSelection(responder),
+                control,
+                TextControlOperation::GetSelection(responder),
             ))
         })
     }

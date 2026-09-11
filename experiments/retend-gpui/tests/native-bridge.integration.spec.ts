@@ -298,7 +298,7 @@ describe('Retend-owned native bridge', () => {
       loadNativeAddon().NativeRendererBinding.prototype,
       'reportFatal'
     );
-    host.createNode(ElementKind.Textarea);
+    host.createNode(ElementKind.Root);
     expect(() => host.flush()).toThrow(NativeRendererFatalError);
 
     host.createText('late');

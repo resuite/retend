@@ -18,6 +18,7 @@ import {
   GpuiDivElement,
   GpuiImageElement,
   GpuiInputElement,
+  GpuiTextareaElement,
   GpuiText,
   RetendGpuiRenderer,
 } from '../source/gpui-renderer';
@@ -28,7 +29,7 @@ import { hotReloadModule } from '../source/plugins/hmr';
 
 interface DebugNode {
   id: number;
-  kind: 'Root' | 'Container' | 'Text' | 'Image' | 'Input';
+  kind: 'Root' | 'Container' | 'Text' | 'Image' | 'Input' | 'Textarea';
   parent: number | null;
   children: number[];
   text: string | null;
@@ -179,11 +180,10 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       'text is ordinary JSX content'
     );
     expect(() => renderer.createContainer('input')).not.toThrow();
-    for (const tag of ['code', 'textarea']) {
-      expect(() => renderer.createContainer(tag)).toThrow(
-        `Unsupported Retend GPUI intrinsic element: <${tag}>`
-      );
-    }
+    expect(() => renderer.createContainer('textarea')).not.toThrow();
+    expect(() => renderer.createContainer('code')).toThrow(
+      'Unsupported Retend GPUI intrinsic element: <code>'
+    );
   });
 
   it('exposes tabIndex with native focus and blur commands', () => {
@@ -219,11 +219,12 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(() => target.blur()).toThrow('destroyed Retend GPUI node');
   });
 
-  it('scopes text-selection APIs to native input elements', async () => {
+  it('scopes text-selection APIs to native text controls', async () => {
     const renderer = createRenderer();
     const div = renderer.createContainer('div');
     const image = renderer.createContainer('img');
     const input = renderer.createContainer('input');
+    const textarea = renderer.createContainer('textarea');
     const setSelection = vi
       .spyOn(renderer.host, 'setSelectionRangeNode')
       .mockImplementation(() => {});
@@ -237,17 +238,27 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(div).toBeInstanceOf(GpuiDivElement);
     expect(image).toBeInstanceOf(GpuiImageElement);
     expect(input).toBeInstanceOf(GpuiInputElement);
+    expect(textarea).toBeInstanceOf(GpuiTextareaElement);
     expect('select' in div).toBe(false);
     expect('setSelectionRange' in image).toBe(false);
     expect('getSelection' in div).toBe(false);
 
-    input.setSelectionRange(1, 3);
-    input.select();
-    await expect(input.getSelection()).resolves.toEqual({ start: 1, end: 3 });
+    const controls = [input, textarea];
+    const selections = controls.map((control) => {
+      control.setSelectionRange(1, 3);
+      control.select();
+      return control.getSelection();
+    });
+    await expect(Promise.all(selections)).resolves.toEqual([
+      { start: 1, end: 3 },
+      { start: 1, end: 3 },
+    ]);
 
-    expect(setSelection).toHaveBeenCalledWith(input.id, 1, 3);
-    expect(select).toHaveBeenCalledWith(input.id);
-    expect(getSelection).toHaveBeenCalledWith(input.id);
+    for (const control of controls) {
+      expect(setSelection).toHaveBeenCalledWith(control.id, 1, 3);
+      expect(select).toHaveBeenCalledWith(control.id);
+      expect(getSelection).toHaveBeenCalledWith(control.id);
+    }
   });
 
   it('registers JSX native events on the element types that expose them', () => {
@@ -658,6 +669,64 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     );
   });
 
+  it('maps textarea value and row bounds through the native property vocabulary', () => {
+    const renderer = createRenderer();
+    const textareaRef = Cell.source<GpuiTextareaElement | null>(null);
+    const value = Cell.source('first\nsecond');
+    const minRows = Cell.source(2);
+    const maxRows = Cell.source(6);
+    const setProperty = vi.spyOn(renderer.host, 'setProperty');
+
+    renderer.render(() => (
+      <textarea
+        ref={textareaRef}
+        value={value}
+        minRows={minRows}
+        maxRows={maxRows}
+      />
+    ));
+    const textarea = textareaRef.get();
+    if (!textarea) throw new Error('Expected textarea ref to resolve.');
+
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.Value,
+      'first\nsecond'
+    );
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.MinRows,
+      2
+    );
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.MaxRows,
+      6
+    );
+
+    Cell.batch(() => {
+      value.set('updated\nvalue');
+      minRows.set(3);
+      maxRows.set(8);
+    });
+    renderer.flush();
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.Value,
+      'updated\nvalue'
+    );
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.MinRows,
+      3
+    );
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.MaxRows,
+      8
+    );
+  });
+
   it('publishes complete resolved author-style snapshots', () => {
     const renderer = createRenderer();
     const targetRef = Cell.source<GpuiElement | null>(null);
@@ -885,7 +954,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const node = ref.get();
     if (!node) throw new Error('Expected mounted ref to resolve.');
 
-    renderer.host.createNode(ElementKind.Textarea);
+    renderer.host.createNode(ElementKind.Root);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
     expect(renderer.hasRoot).toBe(false);
     expect(renderer.host.isInitialized).toBe(true);
@@ -911,7 +980,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       renderer.host.createText('cleanup');
     });
 
-    renderer.host.createNode(ElementKind.Textarea);
+    renderer.host.createNode(ElementKind.Root);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
     expect(() => renderer.flush()).not.toThrow();
   });
@@ -940,7 +1009,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
   it('does not leave a partial development overlay on a fatal renderer', () => {
     const renderer = createRenderer();
     renderer.render(() => <div>mounted</div>);
-    renderer.host.createNode(ElementKind.Textarea);
+    renderer.host.createNode(ElementKind.Root);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
 
     expect(() => renderer.showDevelopmentError('ordinary error')).toThrow(
