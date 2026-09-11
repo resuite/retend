@@ -1,17 +1,14 @@
-import { FocusSection } from './sections/focus-section';
-import { MeasureSection } from './sections/measure-section';
-import { ScrollSection } from './sections/scroll-section';
-import { WindowSection } from './sections/window-section';
-
 export default function App() {
+  const handleClick = () => {};
+
   return (
     <div style={{ padding: 24, gap: 16 }}>
-      <textarea />
+      <textarea
+        style={{ borderWidth: 2, borderColor: '#000000', borderRadius: 5 }}
+        maxRows={7}
+      />
+      <div onClick={handleClick}>Open Popup Window</div>
       <div />
-      <WindowSection />
-      <FocusSection />
-      <MeasureSection />
-      <ScrollSection />
     </div>
   );
 }
