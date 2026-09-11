@@ -773,6 +773,36 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(collectText(debugTree(renderer))).toEqual(['after']);
   });
 
+  it('recovers a component boundary after a failed HMR render', () => {
+    const renderer = createRenderer({ hmr: true });
+
+    const label = Cell.source('before');
+    function App() {
+      return <div>{label}</div>;
+    }
+    function BrokenApp() {
+      throw new Error('broken update');
+    }
+    function FixedApp() {
+      return <div>after</div>;
+    }
+
+    renderer.render(() => <App />);
+    expect(collectText(debugTree(renderer))).toEqual(['before']);
+
+    hotReloadModule({ default: BrokenApp }, { default: App });
+    expect(collectText(debugTree(renderer)).join('')).toContain(
+      'broken update'
+    );
+    expect(collectText(debugTree(renderer))).toContain('before');
+
+    label.set('still alive');
+    expect(collectText(debugTree(renderer))).toContain('still alive');
+
+    hotReloadModule({ default: FixedApp }, { default: BrokenApp });
+    expect(collectText(debugTree(renderer))).toEqual(['after']);
+  });
+
   it('rejects removing or replacing rendered component exports during HMR', () => {
     const renderer = createRenderer({ hmr: true });
 
@@ -789,7 +819,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     );
   });
 
-  it('shows an error root without destroying the application subtree', () => {
+  it('shows an error overlay above the application subtree', () => {
     const renderer = createRenderer();
     const appRef = Cell.source<GpuiElement | null>(null);
     renderer.render(() => <div ref={appRef}>application</div>);
@@ -798,9 +828,10 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
 
     renderer.showDevelopmentError(new Error('broken update'));
     let tree = debugTree(renderer);
+    expect(collectText(tree)).toContain('application');
     expect(collectText(tree).join('')).toContain('broken update');
     expect(tree.nodes.some((node) => node.id === app.id)).toBe(true);
-    expect(tree.pending_detached).toContain(app.id);
+    expect(tree.pending_detached).not.toContain(app.id);
 
     renderer.clearDevelopmentError();
     tree = debugTree(renderer);

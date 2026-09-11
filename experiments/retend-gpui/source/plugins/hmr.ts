@@ -39,7 +39,6 @@ type HmrContext = {
  * @param newModule - Replacement module namespace produced by Vite HMR.
  * @param oldModule - Previous module namespace that owns the live invalidators.
  * @throws If a previously rendered component export no longer exists in the new module.
- * @throws `AggregateError` if updating any invalidator fails.
  */
 export function hotReloadModule(
   newModule: Record<string, unknown> | undefined,
@@ -104,8 +103,8 @@ export function hotReloadModule(
     globalData.delete(__HMR_SYMBOLS.HMRContextKey);
   }
 
-  if (errors.length > 0) {
-    throw new AggregateError(errors, 'Retend GPUI HMR update failed.');
+  for (const error of errors) {
+    console.error('HMR Update Error: ', error);
   }
 }
 
@@ -185,27 +184,42 @@ export function withHMRBoundaries(
 
   const group = renderer.createGroup();
   const handle = renderer.createGroupHandle(group) as GpuiRange;
-  const snapshot: StateSnapshot = branchState();
+  const base: StateSnapshot = branchState();
+  const createGeneration = (): StateSnapshot => ({
+    scopes: base.scopes,
+    node: base.node.branch(),
+    renderer: base.renderer,
+  });
+
+  let generation = createGeneration();
 
   const refresh = (fn: __HMR_UpdatableFn): void => {
-    if (withState(snapshot, () => instanceIsCoveredByParentUpdate(fn))) return;
+    if (withState(generation, () => instanceIsCoveredByParentUpdate(fn)))
+      return;
 
-    snapshot.node.dispose();
-    renderer.write(handle, []);
-    renderer.flush();
-
+    const next = createGeneration();
+    let nodes: GpuiNode[];
     try {
-      withState(snapshot, () => {
-        renderer.write(handle, renderComponent(invalidator, props, renderer));
-      });
-    } finally {
-      withState(snapshot, () => invalidator.listen(refresh));
-      void snapshot.node.activate();
+      nodes = withState(next, () =>
+        renderComponent(invalidator, props, renderer)
+      );
+    } catch (error) {
+      next.node.dispose();
+      renderer.showDevelopmentError(error);
+      throw error;
     }
+
+    withState(next, () => renderer.write(handle, nodes));
+    const previous = generation;
+    generation = next;
+    previous.node.dispose();
+    withState(next, () => invalidator.listen(refresh));
+    void next.node.activate();
+    renderer.clearDevelopmentError();
     renderer.flush();
   };
 
-  withState(snapshot, () => {
+  withState(generation, () => {
     renderer.write(handle, renderComponent(invalidator, props, renderer));
     invalidator.listen(refresh);
   });

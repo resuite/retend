@@ -204,6 +204,11 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
           break;
         }
       }
+      // With no following sibling, insert before the development overlay so it
+      // stays the last native root and keeps painting above application content.
+      if (!before && parent === this.#root && this.#devError) {
+        before = this.#devError.root;
+      }
       this.host.insertChild(parentId, node.id, before?.id ?? 0);
     } else if (previousId != null) {
       this.host.removeChild(previousId, node.id);
@@ -505,8 +510,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   }
 
   /**
-   * Replaces the root with a full-screen error overlay showing `error`.
-   * Subsequent calls update the existing overlay text.
+   * Adds a full-screen error overlay above the application root showing `error`.
+   * The application subtree stays mounted underneath. Subsequent calls update
+   * the existing overlay text.
    *
    * @param error - Error to display; strings, Error stacks, or JSON are all accepted.
    */
@@ -527,6 +533,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     const root = this.createContainer('div');
     const text = this.createText(message);
     this.setProperty(root, 'style', {
+      position: 'absolute',
+      top: 0,
+      left: 0,
       width: '100%',
       height: '100%',
       padding: 24,
@@ -536,8 +545,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     });
     this.append(root, text);
     this.#devError = { root, text };
-    this.#mountNativeRoots([root]);
     try {
+      this.#syncWindowRoot();
       this.flush();
     } catch (error) {
       this.#devError = null;
@@ -627,8 +636,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   }
 
   #syncWindowRoot(): void {
-    if (this.#devError) return;
-    this.#mountNativeRoots(this.#root ? collectNativeChildren(this.#root) : []);
+    const roots = this.#root ? collectNativeChildren(this.#root) : [];
+    if (this.#devError) roots.push(this.#devError.root);
+    this.#mountNativeRoots(roots);
   }
 
   #mountNativeRoots(desired: readonly GpuiNativeNode[]): void {
@@ -637,14 +647,16 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       if (!node.destroyed && !retained.has(node))
         this.host.removeChild(this.host.rootId, node.id);
     }
-    for (const node of desired)
-      this.host.insertChild(this.host.rootId, node.id);
+    for (const node of desired) {
+      if (!this.#mountedNativeRoots.has(node))
+        this.host.insertChild(this.host.rootId, node.id);
+    }
     this.#mountedNativeRoots = retained;
   }
 
   #nativeParentId(parent: GpuiParentNode): number | undefined {
     if (parent instanceof GpuiElement && !parent.destroyed) return parent.id;
-    if (parent === this.#root && !this.#devError) return this.host.rootId;
+    if (parent === this.#root) return this.host.rootId;
     return undefined;
   }
 

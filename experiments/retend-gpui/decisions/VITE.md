@@ -46,7 +46,7 @@ If the user intentionally closes the final GPUI window, the application process 
 
 `retend-gpui` implements a parallel GPUI-specific HMR path, mirroring the structure of `retend-web/plugins/hmr`.
 
-The GPUI path consumes the HMR primitives that already exist in Retend core for the browser renderer (`__HMR_SYMBOLS`, component invalidator cells, `branchState()`/`withState()`) without modifying them. Do not refactor or modify the existing `retend-web` HMR implementation or Retend core as part of GPUI HMR work; the existing browser HMR path is considered stable and hard-won.
+The GPUI path consumes the HMR primitives that already exist in Retend core for the browser renderer (`__HMR_SYMBOLS`, component invalidator cells, `branchState()`/`withState()`) without modifying Retend core. The browser and GPUI HMR paths share the same speculative generation model; keep them aligned when either changes.
 
 Some behavior is therefore duplicated between web and GPUI. Any later extraction of shared HMR infrastructure should be a separate decision made after the GPUI implementation has proven itself.
 
@@ -128,9 +128,11 @@ Router bindings participate in the same export-key matching: route registrations
 
 ## HMR failure semantics
 
-Component HMR uses eager remount semantics. When a component boundary is invalidated, dispose the old component state before attempting to render the replacement.
+Component HMR uses speculative remount semantics. Each component boundary owns a stable base state and one committed rendering generation. When the boundary is invalidated, the replacement is rendered into a new generation while the committed generation remains mounted and running.
 
-If the replacement render throws, report the HMR error and leave the failed boundary in that errored state. Do not attempt transactional rollback to the old subtree, and do not restart the entire GPUI application process solely because a component remount failed.
+If the replacement render throws, dispose only the speculative generation, report the HMR error in the terminal and through the development error overlay, and leave the committed generation untouched so the last working UI and its state remain live. The next successful replacement renders and commits normally, which clears the overlay.
+
+If the replacement render succeeds, the boundary commits: replace the committed generation's rendered nodes, dispose the old generation, promote the new generation, and activate it.
 
 Parse, transform, or module-evaluation failures that prevent an HMR update from being applied should leave the currently running application process and UI untouched while the error is reported.
 
@@ -143,6 +145,8 @@ If the configured application entry fails to transform or evaluate before the ro
 ## Development error overlay
 
 Development errors are reported both in the terminal and through a native Vite-style GPUI error overlay. The overlay covers transform errors, module-evaluation errors, and component-remount errors, and clears automatically after the next successful update.
+
+The overlay is additive: it is an absolutely-positioned native node mounted as the topmost root above the live application, so the last good application subtree stays mounted and running underneath it rather than being detached or destroyed.
 
 The overlay is owned by `retend-gpui` as a renderer-level development layer outside the application's Retend tree: the renderer creates the overlay nodes directly through its native host rather than mounting Retend components, and every live window shows it. It does not depend on application components being able to evaluate or render, so errors can still be displayed when the application tree itself is unavailable or broken. The remaining Phase 2 development-root work moves this UI into a stable runtime-owned Retend wrapper beneath the immutable native root without changing these error-reporting semantics.
 
