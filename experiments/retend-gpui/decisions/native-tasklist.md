@@ -306,6 +306,8 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 - [x] Implement `overflow: 'hidden'` as clipped scroll-container with programmatic scrolling but no wheel/trackpad or scrollbar UI.
 - [x] Implement `overflow: 'auto'` with scrollability.
 - [x] Implement `overflow: 'scroll'` with scrollability.
+- [x] Reuse `gpui-base::Scrollbar` with the retained `ScrollHandle` for general scroll containers.
+- [x] Use activity-driven scrollbar visibility for `auto` and always-visible-on-overflow scrollbar policy for `scroll`.
 - [x] Preserve one handle/offset while switching among `hidden`, `auto`, and `scroll`.
 - [x] Release scroll-container state when entering `visible` or `clip`.
 - [x] Create fresh scroll state at initial offset when returning from `visible`/`clip`.

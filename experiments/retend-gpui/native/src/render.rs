@@ -11,6 +11,7 @@ use crate::{
     events,
     protocol_generated::NativeEventId,
     runtime_state::RuntimeStateRegistry,
+    style::OverflowValue,
     tree::{event_bit, ImageObjectFit, NativeTree, NodeData, NodeId, WindowId},
 };
 
@@ -243,8 +244,80 @@ fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
     }
 }
 
-/// Preserves Retend's post-paint bounds publication on GPUI versions without
-/// the old `on_painted` element extension.
+/// Paints the generic gpui-base scrollbar as an overlay without making it a
+/// layout child of the Retend scroll container.
+struct ScrollbarOverlay {
+    inner: AnyElement,
+    scroll: gpui::ScrollHandle,
+    mode: gpui_base::ScrollbarMode,
+    id: NodeId,
+}
+
+impl IntoElement for ScrollbarOverlay {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for ScrollbarOverlay {
+    type RequestLayoutState = ();
+    type PrepaintState = AnyElement;
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.inner.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
+        self.inner.prepaint(window, cx);
+        let bounds = self.scroll.bounds();
+        let mut scrollbar = gpui_base::Scrollbar::new(&self.scroll)
+            .id(("retend-scrollbar", self.id))
+            .mode(self.mode)
+            .into_any_element();
+        scrollbar.prepaint_as_root(bounds.origin, bounds.size.into(), window, cx);
+        scrollbar
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        scrollbar: &mut AnyElement,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.paint(window, cx);
+        scrollbar.paint(window, cx);
+    }
+}
+
+/// Runs Retend's post-paint bookkeeping after the wrapped element paints.
 struct PaintObserver {
     inner: AnyElement,
     callback: Option<PaintCallback>,
@@ -521,7 +594,29 @@ fn build_inner(
             image.into_any_element()
         }
     };
-    PaintObserver::new(element, record_bounds).into_any_element()
+    let element = PaintObserver::new(element, record_bounds).into_any_element();
+    let mode = match (&node.data, node.style.as_deref()) {
+        (NodeData::Root | NodeData::Container, Some(style))
+            if style.display != crate::style::DisplayValue::None =>
+        {
+            match style.overflow {
+                OverflowValue::Auto => Some(gpui_base::ScrollbarMode::Scrolling),
+                OverflowValue::Scroll => Some(gpui_base::ScrollbarMode::Always),
+                OverflowValue::Visible | OverflowValue::Clip | OverflowValue::Hidden => None,
+            }
+        }
+        _ => None,
+    };
+    match (scroll_handle, mode) {
+        (Some(scroll), Some(mode)) => ScrollbarOverlay {
+            inner: element,
+            scroll,
+            mode,
+            id,
+        }
+        .into_any_element(),
+        _ => element,
+    }
 }
 
 #[cfg(test)]
@@ -529,12 +624,15 @@ mod tests {
     use std::{
         cell::RefCell,
         rc::Rc,
-        sync::{mpsc, Arc, Mutex},
+        sync::{
+            atomic::{AtomicU32, Ordering},
+            mpsc, Arc, Mutex,
+        },
     };
 
     use gpui::{
         http_client::{AsyncBody, FakeHttpClient, Response},
-        point, px, Context, Render, TestAppContext, Window,
+        point, px, Context, Modifiers, Render, TestAppContext, Window,
     };
 
     use super::*;
@@ -547,6 +645,7 @@ mod tests {
 
     const SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>"#;
     const AFTER_IMAGE: &str = "after-image";
+    static NEXT_GLOBAL_TEST_ROOT: AtomicU32 = AtomicU32::new(0xd000_0000);
 
     fn test_inner(
         tree: &NativeTree,
@@ -777,6 +876,28 @@ mod tests {
                 cx,
             );
             build_with_runtime(&tree, 1, &self.runtime_state, generation)
+        }
+    }
+
+    struct GlobalTreeTestView {
+        runtime_state: RuntimeStateRegistry,
+        window_id: WindowId,
+        root_id: NodeId,
+    }
+
+    impl Render for GlobalTreeTestView {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let tree = crate::runtime()
+                .lock()
+                .expect("global native tree must remain available in render tests");
+            let generation = crate::platform::prepare_frame(
+                &tree,
+                &self.runtime_state,
+                self.window_id,
+                window,
+                cx,
+            );
+            build_with_runtime(&tree, self.root_id, &self.runtime_state, generation)
         }
     }
 
@@ -1256,6 +1377,176 @@ mod tests {
         view.update(cx, |_, cx| cx.notify());
         finish_test_frames(cx);
         assert_eq!(reset.try_recv().unwrap().unwrap(), initial);
+    }
+
+    #[gpui::test]
+    fn scrollbar_track_uses_retained_handle_and_hidden_suppresses_overlay(cx: &mut TestAppContext) {
+        cx.update(init);
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(100.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(500.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        let track_click = {
+            let bounds = runtime_state
+                .scroll_handle(2)
+                .expect("scroll container must retain its handle")
+                .bounds();
+            point(bounds.right() - px(5.0), bounds.bottom() - px(10.0))
+        };
+        cx.simulate_click(track_click, Modifiers::default());
+        finish_test_frames(cx);
+        let scrolled = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert!(scrolled.try_recv().unwrap().unwrap().y > 0.0);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(100.0)),
+                        (PropertyId::Overflow, PropertyValue::String("hidden".into())),
+                    ],
+                }],
+            )
+            .unwrap();
+        scroll(&runtime_state, 2, 0.0, false);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        cx.simulate_click(track_click, Modifiers::default());
+        finish_test_frames(cx);
+        let hidden = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(hidden.try_recv().unwrap().unwrap(), ScrollOffset::default());
+    }
+
+    #[gpui::test]
+    fn native_scrollbar_input_emits_authoritative_retend_scroll_event(cx: &mut TestAppContext) {
+        cx.update(init);
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let scroller_id = root_id + 1;
+        let content_id = root_id + 2;
+        let window_id = {
+            let mut tree = crate::runtime()
+                .lock()
+                .expect("global native tree must remain available in render tests");
+            let window_id = tree.create_window(root_id).unwrap();
+            tree.apply_commands(
+                window_id,
+                vec![
+                    container(scroller_id),
+                    container(content_id),
+                    Command::SetStyle {
+                        id: scroller_id,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(100.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: content_id,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(500.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    Command::SubscribeEvent {
+                        id: scroller_id,
+                        event: NativeEventId::Scroll,
+                    },
+                    insert(root_id, scroller_id),
+                    insert(scroller_id, content_id),
+                ],
+            )
+            .unwrap();
+            window_id
+        };
+
+        let runtime_state = RuntimeStateRegistry::default();
+        crate::runtime_state::take_test_scroll_events();
+        let (view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| GlobalTreeTestView {
+                runtime_state,
+                window_id,
+                root_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        let track_click = {
+            let bounds = runtime_state
+                .scroll_handle(scroller_id)
+                .expect("scroll container must retain its handle")
+                .bounds();
+            point(bounds.right() - px(5.0), bounds.bottom() - px(10.0))
+        };
+        cx.simulate_click(track_click, Modifiers::default());
+        finish_test_frames(cx);
+
+        let events = crate::runtime_state::take_test_scroll_events();
+        assert_eq!(
+            events.len(),
+            1,
+            "one native scrollbar action must emit one scroll event"
+        );
+        let (event_window, target_id, event_offset) = events[0];
+        assert_eq!((event_window, target_id), (window_id, scroller_id));
+
+        let queried = request_scroll_offset(&runtime_state, scroller_id);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(event_offset, queried.try_recv().unwrap().unwrap());
+        assert!(event_offset.y > 0.0);
+
+        crate::runtime()
+            .lock()
+            .expect("global native tree must remain available in render tests")
+            .close_window(window_id);
     }
 
     #[gpui::test]
@@ -1775,7 +2066,7 @@ mod tests {
     }
 
     #[gpui::test]
-    fn overflow_does_not_paint_extra_retend_quads(cx: &mut TestAppContext) {
+    fn overflow_modes_preserve_expected_content_painting(cx: &mut TestAppContext) {
         let tree = Rc::new(RefCell::new(NativeTree::default()));
         let window_id = tree.borrow_mut().create_window(1).unwrap();
         tree.borrow_mut()
@@ -1839,11 +2130,13 @@ mod tests {
                 .iter()
                 .find(|quad| quad.background == gpui::rgb(0xff0000).into());
             assert_eq!(content.is_some(), display != "none");
-            assert_eq!(
-                quads.len(),
-                if display == "none" { 1 } else { 2 },
-                "{overflow} / {display} must paint only the root and visible content"
-            );
+            if overflow != "scroll" || display == "none" {
+                assert_eq!(
+                    quads.len(),
+                    if display == "none" { 1 } else { 2 },
+                    "{overflow} / {display} must not paint inactive scrollbar UI"
+                );
+            }
         }
     }
 
