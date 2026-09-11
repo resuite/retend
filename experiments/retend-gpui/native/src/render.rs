@@ -1507,7 +1507,7 @@ mod tests {
         };
 
         let runtime_state = RuntimeStateRegistry::default();
-        crate::runtime_state::take_test_scroll_events();
+        crate::events::take_test_emitted_events();
         let (view, cx) = cx.add_window_view({
             let runtime_state = runtime_state.clone();
             move |_, _| GlobalTreeTestView {
@@ -1528,14 +1528,21 @@ mod tests {
         cx.simulate_click(track_click, Modifiers::default());
         finish_test_frames(cx);
 
-        let events = crate::runtime_state::take_test_scroll_events();
+        let events: Vec<_> = crate::events::take_test_emitted_events()
+            .into_iter()
+            .filter(|(_, event)| event.event_id == NativeEventId::Scroll as u16)
+            .collect();
         assert_eq!(
             events.len(),
             1,
             "one native scrollbar action must emit one scroll event"
         );
-        let (event_window, target_id, event_offset) = events[0];
-        assert_eq!((event_window, target_id), (window_id, scroller_id));
+        let (event_window, event) = &events[0];
+        assert_eq!((*event_window, event.target_id), (window_id, scroller_id));
+        let event_offset = ScrollOffset {
+            x: event.scroll_x,
+            y: event.scroll_y,
+        };
 
         let queried = request_scroll_offset(&runtime_state, scroller_id);
         view.update(cx, |_, cx| cx.notify());
@@ -1689,6 +1696,113 @@ mod tests {
         view.update(cx, |_, cx| cx.notify());
         finish_test_frames(cx);
         assert_eq!(reattached.try_recv().unwrap().unwrap().y, 30.0);
+    }
+
+    #[gpui::test]
+    fn hidden_allows_programmatic_scroll_while_clip_cannot_reveal_descendants(
+        cx: &mut TestAppContext,
+    ) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    container(4),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String("hidden".into())),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(120.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(2, 4),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        runtime_state.enqueue_layout(LayoutOperation::Scroll(
+            2,
+            OverflowValue::Hidden,
+            0.0,
+            40.0,
+            false,
+        ));
+        let hidden = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(hidden.try_recv().unwrap().unwrap().y, 40.0);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: 2,
+                    properties: vec![
+                        (PropertyId::Display, PropertyValue::String("flex".into())),
+                        (
+                            PropertyId::FlexDirection,
+                            PropertyValue::String("column".into()),
+                        ),
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(50.0)),
+                        (PropertyId::Overflow, PropertyValue::String("clip".into())),
+                    ],
+                }],
+            )
+            .unwrap();
+        let before = request_measure(&runtime_state, 4);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let before = before.try_recv().unwrap().unwrap();
+        assert!(runtime_state.scroll_handle(2).is_none());
+        assert!(
+            before.y >= 120.0,
+            "target must begin outside the clipped viewport"
+        );
+
+        request_scroll_into_view(&runtime_state, 4);
+        let after = request_measure(&runtime_state, 4);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(after.try_recv().unwrap().unwrap(), before);
+        assert!(runtime_state.scroll_handle(2).is_none());
     }
 
     #[gpui::test]

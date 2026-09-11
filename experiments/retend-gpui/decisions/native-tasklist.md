@@ -340,15 +340,15 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 
 ### Phase 3 tests
 
-- [ ] Add focus persistence tests across detach/reattach.
-- [ ] Add detached-focus command tests.
+- [x] Add focus persistence tests across detach/reattach.
+- [x] Add detached-focus command tests.
 - [x] Add `tabIndex` navigation tests.
 - [x] Add query ordering/read-barrier tests.
 - [x] Add zeroed detached-measure tests.
-- [ ] Add pending-query rejection tests for close/poison.
+- [x] Add pending-query rejection tests for close/poison.
 - [x] Add all five overflow-mode behavior tests.
 - [x] Add scroll-handle preservation/release tests.
-- [ ] Add programmatic-scroll tests for `hidden` and rejection/no-op semantics for `clip`.
+- [x] Add programmatic-scroll tests for `hidden` and rejection/no-op semantics for `clip`.
 - [x] Add input controlled-value no-op tests preserving caret/composition.
 - [x] Add input overwrite-during-composition tests.
 - [x] Add selection command/query ordering tests.
@@ -356,11 +356,11 @@ Goal: add the stateful native capabilities that require persistent GPUI runtime 
 
 ### Phase 3 completion gate
 
-- [ ] Keyboard events reach the correct focused Retend targets and propagate with the documented semantics.
-- [ ] Native focus, scrolling, and text editing work without frame-by-frame or keystroke-by-keystroke JavaScript round trips.
+- [x] Keyboard events reach the correct focused Retend targets and propagate with the documented semantics.
+- [x] Native focus, scrolling, and text editing work without frame-by-frame or keystroke-by-keystroke JavaScript round trips.
 - [x] Commands and queries satisfy read-after-write ordering guarantees.
 - [x] `input` and `textarea` support native IME, selection, controlled values, and the documented v1 browser-like event semantics.
-- [ ] Detached/reattached nodes preserve the native state that `NATIVE.md` requires.
+- [x] Detached/reattached nodes preserve the native state that `NATIVE.md` requires.
 
 ## Phase 4 — Motion, Legacy Cleanup, Packaging, and Production Hardening
 

@@ -94,6 +94,20 @@ describe('Retend-owned native bridge', () => {
     );
 
     host.removeChild(host.rootId, node);
+    expect(() => host.focusNode(node)).not.toThrow();
+    expect(focusNode).toHaveBeenCalledTimes(2);
+    expect(applyBatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      focusNode.mock.invocationCallOrder.at(-1) ?? 0
+    );
+
+    host.insertChild(host.rootId, node);
+    expect(() => host.focusNode(node)).not.toThrow();
+    expect(focusNode).toHaveBeenCalledTimes(3);
+    expect(applyBatch.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      focusNode.mock.invocationCallOrder.at(-1) ?? 0
+    );
+
+    host.removeChild(host.rootId, node);
     host.settle();
     expect(() => host.focusNode(node)).toThrow('Node ID');
   });

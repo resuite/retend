@@ -797,9 +797,17 @@ fn take_test_focus_events() -> Vec<(WindowId, NodeId, NativeEventId)> {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
+    use std::{
+        cell::RefCell,
+        rc::Rc,
+        sync::{
+            atomic::{AtomicU32, Ordering},
+            mpsc,
+        },
+    };
 
     use gpui::{EntityInputHandler, Focusable, Keystroke, TestApp, TestAppContext};
+    use napi::bindgen_prelude::Buffer;
 
     use super::*;
     use crate::{
@@ -893,6 +901,8 @@ mod tests {
         text_control_tree(ElementKind::Textarea, value)
     }
 
+    static NEXT_GLOBAL_TEST_ROOT: AtomicU32 = AtomicU32::new(0xc000_0000);
+
     #[gpui::test]
     fn nested_focus_events_target_only_the_exact_focused_node(cx: &mut TestAppContext) {
         let (tree, window_id) = focus_tree(&[(2, Some(0)), (3, Some(0))], &[(1, 2), (2, 3)]);
@@ -935,6 +945,171 @@ mod tests {
         assert_eq!(events.len(), 2);
         assert!(events.contains(&(window_id, 2, NativeEventId::Blur)));
         assert!(events.contains(&(window_id, 3, NativeEventId::Focus)));
+    }
+
+    #[gpui::test]
+    fn focus_handle_and_focus_survive_detach_reattach(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = focus_tree(&[(2, Some(0))], &[(1, 2)]);
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+            runtime_state.focus_handle(2).unwrap().focus(window, cx);
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let focus = runtime_state.focus_handle(2).unwrap();
+        take_test_focus_events();
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::RemoveChild {
+                    parent_id: 1,
+                    child_id: 2,
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(runtime_state.focus_handle(2).unwrap(), focus);
+            assert!(focus.is_focused(window));
+        })
+        .unwrap();
+        assert!(take_test_focus_events().is_empty());
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::InsertChild {
+                    parent_id: 1,
+                    child_id: 2,
+                    before_id: 0,
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(runtime_state.focus_handle(2).unwrap(), focus);
+            assert!(focus.is_focused(window));
+        })
+        .unwrap();
+        assert!(take_test_focus_events().is_empty());
+    }
+
+    #[gpui::test]
+    fn detached_focus_operation_routes_keyboard_after_reattach(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let window_id = {
+            let mut tree = crate::runtime().lock().unwrap();
+            let window_id = tree.create_window(root_id).unwrap();
+            tree.apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: target_id,
+                        kind: ElementKind::Container,
+                    },
+                    Command::SetProperty {
+                        id: target_id,
+                        property: PropertyId::TabIndex,
+                        value: PropertyValue::Number(-1.0),
+                    },
+                    Command::SubscribeEvent {
+                        id: target_id,
+                        event: NativeEventId::KeyDown,
+                    },
+                ],
+            )
+            .unwrap();
+            window_id
+        };
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let runtime_state = runtime_state.clone();
+            move |_, _| RetendRootView {
+                window_id,
+                runtime_state,
+                last_window_size: None,
+                _window_observers: None,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+
+        let focus_operation = {
+            let tree = crate::runtime().lock().unwrap();
+            let (tab_index, text_control) = tree
+                .node_focus_target(window_id, target_id)
+                .unwrap()
+                .expect("detached node with tabIndex must remain focusable");
+            WindowOperation::Focus(target_id, tab_index, text_control)
+        };
+        cx.update(|cx| execute_window_operation(window_id, Some(window), focus_operation, cx));
+        let focus = runtime_state
+            .focus_handle(target_id)
+            .expect("focus command must create persistent native focus state");
+        cx.update_window(window.into(), |_, window, cx| {
+            assert!(focus.is_focused(window));
+            crate::events::take_test_emitted_events();
+            window.dispatch_keystroke(Keystroke::parse("a").unwrap(), cx);
+        })
+        .unwrap();
+        assert!(
+            crate::events::take_test_emitted_events()
+                .into_iter()
+                .all(|(_, event)| event.event_id != NativeEventId::KeyDown as u16),
+            "detached focused nodes are absent from GPUI's keyboard dispatch tree"
+        );
+
+        crate::runtime()
+            .lock()
+            .unwrap()
+            .apply_commands(
+                window_id,
+                vec![Command::InsertChild {
+                    parent_id: root_id,
+                    child_id: target_id,
+                    before_id: 0,
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(runtime_state.focus_handle(target_id).unwrap(), focus);
+            assert!(focus.is_focused(window));
+            crate::events::take_test_emitted_events();
+            window.dispatch_keystroke(Keystroke::parse("a").unwrap(), cx);
+        })
+        .unwrap();
+
+        let events: Vec<_> = crate::events::take_test_emitted_events()
+            .into_iter()
+            .filter(|(_, event)| event.event_id == NativeEventId::KeyDown as u16)
+            .collect();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].0, window_id);
+        assert_eq!(events[0].1.target_id, target_id);
+        assert_eq!(events[0].1.key, "a");
+        crate::runtime().lock().unwrap().close_window(window_id);
     }
 
     #[gpui::test]
@@ -1245,6 +1420,74 @@ mod tests {
     }
 
     #[gpui::test]
+    fn native_text_control_selection_survives_detach_reattach(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        for kind in [ElementKind::Input, ElementKind::Textarea] {
+            let (tree, window_id) = text_control_tree(kind, Some("abc"));
+            let runtime_state = RuntimeStateRegistry::default();
+            let window = cx.add_window({
+                let tree = tree.clone();
+                let runtime_state = runtime_state.clone();
+                move |_, _| FocusTreeView {
+                    tree,
+                    runtime_state,
+                    window_id,
+                }
+            });
+            cx.update_window(window.into(), |_, window, cx| {
+                window.activate_window();
+                window.draw(cx).clear(cx);
+                let control = runtime_state.text_control(2).unwrap();
+                control.set_selection(1, 2, cx);
+                assert_eq!(
+                    control.selection(window, cx).unwrap(),
+                    NativeSelection { start: 1, end: 2 }
+                );
+            })
+            .unwrap();
+
+            tree.borrow_mut()
+                .apply_commands(
+                    window_id,
+                    vec![Command::RemoveChild {
+                        parent_id: 1,
+                        child_id: 2,
+                    }],
+                )
+                .unwrap();
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+            })
+            .unwrap();
+
+            tree.borrow_mut()
+                .apply_commands(
+                    window_id,
+                    vec![Command::InsertChild {
+                        parent_id: 1,
+                        child_id: 2,
+                        before_id: 0,
+                    }],
+                )
+                .unwrap();
+            cx.update_window(window.into(), |_, window, cx| {
+                window.refresh();
+                window.draw(cx).clear(cx);
+                assert_eq!(
+                    runtime_state
+                        .text_control(2)
+                        .unwrap()
+                        .selection(window, cx)
+                        .unwrap(),
+                    NativeSelection { start: 1, end: 2 }
+                );
+            })
+            .unwrap();
+        }
+    }
+
+    #[gpui::test]
     fn native_input_and_change_events_follow_edit_commit_semantics(cx: &mut TestAppContext) {
         cx.update(crate::render::init);
         let (tree, window_id) = input_tree(Some("a"));
@@ -1477,6 +1720,97 @@ mod tests {
             })
             .unwrap();
         assert_eq!(replaced, ("z".to_string(), 1..1, None));
+    }
+
+    #[gpui::test]
+    fn pending_layout_queries_reject_when_window_closes(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let window_id = crate::runtime()
+            .lock()
+            .unwrap()
+            .create_window(root_id)
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let runtime_state = runtime_state.clone();
+            move |_, _| RetendRootView {
+                window_id,
+                runtime_state,
+                last_window_size: None,
+                _window_observers: None,
+            }
+        });
+        let (sender, receiver) = mpsc::channel();
+        runtime_state.enqueue_layout(LayoutOperation::Measure(
+            root_id,
+            MeasureResponder::new(move |result| sender.send(result).unwrap()),
+        ));
+
+        cx.update_window(window.into(), |_, window, _| window.remove_window())
+            .unwrap();
+        cx.executor().run_until_parked();
+        let failure = receiver.try_recv().unwrap().unwrap_err();
+        assert_eq!(failure.code, "CLOSED_WINDOW");
+        assert!(receiver.try_recv().is_err());
+        crate::runtime().lock().unwrap().close_window(window_id);
+    }
+
+    #[gpui::test]
+    fn pending_layout_queries_reject_when_healthy_renderer_becomes_poisoned(
+        cx: &mut TestAppContext,
+    ) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let window_id = crate::runtime()
+            .lock()
+            .unwrap()
+            .create_window(root_id)
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let runtime_state = runtime_state.clone();
+            move |_, _| RetendRootView {
+                window_id,
+                runtime_state,
+                last_window_size: None,
+                _window_observers: None,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+
+        let (sender, receiver) = mpsc::channel();
+        runtime_state.enqueue_layout(LayoutOperation::Measure(
+            root_id,
+            MeasureResponder::new(move |result| sender.send(result).unwrap()),
+        ));
+        assert!(receiver.try_recv().is_err(), "query must still be pending");
+
+        let binding = crate::NativeRendererBinding {
+            window_id,
+            headless: false,
+        };
+        take_test_invalidations();
+        assert!(binding.apply_command_batch(Buffer::from(vec![0])).is_err());
+        let invalidations = take_test_invalidations();
+        assert_eq!(invalidations.len(), 1);
+        assert_eq!(invalidations[0].0, window_id);
+        assert!(invalidations[0]
+            .1
+            .as_deref()
+            .is_some_and(|snapshot| snapshot.contains("\"poisoned\":true")));
+        // The TestApp window is not registered in the real platform dispatcher, so
+        // replay the invalidation operation that apply_command_batch just submitted.
+        cx.update(|cx| {
+            execute_window_operation(window_id, Some(window), WindowOperation::Invalidate, cx)
+        });
+        cx.executor().run_until_parked();
+
+        let failure = receiver.try_recv().unwrap().unwrap_err();
+        assert_eq!(failure.code, "POISONED_RENDERER");
+        assert!(receiver.try_recv().is_err());
+        crate::runtime().lock().unwrap().close_window(window_id);
     }
 
     #[test]

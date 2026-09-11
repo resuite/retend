@@ -459,10 +459,23 @@ pub fn unregister(window_id: WindowId) {
     });
 }
 
+#[cfg(test)]
+thread_local! {
+    static TEST_EMITTED_EVENTS: std::cell::RefCell<Vec<(WindowId, NativeEventPayload)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
 pub fn emit(window_id: WindowId, payload: NativeEventPayload) {
+    #[cfg(test)]
+    TEST_EMITTED_EVENTS.with(|events| events.borrow_mut().push((window_id, payload.clone())));
     if let Some(transport) = transport(window_id) {
         transport.emit(payload);
     }
+}
+
+#[cfg(test)]
+pub(crate) fn take_test_emitted_events() -> Vec<(WindowId, NativeEventPayload)> {
+    TEST_EMITTED_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
 }
 
 pub fn emit_window(window_id: WindowId, payload: NativeWindowEventPayload) -> bool {

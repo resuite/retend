@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
+  NativeKeyboardEventPayload,
   NativeMouseEventPayload,
   NativeTransportPayload,
   NativeWindowOptions,
@@ -54,7 +55,7 @@ vi.mock('../source/native/addon', async (importOriginal) => {
   };
 });
 
-import { GpuiMouseEvent } from '../source/events';
+import { GpuiMouseEvent, type GpuiKeyboardEvent } from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
 
@@ -77,6 +78,24 @@ function mouseEvent(
     ctrlKey: true,
     metaKey: false,
     shiftKey: true,
+  };
+}
+
+function keyboardEvent(
+  eventId: NativeKeyboardEventPayload['eventId'],
+  targetId: number
+): NativeKeyboardEventPayload {
+  return {
+    eventId,
+    targetId,
+    timeStamp: 13,
+    key: 'a',
+    keyChar: 'a',
+    repeat: false,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
   };
 }
 
@@ -236,6 +255,33 @@ describe('native event delivery', () => {
       shiftKey: true,
     });
     expect(received?.timeStamp).toBe(12.5);
+  });
+
+  it('propagates a native keyboard payload through capture, target, and bubble', () => {
+    const renderer = createRenderer();
+    const parent = renderer.createContainer('div');
+    const child = renderer.createContainer('div');
+    renderer.append(parent, child);
+    renderer.render(() => parent);
+
+    const calls: string[] = [];
+    parent.addEventListener(
+      'keydown',
+      () => calls.push('parent-capture'),
+      true
+    );
+    child.addEventListener('keydown', (event) => {
+      calls.push('target');
+      expect(event.target).toBe(child);
+      expect((event as GpuiKeyboardEvent).key).toBe('a');
+    });
+    parent.addEventListener('keydown', () => calls.push('parent-bubble'));
+
+    native.onEvent?.({
+      event: keyboardEvent(NativeEventId.KeyDown, child.id),
+    });
+
+    expect(calls).toEqual(['parent-capture', 'target', 'parent-bubble']);
   });
 
   it('drops delayed native events after native presentation or logical ownership is lost', () => {

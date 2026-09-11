@@ -188,8 +188,6 @@ impl QueryCompletion {
 thread_local! {
     static TEST_TEXT_EVENTS: RefCell<Vec<(WindowId, NodeId, NativeEventId, String)>> =
         const { RefCell::new(Vec::new()) };
-    static TEST_SCROLL_EVENTS: RefCell<Vec<(WindowId, NodeId, ScrollOffset)>> =
-        const { RefCell::new(Vec::new()) };
 }
 
 fn emit_text_event(window_id: WindowId, id: NodeId, event: NativeEventId, value: String) {
@@ -220,18 +218,11 @@ fn emit_scroll_event(window_id: WindowId, id: NodeId, offset: ScrollOffset) {
         .lock()
         .is_ok_and(|tree| tree.has_subscription_in_path(window_id, id, NativeEventId::Scroll))
     {
-        #[cfg(test)]
-        TEST_SCROLL_EVENTS.with(|events| events.borrow_mut().push((window_id, id, offset)));
         events::emit(
             window_id,
             events::NativeEventPayload::scroll(id, offset.x, offset.y),
         );
     }
-}
-
-#[cfg(test)]
-pub(crate) fn take_test_scroll_events() -> Vec<(WindowId, NodeId, ScrollOffset)> {
-    TEST_SCROLL_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
 }
 
 impl RuntimeStateRegistry {
