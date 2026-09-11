@@ -233,9 +233,17 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       { close: closeWindow, open: openWindow }
     );
     windows.add(window);
-    renderer.host.addEventListener('close', () => closeWindow(window), {
-      once: true,
-    });
+    renderer.host.addEventListener(
+      'close',
+      () => {
+        // Native `close` is delivered synchronously while GPUI is pumping its
+        // event loop and holding the application borrow. Disposing the window
+        // here would call back into the native app and re-enter that borrow
+        // (RefCell already borrowed), so defer teardown out of the pump.
+        setTimeout(() => closeWindow(window), 0);
+      },
+      { once: true }
+    );
     renderer.host.removeEventListener('close', onInitialClose);
     renderer.host.addEventListener('reload', () => {
       void recoverWindow(window).catch(console.error);

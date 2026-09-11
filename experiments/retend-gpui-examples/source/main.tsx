@@ -1,3 +1,3 @@
-import App from './app';
+import Root from './router';
 
-export default App;
+export default Root;

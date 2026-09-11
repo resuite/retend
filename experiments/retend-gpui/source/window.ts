@@ -1,5 +1,6 @@
 import { Cell, createScope, useScopeContext, type SourceCell } from 'retend';
 
+import type { GpuiHost } from './gpui-host.js';
 import type { RetendGpuiRenderer } from './gpui-renderer.js';
 
 /** Options currently implemented by the Retend-owned native window bridge. */
@@ -79,6 +80,11 @@ export interface GpuiWindow extends EventTarget {
   readonly height: Cell<number>;
   /** Current native title. Setting the cell updates the OS window title. */
   readonly title: SourceCell<string>;
+  /**
+   * Native host for this window. Exposes window-local `location` and `history`
+   * and window lifecycle events, which the router binds to during setup.
+   */
+  readonly host: GpuiHost;
   /** Opens another independent Retend root/window. */
   open(options?: GpuiWindowOptions): Promise<GpuiWindowHandle>;
   /** Requests that this native window close. */
@@ -100,6 +106,9 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
   readonly renderer: RetendGpuiRenderer;
   /** @internal Lifecycle-only view returned to window openers. */
   readonly handle: GpuiWindowHandle;
+  get host(): GpuiHost {
+    return this.renderer.host;
+  }
   readonly #runtime: WindowRuntime;
   readonly #detachTitleListener: () => void;
   readonly #openedWindows = new Set<GpuiWindowHandle>();

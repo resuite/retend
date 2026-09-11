@@ -288,6 +288,11 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     setActiveRenderer(this);
     const result = this.render(app);
     await runPendingSetupEffects();
+    // `runPendingSetupEffects()` activates the process-wide root. Once a first
+    // window has done that, the root is already active, so a later window's
+    // branch is never reached. Activate this renderer's own branch directly so
+    // its setup effects run.
+    await this.#state?.node.activate();
     this.flush();
     return result;
   }

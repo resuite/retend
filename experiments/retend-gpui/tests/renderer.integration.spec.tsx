@@ -26,67 +26,16 @@ import { NativeRendererFatalError } from '../source/native/addon';
 import { ElementKind, PropertyId } from '../source/native/protocol';
 import { NativeEventId } from '../source/native/protocol.generated';
 import { hotReloadModule } from '../source/plugins/hmr';
+import {
+  collectText,
+  createRenderer,
+  debugTree,
+  disposeRenderers,
+  idsByKind,
+  nodeMap,
+} from './helpers';
 
-interface DebugNode {
-  id: number;
-  kind: 'Root' | 'Container' | 'Text' | 'Image' | 'Input' | 'Textarea';
-  parent: number | null;
-  children: number[];
-  text: string | null;
-  src: string | null;
-}
-
-interface DebugTree {
-  root_id: number;
-  poisoned: boolean;
-  pending_detached: number[];
-  nodes: DebugNode[];
-}
-
-let activeRenderer: RetendGpuiRenderer | null = null;
-
-interface RendererOptions {
-  hmr?: boolean;
-}
-
-function createRenderer(options: RendererOptions = {}): RetendGpuiRenderer {
-  const renderer = new RetendGpuiRenderer({ ...options, headless: true });
-  renderer.init();
-  setActiveRenderer(renderer);
-  activeRenderer = renderer;
-  return renderer;
-}
-
-function debugTree(renderer: RetendGpuiRenderer): DebugTree {
-  renderer.flush();
-  return renderer.host.debugTree() as DebugTree;
-}
-
-function nodeMap(tree: DebugTree): Map<number, DebugNode> {
-  return new Map(tree.nodes.map((node) => [node.id, node]));
-}
-
-function collectText(tree: DebugTree): string[] {
-  const nodes = nodeMap(tree);
-  const text: string[] = [];
-  const visit = (id: number): void => {
-    const node = nodes.get(id);
-    if (!node) return;
-    if (node.kind === 'Text') text.push(node.text ?? '');
-    for (const child of node.children) visit(child);
-  };
-  visit(tree.root_id);
-  return text;
-}
-
-function idsByKind(tree: DebugTree, kind: DebugNode['kind']): number[] {
-  return tree.nodes.filter((node) => node.kind === kind).map((node) => node.id);
-}
-
-afterEach(() => {
-  activeRenderer?.dispose();
-  activeRenderer = null;
-});
+afterEach(disposeRenderers);
 
 describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
   it('maintains window-local location and history state', () => {
@@ -1053,7 +1002,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
   it('cannot be initialized again after disposal', () => {
     const renderer = createRenderer();
     renderer.dispose();
-    activeRenderer = null;
 
     expect(() => renderer.init()).toThrow(
       'A disposed RetendGpuiRenderer cannot be initialized again.'
@@ -1077,7 +1025,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
 
     show.set(false);
     renderer.dispose();
-    activeRenderer = null;
 
     expect(node.destroyed).toBe(true);
     expect(ref.get()).toBeNull();
