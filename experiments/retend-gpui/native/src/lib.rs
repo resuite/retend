@@ -9,6 +9,7 @@ mod runtime_state;
 mod style;
 mod tree;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use napi::bindgen_prelude::{Buffer, Function, Object, ToNapiValue};
@@ -143,7 +144,10 @@ pub struct NativeSelection {
 #[napi]
 pub struct NativeRendererBinding {
     window_id: WindowId,
+    root_id: u32,
     headless: bool,
+    options: NativeWindowOptions,
+    opened: AtomicBool,
 }
 
 impl NativeRendererBinding {
@@ -180,6 +184,33 @@ impl NativeRendererBinding {
         )));
         Ok(())
     }
+
+    /// Opens the OS window. When `require_content` is set the window waits for
+    /// committed application content so its first drawn frame contains the app.
+    fn open_window(&self, require_content: bool) -> Result<()> {
+        if self.headless || self.opened.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        if require_content {
+            let has_content = with_runtime(|tree| {
+                Ok(tree
+                    .nodes
+                    .get(&self.root_id)
+                    .is_some_and(|node| !node.children.is_empty()))
+            })?;
+            if !has_content {
+                return Ok(());
+            }
+        }
+        if self.opened.swap(true, Ordering::AcqRel) {
+            return Ok(());
+        }
+        if let Err(error) = platform::open_window(self.window_id, self.options.clone()) {
+            self.opened.store(false, Ordering::Release);
+            return Err(Error::new(Status::GenericFailure, error));
+        }
+        Ok(())
+    }
 }
 
 #[napi]
@@ -198,22 +229,24 @@ impl NativeRendererBinding {
                 return Err(error);
             }
         }
-        if !headless {
-            if let Err(error) = platform::open_window(window_id, options.unwrap_or_default()) {
-                events::unregister(window_id);
-                lock_runtime()?.close_window(window_id);
-                return Err(Error::new(Status::GenericFailure, error));
-            }
-        }
         Ok(Self {
             window_id,
+            root_id,
             headless,
+            options: options.unwrap_or_default(),
+            opened: AtomicBool::new(false),
         })
     }
 
     #[napi(getter)]
     pub fn window_id(&self) -> u32 {
         self.window_id
+    }
+
+    /// Opens the native window even when the rendered root has no children yet.
+    #[napi]
+    pub fn ensure_window_open(&self) -> Result<()> {
+        self.open_window(false)
     }
 
     #[napi]
@@ -227,6 +260,9 @@ impl NativeRendererBinding {
             }
         };
         let result = with_runtime(|tree| tree.apply_commands(self.window_id, commands));
+        if result.is_ok() {
+            self.open_window(true)?;
+        }
         platform::invalidate_window(self.window_id);
         result
     }

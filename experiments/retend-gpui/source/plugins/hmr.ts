@@ -200,8 +200,8 @@ export function withHMRBoundaries(
     const next = createGeneration();
     let nodes: GpuiNode[];
     try {
-      nodes = withState(next, () =>
-        renderComponent(invalidator, props, renderer)
+      nodes = renderer.withNodeRollback(() =>
+        withState(next, () => renderComponent(invalidator, props, renderer))
       );
     } catch (error) {
       next.node.dispose();

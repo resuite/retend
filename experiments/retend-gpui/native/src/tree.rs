@@ -62,11 +62,6 @@ fn textarea_rows(index: usize, value: PropertyValue) -> Result<Option<u32>, Brid
     }
 }
 
-fn normalize_textarea_rows(min_rows: &mut Option<u32>, max_rows: &mut Option<u32>) {
-    if let (Some(min), Some(max)) = (*min_rows, *max_rows) {
-        *max_rows = Some(max.max(min));
-    }
-}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct FatalDiagnostic {
@@ -697,25 +692,21 @@ impl NativeTree {
                         NodeData::TextControl {
                             kind: TextControlKind::Textarea,
                             min_rows,
-                            max_rows,
                             ..
                         },
                     ) => {
                         *min_rows = textarea_rows(index, value)?;
-                        normalize_textarea_rows(min_rows, max_rows);
                         Ok(())
                     }
                     (
                         PropertyId::MaxRows,
                         NodeData::TextControl {
                             kind: TextControlKind::Textarea,
-                            min_rows,
                             max_rows,
                             ..
                         },
                     ) => {
                         *max_rows = textarea_rows(index, value)?;
-                        normalize_textarea_rows(min_rows, max_rows);
                         Ok(())
                     }
                     (PropertyId::Src, NodeData::Image { src, .. }) => {
@@ -1240,7 +1231,27 @@ mod tests {
             &tree.nodes[&2].data,
             NodeData::TextControl {
                 min_rows: Some(6),
-                max_rows: Some(6),
+                max_rows: Some(2),
+                ..
+            }
+        ));
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::MinRows,
+                value: PropertyValue::Number(1.0),
+            }],
+        )
+        .unwrap();
+        // Authored row bounds are retained verbatim; the editor clamps the
+        // effective range, so lowering minRows must not inflate maxRows.
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::TextControl {
+                min_rows: Some(1),
+                max_rows: Some(2),
                 ..
             }
         ));

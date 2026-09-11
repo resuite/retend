@@ -347,6 +347,7 @@ impl PaintCallback {
                 // GPUI suppresses refresh mid-draw, so defer remaining layout work.
                 if runtime.finish_frame(generation) {
                     window.on_next_frame(move |window, _| {
+                        window.refresh();
                         if runtime.finish_frame(generation) {
                             window.refresh();
                         }

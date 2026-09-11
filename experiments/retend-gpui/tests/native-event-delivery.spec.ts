@@ -34,6 +34,7 @@ vi.mock('../source/native/addon', async (importOriginal) => {
     applyCommandBatch(): void {
       native.applyCalls++;
     }
+    ensureWindowOpen(): void {}
     settle(): void {}
     reportFatal(): void {}
     setWindowTitle(): void {}
@@ -54,6 +55,8 @@ vi.mock('../source/native/addon', async (importOriginal) => {
     }),
   };
 });
+
+import { Cell } from 'retend';
 
 import { GpuiMouseEvent, type GpuiKeyboardEvent } from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
@@ -169,6 +172,33 @@ describe('native event delivery', () => {
       maxWidth: 1200,
       maxHeight: 900,
     });
+  });
+
+  it('seeds window navigation from the location option', () => {
+    const current = new RetendGpuiRenderer({ headless: true });
+    current.init({ location: '/configured?tab=1#section' });
+    renderer = current;
+
+    expect(current.host.location.pathname).toBe('/configured');
+    expect(current.host.location.search).toBe('?tab=1');
+    expect(current.host.location.hash).toBe('#section');
+  });
+
+  it('releases the logical root when the native window closes', () => {
+    const current = createRenderer();
+    const ref = Cell.source<object | null>(null);
+    current.render(() => {
+      const element = current.createContainer('div');
+      current.setProperty(element, 'ref', ref);
+      return element;
+    });
+    expect(ref.peek()).not.toBeNull();
+    expect(current.hasRoot).toBe(true);
+
+    native.onEvent?.({ window: { kind: 'close' } } as NativeTransportPayload);
+
+    expect(ref.peek()).toBeNull();
+    expect(current.hasRoot).toBe(false);
   });
 
   it('forwards native resize and activation changes through the window host', () => {

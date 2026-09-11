@@ -702,6 +702,42 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     ]);
   });
 
+  it('ignores stale asynchronous property resolutions', async () => {
+    const renderer = createRenderer();
+    const element = renderer.createContainer('div');
+    const pending = Promise.withResolvers<GpuiStyle>();
+    const style = Cell.source<unknown>(pending.promise);
+    renderer.setProperty(element, 'style', style);
+
+    style.set({ width: 200 });
+    pending.resolve({ width: 100 });
+    await Promise.resolve();
+
+    expect(element.style.width).toBe(200);
+  });
+
+  it('releases a replaced reactive property binding', () => {
+    const renderer = createRenderer();
+    const element = renderer.createContainer('div');
+    const style = Cell.source<GpuiStyle>({ width: 10 });
+    renderer.setProperty(element, 'style', style);
+    renderer.setProperty(element, 'style', { width: 20 });
+
+    style.set({ width: 30 });
+
+    expect(element.style.width).toBe(20);
+  });
+
+  it('keeps a ref assigned when the same cell is set twice', () => {
+    const renderer = createRenderer();
+    const element = renderer.createContainer('div');
+    const ref = Cell.source<GpuiElement | null>(null);
+    renderer.setProperty(element, 'ref', ref);
+    renderer.setProperty(element, 'ref', ref);
+
+    expect(ref.peek()).toBe(element);
+  });
+
   it('renders and hot-reloads a root component through HMR boundaries', () => {
     const renderer = createRenderer({ hmr: true });
 

@@ -500,7 +500,7 @@ fn mark_window_closed(window_id: WindowId) {
 
 #[cfg(target_os = "macos")]
 mod imp {
-    use std::{cell::RefCell, rc::Rc};
+    use std::{cell::RefCell, collections::VecDeque, rc::Rc};
 
     use gpui::{Application, ApplicationHandle, QuitMode};
 
@@ -512,11 +512,23 @@ mod imp {
         static WINDOWS: RefCell<HashMap<WindowId, WindowHandle<RetendRootView>>> = RefCell::new(HashMap::new());
     }
 
+    /// Work requested from inside the native pump. Dispatching it directly would
+    /// re-enter the borrowed GPUI application, so it runs after the pump returns.
+    enum DeferredOperation {
+        Window(WindowId, WindowOperation),
+        Open(WindowId, NativeWindowOptions),
+        Close(WindowId),
+    }
+
+    thread_local! {
+        static DEFERRED: RefCell<VecDeque<DeferredOperation>> = const { RefCell::new(VecDeque::new()) };
+    }
+
     fn with_app<T>(f: impl FnOnce(&ApplicationHandle) -> T) -> Option<T> {
         APP.with(|app| app.borrow().as_ref().map(f))
     }
 
-    pub fn open_window(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
+    fn open_window_now(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
         if let Some(result) =
             with_app(|app| app.update(|cx| open_gpui_window(window_id, options.clone(), cx)))
         {
@@ -562,17 +574,47 @@ mod imp {
         Ok(())
     }
 
-    pub(crate) fn dispatch(window_id: WindowId, operation: WindowOperation) -> bool {
-        let Some(window) = WINDOWS.with(|windows| windows.borrow().get(&window_id).copied()) else {
-            return false;
-        };
-        with_app(|app| {
-            app.update(|cx| execute_window_operation(window_id, Some(window), operation, cx));
-        })
-        .is_some()
+    pub fn open_window(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
+        if crate::events::in_direct_window_delivery() {
+            DEFERRED.with(|queue| {
+                queue
+                    .borrow_mut()
+                    .push_back(DeferredOperation::Open(window_id, options))
+            });
+            return Ok(());
+        }
+        open_window_now(window_id, options)
     }
 
-    pub fn close_window(window_id: WindowId) {
+    fn dispatch_now(window_id: WindowId, operation: WindowOperation) -> bool {
+        let Some(window) = WINDOWS.with(|windows| windows.borrow().get(&window_id).copied()) else {
+            operation.reject_closed();
+            return false;
+        };
+        APP.with(|app| {
+            let app = app.borrow();
+            let Some(app) = app.as_ref() else {
+                operation.reject_closed();
+                return false;
+            };
+            app.update(|cx| execute_window_operation(window_id, Some(window), operation, cx));
+            true
+        })
+    }
+
+    pub(crate) fn dispatch(window_id: WindowId, operation: WindowOperation) -> bool {
+        if crate::events::in_direct_window_delivery() {
+            DEFERRED.with(|queue| {
+                queue
+                    .borrow_mut()
+                    .push_back(DeferredOperation::Window(window_id, operation))
+            });
+            return true;
+        }
+        dispatch_now(window_id, operation)
+    }
+
+    fn close_now(window_id: WindowId) {
         let window = WINDOWS.with(|windows| windows.borrow_mut().remove(&window_id));
         if let Some(window) = window {
             with_app(|app| {
@@ -580,6 +622,39 @@ mod imp {
                     execute_window_operation(window_id, Some(window), WindowOperation::Close, cx)
                 });
             });
+        }
+    }
+
+    pub fn close_window(window_id: WindowId) {
+        if crate::events::in_direct_window_delivery() {
+            DEFERRED.with(|queue| {
+                queue
+                    .borrow_mut()
+                    .push_back(DeferredOperation::Close(window_id))
+            });
+            return;
+        }
+        close_now(window_id);
+    }
+
+    /// Runs operations queued while the native pump held the application borrow.
+    fn drain_deferred() {
+        loop {
+            let next = DEFERRED.with(|queue| queue.borrow_mut().pop_front());
+            let Some(operation) = next else {
+                return;
+            };
+            match operation {
+                DeferredOperation::Window(window_id, operation) => {
+                    // Query-bearing operations reject themselves if the target window
+                    // disappeared before deferred execution.
+                    let _ = dispatch_now(window_id, operation);
+                }
+                DeferredOperation::Open(window_id, options) => {
+                    let _ = open_window_now(window_id, options);
+                }
+                DeferredOperation::Close(window_id) => close_now(window_id),
+            }
         }
     }
 
@@ -599,6 +674,7 @@ mod imp {
                 })
                 .unwrap_or(false)
         });
+        drain_deferred();
         if !running {
             WINDOWS.with(|windows| windows.borrow_mut().clear());
             APP.with(|app| app.borrow_mut().take());
@@ -682,7 +758,9 @@ mod imp {
                                         } else {
                                             windows.get(&window_id).copied()
                                         };
-                                        execute_window_operation(window_id, window, operation, cx);
+                                        cx.update(|cx| {
+                                            execute_window_operation(window_id, window, operation, cx)
+                                        });
                                     }
                                     UiCommand::Forget(window_id) => {
                                         windows.remove(&window_id);
@@ -771,9 +849,6 @@ thread_local! {
 }
 
 pub fn invalidate_window(window_id: WindowId) {
-    if crate::events::in_direct_window_delivery() {
-        return;
-    }
     #[cfg(test)]
     TEST_INVALIDATIONS.with(|invalidations| {
         let snapshot = crate::runtime()
@@ -1789,7 +1864,10 @@ mod tests {
 
         let binding = crate::NativeRendererBinding {
             window_id,
+            root_id,
             headless: false,
+            options: NativeWindowOptions::default(),
+            opened: std::sync::atomic::AtomicBool::new(false),
         };
         take_test_invalidations();
         assert!(binding.apply_command_batch(Buffer::from(vec![0])).is_err());
@@ -1828,6 +1906,23 @@ mod tests {
         responder.respond(Ok(crate::runtime_state::Measurement::default()));
 
         assert_eq!(*results.lock().unwrap(), vec!["CLOSED_WINDOW"]);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn deferred_query_rejects_if_window_is_gone_before_dispatch() {
+        let (sender, receiver) = mpsc::channel();
+        let responder = MeasureResponder::new(move |result| sender.send(result).unwrap());
+        let operation = WindowOperation::Layout(LayoutOperation::Measure(1, responder));
+
+        crate::events::with_direct_window_delivery(|| {
+            assert!(dispatch(u32::MAX, operation));
+        });
+        assert!(receiver.try_recv().is_err(), "query must still be queued");
+
+        tick().unwrap();
+        let failure = receiver.try_recv().unwrap().unwrap_err();
+        assert_eq!(failure.code, "CLOSED_WINDOW");
     }
 
     #[test]

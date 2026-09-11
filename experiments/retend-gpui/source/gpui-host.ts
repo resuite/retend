@@ -136,6 +136,7 @@ export class GpuiHost extends EventTarget {
   #rootId = 0;
   #flushScheduled = false;
   #flushing = false;
+  #nativeAcquired = false;
 
   readonly location = this.#navigation;
   readonly history = this.#navigation;
@@ -170,7 +171,8 @@ export class GpuiHost extends EventTarget {
       options,
       (payload) => this.#handleNativeEvent(payload)
     );
-    if (!this.#headless) nativeRuntime.acquire();
+    if (options.location !== undefined)
+      this.#navigation.reset(options.location);
   }
 
   setWindowTitle(title: string): void {
@@ -267,6 +269,13 @@ export class GpuiHost extends EventTarget {
     }
   }
 
+  /** @internal Flushes pending mutations and opens the native window. */
+  ensureWindowOpen(): void {
+    if (this.#headless) return;
+    this.flush();
+    this.#requireBinding().ensureWindowOpen();
+  }
+
   settle(): void {
     this.#flushBinding().settle();
   }
@@ -320,7 +329,7 @@ export class GpuiHost extends EventTarget {
     const binding = this.#binding;
     if (!binding) return;
     this.#binding = null;
-    if (!this.#headless) nativeRuntime.release();
+    this.#releaseNativeRuntime();
     binding.close();
   }
 
@@ -374,8 +383,21 @@ export class GpuiHost extends EventTarget {
   #handleNativeClose(): void {
     if (!this.#binding) return;
     this.#binding = null;
-    if (!this.#headless) nativeRuntime.release();
+    this.#releaseNativeRuntime();
     this.dispatchEvent(new Event('close'));
+  }
+
+  /** @internal Starts the native event pump once the OS window has opened. */
+  #acquireNativeRuntime(): void {
+    if (this.#nativeAcquired || this.#headless) return;
+    this.#nativeAcquired = true;
+    nativeRuntime.acquire();
+  }
+
+  #releaseNativeRuntime(): void {
+    if (!this.#nativeAcquired) return;
+    this.#nativeAcquired = false;
+    nativeRuntime.release();
   }
 
   #handleNativeEvent(payload: NativeTransportPayload): void {
@@ -384,6 +406,7 @@ export class GpuiHost extends EventTarget {
       return;
     }
     const event = payload.window;
+    this.#acquireNativeRuntime();
     switch (event.kind) {
       case 'close':
         this.#handleNativeClose();

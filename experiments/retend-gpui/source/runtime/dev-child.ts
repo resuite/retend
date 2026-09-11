@@ -187,48 +187,29 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       }
       showDevelopmentError(error, [window]);
       console.error('[retend-gpui] application root failed:', error);
+      // Force the next update to re-import and remount the entry: a root that
+      // rendered before throwing has no live invalidator to recover through.
+      entryFailed = true;
     }
   };
 
-  const createWindow = async (
+  const createWindow = (
     options: DevRuntimeInitMessage['options']
-  ): Promise<RuntimeGpuiWindow> => {
+  ): RuntimeGpuiWindow => {
     const renderer = new RetendGpuiRenderer({ hmr: true });
     renderer.host.resetLocation(options.location);
-
-    const initialSize = Promise.withResolvers<readonly [number, number]>();
-    const onInitialResize = (event: Event): void => {
-      const { width, height } = (event as CustomEvent).detail;
-      initialSize.resolve([width, height]);
-    };
-    const onInitialClose = (): void => {
-      renderer.host.removeEventListener('resize', onInitialResize);
-      initialSize.reject(
-        new Error('The native GPUI window closed during creation.')
-      );
-    };
-    renderer.host.addEventListener('resize', onInitialResize, { once: true });
-    renderer.host.addEventListener('close', onInitialClose, { once: true });
 
     try {
       renderer.init(options);
     } catch (error) {
-      renderer.host.removeEventListener('resize', onInitialResize);
-      renderer.host.removeEventListener('close', onInitialClose);
       renderer.dispose();
       throw error;
     }
 
-    const [width, height] = await initialSize.promise;
-    if (!renderer.host.isInitialized) {
-      renderer.dispose();
-      throw new Error('The native GPUI window closed during creation.');
-    }
-
     const window = new RuntimeGpuiWindow(
       options.title,
-      width,
-      height,
+      options.width ?? 800,
+      options.height ?? 600,
       renderer,
       { close: closeWindow, open: openWindow }
     );
@@ -244,7 +225,6 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       },
       { once: true }
     );
-    renderer.host.removeEventListener('close', onInitialClose);
     renderer.host.addEventListener('reload', () => {
       void recoverWindow(window).catch(console.error);
     });
@@ -258,7 +238,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     options: GpuiWindowOptions
   ): Promise<GpuiWindowHandle> {
     const Root = await loadEntry();
-    const window = await createWindow({
+    const window = createWindow({
       ...options,
       title: options.title ?? message.appName,
       location: options.location ?? '/',
@@ -325,14 +305,18 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     },
   };
 
+  let hotQueue: Promise<void> = Promise.resolve();
   const onMessage = (value: unknown): void => {
     if (isViteIpcMessage(value)) {
       const handlers = hotHandlers;
       if (!handlers) return;
-      void applyHotMessage(handlers, value.payload).catch((error: unknown) => {
-        showDevelopmentError(error);
-        console.error('[retend-gpui] HMR failed:', error);
-      });
+      // Serialize full-reload teardown and remount against later updates.
+      hotQueue = hotQueue
+        .then(() => applyHotMessage(handlers, value.payload))
+        .catch((error: unknown) => {
+          showDevelopmentError(error);
+          console.error('[retend-gpui] HMR failed:', error);
+        });
       return;
     }
 
@@ -366,7 +350,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       return undefined;
     });
 
-    const initialWindow = await createWindow(message.options);
+    const initialWindow = createWindow(message.options);
     await recoverWindow(initialWindow, Root);
 
     sendControl({ channel: 'retend-gpui', type: 'application-ready' });

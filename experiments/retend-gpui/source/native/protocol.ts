@@ -86,17 +86,17 @@ export class CommandBatchWriter {
   }
 
   createNode(id: number, kind: ElementKindValue): void {
-    this.#command(Opcode.CreateNode, id);
+    this.#command(Opcode.CreateNode, this.#nodeId(id));
     this.#commands.writeU8(kind);
   }
 
   createText(id: number, text: string): void {
-    this.#command(Opcode.CreateText, id);
+    this.#command(Opcode.CreateText, this.#nodeId(id));
     this.#commands.writeU32(this.#string(text));
   }
 
   updateText(id: number, text: string): void {
-    this.#command(Opcode.UpdateText, id);
+    this.#command(Opcode.UpdateText, this.#nodeId(id));
     this.#commands.writeU32(this.#string(text));
   }
 
@@ -105,7 +105,8 @@ export class CommandBatchWriter {
     property: PropertyIdValue,
     value: ProtocolPropertyValue
   ): void {
-    this.#command(Opcode.SetProperty, id);
+    const nodeId = this.#nodeId(id);
+    this.#command(Opcode.SetProperty, nodeId);
     this.#commands.writeU16(property);
     this.#writePropertyValue(value);
   }
@@ -114,12 +115,13 @@ export class CommandBatchWriter {
     id: number,
     properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
   ): void {
+    const nodeId = this.#nodeId(id);
     if (properties.length > 0xffff) {
       throw new RangeError(
         'A native style snapshot cannot exceed 65,535 properties.'
       );
     }
-    this.#command(Opcode.SetStyle, id);
+    this.#command(Opcode.SetStyle, nodeId);
     this.#commands.writeU16(properties.length);
     for (const [property, value] of properties) {
       this.#commands.writeU16(property);
@@ -128,23 +130,28 @@ export class CommandBatchWriter {
   }
 
   insertChild(parentId: number, childId: number, beforeId = 0): void {
-    this.#command(Opcode.InsertChild, parentId);
-    this.#commands.writeU32(this.#nodeId(childId));
-    this.#commands.writeU32(beforeId === 0 ? 0 : this.#nodeId(beforeId));
+    const parent = this.#nodeId(parentId);
+    const child = this.#nodeId(childId);
+    const before = beforeId === 0 ? 0 : this.#nodeId(beforeId);
+    this.#command(Opcode.InsertChild, parent);
+    this.#commands.writeU32(child);
+    this.#commands.writeU32(before);
   }
 
   removeChild(parentId: number, childId: number): void {
-    this.#command(Opcode.RemoveChild, parentId);
-    this.#commands.writeU32(this.#nodeId(childId));
+    const parent = this.#nodeId(parentId);
+    const child = this.#nodeId(childId);
+    this.#command(Opcode.RemoveChild, parent);
+    this.#commands.writeU32(child);
   }
 
   subscribeEvent(id: number, event: NativeEventIdValue): void {
-    this.#command(Opcode.SubscribeEvent, id);
+    this.#command(Opcode.SubscribeEvent, this.#nodeId(id));
     this.#commands.writeU16(event);
   }
 
   unsubscribeEvent(id: number, event: NativeEventIdValue): void {
-    this.#command(Opcode.UnsubscribeEvent, id);
+    this.#command(Opcode.UnsubscribeEvent, this.#nodeId(id));
     this.#commands.writeU16(event);
   }
 
@@ -168,10 +175,10 @@ export class CommandBatchWriter {
     return output;
   }
 
-  #command(opcode: number, id: number): void {
+  #command(opcode: number, nodeId: number): void {
     this.#commands.writeU8(opcode);
     this.#commandCount += 1;
-    this.#commands.writeU32(this.#nodeId(id));
+    this.#commands.writeU32(nodeId);
   }
 
   #writePropertyValue(value: ProtocolPropertyValue): void {

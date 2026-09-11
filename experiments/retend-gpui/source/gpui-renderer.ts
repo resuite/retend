@@ -183,6 +183,9 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       onNativeEvent: (event) => this.#dispatchNativeEvent(event),
     });
     this.host.addEventListener('fatal', () => this.#discardTree());
+    // A native close already destroyed the window's native subtree; release the
+    // logical root, effects, and refs bound to it without issuing native work.
+    this.host.addEventListener('close', () => this.#discardTree());
   }
 
   /** @internal Synchronizes a logical node move with the native tree. */
@@ -267,20 +270,21 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     }
 
     this.#state = branchState();
+    let result: GpuiNode | GpuiNode[];
     try {
-      return withState(this.#state, () => {
-        const result = normalizeJsxChild(app, this);
+      result = withState(this.#state, () => {
+        const normalized = normalizeJsxChild(app, this);
         const root = new GpuiRoot(this.host, this);
         this.#root = root;
-        appendNodes(root, result);
+        appendNodes(root, normalized);
         this.host.flush();
-        return result;
+        return normalized;
       });
     } catch (error) {
-      this.#discardTree();
-      this.host.discardPendingCommands();
+      this.#abandonRoot();
       throw error;
     }
+    return result;
   }
 
   /** Mounts a root, runs pending setup effects, and submits the final mutations. */
@@ -388,20 +392,27 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       return node;
 
     if (key === 'ref' && value instanceof SourceCell) {
-      value.set(node);
+      const target = value;
+      // Install the cleanup before assigning so replacing the same ref does not
+      // clear the assignment we are about to make.
       node.setCleanup('ref', () => {
-        if (value.peek() === node) value.set(null);
+        if (target.peek() === node) target.set(null);
       });
+      target.set(node);
       return node;
     }
 
     if (Cell.isCell(value)) {
-      this.#watchCell(value, node.lifecycle.signal, (nextValue) =>
+      const controller = new AbortController();
+      node.setCleanup(`property:${key}`, () => controller.abort());
+      this.#watchCell(value, controller.signal, (nextValue) =>
         this.#applyProperty(node, key, nextValue)
       );
       return node;
     }
 
+    // Release any reactive binding this property previously held.
+    node.setCleanup(`property:${key}`, () => {});
     this.#applyProperty(node, key, value);
     return node;
   }
@@ -575,6 +586,36 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     this.host.settle();
   }
 
+  /**
+   * @internal Runs speculative node creation and destroys any newly-created
+   * unattached nodes if the operation throws.
+   */
+  withNodeRollback<T>(operation: () => T): T {
+    const before = new Set(this.#nodesById.keys());
+    try {
+      return operation();
+    } catch (error) {
+      const created = [...this.#nodesById.values()].filter(
+        (node) => !before.has(node.id)
+      );
+      const createdSet = new Set<GpuiNode>(created);
+      const roots = created.filter(
+        (node) =>
+          !hasAncestor(node.parent, (ancestor) => createdSet.has(ancestor))
+      );
+      for (const root of roots) {
+        if (root.destroyed) continue;
+        // Cycling an unattached root through the immutable window root makes it
+        // settlement-eligible without a separate destroy opcode.
+        this.host.insertChild(this.host.rootId, root.id);
+        this.host.removeChild(this.host.rootId, root.id);
+      }
+      for (const root of roots) this.#markDestroyedSubtree(root);
+      if (roots.length > 0) this.host.settle();
+      throw error;
+    }
+  }
+
   /** Disposes the renderer and closes its native window. */
   dispose(): void {
     if (this.#disposed) return;
@@ -610,6 +651,30 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
   #discardTree(): void {
     this.#destroyOwnedNodes(this.#takeOwnedRoots());
+  }
+
+  /**
+   * Tears down a root whose initial render failed, including any nodes already
+   * committed to the native tree by an explicit or implicit flush.
+   */
+  #abandonRoot(): void {
+    let nativeUsable = true;
+    try {
+      this.host.flush();
+    } catch {
+      nativeUsable = false;
+      this.host.discardPendingCommands();
+    }
+    const roots = this.#takeOwnedRoots();
+    if (nativeUsable) {
+      for (const root of roots) {
+        if (root.destroyed) continue;
+        this.host.insertChild(this.host.rootId, root.id);
+        this.host.removeChild(this.host.rootId, root.id);
+      }
+    }
+    this.#destroyOwnedNodes(roots);
+    if (nativeUsable) this.host.settle();
   }
 
   #takeOwnedRoots(): GpuiNativeNode[] {
@@ -701,8 +766,10 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     if (key === 'ref') {
       if (typeof value === 'function') {
         const callback = value as (target: GpuiNode | null) => void;
-        callback(node);
+        // Install the cleanup before invoking so replacing the same callback
+        // ends with the callback bound to this node.
         node.setCleanup('ref', () => callback(null));
+        callback(node);
       }
       return;
     }
@@ -867,13 +934,32 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     update: (value: unknown) => void
   ): void {
     if (cell instanceof AsyncCell) useAwait()?.waitUntil(cell);
-    const resolve = (value: unknown) => {
-      if (signal.aborted) return;
-      if (value instanceof Promise) void value.then(resolve);
-      else update(value);
+    // Only the newest emitted value may apply. Without this guard an older
+    // Promise resolution can overwrite a newer synchronous update.
+    let version = 0;
+    const resolve = (value: unknown, token: number): void => {
+      if (signal.aborted || token !== version) return;
+      if (value instanceof Promise) {
+        void value.then(
+          (resolved) => resolve(resolved, token),
+          (error: unknown) => {
+            if (!signal.aborted && token === version) {
+              console.error(
+                '[retend-gpui] reactive value update failed:',
+                error
+              );
+              this.host.reportApplicationError(error);
+            }
+          }
+        );
+      } else update(value);
     };
-    resolve(cell.get());
-    cell.listen(resolve, { signal });
+    const apply = (value: unknown): void => {
+      version += 1;
+      resolve(value, version);
+    };
+    apply(cell.get());
+    cell.listen(apply, { signal });
   }
 }
 
@@ -897,7 +983,12 @@ export async function renderToGpui(
 ): Promise<RetendGpuiRenderer> {
   const renderer = new RetendGpuiRenderer();
   renderer.init(options);
-  await renderer.mount(App);
+  try {
+    await renderer.mount(App);
+  } catch (error) {
+    renderer.dispose();
+    throw error;
+  }
   return renderer;
 }
 

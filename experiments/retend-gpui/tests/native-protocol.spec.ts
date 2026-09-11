@@ -150,4 +150,25 @@ describe('Retend GPUI native command-batch encoder', () => {
     expect(view.getUint32(offset + 5, true)).toBe(3);
     expect(view.getUint32(offset + 9, true)).toBe(2);
   });
+
+  it('leaves the pending batch unchanged when a command argument is invalid', () => {
+    const writer = new CommandBatchWriter();
+    writer.createText(1, 'kept');
+
+    expect(() => writer.insertChild(1, 0)).toThrow('Invalid native node ID');
+    expect(() => writer.createNode(0, ElementKind.Container)).toThrow(
+      'Invalid native node ID'
+    );
+    expect(() => writer.setProperty(-1, PropertyId.Value, 'x')).toThrow(
+      'Invalid native node ID'
+    );
+    const bytes = writer.finish();
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    expect(view.getUint32(12, true)).toBe(1);
+    expect(view.getUint32(20, true)).toBe(1);
+
+    const offset = COMMAND_BATCH_HEADER_BYTES;
+    expect(view.getUint8(offset)).toBe(Opcode.CreateText);
+    expect(view.getUint32(offset + 1, true)).toBe(1);
+  });
 });
