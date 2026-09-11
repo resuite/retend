@@ -111,7 +111,6 @@ export class NativeRendererFatalError extends Error {
 export interface NativeRendererBinding {
   readonly windowId: number;
   applyCommandBatch(buffer: Uint8Array): void;
-  ensureWindowOpen(): void;
   settle(): void;
   focusNode(id: number): void;
   blurNode(id: number): void;

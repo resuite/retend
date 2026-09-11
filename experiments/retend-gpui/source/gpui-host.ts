@@ -269,13 +269,6 @@ export class GpuiHost extends EventTarget {
     }
   }
 
-  /** @internal Flushes pending mutations and opens the native window. */
-  ensureWindowOpen(): void {
-    if (this.#headless) return;
-    this.flush();
-    this.#requireBinding().ensureWindowOpen();
-  }
-
   settle(): void {
     this.#flushBinding().settle();
   }

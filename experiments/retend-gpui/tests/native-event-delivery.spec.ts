@@ -34,7 +34,6 @@ vi.mock('../source/native/addon', async (importOriginal) => {
     applyCommandBatch(): void {
       native.applyCalls++;
     }
-    ensureWindowOpen(): void {}
     settle(): void {}
     reportFatal(): void {}
     setWindowTitle(): void {}

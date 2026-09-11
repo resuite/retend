@@ -185,22 +185,20 @@ impl NativeRendererBinding {
         Ok(())
     }
 
-    /// Opens the OS window. When `require_content` is set the window waits for
-    /// committed application content so its first drawn frame contains the app.
-    fn open_window(&self, require_content: bool) -> Result<()> {
+    /// Opens the OS window once application content has been committed, so the
+    /// window's first drawn frame already contains the app instead of an empty root.
+    fn open_window(&self) -> Result<()> {
         if self.headless || self.opened.load(Ordering::Acquire) {
             return Ok(());
         }
-        if require_content {
-            let has_content = with_runtime(|tree| {
-                Ok(tree
-                    .nodes
-                    .get(&self.root_id)
-                    .is_some_and(|node| !node.children.is_empty()))
-            })?;
-            if !has_content {
-                return Ok(());
-            }
+        let has_content = with_runtime(|tree| {
+            Ok(tree
+                .nodes
+                .get(&self.root_id)
+                .is_some_and(|node| !node.children.is_empty()))
+        })?;
+        if !has_content {
+            return Ok(());
         }
         if self.opened.swap(true, Ordering::AcqRel) {
             return Ok(());
@@ -243,12 +241,6 @@ impl NativeRendererBinding {
         self.window_id
     }
 
-    /// Opens the native window even when the rendered root has no children yet.
-    #[napi]
-    pub fn ensure_window_open(&self) -> Result<()> {
-        self.open_window(false)
-    }
-
     #[napi]
     pub fn apply_command_batch(&self, buffer: Buffer) -> Result<()> {
         let commands = match decode_command_batch(buffer.as_ref()) {
@@ -261,7 +253,7 @@ impl NativeRendererBinding {
         };
         let result = with_runtime(|tree| tree.apply_commands(self.window_id, commands));
         if result.is_ok() {
-            self.open_window(true)?;
+            self.open_window()?;
         }
         platform::invalidate_window(self.window_id);
         result
