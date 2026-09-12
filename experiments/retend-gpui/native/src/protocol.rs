@@ -333,6 +333,147 @@ mod tests {
         bytes
     }
 
+    #[derive(serde::Deserialize)]
+    struct GoldenVector {
+        name: String,
+        hex: String,
+    }
+
+    fn hex_bytes(hex: &str) -> Vec<u8> {
+        assert_eq!(hex.len() % 2, 0, "golden vector hex must contain whole bytes");
+        (0..hex.len())
+            .step_by(2)
+            .map(|offset| u8::from_str_radix(&hex[offset..offset + 2], 16).unwrap())
+            .collect()
+    }
+
+    const REQUIRED_GOLDEN_VECTORS: [&str; 4] = [
+        "nodes-and-text",
+        "property-values",
+        "style-and-structure",
+        "event-subscriptions",
+    ];
+
+    fn golden_hex<'a>(vectors: &'a [GoldenVector], name: &str) -> &'a str {
+        vectors
+            .iter()
+            .find(|vector| vector.name == name)
+            .unwrap_or_else(|| panic!("missing protocol golden vector: {name}"))
+            .hex
+            .as_str()
+    }
+
+    fn assert_golden(vectors: &[GoldenVector], name: &str, commands: Vec<Command>) {
+        assert_eq!(
+            decode_command_batch(&hex_bytes(golden_hex(vectors, name))).unwrap(),
+            commands,
+            "golden vector {name}"
+        );
+    }
+
+    #[test]
+    fn decodes_protocol_golden_vectors() {
+        let vectors: Vec<GoldenVector> =
+            serde_json::from_str(include_str!("../protocol-golden-vectors.json")).unwrap();
+        let mut actual_names: Vec<_> = vectors.iter().map(|vector| vector.name.as_str()).collect();
+        let mut required_names = REQUIRED_GOLDEN_VECTORS.to_vec();
+        actual_names.sort_unstable();
+        required_names.sort_unstable();
+        assert_eq!(actual_names, required_names);
+
+        assert_golden(
+            &vectors,
+            "nodes-and-text",
+            vec![
+                Command::CreateNode {
+                    id: 1,
+                    kind: ElementKind::Container,
+                },
+                Command::CreateText {
+                    id: 2,
+                    text: "hello".into(),
+                },
+                Command::UpdateText {
+                    id: 2,
+                    text: "world".into(),
+                },
+            ],
+        );
+        assert_golden(
+            &vectors,
+            "property-values",
+            vec![
+                Command::SetProperty {
+                    id: 7,
+                    property: PropertyId::Placeholder,
+                    value: PropertyValue::String("value".into()),
+                },
+                Command::SetProperty {
+                    id: 7,
+                    property: PropertyId::MinRows,
+                    value: PropertyValue::Number(3.5),
+                },
+                Command::SetProperty {
+                    id: 7,
+                    property: PropertyId::ReadOnly,
+                    value: PropertyValue::Boolean(true),
+                },
+                Command::SetProperty {
+                    id: 7,
+                    property: PropertyId::ReadOnly,
+                    value: PropertyValue::Boolean(false),
+                },
+                Command::SetProperty {
+                    id: 7,
+                    property: PropertyId::Value,
+                    value: PropertyValue::Null,
+                },
+            ],
+        );
+        assert_golden(
+            &vectors,
+            "style-and-structure",
+            vec![
+                Command::SetStyle {
+                    id: 10,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::String("50%".into())),
+                        (PropertyId::Opacity, PropertyValue::Number(0.5)),
+                        (PropertyId::Color, PropertyValue::Null),
+                    ],
+                },
+                Command::InsertChild {
+                    parent_id: 10,
+                    child_id: 11,
+                    before_id: 0,
+                },
+                Command::InsertChild {
+                    parent_id: 10,
+                    child_id: 12,
+                    before_id: 11,
+                },
+                Command::RemoveChild {
+                    parent_id: 10,
+                    child_id: 11,
+                },
+            ],
+        );
+        assert_golden(
+            &vectors,
+            "event-subscriptions",
+            vec![
+                Command::SubscribeEvent {
+                    id: 5,
+                    event: NativeEventId::Click,
+                },
+                Command::UnsubscribeEvent {
+                    id: 5,
+                    event: NativeEventId::MouseMove,
+                },
+            ],
+        );
+    }
+
     #[test]
     fn decodes_native_event_subscription_commands() {
         let mut bytes = empty_batch(PROTOCOL_VERSION);

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,9 +10,44 @@ import {
   ValueKind,
 } from '../source/native/protocol';
 import {
+  NativeEventId,
   PROTOCOL_MAGIC,
   PROTOCOL_VERSION,
 } from '../source/native/protocol.generated';
+
+interface GoldenVector {
+  name: string;
+  hex: string;
+}
+
+const REQUIRED_GOLDEN_VECTORS = [
+  'nodes-and-text',
+  'property-values',
+  'style-and-structure',
+  'event-subscriptions',
+] as const;
+type GoldenVectorName = (typeof REQUIRED_GOLDEN_VECTORS)[number];
+
+const goldenVectors = JSON.parse(
+  readFileSync(
+    new URL('../native/protocol-golden-vectors.json', import.meta.url),
+    'utf8'
+  )
+) as GoldenVector[];
+const goldenVectorBytes = new Map(
+  goldenVectors.map(({ name, hex }) => [name, hex] as const)
+);
+
+function expectedGoldenHex(name: GoldenVectorName): string {
+  const hex = goldenVectorBytes.get(name);
+  if (hex === undefined)
+    throw new Error(`Missing protocol golden vector: ${name}`);
+  return hex;
+}
+
+function expectGolden(name: GoldenVectorName, bytes: Uint8Array): void {
+  expect(Buffer.from(bytes).toString('hex')).toBe(expectedGoldenHex(name));
+}
 
 describe('Retend GPUI native command-batch encoder', () => {
   it('writes a versioned header and one batch-local string table', () => {
@@ -170,5 +206,50 @@ describe('Retend GPUI native command-batch encoder', () => {
     const offset = COMMAND_BATCH_HEADER_BYTES;
     expect(view.getUint8(offset)).toBe(Opcode.CreateText);
     expect(view.getUint32(offset + 1, true)).toBe(1);
+  });
+
+  it('contains exactly the required golden vectors', () => {
+    expect(goldenVectorBytes.size).toBe(goldenVectors.length);
+    expect([...goldenVectorBytes.keys()].toSorted()).toEqual(
+      [...REQUIRED_GOLDEN_VECTORS].toSorted()
+    );
+  });
+
+  it('matches the nodes-and-text golden byte vector', () => {
+    const writer = new CommandBatchWriter();
+    writer.createNode(1, ElementKind.Container);
+    writer.createText(2, 'hello');
+    writer.updateText(2, 'world');
+    expectGolden('nodes-and-text', writer.finish());
+  });
+
+  it('matches the property-values golden byte vector', () => {
+    const writer = new CommandBatchWriter();
+    writer.setProperty(7, PropertyId.Placeholder, 'value');
+    writer.setProperty(7, PropertyId.MinRows, 3.5);
+    writer.setProperty(7, PropertyId.ReadOnly, true);
+    writer.setProperty(7, PropertyId.ReadOnly, false);
+    writer.setProperty(7, PropertyId.Value, null);
+    expectGolden('property-values', writer.finish());
+  });
+
+  it('matches the style-and-structure golden byte vector', () => {
+    const writer = new CommandBatchWriter();
+    writer.setStyle(10, [
+      [PropertyId.Width, '50%'],
+      [PropertyId.Opacity, 0.5],
+      [PropertyId.Color, null],
+    ]);
+    writer.insertChild(10, 11);
+    writer.insertChild(10, 12, 11);
+    writer.removeChild(10, 11);
+    expectGolden('style-and-structure', writer.finish());
+  });
+
+  it('matches the event-subscriptions golden byte vector', () => {
+    const writer = new CommandBatchWriter();
+    writer.subscribeEvent(5, NativeEventId.Click);
+    writer.unsubscribeEvent(5, NativeEventId.MouseMove);
+    expectGolden('event-subscriptions', writer.finish());
   });
 });

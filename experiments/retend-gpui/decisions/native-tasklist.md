@@ -368,11 +368,9 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Protocol hardening
 
-- [ ] Build the TypeScript reference protocol interpreter with a mirror retained tree.
-- [ ] Add differential tests that run structural command batches through both the TypeScript reference interpreter and the Rust implementation.
-- [ ] Add comprehensive fixed golden-byte vectors asserted independently by TypeScript and Rust after the core opcode/layout surface is stable.
-- [ ] Extend the authoritative protocol schema/code generator beyond shared numeric IDs to repetitive command reader/writer scaffolding where doing so reduces boilerplate without moving semantic validation into generated code.
-- [ ] Keep semantic validation, direct command application, and retained-tree behavior handwritten.
+- [x] Add comprehensive fixed golden-byte vectors asserted independently by the TypeScript writer and Rust decoder for the current opcode/layout surface.
+- [x] Keep schema/code generation limited to shared numeric protocol vocabulary while the current fixed command reader/writer surface remains smaller and more type-safe handwritten than equivalent generator machinery.
+- [x] Keep semantic validation, direct command application, and retained-tree behavior handwritten.
 
 ### Native transition engine
 
@@ -407,7 +405,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [x] Remove direct `@gpuix/native` imports from source and JSX types.
 - [ ] Delete residual GPUiX-specific renderer/host code once the Phase 2/3 Retend-owned path has full v1 parity.
 - [ ] Port any remaining examples that could not move during Phase 2 because they depend on Phase 3 or motion functionality.
-- [ ] Port/finalize renderer tests across the TypeScript reference interpreter and real Rust bridge tiers.
+- [ ] Port/finalize renderer tests across the focused TypeScript protocol tests and real Rust bridge tiers.
 - [ ] Finalize package exports and native loader paths for production distribution.
 - [x] Update README/current architecture docs to describe the Retend-owned bridge rather than the removed GPUiX implementation.
 - [x] Remove the `@gpuix/native` package dependency.
@@ -438,7 +436,6 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Final conformance suite
 
-- [ ] Run TypeScript reference-interpreter tests.
 - [ ] Run protocol golden-vector tests in TypeScript and Rust.
 - [ ] Run Rust decoder fuzz/property tests.
 - [ ] Run native integration tests on macOS.
