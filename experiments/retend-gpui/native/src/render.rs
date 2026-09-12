@@ -2,8 +2,8 @@ use std::{cell::Cell, rc::Rc, sync::Arc};
 
 use gpui::{
     actions, div, img, prelude::*, AnyElement, App, Bounds, ClickEvent, Element, ElementId,
-    GlobalElementId, ImageCacheError, ImageSource, InspectorElementId, KeyBinding, KeyDownEvent,
-    KeyUpEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
+    EntityId, GlobalElementId, ImageCacheError, ImageSource, InspectorElementId, KeyBinding,
+    KeyDownEvent, KeyUpEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
     NavigationDirection, Pixels, Point, StyledImage, Text, Window,
 };
 
@@ -97,13 +97,15 @@ fn emit_mouse_down(
     window_id: WindowId,
     target_id: NodeId,
     event: &MouseDownEvent,
-    window: &mut Window,
+    owner_view: EntityId,
+    _window: &mut Window,
     cx: &mut App,
 ) {
     let (subscribed, outside, changed) = crate::runtime()
         .lock()
         .map(|mut tree| {
-            let changed = event.button == MouseButton::Left && tree.press_node(window_id, target_id);
+            let changed =
+                event.button == MouseButton::Left && tree.press_node(window_id, target_id);
             (
                 tree.has_subscription_in_path(window_id, target_id, NativeEventId::MouseDown),
                 tree.outside_subscribers(window_id, target_id),
@@ -112,7 +114,7 @@ fn emit_mouse_down(
         })
         .unwrap_or_default();
     if changed {
-        window.refresh();
+        cx.notify(owner_view);
     }
     if subscribed {
         events::emit(
@@ -150,12 +152,12 @@ bubbling_events! {
         events::key_event(NativeEventId::KeyUp, id, &event.keystroke, false);
 }
 
-fn release_pointer(window_id: WindowId, window: &mut Window) {
+fn release_pointer(window_id: WindowId, owner_view: EntityId, _window: &mut Window, cx: &mut App) {
     if crate::runtime()
         .lock()
         .is_ok_and(|mut tree| tree.release_pointer(window_id))
     {
-        window.refresh();
+        cx.notify(owner_view);
     }
 }
 
@@ -163,11 +165,12 @@ fn emit_mouse_up(
     window_id: WindowId,
     target_id: NodeId,
     event: &MouseUpEvent,
+    owner_view: EntityId,
     window: &mut Window,
     cx: &mut App,
 ) {
     if event.button == MouseButton::Left {
-        release_pointer(window_id, window);
+        release_pointer(window_id, owner_view, window, cx);
     }
     if event_interest(window_id, target_id, NativeEventId::MouseUp) {
         events::emit(
@@ -203,12 +206,19 @@ fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &m
     }
 }
 
-fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &mut Window) {
+fn emit_hover(
+    window_id: WindowId,
+    target_id: NodeId,
+    hovered: bool,
+    owner_view: EntityId,
+    window: &mut Window,
+    cx: &mut App,
+) {
     if crate::runtime()
         .lock()
         .is_ok_and(|mut tree| tree.set_hovered(window_id, target_id, hovered))
     {
-        window.refresh();
+        cx.notify(owner_view);
     }
     let event = if hovered {
         NativeEventId::MouseEnter
@@ -229,7 +239,7 @@ fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &mu
 }
 
 macro_rules! with_mouse_buttons {
-    ($element:ident, $method:ident, $handler:ident, $window_id:ident, $id:ident) => {
+    ($element:ident, $method:ident, $handler:ident, $window_id:ident, $id:ident, $owner_view:ident) => {
         for button in [
             MouseButton::Left,
             MouseButton::Right,
@@ -238,7 +248,7 @@ macro_rules! with_mouse_buttons {
             MouseButton::Navigate(NavigationDirection::Forward),
         ] {
             $element = $element.$method(button, move |event, window, cx| {
-                $handler($window_id, $id, event, window, cx)
+                $handler($window_id, $id, event, $owner_view, window, cx)
             });
         }
     };
@@ -251,6 +261,7 @@ fn with_native_events<T: StatefulInteractiveElement>(
     id: NodeId,
     runtime: &RuntimeStateRegistry,
     pseudo: PseudoInterest,
+    owner_view: EntityId,
 ) -> T {
     if let Some(focus) = runtime.tracked_focus_handle(id) {
         element = element.track_focus(&focus);
@@ -259,22 +270,36 @@ fn with_native_events<T: StatefulInteractiveElement>(
         element = element.track_scroll(&scroll);
     }
     if interest.has(NativeEventId::MouseDown) || interest.outside_mouse_down {
-        with_mouse_buttons!(element, on_mouse_down, emit_mouse_down, window_id, id);
+        with_mouse_buttons!(
+            element,
+            on_mouse_down,
+            emit_mouse_down,
+            window_id,
+            id,
+            owner_view
+        );
     } else if pseudo.active {
         element = element.on_mouse_down(MouseButton::Left, move |event, window, cx| {
-            emit_mouse_down(window_id, id, event, window, cx)
+            emit_mouse_down(window_id, id, event, owner_view, window, cx)
         });
     }
     if interest.has(NativeEventId::MouseUp) {
-        with_mouse_buttons!(element, on_mouse_up, emit_mouse_up, window_id, id);
+        with_mouse_buttons!(
+            element,
+            on_mouse_up,
+            emit_mouse_up,
+            window_id,
+            id,
+            owner_view
+        );
     } else if pseudo.active {
         element = element.on_mouse_up(MouseButton::Left, move |event, window, cx| {
-            emit_mouse_up(window_id, id, event, window, cx)
+            emit_mouse_up(window_id, id, event, owner_view, window, cx)
         });
     }
     if pseudo.active {
-        element = element.on_mouse_up_out(MouseButton::Left, move |_, window, _| {
-            release_pointer(window_id, window)
+        element = element.on_mouse_up_out(MouseButton::Left, move |_, window, cx| {
+            release_pointer(window_id, owner_view, window, cx)
         });
     }
     if interest.has(NativeEventId::MouseMove) {
@@ -288,8 +313,9 @@ fn with_native_events<T: StatefulInteractiveElement>(
         || interest.has(NativeEventId::MouseEnter)
         || interest.has(NativeEventId::MouseLeave)
     {
-        element =
-            element.on_hover(move |hovered, window, _| emit_hover(window_id, id, *hovered, window));
+        element = element.on_hover(move |hovered, window, cx| {
+            emit_hover(window_id, id, *hovered, owner_view, window, cx)
+        });
     }
     if interest.has(NativeEventId::KeyDown) {
         element = element.on_key_down(move |event, _, cx| emit_key_down(window_id, id, event, cx));
@@ -387,6 +413,7 @@ impl Element for ScrollbarOverlay {
 struct PaintObserver {
     inner: AnyElement,
     callback: Option<PaintCallback>,
+    on_drop: Option<Box<dyn FnOnce()>>,
 }
 
 enum PaintCallback {
@@ -400,6 +427,12 @@ enum PaintCallback {
         id: NodeId,
         content_scroll_handle: Option<gpui::ScrollHandle>,
         painted_content: Option<Rc<Cell<Option<Point<Pixels>>>>>,
+    },
+    ReuseSubtree {
+        runtime: RuntimeStateRegistry,
+        generation: u64,
+        id: NodeId,
+        rendered_generation: Rc<Cell<u64>>,
     },
 }
 
@@ -441,6 +474,17 @@ impl PaintCallback {
                     runtime.record_content_extent(generation, id, bottom_right - bounds.origin);
                 }
             }
+            Self::ReuseSubtree {
+                runtime,
+                generation,
+                id,
+                rendered_generation,
+            } => {
+                let rendered_generation = rendered_generation.get();
+                if rendered_generation != generation {
+                    runtime.reuse_subtree_geometry(generation, id, rendered_generation);
+                }
+            }
         }
     }
 }
@@ -450,8 +494,32 @@ impl PaintObserver {
         Self {
             inner,
             callback: Some(callback),
+            on_drop: None,
         }
     }
+
+    fn release_after_drop(inner: AnyElement, on_drop: impl FnOnce() + 'static) -> Self {
+        Self {
+            inner,
+            callback: None,
+            on_drop: Some(Box::new(on_drop)),
+        }
+    }
+}
+
+impl Drop for PaintObserver {
+    fn drop(&mut self) {
+        if let Some(on_drop) = self.on_drop.take() {
+            on_drop();
+        }
+    }
+}
+
+pub(crate) fn release_after_frame(
+    inner: AnyElement,
+    on_drop: impl FnOnce() + 'static,
+) -> AnyElement {
+    PaintObserver::release_after_drop(inner, on_drop).into_any_element()
 }
 
 impl IntoElement for PaintObserver {
@@ -510,9 +578,65 @@ impl Element for PaintObserver {
         if let Some(callback) = self.callback.take() {
             callback.painted(bounds, window);
         }
+        if let Some(on_drop) = self.on_drop.take() {
+            on_drop();
+        }
     }
 }
 
+#[derive(Clone, Copy)]
+struct BuildFrame<'a> {
+    runtime: &'a RuntimeStateRegistry,
+    generation: u64,
+    owner_view: EntityId,
+}
+
+pub(crate) fn build_subtree_with_runtime(
+    tree: &NativeTree,
+    id: NodeId,
+    runtime_state: &RuntimeStateRegistry,
+    generation: u64,
+    window: &mut Window,
+    cx: &mut App,
+) -> AnyElement {
+    let owner_view = window.current_view();
+    let mut resolve_style =
+        |id, motion, style| crate::motion::resolve_style(id, motion, style, window, cx);
+    let mut no_island = |_| None;
+    build_inner(
+        tree,
+        id,
+        BuildFrame {
+            runtime: runtime_state,
+            generation,
+            owner_view,
+        },
+        &mut resolve_style,
+        EventInterest::for_node(tree, tree.nodes[&id].window_id, id),
+        &mut no_island,
+    )
+}
+
+pub(crate) fn observe_cached_subtree(
+    inner: AnyElement,
+    runtime: &RuntimeStateRegistry,
+    generation: u64,
+    id: NodeId,
+    rendered_generation: Rc<Cell<u64>>,
+) -> AnyElement {
+    PaintObserver::new(
+        inner,
+        PaintCallback::ReuseSubtree {
+            runtime: runtime.clone(),
+            generation,
+            id,
+            rendered_generation,
+        },
+    )
+    .into_any_element()
+}
+
+#[cfg(test)]
 pub fn build_with_runtime(
     tree: &NativeTree,
     id: NodeId,
@@ -521,16 +645,41 @@ pub fn build_with_runtime(
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
-    let mut resolve_style = |id, motion, style| {
-        crate::motion::resolve_style(id, motion, style, window, cx)
-    };
-    let inner = build_inner(
+    let mut no_island = |_| None;
+    build_with_runtime_islands(
         tree,
         id,
         runtime_state,
         generation,
+        window,
+        cx,
+        &mut no_island,
+    )
+}
+
+pub(crate) fn build_with_runtime_islands(
+    tree: &NativeTree,
+    id: NodeId,
+    runtime_state: &RuntimeStateRegistry,
+    generation: u64,
+    window: &mut Window,
+    cx: &mut App,
+    islands: &mut dyn FnMut(NodeId) -> Option<AnyElement>,
+) -> AnyElement {
+    let owner_view = window.current_view();
+    let mut resolve_style =
+        |id, motion, style| crate::motion::resolve_style(id, motion, style, window, cx);
+    let inner = build_inner(
+        tree,
+        id,
+        BuildFrame {
+            runtime: runtime_state,
+            generation,
+            owner_view,
+        },
         &mut resolve_style,
         EventInterest::for_node(tree, tree.nodes[&id].window_id, id),
+        islands,
     );
     PaintObserver::new(
         inner,
@@ -545,10 +694,10 @@ pub fn build_with_runtime(
 fn build_inner<'a, F>(
     tree: &'a NativeTree,
     id: NodeId,
-    runtime_state: &RuntimeStateRegistry,
-    generation: u64,
+    frame: BuildFrame<'_>,
     resolve_style: &mut F,
     interest: EventInterest,
+    islands: &mut dyn FnMut(NodeId) -> Option<AnyElement>,
 ) -> AnyElement
 where
     F: FnMut(
@@ -557,6 +706,12 @@ where
         Option<&'a crate::style::NativeStyle>,
     ) -> Option<crate::style::NativeStyle>,
 {
+    if let Some(island) = islands(id) {
+        return island;
+    }
+    let runtime_state = frame.runtime;
+    let generation = frame.generation;
+    let owner_view = frame.owner_view;
     let node = &tree.nodes[&id];
     if let NodeData::Text(text) = &node.data {
         return Text::new(ElementId::Integer(u64::from(id)), text.clone().into())
@@ -621,14 +776,7 @@ where
                     }
                 },
                 _ => element.children(node.children.iter().map(|child_id| {
-                    build_inner(
-                        tree,
-                        *child_id,
-                        runtime_state,
-                        generation,
-                        resolve_style,
-                        interest,
-                    )
+                    build_inner(tree, *child_id, frame, resolve_style, interest, islands)
                 })),
             };
             if let Some(content) = staged_content {
@@ -657,6 +805,7 @@ where
                         hover: hover_interest,
                         active: active_interest,
                     },
+                    owner_view,
                 );
                 #[cfg(test)]
                 let element = element.debug_selector(move || format!("retend-node-{id}"));
@@ -692,6 +841,7 @@ where
                     hover: hover_interest,
                     active: active_interest,
                 },
+                owner_view,
             );
             image.into_any_element()
         }
@@ -756,18 +906,21 @@ mod tests {
         generation: u64,
     ) -> AnyElement {
         let window = tree.nodes[&id].window_id;
-        let mut resolve_style = |
-            _: NodeId,
-            _: &crate::motion::MotionBridgeState,
-            style: Option<&crate::style::NativeStyle>,
-        | style.cloned();
+        let mut resolve_style =
+            |_: NodeId,
+             _: &crate::motion::MotionBridgeState,
+             style: Option<&crate::style::NativeStyle>| style.cloned();
         build_inner(
             tree,
             id,
-            runtime,
-            generation,
+            BuildFrame {
+                runtime,
+                generation,
+                owner_view: EntityId::default(),
+            },
             &mut resolve_style,
             EventInterest::for_node(tree, window, id),
+            &mut |_| None,
         )
     }
 
@@ -1017,14 +1170,7 @@ mod tests {
                 window,
                 cx,
             );
-            build_with_runtime(
-                &tree,
-                1,
-                &self.runtime_state,
-                generation,
-                window,
-                cx,
-            )
+            build_with_runtime(&tree, 1, &self.runtime_state, generation, window, cx)
         }
     }
 

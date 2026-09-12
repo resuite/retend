@@ -30,6 +30,8 @@
     "prenative:build": "node scripts/generate-native-protocol.js",
     "native:build": "node scripts/build-native.js",
     "native:smoke-window": "node scripts/smoke-native-window.js",
+    "benchmark:native": "CARGO_PROFILE_RELEASE_LTO=false cargo test --manifest-path native/Cargo.toml --release --features benchmarks benchmark -- --nocapture",
+    "benchmark:native:debug": "cargo test --manifest-path native/Cargo.toml --features benchmarks benchmark -- --nocapture",
     "protocol:generate": "node scripts/generate-native-protocol.js",
     "protocol:check": "node scripts/generate-native-protocol.js --check",
     "pretypecheck": "node scripts/generate-native-protocol.js",

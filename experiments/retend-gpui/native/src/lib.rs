@@ -1,5 +1,7 @@
 #![deny(clippy::all)]
 
+#[cfg(all(test, feature = "benchmarks"))]
+mod benchmark;
 mod events;
 mod motion;
 mod platform;
@@ -18,9 +20,9 @@ use napi::{Env, Error, Result, Status};
 use napi_derive::napi;
 
 use platform::{TextControlOperation, WindowOperation};
-use protocol::decode_command_batch;
+use protocol::{decode_command_batch, Command};
 use runtime_state::{LayoutOperation, QueryResponder};
-use tree::{NativeTree, WindowId};
+use tree::{NativeTree, NodeId, WindowId};
 
 #[derive(Debug, serde::Serialize)]
 struct BridgeFailure {
@@ -90,6 +92,27 @@ fn with_runtime<T>(
     action: impl FnOnce(&mut NativeTree) -> std::result::Result<T, BridgeFailure>,
 ) -> Result<T> {
     action(&mut *lock_runtime()?).map_err(bridge_error)
+}
+
+fn command_batch_island_invalidation(commands: &[Command]) -> Option<Vec<NodeId>> {
+    let mut nodes = Vec::with_capacity(commands.len());
+    for command in commands {
+        match command {
+            Command::CreateNode { .. }
+            | Command::CreateText { .. }
+            | Command::InsertChild { .. }
+            | Command::RemoveChild { .. } => return None,
+            Command::UpdateText { id, .. }
+            | Command::SetProperty { id, .. }
+            | Command::SetStyle { id, .. }
+            | Command::SetPseudoStyle { id, .. }
+            | Command::SubscribeEvent { id, .. }
+            | Command::UnsubscribeEvent { id, .. } => nodes.push(*id),
+        }
+    }
+    nodes.sort_unstable();
+    nodes.dedup();
+    Some(nodes)
 }
 
 fn scroll_coordinate(value: f64) -> Result<f32> {
@@ -252,11 +275,15 @@ impl NativeRendererBinding {
                 return Err(bridge_error(error));
             }
         };
+        let island_invalidation = command_batch_island_invalidation(&commands);
         let result = with_runtime(|tree| tree.apply_commands(self.window_id, commands));
         if result.is_ok() {
             self.open_window()?;
         }
-        platform::invalidate_window(self.window_id);
+        match (&result, island_invalidation) {
+            (Ok(_), Some(nodes)) => platform::invalidate_window_nodes(self.window_id, nodes),
+            _ => platform::invalidate_window(self.window_id),
+        }
         result
     }
 
@@ -412,8 +439,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        protocol::HEADER_BYTES,
-        protocol_generated::{ElementKind, Opcode, PROTOCOL_MAGIC, PROTOCOL_VERSION},
+        protocol::{Command, PropertyValue, HEADER_BYTES},
+        protocol_generated::{ElementKind, Opcode, PropertyId, PROTOCOL_MAGIC, PROTOCOL_VERSION},
     };
 
     static NEXT_TEST_ROOT: AtomicU32 = AtomicU32::new(0xe000_0000);
@@ -452,6 +479,36 @@ mod tests {
                 .expect("invalidation must happen after releasing the retained-tree lock"),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn island_invalidation_classifies_structural_and_local_batches() {
+        assert_eq!(
+            command_batch_island_invalidation(&[
+                Command::SetStyle {
+                    id: 9,
+                    properties: vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
+                },
+                Command::UpdateText {
+                    id: 4,
+                    text: "updated".into(),
+                },
+                Command::SetProperty {
+                    id: 9,
+                    property: PropertyId::TabIndex,
+                    value: PropertyValue::Number(0.0),
+                },
+            ]),
+            Some(vec![4, 9])
+        );
+        assert_eq!(
+            command_batch_island_invalidation(&[Command::InsertChild {
+                parent_id: 1,
+                child_id: 2,
+                before_id: 0,
+            }]),
+            None
+        );
     }
 
     #[test]

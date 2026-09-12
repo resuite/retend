@@ -7,6 +7,9 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+benchmarks = ["gpui/profiler", "gpui/bench-support"]
+
 [dependencies]
 napi = { version = "3", features = ["napi8"] }
 napi-derive = "3"

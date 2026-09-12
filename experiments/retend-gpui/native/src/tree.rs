@@ -63,6 +63,12 @@ fn textarea_rows(index: usize, value: PropertyValue) -> Result<Option<u32>, Brid
     }
 }
 
+fn transition_property_includes_opacity(value: &PropertyValue) -> bool {
+    matches!(
+        value,
+        PropertyValue::String(value) if value.split(',').any(|property| property.trim() == "opacity")
+    )
+}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct FatalDiagnostic {
@@ -155,6 +161,70 @@ impl NativeNode {
         !self.active_style.is_empty()
     }
 
+    fn cache_island_size(&self) -> Option<(f32, f32)> {
+        let NodeData::Container = self.data else {
+            return None;
+        };
+        if self.tracks_hover || self.tracks_active {
+            return None;
+        }
+        let style = self.style.as_deref()?;
+        if style.display != crate::style::DisplayValue::Block {
+            return None;
+        }
+        let (crate::style::LengthValue::Pixels(width), crate::style::LengthValue::Pixels(height)) =
+            (style.width?, style.height?)
+        else {
+            return None;
+        };
+        let layout_stable = self.base_style.iter().all(|(property, _)| {
+            matches!(
+                property,
+                PropertyId::Display
+                    | PropertyId::Overflow
+                    | PropertyId::Width
+                    | PropertyId::Height
+                    | PropertyId::BackgroundColor
+                    | PropertyId::Color
+                    | PropertyId::Opacity
+                    | PropertyId::BorderColor
+                    | PropertyId::BorderRadius
+                    | PropertyId::FontSize
+                    | PropertyId::FontFamily
+                    | PropertyId::FontWeight
+                    | PropertyId::TextAlign
+                    | PropertyId::LineHeight
+                    | PropertyId::WhiteSpace
+            )
+        });
+        layout_stable.then_some((width, height))
+    }
+
+    fn can_change_descendant_opacity_without_command_invalidation(&self) -> bool {
+        let pseudo_changes_opacity = self
+            .hover_style
+            .iter()
+            .chain(&self.active_style)
+            .any(|(property, _)| *property == PropertyId::Opacity);
+        let transitions_opacity = self
+            .base_style
+            .iter()
+            .chain(&self.hover_style)
+            .chain(&self.active_style)
+            .any(|(property, value)| {
+                *property == PropertyId::TransitionProperty
+                    && transition_property_includes_opacity(value)
+            });
+        pseudo_changes_opacity || transitions_opacity
+    }
+
+    fn island_selection_fingerprint(&self) -> (Option<(f32, f32)>, bool) {
+        (
+            self.cache_island_size(),
+            self.can_change_descendant_opacity_without_command_invalidation(),
+        )
+    }
+
     fn store_style_snapshot(
         &mut self,
         state: Option<StyleState>,
@@ -197,9 +267,19 @@ impl NativeNode {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct CacheIsland {
+    pub id: NodeId,
+    pub width: f32,
+    pub height: f32,
+}
+
+const CACHE_ISLAND_MIN_NODES: usize = 64;
+
 pub struct WindowState {
     pub root_id: NodeId,
     pub revision: u64,
+    pub island_revision: u64,
     presented_paths: RefCell<HashMap<NodeId, Option<u32>>>,
     pub pending_detached: HashSet<NodeId>,
     pub mousedownoutside_subscribers: HashSet<NodeId>,
@@ -244,6 +324,7 @@ impl NativeTree {
             WindowState {
                 root_id,
                 revision: 0,
+                island_revision: 0,
                 presented_paths: RefCell::default(),
                 pending_detached: HashSet::new(),
                 mousedownoutside_subscribers: HashSet::new(),
@@ -269,6 +350,7 @@ impl NativeTree {
         self.nodes
             .insert(window.root_id, NativeNode::new(window_id, NodeData::Root));
         window.revision = window.revision.wrapping_add(1);
+        window.island_revision = window.island_revision.wrapping_add(1);
         window.presented_paths.get_mut().clear();
         window.pending_detached.clear();
         window.mousedownoutside_subscribers.clear();
@@ -283,6 +365,24 @@ impl NativeTree {
         commands: Vec<Command>,
     ) -> Result<(), BridgeFailure> {
         self.ensure_binding_usable(window_id)?;
+        let topology_changed = commands.iter().any(|command| {
+            matches!(
+                command,
+                Command::InsertChild { .. } | Command::RemoveChild { .. }
+            )
+        });
+        let mut island_fingerprints = HashMap::new();
+        for command in &commands {
+            let id = match command {
+                Command::SetStyle { id, .. } | Command::SetPseudoStyle { id, .. } => *id,
+                _ => continue,
+            };
+            if let Some(node) = self.nodes.get(&id) {
+                island_fingerprints
+                    .entry(id)
+                    .or_insert_with(|| node.island_selection_fingerprint());
+            }
+        }
         if !commands.is_empty() {
             let window = self.window(window_id)?;
             window.revision = window.revision.wrapping_add(1);
@@ -305,7 +405,77 @@ impl NativeTree {
             }
         }
         self.resolve_style_nodes(window_id, &style_nodes);
+        let island_selection_changed = topology_changed
+            || island_fingerprints.into_iter().any(|(id, before)| {
+                self.nodes
+                    .get(&id)
+                    .is_some_and(|node| node.island_selection_fingerprint() != before)
+            });
+        if island_selection_changed {
+            let window = self.window(window_id)?;
+            window.island_revision = window.island_revision.wrapping_add(1);
+        }
         Ok(())
+    }
+
+    pub(crate) fn nodes_share_ancestry(&self, first: NodeId, second: NodeId) -> bool {
+        fn is_ancestor(tree: &NativeTree, ancestor: NodeId, mut node: NodeId) -> bool {
+            loop {
+                if node == ancestor {
+                    return true;
+                }
+                let Some(parent) = tree.nodes.get(&node).and_then(|node| node.parent) else {
+                    return false;
+                };
+                node = parent;
+            }
+        }
+
+        is_ancestor(self, first, second) || is_ancestor(self, second, first)
+    }
+
+    pub(crate) fn cache_islands(&self, window_id: WindowId) -> Vec<CacheIsland> {
+        let window = &self.windows[&window_id];
+        let mut sizes = HashMap::new();
+        fn size(tree: &NativeTree, id: NodeId, sizes: &mut HashMap<NodeId, usize>) -> usize {
+            let total = 1 + tree.nodes[&id]
+                .children
+                .iter()
+                .map(|child| size(tree, *child, sizes))
+                .sum::<usize>();
+            sizes.insert(id, total);
+            total
+        }
+        size(self, window.root_id, &mut sizes);
+
+        let mut islands = Vec::new();
+        let root = &self.nodes[&window.root_id];
+        let root_blocks_opacity_cache =
+            root.can_change_descendant_opacity_without_command_invalidation();
+        let mut pending: Vec<_> = root
+            .children
+            .iter()
+            .copied()
+            .map(|id| (id, root_blocks_opacity_cache))
+            .collect();
+        while let Some((id, ancestor_blocks_opacity_cache)) = pending.pop() {
+            let node = &self.nodes[&id];
+            if !ancestor_blocks_opacity_cache && sizes[&id] >= CACHE_ISLAND_MIN_NODES {
+                if let Some((width, height)) = node.cache_island_size() {
+                    islands.push(CacheIsland { id, width, height });
+                    continue;
+                }
+            }
+            let blocks_descendants = ancestor_blocks_opacity_cache
+                || node.can_change_descendant_opacity_without_command_invalidation();
+            pending.extend(
+                node.children
+                    .iter()
+                    .copied()
+                    .map(|child| (child, blocks_descendants)),
+            );
+        }
+        islands
     }
 
     pub fn set_hovered(&mut self, window_id: WindowId, id: NodeId, hovered: bool) -> bool {
@@ -411,6 +581,7 @@ impl NativeTree {
         if !destroyed.is_empty() {
             let window = self.window(window_id)?;
             window.revision = window.revision.wrapping_add(1);
+            window.island_revision = window.island_revision.wrapping_add(1);
             window.presented_paths.get_mut().clear();
         }
         Ok(destroyed)
@@ -1598,6 +1769,316 @@ mod tests {
             tree.nodes[&2].style.as_deref().unwrap().width,
             Some(crate::style::LengthValue::Pixels(200.0))
         );
+    }
+
+    #[test]
+    fn cache_islands_require_large_fixed_layout_stable_containers() {
+        let (mut tree, window, root) = setup();
+        let mut commands = vec![
+            Command::CreateNode {
+                id: 2,
+                kind: ElementKind::Container,
+            },
+            Command::SetStyle {
+                id: 2,
+                properties: vec![
+                    (PropertyId::Width, PropertyValue::Number(100.0)),
+                    (PropertyId::Height, PropertyValue::Number(64.0)),
+                    (
+                        PropertyId::BackgroundColor,
+                        PropertyValue::String("#123456".into()),
+                    ),
+                ],
+            },
+            Command::InsertChild {
+                parent_id: root,
+                child_id: 2,
+                before_id: 0,
+            },
+        ];
+        for id in 3..67 {
+            commands.push(Command::CreateNode {
+                id,
+                kind: ElementKind::Container,
+            });
+            commands.push(Command::InsertChild {
+                parent_id: 2,
+                child_id: id,
+                before_id: 0,
+            });
+        }
+        tree.apply_commands(window, commands).unwrap();
+        assert_eq!(
+            tree.cache_islands(window),
+            vec![CacheIsland {
+                id: 2,
+                width: 100.0,
+                height: 64.0,
+            }]
+        );
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetStyle {
+                id: 2,
+                properties: vec![
+                    (PropertyId::Width, PropertyValue::Number(100.0)),
+                    (PropertyId::Height, PropertyValue::Number(64.0)),
+                    (PropertyId::MarginLeft, PropertyValue::Number(1.0)),
+                ],
+            }],
+        )
+        .unwrap();
+        assert!(tree.cache_islands(window).is_empty());
+    }
+
+    #[test]
+    fn cache_island_threshold_counts_the_island_root() {
+        let (mut tree, window, root) = setup();
+        let mut commands = vec![
+            Command::CreateNode {
+                id: 2,
+                kind: ElementKind::Container,
+            },
+            Command::SetStyle {
+                id: 2,
+                properties: vec![
+                    (PropertyId::Width, PropertyValue::Number(100.0)),
+                    (PropertyId::Height, PropertyValue::Number(64.0)),
+                ],
+            },
+            Command::InsertChild {
+                parent_id: root,
+                child_id: 2,
+                before_id: 0,
+            },
+        ];
+        // 1 island root + 62 descendants = 63 nodes, immediately below the threshold.
+        for id in 3..65 {
+            commands.push(Command::CreateNode {
+                id,
+                kind: ElementKind::Container,
+            });
+            commands.push(Command::InsertChild {
+                parent_id: 2,
+                child_id: id,
+                before_id: 0,
+            });
+        }
+        tree.apply_commands(window, commands).unwrap();
+        assert!(tree.cache_islands(window).is_empty());
+
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 65,
+                    kind: ElementKind::Container,
+                },
+                Command::InsertChild {
+                    parent_id: 2,
+                    child_id: 65,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        assert_eq!(tree.cache_islands(window).len(), 1);
+    }
+
+    #[test]
+    fn cache_islands_do_not_cross_dynamic_ancestor_opacity() {
+        let (mut tree, window, root) = setup();
+        let ancestor = 2;
+        let island = 3;
+        let mut commands = vec![
+            Command::CreateNode {
+                id: ancestor,
+                kind: ElementKind::Container,
+            },
+            Command::SetStyle {
+                id: ancestor,
+                properties: vec![(PropertyId::Opacity, PropertyValue::Number(0.8))],
+            },
+            Command::InsertChild {
+                parent_id: root,
+                child_id: ancestor,
+                before_id: 0,
+            },
+            Command::CreateNode {
+                id: island,
+                kind: ElementKind::Container,
+            },
+            Command::SetStyle {
+                id: island,
+                properties: vec![
+                    (PropertyId::Width, PropertyValue::Number(100.0)),
+                    (PropertyId::Height, PropertyValue::Number(64.0)),
+                ],
+            },
+            Command::InsertChild {
+                parent_id: ancestor,
+                child_id: island,
+                before_id: 0,
+            },
+        ];
+        for id in 4..67 {
+            commands.push(Command::CreateNode {
+                id,
+                kind: ElementKind::Container,
+            });
+            commands.push(Command::InsertChild {
+                parent_id: island,
+                child_id: id,
+                before_id: 0,
+            });
+        }
+        tree.apply_commands(window, commands).unwrap();
+        assert_eq!(tree.cache_islands(window)[0].id, island);
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetPseudoStyle {
+                id: ancestor,
+                state: StyleState::Hover,
+                properties: vec![(PropertyId::Opacity, PropertyValue::Number(0.4))],
+            }],
+        )
+        .unwrap();
+        assert!(
+            tree.cache_islands(window).is_empty(),
+            "a hover opacity change on an ancestor must not leave descendants cached with baked opacity"
+        );
+
+        tree.apply_commands(
+            window,
+            vec![
+                Command::SetPseudoStyle {
+                    id: ancestor,
+                    state: StyleState::Hover,
+                    properties: vec![],
+                },
+                Command::SetStyle {
+                    id: ancestor,
+                    properties: vec![
+                        (PropertyId::Opacity, PropertyValue::Number(0.8)),
+                        (
+                            PropertyId::TransitionProperty,
+                            PropertyValue::String("opacity".into()),
+                        ),
+                        (
+                            PropertyId::TransitionDuration,
+                            PropertyValue::String("1s".into()),
+                        ),
+                    ],
+                },
+            ],
+        )
+        .unwrap();
+        assert!(
+            tree.cache_islands(window).is_empty(),
+            "an opacity transition on an ancestor must not replay descendants with stale baked opacity"
+        );
+    }
+
+    #[test]
+    fn island_selection_revision_ignores_noneligibility_changes() {
+        let (mut tree, window, root) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateText {
+                    id: 2,
+                    text: "before".into(),
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 2,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        let island_revision = tree.windows[&window].island_revision;
+        let window_revision = tree.windows[&window].revision;
+
+        tree.apply_commands(
+            window,
+            vec![Command::UpdateText {
+                id: 2,
+                text: "after".into(),
+            }],
+        )
+        .unwrap();
+        assert_eq!(tree.windows[&window].island_revision, island_revision);
+        assert!(tree.windows[&window].revision > window_revision);
+
+        tree.apply_commands(
+            window,
+            vec![Command::SubscribeEvent {
+                id: 2,
+                event: NativeEventId::Click,
+            }],
+        )
+        .unwrap();
+        assert_eq!(tree.windows[&window].island_revision, island_revision);
+
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 3,
+                    kind: ElementKind::Container,
+                },
+                Command::SetStyle {
+                    id: 3,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(100.0)),
+                    ],
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 3,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        let island_revision = tree.windows[&window].island_revision;
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetStyle {
+                id: 3,
+                properties: vec![
+                    (PropertyId::Width, PropertyValue::Number(100.0)),
+                    (PropertyId::Height, PropertyValue::Number(100.0)),
+                    (
+                        PropertyId::BackgroundColor,
+                        PropertyValue::String("#123456".into()),
+                    ),
+                ],
+            }],
+        )
+        .unwrap();
+        assert_eq!(
+            tree.windows[&window].island_revision, island_revision,
+            "paint-only style changes must not trigger island rediscovery"
+        );
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetStyle {
+                id: 3,
+                properties: vec![
+                    (PropertyId::Width, PropertyValue::Number(101.0)),
+                    (PropertyId::Height, PropertyValue::Number(100.0)),
+                ],
+            }],
+        )
+        .unwrap();
+        assert!(tree.windows[&window].island_revision > island_revision);
     }
 
     #[test]

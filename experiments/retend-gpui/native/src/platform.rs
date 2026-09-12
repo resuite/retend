@@ -1,8 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    rc::Rc,
+    sync::{Arc, MutexGuard},
+};
 
 use gpui::{
-    div, prelude::*, px, rgb, size, App, Bounds, Context, Render, Subscription, Window,
-    WindowBounds, WindowHandle, WindowOptions,
+    div, prelude::*, px, rgb, size, AnyView, App, Bounds, Context, Entity, Render, StyleRefinement,
+    Subscription, Window, WindowBounds, WindowHandle, WindowOptions,
 };
 
 #[cfg(test)]
@@ -17,9 +22,83 @@ use crate::{
     NativeSelection, NativeWindowOptions,
 };
 
-struct RetendRootView {
+#[derive(Clone, Default)]
+struct FrameTreeLease(Rc<RefCell<Option<MutexGuard<'static, NativeTree>>>>);
+
+impl FrameTreeLease {
+    fn acquire(&self) -> bool {
+        self.release();
+        let Ok(tree) = crate::runtime().lock() else {
+            return false;
+        };
+        *self.0.borrow_mut() = Some(tree);
+        true
+    }
+
+    fn with_tree<T>(&self, action: impl FnOnce(&NativeTree) -> T) -> Option<T> {
+        let tree = self.0.borrow();
+        Some(action(tree.as_deref()?))
+    }
+
+    fn release(&self) {
+        self.0.borrow_mut().take();
+    }
+}
+
+#[derive(Clone)]
+struct IslandEntry {
+    view: Entity<RetendIslandView>,
+    width: f32,
+    height: f32,
+    rendered_generation: Rc<Cell<u64>>,
+}
+
+struct RetendIslandView {
+    window_id: WindowId,
+    root_id: NodeId,
+    runtime_state: RuntimeStateRegistry,
+    rendered_generation: Rc<Cell<u64>>,
+    frame_tree: FrameTreeLease,
+}
+
+impl Render for RetendIslandView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let generation = self.runtime_state.current_generation();
+        self.rendered_generation.set(generation);
+        let build = |tree: &NativeTree, window: &mut Window, cx: &mut Context<Self>| {
+            tree.nodes
+                .get(&self.root_id)
+                .filter(|node| node.window_id == self.window_id)?;
+            Some(crate::render::build_subtree_with_runtime(
+                tree,
+                self.root_id,
+                &self.runtime_state,
+                generation,
+                window,
+                cx,
+            ))
+        };
+        if let Some(element) = self
+            .frame_tree
+            .with_tree(|tree| build(tree, window, cx))
+            .flatten()
+        {
+            return element;
+        }
+        crate::runtime()
+            .lock()
+            .ok()
+            .and_then(|tree| build(&tree, window, cx))
+            .unwrap_or_else(|| div().into_any_element())
+    }
+}
+
+pub(crate) struct RetendRootView {
     window_id: WindowId,
     runtime_state: RuntimeStateRegistry,
+    islands: HashMap<NodeId, IslandEntry>,
+    island_revision: Option<u64>,
+    frame_tree: FrameTreeLease,
     last_window_size: Option<(f32, f32)>,
     _window_observers: Option<(Subscription, Subscription)>,
 }
@@ -175,6 +254,7 @@ pub(crate) enum TextControlOperation {
 
 pub(crate) enum WindowOperation {
     Invalidate,
+    InvalidateNodes(Vec<NodeId>),
     Focus(NodeId, isize, Option<TextControlSnapshot>),
     Blur(NodeId),
     TextControl(NodeId, TextControlSnapshot, TextControlOperation),
@@ -211,11 +291,13 @@ fn execute_window_operation(
         let redraw = matches!(
             &operation,
             WindowOperation::Invalidate
+                | WindowOperation::InvalidateNodes(_)
                 | WindowOperation::Layout(_)
                 | WindowOperation::DestroyRuntimeNodes(_)
         );
         match &operation {
-            WindowOperation::Invalidate => {}
+            WindowOperation::Invalidate => view.invalidate_islands(cx),
+            WindowOperation::InvalidateNodes(nodes) => view.invalidate_related_islands(nodes, cx),
             WindowOperation::Focus(id, tab_index, text_control) => {
                 focus_runtime_node(
                     runtime,
@@ -250,7 +332,10 @@ fn execute_window_operation(
                 }
             }
             WindowOperation::Layout(operation) => runtime.enqueue_layout(operation.clone()),
-            WindowOperation::DestroyRuntimeNodes(ids) => runtime.destroy_nodes(ids),
+            WindowOperation::DestroyRuntimeNodes(ids) => {
+                runtime.destroy_nodes(ids);
+                view.invalidate_islands(cx);
+            }
             WindowOperation::SetTitle(title) => return window.set_window_title(title),
             WindowOperation::Close => return window.remove_window(),
         }
@@ -263,8 +348,110 @@ fn execute_window_operation(
     }
 }
 
+impl RetendRootView {
+    fn new(window_id: WindowId, runtime_state: RuntimeStateRegistry) -> Self {
+        Self {
+            window_id,
+            runtime_state,
+            islands: HashMap::new(),
+            island_revision: None,
+            frame_tree: FrameTreeLease::default(),
+            last_window_size: None,
+            _window_observers: None,
+        }
+    }
+
+    fn sync_islands(&mut self, tree: &NativeTree, cx: &mut Context<Self>) {
+        let revision = tree.windows[&self.window_id].island_revision;
+        if self.island_revision == Some(revision) {
+            return;
+        }
+
+        let candidates: HashMap<_, _> = tree
+            .cache_islands(self.window_id)
+            .into_iter()
+            .map(|island| (island.id, island))
+            .collect();
+        self.islands.retain(|id, _| candidates.contains_key(id));
+        for island in candidates.into_values() {
+            if let Some(entry) = self.islands.get_mut(&island.id) {
+                entry.width = island.width;
+                entry.height = island.height;
+                continue;
+            }
+            let rendered_generation = Rc::new(Cell::new(0));
+            let view = cx.new({
+                let runtime_state = self.runtime_state.clone();
+                let rendered_generation = rendered_generation.clone();
+                let window_id = self.window_id;
+                let frame_tree = self.frame_tree.clone();
+                move |_| RetendIslandView {
+                    window_id,
+                    root_id: island.id,
+                    runtime_state,
+                    rendered_generation,
+                    frame_tree,
+                }
+            });
+            self.islands.insert(
+                island.id,
+                IslandEntry {
+                    view,
+                    width: island.width,
+                    height: island.height,
+                    rendered_generation,
+                },
+            );
+        }
+        self.island_revision = Some(revision);
+    }
+
+    fn invalidate_islands(&self, cx: &mut Context<Self>) {
+        for island in self.islands.values() {
+            island.view.update(cx, |_, cx| cx.notify());
+        }
+    }
+
+    fn invalidate_related_islands(&self, nodes: &[NodeId], cx: &mut Context<Self>) {
+        let Ok(tree) = crate::runtime().lock() else {
+            self.invalidate_islands(cx);
+            return;
+        };
+        for (&root_id, island) in &self.islands {
+            if nodes
+                .iter()
+                .any(|changed| tree.nodes_share_ancestry(root_id, *changed))
+            {
+                island.view.update(cx, |_, cx| cx.notify());
+            }
+        }
+    }
+
+    #[cfg(all(test, feature = "benchmarks"))]
+    pub(crate) fn benchmark_invalidate_nodes(&self, nodes: &[NodeId], cx: &mut Context<Self>) {
+        self.invalidate_related_islands(nodes, cx);
+        cx.notify();
+    }
+
+    #[cfg(all(test, feature = "benchmarks"))]
+    pub(crate) fn benchmark_island_generation(&self, id: NodeId) -> Option<u64> {
+        self.islands
+            .get(&id)
+            .map(|island| island.rendered_generation.get())
+    }
+}
+
+#[cfg(all(test, feature = "benchmarks"))]
+pub(crate) fn benchmark_root_view(
+    window_id: WindowId,
+    runtime_state: RuntimeStateRegistry,
+) -> RetendRootView {
+    RetendRootView::new(window_id, runtime_state)
+}
+
 impl Drop for RetendRootView {
     fn drop(&mut self) {
+        self.frame_tree.release();
         self.runtime_state.reject_queries(
             "CLOSED_WINDOW",
             "Renderer window closed before the native query completed.",
@@ -276,56 +463,95 @@ impl Render for RetendRootView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let window_id = self.window_id;
         let runtime_state = self.runtime_state.clone();
-        let content = crate::runtime().lock().ok().and_then(|tree| {
-            let native_window = tree.windows.get(&window_id)?;
+        if !self.frame_tree.acquire() {
+            return crate::render::root_container().into_any_element();
+        }
+        let frame_tree = self.frame_tree.clone();
+        let content = frame_tree.with_tree(|tree| {
+            let Some(native_window) = tree.windows.get(&window_id) else {
+                return Err(crate::render::root_container().into_any_element());
+            };
             if let Some(fatal) = native_window.fatal.as_ref() {
                 self.runtime_state.reject_queries(
                     "POISONED_RENDERER",
                     "Renderer became poisoned before the native query completed.",
                 );
                 let runtime_state = runtime_state.clone();
-                return Some(
-                    div()
-                        .size_full()
-                        .p_6()
-                        .bg(rgb(0x1a1111))
-                        .text_color(rgb(0xff8a8a))
-                        .child("Retend GPUI fatal renderer error")
-                        .child(fatal.native_failure.clone())
-                        .child(fatal.javascript_stack.clone())
-                        .child(div().id("retend-fatal-reload").child("Reload").on_click(
-                            move |_, _, _| {
-                                let reloaded = crate::runtime()
-                                    .lock()
-                                    .ok()
-                                    .is_some_and(|mut tree| tree.reload_window(window_id).is_ok());
-                                if reloaded {
-                                    runtime_state.clear();
-                                    crate::events::emit_window(
-                                        window_id,
-                                        crate::events::NativeWindowEventPayload::reload(),
-                                    );
-                                }
-                            },
-                        ))
-                        .into_any_element(),
-                );
+                return Err(div()
+                    .size_full()
+                    .p_6()
+                    .bg(rgb(0x1a1111))
+                    .text_color(rgb(0xff8a8a))
+                    .child("Retend GPUI fatal renderer error")
+                    .child(fatal.native_failure.clone())
+                    .child(fatal.javascript_stack.clone())
+                    .child(div().id("retend-fatal-reload").child("Reload").on_click(
+                        move |_, _, _| {
+                            let reloaded = crate::runtime()
+                                .lock()
+                                .ok()
+                                .is_some_and(|mut tree| tree.reload_window(window_id).is_ok());
+                            if reloaded {
+                                runtime_state.clear();
+                                crate::events::emit_window(
+                                    window_id,
+                                    crate::events::NativeWindowEventPayload::reload(),
+                                );
+                            }
+                        },
+                    ))
+                    .into_any_element());
             }
 
-            let generation = prepare_frame(&tree, &self.runtime_state, window_id, window, cx);
-            Some(crate::render::build_with_runtime(
-                &tree,
+            self.sync_islands(tree, cx);
+            let generation = prepare_frame(tree, &self.runtime_state, window_id, window, cx);
+            // A cached AnyView must still be read from this window every root frame so
+            // GPUI keeps the entity-to-window invalidator association alive.
+            for island in self.islands.values() {
+                let _ = island.view.read(cx);
+            }
+            let islands = &self.islands;
+            let runtime_state = self.runtime_state.clone();
+            let mut resolve_island = |id| {
+                let island = islands.get(&id)?;
+                let mut style = StyleRefinement::default();
+                style.size.width = Some(px(island.width).into());
+                style.size.height = Some(px(island.height).into());
+                let cached = AnyView::from(island.view.clone())
+                    .cached(style)
+                    .into_any_element();
+                Some(crate::render::observe_cached_subtree(
+                    cached,
+                    &runtime_state,
+                    generation,
+                    id,
+                    island.rendered_generation.clone(),
+                ))
+            };
+            Ok(crate::render::build_with_runtime_islands(
+                tree,
                 native_window.root_id,
                 &self.runtime_state,
                 generation,
                 window,
                 cx,
+                &mut resolve_island,
             ))
         });
 
         match content {
-            Some(content) => content,
-            None => crate::render::root_container().into_any_element(),
+            Some(Ok(content)) => {
+                let frame_tree = self.frame_tree.clone();
+                crate::render::release_after_frame(content, move || frame_tree.release())
+            }
+            Some(Err(content)) => {
+                self.frame_tree.release();
+                content
+            }
+            None => {
+                self.frame_tree.release();
+                crate::render::root_container().into_any_element()
+            }
         }
     }
 }
@@ -464,12 +690,7 @@ fn open_gpui_window(
             true
         });
         cx.new(|cx| {
-            let mut view = RetendRootView {
-                window_id,
-                runtime_state: RuntimeStateRegistry::default(),
-                last_window_size: None,
-                _window_observers: None,
-            };
+            let mut view = RetendRootView::new(window_id, RuntimeStateRegistry::default());
             if let Some(payload) = view.window_size_event(constraints, window) {
                 crate::events::emit_window(window_id, payload);
             }
@@ -761,7 +982,9 @@ mod imp {
                                             windows.get(&window_id).copied()
                                         };
                                         cx.update(|cx| {
-                                            execute_window_operation(window_id, window, operation, cx)
+                                            execute_window_operation(
+                                                window_id, window, operation, cx,
+                                            )
                                         });
                                     }
                                     UiCommand::Forget(window_id) => {
@@ -860,6 +1083,18 @@ pub fn invalidate_window(window_id: WindowId) {
         invalidations.borrow_mut().push((window_id, snapshot));
     });
     dispatch(window_id, WindowOperation::Invalidate);
+}
+
+pub(crate) fn invalidate_window_nodes(window_id: WindowId, nodes: Vec<NodeId>) {
+    #[cfg(test)]
+    TEST_INVALIDATIONS.with(|invalidations| {
+        let snapshot = crate::runtime()
+            .lock()
+            .ok()
+            .and_then(|tree| tree.debug_window_json(window_id).ok());
+        invalidations.borrow_mut().push((window_id, snapshot));
+    });
+    dispatch(window_id, WindowOperation::InvalidateNodes(nodes));
 }
 
 #[cfg(test)]
@@ -1120,12 +1355,7 @@ mod tests {
         let runtime_state = RuntimeStateRegistry::default();
         let window = cx.add_window({
             let runtime_state = runtime_state.clone();
-            move |_, _| RetendRootView {
-                window_id,
-                runtime_state,
-                last_window_size: None,
-                _window_observers: None,
-            }
+            move |_, _| RetendRootView::new(window_id, runtime_state)
         });
         cx.update_window(window.into(), |_, window, cx| {
             window.activate_window();
@@ -1801,6 +2031,201 @@ mod tests {
         assert_eq!(replaced, ("z".to_string(), 1..1, None));
     }
 
+    #[test]
+    fn frame_tree_lease_serializes_runtime_mutation_until_release() {
+        let lease = FrameTreeLease::default();
+        assert!(lease.acquire());
+        assert!(
+            crate::runtime().try_lock().is_err(),
+            "a root frame must keep command mutations from advancing the tree before deferred islands render"
+        );
+        lease.release();
+        drop(crate::runtime().lock().unwrap());
+    }
+
+    #[gpui::test]
+    fn root_draw_releases_frame_tree_lease(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let window_id = crate::runtime()
+            .lock()
+            .unwrap()
+            .create_window(root_id)
+            .unwrap();
+        let (view, cx) = cx.add_window_view(move |_, _| {
+            RetendRootView::new(window_id, RuntimeStateRegistry::default())
+        });
+        cx.update(|window, cx| {
+            let arena = window.draw(cx);
+            assert!(
+                crate::runtime().try_lock().is_ok(),
+                "the frame tree lease must be released as soon as root painting completes"
+            );
+            arena.clear(cx);
+        });
+        view.update(cx, |view, _| {
+            assert!(view.frame_tree.0.borrow().is_none());
+        });
+        crate::runtime().lock().unwrap().close_window(window_id);
+    }
+
+    #[gpui::test]
+    fn cached_island_reuses_descendant_geometry_for_later_queries(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(256, Ordering::Relaxed);
+        let island_id = root_id + 1;
+        let measured_id = root_id + 2;
+        let outside_id = root_id + 100;
+        let window_id = {
+            let mut tree = crate::runtime().lock().unwrap();
+            let window_id = tree.create_window(root_id).unwrap();
+            let mut commands = vec![
+                Command::CreateNode {
+                    id: island_id,
+                    kind: ElementKind::Container,
+                },
+                Command::SetStyle {
+                    id: island_id,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(64.0)),
+                    ],
+                },
+                Command::InsertChild {
+                    parent_id: root_id,
+                    child_id: island_id,
+                    before_id: 0,
+                },
+                Command::CreateNode {
+                    id: outside_id,
+                    kind: ElementKind::Container,
+                },
+                Command::InsertChild {
+                    parent_id: root_id,
+                    child_id: outside_id,
+                    before_id: 0,
+                },
+            ];
+            for offset in 0..64 {
+                let id = measured_id + offset;
+                commands.push(Command::CreateNode {
+                    id,
+                    kind: ElementKind::Container,
+                });
+                if id == measured_id {
+                    commands.push(Command::SetStyle {
+                        id,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(1.0)),
+                        ],
+                    });
+                }
+                commands.push(Command::InsertChild {
+                    parent_id: island_id,
+                    child_id: id,
+                    before_id: 0,
+                });
+            }
+            tree.apply_commands(window_id, commands).unwrap();
+            window_id
+        };
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| RetendRootView::new(window_id, runtime_state)
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let first_rendered_generation = view.update(cx, |view, _| {
+            assert_eq!(view.islands.len(), 1);
+            view.islands[&island_id].rendered_generation.get()
+        });
+        assert!(first_rendered_generation > 0);
+
+        let (sender, receiver) = mpsc::channel();
+        runtime_state.enqueue_layout(LayoutOperation::Measure(
+            measured_id,
+            MeasureResponder::new(move |result| sender.send(result).unwrap()),
+        ));
+        view.update(cx, |_, cx| cx.notify());
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+
+        let measured = receiver.try_recv().unwrap().unwrap();
+        assert_eq!((measured.width, measured.height), (100.0, 1.0));
+        view.update(cx, |view, _| {
+            assert!(view.runtime_state.current_generation() > first_rendered_generation);
+            assert_eq!(
+                view.islands[&island_id].rendered_generation.get(),
+                first_rendered_generation,
+                "a query-only root frame must reuse the clean cached island"
+            );
+        });
+
+        crate::runtime()
+            .lock()
+            .unwrap()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: outside_id,
+                    properties: vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
+                }],
+            )
+            .unwrap();
+        view.update(cx, |view, cx| {
+            view.invalidate_related_islands(&[outside_id], cx);
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let after_unrelated = view.update(cx, |view, _| {
+            view.islands[&island_id].rendered_generation.get()
+        });
+        assert_eq!(
+            after_unrelated, first_rendered_generation,
+            "an unrelated sibling mutation must not dirty the cached island"
+        );
+
+        crate::runtime()
+            .lock()
+            .unwrap()
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: measured_id,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(2.0)),
+                    ],
+                }],
+            )
+            .unwrap();
+        view.update(cx, |view, cx| {
+            view.invalidate_related_islands(&[measured_id], cx);
+            cx.notify();
+        });
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        view.update(cx, |view, _| {
+            assert!(
+                view.islands[&island_id].rendered_generation.get() > after_unrelated,
+                "a descendant mutation must dirty its containing island"
+            );
+        });
+
+        let (sender, receiver) = mpsc::channel();
+        runtime_state.enqueue_layout(LayoutOperation::Measure(
+            measured_id,
+            MeasureResponder::new(move |result| sender.send(result).unwrap()),
+        ));
+        view.update(cx, |_, cx| cx.notify());
+        cx.update(|window, cx| window.draw(cx).clear(cx));
+        let measured = receiver.try_recv().unwrap().unwrap();
+        assert_eq!(
+            (measured.width, measured.height),
+            (100.0, 2.0),
+            "a rerendered island must publish the descendant's new geometry"
+        );
+        crate::runtime().lock().unwrap().close_window(window_id);
+    }
+
     #[gpui::test]
     fn pending_layout_queries_reject_when_window_closes(cx: &mut TestAppContext) {
         let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
@@ -1812,12 +2237,7 @@ mod tests {
         let runtime_state = RuntimeStateRegistry::default();
         let window = cx.add_window({
             let runtime_state = runtime_state.clone();
-            move |_, _| RetendRootView {
-                window_id,
-                runtime_state,
-                last_window_size: None,
-                _window_observers: None,
-            }
+            move |_, _| RetendRootView::new(window_id, runtime_state)
         });
         let (sender, receiver) = mpsc::channel();
         runtime_state.enqueue_layout(LayoutOperation::Measure(
@@ -1847,12 +2267,7 @@ mod tests {
         let runtime_state = RuntimeStateRegistry::default();
         let window = cx.add_window({
             let runtime_state = runtime_state.clone();
-            move |_, _| RetendRootView {
-                window_id,
-                runtime_state,
-                last_window_size: None,
-                _window_observers: None,
-            }
+            move |_, _| RetendRootView::new(window_id, runtime_state)
         });
         cx.update_window(window.into(), |_, window, cx| {
             window.draw(cx).clear(cx);
@@ -1944,12 +2359,7 @@ mod tests {
         let events = Rc::new(RefCell::new(Vec::new()));
         let emitted = events.clone();
         let window = app.open_window(move |window, cx| {
-            let mut view = RetendRootView {
-                window_id,
-                runtime_state: RuntimeStateRegistry::default(),
-                last_window_size: None,
-                _window_observers: None,
-            };
+            let mut view = RetendRootView::new(window_id, RuntimeStateRegistry::default());
             view._window_observers = Some(install_window_observers(
                 window_id,
                 constraints,
