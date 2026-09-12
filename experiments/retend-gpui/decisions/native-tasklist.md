@@ -390,21 +390,14 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [x] Ensure reactive base/hover/active author snapshots can be updated from JavaScript without moving pointer-state ownership to JS.
 - [x] Reconcile `MOTION.md` so its implementation description matches GPUI-owned playback.
 
-### Native performance architecture
+### Native performance investigation
 
-- [x] Add a release-mode frame benchmark harness over GPUI's real test window/draw path for full static redraws, opacity transitions, and layout transitions at 100/1,000/5,000 nodes.
-- [ ] Record and compare equivalent browser baselines for the same scene shapes.
-- [x] Profile the benchmark scenarios across GPUI request/layout, Taffy solve, prepaint, and paint/cache replay. In the CPU-only GPUI test platform the cached 5,000-node path is overwhelmingly dominated by paint/replay; native GPU submission/presentation is not measured by this harness.
-- [x] Prototype GPUI entity/view islands in the benchmark harness; a cached 5,000-node static island remains clean while a separate animated entity renders each frame.
-- [x] Benchmark practical island granularities rather than making every Retend node an entity; at a fixed 5,000-node total, 1/5/20/50 clean production islands all stayed cached and showed no large boundary-overhead cliff in the isolated debug harness. Keep the current 64-node minimum conservative until release/browser baselines are available.
-- [x] Prototype production Retend cached fixed-size/stable subtrees and measure them through the real `RetendRootView` path; GPUI keeps clean island entities cached while the root and unrelated animated siblings redraw.
-- [x] Keep cached-island invalidation GPUI-owned and node-aware: successful non-structural command batches dirty only islands related by ancestry to changed nodes, while structural/failing batches conservatively dirty all islands.
-- [x] Preserve DOM-like layout queries across cached island frames with presentation-generation-tagged geometry and an O(1) reused-subtree marker; cached reuse can only revive geometry painted by that island's actual retained presentation, and subtree queries carry reuse context in one traversal instead of repeating ancestor walks.
-- [x] Keep deferred island rendering revision-consistent with root preparation by leasing one retained-tree revision through root paint; release the lease immediately after paint, with drop only as a no-paint fallback.
-- [x] Prevent stale inherited opacity in cached descendants by excluding islands beneath ancestors whose hover/active state or GPUI transition can change opacity without a command-batch invalidation.
-- [x] Decouple island discovery from ordinary window revision churn: topology changes and actual island-selection fingerprint changes advance a dedicated island revision, while text, subscriptions, properties, and paint-only style updates do not trigger an O(tree) recount.
-- [x] Investigate GPUI's existing transform/opacity and layer primitives before adding Retend-owned compositor machinery: current `paint_layer` is batching, `Surface` is external pixel-buffer content, and cached `Scene::replay` still replays primitives linearly, so there is no existing generic retained-subtree compositor fast path to adopt directly.
-- [x] Defer incremental Taffy/layout retention for now: phase profiling shows layout is not the dominant cached-frame cost after island caching; revisit only if later release/browser profiles change that conclusion.
+- [x] Add a CPU-side native benchmark for full static redraws, opacity transitions, and layout transitions at 100/1,000/5,000 nodes.
+- [x] Profile Retend element construction separately from GPUI request/layout, Taffy solve, prepaint, and paint.
+- [x] Keep cached-view replay experiments benchmark-only; do not add Retend-owned subtree selection, invalidation, retained geometry, or synchronization machinery to production rendering without real-application evidence.
+- [x] Current debug profiling points to Retend element construction and GPUI paint/cache replay as the dominant CPU costs. The test harness does not measure native GPU presentation.
+- [ ] Investigate GPUI's paint/`Scene::replay` path before adding any Retend-side caching or compositor architecture.
+- [ ] Record release-mode and browser baselines for representative real application shapes.
 
 ### Full Vite/dev integration
 

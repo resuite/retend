@@ -1,7 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
-    sync::atomic::{AtomicU32, Ordering},
     time::{Duration, Instant},
 };
 
@@ -12,10 +11,10 @@ use gpui::{
 };
 
 use crate::{
-    platform::{benchmark_root_view, prepare_frame},
+    platform::prepare_frame,
     protocol::{Command, PropertyValue},
     protocol_generated::{ElementKind, PropertyId},
-    render::{build_subtree_with_runtime, build_with_runtime},
+    render::build_with_runtime,
     runtime_state::RuntimeStateRegistry,
     tree::{NativeTree, WindowId},
 };
@@ -56,6 +55,36 @@ struct RenderTimings {
     prepare: Cell<Duration>,
     build: Cell<Duration>,
     renders: Cell<usize>,
+}
+
+struct BenchmarkView {
+    tree: Rc<RefCell<NativeTree>>,
+    runtime: RuntimeStateRegistry,
+    window_id: WindowId,
+    timings: Rc<RenderTimings>,
+}
+
+impl Render for BenchmarkView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.timings.renders.set(self.timings.renders.get() + 1);
+        let tree = self.tree.borrow();
+
+        let started = Instant::now();
+        let generation = prepare_frame(&tree, &self.runtime, self.window_id, window, cx);
+        self.timings.prepare.set(started.elapsed());
+
+        let started = Instant::now();
+        let element = build_with_runtime(
+            &tree,
+            tree.windows[&self.window_id].root_id,
+            &self.runtime,
+            generation,
+            window,
+            cx,
+        );
+        self.timings.build.set(started.elapsed());
+        element
+    }
 }
 
 #[derive(Default)]
@@ -154,44 +183,14 @@ impl Render for ProfiledView {
     }
 }
 
-struct BenchmarkView {
-    tree: Rc<RefCell<NativeTree>>,
-    runtime: RuntimeStateRegistry,
-    window_id: WindowId,
-    timings: Rc<RenderTimings>,
-}
-
-impl Render for BenchmarkView {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.timings.renders.set(self.timings.renders.get() + 1);
-        let tree = self.tree.borrow();
-
-        let started = Instant::now();
-        let generation = prepare_frame(&tree, &self.runtime, self.window_id, window, cx);
-        self.timings.prepare.set(started.elapsed());
-
-        let started = Instant::now();
-        let element = build_with_runtime(
-            &tree,
-            tree.windows[&self.window_id].root_id,
-            &self.runtime,
-            generation,
-            window,
-            cx,
-        );
-        self.timings.build.set(started.elapsed());
-        element
-    }
-}
-
 #[derive(Clone, Copy)]
-struct TestDrawSample {
+struct DrawSample {
     total: Duration,
     draw: Duration,
     present_hook: Duration,
 }
 
-fn draw_test_frame(cx: &mut gpui::VisualTestContext) -> TestDrawSample {
+fn draw_frame(cx: &mut gpui::VisualTestContext) -> DrawSample {
     let started = Instant::now();
     let draw = Cell::new(Duration::ZERO);
     let present_hook = Cell::new(Duration::ZERO);
@@ -199,68 +198,18 @@ fn draw_test_frame(cx: &mut gpui::VisualTestContext) -> TestDrawSample {
         let draw_started = Instant::now();
         let arena = window.draw(cx);
         draw.set(draw_started.elapsed());
+
         let present_started = Instant::now();
-        // TestAppContext uses GPUI's CPU-only test platform with no native renderer.
-        // This measures the present hook overhead, not GPU submission/presentation.
+        // TestAppContext has no native renderer. This is only CPU test-platform
+        // hook overhead, not GPU submission, swap, or display latency.
         window.present_if_needed();
         present_hook.set(present_started.elapsed());
         arena.clear(cx);
     });
-    TestDrawSample {
+    DrawSample {
         total: started.elapsed(),
         draw: draw.get(),
         present_hook: present_hook.get(),
-    }
-}
-
-#[derive(Clone, Copy)]
-struct FrameSample {
-    total: Duration,
-    draw: Duration,
-    present_hook: Duration,
-    prepare: Duration,
-    build: Duration,
-}
-
-impl FrameSample {
-    fn gpui_draw_rest(self) -> Duration {
-        self.draw
-            .saturating_sub(self.prepare)
-            .saturating_sub(self.build)
-    }
-}
-
-#[derive(Clone, Copy)]
-struct PhaseSample {
-    draw: Duration,
-    present_hook: Duration,
-    request: Duration,
-    layout: Duration,
-    prepaint: Duration,
-    paint: Duration,
-    residual: Duration,
-}
-
-impl PhaseSample {
-    fn capture(draw: TestDrawSample, timings: &PhaseTimings) -> Self {
-        let request = timings.request_layout.get();
-        let layout = timings.layout.get();
-        let prepaint = timings.prepaint.get();
-        let paint = timings.paint.get();
-        Self {
-            draw: draw.draw,
-            present_hook: draw.present_hook,
-            request,
-            layout,
-            prepaint,
-            paint,
-            residual: draw
-                .draw
-                .saturating_sub(request)
-                .saturating_sub(layout)
-                .saturating_sub(prepaint)
-                .saturating_sub(paint),
-        }
     }
 }
 
@@ -326,11 +275,11 @@ fn animated_properties(scenario: Scenario, target: bool) -> Vec<(PropertyId, Pro
     properties
 }
 
-fn build_tree(node_count: usize, scenario: Scenario) -> (Rc<RefCell<NativeTree>>, WindowId) {
+fn build_tree(nodes: usize, scenario: Scenario) -> (Rc<RefCell<NativeTree>>, WindowId) {
     let mut tree = NativeTree::default();
     let window_id = tree.create_window(1).unwrap();
-    let mut commands = Vec::with_capacity(node_count * 3);
-    for index in 0..node_count {
+    let mut commands = Vec::with_capacity(nodes * 3);
+    for index in 0..nodes {
         let id = u32::try_from(index + 2).unwrap();
         commands.push(container(id));
         commands.push(Command::SetStyle {
@@ -347,7 +296,11 @@ fn build_tree(node_count: usize, scenario: Scenario) -> (Rc<RefCell<NativeTree>>
     (Rc::new(RefCell::new(tree)), window_id)
 }
 
-fn set_animation_target(tree: &Rc<RefCell<NativeTree>>, window_id: WindowId, scenario: Scenario) {
+fn set_animation_target(
+    tree: &Rc<RefCell<NativeTree>>,
+    window_id: WindowId,
+    scenario: Scenario,
+) {
     tree.borrow_mut()
         .apply_commands(
             window_id,
@@ -369,33 +322,7 @@ fn micros(duration: Duration) -> f64 {
     duration.as_secs_f64() * 1_000_000.0
 }
 
-fn report(scenario: Scenario, nodes: usize, samples: &[FrameSample], renders: usize) {
-    let totals: Vec<_> = samples.iter().map(|sample| sample.total).collect();
-    let draws: Vec<_> = samples.iter().map(|sample| sample.draw).collect();
-    let present_hooks: Vec<_> = samples.iter().map(|sample| sample.present_hook).collect();
-    let prepares: Vec<_> = samples.iter().map(|sample| sample.prepare).collect();
-    let builds: Vec<_> = samples.iter().map(|sample| sample.build).collect();
-    let rests: Vec<_> = samples
-        .iter()
-        .map(|sample| sample.gpui_draw_rest())
-        .collect();
-    println!(
-        "RETEND_GPUI_BENCH scenario={} nodes={} samples={} renders={} total_median_us={:.1} total_p95_us={:.1} draw_median_us={:.1} test_present_hook_median_us={:.1} prepare_median_us={:.1} build_median_us={:.1} gpui_draw_rest_median_us={:.1}",
-        scenario.name(),
-        nodes,
-        samples.len(),
-        renders,
-        micros(percentile(&totals, 1, 2)),
-        micros(percentile(&totals, 95, 100)),
-        micros(percentile(&draws, 1, 2)),
-        micros(percentile(&present_hooks, 1, 2)),
-        micros(percentile(&prepares, 1, 2)),
-        micros(percentile(&builds, 1, 2)),
-        micros(percentile(&rests, 1, 2)),
-    );
-}
-
-fn run_scenario(cx: &mut TestAppContext, nodes: usize, scenario: Scenario) {
+fn run_flat(cx: &mut TestAppContext, nodes: usize, scenario: Scenario) {
     let (tree, window_id) = build_tree(nodes, scenario);
     let timings = Rc::new(RenderTimings::default());
     let runtime = RuntimeStateRegistry::default();
@@ -415,62 +342,70 @@ fn run_scenario(cx: &mut TestAppContext, nodes: usize, scenario: Scenario) {
         view.update(cx, |_, cx| cx.notify());
     }
 
-    let draw = |cx: &mut gpui::VisualTestContext| {
-        let sample = draw_test_frame(cx);
-        FrameSample {
-            total: sample.total,
-            draw: sample.draw,
-            present_hook: sample.present_hook,
-            prepare: timings.prepare.get(),
-            build: timings.build.get(),
-        }
-    };
-
     for _ in 0..WARMUP_FRAMES {
         if scenario.is_animation() {
             cx.executor().advance_clock(FRAME_STEP);
         }
-        let _ = draw(cx);
+        let _ = draw_frame(cx);
     }
 
     let renders_before = timings.renders.get();
-    let mut samples = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut totals = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut draws = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut present_hooks = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut prepares = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut builds = Vec::with_capacity(SAMPLE_FRAMES);
     for _ in 0..SAMPLE_FRAMES {
         if scenario.is_animation() {
             cx.executor().advance_clock(FRAME_STEP);
         }
-        samples.push(draw(cx));
+        let sample = draw_frame(cx);
+        totals.push(sample.total);
+        draws.push(sample.draw);
+        present_hooks.push(sample.present_hook);
+        prepares.push(timings.prepare.get());
+        builds.push(timings.build.get());
     }
-    report(
-        scenario,
+
+    println!(
+        "RETEND_GPUI_BENCH scenario={} nodes={} samples={} renders={} total_median_us={:.1} draw_median_us={:.1} prepare_median_us={:.1} build_median_us={:.1} test_present_hook_median_us={:.1}",
+        scenario.name(),
         nodes,
-        &samples,
+        SAMPLE_FRAMES,
         timings.renders.get() - renders_before,
+        micros(percentile(&totals, 1, 2)),
+        micros(percentile(&draws, 1, 2)),
+        micros(percentile(&prepares, 1, 2)),
+        micros(percentile(&builds, 1, 2)),
+        micros(percentile(&present_hooks, 1, 2)),
     );
 }
 
-struct StaticIsland {
+struct StaticScene {
     nodes: usize,
     renders: Rc<Cell<usize>>,
 }
 
-impl Render for StaticIsland {
+impl Render for StaticScene {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         self.renders.set(self.renders.get() + 1);
-        div().children((0..self.nodes).map(|_| div().w(px(100.0)).h(px(1.0)).bg(rgb(0x336699))))
+        div().children((0..self.nodes).map(|_| {
+            div()
+                .w(px(100.0))
+                .h(px(1.0))
+                .bg(rgb(0x336699))
+        }))
     }
 }
 
-struct AnimatedIsland {
+struct AnimatedMarker {
     target: f32,
-    renders: Rc<Cell<usize>>,
 }
 
-impl Render for AnimatedIsland {
+impl Render for AnimatedMarker {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.renders.set(self.renders.get() + 1);
         let opacity = gpui_base::transition(
-            "benchmark-island-opacity",
+            "benchmark-replay-opacity",
             self.target,
             gpui_base::Transition::new(Duration::from_secs(10)),
             window,
@@ -484,438 +419,128 @@ impl Render for AnimatedIsland {
     }
 }
 
-struct IslandRoot {
-    static_island: Entity<StaticIsland>,
-    animated_island: Entity<AnimatedIsland>,
-    static_nodes: usize,
-    renders: Rc<Cell<usize>>,
+struct ReplayRoot {
+    static_scene: Entity<StaticScene>,
+    animated: Entity<AnimatedMarker>,
+    nodes: usize,
 }
 
-impl Render for IslandRoot {
+impl Render for ReplayRoot {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        self.renders.set(self.renders.get() + 1);
-        let mut cache_style = StyleRefinement::default();
-        cache_style.size.width = Some(px(100.0).into());
-        cache_style.size.height = Some(px(self.static_nodes as f32).into());
-        let static_view = AnyView::from(self.static_island.clone()).cached(cache_style);
-        div().child(static_view).child(self.animated_island.clone())
-    }
-}
-
-fn run_cached_island(cx: &mut TestAppContext, nodes: usize) {
-    let root_renders = Rc::new(Cell::new(0));
-    let static_renders = Rc::new(Cell::new(0));
-    let animated_renders = Rc::new(Cell::new(0));
-    let (root, cx) = cx.add_window_view({
-        let root_renders = root_renders.clone();
-        let static_renders = static_renders.clone();
-        let animated_renders = animated_renders.clone();
-        move |_, cx| {
-            let static_island = cx.new(|_| StaticIsland {
-                nodes,
-                renders: static_renders,
-            });
-            let animated_island = cx.new(|_| AnimatedIsland {
-                target: 0.1,
-                renders: animated_renders,
-            });
-            IslandRoot {
-                static_island,
-                animated_island,
-                static_nodes: nodes,
-                renders: root_renders,
-            }
-        }
-    });
-
-    let animated = root.update(cx, |root, _| root.animated_island.clone());
-    animated.update(cx, |island, cx| {
-        island.target = 0.9;
-        cx.notify();
-    });
-
-    for _ in 0..WARMUP_FRAMES {
-        cx.executor().advance_clock(FRAME_STEP);
-        let _ = draw_test_frame(cx);
-    }
-
-    let root_before = root_renders.get();
-    let static_before = static_renders.get();
-    let animated_before = animated_renders.get();
-    let mut totals = Vec::with_capacity(SAMPLE_FRAMES);
-    let mut draws = Vec::with_capacity(SAMPLE_FRAMES);
-    let mut present_hooks = Vec::with_capacity(SAMPLE_FRAMES);
-    for _ in 0..SAMPLE_FRAMES {
-        cx.executor().advance_clock(FRAME_STEP);
-        let sample = draw_test_frame(cx);
-        totals.push(sample.total);
-        draws.push(sample.draw);
-        present_hooks.push(sample.present_hook);
-    }
-
-    println!(
-        "RETEND_GPUI_ISLAND nodes={} samples={} root_renders={} static_renders={} animated_renders={} total_median_us={:.1} draw_median_us={:.1} test_present_hook_median_us={:.1}",
-        nodes,
-        SAMPLE_FRAMES,
-        root_renders.get() - root_before,
-        static_renders.get() - static_before,
-        animated_renders.get() - animated_before,
-        micros(percentile(&totals, 1, 2)),
-        micros(percentile(&draws, 1, 2)),
-        micros(percentile(&present_hooks, 1, 2)),
-    );
-}
-
-struct RetendStaticIsland {
-    tree: Rc<RefCell<NativeTree>>,
-    runtime: RuntimeStateRegistry,
-    root_id: u32,
-    renders: Rc<Cell<usize>>,
-}
-
-impl Render for RetendStaticIsland {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.renders.set(self.renders.get() + 1);
-        let tree = self.tree.borrow();
-        build_subtree_with_runtime(
-            &tree,
-            self.root_id,
-            &self.runtime,
-            self.runtime.current_generation(),
-            window,
-            cx,
-        )
-    }
-}
-
-struct RetendIslandRoot {
-    tree: Rc<RefCell<NativeTree>>,
-    runtime: RuntimeStateRegistry,
-    window_id: WindowId,
-    static_island: Entity<RetendStaticIsland>,
-    animated_island: Entity<AnimatedIsland>,
-    static_nodes: usize,
-    renders: Rc<Cell<usize>>,
-}
-
-impl Render for RetendIslandRoot {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.renders.set(self.renders.get() + 1);
-        let tree = self.tree.borrow();
-        prepare_frame(&tree, &self.runtime, self.window_id, window, cx);
-
-        let mut cache_style = StyleRefinement::default();
-        cache_style.size.width = Some(px(100.0).into());
-        cache_style.size.height = Some(px(self.static_nodes as f32).into());
+        let mut style = StyleRefinement::default();
+        style.size.width = Some(px(100.0).into());
+        style.size.height = Some(px(self.nodes as f32).into());
         div()
-            .child(AnyView::from(self.static_island.clone()).cached(cache_style))
-            .child(self.animated_island.clone())
+            .child(AnyView::from(self.static_scene.clone()).cached(style))
+            .child(self.animated.clone())
     }
 }
 
-fn build_retend_island_tree(nodes: usize) -> (Rc<RefCell<NativeTree>>, WindowId) {
-    let mut tree = NativeTree::default();
-    let window_id = tree.create_window(1).unwrap();
-    let mut commands = Vec::with_capacity(nodes * 3 + 3);
-    commands.push(container(2));
-    commands.push(Command::SetStyle {
-        id: 2,
-        properties: vec![
-            (PropertyId::Width, PropertyValue::Number(100.0)),
-            (PropertyId::Height, PropertyValue::Number(nodes as f64)),
-        ],
-    });
-    commands.push(insert(1, 2));
-    for index in 0..nodes {
-        let id = u32::try_from(index + 3).unwrap();
-        commands.push(container(id));
-        commands.push(Command::SetStyle {
-            id,
-            properties: static_properties(),
+fn replay_root(
+    nodes: usize,
+    renders: Rc<Cell<usize>>,
+    cx: &mut Context<ProfiledReplayView>,
+) -> Entity<ReplayRoot> {
+    let static_scene = cx.new(|_| StaticScene { nodes, renders });
+    let animated = cx.new(|_| AnimatedMarker { target: 0.1 });
+    cx.new(|_| ReplayRoot {
+        static_scene,
+        animated,
+        nodes,
+    })
+}
+
+struct ProfiledReplayView {
+    inner: Option<Entity<ReplayRoot>>,
+    nodes: usize,
+    static_renders: Rc<Cell<usize>>,
+    timings: Rc<PhaseTimings>,
+}
+
+impl Render for ProfiledReplayView {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let inner = self.inner.get_or_insert_with(|| {
+            replay_root(self.nodes, self.static_renders.clone(), cx)
         });
-        commands.push(insert(2, id));
+        PhaseHarness {
+            inner: AnyView::from(inner.clone()).into_any_element(),
+            timings: self.timings.clone(),
+        }
     }
-    tree.apply_commands(window_id, commands).unwrap();
-    (Rc::new(RefCell::new(tree)), window_id)
 }
 
-fn run_retend_cached_island(cx: &mut TestAppContext, nodes: usize) {
-    let (tree, window_id) = build_retend_island_tree(nodes);
-    let runtime = RuntimeStateRegistry::default();
-    let root_renders = Rc::new(Cell::new(0));
+fn run_replay_isolation(cx: &mut TestAppContext, nodes: usize) {
     let static_renders = Rc::new(Cell::new(0));
-    let animated_renders = Rc::new(Cell::new(0));
-    let (root, cx) = cx.add_window_view({
-        let tree = tree.clone();
-        let runtime = runtime.clone();
-        let root_renders = root_renders.clone();
+    let timings = Rc::new(PhaseTimings::default());
+    let (host, cx) = cx.add_window_view({
         let static_renders = static_renders.clone();
-        let animated_renders = animated_renders.clone();
-        move |_, cx| {
-            let static_island = cx.new(|_| RetendStaticIsland {
-                tree: tree.clone(),
-                runtime: runtime.clone(),
-                root_id: 2,
-                renders: static_renders,
-            });
-            let animated_island = cx.new(|_| AnimatedIsland {
-                target: 0.1,
-                renders: animated_renders,
-            });
-            RetendIslandRoot {
-                tree,
-                runtime,
-                window_id,
-                static_island,
-                animated_island,
-                static_nodes: nodes,
-                renders: root_renders,
-            }
+        let timings = timings.clone();
+        move |_, _| ProfiledReplayView {
+            inner: None,
+            nodes,
+            static_renders,
+            timings,
         }
     });
 
-    let animated = root.update(cx, |root, _| root.animated_island.clone());
-    animated.update(cx, |island, cx| {
-        island.target = 0.9;
+    // First draw constructs and paints the static scene.
+    cx.update(|window, cx| window.draw(cx).clear(cx));
+    let animated = host.update(cx, |host, cx| {
+        host.inner
+            .as_ref()
+            .expect("first draw must initialize replay root")
+            .read(cx)
+            .animated
+            .clone()
+    });
+    animated.update(cx, |animated, cx| {
+        animated.target = 0.9;
         cx.notify();
     });
 
     for _ in 0..WARMUP_FRAMES {
         cx.executor().advance_clock(FRAME_STEP);
-        let _ = draw_test_frame(cx);
+        let _ = draw_frame(cx);
     }
 
-    let root_before = root_renders.get();
-    let static_before = static_renders.get();
-    let animated_before = animated_renders.get();
-    let mut totals = Vec::with_capacity(SAMPLE_FRAMES);
+    let renders_before = static_renders.get();
     let mut draws = Vec::with_capacity(SAMPLE_FRAMES);
-    let mut present_hooks = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut requests = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut layouts = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut prepaints = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut paints = Vec::with_capacity(SAMPLE_FRAMES);
     for _ in 0..SAMPLE_FRAMES {
         cx.executor().advance_clock(FRAME_STEP);
-        let sample = draw_test_frame(cx);
-        totals.push(sample.total);
+        let sample = draw_frame(cx);
         draws.push(sample.draw);
-        present_hooks.push(sample.present_hook);
+        requests.push(timings.request_layout.get());
+        layouts.push(timings.layout.get());
+        prepaints.push(timings.prepaint.get());
+        paints.push(timings.paint.get());
     }
 
     println!(
-        "RETEND_GPUI_RETEND_ISLAND nodes={} samples={} root_renders={} static_renders={} animated_renders={} total_median_us={:.1} draw_median_us={:.1} test_present_hook_median_us={:.1}",
+        "RETEND_GPUI_REPLAY_ISOLATION nodes={} samples={} static_rerenders={} draw_median_us={:.1} request_median_us={:.1} layout_median_us={:.1} prepaint_median_us={:.1} paint_median_us={:.1}",
         nodes,
         SAMPLE_FRAMES,
-        root_renders.get() - root_before,
-        static_renders.get() - static_before,
-        animated_renders.get() - animated_before,
-        micros(percentile(&totals, 1, 2)),
-        micros(percentile(&draws, 1, 2)),
-        micros(percentile(&present_hooks, 1, 2)),
-    );
-}
-
-static NEXT_PRODUCTION_ROOT: AtomicU32 = AtomicU32::new(0xe000_0000);
-
-fn build_production_island_tree(nodes: usize, island_count: usize) -> (WindowId, Vec<u32>, u32) {
-    assert!(island_count > 0 && nodes / island_count >= 64);
-    let stride = 10_000;
-    let root_id = NEXT_PRODUCTION_ROOT.fetch_add(stride, Ordering::Relaxed);
-    let mut next_id = root_id + 1;
-    let mut island_ids = Vec::with_capacity(island_count);
-    let mut commands = Vec::with_capacity(nodes * 3 + island_count * 3 + 3);
-    for island_index in 0..island_count {
-        let island_id = next_id;
-        next_id += 1;
-        island_ids.push(island_id);
-        let child_count = nodes / island_count + usize::from(island_index < nodes % island_count);
-        commands.extend([
-            container(island_id),
-            Command::SetStyle {
-                id: island_id,
-                properties: vec![
-                    (PropertyId::Width, PropertyValue::Number(100.0)),
-                    (
-                        PropertyId::Height,
-                        PropertyValue::Number(child_count as f64),
-                    ),
-                ],
-            },
-            insert(root_id, island_id),
-        ]);
-        for _ in 0..child_count {
-            let id = next_id;
-            next_id += 1;
-            commands.push(container(id));
-            commands.push(Command::SetStyle {
-                id,
-                properties: static_properties(),
-            });
-            commands.push(insert(island_id, id));
-        }
-    }
-    let animated_id = next_id;
-    commands.extend([
-        container(animated_id),
-        Command::SetStyle {
-            id: animated_id,
-            properties: animated_properties(Scenario::Opacity, false),
-        },
-        insert(root_id, animated_id),
-    ]);
-
-    let mut tree = crate::runtime().lock().unwrap();
-    let window_id = tree.create_window(root_id).unwrap();
-    tree.apply_commands(window_id, commands).unwrap();
-    (window_id, island_ids, animated_id)
-}
-
-fn run_production_cached_islands(cx: &mut TestAppContext, nodes: usize, island_count: usize) {
-    let (window_id, island_ids, animated_id) = build_production_island_tree(nodes, island_count);
-    let runtime = RuntimeStateRegistry::default();
-    let (view, cx) = cx.add_window_view({
-        let runtime = runtime.clone();
-        move |_, _| benchmark_root_view(window_id, runtime)
-    });
-
-    // Establish initial GPUI/Retend presentation and the island cache.
-    cx.update(|window, cx| window.draw(cx).clear(cx));
-    crate::runtime()
-        .lock()
-        .unwrap()
-        .apply_commands(
-            window_id,
-            vec![Command::SetStyle {
-                id: animated_id,
-                properties: animated_properties(Scenario::Opacity, true),
-            }],
-        )
-        .unwrap();
-    view.update(cx, |view, cx| {
-        view.benchmark_invalidate_nodes(&[animated_id], cx)
-    });
-
-    for _ in 0..WARMUP_FRAMES {
-        cx.executor().advance_clock(FRAME_STEP);
-        let _ = draw_test_frame(cx);
-    }
-    let generations_before = view.update(cx, |view, _| {
-        island_ids
-            .iter()
-            .map(|id| view.benchmark_island_generation(*id).unwrap())
-            .collect::<Vec<_>>()
-    });
-    let mut totals = Vec::with_capacity(SAMPLE_FRAMES);
-    let mut draws = Vec::with_capacity(SAMPLE_FRAMES);
-    let mut present_hooks = Vec::with_capacity(SAMPLE_FRAMES);
-    for _ in 0..SAMPLE_FRAMES {
-        cx.executor().advance_clock(FRAME_STEP);
-        let sample = draw_test_frame(cx);
-        totals.push(sample.total);
-        draws.push(sample.draw);
-        present_hooks.push(sample.present_hook);
-    }
-    let generations_after = view.update(cx, |view, _| {
-        island_ids
-            .iter()
-            .map(|id| view.benchmark_island_generation(*id).unwrap())
-            .collect::<Vec<_>>()
-    });
-    println!(
-        "RETEND_GPUI_PRODUCTION_ISLAND nodes={} islands={} samples={} island_rerendered={} total_median_us={:.1} draw_median_us={:.1} test_present_hook_median_us={:.1}",
-        nodes,
-        island_count,
-        SAMPLE_FRAMES,
-        generations_after != generations_before,
-        micros(percentile(&totals, 1, 2)),
-        micros(percentile(&draws, 1, 2)),
-        micros(percentile(&present_hooks, 1, 2)),
-    );
-
-    cx.update(|window, _| window.remove_window());
-    crate::runtime().lock().unwrap().close_window(window_id);
-}
-
-fn print_phase_profile(label: &str, nodes: usize, samples: &[PhaseSample]) {
-    let draws: Vec<_> = samples.iter().map(|sample| sample.draw).collect();
-    let present_hooks: Vec<_> = samples.iter().map(|sample| sample.present_hook).collect();
-    let requests: Vec<_> = samples.iter().map(|sample| sample.request).collect();
-    let layouts: Vec<_> = samples.iter().map(|sample| sample.layout).collect();
-    let prepaints: Vec<_> = samples.iter().map(|sample| sample.prepaint).collect();
-    let paints: Vec<_> = samples.iter().map(|sample| sample.paint).collect();
-    let residuals: Vec<_> = samples.iter().map(|sample| sample.residual).collect();
-    println!(
-        "RETEND_GPUI_PHASES scenario={} nodes={} samples={} draw_median_us={:.1} request_median_us={:.1} layout_median_us={:.1} prepaint_median_us={:.1} paint_median_us={:.1} residual_median_us={:.1} test_present_hook_median_us={:.1}",
-        label,
-        nodes,
-        samples.len(),
+        static_renders.get() - renders_before,
         micros(percentile(&draws, 1, 2)),
         micros(percentile(&requests, 1, 2)),
         micros(percentile(&layouts, 1, 2)),
         micros(percentile(&prepaints, 1, 2)),
         micros(percentile(&paints, 1, 2)),
-        micros(percentile(&residuals, 1, 2)),
-        micros(percentile(&present_hooks, 1, 2)),
     );
-}
-
-fn run_production_phase_profile(cx: &mut TestAppContext, nodes: usize) {
-    let (window_id, _island_ids, animated_id) = build_production_island_tree(nodes, 1);
-    let runtime = RuntimeStateRegistry::default();
-    let timings = Rc::new(PhaseTimings::default());
-    let (host, cx) = cx.add_window_view({
-        let timings = timings.clone();
-        move |_, cx| {
-            let inner = cx.new({
-                let runtime = runtime.clone();
-                move |_| benchmark_root_view(window_id, runtime)
-            });
-            ProfiledView {
-                inner_id: inner.entity_id(),
-                inner: AnyView::from(inner),
-                timings,
-            }
-        }
-    });
-
-    cx.update(|window, cx| window.draw(cx).clear(cx));
-    crate::runtime()
-        .lock()
-        .unwrap()
-        .apply_commands(
-            window_id,
-            vec![Command::SetStyle {
-                id: animated_id,
-                properties: animated_properties(Scenario::Opacity, true),
-            }],
-        )
-        .unwrap();
-    let inner_id = host.update(cx, |host, _| host.inner_id);
-    cx.update(|_, cx| cx.notify(inner_id));
-
-    for _ in 0..WARMUP_FRAMES {
-        cx.executor().advance_clock(FRAME_STEP);
-        let _ = draw_test_frame(cx);
-    }
-
-    let mut samples = Vec::with_capacity(SAMPLE_FRAMES);
-    for _ in 0..SAMPLE_FRAMES {
-        cx.executor().advance_clock(FRAME_STEP);
-        samples.push(PhaseSample::capture(draw_test_frame(cx), &timings));
-    }
-
-    print_phase_profile("cached-opacity", nodes, &samples);
-
-    cx.update(|window, _| window.remove_window());
-    crate::runtime().lock().unwrap().close_window(window_id);
 }
 
 fn run_flat_phase_profile(cx: &mut TestAppContext, nodes: usize, scenario: Scenario) {
     let (tree, window_id) = build_tree(nodes, scenario);
     let runtime = RuntimeStateRegistry::default();
     let render_timings = Rc::new(RenderTimings::default());
-    let timings = Rc::new(PhaseTimings::default());
+    let phase_timings = Rc::new(PhaseTimings::default());
     let (host, cx) = cx.add_window_view({
         let tree = tree.clone();
         let render_timings = render_timings.clone();
-        let timings = timings.clone();
+        let phase_timings = phase_timings.clone();
         move |_, cx| {
             let inner = cx.new({
                 let tree = tree.clone();
@@ -931,7 +556,7 @@ fn run_flat_phase_profile(cx: &mut TestAppContext, nodes: usize, scenario: Scena
             ProfiledView {
                 inner_id: inner.entity_id(),
                 inner: AnyView::from(inner),
-                timings,
+                timings: phase_timings,
             }
         }
     });
@@ -947,35 +572,48 @@ fn run_flat_phase_profile(cx: &mut TestAppContext, nodes: usize, scenario: Scena
         if scenario.is_animation() {
             cx.executor().advance_clock(FRAME_STEP);
         }
-        let _ = draw_test_frame(cx);
+        let _ = draw_frame(cx);
     }
 
-    let mut samples = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut draws = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut requests = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut layouts = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut prepaints = Vec::with_capacity(SAMPLE_FRAMES);
+    let mut paints = Vec::with_capacity(SAMPLE_FRAMES);
     for _ in 0..SAMPLE_FRAMES {
         if scenario.is_animation() {
             cx.executor().advance_clock(FRAME_STEP);
         }
-        samples.push(PhaseSample::capture(draw_test_frame(cx), &timings));
+        let sample = draw_frame(cx);
+        draws.push(sample.draw);
+        requests.push(phase_timings.request_layout.get());
+        layouts.push(phase_timings.layout.get());
+        prepaints.push(phase_timings.prepaint.get());
+        paints.push(phase_timings.paint.get());
     }
 
-    print_phase_profile(scenario.name(), nodes, &samples);
+    println!(
+        "RETEND_GPUI_PHASES scenario={} nodes={} samples={} draw_median_us={:.1} request_median_us={:.1} layout_median_us={:.1} prepaint_median_us={:.1} paint_median_us={:.1}",
+        scenario.name(),
+        nodes,
+        SAMPLE_FRAMES,
+        micros(percentile(&draws, 1, 2)),
+        micros(percentile(&requests, 1, 2)),
+        micros(percentile(&layouts, 1, 2)),
+        micros(percentile(&prepaints, 1, 2)),
+        micros(percentile(&paints, 1, 2)),
+    );
 }
 
 #[gpui::test]
 fn benchmark(cx: &mut TestAppContext) {
-    println!("RETEND_GPUI_BENCH cpu_only=true columns=total,draw,test_present_hook,prepare_frame,build_with_runtime,gpui_draw_rest(draw-prepare-build)");
+    println!("RETEND_GPUI_BENCH cpu_only=true; test_present_hook is not GPU presentation");
     for nodes in [100, 1_000, 5_000] {
         for scenario in [Scenario::StaticRedraw, Scenario::Opacity, Scenario::Width] {
-            run_scenario(cx, nodes, scenario);
+            run_flat(cx, nodes, scenario);
         }
-        run_cached_island(cx, nodes);
-        run_retend_cached_island(cx, nodes);
-        run_production_cached_islands(cx, nodes, 1);
+        run_replay_isolation(cx, nodes);
     }
-    for islands in [5, 20, 50] {
-        run_production_cached_islands(cx, 5_000, islands);
-    }
-    run_production_phase_profile(cx, 5_000);
     run_flat_phase_profile(cx, 5_000, Scenario::Opacity);
     run_flat_phase_profile(cx, 5_000, Scenario::Width);
 }

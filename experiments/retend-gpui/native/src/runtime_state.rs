@@ -132,21 +132,15 @@ struct FrameLayout {
     window_id: Option<WindowId>,
     revision: Option<u64>,
     nodes: HashMap<NodeId, FrameNode>,
-    reused_subtrees: HashMap<NodeId, u64>,
 }
 
 #[derive(Default)]
 struct FrameNode {
     parent: Option<NodeId>,
     children: Vec<NodeId>,
-    geometry: Option<FrameGeometry>,
-}
-
-struct FrameGeometry {
-    bounds: Bounds<Pixels>,
+    bounds: Option<Bounds<Pixels>>,
     // Parent-owned child bottom-right, relative to its box before its own scroll.
     content_extent: Option<Point<Pixels>>,
-    generation: u64,
 }
 
 #[derive(Clone)]
@@ -456,15 +450,10 @@ impl RuntimeStateRegistry {
         true
     }
 
-    pub fn current_generation(&self) -> u64 {
-        self.0.borrow().generation
-    }
-
     pub fn begin_frame(&self, tree: &NativeTree, window_id: WindowId) -> u64 {
         let mut state = self.0.borrow_mut();
         state.generation = state.generation.saturating_add(1);
         let generation = state.generation;
-        state.frame.reused_subtrees.clear();
         let revision = Some(tree.windows[&window_id].revision);
         if state.frame.window_id != Some(window_id) || state.frame.revision != revision {
             state.frame.window_id = Some(window_id);
@@ -484,10 +473,15 @@ impl RuntimeStateRegistry {
                 frame_node.children.clone_from(&node.children);
             }
         }
+        // Layout can change without a tree mutation. Never retain unpainted geometry.
+        for node in state.frame.nodes.values_mut() {
+            node.bounds = None;
+            node.content_extent = None;
+        }
         generation
     }
 
-    /// Publishes bounds and the optional content extent from one paint, sharing a generation.
+    /// Publishes bounds and the optional content extent from one paint.
     pub fn record_geometry(
         &self,
         generation: u64,
@@ -498,25 +492,9 @@ impl RuntimeStateRegistry {
         let mut state = self.0.borrow_mut();
         if state.generation == generation {
             if let Some(node) = state.frame.nodes.get_mut(&id) {
-                node.geometry = Some(FrameGeometry {
-                    bounds,
-                    content_extent,
-                    generation,
-                });
+                node.bounds = Some(bounds);
+                node.content_extent = content_extent;
             }
-        }
-    }
-
-    pub fn reuse_subtree_geometry(&self, generation: u64, root: NodeId, rendered_generation: u64) {
-        let mut state = self.0.borrow_mut();
-        if state.generation == generation
-            && rendered_generation != 0
-            && state.frame.nodes.contains_key(&root)
-        {
-            state
-                .frame
-                .reused_subtrees
-                .insert(root, rendered_generation);
         }
     }
 
@@ -818,57 +796,6 @@ fn single_line(value: &str) -> String {
         .collect()
 }
 
-fn reused_geometry_context(frame: &FrameLayout, mut id: NodeId) -> Option<(NodeId, u64)> {
-    loop {
-        if let Some(generation) = frame.reused_subtrees.get(&id) {
-            return Some((id, *generation));
-        }
-        id = frame.nodes.get(&id)?.parent?;
-    }
-}
-
-fn reused_geometry_generation(frame: &FrameLayout, id: NodeId) -> Option<u64> {
-    reused_geometry_context(frame, id).map(|(_, generation)| generation)
-}
-
-fn current_geometry_for_generation(
-    state: &RuntimeState,
-    id: NodeId,
-    reused_generation: Option<u64>,
-) -> Option<&FrameGeometry> {
-    let geometry = state.frame.nodes.get(&id)?.geometry.as_ref()?;
-    (geometry.generation == state.generation
-        || reused_generation.is_some_and(|generation| geometry.generation == generation))
-    .then_some(geometry)
-}
-
-fn current_bounds_for_generation(
-    state: &RuntimeState,
-    id: NodeId,
-    reused_generation: Option<u64>,
-) -> Option<Bounds<Pixels>> {
-    current_geometry_for_generation(state, id, reused_generation).map(|geometry| geometry.bounds)
-}
-
-fn current_content_extent_for_generation(
-    state: &RuntimeState,
-    id: NodeId,
-    reused_generation: Option<u64>,
-) -> Option<Point<Pixels>> {
-    current_geometry_for_generation(state, id, reused_generation)
-        .and_then(|geometry| geometry.content_extent)
-}
-
-#[cfg(test)]
-fn current_bounds(state: &RuntimeState, id: NodeId) -> Option<Bounds<Pixels>> {
-    current_bounds_for_generation(state, id, reused_geometry_generation(&state.frame, id))
-}
-
-#[cfg(test)]
-fn current_content_extent(state: &RuntimeState, id: NodeId) -> Option<Point<Pixels>> {
-    current_content_extent_for_generation(state, id, reused_geometry_generation(&state.frame, id))
-}
-
 fn scroll_offset_command(
     state: &mut RuntimeState,
     id: NodeId,
@@ -899,82 +826,57 @@ fn shift_descendant_bounds(state: &mut RuntimeState, ancestor: NodeId, dx: f32, 
     if dx == 0.0 && dy == 0.0 {
         return;
     }
-    let inherited_generation = reused_geometry_generation(&state.frame, ancestor);
-    let mut pending: Vec<_> = state
+    let mut pending = state
         .frame
         .nodes
         .get(&ancestor)
-        .map(|node| {
-            node.children
-                .iter()
-                .copied()
-                .map(|id| (id, inherited_generation))
-                .collect()
-        })
+        .map(|node| node.children.clone())
         .unwrap_or_default();
-    while let Some((id, inherited_generation)) = pending.pop() {
-        let reused_generation = state
-            .frame
-            .reused_subtrees
-            .get(&id)
-            .copied()
-            .or(inherited_generation);
-        let bounds_are_current = state.frame.nodes.get(&id).is_some_and(|node| {
-            node.geometry.as_ref().is_some_and(|geometry| {
-                geometry.generation == state.generation
-                    || reused_generation.is_some_and(|generation| geometry.generation == generation)
-            })
-        });
+    while let Some(id) = pending.pop() {
         let Some(node) = state.frame.nodes.get_mut(&id) else {
             continue;
         };
-        pending.extend(
-            node.children
-                .iter()
-                .copied()
-                .map(|child| (child, reused_generation)),
-        );
-        if bounds_are_current {
-            if let Some(geometry) = node.geometry.as_mut() {
-                geometry.bounds.origin.x = px(f32::from(geometry.bounds.origin.x) - dx);
-                geometry.bounds.origin.y = px(f32::from(geometry.bounds.origin.y) - dy);
-            }
+        pending.extend(node.children.iter().copied());
+        if let Some(bounds) = node.bounds.as_mut() {
+            bounds.origin.x = px(f32::from(bounds.origin.x) - dx);
+            bounds.origin.y = px(f32::from(bounds.origin.y) - dy);
         }
     }
 }
 
 fn scroll_into_view(state: &mut RuntimeState, id: NodeId) -> bool {
-    let target_reused_generation = reused_geometry_generation(&state.frame, id);
-    if current_bounds_for_generation(state, id, target_reused_generation).is_none() {
+    if state
+        .frame
+        .nodes
+        .get(&id)
+        .and_then(|node| node.bounds)
+        .is_none()
+    {
         return false;
     }
     let mut current = state.frame.nodes.get(&id).and_then(|node| node.parent);
-    let mut ancestor_reuse = reused_geometry_context(&state.frame, id);
     let mut changed = false;
     while let Some(parent) = current {
-        let next = state.frame.nodes.get(&parent).and_then(|node| node.parent);
-        let ancestor_generation = ancestor_reuse.map(|(_, generation)| generation);
-        if let Some(viewport) = current_bounds_for_generation(state, parent, ancestor_generation) {
-            let target = current_bounds_for_generation(state, id, target_reused_generation)
-                .expect("validated target bounds must remain available");
-            let dx = nearest_scroll_delta(
-                f32::from(target.left()),
-                f32::from(target.right()),
-                f32::from(viewport.left()),
-                f32::from(viewport.right()),
-            );
-            let dy = nearest_scroll_delta(
-                f32::from(target.top()),
-                f32::from(target.bottom()),
-                f32::from(viewport.top()),
-                f32::from(viewport.bottom()),
-            );
-            changed |= scroll_offset_command(state, parent, dx, dy, true);
-        }
-        if ancestor_reuse.is_some_and(|(root, _)| root == parent) {
-            ancestor_reuse = next.and_then(|id| reused_geometry_context(&state.frame, id));
-        }
-        current = next;
+        current = state.frame.nodes.get(&parent).and_then(|node| node.parent);
+        let Some(viewport) = state.frame.nodes.get(&parent).and_then(|node| node.bounds) else {
+            continue;
+        };
+        let target = state.frame.nodes[&id]
+            .bounds
+            .expect("validated target bounds must remain available");
+        let dx = nearest_scroll_delta(
+            f32::from(target.left()),
+            f32::from(target.right()),
+            f32::from(viewport.left()),
+            f32::from(viewport.right()),
+        );
+        let dy = nearest_scroll_delta(
+            f32::from(target.top()),
+            f32::from(target.bottom()),
+            f32::from(viewport.top()),
+            f32::from(viewport.bottom()),
+        );
+        changed |= scroll_offset_command(state, parent, dx, dy, true);
     }
     changed
 }
@@ -1002,8 +904,7 @@ fn set_logical_scroll_offset(handle: &ScrollHandle, x: f32, y: f32) -> ScrollOff
 
 fn measure(state: &RuntimeState, id: NodeId) -> Measurement {
     let frame = &state.frame;
-    let reused_generation = reused_geometry_generation(frame, id);
-    let Some(target) = current_bounds_for_generation(state, id, reused_generation) else {
+    let Some(target) = frame.nodes.get(&id).and_then(|node| node.bounds) else {
         return Measurement::default();
     };
 
@@ -1017,17 +918,16 @@ fn measure(state: &RuntimeState, id: NodeId) -> Measurement {
     } else {
         let mut right = x + width;
         let mut bottom = y + height;
-        for (candidate_id, reused_generation) in subtree_geometry(frame, id, reused_generation) {
-            let Some(bounds) =
-                current_bounds_for_generation(state, candidate_id, reused_generation)
-            else {
+        for candidate_id in std::iter::once(id).chain(descendant_ids(frame, id)) {
+            let Some(node) = frame.nodes.get(&candidate_id) else {
+                continue;
+            };
+            let Some(bounds) = node.bounds else {
                 continue;
             };
             right = right.max(f32::from(bounds.right()));
             bottom = bottom.max(f32::from(bounds.bottom()));
-            if let Some(extent) =
-                current_content_extent_for_generation(state, candidate_id, reused_generation)
-            {
+            if let Some(extent) = node.content_extent {
                 // Commands between query barriers can change this offset after paint.
                 // Ancestor scrolling already shifts the recorded parent origin.
                 let offset = state
@@ -1069,29 +969,19 @@ fn logical_scroll_offset(handle: &ScrollHandle) -> ScrollOffset {
     }
 }
 
-fn subtree_geometry(
-    frame: &FrameLayout,
-    root: NodeId,
-    root_reused_generation: Option<u64>,
-) -> impl Iterator<Item = (NodeId, Option<u64>)> + '_ {
-    let mut pending = vec![(root, root_reused_generation)];
+fn descendant_ids(frame: &FrameLayout, ancestor: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+    let mut pending = frame
+        .nodes
+        .get(&ancestor)
+        .map(|node| node.children.clone())
+        .unwrap_or_default();
     std::iter::from_fn(move || {
-        while let Some((id, inherited_generation)) = pending.pop() {
+        while let Some(id) = pending.pop() {
             let Some(node) = frame.nodes.get(&id) else {
                 continue;
             };
-            let reused_generation = frame
-                .reused_subtrees
-                .get(&id)
-                .copied()
-                .or(inherited_generation);
-            pending.extend(
-                node.children
-                    .iter()
-                    .copied()
-                    .map(|child| (child, reused_generation)),
-            );
-            return Some((id, reused_generation));
+            pending.extend(node.children.iter().copied());
+            return Some(id);
         }
         None
     })
@@ -1133,20 +1023,16 @@ mod frame_tests {
             Bounds::default(),
             Some(point(px(10.0), px(20.0))),
         );
-        let next_generation = runtime.begin_frame(&tree, window);
+        runtime.begin_frame(&tree, window);
         {
             let state = runtime.0.borrow();
             assert_eq!(children, state.frame.nodes[&1].children.as_ptr());
-            assert!(current_bounds(&state, 2).is_none());
-            assert!(current_content_extent(&state, 2).is_none());
+            assert!(state.frame.nodes[&2].bounds.is_none());
+            assert!(state.frame.nodes[&2].content_extent.is_none());
         }
-        // A callback from the previous paint cannot make stale geometry current.
+        // A callback from the previous paint cannot restore stale geometry.
         runtime.record_geometry(generation, 2, Bounds::default(), None);
-        {
-            let state = runtime.0.borrow();
-            assert_eq!(state.generation, next_generation);
-            assert!(current_bounds(&state, 2).is_none());
-        }
+        assert!(runtime.0.borrow().frame.nodes[&2].bounds.is_none());
 
         tree.apply_commands(
             window,
@@ -1165,166 +1051,6 @@ mod frame_tests {
         assert!(!runtime.0.borrow().frame.nodes.contains_key(&2));
         runtime.clear();
         assert!(runtime.needs_preparation(&tree, window));
-    }
-
-    #[test]
-    fn cached_subtree_geometry_can_be_reused_without_reviving_unpainted_siblings() {
-        let mut tree = NativeTree::default();
-        let window = tree.create_window(1).unwrap();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
-                Command::CreateNode {
-                    id: 3,
-                    kind: ElementKind::Container,
-                },
-                Command::CreateNode {
-                    id: 4,
-                    kind: ElementKind::Container,
-                },
-                Command::InsertChild {
-                    parent_id: 1,
-                    child_id: 2,
-                    before_id: 0,
-                },
-                Command::InsertChild {
-                    parent_id: 2,
-                    child_id: 3,
-                    before_id: 0,
-                },
-                Command::InsertChild {
-                    parent_id: 1,
-                    child_id: 4,
-                    before_id: 0,
-                },
-            ],
-        )
-        .unwrap();
-
-        let runtime = RuntimeStateRegistry::default();
-        let first = runtime.begin_frame(&tree, window);
-        runtime.record_geometry(first, 2, Bounds::default(), None);
-        runtime.record_geometry(first, 3, Bounds::default(), Some(point(px(5.0), px(6.0))));
-        runtime.record_geometry(first, 4, Bounds::default(), None);
-
-        let second = runtime.begin_frame(&tree, window);
-        runtime.reuse_subtree_geometry(second, 2, first);
-        let state = runtime.0.borrow();
-        assert!(current_bounds(&state, 2).is_some());
-        assert!(current_bounds(&state, 3).is_some());
-        assert!(current_content_extent(&state, 3).is_some());
-        assert!(
-            current_bounds(&state, 4).is_none(),
-            "geometry outside the reused subtree must remain stale"
-        );
-    }
-
-    #[test]
-    fn reused_subtree_geometry_can_be_shifted_without_eager_restamping() {
-        let mut tree = NativeTree::default();
-        let window = tree.create_window(1).unwrap();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
-                Command::CreateNode {
-                    id: 3,
-                    kind: ElementKind::Container,
-                },
-                Command::InsertChild {
-                    parent_id: 1,
-                    child_id: 2,
-                    before_id: 0,
-                },
-                Command::InsertChild {
-                    parent_id: 2,
-                    child_id: 3,
-                    before_id: 0,
-                },
-            ],
-        )
-        .unwrap();
-
-        let runtime = RuntimeStateRegistry::default();
-        let first = runtime.begin_frame(&tree, window);
-        runtime.record_geometry(
-            first,
-            3,
-            Bounds::new(point(px(10.0), px(20.0)), gpui::size(px(5.0), px(6.0))),
-            None,
-        );
-
-        let second = runtime.begin_frame(&tree, window);
-        runtime.reuse_subtree_geometry(second, 2, first);
-        {
-            let mut state = runtime.0.borrow_mut();
-            shift_descendant_bounds(&mut state, 2, 4.0, 7.0);
-        }
-        let state = runtime.0.borrow();
-        let bounds = current_bounds(&state, 3).expect("shifted cached bounds must stay current");
-        assert_eq!(bounds.origin, point(px(6.0), px(13.0)));
-        assert_eq!(
-            state.frame.nodes[&3]
-                .geometry
-                .as_ref()
-                .expect("shifted cached node must keep its geometry")
-                .generation,
-            first,
-            "scrolling cached geometry must preserve the presentation generation it belongs to"
-        );
-    }
-
-    #[test]
-    fn reused_subtree_does_not_revive_geometry_skipped_by_its_last_render() {
-        let mut tree = NativeTree::default();
-        let window = tree.create_window(1).unwrap();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
-                Command::CreateNode {
-                    id: 3,
-                    kind: ElementKind::Container,
-                },
-                Command::InsertChild {
-                    parent_id: 1,
-                    child_id: 2,
-                    before_id: 0,
-                },
-                Command::InsertChild {
-                    parent_id: 2,
-                    child_id: 3,
-                    before_id: 0,
-                },
-            ],
-        )
-        .unwrap();
-
-        let runtime = RuntimeStateRegistry::default();
-        let visible = runtime.begin_frame(&tree, window);
-        runtime.record_geometry(visible, 2, Bounds::default(), None);
-        runtime.record_geometry(visible, 3, Bounds::default(), Some(point(px(5.0), px(6.0))));
-
-        let hidden = runtime.begin_frame(&tree, window);
-        runtime.record_geometry(hidden, 2, Bounds::default(), None);
-        // Node 3 did not paint in this presentation, e.g. because an ancestor became display:none.
-
-        let cached = runtime.begin_frame(&tree, window);
-        runtime.reuse_subtree_geometry(cached, 2, hidden);
-        let state = runtime.0.borrow();
-        assert!(current_bounds(&state, 2).is_some());
-        assert!(current_bounds(&state, 3).is_none());
-        assert!(current_content_extent(&state, 3).is_none());
     }
 
     #[test]
@@ -1351,15 +1077,17 @@ mod frame_tests {
         let generation = runtime.begin_frame(&tree, window);
         let first_bounds = Bounds::new(point(px(1.0), px(2.0)), gpui::size(px(5.0), px(6.0)));
         runtime.record_geometry(generation, 2, first_bounds, Some(point(px(5.0), px(6.0))));
-        assert!(current_content_extent(&runtime.0.borrow(), 2).is_some());
+        assert!(runtime.0.borrow().frame.nodes[&2]
+            .content_extent
+            .is_some());
 
         // A later callback in the same presentation that publishes no extent must
         // not leave the earlier extent visible to queries.
         let repainted = Bounds::new(point(px(3.0), px(4.0)), gpui::size(px(7.0), px(8.0)));
         runtime.record_geometry(generation, 2, repainted, None);
         let state = runtime.0.borrow();
-        assert_eq!(current_bounds(&state, 2), Some(repainted));
-        assert!(current_content_extent(&state, 2).is_none());
+        assert_eq!(state.frame.nodes[&2].bounds, Some(repainted));
+        assert!(state.frame.nodes[&2].content_extent.is_none());
     }
 
     #[test]
