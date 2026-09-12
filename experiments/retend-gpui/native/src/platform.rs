@@ -318,6 +318,8 @@ impl Render for RetendRootView {
                 native_window.root_id,
                 &self.runtime_state,
                 generation,
+                window,
+                cx,
             ))
         });
 
@@ -906,6 +908,8 @@ mod tests {
                 tree.windows[&self.window_id].root_id,
                 &self.runtime_state,
                 generation,
+                window,
+                cx,
             )
         }
     }

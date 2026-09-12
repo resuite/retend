@@ -35,7 +35,11 @@ import {
   type ParsedEventProperty,
 } from './events.js';
 import { GpuiHost } from './gpui-host.js';
-import { ElementKind, PropertyId } from './native/protocol.generated.js';
+import {
+  ElementKind,
+  PropertyId,
+  StyleState,
+} from './native/protocol.generated.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
 import {
   collectNativeChildren,
@@ -61,6 +65,10 @@ import {
   writeRange,
 } from './tree/operations.js';
 const STYLE_PROPERTY_RANGE = [PropertyId.Display, PropertyId.Overflow] as const;
+const TRANSITION_PROPERTY_RANGE = [
+  PropertyId.TransitionProperty,
+  PropertyId.TransitionTimingFunction,
+] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Src, PropertyId.ObjectFit] as const;
 
 function propertyIdInRange(
@@ -70,6 +78,19 @@ function propertyIdInRange(
   const name = property[0]?.toUpperCase() + property.slice(1);
   const id = (PropertyId as Record<string, PropertyIdValue | undefined>)[name];
   return id !== undefined && id >= minimum && id <= maximum ? id : undefined;
+}
+
+function protocolStyleValue(
+  property: string,
+  value: unknown
+): ProtocolPropertyValue {
+  if (property === 'transitionProperty' && Array.isArray(value)) {
+    if (!value.every((property) => typeof property === 'string')) {
+      throw new TypeError('transitionProperty arrays must contain strings.');
+    }
+    return value.join(',');
+  }
+  return protocolPropertyValue(value);
 }
 
 const ELEMENT_KIND_BY_TAG = {
@@ -889,43 +910,81 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     const controller = new AbortController();
     node.setCleanup('style', () => controller.abort());
 
-    if (!value || typeof value !== 'object') {
-      node.style = {};
-      this.#publishStyle(node);
-      return;
-    }
-
+    const hadHover = node.style.hover !== undefined;
+    const hadActive = node.style.active !== undefined;
     const resolved: Record<string, unknown> = {};
     node.style = resolved as GpuiStyle;
     let initializing = true;
-
-    for (const [property, propertyValue] of Object.entries(value)) {
-      if (!Cell.isCell(propertyValue)) {
-        resolved[property] = propertyValue;
-        continue;
+    const bindDeclarations = (
+      declarations: object,
+      target: Record<string, unknown>,
+      state?: 'hover' | 'active'
+    ): void => {
+      for (const [property, propertyValue] of Object.entries(declarations)) {
+        if (!Cell.isCell(propertyValue)) {
+          target[property] = propertyValue;
+          continue;
+        }
+        this.#watchCell(propertyValue, controller.signal, (nextValue) => {
+          target[property] = nextValue;
+          if (!initializing && !node.destroyed) this.#publishStyle(node, state);
+        });
       }
+    };
 
-      this.#watchCell(propertyValue, controller.signal, (nextValue) => {
-        resolved[property] = nextValue;
-        if (!initializing && !node.destroyed) this.#publishStyle(node);
-      });
+    if (value && typeof value === 'object') {
+      for (const [property, propertyValue] of Object.entries(value)) {
+        if (property !== 'hover' && property !== 'active') {
+          if (!Cell.isCell(propertyValue)) resolved[property] = propertyValue;
+          else {
+            this.#watchCell(propertyValue, controller.signal, (nextValue) => {
+              resolved[property] = nextValue;
+              if (!initializing && !node.destroyed) this.#publishStyle(node);
+            });
+          }
+          continue;
+        }
+        if (!propertyValue || typeof propertyValue !== 'object') continue;
+        const pseudo: Record<string, unknown> = {};
+        resolved[property] = pseudo;
+        bindDeclarations(propertyValue, pseudo, property);
+      }
     }
 
     initializing = false;
-    if (!controller.signal.aborted && !node.destroyed) this.#publishStyle(node);
+    if (!controller.signal.aborted && !node.destroyed) {
+      this.#publishStyle(node);
+      if (resolved.hover !== undefined || hadHover)
+        this.#publishStyle(node, 'hover');
+      if (resolved.active !== undefined || hadActive)
+        this.#publishStyle(node, 'active');
+    }
   }
 
-  #publishStyle(node: GpuiElement): void {
+  #publishStyle(node: GpuiElement, state?: 'hover' | 'active'): void {
+    const source = state ? (node.style[state] ?? {}) : node.style;
     const properties: [PropertyIdValue, ProtocolPropertyValue][] = [];
-    for (const [property, value] of Object.entries(node.style)) {
-      if (value === undefined) continue;
-      const id = propertyIdInRange(property, STYLE_PROPERTY_RANGE);
+    for (const [property, value] of Object.entries(source)) {
+      if (
+        value === undefined ||
+        (!state && (property === 'hover' || property === 'active'))
+      )
+        continue;
+      const id =
+        propertyIdInRange(property, STYLE_PROPERTY_RANGE) ??
+        propertyIdInRange(property, TRANSITION_PROPERTY_RANGE);
       if (id === undefined) {
         throw new Error(`Unsupported Retend GPUI style property: ${property}.`);
       }
-      properties.push([id, protocolPropertyValue(value)]);
+      properties.push([id, protocolStyleValue(property, value)]);
     }
-    this.host.setStyle(node.id, properties);
+    if (!state) this.host.setStyle(node.id, properties);
+    else
+      this.host.setPseudoStyle(
+        node.id,
+        state === 'hover' ? StyleState.Hover : StyleState.Active,
+        properties
+      );
   }
 
   #watchCell(

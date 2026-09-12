@@ -1,12 +1,14 @@
 # Retend GPUI motion decisions
 
-This document records accepted API-design decisions for transitions and animations in `retend-gpui`. It describes the target public model, not necessarily the prototype's current implementation.
+This document records accepted API-design decisions for transitions and animations in `retend-gpui`. The transition sections describe the implemented v1 model; keyframe animations remain the intended future direction described later in this document.
 
 ## Renderer ownership
 
 Motion APIs are renderer-specific. Retend core does not need to define a single cross-renderer transition or animation type, and individual renderers remain free to support different animatable properties and implementation strategies.
 
 That freedom should not produce unrelated interaction models. `retend-gpui` and `retend-canvas-2d` should both use the web platform's CSS transitions and animations as their mental model.
+
+The v1 transition adapter is Rust-owned but playback is GPUI-owned. JavaScript commits resolved base, `hover`, and `active` author-style snapshots; Rust parses the CSS-style transition declarations and resolves the winning author target. During rendering, only transition-eligible `(node, property)` targets are passed to GPUI Base's keyed `motion::transition` primitive. GPUI Base owns the presentation value, timing state, interpolation, target retargeting/reversal, animation-frame scheduling, and reduced-motion behavior. Retend keeps only a lightweight per-node record of the last rendered author targets and eligible-property mask so a newly enabled channel can be seeded from the previous committed target without keeping GPUI transition state alive for static nodes. Retend does not keep a parallel animation clock or per-frame presentation state, and no animation-frame traffic crosses to JavaScript.
 
 ## Style-driven motion
 
@@ -42,17 +44,17 @@ The expected vocabulary includes:
 
 `transitionProperty` accepts only explicit GPUI property names. Do not support the CSS `all` keyword. If `transitionProperty` is omitted, no properties transition; transitions are explicitly opt-in, matching `retend-canvas-2d`. Duplicate property names are harmless and are deduplicated internally rather than treated as errors.
 
-Transition durations and delays use CSS-style string values rather than numeric millisecond values. Support both CSS time units, for example `'200ms'` and `'0.2s'`. Parse time strings by trimming surrounding whitespace, removing the `ms` or `s` suffix, and passing the numeric portion through `Number()` rather than maintaining a stricter decimal grammar. Equivalent numeric forms such as `'.2s'` and `'0.20s'` are therefore accepted. Empty or non-finite numeric values are invalid and fail soft. Negative durations are invalid and fail soft; negative delays are clamped to `0ms`. Omitted transition longhands use CSS defaults: `transitionDuration: '0s'`, `transitionDelay: '0s'`, and `transitionTimingFunction: 'ease'`. A zero duration does not bypass a nonzero delay: the style change waits for the delay, then applies the new value without interpolation. The native layer may normalize these values once when declarations change; animation interpolation remains native rather than running frame-by-frame in JavaScript.
+Transition durations and delays use CSS-style string values rather than numeric millisecond values. Support both CSS time units, for example `'200ms'` and `'0.2s'`. Parse time strings by trimming surrounding whitespace, removing the `ms` or `s` suffix, and passing the numeric portion through `Number()` rather than maintaining a stricter decimal grammar. Equivalent numeric forms such as `'.2s'` and `'0.20s'` are therefore accepted. Empty or non-finite numeric values are invalid and fail soft. Negative durations are invalid and fail soft; negative delays are clamped to `0ms`. Omitted transition longhands use CSS defaults: `transitionDuration: '0s'`, `transitionDelay: '0s'`, and `transitionTimingFunction: 'ease'`. A zero duration does not bypass a nonzero delay: the style change waits for the delay, then applies the new value without visible interpolation. Rust normalizes the author-facing strings into a GPUI Base transition policy; GPUI Base executes the delay/easing and schedules playback natively rather than JavaScript running frames.
 
 Transition and animation timing functions use CSS-style string values. Support the standard named curves such as `'linear'`, `'ease'`, `'ease-in'`, `'ease-out'`, and `'ease-in-out'`, as well as CSS `cubic-bezier(...)` values.
 
-For the initial implementation, the Retend-owned native transition engine supports `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius`. Broader GPUI animation support can be added to that engine separately later.
+For the initial implementation, the Retend GPUI adapter exposes `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius` through GPUI Base's keyed value-transition primitive. Broader GPUI motion support can be surfaced separately later without introducing a parallel Retend playback engine.
 
 Follow the existing `retend-canvas-2d` convention for transitioning multiple properties: `transitionProperty` may be a single explicit animatable GPUI property name or an array of explicit property names. `transitionDuration`, `transitionDelay`, and `transitionTimingFunction` remain single shared values rather than parallel per-property lists.
 
-Interrupted transitions restart from the element's currently rendered/interpolated value rather than from the previous declared target. A new style change during an active transition therefore continues smoothly from the visible state, matching browser CSS transition behavior.
+Interrupted transitions restart from the element's currently presented value rather than from the previous declared target. GPUI Base owns that presentation value and samples it when a keyed target changes, so Retend does not mirror the current visible value in its retained tree.
 
-If a declared transition cannot be represented by the Retend-owned native transition engine for the actual endpoint values, Retend GPUI applies the new resolved style value immediately rather than throwing. For example, percentage-based or mixed percentage/pixel dimension changes may fall back to an immediate update while the initial engine supports only numeric pixel interpolation for those properties.
+If a declared transition cannot be represented by the current GPUI transition adapter for the actual endpoint values, Retend GPUI applies the new resolved style value immediately rather than throwing and resets that keyed transition channel. For example, percentage-based or mixed percentage/pixel dimension changes fall back to an immediate update while the v1 adapter exposes numeric pixel interpolation for those properties.
 
 If a property is removed from `transitionProperty` while its transition is running, cancel that transition immediately and snap the property to its resolved style value.
 
@@ -60,9 +62,11 @@ Transition eligibility and configuration are determined from the new resolved st
 
 Reactive style updates are coalesced until the renderer commits the resolved style to the native rendering pipeline. Microtask boundaries are not semantic transition boundaries: multiple style changes across microtasks may still collapse into one after-change style if no renderer/native commit occurs between them. Transition eligibility and configuration are computed from that committed after-change style, so transport batching and listener ordering do not create observable intermediate transition targets. An explicit `renderer.flush()` forces this commit boundary and establishes the current resolved style before later changes are processed.
 
-Initial render does not trigger transitions. Mounting establishes the element's initial resolved style immediately; transitions only begin on subsequent committed changes to properties named by `transitionProperty`, matching browser CSS behavior.
+Initial render does not trigger transitions. GPUI Base's keyed transition primitive adopts the first target immediately; transitions begin only when a later committed target changes for a property named by `transitionProperty`.
 
-`hover` and `active` pseudo-state resolution is native-owned. Rust tracks hover/pressed state, resolves the winning author-style snapshot, and either applies the resulting property immediately or retargets the native transition state. JavaScript does not synthesize pseudo-state transitions from user event handlers, so internal interaction state cannot conflict with application listeners.
+Retend GPUI automatically respects the application's reduced-motion preference. When GPUI reports reduced motion, keyed transitions snap to their resolved targets instead of animating; applications do not need to reimplement this policy in JavaScript.
+
+`hover` and `active` pseudo-state resolution is native-owned. GPUI owns pointer hit testing and outside-release detection; Rust mirrors only the current hover/pressed selection needed to resolve the winning author-style target during render. GPUI Base then applies or retargets the same keyed property transition channels used for ordinary style changes. The mirror exists because GPUI's style-refinement pseudo-state is not exposed as a render-time target value for `motion::transition`; Retend does not perform a second hit-test or pointer-tracking system. JavaScript does not synthesize pseudo-state transitions from user event handlers, so internal interaction state cannot conflict with application listeners.
 
 When multiple pseudo-states define the same transitioned property, Retend GPUI uses the explicit precedence `active > hover > base`. Pressing while hovered transitions from the hover value to the active value. Releasing while still inside transitions back to the hover value; releasing outside transitions back to the base value.
 

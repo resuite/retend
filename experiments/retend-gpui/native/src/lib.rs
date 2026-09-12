@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
 mod events;
+mod motion;
 mod platform;
 mod protocol;
 mod protocol_generated;

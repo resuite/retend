@@ -18,6 +18,7 @@ import type {
   GpuiInputCustomProps,
   GpuiTextareaCustomProps,
   GpuiStyle,
+  GpuiStyleDeclarations,
 } from '../types.js';
 import 'retend/jsx-runtime';
 
@@ -25,8 +26,14 @@ type ReactiveValue<Value> = Value | Cell<Value> | AsyncDerivedCell<Value>;
 type ReactiveProps<Props> = {
   [Key in keyof Props]?: ReactiveValue<Props[Key]>;
 };
-type ReactiveStyle = {
-  [Key in keyof GpuiStyle]?: ReactiveValue<GpuiStyle[Key]>;
+type ReactiveStyleDeclarations = {
+  [Key in keyof GpuiStyleDeclarations]?: ReactiveValue<
+    GpuiStyleDeclarations[Key]
+  >;
+};
+type ReactiveStyle = ReactiveStyleDeclarations & {
+  hover?: ReactiveStyleDeclarations;
+  active?: ReactiveStyleDeclarations;
 };
 type GpuiEventModifier = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
 type GpuiEventModifierHandlers<Events extends object> = {

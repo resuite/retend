@@ -7,6 +7,7 @@ import type {
   ElementKind as ElementKindValue,
   NativeEventId as NativeEventIdValue,
   PropertyId as PropertyIdValue,
+  StyleState as StyleStateValue,
 } from './native/protocol.generated.js';
 import type { ProtocolPropertyValue } from './native/protocol.js';
 import type {
@@ -228,6 +229,16 @@ export class GpuiHost extends EventTarget {
   ): void {
     this.#requireBinding();
     this.#writer.setStyle(id, properties);
+    this.#requestFlush();
+  }
+
+  setPseudoStyle(
+    id: number,
+    state: StyleStateValue,
+    properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
+  ): void {
+    this.#requireBinding();
+    this.#writer.setPseudoStyle(id, state, properties);
     this.#requestFlush();
   }
 

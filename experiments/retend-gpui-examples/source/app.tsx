@@ -1,23 +1,14 @@
+import type { GpuiColor } from 'retend-gpui';
 import type { ReactiveStyle } from 'retend-gpui/jsx-runtime';
 
 import { Cell } from 'retend';
-import { useWindow } from 'retend-gpui';
 
 export default function App() {
-  const count = Cell.source(0);
-  const { width, height } = useWindow();
-
-  const handleClick = () => {
-    count.set(count.get() + 1);
-  };
+  const backgroundColor = Cell.source<GpuiColor>('#ffffff');
 
   return (
     <div style={styles.container}>
-      <div style={styles.output}>{count}</div>
-      <div onClick={handleClick}>Increment</div>
-      <div style={styles.windowSize}>
-        {width} x {height}
-      </div>
+      <div style={{ ...styles.box, backgroundColor }}></div>
     </div>
   );
 }
@@ -32,10 +23,19 @@ const styles = {
     height: '100%',
     color: '#ffffff',
   },
-  output: {
-    fontSize: 50,
-  },
-  windowSize: {
-    fontSize: 20,
+  box: {
+    width: 89,
+    height: 89,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    opacity: 0.5,
+    transitionProperty: ['width', 'height', 'opacity'],
+    transitionDuration: '500ms',
+    transitionTimingFunction: 'ease',
+    hover: {
+      width: 89 * 2,
+      height: 89 * 2,
+      opacity: 1,
+    },
   },
 } satisfies Record<string, ReactiveStyle>;

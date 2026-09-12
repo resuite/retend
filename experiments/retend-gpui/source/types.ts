@@ -26,8 +26,26 @@ export type GpuiContentAlign =
  */
 export type GpuiColor = `#${string}`;
 
-/** Static author-style surface implemented by the Phase 2 native renderer. */
-export interface GpuiStyle {
+export type GpuiTransitionProperty =
+  | 'width'
+  | 'height'
+  | 'top'
+  | 'right'
+  | 'bottom'
+  | 'left'
+  | 'opacity'
+  | 'borderRadius';
+
+export type GpuiTransitionTimingFunction =
+  | 'linear'
+  | 'ease'
+  | 'ease-in'
+  | 'ease-out'
+  | 'ease-in-out'
+  | `cubic-bezier(${string})`;
+
+/** Author-style surface implemented by the Retend-owned native renderer. */
+export interface GpuiStyleDeclarations {
   display?: 'block' | 'flex' | 'none';
   flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
   flexWrap?: 'nowrap' | 'wrap' | 'wrap-reverse';
@@ -81,6 +99,16 @@ export interface GpuiStyle {
   lineHeight?: number;
   whiteSpace?: 'normal' | 'nowrap';
   overflow?: 'visible' | 'clip' | 'hidden' | 'auto' | 'scroll';
+
+  transitionProperty?: GpuiTransitionProperty | GpuiTransitionProperty[];
+  transitionDuration?: string;
+  transitionDelay?: string;
+  transitionTimingFunction?: GpuiTransitionTimingFunction;
+}
+
+export interface GpuiStyle extends GpuiStyleDeclarations {
+  hover?: GpuiStyleDeclarations;
+  active?: GpuiStyleDeclarations;
 }
 
 /** Border-box layout data returned by {@link GpuiElement.measure}. */

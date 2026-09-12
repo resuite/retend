@@ -23,7 +23,7 @@ import {
   RetendGpuiRenderer,
 } from '../source/gpui-renderer';
 import { NativeRendererFatalError } from '../source/native/addon';
-import { ElementKind, PropertyId } from '../source/native/protocol';
+import { ElementKind, PropertyId, StyleState } from '../source/native/protocol';
 import { NativeEventId } from '../source/native/protocol.generated';
 import { hotReloadModule } from '../source/plugins/hmr';
 import {
@@ -699,6 +699,73 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(setStyle).toHaveBeenCalledOnce();
     expect(setStyle).toHaveBeenCalledWith(target.id, [
       [PropertyId.Color, '#22c55e'],
+    ]);
+  });
+
+  it('publishes transition longhands and serializes property arrays compactly', () => {
+    const renderer = createRenderer();
+    const element = renderer.createContainer('div');
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+
+    renderer.setProperty(element, 'style', {
+      width: 120,
+      opacity: 0.5,
+      transitionProperty: ['width', 'opacity'],
+      transitionDuration: '.2s',
+      transitionDelay: '25ms',
+      transitionTimingFunction: 'ease-out',
+    } satisfies GpuiStyle);
+
+    expect(setStyle).toHaveBeenCalledWith(element.id, [
+      [PropertyId.Width, 120],
+      [PropertyId.Opacity, 0.5],
+      [PropertyId.TransitionProperty, 'width,opacity'],
+      [PropertyId.TransitionDuration, '.2s'],
+      [PropertyId.TransitionDelay, '25ms'],
+      [PropertyId.TransitionTimingFunction, 'ease-out'],
+    ]);
+  });
+
+  it('publishes native pseudo-state snapshots and nested reactive updates', () => {
+    const renderer = createRenderer();
+    const ref = Cell.source<GpuiElement | null>(null);
+    const hoverOpacity = Cell.source(0.7);
+    const setPseudoStyle = vi.spyOn(renderer.host, 'setPseudoStyle');
+
+    renderer.render(() => (
+      <div
+        ref={ref}
+        style={{
+          opacity: 1,
+          hover: {
+            opacity: hoverOpacity,
+            transitionProperty: 'opacity',
+            transitionDuration: '120ms',
+          },
+          active: { opacity: 0.3 },
+        }}
+      />
+    ));
+    const target = ref.get();
+    if (!target) throw new Error('Expected target ref to resolve.');
+
+    expect(setPseudoStyle).toHaveBeenCalledWith(target.id, StyleState.Hover, [
+      [PropertyId.Opacity, 0.7],
+      [PropertyId.TransitionProperty, 'opacity'],
+      [PropertyId.TransitionDuration, '120ms'],
+    ]);
+    expect(setPseudoStyle).toHaveBeenCalledWith(target.id, StyleState.Active, [
+      [PropertyId.Opacity, 0.3],
+    ]);
+
+    setPseudoStyle.mockClear();
+    hoverOpacity.set(0.8);
+    renderer.flush();
+    expect(setPseudoStyle).toHaveBeenCalledOnce();
+    expect(setPseudoStyle).toHaveBeenCalledWith(target.id, StyleState.Hover, [
+      [PropertyId.Opacity, 0.8],
+      [PropertyId.TransitionProperty, 'opacity'],
+      [PropertyId.TransitionDuration, '120ms'],
     ]);
   });
 

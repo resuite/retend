@@ -10,7 +10,12 @@
     "RemoveChild": 6,
     "SetStyle": 7,
     "SubscribeEvent": 8,
-    "UnsubscribeEvent": 9
+    "UnsubscribeEvent": 9,
+    "SetPseudoStyle": 10
+  },
+  "styleStates": {
+    "Hover": 1,
+    "Active": 2
   },
   "elementKinds": {
     "Root": 1,

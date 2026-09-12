@@ -372,23 +372,23 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [x] Keep schema/code generation limited to shared numeric protocol vocabulary while the current fixed command reader/writer surface remains smaller and more type-safe handwritten than equivalent generator machinery.
 - [x] Keep semantic validation, direct command application, and retained-tree behavior handwritten.
 
-### Native transition engine
+### Native transitions
 
-- [ ] Implement per-node/per-property transition state in Rust.
-- [ ] Store current visible value, target value, start time, duration, delay, and easing.
-- [ ] Advance transitions from GPUI's frame/render cycle with no animation-frame traffic to JavaScript.
-- [ ] Implement the v1 animatable set: `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius`.
-- [ ] Implement initial-render behavior with no transition.
-- [ ] Implement transition eligibility from the after-change resolved style.
-- [ ] Implement retargeting from the current visible interpolated value.
-- [ ] Implement cancellation and snap behavior when transition configuration/property eligibility changes.
-- [ ] Implement fail-soft invalid transition declarations.
-- [ ] Parse duration, delay, and timing-function strings in Rust.
-- [ ] Implement hover/active pseudo-state selection natively.
-- [ ] Apply pseudo-state precedence `active > hover > base`.
-- [ ] Route static pseudo-state changes and transitioned pseudo-state changes through the same native state machine.
-- [ ] Ensure reactive base/hover/active author snapshots can be updated from JavaScript without moving pointer-state ownership to JS.
-- [ ] Reconcile `MOTION.md` so its implementation description matches the Rust-owned engine.
+- [x] Use GPUI Base keyed per-node/per-property transition channels instead of a parallel Retend playback engine.
+- [x] Delegate presentation values, timing state, interpolation, retargeting/reversal, frame scheduling, and reduced-motion handling to GPUI Base.
+- [x] Keep Retend responsible for committed author-target resolution, lightweight previous-author-target/eligibility bookkeeping, CSS-style declaration parsing, unsupported-endpoint fallback, and pseudo-state precedence; static nodes do not keep GPUI transition channels alive.
+- [x] Implement the v1 animatable set: `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius`.
+- [x] Implement initial-render behavior with no transition through GPUI's first-target adoption.
+- [x] Implement transition eligibility from the after-change resolved style.
+- [x] Retarget interrupted transitions through GPUI's sampled current presentation value rather than mirroring visible values in Retend state.
+- [x] Implement cancellation and snap behavior when transition configuration/property eligibility changes.
+- [x] Implement fail-soft invalid transition declarations.
+- [x] Parse duration, delay, and timing-function strings in Rust and map them to GPUI transition policies.
+- [x] Implement hover/active pseudo-state selection natively.
+- [x] Apply pseudo-state precedence `active > hover > base`.
+- [x] Route static pseudo-state changes and transitioned pseudo-state changes through the same GPUI transition channels.
+- [x] Ensure reactive base/hover/active author snapshots can be updated from JavaScript without moving pointer-state ownership to JS.
+- [x] Reconcile `MOTION.md` so its implementation description matches GPUI-owned playback.
 
 ### Full Vite/dev integration
 

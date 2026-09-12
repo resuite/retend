@@ -70,6 +70,12 @@ struct EventInterest {
     outside_mouse_down: bool,
 }
 
+#[derive(Clone, Copy)]
+struct PseudoInterest {
+    hover: bool,
+    active: bool,
+}
+
 impl EventInterest {
     fn for_node(tree: &NativeTree, window_id: WindowId, id: NodeId) -> Self {
         Self {
@@ -87,16 +93,27 @@ impl EventInterest {
     }
 }
 
-fn emit_mouse_down(window_id: WindowId, target_id: NodeId, event: &MouseDownEvent, cx: &mut App) {
-    let (subscribed, outside) = crate::runtime()
+fn emit_mouse_down(
+    window_id: WindowId,
+    target_id: NodeId,
+    event: &MouseDownEvent,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let (subscribed, outside, changed) = crate::runtime()
         .lock()
-        .map(|tree| {
+        .map(|mut tree| {
+            let changed = event.button == MouseButton::Left && tree.press_node(window_id, target_id);
             (
                 tree.has_subscription_in_path(window_id, target_id, NativeEventId::MouseDown),
                 tree.outside_subscribers(window_id, target_id),
+                changed,
             )
         })
         .unwrap_or_default();
+    if changed {
+        window.refresh();
+    }
     if subscribed {
         events::emit(
             window_id,
@@ -126,13 +143,39 @@ macro_rules! bubbling_events {
 }
 
 bubbling_events! {
-    emit_mouse_up(event: MouseUpEvent, id): MouseUp =>
-        events::mouse_up(NativeEventId::MouseUp, id, event);
     emit_mouse_move(event: MouseMoveEvent, id): MouseMove => events::mouse_move(id, event);
     emit_key_down(event: KeyDownEvent, id): KeyDown =>
         events::key_event(NativeEventId::KeyDown, id, &event.keystroke, event.is_held);
     emit_key_up(event: KeyUpEvent, id): KeyUp =>
         events::key_event(NativeEventId::KeyUp, id, &event.keystroke, false);
+}
+
+fn release_pointer(window_id: WindowId, window: &mut Window) {
+    if crate::runtime()
+        .lock()
+        .is_ok_and(|mut tree| tree.release_pointer(window_id))
+    {
+        window.refresh();
+    }
+}
+
+fn emit_mouse_up(
+    window_id: WindowId,
+    target_id: NodeId,
+    event: &MouseUpEvent,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    if event.button == MouseButton::Left {
+        release_pointer(window_id, window);
+    }
+    if event_interest(window_id, target_id, NativeEventId::MouseUp) {
+        events::emit(
+            window_id,
+            events::mouse_up(NativeEventId::MouseUp, target_id, event),
+        );
+        cx.stop_propagation();
+    }
 }
 
 fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &mut App) {
@@ -160,7 +203,13 @@ fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &m
     }
 }
 
-fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &Window) {
+fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &mut Window) {
+    if crate::runtime()
+        .lock()
+        .is_ok_and(|mut tree| tree.set_hovered(window_id, target_id, hovered))
+    {
+        window.refresh();
+    }
     let event = if hovered {
         NativeEventId::MouseEnter
     } else {
@@ -188,8 +237,8 @@ macro_rules! with_mouse_buttons {
             MouseButton::Navigate(NavigationDirection::Back),
             MouseButton::Navigate(NavigationDirection::Forward),
         ] {
-            $element = $element.$method(button, move |event, _, cx| {
-                $handler($window_id, $id, event, cx)
+            $element = $element.$method(button, move |event, window, cx| {
+                $handler($window_id, $id, event, window, cx)
             });
         }
     };
@@ -201,6 +250,7 @@ fn with_native_events<T: StatefulInteractiveElement>(
     window_id: WindowId,
     id: NodeId,
     runtime: &RuntimeStateRegistry,
+    pseudo: PseudoInterest,
 ) -> T {
     if let Some(focus) = runtime.tracked_focus_handle(id) {
         element = element.track_focus(&focus);
@@ -210,9 +260,22 @@ fn with_native_events<T: StatefulInteractiveElement>(
     }
     if interest.has(NativeEventId::MouseDown) || interest.outside_mouse_down {
         with_mouse_buttons!(element, on_mouse_down, emit_mouse_down, window_id, id);
+    } else if pseudo.active {
+        element = element.on_mouse_down(MouseButton::Left, move |event, window, cx| {
+            emit_mouse_down(window_id, id, event, window, cx)
+        });
     }
     if interest.has(NativeEventId::MouseUp) {
         with_mouse_buttons!(element, on_mouse_up, emit_mouse_up, window_id, id);
+    } else if pseudo.active {
+        element = element.on_mouse_up(MouseButton::Left, move |event, window, cx| {
+            emit_mouse_up(window_id, id, event, window, cx)
+        });
+    }
+    if pseudo.active {
+        element = element.on_mouse_up_out(MouseButton::Left, move |_, window, _| {
+            release_pointer(window_id, window)
+        });
     }
     if interest.has(NativeEventId::MouseMove) {
         element =
@@ -221,7 +284,10 @@ fn with_native_events<T: StatefulInteractiveElement>(
     if interest.has(NativeEventId::Click) || interest.has(NativeEventId::DblClick) {
         element = element.on_click(move |event, _, cx| emit_click(window_id, id, event, cx));
     }
-    if interest.has(NativeEventId::MouseEnter) || interest.has(NativeEventId::MouseLeave) {
+    if pseudo.hover
+        || interest.has(NativeEventId::MouseEnter)
+        || interest.has(NativeEventId::MouseLeave)
+    {
         element =
             element.on_hover(move |hovered, window, _| emit_hover(window_id, id, *hovered, window));
     }
@@ -452,12 +518,18 @@ pub fn build_with_runtime(
     id: NodeId,
     runtime_state: &RuntimeStateRegistry,
     generation: u64,
+    window: &mut Window,
+    cx: &mut App,
 ) -> AnyElement {
+    let mut resolve_style = |id, motion, style| {
+        crate::motion::resolve_style(id, motion, style, window, cx)
+    };
     let inner = build_inner(
         tree,
         id,
         runtime_state,
         generation,
+        &mut resolve_style,
         EventInterest::for_node(tree, tree.nodes[&id].window_id, id),
     );
     PaintObserver::new(
@@ -470,18 +542,30 @@ pub fn build_with_runtime(
     .into_any_element()
 }
 
-fn build_inner(
-    tree: &NativeTree,
+fn build_inner<'a, F>(
+    tree: &'a NativeTree,
     id: NodeId,
     runtime_state: &RuntimeStateRegistry,
     generation: u64,
+    resolve_style: &mut F,
     interest: EventInterest,
-) -> AnyElement {
+) -> AnyElement
+where
+    F: FnMut(
+        NodeId,
+        &'a crate::motion::MotionBridgeState,
+        Option<&'a crate::style::NativeStyle>,
+    ) -> Option<crate::style::NativeStyle>,
+{
     let node = &tree.nodes[&id];
     if let NodeData::Text(text) = &node.data {
         return Text::new(ElementId::Integer(u64::from(id)), text.clone().into())
             .into_any_element();
     }
+    let motion_style = resolve_style(id, &node.motion, node.style.as_deref());
+    let resolved_style = motion_style.as_ref().or(node.style.as_deref());
+    let hover_interest = node.tracks_hover();
+    let active_interest = node.tracks_active();
     let interest = EventInterest {
         subscriptions: interest.subscriptions | node.subscriptions,
         ..interest
@@ -517,7 +601,7 @@ fn build_inner(
             } else {
                 div()
             };
-            let mut element = match node.style.as_deref() {
+            let mut element = match resolved_style {
                 Some(style) => style.apply(element),
                 None => element.block(),
             };
@@ -537,7 +621,14 @@ fn build_inner(
                     }
                 },
                 _ => element.children(node.children.iter().map(|child_id| {
-                    build_inner(tree, *child_id, runtime_state, generation, interest)
+                    build_inner(
+                        tree,
+                        *child_id,
+                        runtime_state,
+                        generation,
+                        resolve_style,
+                        interest,
+                    )
                 })),
             };
             if let Some(content) = staged_content {
@@ -552,6 +643,8 @@ fn build_inner(
             }
             if interest.any()
                 || runtime_state.is_interactive(id)
+                || hover_interest
+                || active_interest
                 || matches!(node.data, NodeData::TextControl { .. })
             {
                 let element = with_native_events(
@@ -560,6 +653,10 @@ fn build_inner(
                     node.window_id,
                     id,
                     runtime_state,
+                    PseudoInterest {
+                        hover: hover_interest,
+                        active: active_interest,
+                    },
                 );
                 #[cfg(test)]
                 let element = element.debug_selector(move || format!("retend-node-{id}"));
@@ -578,7 +675,7 @@ fn build_inner(
                 }))
             });
             let image = img(source);
-            let mut image = match node.style.as_deref() {
+            let mut image = match resolved_style {
                 Some(style) => style.apply(image),
                 None => image.block(),
             };
@@ -591,6 +688,10 @@ fn build_inner(
                 node.window_id,
                 id,
                 runtime_state,
+                PseudoInterest {
+                    hover: hover_interest,
+                    active: active_interest,
+                },
             );
             image.into_any_element()
         }
@@ -638,7 +739,7 @@ mod tests {
 
     use super::*;
     use crate::protocol::{Command, PropertyValue};
-    use crate::protocol_generated::{ElementKind, PropertyId};
+    use crate::protocol_generated::{ElementKind, PropertyId, StyleState};
     use crate::runtime_state::{
         LayoutOperation, MeasureResponder, Measurement, ScrollOffset, ScrollResponder,
     };
@@ -655,11 +756,17 @@ mod tests {
         generation: u64,
     ) -> AnyElement {
         let window = tree.nodes[&id].window_id;
+        let mut resolve_style = |
+            _: NodeId,
+            _: &crate::motion::MotionBridgeState,
+            style: Option<&crate::style::NativeStyle>,
+        | style.cloned();
         build_inner(
             tree,
             id,
             runtime,
             generation,
+            &mut resolve_style,
             EventInterest::for_node(tree, window, id),
         )
     }
@@ -806,6 +913,40 @@ mod tests {
     }
 
     #[test]
+    fn native_pseudo_styles_make_nodes_interactive_without_js_listeners() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                container(2),
+                Command::SetPseudoStyle {
+                    id: 2,
+                    state: StyleState::Hover,
+                    properties: vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
+                },
+            ],
+        )
+        .unwrap();
+        tree.apply_commands(
+            window,
+            vec![Command::SetPseudoStyle {
+                id: 2,
+                state: StyleState::Hover,
+                properties: Vec::new(),
+            }],
+        )
+        .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let generation = runtime_state.begin_frame(&tree, window);
+        let mut rendered = test_inner(&tree, 2, &runtime_state, generation);
+        observed_inner(&mut rendered)
+            .downcast_mut::<gpui::Stateful<gpui::Div>>()
+            .expect("native pseudo-state ownership must register GPUI interaction state");
+    }
+
+    #[test]
     fn image_render_maps_object_fit_to_gpui() {
         let mut tree = NativeTree::default();
         let window = tree.create_window(1).unwrap();
@@ -876,7 +1017,14 @@ mod tests {
                 window,
                 cx,
             );
-            build_with_runtime(&tree, 1, &self.runtime_state, generation)
+            build_with_runtime(
+                &tree,
+                1,
+                &self.runtime_state,
+                generation,
+                window,
+                cx,
+            )
         }
     }
 
@@ -898,7 +1046,14 @@ mod tests {
                 window,
                 cx,
             );
-            build_with_runtime(&tree, self.root_id, &self.runtime_state, generation)
+            build_with_runtime(
+                &tree,
+                self.root_id,
+                &self.runtime_state,
+                generation,
+                window,
+                cx,
+            )
         }
     }
 
@@ -2090,11 +2245,11 @@ mod tests {
             renders: Rc<std::cell::Cell<usize>>,
         }
         impl Render for View {
-            fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
                 self.renders.set(self.renders.get() + 1);
                 let tree = self.tree.borrow();
                 let generation = self.runtime.begin_frame(&tree, self.window_id);
-                build_with_runtime(&tree, 1, &self.runtime, generation)
+                build_with_runtime(&tree, 1, &self.runtime, generation, window, cx)
             }
         }
 

@@ -5,6 +5,7 @@ import {
   ElementKind,
   Opcode,
   PropertyId,
+  StyleState,
   COMMAND_BATCH_HEADER_BYTES,
   CommandBatchWriter,
   ValueKind,
@@ -25,6 +26,7 @@ const REQUIRED_GOLDEN_VECTORS = [
   'property-values',
   'style-and-structure',
   'event-subscriptions',
+  'pseudo-style',
 ] as const;
 type GoldenVectorName = (typeof REQUIRED_GOLDEN_VECTORS)[number];
 
@@ -251,5 +253,15 @@ describe('Retend GPUI native command-batch encoder', () => {
     writer.subscribeEvent(5, NativeEventId.Click);
     writer.unsubscribeEvent(5, NativeEventId.MouseMove);
     expectGolden('event-subscriptions', writer.finish());
+  });
+
+  it('matches the pseudo-style golden byte vector', () => {
+    const writer = new CommandBatchWriter();
+    writer.setPseudoStyle(9, StyleState.Hover, [
+      [PropertyId.Opacity, 0.75],
+      [PropertyId.TransitionProperty, 'opacity'],
+    ]);
+    writer.setPseudoStyle(9, StyleState.Active, [[PropertyId.Opacity, 0.25]]);
+    expectGolden('pseudo-style', writer.finish());
   });
 });

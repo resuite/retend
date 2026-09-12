@@ -5,8 +5,9 @@ use std::{
 
 use serde::Serialize;
 
+use crate::motion::MotionBridgeState;
 use crate::protocol::{Command, PropertyValue};
-use crate::protocol_generated::{ElementKind, NativeEventId, PropertyId};
+use crate::protocol_generated::{ElementKind, NativeEventId, PropertyId, StyleState};
 use crate::style::{NativeStyle, OverflowValue};
 use crate::BridgeFailure;
 
@@ -102,6 +103,13 @@ pub struct NativeNode {
     pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
     pub style: Option<Box<NativeStyle>>,
+    base_style: Vec<(PropertyId, PropertyValue)>,
+    hover_style: Vec<(PropertyId, PropertyValue)>,
+    active_style: Vec<(PropertyId, PropertyValue)>,
+    tracks_hover: bool,
+    tracks_active: bool,
+    hovered: bool,
+    pub(crate) motion: MotionBridgeState,
     pub subscriptions: u32,
     pub tab_index: Option<isize>,
 }
@@ -114,6 +122,13 @@ impl NativeNode {
             parent: None,
             children: Vec::new(),
             style: None,
+            base_style: Vec::new(),
+            hover_style: Vec::new(),
+            active_style: Vec::new(),
+            tracks_hover: false,
+            tracks_active: false,
+            hovered: false,
+            motion: MotionBridgeState::default(),
             subscriptions: 0,
             tab_index: None,
         }
@@ -123,6 +138,63 @@ impl NativeNode {
         self.tab_index
             .or_else(|| matches!(self.data, NodeData::TextControl { .. }).then_some(0))
     }
+
+    pub(crate) fn tracks_hover(&self) -> bool {
+        self.tracks_hover
+    }
+
+    pub(crate) fn tracks_active(&self) -> bool {
+        self.tracks_active
+    }
+
+    fn has_hover_style(&self) -> bool {
+        !self.hover_style.is_empty()
+    }
+
+    fn has_active_style(&self) -> bool {
+        !self.active_style.is_empty()
+    }
+
+    fn store_style_snapshot(
+        &mut self,
+        state: Option<StyleState>,
+        properties: Vec<(PropertyId, PropertyValue)>,
+    ) {
+        match state {
+            None => self.base_style = properties,
+            Some(StyleState::Hover) => {
+                self.tracks_hover = true;
+                self.hover_style = properties;
+            }
+            Some(StyleState::Active) => {
+                self.tracks_active = true;
+                self.active_style = properties;
+            }
+        }
+    }
+
+    fn resolve_author_style(&mut self, active: bool) {
+        let has_style = !self.base_style.is_empty()
+            || (self.hovered && !self.hover_style.is_empty())
+            || (active && !self.active_style.is_empty());
+        let mut next = has_style.then(Box::<NativeStyle>::default);
+        if let Some(style) = next.as_deref_mut() {
+            for (property, value) in &self.base_style {
+                _ = style.set_property(*property, value);
+            }
+            if self.hovered {
+                for (property, value) in &self.hover_style {
+                    _ = style.set_property(*property, value);
+                }
+            }
+            if active {
+                for (property, value) in &self.active_style {
+                    _ = style.set_property(*property, value);
+                }
+            }
+        }
+        self.style = next;
+    }
 }
 
 pub struct WindowState {
@@ -131,6 +203,7 @@ pub struct WindowState {
     presented_paths: RefCell<HashMap<NodeId, Option<u32>>>,
     pub pending_detached: HashSet<NodeId>,
     pub mousedownoutside_subscribers: HashSet<NodeId>,
+    active_nodes: HashSet<NodeId>,
     pub fatal: Option<FatalDiagnostic>,
 }
 
@@ -174,6 +247,7 @@ impl NativeTree {
                 presented_paths: RefCell::default(),
                 pending_detached: HashSet::new(),
                 mousedownoutside_subscribers: HashSet::new(),
+                active_nodes: HashSet::new(),
                 fatal: None,
             },
         );
@@ -198,6 +272,7 @@ impl NativeTree {
         window.presented_paths.get_mut().clear();
         window.pending_detached.clear();
         window.mousedownoutside_subscribers.clear();
+        window.active_nodes.clear();
         window.fatal = None;
         Ok(())
     }
@@ -213,14 +288,111 @@ impl NativeTree {
             window.revision = window.revision.wrapping_add(1);
             window.presented_paths.get_mut().clear();
         }
+        let mut style_nodes = HashSet::new();
         for (index, command) in commands.into_iter().enumerate() {
+            let style_node = match &command {
+                Command::SetStyle { id, .. } | Command::SetPseudoStyle { id, .. } => Some(*id),
+                _ => None,
+            };
             if let Err(error) = self.apply_command(window_id, index, command) {
+                self.resolve_style_nodes(window_id, &style_nodes);
                 self.poison_native(window_id, &error)
                     .expect("validated window must still exist while applying a command batch");
                 return Err(error);
             }
+            if let Some(id) = style_node {
+                style_nodes.insert(id);
+            }
         }
+        self.resolve_style_nodes(window_id, &style_nodes);
         Ok(())
+    }
+
+    pub fn set_hovered(&mut self, window_id: WindowId, id: NodeId, hovered: bool) -> bool {
+        let active = self
+            .windows
+            .get(&window_id)
+            .expect("pointer events must reference a live native window")
+            .active_nodes
+            .contains(&id);
+        let Some(node) = self
+            .nodes
+            .get_mut(&id)
+            .filter(|node| node.window_id == window_id && node.tracks_hover())
+        else {
+            return false;
+        };
+        if node.hovered == hovered {
+            return false;
+        }
+        node.hovered = hovered;
+        let changed = node.has_hover_style();
+        node.resolve_author_style(active);
+        if changed {
+            self.mark_window_style_changed(window_id);
+        }
+        changed
+    }
+
+    pub fn press_node(&mut self, window_id: WindowId, id: NodeId) -> bool {
+        if self
+            .nodes
+            .get(&id)
+            .is_none_or(|node| node.window_id != window_id)
+        {
+            return false;
+        }
+        let next: HashSet<_> = std::iter::successors(Some(id), |id| {
+            self.nodes.get(id).and_then(|node| node.parent)
+        })
+        .filter(|id| self.nodes[id].tracks_active())
+        .collect();
+        let window = self
+            .windows
+            .get_mut(&window_id)
+            .expect("pointer events must reference a live native window");
+        let added: Vec<_> = next.difference(&window.active_nodes).copied().collect();
+        if added.is_empty() {
+            return false;
+        }
+        window.active_nodes.extend(added.iter().copied());
+        let mut changed = false;
+        for id in added {
+            let node = self
+                .nodes
+                .get_mut(&id)
+                .expect("tracked active nodes must remain in the native tree");
+            changed |= node.has_active_style();
+            node.resolve_author_style(true);
+        }
+        if changed {
+            self.mark_window_style_changed(window_id);
+        }
+        changed
+    }
+
+    pub fn release_pointer(&mut self, window_id: WindowId) -> bool {
+        let window = self
+            .windows
+            .get_mut(&window_id)
+            .expect("pointer events must reference a live native window");
+        if window.active_nodes.is_empty() {
+            return false;
+        }
+        let active = std::mem::take(&mut window.active_nodes);
+        let mut changed = false;
+        for id in active {
+            let node = self
+                .nodes
+                .get_mut(&id)
+                .expect("tracked active nodes must remain in the native tree");
+            changed |= node.has_active_style();
+            node.resolve_author_style(false);
+        }
+        if changed {
+            self.mark_window_style_changed(window_id);
+        }
+        changed
     }
 
     pub fn settle(&mut self, window_id: WindowId) -> Result<Vec<NodeId>, BridgeFailure> {
@@ -554,10 +726,11 @@ impl NativeTree {
         let Some(node) = self.nodes.remove(&id) else {
             return;
         };
-        if node.subscriptions & event_bit(NativeEventId::MouseDownOutside) != 0 {
-            if let Some(window) = self.windows.get_mut(&node.window_id) {
+        if let Some(window) = self.windows.get_mut(&node.window_id) {
+            if node.subscriptions & event_bit(NativeEventId::MouseDownOutside) != 0 {
                 window.mousedownoutside_subscribers.remove(&id);
             }
+            window.active_nodes.remove(&id);
         }
         for child_id in node.children {
             self.destroy_subtree(child_id, destroyed);
@@ -754,32 +927,13 @@ impl NativeTree {
                 }
             }
             Command::SetStyle { id, properties } => {
-                let node = self.node_mut(window_id, index, id)?;
-                if matches!(&node.data, NodeData::Text(_)) {
-                    return invalid(
-                        index,
-                        "UNSUPPORTED_PROPERTY",
-                        "Text nodes cannot receive author-style snapshots.",
-                    );
-                }
-                if properties.is_empty() {
-                    node.style = None;
-                    return Ok(());
-                }
-
-                let mut style = Box::<NativeStyle>::default();
-                for (property, value) in properties {
-                    if !style.set_property(property, &value) {
-                        return invalid(
-                            index,
-                            "UNSUPPORTED_PROPERTY",
-                            format!("{property:?} is not part of the native style surface."),
-                        );
-                    }
-                }
-                node.style = Some(style);
-                Ok(())
+                self.set_style_snapshot(window_id, index, id, None, properties)
             }
+            Command::SetPseudoStyle {
+                id,
+                state,
+                properties,
+            } => self.set_style_snapshot(window_id, index, id, Some(state), properties),
             Command::InsertChild {
                 parent_id,
                 child_id,
@@ -808,6 +962,64 @@ impl NativeTree {
                 Ok(())
             }
         }
+    }
+
+    fn set_style_snapshot(
+        &mut self,
+        window_id: WindowId,
+        index: usize,
+        id: NodeId,
+        state: Option<StyleState>,
+        properties: Vec<(PropertyId, PropertyValue)>,
+    ) -> Result<(), BridgeFailure> {
+        let node = self.node_mut(window_id, index, id)?;
+        if matches!(&node.data, NodeData::Text(_)) {
+            return invalid(
+                index,
+                "UNSUPPORTED_PROPERTY",
+                "Text nodes cannot receive author-style snapshots.",
+            );
+        }
+        for (property, _) in &properties {
+            if !NativeStyle::supports_property(*property) {
+                return invalid(
+                    index,
+                    "UNSUPPORTED_PROPERTY",
+                    format!("{property:?} is not part of the native style surface."),
+                );
+            }
+        }
+        node.store_style_snapshot(state, properties);
+        Ok(())
+    }
+
+    fn resolve_style_nodes(&mut self, window_id: WindowId, ids: &HashSet<NodeId>) {
+        let active_nodes = self
+            .windows
+            .get(&window_id)
+            .expect("validated style batches must keep their native window alive")
+            .active_nodes
+            .clone();
+        for id in ids {
+            let node = self
+                .nodes
+                .get_mut(id)
+                .expect("successfully styled nodes must remain in the native tree");
+            assert_eq!(
+                node.window_id, window_id,
+                "successfully styled nodes must remain in their native window"
+            );
+            node.resolve_author_style(active_nodes.contains(id));
+        }
+    }
+
+    fn mark_window_style_changed(&mut self, window_id: WindowId) {
+        let window = self
+            .windows
+            .get_mut(&window_id)
+            .expect("validated pointer state must keep its native window alive");
+        window.revision = window.revision.wrapping_add(1);
+        window.presented_paths.get_mut().clear();
     }
 
     fn create(
@@ -1031,7 +1243,7 @@ impl NativeTree {
 mod tests {
     use super::*;
     use crate::protocol::{Command, PropertyValue};
-    use crate::protocol_generated::PropertyId;
+    use crate::protocol_generated::{PropertyId, StyleState};
 
     fn setup() -> (NativeTree, WindowId, NodeId) {
         let mut tree = NativeTree::default();
@@ -1044,6 +1256,18 @@ mod tests {
         Command::SetStyle {
             id,
             properties: vec![(property, value)],
+        }
+    }
+
+    fn pseudo_style(
+        id: NodeId,
+        state: StyleState,
+        properties: Vec<(PropertyId, PropertyValue)>,
+    ) -> Command {
+        Command::SetPseudoStyle {
+            id,
+            state,
+            properties,
         }
     }
 
@@ -1327,6 +1551,298 @@ mod tests {
         )
         .unwrap();
         assert!(tree.nodes[&2].style.is_none());
+    }
+
+    #[test]
+    fn batched_style_snapshots_keep_only_the_final_author_target() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Width, PropertyValue::Number(0.0)),
+            ],
+        )
+        .unwrap();
+
+        tree.apply_commands(
+            window,
+            vec![
+                style(2, PropertyId::Width, PropertyValue::Number(100.0)),
+                Command::SetStyle {
+                    id: 2,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(200.0)),
+                        (
+                            PropertyId::TransitionProperty,
+                            PropertyValue::String("width".into()),
+                        ),
+                        (
+                            PropertyId::TransitionDuration,
+                            PropertyValue::String("200ms".into()),
+                        ),
+                        (
+                            PropertyId::TransitionTimingFunction,
+                            PropertyValue::String("linear".into()),
+                        ),
+                    ],
+                },
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(
+            tree.nodes[&2].style.as_deref().unwrap().width,
+            Some(crate::style::LengthValue::Pixels(200.0))
+        );
+    }
+
+    #[test]
+    fn pseudo_styles_resolve_active_over_hover_over_base() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Opacity, PropertyValue::Number(1.0)),
+                pseudo_style(
+                    2,
+                    StyleState::Hover,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.7))],
+                ),
+                pseudo_style(
+                    2,
+                    StyleState::Active,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.3))],
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
+        assert!(tree.set_hovered(window, 2, true));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.7));
+        assert!(tree.press_node(window, 2));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.3));
+
+        assert!(tree.set_hovered(window, 2, false));
+        assert_eq!(
+            tree.nodes[&2].style.as_deref().unwrap().opacity,
+            Some(0.3),
+            "active must keep precedence after the pointer leaves"
+        );
+        assert!(tree.release_pointer(window));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
+    }
+
+    #[test]
+    fn clearing_hover_style_keeps_pointer_state_observation_alive() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Opacity, PropertyValue::Number(1.0)),
+                pseudo_style(
+                    2,
+                    StyleState::Hover,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert!(tree.set_hovered(window, 2, true));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.5));
+
+        tree.apply_commands(window, vec![pseudo_style(2, StyleState::Hover, vec![])])
+            .unwrap();
+        assert!(tree.nodes[&2].tracks_hover());
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
+
+        assert!(
+            !tree.set_hovered(window, 2, false),
+            "moving with no hover declarations should update pointer state without repainting"
+        );
+        assert!(!tree.nodes[&2].hovered);
+
+        tree.apply_commands(
+            window,
+            vec![pseudo_style(
+                2,
+                StyleState::Hover,
+                vec![(PropertyId::Opacity, PropertyValue::Number(0.25))],
+            )],
+        )
+        .unwrap();
+        assert_eq!(
+            tree.nodes[&2].style.as_deref().unwrap().opacity,
+            Some(1.0),
+            "re-adding hover after the pointer left must not resurrect stale hover state"
+        );
+    }
+
+    #[test]
+    fn clearing_active_style_keeps_release_observation_alive() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Opacity, PropertyValue::Number(1.0)),
+                pseudo_style(
+                    2,
+                    StyleState::Active,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert!(tree.press_node(window, 2));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.5));
+
+        tree.apply_commands(window, vec![pseudo_style(2, StyleState::Active, vec![])])
+            .unwrap();
+        assert!(tree.nodes[&2].tracks_active());
+        assert!(tree.windows[&window].active_nodes.contains(&2));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
+
+        assert!(
+            !tree.release_pointer(window),
+            "release with no active declarations should clear pointer state without repainting"
+        );
+        assert!(!tree.windows[&window].active_nodes.contains(&2));
+
+        tree.apply_commands(
+            window,
+            vec![pseudo_style(
+                2,
+                StyleState::Active,
+                vec![(PropertyId::Opacity, PropertyValue::Number(0.25))],
+            )],
+        )
+        .unwrap();
+        assert_eq!(
+            tree.nodes[&2].style.as_deref().unwrap().opacity,
+            Some(1.0),
+            "re-adding active after release must not resurrect stale pressed state"
+        );
+    }
+
+    #[test]
+    fn active_state_follows_the_styled_ancestor_path() {
+        let (mut tree, window, root) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::CreateNode {
+                    id: 3,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Opacity, PropertyValue::Number(1.0)),
+                style(3, PropertyId::Opacity, PropertyValue::Number(1.0)),
+                pseudo_style(
+                    2,
+                    StyleState::Active,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.6))],
+                ),
+                pseudo_style(
+                    3,
+                    StyleState::Active,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.3))],
+                ),
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 2,
+                    before_id: 0,
+                },
+                Command::InsertChild {
+                    parent_id: 2,
+                    child_id: 3,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+
+        assert!(tree.press_node(window, 3));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.6));
+        assert_eq!(tree.nodes[&3].style.as_deref().unwrap().opacity, Some(0.3));
+        assert!(
+            !tree.press_node(window, 2),
+            "bubbling through the active ancestor must not erase the child state"
+        );
+        assert_eq!(tree.nodes[&3].style.as_deref().unwrap().opacity, Some(0.3));
+
+        assert!(tree.release_pointer(window));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
+        assert_eq!(tree.nodes[&3].style.as_deref().unwrap().opacity, Some(1.0));
+    }
+
+    #[test]
+    fn pseudo_state_changes_share_the_same_author_target_resolution() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Opacity, PropertyValue::Number(0.0)),
+                pseudo_style(
+                    2,
+                    StyleState::Hover,
+                    vec![
+                        (PropertyId::Opacity, PropertyValue::Number(1.0)),
+                        (
+                            PropertyId::TransitionProperty,
+                            PropertyValue::String("opacity".into()),
+                        ),
+                        (
+                            PropertyId::TransitionDuration,
+                            PropertyValue::String("200ms".into()),
+                        ),
+                        (
+                            PropertyId::TransitionTimingFunction,
+                            PropertyValue::String("linear".into()),
+                        ),
+                    ],
+                ),
+                pseudo_style(
+                    2,
+                    StyleState::Active,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.25))],
+                ),
+            ],
+        )
+        .unwrap();
+
+        assert!(tree.set_hovered(window, 2, true));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
+
+        assert!(tree.press_node(window, 2));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.25));
+
+        assert!(tree.release_pointer(window));
+        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
     }
 
     #[test]

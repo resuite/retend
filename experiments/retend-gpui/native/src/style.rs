@@ -1,5 +1,6 @@
 use gpui::Styled;
 
+use crate::motion::TransitionSpec;
 use crate::protocol::PropertyValue;
 use crate::protocol_generated::PropertyId;
 
@@ -59,15 +60,33 @@ macro_rules! native_style {
         pub struct NativeStyle {
             pub display: DisplayValue,
             pub overflow: OverflowValue,
+            pub transition: TransitionSpec,
             $(pub $direct: Option<$direct_type>,)*
             $(pub $field: Option<$type>,)*
             $(pub $custom: Option<$custom_type>,)*
         }
 
         impl NativeStyle {
+            pub fn supports_property(property: PropertyId) -> bool {
+                if TransitionSpec::supports_property(property) {
+                    return true;
+                }
+                matches!(
+                    property,
+                    PropertyId::Display
+                        | PropertyId::Overflow
+                        $(| PropertyId::$direct_id)*
+                        $(| PropertyId::$id)*
+                        $(| PropertyId::$custom_id)*
+                )
+            }
+
             /// Applies one supported author-style declaration. Invalid semantic values
             /// clear that declaration instead of poisoning the renderer.
             pub fn set_property(&mut self, property: PropertyId, value: &PropertyValue) -> bool {
+                if self.transition.set_property(property, value) {
+                    return true;
+                }
                 match property {
                     PropertyId::Display => self.display = parse_display(value).unwrap_or_default(),
                     PropertyId::Overflow => self.overflow = parse_overflow(value).unwrap_or_default(),

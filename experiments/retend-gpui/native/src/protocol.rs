@@ -1,7 +1,8 @@
 use std::{fmt::Display, str};
 
 use crate::protocol_generated::{
-    ElementKind, NativeEventId, Opcode, PropertyId, ValueKind, PROTOCOL_MAGIC, PROTOCOL_VERSION,
+    ElementKind, NativeEventId, Opcode, PropertyId, StyleState, ValueKind, PROTOCOL_MAGIC,
+    PROTOCOL_VERSION,
 };
 use crate::BridgeFailure;
 
@@ -50,6 +51,11 @@ commands! { reader, strings;
     },
     SetStyle {
         id: u32 = reader.read_u32()?,
+        properties: Vec<(PropertyId, PropertyValue)> = read_style(reader, strings)?,
+    },
+    SetPseudoStyle {
+        id: u32 = reader.read_u32()?,
+        state: StyleState = reader.read_enum(Reader::read_u8, "UNKNOWN_STYLE_STATE", "style state")?,
         properties: Vec<(PropertyId, PropertyValue)> = read_style(reader, strings)?,
     },
     InsertChild {
@@ -347,11 +353,12 @@ mod tests {
             .collect()
     }
 
-    const REQUIRED_GOLDEN_VECTORS: [&str; 4] = [
+    const REQUIRED_GOLDEN_VECTORS: [&str; 5] = [
         "nodes-and-text",
         "property-values",
         "style-and-structure",
         "event-subscriptions",
+        "pseudo-style",
     ];
 
     fn golden_hex<'a>(vectors: &'a [GoldenVector], name: &str) -> &'a str {
@@ -469,6 +476,28 @@ mod tests {
                 Command::UnsubscribeEvent {
                     id: 5,
                     event: NativeEventId::MouseMove,
+                },
+            ],
+        );
+        assert_golden(
+            &vectors,
+            "pseudo-style",
+            vec![
+                Command::SetPseudoStyle {
+                    id: 9,
+                    state: StyleState::Hover,
+                    properties: vec![
+                        (PropertyId::Opacity, PropertyValue::Number(0.75)),
+                        (
+                            PropertyId::TransitionProperty,
+                            PropertyValue::String("opacity".into()),
+                        ),
+                    ],
+                },
+                Command::SetPseudoStyle {
+                    id: 9,
+                    state: StyleState::Active,
+                    properties: vec![(PropertyId::Opacity, PropertyValue::Number(0.25))],
                 },
             ],
         );

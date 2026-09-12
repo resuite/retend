@@ -4,10 +4,12 @@ import {
   PROTOCOL_MAGIC,
   PROTOCOL_VERSION,
   PropertyId,
+  StyleState,
   ValueKind,
   type ElementKind as ElementKindValue,
   type NativeEventId as NativeEventIdValue,
   type PropertyId as PropertyIdValue,
+  type StyleState as StyleStateValue,
 } from './protocol.generated.js';
 
 export const COMMAND_BATCH_HEADER_BYTES = 24;
@@ -115,18 +117,15 @@ export class CommandBatchWriter {
     id: number,
     properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
   ): void {
-    const nodeId = this.#nodeId(id);
-    if (properties.length > 0xffff) {
-      throw new RangeError(
-        'A native style snapshot cannot exceed 65,535 properties.'
-      );
-    }
-    this.#command(Opcode.SetStyle, nodeId);
-    this.#commands.writeU16(properties.length);
-    for (const [property, value] of properties) {
-      this.#commands.writeU16(property);
-      this.#writePropertyValue(value);
-    }
+    this.#styleCommand(Opcode.SetStyle, id, properties);
+  }
+
+  setPseudoStyle(
+    id: number,
+    state: StyleStateValue,
+    properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[]
+  ): void {
+    this.#styleCommand(Opcode.SetPseudoStyle, id, properties, state);
   }
 
   insertChild(parentId: number, childId: number, beforeId = 0): void {
@@ -175,6 +174,26 @@ export class CommandBatchWriter {
     return output;
   }
 
+  #styleCommand(
+    opcode: number,
+    id: number,
+    properties: readonly (readonly [PropertyIdValue, ProtocolPropertyValue])[],
+    state?: StyleStateValue
+  ): void {
+    if (properties.length > 0xffff) {
+      throw new RangeError(
+        'A native style snapshot cannot exceed 65,535 properties.'
+      );
+    }
+    this.#command(opcode, this.#nodeId(id));
+    if (state !== undefined) this.#commands.writeU8(state);
+    this.#commands.writeU16(properties.length);
+    for (const [property, value] of properties) {
+      this.#commands.writeU16(property);
+      this.#writePropertyValue(value);
+    }
+  }
+
   #command(opcode: number, nodeId: number): void {
     this.#commands.writeU8(opcode);
     this.#commandCount += 1;
@@ -215,4 +234,4 @@ export class CommandBatchWriter {
   }
 }
 
-export { ElementKind, Opcode, PropertyId, ValueKind };
+export { ElementKind, Opcode, PropertyId, StyleState, ValueKind };
