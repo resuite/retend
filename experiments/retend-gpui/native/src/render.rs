@@ -460,7 +460,6 @@ impl PaintCallback {
                 content_scroll_handle,
                 painted_content,
             } => {
-                runtime.record_bounds(generation, id, bounds);
                 let bottom_right = if let Some(handle) = &content_scroll_handle {
                     (0..handle.children_count())
                         .filter_map(|index| handle.bounds_for_item(index))
@@ -469,10 +468,13 @@ impl PaintCallback {
                 } else {
                     painted_content.as_ref().and_then(|content| content.get())
                 };
-                if let Some(bottom_right) = bottom_right {
-                    // Prepaint can be speculative. Publish only after paint.
-                    runtime.record_content_extent(generation, id, bottom_right - bounds.origin);
-                }
+                // Prepaint is speculative; publish only after paint, clearing any stale extent.
+                runtime.record_geometry(
+                    generation,
+                    id,
+                    bounds,
+                    bottom_right.map(|bottom_right| bottom_right - bounds.origin),
+                );
             }
             Self::ReuseSubtree {
                 runtime,

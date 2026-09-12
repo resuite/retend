@@ -35,6 +35,7 @@ import {
   type ParsedEventProperty,
 } from './events.js';
 import { GpuiHost } from './gpui-host.js';
+import { peekNativeNodeId } from './native/node-id.js';
 import {
   ElementKind,
   PropertyId,
@@ -42,7 +43,6 @@ import {
 } from './native/protocol.generated.js';
 import { withHMRBoundaries } from './plugins/hmr.js';
 import {
-  collectNativeChildren,
   flattenGroups,
   GpuiAnchor,
   GpuiDivElement,
@@ -583,9 +583,13 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     this.append(root, text);
     this.#devError = { root, text };
     try {
-      this.#syncWindowRoot();
+      if (!this.#mountedNativeRoots.has(root)) {
+        this.host.insertChild(this.host.rootId, root.id);
+        this.#mountedNativeRoots.add(root);
+      }
       this.flush();
     } catch (error) {
+      this.#mountedNativeRoots.delete(root);
       this.#devError = null;
       this.#markDestroyedSubtree(root);
       this.host.discardPendingCommands();
@@ -602,7 +606,10 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     if (!root) return;
 
     this.#devError = null;
-    this.#syncWindowRoot();
+    // Application roots stay mounted underneath; removing the overlay restores them.
+    if (this.#mountedNativeRoots.delete(root)) {
+      this.host.removeChild(this.host.rootId, root.id);
+    }
     this.#markDestroyedSubtree(root);
     this.host.settle();
   }
@@ -612,12 +619,14 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * unattached nodes if the operation throws.
    */
   withNodeRollback<T>(operation: () => T): T {
-    const before = new Set(this.#nodesById.keys());
+    // IDs are monotonic and never reused, so the next unallocated ID separates
+    // committed nodes from those created during this synchronous operation.
+    const watermark = peekNativeNodeId();
     try {
       return operation();
     } catch (error) {
       const created = [...this.#nodesById.values()].filter(
-        (node) => !before.has(node.id)
+        (node) => node.id >= watermark
       );
       const createdSet = new Set<GpuiNode>(created);
       const roots = created.filter(
@@ -724,25 +733,6 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       if (!node.destroyed) node.markDestroyed();
     }
     this.#pendingDestroy.clear();
-  }
-
-  #syncWindowRoot(): void {
-    const roots = this.#root ? collectNativeChildren(this.#root) : [];
-    if (this.#devError) roots.push(this.#devError.root);
-    this.#mountNativeRoots(roots);
-  }
-
-  #mountNativeRoots(desired: readonly GpuiNativeNode[]): void {
-    const retained = new Set(desired);
-    for (const node of this.#mountedNativeRoots) {
-      if (!node.destroyed && !retained.has(node))
-        this.host.removeChild(this.host.rootId, node.id);
-    }
-    for (const node of desired) {
-      if (!this.#mountedNativeRoots.has(node))
-        this.host.insertChild(this.host.rootId, node.id);
-    }
-    this.#mountedNativeRoots = retained;
   }
 
   #nativeParentId(parent: GpuiParentNode): number | undefined {

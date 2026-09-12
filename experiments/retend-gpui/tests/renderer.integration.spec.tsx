@@ -852,6 +852,80 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(collectText(debugTree(renderer))).toEqual(['after']);
   });
 
+  it('discards nodes created by a failing HMR render without disturbing committed ones', () => {
+    const renderer = createRenderer({ hmr: true });
+
+    function App() {
+      return <div>before</div>;
+    }
+    function BrokenApp() {
+      renderer.createContainer('div');
+      throw new Error('broken after creating a node');
+    }
+    function FixedApp() {
+      return <div>after</div>;
+    }
+
+    renderer.render(() => <App />);
+    const baseContainers = idsByKind(debugTree(renderer), 'Container').length;
+
+    hotReloadModule({ default: BrokenApp }, { default: App });
+    const failed = debugTree(renderer);
+    expect(collectText(failed)).toContain('before');
+    // The development overlay adds exactly one container; the speculative node
+    // created before the throw must not survive the rollback.
+    expect(idsByKind(failed, 'Container')).toHaveLength(baseContainers + 1);
+
+    hotReloadModule({ default: FixedApp }, { default: BrokenApp });
+    expect(collectText(debugTree(renderer))).toEqual(['after']);
+  });
+
+  it('rolls back every node created inside a failed operation', () => {
+    const renderer = createRenderer();
+    renderer.render(() => <div>base</div>);
+    const baseIds = debugTree(renderer)
+      .nodes.map((node) => node.id)
+      .toSorted();
+
+    expect(() =>
+      renderer.withNodeRollback(() => {
+        const outer = renderer.createContainer('div');
+        renderer.append(outer, renderer.createText('rollback candidate'));
+        throw new Error('speculative failure');
+      })
+    ).toThrow('speculative failure');
+
+    const after = debugTree(renderer);
+    expect(after.nodes.map((node) => node.id).toSorted()).toEqual(baseIds);
+    expect(collectText(after)).toEqual(['base']);
+  });
+
+  it('keeps nested rollback scopes independent of committed nodes', () => {
+    const renderer = createRenderer();
+    renderer.render(() => <div>base</div>);
+
+    let innerFailed = false;
+    expect(() =>
+      renderer.withNodeRollback(() => {
+        const outer = renderer.createContainer('div');
+        renderer.append(outer, renderer.createText('outer'));
+        try {
+          renderer.withNodeRollback(() => {
+            const inner = renderer.createContainer('div');
+            renderer.append(inner, renderer.createText('inner'));
+            throw new Error('inner failure');
+          });
+        } catch {
+          innerFailed = true;
+        }
+        throw new Error('outer failure');
+      })
+    ).toThrow('outer failure');
+
+    expect(innerFailed).toBe(true);
+    expect(collectText(debugTree(renderer))).toEqual(['base']);
+  });
+
   it('rejects removing or replacing rendered component exports during HMR', () => {
     const renderer = createRenderer({ hmr: true });
 
@@ -886,6 +960,48 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     tree = debugTree(renderer);
     expect(collectText(tree)).toEqual(['application']);
     expect(tree.pending_detached).not.toContain(app.id);
+  });
+
+  it('presents the development overlay before an application root mounts', () => {
+    const renderer = createRenderer();
+
+    renderer.showDevelopmentError(new Error('early failure'));
+    expect(collectText(debugTree(renderer)).join('')).toContain(
+      'early failure'
+    );
+
+    renderer.render(() => <div>application</div>);
+    const tree = debugTree(renderer);
+    expect(collectText(tree)).toContain('application');
+    expect(collectText(tree).join('')).toContain('early failure');
+
+    renderer.clearDevelopmentError();
+    expect(collectText(debugTree(renderer))).toEqual(['application']);
+  });
+
+  it('keeps the development overlay above roots added while it is visible', () => {
+    const renderer = createRenderer();
+    const extra = Cell.source(false);
+
+    renderer.render(() => (
+      <>
+        <div>main</div>
+        {If(extra, () => (
+          <div>extra</div>
+        ))}
+      </>
+    ));
+    renderer.showDevelopmentError(new Error('late failure'));
+
+    extra.set(true);
+    const texts = collectText(debugTree(renderer));
+    expect(texts.join('')).toContain('extra');
+    // New roots insert before the overlay so it keeps painting above them.
+    expect(texts.at(-1)).toContain('late failure');
+
+    extra.set(false);
+    renderer.clearDevelopmentError();
+    expect(collectText(debugTree(renderer))).toEqual(['main']);
   });
 
   it('replaces nested If ranges and settles abandoned native subtrees', async () => {

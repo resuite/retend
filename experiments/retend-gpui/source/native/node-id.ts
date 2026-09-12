@@ -13,3 +13,8 @@ export function allocateNativeNodeId(): number {
   processState.__retendGpuiNativeNodeId__ = id + 1;
   return id;
 }
+
+/** @internal Next ID [`allocateNativeNodeId`] will hand out, without allocating it. */
+export function peekNativeNodeId(): number {
+  return processState.__retendGpuiNativeNodeId__ ?? 1;
+}

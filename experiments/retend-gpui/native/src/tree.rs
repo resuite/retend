@@ -512,7 +512,7 @@ impl NativeTree {
         {
             return false;
         }
-        let next: HashSet<_> = std::iter::successors(Some(id), |id| {
+        let ancestors: Vec<_> = std::iter::successors(Some(id), |id| {
             self.nodes.get(id).and_then(|node| node.parent)
         })
         .filter(|id| self.nodes[id].tracks_active())
@@ -521,13 +521,11 @@ impl NativeTree {
             .windows
             .get_mut(&window_id)
             .expect("pointer events must reference a live native window");
-        let added: Vec<_> = next.difference(&window.active_nodes).copied().collect();
-        if added.is_empty() {
-            return false;
-        }
-        window.active_nodes.extend(added.iter().copied());
         let mut changed = false;
-        for id in added {
+        for id in ancestors {
+            if !window.active_nodes.insert(id) {
+                continue;
+            }
             let node = self
                 .nodes
                 .get_mut(&id)
@@ -1165,12 +1163,12 @@ impl NativeTree {
     }
 
     fn resolve_style_nodes(&mut self, window_id: WindowId, ids: &HashSet<NodeId>) {
-        let active_nodes = self
+        // Disjoint fields allow borrowing the active set without cloning it.
+        let active_nodes = &self
             .windows
             .get(&window_id)
             .expect("validated style batches must keep their native window alive")
-            .active_nodes
-            .clone();
+            .active_nodes;
         for id in ids {
             let node = self
                 .nodes

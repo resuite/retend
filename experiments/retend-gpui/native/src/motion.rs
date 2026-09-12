@@ -201,28 +201,8 @@ impl TransitionSpec {
         true
     }
 
-    fn policy(self, property: AnimatableProperty, target: TransitionValue) -> Transition {
-        let Some(config) = self.config(property).filter(|_| target != TransitionValue::Unset) else {
-            return Transition::new(Duration::ZERO);
-        };
-        // GPUI snaps zero-duration transitions before consulting their delay. Retend's
-        // CSS-style API still honors a non-zero delay, so use the smallest positive
-        // duration and let GPUI own the delayed playback and frame scheduling.
-        let duration = if config.duration.is_zero() && !config.delay.is_zero() {
-            Duration::from_nanos(1)
-        } else {
-            config.duration
-        };
-        let [x1, y1, x2, y2] = config.easing.0;
-        Transition::new(duration)
-            .delay(config.delay)
-            .ease(gpui_base::animation::cubic_bezier(x1, y1, x2, y2))
-    }
-
-    fn config(self, property: AnimatableProperty) -> Option<TransitionConfig> {
-        if self.properties & property.bit() == 0 {
-            return None;
-        }
+    /// Validates the shared timing longhands once; they are not per-property.
+    fn config(self) -> Option<TransitionConfig> {
         Some(TransitionConfig {
             duration: self.duration?,
             delay: self.delay?,
@@ -308,14 +288,32 @@ impl Default for MotionBridgeState {
     }
 }
 
-fn eligible_mask(style: &NativeStyle, targets: &[TransitionValue; 8]) -> u8 {
+fn eligible_mask(transition: TransitionSpec, targets: &[TransitionValue; 8]) -> u8 {
     AnimatableProperty::ALL
         .into_iter()
         .filter(|property| {
-            targets[*property as usize] != TransitionValue::Unset
-                && style.transition.config(*property).is_some()
+            transition.properties & property.bit() != 0
+                && targets[*property as usize] != TransitionValue::Unset
         })
         .fold(0, |mask, property| mask | property.bit())
+}
+
+fn transition_policy(config: TransitionConfig, target: TransitionValue) -> Transition {
+    if target == TransitionValue::Unset {
+        return Transition::new(Duration::ZERO);
+    }
+    // GPUI snaps zero-duration transitions before consulting their delay. Retend's
+    // CSS-style API still honors a non-zero delay, so use the smallest positive
+    // duration and let GPUI own the delayed playback and frame scheduling.
+    let duration = if config.duration.is_zero() && !config.delay.is_zero() {
+        Duration::from_nanos(1)
+    } else {
+        config.duration
+    };
+    let [x1, y1, x2, y2] = config.easing.0;
+    Transition::new(duration)
+        .delay(config.delay)
+        .ease(gpui_base::animation::cubic_bezier(x1, y1, x2, y2))
 }
 
 pub fn resolve_style(
@@ -333,19 +331,19 @@ pub fn resolve_style(
         state.initialized.set(true);
         return None;
     };
+    let spec = target_style.transition;
     let targets = AnimatableProperty::ALL.map(|property| property.target(target_style));
-    let current_mask = if target_style.transition.properties == 0 {
+    let config = spec.config();
+    let current_mask = if spec.properties == 0 || config.is_none() {
         0
     } else {
-        eligible_mask(target_style, &targets)
+        eligible_mask(spec, &targets)
     };
     let previous_targets = state.previous_targets.replace(targets);
     let previous_mask = state.active_mask.replace(current_mask);
     let initialized = state.initialized.replace(true);
 
-    if current_mask == 0 {
-        return None;
-    }
+    let config = config.filter(|_| current_mask != 0)?;
 
     let element_id = ElementId::Integer(u64::from(node_id));
     let mut resolved = None;
@@ -365,13 +363,7 @@ pub fn resolve_style(
                 cx,
             );
         }
-        let value = transition(
-            key,
-            target,
-            target_style.transition.policy(property, target),
-            window,
-            cx,
-        );
+        let value = transition(key, target, transition_policy(config, target), window, cx);
         if value != target {
             property.apply(resolved.get_or_insert_with(|| target_style.clone()), value);
         }
@@ -439,40 +431,49 @@ mod tests {
             PropertyId::TransitionProperty,
             &PropertyValue::String("width, opacity,width".into()),
         ));
-        assert!(transition.config(AnimatableProperty::Width).is_some());
-        assert!(transition.config(AnimatableProperty::Opacity).is_some());
+        assert!(transition.properties & AnimatableProperty::Width.bit() != 0);
+        assert!(transition.properties & AnimatableProperty::Opacity.bit() != 0);
+        assert!(transition.config().is_some());
         assert!(transition.set_property(
             PropertyId::TransitionDuration,
             &PropertyValue::String(".2s".into()),
         ));
         assert_eq!(
-            transition.config(AnimatableProperty::Width).unwrap().duration,
+            transition.config().unwrap().duration,
             Duration::from_millis(200)
         );
         assert!(transition.set_property(
             PropertyId::TransitionDelay,
             &PropertyValue::String("-20ms".into()),
         ));
-        assert_eq!(
-            transition.config(AnimatableProperty::Width).unwrap().delay,
-            Duration::ZERO
-        );
+        assert_eq!(transition.config().unwrap().delay, Duration::ZERO);
         transition.set_property(
             PropertyId::TransitionTimingFunction,
             &PropertyValue::String("cubic-bezier(0.16, 1, 0.3, 1)".into()),
         );
-        assert!(transition.config(AnimatableProperty::Width).is_some());
+        assert!(transition.config().is_some());
 
         transition.set_property(
             PropertyId::TransitionDuration,
             &PropertyValue::String("banana".into()),
         );
-        assert!(transition.config(AnimatableProperty::Width).is_none());
+        assert!(
+            transition.config().is_none(),
+            "an invalid duration must fail soft rather than panicking"
+        );
+
+        transition.set_property(
+            PropertyId::TransitionDuration,
+            &PropertyValue::String("200ms".into()),
+        );
         transition.set_property(
             PropertyId::TransitionProperty,
             &PropertyValue::String("all".into()),
         );
-        assert!(transition.config(AnimatableProperty::Width).is_none());
+        assert_eq!(
+            transition.properties, 0,
+            "the CSS `all` keyword must not enable any property"
+        );
     }
 
     #[gpui::test]
