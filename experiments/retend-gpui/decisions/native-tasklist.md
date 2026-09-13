@@ -419,6 +419,50 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [x] Update README/current architecture docs to describe the Retend-owned bridge rather than the removed GPUiX implementation.
 - [x] Remove the `@gpuix/native` package dependency.
 
+### Alpha application-surface polish
+
+- [ ] Add native `button` support with sensible default control styling.
+- [ ] Add native `select` support with sensible default control styling.
+- [ ] Add default native styling for `input` and other built-in controls so basic forms are usable without recreating platform affordances manually.
+- [ ] Add logical spacing shorthands: `paddingInline`, `paddingBlock`, `marginInline`, and `marginBlock`.
+- [ ] Add supported CSS color keywords to the native color parser and TypeScript authoring surface.
+- [ ] Add configurable text-selection background styling for `input` and `textarea`.
+
+### Image, asset, and accessibility polish
+
+- [ ] Add `img` load/error event delivery (`onLoad` / `onError`) from the native image pipeline.
+- [ ] Add `alt` support for images and carry the semantic text into the native accessibility surface where supported.
+- [ ] Add SVG image/source support for normal application assets.
+- [ ] Reconcile relative/bundled asset handling with the production Vite asset pipeline so alpha applications are not limited to HTTP(S) image sources.
+
+### Cross-renderer and router polish
+
+- [ ] Remove remaining web-specific APIs and terminology from Retend core/router surfaces used by GPUI.
+- [ ] Keep router concepts renderer-neutral while preserving the browser adapter behavior in `retend-web`.
+
+### Scaffolding and starter polish
+
+- [ ] Implement the GPUI target in `retend-start` according to `SCAFFOLDING.md`.
+- [ ] Add `retend-start` GPUI templates for `application.ts`, the root entry, Vite configuration, package metadata, and TypeScript/JSX configuration.
+- [ ] Include a router-capable GPUI starter path so a newly scaffolded native project can exercise the supported Retend router without manual setup.
+
+### Desktop integration polish
+
+- [ ] Show the configured application/process name correctly in Activity Monitor and equivalent platform process surfaces where applicable.
+- [ ] Add supported native window title-bar customization.
+- [ ] Fix macOS fullscreen/title-bar behavior so the standard traffic-light controls reveal correctly when the pointer reaches the top of a fullscreen window.
+- [ ] Manually verify the native fatal poisoning screen and reload interaction in a real development window.
+
+### Motion polish
+
+- [ ] Review the current transition property set against representative alpha applications and add the missing high-value transition properties needed for normal UI work.
+- [ ] Keep any transition expansion on the existing GPUI-owned keyed-channel architecture rather than adding another playback path.
+
+### Maintenance and test-surface polish
+
+- [ ] Remove redundant, revision-driven, or implementation-only tests that no longer protect external behavior.
+- [ ] Keep focused regression coverage for renderer/protocol failure modes without growing parallel test-only abstractions.
+
 ### Prebuilt binaries and packaging
 
 - [ ] Produce prebuilt addon artifacts for supported OS/architecture combinations.

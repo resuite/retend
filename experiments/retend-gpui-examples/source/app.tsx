@@ -1,22 +1,12 @@
 import type { ReactiveStyle } from 'retend-gpui/jsx-runtime';
 
-import { useWindow } from 'retend-gpui';
-
 export default function App() {
-  const window = useWindow();
-
-  const handleClick = () => {
-    window.open({
-      title: 'Child Window',
-    });
-  };
-
   return (
     <div style={styles.container}>
-      2
-      <div style={styles.box} onClick={handleClick}>
-        Hello world.
-      </div>
+      <img
+        style={styles.image}
+        src="https://retend.dev/assets/icon-BdKmyllY.svg"
+      />
     </div>
   );
 }
@@ -31,11 +21,12 @@ const styles = {
     height: '100%',
     color: '#ffffff',
   },
-  box: {
+  image: {
     width: 89,
     height: 89,
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    opacity: 0.5,
+    active: {
+      width: 85,
+      height: 85,
+    },
   },
 } satisfies Record<string, ReactiveStyle>;
