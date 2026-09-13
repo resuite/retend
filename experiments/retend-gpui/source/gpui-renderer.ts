@@ -1,5 +1,6 @@
 import type { JSX } from 'retend/jsx-runtime';
 
+import { stripVTControlCharacters } from 'node:util';
 import {
   AsyncCell,
   Cell,
@@ -147,7 +148,90 @@ export interface RetendGpuiRendererOptions {
 
 interface DevelopmentError {
   root: GpuiElement;
-  text: GpuiText;
+}
+
+interface DevelopmentErrorView {
+  message: string;
+  location: string;
+  frame: string;
+  stack: string;
+}
+
+function developmentErrorField(error: unknown, key: PropertyKey): unknown {
+  if (
+    (typeof error !== 'object' || error === null) &&
+    typeof error !== 'function'
+  )
+    return undefined;
+  try {
+    return Reflect.get(error, key);
+  } catch {
+    return undefined;
+  }
+}
+
+function cleanDevelopmentText(value: unknown): string {
+  return typeof value === 'string' ? stripVTControlCharacters(value) : '';
+}
+
+function formatDevelopmentError(error: unknown): DevelopmentErrorView {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : cleanDevelopmentText(developmentErrorField(error, 'message')) ||
+        (typeof error === 'string'
+          ? error
+          : (JSON.stringify(error, null, 2) ?? String(error)));
+  let message = stripVTControlCharacters(rawMessage).trim();
+  let frame = cleanDevelopmentText(
+    developmentErrorField(error, 'frame')
+  ).trim();
+
+  if (!frame) {
+    const newline = message.indexOf('\n');
+    if (newline !== -1) {
+      frame = message.slice(newline + 1).trim();
+      message = message.slice(0, newline).trim();
+    }
+  }
+
+  const plugin = cleanDevelopmentText(developmentErrorField(error, 'plugin'));
+  if (plugin && !message.includes(`[plugin:${plugin}]`)) {
+    message = `[plugin:${plugin}] ${message}`;
+  }
+
+  const id = cleanDevelopmentText(developmentErrorField(error, 'id'));
+  const loc = developmentErrorField(error, 'loc');
+  const line = Number(developmentErrorField(loc, 'line'));
+  const column = Number(developmentErrorField(loc, 'column'));
+  let location = id;
+  if (id && Number.isFinite(line)) {
+    location += `:${line}`;
+    if (Number.isFinite(column)) location += `:${column}`;
+  }
+
+  if (!location && frame) {
+    location =
+      frame.match(/\[([^\]\n]+:\d+:\d+)\]/)?.[1] ??
+      frame.match(/((?:[A-Za-z]:[\\/]|\/)[^\n()]+:\d+:\d+)/)?.[1] ??
+      '';
+  }
+
+  const rawStack = cleanDevelopmentText(
+    developmentErrorField(error, 'stack') ??
+      (error instanceof Error ? error.stack : undefined)
+  );
+  const stackLines = rawStack.split('\n');
+  const firstFrame = stackLines.findIndex((line) => /^\s*at\s/.test(line));
+  const stack =
+    firstFrame === -1
+      ? ''
+      : stackLines
+          .slice(firstFrame, firstFrame + 10)
+          .join('\n')
+          .trim();
+
+  return { message, location, frame, stack };
 }
 
 interface GpuiRenderingTypes extends RendererTypes {
@@ -554,34 +638,117 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * @param error - Error to display; strings, Error stacks, or JSON are all accepted.
    */
   showDevelopmentError(error: unknown): void {
-    const message =
-      error instanceof Error
-        ? (error.stack ?? error.message)
-        : typeof error === 'string'
-          ? error
-          : (JSON.stringify(error, null, 2) ?? String(error));
-
-    if (this.#devError) {
-      this.updateText(message, this.#devError.text);
-      this.flush();
-      return;
-    }
+    const details = formatDevelopmentError(error);
+    if (this.#devError) this.clearDevelopmentError();
 
     const root = this.createContainer('div');
-    const text = this.createText(message);
+    const card = this.createContainer('div');
+    const accent = this.createContainer('div');
+    const content = this.createContainer('div');
+    const divider = this.createContainer('div');
+
     this.setProperty(root, 'style', {
       position: 'absolute',
       top: 0,
       left: 0,
       width: '100%',
       height: '100%',
-      padding: 24,
-      backgroundColor: '#1a1111',
-      color: '#ff8a8a',
-      whiteSpace: 'normal',
+      padding: 28,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      backgroundColor: '#00000099',
     });
-    this.append(root, text);
-    this.#devError = { root, text };
+    this.setProperty(card, 'style', {
+      display: 'flex',
+      flexDirection: 'column',
+      width: '92%',
+      maxWidth: 980,
+      maxHeight: '90%',
+      backgroundColor: '#181818',
+      borderRadius: 10,
+      overflow: 'hidden',
+    });
+    this.setProperty(accent, 'style', {
+      width: '100%',
+      height: 6,
+      backgroundColor: '#ff5f5f',
+    });
+    this.setProperty(content, 'style', {
+      display: 'flex',
+      flexDirection: 'column',
+      width: '100%',
+      minWidth: 0,
+      maxWidth: '100%',
+      gap: 14,
+      padding: 24,
+      overflow: 'auto',
+      color: '#d5d5d5',
+      backgroundColor: '#181818',
+      fontFamily: 'monospace',
+      fontSize: 14,
+      lineHeight: 20,
+    });
+    this.setProperty(divider, 'style', {
+      width: '100%',
+      height: 1,
+      backgroundColor: '#3a3a3a',
+    });
+
+    const appendSection = (text: string, style: GpuiStyle): void => {
+      if (!text) return;
+      const section = this.createContainer('div');
+      this.setProperty(section, 'style', style);
+      this.append(section, this.createText(text));
+      this.append(content, section);
+    };
+
+    appendSection(details.message, {
+      color: '#ff6464',
+      fontSize: 17,
+      fontWeight: 'bold',
+      lineHeight: 24,
+    });
+    appendSection(details.location, {
+      color: '#63d8e8',
+      fontSize: 13,
+      lineHeight: 18,
+    });
+    appendSection(details.frame, {
+      width: '100%',
+      minWidth: 0,
+      maxWidth: '100%',
+      padding: 14,
+      borderRadius: 6,
+      overflow: 'auto',
+      backgroundColor: '#111111',
+      color: '#e6bd68',
+      whiteSpace: 'nowrap',
+      fontSize: 13,
+      lineHeight: 20,
+    });
+    appendSection(details.stack, {
+      width: '100%',
+      minWidth: 0,
+      maxWidth: '100%',
+      overflow: 'auto',
+      color: '#aaaaaa',
+      whiteSpace: 'nowrap',
+      fontSize: 12,
+      lineHeight: 18,
+    });
+    this.append(content, divider);
+    appendSection('Fix the code to dismiss this overlay.', {
+      color: '#8f8f8f',
+      fontSize: 12,
+      lineHeight: 18,
+    });
+
+    this.append(card, accent);
+    this.append(card, content);
+    this.append(root, card);
+    this.#devError = { root };
     try {
       if (!this.#mountedNativeRoots.has(root)) {
         this.host.insertChild(this.host.rootId, root.id);

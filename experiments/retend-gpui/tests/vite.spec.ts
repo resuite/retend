@@ -1,5 +1,6 @@
 import type { ResolvedConfig } from 'vite';
 
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -121,7 +122,7 @@ describe('retendGpui Vite plugin', () => {
       id: path.join(root, 'source/shared.tsx'),
       importers: new Set([applicationModule]),
     };
-    const invalidateModule = vi.fn();
+    const invalidateAll = vi.fn();
     const send = vi.fn();
     const hotUpdate = plugin.hotUpdate as Function;
 
@@ -129,7 +130,7 @@ describe('retendGpui Vite plugin', () => {
       hotUpdate,
       {
         environment: {
-          moduleGraph: { invalidateModule },
+          moduleGraph: { invalidateAll },
           hot: { send },
         },
       },
@@ -146,12 +147,89 @@ describe('retendGpui Vite plugin', () => {
     );
 
     expect(result).toEqual([]);
-    expect(invalidateModule).toHaveBeenCalledWith(
-      dependencyModule,
-      expect.any(Set),
-      1,
-      true
-    );
+    expect(invalidateAll).toHaveBeenCalledOnce();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(send).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledWith({ type: 'full-reload' });
+  });
+
+  it('full reloads the configured application module by file path', async () => {
+    const plugin = retendGpui(options());
+    const root = resolvePlugin(plugin);
+    const invalidateAll = vi.fn();
+    const send = vi.fn();
+    const hotUpdate = plugin.hotUpdate as Function;
+
+    const result = await Reflect.apply(
+      hotUpdate,
+      {
+        environment: {
+          moduleGraph: { invalidateAll },
+          hot: { send },
+        },
+      },
+      [
+        {
+          type: 'update',
+          file: path.join(root, 'source/application.ts'),
+          timestamp: 1,
+          modules: [],
+          read: async () => '',
+          server: {},
+        },
+      ]
+    );
+
+    expect(result).toEqual([]);
+    expect(invalidateAll).toHaveBeenCalledOnce();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(send).toHaveBeenCalledWith({ type: 'full-reload' });
+  });
+
+  it('full reloads the next source change after the child reports an unavailable entry', async () => {
+    const plugin = retendGpui(options());
+    resolvePlugin(plugin);
+    const child = Object.assign(new EventEmitter(), {
+      connected: true,
+      send: vi.fn(),
+    });
+    plugin.api.hotChannel.attach(child as never);
+    child.emit('message', {
+      channel: 'vite',
+      payload: {
+        type: 'custom',
+        event: 'retend-gpui:entry-failed',
+        data: null,
+      },
+    });
+
+    const invalidateAll = vi.fn();
+    const send = vi.fn();
+    const hotUpdate = plugin.hotUpdate as Function;
+    const result = await Reflect.apply(
+      hotUpdate,
+      {
+        environment: {
+          moduleGraph: { invalidateAll },
+          hot: { send },
+        },
+      },
+      [
+        {
+          type: 'update',
+          file: '/source/app.tsx',
+          timestamp: 1,
+          modules: [],
+          read: async () => '',
+          server: {},
+        },
+      ]
+    );
+
+    expect(result).toEqual([]);
+    expect(invalidateAll).toHaveBeenCalledOnce();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(send).toHaveBeenCalledWith({ type: 'full-reload' });
+    child.emit('exit');
   });
 });

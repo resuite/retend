@@ -1,14 +1,22 @@
-import type { GpuiColor } from 'retend-gpui';
 import type { ReactiveStyle } from 'retend-gpui/jsx-runtime';
 
-import { Cell } from 'retend';
+import { useWindow } from 'retend-gpui';
 
 export default function App() {
-  const backgroundColor = Cell.source<GpuiColor>('#ffffff');
+  const window = useWindow();
+
+  const handleClick = () => {
+    window.open({
+      title: 'Child Window',
+    });
+  };
 
   return (
     <div style={styles.container}>
-      <div style={{ ...styles.box, backgroundColor }}></div>
+      2
+      <div style={styles.box} onClick={handleClick}>
+        Hello world.
+      </div>
     </div>
   );
 }
@@ -29,13 +37,5 @@ const styles = {
     backgroundColor: '#ffffff',
     borderRadius: 20,
     opacity: 0.5,
-    transitionProperty: ['width', 'height', 'opacity'],
-    transitionDuration: '500ms',
-    transitionTimingFunction: 'ease',
-    hover: {
-      width: 89 * 2,
-      height: 89 * 2,
-      opacity: 1,
-    },
   },
 } satisfies Record<string, ReactiveStyle>;

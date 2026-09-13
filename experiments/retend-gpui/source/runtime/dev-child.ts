@@ -33,6 +33,14 @@ interface HotPayload {
   err?: unknown;
 }
 
+function sendHotEvent(event: string): void {
+  if (!process.send) return;
+  process.send({
+    channel: 'vite',
+    payload: { type: 'custom', event, data: null },
+  });
+}
+
 function sendControl(message: GpuiControlMessage): void {
   if (!process.send) {
     throw new Error('The GPUI runtime IPC channel is unavailable.');
@@ -136,9 +144,18 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       'entry module must default-export a component function'
     );
     entry = pending;
-    void pending.catch(() => {
-      if (entry === pending) entryFailed = true;
-    });
+    void pending.then(
+      () => {
+        if (entry !== pending) return;
+        entryFailed = false;
+        sendHotEvent('retend-gpui:entry-ready');
+      },
+      () => {
+        if (entry !== pending) return;
+        entryFailed = true;
+        sendHotEvent('retend-gpui:entry-failed');
+      }
+    );
     return pending;
   };
 
@@ -228,9 +245,6 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     renderer.host.addEventListener('reload', () => {
       void recoverWindow(window).catch(console.error);
     });
-    renderer.host.addEventListener('applicationerror', (event) => {
-      showDevelopmentError((event as CustomEvent<unknown>).detail, [window]);
-    });
     return window;
   };
 
@@ -262,6 +276,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     }
   };
 
+  let hmrErrorGeneration = 0;
   const applyHotMessage = async (
     handlers: ModuleRunnerTransportHandlers,
     value: unknown
@@ -270,22 +285,26 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     if (payload.type === 'error') showDevelopmentError(payload.err ?? value);
 
     if (payload.type === 'full-reload') {
-      await cleanupApplication();
-      for (const window of windows) window.renderer.unmount();
-      globalData.clear();
-    }
-    await handlers.onMessage(value as never);
-
-    if (payload.type === 'full-reload') {
       try {
+        await cleanupApplication();
+        for (const window of windows) window.renderer.unmount();
+        globalData.clear();
+        runner?.clearCache();
+        entry = undefined;
+        entryFailed = false;
         await loadApplication();
+        await recoverEntry();
       } catch (error) {
         console.error('[retend-gpui] application reload failed:', error);
         await shutdown(1);
-        return;
       }
-      await recoverEntry();
-    } else if (payload.type === 'update') {
+      return;
+    }
+
+    const errorGeneration = hmrErrorGeneration;
+    await handlers.onMessage(value as never);
+    if (payload.type === 'update') {
+      if (hmrErrorGeneration !== errorGeneration) return;
       if (entryFailed) await recoverEntry();
       else
         for (const window of windows) window.renderer.clearDevelopmentError();
@@ -310,9 +329,22 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     if (isViteIpcMessage(value)) {
       const handlers = hotHandlers;
       if (!handlers) return;
-      // Serialize full-reload teardown and remount against later updates.
+      const payload = value.payload;
+      // ModuleRunner imports use request/response RPC over the same IPC channel.
+      // Responses must resolve immediately: queueing them behind an HMR task that
+      // is itself awaiting an import would deadlock the reload.
+      if (
+        typeof payload === 'object' &&
+        payload !== null &&
+        Reflect.get(payload, 'type') === 'custom' &&
+        Reflect.get(payload, 'event') === 'vite:invoke'
+      ) {
+        void handlers.onMessage(payload as never);
+        return;
+      }
+      // Serialize application/HMR lifecycle work against later updates.
       hotQueue = hotQueue
-        .then(() => applyHotMessage(handlers, value.payload))
+        .then(() => applyHotMessage(handlers, payload))
         .catch((error: unknown) => {
           showDevelopmentError(error);
           console.error('[retend-gpui] HMR failed:', error);
@@ -339,6 +371,20 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       {
         transport,
         createImportMeta: createNodeImportMeta,
+        hmr: {
+          logger: {
+            error(error) {
+              console.error(error);
+              if (error instanceof Error) {
+                hmrErrorGeneration++;
+                showDevelopmentError(error);
+              }
+            },
+            debug(...messages) {
+              console.debug(...messages);
+            },
+          },
+        },
       },
       new ESModulesEvaluator()
     );

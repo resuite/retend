@@ -201,6 +201,16 @@ export {};
 export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
   validateOptions(options);
   const hotChannel = new IpcHotChannel();
+  let entryFailed = false;
+  hotChannel.on('vite:client:connect', () => {
+    entryFailed = false;
+  });
+  hotChannel.on('retend-gpui:entry-failed', () => {
+    entryFailed = true;
+  });
+  hotChannel.on('retend-gpui:entry-ready', () => {
+    entryFailed = false;
+  });
 
   const plugin: RetendGpuiPlugin = {
     name: RETEND_GPUI_PLUGIN_NAME,
@@ -283,21 +293,20 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       return environment.name === 'gpui';
     },
 
-    hotUpdate({ modules, timestamp }) {
+    hotUpdate({ file, modules }) {
       const application = plugin.api.launch?.application;
-      if (!application || !updateReachesApplication(modules, application))
+      if (
+        !application ||
+        (!entryFailed &&
+          normalizePath(file) !== application &&
+          !updateReachesApplication(modules, application))
+      ) {
         return;
-
-      const invalidatedModules = new Set<EnvironmentModuleNode>();
-      for (const module of modules) {
-        this.environment.moduleGraph.invalidateModule(
-          module,
-          invalidatedModules,
-          timestamp,
-          true
-        );
       }
-      this.environment.hot.send({ type: 'full-reload' });
+
+      const hot = this.environment.hot;
+      this.environment.moduleGraph.invalidateAll();
+      setTimeout(() => hot.send({ type: 'full-reload' }), 0);
       return [];
     },
 

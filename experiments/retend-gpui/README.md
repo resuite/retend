@@ -8,9 +8,7 @@ This package is experimental. The Retend-owned native protocol and renderer API 
 
 ## Install
 
-```bash
-pnpm add retend retend-gpui
-```
+`retend-gpui` is not published yet. Until the Phase 4 native packaging work is complete, use the workspace package and examples in this repository; registry installation is not supported.
 
 ## Quick start
 
@@ -93,7 +91,7 @@ export default defineConfig({
 });
 ```
 
-Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process. Additional application windows remain deferred until the Phase 2 native window surface is completed.
+Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. Vite full reloads recreate application/module state and remount every live window without replacing its native window or navigation history; Vite/config restarts replace the whole application process.
 
 Components read process-wide resources with `useAppContext()`. The development command generates the configured context type under `node_modules/@types/retend-gpui-app`.
 TypeScript discovers it automatically unless `compilerOptions.types` limits the loaded packages. In that case, add `"retend-gpui-app"` to that list after the existing GPUI JSX type.
@@ -109,7 +107,7 @@ export default function App() {
 }
 ```
 
-`useWindow()` returns the window associated with the current Retend root. Its `title` Cell reflects the configured title and writes through to the native OS window; `window.close()` requests native window closure. Live resize state and additional-window APIs are not exposed until their native event/lifecycle implementation exists.
+`useWindow()` returns the window associated with the current Retend root. Its readonly `width` and `height` Cells track native resize events, its `title` Cell writes through to the OS window, `open(options)` creates another independent native window, and `close()` requests closure of the current window.
 
 ## TypeScript and JSX
 
@@ -140,7 +138,7 @@ Text is ordinary JSX content rather than a `<text>` intrinsic. `input` uses the 
 
 ## Events
 
-Retend GPUI exposes JSX handlers for native pointer/button events and `keydown`/`keyup`, plus the `mousedownoutside` extension. Retend owns capture/target/bubble propagation over the logical node tree, and GPUI nodes also expose `addEventListener()`, `removeEventListener()`, and `dispatchEvent()` for imperative/custom events. `mouseenter` and `mouseleave` are non-bubbling; `mousedownoutside` is target-only for each qualifying subscriber. Native sources for focus/blur, input/change, and element scroll are completed with the Phase 3 focus, text-input, and scrolling state systems. IME/composition remains native editor state; separate JavaScript composition lifecycle events are outside v1.
+Retend GPUI exposes JSX handlers for native pointer/button events and `keydown`/`keyup`, plus the `mousedownoutside` extension. Retend owns capture/target/bubble propagation over the logical node tree, and GPUI nodes also expose `addEventListener()`, `removeEventListener()`, and `dispatchEvent()` for imperative/custom events. `mouseenter` and `mouseleave` are non-bubbling; `mousedownoutside` is target-only for each qualifying subscriber. Focus/blur, input/change, and element-scroll events are delivered from the native focus, editor, and scrolling systems. IME/composition remains native editor state; separate JavaScript composition lifecycle events are outside v1.
 
 ## Reactive values
 
@@ -157,7 +155,7 @@ return <div style={{ color }}>{label}</div>;
 
 The renderer also handles asynchronous Retend values used for text, control flow, intrinsic properties, and top-level style properties.
 
-The Retend-owned Phase 2 bridge parses its typed authoring vocabulary into Retend-native Rust values. The normal renderer publishes each resolved author style as one complete sparse snapshot; declarations disappear when they are omitted from the next replacement snapshot. Its current static surface covers block/flex layout, flex direction/wrapping/alignment, gaps, dimensions, padding/margins, relative/absolute positioning, colors/opacity, borders, and basic inherited text styling. Numbers are logical pixels; dimensions also accept `auto`, pixel strings, and percentages. Stateful overflow/scroll behavior belongs to Phase 3 and the target style-driven transition/pseudo-state model belongs to Phase 4.
+The Retend-owned bridge parses its typed authoring vocabulary into Retend-native Rust values. The renderer publishes each resolved author style as one complete sparse snapshot; declarations disappear when omitted from the next replacement snapshot. The surface includes block/flex layout, alignment and gaps, dimensions, spacing, positioning, colors/opacity, borders, inherited text styling, overflow/scrolling, hover/active pseudo-states, and native transitions for the supported animatable properties. Numbers are logical pixels; dimensions also accept `auto`, pixel strings, and percentages.
 
 The application root defaults to a white background with black text. Explicit root `backgroundColor` and `color` styles override these defaults.
 

@@ -42,4 +42,4 @@ assert.throws(
   /cannot be initialized again/,
   'renderer disposal must be terminal'
 );
-console.log('Retend GPUI migrated native renderer smoke test passed.');
+console.log('Retend GPUI native renderer smoke test passed.');

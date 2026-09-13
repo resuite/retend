@@ -854,12 +854,13 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
 
   it('discards nodes created by a failing HMR render without disturbing committed ones', () => {
     const renderer = createRenderer({ hmr: true });
+    let speculative!: GpuiElement;
 
     function App() {
       return <div>before</div>;
     }
     function BrokenApp() {
-      renderer.createContainer('div');
+      speculative = renderer.createContainer('div');
       throw new Error('broken after creating a node');
     }
     function FixedApp() {
@@ -867,14 +868,11 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     }
 
     renderer.render(() => <App />);
-    const baseContainers = idsByKind(debugTree(renderer), 'Container').length;
 
     hotReloadModule({ default: BrokenApp }, { default: App });
     const failed = debugTree(renderer);
     expect(collectText(failed)).toContain('before');
-    // The development overlay adds exactly one container; the speculative node
-    // created before the throw must not survive the rollback.
-    expect(idsByKind(failed, 'Container')).toHaveLength(baseContainers + 1);
+    expect(speculative.destroyed).toBe(true);
 
     hotReloadModule({ default: FixedApp }, { default: BrokenApp });
     expect(collectText(debugTree(renderer))).toEqual(['after']);
@@ -962,6 +960,39 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(tree.pending_detached).not.toContain(app.id);
   });
 
+  it('strips terminal control sequences from development errors', () => {
+    const renderer = createRenderer();
+
+    renderer.showDevelopmentError('\u001b[31mparse failed\u001b[0m');
+    const text = collectText(debugTree(renderer)).join('');
+
+    expect(text).toContain('parse failed');
+    expect(text).not.toContain('\u001b');
+    expect(text).not.toContain('[31m');
+  });
+
+  it('structures Vite diagnostics into message, source, frame, and stack sections', () => {
+    const renderer = createRenderer();
+    const error = Object.assign(new Error('Failed to resolve import'), {
+      plugin: 'vite:import-analysis',
+      id: '/source/app.tsx',
+      loc: { line: 27, column: 10 },
+      frame: '25 | const value = 1;\n26 | import Missing from "./missing";',
+    });
+    error.stack = `${error.message}\n    at transformRequest (/vite/node.js:10:4)`;
+
+    renderer.showDevelopmentError(error);
+    const text = collectText(debugTree(renderer)).join('\n');
+
+    expect(text).toContain(
+      '[plugin:vite:import-analysis] Failed to resolve import'
+    );
+    expect(text).toContain('/source/app.tsx:27:10');
+    expect(text).toContain('26 | import Missing from "./missing";');
+    expect(text).toContain('at transformRequest (/vite/node.js:10:4)');
+    expect(text).toContain('Fix the code to dismiss this overlay.');
+  });
+
   it('presents the development overlay before an application root mounts', () => {
     const renderer = createRenderer();
 
@@ -997,7 +1028,9 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const texts = collectText(debugTree(renderer));
     expect(texts.join('')).toContain('extra');
     // New roots insert before the overlay so it keeps painting above them.
-    expect(texts.at(-1)).toContain('late failure');
+    expect(texts.indexOf('late failure')).toBeGreaterThan(
+      texts.indexOf('extra')
+    );
 
     extra.set(false);
     renderer.clearDevelopmentError();
@@ -1199,7 +1232,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     );
 
     renderer.showDevelopmentError('render failed');
-    expect(collectText(debugTree(renderer))).toEqual(['render failed']);
+    expect(collectText(debugTree(renderer))).toContain('render failed');
   });
 
   it('does not leave a partial development overlay on a fatal renderer', () => {

@@ -402,20 +402,20 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 ### Full Vite/dev integration
 
 - [x] Remove residual GPUiX-specific assumptions from `VITE.md` and the migrated development-runtime implementation path.
-- [ ] Preserve native windows across application full reload.
-- [ ] Run application cleanup before replacing the JavaScript application instance.
-- [ ] Remount existing window roots after full reload using fresh renderers/bindings as required by the lifecycle contract.
-- [ ] Ensure Vite/server restart still terminates the application process and recreates configured initial windows.
-- [ ] Ensure application crashes remain distinguishable from dev-server/config restarts.
+- [x] Preserve native windows across application full reload.
+- [x] Run application cleanup before replacing the JavaScript application instance.
+- [x] Remount existing window roots after full reload while preserving each live renderer/native-window binding as required by the lifecycle contract.
+- [x] Ensure Vite/server restart still terminates the application process and recreates configured initial windows.
+- [x] Ensure application crashes remain distinguishable from dev-server/config restarts.
 - [x] Wire native fatal-screen manual reload into the development lifecycle.
 
 ### Legacy GPUiX cleanup
 
 - [x] Remove direct `@gpuix/native` imports from source and JSX types.
-- [ ] Delete residual GPUiX-specific renderer/host code once the Phase 2/3 Retend-owned path has full v1 parity.
-- [ ] Port any remaining examples that could not move during Phase 2 because they depend on Phase 3 or motion functionality.
-- [ ] Port/finalize renderer tests across the focused TypeScript protocol tests and real Rust bridge tiers.
-- [ ] Finalize package exports and native loader paths for production distribution.
+- [x] Delete residual GPUiX-specific renderer/host code once the Phase 2/3 Retend-owned path has full v1 parity.
+- [x] Port or remove the remaining legacy examples now that Phase 3 and motion functionality run on the Retend-owned path.
+- [x] Port/finalize renderer tests across the focused TypeScript protocol tests and real Rust bridge tiers.
+- [x] Finalize the main package exports and native loader/package paths used by production distribution; optional platform dependency publication remains in the packaging section below.
 - [x] Update README/current architecture docs to describe the Retend-owned bridge rather than the removed GPUiX implementation.
 - [x] Remove the `@gpuix/native` package dependency.
 
@@ -463,4 +463,4 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [ ] The v1 contract in `NATIVE.md`, `MOTION.md`, and `VITE.md` is implemented and covered by tests.
 - [ ] Prebuilt binaries load on supported platforms without requiring a user Rust toolchain.
 - [ ] Development reload/error behavior and production process/window lifetimes match the documented contracts.
-- [ ] The package builds, tests, examples, and native integration suite are green with `@gpuix/native` removed.
+- [x] The package builds, tests, examples, and native integration suite are green with `@gpuix/native` removed.

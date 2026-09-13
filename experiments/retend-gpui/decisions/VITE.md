@@ -144,11 +144,11 @@ If the configured application entry fails to transform or evaluate before the ro
 
 ## Development error overlay
 
-Development errors are reported both in the terminal and through a native Vite-style GPUI error overlay. The overlay covers transform errors, module-evaluation errors, and component-remount errors, and clears automatically after the next successful update.
+Development errors are reported both in the terminal and through a native Vite-style GPUI error overlay. The overlay covers transform errors, module-evaluation errors, and component render/remount errors, and clears automatically after the next successful update. Ordinary runtime application errors such as event-listener or reactive callback failures are reported through the application/terminal error path and do not open the Vite overlay.
 
 The overlay is additive: it is an absolutely-positioned native node mounted as the topmost root above the live application, so the last good application subtree stays mounted and running underneath it rather than being detached or destroyed.
 
-The overlay is owned by `retend-gpui` as a renderer-level development layer outside the application's Retend tree: the renderer creates the overlay nodes directly through its native host rather than mounting Retend components, and every live window shows it. It does not depend on application components being able to evaluate or render, so errors can still be displayed when the application tree itself is unavailable or broken. The remaining Phase 2 development-root work moves this UI into a stable runtime-owned Retend wrapper beneath the immutable native root without changing these error-reporting semantics.
+The overlay is owned by `retend-gpui` as a renderer-level development layer outside the application's Retend tree: the renderer creates the overlay nodes directly through its native host rather than mounting Retend components, and every live window shows it. It does not depend on application components being able to evaluate or render, so errors can still be displayed when the application tree itself is unavailable or broken. This renderer-owned layer remains separate from application layout and lifecycle while sharing the same immutable native window root.
 
 ## Entrypoint updates
 
