@@ -1,10 +1,10 @@
 use std::{cell::Cell, rc::Rc, sync::Arc};
 
 use gpui::{
-    actions, anchored, deferred, div, img, prelude::*, Anchor, AnyElement, App, Bounds, ClickEvent,
-    Element, ElementId, GlobalElementId, ImageCacheError, ImageSource, InspectorElementId,
-    KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, NavigationDirection, Pixels, Point, StyledImage, Text, Window,
+    actions, anchored, deferred, div, img, prelude::*, px, relative, Anchor, AnyElement, App,
+    Bounds, ClickEvent, Element, ElementId, GlobalElementId, ImageCacheError, ImageSource,
+    InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, StyledImage, Text, Window,
 };
 
 use crate::{
@@ -371,6 +371,23 @@ fn wrap_at_anchor_slot(layer: AnyElement, config: &AnchoredConfig) -> AnyElement
     wrapper.child(layer).into_any_element()
 }
 
+/// Default surface for native buttons; author declarations override per field.
+fn button_control_geometry<T: Styled>(element: T) -> T {
+    element
+        .flex()
+        .items_center()
+        .justify_center()
+        .line_height(relative(1.0))
+        .pt(px(6.0))
+        .pb(px(6.0))
+        .pl(px(14.0))
+        .pr(px(14.0))
+        .rounded(px(6.0))
+        .bg(gpui::rgba(0xe9e9ebff))
+        .border_1()
+        .border_color(gpui::rgba(0x0000001f))
+}
+
 /// Paints the generic gpui-base scrollbar as an overlay without making it a
 /// layout child of the Retend scroll container.
 struct ScrollbarOverlay {
@@ -661,24 +678,77 @@ where
         && !node
             .style
             .as_deref()
-            .is_some_and(|style| style.display == crate::style::DisplayValue::None);
+            .is_some_and(|style| matches!(style.display, Some(crate::style::DisplayValue::None)));
     let staged_content = (tracks_content && scroll_handle.is_none())
         .then(|| Rc::new(Cell::new(None::<Point<Pixels>>)));
     let painted_content = staged_content.clone();
     let content_scroll_handle = scroll_handle.clone().filter(|_| tracks_content);
     let element = match &node.data {
+        NodeData::Button => {
+            let disabled = node.disabled;
+            let mut element = div();
+            element = button_control_geometry(element);
+            if let Some(style) = resolved_style {
+                element = style.apply(element);
+            }
+            if disabled {
+                element = element.opacity(0.5);
+            }
+            element = element.children(build_children(
+                tree,
+                &node.children,
+                runtime_state,
+                generation,
+                resolve_style,
+                interest,
+            ));
+            let interest = if disabled {
+                EventInterest {
+                    subscriptions: 0,
+                    ..interest
+                }
+            } else {
+                // GPUI only maps Enter/Space to a click when a click listener exists.
+                EventInterest {
+                    subscriptions: interest.subscriptions | event_bit(NativeEventId::Click),
+                    ..interest
+                }
+            };
+            let pseudo = if disabled {
+                PseudoInterest {
+                    hover: false,
+                    active: false,
+                }
+            } else {
+                PseudoInterest {
+                    hover: hover_interest,
+                    active: active_interest,
+                }
+            };
+            let element = with_native_events(
+                element.id(ElementId::Integer(u64::from(id))),
+                interest,
+                node.window_id,
+                id,
+                runtime_state,
+                pseudo,
+            );
+            #[cfg(test)]
+            let element = element.debug_selector(move || format!("retend-node-{id}"));
+            element.into_any_element()
+        }
         NodeData::Root
         | NodeData::Container
         | NodeData::Anchored(_)
         | NodeData::TextControl { .. } => {
             let element = if matches!(node.data, NodeData::Root) {
-                root_container()
+                root_container().block()
             } else {
-                div()
+                div().block()
             };
             let mut element = match resolved_style {
                 Some(style) => style.apply(element),
-                None => element.block(),
+                None => element,
             };
             element = match &node.data {
                 NodeData::TextControl { kind, .. } => match kind {
@@ -754,7 +824,7 @@ where
             });
             let image = img(source);
             let mut image = match resolved_style {
-                Some(style) => style.apply(image),
+                Some(style) => style.apply(image.block()),
                 None => image.block(),
             };
             if let Some(object_fit) = object_fit {
@@ -789,7 +859,7 @@ where
     let element = PaintObserver::new(element, bounds, phase).into_any_element();
     let mode = match (&node.data, node.style.as_deref()) {
         (NodeData::Root | NodeData::Container | NodeData::Anchored(_), Some(style))
-            if style.display != crate::style::DisplayValue::None =>
+            if !matches!(style.display, Some(crate::style::DisplayValue::None)) =>
         {
             match style.overflow {
                 OverflowValue::Auto => Some(gpui_base::ScrollbarMode::Scrolling),
@@ -3580,5 +3650,60 @@ mod tests {
                 .x,
             image_width
         );
+    }
+
+    #[test]
+    fn native_button_controls_use_default_geometry_with_author_overrides() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Button,
+                },
+                Command::SetStyle {
+                    id: 2,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(120.0)),
+                        (
+                            PropertyId::BackgroundColor,
+                            PropertyValue::String("#112233".into()),
+                        ),
+                    ],
+                },
+            ],
+        )
+        .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let generation = runtime_state.begin_frame(&tree, window);
+        let mut rendered = test_inner(&tree, 2, &runtime_state, generation);
+        let actual = observed_inner(&mut rendered)
+            .downcast_mut::<gpui::Stateful<gpui::Div>>()
+            .expect("native buttons must render as stateful control divs");
+        let mut expected = button_control_geometry(div())
+            .w(px(120.0))
+            .bg(gpui::rgba(0x112233ff));
+
+        assert_eq!(actual.style(), expected.style());
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::Disabled,
+                value: PropertyValue::Boolean(true),
+            }],
+        )
+        .unwrap();
+        let generation = runtime_state.begin_frame(&tree, window);
+        let mut rendered = test_inner(&tree, 2, &runtime_state, generation);
+        let disabled = observed_inner(&mut rendered)
+            .downcast_mut::<gpui::Stateful<gpui::Div>>()
+            .expect("disabled buttons must keep their control element");
+        assert_eq!(disabled.style().opacity, Some(0.5));
+        assert_eq!(disabled.style().size.width, expected.style().size.width);
     }
 }

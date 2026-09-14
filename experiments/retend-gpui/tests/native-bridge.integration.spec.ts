@@ -12,6 +12,7 @@ const activeHosts = new Set<GpuiHost>();
 interface DebugNode {
   id: number;
   children: number[];
+  kind?: string;
   text: string | null;
   src: string | null;
 }
@@ -234,6 +235,17 @@ describe('Retend-owned native bridge', () => {
     host.removeChild(host.rootId, node);
     host.flush();
     expect(host.isNodePresented(node)).toBe(false);
+  });
+
+  it('creates native buttons with retained disabled state', () => {
+    const host = createHost();
+    const button = host.createNode(ElementKind.Button);
+    host.setProperty(button, PropertyId.Disabled, true);
+    host.insertChild(host.rootId, button);
+    host.flush();
+
+    const nodes = (host.debugTree() as DebugTree).nodes;
+    expect(nodes.find((node) => node.id === button)?.kind).toBe('Button');
   });
 
   it('creates images and replaces their retained source', () => {

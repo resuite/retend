@@ -50,6 +50,7 @@ import {
   flattenGroups,
   GpuiAnchor,
   GpuiAnchoredElement,
+  GpuiButtonElement,
   GpuiDivElement,
   GpuiElement,
   GpuiGroup,
@@ -120,6 +121,7 @@ const ELEMENTS = {
   input: [ElementKind.Input, GpuiInputElement],
   textarea: [ElementKind.Textarea, GpuiTextareaElement],
   anchored: [ElementKind.Anchored, GpuiAnchoredElement],
+  button: [ElementKind.Button, GpuiButtonElement],
 } as const satisfies Record<
   GpuiElementType,
   readonly [ElementKindValue, ElementFactory]
@@ -451,13 +453,14 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   createContainer(tagName: 'img'): GpuiImageElement;
   createContainer(tagName: 'input'): GpuiInputElement;
   createContainer(tagName: 'textarea'): GpuiTextareaElement;
+  createContainer(tagName: 'button'): GpuiButtonElement;
   createContainer(tagName: string): GpuiElement;
   createContainer(tagName: string): GpuiElement {
     const definition = ELEMENTS[tagName as GpuiElementType];
     if (!definition) {
       throw new Error(
         `Unsupported Retend GPUI intrinsic element: <${tagName}>. ` +
-          'Supported tags are <div>, <anchored>, <img>, <input>, and <textarea>; text is ordinary JSX content.'
+          'Supported tags are <div>, <anchored>, <img>, <input>, <textarea>, and <button>; text is ordinary JSX content.'
       );
     }
 
@@ -1012,6 +1015,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       property = PropertyId.MinRows;
     else if (node.tagName === 'textarea' && key === 'maxRows')
       property = PropertyId.MaxRows;
+    else if (node.tagName === 'button' && key === 'disabled')
+      property = PropertyId.Disabled;
     if (property !== undefined) {
       this.host.setProperty(node.id, property, protocolPropertyValue(value));
     }
@@ -1239,6 +1244,7 @@ export async function renderToGpui(
 export {
   GpuiAnchor,
   GpuiAnchoredElement,
+  GpuiButtonElement,
   GpuiDivElement,
   GpuiElement,
   GpuiGroup,

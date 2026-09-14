@@ -15,6 +15,7 @@ import type { GpuiElement } from '../source/gpui-renderer';
 import type { GpuiColor, GpuiStyle } from '../source/types';
 
 import {
+  GpuiButtonElement,
   GpuiDivElement,
   GpuiImageElement,
   GpuiInputElement,
@@ -130,8 +131,44 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     );
     expect(() => renderer.createContainer('input')).not.toThrow();
     expect(() => renderer.createContainer('textarea')).not.toThrow();
+    expect(() => renderer.createContainer('button')).not.toThrow();
     expect(() => renderer.createContainer('code')).toThrow(
       'Unsupported Retend GPUI intrinsic element: <code>'
+    );
+  });
+
+  it('creates direct native button elements', () => {
+    const renderer = createRenderer();
+    const button = renderer.createContainer('button');
+
+    expect(button).toBeInstanceOf(GpuiButtonElement);
+    expect(button.tagName).toBe('button');
+
+    const tree = debugTree(renderer);
+    expect(tree.nodes.find((node) => node.id === button.id)?.kind).toBe(
+      'Button'
+    );
+  });
+
+  it('maps button props to native properties', () => {
+    const renderer = createRenderer();
+    const setProperty = vi.spyOn(renderer.host, 'setProperty');
+    const buttonRef = Cell.source<GpuiButtonElement | null>(null);
+
+    renderer.render(() => (
+      <div>
+        <button ref={buttonRef} disabled>
+          Save
+        </button>
+      </div>
+    ));
+
+    const button = buttonRef.get();
+    if (!button) throw new Error('Expected the button ref to resolve.');
+    expect(setProperty).toHaveBeenCalledWith(
+      button.id,
+      PropertyId.Disabled,
+      true
     );
   });
 

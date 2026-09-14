@@ -1728,6 +1728,35 @@ const noGetInJsx = {
             }
           }
 
+          // `.get()` inside a deferred closure (event handler, nested
+          // callback) runs after render, so it is not a static snapshot.
+          // Only render callbacks passed directly to For/If/Switch still
+          // execute during render and must keep reporting.
+          if (
+            parent.type === 'ArrowFunctionExpression' ||
+            parent.type === 'FunctionExpression' ||
+            parent.type === 'FunctionDeclaration'
+          ) {
+            const fnParent = parent.parent;
+            const isRenderCallback =
+              fnParent?.type === 'CallExpression' &&
+              fnParent.arguments?.includes(parent) &&
+              ((fnParent.callee.type === 'Identifier' &&
+                (fnParent.callee.name === 'For' ||
+                  fnParent.callee.name === 'If' ||
+                  fnParent.callee.name === 'Switch')) ||
+                (fnParent.callee.type === 'MemberExpression' &&
+                  !fnParent.callee.computed &&
+                  fnParent.callee.property.type === 'Identifier' &&
+                  (fnParent.callee.property.name === 'For' ||
+                    fnParent.callee.property.name === 'If' ||
+                    fnParent.callee.property.name === 'Switch')));
+
+            if (!isRenderCallback) {
+              return;
+            }
+          }
+
           if (parent.type === 'JSXExpressionContainer') {
             context.report({
               node: node.callee.property,

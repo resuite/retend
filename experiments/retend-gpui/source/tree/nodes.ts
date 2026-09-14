@@ -490,6 +490,13 @@ export class GpuiTextareaElement extends GpuiTextControlElement {
   }
 }
 
+/** Native `<button>` element. Renders its children as the button label. */
+export class GpuiButtonElement extends GpuiElement {
+  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    super(id, 'button', true, host, renderer);
+  }
+}
+
 /**
  * Native-backed text leaf with content and shared node lifecycle behavior.
  * Text is not an element and has no styling, layout, focus, or scrolling APIs.

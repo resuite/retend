@@ -1,4 +1,5 @@
 function jsxTypingProbe() {
+  const handleClick = () => {};
   const validDiv = (
     <div
       style={{
@@ -11,13 +12,18 @@ function jsxTypingProbe() {
     />
   );
   const validTextarea = <textarea value="hello" minRows={2} maxRows={4} />;
+  const validButton = (
+    <button disabled onClick={handleClick}>
+      Save
+    </button>
+  );
 
   // @ts-expect-error textarea values are strings
   const invalidTextarea = <textarea value={123} />;
   // @ts-expect-error tabIndex is numeric
   const invalidDiv = <div tabIndex="0" />;
 
-  void [validDiv, validTextarea, invalidTextarea, invalidDiv];
+  void [validDiv, validTextarea, validButton, invalidTextarea, invalidDiv];
 }
 
 void jsxTypingProbe;

@@ -356,6 +356,7 @@ pub enum NodeData {
         min_rows: Option<u32>,
         max_rows: Option<u32>,
     },
+    Button,
 }
 
 pub struct NativeNode {
@@ -373,6 +374,7 @@ pub struct NativeNode {
     pub(crate) motion: MotionBridgeState,
     pub subscriptions: u32,
     pub tab_index: Option<isize>,
+    pub disabled: bool,
 }
 
 impl NativeNode {
@@ -392,12 +394,20 @@ impl NativeNode {
             motion: MotionBridgeState::default(),
             subscriptions: 0,
             tab_index: None,
+            disabled: false,
         }
     }
 
     pub(crate) fn effective_tab_index(&self) -> Option<isize> {
+        if self.disabled {
+            return None;
+        }
         self.tab_index
-            .or_else(|| matches!(self.data, NodeData::TextControl { .. }).then_some(0))
+            .or_else(|| self.default_tab_index().then_some(0))
+    }
+
+    fn default_tab_index(&self) -> bool {
+        matches!(self.data, NodeData::TextControl { .. } | NodeData::Button)
     }
 
     pub(crate) fn tracks_hover(&self) -> bool {
@@ -937,6 +947,7 @@ impl NativeTree {
                     NodeData::Anchored(_) => ("Anchored", None, None),
                     NodeData::Text(text) => ("Text", Some(text.as_str()), None),
                     NodeData::Image { src, .. } => ("Image", None, src.as_deref()),
+                    NodeData::Button => ("Button", None, None),
                     NodeData::TextControl { kind, .. } => (
                         match kind {
                             TextControlKind::Input => "Input",
@@ -1013,6 +1024,7 @@ impl NativeTree {
                         src: None,
                         object_fit: None,
                     },
+                    ElementKind::Button => NodeData::Button,
                     ElementKind::Input => NodeData::TextControl {
                         kind: TextControlKind::Input,
                         value: String::new(),
@@ -1067,7 +1079,10 @@ impl NativeTree {
                 value,
             } => {
                 let NativeNode {
-                    data, tab_index, ..
+                    data,
+                    tab_index,
+                    disabled,
+                    ..
                 } = self.node_mut(window_id, index, id)?;
                 match (property, data) {
                     (PropertyId::TabIndex, _) => {
@@ -1086,6 +1101,20 @@ impl NativeTree {
                                     index,
                                     "INVALID_PROPERTY_VALUE",
                                     "tabIndex must be an integer or null.",
+                                )
+                            }
+                        };
+                        Ok(())
+                    }
+                    (PropertyId::Disabled, _) => {
+                        *disabled = match value {
+                            PropertyValue::Null => false,
+                            PropertyValue::Boolean(value) => value,
+                            _ => {
+                                return invalid(
+                                    index,
+                                    "INVALID_PROPERTY_VALUE",
+                                    "Disabled must be a boolean or null.",
                                 )
                             }
                         };
@@ -1390,6 +1419,7 @@ impl NativeTree {
                 NodeData::Root => (true, "Root"),
                 NodeData::Container => (true, "Container"),
                 NodeData::Anchored(_) => (true, "Anchored"),
+                NodeData::Button => (true, "Button"),
                 NodeData::Text(_) => (false, "Text"),
                 NodeData::Image { .. } => (false, "Image"),
                 NodeData::TextControl { kind, .. } => (
@@ -3053,5 +3083,131 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn native_buttons_retain_kind_defaults_and_disabled_state() {
+        let (mut tree, window, root) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Button,
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 2,
+                    before_id: 0,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Disabled,
+                    value: PropertyValue::Boolean(true),
+                },
+            ],
+        )
+        .unwrap();
+
+        assert!(matches!(tree.nodes[&2].data, NodeData::Button));
+        assert!(tree.nodes[&2].disabled);
+        assert!(tree.windows[&window].fatal.is_none());
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::Disabled,
+                value: PropertyValue::Null,
+            }],
+        )
+        .unwrap();
+        assert!(!tree.nodes[&2].disabled);
+    }
+
+    #[test]
+    fn invalid_disabled_value_is_rejected_without_replacing_the_previous_state() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Button,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Disabled,
+                    value: PropertyValue::Boolean(true),
+                },
+            ],
+        )
+        .unwrap();
+
+        let error = tree
+            .apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Disabled,
+                    value: PropertyValue::Number(1.0),
+                }],
+            )
+            .unwrap_err();
+
+        assert_eq!(error.code, "INVALID_PROPERTY_VALUE");
+        assert!(tree.nodes[&2].disabled);
+        assert!(tree.windows[&window].fatal.is_some());
+    }
+
+    #[test]
+    fn control_tab_targets_default_on_and_follow_disabled_and_explicit_tab_index() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Button,
+                },
+                Command::CreateNode {
+                    id: 3,
+                    kind: ElementKind::Input,
+                },
+                Command::CreateNode {
+                    id: 4,
+                    kind: ElementKind::Container,
+                },
+            ],
+        )
+        .unwrap();
+
+        let tab = |tree: &NativeTree, id: NodeId| {
+            tree.node_focus_target(window, id)
+                .unwrap()
+                .map(|(tab_index, _)| tab_index)
+        };
+        assert_eq!(tab(&tree, 2), Some(0));
+        assert_eq!(tab(&tree, 3), Some(0));
+        assert_eq!(tab(&tree, 4), None);
+
+        tree.apply_commands(
+            window,
+            vec![
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Disabled,
+                    value: PropertyValue::Boolean(true),
+                },
+                Command::SetProperty {
+                    id: 3,
+                    property: PropertyId::TabIndex,
+                    value: PropertyValue::Number(-1.0),
+                },
+            ],
+        )
+        .unwrap();
+        assert_eq!(tab(&tree, 2), None);
+        assert_eq!(tab(&tree, 3), Some(-1));
     }
 }

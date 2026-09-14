@@ -24,7 +24,8 @@
     "Image": 4,
     "Input": 5,
     "Textarea": 6,
-    "Anchored": 7
+    "Anchored": 7,
+    "Button": 8
   },
   "valueKinds": {
     "Null": 0,
@@ -99,7 +100,8 @@
     "AnchoredSnapMargin": 68,
     "AnchoredDeferred": 69,
     "AnchoredPriority": 70,
-    "AnchoredOcclude": 71
+    "AnchoredOcclude": 71,
+    "Disabled": 72
   },
   "nativeEvents": {
     "Click": 1,

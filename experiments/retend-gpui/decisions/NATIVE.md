@@ -112,13 +112,17 @@ Native events cross from the GPUI/native event loop to Node's JavaScript thread 
 
 ## Intrinsic element set
 
-The currently supported JSX intrinsic set is `div`, `anchored`, `img`, `input`, and `textarea`.
+The currently supported JSX intrinsic set is `div`, `anchored`, `img`, `input`, `textarea`, and `button`.
 
 Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`; a coalesced run uses its first node's ID. `input` and `textarea` use the persistent native editor/focus/selection state implemented in Phase 3. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be activated through the versioned numeric protocol vocabulary when their owning phase is implemented.
 
 ### Anchored floating layers
 
 `anchored` is a retained native node whose children remain in the ordinary Retend logical tree while GPUI controls their floating placement. The renderer lowers it to `gpui::anchored()` and, by default, `gpui::deferred()`: no JavaScript measurement or position-feedback loop is involved. `side` plus `align` selects the parent-relative anchor slot, `gap` and `offset` adjust that placement, and an explicit `position={{ x, y }}` switches to window-coordinate placement. Point-valued properties (`position` and `offset`) cross the bridge as one atomic protocol value rather than paired scalar mutations. `fit="snap"` uses GPUI's window-edge snapping with `snapMargin`; `fit="switch"` leaves GPUI's anchor-switching collision behavior active. Deferred priority and hit-test occlusion are exposed through `priority`, `deferred`, and `occlude`. GPUI requires the direct anchored child to be margin-free, so Retend rejects `margin*` styles on `<anchored>`; callers use `gap`/`offset` or an outer wrapper for spacing. The anchored node's author style and events apply to the floating content itself, and measured bounds describe the final floating surface rather than the zero-sized positioning slot.
+
+### Native controls
+
+`button` is a retained native control kind with default control styling. Author declarations override the defaults per declared field; the defaults are a flex row with centered content, `lineHeight: 1`, comfortable inline padding, a 6px corner radius, a neutral surface, and a hairline border. `button` activates on pointer click or Enter/Space while focused, and participates in Tab traversal by default like native text controls; explicit `tabIndex` overrides that default, and negative values remain programmatically focusable. `disabled` is supported: a disabled button ignores pointer and keyboard activation, is skipped by Tab traversal, suppresses hover/active pseudo-state resolution, and renders dimmed.
 
 ### Image handling
 

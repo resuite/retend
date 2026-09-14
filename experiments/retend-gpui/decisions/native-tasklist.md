@@ -422,8 +422,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Alpha application-surface polish
 
-- [ ] Add native `button` support with sensible default control styling.
-- [ ] Add native `select` support with sensible default control styling.
+- [x] Add native `button` support with sensible default control styling.
 - [ ] Add default native styling for `input` and other built-in controls so basic forms are usable without recreating platform affordances manually.
 - [ ] Add logical spacing shorthands: `paddingInline`, `paddingBlock`, `marginInline`, and `marginBlock`.
 - [ ] Add supported CSS color keywords to the native color parser and TypeScript authoring surface.

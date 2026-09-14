@@ -134,10 +134,24 @@ The currently implemented Retend GPUI intrinsic surface is deliberately small:
 - `img`
 - `input`
 - `textarea`
+- `button`
 
 Text is ordinary JSX content rather than a `<text>` intrinsic. Adjacent text nodes, including JSX interpolations such as `Count: {count}`, render as one inline run that wraps with its container. `input` uses the native single-line editor, while `textarea` uses the native multi-line editor with wrapping and optional `minRows`/`maxRows` auto-sizing.
 
-`anchored` is the native floating-layer primitive used by menus, selects, tooltips, and similar controls. It delegates placement to GPUI rather than measuring in JavaScript. `side` (`top`/`right`/`bottom`/`left`), `align` (`start`/`center`/`end`), `gap`, and `offset` place content relative to its parent slot; `position={{ x, y }}` instead uses window coordinates. `fit="snap"` (the default) keeps the layer inside the window with `snapMargin`, while `fit="switch"` uses GPUI's anchor-flipping behavior. Layers are deferred and occluding by default; `deferred`, `priority`, and `occlude` expose those native controls directly. Margins are intentionally unsupported on `<anchored>` because GPUI requires an anchored child to be margin-free; use `gap`/`offset`, or put the anchored element inside a wrapper when ordinary layout margin is needed.
+`anchored` is the native floating-layer primitive used by menus, tooltips, and similar floating controls. It delegates placement to GPUI rather than measuring in JavaScript. `side` (`top`/`right`/`bottom`/`left`), `align` (`start`/`center`/`end`), `gap`, and `offset` place content relative to its parent slot; `position={{ x, y }}` instead uses window coordinates. `fit="snap"` (the default) keeps the layer inside the window with `snapMargin`, while `fit="switch"` uses GPUI's anchor-flipping behavior. Layers are deferred and occluding by default; `deferred`, `priority`, and `occlude` expose those native controls directly. Margins are intentionally unsupported on `<anchored>` because GPUI requires an anchored child to be margin-free; use `gap`/`offset`, or put the anchored element inside a wrapper when ordinary layout margin is needed.
+
+`button` is a native control with default styling: it centers its children in a padded, rounded, neutral surface with a hairline border and activates on click or Enter/Space when focused. It participates in Tab traversal by default, like native text controls. `disabled` skips it in Tab traversal, ignores pointer and keyboard activation, and renders it dimmed.
+
+```tsx
+const count = Cell.source(0);
+
+return (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div>Clicked {count} times</div>
+    <button onClick={() => count.set(count.get() + 1)}>Increment</button>
+  </div>
+);
+```
 
 ## Events
 
@@ -200,7 +214,7 @@ Call `renderer.flush()` after making changes when you manage rendering manually.
 
 ### Unsupported intrinsic element
 
-If the renderer throws an error for an element, check that the tag is in the supported list above. HTML elements such as `button`, `section`, and `span` are not automatically available.
+If the renderer throws an error for an element, check that the tag is in the supported list above. HTML elements such as `section`, `span`, and `a` are not automatically available.
 
 ### Development Dock identity on macOS
 

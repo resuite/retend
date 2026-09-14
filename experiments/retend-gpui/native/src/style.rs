@@ -58,7 +58,9 @@ macro_rules! native_style {
     ) => {
         #[derive(Clone, Debug, Default)]
         pub struct NativeStyle {
-            pub display: DisplayValue,
+            /// `None` until the author declares `display`; the renderer supplies
+            /// kind-specific defaults before applying author declarations.
+            pub display: Option<DisplayValue>,
             pub overflow: OverflowValue,
             pub transition: TransitionSpec,
             $(pub $direct: Option<$direct_type>,)*
@@ -88,7 +90,7 @@ macro_rules! native_style {
                     return true;
                 }
                 match property {
-                    PropertyId::Display => self.display = parse_display(value).unwrap_or_default(),
+                    PropertyId::Display => self.display = parse_display(value),
                     PropertyId::Overflow => self.overflow = parse_overflow(value).unwrap_or_default(),
                     $(PropertyId::$direct_id => self.$direct = $direct_parse(value),)*
                     $(PropertyId::$id => self.$field = $parse(value),)*
@@ -166,11 +168,13 @@ native_style! {
 
 impl NativeStyle {
     pub fn apply<T: Styled>(&self, mut element: T) -> T {
-        element = match self.display {
-            DisplayValue::Block => element.block(),
-            DisplayValue::Flex => element.flex(),
-            DisplayValue::None => element.hidden(),
-        };
+        if let Some(display) = self.display {
+            element = match display {
+                DisplayValue::Block => element.block(),
+                DisplayValue::Flex => element.flex(),
+                DisplayValue::None => element.hidden(),
+            };
+        }
         element = self.apply_fields(element);
         if let Some(value) = self.gap {
             element.style().gap.width = Some(gpui::px(value).into());
@@ -480,14 +484,14 @@ mod tests {
     }
 
     #[test]
-    fn block_is_the_explicit_native_default_and_flex_is_opt_in() {
+    fn display_is_declaration_tracked_and_flex_is_opt_in() {
         let mut style = NativeStyle::default();
-        assert_eq!(style.display, DisplayValue::Block);
+        assert_eq!(style.display, None);
 
         style.set_property(PropertyId::Display, &PropertyValue::String("flex".into()));
-        assert_eq!(style.display, DisplayValue::Flex);
+        assert_eq!(style.display, Some(DisplayValue::Flex));
 
         style.set_property(PropertyId::Display, &PropertyValue::Null);
-        assert_eq!(style.display, DisplayValue::Block);
+        assert_eq!(style.display, None);
     }
 }

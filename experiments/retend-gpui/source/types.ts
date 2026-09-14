@@ -139,6 +139,7 @@ export const GPUI_ELEMENT_TYPES = [
   'input',
   'textarea',
   'anchored',
+  'button',
 ] as const;
 
 /** Union of currently supported intrinsic element tag names. */
@@ -166,6 +167,11 @@ export interface GpuiTextareaCustomProps {
   minRows?: number;
   /** Maximum visible row count while auto-sizing. */
   maxRows?: number;
+}
+
+export interface GpuiButtonCustomProps {
+  /** When true, the button ignores pointer and keyboard activation and is skipped by Tab. */
+  disabled?: boolean | null;
 }
 
 export interface GpuiPoint {

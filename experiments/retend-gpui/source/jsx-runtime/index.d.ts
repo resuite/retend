@@ -9,6 +9,7 @@ import type {
 } from '../events.js';
 import type {
   GpuiAnchoredElement,
+  GpuiButtonElement,
   GpuiDivElement,
   GpuiImageElement,
   GpuiInputElement,
@@ -16,6 +17,7 @@ import type {
 } from '../gpui-renderer.js';
 import type {
   GpuiAnchoredCustomProps,
+  GpuiButtonCustomProps,
   GpuiImgCustomProps,
   GpuiInputCustomProps,
   GpuiTextareaCustomProps,
@@ -51,6 +53,7 @@ interface GpuiInputNativeEvents {
 type GpuiInputNativeEventModifiers =
   GpuiEventModifierHandlers<GpuiInputNativeEvents>;
 type ReactiveGpuiAnchoredCustomProps = ReactiveProps<GpuiAnchoredCustomProps>;
+type ReactiveGpuiButtonCustomProps = ReactiveProps<GpuiButtonCustomProps>;
 type ReactiveGpuiImgCustomProps = ReactiveProps<GpuiImgCustomProps>;
 type ReactiveGpuiInputCustomProps = ReactiveProps<GpuiInputCustomProps>;
 type ReactiveGpuiTextareaCustomProps = ReactiveProps<GpuiTextareaCustomProps>;
@@ -126,6 +129,12 @@ declare module 'retend/jsx-runtime' {
         GpuiTextControlProps<GpuiTextareaElement>,
         ReactiveGpuiTextareaCustomProps {}
 
+    interface GpuiButtonProps
+      extends
+        GpuiElementProps,
+        GpuiRefAttributes<GpuiButtonElement>,
+        ReactiveGpuiButtonCustomProps {}
+
     /**
      * Intrinsic element map for GPUI JSX. Augments `retend/jsx-runtime`
      * with the Retend GPUI v1 intrinsic set.
@@ -137,6 +146,7 @@ declare module 'retend/jsx-runtime' {
       img: GpuiImageProps;
       input: GpuiInputProps;
       textarea: GpuiTextareaProps;
+      button: GpuiButtonProps;
     }
   }
 }

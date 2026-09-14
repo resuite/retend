@@ -15,7 +15,8 @@ export interface DebugNode {
     | 'Text'
     | 'Image'
     | 'Input'
-    | 'Textarea';
+    | 'Textarea'
+    | 'Button';
   parent: number | null;
   children: number[];
   text: string | null;
