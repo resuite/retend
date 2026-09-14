@@ -108,21 +108,22 @@ function protocolStyleValue(
   return protocolPropertyValue(value);
 }
 
-const ELEMENT_KIND_BY_TAG = {
-  div: ElementKind.Container,
-  img: ElementKind.Image,
-  input: ElementKind.Input,
-  textarea: ElementKind.Textarea,
-  anchored: ElementKind.Anchored,
-} satisfies Record<GpuiElementType, ElementKindValue>;
+type ElementFactory = new (
+  id: number,
+  host?: GpuiHost,
+  renderer?: RetendGpuiRenderer
+) => GpuiElement;
 
-const ELEMENT_FACTORIES = {
-  div: GpuiDivElement,
-  img: GpuiImageElement,
-  input: GpuiInputElement,
-  textarea: GpuiTextareaElement,
-  anchored: GpuiAnchoredElement,
-} as const;
+const ELEMENTS = {
+  div: [ElementKind.Container, GpuiDivElement],
+  img: [ElementKind.Image, GpuiImageElement],
+  input: [ElementKind.Input, GpuiInputElement],
+  textarea: [ElementKind.Textarea, GpuiTextareaElement],
+  anchored: [ElementKind.Anchored, GpuiAnchoredElement],
+} as const satisfies Record<
+  GpuiElementType,
+  readonly [ElementKindValue, ElementFactory]
+>;
 
 function protocolPropertyValue(value: unknown): ProtocolPropertyValue {
   if (value == null) return null;
@@ -176,10 +177,6 @@ export interface RetendGpuiRendererOptions {
   hmr?: boolean;
   /** Creates the native retained tree without opening an OS window. */
   headless?: boolean;
-}
-
-interface DevelopmentError {
-  root: GpuiElement;
 }
 
 interface DevelopmentErrorView {
@@ -308,7 +305,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   #nodesById = new Map<number, GpuiNativeNode>();
   #pendingDestroy = new Set<GpuiNode>();
   #destroyTimer: ReturnType<typeof setTimeout> | null = null;
-  #devError: DevelopmentError | null = null;
+  #devError: GpuiElement | null = null;
   #disposed = false;
   readonly #hmr: boolean;
 
@@ -347,7 +344,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       // With no following sibling, insert before the development overlay so it
       // stays the last native root and keeps painting above application content.
       if (!before && parent === this.#root && this.#devError) {
-        before = this.#devError.root;
+        before = this.#devError;
       }
       this.host.insertChild(parentId, node.id, before?.id ?? 0);
     } else if (previousId != null) {
@@ -456,16 +453,16 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   createContainer(tagName: 'textarea'): GpuiTextareaElement;
   createContainer(tagName: string): GpuiElement;
   createContainer(tagName: string): GpuiElement {
-    const Factory = ELEMENT_FACTORIES[tagName as GpuiElementType];
-    if (!Factory) {
+    const definition = ELEMENTS[tagName as GpuiElementType];
+    if (!definition) {
       throw new Error(
         `Unsupported Retend GPUI intrinsic element: <${tagName}>. ` +
           'Supported tags are <div>, <anchored>, <img>, <input>, and <textarea>; text is ordinary JSX content.'
       );
     }
 
-    const tag = tagName as GpuiElementType;
-    const id = this.host.createNode(ELEMENT_KIND_BY_TAG[tag]);
+    const [kind, Factory] = definition;
+    const id = this.host.createNode(kind);
     const node = new Factory(id, this.host, this);
     this.#nodesById.set(node.id, node);
     return node;
@@ -550,7 +547,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     }
 
     // Release any reactive binding this property previously held.
-    node.setCleanup(`property:${key}`, () => {});
+    node.clearCleanup(`property:${key}`);
     this.#applyProperty(node, key, value);
     return node;
   }
@@ -781,7 +778,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     this.append(card, accent);
     this.append(card, content);
     this.append(root, card);
-    this.#devError = { root };
+    this.#devError = root;
     try {
       if (!this.#mountedNativeRoots.has(root)) {
         this.host.insertChild(this.host.rootId, root.id);
@@ -802,7 +799,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * No-ops if no overlay is showing.
    */
   clearDevelopmentError(): void {
-    const root = this.#devError?.root;
+    const root = this.#devError;
     if (!root) return;
 
     this.#devError = null;
@@ -1051,7 +1048,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       typeof value !== 'function' &&
       !(value && typeof value === 'object' && 'handleEvent' in value)
     ) {
-      node.setCleanup(cleanupKey, () => {});
+      node.clearCleanup(cleanupKey);
       return;
     }
 
@@ -1128,39 +1125,34 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     const resolved: Record<string, unknown> = {};
     node.style = resolved as GpuiStyle;
     let initializing = true;
-    const bindDeclarations = (
-      declarations: object,
+    const bindDeclaration = (
+      property: string,
+      propertyValue: unknown,
       target: Record<string, unknown>,
       state?: 'hover' | 'active'
     ): void => {
-      for (const [property, propertyValue] of Object.entries(declarations)) {
-        if (!Cell.isCell(propertyValue)) {
-          target[property] = propertyValue;
-          continue;
-        }
-        this.#watchCell(propertyValue, controller.signal, (nextValue) => {
-          target[property] = nextValue;
-          if (!initializing && !node.destroyed) this.#publishStyle(node, state);
-        });
+      if (!Cell.isCell(propertyValue)) {
+        target[property] = propertyValue;
+        return;
       }
+      this.#watchCell(propertyValue, controller.signal, (nextValue) => {
+        target[property] = nextValue;
+        if (!initializing && !node.destroyed) this.#publishStyle(node, state);
+      });
     };
 
     if (value && typeof value === 'object') {
       for (const [property, propertyValue] of Object.entries(value)) {
         if (property !== 'hover' && property !== 'active') {
-          if (!Cell.isCell(propertyValue)) resolved[property] = propertyValue;
-          else {
-            this.#watchCell(propertyValue, controller.signal, (nextValue) => {
-              resolved[property] = nextValue;
-              if (!initializing && !node.destroyed) this.#publishStyle(node);
-            });
-          }
+          bindDeclaration(property, propertyValue, resolved);
           continue;
         }
         if (!propertyValue || typeof propertyValue !== 'object') continue;
         const pseudo: Record<string, unknown> = {};
         resolved[property] = pseudo;
-        bindDeclarations(propertyValue, pseudo, property);
+        for (const [name, pseudoValue] of Object.entries(propertyValue)) {
+          bindDeclaration(name, pseudoValue, pseudo, property);
+        }
       }
     }
 

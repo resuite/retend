@@ -467,7 +467,6 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 - [ ] Produce prebuilt addon artifacts for supported OS/architecture combinations.
 - [ ] Package platform binaries as optional platform dependencies.
-- [ ] Implement runtime selection/loading of the correct binary package.
 - [ ] Validate useful failure messages for unsupported platforms/architectures or missing binary packages.
 - [ ] Validate macOS application-bundle integration.
 - [ ] Validate Windows/Linux runtime startup and shutdown behavior.
@@ -503,7 +502,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Phase 4 completion gate
 
-- [ ] The Retend-owned native bridge is the only native rendering path in `retend-gpui`.
+- [x] The Retend-owned native bridge is the only native rendering path in `retend-gpui`.
 - [ ] The v1 contract in `NATIVE.md`, `MOTION.md`, and `VITE.md` is implemented and covered by tests.
 - [ ] Prebuilt binaries load on supported platforms without requiring a user Rust toolchain.
 - [ ] Development reload/error behavior and production process/window lifetimes match the documented contracts.

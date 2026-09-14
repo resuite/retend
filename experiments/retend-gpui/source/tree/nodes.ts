@@ -191,9 +191,16 @@ export abstract class GpuiNode implements EventTarget {
       return;
     }
 
-    const previous = this.#cleanup.get(key);
-    if (previous) this.#runCleanup(previous);
+    this.clearCleanup(key);
     this.#cleanup.set(key, cleanup);
+  }
+
+  /** Runs and removes the cleanup registered under `key`, if any. */
+  clearCleanup(key: unknown): void {
+    const cleanup = this.#cleanup.get(key);
+    if (!cleanup) return;
+    this.#cleanup.delete(key);
+    this.#runCleanup(cleanup);
   }
 
   /**
@@ -541,15 +548,4 @@ export function* flattenGroups(
     if (node instanceof GpuiGroup) yield* flattenGroups(node.children);
     else yield node;
   }
-}
-
-export function collectNativeChildren(
-  parent: GpuiParentNode
-): GpuiNativeNode[] {
-  const children: GpuiNativeNode[] = [];
-  for (const node of flattenGroups(parent.children)) {
-    if (node instanceof GpuiElement || node instanceof GpuiText)
-      children.push(node);
-  }
-  return children;
 }

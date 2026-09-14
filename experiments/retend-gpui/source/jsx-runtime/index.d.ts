@@ -19,7 +19,6 @@ import type {
   GpuiImgCustomProps,
   GpuiInputCustomProps,
   GpuiTextareaCustomProps,
-  GpuiStyle,
   GpuiStyleDeclarations,
 } from '../types.js';
 import 'retend/jsx-runtime';

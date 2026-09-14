@@ -444,10 +444,17 @@ impl Element for ScrollbarOverlay {
     }
 }
 
-/// Runs Retend's post-paint bookkeeping after the wrapped element paints.
+/// Runs Retend bookkeeping after the wrapped element reaches the required phase.
 struct PaintObserver {
     inner: AnyElement,
     callback: Option<PaintCallback>,
+    phase: ObserverPhase,
+}
+
+#[derive(Clone, Copy)]
+enum ObserverPhase {
+    Prepaint,
+    Paint,
 }
 
 enum PaintCallback {
@@ -496,7 +503,6 @@ impl PaintCallback {
                 } else {
                     painted_content.as_ref().and_then(|content| content.get())
                 };
-                // Prepaint is speculative; publish only after paint, clearing any stale extent.
                 runtime.record_geometry(
                     generation,
                     id,
@@ -509,10 +515,17 @@ impl PaintCallback {
 }
 
 impl PaintObserver {
-    fn new(inner: AnyElement, callback: PaintCallback) -> Self {
+    fn new(inner: AnyElement, callback: PaintCallback, phase: ObserverPhase) -> Self {
         Self {
             inner,
             callback: Some(callback),
+            phase,
+        }
+    }
+
+    fn observe(&mut self, bounds: Bounds<Pixels>, window: &mut Window) {
+        if let Some(callback) = self.callback.take() {
+            callback.painted(bounds, window);
         }
     }
 }
@@ -551,12 +564,15 @@ impl Element for PaintObserver {
         &mut self,
         _id: Option<&GlobalElementId>,
         _inspector_id: Option<&InspectorElementId>,
-        _bounds: Bounds<Pixels>,
+        bounds: Bounds<Pixels>,
         _request_layout: &mut (),
         window: &mut Window,
         cx: &mut App,
     ) {
         self.inner.prepaint(window, cx);
+        if matches!(self.phase, ObserverPhase::Prepaint) {
+            self.observe(bounds, window);
+        }
     }
 
     fn paint(
@@ -570,85 +586,9 @@ impl Element for PaintObserver {
         cx: &mut App,
     ) {
         self.inner.paint(window, cx);
-        if let Some(callback) = self.callback.take() {
-            callback.painted(bounds, window);
+        if matches!(self.phase, ObserverPhase::Paint) {
+            self.observe(bounds, window);
         }
-    }
-}
-
-/// Deferred anchored draws happen after the root has finished its ordinary paint.
-/// Their final positioned bounds are therefore published from their deferred
-/// prepaint pass, which GPUI runs after applying the anchor offset.
-struct DeferredGeometryObserver {
-    inner: AnyElement,
-    callback: Option<PaintCallback>,
-}
-
-impl DeferredGeometryObserver {
-    fn new(inner: AnyElement, callback: PaintCallback) -> Self {
-        Self {
-            inner,
-            callback: Some(callback),
-        }
-    }
-}
-
-impl IntoElement for DeferredGeometryObserver {
-    type Element = Self;
-
-    fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
-impl Element for DeferredGeometryObserver {
-    type RequestLayoutState = ();
-    type PrepaintState = ();
-
-    fn id(&self) -> Option<ElementId> {
-        None
-    }
-
-    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
-        None
-    }
-
-    fn request_layout(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> (LayoutId, ()) {
-        (self.inner.request_layout(window, cx), ())
-    }
-
-    fn prepaint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        bounds: Bounds<Pixels>,
-        _request_layout: &mut (),
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        self.inner.prepaint(window, cx);
-        if let Some(callback) = self.callback.take() {
-            callback.painted(bounds, window);
-        }
-    }
-
-    fn paint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _inspector_id: Option<&InspectorElementId>,
-        _bounds: Bounds<Pixels>,
-        _request_layout: &mut (),
-        _prepaint: &mut (),
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        self.inner.paint(window, cx);
     }
 }
 
@@ -676,6 +616,7 @@ pub fn build_with_runtime(
             runtime: runtime_state.clone(),
             generation,
         },
+        ObserverPhase::Paint,
     )
     .into_any_element()
 }
@@ -842,11 +783,12 @@ where
         content_scroll_handle,
         painted_content,
     };
-    let element = if matches!(&node.data, NodeData::Anchored(config) if config.deferred) {
-        DeferredGeometryObserver::new(element, bounds).into_any_element()
+    let phase = if matches!(&node.data, NodeData::Anchored(config) if config.deferred) {
+        ObserverPhase::Prepaint
     } else {
-        PaintObserver::new(element, bounds).into_any_element()
+        ObserverPhase::Paint
     };
+    let element = PaintObserver::new(element, bounds, phase).into_any_element();
     let mode = match (&node.data, node.style.as_deref()) {
         (NodeData::Root | NodeData::Container | NodeData::Anchored(_), Some(style))
             if style.display != crate::style::DisplayValue::None =>

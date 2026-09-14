@@ -512,10 +512,6 @@ impl RuntimeStateRegistry {
             }
             _ => {}
         }
-        self.enqueue(operation);
-    }
-
-    fn enqueue(&self, operation: LayoutOperation) {
         let mut state = self.0.borrow_mut();
         let generation = state.generation.saturating_add(1);
         state.pending.push_back((generation, operation));

@@ -80,14 +80,9 @@
     "LineHeight": 44,
     "WhiteSpace": 45,
     "Overflow": 46,
-    "Cursor": 47,
-    "PointerEvents": 48,
-    "UserSelect": 49,
     "Src": 50,
     "ObjectFit": 51,
     "Value": 52,
-    "Placeholder": 53,
-    "ReadOnly": 54,
     "MinRows": 55,
     "MaxRows": 56,
     "TabIndex": 57,
@@ -121,9 +116,6 @@
     "Focus": 12,
     "Blur": 13,
     "Scroll": 14,
-    "MouseDownOutside": 15,
-    "CompositionStart": 16,
-    "CompositionUpdate": 17,
-    "CompositionEnd": 18
+    "MouseDownOutside": 15
   }
 }

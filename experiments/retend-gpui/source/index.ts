@@ -1,15 +1,3 @@
-/**
- * Main entry point for `retend-gpui`.
- *
- * Re-exports the public renderer, host, window, and type APIs.
- * Import from `"retend-gpui"` for application code.
- *
- * @example
- * ```tsx
- * import { renderToGpui, useWindow } from "retend-gpui";
- * import type { GpuiStyle } from "retend-gpui";
- * ```
- */
 export {
   GpuiEvent,
   GpuiFocusEvent,

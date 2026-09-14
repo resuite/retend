@@ -1,7 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { collectNativeChildren } from '../source/tree/nodes';
-
 import { GpuiElement, GpuiNode, GpuiText } from '../source/gpui-renderer';
 import { GpuiParentNode } from '../source/tree/nodes';
 
@@ -36,8 +34,5 @@ describe('GpuiText boundary', () => {
     expectTypeOf<
       Extract<keyof GpuiText, (typeof elementOnlyKeys)[number]>
     >().toBeNever();
-    expectTypeOf<GpuiText>().not.toExtend<
-      Parameters<typeof collectNativeChildren>[0]
-    >();
   });
 });

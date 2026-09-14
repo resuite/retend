@@ -3025,7 +3025,7 @@ mod tests {
                     2 => tree.apply_commands(window, vec![Command::SetProperty {
                         id: image,
                         property: PropertyId::Src,
-                        value: if value & 1 == 0 {
+                        value: if value & 4 == 0 {
                             PropertyValue::Null
                         } else {
                             PropertyValue::String(format!("https://example.com/{value}.png"))
@@ -3034,7 +3034,7 @@ mod tests {
                     _ => tree.apply_commands(
                         window,
                         vec![style(
-                            if value & 1 == 0 { image } else { container },
+                            if value & 4 == 0 { image } else { container },
                             PropertyId::Width,
                             PropertyValue::Number(f64::from(value)),
                         )],

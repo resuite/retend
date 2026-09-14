@@ -298,10 +298,7 @@ fn eligible_mask(transition: TransitionSpec, targets: &[TransitionValue; 8]) -> 
         .fold(0, |mask, property| mask | property.bit())
 }
 
-fn transition_policy(config: TransitionConfig, target: TransitionValue) -> Transition {
-    if target == TransitionValue::Unset {
-        return Transition::new(Duration::ZERO);
-    }
+fn transition_policy(config: TransitionConfig) -> Transition {
     // GPUI snaps zero-duration transitions before consulting their delay. Retend's
     // CSS-style API still honors a non-zero delay, so use the smallest positive
     // duration and let GPUI own the delayed playback and frame scheduling.
@@ -363,7 +360,7 @@ pub fn resolve_style(
                 cx,
             );
         }
-        let value = transition(key, target, transition_policy(config, target), window, cx);
+        let value = transition(key, target, transition_policy(config), window, cx);
         if value != target {
             property.apply(resolved.get_or_insert_with(|| target_style.clone()), value);
         }

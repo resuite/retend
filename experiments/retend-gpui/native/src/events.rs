@@ -413,11 +413,6 @@ pub fn in_direct_window_delivery() -> bool {
     DIRECT_WINDOW_DELIVERY.with(Cell::get)
 }
 
-#[cfg(not(target_os = "macos"))]
-pub fn in_direct_window_delivery() -> bool {
-    false
-}
-
 pub fn register(
     window_id: WindowId,
     callback: Function<'_, NativeTransportPayload, ()>,

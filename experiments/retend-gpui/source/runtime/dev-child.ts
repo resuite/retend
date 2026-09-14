@@ -214,7 +214,6 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     options: DevRuntimeInitMessage['options']
   ): RuntimeGpuiWindow => {
     const renderer = new RetendGpuiRenderer({ hmr: true });
-    renderer.host.resetLocation(options.location);
 
     try {
       renderer.init(options);

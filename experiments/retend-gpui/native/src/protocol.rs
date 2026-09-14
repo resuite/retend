@@ -418,7 +418,7 @@ mod tests {
             vec![
                 Command::SetProperty {
                     id: 7,
-                    property: PropertyId::Placeholder,
+                    property: PropertyId::Src,
                     value: PropertyValue::String("value".into()),
                 },
                 Command::SetProperty {
@@ -428,12 +428,12 @@ mod tests {
                 },
                 Command::SetProperty {
                     id: 7,
-                    property: PropertyId::ReadOnly,
+                    property: PropertyId::AnchoredDeferred,
                     value: PropertyValue::Boolean(true),
                 },
                 Command::SetProperty {
                     id: 7,
-                    property: PropertyId::ReadOnly,
+                    property: PropertyId::AnchoredDeferred,
                     value: PropertyValue::Boolean(false),
                 },
                 Command::SetProperty {

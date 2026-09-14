@@ -232,15 +232,15 @@ A native node belongs to exactly one window tree for its entire lifetime. Nodes 
 
 Groups and range anchors are JavaScript-only structural nodes. Groups provide logical ownership without a native layout container, while anchors delimit stable Retend ranges for `If`, `For`, `Await`, HMR boundaries, and other incremental updates. Neither kind crosses N-API or receives a native node ID.
 
-When an affected parent is synchronized, JavaScript projects its logical children to the ordered native-backed child sequence with `collectNativeChildren()`. Groups and anchors disappear at that projection boundary, so Rust retains only nodes with native rendering or runtime meaning. If profiling later shows that rebuilding the projected child sequence is material, the JavaScript mutation layer may emit incremental native splices without introducing native range anchors.
+JavaScript keeps groups and anchors in its logical tree but skips them when issuing native mutations. Insertions, moves, and removals are emitted incrementally for native-backed nodes, so Rust retains only nodes with native rendering or runtime meaning.
 
 ## Root ownership and development errors
 
 Each native window has one immutable native root for its lifetime. JavaScript owns a logical `GpuiRoot` with no native ID and projects its native-backed children directly beneath that immutable root. Application output therefore does not gain an implicit `div` or any other layout-bearing wrapper merely because it returns text, a fragment, or multiple top-level nodes.
 
-Recoverable development UI is renderer-owned and remains outside the application's Retend tree. Showing a compile/HMR error temporarily changes which native children are presented beneath the immutable window root while preserving the application's logical subtree and Retend state. Clearing the error restores the same application nodes. The development overlay can also be presented before an application root has mounted because it does not depend on the broken application module.
+Recoverable development UI is renderer-owned and remains outside the application's Retend tree. A compile/HMR error adds an overlay above the still-mounted application subtree, preserving application state and native attachment. Clearing the error removes only that overlay. The overlay can also be presented before an application root has mounted because it does not depend on the broken application module.
 
-Logical activity and native presentation are distinct states: while the development overlay is visible, preserved application nodes remain logically owned by the active Retend root but are not currently presented in the native window. Event stale-target checks must use native presentation/attachment rather than treating `renderer.isActive()` as equivalent to native visibility.
+Event stale-target checks still use native attachment rather than treating `renderer.isActive()` as equivalent to native visibility.
 
 ## GPUI render model
 

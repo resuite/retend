@@ -41,10 +41,6 @@ fn emit_focus_event(window_id: WindowId, id: NodeId, event: NativeEventId) {
     }
 }
 
-fn closed_window_query_failure() -> crate::BridgeFailure {
-    crate::BridgeFailure::closed_window()
-}
-
 fn ensure_focus_state<T: 'static>(
     runtime_state: &RuntimeStateRegistry,
     window_id: WindowId,
@@ -187,9 +183,9 @@ pub(crate) enum WindowOperation {
 impl WindowOperation {
     fn reject_closed(self) {
         match self {
-            Self::Layout(operation) => operation.reject(closed_window_query_failure()),
+            Self::Layout(operation) => operation.reject(crate::BridgeFailure::closed_window()),
             Self::TextControl(_, _, TextControlOperation::GetSelection(responder)) => {
-                responder.respond(Err(closed_window_query_failure()))
+                responder.respond(Err(crate::BridgeFailure::closed_window()))
             }
             _ => {}
         }
@@ -1906,7 +1902,7 @@ mod tests {
                 .push(result.map(|_| "OK").unwrap_or_else(|error| error.code));
         });
 
-        responder.respond(Err(closed_window_query_failure()));
+        responder.respond(Err(crate::BridgeFailure::closed_window()));
         responder.respond(Ok(crate::runtime_state::Measurement::default()));
 
         assert_eq!(*results.lock().unwrap(), vec!["CLOSED_WINDOW"]);

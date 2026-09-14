@@ -77,9 +77,9 @@ describe('Retend GPUI native command-batch encoder', () => {
   it('encodes each primitive property tag and payload without semantic parsing', () => {
     const writer = new CommandBatchWriter();
     writer.createNode(1, ElementKind.Container);
-    writer.setProperty(1, PropertyId.Placeholder, 'hello');
+    writer.setProperty(1, PropertyId.Src, 'hello');
     writer.setProperty(1, PropertyId.MinRows, 3);
-    writer.setProperty(1, PropertyId.ReadOnly, true);
+    writer.setProperty(1, PropertyId.AnchoredDeferred, true);
     writer.setProperty(1, PropertyId.Value, null);
 
     const bytes = writer.finish();
@@ -95,7 +95,7 @@ describe('Retend GPUI native command-batch encoder', () => {
 
     expect(view.getUint8(offset)).toBe(Opcode.SetProperty);
     expect(view.getUint32(offset + 1, true)).toBe(1);
-    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.Placeholder);
+    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.Src);
     expect(view.getUint8(offset + 7)).toBe(ValueKind.String);
     expect(view.getUint32(offset + 8, true)).toBe(0);
     offset += 12;
@@ -107,7 +107,7 @@ describe('Retend GPUI native command-batch encoder', () => {
     offset += 16;
 
     expect(view.getUint8(offset)).toBe(Opcode.SetProperty);
-    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.ReadOnly);
+    expect(view.getUint16(offset + 5, true)).toBe(PropertyId.AnchoredDeferred);
     expect(view.getUint8(offset + 7)).toBe(ValueKind.Boolean);
     expect(view.getUint8(offset + 8)).toBe(1);
     offset += 9;
@@ -227,10 +227,10 @@ describe('Retend GPUI native command-batch encoder', () => {
 
   it('matches the property-values golden byte vector', () => {
     const writer = new CommandBatchWriter();
-    writer.setProperty(7, PropertyId.Placeholder, 'value');
+    writer.setProperty(7, PropertyId.Src, 'value');
     writer.setProperty(7, PropertyId.MinRows, 3.5);
-    writer.setProperty(7, PropertyId.ReadOnly, true);
-    writer.setProperty(7, PropertyId.ReadOnly, false);
+    writer.setProperty(7, PropertyId.AnchoredDeferred, true);
+    writer.setProperty(7, PropertyId.AnchoredDeferred, false);
     writer.setProperty(7, PropertyId.Value, null);
     expectGolden('property-values', writer.finish());
   });
