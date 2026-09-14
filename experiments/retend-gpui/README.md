@@ -130,11 +130,14 @@ The component passed to `renderToGpui` must return Retend JSX. `retend-gpui` doe
 The currently implemented Retend GPUI intrinsic surface is deliberately small:
 
 - `div`
+- `anchored`
 - `img`
 - `input`
 - `textarea`
 
 Text is ordinary JSX content rather than a `<text>` intrinsic. `input` uses the native single-line editor, while `textarea` uses the native multi-line editor with wrapping and optional `minRows`/`maxRows` auto-sizing.
+
+`anchored` is the native floating-layer primitive used by menus, selects, tooltips, and similar controls. It delegates placement to GPUI rather than measuring in JavaScript. `side` (`top`/`right`/`bottom`/`left`), `align` (`start`/`center`/`end`), `gap`, and `offset` place content relative to its parent slot; `position={{ x, y }}` instead uses window coordinates. `fit="snap"` (the default) keeps the layer inside the window with `snapMargin`, while `fit="switch"` uses GPUI's anchor-flipping behavior. Layers are deferred and occluding by default; `deferred`, `priority`, and `occlude` expose those native controls directly. Margins are intentionally unsupported on `<anchored>` because GPUI requires an anchored child to be margin-free; use `gap`/`offset`, or put the anchored element inside a wrapper when ordinary layout margin is needed.
 
 ## Events
 

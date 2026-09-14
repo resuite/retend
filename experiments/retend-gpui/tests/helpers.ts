@@ -8,7 +8,14 @@ export interface RendererOptions {
 
 export interface DebugNode {
   id: number;
-  kind: 'Root' | 'Container' | 'Text' | 'Image' | 'Input' | 'Textarea';
+  kind:
+    | 'Root'
+    | 'Container'
+    | 'Anchored'
+    | 'Text'
+    | 'Image'
+    | 'Input'
+    | 'Textarea';
   parent: number | null;
   children: number[];
   text: string | null;

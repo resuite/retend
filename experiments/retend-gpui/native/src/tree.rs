@@ -63,7 +63,6 @@ fn textarea_rows(index: usize, value: PropertyValue) -> Result<Option<u32>, Brid
     }
 }
 
-
 #[derive(Clone, Debug, Serialize)]
 pub struct FatalDiagnostic {
     pub native_failure: String,
@@ -79,10 +78,272 @@ pub enum ImageObjectFit {
     None,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum AnchoredSide {
+    Top,
+    Right,
+    #[default]
+    Bottom,
+    Left,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum AnchoredAlign {
+    #[default]
+    Start,
+    Center,
+    End,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum AnchoredFit {
+    Switch,
+    #[default]
+    Snap,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AnchoredConfig {
+    pub position: Option<(f32, f32)>,
+    pub side: AnchoredSide,
+    pub align: AnchoredAlign,
+    pub gap: f32,
+    pub offset: (f32, f32),
+    pub fit: AnchoredFit,
+    pub snap_margin: f32,
+    pub deferred: bool,
+    pub priority: usize,
+    pub occlude: bool,
+}
+
+impl Default for AnchoredConfig {
+    fn default() -> Self {
+        Self {
+            position: None,
+            side: AnchoredSide::Bottom,
+            align: AnchoredAlign::Start,
+            gap: 0.0,
+            offset: (0.0, 0.0),
+            fit: AnchoredFit::Snap,
+            snap_margin: 8.0,
+            deferred: true,
+            priority: 1,
+            occlude: true,
+        }
+    }
+}
+
+impl AnchoredConfig {
+    fn number(index: usize, value: PropertyValue, name: &str) -> Result<f32, BridgeFailure> {
+        match value {
+            PropertyValue::Number(value)
+                if value.is_finite() && value.abs() <= f64::from(f32::MAX) =>
+            {
+                Ok(value as f32)
+            }
+            _ => invalid(
+                index,
+                "INVALID_PROPERTY_VALUE",
+                format!("{name} must be a finite number."),
+            ),
+        }
+    }
+
+    fn point(index: usize, value: PropertyValue, name: &str) -> Result<(f32, f32), BridgeFailure> {
+        match value {
+            PropertyValue::Point(x, y)
+                if x.is_finite()
+                    && y.is_finite()
+                    && x.abs() <= f64::from(f32::MAX)
+                    && y.abs() <= f64::from(f32::MAX) =>
+            {
+                Ok((x as f32, y as f32))
+            }
+            _ => invalid(
+                index,
+                "INVALID_PROPERTY_VALUE",
+                format!("{name} must be a finite point."),
+            ),
+        }
+    }
+
+    fn reset_property(&mut self, index: usize, property: PropertyId) -> Result<(), BridgeFailure> {
+        let defaults = Self::default();
+        match property {
+            PropertyId::AnchoredPosition => self.position = defaults.position,
+            PropertyId::AnchoredSide => self.side = defaults.side,
+            PropertyId::AnchoredAlign => self.align = defaults.align,
+            PropertyId::AnchoredGap => self.gap = defaults.gap,
+            PropertyId::AnchoredOffset => self.offset = defaults.offset,
+            PropertyId::AnchoredFit => self.fit = defaults.fit,
+            PropertyId::AnchoredSnapMargin => self.snap_margin = defaults.snap_margin,
+            PropertyId::AnchoredDeferred => self.deferred = defaults.deferred,
+            PropertyId::AnchoredPriority => self.priority = defaults.priority,
+            PropertyId::AnchoredOcclude => self.occlude = defaults.occlude,
+            _ => {
+                return invalid(
+                    index,
+                    "UNSUPPORTED_PROPERTY",
+                    format!("{property:?} is not an anchored property."),
+                )
+            }
+        }
+        Ok(())
+    }
+
+    fn set_property(
+        &mut self,
+        index: usize,
+        property: PropertyId,
+        value: PropertyValue,
+    ) -> Result<(), BridgeFailure> {
+        if value == PropertyValue::Null {
+            return self.reset_property(index, property);
+        }
+        match property {
+            PropertyId::AnchoredPosition => {
+                self.position = Some(Self::point(index, value, "anchored position")?);
+            }
+            PropertyId::AnchoredGap => {
+                self.gap = Self::number(index, value, "anchored gap")?;
+            }
+            PropertyId::AnchoredOffset => {
+                self.offset = Self::point(index, value, "anchored offset")?;
+            }
+            PropertyId::AnchoredSnapMargin => {
+                let value = Self::number(index, value, "anchored snapMargin")?;
+                if value < 0.0 {
+                    return invalid(
+                        index,
+                        "INVALID_PROPERTY_VALUE",
+                        "anchored snapMargin must be non-negative.",
+                    );
+                }
+                self.snap_margin = value;
+            }
+            PropertyId::AnchoredSide => {
+                self.side = match value {
+                    PropertyValue::String(value) => match value.as_str() {
+                        "top" => AnchoredSide::Top,
+                        "right" => AnchoredSide::Right,
+                        "bottom" => AnchoredSide::Bottom,
+                        "left" => AnchoredSide::Left,
+                        _ => {
+                            return invalid(
+                                index,
+                                "INVALID_PROPERTY_VALUE",
+                                format!("Unsupported anchored side: {value}."),
+                            )
+                        }
+                    },
+                    _ => {
+                        return invalid(
+                            index,
+                            "INVALID_PROPERTY_VALUE",
+                            "anchored side must be a string.",
+                        )
+                    }
+                };
+            }
+            PropertyId::AnchoredAlign => {
+                self.align = match value {
+                    PropertyValue::String(value) => match value.as_str() {
+                        "start" => AnchoredAlign::Start,
+                        "center" => AnchoredAlign::Center,
+                        "end" => AnchoredAlign::End,
+                        _ => {
+                            return invalid(
+                                index,
+                                "INVALID_PROPERTY_VALUE",
+                                format!("Unsupported anchored align: {value}."),
+                            )
+                        }
+                    },
+                    _ => {
+                        return invalid(
+                            index,
+                            "INVALID_PROPERTY_VALUE",
+                            "anchored align must be a string.",
+                        )
+                    }
+                };
+            }
+            PropertyId::AnchoredFit => {
+                self.fit = match value {
+                    PropertyValue::String(value) if value == "switch" => AnchoredFit::Switch,
+                    PropertyValue::String(value) if value == "snap" => AnchoredFit::Snap,
+                    PropertyValue::String(value) => {
+                        return invalid(
+                            index,
+                            "INVALID_PROPERTY_VALUE",
+                            format!("Unsupported anchored fit: {value}."),
+                        )
+                    }
+                    _ => {
+                        return invalid(
+                            index,
+                            "INVALID_PROPERTY_VALUE",
+                            "anchored fit must be a string.",
+                        )
+                    }
+                };
+            }
+            PropertyId::AnchoredDeferred => {
+                let PropertyValue::Boolean(value) = value else {
+                    return invalid(
+                        index,
+                        "INVALID_PROPERTY_VALUE",
+                        "anchored deferred must be a boolean.",
+                    );
+                };
+                self.deferred = value;
+            }
+            PropertyId::AnchoredOcclude => {
+                let PropertyValue::Boolean(value) = value else {
+                    return invalid(
+                        index,
+                        "INVALID_PROPERTY_VALUE",
+                        "anchored occlude must be a boolean.",
+                    );
+                };
+                self.occlude = value;
+            }
+            PropertyId::AnchoredPriority => {
+                self.priority = match value {
+                    PropertyValue::Number(value)
+                        if value.is_finite()
+                            && value.fract() == 0.0
+                            && value >= 0.0
+                            && value <= usize::MAX as f64 =>
+                    {
+                        value as usize
+                    }
+                    _ => {
+                        return invalid(
+                            index,
+                            "INVALID_PROPERTY_VALUE",
+                            "anchored priority must be a non-negative integer.",
+                        )
+                    }
+                };
+            }
+            _ => {
+                return invalid(
+                    index,
+                    "UNSUPPORTED_PROPERTY",
+                    format!("{property:?} is not an anchored property."),
+                )
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum NodeData {
     Root,
     Container,
+    Anchored(AnchoredConfig),
     Text(String),
     Image {
         src: Option<String>,
@@ -673,6 +934,7 @@ impl NativeTree {
                 let (kind, text, src) = match &node.data {
                     NodeData::Root => ("Root", None, None),
                     NodeData::Container => ("Container", None, None),
+                    NodeData::Anchored(_) => ("Anchored", None, None),
                     NodeData::Text(text) => ("Text", Some(text.as_str()), None),
                     NodeData::Image { src, .. } => ("Image", None, src.as_deref()),
                     NodeData::TextControl { kind, .. } => (
@@ -746,6 +1008,7 @@ impl NativeTree {
             Command::CreateNode { id, kind } => {
                 let data = match kind {
                     ElementKind::Container => NodeData::Container,
+                    ElementKind::Anchored => NodeData::Anchored(AnchoredConfig::default()),
                     ElementKind::Image => NodeData::Image {
                         src: None,
                         object_fit: None,
@@ -917,6 +1180,9 @@ impl NativeTree {
                         };
                         Ok(())
                     }
+                    (property, NodeData::Anchored(config)) => {
+                        config.set_property(index, property, value)
+                    }
                     (property, _) => invalid(
                         index,
                         "UNSUPPORTED_PROPERTY",
@@ -976,6 +1242,24 @@ impl NativeTree {
                 index,
                 "UNSUPPORTED_PROPERTY",
                 "Text nodes cannot receive author-style snapshots.",
+            );
+        }
+        if matches!(&node.data, NodeData::Anchored(_))
+            && properties.iter().any(|(property, _)| {
+                matches!(
+                    property,
+                    PropertyId::Margin
+                        | PropertyId::MarginTop
+                        | PropertyId::MarginRight
+                        | PropertyId::MarginBottom
+                        | PropertyId::MarginLeft
+                )
+            })
+        {
+            return invalid(
+                index,
+                "UNSUPPORTED_PROPERTY",
+                "Anchored nodes cannot use margins; use gap/offset or wrap the anchored node instead.",
             );
         }
         for (property, _) in &properties {
@@ -1105,6 +1389,7 @@ impl NativeTree {
             match &self.node(window_id, index, parent_id)?.data {
                 NodeData::Root => (true, "Root"),
                 NodeData::Container => (true, "Container"),
+                NodeData::Anchored(_) => (true, "Anchored"),
                 NodeData::Text(_) => (false, "Text"),
                 NodeData::Image { .. } => (false, "Image"),
                 NodeData::TextControl { kind, .. } => (
@@ -1905,6 +2190,165 @@ mod tests {
 
         assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
         assert!(tree.nodes[&2].style.is_none());
+    }
+
+    #[test]
+    fn anchored_properties_validate_and_reset_to_defaults() {
+        fn anchored_tree() -> (NativeTree, WindowId) {
+            let (mut tree, window, _) = setup();
+            tree.apply_commands(
+                window,
+                vec![Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Anchored,
+                }],
+            )
+            .unwrap();
+            (tree, window)
+        }
+
+        for (property, value) in [
+            (
+                PropertyId::AnchoredSide,
+                PropertyValue::String("botom".into()),
+            ),
+            (
+                PropertyId::AnchoredAlign,
+                PropertyValue::String("middle".into()),
+            ),
+            (
+                PropertyId::AnchoredFit,
+                PropertyValue::String("clamp".into()),
+            ),
+        ] {
+            let (mut tree, window) = anchored_tree();
+            let error = tree
+                .apply_commands(
+                    window,
+                    vec![Command::SetProperty {
+                        id: 2,
+                        property,
+                        value,
+                    }],
+                )
+                .unwrap_err();
+            assert_eq!(error.code, "INVALID_PROPERTY_VALUE");
+        }
+
+        let (mut tree, window) = anchored_tree();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredPosition,
+                    value: PropertyValue::Point(300.0, 200.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredSide,
+                    value: PropertyValue::String("top".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredAlign,
+                    value: PropertyValue::String("end".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredGap,
+                    value: PropertyValue::Number(9.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredOffset,
+                    value: PropertyValue::Point(4.0, -2.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredFit,
+                    value: PropertyValue::String("switch".into()),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredSnapMargin,
+                    value: PropertyValue::Number(0.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredDeferred,
+                    value: PropertyValue::Boolean(false),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredPriority,
+                    value: PropertyValue::Number(4.0),
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredOcclude,
+                    value: PropertyValue::Boolean(false),
+                },
+            ],
+        )
+        .unwrap();
+        let NodeData::Anchored(config) = &tree.nodes[&2].data else {
+            unreachable!();
+        };
+        assert_ne!(config, &AnchoredConfig::default());
+
+        for property in [
+            PropertyId::AnchoredPosition,
+            PropertyId::AnchoredSide,
+            PropertyId::AnchoredAlign,
+            PropertyId::AnchoredGap,
+            PropertyId::AnchoredOffset,
+            PropertyId::AnchoredFit,
+            PropertyId::AnchoredSnapMargin,
+            PropertyId::AnchoredDeferred,
+            PropertyId::AnchoredPriority,
+            PropertyId::AnchoredOcclude,
+        ] {
+            tree.apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property,
+                    value: PropertyValue::Null,
+                }],
+            )
+            .unwrap();
+        }
+        let NodeData::Anchored(config) = &tree.nodes[&2].data else {
+            unreachable!();
+        };
+        assert_eq!(config, &AnchoredConfig::default());
+
+        let (mut tree, window) = anchored_tree();
+        let error = tree
+            .apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredPosition,
+                    value: PropertyValue::Point(f64::NAN, 10.0),
+                }],
+            )
+            .unwrap_err();
+        assert_eq!(error.code, "INVALID_PROPERTY_VALUE");
+
+        let (mut tree, window) = anchored_tree();
+        let error = tree
+            .apply_commands(
+                window,
+                vec![style(
+                    2,
+                    PropertyId::MarginBottom,
+                    PropertyValue::Number(8.0),
+                )],
+            )
+            .unwrap_err();
+        assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
     }
 
     #[test]

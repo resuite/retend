@@ -14,7 +14,13 @@ import {
 
 export const COMMAND_BATCH_HEADER_BYTES = 24;
 
-export type ProtocolPropertyValue = boolean | number | string | null;
+export type ProtocolPointValue = readonly [number, number];
+export type ProtocolPropertyValue =
+  | boolean
+  | number
+  | string
+  | ProtocolPointValue
+  | null;
 
 const textEncoder = new TextEncoder();
 
@@ -209,9 +215,13 @@ export class CommandBatchWriter {
     } else if (typeof value === 'boolean') {
       this.#commands.writeU8(ValueKind.Boolean);
       this.#commands.writeU8(value ? 1 : 0);
-    } else {
+    } else if (typeof value === 'string') {
       this.#commands.writeU8(ValueKind.String);
       this.#commands.writeU32(this.#string(value));
+    } else {
+      this.#commands.writeU8(ValueKind.Point);
+      this.#commands.writeF64(value[0]);
+      this.#commands.writeF64(value[1]);
     }
   }
 

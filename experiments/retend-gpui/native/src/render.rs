@@ -1,10 +1,10 @@
 use std::{cell::Cell, rc::Rc, sync::Arc};
 
 use gpui::{
-    actions, div, img, prelude::*, AnyElement, App, Bounds, ClickEvent, Element, ElementId,
-    GlobalElementId, ImageCacheError, ImageSource, InspectorElementId, KeyBinding, KeyDownEvent,
-    KeyUpEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    NavigationDirection, Pixels, Point, StyledImage, Text, Window,
+    actions, anchored, deferred, div, img, prelude::*, Anchor, AnyElement, App, Bounds, ClickEvent,
+    Element, ElementId, GlobalElementId, ImageCacheError, ImageSource, InspectorElementId,
+    KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton, MouseDownEvent, MouseMoveEvent,
+    MouseUpEvent, NavigationDirection, Pixels, Point, StyledImage, Text, Window,
 };
 
 use crate::{
@@ -12,7 +12,10 @@ use crate::{
     protocol_generated::NativeEventId,
     runtime_state::RuntimeStateRegistry,
     style::OverflowValue,
-    tree::{event_bit, ImageObjectFit, NativeTree, NodeData, NodeId, WindowId},
+    tree::{
+        event_bit, AnchoredAlign, AnchoredConfig, AnchoredFit, AnchoredSide, ImageObjectFit,
+        NativeTree, NodeData, NodeId, WindowId,
+    },
 };
 
 actions!(retend, [FocusNext, FocusPrevious]);
@@ -103,7 +106,8 @@ fn emit_mouse_down(
     let (subscribed, outside, changed) = crate::runtime()
         .lock()
         .map(|mut tree| {
-            let changed = event.button == MouseButton::Left && tree.press_node(window_id, target_id);
+            let changed =
+                event.button == MouseButton::Left && tree.press_node(window_id, target_id);
             (
                 tree.has_subscription_in_path(window_id, target_id, NativeEventId::MouseDown),
                 tree.outside_subscribers(window_id, target_id),
@@ -308,6 +312,63 @@ fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
         ImageObjectFit::ScaleDown => gpui::ObjectFit::ScaleDown,
         ImageObjectFit::None => gpui::ObjectFit::None,
     }
+}
+
+fn anchored_anchor(config: &AnchoredConfig) -> Anchor {
+    match (config.side, config.align) {
+        (AnchoredSide::Top, AnchoredAlign::Start) => Anchor::BottomLeft,
+        (AnchoredSide::Top, AnchoredAlign::Center) => Anchor::BottomCenter,
+        (AnchoredSide::Top, AnchoredAlign::End) => Anchor::BottomRight,
+        (AnchoredSide::Right, AnchoredAlign::Start) => Anchor::TopLeft,
+        (AnchoredSide::Right, AnchoredAlign::Center) => Anchor::LeftCenter,
+        (AnchoredSide::Right, AnchoredAlign::End) => Anchor::BottomLeft,
+        (AnchoredSide::Bottom, AnchoredAlign::Start) => Anchor::TopLeft,
+        (AnchoredSide::Bottom, AnchoredAlign::Center) => Anchor::TopCenter,
+        (AnchoredSide::Bottom, AnchoredAlign::End) => Anchor::TopRight,
+        (AnchoredSide::Left, AnchoredAlign::Start) => Anchor::TopRight,
+        (AnchoredSide::Left, AnchoredAlign::Center) => Anchor::RightCenter,
+        (AnchoredSide::Left, AnchoredAlign::End) => Anchor::BottomRight,
+    }
+}
+
+fn anchored_offset(config: &AnchoredConfig) -> Point<Pixels> {
+    let (x, y) = match config.side {
+        AnchoredSide::Top => (0.0, -config.gap),
+        AnchoredSide::Right => (config.gap, 0.0),
+        AnchoredSide::Bottom => (0.0, config.gap),
+        AnchoredSide::Left => (-config.gap, 0.0),
+    };
+    gpui::point(gpui::px(x + config.offset.0), gpui::px(y + config.offset.1))
+}
+
+fn wrap_at_anchor_slot(layer: AnyElement, config: &AnchoredConfig) -> AnyElement {
+    let wrapper = match config.side {
+        AnchoredSide::Top => div().absolute().top_0(),
+        AnchoredSide::Right => div().absolute().right_0(),
+        AnchoredSide::Bottom => div().absolute().bottom_0(),
+        AnchoredSide::Left => div().absolute().left_0(),
+    };
+    let wrapper = match (config.side, config.align) {
+        (AnchoredSide::Top | AnchoredSide::Bottom, AnchoredAlign::Start) => {
+            wrapper.left_0().size_0()
+        }
+        (AnchoredSide::Top | AnchoredSide::Bottom, AnchoredAlign::Center) => {
+            wrapper.left(gpui::relative(0.5)).size_0()
+        }
+        (AnchoredSide::Top | AnchoredSide::Bottom, AnchoredAlign::End) => {
+            wrapper.right_0().size_0()
+        }
+        (AnchoredSide::Left | AnchoredSide::Right, AnchoredAlign::Start) => {
+            wrapper.top_0().size_0()
+        }
+        (AnchoredSide::Left | AnchoredSide::Right, AnchoredAlign::Center) => {
+            wrapper.top(gpui::relative(0.5)).size_0()
+        }
+        (AnchoredSide::Left | AnchoredSide::Right, AnchoredAlign::End) => {
+            wrapper.bottom_0().size_0()
+        }
+    };
+    wrapper.child(layer).into_any_element()
 }
 
 /// Paints the generic gpui-base scrollbar as an overlay without making it a
@@ -515,6 +576,82 @@ impl Element for PaintObserver {
     }
 }
 
+/// Deferred anchored draws happen after the root has finished its ordinary paint.
+/// Their final positioned bounds are therefore published from their deferred
+/// prepaint pass, which GPUI runs after applying the anchor offset.
+struct DeferredGeometryObserver {
+    inner: AnyElement,
+    callback: Option<PaintCallback>,
+}
+
+impl DeferredGeometryObserver {
+    fn new(inner: AnyElement, callback: PaintCallback) -> Self {
+        Self {
+            inner,
+            callback: Some(callback),
+        }
+    }
+}
+
+impl IntoElement for DeferredGeometryObserver {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for DeferredGeometryObserver {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.inner.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.prepaint(window, cx);
+        if let Some(callback) = self.callback.take() {
+            callback.painted(bounds, window);
+        }
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        _prepaint: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.paint(window, cx);
+    }
+}
+
 pub fn build_with_runtime(
     tree: &NativeTree,
     id: NodeId,
@@ -523,9 +660,8 @@ pub fn build_with_runtime(
     window: &mut Window,
     cx: &mut App,
 ) -> AnyElement {
-    let mut resolve_style = |id, motion, style| {
-        crate::motion::resolve_style(id, motion, style, window, cx)
-    };
+    let mut resolve_style =
+        |id, motion, style| crate::motion::resolve_style(id, motion, style, window, cx);
     let inner = build_inner(
         tree,
         id,
@@ -589,15 +725,11 @@ where
         .then(|| Rc::new(Cell::new(None::<Point<Pixels>>)));
     let painted_content = staged_content.clone();
     let content_scroll_handle = scroll_handle.clone().filter(|_| tracks_content);
-    let record_bounds = PaintCallback::Bounds {
-        runtime,
-        generation,
-        id,
-        content_scroll_handle,
-        painted_content,
-    };
     let element = match &node.data {
-        NodeData::Root | NodeData::Container | NodeData::TextControl { .. } => {
+        NodeData::Root
+        | NodeData::Container
+        | NodeData::Anchored(_)
+        | NodeData::TextControl { .. } => {
             let element = if matches!(node.data, NodeData::Root) {
                 root_container()
             } else {
@@ -633,7 +765,7 @@ where
                     )
                 })),
             };
-            if let Some(content) = staged_content {
+            if let Some(content) = staged_content.clone() {
                 element = element.on_children_prepainted(move |children, _, _| {
                     content.set(
                         children
@@ -642,6 +774,11 @@ where
                             .reduce(|a, b| a.max(&b)),
                     );
                 });
+            }
+            if let NodeData::Anchored(config) = &node.data {
+                if config.occlude {
+                    element = element.occlude();
+                }
             }
             if interest.any()
                 || runtime_state.is_interactive(id)
@@ -698,9 +835,20 @@ where
             image.into_any_element()
         }
     };
-    let element = PaintObserver::new(element, record_bounds).into_any_element();
+    let bounds = PaintCallback::Bounds {
+        runtime,
+        generation,
+        id,
+        content_scroll_handle,
+        painted_content,
+    };
+    let element = if matches!(&node.data, NodeData::Anchored(config) if config.deferred) {
+        DeferredGeometryObserver::new(element, bounds).into_any_element()
+    } else {
+        PaintObserver::new(element, bounds).into_any_element()
+    };
     let mode = match (&node.data, node.style.as_deref()) {
-        (NodeData::Root | NodeData::Container, Some(style))
+        (NodeData::Root | NodeData::Container | NodeData::Anchored(_), Some(style))
             if style.display != crate::style::DisplayValue::None =>
         {
             match style.overflow {
@@ -711,7 +859,7 @@ where
         }
         _ => None,
     };
-    match (scroll_handle, mode) {
+    let element = match (scroll_handle, mode) {
         (Some(scroll), Some(mode)) => ScrollbarOverlay {
             inner: element,
             scroll,
@@ -720,6 +868,32 @@ where
         }
         .into_any_element(),
         _ => element,
+    };
+
+    let NodeData::Anchored(config) = &node.data else {
+        return element;
+    };
+    let mut positioned = anchored()
+        .anchor(anchored_anchor(config))
+        .offset(anchored_offset(config));
+    if let Some((x, y)) = config.position {
+        positioned = positioned.position(gpui::point(gpui::px(x), gpui::px(y)));
+    }
+    if config.fit == AnchoredFit::Snap {
+        positioned = positioned.snap_to_window_with_margin(gpui::px(config.snap_margin));
+    }
+    let layer = positioned.child(element);
+    let layer = if config.deferred {
+        deferred(layer)
+            .with_priority(config.priority)
+            .into_any_element()
+    } else {
+        layer.into_any_element()
+    };
+    if config.position.is_some() {
+        layer
+    } else {
+        wrap_at_anchor_slot(layer, config)
     }
 }
 
@@ -758,11 +932,10 @@ mod tests {
         generation: u64,
     ) -> AnyElement {
         let window = tree.nodes[&id].window_id;
-        let mut resolve_style = |
-            _: NodeId,
-            _: &crate::motion::MotionBridgeState,
-            style: Option<&crate::style::NativeStyle>,
-        | style.cloned();
+        let mut resolve_style =
+            |_: NodeId,
+             _: &crate::motion::MotionBridgeState,
+             style: Option<&crate::style::NativeStyle>| style.cloned();
         build_inner(
             tree,
             id,
@@ -1019,14 +1192,7 @@ mod tests {
                 window,
                 cx,
             );
-            build_with_runtime(
-                &tree,
-                1,
-                &self.runtime_state,
-                generation,
-                window,
-                cx,
-            )
+            build_with_runtime(&tree, 1, &self.runtime_state, generation, window, cx)
         }
     }
 
@@ -2410,6 +2576,547 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[gpui::test]
+    fn anchored_content_uses_parent_slot_and_deferred_painted_bounds(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    container(2),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (
+                                PropertyId::Position,
+                                PropertyValue::String("absolute".into()),
+                            ),
+                            (PropertyId::Left, PropertyValue::Number(100.0)),
+                            (PropertyId::Top, PropertyValue::Number(100.0)),
+                            (PropertyId::Width, PropertyValue::Number(200.0)),
+                            (PropertyId::Height, PropertyValue::Number(100.0)),
+                        ],
+                    },
+                    Command::CreateNode {
+                        id: 3,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(40.0)),
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id: window,
+            }
+        });
+        finish_test_frames(cx);
+
+        let parent = cx.debug_bounds("retend-node-2").unwrap();
+        for (side, align) in [
+            ("top", "start"),
+            ("top", "center"),
+            ("top", "end"),
+            ("right", "start"),
+            ("right", "center"),
+            ("right", "end"),
+            ("bottom", "start"),
+            ("bottom", "center"),
+            ("bottom", "end"),
+            ("left", "start"),
+            ("left", "center"),
+            ("left", "end"),
+        ] {
+            tree.borrow_mut()
+                .apply_commands(
+                    window,
+                    vec![
+                        Command::SetProperty {
+                            id: 3,
+                            property: PropertyId::AnchoredSide,
+                            value: PropertyValue::String(side.into()),
+                        },
+                        Command::SetProperty {
+                            id: 3,
+                            property: PropertyId::AnchoredAlign,
+                            value: PropertyValue::String(align.into()),
+                        },
+                        Command::SetProperty {
+                            id: 3,
+                            property: PropertyId::AnchoredGap,
+                            value: PropertyValue::Number(5.0),
+                        },
+                    ],
+                )
+                .unwrap();
+            let measured = request_measure(&runtime_state, 3);
+            view.update(cx, |_, cx| cx.notify());
+            finish_test_frames(cx);
+
+            let floating = cx.debug_bounds("retend-node-3").unwrap();
+            let aligned_x = match align {
+                "start" => parent.left(),
+                "center" => parent.left() + (parent.size.width - floating.size.width) / 2.0,
+                "end" => parent.right() - floating.size.width,
+                _ => unreachable!(),
+            };
+            let aligned_y = match align {
+                "start" => parent.top(),
+                "center" => parent.top() + (parent.size.height - floating.size.height) / 2.0,
+                "end" => parent.bottom() - floating.size.height,
+                _ => unreachable!(),
+            };
+            let expected = match side {
+                "top" => point(aligned_x, parent.top() - floating.size.height - px(5.0)),
+                "right" => point(parent.right() + px(5.0), aligned_y),
+                "bottom" => point(aligned_x, parent.bottom() + px(5.0)),
+                "left" => point(parent.left() - floating.size.width - px(5.0), aligned_y),
+                _ => unreachable!(),
+            };
+            assert_eq!(floating.origin, expected, "{side}/{align}");
+            let measured = measured.try_recv().unwrap().unwrap();
+            assert_eq!(
+                (measured.x, measured.y),
+                (
+                    f64::from(f32::from(expected.x)),
+                    f64::from(f32::from(expected.y))
+                )
+            );
+        }
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::AnchoredSide,
+                        value: PropertyValue::String("bottom".into()),
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::AnchoredAlign,
+                        value: PropertyValue::String("start".into()),
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::AnchoredOffset,
+                        value: PropertyValue::Point(7.0, -3.0),
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::AnchoredDeferred,
+                        value: PropertyValue::Boolean(false),
+                    },
+                ],
+            )
+            .unwrap();
+        let measured = request_measure(&runtime_state, 3);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let floating = cx.debug_bounds("retend-node-3").unwrap();
+        assert_eq!(
+            floating.origin,
+            point(parent.left() + px(7.0), parent.bottom() + px(2.0))
+        );
+        assert_eq!(measured.try_recv().unwrap().unwrap().width, 40.0);
+    }
+
+    #[gpui::test]
+    fn anchored_collision_modes_apply_snap_margin_and_switch_anchor(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(40.0)),
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id: window,
+            }
+        });
+        finish_test_frames(cx);
+        let viewport = cx.update(|window, _| window.viewport_size());
+        let x = f32::from(viewport.width) - 2.0;
+        let y = f32::from(viewport.height) - 2.0;
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::AnchoredPosition,
+                        value: PropertyValue::Point(f64::from(x), f64::from(y)),
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::AnchoredFit,
+                        value: PropertyValue::String("snap".into()),
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::AnchoredSnapMargin,
+                        value: PropertyValue::Number(12.0),
+                    },
+                ],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            cx.debug_bounds("retend-node-2").unwrap().origin,
+            point(viewport.width - px(52.0), viewport.height - px(32.0))
+        );
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::AnchoredFit,
+                    value: PropertyValue::String("switch".into()),
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(
+            cx.debug_bounds("retend-node-2").unwrap().origin,
+            point(viewport.width - px(42.0), viewport.height - px(22.0))
+        );
+    }
+
+    #[gpui::test]
+    fn deferred_anchor_priority_controls_paint_order(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::AnchoredPosition,
+                        value: PropertyValue::Point(120.0, 120.0),
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::AnchoredPriority,
+                        value: PropertyValue::Number(1.0),
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(60.0)),
+                            (PropertyId::Height, PropertyValue::Number(60.0)),
+                            (
+                                PropertyId::BackgroundColor,
+                                PropertyValue::String("#ff0000".into()),
+                            ),
+                        ],
+                    },
+                    Command::CreateNode {
+                        id: 3,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::AnchoredPosition,
+                        value: PropertyValue::Point(120.0, 120.0),
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::AnchoredPriority,
+                        value: PropertyValue::Number(2.0),
+                    },
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(60.0)),
+                            (PropertyId::Height, PropertyValue::Number(60.0)),
+                            (
+                                PropertyId::BackgroundColor,
+                                PropertyValue::String("#0000ff".into()),
+                            ),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(1, 3),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id: window,
+            }
+        });
+        finish_test_frames(cx);
+
+        let paint_order = |cx: &mut gpui::VisualTestContext| {
+            cx.update(|window, _| window.painted_quads())
+                .iter()
+                .filter_map(|quad| {
+                    if quad.background == gpui::rgb(0xff0000).into() {
+                        Some("red")
+                    } else if quad.background == gpui::rgb(0x0000ff).into() {
+                        Some("blue")
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(paint_order(cx), ["red", "blue"]);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::AnchoredPriority,
+                        value: PropertyValue::Number(3.0),
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::AnchoredPriority,
+                        value: PropertyValue::Number(1.0),
+                    },
+                ],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(paint_order(cx), ["blue", "red"]);
+    }
+
+    #[gpui::test]
+    fn anchored_occlusion_blocks_hit_testing_behind_surface(cx: &mut TestAppContext) {
+        cx.update(init);
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let anchored_id = root_id + 2;
+        let window_id = {
+            let mut tree = crate::runtime()
+                .lock()
+                .expect("global native tree must remain available in render tests");
+            let window_id = tree.create_window(root_id).unwrap();
+            tree.apply_commands(
+                window_id,
+                vec![
+                    container(target_id),
+                    Command::SetStyle {
+                        id: target_id,
+                        properties: vec![
+                            (
+                                PropertyId::Position,
+                                PropertyValue::String("absolute".into()),
+                            ),
+                            (PropertyId::Left, PropertyValue::Number(120.0)),
+                            (PropertyId::Top, PropertyValue::Number(120.0)),
+                            (PropertyId::Width, PropertyValue::Number(80.0)),
+                            (PropertyId::Height, PropertyValue::Number(80.0)),
+                        ],
+                    },
+                    Command::SubscribeEvent {
+                        id: target_id,
+                        event: NativeEventId::Click,
+                    },
+                    Command::CreateNode {
+                        id: anchored_id,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetProperty {
+                        id: anchored_id,
+                        property: PropertyId::AnchoredPosition,
+                        value: PropertyValue::Point(120.0, 120.0),
+                    },
+                    Command::SetStyle {
+                        id: anchored_id,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(80.0)),
+                            (PropertyId::Height, PropertyValue::Number(80.0)),
+                        ],
+                    },
+                    insert(root_id, target_id),
+                    insert(root_id, anchored_id),
+                ],
+            )
+            .unwrap();
+            window_id
+        };
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| GlobalTreeTestView {
+                runtime_state,
+                window_id,
+                root_id,
+            }
+        });
+        finish_test_frames(cx);
+        crate::events::take_test_emitted_events();
+        let click = point(px(140.0), px(140.0));
+        cx.simulate_click(click, Modifiers::default());
+        finish_test_frames(cx);
+        assert!(crate::events::take_test_emitted_events()
+            .into_iter()
+            .all(|(_, event)| event.event_id != NativeEventId::Click as u16));
+
+        crate::runtime()
+            .lock()
+            .expect("global native tree must remain available in render tests")
+            .apply_commands(
+                window_id,
+                vec![Command::SetProperty {
+                    id: anchored_id,
+                    property: PropertyId::AnchoredOcclude,
+                    value: PropertyValue::Boolean(false),
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        crate::events::take_test_emitted_events();
+        cx.simulate_click(click, Modifiers::default());
+        finish_test_frames(cx);
+        let clicks: Vec<_> = crate::events::take_test_emitted_events()
+            .into_iter()
+            .filter(|(_, event)| event.event_id == NativeEventId::Click as u16)
+            .collect();
+        assert_eq!(clicks.len(), 1);
+        assert_eq!(clicks[0].1.target_id, target_id);
+
+        crate::runtime()
+            .lock()
+            .expect("global native tree must remain available in render tests")
+            .close_window(window_id);
+    }
+
+    #[gpui::test]
+    fn window_positioned_anchor_keeps_geometry_when_ancestor_scrolls(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window,
+                vec![
+                    container(2),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                        ],
+                    },
+                    container(3),
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(200.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    Command::CreateNode {
+                        id: 4,
+                        kind: ElementKind::Anchored,
+                    },
+                    Command::SetProperty {
+                        id: 4,
+                        property: PropertyId::AnchoredPosition,
+                        value: PropertyValue::Point(300.0, 200.0),
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(40.0)),
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(2, 4),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let before = request_measure(&runtime_state, 4);
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id: window,
+            }
+        });
+        finish_test_frames(cx);
+        let before = before.try_recv().unwrap().unwrap();
+
+        scroll(&runtime_state, 2, 40.0, false);
+        let after = request_measure(&runtime_state, 4);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let after = after.try_recv().unwrap().unwrap();
+
+        assert_eq!((after.x, after.y), (before.x, before.y));
     }
 
     #[gpui::test]

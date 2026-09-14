@@ -48,6 +48,54 @@ describe('Retend-owned native bridge', () => {
     ).toBe(true);
   });
 
+  it('validates anchored geometry at the native bridge boundary', () => {
+    {
+      const host = createHost();
+      const node = host.createNode(ElementKind.Anchored);
+      host.setProperty(node, PropertyId.AnchoredPosition, [300, 200]);
+      expect(() => host.flush()).not.toThrow();
+    }
+
+    {
+      const host = createHost();
+      const node = host.createNode(ElementKind.Anchored);
+      host.setProperty(node, PropertyId.AnchoredPosition, [Number.NaN, 200]);
+      let failure: unknown;
+      try {
+        host.flush();
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(NativeRendererFatalError);
+      expect((failure as NativeRendererFatalError).nativeFailure?.code).toBe(
+        'INVALID_PROPERTY_VALUE'
+      );
+    }
+
+    for (const value of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const host = createHost();
+      const node = host.createNode(ElementKind.Anchored);
+      host.setProperty(node, PropertyId.AnchoredSnapMargin, value);
+      let failure: unknown;
+      try {
+        host.flush();
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(NativeRendererFatalError);
+      expect((failure as NativeRendererFatalError).nativeFailure?.code).toBe(
+        'INVALID_PROPERTY_VALUE'
+      );
+    }
+
+    for (const value of [0, 12]) {
+      const host = createHost();
+      const node = host.createNode(ElementKind.Anchored);
+      host.setProperty(node, PropertyId.AnchoredSnapMargin, value);
+      expect(() => host.flush()).not.toThrow();
+    }
+  });
+
   it('creates, mutates, moves, detaches, reattaches, settles, and destroys nodes', () => {
     const host = createHost();
     const parent = host.createNode(ElementKind.Container);

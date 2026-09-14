@@ -14,6 +14,7 @@ pub enum PropertyValue {
     Number(f64),
     Boolean(bool),
     String(String),
+    Point(f64, f64),
 }
 
 // Field order here is the binary wire order as well as the retained command shape.
@@ -308,6 +309,7 @@ fn read_property_value(
             )),
         },
         ValueKind::String => Ok(PropertyValue::String(read_string(reader, strings)?)),
+        ValueKind::Point => Ok(PropertyValue::Point(reader.read_f64()?, reader.read_f64()?)),
     }
 }
 
@@ -346,7 +348,11 @@ mod tests {
     }
 
     fn hex_bytes(hex: &str) -> Vec<u8> {
-        assert_eq!(hex.len() % 2, 0, "golden vector hex must contain whole bytes");
+        assert_eq!(
+            hex.len() % 2,
+            0,
+            "golden vector hex must contain whole bytes"
+        );
         (0..hex.len())
             .step_by(2)
             .map(|offset| u8::from_str_radix(&hex[offset..offset + 2], 16).unwrap())

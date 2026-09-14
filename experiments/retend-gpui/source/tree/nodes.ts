@@ -434,6 +434,13 @@ export class GpuiDivElement extends GpuiElement {
   }
 }
 
+/** Native `<anchored>` floating-layer element. */
+export class GpuiAnchoredElement extends GpuiElement {
+  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+    super(id, 'anchored', true, host, renderer);
+  }
+}
+
 /** Native `<img>` element. */
 export class GpuiImageElement extends GpuiElement {
   constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {

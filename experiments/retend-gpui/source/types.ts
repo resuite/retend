@@ -133,7 +133,13 @@ export interface GpuiMeasurement {
 }
 
 /** Native intrinsic tag names. Text remains ordinary JSX content. */
-export const GPUI_ELEMENT_TYPES = ['div', 'img', 'input', 'textarea'] as const;
+export const GPUI_ELEMENT_TYPES = [
+  'div',
+  'img',
+  'input',
+  'textarea',
+  'anchored',
+] as const;
 
 /** Union of currently supported intrinsic element tag names. */
 export type GpuiElementType = (typeof GPUI_ELEMENT_TYPES)[number];
@@ -160,6 +166,35 @@ export interface GpuiTextareaCustomProps {
   minRows?: number;
   /** Maximum visible row count while auto-sizing. */
   maxRows?: number;
+}
+
+export interface GpuiPoint {
+  x: number;
+  y: number;
+}
+
+/** Native anchored/deferred floating-layer configuration. */
+export interface GpuiAnchoredCustomProps {
+  /** Explicit anchor position in window coordinates. Omit to anchor at this element's parent-relative slot. */
+  position?: GpuiPoint | null;
+  /** Side of the local trigger edge to place the floating content on. */
+  side?: 'top' | 'right' | 'bottom' | 'left';
+  /** Alignment along the selected side. */
+  align?: 'start' | 'center' | 'end';
+  /** Distance from the selected side in logical pixels. */
+  gap?: number;
+  /** Additional x/y adjustment after side positioning. */
+  offset?: GpuiPoint | null;
+  /** Collision policy when the layer would overflow the window. */
+  fit?: 'switch' | 'snap';
+  /** Window-edge margin used by `fit="snap"`. */
+  snapMargin?: number;
+  /** Paint in GPUI's deferred layer so the content floats above normal content. */
+  deferred?: boolean;
+  /** Deferred-layer ordering priority. */
+  priority?: number;
+  /** Whether the floating surface blocks hit testing behind it. */
+  occlude?: boolean;
 }
 
 export interface GpuiSelection {

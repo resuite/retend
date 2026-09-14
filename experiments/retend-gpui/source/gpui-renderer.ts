@@ -25,7 +25,10 @@ import type {
   ElementKind as ElementKindValue,
   PropertyId as PropertyIdValue,
 } from './native/protocol.generated.js';
-import type { ProtocolPropertyValue } from './native/protocol.js';
+import type {
+  ProtocolPointValue,
+  ProtocolPropertyValue,
+} from './native/protocol.js';
 import type { GpuiElementType, GpuiStyle } from './types.js';
 import type { GpuiWindowOptions } from './window.js';
 
@@ -46,6 +49,7 @@ import { withHMRBoundaries } from './plugins/hmr.js';
 import {
   flattenGroups,
   GpuiAnchor,
+  GpuiAnchoredElement,
   GpuiDivElement,
   GpuiElement,
   GpuiGroup,
@@ -71,6 +75,16 @@ const TRANSITION_PROPERTY_RANGE = [
   PropertyId.TransitionTimingFunction,
 ] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Src, PropertyId.ObjectFit] as const;
+const ANCHORED_PROPERTY_BY_KEY = {
+  side: PropertyId.AnchoredSide,
+  align: PropertyId.AnchoredAlign,
+  gap: PropertyId.AnchoredGap,
+  fit: PropertyId.AnchoredFit,
+  snapMargin: PropertyId.AnchoredSnapMargin,
+  deferred: PropertyId.AnchoredDeferred,
+  priority: PropertyId.AnchoredPriority,
+  occlude: PropertyId.AnchoredOcclude,
+} as const;
 
 function propertyIdInRange(
   property: string,
@@ -99,6 +113,7 @@ const ELEMENT_KIND_BY_TAG = {
   img: ElementKind.Image,
   input: ElementKind.Input,
   textarea: ElementKind.Textarea,
+  anchored: ElementKind.Anchored,
 } satisfies Record<GpuiElementType, ElementKindValue>;
 
 const ELEMENT_FACTORIES = {
@@ -106,6 +121,7 @@ const ELEMENT_FACTORIES = {
   img: GpuiImageElement,
   input: GpuiInputElement,
   textarea: GpuiTextareaElement,
+  anchored: GpuiAnchoredElement,
 } as const;
 
 function protocolPropertyValue(value: unknown): ProtocolPropertyValue {
@@ -120,6 +136,22 @@ function protocolPropertyValue(value: unknown): ProtocolPropertyValue {
   throw new TypeError(
     'Native GPUI properties must resolve to primitive values.'
   );
+}
+
+function protocolPoint(
+  value: unknown,
+  property: string
+): ProtocolPointValue | null {
+  if (value == null) return null;
+  if (typeof value !== 'object') {
+    throw new TypeError(`${property} must be an { x, y } object or null.`);
+  }
+  const x = Reflect.get(value, 'x');
+  const y = Reflect.get(value, 'y');
+  if (typeof x !== 'number' || typeof y !== 'number') {
+    throw new TypeError(`${property} x and y must be numbers.`);
+  }
+  return [x, y];
 }
 
 function hasAncestor(
@@ -418,6 +450,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * @throws If the tag is not part of the Retend GPUI intrinsic surface.
    */
   createContainer(tagName: 'div'): GpuiDivElement;
+  createContainer(tagName: 'anchored'): GpuiAnchoredElement;
   createContainer(tagName: 'img'): GpuiImageElement;
   createContainer(tagName: 'input'): GpuiInputElement;
   createContainer(tagName: 'textarea'): GpuiTextareaElement;
@@ -427,7 +460,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     if (!Factory) {
       throw new Error(
         `Unsupported Retend GPUI intrinsic element: <${tagName}>. ` +
-          'Supported tags are <div>, <img>, <input>, and <textarea>; text is ordinary JSX content.'
+          'Supported tags are <div>, <anchored>, <img>, <input>, and <textarea>; text is ordinary JSX content.'
       );
     }
 
@@ -966,6 +999,29 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       return;
     }
 
+    if (node.tagName === 'anchored') {
+      if (key === 'position' || key === 'offset') {
+        this.host.setProperty(
+          node.id,
+          key === 'position'
+            ? PropertyId.AnchoredPosition
+            : PropertyId.AnchoredOffset,
+          protocolPoint(value, key)
+        );
+        return;
+      }
+      const anchoredProperty =
+        ANCHORED_PROPERTY_BY_KEY[key as keyof typeof ANCHORED_PROPERTY_BY_KEY];
+      if (anchoredProperty !== undefined) {
+        this.host.setProperty(
+          node.id,
+          anchoredProperty,
+          protocolPropertyValue(value)
+        );
+        return;
+      }
+    }
+
     let property: PropertyIdValue | undefined;
     if (key === 'tabIndex') property = PropertyId.TabIndex;
     else if (node.tagName === 'img')
@@ -1210,6 +1266,7 @@ export async function renderToGpui(
 
 export {
   GpuiAnchor,
+  GpuiAnchoredElement,
   GpuiDivElement,
   GpuiElement,
   GpuiGroup,

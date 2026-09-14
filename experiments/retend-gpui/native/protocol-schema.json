@@ -23,13 +23,15 @@
     "Text": 3,
     "Image": 4,
     "Input": 5,
-    "Textarea": 6
+    "Textarea": 6,
+    "Anchored": 7
   },
   "valueKinds": {
     "Null": 0,
     "Number": 1,
     "Boolean": 2,
-    "String": 3
+    "String": 3,
+    "Point": 4
   },
   "properties": {
     "Display": 1,
@@ -92,7 +94,17 @@
     "TransitionProperty": 58,
     "TransitionDuration": 59,
     "TransitionDelay": 60,
-    "TransitionTimingFunction": 61
+    "TransitionTimingFunction": 61,
+    "AnchoredPosition": 62,
+    "AnchoredSide": 63,
+    "AnchoredAlign": 64,
+    "AnchoredGap": 65,
+    "AnchoredOffset": 66,
+    "AnchoredFit": 67,
+    "AnchoredSnapMargin": 68,
+    "AnchoredDeferred": 69,
+    "AnchoredPriority": 70,
+    "AnchoredOcclude": 71
   },
   "nativeEvents": {
     "Click": 1,

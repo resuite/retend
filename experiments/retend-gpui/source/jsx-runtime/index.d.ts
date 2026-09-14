@@ -8,12 +8,14 @@ import type {
   GpuiScrollEvent,
 } from '../events.js';
 import type {
+  GpuiAnchoredElement,
   GpuiDivElement,
   GpuiImageElement,
   GpuiInputElement,
   GpuiTextareaElement,
 } from '../gpui-renderer.js';
 import type {
+  GpuiAnchoredCustomProps,
   GpuiImgCustomProps,
   GpuiInputCustomProps,
   GpuiTextareaCustomProps,
@@ -49,6 +51,7 @@ interface GpuiInputNativeEvents {
 
 type GpuiInputNativeEventModifiers =
   GpuiEventModifierHandlers<GpuiInputNativeEvents>;
+type ReactiveGpuiAnchoredCustomProps = ReactiveProps<GpuiAnchoredCustomProps>;
 type ReactiveGpuiImgCustomProps = ReactiveProps<GpuiImgCustomProps>;
 type ReactiveGpuiInputCustomProps = ReactiveProps<GpuiInputCustomProps>;
 type ReactiveGpuiTextareaCustomProps = ReactiveProps<GpuiTextareaCustomProps>;
@@ -99,6 +102,12 @@ declare module 'retend/jsx-runtime' {
     interface GpuiDivProps
       extends GpuiElementProps, GpuiRefAttributes<GpuiDivElement> {}
 
+    interface GpuiAnchoredProps
+      extends
+        GpuiElementProps,
+        GpuiRefAttributes<GpuiAnchoredElement>,
+        ReactiveGpuiAnchoredCustomProps {}
+
     interface GpuiImageProps
       extends GpuiLeafProps<GpuiImageElement>, ReactiveGpuiImgCustomProps {}
 
@@ -125,6 +134,7 @@ declare module 'retend/jsx-runtime' {
      */
     interface IntrinsicElements {
       div: GpuiDivProps;
+      anchored: GpuiAnchoredProps;
       img: GpuiImageProps;
       input: GpuiInputProps;
       textarea: GpuiTextareaProps;

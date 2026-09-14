@@ -15,7 +15,7 @@ use crate::{
     events,
     protocol_generated::NativeEventId,
     style::OverflowValue,
-    tree::{NativeTree, NodeId, TextControlKind, WindowId},
+    tree::{NativeTree, NodeData, NodeId, TextControlKind, WindowId},
     BridgeFailure, NativeMeasurement, NativeScrollOffset, NativeSelection,
 };
 
@@ -139,6 +139,8 @@ struct FrameNode {
     parent: Option<NodeId>,
     children: Vec<NodeId>,
     bounds: Option<Bounds<Pixels>>,
+    // Window-positioned anchored subtrees do not move with logical ancestors.
+    fixed_to_window: bool,
     // Parent-owned child bottom-right, relative to its box before its own scroll.
     content_extent: Option<Point<Pixels>>,
 }
@@ -471,6 +473,10 @@ impl RuntimeStateRegistry {
                 let frame_node = state.frame.nodes.entry(id).or_default();
                 frame_node.parent = node.parent;
                 frame_node.children.clone_from(&node.children);
+                frame_node.fixed_to_window = matches!(
+                    &node.data,
+                    NodeData::Anchored(config) if config.position.is_some()
+                );
             }
         }
         // Layout can change without a tree mutation. Never retain unpainted geometry.
@@ -836,6 +842,9 @@ fn shift_descendant_bounds(state: &mut RuntimeState, ancestor: NodeId, dx: f32, 
         let Some(node) = state.frame.nodes.get_mut(&id) else {
             continue;
         };
+        if node.fixed_to_window {
+            continue;
+        }
         pending.extend(node.children.iter().copied());
         if let Some(bounds) = node.bounds.as_mut() {
             bounds.origin.x = px(f32::from(bounds.origin.x) - dx);
@@ -854,9 +863,23 @@ fn scroll_into_view(state: &mut RuntimeState, id: NodeId) -> bool {
     {
         return false;
     }
+    let fixed_parent = std::iter::successors(Some(id), |id| {
+        state.frame.nodes.get(id).and_then(|node| node.parent)
+    })
+    .find(|id| {
+        state
+            .frame
+            .nodes
+            .get(id)
+            .is_some_and(|node| node.fixed_to_window)
+    })
+    .and_then(|id| state.frame.nodes.get(&id).and_then(|node| node.parent));
     let mut current = state.frame.nodes.get(&id).and_then(|node| node.parent);
     let mut changed = false;
     while let Some(parent) = current {
+        if Some(parent) == fixed_parent {
+            break;
+        }
         current = state.frame.nodes.get(&parent).and_then(|node| node.parent);
         let Some(viewport) = state.frame.nodes.get(&parent).and_then(|node| node.bounds) else {
             continue;
@@ -980,6 +1003,9 @@ fn descendant_ids(frame: &FrameLayout, ancestor: NodeId) -> impl Iterator<Item =
             let Some(node) = frame.nodes.get(&id) else {
                 continue;
             };
+            if node.fixed_to_window {
+                continue;
+            }
             pending.extend(node.children.iter().copied());
             return Some(id);
         }
@@ -1077,9 +1103,7 @@ mod frame_tests {
         let generation = runtime.begin_frame(&tree, window);
         let first_bounds = Bounds::new(point(px(1.0), px(2.0)), gpui::size(px(5.0), px(6.0)));
         runtime.record_geometry(generation, 2, first_bounds, Some(point(px(5.0), px(6.0))));
-        assert!(runtime.0.borrow().frame.nodes[&2]
-            .content_extent
-            .is_some());
+        assert!(runtime.0.borrow().frame.nodes[&2].content_extent.is_some());
 
         // A later callback in the same presentation that publishes no extent must
         // not leave the earlier extent visible to queries.
