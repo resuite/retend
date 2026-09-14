@@ -28,13 +28,11 @@ The single fork IPC channel is multiplexed by a `channel` field on each message.
 
 The GPUI application process hosts the Vite `ModuleRunner` for the running application, with a custom transport that sends and receives those `vite`-channel payloads over `process.send()` / `process.on('message')`.
 
-## Process supervision
+## Development process lifetime
 
-In development, `retend-gpui dev` supervises one GPUI application child process while keeping the Vite/dev-server lifecycle separate from it. The GPUI application process owns the application's complete window graph; individual windows are not separate supervised processes.
+In development, `retend-gpui dev` supervises one GPUI application child process while keeping the Vite/dev-server lifecycle separate from it. The GPUI application process owns the application's complete window graph; individual windows are not separate supervised processes. This section is the authoritative description of process ownership, restart, and exit behavior; later sections link back to it.
 
 The supervisor does not preserve or reconstruct the current window graph across application-process restarts. A restart is an application restart, not a set of per-window restarts.
-
-## Development process lifetime
 
 When a server or configuration change requires a development-runtime restart, `retend-gpui dev` terminates the entire GPUI application process. It does not attempt to preserve the existing window graph. After the server/runtime restart completes, it launches a fresh application process and recreates only the initial window described by configuration.
 
@@ -154,13 +152,13 @@ The overlay is owned by `retend-gpui` as a renderer-level development layer outs
 
 The configured application entrypoint is the HMR boundary for the root component. When it changes during development, the runtime should evaluate the updated entry and remount the root component while keeping the existing renderer and native window alive.
 
-## Development process exit semantics
+## Full reload versus process restart
 
-The GPUI application process and Vite/dev-server share one development-command lifetime. Any unexpected application-process exit shuts down Vite and makes `retend-gpui dev` fail; the application is not automatically respawned. An intentional close of the final GPUI window also ends the application process and causes `retend-gpui dev` to exit, but successfully.
+Process exit, crash, and final-window close follow [Development process lifetime](#development-process-lifetime).
 
 A Vite full reload is not the same as a Vite/dev-server restart. On a full reload, keep the existing GPUI application process and native windows alive, but dispose the current renderer-independent application context and all of its application-lifetime resources, reset the application/module runtime state, create a fresh application context, and remount the application into the existing windows. Concretely, the child process runs the old application instance's `cleanup()`, unmounts every window's renderer (clearing the rendered tree but keeping the native windows), clears the shared Retend `globalData` map, re-imports the application and entry modules through the ModuleRunner (module invalidation having already been applied server-side by the plugin's `hotUpdate` hook), constructs and `init()`s a fresh application instance, and remounts the root into each existing renderer. A full reload therefore preserves the current window graph while discarding and recreating application-level and module-level runtime state. Preserve each window's current location and history across that remount rather than resetting navigation to the location originally used when the window was created.
 
-Changes to `vite.config.ts` or any other server/configuration condition that requires a Vite restart are full application-process restart boundaries. Reload the Vite configuration and development environment, terminate the existing GPUI application process, and then launch a fresh application process containing only the initial configured window. Do not reconstruct windows that existed before the restart. The supervisor detects these restarts through the plugin's per-environment start event: whenever the `gpui` environment listens again, the supervisor replaces the running application child with a fresh one.
+Changes to `vite.config.ts` or any other server/configuration condition that requires a Vite restart are full application-process restart boundaries, as described in [Development process lifetime](#development-process-lifetime). The supervisor detects these restarts through the plugin's per-environment start event: whenever the `gpui` environment listens again, the supervisor replaces the running application child with a fresh one. Do not reconstruct windows that existed before the restart.
 
 ## Planned production build
 

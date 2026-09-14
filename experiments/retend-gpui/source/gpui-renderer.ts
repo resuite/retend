@@ -468,11 +468,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     return node;
   }
 
-  /**
-   * Creates a native text node.
-   *
-   * @param text - Initial text content.
-   */
+  /** Creates a native text node. */
   createText(text: string): GpuiText {
     const node = new GpuiText(
       this.host.createText(text),
@@ -484,13 +480,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     return node;
   }
 
-  /**
-   * Updates the content of an existing text node.
-   *
-   * @param text - New text content.
-   * @param node - Target text node.
-   * @returns The same node, possibly with updated content and a `setText` mutation.
-   */
+  /** Updates an existing text node; no-ops when it is destroyed or unchanged. */
   updateText(text: string, node: GpuiText): GpuiText {
     if (node.destroyed || node.content === text) return node;
     node.content = text;
@@ -557,13 +547,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     return [...flattenGroups(group.children)];
   }
 
-  /**
-   * Appends logical children to a parent and syncs native children.
-   *
-   * @param parent - Parent element or group.
-   * @param child - Child node(s) to append.
-   * @returns The parent for chaining.
-   */
+  /** Appends logical children to a parent and syncs native children. */
   append(
     parent: GpuiElement | GpuiGroup,
     child: GpuiNode | GpuiNode[]
@@ -585,12 +569,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     return getRangeNodes(handle);
   }
 
-  /**
-   * Replaces the content spanned by a range handle.
-   *
-   * @param handle - Range created via `createGroupHandle`.
-   * @param newContent - Nodes to place inside the range.
-   */
+  /** Replaces the content spanned by a range handle. */
   write(handle: GpuiRange, newContent: GpuiNode[]): void {
     writeRange(handle, newContent);
   }
@@ -803,7 +782,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     if (!root) return;
 
     this.#devError = null;
-    // Application roots stay mounted underneath; removing the overlay restores them.
+    // Application roots stay mounted underneath; removing the overlay uncovers
+    // them unchanged.
     if (this.#mountedNativeRoots.delete(root)) {
       this.host.removeChild(this.host.rootId, root.id);
     }

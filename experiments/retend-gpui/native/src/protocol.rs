@@ -330,6 +330,8 @@ fn read_string(reader: &mut Reader<'_>, strings: &[&str]) -> Result<String, Brid
 
 #[cfg(test)]
 mod tests {
+    use std::sync::OnceLock;
+
     use super::*;
     use proptest::prelude::*;
 
@@ -345,6 +347,18 @@ mod tests {
     struct GoldenVector {
         name: String,
         hex: String,
+    }
+
+    fn golden_batch_bytes() -> &'static [Vec<u8>] {
+        static BYTES: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
+        BYTES.get_or_init(|| {
+            let vectors: Vec<GoldenVector> =
+                serde_json::from_str(include_str!("../protocol-golden-vectors.json")).unwrap();
+            vectors
+                .iter()
+                .map(|vector| hex_bytes(&vector.hex))
+                .collect()
+        })
     }
 
     fn hex_bytes(hex: &str) -> Vec<u8> {
@@ -600,6 +614,27 @@ mod tests {
     proptest! {
         #[test]
         fn arbitrary_buffers_never_panic(bytes in proptest::collection::vec(any::<u8>(), 0..4096)) {
+            let _ = decode_command_batch(&bytes);
+        }
+
+        // Golden vectors are valid batches, so mutating them reaches command
+        // decoding, string-table resolution, and property parsing instead of
+        // stopping at the header validation that arbitrary bytes usually fail.
+        #[test]
+        fn mutated_golden_batches_never_panic(
+            vector in 0..golden_batch_bytes().len(),
+            mutations in proptest::collection::vec(
+                (any::<proptest::sample::Index>(), any::<u8>()),
+                0..16,
+            ),
+            keep in any::<proptest::sample::Index>(),
+        ) {
+            let mut bytes = golden_batch_bytes()[vector].clone();
+            for (position, value) in mutations {
+                let index = position.index(bytes.len());
+                bytes[index] = value;
+            }
+            bytes.truncate(keep.index(bytes.len() + 1));
             let _ = decode_command_batch(&bytes);
         }
     }

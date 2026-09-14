@@ -695,16 +695,14 @@ where
                         element.child(gpui_base::input::Textarea::new(&textarea))
                     }
                 },
-                _ => element.children(node.children.iter().map(|child_id| {
-                    build_inner(
-                        tree,
-                        *child_id,
-                        runtime_state,
-                        generation,
-                        resolve_style,
-                        interest,
-                    )
-                })),
+                _ => element.children(build_children(
+                    tree,
+                    &node.children,
+                    runtime_state,
+                    generation,
+                    resolve_style,
+                    interest,
+                )),
             };
             if let Some(content) = staged_content.clone() {
                 element = element.on_children_prepainted(move |children, _, _| {
@@ -837,6 +835,71 @@ where
     } else {
         wrap_at_anchor_slot(layer, config)
     }
+}
+
+/// One renderable child of a container after render-time text coalescing.
+enum ChildRender {
+    /// A run of adjacent text nodes merged into a single GPUI `Text` element.
+    Text { first_id: NodeId, content: String },
+    /// An element child rendered on its own.
+    Node(NodeId),
+}
+
+/// Groups adjacent text children into single text runs.
+///
+/// GPUI lays out through taffy, which has no inline formatting context: every
+/// element is a block-level box or a flex item, so separate `Text` elements
+/// always stack. Merging adjacent text nodes keeps them on one line and lets
+/// the combined run wrap normally. This mirrors CSS, where contiguous inline
+/// content forms a single anonymous box (or one anonymous flex item inside a
+/// flex container). The native tree keeps per-node text identity; the merge is
+/// presentational and recomputed on every render.
+fn coalesce_children(tree: &NativeTree, children: &[NodeId]) -> Vec<ChildRender> {
+    let mut grouped = Vec::with_capacity(children.len());
+    for child_id in children {
+        match &tree.nodes[child_id].data {
+            NodeData::Text(text) => match grouped.last_mut() {
+                Some(ChildRender::Text { content, .. }) => content.push_str(text),
+                _ => grouped.push(ChildRender::Text {
+                    first_id: *child_id,
+                    content: text.clone(),
+                }),
+            },
+            _ => grouped.push(ChildRender::Node(*child_id)),
+        }
+    }
+    grouped
+}
+
+/// Builds the renderable children of a container, coalescing adjacent text
+/// leaves into single text runs.
+fn build_children<'a, F>(
+    tree: &'a NativeTree,
+    children: &[NodeId],
+    runtime_state: &RuntimeStateRegistry,
+    generation: u64,
+    resolve_style: &mut F,
+    interest: EventInterest,
+) -> Vec<AnyElement>
+where
+    F: FnMut(
+        NodeId,
+        &'a crate::motion::MotionBridgeState,
+        Option<&'a crate::style::NativeStyle>,
+    ) -> Option<crate::style::NativeStyle>,
+{
+    coalesce_children(tree, children)
+        .into_iter()
+        .map(|child| match child {
+            ChildRender::Text { first_id, content } => {
+                Text::new(ElementId::Integer(u64::from(first_id)), content.into())
+                    .into_any_element()
+            }
+            ChildRender::Node(id) => {
+                build_inner(tree, id, runtime_state, generation, resolve_style, interest)
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -1064,7 +1127,7 @@ mod tests {
     }
 
     #[test]
-    fn image_render_maps_object_fit_to_gpui() {
+    fn image_render_uses_stateful_gpui_img() {
         let mut tree = NativeTree::default();
         let window = tree.create_window(1).unwrap();
         tree.apply_commands(
@@ -1089,9 +1152,29 @@ mod tests {
         observed_inner(&mut rendered)
             .downcast_mut::<gpui::Stateful<gpui::Img>>()
             .expect("native images must keep a stateful GPUI Img internally");
+    }
+
+    #[test]
+    fn image_object_fit_values_map_to_gpui() {
+        assert!(matches!(
+            to_gpui_object_fit(ImageObjectFit::Fill),
+            gpui::ObjectFit::Fill
+        ));
+        assert!(matches!(
+            to_gpui_object_fit(ImageObjectFit::Contain),
+            gpui::ObjectFit::Contain
+        ));
         assert!(matches!(
             to_gpui_object_fit(ImageObjectFit::Cover),
             gpui::ObjectFit::Cover
+        ));
+        assert!(matches!(
+            to_gpui_object_fit(ImageObjectFit::ScaleDown),
+            gpui::ObjectFit::ScaleDown
+        ));
+        assert!(matches!(
+            to_gpui_object_fit(ImageObjectFit::None),
+            gpui::ObjectFit::None
         ));
     }
 
@@ -1116,6 +1199,147 @@ mod tests {
             .expect("native text nodes must render as GPUI Text");
         assert_eq!(text.id(), Some(&ElementId::Integer(2)));
         assert_eq!(text.text().as_ref(), "hello");
+    }
+
+    #[test]
+    fn adjacent_text_children_coalesce_into_single_runs() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                container(2),
+                Command::CreateText {
+                    id: 3,
+                    text: "Hello".into(),
+                },
+                Command::CreateText {
+                    id: 4,
+                    text: " world".into(),
+                },
+                Command::CreateText {
+                    id: 5,
+                    text: "!".into(),
+                },
+                container(6),
+                Command::CreateText {
+                    id: 7,
+                    text: "tail".into(),
+                },
+                insert(2, 3),
+                insert(2, 4),
+                insert(2, 5),
+                insert(2, 6),
+                insert(2, 7),
+            ],
+        )
+        .unwrap();
+
+        let mut grouped = coalesce_children(&tree, &tree.nodes[&2].children).into_iter();
+        match grouped.next().unwrap() {
+            ChildRender::Text { first_id, content } => {
+                assert_eq!(first_id, 3, "a run keeps its first node's identity");
+                assert_eq!(content, "Hello world!");
+            }
+            ChildRender::Node(_) => panic!("leading text run must coalesce"),
+        }
+        match grouped.next().unwrap() {
+            ChildRender::Node(id) => assert_eq!(id, 6),
+            ChildRender::Text { .. } => panic!("element children must stay separate"),
+        }
+        match grouped.next().unwrap() {
+            ChildRender::Text { first_id, content } => {
+                assert_eq!(first_id, 7);
+                assert_eq!(content, "tail");
+            }
+            ChildRender::Node(_) => panic!("trailing text run must render as text"),
+        }
+        assert!(grouped.next().is_none());
+    }
+
+    #[gpui::test]
+    fn adjacent_text_nodes_share_a_line_in_block_and_flex_containers(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    Command::CreateText {
+                        id: 3,
+                        text: "Hello world".into(),
+                    },
+                    container(4),
+                    Command::CreateText {
+                        id: 5,
+                        text: "Hello".into(),
+                    },
+                    Command::CreateText {
+                        id: 6,
+                        text: " world".into(),
+                    },
+                    container(7),
+                    Command::SetStyle {
+                        id: 7,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                        ],
+                    },
+                    Command::CreateText {
+                        id: 8,
+                        text: "Hello".into(),
+                    },
+                    Command::CreateText {
+                        id: 9,
+                        text: " world".into(),
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(1, 4),
+                    insert(4, 5),
+                    insert(4, 6),
+                    insert(1, 7),
+                    insert(7, 8),
+                    insert(7, 9),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let merged = request_measure(&runtime_state, 2);
+        let split = request_measure(&runtime_state, 4);
+        let column = request_measure(&runtime_state, 7);
+        let (_view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+        let merged = merged.try_recv().unwrap().unwrap();
+        let split = split.try_recv().unwrap().unwrap();
+        let column = column.try_recv().unwrap().unwrap();
+
+        assert_eq!(
+            split.height, merged.height,
+            "block containers must keep adjacent text nodes on one line"
+        );
+        assert_eq!(
+            split.scroll_width, merged.scroll_width,
+            "coalesced text must keep the full intrinsic run width"
+        );
+        assert_eq!(
+            column.height, merged.height,
+            "flex containers must treat contiguous text as one anonymous item"
+        );
     }
 
     struct QueryLayoutTestView {

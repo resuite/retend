@@ -114,7 +114,7 @@ Native events cross from the GPUI/native event loop to Node's JavaScript thread 
 
 The currently supported JSX intrinsic set is `div`, `anchored`, `img`, `input`, and `textarea`.
 
-Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`. `input` and `textarea` use the persistent native editor/focus/selection state implemented in Phase 3. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be activated through the versioned numeric protocol vocabulary when their owning phase is implemented.
+Text is content rather than a JSX intrinsic. String children become dedicated native text nodes in the protocol and render through GPUI's `Text` element using the stable Retend node ID as the GPUI `ElementId`; a coalesced run uses its first node's ID. `input` and `textarea` use the persistent native editor/focus/selection state implemented in Phase 3. Scrolling is expressed through `overflow` on container elements rather than a dedicated scroll intrinsic. Unsupported intrinsic tags produce a descriptive render-time error. Additional element kinds can be activated through the versioned numeric protocol vocabulary when their owning phase is implemented.
 
 ### Anchored floating layers
 
@@ -126,11 +126,11 @@ Text is content rather than a JSX intrinsic. String children become dedicated na
 
 ### Text and mixed content
 
-Each dedicated Retend text node lowers directly to GPUI's `Text` element. GPUI owns text shaping, wrapping, accessibility, and inherited text styling. Retend does not concatenate neighboring text nodes or maintain a parallel styled-range representation.
+Each dedicated Retend text node retains its identity in the native tree, but adjacent text children are coalesced into a single GPUI `Text` element when their parent renders. GPUI lays out through taffy, which has no inline formatting context: separate `Text` elements always stack, so contiguous text nodes have to share one element to flow on one line and wrap as a run. This also mirrors CSS, where contiguous inline content forms a single anonymous box (or one anonymous flex item inside a flex container); `Count: {count}` renders on one line in both block and flex containers. Coalescing is presentational and recomputed on every render, so a reactive update to any node in the run rebuilds the merged text. GPUI owns text shaping, wrapping, accessibility, and inherited text styling.
 
-Text inherits properties such as color, font family, font weight, and font size from its containing styled element. Mixed content such as `<div>text <img/> more</div>` lowers to ordinary GPUI children in source order: a text element, the image element, then another text element. The parent lays those children out according to its configured GPUI display/layout style.
+Text inherits properties such as color, font family, font weight, and font size from its containing styled element. Non-text children separate runs: `<div>text <img/> more</div>` lowers to a text element, the image element, then another text element, and the parent lays those children out according to its configured GPUI display/layout style.
 
-The v1 native renderer has no `span` or nested inline text-run model. Inline range styling and text-range event targeting are outside the v1 surface; introducing them later requires an explicit text-run abstraction rather than hidden range bookkeeping inside ordinary text rendering.
+The v1 native renderer has no `span` or nested inline text-run model, so element children are never merged into a text run. Inline range styling and text-range event targeting are outside the v1 surface; introducing them later requires an explicit text-run abstraction rather than hidden range bookkeeping inside ordinary text rendering.
 
 ## Event vocabulary and payloads
 

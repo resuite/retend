@@ -158,6 +158,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Implement dedicated native text nodes.
 - [x] Render native text nodes through GPUI `Text` with stable Retend-derived `ElementId`s.
 - [x] Let GPUI own text shaping, wrapping, accessibility, and inherited text styling.
+- [x] Coalesce adjacent text nodes into single inline GPUI `Text` runs at render time.
 - [x] Render mixed text/element content as ordinary GPUI children in source order.
 - [x] Implement `img` for HTTP(S) `src` URLs through GPUI image sources; bundled asset-path resolution remains owned by the later Vite asset pipeline.
 - [x] Parse and apply the current image-specific `objectFit` authoring property natively.
