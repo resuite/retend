@@ -3,8 +3,9 @@ use std::{cell::Cell, rc::Rc, sync::Arc};
 use gpui::{
     actions, anchored, deferred, div, img, prelude::*, px, relative, Anchor, AnyElement, App,
     Bounds, ClickEvent, Element, ElementId, GlobalElementId, ImageCacheError, ImageSource,
-    InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, StyledImage, Text, Window,
+    InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, StyledImage,
+    Text, Window,
 };
 
 use crate::{
@@ -651,14 +652,32 @@ where
         NodeId,
         &'a crate::motion::MotionBridgeState,
         Option<&'a crate::style::NativeStyle>,
-    ) -> Option<crate::style::NativeStyle>,
+    ) -> (
+        Option<crate::style::NativeStyle>,
+        Vec<crate::motion::TransitionLifecycleEvent>,
+    ),
 {
     let node = &tree.nodes[&id];
     if let NodeData::Text(text) = &node.data {
         return Text::new(ElementId::Integer(u64::from(id)), text.clone().into())
             .into_any_element();
     }
-    let motion_style = resolve_style(id, &node.motion, node.style.as_deref());
+    let window_id = node.window_id;
+    let (motion_style, transition_events) = resolve_style(id, &node.motion, node.style.as_deref());
+    for lifecycle in transition_events {
+        let event = lifecycle.event;
+        if tree.has_subscription_in_path(window_id, id, event) {
+            events::emit(
+                window_id,
+                events::NativeEventPayload::transition(
+                    event,
+                    id,
+                    lifecycle.property_name().to_string(),
+                    lifecycle.elapsed,
+                ),
+            );
+        }
+    }
     let resolved_style = motion_style.as_ref().or(node.style.as_deref());
     let hover_interest = node.tracks_hover();
     let active_interest = node.tracks_active();
@@ -956,7 +975,10 @@ where
         NodeId,
         &'a crate::motion::MotionBridgeState,
         Option<&'a crate::style::NativeStyle>,
-    ) -> Option<crate::style::NativeStyle>,
+    ) -> (
+        Option<crate::style::NativeStyle>,
+        Vec<crate::motion::TransitionLifecycleEvent>,
+    ),
 {
     coalesce_children(tree, children)
         .into_iter()
@@ -1010,7 +1032,9 @@ mod tests {
         let mut resolve_style =
             |_: NodeId,
              _: &crate::motion::MotionBridgeState,
-             style: Option<&crate::style::NativeStyle>| style.cloned();
+             style: Option<&crate::style::NativeStyle>| {
+                (style.cloned(), Vec::new())
+            };
         build_inner(
             tree,
             id,
@@ -2020,6 +2044,97 @@ mod tests {
         view.update(cx, |_, cx| cx.notify());
         finish_test_frames(cx);
         assert_eq!(hidden.try_recv().unwrap().unwrap(), ScrollOffset::default());
+    }
+
+    #[gpui::test]
+    fn transition_lifecycle_events_reach_subscribed_ancestors(cx: &mut TestAppContext) {
+        cx.update(init);
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let window_id = {
+            let mut tree = crate::runtime()
+                .lock()
+                .expect("global native tree must remain available in render tests");
+            let window_id = tree.create_window(root_id).unwrap();
+            tree.apply_commands(
+                window_id,
+                vec![
+                    container(target_id),
+                    Command::SetStyle {
+                        id: target_id,
+                        properties: vec![
+                            (PropertyId::Width, PropertyValue::Number(0.0)),
+                            (
+                                PropertyId::TransitionProperty,
+                                PropertyValue::String("width".into()),
+                            ),
+                            (
+                                PropertyId::TransitionDuration,
+                                PropertyValue::String("200ms".into()),
+                            ),
+                        ],
+                    },
+                    Command::SubscribeEvent {
+                        id: root_id,
+                        event: NativeEventId::TransitionRun,
+                    },
+                    insert(root_id, target_id),
+                ],
+            )
+            .unwrap();
+            window_id
+        };
+
+        let runtime_state = RuntimeStateRegistry::default();
+        crate::events::take_test_emitted_events();
+        let (view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| GlobalTreeTestView {
+                runtime_state,
+                window_id,
+                root_id,
+            }
+        });
+        finish_test_frames(cx);
+        assert!(
+            crate::events::take_test_emitted_events().is_empty(),
+            "initial style adoption must not emit transition lifecycle events"
+        );
+
+        crate::runtime()
+            .lock()
+            .expect("global native tree must remain available in render tests")
+            .apply_commands(
+                window_id,
+                vec![Command::SetStyle {
+                    id: target_id,
+                    properties: vec![
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (
+                            PropertyId::TransitionProperty,
+                            PropertyValue::String("width".into()),
+                        ),
+                        (
+                            PropertyId::TransitionDuration,
+                            PropertyValue::String("200ms".into()),
+                        ),
+                    ],
+                }],
+            )
+            .unwrap();
+        view.update(cx, |_, cx| cx.notify());
+        cx.run_until_parked();
+        cx.update(|window, cx| window.simulate_next_frame(cx));
+
+        let events: Vec<_> = crate::events::take_test_emitted_events()
+            .into_iter()
+            .filter(|(_, event)| event.event_id == NativeEventId::TransitionRun as u16)
+            .collect();
+        assert_eq!(events.len(), 1);
+        let (event_window, event) = &events[0];
+        assert_eq!((*event_window, event.target_id), (window_id, target_id));
+        assert_eq!(event.property_name.as_deref(), Some("width"));
+        assert_eq!(event.elapsed_time, 0.0);
     }
 
     #[gpui::test]

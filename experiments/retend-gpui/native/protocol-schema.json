@@ -118,6 +118,10 @@
     "Focus": 12,
     "Blur": 13,
     "Scroll": 14,
-    "MouseDownOutside": 15
+    "MouseDownOutside": 15,
+    "TransitionRun": 16,
+    "TransitionStart": 17,
+    "TransitionEnd": 18,
+    "TransitionCancel": 19
   }
 }

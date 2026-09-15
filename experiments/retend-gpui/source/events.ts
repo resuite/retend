@@ -5,6 +5,7 @@ import type {
   NativeMouseEventPayload,
   NativeScrollEventPayload,
   NativeTextEventPayload,
+  NativeTransitionEventPayload,
 } from './native/addon.js';
 import type { GpuiNode } from './tree/nodes.js';
 
@@ -18,7 +19,13 @@ export interface GpuiNativeEventMetadata {
   readonly captures: boolean;
 }
 
-type NativeEventKind = 'mouse' | 'keyboard' | 'text' | 'focus' | 'scroll';
+type NativeEventKind =
+  | 'mouse'
+  | 'keyboard'
+  | 'text'
+  | 'focus'
+  | 'scroll'
+  | 'transition';
 type NativeEventDefinition = readonly [
   type: string,
   kind: NativeEventKind,
@@ -42,6 +49,20 @@ const NATIVE_EVENTS = {
   [NativeEventId.Blur]: ['blur', 'focus', false, true],
   [NativeEventId.Scroll]: ['scroll', 'scroll', false, true],
   [NativeEventId.MouseDownOutside]: ['mousedownoutside', 'mouse', false, false],
+  [NativeEventId.TransitionRun]: ['transitionrun', 'transition', true, true],
+  [NativeEventId.TransitionStart]: [
+    'transitionstart',
+    'transition',
+    true,
+    true,
+  ],
+  [NativeEventId.TransitionEnd]: ['transitionend', 'transition', true, true],
+  [NativeEventId.TransitionCancel]: [
+    'transitioncancel',
+    'transition',
+    true,
+    true,
+  ],
 } as const satisfies Record<NativeTransportEventId, NativeEventDefinition>;
 
 const EVENT_METADATA = new Map<string, GpuiNativeEventMetadata>(
@@ -116,6 +137,26 @@ export class GpuiScrollEvent extends GpuiEvent {
     super('scroll', { bubbles: false, cancelable: false }, payload.timeStamp);
     this.scrollX = payload.scrollX;
     this.scrollY = payload.scrollY;
+  }
+}
+
+export type GpuiTransitionEventType = Extract<
+  (typeof NATIVE_EVENTS)[keyof typeof NATIVE_EVENTS][0],
+  `transition${string}`
+>;
+
+export class GpuiTransitionEvent extends GpuiEvent {
+  readonly propertyName: string;
+  readonly elapsedTime: number;
+  readonly pseudoElement = '';
+
+  constructor(
+    type: GpuiTransitionEventType,
+    payload: NativeTransitionEventPayload
+  ) {
+    super(type, { bubbles: true, cancelable: false }, payload.timeStamp);
+    this.propertyName = payload.propertyName;
+    this.elapsedTime = payload.elapsedTime;
   }
 }
 
@@ -210,5 +251,10 @@ export function createNativeEvent(payload: NativeEventPayload): Event {
       );
     case 'scroll':
       return new GpuiScrollEvent(payload as NativeScrollEventPayload);
+    case 'transition':
+      return new GpuiTransitionEvent(
+        type as GpuiTransitionEventType,
+        payload as NativeTransitionEventPayload
+      );
   }
 }

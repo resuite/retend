@@ -109,6 +109,8 @@ pub struct NativeEventPayload {
     pub scroll_x: f64,
     pub scroll_y: f64,
     pub value: Option<String>,
+    pub property_name: Option<String>,
+    pub elapsed_time: f64,
 }
 
 fn event_clock() -> &'static Instant {
@@ -140,6 +142,18 @@ impl NativeEventPayload {
     pub fn text(event: NativeEventId, target_id: NodeId, value: String) -> Self {
         let mut payload = Self::new(event, target_id);
         payload.value = Some(value);
+        payload
+    }
+
+    pub fn transition(
+        event: NativeEventId,
+        target_id: NodeId,
+        property_name: String,
+        elapsed_time: f64,
+    ) -> Self {
+        let mut payload = Self::new(event, target_id);
+        payload.property_name = Some(property_name);
+        payload.elapsed_time = elapsed_time;
         payload
     }
 }

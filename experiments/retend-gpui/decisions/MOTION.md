@@ -76,7 +76,7 @@ Nested values inside `hover` and `active` are reactive. Cells may drive pseudo-s
 
 If a transitioned property is removed from `style` entirely, cancel any active transition for that property and snap immediately to the renderer's resulting value. Do not attempt to synthesize a CSS-like computed default target for the removed property.
 
-Transition lifecycle events such as `onTransitionRun`, `onTransitionStart`, `onTransitionEnd`, and `onTransitionCancel` are deferred from the initial API. Add them only when the native bridge can expose reliable lifecycle notifications.
+Transition lifecycle events use native notifications with CSS-style names. `onTransitionRun` fires when a transition is created for a newly eligible target change, `onTransitionStart` fires when its delay elapses and interpolation begins (immediately after run when there is no delay), `onTransitionEnd` fires once when interpolation completes, and `onTransitionCancel` fires when an active transition is retargeted, removed, or forced to snap by reduced motion. Each event carries the author-facing `propertyName` (for example `'opacity'` or `'borderRadius'`) and `elapsedTime` in seconds (`0` for run/cancel, the configured delay for start, and the configured duration for end). Events bubble through the Retend logical tree like other native events and are only delivered while a matching listener subscription exists. Initial mount, immediate zero-duration snaps, reduced-motion snaps with no open lifecycle, unsupported (non-pixel) endpoints, and invalid transition declarations do not emit lifecycle events. A zero-duration transition with a positive delay still has a delayed lifecycle: it emits run, then start and end when the delay expires.
 
 ## Animations
 

@@ -5,6 +5,7 @@ export {
   GpuiKeyboardEvent,
   GpuiMouseEvent,
   GpuiScrollEvent,
+  GpuiTransitionEvent,
 } from './events.js';
 export * from './gpui-host.js';
 export * from './gpui-renderer.js';

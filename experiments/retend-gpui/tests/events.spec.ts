@@ -6,6 +6,7 @@ import {
   GpuiKeyboardEvent,
   GpuiMouseEvent,
   GpuiScrollEvent,
+  GpuiTransitionEvent,
   createNativeEvent,
 } from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
@@ -306,6 +307,71 @@ describe('Retend GPUI event dispatch', () => {
       [target, NativeEventId.Click, false],
       [target, NativeEventId.Scroll, true],
       [target, NativeEventId.Scroll, false],
+    ]);
+  });
+
+  it('creates typed transition events with property and elapsed payloads', () => {
+    const run = createNativeEvent({
+      eventId: NativeEventId.TransitionRun,
+      targetId: 1,
+      timeStamp: 20,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      propertyName: 'opacity',
+      elapsedTime: 0,
+    });
+    expect(run).toBeInstanceOf(GpuiTransitionEvent);
+    expect(run.type).toBe('transitionrun');
+    expect(run.bubbles).toBe(true);
+    expect((run as GpuiTransitionEvent).propertyName).toBe('opacity');
+    expect((run as GpuiTransitionEvent).elapsedTime).toBe(0);
+    expect(run.timeStamp).toBe(20);
+
+    const end = createNativeEvent({
+      eventId: NativeEventId.TransitionEnd,
+      targetId: 1,
+      timeStamp: 21,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      propertyName: 'width',
+      elapsedTime: 0.2,
+    });
+    expect(end).toBeInstanceOf(GpuiTransitionEvent);
+    expect(end.type).toBe('transitionend');
+    expect((end as GpuiTransitionEvent).propertyName).toBe('width');
+    expect((end as GpuiTransitionEvent).elapsedTime).toBe(0.2);
+  });
+
+  it('synchronizes native subscriptions for transition event types', () => {
+    const renderer = new RetendGpuiRenderer();
+    const nativeSubscriptionChanged = vi
+      .spyOn(renderer, 'nativeSubscriptionChanged')
+      .mockImplementation(() => {});
+    const target = new GpuiDivElement(1, renderer.host, renderer);
+    const listener = () => {};
+
+    target.addEventListener('transitionrun', listener);
+    target.addEventListener('transitionstart', listener);
+    target.addEventListener('transitionend', listener);
+    target.addEventListener('transitioncancel', listener);
+    target.removeEventListener('transitionrun', listener);
+    target.removeEventListener('transitionstart', listener);
+    target.removeEventListener('transitionend', listener);
+    target.removeEventListener('transitioncancel', listener);
+
+    expect(nativeSubscriptionChanged.mock.calls).toEqual([
+      [target, NativeEventId.TransitionRun, true],
+      [target, NativeEventId.TransitionStart, true],
+      [target, NativeEventId.TransitionEnd, true],
+      [target, NativeEventId.TransitionCancel, true],
+      [target, NativeEventId.TransitionRun, false],
+      [target, NativeEventId.TransitionStart, false],
+      [target, NativeEventId.TransitionEnd, false],
+      [target, NativeEventId.TransitionCancel, false],
     ]);
   });
 });

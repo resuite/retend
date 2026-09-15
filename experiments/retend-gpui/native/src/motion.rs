@@ -1,11 +1,11 @@
 use std::{cell::Cell, time::Duration};
 
 use gpui::{App, ElementId, Window};
-use gpui_base::{transition, Interpolate, Transition};
+use gpui_base::{transition, transition_with_status, Interpolate, MotionStatus, Transition};
 
 use crate::{
     protocol::PropertyValue,
-    protocol_generated::PropertyId,
+    protocol_generated::{NativeEventId, PropertyId},
     style::{LengthValue, NativeStyle},
     tree::NodeId,
 };
@@ -62,6 +62,19 @@ impl AnimatableProperty {
             Self::Left => "left",
             Self::Opacity => "opacity",
             Self::BorderRadius => "border-radius",
+        }
+    }
+
+    fn author_name(self) -> &'static str {
+        match self {
+            Self::Width => "width",
+            Self::Height => "height",
+            Self::Top => "top",
+            Self::Right => "right",
+            Self::Bottom => "bottom",
+            Self::Left => "left",
+            Self::Opacity => "opacity",
+            Self::BorderRadius => "borderRadius",
         }
     }
 
@@ -271,11 +284,18 @@ struct TransitionConfig {
     easing: Bezier,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct ActiveLifecycle {
+    config: TransitionConfig,
+    started: bool,
+}
+
 #[derive(Debug)]
 pub(crate) struct MotionBridgeState {
     initialized: Cell<bool>,
     previous_targets: Cell<[TransitionValue; 8]>,
     active_mask: Cell<u8>,
+    lifecycles: Cell<[Option<ActiveLifecycle>; 8]>,
 }
 
 impl Default for MotionBridgeState {
@@ -284,8 +304,143 @@ impl Default for MotionBridgeState {
             initialized: Cell::new(false),
             previous_targets: Cell::new([TransitionValue::Unset; 8]),
             active_mask: Cell::new(0),
+            lifecycles: Cell::new([None; 8]),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct TransitionLifecycleEvent {
+    pub event: NativeEventId,
+    pub property_index: usize,
+    pub elapsed: f64,
+}
+
+impl TransitionLifecycleEvent {
+    pub fn property_name(self) -> &'static str {
+        AnimatableProperty::ALL[self.property_index].author_name()
+    }
+}
+
+fn emit(
+    events: &mut Vec<TransitionLifecycleEvent>,
+    event: NativeEventId,
+    index: usize,
+    elapsed: f64,
+) {
+    events.push(TransitionLifecycleEvent {
+        event,
+        property_index: index,
+        elapsed,
+    });
+}
+
+fn begin_lifecycle(
+    events: &mut Vec<TransitionLifecycleEvent>,
+    index: usize,
+    sampled: TransitionValue,
+    target: TransitionValue,
+    status: MotionStatus,
+    config: TransitionConfig,
+) -> Option<ActiveLifecycle> {
+    if sampled == target {
+        return None;
+    }
+    match status {
+        MotionStatus::Delayed => {
+            emit(events, NativeEventId::TransitionRun, index, 0.0);
+            Some(ActiveLifecycle {
+                config,
+                started: false,
+            })
+        }
+        MotionStatus::Running => {
+            emit(events, NativeEventId::TransitionRun, index, 0.0);
+            emit(
+                events,
+                NativeEventId::TransitionStart,
+                index,
+                config.delay.as_secs_f64(),
+            );
+            Some(ActiveLifecycle {
+                config,
+                started: true,
+            })
+        }
+        MotionStatus::Idle | MotionStatus::Finished => None,
+    }
+}
+
+fn reconcile_lifecycle(
+    events: &mut Vec<TransitionLifecycleEvent>,
+    index: usize,
+    lifecycle: ActiveLifecycle,
+    status: MotionStatus,
+    forced_snap: bool,
+) -> Option<ActiveLifecycle> {
+    if forced_snap {
+        emit(events, NativeEventId::TransitionCancel, index, 0.0);
+        return None;
+    }
+    match status {
+        MotionStatus::Delayed => Some(lifecycle),
+        MotionStatus::Running if !lifecycle.started => {
+            emit(
+                events,
+                NativeEventId::TransitionStart,
+                index,
+                lifecycle.config.delay.as_secs_f64(),
+            );
+            Some(ActiveLifecycle {
+                started: true,
+                ..lifecycle
+            })
+        }
+        MotionStatus::Running => Some(lifecycle),
+        MotionStatus::Finished => {
+            if !lifecycle.started {
+                emit(
+                    events,
+                    NativeEventId::TransitionStart,
+                    index,
+                    lifecycle.config.delay.as_secs_f64(),
+                );
+            }
+            emit(
+                events,
+                NativeEventId::TransitionEnd,
+                index,
+                lifecycle.config.duration.as_secs_f64(),
+            );
+            None
+        }
+        // This state can only follow a no-op retarget. It must not leave a
+        // previously emitted run open indefinitely.
+        MotionStatus::Idle => {
+            emit(events, NativeEventId::TransitionCancel, index, 0.0);
+            None
+        }
+    }
+}
+
+fn settle_lifecycle(
+    events: &mut Vec<TransitionLifecycleEvent>,
+    index: usize,
+    property: AnimatableProperty,
+    element_id: &ElementId,
+    target: TransitionValue,
+    lifecycle: ActiveLifecycle,
+    window: &mut Window,
+    cx: &mut App,
+) -> Option<ActiveLifecycle> {
+    let sampled = transition_with_status(
+        (element_id.clone(), property.channel()),
+        target,
+        transition_policy(lifecycle.config),
+        window,
+        cx,
+    );
+    reconcile_lifecycle(events, index, lifecycle, sampled.status, cx.reduce_motion())
 }
 
 fn eligible_mask(transition: TransitionSpec, targets: &[TransitionValue; 8]) -> u8 {
@@ -319,53 +474,206 @@ pub fn resolve_style(
     author: Option<&NativeStyle>,
     window: &mut Window,
     cx: &mut App,
-) -> Option<NativeStyle> {
+) -> (Option<NativeStyle>, Vec<TransitionLifecycleEvent>) {
+    let element_id = ElementId::Integer(u64::from(node_id));
+    let previous_targets = state.previous_targets.get();
+    let previous_lifecycles = state.lifecycles.get();
+    let mut lifecycles = previous_lifecycles;
+    let mut events = Vec::new();
+
     let Some(target_style) = author else {
+        for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
+            if let Some(lifecycle) = lifecycles[index] {
+                let still_active = settle_lifecycle(
+                    &mut events,
+                    index,
+                    property,
+                    &element_id,
+                    previous_targets[index],
+                    lifecycle,
+                    window,
+                    cx,
+                );
+                if still_active.is_some() {
+                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
+                }
+            }
+        }
         state
             .previous_targets
             .set([TransitionValue::Unset; AnimatableProperty::ALL.len()]);
         state.active_mask.set(0);
+        state.lifecycles.set([None; 8]);
         state.initialized.set(true);
-        return None;
+        return (None, events);
     };
+
     let spec = target_style.transition;
     let targets = AnimatableProperty::ALL.map(|property| property.target(target_style));
     let config = spec.config();
-    let current_mask = if spec.properties == 0 || config.is_none() {
-        0
-    } else {
-        eligible_mask(spec, &targets)
-    };
-    let previous_targets = state.previous_targets.replace(targets);
+    let current_mask = config
+        .filter(|_| spec.properties != 0)
+        .map_or(0, |_| eligible_mask(spec, &targets));
     let previous_mask = state.active_mask.replace(current_mask);
     let initialized = state.initialized.replace(true);
 
-    let config = config.filter(|_| current_mask != 0)?;
+    let Some(config) = config.filter(|_| current_mask != 0) else {
+        for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
+            if let Some(lifecycle) = lifecycles[index] {
+                let still_active = settle_lifecycle(
+                    &mut events,
+                    index,
+                    property,
+                    &element_id,
+                    previous_targets[index],
+                    lifecycle,
+                    window,
+                    cx,
+                );
+                if still_active.is_some() {
+                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
+                }
+            }
+        }
+        state.previous_targets.set(targets);
+        state.lifecycles.set([None; 8]);
+        return (None, events);
+    };
 
-    let element_id = ElementId::Integer(u64::from(node_id));
     let mut resolved = None;
-    for property in AnimatableProperty::ALL
-        .into_iter()
-        .filter(|property| current_mask & property.bit() != 0)
-    {
-        let index = property as usize;
+    for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
         let target = targets[index];
         let key = (element_id.clone(), property.channel());
-        if initialized && previous_mask & property.bit() == 0 {
+        let previous_target = previous_targets[index];
+        let previously_eligible = previous_mask & property.bit() != 0;
+        let currently_eligible = current_mask & property.bit() != 0;
+        let target_changed = previous_target != target;
+
+        if !currently_eligible {
+            if let Some(lifecycle) = lifecycles[index] {
+                let still_active = settle_lifecycle(
+                    &mut events,
+                    index,
+                    property,
+                    &element_id,
+                    previous_target,
+                    lifecycle,
+                    window,
+                    cx,
+                );
+                if still_active.is_some() {
+                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
+                }
+            }
+            lifecycles[index] = None;
+            continue;
+        }
+
+        if !initialized {
+            let sampled =
+                transition_with_status(key, target, transition_policy(config), window, cx);
+            if sampled.value != target {
+                property.apply(
+                    resolved.get_or_insert_with(|| target_style.clone()),
+                    sampled.value,
+                );
+            }
+            lifecycles[index] = None;
+            continue;
+        }
+
+        if !previously_eligible {
+            // Seed newly enabled channels from the last committed author target so
+            // values do not resume stale GPUI motion. An Unset previous target has
+            // no representable start value, so snap the channel to the current
+            // target with a zero-duration policy and emit nothing.
+            if previous_target == TransitionValue::Unset {
+                transition(key, target, Transition::new(Duration::ZERO), window, cx);
+                lifecycles[index] = None;
+                continue;
+            }
             transition(
                 key.clone(),
-                previous_targets[index],
+                previous_target,
                 Transition::new(Duration::ZERO),
                 window,
                 cx,
             );
+            let sampled =
+                transition_with_status(key, target, transition_policy(config), window, cx);
+            if sampled.value != target {
+                property.apply(
+                    resolved.get_or_insert_with(|| target_style.clone()),
+                    sampled.value,
+                );
+            }
+            lifecycles[index] = begin_lifecycle(
+                &mut events,
+                index,
+                sampled.value,
+                target,
+                sampled.status,
+                config,
+            );
+            continue;
         }
-        let value = transition(key, target, transition_policy(config), window, cx);
-        if value != target {
-            property.apply(resolved.get_or_insert_with(|| target_style.clone()), value);
+
+        if target_changed {
+            if let Some(lifecycle) = lifecycles[index] {
+                let still_active = settle_lifecycle(
+                    &mut events,
+                    index,
+                    property,
+                    &element_id,
+                    previous_target,
+                    lifecycle,
+                    window,
+                    cx,
+                );
+                if still_active.is_some() {
+                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
+                }
+            }
+            let sampled =
+                transition_with_status(key, target, transition_policy(config), window, cx);
+            if sampled.value != target {
+                property.apply(
+                    resolved.get_or_insert_with(|| target_style.clone()),
+                    sampled.value,
+                );
+            }
+            lifecycles[index] = begin_lifecycle(
+                &mut events,
+                index,
+                sampled.value,
+                target,
+                sampled.status,
+                config,
+            );
+            continue;
         }
+
+        let policy = lifecycles[index].map_or(config, |lifecycle| lifecycle.config);
+        let sampled = transition_with_status(key, target, transition_policy(policy), window, cx);
+        if sampled.value != target {
+            property.apply(
+                resolved.get_or_insert_with(|| target_style.clone()),
+                sampled.value,
+            );
+        }
+        lifecycles[index] = lifecycles[index].and_then(|lifecycle| {
+            reconcile_lifecycle(
+                &mut events,
+                index,
+                lifecycle,
+                sampled.status,
+                cx.reduce_motion(),
+            )
+        });
     }
-    resolved
+    state.previous_targets.set(targets);
+    state.lifecycles.set(lifecycles);
+    (resolved, events)
 }
 
 #[cfg(test)]
@@ -384,10 +692,14 @@ mod tests {
     }
 
     impl Render for MotionProbe {
-        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        fn render(
+            &mut self,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> impl gpui::IntoElement {
             let style = transition_style(self.target, self.enabled);
-            let resolved =
-                resolve_style(1, &self.motion, Some(&style), window, cx).unwrap_or(style);
+            let (resolved, _) = resolve_style(1, &self.motion, Some(&style), window, cx);
+            let resolved = resolved.unwrap_or(style);
             let Some(LengthValue::Pixels(width)) = resolved.width else {
                 panic!("motion probe width must remain pixel-valued");
             };
@@ -416,7 +728,7 @@ mod tests {
         style
     }
 
-    fn draw(cx: &mut TestAppContext, window: gpui::WindowHandle<MotionProbe>) {
+    fn draw<V: Render>(cx: &mut TestAppContext, window: gpui::WindowHandle<V>) {
         cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
             .unwrap();
     }
@@ -515,9 +827,7 @@ mod tests {
     }
 
     #[gpui::test]
-    fn removing_eligibility_reseeds_and_reduced_motion_snaps_through_gpui(
-        cx: &mut TestAppContext,
-    ) {
+    fn removing_eligibility_reseeds_and_reduced_motion_snaps_through_gpui(cx: &mut TestAppContext) {
         let sampled = Rc::new(Cell::new(-1.0));
         let window = cx.add_window({
             let sampled = sampled.clone();
@@ -611,11 +921,15 @@ mod tests {
     }
 
     impl Render for EndpointProbe {
-        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
+        fn render(
+            &mut self,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> impl gpui::IntoElement {
             let mut style = transition_style(0.0, true);
             assert!(style.set_property(PropertyId::Width, &self.width));
-            let resolved =
-                resolve_style(2, &self.motion, Some(&style), window, cx).unwrap_or(style);
+            let (resolved, _) = resolve_style(2, &self.motion, Some(&style), window, cx);
+            let resolved = resolved.unwrap_or(style);
             self.sampled.set(match resolved.width {
                 Some(LengthValue::Pixels(value)) => SampledWidth::Pixels(value),
                 Some(LengthValue::Percent(value)) => SampledWidth::Percent(value),
@@ -648,7 +962,9 @@ mod tests {
         cx.executor().advance_clock(Duration::from_millis(50));
         cx.update_window(window.into(), |_, window, cx| window.draw(cx).clear(cx))
             .unwrap();
-        assert!(matches!(sampled.get(), SampledWidth::Pixels(value) if value > 0.0 && value < 100.0));
+        assert!(
+            matches!(sampled.get(), SampledWidth::Pixels(value) if value > 0.0 && value < 100.0)
+        );
 
         window
             .update(cx, |probe, _, cx| {
@@ -672,6 +988,584 @@ mod tests {
             sampled.get(),
             SampledWidth::Pixels(200.0),
             "a representable target after an unsupported endpoint must not resume stale motion"
+        );
+    }
+
+    struct LifecycleProbe {
+        target: f32,
+        enabled: bool,
+        delay: Option<String>,
+        duration: Option<String>,
+        events: Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
+        motion: MotionBridgeState,
+    }
+
+    impl Render for LifecycleProbe {
+        fn render(
+            &mut self,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> impl gpui::IntoElement {
+            let mut style = transition_style(self.target, self.enabled);
+            if let Some(delay) = &self.delay {
+                assert!(style.set_property(
+                    PropertyId::TransitionDelay,
+                    &PropertyValue::String(delay.clone()),
+                ));
+            }
+            if let Some(duration) = &self.duration {
+                assert!(style.set_property(
+                    PropertyId::TransitionDuration,
+                    &PropertyValue::String(duration.clone()),
+                ));
+            }
+            let (resolved, lifecycle) = resolve_style(3, &self.motion, Some(&style), window, cx);
+            for event in lifecycle {
+                self.events
+                    .borrow_mut()
+                    .push((event.event, event.property_name(), event.elapsed));
+            }
+            let resolved = resolved.unwrap_or(style);
+            let Some(LengthValue::Pixels(_)) = resolved.width else {
+                panic!("lifecycle probe width must remain pixel-valued");
+            };
+            div()
+        }
+    }
+
+    fn drain(
+        events: &Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
+    ) -> Vec<(NativeEventId, &'static str, f64)> {
+        std::mem::take(&mut *events.borrow_mut())
+    }
+
+    fn kinds(
+        events: &Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
+    ) -> Vec<(NativeEventId, &'static str)> {
+        drain(events)
+            .into_iter()
+            .map(|(event, name, _)| (event, name))
+            .collect()
+    }
+
+    #[gpui::test]
+    fn transition_lifecycle_emits_run_start_end_and_cancel(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: None,
+                duration: None,
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        // Initial mount adopts without events.
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![(E::TransitionRun, "width"), (E::TransitionStart, "width")],
+            "a new target must emit run then start without delay"
+        );
+
+        // Retargeting an active transition cancels the previous run.
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 200.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![
+                (E::TransitionCancel, "width"),
+                (E::TransitionRun, "width"),
+                (E::TransitionStart, "width"),
+            ],
+            "retargeting must cancel before running the replacement"
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(300));
+        draw(cx, window);
+        let completed = drain(&events);
+        assert_eq!(
+            completed
+                .iter()
+                .map(|(event, name, _)| (*event, *name))
+                .collect::<Vec<_>>(),
+            vec![(E::TransitionEnd, "width")],
+            "completion must emit end once"
+        );
+        assert!(
+            (completed[0].2 - 0.2).abs() < 1e-6,
+            "end must report the stored 200ms duration, got {}",
+            completed[0].2
+        );
+        draw(cx, window);
+        assert!(
+            kinds(&events).is_empty(),
+            "a finished transition must not re-emit end"
+        );
+
+        // Removing eligibility while running cancels and snaps.
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 300.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![(E::TransitionRun, "width"), (E::TransitionStart, "width")],
+        );
+        window
+            .update(cx, |probe, _, cx| {
+                probe.enabled = false;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionCancel, "width")]);
+    }
+
+    #[gpui::test]
+    fn transition_delay_separates_run_and_start(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: Some("200ms".to_string()),
+                duration: None,
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionRun, "width")]);
+
+        cx.executor().advance_clock(Duration::from_millis(200));
+        draw(cx, window);
+        let started = drain(&events);
+        assert_eq!(
+            started
+                .iter()
+                .map(|(event, name, _)| (*event, *name))
+                .collect::<Vec<_>>(),
+            vec![(E::TransitionStart, "width")]
+        );
+        assert!(
+            (started[0].2 - 0.2).abs() < 1e-6,
+            "start must report the 200ms delay, got {}",
+            started[0].2
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(300));
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionEnd, "width")]);
+    }
+
+    #[gpui::test]
+    fn transition_skipped_running_phase_emits_start_before_end(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: Some("200ms".to_string()),
+                duration: Some("300ms".to_string()),
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionRun, "width")]);
+
+        // Stall a frame across both the delay and duration boundaries.
+        cx.executor().advance_clock(Duration::from_millis(600));
+        draw(cx, window);
+        let completed = drain(&events);
+        assert_eq!(
+            completed
+                .iter()
+                .map(|(event, name, _)| (*event, *name))
+                .collect::<Vec<_>>(),
+            vec![(E::TransitionStart, "width"), (E::TransitionEnd, "width")],
+            "crossing delay and duration in one step must not drop start"
+        );
+        assert!((completed[0].2 - 0.2).abs() < 1e-6);
+        assert!((completed[1].2 - 0.3).abs() < 1e-6);
+    }
+
+    #[gpui::test]
+    fn delayed_reversal_cancels_without_creating_an_unfinishable_run(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: Some("200ms".to_string()),
+                duration: Some("300ms".to_string()),
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionRun, "width")]);
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 0.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![(E::TransitionCancel, "width")],
+            "reversing to the delayed start value must not create a no-op run"
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(600));
+        draw(cx, window);
+        assert!(
+            kinds(&events).is_empty(),
+            "a suppressed no-op transition must not later emit lifecycle events"
+        );
+    }
+
+    #[gpui::test]
+    fn reduced_motion_cancels_an_open_lifecycle_without_fabricating_completion(
+        cx: &mut TestAppContext,
+    ) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: Some("200ms".to_string()),
+                duration: Some("300ms".to_string()),
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionRun, "width")]);
+
+        cx.executor().advance_clock(Duration::from_millis(50));
+        cx.update(|cx| cx.set_reduce_motion(true));
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![(E::TransitionCancel, "width")],
+            "a forced snap cannot report a start or successful end"
+        );
+        cx.update(|cx| cx.set_reduce_motion(false));
+    }
+
+    #[gpui::test]
+    fn completed_transition_ends_before_a_stalled_frame_retargets(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: None,
+                duration: Some("200ms".to_string()),
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![(E::TransitionRun, "width"), (E::TransitionStart, "width")]
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(300));
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 200.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![
+                (E::TransitionEnd, "width"),
+                (E::TransitionRun, "width"),
+                (E::TransitionStart, "width"),
+            ],
+            "the completed lifecycle must end before its replacement starts"
+        );
+    }
+
+    #[gpui::test]
+    fn lifecycle_keeps_its_creation_delay_when_the_declaration_changes(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: Some("200ms".to_string()),
+                duration: Some("300ms".to_string()),
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionRun, "width")]);
+
+        cx.executor().advance_clock(Duration::from_millis(50));
+        window
+            .update(cx, |probe, _, cx| {
+                probe.delay = Some("0ms".to_string());
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert!(
+            kinds(&events).is_empty(),
+            "an in-flight lifecycle keeps its creation delay"
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(150));
+        draw(cx, window);
+        assert_eq!(kinds(&events), vec![(E::TransitionStart, "width")]);
+    }
+
+    #[gpui::test]
+    fn transition_end_reports_start_timing_not_current_declaration(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events = Rc::new(std::cell::RefCell::new(Vec::new()));
+        let window = cx.add_window({
+            let events = events.clone();
+            move |_, _| LifecycleProbe {
+                target: 0.0,
+                enabled: true,
+                delay: None,
+                duration: Some("300ms".to_string()),
+                events,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(kinds(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.target = 100.0;
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![(E::TransitionRun, "width"), (E::TransitionStart, "width")]
+        );
+
+        // Changing only the duration mid-flight must not change the in-flight
+        // transition's reported timing; GPUI completes with its stored policy.
+        window
+            .update(cx, |probe, _, cx| {
+                probe.duration = Some("2s".to_string());
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert!(
+            kinds(&events).is_empty(),
+            "a timing-only change must not restart the lifecycle"
+        );
+
+        cx.executor().advance_clock(Duration::from_millis(400));
+        draw(cx, window);
+        let completed = drain(&events);
+        assert_eq!(
+            completed
+                .iter()
+                .map(|(event, name, _)| (*event, *name))
+                .collect::<Vec<_>>(),
+            vec![(E::TransitionEnd, "width")]
+        );
+        assert!(
+            (completed[0].2 - 0.3).abs() < 1e-6,
+            "end must report the 300ms duration from run, got {}",
+            completed[0].2
+        );
+    }
+
+    struct UnsupportedLifecycleProbe {
+        width: PropertyValue,
+        events: Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
+        sampled: Rc<Cell<SampledWidth>>,
+        motion: MotionBridgeState,
+    }
+
+    impl Render for UnsupportedLifecycleProbe {
+        fn render(
+            &mut self,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> impl gpui::IntoElement {
+            let mut style = transition_style(0.0, true);
+            assert!(style.set_property(PropertyId::Width, &self.width));
+            let (resolved, lifecycle) = resolve_style(4, &self.motion, Some(&style), window, cx);
+            for event in lifecycle {
+                self.events
+                    .borrow_mut()
+                    .push((event.event, event.property_name(), event.elapsed));
+            }
+            let resolved = resolved.unwrap_or(style);
+            self.sampled.set(match resolved.width {
+                Some(LengthValue::Pixels(value)) => SampledWidth::Pixels(value),
+                Some(LengthValue::Percent(value)) => SampledWidth::Percent(value),
+                _ => SampledWidth::Unset,
+            });
+            div()
+        }
+    }
+
+    #[gpui::test]
+    fn unsupported_endpoint_snaps_without_later_lifecycle(cx: &mut TestAppContext) {
+        use NativeEventId as E;
+        let events: Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>> =
+            Rc::new(std::cell::RefCell::new(Vec::new()));
+        let sampled = Rc::new(Cell::new(SampledWidth::Unset));
+        let window = cx.add_window({
+            let events = events.clone();
+            let sampled = sampled.clone();
+            move |_, _| UnsupportedLifecycleProbe {
+                width: PropertyValue::Number(0.0),
+                events,
+                sampled,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert!(drain(&events).is_empty());
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.width = PropertyValue::Number(100.0);
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(
+            kinds(&events),
+            vec![(E::TransitionRun, "width"), (E::TransitionStart, "width")]
+        );
+
+        // An unsupported endpoint cancels the in-flight transition and snaps.
+        window
+            .update(cx, |probe, _, cx| {
+                probe.width = PropertyValue::String("50%".into());
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(sampled.get(), SampledWidth::Percent(50.0));
+        assert_eq!(kinds(&events), vec![(E::TransitionCancel, "width")]);
+
+        // Returning to pixels snaps to the target with no lifecycle, and later
+        // frames must not synthesize start or end for the snapped value.
+        window
+            .update(cx, |probe, _, cx| {
+                probe.width = PropertyValue::Number(100.0);
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(sampled.get(), SampledWidth::Pixels(100.0));
+        assert!(
+            kinds(&events).is_empty(),
+            "unsupported -> pixel must snap without run"
+        );
+        cx.executor().advance_clock(Duration::from_millis(100));
+        draw(cx, window);
+        assert_eq!(sampled.get(), SampledWidth::Pixels(100.0));
+        assert!(
+            kinds(&events).is_empty(),
+            "a snapped value must not emit start or end later"
+        );
+        cx.executor().advance_clock(Duration::from_millis(300));
+        draw(cx, window);
+        assert!(
+            kinds(&events).is_empty(),
+            "completion must not fire without a run"
         );
     }
 }

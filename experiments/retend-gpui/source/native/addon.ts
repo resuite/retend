@@ -47,6 +47,9 @@ type NativeKeyboardEventId = NativeEventIds<'KeyDown' | 'KeyUp'>;
 type NativeTextEventId = NativeEventIds<'Input' | 'Change'>;
 type NativeFocusEventId = NativeEventIds<'Focus' | 'Blur'>;
 type NativeScrollEventId = NativeEventIds<'Scroll'>;
+type NativeTransitionEventId = NativeEventIds<
+  'TransitionRun' | 'TransitionStart' | 'TransitionEnd' | 'TransitionCancel'
+>;
 type NativePayloadById<
   Id extends number,
   Fields = Record<never, never>,
@@ -81,13 +84,18 @@ export type NativeScrollEventPayload = NativePayloadById<
   NativeScrollEventId,
   { scrollX: number; scrollY: number }
 >;
+export type NativeTransitionEventPayload = NativePayloadById<
+  NativeTransitionEventId,
+  { propertyName: string; elapsedTime: number }
+>;
 
 export type NativeEventPayload =
   | NativeMouseEventPayload
   | NativeKeyboardEventPayload
   | NativeTextEventPayload
   | NativeFocusEventPayload
-  | NativeScrollEventPayload;
+  | NativeScrollEventPayload
+  | NativeTransitionEventPayload;
 
 export type NativeWindowEventPayload =
   | { kind: 'resize'; width: number; height: number }
