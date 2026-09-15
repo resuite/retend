@@ -48,7 +48,7 @@ Transition durations and delays use CSS-style string values rather than numeric 
 
 Transition and animation timing functions use CSS-style string values. Support the standard named curves such as `'linear'`, `'ease'`, `'ease-in'`, `'ease-out'`, and `'ease-in-out'`, as well as CSS `cubic-bezier(...)` values.
 
-For the initial implementation, the Retend GPUI adapter exposes `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius` through GPUI Base's keyed value-transition primitive. Broader GPUI motion support can be surfaced separately later without introducing a parallel Retend playback engine.
+For the initial implementation, the Retend GPUI adapter exposes `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, `borderRadius`, `backgroundColor`, and `color` through GPUI Base's keyed value-transition primitive. Geometry and numeric properties interpolate as pixel/number values; the color properties interpolate as GPUI `Hsla` channels. Broader GPUI motion support can be surfaced separately later without introducing a parallel Retend playback engine.
 
 Follow the existing `retend-canvas-2d` convention for transitioning multiple properties: `transitionProperty` may be a single explicit animatable GPUI property name or an array of explicit property names. `transitionDuration`, `transitionDelay`, and `transitionTimingFunction` remain single shared values rather than parallel per-property lists.
 
@@ -120,7 +120,7 @@ const fadeIn = {
     animationName: fadeIn,
     animationDuration: '200ms',
   }}
-/>
+/>;
 ```
 
 Invalid transition declarations fail soft, matching web CSS behavior. Malformed duration, delay, or timing-function values such as `transitionDuration: 'banana'` or an invalid `cubic-bezier(...)` should be ignored for transition purposes rather than throwing; the underlying resolved style change still applies immediately.

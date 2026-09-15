@@ -5,7 +5,8 @@ function jsxTypingProbe() {
       style={{
         width: 120,
         opacity: 0.5,
-        transitionProperty: ['width', 'opacity'],
+        backgroundColor: '#ff0000',
+        transitionProperty: ['width', 'opacity', 'backgroundColor'],
         transitionDuration: '.2s',
         transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
       }}

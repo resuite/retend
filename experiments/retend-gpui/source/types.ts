@@ -34,7 +34,9 @@ export type GpuiTransitionProperty =
   | 'bottom'
   | 'left'
   | 'opacity'
-  | 'borderRadius';
+  | 'borderRadius'
+  | 'backgroundColor'
+  | 'color';
 
 export type GpuiTransitionTimingFunction =
   | 'linear'

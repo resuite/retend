@@ -747,7 +747,8 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     renderer.setProperty(element, 'style', {
       width: 120,
       opacity: 0.5,
-      transitionProperty: ['width', 'opacity'],
+      backgroundColor: '#ff0000',
+      transitionProperty: ['width', 'opacity', 'backgroundColor'],
       transitionDuration: '.2s',
       transitionDelay: '25ms',
       transitionTimingFunction: 'ease-out',
@@ -756,7 +757,8 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(setStyle).toHaveBeenCalledWith(element.id, [
       [PropertyId.Width, 120],
       [PropertyId.Opacity, 0.5],
-      [PropertyId.TransitionProperty, 'width,opacity'],
+      [PropertyId.BackgroundColor, '#ff0000'],
+      [PropertyId.TransitionProperty, 'width,opacity,backgroundColor'],
       [PropertyId.TransitionDuration, '.2s'],
       [PropertyId.TransitionDelay, '25ms'],
       [PropertyId.TransitionTimingFunction, 'ease-out'],

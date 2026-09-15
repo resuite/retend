@@ -1,6 +1,6 @@
 use std::{cell::Cell, time::Duration};
 
-use gpui::{App, ElementId, Window};
+use gpui::{App, ElementId, Hsla, Rgba, Window};
 use gpui_base::{transition, transition_with_status, Interpolate, MotionStatus, Transition};
 
 use crate::{
@@ -20,10 +20,12 @@ enum AnimatableProperty {
     Left,
     Opacity,
     BorderRadius,
+    BackgroundColor,
+    Color,
 }
 
 impl AnimatableProperty {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 10] = [
         Self::Width,
         Self::Height,
         Self::Top,
@@ -32,10 +34,12 @@ impl AnimatableProperty {
         Self::Left,
         Self::Opacity,
         Self::BorderRadius,
+        Self::BackgroundColor,
+        Self::Color,
     ];
 
-    fn bit(self) -> u8 {
-        1 << self as u8
+    fn bit(self) -> u16 {
+        1 << self as u16
     }
 
     fn parse(value: &str) -> Option<Self> {
@@ -48,6 +52,8 @@ impl AnimatableProperty {
             "left" => Some(Self::Left),
             "opacity" => Some(Self::Opacity),
             "borderRadius" => Some(Self::BorderRadius),
+            "backgroundColor" => Some(Self::BackgroundColor),
+            "color" => Some(Self::Color),
             _ => None,
         }
     }
@@ -62,6 +68,8 @@ impl AnimatableProperty {
             Self::Left => "left",
             Self::Opacity => "opacity",
             Self::BorderRadius => "border-radius",
+            Self::BackgroundColor => "background-color",
+            Self::Color => "color",
         }
     }
 
@@ -75,6 +83,8 @@ impl AnimatableProperty {
             Self::Left => "left",
             Self::Opacity => "opacity",
             Self::BorderRadius => "borderRadius",
+            Self::BackgroundColor => "backgroundColor",
+            Self::Color => "color",
         }
     }
 
@@ -82,6 +92,11 @@ impl AnimatableProperty {
         let pixels = |value| match value {
             Some(LengthValue::Pixels(value)) => TransitionValue::Value(value),
             _ => TransitionValue::Unset,
+        };
+        let color = |value: Option<u32>| {
+            value.map_or(TransitionValue::Unset, |value| {
+                TransitionValue::Color(Hsla::from(gpui::rgba(value)))
+            })
         };
         match self {
             Self::Width => pixels(style.width),
@@ -94,22 +109,31 @@ impl AnimatableProperty {
             Self::BorderRadius => style
                 .border_radius
                 .map_or(TransitionValue::Unset, TransitionValue::Value),
+            Self::BackgroundColor => color(style.background_color),
+            Self::Color => color(style.color),
         }
     }
 
     fn apply(self, style: &mut NativeStyle, value: TransitionValue) {
-        let TransitionValue::Value(value) = value else {
-            return;
-        };
-        match self {
-            Self::Width => style.width = Some(LengthValue::Pixels(value)),
-            Self::Height => style.height = Some(LengthValue::Pixels(value)),
-            Self::Top => style.top = Some(LengthValue::Pixels(value)),
-            Self::Right => style.right = Some(LengthValue::Pixels(value)),
-            Self::Bottom => style.bottom = Some(LengthValue::Pixels(value)),
-            Self::Left => style.left = Some(LengthValue::Pixels(value)),
-            Self::Opacity => style.opacity = Some(value),
-            Self::BorderRadius => style.border_radius = Some(value),
+        match (self, value) {
+            (Self::BackgroundColor, TransitionValue::Color(value)) => {
+                style.background_color = Some(u32::from(Rgba::from(value)));
+            }
+            (Self::Color, TransitionValue::Color(value)) => {
+                style.color = Some(u32::from(Rgba::from(value)));
+            }
+            (property, TransitionValue::Value(value)) => match property {
+                Self::Width => style.width = Some(LengthValue::Pixels(value)),
+                Self::Height => style.height = Some(LengthValue::Pixels(value)),
+                Self::Top => style.top = Some(LengthValue::Pixels(value)),
+                Self::Right => style.right = Some(LengthValue::Pixels(value)),
+                Self::Bottom => style.bottom = Some(LengthValue::Pixels(value)),
+                Self::Left => style.left = Some(LengthValue::Pixels(value)),
+                Self::Opacity => style.opacity = Some(value),
+                Self::BorderRadius => style.border_radius = Some(value),
+                Self::BackgroundColor | Self::Color => {}
+            },
+            _ => {}
         }
     }
 }
@@ -118,6 +142,7 @@ impl AnimatableProperty {
 enum TransitionValue {
     Unset,
     Value(f32),
+    Color(Hsla),
 }
 
 impl Interpolate for TransitionValue {
@@ -126,6 +151,7 @@ impl Interpolate for TransitionValue {
             (Self::Value(from), Self::Value(to)) => {
                 Self::Value(from + (to - from) * progress)
             }
+            (Self::Color(from), Self::Color(to)) => Self::Color(from.interpolate(&to, progress)),
             (_, target) => target,
         }
     }
@@ -175,7 +201,7 @@ impl Bezier {
 
 #[derive(Clone, Copy, Debug)]
 pub struct TransitionSpec {
-    properties: u8,
+    properties: u16,
     duration: Option<Duration>,
     delay: Option<Duration>,
     easing: Option<Bezier>,
@@ -224,7 +250,7 @@ impl TransitionSpec {
     }
 }
 
-fn parse_transition_properties(value: &PropertyValue) -> u8 {
+fn parse_transition_properties(value: &PropertyValue) -> u16 {
     let PropertyValue::String(value) = value else {
         return 0;
     };
@@ -293,18 +319,18 @@ struct ActiveLifecycle {
 #[derive(Debug)]
 pub(crate) struct MotionBridgeState {
     initialized: Cell<bool>,
-    previous_targets: Cell<[TransitionValue; 8]>,
-    active_mask: Cell<u8>,
-    lifecycles: Cell<[Option<ActiveLifecycle>; 8]>,
+    previous_targets: Cell<[TransitionValue; 10]>,
+    active_mask: Cell<u16>,
+    lifecycles: Cell<[Option<ActiveLifecycle>; 10]>,
 }
 
 impl Default for MotionBridgeState {
     fn default() -> Self {
         Self {
             initialized: Cell::new(false),
-            previous_targets: Cell::new([TransitionValue::Unset; 8]),
+            previous_targets: Cell::new([TransitionValue::Unset; 10]),
             active_mask: Cell::new(0),
-            lifecycles: Cell::new([None; 8]),
+            lifecycles: Cell::new([None; 10]),
         }
     }
 }
@@ -443,7 +469,7 @@ fn settle_lifecycle(
     reconcile_lifecycle(events, index, lifecycle, sampled.status, cx.reduce_motion())
 }
 
-fn eligible_mask(transition: TransitionSpec, targets: &[TransitionValue; 8]) -> u8 {
+fn eligible_mask(transition: TransitionSpec, targets: &[TransitionValue; 10]) -> u16 {
     AnimatableProperty::ALL
         .into_iter()
         .filter(|property| {
@@ -503,7 +529,7 @@ pub fn resolve_style(
             .previous_targets
             .set([TransitionValue::Unset; AnimatableProperty::ALL.len()]);
         state.active_mask.set(0);
-        state.lifecycles.set([None; 8]);
+        state.lifecycles.set([None; 10]);
         state.initialized.set(true);
         return (None, events);
     };
@@ -536,7 +562,7 @@ pub fn resolve_style(
             }
         }
         state.previous_targets.set(targets);
-        state.lifecycles.set([None; 8]);
+        state.lifecycles.set([None; 10]);
         return (None, events);
     };
 
@@ -888,7 +914,7 @@ mod tests {
     }
 
     #[test]
-    fn representable_targets_cover_the_v1_property_set() {
+    fn representable_targets_cover_the_supported_property_set() {
         let mut style = NativeStyle::default();
         for (property, value) in [
             (PropertyId::Width, 10.0),
@@ -902,9 +928,101 @@ mod tests {
         ] {
             assert!(style.set_property(property, &PropertyValue::Number(value)));
         }
+        for (property, value) in [
+            (PropertyId::BackgroundColor, "#112233"),
+            (PropertyId::Color, "#445566"),
+        ] {
+            assert!(style.set_property(property, &PropertyValue::String(value.into())));
+        }
         assert!(AnimatableProperty::ALL
             .into_iter()
             .all(|property| property.target(&style) != TransitionValue::Unset));
+    }
+
+    struct ColorProbe {
+        background: &'static str,
+        sampled: Rc<Cell<u32>>,
+        motion: MotionBridgeState,
+    }
+
+    impl Render for ColorProbe {
+        fn render(
+            &mut self,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> impl gpui::IntoElement {
+            let style = color_transition_style(self.background);
+            let (resolved, _) = resolve_style(3, &self.motion, Some(&style), window, cx);
+            let resolved = resolved.unwrap_or(style);
+            self.sampled.set(resolved.background_color.unwrap_or(0));
+            div()
+        }
+    }
+
+    fn color_transition_style(background: &str) -> NativeStyle {
+        let mut style = NativeStyle::default();
+        assert!(style.set_property(
+            PropertyId::BackgroundColor,
+            &PropertyValue::String(background.into()),
+        ));
+        assert!(style.set_property(
+            PropertyId::TransitionProperty,
+            &PropertyValue::String("backgroundColor".into()),
+        ));
+        assert!(style.set_property(
+            PropertyId::TransitionDuration,
+            &PropertyValue::String("200ms".into()),
+        ));
+        assert!(style.set_property(
+            PropertyId::TransitionTimingFunction,
+            &PropertyValue::String("linear".into()),
+        ));
+        style
+    }
+
+    #[gpui::test]
+    fn color_channels_transition_through_gpui_interpolation(cx: &mut TestAppContext) {
+        let sampled = Rc::new(Cell::new(0));
+        let window = cx.add_window({
+            let sampled = sampled.clone();
+            move |_, _| ColorProbe {
+                background: "#000000",
+                sampled,
+                motion: MotionBridgeState::default(),
+            }
+        });
+        assert_eq!(
+            sampled.get(),
+            0x000000ff,
+            "the first target must not transition"
+        );
+
+        window
+            .update(cx, |probe, _, cx| {
+                probe.background = "#ffffff";
+                cx.notify();
+            })
+            .unwrap();
+        draw(cx, window);
+        assert_eq!(sampled.get(), 0x000000ff);
+
+        cx.executor().advance_clock(Duration::from_millis(100));
+        draw(cx, window);
+        let flight = sampled.get();
+        let [red, green, blue, alpha] = flight.to_be_bytes();
+        assert!(
+            red == green && green == blue,
+            "black-to-white must interpolate along the gray axis, got {flight:#010x}"
+        );
+        assert!(
+            (0x40..=0xc0).contains(&red),
+            "a mid-flight background must be partially interpolated, got {flight:#010x}"
+        );
+        assert_eq!(alpha, 0xff);
+
+        cx.executor().advance_clock(Duration::from_millis(100));
+        draw(cx, window);
+        assert_eq!(sampled.get(), 0xffffffff);
     }
 
     #[derive(Clone, Copy, Debug, PartialEq)]

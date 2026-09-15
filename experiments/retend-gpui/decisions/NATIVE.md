@@ -262,7 +262,7 @@ Static and transitioned `hover`/`active` styles are native-owned. JavaScript pub
 
 Retend GPUI owns its transition engine in Rust. Per-node, per-property transition state such as current rendered value, target value, start time, duration, delay, and easing lives in the native GPUI render/event-loop context and advances with GPUI's frame cycle. JavaScript publishes author-style commits and never computes animation frames.
 
-Retargeting, cancellation/snap behavior, and pseudo-state precedence live in the same native engine. The v1 animatable set is `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius`. Additional properties can be added through the native transition engine. `MOTION.md` defines the public transition semantics, including longhands, soft-fail behavior, retargeting from the visible value, initial-render behavior, and commit/coalescing boundaries.
+Retargeting, cancellation/snap behavior, and pseudo-state precedence live in the same native engine. The animatable set is `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, `borderRadius`, `backgroundColor`, and `color`. Additional properties can be added through the native transition engine. `MOTION.md` defines the public transition semantics, including longhands, soft-fail behavior, retargeting from the visible value, initial-render behavior, and commit/coalescing boundaries.
 
 ## Text nodes
 

@@ -379,6 +379,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [x] Delegate presentation values, timing state, interpolation, retargeting/reversal, frame scheduling, and reduced-motion handling to GPUI Base.
 - [x] Keep Retend responsible for committed author-target resolution, lightweight previous-author-target/eligibility bookkeeping, CSS-style declaration parsing, unsupported-endpoint fallback, and pseudo-state precedence; static nodes do not keep GPUI transition channels alive.
 - [x] Implement the v1 animatable set: `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, and `borderRadius`.
+- [x] Extend the animatable set with `backgroundColor` and `color`, which interpolate through GPUI's `Hsla` channels.
 - [x] Implement initial-render behavior with no transition through GPUI's first-target adoption.
 - [x] Implement transition eligibility from the after-change resolved style.
 - [x] Retarget interrupted transitions through GPUI's sampled current presentation value rather than mirroring visible values in Retend state.
