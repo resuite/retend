@@ -709,9 +709,7 @@ impl Element for ImageEventObserver {
                 // The wrapped `Img` already drives re-renders through its own
                 // notifying asset query; a non-notifying lookup is enough here.
                 let resource = gpui::Resource::Uri(self.src.clone().into());
-                let event = match window
-                    .get_asset::<gpui::ImgResourceLoader>(&resource, cx)
-                {
+                let event = match window.get_asset::<gpui::ImgResourceLoader>(&resource, cx) {
                     Some(Ok(_)) => Some(NativeEventId::Load),
                     Some(Err(_)) => Some(NativeEventId::Error),
                     None => None,
@@ -998,8 +996,7 @@ where
             );
             match src {
                 Some(src)
-                    if interest.has(NativeEventId::Load)
-                        || interest.has(NativeEventId::Error) =>
+                    if interest.has(NativeEventId::Load) || interest.has(NativeEventId::Error) =>
                 {
                     ImageEventObserver {
                         inner: image.into_any_element(),
@@ -1078,42 +1075,8 @@ where
     }
 }
 
-/// One renderable child of a container after render-time text coalescing.
-enum ChildRender {
-    /// A run of adjacent text nodes merged into a single GPUI `Text` element.
-    Text { first_id: NodeId, content: String },
-    /// An element child rendered on its own.
-    Node(NodeId),
-}
-
-/// Groups adjacent text children into single text runs.
-///
-/// GPUI lays out through taffy, which has no inline formatting context: every
-/// element is a block-level box or a flex item, so separate `Text` elements
-/// always stack. Merging adjacent text nodes keeps them on one line and lets
-/// the combined run wrap normally. This mirrors CSS, where contiguous inline
-/// content forms a single anonymous box (or one anonymous flex item inside a
-/// flex container). The native tree keeps per-node text identity; the merge is
-/// presentational and recomputed on every render.
-fn coalesce_children(tree: &NativeTree, children: &[NodeId]) -> Vec<ChildRender> {
-    let mut grouped = Vec::with_capacity(children.len());
-    for child_id in children {
-        match &tree.nodes[child_id].data {
-            NodeData::Text(text) => match grouped.last_mut() {
-                Some(ChildRender::Text { content, .. }) => content.push_str(text),
-                _ => grouped.push(ChildRender::Text {
-                    first_id: *child_id,
-                    content: text.clone(),
-                }),
-            },
-            _ => grouped.push(ChildRender::Node(*child_id)),
-        }
-    }
-    grouped
-}
-
 /// Builds the renderable children of a container, coalescing adjacent text
-/// leaves into single text runs.
+/// leaves into single text runs without staging a second child representation.
 fn build_children<'a, F>(
     tree: &'a NativeTree,
     children: &[NodeId],
@@ -1132,18 +1095,39 @@ where
         Vec<crate::motion::TransitionLifecycleEvent>,
     ),
 {
-    coalesce_children(tree, children)
-        .into_iter()
-        .map(|child| match child {
-            ChildRender::Text { first_id, content } => {
+    let mut rendered = Vec::with_capacity(children.len());
+    let mut index = 0;
+    while index < children.len() {
+        let child_id = children[index];
+        if let NodeData::Text(first_text) = &tree.nodes[&child_id].data {
+            let first_id = child_id;
+            let mut content = first_text.clone();
+            index += 1;
+            while index < children.len() {
+                let next_id = children[index];
+                let NodeData::Text(text) = &tree.nodes[&next_id].data else {
+                    break;
+                };
+                content.push_str(text);
+                index += 1;
+            }
+            rendered.push(
                 Text::new(ElementId::Integer(u64::from(first_id)), content.into())
-                    .into_any_element()
-            }
-            ChildRender::Node(id) => {
-                build_inner(tree, id, runtime_state, generation, resolve_style, interest)
-            }
-        })
-        .collect()
+                    .into_any_element(),
+            );
+        } else {
+            rendered.push(build_inner(
+                tree,
+                child_id,
+                runtime_state,
+                generation,
+                resolve_style,
+                interest,
+            ));
+            index += 1;
+        }
+    }
+    rendered
 }
 
 #[cfg(test)]
@@ -1157,9 +1141,7 @@ mod tests {
         },
     };
 
-    use gpui::{
-        point, px, Context, Modifiers, Render, TestAppContext, Window,
-    };
+    use gpui::{point, px, Context, Modifiers, Render, TestAppContext, Window};
 
     use super::*;
     use crate::protocol::{Command, PropertyValue};
@@ -1227,26 +1209,22 @@ mod tests {
         )
         .unwrap();
 
-        let mut grouped = coalesce_children(&tree, &tree.nodes[&2].children).into_iter();
-        match grouped.next().unwrap() {
-            ChildRender::Text { first_id, content } => {
-                assert_eq!(first_id, 3, "a run keeps its first node's identity");
-                assert_eq!(content, "Hello world!");
-            }
-            ChildRender::Node(_) => panic!("leading text run must coalesce"),
-        }
-        match grouped.next().unwrap() {
-            ChildRender::Node(id) => assert_eq!(id, 6),
-            ChildRender::Text { .. } => panic!("element children must stay separate"),
-        }
-        match grouped.next().unwrap() {
-            ChildRender::Text { first_id, content } => {
-                assert_eq!(first_id, 7);
-                assert_eq!(content, "tail");
-            }
-            ChildRender::Node(_) => panic!("trailing text run must render as text"),
-        }
-        assert!(grouped.next().is_none());
+        let children = &tree.nodes[&2].children;
+        assert_eq!(children.len(), 5, "the fixture must keep every child node");
+        let rendered = build_children(
+            &tree,
+            children,
+            &RuntimeStateRegistry::default(),
+            0,
+            &mut |_, _, _| (None, Vec::new()),
+            EventInterest {
+                subscriptions: 0,
+                outside_mouse_down: false,
+            },
+        );
+        // "Hello" + " world" + "!" collapse into one run, the nested container
+        // stays its own element, and "tail" starts a new run.
+        assert_eq!(rendered.len(), 3, "five children must render as three runs");
     }
 
     struct QueryLayoutTestView {
@@ -2254,5 +2232,4 @@ mod tests {
         finish_test_frames(cx);
         assert!(crate::events::take_test_emitted_events().is_empty());
     }
-
 }

@@ -6,16 +6,6 @@ if (fs.existsSync('dist')) {
 }
 
 fs.mkdirSync('dist');
-
-for (const entry of fs.readdirSync('source')) {
-  fs.cpSync(`source/${entry}`, `dist/${entry}`, {
-    recursive: true,
-    filter(source) {
-      if (source.endsWith('.d.ts')) return true;
-      return !source.endsWith('.ts');
-    },
-  });
-}
-
-fs.writeFileSync('dist/jsx-runtime/index.js', 'export {};\n');
+// `source/` is TypeScript-only: `tsc` emits the whole `dist/` tree, including
+// `dist/jsx-runtime/index.js`. Non-TS assets are not copied.
 execSync('pnpm exec tsc --project tsconfig.build.json', { stdio: 'inherit' });

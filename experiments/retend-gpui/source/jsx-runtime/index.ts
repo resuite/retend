@@ -1,4 +1,5 @@
 import type { AsyncDerivedCell, Cell, SourceCell } from 'retend';
+import type { JSX as RetendJSX } from 'retend/jsx-runtime';
 
 import type {
   GpuiFocusEvent,
@@ -25,18 +26,22 @@ import type {
   GpuiTextareaCustomProps,
   GpuiStyleDeclarations,
 } from '../types.js';
-import 'retend/jsx-runtime';
 
-type ReactiveValue<Value> = Value | Cell<Value> | AsyncDerivedCell<Value>;
-type ReactiveProps<Props> = {
+// Author-facing helpers: applications annotate their own style objects and
+// component props with these before handing them to GPUI intrinsics.
+export type ReactiveValue<Value> =
+  | Value
+  | Cell<Value>
+  | AsyncDerivedCell<Value>;
+export type ReactiveProps<Props> = {
   [Key in keyof Props]?: ReactiveValue<Props[Key]>;
 };
-type ReactiveStyleDeclarations = {
+export type ReactiveStyleDeclarations = {
   [Key in keyof GpuiStyleDeclarations]?: ReactiveValue<
     GpuiStyleDeclarations[Key]
   >;
 };
-type ReactiveStyle = ReactiveStyleDeclarations & {
+export type ReactiveStyle = ReactiveStyleDeclarations & {
   hover?: ReactiveStyleDeclarations;
   focused?: ReactiveStyleDeclarations;
   active?: ReactiveStyleDeclarations;
@@ -55,11 +60,14 @@ interface GpuiInputNativeEvents {
 
 type GpuiInputNativeEventModifiers =
   GpuiEventModifierHandlers<GpuiInputNativeEvents>;
-type ReactiveGpuiAnchoredCustomProps = ReactiveProps<GpuiAnchoredCustomProps>;
-type ReactiveGpuiButtonCustomProps = ReactiveProps<GpuiButtonCustomProps>;
-type ReactiveGpuiImgCustomProps = ReactiveProps<GpuiImgCustomProps>;
-type ReactiveGpuiInputCustomProps = ReactiveProps<GpuiInputCustomProps>;
-type ReactiveGpuiTextareaCustomProps = ReactiveProps<GpuiTextareaCustomProps>;
+export type ReactiveGpuiAnchoredCustomProps =
+  ReactiveProps<GpuiAnchoredCustomProps>;
+export type ReactiveGpuiButtonCustomProps =
+  ReactiveProps<GpuiButtonCustomProps>;
+export type ReactiveGpuiImgCustomProps = ReactiveProps<GpuiImgCustomProps>;
+export type ReactiveGpuiInputCustomProps = ReactiveProps<GpuiInputCustomProps>;
+export type ReactiveGpuiTextareaCustomProps =
+  ReactiveProps<GpuiTextareaCustomProps>;
 
 declare module 'retend/jsx-runtime' {
   namespace JSX {
@@ -149,7 +157,7 @@ declare module 'retend/jsx-runtime' {
      * with the Retend GPUI v1 intrinsic set.
      * Import `"retend-gpui/jsx-runtime"` in your `tsconfig.json` types to enable.
      */
-    interface IntrinsicElements {
+    interface IntrinsicElements extends RetendJSX.IntrinsicElements {
       div: GpuiDivProps;
       anchored: GpuiAnchoredProps;
       img: GpuiImageProps;

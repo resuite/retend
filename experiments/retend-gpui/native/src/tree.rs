@@ -368,12 +368,9 @@ pub struct NativeNode {
     pub children: Vec<NodeId>,
     pub style: Option<Box<NativeStyle>>,
     base_style: Vec<(PropertyId, PropertyValue)>,
-    hover_style: Vec<(PropertyId, PropertyValue)>,
-    focused_style: Vec<(PropertyId, PropertyValue)>,
-    active_style: Vec<(PropertyId, PropertyValue)>,
-    tracks_hover: bool,
-    tracks_focused: bool,
-    tracks_active: bool,
+    hover_style: Option<Vec<(PropertyId, PropertyValue)>>,
+    focused_style: Option<Vec<(PropertyId, PropertyValue)>>,
+    active_style: Option<Vec<(PropertyId, PropertyValue)>>,
     hovered: bool,
     focused: bool,
     pub(crate) motion: MotionBridgeState,
@@ -391,12 +388,9 @@ impl NativeNode {
             children: Vec::new(),
             style: None,
             base_style: Vec::new(),
-            hover_style: Vec::new(),
-            focused_style: Vec::new(),
-            active_style: Vec::new(),
-            tracks_hover: false,
-            tracks_focused: false,
-            tracks_active: false,
+            hover_style: None,
+            focused_style: None,
+            active_style: None,
             hovered: false,
             focused: false,
             motion: MotionBridgeState::default(),
@@ -419,27 +413,33 @@ impl NativeNode {
     }
 
     pub(crate) fn tracks_hover(&self) -> bool {
-        self.tracks_hover
+        self.hover_style.is_some()
     }
 
     pub(crate) fn tracks_active(&self) -> bool {
-        self.tracks_active
+        self.active_style.is_some()
     }
 
     pub(crate) fn tracks_focused(&self) -> bool {
-        self.tracks_focused
+        self.focused_style.is_some()
     }
 
     fn has_hover_style(&self) -> bool {
-        !self.hover_style.is_empty()
+        self.hover_style
+            .as_ref()
+            .is_some_and(|style| !style.is_empty())
     }
 
     fn has_focused_style(&self) -> bool {
-        !self.focused_style.is_empty()
+        self.focused_style
+            .as_ref()
+            .is_some_and(|style| !style.is_empty())
     }
 
     fn has_active_style(&self) -> bool {
-        !self.active_style.is_empty()
+        self.active_style
+            .as_ref()
+            .is_some_and(|style| !style.is_empty())
     }
 
     fn store_style_snapshot(
@@ -449,45 +449,36 @@ impl NativeNode {
     ) {
         match state {
             None => self.base_style = properties,
-            Some(StyleState::Hover) => {
-                self.tracks_hover = true;
-                self.hover_style = properties;
-            }
-            Some(StyleState::Focused) => {
-                self.tracks_focused = true;
-                self.focused_style = properties;
-            }
-            Some(StyleState::Active) => {
-                self.tracks_active = true;
-                self.active_style = properties;
-            }
+            Some(StyleState::Hover) => self.hover_style = Some(properties),
+            Some(StyleState::Focused) => self.focused_style = Some(properties),
+            Some(StyleState::Active) => self.active_style = Some(properties),
         }
     }
 
     fn resolve_author_style(&mut self, active: bool) {
         let has_style = !self.base_style.is_empty()
-            || (self.hovered && !self.hover_style.is_empty())
-            || (self.focused && !self.focused_style.is_empty())
-            || (active && !self.active_style.is_empty());
+            || (self.hovered && self.has_hover_style())
+            || (self.focused && self.has_focused_style())
+            || (active && self.has_active_style());
         let mut next = has_style.then(Box::<NativeStyle>::default);
         if let Some(style) = next.as_deref_mut() {
-            for (property, value) in &self.base_style {
-                _ = style.set_property(*property, value);
-            }
+            let apply =
+                |style: &mut NativeStyle, declarations: Option<&[(PropertyId, PropertyValue)]>| {
+                    if let Some(declarations) = declarations {
+                        for (property, value) in declarations {
+                            _ = style.set_property(*property, value);
+                        }
+                    }
+                };
+            apply(style, Some(&self.base_style));
             if self.hovered {
-                for (property, value) in &self.hover_style {
-                    _ = style.set_property(*property, value);
-                }
+                apply(style, self.hover_style.as_deref());
             }
             if self.focused {
-                for (property, value) in &self.focused_style {
-                    _ = style.set_property(*property, value);
-                }
+                apply(style, self.focused_style.as_deref());
             }
             if active {
-                for (property, value) in &self.active_style {
-                    _ = style.set_property(*property, value);
-                }
+                apply(style, self.active_style.as_deref());
             }
         }
         self.style = next;
@@ -1209,10 +1200,7 @@ impl NativeTree {
                         *value_revision = next_revision;
                         Ok(())
                     }
-                    (
-                        PropertyId::Placeholder,
-                        NodeData::TextControl { placeholder, .. },
-                    ) => {
+                    (PropertyId::Placeholder, NodeData::TextControl { placeholder, .. }) => {
                         *placeholder = match value {
                             PropertyValue::Null => String::new(),
                             PropertyValue::String(value) => value,
@@ -1665,7 +1653,12 @@ mod tests {
     #[test]
     fn focused_style_resolves_between_hover_and_active() {
         let (mut tree, window, _) = setup();
-        let opacity = |tree: &NativeTree| tree.nodes[&2].style.as_deref().and_then(|style| style.opacity);
+        let opacity = |tree: &NativeTree| {
+            tree.nodes[&2]
+                .style
+                .as_deref()
+                .and_then(|style| style.opacity)
+        };
         let pseudo = |state, value| {
             pseudo_style(
                 2,

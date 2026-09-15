@@ -134,29 +134,26 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     setAppContext(initialContext);
   };
 
-  let entry: Promise<__HMR_UpdatableFn> | undefined;
   let entryFailed = false;
-  const loadEntry = (reload = false): Promise<__HMR_UpdatableFn> => {
-    if (!reload && entry) return entry;
-    entryFailed = false;
-    const pending = loadDefault<__HMR_UpdatableFn>(
-      message.entry,
-      'entry module must default-export a component function'
-    );
-    entry = pending;
-    void pending.then(
-      () => {
-        if (entry !== pending) return;
-        entryFailed = false;
-        sendHotEvent('retend-gpui:entry-ready');
-      },
-      () => {
-        if (entry !== pending) return;
-        entryFailed = true;
-        sendHotEvent('retend-gpui:entry-failed');
-      }
-    );
-    return pending;
+  // Every call goes through the module runner instead of memoizing the entry
+  // promise: the runner dedupes concurrent fetches and caches evaluated modules,
+  // and it replays the same rejection until Vite invalidates the module, so
+  // retries stay consistent. Readiness events can therefore fire once per call
+  // rather than once per entry load; listeners only toggle a boolean per event.
+  const loadEntry = async (): Promise<__HMR_UpdatableFn> => {
+    try {
+      const Root = await loadDefault<__HMR_UpdatableFn>(
+        message.entry,
+        'entry module must default-export a component function'
+      );
+      entryFailed = false;
+      sendHotEvent('retend-gpui:entry-ready');
+      return Root;
+    } catch (error) {
+      entryFailed = true;
+      sendHotEvent('retend-gpui:entry-failed');
+      throw error;
+    }
   };
 
   const showDevelopmentError = (
@@ -263,7 +260,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
   const recoverEntry = async (): Promise<void> => {
     let Root: __HMR_UpdatableFn;
     try {
-      Root = await loadEntry(true);
+      Root = await loadEntry();
     } catch (error) {
       showDevelopmentError(error);
       console.error('[retend-gpui] application entry failed:', error);
@@ -289,8 +286,6 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
         for (const window of windows) window.renderer.unmount();
         globalData.clear();
         runner?.clearCache();
-        entry = undefined;
-        entryFailed = false;
         await loadApplication();
         await recoverEntry();
       } catch (error) {

@@ -10,89 +10,67 @@ use crate::{
     tree::NodeId,
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AnimatableProperty {
-    Width,
-    Height,
-    Top,
-    Right,
-    Bottom,
-    Left,
-    Opacity,
-    BorderRadius,
-    BackgroundColor,
-    Color,
-    BorderColor,
+/// Declares `AnimatableProperty` from one table of
+/// `Variant => "authorName", "channelName"` rows, so the enum variants, the
+/// `ALL` list, parsing, and the channel/author names cannot drift apart.
+///
+/// Each property owns one bit of a `u16` mask (`MotionBridgeState::active_mask`,
+/// `TransitionSpec::properties`), so the table supports at most 16 rows.
+macro_rules! animatable_properties {
+    ($( $variant:ident => $author:literal, $channel:literal );+ $(;)?) => {
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum AnimatableProperty {
+            $( $variant ),+
+        }
+
+        impl AnimatableProperty {
+            const ALL: [Self; animatable_properties!(@count $($variant),+)] = [
+                $( Self::$variant ),+
+            ];
+
+            fn bit(self) -> u16 {
+                1 << self as u16
+            }
+
+            fn parse(value: &str) -> Option<Self> {
+                match value.trim() {
+                    $( $author => Some(Self::$variant), )+
+                    _ => None,
+                }
+            }
+
+            fn channel(self) -> &'static str {
+                match self {
+                    $( Self::$variant => $channel, )+
+                }
+            }
+
+            fn author_name(self) -> &'static str {
+                match self {
+                    $( Self::$variant => $author, )+
+                }
+            }
+        }
+    };
+    (@count $($variant:ident),+) => { <[()]>::len(&[$(animatable_properties!(@unit $variant)),+]) };
+    (@unit $variant:ident) => { () };
+}
+
+animatable_properties! {
+    Width => "width", "width";
+    Height => "height", "height";
+    Top => "top", "top";
+    Right => "right", "right";
+    Bottom => "bottom", "bottom";
+    Left => "left", "left";
+    Opacity => "opacity", "opacity";
+    BorderRadius => "borderRadius", "border-radius";
+    BackgroundColor => "backgroundColor", "background-color";
+    Color => "color", "color";
+    BorderColor => "borderColor", "border-color";
 }
 
 impl AnimatableProperty {
-    const ALL: [Self; 11] = [
-        Self::Width,
-        Self::Height,
-        Self::Top,
-        Self::Right,
-        Self::Bottom,
-        Self::Left,
-        Self::Opacity,
-        Self::BorderRadius,
-        Self::BackgroundColor,
-        Self::Color,
-        Self::BorderColor,
-    ];
-
-    fn bit(self) -> u16 {
-        1 << self as u16
-    }
-
-    fn parse(value: &str) -> Option<Self> {
-        match value.trim() {
-            "width" => Some(Self::Width),
-            "height" => Some(Self::Height),
-            "top" => Some(Self::Top),
-            "right" => Some(Self::Right),
-            "bottom" => Some(Self::Bottom),
-            "left" => Some(Self::Left),
-            "opacity" => Some(Self::Opacity),
-            "borderRadius" => Some(Self::BorderRadius),
-            "backgroundColor" => Some(Self::BackgroundColor),
-            "color" => Some(Self::Color),
-            "borderColor" => Some(Self::BorderColor),
-            _ => None,
-        }
-    }
-
-    fn channel(self) -> &'static str {
-        match self {
-            Self::Width => "width",
-            Self::Height => "height",
-            Self::Top => "top",
-            Self::Right => "right",
-            Self::Bottom => "bottom",
-            Self::Left => "left",
-            Self::Opacity => "opacity",
-            Self::BorderRadius => "border-radius",
-            Self::BackgroundColor => "background-color",
-            Self::Color => "color",
-            Self::BorderColor => "border-color",
-        }
-    }
-
-    fn author_name(self) -> &'static str {
-        match self {
-            Self::Width => "width",
-            Self::Height => "height",
-            Self::Top => "top",
-            Self::Right => "right",
-            Self::Bottom => "bottom",
-            Self::Left => "left",
-            Self::Opacity => "opacity",
-            Self::BorderRadius => "borderRadius",
-            Self::BackgroundColor => "backgroundColor",
-            Self::Color => "color",
-            Self::BorderColor => "borderColor",
-        }
-    }
-
     fn target(self, style: &NativeStyle) -> TransitionValue {
         let pixels = |value| match value {
             Some(LengthValue::Pixels(value)) => TransitionValue::Value(value),
@@ -110,7 +88,9 @@ impl AnimatableProperty {
             Self::Right => pixels(style.right),
             Self::Bottom => pixels(style.bottom),
             Self::Left => pixels(style.left),
-            Self::Opacity => style.opacity.map_or(TransitionValue::Unset, TransitionValue::Value),
+            Self::Opacity => style
+                .opacity
+                .map_or(TransitionValue::Unset, TransitionValue::Value),
             Self::BorderRadius => style
                 .border_radius
                 .map_or(TransitionValue::Unset, TransitionValue::Value),
@@ -157,9 +137,7 @@ enum TransitionValue {
 impl Interpolate for TransitionValue {
     fn interpolate(&self, target: &Self, progress: f32) -> Self {
         match (*self, *target) {
-            (Self::Value(from), Self::Value(to)) => {
-                Self::Value(from + (to - from) * progress)
-            }
+            (Self::Value(from), Self::Value(to)) => Self::Value(from + (to - from) * progress),
             (Self::Color(from), Self::Color(to)) => Self::Color(from.interpolate(&to, progress)),
             (_, target) => target,
         }
@@ -303,7 +281,10 @@ fn parse_js_number(value: &str) -> Option<f64> {
         return None;
     }
     for (prefixes, radix) in [(["0x", "0X"], 16), (["0b", "0B"], 2), (["0o", "0O"], 8)] {
-        if let Some(digits) = prefixes.iter().find_map(|prefix| value.strip_prefix(prefix)) {
+        if let Some(digits) = prefixes
+            .iter()
+            .find_map(|prefix| value.strip_prefix(prefix))
+        {
             return u64::from_str_radix(digits, radix)
                 .ok()
                 .map(|value| value as f64);
@@ -478,6 +459,25 @@ fn settle_lifecycle(
     reconcile_lifecycle(events, index, lifecycle, sampled.status, cx.reduce_motion())
 }
 
+fn cancel_lifecycle(
+    events: &mut Vec<TransitionLifecycleEvent>,
+    index: usize,
+    property: AnimatableProperty,
+    element_id: &ElementId,
+    target: TransitionValue,
+    lifecycle: ActiveLifecycle,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    if settle_lifecycle(
+        events, index, property, element_id, target, lifecycle, window, cx,
+    )
+    .is_some()
+    {
+        emit(events, NativeEventId::TransitionCancel, index, 0.0);
+    }
+}
+
 fn eligible_mask(
     transition: TransitionSpec,
     targets: &[TransitionValue; AnimatableProperty::ALL.len()],
@@ -522,7 +522,7 @@ pub fn resolve_style(
     let Some(target_style) = author else {
         for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
             if let Some(lifecycle) = lifecycles[index] {
-                let still_active = settle_lifecycle(
+                cancel_lifecycle(
                     &mut events,
                     index,
                     property,
@@ -532,9 +532,6 @@ pub fn resolve_style(
                     window,
                     cx,
                 );
-                if still_active.is_some() {
-                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
-                }
             }
         }
         state
@@ -558,7 +555,7 @@ pub fn resolve_style(
     let Some(config) = config.filter(|_| current_mask != 0) else {
         for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
             if let Some(lifecycle) = lifecycles[index] {
-                let still_active = settle_lifecycle(
+                cancel_lifecycle(
                     &mut events,
                     index,
                     property,
@@ -568,9 +565,6 @@ pub fn resolve_style(
                     window,
                     cx,
                 );
-                if still_active.is_some() {
-                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
-                }
             }
         }
         state.previous_targets.set(targets);
@@ -589,7 +583,7 @@ pub fn resolve_style(
 
         if !currently_eligible {
             if let Some(lifecycle) = lifecycles[index] {
-                let still_active = settle_lifecycle(
+                cancel_lifecycle(
                     &mut events,
                     index,
                     property,
@@ -599,9 +593,6 @@ pub fn resolve_style(
                     window,
                     cx,
                 );
-                if still_active.is_some() {
-                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
-                }
             }
             lifecycles[index] = None;
             continue;
@@ -658,7 +649,7 @@ pub fn resolve_style(
 
         if target_changed {
             if let Some(lifecycle) = lifecycles[index] {
-                let still_active = settle_lifecycle(
+                cancel_lifecycle(
                     &mut events,
                     index,
                     property,
@@ -668,9 +659,6 @@ pub fn resolve_style(
                     window,
                     cx,
                 );
-                if still_active.is_some() {
-                    emit(&mut events, NativeEventId::TransitionCancel, index, 0.0);
-                }
             }
             let sampled =
                 transition_with_status(key, target, transition_policy(config), window, cx);
