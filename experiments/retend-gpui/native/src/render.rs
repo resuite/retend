@@ -259,6 +259,10 @@ fn with_native_events<T: StatefulInteractiveElement>(
 ) -> T {
     if let Some(focus) = runtime.tracked_focus_handle(id) {
         element = element.track_focus(&focus);
+    } else if let Some(focus) = runtime.external_focus_handle(id) {
+        element = element.on_mouse_down(MouseButton::Left, move |_, window, cx| {
+            focus.focus(window, cx)
+        });
     }
     if let Some(scroll) = runtime.scroll_handle(id) {
         element = element.track_scroll(&scroll);
@@ -385,6 +389,19 @@ fn button_control_geometry<T: Styled>(element: T) -> T {
         .pr(px(14.0))
         .rounded(px(6.0))
         .bg(gpui::rgba(0xe9e9ebff))
+        .border_1()
+        .border_color(gpui::rgba(0x0000001f))
+}
+
+/// Default surface for native text controls; author declarations override per field.
+fn text_control_geometry<T: Styled>(element: T) -> T {
+    element
+        .pt(px(6.0))
+        .pb(px(6.0))
+        .pl(px(10.0))
+        .pr(px(10.0))
+        .rounded(px(6.0))
+        .bg(gpui::rgba(0xffffffff))
         .border_1()
         .border_color(gpui::rgba(0x0000001f))
 }
@@ -760,10 +777,10 @@ where
         | NodeData::Container
         | NodeData::Anchored(_)
         | NodeData::TextControl { .. } => {
-            let element = if matches!(node.data, NodeData::Root) {
-                root_container().block()
-            } else {
-                div().block()
+            let element = match &node.data {
+                NodeData::Root => root_container().block(),
+                NodeData::TextControl { .. } => text_control_geometry(div().block()),
+                _ => div().block(),
             };
             let mut element = match resolved_style {
                 Some(style) => style.apply(element),
@@ -3820,5 +3837,56 @@ mod tests {
             .expect("disabled buttons must keep their control element");
         assert_eq!(disabled.style().opacity, Some(0.5));
         assert_eq!(disabled.style().size.width, expected.style().size.width);
+    }
+
+    #[gpui::test]
+    fn clicking_a_text_control_focuses_its_editor(cx: &mut TestAppContext) {
+        cx.update(init);
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Input,
+                    },
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![(PropertyId::Width, PropertyValue::Number(200.0))],
+                    },
+                    insert(1, 2),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let measured = request_measure(&runtime_state, 2);
+        let (_view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+        let bounds = measured.try_recv().unwrap().unwrap();
+
+        cx.update(|window, _| window.activate_window());
+        cx.simulate_click(
+            point(px(bounds.x as f32 + 2.0), px(bounds.y as f32 + 2.0)),
+            Modifiers::none(),
+        );
+
+        let focused = cx.update(|window, _| {
+            runtime_state.focus_handle(2).unwrap().is_focused(window)
+        });
+        assert!(
+            focused,
+            "clicking a text control's own surface must focus its editor"
+        );
     }
 }

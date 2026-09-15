@@ -2,6 +2,8 @@ import type { GpuiColor, GpuiTransitionEvent } from 'retend-gpui';
 
 import { Cell } from 'retend';
 
+import FormPanel from './form-panel';
+
 const LIGHT_THEME: Record<'surface' | 'text', GpuiColor> = {
   surface: '#eef2ff',
   text: '#1e1b4b',
@@ -104,6 +106,8 @@ export default function App() {
       <HoverCard />
 
       <button onClick={handleToggle}>{label}</button>
+
+      <FormPanel />
 
       <div
         style={{

@@ -30,9 +30,15 @@ thread_local! {
         const { std::cell::RefCell::new(Vec::new()) };
 }
 
-fn emit_focus_event(window_id: WindowId, id: NodeId, event: NativeEventId) {
+fn emit_focus_event(window_id: WindowId, id: NodeId, event: NativeEventId, window: &mut Window) {
     #[cfg(test)]
     TEST_FOCUS_EVENTS.with(|events| events.borrow_mut().push((window_id, id, event)));
+    if crate::runtime()
+        .lock()
+        .is_ok_and(|mut tree| tree.set_focused(window_id, id, event == NativeEventId::Focus))
+    {
+        window.refresh();
+    }
     if crate::runtime()
         .lock()
         .is_ok_and(|tree| tree.has_subscription_in_path(window_id, id, event))
@@ -52,11 +58,11 @@ fn ensure_focus_state<T: 'static>(
 ) -> gpui::FocusHandle {
     let (handle, needs_subscriptions) = runtime_state.ensure_focus(id, tab_index, handle, cx);
     if needs_subscriptions {
-        let focus = cx.on_focus(&handle, window, move |_, _, _| {
-            emit_focus_event(window_id, id, NativeEventId::Focus);
+        let focus = cx.on_focus(&handle, window, move |_, window, _| {
+            emit_focus_event(window_id, id, NativeEventId::Focus, window);
         });
-        let blur = cx.on_blur(&handle, window, move |_, _, _| {
-            emit_focus_event(window_id, id, NativeEventId::Blur);
+        let blur = cx.on_blur(&handle, window, move |_, window, _| {
+            emit_focus_event(window_id, id, NativeEventId::Blur, window);
         });
         runtime_state.set_focus_subscriptions(id, [focus, blur]);
     }
@@ -78,6 +84,7 @@ fn ensure_text_control_entity<T: 'static>(
             kind: snapshot.kind,
             value: &snapshot.value,
             value_revision: snapshot.value_revision,
+            placeholder: &snapshot.placeholder,
             min_rows: snapshot.min_rows,
             max_rows: snapshot.max_rows,
         },
@@ -123,6 +130,7 @@ pub(crate) fn prepare_frame<T: 'static>(
             kind,
             value,
             value_revision,
+            placeholder,
             min_rows,
             max_rows,
         } = &node.data
@@ -134,6 +142,7 @@ pub(crate) fn prepare_frame<T: 'static>(
                     kind: *kind,
                     value,
                     value_revision: *value_revision,
+                    placeholder,
                     min_rows: *min_rows,
                     max_rows: *max_rows,
                 },
@@ -1299,6 +1308,71 @@ mod tests {
         .unwrap();
         cx.update_window(window.into(), |_, window, _| {
             assert!(runtime_state.focus_handle(2).unwrap().is_focused(window));
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
+    fn shift_tab_moves_focus_backward_out_of_a_text_control(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Input,
+                    },
+                    Command::CreateNode {
+                        id: 3,
+                        kind: ElementKind::Container,
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::TabIndex,
+                        value: PropertyValue::Number(0.0),
+                    },
+                    Command::InsertChild {
+                        parent_id: 1,
+                        child_id: 2,
+                        before_id: 0,
+                    },
+                    Command::InsertChild {
+                        parent_id: 1,
+                        child_id: 3,
+                        before_id: 0,
+                    },
+                ],
+            )
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+            window.dispatch_keystroke(Keystroke::parse("tab").unwrap(), cx);
+        })
+        .unwrap();
+        cx.update_window(window.into(), |_, window, _| {
+            assert!(runtime_state.focus_handle(2).unwrap().is_focused(window));
+        })
+        .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(Keystroke::parse("shift-tab").unwrap(), cx);
+        })
+        .unwrap();
+        cx.update_window(window.into(), |_, window, _| {
+            assert!(!runtime_state.focus_handle(2).unwrap().is_focused(window));
         })
         .unwrap();
     }

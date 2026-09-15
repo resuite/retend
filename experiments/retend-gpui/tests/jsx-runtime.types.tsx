@@ -9,10 +9,13 @@ function jsxTypingProbe() {
         transitionProperty: ['width', 'opacity', 'backgroundColor'],
         transitionDuration: '.2s',
         transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        focused: { borderColor: '#000000' },
       }}
     />
   );
-  const validTextarea = <textarea value="hello" minRows={2} maxRows={4} />;
+  const validTextarea = (
+    <textarea value="hello" placeholder="Write here" minRows={2} maxRows={4} />
+  );
   const validButton = (
     <button disabled onClick={handleClick}>
       Save

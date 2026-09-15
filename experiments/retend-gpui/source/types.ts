@@ -110,6 +110,7 @@ export interface GpuiStyleDeclarations {
 
 export interface GpuiStyle extends GpuiStyleDeclarations {
   hover?: GpuiStyleDeclarations;
+  focused?: GpuiStyleDeclarations;
   active?: GpuiStyleDeclarations;
 }
 
@@ -160,11 +161,15 @@ export interface GpuiImgCustomProps {
 export interface GpuiInputCustomProps {
   /** Controlled single-line native value. */
   value?: string;
+  /** Text shown while the control is empty. */
+  placeholder?: string;
 }
 
 export interface GpuiTextareaCustomProps {
   /** Controlled multi-line native value. */
   value?: string;
+  /** Text shown while the control is empty. */
+  placeholder?: string;
   /** Minimum visible row count while auto-sizing. */
   minRows?: number;
   /** Maximum visible row count while auto-sizing. */

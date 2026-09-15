@@ -37,6 +37,7 @@ type ReactiveStyleDeclarations = {
 };
 type ReactiveStyle = ReactiveStyleDeclarations & {
   hover?: ReactiveStyleDeclarations;
+  focused?: ReactiveStyleDeclarations;
   active?: ReactiveStyleDeclarations;
 };
 type GpuiEventModifier = 'self' | 'prevent' | 'once' | 'passive' | 'stop';

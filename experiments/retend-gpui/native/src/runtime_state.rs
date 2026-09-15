@@ -9,7 +9,9 @@ use gpui::{
     point, px, App, AppContext, Bounds, Context, Entity, EntityInputHandler, FocusHandle,
     Focusable, Pixels, Point, ScrollHandle, Subscription, Window,
 };
-use gpui_base::input::{InputBaseState, InputEvent, InputModeKind, InputState, TextareaState};
+use gpui_base::input::{
+    InputBaseState, InputEditorStyle, InputEvent, InputModeKind, InputState, TextareaState,
+};
 
 use crate::{
     events,
@@ -62,12 +64,14 @@ struct FocusState {
     handle: FocusHandle,
     subscriptions: Option<[Subscription; 2]>,
     enabled: bool,
+    owns_handle: bool,
 }
 
 pub struct TextControlConfig<'a> {
     pub kind: TextControlKind,
     pub value: &'a str,
     pub value_revision: u64,
+    pub placeholder: &'a str,
     pub min_rows: Option<u32>,
     pub max_rows: Option<u32>,
 }
@@ -115,6 +119,7 @@ impl TextControlEditor {
 struct TextControlRuntimeState {
     editor: TextControlEditor,
     value_revision: u64,
+    placeholder: String,
     min_rows: Option<u32>,
     max_rows: Option<u32>,
     last_value: String,
@@ -241,16 +246,19 @@ impl RuntimeStateRegistry {
         cx: &mut App,
     ) -> (FocusHandle, bool) {
         let mut state = self.0.borrow_mut();
+        let owns_handle = handle.is_none();
         let focus = state.focus.entry(id).or_insert_with(|| FocusState {
             handle: handle.clone().unwrap_or_else(|| cx.focus_handle()),
             subscriptions: None,
             enabled: true,
+            owns_handle,
         });
         if let Some(handle) = handle {
             if focus.handle != handle {
                 focus.handle = handle;
                 focus.subscriptions = None;
             }
+            focus.owns_handle = false;
         }
         focus.handle = focus
             .handle
@@ -287,7 +295,16 @@ impl RuntimeStateRegistry {
             .borrow()
             .focus
             .get(&id)
-            .filter(|focus| focus.enabled)
+            .filter(|focus| focus.enabled && focus.owns_handle)
+            .map(|focus| focus.handle.clone())
+    }
+
+    pub fn external_focus_handle(&self, id: NodeId) -> Option<FocusHandle> {
+        self.0
+            .borrow()
+            .focus
+            .get(&id)
+            .filter(|focus| focus.enabled && !focus.owns_handle)
             .map(|focus| focus.handle.clone())
     }
 
@@ -303,9 +320,11 @@ impl RuntimeStateRegistry {
             kind,
             value,
             value_revision,
+            placeholder,
             min_rows,
             max_rows,
         } = config;
+        let placeholder = text_control_value(kind, placeholder);
         let existing = self
             .0
             .borrow_mut()
@@ -314,12 +333,29 @@ impl RuntimeStateRegistry {
             .map(|control| {
                 let revision_changed = control.value_revision != value_revision;
                 let rows_changed = control.min_rows != min_rows || control.max_rows != max_rows;
+                let placeholder_changed = control.placeholder != placeholder;
                 control.value_revision = value_revision;
                 control.min_rows = min_rows;
                 control.max_rows = max_rows;
-                (control.editor.clone(), revision_changed, rows_changed)
+                control.placeholder.clone_from(&placeholder);
+                (
+                    control.editor.clone(),
+                    revision_changed,
+                    rows_changed,
+                    placeholder_changed,
+                )
             });
-        if let Some((editor, revision_changed, rows_changed)) = existing {
+        if let Some((editor, revision_changed, rows_changed, placeholder_changed)) = existing {
+            if placeholder_changed {
+                match &editor {
+                    TextControlEditor::Input(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_placeholder(placeholder, window, cx)
+                    }),
+                    TextControlEditor::Textarea(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_placeholder(placeholder, window, cx)
+                    }),
+                };
+            }
             if rows_changed {
                 if let TextControlEditor::Textarea(editor) = &editor {
                     editor.update(cx, |editor, cx| {
@@ -350,12 +386,19 @@ impl RuntimeStateRegistry {
         }
 
         let value = text_control_value(kind, value);
+        // An unset selection resolves to the near-white accent, not the palette's selection token.
+        let editor_style = InputEditorStyle {
+            selection: gpui_base::Theme::global(cx).tokens.colors.selection,
+            ..Default::default()
+        };
         let runtime = Rc::downgrade(&self.0);
         let (editor, events) = match kind {
             TextControlKind::Input => {
                 let editor = cx.new(|cx| {
                     let mut editor = InputState::new(window, cx);
                     editor.set_value(value.clone(), window, cx);
+                    editor.set_placeholder(placeholder.clone(), window, cx);
+                    editor.set_editor_style(editor_style.clone());
                     editor
                 });
                 let events = subscribe_text_control_events(
@@ -368,6 +411,8 @@ impl RuntimeStateRegistry {
                     let mut editor = TextareaState::new(window, cx);
                     configure_textarea(&mut editor, min_rows, max_rows, cx);
                     editor.set_value(value.clone(), window, cx);
+                    editor.set_placeholder(placeholder.clone(), window, cx);
+                    editor.set_editor_style(editor_style.clone());
                     editor
                 });
                 let events = subscribe_text_control_events(
@@ -381,6 +426,7 @@ impl RuntimeStateRegistry {
             TextControlRuntimeState {
                 editor: editor.clone(),
                 value_revision,
+                placeholder,
                 min_rows,
                 max_rows,
                 last_value: value,

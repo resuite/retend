@@ -656,6 +656,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const renderer = createRenderer();
     const textareaRef = Cell.source<GpuiTextareaElement | null>(null);
     const value = Cell.source('first\nsecond');
+    const placeholder = Cell.source('Notes');
     const minRows = Cell.source(2);
     const maxRows = Cell.source(6);
     const setProperty = vi.spyOn(renderer.host, 'setProperty');
@@ -664,6 +665,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       <textarea
         ref={textareaRef}
         value={value}
+        placeholder={placeholder}
         minRows={minRows}
         maxRows={maxRows}
       />
@@ -686,9 +688,15 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       PropertyId.MaxRows,
       6
     );
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.Placeholder,
+      'Notes'
+    );
 
     Cell.batch(() => {
       value.set('updated\nvalue');
+      placeholder.set('Comments');
       minRows.set(3);
       maxRows.set(8);
     });
@@ -707,6 +715,11 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       textarea.id,
       PropertyId.MaxRows,
       8
+    );
+    expect(setProperty).toHaveBeenCalledWith(
+      textarea.id,
+      PropertyId.Placeholder,
+      'Comments'
     );
   });
 
@@ -781,6 +794,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
             transitionProperty: 'opacity',
             transitionDuration: '120ms',
           },
+          focused: { opacity: 0.9 },
           active: { opacity: 0.3 },
         }}
       />
@@ -792,6 +806,9 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       [PropertyId.Opacity, 0.7],
       [PropertyId.TransitionProperty, 'opacity'],
       [PropertyId.TransitionDuration, '120ms'],
+    ]);
+    expect(setPseudoStyle).toHaveBeenCalledWith(target.id, StyleState.Focused, [
+      [PropertyId.Opacity, 0.9],
     ]);
     expect(setPseudoStyle).toHaveBeenCalledWith(target.id, StyleState.Active, [
       [PropertyId.Opacity, 0.3],

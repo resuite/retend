@@ -15,7 +15,8 @@
   },
   "styleStates": {
     "Hover": 1,
-    "Active": 2
+    "Active": 2,
+    "Focused": 3
   },
   "elementKinds": {
     "Root": 1,
@@ -101,7 +102,8 @@
     "AnchoredDeferred": 69,
     "AnchoredPriority": 70,
     "AnchoredOcclude": 71,
-    "Disabled": 72
+    "Disabled": 72,
+    "Placeholder": 73
   },
   "nativeEvents": {
     "Click": 1,

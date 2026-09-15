@@ -76,6 +76,12 @@ const TRANSITION_PROPERTY_RANGE = [
   PropertyId.TransitionTimingFunction,
 ] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Src, PropertyId.ObjectFit] as const;
+const PSEUDO_STATES = {
+  hover: StyleState.Hover,
+  focused: StyleState.Focused,
+  active: StyleState.Active,
+} as const;
+type PseudoState = keyof typeof PSEUDO_STATES;
 const ANCHORED_PROPERTY_BY_KEY = {
   side: PropertyId.AnchoredSide,
   align: PropertyId.AnchoredAlign,
@@ -1011,6 +1017,11 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       key === 'value'
     )
       property = PropertyId.Value;
+    else if (
+      (node.tagName === 'input' || node.tagName === 'textarea') &&
+      key === 'placeholder'
+    )
+      property = PropertyId.Placeholder;
     else if (node.tagName === 'textarea' && key === 'minRows')
       property = PropertyId.MinRows;
     else if (node.tagName === 'textarea' && key === 'maxRows')
@@ -1105,8 +1116,11 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     const controller = new AbortController();
     node.setCleanup('style', () => controller.abort());
 
-    const hadHover = node.style.hover !== undefined;
-    const hadActive = node.style.active !== undefined;
+    const priorStates = new Set(
+      (Object.keys(PSEUDO_STATES) as PseudoState[]).filter(
+        (state) => node.style[state] !== undefined
+      )
+    );
     const resolved: Record<string, unknown> = {};
     node.style = resolved as GpuiStyle;
     let initializing = true;
@@ -1114,7 +1128,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       property: string,
       propertyValue: unknown,
       target: Record<string, unknown>,
-      state?: 'hover' | 'active'
+      state?: PseudoState
     ): void => {
       if (!Cell.isCell(propertyValue)) {
         target[property] = propertyValue;
@@ -1128,7 +1142,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
 
     if (value && typeof value === 'object') {
       for (const [property, propertyValue] of Object.entries(value)) {
-        if (property !== 'hover' && property !== 'active') {
+        if (!(property in PSEUDO_STATES)) {
           bindDeclaration(property, propertyValue, resolved);
           continue;
         }
@@ -1136,7 +1150,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
         const pseudo: Record<string, unknown> = {};
         resolved[property] = pseudo;
         for (const [name, pseudoValue] of Object.entries(propertyValue)) {
-          bindDeclaration(name, pseudoValue, pseudo, property);
+          bindDeclaration(name, pseudoValue, pseudo, property as PseudoState);
         }
       }
     }
@@ -1144,21 +1158,18 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     initializing = false;
     if (!controller.signal.aborted && !node.destroyed) {
       this.#publishStyle(node);
-      if (resolved.hover !== undefined || hadHover)
-        this.#publishStyle(node, 'hover');
-      if (resolved.active !== undefined || hadActive)
-        this.#publishStyle(node, 'active');
+      for (const state of Object.keys(PSEUDO_STATES) as PseudoState[]) {
+        if (resolved[state] !== undefined || priorStates.has(state))
+          this.#publishStyle(node, state);
+      }
     }
   }
 
-  #publishStyle(node: GpuiElement, state?: 'hover' | 'active'): void {
+  #publishStyle(node: GpuiElement, state?: PseudoState): void {
     const source = state ? (node.style[state] ?? {}) : node.style;
     const properties: [PropertyIdValue, ProtocolPropertyValue][] = [];
     for (const [property, value] of Object.entries(source)) {
-      if (
-        value === undefined ||
-        (!state && (property === 'hover' || property === 'active'))
-      )
+      if (value === undefined || (!state && property in PSEUDO_STATES))
         continue;
       const id =
         propertyIdInRange(property, STYLE_PROPERTY_RANGE) ??
@@ -1169,12 +1180,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       properties.push([id, protocolStyleValue(property, value)]);
     }
     if (!state) this.host.setStyle(node.id, properties);
-    else
-      this.host.setPseudoStyle(
-        node.id,
-        state === 'hover' ? StyleState.Hover : StyleState.Active,
-        properties
-      );
+    else this.host.setPseudoStyle(node.id, PSEUDO_STATES[state], properties);
   }
 
   #watchCell(

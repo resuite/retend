@@ -136,7 +136,7 @@ The currently implemented Retend GPUI intrinsic surface is deliberately small:
 - `textarea`
 - `button`
 
-Text is ordinary JSX content rather than a `<text>` intrinsic. Adjacent text nodes, including JSX interpolations such as `Count: {count}`, render as one inline run that wraps with its container. `input` uses the native single-line editor, while `textarea` uses the native multi-line editor with wrapping and optional `minRows`/`maxRows` auto-sizing.
+Text is ordinary JSX content rather than a `<text>` intrinsic. Adjacent text nodes, including JSX interpolations such as `Count: {count}`, render as one inline run that wraps with its container. `input` uses the native single-line editor, while `textarea` uses the native multi-line editor with wrapping and optional `minRows`/`maxRows` auto-sizing. Both accept a `placeholder`, shown while the control is empty.
 
 `anchored` is the native floating-layer primitive used by menus, tooltips, and similar floating controls. It delegates placement to GPUI rather than measuring in JavaScript. `side` (`top`/`right`/`bottom`/`left`), `align` (`start`/`center`/`end`), `gap`, and `offset` place content relative to its parent slot; `position={{ x, y }}` instead uses window coordinates. `fit="snap"` (the default) keeps the layer inside the window with `snapMargin`, while `fit="switch"` uses GPUI's anchor-flipping behavior. Layers are deferred and occluding by default; `deferred`, `priority`, and `occlude` expose those native controls directly. Margins are intentionally unsupported on `<anchored>` because GPUI requires an anchored child to be margin-free; use `gap`/`offset`, or put the anchored element inside a wrapper when ordinary layout margin is needed.
 
@@ -152,6 +152,8 @@ return (
   </div>
 );
 ```
+
+`input` and `textarea` are native controls with default styling: comfortable padding, a 6px corner radius, a white surface, and a hairline border. Author style declarations override those defaults per field, so a form field needs no surface styling of its own.
 
 ## Events
 
@@ -172,7 +174,7 @@ return <div style={{ color }}>{label}</div>;
 
 The renderer also handles asynchronous Retend values used for text, control flow, intrinsic properties, and top-level style properties.
 
-The Retend-owned bridge parses its typed authoring vocabulary into Retend-native Rust values. The renderer publishes each resolved author style as one complete sparse snapshot; declarations disappear when omitted from the next replacement snapshot. The surface includes block/flex layout, alignment and gaps, dimensions, spacing, positioning, colors/opacity, borders, inherited text styling, overflow/scrolling, hover/active pseudo-states, and native transitions for the supported animatable properties. Numbers are logical pixels; dimensions also accept `auto`, pixel strings, and percentages.
+The Retend-owned bridge parses its typed authoring vocabulary into Retend-native Rust values. The renderer publishes each resolved author style as one complete sparse snapshot; declarations disappear when omitted from the next replacement snapshot. The surface includes block/flex layout, alignment and gaps, dimensions, spacing, positioning, colors/opacity, borders, inherited text styling, overflow/scrolling, hover/focused/active pseudo-states, and native transitions for the supported animatable properties. Numbers are logical pixels; dimensions also accept `auto`, pixel strings, and percentages.
 
 The application root defaults to a white background with black text. Explicit root `backgroundColor` and `color` styles override these defaults.
 

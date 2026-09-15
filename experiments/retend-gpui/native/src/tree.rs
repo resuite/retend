@@ -25,6 +25,7 @@ pub struct TextControlSnapshot {
     pub kind: TextControlKind,
     pub value: String,
     pub value_revision: u64,
+    pub placeholder: String,
     pub min_rows: Option<u32>,
     pub max_rows: Option<u32>,
 }
@@ -353,6 +354,7 @@ pub enum NodeData {
         kind: TextControlKind,
         value: String,
         value_revision: u64,
+        placeholder: String,
         min_rows: Option<u32>,
         max_rows: Option<u32>,
     },
@@ -367,10 +369,13 @@ pub struct NativeNode {
     pub style: Option<Box<NativeStyle>>,
     base_style: Vec<(PropertyId, PropertyValue)>,
     hover_style: Vec<(PropertyId, PropertyValue)>,
+    focused_style: Vec<(PropertyId, PropertyValue)>,
     active_style: Vec<(PropertyId, PropertyValue)>,
     tracks_hover: bool,
+    tracks_focused: bool,
     tracks_active: bool,
     hovered: bool,
+    focused: bool,
     pub(crate) motion: MotionBridgeState,
     pub subscriptions: u32,
     pub tab_index: Option<isize>,
@@ -387,10 +392,13 @@ impl NativeNode {
             style: None,
             base_style: Vec::new(),
             hover_style: Vec::new(),
+            focused_style: Vec::new(),
             active_style: Vec::new(),
             tracks_hover: false,
+            tracks_focused: false,
             tracks_active: false,
             hovered: false,
+            focused: false,
             motion: MotionBridgeState::default(),
             subscriptions: 0,
             tab_index: None,
@@ -418,8 +426,16 @@ impl NativeNode {
         self.tracks_active
     }
 
+    pub(crate) fn tracks_focused(&self) -> bool {
+        self.tracks_focused
+    }
+
     fn has_hover_style(&self) -> bool {
         !self.hover_style.is_empty()
+    }
+
+    fn has_focused_style(&self) -> bool {
+        !self.focused_style.is_empty()
     }
 
     fn has_active_style(&self) -> bool {
@@ -437,6 +453,10 @@ impl NativeNode {
                 self.tracks_hover = true;
                 self.hover_style = properties;
             }
+            Some(StyleState::Focused) => {
+                self.tracks_focused = true;
+                self.focused_style = properties;
+            }
             Some(StyleState::Active) => {
                 self.tracks_active = true;
                 self.active_style = properties;
@@ -447,6 +467,7 @@ impl NativeNode {
     fn resolve_author_style(&mut self, active: bool) {
         let has_style = !self.base_style.is_empty()
             || (self.hovered && !self.hover_style.is_empty())
+            || (self.focused && !self.focused_style.is_empty())
             || (active && !self.active_style.is_empty());
         let mut next = has_style.then(Box::<NativeStyle>::default);
         if let Some(style) = next.as_deref_mut() {
@@ -455,6 +476,11 @@ impl NativeNode {
             }
             if self.hovered {
                 for (property, value) in &self.hover_style {
+                    _ = style.set_property(*property, value);
+                }
+            }
+            if self.focused {
+                for (property, value) in &self.focused_style {
                     _ = style.set_property(*property, value);
                 }
             }
@@ -598,6 +624,33 @@ impl NativeTree {
         }
         node.hovered = hovered;
         let changed = node.has_hover_style();
+        node.resolve_author_style(active);
+        if changed {
+            self.mark_window_style_changed(window_id);
+        }
+        changed
+    }
+
+    pub fn set_focused(&mut self, window_id: WindowId, id: NodeId, focused: bool) -> bool {
+        let Some(active) = self
+            .windows
+            .get(&window_id)
+            .map(|window| window.active_nodes.contains(&id))
+        else {
+            return false;
+        };
+        let Some(node) = self
+            .nodes
+            .get_mut(&id)
+            .filter(|node| node.window_id == window_id && node.tracks_focused())
+        else {
+            return false;
+        };
+        if node.focused == focused {
+            return false;
+        }
+        node.focused = focused;
+        let changed = node.has_focused_style();
         node.resolve_author_style(active);
         if changed {
             self.mark_window_style_changed(window_id);
@@ -831,12 +884,14 @@ impl NativeTree {
                 kind,
                 value,
                 value_revision,
+                placeholder,
                 min_rows,
                 max_rows,
             } => Some(TextControlSnapshot {
                 kind: *kind,
                 value: value.clone(),
                 value_revision: *value_revision,
+                placeholder: placeholder.clone(),
                 min_rows: *min_rows,
                 max_rows: *max_rows,
             }),
@@ -855,12 +910,14 @@ impl NativeTree {
                 kind,
                 value,
                 value_revision,
+                placeholder,
                 min_rows,
                 max_rows,
             } => Ok(TextControlSnapshot {
                 kind: *kind,
                 value: value.clone(),
                 value_revision: *value_revision,
+                placeholder: placeholder.clone(),
                 min_rows: *min_rows,
                 max_rows: *max_rows,
             }),
@@ -1029,6 +1086,7 @@ impl NativeTree {
                         kind: TextControlKind::Input,
                         value: String::new(),
                         value_revision: 0,
+                        placeholder: String::new(),
                         min_rows: None,
                         max_rows: None,
                     },
@@ -1050,6 +1108,7 @@ impl NativeTree {
                         kind: TextControlKind::Textarea,
                         value: String::new(),
                         value_revision: 0,
+                        placeholder: String::new(),
                         min_rows: None,
                         max_rows: None,
                     },
@@ -1148,6 +1207,23 @@ impl NativeTree {
                         })?;
                         *current = value;
                         *value_revision = next_revision;
+                        Ok(())
+                    }
+                    (
+                        PropertyId::Placeholder,
+                        NodeData::TextControl { placeholder, .. },
+                    ) => {
+                        *placeholder = match value {
+                            PropertyValue::Null => String::new(),
+                            PropertyValue::String(value) => value,
+                            _ => {
+                                return invalid(
+                                    index,
+                                    "INVALID_PROPERTY_VALUE",
+                                    "Text-control placeholder must be a string or null.",
+                                );
+                            }
+                        };
                         Ok(())
                     }
                     (
@@ -1582,6 +1658,84 @@ mod tests {
             state,
             properties,
         }
+    }
+
+    #[test]
+    fn focused_style_resolves_between_hover_and_active() {
+        let (mut tree, window, _) = setup();
+        let opacity = |tree: &NativeTree| tree.nodes[&2].style.as_deref().and_then(|style| style.opacity);
+        let pseudo = |state, value| {
+            pseudo_style(
+                2,
+                state,
+                vec![(PropertyId::Opacity, PropertyValue::Number(value))],
+            )
+        };
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                style(2, PropertyId::Opacity, PropertyValue::Number(1.0)),
+                pseudo(StyleState::Hover, 0.5),
+                pseudo(StyleState::Focused, 0.25),
+                pseudo(StyleState::Active, 0.1),
+            ],
+        )
+        .unwrap();
+        assert_eq!(opacity(&tree), Some(1.0));
+
+        assert!(tree.set_focused(window, 2, true));
+        assert_eq!(opacity(&tree), Some(0.25));
+        tree.set_hovered(window, 2, true);
+        assert_eq!(opacity(&tree), Some(0.25));
+        tree.press_node(window, 2);
+        assert_eq!(opacity(&tree), Some(0.1));
+
+        tree.release_pointer(window);
+        tree.set_hovered(window, 2, false);
+        assert!(tree.set_focused(window, 2, false));
+        assert_eq!(opacity(&tree), Some(1.0));
+    }
+
+    #[test]
+    fn text_controls_retain_placeholder() {
+        let (mut tree, window, _) = setup();
+        let placeholder_is = |tree: &NativeTree, expected: &str| {
+            matches!(
+                &tree.nodes[&2].data,
+                NodeData::TextControl { placeholder, .. } if placeholder == expected
+            )
+        };
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Input,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Placeholder,
+                    value: PropertyValue::String("Search".into()),
+                },
+            ],
+        )
+        .unwrap();
+        assert!(placeholder_is(&tree, "Search"));
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::Placeholder,
+                value: PropertyValue::Null,
+            }],
+        )
+        .unwrap();
+        assert!(placeholder_is(&tree, ""));
     }
 
     #[test]
