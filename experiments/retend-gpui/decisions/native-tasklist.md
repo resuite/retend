@@ -461,7 +461,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Maintenance and test-surface polish
 
-- [ ] Remove redundant, revision-driven, or implementation-only tests that no longer protect external behavior.
+- [x] Remove redundant, revision-driven, or implementation-only tests that no longer protect external behavior.
 - [ ] Keep focused regression coverage for renderer/protocol failure modes without growing parallel test-only abstractions.
 
 ### Prebuilt binaries and packaging

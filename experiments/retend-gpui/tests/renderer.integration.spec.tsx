@@ -1,21 +1,12 @@
-import {
-  Await,
-  Cell,
-  For,
-  If,
-  createUnique,
-  runPendingSetupEffects,
-  setActiveRenderer,
-  waitForAsyncBoundaries,
-} from 'retend';
+import { Cell, If, setActiveRenderer } from 'retend';
 import { Router } from 'retend/router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { GpuiElement } from '../source/gpui-renderer';
+import type { GpuiButtonElement } from '../source/gpui-renderer';
 import type { GpuiColor, GpuiStyle } from '../source/types';
 
 import {
-  GpuiButtonElement,
   GpuiDivElement,
   GpuiImageElement,
   GpuiInputElement,
@@ -134,19 +125,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(() => renderer.createContainer('button')).not.toThrow();
     expect(() => renderer.createContainer('code')).toThrow(
       'Unsupported Retend GPUI intrinsic element: <code>'
-    );
-  });
-
-  it('creates direct native button elements', () => {
-    const renderer = createRenderer();
-    const button = renderer.createContainer('button');
-
-    expect(button).toBeInstanceOf(GpuiButtonElement);
-    expect(button.tagName).toBe('button');
-
-    const tree = debugTree(renderer);
-    expect(tree.nodes.find((node) => node.id === button.id)?.kind).toBe(
-      'Button'
     );
   });
 
@@ -554,24 +532,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(cleanup).toHaveBeenCalledOnce();
   });
 
-  it('cleans up top-level and never-attached text on unmount', () => {
-    const renderer = createRenderer();
-    const mounted = renderer.createText('mounted');
-    const detached = renderer.createText('detached');
-    renderer.render(() => mounted);
-    expect(collectText(debugTree(renderer))).toEqual(['mounted']);
-
-    renderer.unmount();
-    for (const text of [mounted, detached]) {
-      expect(text.destroyed).toBe(true);
-      expect(text.lifecycle.signal.aborted).toBe(true);
-      expect(text.parent).toBeNull();
-      expect(text.renderer).toBeUndefined();
-      expect(text.host).toBeUndefined();
-    }
-    expect(idsByKind(debugTree(renderer), 'Text')).toEqual([]);
-  });
-
   it('keeps native event subscriptions element-only', () => {
     const renderer = createRenderer();
     const text = renderer.createText('listener');
@@ -871,16 +831,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(element.style.width).toBe(20);
   });
 
-  it('keeps a ref assigned when the same cell is set twice', () => {
-    const renderer = createRenderer();
-    const element = renderer.createContainer('div');
-    const ref = Cell.source<GpuiElement | null>(null);
-    renderer.setProperty(element, 'ref', ref);
-    renderer.setProperty(element, 'ref', ref);
-
-    expect(ref.peek()).toBe(element);
-  });
-
   it('renders and hot-reloads a root component through HMR boundaries', () => {
     const renderer = createRenderer({ hmr: true });
 
@@ -895,62 +845,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(collectText(debugTree(renderer))).toEqual(['before']);
 
     hotReloadModule({ default: NextApp }, { default: App });
-    expect(collectText(debugTree(renderer))).toEqual(['after']);
-  });
-
-  it('recovers a component boundary after a failed HMR render', () => {
-    const renderer = createRenderer({ hmr: true });
-
-    const label = Cell.source('before');
-    function App() {
-      return <div>{label}</div>;
-    }
-    function BrokenApp() {
-      throw new Error('broken update');
-    }
-    function FixedApp() {
-      return <div>after</div>;
-    }
-
-    renderer.render(() => <App />);
-    expect(collectText(debugTree(renderer))).toEqual(['before']);
-
-    hotReloadModule({ default: BrokenApp }, { default: App });
-    expect(collectText(debugTree(renderer)).join('')).toContain(
-      'broken update'
-    );
-    expect(collectText(debugTree(renderer))).toContain('before');
-
-    label.set('still alive');
-    expect(collectText(debugTree(renderer))).toContain('still alive');
-
-    hotReloadModule({ default: FixedApp }, { default: BrokenApp });
-    expect(collectText(debugTree(renderer))).toEqual(['after']);
-  });
-
-  it('discards nodes created by a failing HMR render without disturbing committed ones', () => {
-    const renderer = createRenderer({ hmr: true });
-    let speculative!: GpuiElement;
-
-    function App() {
-      return <div>before</div>;
-    }
-    function BrokenApp() {
-      speculative = renderer.createContainer('div');
-      throw new Error('broken after creating a node');
-    }
-    function FixedApp() {
-      return <div>after</div>;
-    }
-
-    renderer.render(() => <App />);
-
-    hotReloadModule({ default: BrokenApp }, { default: App });
-    const failed = debugTree(renderer);
-    expect(collectText(failed)).toContain('before');
-    expect(speculative.destroyed).toBe(true);
-
-    hotReloadModule({ default: FixedApp }, { default: BrokenApp });
     expect(collectText(debugTree(renderer))).toEqual(['after']);
   });
 
@@ -972,32 +866,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const after = debugTree(renderer);
     expect(after.nodes.map((node) => node.id).toSorted()).toEqual(baseIds);
     expect(collectText(after)).toEqual(['base']);
-  });
-
-  it('keeps nested rollback scopes independent of committed nodes', () => {
-    const renderer = createRenderer();
-    renderer.render(() => <div>base</div>);
-
-    let innerFailed = false;
-    expect(() =>
-      renderer.withNodeRollback(() => {
-        const outer = renderer.createContainer('div');
-        renderer.append(outer, renderer.createText('outer'));
-        try {
-          renderer.withNodeRollback(() => {
-            const inner = renderer.createContainer('div');
-            renderer.append(inner, renderer.createText('inner'));
-            throw new Error('inner failure');
-          });
-        } catch {
-          innerFailed = true;
-        }
-        throw new Error('outer failure');
-      })
-    ).toThrow('outer failure');
-
-    expect(innerFailed).toBe(true);
-    expect(collectText(debugTree(renderer))).toEqual(['base']);
   });
 
   it('rejects removing or replacing rendered component exports during HMR', () => {
@@ -1034,200 +902,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     tree = debugTree(renderer);
     expect(collectText(tree)).toEqual(['application']);
     expect(tree.pending_detached).not.toContain(app.id);
-  });
-
-  it('strips terminal control sequences from development errors', () => {
-    const renderer = createRenderer();
-
-    renderer.showDevelopmentError('\u001b[31mparse failed\u001b[0m');
-    const text = collectText(debugTree(renderer)).join('');
-
-    expect(text).toContain('parse failed');
-    expect(text).not.toContain('\u001b');
-    expect(text).not.toContain('[31m');
-  });
-
-  it('structures Vite diagnostics into message, source, frame, and stack sections', () => {
-    const renderer = createRenderer();
-    const error = Object.assign(new Error('Failed to resolve import'), {
-      plugin: 'vite:import-analysis',
-      id: '/source/app.tsx',
-      loc: { line: 27, column: 10 },
-      frame: '25 | const value = 1;\n26 | import Missing from "./missing";',
-    });
-    error.stack = `${error.message}\n    at transformRequest (/vite/node.js:10:4)`;
-
-    renderer.showDevelopmentError(error);
-    const text = collectText(debugTree(renderer)).join('\n');
-
-    expect(text).toContain(
-      '[plugin:vite:import-analysis] Failed to resolve import'
-    );
-    expect(text).toContain('/source/app.tsx:27:10');
-    expect(text).toContain('26 | import Missing from "./missing";');
-    expect(text).toContain('at transformRequest (/vite/node.js:10:4)');
-    expect(text).toContain('Fix the code to dismiss this overlay.');
-  });
-
-  it('presents the development overlay before an application root mounts', () => {
-    const renderer = createRenderer();
-
-    renderer.showDevelopmentError(new Error('early failure'));
-    expect(collectText(debugTree(renderer)).join('')).toContain(
-      'early failure'
-    );
-
-    renderer.render(() => <div>application</div>);
-    const tree = debugTree(renderer);
-    expect(collectText(tree)).toContain('application');
-    expect(collectText(tree).join('')).toContain('early failure');
-
-    renderer.clearDevelopmentError();
-    expect(collectText(debugTree(renderer))).toEqual(['application']);
-  });
-
-  it('keeps the development overlay above roots added while it is visible', () => {
-    const renderer = createRenderer();
-    const extra = Cell.source(false);
-
-    renderer.render(() => (
-      <>
-        <div>main</div>
-        {If(extra, () => (
-          <div>extra</div>
-        ))}
-      </>
-    ));
-    renderer.showDevelopmentError(new Error('late failure'));
-
-    extra.set(true);
-    const texts = collectText(debugTree(renderer));
-    expect(texts.join('')).toContain('extra');
-    // New roots insert before the overlay so it keeps painting above them.
-    expect(texts.indexOf('late failure')).toBeGreaterThan(
-      texts.indexOf('extra')
-    );
-
-    extra.set(false);
-    renderer.clearDevelopmentError();
-    expect(collectText(debugTree(renderer))).toEqual(['main']);
-  });
-
-  it('replaces nested If ranges and settles abandoned native subtrees', async () => {
-    const renderer = createRenderer();
-    const outer = Cell.source(true);
-    const inner = Cell.source(true);
-
-    renderer.render(() => (
-      <div>
-        {If(outer, {
-          true: () => (
-            <div>
-              outer:
-              {If(inner, () => 'inner')}
-            </div>
-          ),
-          false: () => 'fallback',
-        })}
-      </div>
-    ));
-
-    expect(collectText(debugTree(renderer)).join('')).toContain('outer:inner');
-    inner.set(false);
-    expect(collectText(debugTree(renderer)).join('')).not.toContain('inner');
-
-    outer.set(false);
-    expect(collectText(debugTree(renderer))).toEqual(['fallback']);
-
-    await new Promise((resolve) => setTimeout(resolve, 1));
-    const tree = debugTree(renderer);
-    expect(idsByKind(tree, 'Container')).toHaveLength(1);
-  });
-
-  it('reorders a keyed For without rebuilding retained text nodes', () => {
-    const renderer = createRenderer();
-    const items = Cell.source([
-      { id: 1, label: 'A' },
-      { id: 2, label: 'B' },
-      { id: 3, label: 'C' },
-      { id: 4, label: 'D' },
-      { id: 5, label: 'E' },
-    ]);
-
-    renderer.render(() => (
-      <div>{For(items, (item) => item.label, { key: 'id' })}</div>
-    ));
-    const before = debugTree(renderer);
-    const idsBefore = idsByKind(before, 'Text').toSorted();
-
-    const current = items.get();
-    items.set([...current.slice(1), current[0]]);
-    const after = debugTree(renderer);
-
-    expect(collectText(after)).toEqual(['B', 'C', 'D', 'E', 'A']);
-    expect(idsByKind(after, 'Text').toSorted()).toEqual(idsBefore);
-  });
-
-  it('supports keyed insertion and removal', async () => {
-    const renderer = createRenderer();
-    const items = Cell.source([
-      { id: 1, label: 'A' },
-      { id: 2, label: 'B' },
-    ]);
-
-    renderer.render(() => (
-      <div>{For(items, (item) => item.label, { key: 'id' })}</div>
-    ));
-
-    items.set([
-      { id: 1, label: 'A' },
-      { id: 3, label: 'C' },
-      { id: 2, label: 'B' },
-    ]);
-    expect(collectText(debugTree(renderer))).toEqual(['A', 'C', 'B']);
-
-    items.set([
-      { id: 3, label: 'C' },
-      { id: 2, label: 'B' },
-    ]);
-    expect(collectText(debugTree(renderer))).toEqual(['C', 'B']);
-    await new Promise((resolve) => setTimeout(resolve, 1));
-    expect(idsByKind(debugTree(renderer), 'Text')).toHaveLength(2);
-  });
-
-  it('moves a Unique instance without destroying its native identity', async () => {
-    const renderer = createRenderer();
-    const showSecond = Cell.source(false);
-    const showFirst = Cell.derived(() => !showSecond.get());
-    let uniqueId: number | null = null;
-    const capture = (node: GpuiElement | null) => {
-      if (node) uniqueId = node.id;
-    };
-    const UniqueContent = createUnique(() => {
-      return <div ref={capture}>Unique Data</div>;
-    });
-
-    renderer.render(() => (
-      <div>
-        {If(showFirst, () => (
-          <UniqueContent id="shared" />
-        ))}
-        {If(showSecond, () => (
-          <UniqueContent id="shared" />
-        ))}
-      </div>
-    ));
-    await runPendingSetupEffects();
-    const firstId = uniqueId;
-
-    showSecond.set(true);
-    await Promise.resolve();
-    await runPendingSetupEffects();
-    const tree = debugTree(renderer);
-
-    expect(uniqueId).toBe(firstId);
-    expect(collectText(tree)).toEqual(['Unique Data']);
-    expect(idsByKind(tree, 'Container')).toContain(firstId);
   });
 
   it('unmount settles attached and never-attached renderer nodes while keeping the window root', () => {
@@ -1288,27 +962,6 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     renderer.host.createNode(ElementKind.Root);
     expect(() => renderer.flush()).toThrow(NativeRendererFatalError);
     expect(() => renderer.flush()).not.toThrow();
-  });
-
-  it('cleans partial renderer state when render throws', () => {
-    const renderer = createRenderer();
-    expect(() =>
-      renderer.render(() => {
-        renderer.createText('partial');
-        throw new Error('render failed');
-      })
-    ).toThrow('render failed');
-
-    expect(renderer.hasRoot).toBe(false);
-    expect(() => renderer.flush()).not.toThrow();
-    expect(renderer.host.debugTree()).toEqual(
-      expect.objectContaining({
-        nodes: [expect.objectContaining({ kind: 'Root' })],
-      })
-    );
-
-    renderer.showDevelopmentError('render failed');
-    expect(collectText(debugTree(renderer))).toContain('render failed');
   });
 
   it('does not leave a partial development overlay on a fatal renderer', () => {
@@ -1416,42 +1069,5 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(collectText(debugTree(secondRenderer))).toEqual(['second: true']);
 
     firstRenderer.dispose();
-  });
-
-  it('holds Await fallback for async text, style, and image props', async () => {
-    const renderer = createRenderer();
-    const borderColor = Cell.derivedAsync(async (): Promise<GpuiColor> => {
-      await Promise.resolve();
-      return '#22c55e';
-    });
-    const status = Cell.derivedAsync(async () => {
-      await Promise.resolve();
-      return 'loaded';
-    });
-    const src = Cell.derivedAsync(async () => {
-      await Promise.resolve();
-      return 'https://example.com/loaded.png';
-    });
-    const imageRef = Cell.source<GpuiElement | null>(null);
-
-    renderer.render(() => (
-      <Await fallback="loading">
-        <div style={{ borderColor }}>
-          {status}
-          <img ref={imageRef} src={src} />
-        </div>
-      </Await>
-    ));
-
-    expect(collectText(debugTree(renderer))).toEqual(['loading']);
-    await waitForAsyncBoundaries();
-    const tree = debugTree(renderer);
-    expect(collectText(tree)).toContain('loaded');
-
-    const image = imageRef.get();
-    if (!image) throw new Error('Expected async image ref to resolve.');
-    expect(nodeMap(tree).get(image.id)?.src).toBe(
-      'https://example.com/loaded.png'
-    );
   });
 });

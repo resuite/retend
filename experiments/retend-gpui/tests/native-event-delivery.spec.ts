@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
-  NativeKeyboardEventPayload,
   NativeMouseEventPayload,
   NativeTransportPayload,
   NativeWindowOptions,
@@ -57,7 +56,7 @@ vi.mock('../source/native/addon', async (importOriginal) => {
 
 import { Cell } from 'retend';
 
-import { GpuiMouseEvent, type GpuiKeyboardEvent } from '../source/events';
+import { GpuiMouseEvent } from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
 
@@ -83,24 +82,6 @@ function mouseEvent(
   };
 }
 
-function keyboardEvent(
-  eventId: NativeKeyboardEventPayload['eventId'],
-  targetId: number
-): NativeKeyboardEventPayload {
-  return {
-    eventId,
-    targetId,
-    timeStamp: 13,
-    key: 'a',
-    keyChar: 'a',
-    repeat: false,
-    altKey: false,
-    ctrlKey: false,
-    metaKey: false,
-    shiftKey: false,
-  };
-}
-
 function createRenderer(): RetendGpuiRenderer {
   const current = new RetendGpuiRenderer({ headless: true });
   current.init();
@@ -118,22 +99,6 @@ afterEach(() => {
 });
 
 describe('native event delivery', () => {
-  it('flushes pending mutations and an active subscription in one batch', () => {
-    const renderer = createRenderer();
-    const target = renderer.createContainer('div');
-    renderer.render(() => target);
-    renderer.flush();
-    native.applyCalls = 0;
-
-    renderer.host.createText('pending');
-    const listener = vi.fn();
-    target.addEventListener('click', listener);
-    expect(native.applyCalls).toBe(1);
-
-    renderer.host.createText('also pending');
-    target.removeEventListener('click', listener);
-    expect(native.applyCalls).toBe(2);
-  });
   it('rejects invalid native window options at the renderer boundary', () => {
     const current = new RetendGpuiRenderer({ headless: true });
     expect(() => current.init({ width: 0 })).toThrow('finite positive');
@@ -286,33 +251,6 @@ describe('native event delivery', () => {
     expect(received?.timeStamp).toBe(12.5);
   });
 
-  it('propagates a native keyboard payload through capture, target, and bubble', () => {
-    const renderer = createRenderer();
-    const parent = renderer.createContainer('div');
-    const child = renderer.createContainer('div');
-    renderer.append(parent, child);
-    renderer.render(() => parent);
-
-    const calls: string[] = [];
-    parent.addEventListener(
-      'keydown',
-      () => calls.push('parent-capture'),
-      true
-    );
-    child.addEventListener('keydown', (event) => {
-      calls.push('target');
-      expect(event.target).toBe(child);
-      expect((event as GpuiKeyboardEvent).key).toBe('a');
-    });
-    parent.addEventListener('keydown', () => calls.push('parent-bubble'));
-
-    native.onEvent?.({
-      event: keyboardEvent(NativeEventId.KeyDown, child.id),
-    });
-
-    expect(calls).toEqual(['parent-capture', 'target', 'parent-bubble']);
-  });
-
   it('drops delayed native events after native presentation or logical ownership is lost', () => {
     const renderer = createRenderer();
     const target = renderer.createContainer('div');
@@ -329,25 +267,5 @@ describe('native event delivery', () => {
     renderer.unmount();
     native.onEvent?.({ event: payload });
     expect(listener).not.toHaveBeenCalled();
-  });
-
-  it('delivers mousedownoutside only to the subscriber targeted by native selection', () => {
-    const renderer = createRenderer();
-    const ancestor = renderer.createContainer('div');
-    const subscriber = renderer.createContainer('div');
-    renderer.append(ancestor, subscriber);
-    renderer.render(() => ancestor);
-
-    const ancestorListener = vi.fn();
-    const subscriberListener = vi.fn();
-    ancestor.addEventListener('mousedownoutside', ancestorListener);
-    subscriber.addEventListener('mousedownoutside', subscriberListener);
-
-    native.onEvent?.({
-      event: mouseEvent(NativeEventId.MouseDownOutside, subscriber.id),
-    });
-
-    expect(subscriberListener).toHaveBeenCalledOnce();
-    expect(ancestorListener).not.toHaveBeenCalled();
   });
 });

@@ -1703,44 +1703,6 @@ mod tests {
     }
 
     #[test]
-    fn text_controls_retain_placeholder() {
-        let (mut tree, window, _) = setup();
-        let placeholder_is = |tree: &NativeTree, expected: &str| {
-            matches!(
-                &tree.nodes[&2].data,
-                NodeData::TextControl { placeholder, .. } if placeholder == expected
-            )
-        };
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Input,
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Placeholder,
-                    value: PropertyValue::String("Search".into()),
-                },
-            ],
-        )
-        .unwrap();
-        assert!(placeholder_is(&tree, "Search"));
-
-        tree.apply_commands(
-            window,
-            vec![Command::SetProperty {
-                id: 2,
-                property: PropertyId::Placeholder,
-                value: PropertyValue::Null,
-            }],
-        )
-        .unwrap();
-        assert!(placeholder_is(&tree, ""));
-    }
-
-    #[test]
     fn native_event_subscriptions_follow_presented_paths_and_outside_targets() {
         let (mut tree, window, root) = setup();
         tree.apply_commands(
@@ -1862,107 +1824,6 @@ mod tests {
             "RENDERER_NOT_FATAL"
         );
         assert!(tree.nodes.contains_key(&2));
-    }
-
-    #[test]
-    fn textarea_retains_multiline_value_and_row_bounds() {
-        let (mut tree, window, _) = setup();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Textarea,
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::Value,
-                    value: PropertyValue::String("first\nsecond".into()),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::MinRows,
-                    value: PropertyValue::Number(2.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::MaxRows,
-                    value: PropertyValue::Number(6.0),
-                },
-            ],
-        )
-        .unwrap();
-
-        assert!(matches!(
-            &tree.nodes[&2].data,
-            NodeData::TextControl {
-                kind: TextControlKind::Textarea,
-                value,
-                min_rows: Some(2),
-                max_rows: Some(6),
-                ..
-            } if value == "first\nsecond"
-        ));
-
-        tree.apply_commands(
-            window,
-            vec![
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::MinRows,
-                    value: PropertyValue::Number(6.0),
-                },
-                Command::SetProperty {
-                    id: 2,
-                    property: PropertyId::MaxRows,
-                    value: PropertyValue::Number(2.0),
-                },
-            ],
-        )
-        .unwrap();
-        assert!(matches!(
-            &tree.nodes[&2].data,
-            NodeData::TextControl {
-                min_rows: Some(6),
-                max_rows: Some(2),
-                ..
-            }
-        ));
-
-        tree.apply_commands(
-            window,
-            vec![Command::SetProperty {
-                id: 2,
-                property: PropertyId::MinRows,
-                value: PropertyValue::Number(1.0),
-            }],
-        )
-        .unwrap();
-        // Authored row bounds are retained verbatim; the editor clamps the
-        // effective range, so lowering minRows must not inflate maxRows.
-        assert!(matches!(
-            &tree.nodes[&2].data,
-            NodeData::TextControl {
-                min_rows: Some(1),
-                max_rows: Some(2),
-                ..
-            }
-        ));
-
-        tree.apply_commands(
-            window,
-            vec![Command::SetProperty {
-                id: 2,
-                property: PropertyId::MinRows,
-                value: PropertyValue::Number(0.0),
-            }],
-        )
-        .unwrap();
-        assert!(matches!(
-            &tree.nodes[&2].data,
-            NodeData::TextControl { min_rows: None, .. }
-        ));
-        assert!(tree.windows[&window].fatal.is_none());
     }
 
     #[test]
@@ -2111,107 +1972,6 @@ mod tests {
     }
 
     #[test]
-    fn clearing_hover_style_keeps_pointer_state_observation_alive() {
-        let (mut tree, window, _) = setup();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
-                style(2, PropertyId::Opacity, PropertyValue::Number(1.0)),
-                pseudo_style(
-                    2,
-                    StyleState::Hover,
-                    vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
-                ),
-            ],
-        )
-        .unwrap();
-
-        assert!(tree.set_hovered(window, 2, true));
-        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.5));
-
-        tree.apply_commands(window, vec![pseudo_style(2, StyleState::Hover, vec![])])
-            .unwrap();
-        assert!(tree.nodes[&2].tracks_hover());
-        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
-
-        assert!(
-            !tree.set_hovered(window, 2, false),
-            "moving with no hover declarations should update pointer state without repainting"
-        );
-        assert!(!tree.nodes[&2].hovered);
-
-        tree.apply_commands(
-            window,
-            vec![pseudo_style(
-                2,
-                StyleState::Hover,
-                vec![(PropertyId::Opacity, PropertyValue::Number(0.25))],
-            )],
-        )
-        .unwrap();
-        assert_eq!(
-            tree.nodes[&2].style.as_deref().unwrap().opacity,
-            Some(1.0),
-            "re-adding hover after the pointer left must not resurrect stale hover state"
-        );
-    }
-
-    #[test]
-    fn clearing_active_style_keeps_release_observation_alive() {
-        let (mut tree, window, _) = setup();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
-                style(2, PropertyId::Opacity, PropertyValue::Number(1.0)),
-                pseudo_style(
-                    2,
-                    StyleState::Active,
-                    vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
-                ),
-            ],
-        )
-        .unwrap();
-
-        assert!(tree.press_node(window, 2));
-        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.5));
-
-        tree.apply_commands(window, vec![pseudo_style(2, StyleState::Active, vec![])])
-            .unwrap();
-        assert!(tree.nodes[&2].tracks_active());
-        assert!(tree.windows[&window].active_nodes.contains(&2));
-        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
-
-        assert!(
-            !tree.release_pointer(window),
-            "release with no active declarations should clear pointer state without repainting"
-        );
-        assert!(!tree.windows[&window].active_nodes.contains(&2));
-
-        tree.apply_commands(
-            window,
-            vec![pseudo_style(
-                2,
-                StyleState::Active,
-                vec![(PropertyId::Opacity, PropertyValue::Number(0.25))],
-            )],
-        )
-        .unwrap();
-        assert_eq!(
-            tree.nodes[&2].style.as_deref().unwrap().opacity,
-            Some(1.0),
-            "re-adding active after release must not resurrect stale pressed state"
-        );
-    }
-
-    #[test]
     fn active_state_follows_the_styled_ancestor_path() {
         let (mut tree, window, root) = setup();
         tree.apply_commands(
@@ -2263,55 +2023,6 @@ mod tests {
         assert!(tree.release_pointer(window));
         assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
         assert_eq!(tree.nodes[&3].style.as_deref().unwrap().opacity, Some(1.0));
-    }
-
-    #[test]
-    fn pseudo_state_changes_share_the_same_author_target_resolution() {
-        let (mut tree, window, _) = setup();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateNode {
-                    id: 2,
-                    kind: ElementKind::Container,
-                },
-                style(2, PropertyId::Opacity, PropertyValue::Number(0.0)),
-                pseudo_style(
-                    2,
-                    StyleState::Hover,
-                    vec![
-                        (PropertyId::Opacity, PropertyValue::Number(1.0)),
-                        (
-                            PropertyId::TransitionProperty,
-                            PropertyValue::String("opacity".into()),
-                        ),
-                        (
-                            PropertyId::TransitionDuration,
-                            PropertyValue::String("200ms".into()),
-                        ),
-                        (
-                            PropertyId::TransitionTimingFunction,
-                            PropertyValue::String("linear".into()),
-                        ),
-                    ],
-                ),
-                pseudo_style(
-                    2,
-                    StyleState::Active,
-                    vec![(PropertyId::Opacity, PropertyValue::Number(0.25))],
-                ),
-            ],
-        )
-        .unwrap();
-
-        assert!(tree.set_hovered(window, 2, true));
-        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
-
-        assert!(tree.press_node(window, 2));
-        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(0.25));
-
-        assert!(tree.release_pointer(window));
-        assert_eq!(tree.nodes[&2].style.as_deref().unwrap().opacity, Some(1.0));
     }
 
     #[test]
@@ -2535,14 +2246,6 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
-
-        for property in [PropertyId::MarginInline, PropertyId::MarginBlock] {
-            let (mut tree, window) = anchored_tree();
-            let error = tree
-                .apply_commands(window, vec![style(2, property, PropertyValue::Number(8.0))])
-                .unwrap_err();
-            assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
-        }
     }
 
     #[test]

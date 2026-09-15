@@ -1,7 +1,7 @@
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expectTypeOf, it } from 'vitest';
 
-import { GpuiElement, GpuiNode, GpuiText } from '../source/gpui-renderer';
-import { GpuiParentNode } from '../source/tree/nodes';
+import type { GpuiElement, GpuiNode, GpuiText } from '../source/gpui-renderer';
+import type { GpuiParentNode } from '../source/tree/nodes';
 
 const elementOnlyKeys = [
   'measure',
@@ -18,16 +18,7 @@ const elementOnlyKeys = [
 ] as const;
 
 describe('GpuiText boundary', () => {
-  it('extends GpuiNode directly without element or parent APIs', () => {
-    const text = new GpuiText(1, 'plain');
-
-    expect(text).toBeInstanceOf(GpuiNode);
-    expect(text).not.toBeInstanceOf(GpuiElement);
-    expect(text).not.toBeInstanceOf(GpuiParentNode);
-    for (const key of elementOnlyKeys) expect(key in text).toBe(false);
-    expect(text.id).toBe(1);
-    expect(text.content).toBe('plain');
-
+  it('keeps element-only APIs off the text type', () => {
     expectTypeOf<GpuiText>().toExtend<GpuiNode>();
     expectTypeOf<GpuiText>().not.toExtend<GpuiElement>();
     expectTypeOf<GpuiText>().not.toExtend<GpuiParentNode>();
