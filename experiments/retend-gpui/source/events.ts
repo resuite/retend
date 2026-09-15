@@ -1,6 +1,7 @@
 import type {
   NativeEventPayload,
   NativeFocusEventPayload,
+  NativeImageEventPayload,
   NativeKeyboardEventPayload,
   NativeMouseEventPayload,
   NativeScrollEventPayload,
@@ -25,7 +26,8 @@ type NativeEventKind =
   | 'text'
   | 'focus'
   | 'scroll'
-  | 'transition';
+  | 'transition'
+  | 'image';
 type NativeEventDefinition = readonly [
   type: string,
   kind: NativeEventKind,
@@ -63,6 +65,8 @@ const NATIVE_EVENTS = {
     true,
     true,
   ],
+  [NativeEventId.Load]: ['load', 'image', false, true],
+  [NativeEventId.Error]: ['error', 'image', false, true],
 } as const satisfies Record<NativeTransportEventId, NativeEventDefinition>;
 
 const EVENT_METADATA = new Map<string, GpuiNativeEventMetadata>(
@@ -137,6 +141,12 @@ export class GpuiScrollEvent extends GpuiEvent {
     super('scroll', { bubbles: false, cancelable: false }, payload.timeStamp);
     this.scrollX = payload.scrollX;
     this.scrollY = payload.scrollY;
+  }
+}
+
+export class GpuiImageEvent extends GpuiEvent {
+  constructor(type: 'load' | 'error', payload: NativeImageEventPayload) {
+    super(type, { bubbles: false, cancelable: false }, payload.timeStamp);
   }
 }
 
@@ -251,6 +261,11 @@ export function createNativeEvent(payload: NativeEventPayload): Event {
       );
     case 'scroll':
       return new GpuiScrollEvent(payload as NativeScrollEventPayload);
+    case 'image':
+      return new GpuiImageEvent(
+        type as 'load' | 'error',
+        payload as NativeImageEventPayload
+      );
     case 'transition':
       return new GpuiTransitionEvent(
         type as GpuiTransitionEventType,

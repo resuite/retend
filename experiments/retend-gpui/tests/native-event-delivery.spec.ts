@@ -56,7 +56,7 @@ vi.mock('../source/native/addon', async (importOriginal) => {
 
 import { Cell } from 'retend';
 
-import { GpuiMouseEvent } from '../source/events';
+import { GpuiImageEvent, GpuiMouseEvent } from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
 
@@ -267,5 +267,89 @@ describe('native event delivery', () => {
     renderer.unmount();
     native.onEvent?.({ event: payload });
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('delivers native image load/error events to img targets without bubbling', () => {
+    const renderer = createRenderer();
+    const parent = renderer.createContainer('div');
+    const image = renderer.createContainer('img');
+    renderer.append(parent, image);
+    renderer.render(() => parent);
+
+    const parentLoad = vi.fn();
+    const imageLoad = vi.fn();
+    const imageError = vi.fn();
+    parent.addEventListener('load', parentLoad);
+    image.addEventListener('load', imageLoad);
+    image.addEventListener('error', imageError);
+
+    native.onEvent?.({
+      event: {
+        eventId: NativeEventId.Load,
+        targetId: image.id,
+        timeStamp: 22,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+      },
+    });
+    expect(imageLoad).toHaveBeenCalledOnce();
+    expect(imageLoad.mock.calls[0][0]).toBeInstanceOf(GpuiImageEvent);
+    expect(imageLoad.mock.calls[0][0].type).toBe('load');
+    expect(parentLoad).not.toHaveBeenCalled();
+
+    native.onEvent?.({
+      event: {
+        eventId: NativeEventId.Error,
+        targetId: image.id,
+        timeStamp: 23,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+      },
+    });
+    expect(imageError).toHaveBeenCalledOnce();
+    expect(imageError.mock.calls[0][0].type).toBe('error');
+  });
+
+  it('binds img onLoad/onError JSX props to native subscriptions', () => {
+    const renderer = createRenderer();
+    const load = vi.fn();
+    const error = vi.fn();
+    const image = renderer.createContainer('img');
+    renderer.setProperty(image, 'src', 'https://example.com/image.png');
+    renderer.setProperty(image, 'onLoad', load);
+    renderer.setProperty(image, 'onError', error);
+    renderer.render(() => image);
+
+    native.onEvent?.({
+      event: {
+        eventId: NativeEventId.Load,
+        targetId: image.id,
+        timeStamp: 24,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+      },
+    });
+    expect(load).toHaveBeenCalledOnce();
+
+    renderer.setProperty(image, 'onLoad', null);
+    renderer.setProperty(image, 'onError', null);
+    native.onEvent?.({
+      event: {
+        eventId: NativeEventId.Error,
+        targetId: image.id,
+        timeStamp: 25,
+        altKey: false,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+      },
+    });
+    expect(error).not.toHaveBeenCalled();
   });
 });

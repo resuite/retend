@@ -1,6 +1,7 @@
 export {
   GpuiEvent,
   GpuiFocusEvent,
+  GpuiImageEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,

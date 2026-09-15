@@ -50,6 +50,7 @@ type NativeScrollEventId = NativeEventIds<'Scroll'>;
 type NativeTransitionEventId = NativeEventIds<
   'TransitionRun' | 'TransitionStart' | 'TransitionEnd' | 'TransitionCancel'
 >;
+type NativeImageEventId = NativeEventIds<'Load' | 'Error'>;
 type NativePayloadById<
   Id extends number,
   Fields = Record<never, never>,
@@ -88,6 +89,7 @@ export type NativeTransitionEventPayload = NativePayloadById<
   NativeTransitionEventId,
   { propertyName: string; elapsedTime: number }
 >;
+export type NativeImageEventPayload = NativePayloadById<NativeImageEventId>;
 
 export type NativeEventPayload =
   | NativeMouseEventPayload
@@ -95,7 +97,8 @@ export type NativeEventPayload =
   | NativeTextEventPayload
   | NativeFocusEventPayload
   | NativeScrollEventPayload
-  | NativeTransitionEventPayload;
+  | NativeTransitionEventPayload
+  | NativeImageEventPayload;
 
 export type NativeWindowEventPayload =
   | { kind: 'resize'; width: number; height: number }

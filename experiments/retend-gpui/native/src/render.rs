@@ -627,6 +627,125 @@ impl Element for PaintObserver {
     }
 }
 
+/// Observes one `img` asset and emits its terminal `load`/`error` once.
+///
+/// Only `img` with a retained `src` and a `load`/`error` subscription in
+/// path is wrapped. State lives in GPUI element state keyed by this
+/// observer's own stable id, so delivery is per node per source with no
+/// global scan and no manual cleanup: dropping the source (or its last
+/// subscription) drops the observer and its state, and a new source resets
+/// delivery.
+struct ImageEventObserver {
+    inner: AnyElement,
+    window_id: WindowId,
+    id: NodeId,
+    src: String,
+    load_subscribed: bool,
+    error_subscribed: bool,
+}
+
+struct ImageEventState {
+    src: String,
+    delivered: bool,
+}
+
+impl IntoElement for ImageEventObserver {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for ImageEventObserver {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        Some(ElementId::NamedInteger(
+            "retend-image-event".into(),
+            u64::from(self.id),
+        ))
+    }
+
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, ()) {
+        (self.inner.request_layout(window, cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.prepaint(window, cx);
+        let Some(global_id) = id else { return };
+        let window_id = self.window_id;
+        let node_id = self.id;
+        let load_subscribed = self.load_subscribed;
+        let error_subscribed = self.error_subscribed;
+        window.with_element_state(global_id, |state: Option<ImageEventState>, window| {
+            let mut state = match state {
+                Some(existing) if existing.src == self.src => existing,
+                _ => ImageEventState {
+                    src: self.src.clone(),
+                    delivered: false,
+                },
+            };
+            if !state.delivered {
+                // The wrapped `Img` already drives re-renders through its own
+                // notifying asset query; a non-notifying lookup is enough here.
+                let resource = gpui::Resource::Uri(self.src.clone().into());
+                let event = match window
+                    .get_asset::<gpui::ImgResourceLoader>(&resource, cx)
+                {
+                    Some(Ok(_)) => Some(NativeEventId::Load),
+                    Some(Err(_)) => Some(NativeEventId::Error),
+                    None => None,
+                };
+                if let Some(event) = event {
+                    state.delivered = true;
+                    let subscribed = match event {
+                        NativeEventId::Load => load_subscribed,
+                        NativeEventId::Error => error_subscribed,
+                        _ => false,
+                    };
+                    if subscribed {
+                        events::emit(window_id, events::NativeEventPayload::new(event, node_id));
+                    }
+                }
+            }
+            ((), state)
+        });
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut (),
+        _prepaint: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.inner.paint(window, cx);
+    }
+}
+
 pub fn build_with_runtime(
     tree: &NativeTree,
     id: NodeId,
@@ -877,7 +996,23 @@ where
                     active: active_interest,
                 },
             );
-            image.into_any_element()
+            match src {
+                Some(src)
+                    if interest.has(NativeEventId::Load)
+                        || interest.has(NativeEventId::Error) =>
+                {
+                    ImageEventObserver {
+                        inner: image.into_any_element(),
+                        window_id: node.window_id,
+                        id,
+                        src: src.clone(),
+                        load_subscribed: interest.has(NativeEventId::Load),
+                        error_subscribed: interest.has(NativeEventId::Error),
+                    }
+                    .into_any_element()
+                }
+                _ => image.into_any_element(),
+            }
         }
     };
     let bounds = PaintCallback::Bounds {
@@ -2031,6 +2166,93 @@ mod tests {
             .lock()
             .expect("global native tree must remain available in render tests")
             .close_window(window_id);
+    }
+
+    #[gpui::test]
+    fn image_load_and_error_events_fire_once(cx: &mut TestAppContext) {
+        cx.update(init);
+        cx.update(|cx| {
+            cx.set_http_client(gpui::http_client::FakeHttpClient::create(|req| async move {
+                if req.uri().path().contains("ok") {
+                    Ok(gpui::http_client::Response::builder()
+                        .status(200)
+                        .body(
+                            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\" fill=\"red\"/></svg>"
+                                .into(),
+                        )
+                        .unwrap())
+                } else {
+                    Ok(gpui::http_client::Response::builder()
+                        .status(404)
+                        .body(Default::default())
+                        .unwrap())
+                }
+            }));
+        });
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Image,
+                    },
+                    Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::Src,
+                        value: PropertyValue::String("https://example.com/ok.svg".into()),
+                    },
+                    Command::SubscribeEvent {
+                        id: 2,
+                        event: NativeEventId::Load,
+                    },
+                    Command::CreateNode {
+                        id: 3,
+                        kind: ElementKind::Image,
+                    },
+                    Command::SetProperty {
+                        id: 3,
+                        property: PropertyId::Src,
+                        value: PropertyValue::String("https://example.com/bad.png".into()),
+                    },
+                    Command::SubscribeEvent {
+                        id: 3,
+                        event: NativeEventId::Error,
+                    },
+                    insert(1, 2),
+                    insert(1, 3),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        crate::events::take_test_emitted_events();
+        finish_test_frames(cx);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let events = crate::events::take_test_emitted_events();
+        assert!(events.iter().any(|(_, event)| {
+            event.target_id == 2 && event.event_id == NativeEventId::Load as u16
+        }));
+        assert!(events.iter().any(|(_, event)| {
+            event.target_id == 3 && event.event_id == NativeEventId::Error as u16
+        }));
+
+        // Terminal states must not re-emit on later frames.
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert!(crate::events::take_test_emitted_events().is_empty());
     }
 
 }

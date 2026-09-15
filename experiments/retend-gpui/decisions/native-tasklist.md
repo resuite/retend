@@ -426,12 +426,12 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [x] Add native `button` support with sensible default control styling.
 - [x] Add default native styling for `input` and other built-in controls so basic forms are usable without recreating platform affordances manually.
 - [x] Add logical spacing shorthands: `paddingInline`, `paddingBlock`, `marginInline`, and `marginBlock`.
-- [ ] Add supported CSS color keywords to the native color parser and TypeScript authoring surface.
-- [ ] Add configurable text-selection background styling for `input` and `textarea`.
+- [x] Add supported CSS color keywords to the native color parser and TypeScript authoring surface.
+- [x] Add configurable text-selection background styling for `input` and `textarea`.
 
 ### Image, asset, and accessibility polish
 
-- [ ] Add `img` load/error event delivery (`onLoad` / `onError`) from the native image pipeline.
+- [x] Add `img` load/error event delivery (`onLoad` / `onError`) from the native image pipeline.
 - [ ] Add `alt` support for images and carry the semantic text into the native accessibility surface where supported.
 - [ ] Add SVG image/source support for normal application assets.
 - [ ] Reconcile relative/bundled asset handling with the production Vite asset pipeline so alpha applications are not limited to HTTP(S) image sources.

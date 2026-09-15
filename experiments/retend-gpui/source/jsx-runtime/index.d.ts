@@ -2,6 +2,7 @@ import type { AsyncDerivedCell, Cell, SourceCell } from 'retend';
 
 import type {
   GpuiFocusEvent,
+  GpuiImageEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
@@ -76,6 +77,8 @@ declare module 'retend/jsx-runtime' {
       onFocus?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onBlur?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onScroll?: ReactiveValue<(event: GpuiScrollEvent) => void>;
+      onLoad?: ReactiveValue<(event: GpuiImageEvent) => void>;
+      onError?: ReactiveValue<(event: GpuiImageEvent) => void>;
       onTransitionRun?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionStart?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionEnd?: ReactiveValue<(event: GpuiTransitionEvent) => void>;

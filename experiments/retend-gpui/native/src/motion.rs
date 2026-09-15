@@ -22,10 +22,11 @@ enum AnimatableProperty {
     BorderRadius,
     BackgroundColor,
     Color,
+    BorderColor,
 }
 
 impl AnimatableProperty {
-    const ALL: [Self; 10] = [
+    const ALL: [Self; 11] = [
         Self::Width,
         Self::Height,
         Self::Top,
@@ -36,6 +37,7 @@ impl AnimatableProperty {
         Self::BorderRadius,
         Self::BackgroundColor,
         Self::Color,
+        Self::BorderColor,
     ];
 
     fn bit(self) -> u16 {
@@ -54,6 +56,7 @@ impl AnimatableProperty {
             "borderRadius" => Some(Self::BorderRadius),
             "backgroundColor" => Some(Self::BackgroundColor),
             "color" => Some(Self::Color),
+            "borderColor" => Some(Self::BorderColor),
             _ => None,
         }
     }
@@ -70,6 +73,7 @@ impl AnimatableProperty {
             Self::BorderRadius => "border-radius",
             Self::BackgroundColor => "background-color",
             Self::Color => "color",
+            Self::BorderColor => "border-color",
         }
     }
 
@@ -85,6 +89,7 @@ impl AnimatableProperty {
             Self::BorderRadius => "borderRadius",
             Self::BackgroundColor => "backgroundColor",
             Self::Color => "color",
+            Self::BorderColor => "borderColor",
         }
     }
 
@@ -111,6 +116,7 @@ impl AnimatableProperty {
                 .map_or(TransitionValue::Unset, TransitionValue::Value),
             Self::BackgroundColor => color(style.background_color),
             Self::Color => color(style.color),
+            Self::BorderColor => color(style.border_color),
         }
     }
 
@@ -122,6 +128,9 @@ impl AnimatableProperty {
             (Self::Color, TransitionValue::Color(value)) => {
                 style.color = Some(u32::from(Rgba::from(value)));
             }
+            (Self::BorderColor, TransitionValue::Color(value)) => {
+                style.border_color = Some(u32::from(Rgba::from(value)));
+            }
             (property, TransitionValue::Value(value)) => match property {
                 Self::Width => style.width = Some(LengthValue::Pixels(value)),
                 Self::Height => style.height = Some(LengthValue::Pixels(value)),
@@ -131,7 +140,7 @@ impl AnimatableProperty {
                 Self::Left => style.left = Some(LengthValue::Pixels(value)),
                 Self::Opacity => style.opacity = Some(value),
                 Self::BorderRadius => style.border_radius = Some(value),
-                Self::BackgroundColor | Self::Color => {}
+                Self::BackgroundColor | Self::Color | Self::BorderColor => {}
             },
             _ => {}
         }
@@ -319,18 +328,18 @@ struct ActiveLifecycle {
 #[derive(Debug)]
 pub(crate) struct MotionBridgeState {
     initialized: Cell<bool>,
-    previous_targets: Cell<[TransitionValue; 10]>,
+    previous_targets: Cell<[TransitionValue; AnimatableProperty::ALL.len()]>,
     active_mask: Cell<u16>,
-    lifecycles: Cell<[Option<ActiveLifecycle>; 10]>,
+    lifecycles: Cell<[Option<ActiveLifecycle>; AnimatableProperty::ALL.len()]>,
 }
 
 impl Default for MotionBridgeState {
     fn default() -> Self {
         Self {
             initialized: Cell::new(false),
-            previous_targets: Cell::new([TransitionValue::Unset; 10]),
+            previous_targets: Cell::new([TransitionValue::Unset; AnimatableProperty::ALL.len()]),
             active_mask: Cell::new(0),
-            lifecycles: Cell::new([None; 10]),
+            lifecycles: Cell::new([None; AnimatableProperty::ALL.len()]),
         }
     }
 }
@@ -469,7 +478,10 @@ fn settle_lifecycle(
     reconcile_lifecycle(events, index, lifecycle, sampled.status, cx.reduce_motion())
 }
 
-fn eligible_mask(transition: TransitionSpec, targets: &[TransitionValue; 10]) -> u16 {
+fn eligible_mask(
+    transition: TransitionSpec,
+    targets: &[TransitionValue; AnimatableProperty::ALL.len()],
+) -> u16 {
     AnimatableProperty::ALL
         .into_iter()
         .filter(|property| {
@@ -529,7 +541,7 @@ pub fn resolve_style(
             .previous_targets
             .set([TransitionValue::Unset; AnimatableProperty::ALL.len()]);
         state.active_mask.set(0);
-        state.lifecycles.set([None; 10]);
+        state.lifecycles.set([None; AnimatableProperty::ALL.len()]);
         state.initialized.set(true);
         return (None, events);
     };
@@ -562,7 +574,7 @@ pub fn resolve_style(
             }
         }
         state.previous_targets.set(targets);
-        state.lifecycles.set([None; 10]);
+        state.lifecycles.set([None; AnimatableProperty::ALL.len()]);
         return (None, events);
     };
 
@@ -931,6 +943,7 @@ mod tests {
         for (property, value) in [
             (PropertyId::BackgroundColor, "#112233"),
             (PropertyId::Color, "#445566"),
+            (PropertyId::BorderColor, "#778899"),
         ] {
             assert!(style.set_property(property, &PropertyValue::String(value.into())));
         }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   GpuiFocusEvent,
+  GpuiImageEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
@@ -372,6 +373,69 @@ describe('Retend GPUI event dispatch', () => {
       [target, NativeEventId.TransitionStart, false],
       [target, NativeEventId.TransitionEnd, false],
       [target, NativeEventId.TransitionCancel, false],
+    ]);
+  });
+
+  it('creates typed image load/error events without bubbling', () => {
+    const load = createNativeEvent({
+      eventId: NativeEventId.Load,
+      targetId: 1,
+      timeStamp: 22,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    expect(load).toBeInstanceOf(GpuiImageEvent);
+    expect(load.type).toBe('load');
+    expect(load.bubbles).toBe(false);
+    expect(load.cancelable).toBe(false);
+    expect(load.timeStamp).toBe(22);
+
+    const error = createNativeEvent({
+      eventId: NativeEventId.Error,
+      targetId: 2,
+      timeStamp: 23,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    });
+    expect(error).toBeInstanceOf(GpuiImageEvent);
+    expect(error.type).toBe('error');
+    expect(error.bubbles).toBe(false);
+  });
+
+  it('captures but does not bubble image load/error events', () => {
+    const [root, , target] = tree();
+    const calls: string[] = [];
+
+    root.addEventListener('load', () => calls.push('capture'), true);
+    root.addEventListener('load', () => calls.push('bubble'));
+    target.addEventListener('load', () => calls.push('target'));
+    target.dispatchEvent(new Event('load', { bubbles: true }));
+
+    expect(calls).toEqual(['capture', 'target']);
+  });
+
+  it('synchronizes native subscriptions for image event types', () => {
+    const renderer = new RetendGpuiRenderer();
+    const nativeSubscriptionChanged = vi
+      .spyOn(renderer, 'nativeSubscriptionChanged')
+      .mockImplementation(() => {});
+    const target = new GpuiDivElement(1, renderer.host, renderer);
+    const listener = () => {};
+
+    target.addEventListener('load', listener);
+    target.addEventListener('error', listener);
+    target.removeEventListener('load', listener);
+    target.removeEventListener('error', listener);
+
+    expect(nativeSubscriptionChanged.mock.calls).toEqual([
+      [target, NativeEventId.Load, true],
+      [target, NativeEventId.Error, true],
+      [target, NativeEventId.Load, false],
+      [target, NativeEventId.Error, false],
     ]);
   });
 });
