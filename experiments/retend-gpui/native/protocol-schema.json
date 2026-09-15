@@ -103,7 +103,11 @@
     "AnchoredPriority": 70,
     "AnchoredOcclude": 71,
     "Disabled": 72,
-    "Placeholder": 73
+    "Placeholder": 73,
+    "PaddingInline": 74,
+    "PaddingBlock": 75,
+    "MarginInline": 76,
+    "MarginBlock": 77
   },
   "nativeEvents": {
     "Click": 1,

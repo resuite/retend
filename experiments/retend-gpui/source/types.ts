@@ -73,12 +73,16 @@ export interface GpuiStyleDeclarations {
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
+  paddingInline?: number;
+  paddingBlock?: number;
 
   margin?: number;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
   marginLeft?: number;
+  marginInline?: number;
+  marginBlock?: number;
 
   position?: 'relative' | 'absolute';
   top?: DimensionValue;

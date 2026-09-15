@@ -1358,6 +1358,8 @@ impl NativeTree {
                         | PropertyId::MarginRight
                         | PropertyId::MarginBottom
                         | PropertyId::MarginLeft
+                        | PropertyId::MarginInline
+                        | PropertyId::MarginBlock
                 )
             })
         {
@@ -2533,6 +2535,14 @@ mod tests {
             )
             .unwrap_err();
         assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
+
+        for property in [PropertyId::MarginInline, PropertyId::MarginBlock] {
+            let (mut tree, window) = anchored_tree();
+            let error = tree
+                .apply_commands(window, vec![style(2, property, PropertyValue::Number(8.0))])
+                .unwrap_err();
+            assert_eq!(error.code, "UNSUPPORTED_PROPERTY");
+        }
     }
 
     #[test]

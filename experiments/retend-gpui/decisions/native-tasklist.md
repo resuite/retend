@@ -425,7 +425,7 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 - [x] Add native `button` support with sensible default control styling.
 - [x] Add default native styling for `input` and other built-in controls so basic forms are usable without recreating platform affordances manually.
-- [ ] Add logical spacing shorthands: `paddingInline`, `paddingBlock`, `marginInline`, and `marginBlock`.
+- [x] Add logical spacing shorthands: `paddingInline`, `paddingBlock`, `marginInline`, and `marginBlock`.
 - [ ] Add supported CSS color keywords to the native color parser and TypeScript authoring surface.
 - [ ] Add configurable text-selection background styling for `input` and `textarea`.
 

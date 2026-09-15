@@ -133,11 +133,15 @@ native_style! {
         max_width: LengthValue => MaxWidth(parse_nonnegative_length), max_w(to_gpui_length);
         max_height: LengthValue => MaxHeight(parse_nonnegative_length), max_h(to_gpui_length);
         padding: f32 => Padding(parse_nonnegative_number), p(gpui::px);
+        padding_inline: f32 => PaddingInline(parse_nonnegative_number), px(gpui::px);
+        padding_block: f32 => PaddingBlock(parse_nonnegative_number), py(gpui::px);
         padding_top: f32 => PaddingTop(parse_nonnegative_number), pt(gpui::px);
         padding_right: f32 => PaddingRight(parse_nonnegative_number), pr(gpui::px);
         padding_bottom: f32 => PaddingBottom(parse_nonnegative_number), pb(gpui::px);
         padding_left: f32 => PaddingLeft(parse_nonnegative_number), pl(gpui::px);
         margin: f32 => Margin(parse_number), m(gpui::px);
+        margin_inline: f32 => MarginInline(parse_number), mx(gpui::px);
+        margin_block: f32 => MarginBlock(parse_number), my(gpui::px);
         margin_top: f32 => MarginTop(parse_number), mt(gpui::px);
         margin_right: f32 => MarginRight(parse_number), mr(gpui::px);
         margin_bottom: f32 => MarginBottom(parse_number), mb(gpui::px);
@@ -481,6 +485,78 @@ mod tests {
             &PropertyValue::String("not-wrap".into()),
         );
         assert_eq!(style.flex_wrap, None);
+    }
+
+    #[test]
+    fn logical_spacing_shorthands_store_axis_values() {
+        let mut style = NativeStyle::default();
+        assert!(NativeStyle::supports_property(PropertyId::PaddingInline));
+        assert!(NativeStyle::supports_property(PropertyId::PaddingBlock));
+        assert!(NativeStyle::supports_property(PropertyId::MarginInline));
+        assert!(NativeStyle::supports_property(PropertyId::MarginBlock));
+
+        assert!(style.set_property(
+            PropertyId::PaddingInline,
+            &PropertyValue::Number(12.0)
+        ));
+        assert!(style.set_property(
+            PropertyId::PaddingBlock,
+            &PropertyValue::Number(8.0)
+        ));
+        assert!(style.set_property(
+            PropertyId::MarginInline,
+            &PropertyValue::Number(-4.0)
+        ));
+        assert!(style.set_property(
+            PropertyId::MarginBlock,
+            &PropertyValue::Number(6.0)
+        ));
+        assert_eq!(style.padding_inline, Some(12.0));
+        assert_eq!(style.padding_block, Some(8.0));
+        assert_eq!(style.margin_inline, Some(-4.0));
+        assert_eq!(style.margin_block, Some(6.0));
+    }
+
+    #[test]
+    fn logical_padding_rejects_negative_values_fail_soft() {
+        let mut style = NativeStyle::default();
+        style.set_property(PropertyId::PaddingInline, &PropertyValue::Number(12.0));
+        style.set_property(PropertyId::PaddingInline, &PropertyValue::Number(-1.0));
+        assert_eq!(style.padding_inline, None);
+
+        style.set_property(PropertyId::PaddingBlock, &PropertyValue::Number(8.0));
+        style.set_property(
+            PropertyId::PaddingBlock,
+            &PropertyValue::String("invalid".into()),
+        );
+        assert_eq!(style.padding_block, None);
+    }
+
+    #[test]
+    fn logical_spacing_axes_apply_between_all_and_physical_sides() {
+        use gpui::Styled;
+
+        let mut style = NativeStyle::default();
+        style.set_property(PropertyId::Padding, &PropertyValue::Number(4.0));
+        style.set_property(PropertyId::PaddingInline, &PropertyValue::Number(12.0));
+        style.set_property(PropertyId::PaddingBlock, &PropertyValue::Number(8.0));
+        style.set_property(PropertyId::PaddingLeft, &PropertyValue::Number(20.0));
+        style.set_property(PropertyId::Margin, &PropertyValue::Number(2.0));
+        style.set_property(PropertyId::MarginInline, &PropertyValue::Number(10.0));
+        style.set_property(PropertyId::MarginBlock, &PropertyValue::Number(6.0));
+        style.set_property(PropertyId::MarginTop, &PropertyValue::Number(14.0));
+
+        let mut element = style.apply(gpui::div());
+        let mut expected = gpui::div()
+            .p(gpui::px(4.0))
+            .px(gpui::px(12.0))
+            .py(gpui::px(8.0))
+            .pl(gpui::px(20.0))
+            .m(gpui::px(2.0))
+            .mx(gpui::px(10.0))
+            .my(gpui::px(6.0))
+            .mt(gpui::px(14.0));
+        assert_eq!(element.style(), expected.style());
     }
 
     #[test]

@@ -71,6 +71,10 @@ import {
   writeRange,
 } from './tree/operations.js';
 const STYLE_PROPERTY_RANGE = [PropertyId.Display, PropertyId.Overflow] as const;
+const LOGICAL_SPACING_RANGE = [
+  PropertyId.PaddingInline,
+  PropertyId.MarginBlock,
+] as const;
 const TRANSITION_PROPERTY_RANGE = [
   PropertyId.TransitionProperty,
   PropertyId.TransitionTimingFunction,
@@ -1173,6 +1177,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
         continue;
       const id =
         propertyIdInRange(property, STYLE_PROPERTY_RANGE) ??
+        propertyIdInRange(property, LOGICAL_SPACING_RANGE) ??
         propertyIdInRange(property, TRANSITION_PROPERTY_RANGE);
       if (id === undefined) {
         throw new Error(`Unsupported Retend GPUI style property: ${property}.`);

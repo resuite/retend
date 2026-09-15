@@ -778,6 +778,26 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     ]);
   });
 
+  it('publishes logical spacing shorthands through the native style vocabulary', () => {
+    const renderer = createRenderer();
+    const element = renderer.createContainer('div');
+    const setStyle = vi.spyOn(renderer.host, 'setStyle');
+
+    renderer.setProperty(element, 'style', {
+      paddingInline: 12,
+      paddingBlock: 8,
+      marginInline: -4,
+      marginBlock: 6,
+    } satisfies GpuiStyle);
+
+    expect(setStyle).toHaveBeenCalledWith(element.id, [
+      [PropertyId.PaddingInline, 12],
+      [PropertyId.PaddingBlock, 8],
+      [PropertyId.MarginInline, -4],
+      [PropertyId.MarginBlock, 6],
+    ]);
+  });
+
   it('publishes native pseudo-state snapshots and nested reactive updates', () => {
     const renderer = createRenderer();
     const ref = Cell.source<GpuiElement | null>(null);
