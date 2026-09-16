@@ -189,7 +189,11 @@ export type GpuiTransitionProperty =
   | 'borderRadius'
   | 'backgroundColor'
   | 'color'
-  | 'borderColor';
+  | 'borderColor'
+  | 'scale'
+  | 'rotate'
+  | 'translate'
+  | 'skew';
 
 export type GpuiTransitionTimingFunction =
   | 'linear'
@@ -198,6 +202,30 @@ export type GpuiTransitionTimingFunction =
   | 'ease-out'
   | 'ease-in-out'
   | `cubic-bezier(${string})`;
+
+export type GpuiAngle =
+  | `${number}deg`
+  | `${number}rad`
+  | `${number}grad`
+  | `${number}turn`
+  | '0';
+type ScaleComponent = `${number}` | `${number}%`;
+type TranslationComponent = `${number}px` | `${number}%` | '0';
+export type GpuiScale =
+  | number
+  | 'none'
+  | ScaleComponent
+  | `${ScaleComponent} ${ScaleComponent}`;
+export type GpuiTranslate =
+  | number
+  | 'none'
+  | TranslationComponent
+  | `${TranslationComponent} ${TranslationComponent}`;
+export type GpuiSkew =
+  | number
+  | 'none'
+  | GpuiAngle
+  | `${GpuiAngle} ${GpuiAngle}`;
 
 /** Author-style surface implemented by the Retend-owned native renderer. */
 export interface GpuiStyleDeclarations {
@@ -246,6 +274,15 @@ export interface GpuiStyleDeclarations {
   backgroundColor?: GpuiColor;
   color?: GpuiColor;
   opacity?: number;
+
+  /** Uniform scale, or space-separated x/y factors. Percentages are supported. */
+  scale?: GpuiScale;
+  /** Clockwise 2D rotation. Numbers are degrees. */
+  rotate?: number | GpuiAngle | 'none';
+  /** Numbers are x pixels; strings accept x/y px or border-box percentages. */
+  translate?: GpuiTranslate;
+  /** Retend extension: x/y skew angles. Numbers are x degrees. */
+  skew?: GpuiSkew;
 
   borderWidth?: number;
   borderColor?: GpuiColor;

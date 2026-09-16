@@ -122,13 +122,19 @@ fn emit_mouse_down(
     if subscribed {
         events::emit(
             window_id,
-            events::mouse_down(NativeEventId::MouseDown, target_id, event),
+            events::in_window(
+                events::mouse_down(NativeEventId::MouseDown, target_id, event),
+                window,
+            ),
         );
     }
     for id in &outside {
         events::emit(
             window_id,
-            events::mouse_down(NativeEventId::MouseDownOutside, *id, event),
+            events::in_window(
+                events::mouse_down(NativeEventId::MouseDownOutside, *id, event),
+                window,
+            ),
         );
     }
     if subscribed || !outside.is_empty() {
@@ -148,11 +154,27 @@ macro_rules! bubbling_events {
 }
 
 bubbling_events! {
-    emit_mouse_move(event: MouseMoveEvent, id): MouseMove => events::mouse_move(id, event);
+
     emit_key_down(event: KeyDownEvent, id): KeyDown =>
         events::key_event(NativeEventId::KeyDown, id, &event.keystroke, event.is_held);
     emit_key_up(event: KeyUpEvent, id): KeyUp =>
         events::key_event(NativeEventId::KeyUp, id, &event.keystroke, false);
+}
+
+fn emit_mouse_move(
+    window_id: WindowId,
+    id: NodeId,
+    event: &MouseMoveEvent,
+    window: &Window,
+    cx: &mut App,
+) {
+    if event_interest(window_id, id, NativeEventId::MouseMove) {
+        events::emit(
+            window_id,
+            events::in_window(events::mouse_move(id, event), window),
+        );
+        cx.stop_propagation();
+    }
 }
 
 fn release_pointer(window_id: WindowId, window: &mut Window) {
@@ -177,13 +199,30 @@ fn emit_mouse_up(
     if event_interest(window_id, target_id, NativeEventId::MouseUp) {
         events::emit(
             window_id,
-            events::mouse_up(NativeEventId::MouseUp, target_id, event),
+            events::in_window(
+                events::mouse_up(NativeEventId::MouseUp, target_id, event),
+                window,
+            ),
         );
         cx.stop_propagation();
     }
 }
 
-fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &mut App) {
+fn emit_click(
+    window_id: WindowId,
+    target_id: NodeId,
+    event: &ClickEvent,
+    window: &Window,
+    cx: &mut App,
+) {
+    let payload = |kind| {
+        let payload = events::click(kind, target_id, event);
+        if matches!(event, ClickEvent::Keyboard(_)) {
+            payload
+        } else {
+            events::in_window(payload, window)
+        }
+    };
     let subscriptions = crate::runtime()
         .lock()
         .map(|tree| tree.subscription_mask_in_path(window_id, target_id))
@@ -192,16 +231,10 @@ fn emit_click(window_id: WindowId, target_id: NodeId, event: &ClickEvent, cx: &m
     let double_click =
         event.click_count() == 2 && subscriptions & event_bit(NativeEventId::DblClick) != 0;
     if click {
-        events::emit(
-            window_id,
-            events::click(NativeEventId::Click, target_id, event),
-        );
+        events::emit(window_id, payload(NativeEventId::Click));
     }
     if double_click {
-        events::emit(
-            window_id,
-            events::click(NativeEventId::DblClick, target_id, event),
-        );
+        events::emit(window_id, payload(NativeEventId::DblClick));
     }
     if click || double_click {
         cx.stop_propagation();
@@ -226,7 +259,7 @@ fn emit_hover(window_id: WindowId, target_id: NodeId, hovered: bool, window: &mu
             events::mouse_event(
                 event,
                 target_id,
-                window.mouse_position(),
+                window.point_to_window(window.mouse_position()),
                 window.modifiers(),
             ),
         );
@@ -287,11 +320,13 @@ fn with_native_events<T: StatefulInteractiveElement>(
         });
     }
     if interest.has(NativeEventId::MouseMove) {
-        element =
-            element.on_mouse_move(move |event, _, cx| emit_mouse_move(window_id, id, event, cx));
+        element = element.on_mouse_move(move |event, window, cx| {
+            emit_mouse_move(window_id, id, event, window, cx)
+        });
     }
     if interest.has(NativeEventId::Click) || interest.has(NativeEventId::DblClick) {
-        element = element.on_click(move |event, _, cx| emit_click(window_id, id, event, cx));
+        element =
+            element.on_click(move |event, window, cx| emit_click(window_id, id, event, window, cx));
     }
     if pseudo.hover
         || interest.has(NativeEventId::MouseEnter)
@@ -1048,6 +1083,7 @@ where
         _ => element,
     };
 
+    let element = crate::transform::wrap(element, resolved_style);
     let NodeData::Anchored(config) = &node.data else {
         return element;
     };
@@ -2040,6 +2076,95 @@ mod tests {
             cx.debug_bounds("retend-node-2").unwrap().origin,
             point(viewport.width - px(42.0), viewport.height - px(22.0))
         );
+    }
+
+    #[gpui::test]
+    fn transforms_preserve_layout_and_hit_test_in_window_coordinates(cx: &mut TestAppContext) {
+        cx.update(init);
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let window = {
+            let mut tree = crate::runtime()
+                .lock()
+                .expect("global native tree must remain available in render tests");
+            let window = tree.create_window(root_id).unwrap();
+            tree.apply_commands(
+                window,
+                vec![
+                    container(target_id),
+                    Command::SetStyle {
+                        id: target_id,
+                        properties: vec![
+                            (
+                                PropertyId::Position,
+                                PropertyValue::String("absolute".into()),
+                            ),
+                            (PropertyId::Left, PropertyValue::Number(20.0)),
+                            (PropertyId::Top, PropertyValue::Number(100.0)),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(40.0)),
+                            (PropertyId::Translate, PropertyValue::Number(150.0)),
+                            (PropertyId::Rotate, PropertyValue::String("90deg".into())),
+                        ],
+                    },
+                    Command::SubscribeEvent {
+                        id: target_id,
+                        event: NativeEventId::Click,
+                    },
+                    insert(root_id, target_id),
+                ],
+            )
+            .unwrap();
+            window
+        };
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| GlobalTreeTestView {
+                runtime_state,
+                window_id: window,
+                root_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        // Layout is untouched: painting and hit-testing are the only transformed parts.
+        let measured = request_measure(&runtime_state, target_id);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let measured = measured.try_recv().unwrap().unwrap();
+        assert_eq!((measured.x, measured.y), (20.0, 100.0));
+        assert_eq!((measured.width, measured.height), (100.0, 40.0));
+        crate::events::take_test_emitted_events();
+
+        // A 90deg turn about the border-box center (70, 120) plus a 150px shift
+        // moves the center to (220, 120) and swaps the axes.
+        cx.simulate_click(point(px(220.0), px(160.0)), Modifiers::default());
+        finish_test_frames(cx);
+        let clicks: Vec<_> = crate::events::take_test_emitted_events()
+            .into_iter()
+            .filter(|(_, event)| event.event_id == NativeEventId::Click as u16)
+            .collect();
+        assert_eq!(clicks.len(), 1);
+        assert_eq!(clicks[0].1.target_id, target_id);
+        assert!((clicks[0].1.client_x - 220.0).abs() < 0.01);
+        assert!((clicks[0].1.client_y - 160.0).abs() < 0.01);
+
+        // The untransformed layout position is no longer over the element.
+        cx.simulate_click(point(px(70.0), px(120.0)), Modifiers::default());
+        finish_test_frames(cx);
+        assert!(
+            crate::events::take_test_emitted_events()
+                .into_iter()
+                .all(|(_, event)| event.event_id != NativeEventId::Click as u16),
+            "hit-testing must follow the painted transform, not the layout rect"
+        );
+
+        crate::runtime()
+            .lock()
+            .expect("global native tree must remain available in render tests")
+            .close_window(window);
     }
 
     #[gpui::test]

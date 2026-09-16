@@ -171,7 +171,8 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
 
   const recoverWindow = async (
     window: RuntimeGpuiWindow,
-    Root?: __HMR_UpdatableFn
+    Root?: __HMR_UpdatableFn,
+    failOnNativeFatal = false
   ): Promise<void> => {
     if (Root === undefined) {
       try {
@@ -192,11 +193,17 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
         })
       );
     } catch (error) {
-      if (error instanceof NativeRendererFatalError) return;
+      if (error instanceof NativeRendererFatalError) {
+        if (failOnNativeFatal) throw error;
+        return;
+      }
       try {
         window.renderer.unmount();
       } catch (cause) {
-        if (cause instanceof NativeRendererFatalError) return;
+        if (cause instanceof NativeRendererFatalError) {
+          if (failOnNativeFatal) throw cause;
+          return;
+        }
         throw cause;
       }
       showDevelopmentError(error, [window]);
@@ -253,7 +260,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
       title: options.title ?? message.appName,
       location: options.location ?? '/',
     });
-    await recoverWindow(window, Root);
+    await recoverWindow(window, Root, true);
     return window.handle;
   }
 
@@ -391,7 +398,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     });
 
     const initialWindow = createWindow(message.options);
-    await recoverWindow(initialWindow, Root);
+    await recoverWindow(initialWindow, Root, true);
 
     sendControl({ channel: 'retend-gpui', type: 'application-ready' });
   } catch (error) {

@@ -37,8 +37,10 @@ gpui = { package = "gpui-pre", version = "=0.3.4", default-features = false, fea
 proptest = "1"
 
 [patch.crates-io]
-gpui-pre = { git = "https://github.com/resuite/gpui-pre", rev = "33a6c62e883345355ac11a9a7718b5472870c449" }
-gpui-pre-macos = { git = "https://github.com/resuite/gpui-pre", rev = "6443ceb1b73327197fdc5f7c2e7e2d5f2819b626" }
+gpui-pre = { git = "https://github.com/resuite/gpui-pre", rev = "c62005e017a0518da406df2f9976fcc540f1137b" }
+gpui-pre-macos = { git = "https://github.com/resuite/gpui-pre", rev = "c62005e017a0518da406df2f9976fcc540f1137b" }
+gpui-pre-apple = { git = "https://github.com/resuite/gpui-pre", rev = "c62005e017a0518da406df2f9976fcc540f1137b" }
+gpui-pre-wgpu = { git = "https://github.com/resuite/gpui-pre", rev = "c62005e017a0518da406df2f9976fcc540f1137b" }
 
 [profile.release]
 lto = true

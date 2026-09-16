@@ -68,6 +68,10 @@ animatable_properties! {
     BackgroundColor => "backgroundColor", "background-color";
     Color => "color", "color";
     BorderColor => "borderColor", "border-color";
+    Scale => "scale", "scale";
+    Rotate => "rotate", "rotate";
+    Translate => "translate", "translate";
+    Skew => "skew", "skew";
 }
 
 impl AnimatableProperty {
@@ -97,11 +101,18 @@ impl AnimatableProperty {
             Self::BackgroundColor => color(style.background_color),
             Self::Color => color(style.color),
             Self::BorderColor => color(style.border_color),
+            Self::Scale => TransitionValue::Pair(style.scale.unwrap_or([1.0; 2])),
+            Self::Rotate => TransitionValue::Value(style.rotate.unwrap_or_default()),
+            Self::Translate => TransitionValue::Translation(style.translate.unwrap_or_default()),
+            Self::Skew => TransitionValue::Pair(style.skew.unwrap_or_default()),
         }
     }
 
     fn apply(self, style: &mut NativeStyle, value: TransitionValue) {
         match (self, value) {
+            (Self::Scale, TransitionValue::Pair(value)) => style.scale = Some(value),
+            (Self::Skew, TransitionValue::Pair(value)) => style.skew = Some(value),
+            (Self::Translate, TransitionValue::Translation(value)) => style.translate = Some(value),
             (Self::BackgroundColor, TransitionValue::Color(value)) => {
                 style.background_color = Some(u32::from(Rgba::from(value)));
             }
@@ -120,7 +131,8 @@ impl AnimatableProperty {
                 Self::Left => style.left = Some(LengthValue::Pixels(value)),
                 Self::Opacity => style.opacity = Some(value),
                 Self::BorderRadius => style.border_radius = Some(value),
-                Self::BackgroundColor | Self::Color | Self::BorderColor => {}
+                Self::Rotate => style.rotate = Some(value),
+                _ => {}
             },
             _ => {}
         }
@@ -132,6 +144,8 @@ enum TransitionValue {
     Unset,
     Value(f32),
     Color(Hsla),
+    Pair([f32; 2]),
+    Translation(crate::transform::Translation),
 }
 
 impl Interpolate for TransitionValue {
@@ -139,6 +153,14 @@ impl Interpolate for TransitionValue {
         match (*self, *target) {
             (Self::Value(from), Self::Value(to)) => Self::Value(from + (to - from) * progress),
             (Self::Color(from), Self::Color(to)) => Self::Color(from.interpolate(&to, progress)),
+            (Self::Pair(from), Self::Pair(to)) => Self::Pair(std::array::from_fn(|i| {
+                from[i] + (to[i] - from[i]) * progress
+            })),
+            (Self::Translation(from), Self::Translation(to)) => {
+                Self::Translation(crate::transform::Translation(std::array::from_fn(|i| {
+                    from.0[i] + (to.0[i] - from.0[i]) * progress
+                })))
+            }
             (_, target) => target,
         }
     }
@@ -709,6 +731,106 @@ mod tests {
     use gpui::{div, AppContext, Context, Render, TestAppContext};
 
     use super::*;
+
+    struct TransformProbe {
+        property: AnimatableProperty,
+        style: NativeStyle,
+        sampled: Rc<Cell<TransitionValue>>,
+        motion: MotionBridgeState,
+    }
+
+    impl Render for TransformProbe {
+        fn render(
+            &mut self,
+            window: &mut Window,
+            cx: &mut Context<Self>,
+        ) -> impl gpui::IntoElement {
+            let (resolved, _) = resolve_style(
+                100 + self.property as u32,
+                &self.motion,
+                Some(&self.style),
+                window,
+                cx,
+            );
+            self.sampled.set(
+                self.property
+                    .target(resolved.as_ref().unwrap_or(&self.style)),
+            );
+            div()
+        }
+    }
+
+    #[gpui::test]
+    fn transform_channels_interpolate_components_and_return_to_identity(cx: &mut TestAppContext) {
+        for (property, id, value) in [
+            (AnimatableProperty::Scale, PropertyId::Scale, "2 -1"),
+            (AnimatableProperty::Rotate, PropertyId::Rotate, "1turn"),
+            (
+                AnimatableProperty::Translate,
+                PropertyId::Translate,
+                "100px 50%",
+            ),
+            (AnimatableProperty::Skew, PropertyId::Skew, "30deg -10deg"),
+        ] {
+            let mut style = transition_style(100.0, true);
+            style.set_property(
+                PropertyId::TransitionProperty,
+                &PropertyValue::String(property.author_name().into()),
+            );
+            let initial = property.target(&style);
+            let sampled = Rc::new(Cell::new(TransitionValue::Unset));
+            let window = cx.add_window({
+                let sampled = sampled.clone();
+                move |_, _| TransformProbe {
+                    property,
+                    style,
+                    sampled,
+                    motion: MotionBridgeState::default(),
+                }
+            });
+            assert_eq!(sampled.get(), initial);
+            let target = window
+                .update(cx, |probe, _, cx| {
+                    probe
+                        .style
+                        .set_property(id, &PropertyValue::String(value.into()));
+                    cx.notify();
+                    property.target(&probe.style)
+                })
+                .unwrap();
+            draw(cx, window);
+            assert_eq!(sampled.get(), initial);
+            cx.executor().advance_clock(Duration::from_millis(100));
+            draw(cx, window);
+            assert_eq!(sampled.get(), initial.interpolate(&target, 0.5));
+            cx.executor().advance_clock(Duration::from_millis(100));
+            draw(cx, window);
+            assert_eq!(sampled.get(), target);
+            window
+                .update(cx, |probe, _, cx| {
+                    probe.style.set_property(id, &PropertyValue::Null);
+                    cx.notify();
+                })
+                .unwrap();
+            draw(cx, window);
+            assert_eq!(sampled.get(), target);
+            cx.executor().advance_clock(Duration::from_millis(200));
+            draw(cx, window);
+            assert_eq!(sampled.get(), initial);
+        }
+    }
+
+    #[test]
+    fn translations_interpolate_pixels_and_percentages_independently() {
+        let from =
+            TransitionValue::Translation(crate::transform::Translation([100.0, 0.0, 20.0, 0.0]));
+        let to = TransitionValue::Translation(crate::transform::Translation([0.0, 0.5, 0.0, 1.0]));
+        assert_eq!(
+            from.interpolate(&to, 0.5),
+            TransitionValue::Translation(crate::transform::Translation([50.0, 0.25, 10.0, 0.5]))
+        );
+        assert!(AnimatableProperty::ALL.len() <= u16::BITS as usize);
+    }
 
     struct MotionProbe {
         target: f32,

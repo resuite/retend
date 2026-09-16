@@ -34,6 +34,7 @@ async function runDev(): Promise<void> {
     process.once('SIGHUP', stop);
 
     await supervisor.start(server.config.root, api);
+    console.log('[retend-gpui] ready');
     await supervisor.done;
   } finally {
     detachEnvironmentReady();

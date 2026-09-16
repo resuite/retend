@@ -107,7 +107,11 @@
     "PaddingInline": 74,
     "PaddingBlock": 75,
     "MarginInline": 76,
-    "MarginBlock": 77
+    "MarginBlock": 77,
+    "Scale": 78,
+    "Rotate": 79,
+    "Translate": 80,
+    "Skew": 81
   },
   "nativeEvents": {
     "Click": 1,

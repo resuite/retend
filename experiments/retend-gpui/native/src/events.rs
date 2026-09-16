@@ -223,6 +223,15 @@ pub fn click(event_id: NativeEventId, target_id: NodeId, event: &ClickEvent) -> 
     payload
 }
 
+pub fn in_window(mut payload: NativeEventPayload, window: &gpui::Window) -> NativeEventPayload {
+    let position = gpui::point(
+        gpui::px(payload.client_x as f32),
+        gpui::px(payload.client_y as f32),
+    );
+    apply_position(&mut payload, window.point_to_window(position));
+    payload
+}
+
 pub fn mouse_event(
     event_id: NativeEventId,
     target_id: NodeId,

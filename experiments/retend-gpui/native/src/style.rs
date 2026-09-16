@@ -163,6 +163,10 @@ native_style! {
         line_height: f32 => LineHeight(parse_nonnegative_number), line_height(gpui::px);
     }
     custom {
+        scale: [f32; 2] => Scale(crate::transform::parse_scale);
+        rotate: f32 => Rotate(crate::transform::parse_rotate);
+        translate: crate::transform::Translation => Translate(crate::transform::parse_translate);
+        skew: [f32; 2] => Skew(crate::transform::parse_skew);
         gap: f32 => Gap(parse_nonnegative_number);
         row_gap: f32 => RowGap(parse_nonnegative_number);
         column_gap: f32 => ColumnGap(parse_nonnegative_number);
@@ -662,22 +666,10 @@ mod tests {
         assert!(NativeStyle::supports_property(PropertyId::MarginInline));
         assert!(NativeStyle::supports_property(PropertyId::MarginBlock));
 
-        assert!(style.set_property(
-            PropertyId::PaddingInline,
-            &PropertyValue::Number(12.0)
-        ));
-        assert!(style.set_property(
-            PropertyId::PaddingBlock,
-            &PropertyValue::Number(8.0)
-        ));
-        assert!(style.set_property(
-            PropertyId::MarginInline,
-            &PropertyValue::Number(-4.0)
-        ));
-        assert!(style.set_property(
-            PropertyId::MarginBlock,
-            &PropertyValue::Number(6.0)
-        ));
+        assert!(style.set_property(PropertyId::PaddingInline, &PropertyValue::Number(12.0)));
+        assert!(style.set_property(PropertyId::PaddingBlock, &PropertyValue::Number(8.0)));
+        assert!(style.set_property(PropertyId::MarginInline, &PropertyValue::Number(-4.0)));
+        assert!(style.set_property(PropertyId::MarginBlock, &PropertyValue::Number(6.0)));
         assert_eq!(style.padding_inline, Some(12.0));
         assert_eq!(style.padding_block, Some(8.0));
         assert_eq!(style.margin_inline, Some(-4.0));

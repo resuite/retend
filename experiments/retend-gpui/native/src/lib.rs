@@ -10,6 +10,7 @@ mod protocol_generated;
 mod render;
 mod runtime_state;
 mod style;
+mod transform;
 mod tree;
 
 use std::sync::atomic::{AtomicBool, Ordering};

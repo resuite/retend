@@ -79,6 +79,7 @@ const TRANSITION_PROPERTY_RANGE = [
   PropertyId.TransitionProperty,
   PropertyId.TransitionTimingFunction,
 ] as const;
+const TRANSFORM_PROPERTY_RANGE = [PropertyId.Scale, PropertyId.Skew] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Src, PropertyId.ObjectFit] as const;
 const PSEUDO_STATES = {
   hover: StyleState.Hover,
@@ -1178,6 +1179,7 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
       const id =
         propertyIdInRange(property, STYLE_PROPERTY_RANGE) ??
         propertyIdInRange(property, LOGICAL_SPACING_RANGE) ??
+        propertyIdInRange(property, TRANSFORM_PROPERTY_RANGE) ??
         propertyIdInRange(property, TRANSITION_PROPERTY_RANGE);
       if (id === undefined) {
         throw new Error(`Unsupported Retend GPUI style property: ${property}.`);
