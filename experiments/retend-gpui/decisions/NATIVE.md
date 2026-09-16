@@ -20,7 +20,11 @@ Retend GPUI uses a Retend-specific native bridge with a contract designed around
 
 ## Platform threading and event loop
 
-On macOS, AppKit/GPUI runs on the process main thread and the embedded bridge pumps the GPUI/AppKit event loop through the main-thread integration/tick model. On Windows and Linux, GPUI may run its blocking event loop on a dedicated native UI thread, with JavaScript communicating through the in-process bridge.
+On macOS, AppKit/GPUI runs on the process main thread. An immortal `CVDisplayLink` (active displays) fires on CoreVideo's io thread at the panel refresh rate and wakes the Node/libuv loop through a threadsafe function. The actual `pump_events` / AppKit work still runs on the process main thread. JavaScript does not drive a frame timer. A CFRunLoop timer or `CADisplayLink` attached to the main run loop cannot schedule this while Node owns the thread with `uv_run`, so the display-link hop exists to wake libuv without moving AppKit off main. The link pointer is never released; `CVDisplayLinkStop` only pauses it, matching CoreVideo's unsafe-teardown constraints.
+
+Pump start/stop is restricted to the process main thread. The output callback and JavaScript share one mutex-protected pump instance; CoreVideo start/stop runs outside that mutex. Queued threadsafe-function calls retain their pump identity and cannot tick or stop a replacement instance. Window ownership is committed only after startup succeeds. The native pump owns ticking; there is no JavaScript-facing `tick()` API.
+
+On Windows and Linux, GPUI may run its blocking event loop on a dedicated native UI thread, with JavaScript communicating through the in-process bridge. The macOS pump start/stop APIs are no-ops there.
 
 The public JS/native protocol is topology-independent. Command ordering, command-batch failure semantics, event delivery, renderer behavior, and multi-window behavior have the same contract whether GPUI work executes on the process main thread or a dedicated native UI thread.
 

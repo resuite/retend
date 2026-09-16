@@ -196,7 +196,7 @@ Initial width, height, title, resizable state, fullscreen/maximized state, and m
 
 The macOS GPUI backend is a patched `gpui-pre-macos` 0.3.4 snapshot. The patched crate lives in the sibling `gpui-pre` repo (`crates/gpui-pre-macos`), not in this tree. The patch adds an embedded NSApplication / CFRunLoop pump so GPUI can run inside the Node/napi process.
 
-The Retend-owned runtime pumps the embedded GPUI event loop process-wide where the platform requires it. Applications do not run a renderer-specific JavaScript frame timer. `retend-gpui` is a native renderer and does not run in a browser.
+The Retend-owned runtime owns process keep-alive while native windows exist. On macOS a `CVDisplayLink` hops onto the process main thread to pump AppKit/GPUI at display refresh; applications do not run a JavaScript frame timer. `retend-gpui` is a native renderer and does not run in a browser.
 
 ## Lower-level API
 

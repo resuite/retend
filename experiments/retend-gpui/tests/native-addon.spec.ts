@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 
 it('resolves a successfully loaded workspace addon only once', async () => {
-  const addon = { tick: vi.fn() };
+  const addon = { startEventPump: vi.fn(), stopEventPump: vi.fn() };
   native.require.mockReturnValue(addon);
   const { loadNativeAddon } = await import('../source/native/addon');
   expect(loadNativeAddon()).toBe(addon);
@@ -28,7 +28,7 @@ it('resolves a successfully loaded workspace addon only once', async () => {
 });
 
 it('loads the matching platform package when no workspace addon exists', async () => {
-  const addon = { tick: vi.fn() };
+  const addon = { startEventPump: vi.fn(), stopEventPump: vi.fn() };
   const target = `${process.platform}-${process.arch}`;
   native.exists.mockReturnValue(false);
   native.require.mockReturnValue(addon);
@@ -57,7 +57,7 @@ it('reports a useful error when the matching platform package is missing', async
 });
 
 it('does not cache a failed workspace load', async () => {
-  const addon = { tick: vi.fn() };
+  const addon = { startEventPump: vi.fn(), stopEventPump: vi.fn() };
   native.require
     .mockImplementationOnce(() => {
       throw new Error('load failed');

@@ -1,54 +1,40 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const native = vi.hoisted(() => ({
-  tick: vi.fn(() => true),
+  startEventPump: vi.fn(),
+  stopEventPump: vi.fn(),
 }));
 
 vi.mock('../source/native/addon', () => ({
-  loadNativeAddon: () => ({ tick: native.tick }),
+  loadNativeAddon: () => native,
 }));
 
 import { nativeRuntime } from '../source/native/runtime';
 
 afterEach(() => {
-  vi.useRealTimers();
-  native.tick.mockReset();
-  native.tick.mockReturnValue(true);
+  native.startEventPump.mockReset();
+  native.stopEventPump.mockReset();
 });
 
-describe('NativeRuntime', () => {
-  it.runIf(process.platform === 'darwin')(
-    'keeps pumping until the last acquired native window is released',
-    () => {
-      vi.useFakeTimers();
-      nativeRuntime.acquire();
-      nativeRuntime.acquire();
+describe.runIf(process.platform === 'darwin')('NativeRuntime', () => {
+  it('starts the native pump once while any window is acquired', () => {
+    nativeRuntime.acquire();
+    nativeRuntime.acquire();
+    expect(native.startEventPump).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime(8);
-      expect(native.tick).toHaveBeenCalledTimes(1);
+    nativeRuntime.release();
+    expect(native.stopEventPump).not.toHaveBeenCalled();
 
-      nativeRuntime.release();
-      vi.advanceTimersByTime(8);
-      expect(native.tick).toHaveBeenCalledTimes(2);
+    nativeRuntime.release();
+    expect(native.stopEventPump).toHaveBeenCalledTimes(1);
+  });
 
-      nativeRuntime.release();
-      nativeRuntime.release();
-      vi.advanceTimersByTime(80);
-      expect(native.tick).toHaveBeenCalledTimes(2);
-    }
-  );
-
-  it.runIf(process.platform === 'darwin')(
-    'stops pumping when the native application terminates',
-    () => {
-      vi.useFakeTimers();
-      native.tick.mockReturnValue(false);
-      nativeRuntime.acquire();
-
-      vi.advanceTimersByTime(8);
-      expect(native.tick).toHaveBeenCalledOnce();
-      vi.advanceTimersByTime(80);
-      expect(native.tick).toHaveBeenCalledOnce();
-    }
-  );
+  it('restarts the native pump after the last window is released', () => {
+    nativeRuntime.acquire();
+    nativeRuntime.release();
+    nativeRuntime.acquire();
+    expect(native.startEventPump).toHaveBeenCalledTimes(2);
+    expect(native.stopEventPump).toHaveBeenCalledTimes(1);
+    nativeRuntime.release();
+  });
 });

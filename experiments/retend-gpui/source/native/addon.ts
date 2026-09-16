@@ -147,7 +147,9 @@ interface NativeAddon {
     options?: NativeWindowOptions,
     onEvent?: (payload: NativeTransportPayload) => void
   ) => NativeRendererBinding;
-  tick(): boolean;
+
+  startEventPump(notify: () => void): void;
+  stopEventPump(): void;
 }
 
 const require = createRequire(import.meta.url);

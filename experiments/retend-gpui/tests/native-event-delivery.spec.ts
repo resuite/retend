@@ -10,6 +10,8 @@ const native = vi.hoisted(() => ({
   onEvent: undefined as ((event: NativeTransportPayload) => void) | undefined,
   presented: true,
   applyCalls: 0,
+  startEventPump: vi.fn(),
+  stopEventPump: vi.fn(),
   options: undefined as NativeWindowOptions | undefined,
 }));
 
@@ -49,7 +51,8 @@ vi.mock('../source/native/addon', async (importOriginal) => {
     ...actual,
     loadNativeAddon: () => ({
       NativeRendererBinding,
-      tick: () => true,
+      startEventPump: native.startEventPump,
+      stopEventPump: native.stopEventPump,
     }),
   };
 });
@@ -96,9 +99,31 @@ afterEach(() => {
   native.presented = true;
   native.applyCalls = 0;
   native.options = undefined;
+  native.startEventPump.mockReset();
+  native.stopEventPump.mockReset();
 });
 
 describe('native event delivery', () => {
+  it.runIf(process.platform === 'darwin')(
+    'retries runtime acquisition after startup fails for an opened window',
+    () => {
+      renderer = new RetendGpuiRenderer();
+      renderer.init();
+      native.startEventPump.mockImplementationOnce(() => {
+        throw new Error('display link startup failed');
+      });
+
+      expect(() => native.onEvent?.({ window: { kind: 'focus' } })).toThrow(
+        'display link startup failed'
+      );
+      native.onEvent?.({ window: { kind: 'focus' } });
+      expect(native.startEventPump).toHaveBeenCalledTimes(2);
+
+      renderer.dispose();
+      expect(native.stopEventPump).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('rejects invalid native window options at the renderer boundary', () => {
     const current = new RetendGpuiRenderer({ headless: true });
     expect(() => current.init({ width: 0 })).toThrow('finite positive');

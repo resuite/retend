@@ -7,6 +7,7 @@ mod motion;
 mod platform;
 mod protocol;
 mod protocol_generated;
+mod pump;
 mod render;
 mod runtime_state;
 mod style;
@@ -402,9 +403,16 @@ impl NativeRendererBinding {
     }
 }
 
+/// Starts the native macOS AppKit/GPUI pump. Windows and Linux are no-ops because
+/// GPUI already runs on a dedicated UI thread there.
 #[napi]
-pub fn tick() -> Result<bool> {
-    platform::tick().map_err(|error| Error::new(Status::GenericFailure, error))
+pub fn start_event_pump(notify: Function<(), ()>) -> Result<()> {
+    pump::start(notify)
+}
+
+#[napi]
+pub fn stop_event_pump() -> Result<()> {
+    pump::stop()
 }
 
 #[cfg(test)]

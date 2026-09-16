@@ -671,7 +671,7 @@ mod imp {
         });
     }
 
-    pub fn tick() -> Result<bool, String> {
+    pub fn tick() -> bool {
         let running = PLATFORM.with(|platform| {
             platform
                 .borrow()
@@ -687,7 +687,7 @@ mod imp {
             APP.with(|app| app.borrow_mut().take());
             PLATFORM.with(|platform| platform.borrow_mut().take());
         }
-        Ok(running)
+        running
     }
 }
 
@@ -820,10 +820,6 @@ mod imp {
     pub fn remove_registered_window(window_id: WindowId) {
         send(UiCommand::Forget(window_id));
     }
-
-    pub fn tick() -> Result<bool, String> {
-        Ok(true)
-    }
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
@@ -840,14 +836,13 @@ mod imp {
 
     pub fn close_window(_window_id: WindowId) {}
     pub fn remove_registered_window(_window_id: WindowId) {}
-    pub fn tick() -> Result<bool, String> {
-        Ok(false)
-    }
 }
 
 pub(crate) use imp::dispatch;
 use imp::remove_registered_window;
-pub use imp::{close_window, open_window, tick};
+#[cfg(target_os = "macos")]
+pub use imp::tick;
+pub use imp::{close_window, open_window};
 
 #[cfg(test)]
 thread_local! {

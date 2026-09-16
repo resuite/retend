@@ -394,8 +394,8 @@ export class GpuiHost extends EventTarget {
   /** @internal Starts the native event pump once the OS window has opened. */
   #acquireNativeRuntime(): void {
     if (this.#nativeAcquired || this.#headless) return;
-    this.#nativeAcquired = true;
     nativeRuntime.acquire();
+    this.#nativeAcquired = true;
   }
 
   #releaseNativeRuntime(): void {
