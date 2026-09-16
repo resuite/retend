@@ -139,4 +139,4 @@ dist
 .pnpm-store
 .ruff_cache
 tmp
-experiments/retend-gpui/source/native/protocol.generated.ts
+packages/retend-gpui/source/native/protocol.generated.ts

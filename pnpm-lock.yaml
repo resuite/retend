@@ -132,27 +132,6 @@ importers:
         specifier: ^6.2.1
         version: 6.4.1(@types/node@26.1.2)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
 
-  experiments/retend-gpui:
-    devDependencies:
-      '@types/node':
-        specifier: ^22.7.5
-        version: 22.19.11
-      retend:
-        specifier: workspace:*
-        version: link:../../packages/retend
-      retend-oxlint-plugin:
-        specifier: workspace:*
-        version: link:../../packages/retend-oxlint-plugin
-      typescript:
-        specifier: ^5.8.2
-        version: 5.9.3
-      vite:
-        specifier: ^8.0.0
-        version: 8.2.2(@types/node@22.19.11)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.11)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
-
   experiments/retend-gpui-examples:
     dependencies:
       retend:
@@ -160,7 +139,7 @@ importers:
         version: link:../../packages/retend
       retend-gpui:
         specifier: workspace:*
-        version: link:../retend-gpui
+        version: link:../../packages/retend-gpui
     devDependencies:
       retend-oxlint-plugin:
         specifier: workspace:*
@@ -278,6 +257,58 @@ importers:
       typescript:
         specifier: ^5.8.2
         version: 5.9.3
+
+  packages/retend-gpui:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.7.5
+        version: 22.20.3
+      retend:
+        specifier: workspace:*
+        version: link:../retend
+      retend-oxlint-plugin:
+        specifier: workspace:*
+        version: link:../retend-oxlint-plugin
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.2.2(@types/node@22.20.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@22.20.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
+    optionalDependencies:
+      retend-gpui-native-darwin-arm64:
+        specifier: workspace:*
+        version: link:native/npm/darwin-arm64
+      retend-gpui-native-darwin-x64:
+        specifier: workspace:*
+        version: link:native/npm/darwin-x64
+      retend-gpui-native-linux-arm64:
+        specifier: workspace:*
+        version: link:native/npm/linux-arm64
+      retend-gpui-native-linux-x64:
+        specifier: workspace:*
+        version: link:native/npm/linux-x64
+      retend-gpui-native-win32-arm64:
+        specifier: workspace:*
+        version: link:native/npm/win32-arm64
+      retend-gpui-native-win32-x64:
+        specifier: workspace:*
+        version: link:native/npm/win32-x64
+
+  packages/retend-gpui/native/npm/darwin-arm64: {}
+
+  packages/retend-gpui/native/npm/darwin-x64: {}
+
+  packages/retend-gpui/native/npm/linux-arm64: {}
+
+  packages/retend-gpui/native/npm/linux-x64: {}
+
+  packages/retend-gpui/native/npm/win32-arm64: {}
+
+  packages/retend-gpui/native/npm/win32-x64: {}
 
   packages/retend-oxlint-plugin:
     dependencies:
@@ -2420,6 +2451,9 @@ packages:
 
   '@types/node@22.19.11':
     resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
+
+  '@types/node@22.20.3':
+    resolution: {integrity: sha512-DZmzkmwHzXrLPAXPyKNDzlIwMMUZCVacoD25ywdy5YTKGbOx/2ld+Q38Im2zJ0vBuZP5Prd3VZutKZyXwkOS8A==}
 
   '@types/node@26.1.2':
     resolution: {integrity: sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==}
@@ -6195,11 +6229,11 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/bonjour@3.5.13':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/chai@5.2.3':
     dependencies:
@@ -6209,11 +6243,11 @@ snapshots:
   '@types/connect-history-api-fallback@1.5.4':
     dependencies:
       '@types/express-serve-static-core': 4.19.8
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/debug@4.1.12':
     dependencies:
@@ -6229,7 +6263,7 @@ snapshots:
 
   '@types/express-serve-static-core@4.19.8':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
       '@types/qs': 6.15.0
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
@@ -6249,7 +6283,7 @@ snapshots:
 
   '@types/http-proxy@1.17.17':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/json-schema@7.0.15': {}
 
@@ -6265,11 +6299,15 @@ snapshots:
 
   '@types/node-forge@1.3.14':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/node@16.9.1': {}
 
   '@types/node@22.19.11':
+    dependencies:
+      undici-types: 6.21.0
+
+  '@types/node@22.20.3':
     dependencies:
       undici-types: 6.21.0
 
@@ -6288,11 +6326,11 @@ snapshots:
   '@types/send@0.17.6':
     dependencies:
       '@types/mime': 1.3.5
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/serve-index@1.9.4':
     dependencies:
@@ -6301,12 +6339,12 @@ snapshots:
   '@types/serve-static@1.15.10':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
       '@types/send': 0.17.6
 
   '@types/sockjs@0.3.36':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@types/unist@2.0.11': {}
 
@@ -6314,7 +6352,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
 
   '@ungap/structured-clone@1.3.0': {}
 
@@ -6337,16 +6375,16 @@ snapshots:
       - utf-8-validate
       - vite
 
-  '@vitest/browser@3.2.4(playwright@1.58.2)(vite@8.2.2(@types/node@22.19.11)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))(vitest@3.2.4)':
+  '@vitest/browser@3.2.4(playwright@1.58.2)(vite@8.2.2(@types/node@22.20.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))(vitest@3.2.4)':
     dependencies:
       '@testing-library/dom': 10.4.1
       '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.1)
-      '@vitest/mocker': 3.2.4(vite@8.2.2(@types/node@22.19.11)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))
+      '@vitest/mocker': 3.2.4(vite@8.2.2(@types/node@22.20.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))
       '@vitest/utils': 3.2.4
       magic-string: 0.30.21
       sirv: 3.0.2
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.11)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
+      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@22.20.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
       ws: 8.19.0
     optionalDependencies:
       playwright: 1.58.2
@@ -6365,13 +6403,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(vite@6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0))':
+  '@vitest/mocker@3.2.4(vite@6.4.1(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
+      vite: 6.4.1(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
 
   '@vitest/mocker@3.2.4(vite@6.4.1(@types/node@26.1.2)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0))':
     dependencies:
@@ -6389,13 +6427,13 @@ snapshots:
     optionalDependencies:
       vite: 7.3.1(@types/node@26.1.2)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
 
-  '@vitest/mocker@3.2.4(vite@8.2.2(@types/node@22.19.11)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))':
+  '@vitest/mocker@3.2.4(vite@8.2.2(@types/node@22.20.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.2.2(@types/node@22.19.11)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)
+      vite: 8.2.2(@types/node@22.20.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)
     optional: true
 
   '@vitest/pretty-format@3.2.4':
@@ -8773,13 +8811,13 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-node@3.2.4(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0):
+  vite-node@3.2.4(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0):
     dependencies:
       cac: 6.7.14
       debug: 4.4.3
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
+      vite: 6.4.1(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -8844,6 +8882,21 @@ snapshots:
       lightningcss: 1.33.0
       tsx: 4.21.0
 
+  vite@6.4.1(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0):
+    dependencies:
+      esbuild: 0.25.12
+      fdir: 6.5.0(picomatch@4.0.3)
+      picomatch: 4.0.3
+      postcss: 8.5.6
+      rollup: 4.59.0
+      tinyglobby: 0.2.15
+    optionalDependencies:
+      '@types/node': 22.20.3
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      lightningcss: 1.33.0
+      tsx: 4.21.0
+
   vite@6.4.1(@types/node@26.1.2)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0):
     dependencies:
       esbuild: 0.25.12
@@ -8874,7 +8927,7 @@ snapshots:
       lightningcss: 1.33.0
       tsx: 4.21.0
 
-  vite@8.2.2(@types/node@22.19.11)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0):
+  vite@8.2.2(@types/node@22.20.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0):
     dependencies:
       lightningcss: 1.33.0
       picomatch: 4.0.7
@@ -8882,7 +8935,7 @@ snapshots:
       rolldown: 1.2.5
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 22.19.11
+      '@types/node': 22.20.3
       esbuild: 0.27.3
       fsevents: 2.3.3
       jiti: 2.6.1
@@ -8902,11 +8955,11 @@ snapshots:
       jiti: 2.6.1
       tsx: 4.21.0
 
-  vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.19.11)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0):
+  vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.20.3)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(vite@6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0))
+      '@vitest/mocker': 3.2.4(vite@6.4.1(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
@@ -8917,20 +8970,20 @@ snapshots:
       expect-type: 1.3.0
       magic-string: 0.30.21
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.7
       std-env: 3.10.0
       tinybench: 2.9.0
       tinyexec: 0.3.2
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
-      vite-node: 3.2.4(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
+      vite: 6.4.1(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
+      vite-node: 3.2.4(@types/node@22.20.3)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/debug': 4.1.12
-      '@types/node': 22.19.11
-      '@vitest/browser': 3.2.4(playwright@1.58.2)(vite@8.2.2(@types/node@22.19.11)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))(vitest@3.2.4)
+      '@types/node': 22.20.3
+      '@vitest/browser': 3.2.4(playwright@1.58.2)(vite@8.2.2(@types/node@22.20.3)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0))(vitest@3.2.4)
     transitivePeerDependencies:
       - jiti
       - less
@@ -8960,11 +9013,11 @@ snapshots:
       expect-type: 1.3.0
       magic-string: 0.30.21
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.7
       std-env: 3.10.0
       tinybench: 2.9.0
       tinyexec: 0.3.2
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
       vite: 6.4.1(@types/node@26.1.2)(jiti@2.6.1)(lightningcss@1.33.0)(tsx@4.21.0)

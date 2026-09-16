@@ -1,0 +1,23 @@
+{
+  "name": "retend-gpui-native-darwin-arm64",
+  "version": "0.0.33",
+  "description": "Prebuilt Retend GPUI native addon for darwin-arm64.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "directory": "github.com/resuite/retend"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "retend-gpui-native.darwin-arm64.node",
+  "files": [
+    "retend-gpui-native.darwin-arm64.node"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

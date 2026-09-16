@@ -153,10 +153,37 @@ interface NativeAddon {
 }
 
 const require = createRequire(import.meta.url);
-const supportedTarget = /^(darwin|linux|win32)-(arm64|x64)$/;
+const supportedTargets = [
+  'darwin-arm64',
+  'darwin-x64',
+  'linux-arm64',
+  'linux-x64',
+  'win32-arm64',
+  'win32-x64',
+];
+const supportedTarget = new RegExp(`^(${supportedTargets.join('|')})$`);
 let nativeAddon: NativeAddon | undefined;
 
 const FAILURE_PREFIX = 'RETEND_GPUI_FAILURE:';
+
+function isMissingNativeBinary(
+  error: unknown,
+  packageName: string,
+  target: string
+): boolean {
+  if (
+    !(error instanceof Error) ||
+    (error as NodeJS.ErrnoException).code !== 'MODULE_NOT_FOUND'
+  ) {
+    return false;
+  }
+  // The platform package itself is absent, or the package resolved but its
+  // bundled `.node` file was not built/shipped.
+  return (
+    error.message.startsWith(`Cannot find module '${packageName}'`) ||
+    error.message.includes(`retend-gpui-native.${target}.node`)
+  );
+}
 
 export function parseNativeBridgeFailure(
   error: unknown
@@ -187,18 +214,16 @@ export function loadNativeAddon(): NativeAddon {
   }
 
   if (!supportedTarget.test(target)) {
-    throw new Error(`Retend GPUI does not support native target ${target}.`);
+    throw new Error(
+      `Retend GPUI does not support native target ${target}. Supported targets are ${supportedTargets.join(', ')}.`
+    );
   }
-  const packageName = `@retend-gpui/native-${target}`;
+  const packageName = `retend-gpui-native-${target}`;
   try {
     nativeAddon = require(packageName) as NativeAddon;
     return nativeAddon;
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND' &&
-      error.message.startsWith(`Cannot find module '${packageName}'`)
-    ) {
+    if (isMissingNativeBinary(error, packageName, target)) {
       throw new Error(
         `Retend GPUI native binary is missing for ${target}. Run the native build or install ${packageName}.`,
         { cause: error }

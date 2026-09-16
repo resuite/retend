@@ -48,7 +48,7 @@ Transition durations and delays use CSS-style string values rather than numeric 
 
 Transition and animation timing functions use CSS-style string values. Support the standard named curves such as `'linear'`, `'ease'`, `'ease-in'`, `'ease-out'`, and `'ease-in-out'`, as well as CSS `cubic-bezier(...)` values.
 
-For the initial implementation, the Retend GPUI adapter exposes `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, `borderRadius`, `backgroundColor`, `color`, and `borderColor` through GPUI Base's keyed value-transition primitive. Geometry and numeric properties interpolate as pixel/number values; the color properties interpolate as GPUI `Hsla` channels. Broader GPUI motion support can be surfaced separately later without introducing a parallel Retend playback engine.
+For the initial implementation, the Retend GPUI adapter exposes `width`, `height`, `top`, `right`, `bottom`, `left`, `opacity`, `borderRadius`, `backgroundColor`, `color`, and `borderColor` through GPUI Base's keyed value-transition primitive. Geometry and numeric properties interpolate as pixel/number values; the color properties interpolate per-channel in sRGB (`Rgba`) to match web CSS transitions. Broader GPUI motion support can be surfaced separately later without introducing a parallel Retend playback engine.
 
 Follow the existing `retend-canvas-2d` convention for transitioning multiple properties: `transitionProperty` may be a single explicit animatable GPUI property name or an array of explicit property names. `transitionDuration`, `transitionDelay`, and `transitionTimingFunction` remain single shared values rather than parallel per-property lists.
 

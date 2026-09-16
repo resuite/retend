@@ -1,4 +1,2 @@
 target/
-npm/
-Cargo.lock
 src/protocol_generated.rs

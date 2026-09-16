@@ -40,9 +40,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --dir experiments/retend-gpui run typecheck
-      - run: pnpm --dir experiments/retend-gpui run lint
-      - run: pnpm --dir experiments/retend-gpui run protocol:check
-      - run: pnpm --dir experiments/retend-gpui run native:build
-      - run: pnpm --dir experiments/retend-gpui run test:all
-      - run: pnpm --dir experiments/retend-gpui run build
+      - run: pnpm --dir packages/retend-gpui run typecheck
+      - run: pnpm --dir packages/retend-gpui run lint
+      - run: pnpm --dir packages/retend-gpui run protocol:check
+      - run: pnpm --dir packages/retend-gpui run native:build
+      - run: pnpm --dir packages/retend-gpui run test:all
+      - run: pnpm --dir packages/retend-gpui run build

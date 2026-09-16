@@ -4,7 +4,7 @@ This document defines the architecture, implementation model, and v1 scope for t
 
 ## Distribution model
 
-The Rust native bridge ships as an N-API addon with prebuilt per-platform binaries. Node remains the main process and GPUI is embedded through the addon. Packaging uses a main JavaScript package plus per-platform binary packages such as `darwin-arm64` and `linux-x64`.
+The Rust native bridge ships as an N-API addon with prebuilt per-platform binaries. Node remains the main process and GPUI is embedded through the addon. Packaging uses the unscoped `retend-gpui` JavaScript package plus per-platform binary packages named `retend-gpui-native-<os>-<arch>` (for example `retend-gpui-native-darwin-arm64`). The main package lists every platform package in `optionalDependencies`, so a supported install fetches exactly one binary and the loader resolves it; unsupported targets fail with a descriptive error instead of a raw module-resolution failure.
 
 Shipping applications use the appropriate platform application bundle around the runtime. The binary command protocol is independent of the embedding topology; the N-API bridge implementation itself is runtime-specific.
 

@@ -1,0 +1,23 @@
+{
+  "name": "retend-gpui-native-win32-x64",
+  "version": "0.0.33",
+  "description": "Prebuilt Retend GPUI native addon for win32-x64.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "directory": "github.com/resuite/retend"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "retend-gpui-native.win32-x64.node",
+  "files": [
+    "retend-gpui-native.win32-x64.node"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

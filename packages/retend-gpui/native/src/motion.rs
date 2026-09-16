@@ -1,6 +1,6 @@
 use std::{cell::Cell, time::Duration};
 
-use gpui::{App, ElementId, Hsla, Rgba, Window};
+use gpui::{App, ElementId, Rgba, Window};
 use gpui_base::{transition, transition_with_status, Interpolate, MotionStatus, Transition};
 
 use crate::{
@@ -82,7 +82,7 @@ impl AnimatableProperty {
         };
         let color = |value: Option<u32>| {
             value.map_or(TransitionValue::Unset, |value| {
-                TransitionValue::Color(Hsla::from(gpui::rgba(value)))
+                TransitionValue::Color(gpui::rgba(value))
             })
         };
         match self {
@@ -114,13 +114,13 @@ impl AnimatableProperty {
             (Self::Skew, TransitionValue::Pair(value)) => style.skew = Some(value),
             (Self::Translate, TransitionValue::Translation(value)) => style.translate = Some(value),
             (Self::BackgroundColor, TransitionValue::Color(value)) => {
-                style.background_color = Some(u32::from(Rgba::from(value)));
+                style.background_color = Some(u32::from(value));
             }
             (Self::Color, TransitionValue::Color(value)) => {
-                style.color = Some(u32::from(Rgba::from(value)));
+                style.color = Some(u32::from(value));
             }
             (Self::BorderColor, TransitionValue::Color(value)) => {
-                style.border_color = Some(u32::from(Rgba::from(value)));
+                style.border_color = Some(u32::from(value));
             }
             (property, TransitionValue::Value(value)) => match property {
                 Self::Width => style.width = Some(LengthValue::Pixels(value)),
@@ -143,7 +143,7 @@ impl AnimatableProperty {
 enum TransitionValue {
     Unset,
     Value(f32),
-    Color(Hsla),
+    Color(Rgba),
     Pair([f32; 2]),
     Translation(crate::transform::Translation),
 }
@@ -152,7 +152,15 @@ impl Interpolate for TransitionValue {
     fn interpolate(&self, target: &Self, progress: f32) -> Self {
         match (*self, *target) {
             (Self::Value(from), Self::Value(to)) => Self::Value(from + (to - from) * progress),
-            (Self::Color(from), Self::Color(to)) => Self::Color(from.interpolate(&to, progress)),
+            // Interpolate colors in sRGB (per-channel `Rgba`) to match web CSS
+            // transitions. Interpolating `Hsla` hue linearly swings through
+            // unrelated hues (e.g. blue -> orange passes through green).
+            (Self::Color(from), Self::Color(to)) => Self::Color(Rgba {
+                r: from.r + (to.r - from.r) * progress,
+                g: from.g + (to.g - from.g) * progress,
+                b: from.b + (to.b - from.b) * progress,
+                a: from.a + (to.a - from.a) * progress,
+            }),
             (Self::Pair(from), Self::Pair(to)) => Self::Pair(std::array::from_fn(|i| {
                 from[i] + (to[i] - from[i]) * progress
             })),
@@ -1146,6 +1154,24 @@ mod tests {
         cx.executor().advance_clock(Duration::from_millis(100));
         draw(cx, window);
         assert_eq!(sampled.get(), 0xffffffff);
+    }
+
+    #[test]
+    fn saturated_colors_interpolate_in_srgb_without_hue_detour() {
+        let from = TransitionValue::Color(gpui::rgba(0x0000ffff));
+        let to = TransitionValue::Color(gpui::rgba(0xffa500ff));
+        let mid = from.interpolate(&to, 0.5);
+        let TransitionValue::Color(mid) = mid else {
+            panic!("color interpolation must stay a color");
+        };
+        // sRGB midpoint of blue -> orange is a muted purple, never green-dominant.
+        assert!(
+            mid.g <= mid.r && mid.g <= mid.b,
+            "blue->orange midpoint must not swing through green, got {mid:?}"
+        );
+        assert!((mid.r - 0.5).abs() < 0.02, "got {mid:?}");
+        assert!((mid.b - 0.5).abs() < 0.02, "got {mid:?}");
+        assert!((mid.a - 1.0).abs() < f32::EPSILON, "got {mid:?}");
     }
 
     #[derive(Clone, Copy, Debug, PartialEq)]

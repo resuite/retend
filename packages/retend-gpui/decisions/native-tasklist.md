@@ -436,11 +436,6 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [ ] Add SVG image/source support for normal application assets.
 - [ ] Reconcile relative/bundled asset handling with the production Vite asset pipeline so alpha applications are not limited to HTTP(S) image sources.
 
-### Cross-renderer and router polish
-
-- [ ] Remove remaining web-specific APIs and terminology from Retend core/router surfaces used by GPUI.
-- [ ] Keep router concepts renderer-neutral while preserving the browser adapter behavior in `retend-web`.
-
 ### Scaffolding and starter polish
 
 - [ ] Implement the GPUI target in `retend-start` according to `SCAFFOLDING.md`.
@@ -454,21 +449,15 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 - [ ] Fix macOS fullscreen/title-bar behavior so the standard traffic-light controls reveal correctly when the pointer reaches the top of a fullscreen window.
 - [ ] Manually verify the native fatal poisoning screen and reload interaction in a real development window.
 
-### Motion polish
-
-- [ ] Review the current transition property set against representative alpha applications and add the missing high-value transition properties needed for normal UI work.
-- [ ] Keep any transition expansion on the existing GPUI-owned keyed-channel architecture rather than adding another playback path.
-
 ### Maintenance and test-surface polish
 
 - [x] Remove redundant, revision-driven, or implementation-only tests that no longer protect external behavior.
-- [ ] Keep focused regression coverage for renderer/protocol failure modes without growing parallel test-only abstractions.
 
 ### Prebuilt binaries and packaging
 
 - [ ] Produce prebuilt addon artifacts for supported OS/architecture combinations.
-- [ ] Package platform binaries as optional platform dependencies.
-- [ ] Validate useful failure messages for unsupported platforms/architectures or missing binary packages.
+- [x] Package platform binaries as optional platform dependencies.
+- [x] Validate useful failure messages for unsupported platforms/architectures or missing binary packages.
 - [ ] Validate macOS application-bundle integration.
 - [ ] Validate Windows/Linux runtime startup and shutdown behavior.
 - [ ] Ensure native application identity/window metadata integrates with the production packaging path defined in `VITE.md`.
