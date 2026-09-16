@@ -1,6 +1,6 @@
 {
   "name": "retend-gpui",
-  "version": "0.0.33",
+  "version": "0.0.34",
   "private": false,
   "description": "Native desktop rendering for the Retend UI framework through GPUI.",
   "keywords": [

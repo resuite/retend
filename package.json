@@ -42,7 +42,7 @@
     "publish-utils": "pnpm --filter retend-utils run build && pnpm --filter retend-utils publish --access public",
     "publish-gpui-native": "node packages/retend-gpui/scripts/publish-native.js",
     "publish-gpui-native:partial": "node packages/retend-gpui/scripts/publish-native.js --allow-missing",
-    "publish-gpui-main": "pnpm --filter retend-gpui run build && pnpm --filter retend-gpui publish --access public",
+    "publish-gpui-main": "pnpm --filter retend-gpui run build && pnpm --filter retend-gpui publish --access public --no-git-checks",
     "publish-gpui": "pnpm run publish-gpui-native && pnpm run publish-gpui-main",
     "publish-gpui:partial": "pnpm run publish-gpui-native:partial && pnpm run publish-gpui-main",
     "publish-all": "pnpm run publish-core && pnpm run publish-web && pnpm run publish-web-devtools && pnpm run publish-ssg && pnpm run publish-start && pnpm run publish-utils && pnpm run publish-oxlint-plugin && pnpm run publish-gpui",
