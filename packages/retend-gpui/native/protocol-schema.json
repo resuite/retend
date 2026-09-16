@@ -111,7 +111,8 @@
     "Scale": 78,
     "Rotate": 79,
     "Translate": 80,
-    "Skew": 81
+    "Skew": 81,
+    "TransformOrigin": 82
   },
   "nativeEvents": {
     "Click": 1,

@@ -193,7 +193,8 @@ export type GpuiTransitionProperty =
   | 'scale'
   | 'rotate'
   | 'translate'
-  | 'skew';
+  | 'skew'
+  | 'transformOrigin';
 
 export type GpuiTransitionTimingFunction =
   | 'linear'
@@ -226,6 +227,25 @@ export type GpuiSkew =
   | 'none'
   | GpuiAngle
   | `${GpuiAngle} ${GpuiAngle}`;
+
+type GpuiTransformOriginLength = `${number}px` | `${number}%` | '0';
+type GpuiTransformOriginX =
+  | 'left'
+  | 'center'
+  | 'right'
+  | GpuiTransformOriginLength;
+type GpuiTransformOriginY =
+  | 'top'
+  | 'center'
+  | 'bottom'
+  | GpuiTransformOriginLength;
+type GpuiTransformOriginYKeyword = 'top' | 'center' | 'bottom';
+export type GpuiTransformOrigin =
+  | number
+  | GpuiTransformOriginX
+  | GpuiTransformOriginY
+  | `${GpuiTransformOriginX} ${GpuiTransformOriginY}`
+  | `${GpuiTransformOriginYKeyword} ${GpuiTransformOriginX}`;
 
 /** Author-style surface implemented by the Retend-owned native renderer. */
 export interface GpuiStyleDeclarations {
@@ -283,6 +303,14 @@ export interface GpuiStyleDeclarations {
   translate?: GpuiTranslate;
   /** Retend extension: x/y skew angles. Numbers are x degrees. */
   skew?: GpuiSkew;
+  /**
+   * Transform origin relative to the border box. Accepts CSS-style
+   * `transform-origin` values: keywords (`left`, `center`, `right`, `top`,
+   * `bottom`), `px`/percentage lengths, or two space-separated `x y` values.
+   * A `y x` swap is only accepted for keyword-led pairs such as `top left`.
+   * Numbers are x pixels with y defaulting to 50%. Defaults to `50% 50%`.
+   */
+  transformOrigin?: GpuiTransformOrigin;
 
   borderWidth?: number;
   borderColor?: GpuiColor;

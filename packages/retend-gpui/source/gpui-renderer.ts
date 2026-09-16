@@ -79,7 +79,10 @@ const TRANSITION_PROPERTY_RANGE = [
   PropertyId.TransitionProperty,
   PropertyId.TransitionTimingFunction,
 ] as const;
-const TRANSFORM_PROPERTY_RANGE = [PropertyId.Scale, PropertyId.Skew] as const;
+const TRANSFORM_PROPERTY_RANGE = [
+  PropertyId.Scale,
+  PropertyId.TransformOrigin,
+] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Src, PropertyId.ObjectFit] as const;
 const PSEUDO_STATES = {
   hover: StyleState.Hover,

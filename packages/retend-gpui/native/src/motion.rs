@@ -72,6 +72,7 @@ animatable_properties! {
     Rotate => "rotate", "rotate";
     Translate => "translate", "translate";
     Skew => "skew", "skew";
+    TransformOrigin => "transformOrigin", "transform-origin";
 }
 
 impl AnimatableProperty {
@@ -105,6 +106,9 @@ impl AnimatableProperty {
             Self::Rotate => TransitionValue::Value(style.rotate.unwrap_or_default()),
             Self::Translate => TransitionValue::Translation(style.translate.unwrap_or_default()),
             Self::Skew => TransitionValue::Pair(style.skew.unwrap_or_default()),
+            Self::TransformOrigin => {
+                TransitionValue::TransformOrigin(style.transform_origin.unwrap_or_default())
+            }
         }
     }
 
@@ -113,6 +117,9 @@ impl AnimatableProperty {
             (Self::Scale, TransitionValue::Pair(value)) => style.scale = Some(value),
             (Self::Skew, TransitionValue::Pair(value)) => style.skew = Some(value),
             (Self::Translate, TransitionValue::Translation(value)) => style.translate = Some(value),
+            (Self::TransformOrigin, TransitionValue::TransformOrigin(value)) => {
+                style.transform_origin = Some(value)
+            }
             (Self::BackgroundColor, TransitionValue::Color(value)) => {
                 style.background_color = Some(u32::from(value));
             }
@@ -146,6 +153,11 @@ enum TransitionValue {
     Color(Rgba),
     Pair([f32; 2]),
     Translation(crate::transform::Translation),
+    TransformOrigin(crate::transform::TransformOrigin),
+}
+
+fn lerp_array<const N: usize>(from: [f32; N], to: [f32; N], progress: f32) -> [f32; N] {
+    std::array::from_fn(|i| from[i] + (to[i] - from[i]) * progress)
 }
 
 impl Interpolate for TransitionValue {
@@ -161,14 +173,13 @@ impl Interpolate for TransitionValue {
                 b: from.b + (to.b - from.b) * progress,
                 a: from.a + (to.a - from.a) * progress,
             }),
-            (Self::Pair(from), Self::Pair(to)) => Self::Pair(std::array::from_fn(|i| {
-                from[i] + (to[i] - from[i]) * progress
-            })),
-            (Self::Translation(from), Self::Translation(to)) => {
-                Self::Translation(crate::transform::Translation(std::array::from_fn(|i| {
-                    from.0[i] + (to.0[i] - from.0[i]) * progress
-                })))
-            }
+            (Self::Pair(from), Self::Pair(to)) => Self::Pair(lerp_array(from, to, progress)),
+            (Self::Translation(from), Self::Translation(to)) => Self::Translation(
+                crate::transform::Translation(lerp_array(from.0, to.0, progress)),
+            ),
+            (Self::TransformOrigin(from), Self::TransformOrigin(to)) => Self::TransformOrigin(
+                crate::transform::TransformOrigin(lerp_array(from.0, to.0, progress)),
+            ),
             (_, target) => target,
         }
     }

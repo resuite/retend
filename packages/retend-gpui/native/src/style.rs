@@ -167,6 +167,7 @@ native_style! {
         rotate: f32 => Rotate(crate::transform::parse_rotate);
         translate: crate::transform::Translation => Translate(crate::transform::parse_translate);
         skew: [f32; 2] => Skew(crate::transform::parse_skew);
+        transform_origin: crate::transform::TransformOrigin => TransformOrigin(crate::transform::parse_transform_origin);
         gap: f32 => Gap(parse_nonnegative_number);
         row_gap: f32 => RowGap(parse_nonnegative_number);
         column_gap: f32 => ColumnGap(parse_nonnegative_number);
