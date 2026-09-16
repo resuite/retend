@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   DevEnvironment,
   normalizePath,
+  type EnvironmentOptions,
   type EnvironmentModuleNode,
   type Plugin,
   type ResolvedConfig,
@@ -19,6 +21,18 @@ import {
 
 /** Stable Vite plugin name used for lookup via `getRetendGpuiPluginApi`. */
 export const RETEND_GPUI_PLUGIN_NAME = 'retend-gpui';
+
+/** Virtual module id for the bundled production application entry. */
+const PRODUCTION_ENTRY_ID = 'virtual:retend-gpui/production-entry';
+const RESOLVED_PRODUCTION_ENTRY_ID = `\0${PRODUCTION_ENTRY_ID}`;
+const SUPPORTED_TARGETS = [
+  'darwin-arm64',
+  'darwin-x64',
+  'linux-arm64',
+  'linux-x64',
+  'win32-arm64',
+  'win32-x64',
+] as const;
 
 export interface RetendGpuiEnvironmentReadyEvent {
   root: string;
@@ -75,6 +89,17 @@ export interface RetendGpuiOptions {
   entry: string;
   /** Default window options used for the initial dev window spawned by the supervisor. */
   window: RetendGpuiInitialWindowOptions;
+  /**
+   * Production target as `<platform>-<arch>` (e.g. `"darwin-arm64"`). Defaults
+   * to the build host. One target is built at a time; cross-target builds
+   * require matching native artifacts.
+   */
+  target?: string;
+  /**
+   * Node.js runtime version embedded in production builds. Defaults to the
+   * Node.js version running the build.
+   */
+  node?: string;
 }
 
 /**
@@ -120,6 +145,40 @@ function validateOptions(options: RetendGpuiOptions): void {
       throw new Error(`retendGpui() requires \`window.${name}\`.`);
   }
   validateGpuiWindowOptions(options.window);
+}
+
+/**
+ * Source of the bundled production entry. It imports the configured
+ * application class and root component, then hands them to the shared
+ * production runtime with the target's bundled native addon path.
+ */
+function productionEntrySource(
+  options: RetendGpuiOptions,
+  root: string,
+  target: string
+): string {
+  const modulePath = (relative: string): string =>
+    normalizePath(`/${path.relative(root, path.resolve(root, relative))}`);
+  const windowOptions = {
+    ...options.window,
+    title: options.window.title ?? options.app.name,
+    location: options.window.location ?? '/',
+  };
+  return `import { fileURLToPath } from 'node:url';
+import Application from ${JSON.stringify(modulePath(options.application))};
+import Root from ${JSON.stringify(modulePath(options.entry))};
+import { startProductionApp } from 'retend-gpui';
+
+await startProductionApp({
+  Application,
+  Root,
+  appName: ${JSON.stringify(options.app.name)},
+  options: ${JSON.stringify(windowOptions)},
+  nativeAddonPath: fileURLToPath(
+    new URL('./native/retend-gpui-native.${target}.node', import.meta.url)
+  ),
+});
+`;
 }
 
 function updateReachesApplication(
@@ -201,6 +260,10 @@ export {};
 export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
   validateOptions(options);
   const hotChannel = new IpcHotChannel();
+  let productionTarget: string | null = null;
+  let productionRoot: string | null = null;
+  let productionOutputDir: string | null = null;
+  let productionAddonCopied = false;
   let entryFailed = false;
   hotChannel.on('vite:client:connect', () => {
     entryFailed = false;
@@ -216,30 +279,44 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
     name: RETEND_GPUI_PLUGIN_NAME,
     api: { launch: null, hotChannel },
 
-    config() {
-      return {
-        appType: 'custom',
-        server: {
-          middlewareMode: true,
-          perEnvironmentStartEndDuringDev: true,
-          ws: false,
-        },
-        oxc: {
-          jsx: {
-            runtime: 'automatic',
-            importSource: 'retend',
-          },
-        },
-        resolve: {
-          dedupe: ['retend', 'retend-gpui', '@adbl/cells'],
-        },
-        optimizeDeps: {
-          exclude: ['retend', 'retend-gpui', '@adbl/cells'],
-        },
-        environments: {
-          gpui: {
-            consumer: 'server',
-            keepProcessEnv: true,
+    config(userConfig, env) {
+      const isBuild = env.command === 'build';
+      const root = userConfig.root
+        ? path.resolve(userConfig.root)
+        : process.cwd();
+      if (isBuild) {
+        const target = options.target ?? `${process.platform}-${process.arch}`;
+        if (
+          !SUPPORTED_TARGETS.includes(
+            target as (typeof SUPPORTED_TARGETS)[number]
+          )
+        ) {
+          throw new Error(
+            `retendGpui() received an unsupported build target: ${target}.`
+          );
+        }
+        productionTarget = target;
+        productionRoot = root;
+        productionOutputDir = path.resolve(root, 'dist', target);
+      }
+
+      const gpuiEnvironment: EnvironmentOptions = isBuild
+        ? {
+            input: PRODUCTION_ENTRY_ID,
+            build: {
+              outDir: productionOutputDir ?? undefined,
+              emptyOutDir: true,
+              ssr: true,
+              rollupOptions: {
+                output: {
+                  format: 'es' as const,
+                  entryFileNames: 'index.js',
+                  codeSplitting: false,
+                },
+              },
+            },
+          }
+        : {
             resolve: {
               external: ['retend', 'retend-gpui', '@adbl/cells'],
             },
@@ -263,16 +340,47 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
                 return environment;
               },
             },
+          };
+
+      return {
+        appType: 'custom',
+        // The multi-environment builder is opt-in; without it Vite builds only
+        // the `client` environment and the configured `gpui` environment is
+        // never set up.
+        ...(isBuild ? { builder: {} } : {}),
+        server: {
+          middlewareMode: true,
+          perEnvironmentStartEndDuringDev: true,
+          ws: false,
+        },
+        oxc: {
+          jsx: {
+            runtime: 'automatic',
+            importSource: 'retend',
+          },
+        },
+        resolve: {
+          dedupe: ['retend', 'retend-gpui', '@adbl/cells'],
+        },
+        optimizeDeps: {
+          exclude: ['retend', 'retend-gpui', '@adbl/cells'],
+        },
+        environments: {
+          gpui: {
+            consumer: 'server',
+            keepProcessEnv: true,
+            ...gpuiEnvironment,
           },
         },
       };
     },
 
     configResolved(config: ResolvedConfig) {
+      writeAppContextTypes(config.root, options.application);
       if (config.command === 'build') {
-        throw new Error(
-          'Retend GPUI production builds are not implemented yet. Use `retend-gpui dev` for the current prototype.'
-        );
+        productionRoot = config.root;
+        plugin.api.launch = null;
+        return;
       }
       plugin.api.launch = {
         appName: options.app.name,
@@ -286,7 +394,61 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
           location: options.window.location ?? '/',
         },
       };
-      writeAppContextTypes(config.root, options.application);
+    },
+
+    resolveId(id) {
+      if (id === PRODUCTION_ENTRY_ID) return RESOLVED_PRODUCTION_ENTRY_ID;
+      return null;
+    },
+
+    load(id) {
+      if (id !== RESOLVED_PRODUCTION_ENTRY_ID) return null;
+      const root = productionRoot;
+      const target = productionTarget;
+      if (!root || !target) {
+        throw new Error(
+          'Retend GPUI production entry was loaded without a resolved target.'
+        );
+      }
+      return productionEntrySource(options, root, target);
+    },
+
+    async buildApp(builder) {
+      if (!productionTarget) return;
+      const environment = builder.environments.gpui;
+      if (!environment) {
+        throw new Error(
+          `Retend GPUI build environment was not configured. Environments: ${Object.keys(builder.environments).join(', ')}`
+        );
+      }
+      await builder.build(environment);
+    },
+
+    writeBundle(outputOptions) {
+      if (
+        !productionTarget ||
+        productionAddonCopied ||
+        !productionOutputDir ||
+        outputOptions.dir !== productionOutputDir
+      ) {
+        return;
+      }
+      productionAddonCopied = true;
+      const binaryName = `retend-gpui-native.${productionTarget}.node`;
+      const source = fileURLToPath(
+        new URL(
+          `../../native/npm/${productionTarget}/${binaryName}`,
+          import.meta.url
+        )
+      );
+      if (!fs.existsSync(source)) {
+        throw new Error(
+          `Retend GPUI is missing the prebuilt ${productionTarget} addon. Run \`retend-gpui native:build\` or install retend-gpui-native-${productionTarget}.`
+        );
+      }
+      const destination = path.join(productionOutputDir, 'native', binaryName);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
     },
 
     applyToEnvironment(environment) {

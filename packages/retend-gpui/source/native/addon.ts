@@ -153,6 +153,7 @@ interface NativeAddon {
 }
 
 const require = createRequire(import.meta.url);
+let nativeAddonPathOverride: string | undefined;
 const supportedTargets = [
   'darwin-arm64',
   'darwin-x64',
@@ -199,8 +200,21 @@ export function parseNativeBridgeFailure(
   }
 }
 
+/**
+ * Points the loader at a bundled native addon. Packaged applications call this
+ * with the addon's path inside the app bundle, where neither package resolution
+ * nor the workspace-relative path is available.
+ */
+export function setNativeAddonPath(path: string | undefined): void {
+  nativeAddonPathOverride = path;
+}
+
 export function loadNativeAddon(): NativeAddon {
   if (nativeAddon) return nativeAddon;
+  if (nativeAddonPathOverride) {
+    nativeAddon = require(nativeAddonPathOverride) as NativeAddon;
+    return nativeAddon;
+  }
   const target = `${process.platform}-${process.arch}`;
   const localPath = fileURLToPath(
     new URL(

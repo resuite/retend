@@ -14,6 +14,33 @@ import {
 
 type TransformResult = { code: string } | null;
 
+interface TestConfigInput {
+  root?: string;
+}
+
+interface TestCommandEnv {
+  command: string;
+}
+
+interface TestBuildOptions {
+  ssr?: boolean;
+  outDir?: string;
+}
+
+interface TestEnvironmentOptions {
+  input?: string;
+  build?: TestBuildOptions;
+}
+
+interface TestEnvironments {
+  gpui: TestEnvironmentOptions;
+}
+
+interface TestConfigResult {
+  builder?: unknown;
+  environments: TestEnvironments;
+}
+
 const temporaryRoots: string[] = [];
 
 function options(): RetendGpuiOptions {
@@ -71,10 +98,42 @@ describe('retendGpui Vite plugin', () => {
     expect(declaration).toContain('interface GpuiAppContextTypes');
   });
 
-  it('rejects production builds until the production path exists', () => {
-    expect(() => resolvePlugin(retendGpui(options()), 'build')).toThrow(
-      'production builds are not implemented'
+  it('configures a single-environment production build', () => {
+    const plugin = retendGpui({ ...options(), target: 'darwin-arm64' });
+    const config = plugin.config as unknown as (
+      config: TestConfigInput,
+      env: TestCommandEnv
+    ) => TestConfigResult;
+
+    const result = config({}, { command: 'build' });
+    // The multi-environment builder is opt-in; without it Vite builds `client`.
+    expect(result.builder).toEqual({});
+    expect(result.environments.gpui.input).toBe(
+      'virtual:retend-gpui/production-entry'
     );
+    expect(result.environments.gpui.build?.ssr).toBe(true);
+    expect(result.environments.gpui.build?.outDir).toContain(
+      path.join('dist', 'darwin-arm64')
+    );
+  });
+
+  it('loads a production entry that boots the configured application', () => {
+    const plugin = retendGpui({ ...options(), target: 'darwin-arm64' });
+    const config = plugin.config as unknown as (
+      config: TestConfigInput,
+      env: TestCommandEnv
+    ) => unknown;
+    config(
+      { root: path.join(os.tmpdir(), 'retend-gpui-app') },
+      { command: 'build' }
+    );
+
+    const load = plugin.load as unknown as (id: string) => string | null;
+    const source = load('\0virtual:retend-gpui/production-entry') ?? '';
+    expect(source).toContain('from "/source/application.ts"');
+    expect(source).toContain('from "/source/main.ts"');
+    expect(source).toContain('startProductionApp');
+    expect(source).toContain('retend-gpui-native.darwin-arm64.node');
   });
 
   it('treats a non-JSX configured entry as an HMR boundary', () => {

@@ -16,6 +16,8 @@ export type {
   GpuiAppContextTypes,
   GpuiApplication,
 } from './application.js';
+export { startProductionApp } from './runtime/production.js';
+export type { ProductionAppDefinition } from './runtime/production.js';
 export * from './types.js';
 export { useWindow } from './window.js';
 export type {
