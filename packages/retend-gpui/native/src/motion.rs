@@ -544,7 +544,57 @@ fn transition_policy(config: TransitionConfig) -> Transition {
     let [x1, y1, x2, y2] = config.easing.0;
     Transition::new(duration)
         .delay(config.delay)
-        .ease(gpui_base::animation::cubic_bezier(x1, y1, x2, y2))
+        .ease(unclamped_cubic_bezier(x1, y1, x2, y2))
+}
+
+/// CSS `cubic-bezier` solver that preserves y overshoot, so bouncy curves
+/// like `cubic-bezier(0.34, 1.3, 0.64, 1)` spring past the target mid-flight
+/// instead of arriving early and sitting. GPUI's helper clamps sampled output
+/// to [0, 1]; only the input progress is clamped here, letting Retend's
+/// linear `Interpolate` extrapolate past the target exactly like the web.
+/// Endpoints stay exact: 0 maps to 0 and 1 maps to 1.
+fn unclamped_cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32) -> impl Fn(f32) -> f32 {
+    // Polynomial form of the unit bezier, where p0 = (0, 0) and p3 = (1, 1).
+    let (cx, cy) = (3.0 * x1, 3.0 * y1);
+    let (bx, by) = (3.0 * (x2 - x1) - cx, 3.0 * (y2 - y1) - cy);
+    let (ax, ay) = (1.0 - cx - bx, 1.0 - cy - by);
+    let sample_x = move |t: f32| ((ax * t + bx) * t + cx) * t;
+    let sample_y = move |t: f32| ((ay * t + by) * t + cy) * t;
+    let slope_x = move |t: f32| (3.0 * ax * t + 2.0 * bx) * t + cx;
+
+    // Solve `x(s) = t` for the curve parameter `s`.
+    let solve_s = move |t: f32| {
+        let mut s = t;
+        for _ in 0..8 {
+            let error = sample_x(s) - t;
+            if error.abs() < 1e-6 {
+                return s;
+            }
+            let slope = slope_x(s);
+            if slope.abs() < 1e-6 {
+                break;
+            }
+            s = (s - error / slope).clamp(0.0, 1.0);
+        }
+
+        let (mut low, mut high) = (0.0, 1.0);
+        let mut s = t;
+        for _ in 0..32 {
+            let x = sample_x(s);
+            if (x - t).abs() < 1e-6 {
+                break;
+            }
+            if x < t {
+                low = s;
+            } else {
+                high = s;
+            }
+            s = (low + high) / 2.0;
+        }
+        s
+    };
+
+    move |t: f32| sample_y(solve_s(t.clamp(0.0, 1.0)))
 }
 
 pub fn resolve_style(
@@ -837,6 +887,44 @@ mod tests {
             draw(cx, window);
             assert_eq!(sampled.get(), initial);
         }
+    }
+
+    #[test]
+    fn overshoot_bezier_springs_past_the_target() {
+        let bouncy = unclamped_cubic_bezier(0.34, 1.3, 0.64, 1.0);
+        assert_eq!(bouncy(0.0), 0.0);
+        assert_eq!(bouncy(1.0), 1.0);
+        let peak = (0..=100)
+            .map(|i| bouncy(i as f32 / 100.0))
+            .fold(0.0, f32::max);
+        assert!(
+            peak > 1.0,
+            "a y1 of 1.3 must overshoot mid-flight, got peak {peak}"
+        );
+        let from = TransitionValue::Value(0.0);
+        let to = TransitionValue::Value(100.0);
+        assert!(matches!(
+            from.interpolate(&to, peak),
+            TransitionValue::Value(value) if value > 100.0
+        ));
+    }
+
+    #[test]
+    fn bezier_solver_matches_css_reference_values() {
+        // Reference outputs from the standard Newton + bisection solver used
+        // by WebKit/Chromium `UnitBezier` (e.g. CSS `ease` at 0.5 is 0.8024).
+        let ease = unclamped_cubic_bezier(0.25, 0.1, 0.25, 1.0);
+        for (progress, expected) in [(0.25, 0.4085), (0.5, 0.8024), (0.75, 0.9605)] {
+            assert!(
+                (ease(progress) - expected).abs() < 1e-3,
+                "ease({progress}) = {}, expected {expected}",
+                ease(progress)
+            );
+        }
+        let symmetric = unclamped_cubic_bezier(0.42, 0.0, 0.58, 1.0);
+        assert!((symmetric(0.5) - 0.5).abs() < 1e-6);
+        let back = unclamped_cubic_bezier(0.34, 1.56, 0.64, 1.0);
+        assert!((back(0.5) - 1.0874).abs() < 1e-3);
     }
 
     #[test]
