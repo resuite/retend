@@ -185,14 +185,10 @@ impl NativeStyle {
             };
         }
         element = self.apply_fields(element);
-        if let Some(value) = self.gap {
-            element.style().gap.width = Some(gpui::px(value).into());
+        if let Some(value) = self.row_gap.or(self.gap) {
             element.style().gap.height = Some(gpui::px(value).into());
         }
-        if let Some(value) = self.row_gap {
-            element.style().gap.height = Some(gpui::px(value).into());
-        }
-        if let Some(value) = self.column_gap {
+        if let Some(value) = self.column_gap.or(self.gap) {
             element.style().gap.width = Some(gpui::px(value).into());
         }
         if let Some(white_space) = self.white_space {
@@ -227,7 +223,7 @@ fn parse_string(value: &PropertyValue) -> Option<String> {
     }
 }
 
-fn parse_number(value: &PropertyValue) -> Option<f32> {
+pub(crate) fn parse_number(value: &PropertyValue) -> Option<f32> {
     let PropertyValue::Number(value) = value else {
         return None;
     };
@@ -352,23 +348,18 @@ fn parse_length(value: &PropertyValue) -> Option<LengthValue> {
             if value == "auto" {
                 return Some(LengthValue::Auto);
             }
-            if let Some(percent) = value.strip_suffix('%') {
-                return percent
-                    .trim()
-                    .parse::<f32>()
-                    .ok()
-                    .filter(|value| value.is_finite())
-                    .map(LengthValue::Percent);
-            }
-            if let Some(pixels) = value.strip_suffix("px") {
-                return pixels
-                    .trim()
-                    .parse::<f32>()
-                    .ok()
-                    .filter(|value| value.is_finite())
-                    .map(LengthValue::Pixels);
-            }
-            None
+            let (value, unit): (&str, fn(f32) -> LengthValue) =
+                if let Some(value) = value.strip_suffix('%') {
+                    (value, LengthValue::Percent)
+                } else {
+                    (value.strip_suffix("px")?, LengthValue::Pixels)
+                };
+            value
+                .trim()
+                .parse::<f32>()
+                .ok()
+                .filter(|value| value.is_finite())
+                .map(unit)
         }
         _ => None,
     }

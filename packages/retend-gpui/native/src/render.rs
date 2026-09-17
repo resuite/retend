@@ -143,10 +143,12 @@ fn emit_mouse_down(
 }
 
 macro_rules! bubbling_events {
-    ($($handler:ident($event:ident: $ty:ty, $id:ident): $kind:ident => $payload:expr;)+) => {
-        $(fn $handler(window_id: WindowId, $id: NodeId, $event: &$ty, cx: &mut App) {
-            if event_interest(window_id, $id, NativeEventId::$kind) {
-                events::emit(window_id, $payload);
+    ($($handler:ident($window_id:ident, $id:ident, $event:ident: $ty:ty $(, $window:ident: $window_ty:ty)?):
+        $kind:ident $(before $before:block)? => $payload:expr;)+) => {
+        $(fn $handler($window_id: WindowId, $id: NodeId, $event: &$ty, $($window: $window_ty,)? cx: &mut App) {
+            $($before)?
+            if event_interest($window_id, $id, NativeEventId::$kind) {
+                events::emit($window_id, $payload);
                 cx.stop_propagation();
             }
         })+
@@ -154,27 +156,17 @@ macro_rules! bubbling_events {
 }
 
 bubbling_events! {
-
-    emit_key_down(event: KeyDownEvent, id): KeyDown =>
+    emit_key_down(window_id, id, event: KeyDownEvent): KeyDown =>
         events::key_event(NativeEventId::KeyDown, id, &event.keystroke, event.is_held);
-    emit_key_up(event: KeyUpEvent, id): KeyUp =>
+    emit_key_up(window_id, id, event: KeyUpEvent): KeyUp =>
         events::key_event(NativeEventId::KeyUp, id, &event.keystroke, false);
-}
-
-fn emit_mouse_move(
-    window_id: WindowId,
-    id: NodeId,
-    event: &MouseMoveEvent,
-    window: &Window,
-    cx: &mut App,
-) {
-    if event_interest(window_id, id, NativeEventId::MouseMove) {
-        events::emit(
-            window_id,
-            events::in_window(events::mouse_move(id, event), window),
-        );
-        cx.stop_propagation();
-    }
+    emit_mouse_move(window_id, id, event: MouseMoveEvent, window: &Window): MouseMove =>
+        events::in_window(events::mouse_move(id, event), window);
+    emit_mouse_up(window_id, id, event: MouseUpEvent, window: &mut Window): MouseUp before {
+        if event.button == MouseButton::Left {
+            release_pointer(window_id, window);
+        }
+    } => events::in_window(events::mouse_up(NativeEventId::MouseUp, id, event), window);
 }
 
 fn release_pointer(window_id: WindowId, window: &mut Window) {
@@ -183,28 +175,6 @@ fn release_pointer(window_id: WindowId, window: &mut Window) {
         .is_ok_and(|mut tree| tree.release_pointer(window_id))
     {
         window.refresh();
-    }
-}
-
-fn emit_mouse_up(
-    window_id: WindowId,
-    target_id: NodeId,
-    event: &MouseUpEvent,
-    window: &mut Window,
-    cx: &mut App,
-) {
-    if event.button == MouseButton::Left {
-        release_pointer(window_id, window);
-    }
-    if event_interest(window_id, target_id, NativeEventId::MouseUp) {
-        events::emit(
-            window_id,
-            events::in_window(
-                events::mouse_up(NativeEventId::MouseUp, target_id, event),
-                window,
-            ),
-        );
-        cx.stop_propagation();
     }
 }
 
@@ -848,8 +818,10 @@ where
         }
     }
     let resolved_style = motion_style.as_ref().or(node.style.as_deref());
-    let hover_interest = node.tracks_hover();
-    let active_interest = node.tracks_active();
+    let pseudo = PseudoInterest {
+        hover: node.tracks_hover(),
+        active: node.tracks_active(),
+    };
     let interest = EventInterest {
         subscriptions: interest.subscriptions | node.subscriptions,
         ..interest
@@ -872,64 +844,13 @@ where
     let painted_content = staged_content.clone();
     let content_scroll_handle = scroll_handle.clone().filter(|_| tracks_content);
     let element = match &node.data {
-        NodeData::Button => {
-            let disabled = node.disabled;
-            let mut element = div();
-            element = button_control_geometry(element);
-            if let Some(style) = resolved_style {
-                element = style.apply(element);
-            }
-            if disabled {
-                element = element.opacity(0.5);
-            }
-            element = element.children(build_children(
-                tree,
-                &node.children,
-                runtime_state,
-                generation,
-                resolve_style,
-                interest,
-            ));
-            let interest = if disabled {
-                EventInterest {
-                    subscriptions: 0,
-                    ..interest
-                }
-            } else {
-                // GPUI only maps Enter/Space to a click when a click listener exists.
-                EventInterest {
-                    subscriptions: interest.subscriptions | event_bit(NativeEventId::Click),
-                    ..interest
-                }
-            };
-            let pseudo = if disabled {
-                PseudoInterest {
-                    hover: false,
-                    active: false,
-                }
-            } else {
-                PseudoInterest {
-                    hover: hover_interest,
-                    active: active_interest,
-                }
-            };
-            let element = with_native_events(
-                element.id(ElementId::Integer(u64::from(id))),
-                interest,
-                node.window_id,
-                id,
-                runtime_state,
-                pseudo,
-            );
-            #[cfg(test)]
-            let element = element.debug_selector(move || format!("retend-node-{id}"));
-            element.into_any_element()
-        }
-        NodeData::Root
+        NodeData::Button
+        | NodeData::Root
         | NodeData::Container
         | NodeData::Anchored(_)
         | NodeData::TextControl { .. } => {
             let element = match &node.data {
+                NodeData::Button => button_control_geometry(div()),
                 NodeData::Root => root_container().block(),
                 NodeData::TextControl { .. } => text_control_geometry(div().block()),
                 _ => div().block(),
@@ -938,6 +859,11 @@ where
                 Some(style) => style.apply(element),
                 None => element,
             };
+            let button = matches!(node.data, NodeData::Button);
+            let disabled = button && node.disabled;
+            if disabled {
+                element = element.opacity(0.5);
+            }
             element = match &node.data {
                 NodeData::TextControl { kind, .. } => match kind {
                     crate::tree::TextControlKind::Input => {
@@ -962,7 +888,7 @@ where
                     interest,
                 )),
             };
-            if let Some(content) = staged_content.clone() {
+            if let Some(content) = staged_content.clone().filter(|_| !button) {
                 element = element.on_children_prepainted(move |children, _, _| {
                     content.set(
                         children
@@ -977,10 +903,30 @@ where
                     element = element.occlude();
                 }
             }
-            if interest.any()
+            let interest = if button {
+                EventInterest {
+                    // GPUI only maps Enter/Space to a click when a click listener exists.
+                    subscriptions: if disabled {
+                        0
+                    } else {
+                        interest.subscriptions | event_bit(NativeEventId::Click)
+                    },
+                    ..interest
+                }
+            } else {
+                interest
+            };
+            let pseudo = PseudoInterest {
+                hover: pseudo.hover && !disabled,
+                active: pseudo.active && !disabled,
+            };
+            #[cfg(test)]
+            let element = element.debug_selector(move || format!("retend-node-{id}"));
+            if button
+                || interest.any()
                 || runtime_state.is_interactive(id)
-                || hover_interest
-                || active_interest
+                || pseudo.hover
+                || pseudo.active
                 || matches!(node.data, NodeData::TextControl { .. })
             {
                 let element = with_native_events(
@@ -989,17 +935,10 @@ where
                     node.window_id,
                     id,
                     runtime_state,
-                    PseudoInterest {
-                        hover: hover_interest,
-                        active: active_interest,
-                    },
+                    pseudo,
                 );
-                #[cfg(test)]
-                let element = element.debug_selector(move || format!("retend-node-{id}"));
                 element.into_any_element()
             } else {
-                #[cfg(test)]
-                let element = element.debug_selector(move || format!("retend-node-{id}"));
                 element.into_any_element()
             }
         }
@@ -1024,10 +963,7 @@ where
                 node.window_id,
                 id,
                 runtime_state,
-                PseudoInterest {
-                    hover: hover_interest,
-                    active: active_interest,
-                },
+                pseudo,
             );
             match src {
                 Some(src)

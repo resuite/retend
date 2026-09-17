@@ -44,6 +44,18 @@ fn invalid<T>(
     Err(BridgeFailure::command(index, code, message))
 }
 
+fn nullable_string(
+    index: usize,
+    value: PropertyValue,
+    message: &'static str,
+) -> Result<Option<String>, BridgeFailure> {
+    match value {
+        PropertyValue::Null => Ok(None),
+        PropertyValue::String(value) => Ok(Some(value)),
+        _ => invalid(index, "INVALID_PROPERTY_VALUE", message),
+    }
+}
+
 fn textarea_rows(index: usize, value: PropertyValue) -> Result<Option<u32>, BridgeFailure> {
     match value {
         PropertyValue::Null => Ok(None),
@@ -168,28 +180,30 @@ impl AnchoredConfig {
         }
     }
 
-    fn reset_property(&mut self, index: usize, property: PropertyId) -> Result<(), BridgeFailure> {
-        let defaults = Self::default();
-        match property {
-            PropertyId::AnchoredPosition => self.position = defaults.position,
-            PropertyId::AnchoredSide => self.side = defaults.side,
-            PropertyId::AnchoredAlign => self.align = defaults.align,
-            PropertyId::AnchoredGap => self.gap = defaults.gap,
-            PropertyId::AnchoredOffset => self.offset = defaults.offset,
-            PropertyId::AnchoredFit => self.fit = defaults.fit,
-            PropertyId::AnchoredSnapMargin => self.snap_margin = defaults.snap_margin,
-            PropertyId::AnchoredDeferred => self.deferred = defaults.deferred,
-            PropertyId::AnchoredPriority => self.priority = defaults.priority,
-            PropertyId::AnchoredOcclude => self.occlude = defaults.occlude,
-            _ => {
-                return invalid(
+    fn keyword<T: Copy>(
+        index: usize,
+        value: PropertyValue,
+        name: &str,
+        choices: &[(&str, T)],
+    ) -> Result<T, BridgeFailure> {
+        let PropertyValue::String(value) = value else {
+            return invalid(
+                index,
+                "INVALID_PROPERTY_VALUE",
+                format!("anchored {name} must be a string."),
+            );
+        };
+        choices
+            .iter()
+            .find(|(keyword, _)| *keyword == value)
+            .map(|(_, value)| *value)
+            .ok_or_else(|| {
+                BridgeFailure::command(
                     index,
-                    "UNSUPPORTED_PROPERTY",
-                    format!("{property:?} is not an anchored property."),
+                    "INVALID_PROPERTY_VALUE",
+                    format!("Unsupported anchored {name}: {value}."),
                 )
-            }
-        }
-        Ok(())
+            })
     }
 
     fn set_property(
@@ -198,20 +212,25 @@ impl AnchoredConfig {
         property: PropertyId,
         value: PropertyValue,
     ) -> Result<(), BridgeFailure> {
-        if value == PropertyValue::Null {
-            return self.reset_property(index, property);
+        macro_rules! assign {
+            ($field:ident, $parsed:expr) => {
+                self.$field = if value == PropertyValue::Null {
+                    Self::default().$field
+                } else {
+                    $parsed
+                }
+            };
         }
         match property {
-            PropertyId::AnchoredPosition => {
-                self.position = Some(Self::point(index, value, "anchored position")?);
-            }
-            PropertyId::AnchoredGap => {
-                self.gap = Self::number(index, value, "anchored gap")?;
-            }
+            PropertyId::AnchoredPosition => assign!(
+                position,
+                Some(Self::point(index, value, "anchored position")?)
+            ),
+            PropertyId::AnchoredGap => assign!(gap, Self::number(index, value, "anchored gap")?),
             PropertyId::AnchoredOffset => {
-                self.offset = Self::point(index, value, "anchored offset")?;
+                assign!(offset, Self::point(index, value, "anchored offset")?)
             }
-            PropertyId::AnchoredSnapMargin => {
+            PropertyId::AnchoredSnapMargin => assign!(snap_margin, {
                 let value = Self::number(index, value, "anchored snapMargin")?;
                 if value < 0.0 {
                     return invalid(
@@ -220,76 +239,45 @@ impl AnchoredConfig {
                         "anchored snapMargin must be non-negative.",
                     );
                 }
-                self.snap_margin = value;
-            }
-            PropertyId::AnchoredSide => {
-                self.side = match value {
-                    PropertyValue::String(value) => match value.as_str() {
-                        "top" => AnchoredSide::Top,
-                        "right" => AnchoredSide::Right,
-                        "bottom" => AnchoredSide::Bottom,
-                        "left" => AnchoredSide::Left,
-                        _ => {
-                            return invalid(
-                                index,
-                                "INVALID_PROPERTY_VALUE",
-                                format!("Unsupported anchored side: {value}."),
-                            )
-                        }
-                    },
-                    _ => {
-                        return invalid(
-                            index,
-                            "INVALID_PROPERTY_VALUE",
-                            "anchored side must be a string.",
-                        )
-                    }
-                };
-            }
-            PropertyId::AnchoredAlign => {
-                self.align = match value {
-                    PropertyValue::String(value) => match value.as_str() {
-                        "start" => AnchoredAlign::Start,
-                        "center" => AnchoredAlign::Center,
-                        "end" => AnchoredAlign::End,
-                        _ => {
-                            return invalid(
-                                index,
-                                "INVALID_PROPERTY_VALUE",
-                                format!("Unsupported anchored align: {value}."),
-                            )
-                        }
-                    },
-                    _ => {
-                        return invalid(
-                            index,
-                            "INVALID_PROPERTY_VALUE",
-                            "anchored align must be a string.",
-                        )
-                    }
-                };
-            }
-            PropertyId::AnchoredFit => {
-                self.fit = match value {
-                    PropertyValue::String(value) if value == "switch" => AnchoredFit::Switch,
-                    PropertyValue::String(value) if value == "snap" => AnchoredFit::Snap,
-                    PropertyValue::String(value) => {
-                        return invalid(
-                            index,
-                            "INVALID_PROPERTY_VALUE",
-                            format!("Unsupported anchored fit: {value}."),
-                        )
-                    }
-                    _ => {
-                        return invalid(
-                            index,
-                            "INVALID_PROPERTY_VALUE",
-                            "anchored fit must be a string.",
-                        )
-                    }
-                };
-            }
-            PropertyId::AnchoredDeferred => {
+                value
+            }),
+            PropertyId::AnchoredSide => assign!(
+                side,
+                Self::keyword(
+                    index,
+                    value,
+                    "side",
+                    &[
+                        ("top", AnchoredSide::Top),
+                        ("right", AnchoredSide::Right),
+                        ("bottom", AnchoredSide::Bottom),
+                        ("left", AnchoredSide::Left),
+                    ],
+                )?
+            ),
+            PropertyId::AnchoredAlign => assign!(
+                align,
+                Self::keyword(
+                    index,
+                    value,
+                    "align",
+                    &[
+                        ("start", AnchoredAlign::Start),
+                        ("center", AnchoredAlign::Center),
+                        ("end", AnchoredAlign::End),
+                    ],
+                )?
+            ),
+            PropertyId::AnchoredFit => assign!(
+                fit,
+                Self::keyword(
+                    index,
+                    value,
+                    "fit",
+                    &[("switch", AnchoredFit::Switch), ("snap", AnchoredFit::Snap)],
+                )?
+            ),
+            PropertyId::AnchoredDeferred => assign!(deferred, {
                 let PropertyValue::Boolean(value) = value else {
                     return invalid(
                         index,
@@ -297,9 +285,9 @@ impl AnchoredConfig {
                         "anchored deferred must be a boolean.",
                     );
                 };
-                self.deferred = value;
-            }
-            PropertyId::AnchoredOcclude => {
+                value
+            }),
+            PropertyId::AnchoredOcclude => assign!(occlude, {
                 let PropertyValue::Boolean(value) = value else {
                     return invalid(
                         index,
@@ -307,10 +295,11 @@ impl AnchoredConfig {
                         "anchored occlude must be a boolean.",
                     );
                 };
-                self.occlude = value;
-            }
-            PropertyId::AnchoredPriority => {
-                self.priority = match value {
+                value
+            }),
+            PropertyId::AnchoredPriority => assign!(
+                priority,
+                match value {
                     PropertyValue::Number(value)
                         if value.is_finite()
                             && value.fract() == 0.0
@@ -324,10 +313,10 @@ impl AnchoredConfig {
                             index,
                             "INVALID_PROPERTY_VALUE",
                             "anchored priority must be a non-negative integer.",
-                        )
+                        );
                     }
-                };
-            }
+                }
+            ),
             _ => {
                 return invalid(
                     index,
@@ -408,6 +397,27 @@ impl NativeNode {
             .or_else(|| self.default_tab_index().then_some(0))
     }
 
+    fn text_control_snapshot(&self) -> Option<TextControlSnapshot> {
+        match &self.data {
+            NodeData::TextControl {
+                kind,
+                value,
+                value_revision,
+                placeholder,
+                min_rows,
+                max_rows,
+            } => Some(TextControlSnapshot {
+                kind: *kind,
+                value: value.clone(),
+                value_revision: *value_revision,
+                placeholder: placeholder.clone(),
+                min_rows: *min_rows,
+                max_rows: *max_rows,
+            }),
+            _ => None,
+        }
+    }
+
     fn default_tab_index(&self) -> bool {
         matches!(self.data, NodeData::TextControl { .. } | NodeData::Button)
     }
@@ -456,29 +466,23 @@ impl NativeNode {
     }
 
     fn resolve_author_style(&mut self, active: bool) {
-        let has_style = !self.base_style.is_empty()
-            || (self.hovered && self.has_hover_style())
-            || (self.focused && self.has_focused_style())
-            || (active && self.has_active_style());
-        let mut next = has_style.then(Box::<NativeStyle>::default);
-        if let Some(style) = next.as_deref_mut() {
-            let apply =
-                |style: &mut NativeStyle, declarations: Option<&[(PropertyId, PropertyValue)]>| {
-                    if let Some(declarations) = declarations {
-                        for (property, value) in declarations {
-                            _ = style.set_property(*property, value);
-                        }
-                    }
-                };
-            apply(style, Some(&self.base_style));
-            if self.hovered {
-                apply(style, self.hover_style.as_deref());
-            }
-            if self.focused {
-                apply(style, self.focused_style.as_deref());
-            }
-            if active {
-                apply(style, self.active_style.as_deref());
+        let layers = [
+            (true, self.base_style.as_slice()),
+            (
+                self.hovered,
+                self.hover_style.as_deref().unwrap_or_default(),
+            ),
+            (
+                self.focused,
+                self.focused_style.as_deref().unwrap_or_default(),
+            ),
+            (active, self.active_style.as_deref().unwrap_or_default()),
+        ];
+        let mut next = None;
+        for (_, declarations) in layers.into_iter().filter(|(enabled, _)| *enabled) {
+            for (property, value) in declarations {
+                let style = next.get_or_insert_with(Box::<NativeStyle>::default);
+                _ = style.set_property(*property, value);
             }
         }
         self.style = next;
@@ -870,25 +874,7 @@ impl NativeTree {
         let Some(tab_index) = node.effective_tab_index() else {
             return Ok(None);
         };
-        let text_control = match &node.data {
-            NodeData::TextControl {
-                kind,
-                value,
-                value_revision,
-                placeholder,
-                min_rows,
-                max_rows,
-            } => Some(TextControlSnapshot {
-                kind: *kind,
-                value: value.clone(),
-                value_revision: *value_revision,
-                placeholder: placeholder.clone(),
-                min_rows: *min_rows,
-                max_rows: *max_rows,
-            }),
-            _ => None,
-        };
-        Ok(Some((tab_index, text_control)))
+        Ok(Some((tab_index, node.text_control_snapshot())))
     }
 
     pub fn text_control_snapshot(
@@ -896,27 +882,14 @@ impl NativeTree {
         window_id: WindowId,
         id: NodeId,
     ) -> Result<TextControlSnapshot, BridgeFailure> {
-        match &self.validated_node(window_id, id)?.data {
-            NodeData::TextControl {
-                kind,
-                value,
-                value_revision,
-                placeholder,
-                min_rows,
-                max_rows,
-            } => Ok(TextControlSnapshot {
-                kind: *kind,
-                value: value.clone(),
-                value_revision: *value_revision,
-                placeholder: placeholder.clone(),
-                min_rows: *min_rows,
-                max_rows: *max_rows,
-            }),
-            _ => Err(BridgeFailure::new(
-                "INVALID_NODE_KIND",
-                format!("Node ID {id} is not a native text control."),
-            )),
-        }
+        self.validated_node(window_id, id)?
+            .text_control_snapshot()
+            .ok_or_else(|| {
+                BridgeFailure::new(
+                    "INVALID_NODE_KIND",
+                    format!("Node ID {id} is not a native text control."),
+                )
+            })
     }
 
     pub fn node_overflow(
@@ -1073,8 +1046,12 @@ impl NativeTree {
                         object_fit: None,
                     },
                     ElementKind::Button => NodeData::Button,
-                    ElementKind::Input => NodeData::TextControl {
-                        kind: TextControlKind::Input,
+                    ElementKind::Input | ElementKind::Textarea => NodeData::TextControl {
+                        kind: if matches!(kind, ElementKind::Input) {
+                            TextControlKind::Input
+                        } else {
+                            TextControlKind::Textarea
+                        },
                         value: String::new(),
                         value_revision: 0,
                         placeholder: String::new(),
@@ -1095,14 +1072,6 @@ impl NativeTree {
                             "Text nodes must be created with CREATE_TEXT.",
                         )
                     }
-                    ElementKind::Textarea => NodeData::TextControl {
-                        kind: TextControlKind::Textarea,
-                        value: String::new(),
-                        value_revision: 0,
-                        placeholder: String::new(),
-                        min_rows: None,
-                        max_rows: None,
-                    },
                 };
                 self.create(index, window_id, id, data)
             }
@@ -1178,17 +1147,12 @@ impl NativeTree {
                             ..
                         },
                     ) => {
-                        let value = match value {
-                            PropertyValue::Null => String::new(),
-                            PropertyValue::String(value) => value,
-                            _ => {
-                                return invalid(
-                                    index,
-                                    "INVALID_PROPERTY_VALUE",
-                                    "Text-control value must be a string or null.",
-                                );
-                            }
-                        };
+                        let value = nullable_string(
+                            index,
+                            value,
+                            "Text-control value must be a string or null.",
+                        )?
+                        .unwrap_or_default();
                         let next_revision = value_revision.checked_add(1).ok_or_else(|| {
                             BridgeFailure::command(
                                 index,
@@ -1201,76 +1165,60 @@ impl NativeTree {
                         Ok(())
                     }
                     (PropertyId::Placeholder, NodeData::TextControl { placeholder, .. }) => {
-                        *placeholder = match value {
-                            PropertyValue::Null => String::new(),
-                            PropertyValue::String(value) => value,
-                            _ => {
-                                return invalid(
-                                    index,
-                                    "INVALID_PROPERTY_VALUE",
-                                    "Text-control placeholder must be a string or null.",
-                                );
-                            }
-                        };
+                        *placeholder = nullable_string(
+                            index,
+                            value,
+                            "Text-control placeholder must be a string or null.",
+                        )?
+                        .unwrap_or_default();
                         Ok(())
                     }
                     (
                         PropertyId::MinRows,
                         NodeData::TextControl {
                             kind: TextControlKind::Textarea,
-                            min_rows,
+                            min_rows: rows,
                             ..
                         },
-                    ) => {
-                        *min_rows = textarea_rows(index, value)?;
-                        Ok(())
-                    }
-                    (
+                    )
+                    | (
                         PropertyId::MaxRows,
                         NodeData::TextControl {
                             kind: TextControlKind::Textarea,
-                            max_rows,
+                            max_rows: rows,
                             ..
                         },
                     ) => {
-                        *max_rows = textarea_rows(index, value)?;
+                        *rows = textarea_rows(index, value)?;
                         Ok(())
                     }
                     (PropertyId::Src, NodeData::Image { src, .. }) => {
-                        *src = match value {
-                            PropertyValue::Null => None,
-                            PropertyValue::String(value) => url::Url::parse(&value)
+                        *src = nullable_string(
+                            index,
+                            value,
+                            "Image src must be an HTTP(S) URL string or null.",
+                        )?
+                        .filter(|value| {
+                            url::Url::parse(value)
                                 .is_ok_and(|url| matches!(url.scheme(), "http" | "https"))
-                                .then_some(value),
-                            _ => {
-                                return invalid(
-                                    index,
-                                    "INVALID_PROPERTY_VALUE",
-                                    "Image src must be an HTTP(S) URL string or null.",
-                                )
-                            }
-                        };
+                        });
                         Ok(())
                     }
                     (PropertyId::ObjectFit, NodeData::Image { object_fit, .. }) => {
-                        *object_fit = match value {
-                            PropertyValue::Null => None,
-                            PropertyValue::String(value) => match value.as_str() {
-                                "fill" => Some(ImageObjectFit::Fill),
-                                "contain" => Some(ImageObjectFit::Contain),
-                                "cover" => Some(ImageObjectFit::Cover),
-                                "scaleDown" | "scale-down" => Some(ImageObjectFit::ScaleDown),
-                                "none" => Some(ImageObjectFit::None),
-                                _ => None,
-                            },
-                            _ => {
-                                return invalid(
-                                    index,
-                                    "INVALID_PROPERTY_VALUE",
-                                    "Image objectFit must be a supported string or null.",
-                                )
-                            }
-                        };
+                        *object_fit = nullable_string(
+                            index,
+                            value,
+                            "Image objectFit must be a supported string or null.",
+                        )?
+                        .as_deref()
+                        .and_then(|value| match value {
+                            "fill" => Some(ImageObjectFit::Fill),
+                            "contain" => Some(ImageObjectFit::Contain),
+                            "cover" => Some(ImageObjectFit::Cover),
+                            "scaleDown" | "scale-down" => Some(ImageObjectFit::ScaleDown),
+                            "none" => Some(ImageObjectFit::None),
+                            _ => None,
+                        });
                         Ok(())
                     }
                     (property, NodeData::Anchored(config)) => {

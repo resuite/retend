@@ -3,7 +3,10 @@ use gpui::{
     InspectorElementId, IntoElement, LayoutId, Pixels, TransformationMatrix, Window,
 };
 
-use crate::{protocol::PropertyValue, style::NativeStyle};
+use crate::{
+    protocol::PropertyValue,
+    style::{parse_number as number, NativeStyle},
+};
 
 /// Keep pixels and fractions separate so mixed-unit translations interpolate
 /// without measuring in JS or freezing percentages to an old layout size.
@@ -60,16 +63,6 @@ fn components(value: &PropertyValue) -> Option<(&str, Option<&str>)> {
     let first = parts.next()?;
     let second = parts.next();
     parts.next().is_none().then_some((first, second))
-}
-
-fn number(value: &PropertyValue) -> Option<f32> {
-    match value {
-        PropertyValue::Number(value) => {
-            let value = *value as f32;
-            value.is_finite().then_some(value)
-        }
-        _ => None,
-    }
 }
 
 fn is_none(value: &PropertyValue) -> bool {
@@ -162,14 +155,11 @@ pub fn parse_transform_origin(value: &PropertyValue) -> Option<TransformOrigin> 
     let Some(second) = second else {
         // Single value: keywords resolve against their axis with the other
         // axis defaulting to center; lengths resolve against x.
-        if let Some(fraction) = origin_x_keyword(first) {
-            return Some(TransformOrigin([0.0, fraction, 0.0, 0.5]));
-        }
-        if let Some(fraction) = origin_y_keyword(first) {
-            return Some(TransformOrigin([0.0, 0.5, 0.0, fraction]));
-        }
-        let [x, x_fraction] = length_pair(first)?;
-        return Some(TransformOrigin([x, x_fraction, 0.0, 0.5]));
+        return if let Some([x, x_fraction]) = origin_component(first, origin_x_keyword) {
+            Some(TransformOrigin([x, x_fraction, 0.0, 0.5]))
+        } else {
+            Some(TransformOrigin([0.0, 0.5, 0.0, origin_y_keyword(first)?]))
+        };
     };
     // Two values in x/y order, plus a keyword-led y/x swap such as
     // `top left` (matching CSS position behavior). Length-first pairs never

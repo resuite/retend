@@ -403,35 +403,27 @@ fn begin_lifecycle(
     if sampled == target {
         return None;
     }
-    match status {
-        MotionStatus::Delayed => {
-            emit(events, NativeEventId::TransitionRun, index, 0.0);
-            Some(ActiveLifecycle {
-                config,
-                started: false,
-            })
-        }
-        MotionStatus::Running => {
-            emit(events, NativeEventId::TransitionRun, index, 0.0);
-            emit(
-                events,
-                NativeEventId::TransitionStart,
-                index,
-                config.delay.as_secs_f64(),
-            );
-            Some(ActiveLifecycle {
-                config,
-                started: true,
-            })
-        }
-        MotionStatus::Idle | MotionStatus::Finished => None,
+    let started = match status {
+        MotionStatus::Delayed => false,
+        MotionStatus::Running => true,
+        MotionStatus::Idle | MotionStatus::Finished => return None,
+    };
+    emit(events, NativeEventId::TransitionRun, index, 0.0);
+    if started {
+        emit(
+            events,
+            NativeEventId::TransitionStart,
+            index,
+            config.delay.as_secs_f64(),
+        );
     }
+    Some(ActiveLifecycle { config, started })
 }
 
 fn reconcile_lifecycle(
     events: &mut Vec<TransitionLifecycleEvent>,
     index: usize,
-    lifecycle: ActiveLifecycle,
+    mut lifecycle: ActiveLifecycle,
     status: MotionStatus,
     forced_snap: bool,
 ) -> Option<ActiveLifecycle> {
@@ -439,30 +431,18 @@ fn reconcile_lifecycle(
         emit(events, NativeEventId::TransitionCancel, index, 0.0);
         return None;
     }
+    if !lifecycle.started && matches!(status, MotionStatus::Running | MotionStatus::Finished) {
+        emit(
+            events,
+            NativeEventId::TransitionStart,
+            index,
+            lifecycle.config.delay.as_secs_f64(),
+        );
+        lifecycle.started = true;
+    }
     match status {
-        MotionStatus::Delayed => Some(lifecycle),
-        MotionStatus::Running if !lifecycle.started => {
-            emit(
-                events,
-                NativeEventId::TransitionStart,
-                index,
-                lifecycle.config.delay.as_secs_f64(),
-            );
-            Some(ActiveLifecycle {
-                started: true,
-                ..lifecycle
-            })
-        }
-        MotionStatus::Running => Some(lifecycle),
+        MotionStatus::Delayed | MotionStatus::Running => Some(lifecycle),
         MotionStatus::Finished => {
-            if !lifecycle.started {
-                emit(
-                    events,
-                    NativeEventId::TransitionStart,
-                    index,
-                    lifecycle.config.delay.as_secs_f64(),
-                );
-            }
             emit(
                 events,
                 NativeEventId::TransitionEnd,
@@ -606,40 +586,15 @@ pub fn resolve_style(
 ) -> (Option<NativeStyle>, Vec<TransitionLifecycleEvent>) {
     let element_id = ElementId::Integer(u64::from(node_id));
     let previous_targets = state.previous_targets.get();
-    let previous_lifecycles = state.lifecycles.get();
-    let mut lifecycles = previous_lifecycles;
+    let mut lifecycles = state.lifecycles.get();
     let mut events = Vec::new();
 
-    let Some(target_style) = author else {
-        for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
-            if let Some(lifecycle) = lifecycles[index] {
-                cancel_lifecycle(
-                    &mut events,
-                    index,
-                    property,
-                    &element_id,
-                    previous_targets[index],
-                    lifecycle,
-                    window,
-                    cx,
-                );
-            }
-        }
-        state
-            .previous_targets
-            .set([TransitionValue::Unset; AnimatableProperty::ALL.len()]);
-        state.active_mask.set(0);
-        state.lifecycles.set([None; AnimatableProperty::ALL.len()]);
-        state.initialized.set(true);
-        return (None, events);
-    };
-
-    let spec = target_style.transition;
-    let targets = AnimatableProperty::ALL.map(|property| property.target(target_style));
-    let config = spec.config();
-    let current_mask = config
-        .filter(|_| spec.properties != 0)
-        .map_or(0, |_| eligible_mask(spec, &targets));
+    let targets = AnimatableProperty::ALL
+        .map(|property| author.map_or(TransitionValue::Unset, |style| property.target(style)));
+    let config = author.and_then(|style| style.transition.config());
+    let current_mask = author
+        .filter(|_| config.is_some())
+        .map_or(0, |style| eligible_mask(style.transition, &targets));
     let previous_mask = state.active_mask.replace(current_mask);
     let initialized = state.initialized.replace(true);
 
@@ -663,6 +618,7 @@ pub fn resolve_style(
         return (None, events);
     };
 
+    let target_style = author.expect("eligible transitions require an author style");
     let mut resolved = None;
     for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
         let target = targets[index];
@@ -689,20 +645,8 @@ pub fn resolve_style(
             continue;
         }
 
-        if !initialized {
-            let sampled =
-                transition_with_status(key, target, transition_policy(config), window, cx);
-            if sampled.value != target {
-                property.apply(
-                    resolved.get_or_insert_with(|| target_style.clone()),
-                    sampled.value,
-                );
-            }
-            lifecycles[index] = None;
-            continue;
-        }
-
-        if !previously_eligible {
+        let begin = initialized && (!previously_eligible || target_changed);
+        if initialized && !previously_eligible {
             // Seed newly enabled channels from the last committed author target so
             // values do not resume stale GPUI motion. An Unset previous target has
             // no representable start value, so snap the channel to the current
@@ -719,26 +663,7 @@ pub fn resolve_style(
                 window,
                 cx,
             );
-            let sampled =
-                transition_with_status(key, target, transition_policy(config), window, cx);
-            if sampled.value != target {
-                property.apply(
-                    resolved.get_or_insert_with(|| target_style.clone()),
-                    sampled.value,
-                );
-            }
-            lifecycles[index] = begin_lifecycle(
-                &mut events,
-                index,
-                sampled.value,
-                target,
-                sampled.status,
-                config,
-            );
-            continue;
-        }
-
-        if target_changed {
+        } else if begin {
             if let Some(lifecycle) = lifecycles[index] {
                 cancel_lifecycle(
                     &mut events,
@@ -751,26 +676,13 @@ pub fn resolve_style(
                     cx,
                 );
             }
-            let sampled =
-                transition_with_status(key, target, transition_policy(config), window, cx);
-            if sampled.value != target {
-                property.apply(
-                    resolved.get_or_insert_with(|| target_style.clone()),
-                    sampled.value,
-                );
-            }
-            lifecycles[index] = begin_lifecycle(
-                &mut events,
-                index,
-                sampled.value,
-                target,
-                sampled.status,
-                config,
-            );
-            continue;
         }
 
-        let policy = lifecycles[index].map_or(config, |lifecycle| lifecycle.config);
+        let policy = if initialized && !begin {
+            lifecycles[index].map_or(config, |lifecycle| lifecycle.config)
+        } else {
+            config
+        };
         let sampled = transition_with_status(key, target, transition_policy(policy), window, cx);
         if sampled.value != target {
             property.apply(
@@ -778,15 +690,28 @@ pub fn resolve_style(
                 sampled.value,
             );
         }
-        lifecycles[index] = lifecycles[index].and_then(|lifecycle| {
-            reconcile_lifecycle(
+        lifecycles[index] = if begin {
+            begin_lifecycle(
                 &mut events,
                 index,
-                lifecycle,
+                sampled.value,
+                target,
                 sampled.status,
-                cx.reduce_motion(),
+                config,
             )
-        });
+        } else if initialized {
+            lifecycles[index].and_then(|lifecycle| {
+                reconcile_lifecycle(
+                    &mut events,
+                    index,
+                    lifecycle,
+                    sampled.status,
+                    cx.reduce_motion(),
+                )
+            })
+        } else {
+            None
+        };
     }
     state.previous_targets.set(targets);
     state.lifecycles.set(lifecycles);

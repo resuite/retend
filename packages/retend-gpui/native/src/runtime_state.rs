@@ -60,6 +60,19 @@ struct RuntimeState {
     pending: VecDeque<(u64, LayoutOperation)>,
 }
 
+impl RuntimeState {
+    fn take_pending(
+        &mut self,
+        mut predicate: impl FnMut(&LayoutOperation) -> bool,
+    ) -> VecDeque<(u64, LayoutOperation)> {
+        let (taken, retained) = std::mem::take(&mut self.pending)
+            .into_iter()
+            .partition(|(_, operation)| predicate(operation));
+        self.pending = retained;
+        taken
+    }
+}
+
 struct FocusState {
     handle: FocusHandle,
     subscriptions: Option<[Subscription; 2]>,
@@ -365,17 +378,15 @@ impl RuntimeStateRegistry {
             }
             if revision_changed {
                 let value = text_control_value(kind, value);
-                let current = match &editor {
-                    TextControlEditor::Input(editor) => editor.read(cx).value().to_string(),
-                    TextControlEditor::Textarea(editor) => editor.read(cx).value().to_string(),
-                };
-                if current != value {
-                    match &editor {
-                        TextControlEditor::Input(editor) => editor
-                            .update(cx, |editor, cx| editor.set_value(value.clone(), window, cx)),
-                        TextControlEditor::Textarea(editor) => editor
-                            .update(cx, |editor, cx| editor.set_value(value.clone(), window, cx)),
+                let changed = match &editor {
+                    TextControlEditor::Input(editor) => {
+                        sync_editor_value(editor, &value, window, cx)
                     }
+                    TextControlEditor::Textarea(editor) => {
+                        sync_editor_value(editor, &value, window, cx)
+                    }
+                };
+                if changed {
                     if let Some(control) = self.0.borrow_mut().text_control.get_mut(&id) {
                         control.last_value = value;
                         control.dirty = false;
@@ -639,12 +650,7 @@ impl RuntimeStateRegistry {
                 state.scroll.remove(id);
                 state.frame.nodes.remove(id);
             }
-            let pending = std::mem::take(&mut state.pending);
-            let (rejected, retained): (VecDeque<_>, VecDeque<_>) = pending
-                .into_iter()
-                .partition(|(_, operation)| ids.contains(&operation.id()));
-            state.pending = retained;
-            rejected
+            state.take_pending(|operation| ids.contains(&operation.id()))
         };
 
         for (_, operation) in rejected {
@@ -657,16 +663,12 @@ impl RuntimeStateRegistry {
         let message = message.into();
         let queries = {
             let mut state = self.0.borrow_mut();
-            let (queries, scrolls) = std::mem::take(&mut state.pending)
-                .into_iter()
-                .partition::<VecDeque<_>, _>(|(_, operation)| {
-                    matches!(
-                        operation,
-                        LayoutOperation::Measure(..) | LayoutOperation::ScrollOffset(..)
-                    )
-                });
-            state.pending = scrolls;
-            queries
+            state.take_pending(|operation| {
+                matches!(
+                    operation,
+                    LayoutOperation::Measure(..) | LayoutOperation::ScrollOffset(..)
+                )
+            })
         };
         for (_, operation) in queries {
             operation.reject(BridgeFailure::new(code, message.clone()));
@@ -703,6 +705,21 @@ fn utf16_to_utf8_offset(value: &str, target: usize) -> usize {
     value.len()
 }
 
+fn sync_editor_value<M: InputModeKind + 'static>(
+    editor: &Entity<InputBaseState<M>>,
+    value: &str,
+    window: &mut Window,
+    cx: &mut App,
+) -> bool {
+    if editor.read(cx).value().as_ref() == value {
+        return false;
+    }
+    editor.update(cx, |editor, cx| {
+        editor.set_value(value.to_owned(), window, cx)
+    });
+    true
+}
+
 fn set_editor_selection<M: InputModeKind + 'static>(
     editor: &Entity<InputBaseState<M>>,
     start: u32,
@@ -734,19 +751,17 @@ fn editor_selection<M: InputModeKind + 'static>(
                     "Native text-control selection is unavailable.",
                 )
             })?;
+        let offset = |value| {
+            u32::try_from(value).map_err(|_| {
+                BridgeFailure::new(
+                    "SELECTION_RANGE_EXHAUSTED",
+                    "Native text-control selection exceeds the bridge UTF-16 offset range.",
+                )
+            })
+        };
         Ok(NativeSelection {
-            start: u32::try_from(selection.range.start).map_err(|_| {
-                BridgeFailure::new(
-                    "SELECTION_RANGE_EXHAUSTED",
-                    "Native text-control selection exceeds the bridge UTF-16 offset range.",
-                )
-            })?,
-            end: u32::try_from(selection.range.end).map_err(|_| {
-                BridgeFailure::new(
-                    "SELECTION_RANGE_EXHAUSTED",
-                    "Native text-control selection exceeds the bridge UTF-16 offset range.",
-                )
-            })?,
+            start: offset(selection.range.start)?,
+            end: offset(selection.range.end)?,
         })
     })
 }
@@ -760,61 +775,38 @@ fn subscribe_text_control_events<T: 'static, M: InputModeKind + 'static>(
     window_id: WindowId,
     id: NodeId,
 ) -> Subscription {
-    cx.subscribe_in(editor, window, move |_, editor, event, _, cx| match event {
-        InputEvent::Change => {
-            handle_text_control_change(&runtime, window_id, id, editor.read(cx).value().to_string())
-        }
-        _ => handle_text_control_commit(&runtime, kind, window_id, id, event),
+    cx.subscribe_in(editor, window, move |_, editor, event, _, cx| {
+        let value =
+            matches!(event, InputEvent::Change).then(|| editor.read(cx).value().to_string());
+        let Some(runtime) = runtime.upgrade() else {
+            return;
+        };
+        let mut state = runtime.borrow_mut();
+        let Some(control) = state.text_control.get_mut(&id) else {
+            return;
+        };
+        let event = if let Some(value) = value {
+            if control.last_value == value {
+                return;
+            }
+            control.last_value = value;
+            control.dirty = true;
+            NativeEventId::Input
+        } else {
+            match event {
+                InputEvent::PressEnter { .. } if kind == TextControlKind::Input => {}
+                InputEvent::Blur => {}
+                _ => return,
+            }
+            if !std::mem::take(&mut control.dirty) {
+                return;
+            }
+            NativeEventId::Change
+        };
+        let value = control.last_value.clone();
+        drop(state);
+        emit_text_event(window_id, id, event, value);
     })
-}
-
-fn handle_text_control_change(
-    runtime: &Weak<RefCell<RuntimeState>>,
-    window_id: WindowId,
-    id: NodeId,
-    value: String,
-) {
-    let Some(runtime) = runtime.upgrade() else {
-        return;
-    };
-    let mut state = runtime.borrow_mut();
-    let Some(control) = state.text_control.get_mut(&id) else {
-        return;
-    };
-    if control.last_value == value {
-        return;
-    }
-    control.last_value = value.clone();
-    control.dirty = true;
-    drop(state);
-    emit_text_event(window_id, id, NativeEventId::Input, value);
-}
-
-fn handle_text_control_commit(
-    runtime: &Weak<RefCell<RuntimeState>>,
-    kind: TextControlKind,
-    window_id: WindowId,
-    id: NodeId,
-    event: &InputEvent,
-) {
-    let Some(runtime) = runtime.upgrade() else {
-        return;
-    };
-    let mut state = runtime.borrow_mut();
-    let Some(control) = state.text_control.get_mut(&id) else {
-        return;
-    };
-    let commit = match event {
-        InputEvent::PressEnter { .. } if kind == TextControlKind::Input => &mut control.dirty,
-        InputEvent::Blur => &mut control.dirty,
-        _ => return,
-    };
-    if !std::mem::take(commit) {
-        return;
-    }
-    let value = control.last_value.clone();
-    drop(state);
-    emit_text_event(window_id, id, NativeEventId::Change, value);
 }
 
 fn configure_textarea(

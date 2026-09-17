@@ -3,7 +3,7 @@ mod imp {
     use std::cell::Cell;
     use std::ffi::c_void;
     use std::ptr;
-    use std::sync::{Arc, Mutex};
+    use std::sync::{Arc, Mutex, MutexGuard};
 
     use napi::bindgen_prelude::Function;
     use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
@@ -18,6 +18,11 @@ mod imp {
     }
 
     static PUMP: Mutex<Option<EventPump>> = Mutex::new(None);
+
+    fn lock_pump() -> Result<MutexGuard<'static, Option<EventPump>>> {
+        PUMP.lock()
+            .map_err(|_| napi::Error::from_reason("GPUI event pump lock was poisoned"))
+    }
 
     thread_local! {
         // Only start/stop on the process main thread access this immortal link.
@@ -36,11 +41,7 @@ mod imp {
 
     pub fn start(notify: Function<(), ()>) -> Result<()> {
         require_main_thread()?;
-        if PUMP
-            .lock()
-            .map_err(|_| napi::Error::from_reason("GPUI event pump lock was poisoned"))?
-            .is_some()
-        {
+        if lock_pump()?.is_some() {
             return Ok(());
         }
 
@@ -67,23 +68,17 @@ mod imp {
             Ok(link)
         })?;
 
-        *PUMP
-            .lock()
-            .map_err(|_| napi::Error::from_reason("GPUI event pump lock was poisoned"))? =
-            Some(EventPump {
-                identity,
-                callback,
-                pending: false,
-            });
+        *lock_pump()? = Some(EventPump {
+            identity,
+            callback,
+            pending: false,
+        });
 
         // SAFETY: The link is initialized and never released. No callback mutex
         // is held while entering CoreVideo, which has its own internal locks.
         let status = unsafe { sys::CVDisplayLinkStart(link) };
         if status != sys::SUCCESS {
-            let pump = PUMP
-                .lock()
-                .map_err(|_| napi::Error::from_reason("GPUI event pump lock was poisoned"))?
-                .take();
+            let pump = lock_pump()?.take();
             drop(pump);
             return Err(napi::Error::from_reason(format!(
                 "Failed to start CVDisplayLink for the GPUI event pump ({status})"
@@ -94,10 +89,7 @@ mod imp {
 
     pub fn stop() -> Result<()> {
         require_main_thread()?;
-        let pump = PUMP
-            .lock()
-            .map_err(|_| napi::Error::from_reason("GPUI event pump lock was poisoned"))?
-            .take();
+        let pump = lock_pump()?.take();
         let Some(pump) = pump else {
             return Ok(());
         };
@@ -134,9 +126,7 @@ mod imp {
 
     fn on_js_thread_pump(identity: &Arc<()>) -> Result<()> {
         {
-            let mut slot = PUMP
-                .lock()
-                .map_err(|_| napi::Error::from_reason("GPUI event pump lock was poisoned"))?;
+            let mut slot = lock_pump()?;
             let Some(pump) = slot.as_mut() else {
                 return Ok(());
             };
@@ -147,9 +137,7 @@ mod imp {
             pump.pending = false;
         }
         if !crate::platform::tick() {
-            let current = PUMP
-                .lock()
-                .map_err(|_| napi::Error::from_reason("GPUI event pump lock was poisoned"))?
+            let current = lock_pump()?
                 .as_ref()
                 .is_some_and(|pump| Arc::ptr_eq(&pump.identity, identity));
             // AppKit can deliver JS close handlers that stop/restart during tick.

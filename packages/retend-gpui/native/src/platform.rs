@@ -213,14 +213,8 @@ fn execute_window_operation(
     };
     let result = window.update(cx, |view, window, cx| {
         let runtime = &view.runtime_state;
-        let redraw = matches!(
-            &operation,
-            WindowOperation::Invalidate
-                | WindowOperation::Layout(_)
-                | WindowOperation::DestroyRuntimeNodes(_)
-        );
         match &operation {
-            WindowOperation::Invalidate => {}
+            WindowOperation::Invalidate => cx.notify(),
             WindowOperation::Focus(id, tab_index, text_control) => {
                 focus_runtime_node(
                     runtime,
@@ -254,13 +248,16 @@ fn execute_window_operation(
                     }
                 }
             }
-            WindowOperation::Layout(operation) => runtime.enqueue_layout(operation.clone()),
-            WindowOperation::DestroyRuntimeNodes(ids) => runtime.destroy_nodes(ids),
-            WindowOperation::SetTitle(title) => return window.set_window_title(title),
-            WindowOperation::Close => return window.remove_window(),
-        }
-        if redraw {
-            cx.notify();
+            WindowOperation::Layout(operation) => {
+                runtime.enqueue_layout(operation.clone());
+                cx.notify();
+            }
+            WindowOperation::DestroyRuntimeNodes(ids) => {
+                runtime.destroy_nodes(ids);
+                cx.notify();
+            }
+            WindowOperation::SetTitle(title) => window.set_window_title(title),
+            WindowOperation::Close => window.remove_window(),
         }
     });
     if result.is_err() {
@@ -693,7 +690,7 @@ mod imp {
 
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod imp {
-    use std::sync::{mpsc::sync_channel, Mutex, OnceLock};
+    use std::sync::{mpsc::sync_channel, Mutex};
     use std::thread;
 
     use futures::{channel::mpsc, StreamExt as _};
@@ -710,14 +707,10 @@ mod imp {
         Forget(WindowId),
     }
 
-    static COMMANDS: OnceLock<Mutex<Option<mpsc::UnboundedSender<UiCommand>>>> = OnceLock::new();
-
-    fn commands() -> &'static Mutex<Option<mpsc::UnboundedSender<UiCommand>>> {
-        COMMANDS.get_or_init(|| Mutex::new(None))
-    }
+    static COMMANDS: Mutex<Option<mpsc::UnboundedSender<UiCommand>>> = Mutex::new(None);
 
     fn command_sender() -> Result<mpsc::UnboundedSender<UiCommand>, String> {
-        let mut stored = commands()
+        let mut stored = COMMANDS
             .lock()
             .map_err(|_| "GPUI command lock was poisoned")?;
         if let Some(sender) = stored.as_ref() {
@@ -752,7 +745,7 @@ mod imp {
                                         }
                                         let _ = response.send(result.map(|_| ()));
                                         if quit {
-                                            if let Ok(mut commands) = commands().lock() {
+                                            if let Ok(mut commands) = COMMANDS.lock() {
                                                 commands.take();
                                             }
                                             break;
@@ -778,7 +771,7 @@ mod imp {
                         })
                         .detach();
                     });
-                if let Ok(mut commands) = commands().lock() {
+                if let Ok(mut commands) = COMMANDS.lock() {
                     commands.take();
                 }
             })
@@ -802,7 +795,7 @@ mod imp {
     }
 
     fn send(command: UiCommand) -> bool {
-        commands()
+        COMMANDS
             .lock()
             .ok()
             .and_then(|commands| commands.as_ref().cloned())
