@@ -1,5 +1,8 @@
 import type { __HMR_UpdatableFn } from 'retend';
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { setGlobalContext } from 'retend/context';
 
 import {
@@ -40,6 +43,30 @@ export interface ProductionAppDefinition<Context extends object> {
 }
 
 /**
+ * Resolves the bundled native addon. A packaged app keeps it in
+ * `Contents/Resources/native`, which is not relative to the SEA executable, so
+ * conventional locations are probed before falling back to package resolution.
+ */
+function resolveNativeAddonPath(explicit?: string): string | undefined {
+  const target = `${process.platform}-${process.arch}`;
+  const binaryName = `retend-gpui-native.${target}.node`;
+  const bundleDir = fileURLToPath(new URL('.', import.meta.url));
+  const executableDir = path.dirname(process.execPath);
+  const candidates = [
+    explicit,
+    process.env.RETEND_GPUI_NATIVE_ADDON,
+    path.join(bundleDir, 'native', binaryName),
+    path.join(bundleDir, '..', 'Resources', 'native', binaryName),
+    path.join(executableDir, 'native', binaryName),
+    path.join(executableDir, '..', 'Resources', 'native', binaryName),
+  ];
+  return candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === 'string' && fs.existsSync(candidate)
+  );
+}
+
+/**
  * Boots a packaged `retend-gpui` application: constructs the application
  * instance, opens the initial window, and mounts the root component. Unlike the
  * development runtime there is no module runner, HMR, or reload recovery; a
@@ -48,8 +75,9 @@ export interface ProductionAppDefinition<Context extends object> {
 export async function startProductionApp<Context extends object>(
   definition: ProductionAppDefinition<Context>
 ): Promise<void> {
-  if (definition.nativeAddonPath) {
-    setNativeAddonPath(definition.nativeAddonPath);
+  const nativeAddonPath = resolveNativeAddonPath(definition.nativeAddonPath);
+  if (nativeAddonPath) {
+    setNativeAddonPath(nativeAddonPath);
   }
 
   const globalData = new Map<PropertyKey, unknown>();

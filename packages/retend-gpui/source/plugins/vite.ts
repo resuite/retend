@@ -13,6 +13,11 @@ import {
 
 import type { DevRuntimeConfig } from '../runtime/protocol.js';
 
+import { buildMacApp } from '../packaging/macos.js';
+import {
+  acquireNodeRuntime,
+  DEFAULT_NODE_VERSION,
+} from '../packaging/node-runtime.js';
 import { IpcHotChannel } from '../runtime/ipc-hot-channel.js';
 import {
   validateGpuiWindowOptions,
@@ -424,7 +429,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       await builder.build(environment);
     },
 
-    writeBundle(outputOptions) {
+    async writeBundle(outputOptions) {
       if (
         !productionTarget ||
         productionAddonCopied ||
@@ -449,6 +454,35 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       const destination = path.join(productionOutputDir, 'native', binaryName);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(source, destination);
+
+      // SEA packaging currently targets macOS on Apple silicon. Other targets
+      // still get the runnable bundle directory above.
+      if (productionTarget !== 'darwin-arm64') {
+        this.info(
+          `retend-gpui: application packaging is not implemented for ${productionTarget}; emitted the bundle directory instead.`
+        );
+        return;
+      }
+
+      const root = productionRoot ?? process.cwd();
+      const nodeBinary = await acquireNodeRuntime({
+        version: options.node ?? DEFAULT_NODE_VERSION,
+        target: productionTarget,
+        cacheDir: path.join(root, 'node_modules', '.cache', 'retend-gpui'),
+      });
+      const iconSetting = options.app.macos?.icon ?? options.app.icon;
+      const appDir = buildMacApp({
+        appName: options.app.name,
+        identifier: options.app.identifier,
+        version: options.app.version,
+        bundleEntry: path.join(productionOutputDir, 'index.js'),
+        addonPath: destination,
+        outputDir: productionOutputDir,
+        nodeBinary,
+        icon: iconSetting ? path.resolve(root, iconSetting) : undefined,
+        log: (message) => this.info(message),
+      });
+      this.info(`retend-gpui: packaged ${path.relative(root, appDir)}`);
     },
 
     applyToEnvironment(environment) {

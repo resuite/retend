@@ -176,9 +176,11 @@ The canonical target configuration lives in the GPUI Vite plugin, for example `r
 
 The `target` option is optional. When omitted, the build targets the current host platform and architecture using `${process.platform}-${process.arch}`. Cross-target builds remain explicit through the `target` option.
 
-The embedded Node.js runtime version is configurable through the GPUI Vite plugin. If no Node version is specified, use the version of Node.js currently running the build. A pinned version can be supplied when reproducible CI or application compatibility requires it.
+The embedded Node.js runtime version is configurable through the GPUI Vite plugin (`retendGpui({ node })`). It defaults to a pinned release that supports ESM single-executable applications (currently Node 26.9.0): SEA treats the injected main as CommonJS unless `mainFormat: "module"` is set, and `--build-sea` / ESM SEA support requires Node 26. A pinned version is therefore the default rather than the build host's Node, which may predate ESM SEA. The runtime is downloaded from nodejs.org (the official build, not the package-manager build, which is not injection-safe) and cached under `node_modules/.cache/retend-gpui`.
 
-The production runtime should use Node's Single Executable Application (SEA) mechanism. The platform application's main executable is the selected Node runtime with the built application JavaScript embedded into it. The platform-specific Retend GPUI `.node` addon remains a real file inside the native application bundle and is loaded by the SEA at runtime.
+Application-bundle emission currently targets macOS on Apple silicon (`darwin-arm64`) only. Node's SEA support is not validated for macOS x64, and other platforms' bundle formats are not implemented; those targets still emit the runnable bundle directory described above.
+
+The production runtime should use Node's Single Executable Application (SEA) mechanism. The platform application's main executable is the selected Node runtime with the built application JavaScript embedded into it. The platform-specific Retend GPUI `.node` addon remains a real file inside the native application bundle and is loaded by the SEA at runtime. Node's `--build-sea` performs blob generation and injection in one step, and the entry is injected with `mainFormat: "module"`, so no external injector is required. The `.app` is signed once, after every resource and `Info.plist` is in place.
 
 The production JavaScript should be bundled into a single standalone SEA entry rather than emitted as a filesystem-loaded JavaScript chunk graph. Vite should inline application and JavaScript dependency code required by the entrypoint; production code splitting must not require the SEA to load ordinary JavaScript chunks from disk.
 
