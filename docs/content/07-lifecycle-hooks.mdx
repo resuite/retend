@@ -7,7 +7,7 @@ description: 'Run setup and cleanup logic for component instances and connected 
 
 Retend components run once to build the interface. Lifecycle code generally handles component setup and destruction.
 
-Retend provides `onSetup` and `onConnected`. `onSetup` runs once per component instance, and its cleanup runs when the component is destroyed. `onConnected` follows a referenced element's connection to the renderer: its callback runs when the element becomes connected, and its cleanup runs when the element is no longer connected. `onConnected` is supported only by renderers that opt in, such as the DOM renderer in `retend-web`; in other renderers it is a no-op.
+Retend provides `onSetup` and `onConnected`. `onSetup` runs once per component instance, and its cleanup runs when the component is destroyed. `onConnected` follows a referenced element's connection to the renderer: its callback runs when the element becomes connected, and its cleanup runs when the element is no longer connected.
 
 ## `onSetup`
 
@@ -38,7 +38,7 @@ Return a cleanup function for timers, event listeners, and other resources. It r
 
 Use `onConnected` when code must interact with a rendered element, such as measuring its size, drawing on a canvas, or attaching a third-party library.
 
-`onConnected` ties your code to a specific element's connection. You give it a reference to an element, and your callback runs with the element itself whenever the element becomes connected. If the element is removed and added back, the callback runs again — and the cleanup you return runs whenever the element is no longer connected. In the DOM renderer, "connected" means the element is part of the document.
+`onConnected` ties your code to a specific element's connection. You give it a reference to an element, and your callback runs with the element itself whenever the element becomes connected. If the element is removed and added back, the callback runs again — and the cleanup you return runs whenever the element is no longer connected. On the web, "connected" means the element is currently part of the DOM tree.
 
 ```tsx
 import { onConnected, Cell } from 'retend';
