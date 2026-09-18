@@ -495,9 +495,20 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         outputDir: productionOutputDir,
         appName: options.app.name,
       });
-      writeInstallNotes(productionOutputDir, options.app.name);
+      const notesPath = writeInstallNotes(
+        productionOutputDir,
+        options.app.name
+      );
       this.info(
-        `retend-gpui: packaged ${path.relative(root, appDir)}, ${path.relative(root, dmgPath)}, and INSTALL.txt`
+        `retend-gpui: packaged ${path.relative(root, appDir)}, ${path.relative(root, dmgPath)}, and ${path.basename(notesPath)}`
+      );
+      this.warn(
+        `"${options.app.name}.app" is signed ad-hoc, not with a Developer ID ` +
+          'certificate, so it is not notarized. Running it on this machine is ' +
+          'unaffected, but anyone who downloads it from the web will see macOS ' +
+          'refuse to open it ("Apple could not verify ...") and many will not get ' +
+          'past that dialog. To ship a distributable build, sign it with a ' +
+          'Developer ID certificate and notarize it.'
       );
     },
 
