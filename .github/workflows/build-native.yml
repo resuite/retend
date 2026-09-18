@@ -10,9 +10,8 @@ jobs:
   build:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    # Windows and Linux build/runtime behavior is not validated yet
-    # (see decisions/native-tasklist.md, Phase 4). Keep those targets from
-    # blocking releases until the platform work lands, then remove this.
+    # Windows and Linux build/runtime behavior is not validated yet. Keep those
+    # targets from blocking releases until the platform work lands.
     continue-on-error: ${{ !startsWith(matrix.target, 'darwin') }}
     strategy:
       fail-fast: false
