@@ -178,8 +178,7 @@ function isMissingNativeBinary(
   ) {
     return false;
   }
-  // The platform package itself is absent, or the package resolved but its
-  // bundled `.node` file was not built/shipped.
+  // The package is absent, or it resolved but its `.node` file is missing.
   return (
     error.message.startsWith(`Cannot find module '${packageName}'`) ||
     error.message.includes(`retend-gpui-native.${target}.node`)
@@ -200,11 +199,7 @@ export function parseNativeBridgeFailure(
   }
 }
 
-/**
- * Points the loader at a bundled native addon. Packaged applications call this
- * with the addon's path inside the app bundle, where neither package resolution
- * nor the workspace-relative path is available.
- */
+/** Points the loader at a bundled addon instead of package resolution. */
 export function setNativeAddonPath(path: string | undefined): void {
   nativeAddonPathOverride = path;
 }

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** Node release that supports ESM SEA via `--build-sea`. */
+/** Embedded by default. ESM single-executable apps need Node 26 or later. */
 export const DEFAULT_NODE_VERSION = '26.9.0';
 
 interface NodeRuntimeRequest {
@@ -26,10 +26,9 @@ function runtimeRoot(
 }
 
 /**
- * Ensures the official Node.js runtime for `target` is available locally and
- * returns the path to its executable. The runtime is downloaded from
- * nodejs.org and cached; the SEA base must be the official build because the
- * Homebrew/package-manager binaries are not injection-safe.
+ * Returns the path to the Node.js executable for `target`, downloading and
+ * caching the official build from nodejs.org. Package-manager builds are not
+ * usable as a base: the produced executable crashes on launch.
  */
 export async function acquireNodeRuntime(
   request: NodeRuntimeRequest

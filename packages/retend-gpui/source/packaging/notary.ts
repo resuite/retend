@@ -14,13 +14,7 @@ export interface NotaryOptions {
   notarize?: boolean;
 }
 
-/**
- * Resolves notarization credentials from plugin options, then the environment.
- *
- * The environment is read so CI can supply secrets without committing them, and
- * the App Store Connect API key form is preferred there because it does not
- * depend on a pre-created keychain profile.
- */
+/** Resolves credentials from options, then from CI-friendly environment variables. */
 export function resolveNotaryCredentials(
   options: NotaryOptions | undefined,
   env: NodeJS.ProcessEnv
@@ -95,11 +89,7 @@ export interface NotarizeDmgRequest {
   log: (message: string) => void;
 }
 
-/**
- * Submits a disk image for notarization, staples the returned ticket, and
- * checks that Gatekeeper accepts the result. The disk image is the artifact
- * users download, so it is the one that must carry the ticket.
- */
+/** Notarizes the disk image, staples the ticket, and verifies Gatekeeper acceptance. */
 export function notarizeDmg(request: NotarizeDmgRequest): void {
   const { dmgPath, credentials, log } = request;
   log('retend-gpui: submitting for notarization (this can take a few minutes)');

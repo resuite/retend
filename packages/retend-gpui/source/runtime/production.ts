@@ -36,18 +36,11 @@ export interface ProductionAppDefinition<Context extends object> {
   appName: string;
   /** Initial window options resolved from the Vite plugin configuration. */
   options: ProductionWindowOptions;
-  /**
-   * Absolute path to the bundled native addon. Packaged applications ship the
-   * `.node` file beside the entry rather than in `node_modules`.
-   */
+  /** Absolute path to the bundled native addon. */
   nativeAddonPath?: string;
 }
 
-/**
- * Resolves the bundled native addon. A packaged app keeps it in
- * `Contents/Resources/native`, which is not relative to the SEA executable, so
- * conventional locations are probed before falling back to package resolution.
- */
+/** Finds the bundled addon in the app bundle or beside the entry. */
 function resolveNativeAddonPath(explicit?: string): string | undefined {
   const target = `${process.platform}-${process.arch}`;
   const binaryName = `retend-gpui-native.${target}.node`;
@@ -67,11 +60,7 @@ function resolveNativeAddonPath(explicit?: string): string | undefined {
   );
 }
 
-/**
- * Directory that root-relative asset URLs resolve against. A packaged app keeps
- * assets in `Contents/Resources/assets`; a bundle directory keeps them beside
- * the entry.
- */
+/** Directory holding emitted assets: Resources in an app, else the bundle dir. */
 function resolveAssetBase(): string {
   const bundleDir = fileURLToPath(new URL('.', import.meta.url));
   const executableDir = path.dirname(process.execPath);
@@ -87,12 +76,7 @@ function resolveAssetBase(): string {
   );
 }
 
-/**
- * Boots a packaged `retend-gpui` application: constructs the application
- * instance, opens the initial window, and mounts the root component. Unlike the
- * development runtime there is no module runner, HMR, or reload recovery; a
- * fatal native failure ends the process.
- */
+/** Production boot: no module runner, HMR, or reload recovery. */
 export async function startProductionApp<Context extends object>(
   definition: ProductionAppDefinition<Context>
 ): Promise<void> {
@@ -176,8 +160,7 @@ export async function startProductionApp<Context extends object>(
     renderer.host.addEventListener(
       'close',
       () => {
-        // Native close is delivered synchronously while GPUI holds its
-        // application borrow, so teardown is deferred out of the pump.
+        // Close arrives while GPUI holds its borrow; defer teardown out of the pump.
         setTimeout(() => closeWindow(window), 0);
       },
       { once: true }

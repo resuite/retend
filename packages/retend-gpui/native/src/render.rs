@@ -314,9 +314,7 @@ fn with_native_events<T: StatefulInteractiveElement>(
     element
 }
 
-/// Maps an accepted author `src` to a GPUI asset resource. Local assets reach
-/// the native side as `file:` URLs emitted by the production build and load
-/// from the bundle's resource directory; everything else is a URI.
+/// `file:` sources load from disk; everything else is a URI.
 fn image_resource_from(src: &str) -> Resource {
     if let Ok(url) = url::Url::parse(src) {
         if url.scheme() == "file" {
@@ -333,7 +331,8 @@ fn image_source_from(src: &str) -> ImageSource {
     ImageSource::Resource(image_resource_from(src))
 }
 
-fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {    match value {
+fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
+    match value {
         ImageObjectFit::Fill => gpui::ObjectFit::Fill,
         ImageObjectFit::Contain => gpui::ObjectFit::Contain,
         ImageObjectFit::Cover => gpui::ObjectFit::Cover,

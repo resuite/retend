@@ -13,11 +13,7 @@ import {
 
 import type { DevRuntimeConfig } from '../runtime/protocol.js';
 
-import {
-  buildDmg,
-  buildMacApp,
-  writeInstallNotes,
-} from '../packaging/macos.js';
+import { buildDmg, buildMacApp } from '../packaging/macos.js';
 import {
   acquireNodeRuntime,
   DEFAULT_NODE_VERSION,
@@ -65,7 +61,7 @@ export function onRetendGpuiEnvironmentReady(
   return () => delete owner.__retendGpuiEnvironmentReady;
 }
 
-/** Canonical application identity used by development and future packaging. */
+/** Canonical application identity shared by development and production packaging. */
 export interface RetendGpuiPlatformMetadata {
   icon?: string;
 }
@@ -99,16 +95,9 @@ export interface RetendGpuiOptions {
   entry: string;
   /** Default window options used for the initial dev window spawned by the supervisor. */
   window: RetendGpuiInitialWindowOptions;
-  /**
-   * Production target as `<platform>-<arch>` (e.g. `"darwin-arm64"`). Defaults
-   * to the build host. One target is built at a time; cross-target builds
-   * require matching native artifacts.
-   */
+  /** Build target as `<platform>-<arch>`; defaults to the host. */
   target?: string;
-  /**
-   * Node.js runtime version embedded in production builds. Defaults to the
-   * Node.js version running the build.
-   */
+  /** Embedded Node.js version; defaults to `DEFAULT_NODE_VERSION`. */
   node?: string;
   /** Developer ID signing and notarization for macOS builds. */
   signing?: RetendGpuiSigningOptions;
@@ -117,25 +106,18 @@ export interface RetendGpuiOptions {
 /** Developer ID signing and notarization for macOS builds. */
 export interface RetendGpuiSigningOptions {
   /**
-   * `codesign` identity, for example `Developer ID Application: Name (TEAMID)`.
-   * Falls back to `RETEND_GPUI_SIGN_IDENTITY`. Without one the bundle is signed
-   * ad-hoc and packaging warns about the distribution consequences.
+   * `codesign` identity, e.g. `Developer ID Application: Name (TEAMID)`.
+   * Falls back to `RETEND_GPUI_SIGN_IDENTITY`.
    */
   identity?: string;
-  /**
-   * Path to a custom entitlements plist. A JIT-capable default is generated
-   * when omitted.
-   */
+  /** Custom entitlements plist; a JIT-capable default is generated. */
   entitlements?: string;
   /**
-   * `notarytool` keychain profile created with
-   * `xcrun notarytool store-credentials`. Falls back to
-   * `RETEND_GPUI_NOTARY_PROFILE`, then to `APPLE_API_KEY`/`APPLE_API_KEY_ID`/
-   * `APPLE_API_ISSUER`, then to `APPLE_ID`/`APPLE_TEAM_ID`/
-   * `APPLE_APP_SPECIFIC_PASSWORD`.
+   * `notarytool` keychain profile. Falls back to `RETEND_GPUI_NOTARY_PROFILE`,
+   * then to the `APPLE_*` environment variables.
    */
   notaryProfile?: string;
-  /** Set to `false` to skip notarization even when credentials are available. */
+  /** Set to `false` to skip notarization. */
   notarize?: boolean;
 }
 
@@ -184,11 +166,7 @@ function validateOptions(options: RetendGpuiOptions): void {
   validateGpuiWindowOptions(options.window);
 }
 
-/**
- * Source of the bundled production entry. It imports the configured
- * application class and root component, then hands them to the shared
- * production runtime with the target's bundled native addon path.
- */
+/** Source of the bundled production entry. */
 function productionEntrySource(
   options: RetendGpuiOptions,
   root: string,
@@ -384,9 +362,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
 
       return {
         appType: 'custom',
-        // The multi-environment builder is opt-in; without it Vite builds only
-        // the `client` environment and the configured `gpui` environment is
-        // never set up.
+        // Vite only sets up non-client environments when `builder` is set.
         ...(isBuild ? { builder: {} } : {}),
         server: {
           middlewareMode: true,
@@ -491,8 +467,8 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(source, destination);
 
-      // SEA packaging currently targets macOS on Apple silicon. Other targets
-      // still get the runnable bundle directory above.
+      // Application bundles are only produced for Apple-silicon macOS. Every
+      // other target stops at the runnable bundle directory assembled above.
       if (productionTarget !== 'darwin-arm64') {
         this.info(
           `retend-gpui: application packaging is not implemented for ${productionTarget}; emitted the bundle directory instead.`
@@ -545,12 +521,8 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
           log: (message) => this.info(message),
         });
       }
-      const notesPath = writeInstallNotes(
-        productionOutputDir,
-        options.app.name
-      );
       this.info(
-        `retend-gpui: packaged ${path.relative(root, appDir)}, ${path.relative(root, dmgPath)}, and ${path.basename(notesPath)}`
+        `retend-gpui: packaged ${path.relative(root, appDir)} and ${path.relative(root, dmgPath)}`
       );
       if (!identity) {
         this.warn(

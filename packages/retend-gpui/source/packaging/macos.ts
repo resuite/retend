@@ -18,11 +18,7 @@ export interface MacAppRequest {
   nodeBinary: string;
   /** Optional icon source (`.icns`, `.png`, or `.svg`). */
   icon?: string;
-  /**
-   * Developer ID signing. When omitted the bundle is signed ad-hoc, which is
-   * enough to run locally but is rejected by Gatekeeper for anyone who
-   * downloads it.
-   */
+  /** Developer ID signing. Omitted, the bundle is signed ad-hoc. */
   signing?: MacSigningOptions;
   log: (message: string) => void;
 }
@@ -158,11 +154,7 @@ function buildIcns(source: string, destination: string): void {
   fs.rmSync(iconset, { recursive: true, force: true });
 }
 
-/**
- * Assembles a macOS `.app` around a SEA executable: the injected runtime in
- * `Contents/MacOS`, the native addon and icon in `Contents/Resources`, and an
- * `Info.plist` generated from the application metadata.
- */
+/** Builds the `.app`: executable, addon, icon, and Info.plist. */
 export function buildMacApp(request: MacAppRequest): string {
   if (!request.addonPath || !fs.existsSync(request.addonPath)) {
     throw new Error(
@@ -181,8 +173,7 @@ export function buildMacApp(request: MacAppRequest): string {
   fs.mkdirSync(macosDir, { recursive: true });
   fs.mkdirSync(nativeDir, { recursive: true });
 
-  // Imported assets are emitted beside the entry; the runtime resolves
-  // `/assets/...` against the resource directory.
+  // Imported assets resolve under Contents/Resources/assets at runtime.
   const assetsSource = path.join(request.outputDir, 'assets');
   if (fs.existsSync(assetsSource)) {
     fs.cpSync(assetsSource, path.join(resourcesDir, 'assets'), {
@@ -240,10 +231,7 @@ export function buildMacApp(request: MacAppRequest): string {
     infoPlist(request, executable, iconFile)
   );
 
-  // Signing happens once, after every resource and Info.plist is in place.
-  // Nested code is signed before the bundle that contains it, and the bare
-  // executable is signed before the bundle so the hardened-runtime entitlements
-  // are recorded on the process that needs them.
+  // Sign innermost first: nested code, then the executable, then the bundle.
   if (request.signing) {
     const entitlements =
       request.signing.entitlements ?? writeDefaultEntitlements();
@@ -285,11 +273,7 @@ function sign(target: string, identity: string, entitlements: string): void {
   );
 }
 
-/**
- * Hardened-runtime entitlements a Node/V8 process needs. Hardened runtime
- * blocks JIT and library loading by default; without these the runtime crashes
- * and notarization fails. A caller can supply its own plist instead.
- */
+/** Hardened-runtime entitlements V8 needs: JIT and loading a separate addon. */
 function writeDefaultEntitlements(): string {
   const file = path.join(
     os.tmpdir(),
@@ -340,37 +324,4 @@ export function buildDmg(request: DmgRequest): string {
     'Failed to build the disk image'
   );
   return dmgPath;
-}
-
-/**
- * Writes the end-user install note next to the distribution artifacts. The app
- * is not signed with a paid Apple certificate, so the note explains the
- * Gatekeeper prompt instead of leaving users to guess.
- */
-export function writeInstallNotes(outputDir: string, appName: string): string {
-  const file = path.join(outputDir, 'INSTALL.txt');
-  fs.writeFileSync(
-    file,
-    `${appName} - installation
-
-1. Drag "${appName}.app" into /Applications (or ~/Applications).
-
-   Run it from there, not from Downloads, Desktop, or Documents. macOS
-   restricts apps that run from those folders and will ask for permission to
-   use them.
-
-2. The first time you open it, macOS may say it cannot verify the developer.
-   That message means the app has no paid Apple Developer certificate, so
-   Apple has no information about it. It does not mean malware was found.
-
-   To allow it once:
-     - Open System Settings > Privacy & Security, find the message about
-       "${appName}", and click "Open Anyway";
-     - or run this in Terminal:
-         xattr -dr com.apple.quarantine "/Applications/${appName}.app"
-
-3. Open the app. Later launches start normally.
-`
-  );
-  return file;
 }
