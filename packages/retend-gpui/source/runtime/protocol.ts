@@ -4,6 +4,8 @@ export interface DevRuntimeInitMessage {
   channel: 'retend-gpui';
   type: 'init';
   appName: string;
+  /** Vite root; root-relative asset URLs resolve against it in development. */
+  root: string;
   application: string;
   entry: string;
   options: GpuiWindowOptions &

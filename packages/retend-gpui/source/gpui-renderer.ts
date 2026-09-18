@@ -32,6 +32,7 @@ import type {
 import type { GpuiElementType, GpuiStyle } from './types.js';
 import type { GpuiWindowOptions } from './window.js';
 
+import { resolveAssetSource } from './assets.js';
 import {
   createNativeEvent,
   parseEventProperty,
@@ -1037,7 +1038,15 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     else if (node.tagName === 'button' && key === 'disabled')
       property = PropertyId.Disabled;
     if (property !== undefined) {
-      this.host.setProperty(node.id, property, protocolPropertyValue(value));
+      this.host.setProperty(
+        node.id,
+        property,
+        protocolPropertyValue(
+          property === PropertyId.Src && typeof value === 'string'
+            ? resolveAssetSource(value)
+            : value
+        )
+      );
     }
   }
 

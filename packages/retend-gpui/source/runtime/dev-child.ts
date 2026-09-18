@@ -12,6 +12,7 @@ import {
   setAppContext,
   type GpuiApplication,
 } from '../application.js';
+import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
 import { NativeRendererFatalError } from '../native/addon.js';
 import {
@@ -57,6 +58,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
 
   process.title = message.appName;
   setGlobalContext({ globalData });
+  setAssetBase(message.root);
 
   const closeWindow = (window: RuntimeGpuiWindow): void => {
     if (!windows.delete(window)) return;

@@ -433,8 +433,8 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 - [x] Add `img` load/error event delivery (`onLoad` / `onError`) from the native image pipeline.
 - [ ] Add `alt` support for images and carry the semantic text into the native accessibility surface where supported.
-- [ ] Add SVG image/source support for normal application assets.
-- [ ] Reconcile relative/bundled asset handling with the production Vite asset pipeline so alpha applications are not limited to HTTP(S) image sources.
+- [x] Add SVG image/source support for normal application assets.
+- [x] Reconcile relative/bundled asset handling with the production Vite asset pipeline so alpha applications are not limited to HTTP(S) image sources.
 
 ### Scaffolding and starter polish
 

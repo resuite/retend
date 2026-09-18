@@ -167,6 +167,15 @@ export function buildMacApp(request: MacAppRequest): string {
   fs.mkdirSync(macosDir, { recursive: true });
   fs.mkdirSync(nativeDir, { recursive: true });
 
+  // Imported assets are emitted beside the entry; the runtime resolves
+  // `/assets/...` against the resource directory.
+  const assetsSource = path.join(request.outputDir, 'assets');
+  if (fs.existsSync(assetsSource)) {
+    fs.cpSync(assetsSource, path.join(resourcesDir, 'assets'), {
+      recursive: true,
+    });
+  }
+
   const executablePath = path.join(macosDir, executable);
   const seaConfig = {
     main: request.bundleEntry,

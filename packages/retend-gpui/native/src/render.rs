@@ -4,8 +4,8 @@ use gpui::{
     actions, anchored, deferred, div, img, prelude::*, px, relative, Anchor, AnyElement, App,
     Bounds, ClickEvent, Element, ElementId, GlobalElementId, ImageCacheError, ImageSource,
     InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, StyledImage,
-    Text, Window,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, Resource,
+    StyledImage, Text, Window,
 };
 
 use crate::{
@@ -314,8 +314,26 @@ fn with_native_events<T: StatefulInteractiveElement>(
     element
 }
 
-fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {
-    match value {
+/// Maps an accepted author `src` to a GPUI asset resource. Local assets reach
+/// the native side as `file:` URLs emitted by the production build and load
+/// from the bundle's resource directory; everything else is a URI.
+fn image_resource_from(src: &str) -> Resource {
+    if let Ok(url) = url::Url::parse(src) {
+        if url.scheme() == "file" {
+            if let Ok(path) = url.to_file_path() {
+                return Resource::Path(path.into());
+            }
+        }
+    }
+    Resource::Uri(src.to_string().into())
+}
+
+/// Maps an accepted author `src` to a GPUI image source.
+fn image_source_from(src: &str) -> ImageSource {
+    ImageSource::Resource(image_resource_from(src))
+}
+
+fn to_gpui_object_fit(value: ImageObjectFit) -> gpui::ObjectFit {    match value {
         ImageObjectFit::Fill => gpui::ObjectFit::Fill,
         ImageObjectFit::Contain => gpui::ObjectFit::Contain,
         ImageObjectFit::Cover => gpui::ObjectFit::Cover,
@@ -713,7 +731,7 @@ impl Element for ImageEventObserver {
             if !state.delivered {
                 // The wrapped `Img` already drives re-renders through its own
                 // notifying asset query; a non-notifying lookup is enough here.
-                let resource = gpui::Resource::Uri(self.src.clone().into());
+                let resource = image_resource_from(&self.src);
                 let event = match window.get_asset::<gpui::ImgResourceLoader>(&resource, cx) {
                     Some(Ok(_)) => Some(NativeEventId::Load),
                     Some(Err(_)) => Some(NativeEventId::Error),
@@ -944,11 +962,14 @@ where
         }
         NodeData::Text(_) => unreachable!("text leaves return before bounds tracking"),
         NodeData::Image { src, object_fit } => {
-            let source = src.clone().map(ImageSource::from).unwrap_or_else(|| {
-                ImageSource::Custom(Arc::new(|_, _| {
-                    Some(Err(ImageCacheError::Asset("image source is unset".into())))
-                }))
-            });
+            let source = src
+                .as_deref()
+                .map(image_source_from)
+                .unwrap_or_else(|| {
+                    ImageSource::Custom(Arc::new(|_, _| {
+                        Some(Err(ImageCacheError::Asset("image source is unset".into())))
+                    }))
+                });
             let image = img(source);
             let mut image = match resolved_style {
                 Some(style) => style.apply(image.block()),

@@ -10,6 +10,7 @@ import {
   clearAppContext,
   type GpuiApplication,
 } from '../application.js';
+import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
 import { setNativeAddonPath } from '../native/addon.js';
 import {
@@ -67,6 +68,26 @@ function resolveNativeAddonPath(explicit?: string): string | undefined {
 }
 
 /**
+ * Directory that root-relative asset URLs resolve against. A packaged app keeps
+ * assets in `Contents/Resources/assets`; a bundle directory keeps them beside
+ * the entry.
+ */
+function resolveAssetBase(): string {
+  const bundleDir = fileURLToPath(new URL('.', import.meta.url));
+  const executableDir = path.dirname(process.execPath);
+  const candidates = [
+    bundleDir,
+    path.join(executableDir, '..', 'Resources'),
+    executableDir,
+  ];
+  return (
+    candidates.find((directory) =>
+      fs.existsSync(path.join(directory, 'assets'))
+    ) ?? bundleDir
+  );
+}
+
+/**
  * Boots a packaged `retend-gpui` application: constructs the application
  * instance, opens the initial window, and mounts the root component. Unlike the
  * development runtime there is no module runner, HMR, or reload recovery; a
@@ -79,6 +100,7 @@ export async function startProductionApp<Context extends object>(
   if (nativeAddonPath) {
     setNativeAddonPath(nativeAddonPath);
   }
+  setAssetBase(resolveAssetBase());
 
   const globalData = new Map<PropertyKey, unknown>();
   const windows = new Set<RuntimeGpuiWindow>();

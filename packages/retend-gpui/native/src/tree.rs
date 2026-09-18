@@ -1196,11 +1196,12 @@ impl NativeTree {
                         *src = nullable_string(
                             index,
                             value,
-                            "Image src must be an HTTP(S) URL string or null.",
+                            "Image src must be a URL string or null.",
                         )?
                         .filter(|value| {
-                            url::Url::parse(value)
-                                .is_ok_and(|url| matches!(url.scheme(), "http" | "https"))
+                            url::Url::parse(value).is_ok_and(|url| {
+                                matches!(url.scheme(), "http" | "https" | "file")
+                            })
                         });
                         Ok(())
                     }
@@ -2325,6 +2326,34 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn file_image_src_is_retained_for_bundled_assets() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Image,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Src,
+                    value: PropertyValue::String("file:///Applications/App.app/Contents/Resources/assets/icon.png".into()),
+                },
+            ],
+        )
+        .unwrap();
+
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { src, .. }
+                if src.as_deref()
+                    == Some("file:///Applications/App.app/Contents/Resources/assets/icon.png")
+        ));
+        assert!(tree.windows[&window].fatal.is_none());
     }
 
     #[test]

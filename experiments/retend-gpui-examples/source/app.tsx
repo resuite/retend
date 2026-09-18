@@ -1,3 +1,5 @@
+import appIcon from './app-icon.svg';
+
 export default function App() {
   return (
     <div
@@ -9,6 +11,7 @@ export default function App() {
         alignItems: 'center',
       }}
     >
+      <img src={appIcon} style={{ width: 64, height: 64 }} />
       <div
         style={{
           backgroundColor: 'blue',

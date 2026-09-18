@@ -316,6 +316,9 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
               outDir: productionOutputDir ?? undefined,
               emptyOutDir: true,
               ssr: true,
+              emitAssets: true,
+              assetsDir: 'assets',
+              assetsInlineLimit: 0,
               rollupOptions: {
                 output: {
                   format: 'es' as const,
@@ -393,6 +396,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       }
       plugin.api.launch = {
         appName: options.app.name,
+        root: config.root,
         application: normalizePath(
           path.resolve(config.root, options.application)
         ),
