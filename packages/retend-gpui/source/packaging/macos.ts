@@ -228,3 +228,64 @@ export function buildMacApp(request: MacAppRequest): string {
 
   return appDir;
 }
+
+interface DmgRequest {
+  appDir: string;
+  outputDir: string;
+  appName: string;
+}
+
+/** Wraps a finished `.app` in a compressed disk image. */
+export function buildDmg(request: DmgRequest): string {
+  const dmgPath = path.join(request.outputDir, `${request.appName}.dmg`);
+  fs.rmSync(dmgPath, { force: true });
+  run(
+    'hdiutil',
+    [
+      'create',
+      '-volname',
+      request.appName,
+      '-srcfolder',
+      request.appDir,
+      '-ov',
+      '-format',
+      'UDZO',
+      dmgPath,
+    ],
+    'Failed to build the disk image'
+  );
+  return dmgPath;
+}
+
+/**
+ * Writes the end-user install note next to the distribution artifacts. The app
+ * is not signed with a paid Apple certificate, so the note explains the
+ * Gatekeeper prompt instead of leaving users to guess.
+ */
+export function writeInstallNotes(outputDir: string, appName: string): string {
+  const file = path.join(outputDir, 'INSTALL.txt');
+  fs.writeFileSync(
+    file,
+    `${appName} - installation
+
+1. Drag "${appName}.app" into /Applications (or ~/Applications).
+
+   Run it from there, not from Downloads, Desktop, or Documents. macOS
+   restricts apps that run from those folders and will ask for permission to
+   use them.
+
+2. The first time you open it, macOS may say it cannot verify the developer.
+   That message means the app has no paid Apple Developer certificate, so
+   Apple has no information about it. It does not mean malware was found.
+
+   To allow it once:
+     - Open System Settings > Privacy & Security, find the message about
+       "${appName}", and click "Open Anyway";
+     - or run this in Terminal:
+         xattr -dr com.apple.quarantine "/Applications/${appName}.app"
+
+3. Open the app. Later launches start normally.
+`
+  );
+  return file;
+}

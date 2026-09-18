@@ -13,7 +13,11 @@ import {
 
 import type { DevRuntimeConfig } from '../runtime/protocol.js';
 
-import { buildMacApp } from '../packaging/macos.js';
+import {
+  buildDmg,
+  buildMacApp,
+  writeInstallNotes,
+} from '../packaging/macos.js';
 import {
   acquireNodeRuntime,
   DEFAULT_NODE_VERSION,
@@ -482,7 +486,15 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         icon: iconSetting ? path.resolve(root, iconSetting) : undefined,
         log: (message) => this.info(message),
       });
-      this.info(`retend-gpui: packaged ${path.relative(root, appDir)}`);
+      const dmgPath = buildDmg({
+        appDir,
+        outputDir: productionOutputDir,
+        appName: options.app.name,
+      });
+      writeInstallNotes(productionOutputDir, options.app.name);
+      this.info(
+        `retend-gpui: packaged ${path.relative(root, appDir)}, ${path.relative(root, dmgPath)}, and INSTALL.txt`
+      );
     },
 
     applyToEnvironment(environment) {
