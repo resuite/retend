@@ -22,6 +22,7 @@ import {
   acquireNodeRuntime,
   DEFAULT_NODE_VERSION,
 } from '../packaging/node-runtime.js';
+import { notarizeDmg, resolveNotaryCredentials } from '../packaging/notary.js';
 import { IpcHotChannel } from '../runtime/ipc-hot-channel.js';
 import {
   validateGpuiWindowOptions,
@@ -109,6 +110,33 @@ export interface RetendGpuiOptions {
    * Node.js version running the build.
    */
   node?: string;
+  /** Developer ID signing and notarization for macOS builds. */
+  signing?: RetendGpuiSigningOptions;
+}
+
+/** Developer ID signing and notarization for macOS builds. */
+export interface RetendGpuiSigningOptions {
+  /**
+   * `codesign` identity, for example `Developer ID Application: Name (TEAMID)`.
+   * Falls back to `RETEND_GPUI_SIGN_IDENTITY`. Without one the bundle is signed
+   * ad-hoc and packaging warns about the distribution consequences.
+   */
+  identity?: string;
+  /**
+   * Path to a custom entitlements plist. A JIT-capable default is generated
+   * when omitted.
+   */
+  entitlements?: string;
+  /**
+   * `notarytool` keychain profile created with
+   * `xcrun notarytool store-credentials`. Falls back to
+   * `RETEND_GPUI_NOTARY_PROFILE`, then to `APPLE_API_KEY`/`APPLE_API_KEY_ID`/
+   * `APPLE_API_ISSUER`, then to `APPLE_ID`/`APPLE_TEAM_ID`/
+   * `APPLE_APP_SPECIFIC_PASSWORD`.
+   */
+  notaryProfile?: string;
+  /** Set to `false` to skip notarization even when credentials are available. */
+  notarize?: boolean;
 }
 
 /**
@@ -479,6 +507,13 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         cacheDir: path.join(root, 'node_modules', '.cache', 'retend-gpui'),
       });
       const iconSetting = options.app.macos?.icon ?? options.app.icon;
+      const signingOptions = options.signing;
+      const identity =
+        signingOptions?.identity ?? process.env.RETEND_GPUI_SIGN_IDENTITY;
+      const notaryCredentials = resolveNotaryCredentials(
+        signingOptions,
+        process.env
+      );
       const appDir = buildMacApp({
         appName: options.app.name,
         identifier: options.app.identifier,
@@ -488,6 +523,14 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         outputDir: productionOutputDir,
         nodeBinary,
         icon: iconSetting ? path.resolve(root, iconSetting) : undefined,
+        signing: identity
+          ? {
+              identity,
+              entitlements: signingOptions?.entitlements
+                ? path.resolve(root, signingOptions.entitlements)
+                : undefined,
+            }
+          : undefined,
         log: (message) => this.info(message),
       });
       const dmgPath = buildDmg({
@@ -495,6 +538,13 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         outputDir: productionOutputDir,
         appName: options.app.name,
       });
+      if (identity && notaryCredentials) {
+        notarizeDmg({
+          dmgPath,
+          credentials: notaryCredentials,
+          log: (message) => this.info(message),
+        });
+      }
       const notesPath = writeInstallNotes(
         productionOutputDir,
         options.app.name
@@ -502,14 +552,24 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       this.info(
         `retend-gpui: packaged ${path.relative(root, appDir)}, ${path.relative(root, dmgPath)}, and ${path.basename(notesPath)}`
       );
-      this.warn(
-        `"${options.app.name}.app" is signed ad-hoc, not with a Developer ID ` +
-          'certificate, so it is not notarized. Running it on this machine is ' +
-          'unaffected, but anyone who downloads it from the web will see macOS ' +
-          'refuse to open it ("Apple could not verify ...") and many will not get ' +
-          'past that dialog. To ship a distributable build, sign it with a ' +
-          'Developer ID certificate and notarize it.'
-      );
+      if (!identity) {
+        this.warn(
+          `"${options.app.name}.app" is signed ad-hoc, not with a Developer ID ` +
+            'certificate, so it is not notarized. Running it on this machine is ' +
+            'unaffected, but anyone who downloads it from the web will see macOS ' +
+            'refuse to open it ("Apple could not verify ...") and many will not get ' +
+            'past that dialog. To ship a distributable build, set `signing.identity` ' +
+            '(or RETEND_GPUI_SIGN_IDENTITY) and provide notarization credentials.'
+        );
+      } else if (!notaryCredentials) {
+        this.warn(
+          `"${options.app.name}.app" is signed but not notarized. Gatekeeper still ` +
+            'blocks unnotarized apps on download, so users will see the same ' +
+            '"Apple could not verify ..." dialog. Provide notarization credentials ' +
+            '(`signing.notaryProfile`, RETEND_GPUI_NOTARY_PROFILE, or the APPLE_* ' +
+            'environment variables) to finish the job.'
+        );
+      }
     },
 
     applyToEnvironment(environment) {

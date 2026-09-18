@@ -18,7 +18,21 @@ export interface MacAppRequest {
   nodeBinary: string;
   /** Optional icon source (`.icns`, `.png`, or `.svg`). */
   icon?: string;
+  /**
+   * Developer ID signing. When omitted the bundle is signed ad-hoc, which is
+   * enough to run locally but is rejected by Gatekeeper for anyone who
+   * downloads it.
+   */
+  signing?: MacSigningOptions;
   log: (message: string) => void;
+}
+
+/** Developer ID signing options. */
+export interface MacSigningOptions {
+  /** `codesign` identity, e.g. `Developer ID Application: Name (TEAMID)`. */
+  identity: string;
+  /** Custom entitlements plist; a JIT-capable default is generated otherwise. */
+  entitlements?: string;
 }
 
 interface IconVariant {
@@ -198,10 +212,11 @@ export function buildMacApp(request: MacAppRequest): string {
     fs.rmSync(configPath, { force: true });
   }
 
-  fs.copyFileSync(
-    request.addonPath,
-    path.join(nativeDir, path.basename(request.addonPath))
+  const addonDestination = path.join(
+    nativeDir,
+    path.basename(request.addonPath)
   );
+  fs.copyFileSync(request.addonPath, addonDestination);
 
   let iconFile: string | undefined;
   if (request.icon && fs.existsSync(request.icon)) {
@@ -225,9 +240,23 @@ export function buildMacApp(request: MacAppRequest): string {
     infoPlist(request, executable, iconFile)
   );
 
-  // The bundle is signed once, after every resource and Info.plist is in place;
-  // signing the bare executable first would record a resource-less seal.
-  if (process.platform === 'darwin') {
+  // Signing happens once, after every resource and Info.plist is in place.
+  // Nested code is signed before the bundle that contains it, and the bare
+  // executable is signed before the bundle so the hardened-runtime entitlements
+  // are recorded on the process that needs them.
+  if (request.signing) {
+    const entitlements =
+      request.signing.entitlements ?? writeDefaultEntitlements();
+    sign(addonDestination, request.signing.identity, entitlements);
+    sign(executablePath, request.signing.identity, entitlements);
+    sign(appDir, request.signing.identity, entitlements);
+    run(
+      'codesign',
+      ['--verify', '--deep', '--strict', '--verbose=2', appDir],
+      'The signed application failed verification'
+    );
+    request.log(`retend-gpui: signed with ${request.signing.identity}`);
+  } else if (process.platform === 'darwin') {
     run(
       'codesign',
       ['--force', '--sign', '-', appDir],
@@ -236,6 +265,53 @@ export function buildMacApp(request: MacAppRequest): string {
   }
 
   return appDir;
+}
+
+function sign(target: string, identity: string, entitlements: string): void {
+  run(
+    'codesign',
+    [
+      '--force',
+      '--options',
+      'runtime',
+      '--timestamp',
+      '--entitlements',
+      entitlements,
+      '--sign',
+      identity,
+      target,
+    ],
+    `Failed to sign ${path.basename(target)}`
+  );
+}
+
+/**
+ * Hardened-runtime entitlements a Node/V8 process needs. Hardened runtime
+ * blocks JIT and library loading by default; without these the runtime crashes
+ * and notarization fails. A caller can supply its own plist instead.
+ */
+function writeDefaultEntitlements(): string {
+  const file = path.join(
+    os.tmpdir(),
+    `retend-gpui-entitlements-${process.pid}.plist`
+  );
+  fs.writeFileSync(
+    file,
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
+`
+  );
+  return file;
 }
 
 interface DmgRequest {
