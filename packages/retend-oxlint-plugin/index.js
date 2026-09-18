@@ -1902,11 +1902,13 @@ const noJsxControlFlow = {
 const noJsxMap = {
   meta: {
     docs: {
-      description: 'disallow .map() in JSX expressions',
+      description: 'disallow .map() and Array.from() in JSX expressions',
     },
     schema: [],
     messages: {
       unexpected: "Use `For` from 'retend' instead of `.map()` in JSX.",
+      unexpectedFrom:
+        "Use `For` from 'retend' instead of `Array.from()` in JSX.",
     },
   },
   createOnce(context) {
@@ -1928,14 +1930,24 @@ const noJsxMap = {
           return;
         }
 
-        if (node.expression.callee.property.name !== 'map') {
+        if (node.expression.callee.property.name === 'map') {
+          context.report({
+            node: node.expression.callee.property,
+            messageId: 'unexpected',
+          });
           return;
         }
 
-        context.report({
-          node: node.expression.callee.property,
-          messageId: 'unexpected',
-        });
+        if (
+          node.expression.callee.property.name === 'from' &&
+          node.expression.callee.object.type === 'Identifier' &&
+          node.expression.callee.object.name === 'Array'
+        ) {
+          context.report({
+            node: node.expression.callee.property,
+            messageId: 'unexpectedFrom',
+          });
+        }
       },
     };
   },

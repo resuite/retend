@@ -9,6 +9,10 @@ lerna-debug.log*
 tgz-previews
 .obsidian
 prompts
+target
+*_generated.rs
+*.generated.ts
+*.node
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

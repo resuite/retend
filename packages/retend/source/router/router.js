@@ -95,6 +95,8 @@ export class Router extends EventTarget {
    * @type {boolean}
    */
   useViewTransitions;
+  /** @type {string} */
+  linkTag;
   Outlet = Outlet;
   Link = Link;
 
@@ -109,6 +111,7 @@ export class Router extends EventTarget {
     this.#stackMode = routeOptions.stackMode ?? false;
     this.#maxRedirects = routeOptions.maxRedirects ?? 100;
     this.useViewTransitions = routeOptions.useViewTransitions ?? false;
+    this.linkTag = routeOptions.linkTag ?? 'a';
     this.#middlewares = routeOptions.middlewares ?? [];
     this.#internalState = { metadata: new Map(), routeChain: Cell.source([]) };
     const initialPath = /** @type {RouteData} */ ({
@@ -687,19 +690,6 @@ export class Router extends EventTarget {
       } else window.history?.pushState(null, '', nextPath);
     };
 
-    if (
-      'customElements' in window &&
-      !window.customElements.get('retend-router-outlet')
-    ) {
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync('retend-router-outlet { display: contents; }');
-      window.document.adoptedStyleSheets.push(sheet);
-      window.customElements.define(
-        'retend-router-outlet',
-        class extends HTMLElement {}
-      );
-    }
-
     window?.addEventListener('popstate', this.#windowEventHandler);
     window?.addEventListener('hashchange', this.#windowEventHandler);
     window?.addEventListener('load', this.#windowEventHandler);
@@ -848,13 +838,12 @@ export function RouterProvider(props) {
 }
 
 /**
- * Defines an element that serves as the router outlet, rendering the component
+ * Defines a logical group that serves as the router outlet, rendering the component
  * associated with the current route.
  *
  * This component is used internally by the {@link Router} class to handle route changes and
  * render the appropriate component.
- * @param {RouterOutletProps} [props]
- * @returns {JSX.Template} The rendered custom element that serves as the router outlet.
+ * @returns {JSX.Template} The rendered route group.
  *
  * @example
  * ```tsx
@@ -862,15 +851,13 @@ export function RouterProvider(props) {
  * <Outlet />
  * ```
  */
-export function Outlet(props) {
+export function Outlet() {
   const routerData = useScopeContext(RouterScope);
   const { depth, internalState } = routerData;
-  const rawProps = props || {};
   const currentLevel = Cell.derived(() => {
     return internalState.routeChain.get()[depth];
   });
   const path = Cell.derived(() => currentLevel.get()?.path);
-  Reflect.set(rawProps, 'data-path', path);
   const OutletContent = () => {
     const RenderFn = currentLevel.get().component;
     return RouterScope.Provider({
@@ -879,9 +866,8 @@ export function Outlet(props) {
     });
   };
   Object.defineProperty(OutletContent, 'name', { value: 'Outlet.Content' });
-  rawProps.children = If(path, OutletContent);
 
-  return h('retend-router-outlet', rawProps, ...IgnoredHProps);
+  return If(path, OutletContent);
 }
 
 /**
@@ -956,7 +942,7 @@ export function Link(props = {}) {
   };
   props.active = active;
 
-  return h('a', props, ...IgnoredHProps);
+  return h(router.linkTag, props, ...IgnoredHProps);
 }
 
 /**

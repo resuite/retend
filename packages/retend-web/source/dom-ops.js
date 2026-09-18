@@ -234,7 +234,7 @@ export function updateText(text, node) {
 export function writeStaticStyles(renderer) {
   writeStaticStyle(
     'dom-styles',
-    ':where(retend-router-outlet, retend-teleport) { display: contents }',
+    ':where(retend-teleport) { display: contents }',
     renderer
   );
 }

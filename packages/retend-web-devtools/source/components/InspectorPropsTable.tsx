@@ -1,5 +1,5 @@
 import { Cell, For, If } from 'retend';
-import { Link, Outlet } from 'retend/router';
+import { Link } from 'retend/router';
 
 import { InspectorPropValue } from '@/components/InspectorPropValue';
 import { useDevToolsRenderer } from '@/core/DevToolsRendererScope';
@@ -13,7 +13,6 @@ export function InspectorPropsTable() {
     }
 
     const isRouterLink = node.component === Link;
-    const isRouterOutlet = node.component === Outlet;
     const nextRows: Array<{ key: string; value: unknown }> = [];
     const { props } = node;
     if (props) {
@@ -27,11 +26,6 @@ export function InspectorPropsTable() {
             continue;
           }
           if (key === 'active') {
-            continue;
-          }
-        }
-        if (isRouterOutlet) {
-          if (key === 'data-path') {
             continue;
           }
         }

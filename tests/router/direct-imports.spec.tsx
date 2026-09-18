@@ -59,9 +59,38 @@ describe('Router Direct Imports', () => {
     });
     router.attachWindowListeners(window);
     const Component = () => {
-      const outletElement = renderer.render(Outlet()) as HTMLElement;
-      expect(outletElement).toBeDefined();
-      expect(outletElement.tagName.toLowerCase()).toBe('retend-router-outlet');
+      const outlet = renderer.render(Outlet());
+      expect(outlet).toBeDefined();
+      expect(renderer.isGroup(outlet as any)).toBe(true);
+
+      return <></>;
+    };
+
+    renderer.render(
+      <RouterProvider router={router}>
+        <Component />
+      </RouterProvider>
+    );
+  });
+
+  it('should use a custom link tag name', async () => {
+    const renderer = getActiveRenderer() as DOMRenderer;
+    const { host: window } = renderer;
+    const router = new Router({
+      routes: defineRoutes([
+        { path: '/', name: 'home', component: () => 'Home' },
+      ]),
+      linkTag: 'span',
+    });
+    router.attachWindowListeners(window);
+    const Component = () => {
+      const linkElement = renderer.render(
+        Link({ href: '/about', children: 'About Link' })
+      ) as HTMLElement;
+      expect(linkElement.tagName.toLowerCase()).toBe('span');
+
+      const outlet = renderer.render(Outlet());
+      expect(renderer.isGroup(outlet as any)).toBe(true);
 
       return <></>;
     };
@@ -93,9 +122,9 @@ describe('Router Direct Imports', () => {
       expect(linkElement).toBeDefined();
       expect(linkElement.tagName.toLowerCase()).toBe('a');
 
-      const outletElement = renderer.render(router.Outlet()) as HTMLElement;
-      expect(outletElement).toBeDefined();
-      expect(outletElement.tagName.toLowerCase()).toBe('retend-router-outlet');
+      const outlet = renderer.render(router.Outlet());
+      expect(outlet).toBeDefined();
+      expect(renderer.isGroup(outlet as any)).toBe(true);
 
       return <></>;
     };

@@ -26,11 +26,8 @@ export const routerSetup = () => {
 };
 
 export const routerSetupBrowser = () => {
-  const { document } = window;
-
   beforeEach(async () => {
     clearBrowserWindow();
-    document.body.append(document.createElement('retend-router-outlet'));
 
     setGlobalContext({
       globalData: new Map(),
