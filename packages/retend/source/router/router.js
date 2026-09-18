@@ -137,10 +137,7 @@ export class Router extends EventTarget {
   /** @param {string} path */
   #assertNotLocked(path) {
     if (!this.#lock) return true;
-    const event = new RouteLockPreventedEvent({
-      lockedPath: this.#lock,
-      attemptedPath: path,
-    });
+    const event = new RouteLockPreventedEvent(this.#lock, path);
     this.dispatchEvent(event);
     return false;
   }
@@ -249,10 +246,7 @@ export class Router extends EventTarget {
   async #load(options) {
     const { rawPath, forceLoad, navigate, replace } = options;
     if (this.#lock && rawPath !== this.#lock) {
-      const event = new RouteLockPreventedEvent({
-        lockedPath: this.#lock,
-        attemptedPath: rawPath,
-      });
+      const event = new RouteLockPreventedEvent(this.#lock, rawPath);
       this.dispatchEvent(event);
       await this.#load({ ...options, rawPath: this.#lock });
       return;
@@ -269,7 +263,7 @@ export class Router extends EventTarget {
 
     const from = this.#getCurrentPath();
     const to = path;
-    const beforeEvent = new BeforeNavigateEvent({ from, to });
+    const beforeEvent = new BeforeNavigateEvent(from, to);
     this.dispatchEvent(beforeEvent);
     if (beforeEvent.defaultPrevented) return;
 
@@ -397,7 +391,7 @@ export class Router extends EventTarget {
   /** @param {string} message */
   #logError(message) {
     console.warn(message);
-    const event = new RouteErrorEvent({ error: new Error(message) });
+    const event = new RouteErrorEvent(new Error(message));
     this.dispatchEvent(event);
   }
 
@@ -415,7 +409,7 @@ export class Router extends EventTarget {
     // Change Event
     const thisPath = this.#getCurrentPath();
     const nextPath = path;
-    const event = new RouteChangeEvent({ to: nextPath, from: thisPath });
+    const event = new RouteChangeEvent(thisPath, nextPath);
     this.dispatchEvent(event);
     if (event.defaultPrevented) return false;
 
@@ -668,9 +662,8 @@ export class Router extends EventTarget {
     };
     /** @param {RouteLoadCompletedEvent} event */
     const handleRouteLoadCompleted = (event) => {
-      const { detail } = event;
       const { newHistoryLength, oldHistoryLength, replace, fullPath, title } =
-        detail;
+        event;
       if (title) {
         window.document.title = title;
       }
@@ -722,7 +715,7 @@ export class Router extends EventTarget {
    *
    * // Intercept navigation attempts while locked
    * router.addEventListener('routelockprevented', (event) => {
-   *   console.log('Navigation prevented:', event.detail.attemptedPath);
+   *   console.log('Navigation prevented:', event.attemptedPath);
    * });
    *
    * router.unlock();
@@ -925,17 +918,19 @@ export function Link(props = {}) {
         return;
       }
       event.preventDefault();
-      const beforeEvent = new RouterNavigationEvent('beforenavigate', {
-        detail: { href: hrefValue, replace },
-        cancelable: true,
-      });
+      const beforeEvent = new RouterNavigationEvent(
+        'beforenavigate',
+        { href: hrefValue, replace },
+        true
+      );
       anchor.dispatchEvent(beforeEvent);
       if (beforeEvent.defaultPrevented) return;
 
       await router.navigate(hrefValue, { replace });
 
       const afterEvent = new RouterNavigationEvent('afternavigate', {
-        detail: { href: hrefValue, replace },
+        href: hrefValue,
+        replace,
       });
       anchor.dispatchEvent(afterEvent);
     }
