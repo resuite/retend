@@ -69,9 +69,10 @@ export async function cleanupProject(projectDir) {
 
 /**
  * @param {string} projectName
+ * @param {string} [target]
  * @returns {void}
  */
-export function displayCompletionMessage(projectName) {
+export function displayCompletionMessage(projectName, target = 'web') {
   const installCommand = isBun
     ? 'bun install'
     : isPnpm
@@ -82,11 +83,6 @@ export function displayCompletionMessage(projectName) {
     : isPnpm
       ? 'pnpm run dev'
       : 'npm run dev';
-  const buildCommand = isBun
-    ? 'bun run build'
-    : isPnpm
-      ? 'pnpm run build'
-      : 'npm run build';
 
   console.log(chalk.green('\n✨ Your project is ready! ✨'));
   console.log(chalk.yellow('\nNext steps:'));
@@ -94,6 +90,25 @@ export function displayCompletionMessage(projectName) {
   console.log(chalk.white(`   cd ${projectName}`));
   console.log(chalk.cyan('2. Install project dependencies:'));
   console.log(chalk.white(`   ${installCommand}`));
+
+  if (target === 'gpui') {
+    console.log(chalk.cyan('3. Launch the native desktop window:'));
+    console.log(chalk.white(`   ${devCommand}`));
+    console.log(
+      chalk.cyan(
+        `4. Begin editing your project files in the 'source' directory`
+      )
+    );
+    console.log(chalk.blue('\nHappy coding! 🚀'));
+    return;
+  }
+
+  const buildCommand = isBun
+    ? 'bun run build'
+    : isPnpm
+      ? 'pnpm run build'
+      : 'npm run build';
+
   console.log(chalk.cyan('3. Start the development server:'));
   console.log(chalk.white(`   ${devCommand}`));
   console.log(chalk.cyan('4. Open your browser and visit:'));

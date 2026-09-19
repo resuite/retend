@@ -432,15 +432,15 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 ### Image, asset, and accessibility polish
 
 - [x] Add `img` load/error event delivery (`onLoad` / `onError`) from the native image pipeline.
-- [ ] Add `alt` support for images and carry the semantic text into the native accessibility surface where supported.
+- [x] Add `alt` support for images and carry the semantic text into the native accessibility surface where supported.
 - [x] Add SVG image/source support for normal application assets.
 - [x] Reconcile relative/bundled asset handling with the production Vite asset pipeline so alpha applications are not limited to HTTP(S) image sources.
 
 ### Scaffolding and starter polish
 
-- [ ] Implement the GPUI target in `retend-start` according to `SCAFFOLDING.md`.
-- [ ] Add `retend-start` GPUI templates for `application.ts`, the root entry, Vite configuration, package metadata, and TypeScript/JSX configuration.
-- [ ] Include a router-capable GPUI starter path so a newly scaffolded native project can exercise the supported Retend router without manual setup.
+- [x] Implement the GPUI target in `retend-start` according to `SCAFFOLDING.md`.
+- [x] Add `retend-start` GPUI templates for `application.ts`, the root entry, Vite configuration, package metadata, and TypeScript/JSX configuration.
+- [x] Include a router-capable GPUI starter path so a newly scaffolded native project can exercise the supported Retend router without manual setup.
 
 ### Desktop integration polish
 

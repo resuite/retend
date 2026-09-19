@@ -35,7 +35,7 @@ export async function main() {
       chalk.green(`Project ${answers.projectName} created successfully!`)
     );
 
-    displayCompletionMessage(answers.projectName);
+    displayCompletionMessage(answers.projectName, answers.target);
     process.exit(0);
   } catch (/** @type {any} */ error) {
     if (error.isTtyError) {

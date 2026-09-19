@@ -6,6 +6,19 @@ import { args } from './runtime.js';
 
 export const questions = [
   {
+    type: 'list',
+    name: 'target',
+    message: chalk.magenta('Which platform are you targeting?'),
+    choices: [
+      { name: 'Web (DOM + Vite)', value: 'web' },
+      { name: 'Native Desktop (GPUI)', value: 'gpui' },
+    ],
+    default: 'web',
+    argKey: 'target',
+    /** @param {string} value */
+    processArg: (value) => (value === 'gpui' ? 'gpui' : 'web'),
+  },
+  {
     type: 'input',
     name: 'projectName',
     message: chalk.magenta('What is the name of your project?'),
@@ -23,6 +36,8 @@ export const questions = [
     message: chalk.magenta('Do you want to use Tailwind CSS?'),
     default: false,
     argKey: 'tailwind',
+    /** @param {Record<string, any>} answers */
+    when: (answers) => answers.target !== 'gpui',
   },
   {
     type: 'list',
@@ -40,6 +55,8 @@ export const questions = [
     message: chalk.magenta('Do you want to use Static Site Generation (SSG)?'),
     default: false,
     argKey: 'ssg',
+    /** @param {Record<string, any>} answers */
+    when: (answers) => answers.target !== 'gpui',
   },
   {
     type: 'confirm',
@@ -76,6 +93,9 @@ export function parseArgs() {
 
 export async function collectAnswers() {
   const cliOptions = parseArgs();
+  if (cliOptions.template && !cliOptions.target) {
+    cliOptions.target = cliOptions.template;
+  }
   /** @type {Record<string, any>} */
   const answers = {};
 
@@ -115,6 +135,10 @@ export async function collectAnswers() {
   }
 
   answers.cssPreprocessor = 'CSS';
+  if (answers.target === 'gpui') {
+    answers.useTailwind = false;
+    answers.useSSG = false;
+  }
 
   return { answers, cliOptions };
 }
