@@ -21,6 +21,5 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter retend-test-suite exec playwright install chromium
       - run: pnpm run build
       - run: pnpm run test

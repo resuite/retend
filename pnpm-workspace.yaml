@@ -3,3 +3,7 @@ packages:
   - packages/*
   - tests
   - experiments/*
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - workerd

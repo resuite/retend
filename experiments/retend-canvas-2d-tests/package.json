@@ -1,0 +1,19 @@
+{
+  "name": "retend-canvas-2d-tests",
+  "private": true,
+  "type": "module",
+  "description": "Browser test suite for the experimental retend-canvas-2d package.",
+  "scripts": {
+    "test": "pnpm --filter retend-canvas-2d run build && vitest run renderer.spec.tsx",
+    "test:benchmark": "pnpm --filter retend-canvas-2d run build && vitest run renderer.benchmark.spec.tsx"
+  },
+  "dependencies": {
+    "retend": "workspace:*",
+    "retend-canvas-2d": "workspace:*",
+    "vitest": "^3.2.4"
+  },
+  "devDependencies": {
+    "@vitest/browser": "^3.2.4",
+    "playwright": "^1.58.1"
+  }
+}
