@@ -2686,6 +2686,300 @@ mod tests {
     }
 
     #[test]
+    fn repeated_image_replacement_reattachment_and_destruction_retains_only_current_values() {
+        let (mut tree, window, root) = setup();
+        for cycle in 0..32 {
+            tree.apply_commands(
+                window,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Image,
+                    },
+                    Command::InsertChild {
+                        parent_id: root,
+                        child_id: 2,
+                        before_id: 0,
+                    },
+                ],
+            )
+            .unwrap();
+            assert!(matches!(
+                &tree.nodes[&2].data,
+                NodeData::Image {
+                    src: None,
+                    alt: None,
+                    object_fit: None,
+                    location: ImageLocation::Unset
+                }
+            ));
+
+            let uri = format!("https://example.com/image-{cycle}.png");
+            let path = format!("/tmp/image-{cycle}.png");
+            let file_uri = format!("file://{path}");
+            for (source, expected_location) in [
+                (Some(uri.clone()), ImageLocation::Uri),
+                (Some(file_uri), ImageLocation::Path(path.into())),
+                (None, ImageLocation::Unset),
+                (Some(uri), ImageLocation::Uri),
+            ] {
+                let alt = format!("image {cycle}");
+                tree.apply_commands(
+                    window,
+                    vec![
+                        Command::RemoveChild {
+                            parent_id: root,
+                            child_id: 2,
+                        },
+                        Command::SetProperty {
+                            id: 2,
+                            property: PropertyId::Src,
+                            value: source
+                                .clone()
+                                .map_or(PropertyValue::Null, PropertyValue::String),
+                        },
+                        Command::SetProperty {
+                            id: 2,
+                            property: PropertyId::Alt,
+                            value: PropertyValue::String(alt.clone()),
+                        },
+                        Command::SetProperty {
+                            id: 2,
+                            property: PropertyId::ObjectFit,
+                            value: PropertyValue::String("cover".into()),
+                        },
+                    ],
+                )
+                .unwrap();
+                assert!(!tree.is_presented(window, 2));
+                assert_eq!(tree.windows[&window].pending_detached.len(), 1);
+                tree.apply_commands(
+                    window,
+                    vec![Command::InsertChild {
+                        parent_id: root,
+                        child_id: 2,
+                        before_id: 0,
+                    }],
+                )
+                .unwrap();
+                assert!(tree.settle(window).unwrap().is_empty());
+                let NodeData::Image {
+                    src,
+                    alt: retained_alt,
+                    object_fit,
+                    location,
+                } = &tree.nodes[&2].data
+                else {
+                    panic!("image kind must survive reattachment");
+                };
+                assert_eq!(src, &source);
+                assert_eq!(location, &expected_location);
+                assert_eq!(retained_alt.as_deref(), Some(alt.as_str()));
+                assert_eq!(*object_fit, Some(ImageObjectFit::Cover));
+                assert!(tree.is_presented(window, 2));
+                assert_eq!(tree.nodes.len(), 2);
+                assert!(tree.windows[&window].pending_detached.is_empty());
+            }
+            tree.apply_commands(
+                window,
+                vec![Command::RemoveChild {
+                    parent_id: root,
+                    child_id: 2,
+                }],
+            )
+            .unwrap();
+            assert_eq!(tree.settle(window).unwrap(), vec![2]);
+            assert!(tree.settle(window).unwrap().is_empty());
+            assert_eq!(tree.nodes.len(), 1);
+            assert!(tree.nodes[&root].children.is_empty());
+            assert!(tree.windows[&window].presented_paths.borrow().is_empty());
+            assert!(tree.windows[&window].fatal.is_none());
+        }
+    }
+
+    #[test]
+    fn repeated_settle_reload_and_close_clear_state_without_touching_a_live_peer() {
+        let (mut tree, peer, root) = setup();
+        tree.apply_commands(
+            peer,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Textarea,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Value,
+                    value: PropertyValue::String("retained 🦀\nvalue".into()),
+                },
+                Command::InsertChild {
+                    parent_id: root,
+                    child_id: 2,
+                    before_id: 0,
+                },
+                pseudo_style(
+                    2,
+                    StyleState::Focused,
+                    vec![(PropertyId::Opacity, PropertyValue::Number(0.5))],
+                ),
+                Command::SubscribeEvent {
+                    id: 2,
+                    event: NativeEventId::MouseDownOutside,
+                },
+            ],
+        )
+        .unwrap();
+        assert!(tree.set_focused(peer, 2, true));
+        assert!(tree.is_presented(peer, 2));
+        let peer_revision = tree.windows[&peer].revision;
+        let peer_snapshot = tree.text_control_snapshot(peer, 2).unwrap();
+        let peer_paths = tree.windows[&peer].presented_paths.borrow().clone();
+
+        for _ in 0..32 {
+            let window = tree.create_window(100).unwrap();
+            for cleanup in ["settle", "reload", "close"] {
+                tree.apply_commands(
+                    window,
+                    vec![
+                        Command::CreateNode {
+                            id: 101,
+                            kind: ElementKind::Container,
+                        },
+                        Command::CreateNode {
+                            id: 102,
+                            kind: ElementKind::Image,
+                        },
+                        Command::CreateNode {
+                            id: 103,
+                            kind: ElementKind::Input,
+                        },
+                        Command::InsertChild {
+                            parent_id: 100,
+                            child_id: 101,
+                            before_id: 0,
+                        },
+                        Command::InsertChild {
+                            parent_id: 100,
+                            child_id: 102,
+                            before_id: 0,
+                        },
+                        Command::RemoveChild {
+                            parent_id: 100,
+                            child_id: 102,
+                        },
+                        Command::SubscribeEvent {
+                            id: 101,
+                            event: NativeEventId::MouseDownOutside,
+                        },
+                        Command::SubscribeEvent {
+                            id: 102,
+                            event: NativeEventId::MouseDownOutside,
+                        },
+                        pseudo_style(
+                            101,
+                            StyleState::Active,
+                            vec![(PropertyId::Opacity, PropertyValue::Number(0.2))],
+                        ),
+                        pseudo_style(
+                            101,
+                            StyleState::Hover,
+                            vec![(PropertyId::Opacity, PropertyValue::Number(0.4))],
+                        ),
+                        pseudo_style(
+                            101,
+                            StyleState::Focused,
+                            vec![(PropertyId::Opacity, PropertyValue::Number(0.6))],
+                        ),
+                    ],
+                )
+                .unwrap();
+                assert!(tree.press_node(window, 101));
+                assert!(tree.set_hovered(window, 101, true));
+                assert!(tree.set_focused(window, 101, true));
+                assert!(tree.is_presented(window, 101));
+                assert!(!tree.is_presented(window, 102));
+                assert_eq!(tree.windows[&window].active_nodes.len(), 1);
+                assert_eq!(tree.windows[&window].pending_detached.len(), 1);
+                assert_eq!(tree.windows[&window].mousedownoutside_subscribers.len(), 2);
+
+                if cleanup == "settle" {
+                    tree.apply_commands(
+                        window,
+                        vec![Command::RemoveChild {
+                            parent_id: 100,
+                            child_id: 101,
+                        }],
+                    )
+                    .unwrap();
+                    let mut destroyed = tree.settle(window).unwrap();
+                    destroyed.sort_unstable();
+                    assert_eq!(destroyed, vec![101, 102]);
+                    assert!(
+                        tree.nodes.contains_key(&103),
+                        "never-attached controls live until attached or the window resets"
+                    );
+                    tree.apply_commands(
+                        window,
+                        vec![
+                            Command::InsertChild {
+                                parent_id: 100,
+                                child_id: 103,
+                                before_id: 0,
+                            },
+                            Command::RemoveChild {
+                                parent_id: 100,
+                                child_id: 103,
+                            },
+                        ],
+                    )
+                    .unwrap();
+                    assert_eq!(tree.settle(window).unwrap(), vec![103]);
+                    assert!(tree.settle(window).unwrap().is_empty());
+                    let state = &tree.windows[&window];
+                    assert!(state.active_nodes.is_empty());
+                    assert!(state.pending_detached.is_empty());
+                    assert!(state.mousedownoutside_subscribers.is_empty());
+                    assert!(state.presented_paths.borrow().is_empty());
+                    assert!(!tree.release_pointer(window));
+                    assert_eq!(tree.nodes.len(), 3);
+                } else if cleanup == "reload" {
+                    tree.poison_native(window, &"stress reload").unwrap();
+                    tree.attach_javascript_stack(window, "old stack".into())
+                        .unwrap();
+                    tree.reload_window(window).unwrap();
+                    let state = &tree.windows[&window];
+                    assert_eq!(state.root_id, 100);
+                    assert!(state.pending_detached.is_empty());
+                    assert!(state.active_nodes.is_empty());
+                    assert!(state.mousedownoutside_subscribers.is_empty());
+                    assert!(state.presented_paths.borrow().is_empty());
+                    assert!(state.fatal.is_none());
+                    assert!(tree.nodes[&100].children.is_empty());
+                    assert_eq!(tree.nodes.len(), 3);
+                    assert!(!tree.release_pointer(window));
+                } else {
+                    assert_eq!(tree.close_window(window), vec![100, 101, 102, 103]);
+                    assert!(tree.close_window(window).is_empty());
+                    assert_eq!(tree.nodes.len(), 2);
+                    assert_eq!(tree.windows.len(), 1);
+                }
+                assert_eq!(tree.windows[&peer].revision, peer_revision);
+                assert_eq!(*tree.windows[&peer].presented_paths.borrow(), peer_paths);
+                let snapshot = tree.text_control_snapshot(peer, 2).unwrap();
+                assert_eq!(snapshot.value, peer_snapshot.value);
+                assert_eq!(snapshot.value_revision, peer_snapshot.value_revision);
+                assert!(matches!(snapshot.kind, TextControlKind::Textarea));
+                assert!(tree.nodes[&2].focused);
+                assert_eq!(
+                    tree.windows[&peer].mousedownoutside_subscribers,
+                    HashSet::from([2])
+                );
+                assert!(tree.windows[&peer].fatal.is_none());
+            }
+        }
+    }
+
+    #[test]
     fn repeated_window_create_close_cycles_release_every_node() {
         let (mut tree, _window, _root) = setup();
         let baseline = tree.nodes.len();

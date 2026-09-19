@@ -1149,6 +1149,263 @@ mod frame_tests {
     }
 
     #[test]
+    fn repeated_destroy_and_clear_reject_queries_once_and_ignore_stale_frames() {
+        use std::sync::mpsc;
+
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        let runtime = RuntimeStateRegistry::default();
+        for _ in 0..64 {
+            tree.apply_commands(
+                window,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Container,
+                    },
+                    Command::InsertChild {
+                        parent_id: 1,
+                        child_id: 2,
+                        before_id: 0,
+                    },
+                ],
+            )
+            .unwrap();
+            let stale_generation = runtime.begin_frame(&tree, window);
+            assert!(runtime.needs_preparation(&tree, window));
+            runtime.record_geometry(
+                stale_generation,
+                2,
+                Bounds::default(),
+                Some(point(px(10.0), px(20.0))),
+            );
+            let (sender, receiver) = mpsc::channel();
+            for id in [1, 2] {
+                let sender = sender.clone();
+                runtime.enqueue_layout(LayoutOperation::Measure(
+                    id,
+                    MeasureResponder::new(move |result| {
+                        sender.send((id, result.unwrap_err().code)).unwrap();
+                    }),
+                ));
+            }
+            let scroll_sender = sender.clone();
+            runtime.enqueue_layout(LayoutOperation::ScrollOffset(
+                2,
+                OverflowValue::Scroll,
+                ScrollResponder::new(move |result| {
+                    scroll_sender.send((2, result.unwrap_err().code)).unwrap();
+                }),
+            ));
+            runtime.enqueue_layout(LayoutOperation::Scroll(
+                2,
+                OverflowValue::Scroll,
+                0.0,
+                10.0,
+                false,
+            ));
+            runtime.enqueue_layout(LayoutOperation::ScrollIntoView(2));
+            assert_eq!(runtime.0.borrow().pending.len(), 5);
+
+            tree.apply_commands(
+                window,
+                vec![Command::RemoveChild {
+                    parent_id: 1,
+                    child_id: 2,
+                }],
+            )
+            .unwrap();
+            let destroyed = tree.settle(window).unwrap();
+            runtime.destroy_nodes(&destroyed);
+            runtime.destroy_nodes(&destroyed);
+            for _ in 0..2 {
+                assert_eq!(receiver.try_recv().unwrap(), (2, "DESTROYED_NODE"));
+            }
+            assert!(receiver.try_recv().is_err());
+            {
+                let state = runtime.0.borrow();
+                assert_eq!(
+                    state.pending.len(),
+                    1,
+                    "the root query must survive child destruction"
+                );
+                assert_eq!(state.frame.nodes.len(), 1);
+                assert!(state.scroll.is_empty());
+            }
+            runtime.clear();
+            runtime.clear();
+            assert_eq!(receiver.try_recv().unwrap(), (1, "POISONED_RENDERER"));
+            assert!(receiver.try_recv().is_err());
+            {
+                let state = runtime.0.borrow();
+                assert!(state.pending.is_empty());
+                assert!(state.frame.nodes.is_empty());
+                assert!(state.frame.window_id.is_none());
+                assert!(state.prepared_revision.is_none());
+            }
+
+            // Reusing the node ID must not let an old paint populate its replacement.
+            tree.apply_commands(
+                window,
+                vec![Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                }],
+            )
+            .unwrap();
+            let generation = runtime.begin_frame(&tree, window);
+            assert!(generation > stale_generation);
+            runtime.record_geometry(
+                stale_generation,
+                2,
+                Bounds::default(),
+                Some(point(px(1.0), px(2.0))),
+            );
+            assert!(!runtime.finish_frame(stale_generation));
+            assert!(runtime.0.borrow().frame.nodes[&2].bounds.is_none());
+            assert!(runtime.0.borrow().frame.nodes[&2].content_extent.is_none());
+            tree.poison_native(window, &"reload").unwrap();
+            tree.reload_window(window).unwrap();
+            runtime.clear();
+            assert_eq!(tree.nodes.len(), 1);
+        }
+    }
+
+    struct RuntimeLifecycleTestView;
+
+    impl gpui::Render for RuntimeLifecycleTestView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
+            gpui::div()
+        }
+    }
+
+    #[gpui::test]
+    fn repeated_control_focus_and_scroll_cleanup_releases_entities_and_subscriptions(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::render::init);
+        let window = cx.add_window(|_, _| RuntimeLifecycleTestView);
+        let runtime = RuntimeStateRegistry::default();
+        let peer = RuntimeStateRegistry::default();
+        let peer_focus = cx.update(|cx| peer.ensure_focus(2, 0, None, cx).0);
+        peer.ensure_scroll(2).set_offset(point(px(-7.0), px(-9.0)));
+
+        for cycle in 0..32 {
+            let subscription_owner = Rc::new(());
+            let (input, textarea) = window
+                .update(cx, |_, window, cx| {
+                    for (id, kind) in [(2, TextControlKind::Input), (3, TextControlKind::Textarea)]
+                    {
+                        let value = format!("value 🦀 {cycle}");
+                        let editor = runtime.ensure_text_control(
+                            1,
+                            id,
+                            TextControlConfig {
+                                kind,
+                                value: &value,
+                                value_revision: 1,
+                                placeholder: "placeholder",
+                                min_rows: Some(2),
+                                max_rows: Some(4),
+                            },
+                            window,
+                            cx,
+                        );
+                        let handle = editor.focus_handle(cx);
+                        assert!(runtime.ensure_focus(id, 0, Some(handle.clone()), cx).1);
+                        let focus_owner = subscription_owner.clone();
+                        let blur_owner = subscription_owner.clone();
+                        runtime.set_focus_subscriptions(
+                            id,
+                            [
+                                cx.on_focus(&handle, window, move |_, _, _| {
+                                    let _ = &focus_owner;
+                                }),
+                                cx.on_blur(&handle, window, move |_, _, _| {
+                                    let _ = &blur_owner;
+                                }),
+                            ],
+                        );
+                        assert!(!runtime.ensure_focus(id, 0, Some(handle.clone()), cx).1);
+                        runtime.disable_focus(id);
+                        assert!(runtime.external_focus_handle(id).is_none());
+                        runtime.ensure_focus(id, 0, Some(handle.clone()), cx);
+                        assert_eq!(runtime.external_focus_handle(id), Some(handle));
+                        assert!(runtime.tracked_focus_handle(id).is_none());
+                        editor.set_selection(0, 5, cx);
+                        runtime.ensure_text_control(
+                            1,
+                            id,
+                            TextControlConfig {
+                                kind,
+                                value: "must not replace the same revision",
+                                value_revision: 1,
+                                placeholder: "new placeholder",
+                                min_rows: Some(3),
+                                max_rows: Some(5),
+                            },
+                            window,
+                            cx,
+                        );
+                        let selection = editor.selection(window, cx).unwrap();
+                        assert_eq!((selection.start, selection.end), (0, 5));
+                        let state = runtime.0.borrow();
+                        let control = &state.text_control[&id];
+                        assert_eq!(control.last_value, value);
+                        assert_eq!(control.placeholder, "new placeholder");
+                        assert_eq!((control.min_rows, control.max_rows), (Some(3), Some(5)));
+                    }
+                    (
+                        runtime.input(2).unwrap().downgrade(),
+                        runtime.textarea(3).unwrap().downgrade(),
+                    )
+                })
+                .unwrap();
+            for id in [2, 3] {
+                let scroll = runtime.ensure_scroll(id);
+                assert_eq!(logical_scroll_offset(&scroll), ScrollOffset::default());
+                scroll.set_offset(point(px(-10.0), px(-20.0)));
+                assert_eq!(
+                    logical_scroll_offset(&runtime.ensure_scroll(id)),
+                    ScrollOffset { x: 10.0, y: 20.0 }
+                );
+            }
+            assert_eq!(runtime.0.borrow().focus.len(), 2);
+            assert_eq!(runtime.0.borrow().text_control.len(), 2);
+            assert_eq!(runtime.0.borrow().scroll.len(), 2);
+
+            assert!(Rc::strong_count(&subscription_owner) > 1);
+            if cycle % 2 == 0 {
+                runtime.destroy_nodes(&[2, 3]);
+                runtime.destroy_nodes(&[2, 3]);
+            } else {
+                runtime.clear();
+                runtime.clear();
+            }
+            cx.run_until_parked();
+            assert!(
+                input.upgrade().is_none(),
+                "destroyed input entity must be released"
+            );
+            assert!(
+                textarea.upgrade().is_none(),
+                "destroyed textarea entity must be released"
+            );
+            assert_eq!(Rc::strong_count(&subscription_owner), 1);
+            assert!(runtime.0.borrow().focus.is_empty());
+            assert!(runtime.0.borrow().text_control.is_empty());
+            assert!(runtime.0.borrow().scroll.is_empty());
+            assert!(!runtime.is_interactive(2));
+            assert_eq!(peer.focus_handle(2), Some(peer_focus.clone()));
+            assert_eq!(
+                logical_scroll_offset(&peer.scroll_handle(2).unwrap()),
+                ScrollOffset { x: 7.0, y: 9.0 }
+            );
+        }
+        peer.clear();
+    }
+
+    #[test]
     fn preparation_revision_is_window_local() {
         let mut tree = NativeTree::default();
         let first = tree.create_window(1).unwrap();

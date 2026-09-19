@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   NativeMouseEventPayload,
+  NativeScrollEventPayload,
   NativeTransportPayload,
   NativeWindowOptions,
 } from '../source/native/addon';
@@ -59,7 +60,11 @@ vi.mock('../source/native/addon', async (importOriginal) => {
 
 import { Cell } from 'retend';
 
-import { GpuiImageEvent, GpuiMouseEvent } from '../source/events';
+import {
+  GpuiImageEvent,
+  GpuiMouseEvent,
+  GpuiScrollEvent,
+} from '../source/events';
 import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
 
@@ -82,6 +87,23 @@ function mouseEvent(
     ctrlKey: true,
     metaKey: false,
     shiftKey: true,
+  };
+}
+
+function scrollEvent(
+  targetId: number,
+  offset: number
+): NativeScrollEventPayload {
+  return {
+    eventId: NativeEventId.Scroll,
+    targetId,
+    timeStamp: offset,
+    scrollX: offset,
+    scrollY: -offset,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
   };
 }
 
@@ -275,6 +297,123 @@ describe('native event delivery', () => {
     });
     expect(received?.timeStamp).toBe(12.5);
   });
+
+  it('delivers mixed continuous bursts in callback order with target and propagation semantics intact', () => {
+    const current = createRenderer();
+    const parent = current.createContainer('div');
+    const first = current.createContainer('div');
+    const second = current.createContainer('div');
+    current.append(parent, first);
+    current.append(parent, second);
+    current.render(() => parent);
+
+    const received: Array<[string, number, number]> = [];
+    const expected: Array<[string, number, number]> = [];
+    const moves: GpuiMouseEvent[] = [];
+    const scrolls: GpuiScrollEvent[] = [];
+    let parentMoves = 0;
+    const parentScroll = vi.fn();
+    parent.addEventListener('mousemove', () => parentMoves++);
+    parent.addEventListener('scroll', parentScroll);
+    for (const target of [first, second]) {
+      for (const type of ['mousemove', 'scroll', 'click']) {
+        target.addEventListener(type, (event) => {
+          const nativeEvent = event as GpuiMouseEvent | GpuiScrollEvent;
+          expect(nativeEvent.target).toBe(target);
+          expect(nativeEvent.currentTarget).toBe(target);
+          received.push([type, target.id, nativeEvent.timeStamp]);
+          if (type === 'mousemove') moves.push(nativeEvent as GpuiMouseEvent);
+          if (type === 'scroll') scrolls.push(nativeEvent as GpuiScrollEvent);
+        });
+      }
+    }
+
+    const deliver = native.onEvent!;
+    // This mock starts at the JS callback boundary. Native queue coalescing is
+    // covered in events.rs; JS must not defer or coalesce these callbacks again.
+    for (let index = 0; index < 2_000; index++) {
+      for (const target of [first, second]) {
+        deliver({
+          event: {
+            ...mouseEvent(NativeEventId.MouseMove, target.id),
+            timeStamp: index,
+            clientX: index,
+            clientY: -index,
+          },
+        });
+        deliver({ event: scrollEvent(target.id, index) });
+        expected.push(
+          ['mousemove', target.id, index],
+          ['scroll', target.id, index]
+        );
+      }
+      deliver({
+        event: {
+          ...mouseEvent(NativeEventId.Click, first.id),
+          timeStamp: index,
+        },
+      });
+      expected.push(['click', first.id, index]);
+    }
+
+    expect(received).toEqual(expected);
+    expect(parentMoves).toBe(4_000);
+    expect(parentScroll).not.toHaveBeenCalled();
+    expect(moves.at(-1)).toMatchObject({
+      clientX: 1_999,
+      clientY: -1_999,
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    expect(scrolls.at(-1)).toBeInstanceOf(GpuiScrollEvent);
+    expect(scrolls.at(-1)).toMatchObject({ scrollX: 1_999, scrollY: -1_999 });
+  });
+
+  it.runIf(process.env.RETEND_GPUI_EVENT_PROFILE === '1')(
+    'profiles headless JS callback delivery without a native transport or timing threshold',
+    () => {
+      const current = createRenderer();
+      const target = current.createContainer('div');
+      current.render(() => target);
+      let moves = 0;
+      let scrolls = 0;
+      let lastOffset = 0;
+      target.addEventListener('mousemove', () => moves++);
+      target.addEventListener('scroll', (event) => {
+        scrolls++;
+        lastOffset = (event as GpuiScrollEvent).scrollY;
+      });
+      const deliver = native.onEvent!;
+      const move = mouseEvent(NativeEventId.MouseMove, target.id);
+      const scroll = scrollEvent(target.id, 0);
+      // Warm the JS dispatch path before recording a diagnostic-only sample.
+      for (let index = 0; index < 1_000; index++) {
+        deliver({ event: move });
+        deliver({ event: scroll });
+      }
+      moves = 0;
+      scrolls = 0;
+      const iterations = 25_000;
+      const started = performance.now();
+      for (let index = 0; index < iterations; index++) {
+        move.clientX = index;
+        move.timeStamp = index;
+        scroll.scrollY = -index;
+        scroll.timeStamp = index;
+        deliver({ event: move });
+        deliver({ event: scroll });
+      }
+      const elapsedMs = performance.now() - started;
+      expect(moves).toBe(iterations);
+      expect(scrolls).toBe(iterations);
+      expect(lastOffset).toBe(-(iterations - 1));
+      console.info('[retend-gpui] headless mocked JS event delivery', {
+        callbacks: iterations * 2,
+        elapsedMs,
+        microsecondsPerCallback: (elapsedMs * 1_000) / (iterations * 2),
+      });
+    }
+  );
 
   it('drops delayed native events after native presentation or logical ownership is lost', () => {
     const renderer = createRenderer();

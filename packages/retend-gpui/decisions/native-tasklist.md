@@ -464,17 +464,17 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Hardening and performance
 
-- [ ] Profile command-batch decode/application costs.
-- [ ] Profile retained-tree snapshot/locking strategy under frequent updates.
-- [ ] Replace coarse locking only if profiling shows it is required.
-- [ ] Profile native event delivery under heavy mousemove/scroll input.
-- [ ] Verify coalescing prevents JS backlog growth.
-- [ ] Profile large Retend trees and repeated style snapshot updates.
+- [x] Profile command-batch decode/application costs.
+- [x] Profile retained-tree snapshot/locking strategy under frequent updates.
+- [x] Replace coarse locking only if profiling shows it is required.
+- [x] Profile native event delivery under heavy mousemove/scroll input.
+- [x] Verify coalescing prevents JS backlog growth.
+- [x] Profile large Retend trees and repeated style snapshot updates.
 - [ ] Verify semantic strings are parsed once per committed property value rather than every GPUI render.
-- [ ] Stress-test detach/reattach/settle cycles for leaks.
-- [ ] Stress-test image source replacement and destruction.
-- [ ] Stress-test multi-window creation/close/reload cycles.
-- [ ] Stress-test focus, scroll, input, and transition runtime-state cleanup.
+- [x] Stress-test detach/reattach/settle cycles for leaks.
+- [x] Stress-test image source replacement and destruction.
+- [x] Stress-test multi-window creation/close/reload cycles.
+- [x] Stress-test focus, scroll, input, and transition runtime-state cleanup.
 
 ### Final conformance suite
 

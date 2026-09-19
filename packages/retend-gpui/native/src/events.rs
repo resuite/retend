@@ -128,8 +128,9 @@ impl NativeEventPayload {
         }
     }
 
-    fn is_mouse_move(&self) -> bool {
+    fn is_continuous(&self) -> bool {
         self.event_id == NativeEventId::MouseMove as u16
+            || self.event_id == NativeEventId::Scroll as u16
     }
 
     pub fn scroll(target_id: NodeId, x: f64, y: f64) -> Self {
@@ -258,45 +259,15 @@ pub fn key_event(
     payload
 }
 
-struct MoveSlot {
-    payload: Mutex<Option<NativeEventPayload>>,
-}
-
-impl MoveSlot {
-    fn new() -> Self {
-        Self {
-            payload: Mutex::new(None),
-        }
-    }
-
-    fn replace_and_mark_queued(&self, payload: NativeEventPayload) -> bool {
-        self.payload
-            .lock()
-            .is_ok_and(|mut pending| pending.replace(payload).is_none())
-    }
-
-    fn take_for_delivery(&self) -> Result<NativeEventPayload> {
-        self.payload
-            .lock()
-            .map_err(|_| {
-                Error::new(
-                    Status::GenericFailure,
-                    "Native mouse-move queue lock was poisoned.",
-                )
-            })?
-            .take()
-            .ok_or_else(|| {
-                Error::new(
-                    Status::GenericFailure,
-                    "Native mouse-move delivery was scheduled without a payload.",
-                )
-            })
-    }
-}
+type ContinuousKey = (u16, NodeId);
+type PendingEvents = Mutex<HashMap<ContinuousKey, NativeEventPayload>>;
 
 enum EventDelivery {
     Discrete(NativeEventPayload),
-    MouseMove(Arc<MoveSlot>),
+    Continuous {
+        pending: Arc<PendingEvents>,
+        key: ContinuousKey,
+    },
     Window(NativeWindowEventPayload),
 }
 
@@ -306,7 +277,24 @@ impl EventDelivery {
     fn into_payload(self) -> Result<NativeTransportPayload> {
         match self {
             Self::Discrete(event) => Ok(NativeTransportPayload::event(event)),
-            Self::MouseMove(slot) => Ok(NativeTransportPayload::event(slot.take_for_delivery()?)),
+            Self::Continuous { pending, key } => {
+                let event = pending
+                    .lock()
+                    .map_err(|_| {
+                        Error::new(
+                            Status::GenericFailure,
+                            "Native event queue lock was poisoned.",
+                        )
+                    })?
+                    .remove(&key)
+                    .ok_or_else(|| {
+                        Error::new(
+                            Status::GenericFailure,
+                            "Native continuous delivery was scheduled without a payload.",
+                        )
+                    })?;
+                Ok(NativeTransportPayload::event(event))
+            }
             Self::Window(window) => Ok(NativeTransportPayload::window(window)),
         }
     }
@@ -314,26 +302,64 @@ impl EventDelivery {
 
 #[derive(Default)]
 struct EventQueue {
-    current_move: Option<Arc<MoveSlot>>,
+    continuous: Option<Arc<PendingEvents>>,
 }
 
 impl EventQueue {
-    fn schedule(&mut self, payload: NativeEventPayload) -> Option<EventDelivery> {
-        if !payload.is_mouse_move() {
-            self.current_move = None;
-            return Some(EventDelivery::Discrete(payload));
+    fn schedule(&mut self, payload: NativeEventPayload) -> Result<Option<EventDelivery>> {
+        if !payload.is_continuous() {
+            self.continuous = None;
+            return Ok(Some(EventDelivery::Discrete(payload)));
         }
 
-        let slot = self
-            .current_move
-            .get_or_insert_with(|| Arc::new(MoveSlot::new()))
-            .clone();
-        slot.replace_and_mark_queued(payload)
-            .then_some(EventDelivery::MouseMove(slot))
+        // Keep one callback per kind/target until JS consumes it. Scroll payloads are
+        // absolute offsets, not deltas. Replacing the entire payload also retains
+        // the latest timestamp, button state and modifiers for mouse moves.
+        // Continuous callbacks keep their first-pending order, not timestamp order;
+        // discrete and queued window events seal the segment so updates cannot cross them.
+        let key = (payload.event_id, payload.target_id);
+        let pending = self
+            .continuous
+            .get_or_insert_with(|| Arc::new(Mutex::new(HashMap::new())));
+        let replaced = pending
+            .lock()
+            .map_err(|_| {
+                Error::new(
+                    Status::GenericFailure,
+                    "Native event queue lock was poisoned.",
+                )
+            })?
+            .insert(key, payload)
+            .is_some();
+        Ok(if replaced {
+            None
+        } else {
+            Some(EventDelivery::Continuous {
+                pending: Arc::clone(pending),
+                key,
+            })
+        })
+    }
+
+    fn enqueue(
+        &mut self,
+        payload: NativeEventPayload,
+        send: impl FnOnce(EventDelivery) -> Status,
+    ) -> Result<()> {
+        if let Some(delivery) = self.schedule(payload)? {
+            let status = send(delivery);
+            if status != Status::Ok {
+                // A rejected callback will never consume its payload. Start a new
+                // segment so subsequent updates cannot be stranded behind it.
+                self.continuous = None;
+                return Err(Error::new(status, "Failed to enqueue native event."));
+            }
+        }
+        Ok(())
     }
 
     fn schedule_window(&mut self, payload: NativeWindowEventPayload) -> EventDelivery {
-        self.current_move = None;
+        self.continuous = None;
         EventDelivery::Window(payload)
     }
 }
@@ -358,9 +384,11 @@ impl EventTransport {
         let Ok(mut queue) = self.queue.lock() else {
             return;
         };
-        if let Some(delivery) = queue.schedule(payload) {
+        if let Err(error) = queue.enqueue(payload, |delivery| {
             self.callback
-                .call(delivery, ThreadsafeFunctionCallMode::NonBlocking);
+                .call(delivery, ThreadsafeFunctionCallMode::NonBlocking)
+        }) {
+            eprintln!("[retend-gpui] {error}");
         }
     }
 
@@ -547,35 +575,342 @@ mod tests {
         payload
     }
 
-    #[test]
-    fn event_queue_coalesces_moves_without_crossing_discrete_boundaries() {
-        let mut queue = EventQueue::default();
-        let first = queue.schedule(mouse_move_payload(1, 1.0)).unwrap();
-        assert!(queue.schedule(mouse_move_payload(2, 2.0)).is_none());
-        assert!(queue.schedule(mouse_move_payload(3, 3.0)).is_none());
-
-        let EventDelivery::MouseMove(first_slot) = first else {
-            panic!("first mouse move must schedule a move delivery");
-        };
-        let delivered = first_slot.take_for_delivery().unwrap();
-        assert_eq!(delivered.target_id, 3);
-        assert_eq!(delivered.client_x, 3.0);
-
-        let discrete = queue
-            .schedule(NativeEventPayload::new(NativeEventId::MouseDown, 9))
-            .unwrap();
-        assert!(matches!(
-            discrete,
-            EventDelivery::Discrete(NativeEventPayload { target_id: 9, .. })
-        ));
-
-        let next = queue.schedule(mouse_move_payload(4, 4.0)).unwrap();
-        let EventDelivery::MouseMove(next_slot) = next else {
-            panic!("move after a discrete event must schedule a new delivery");
-        };
-        assert!(!Arc::ptr_eq(&first_slot, &next_slot));
-        let delivered = next_slot.take_for_delivery().unwrap();
-        assert_eq!(delivered.target_id, 4);
-        assert_eq!(delivered.client_x, 4.0);
+    fn schedule(queue: &mut EventQueue, payload: NativeEventPayload) -> EventDelivery {
+        queue.schedule(payload).unwrap().expect("new delivery")
     }
+
+    fn event(delivery: EventDelivery) -> NativeEventPayload {
+        delivery.into_payload().unwrap().event.expect("node event")
+    }
+
+    #[test]
+    fn mouse_move_burst_retains_latest_payload() {
+        let mut queue = EventQueue::default();
+        let first = schedule(&mut queue, mouse_move_payload(1, 0.0));
+        for index in 1..10_000 {
+            let mut payload = mouse_move_payload(1, index as f64);
+            payload.client_y = -(index as f64);
+            payload.time_stamp = index as f64;
+            payload.buttons = 2;
+            payload.button = 2;
+            payload.detail = 3;
+            payload.alt_key = true;
+            payload.ctrl_key = true;
+            payload.meta_key = true;
+            payload.shift_key = true;
+            assert!(queue.schedule(payload).unwrap().is_none());
+        }
+        let delivered = event(first);
+        assert_eq!(delivered.target_id, 1);
+        assert_eq!(delivered.client_x, 9_999.0);
+        assert_eq!(delivered.client_y, -9_999.0);
+        assert_eq!(delivered.time_stamp, 9_999.0);
+        assert_eq!(
+            (delivered.button, delivered.buttons, delivered.detail),
+            (2, 2, 3)
+        );
+        assert!(
+            delivered.alt_key && delivered.ctrl_key && delivered.meta_key && delivered.shift_key
+        );
+    }
+
+    #[test]
+    fn interleaved_burst_is_bounded_by_event_kinds_and_targets() {
+        let mut queue = EventQueue::default();
+        let mut deliveries = Vec::new();
+        for index in 0..10_000 {
+            for target in 1..=8 {
+                for payload in [
+                    mouse_move_payload(target, index as f64),
+                    NativeEventPayload::scroll(target, index as f64, -(index as f64)),
+                ] {
+                    queue
+                        .enqueue(payload, |delivery| {
+                            deliveries.push(delivery);
+                            Status::Ok
+                        })
+                        .unwrap();
+                }
+            }
+        }
+        // A stalled JS consumer needs only 16 callbacks for 160,000 updates.
+        assert_eq!(deliveries.len(), 16);
+        assert_eq!(queue.continuous.as_ref().unwrap().lock().unwrap().len(), 16);
+        for (index, delivery) in deliveries.into_iter().enumerate() {
+            let delivered = event(delivery);
+            assert_eq!(delivered.target_id, (index / 2 + 1) as NodeId);
+            if index % 2 == 0 {
+                assert_eq!(delivered.event_id, NativeEventId::MouseMove as u16);
+                assert_eq!(delivered.client_x, 9_999.0);
+            } else {
+                assert_eq!(delivered.event_id, NativeEventId::Scroll as u16);
+                assert_eq!(delivered.scroll_x, 9_999.0);
+                // Absolute offsets must be replaced, never summed.
+                assert_eq!(delivered.scroll_y, -9_999.0);
+            }
+        }
+        assert!(queue
+            .continuous
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn continuous_updates_do_not_cross_discrete_or_window_boundaries() {
+        let mut queue = EventQueue::default();
+        let mut deliveries = Vec::new();
+        let mut expected = Vec::new();
+        for kind in [
+            NativeEventId::MouseDown,
+            NativeEventId::MouseUp,
+            NativeEventId::Click,
+            NativeEventId::MouseEnter,
+            NativeEventId::MouseLeave,
+            NativeEventId::KeyDown,
+            NativeEventId::KeyUp,
+            NativeEventId::Input,
+            NativeEventId::Change,
+            NativeEventId::Focus,
+            NativeEventId::Blur,
+        ] {
+            for index in 0..100 {
+                for payload in [
+                    mouse_move_payload(1, index as f64),
+                    NativeEventPayload::scroll(2, 0.0, index as f64),
+                ] {
+                    if let Some(delivery) = queue.schedule(payload).unwrap() {
+                        deliveries.push(delivery);
+                    }
+                }
+            }
+            deliveries.push(schedule(&mut queue, NativeEventPayload::new(kind, 3)));
+            expected.extend([
+                (NativeEventId::MouseMove as u16, 1, 99.0),
+                (NativeEventId::Scroll as u16, 2, 99.0),
+                (kind as u16, 3, 0.0),
+            ]);
+        }
+        let actual: Vec<_> = deliveries
+            .into_iter()
+            .map(|delivery| {
+                let payload = event(delivery);
+                (
+                    payload.event_id,
+                    payload.target_id,
+                    payload.client_x + payload.scroll_y,
+                )
+            })
+            .collect();
+        assert_eq!(actual, expected);
+
+        for window in [
+            NativeWindowEventPayload::resize(800.0, 600.0),
+            NativeWindowEventPayload::activation(true),
+            NativeWindowEventPayload::activation(false),
+            NativeWindowEventPayload::reload(),
+            NativeWindowEventPayload::close(),
+        ] {
+            let before = schedule(&mut queue, NativeEventPayload::scroll(2, 0.0, 1.0));
+            let kind = window.kind.clone();
+            let boundary = queue.schedule_window(window);
+            let after = schedule(&mut queue, NativeEventPayload::scroll(2, 0.0, 2.0));
+            assert_eq!(event(before).scroll_y, 1.0);
+            assert_eq!(boundary.into_payload().unwrap().window.unwrap().kind, kind);
+            assert_eq!(event(after).scroll_y, 2.0);
+        }
+    }
+
+    #[test]
+    fn consumed_targets_rearm_without_retaining_payloads() {
+        let mut queue = EventQueue::default();
+        for target in 1..=10_000 {
+            let first = schedule(&mut queue, mouse_move_payload(target, 1.0));
+            assert_eq!(event(first).client_x, 1.0);
+            let next = schedule(&mut queue, mouse_move_payload(target, 2.0));
+            assert_eq!(event(next).client_x, 2.0);
+            assert!(queue
+                .continuous
+                .as_ref()
+                .unwrap()
+                .lock()
+                .unwrap()
+                .is_empty());
+        }
+    }
+
+    #[test]
+    fn rejected_callbacks_do_not_strand_future_updates_or_change_accepted_ones() {
+        for status in [Status::QueueFull, Status::Closing] {
+            let mut queue = EventQueue::default();
+            let accepted = schedule(&mut queue, mouse_move_payload(1, 1.0));
+            let result = queue.enqueue(NativeEventPayload::scroll(2, 0.0, 1.0), |_| status);
+            assert_eq!(result.unwrap_err().status, status);
+            let next_move = schedule(&mut queue, mouse_move_payload(1, 2.0));
+            let next_scroll = schedule(&mut queue, NativeEventPayload::scroll(2, 0.0, 2.0));
+            assert_eq!(event(accepted).client_x, 1.0);
+            assert_eq!(event(next_move).client_x, 2.0);
+            assert_eq!(event(next_scroll).scroll_y, 2.0);
+        }
+    }
+
+    #[test]
+    fn independent_window_queues_do_not_coalesce_each_other() {
+        let mut first = EventQueue::default();
+        let mut second = EventQueue::default();
+        let a = schedule(&mut first, NativeEventPayload::scroll(1, 0.0, 1.0));
+        let b = schedule(&mut second, NativeEventPayload::scroll(1, 0.0, 2.0));
+        assert!(first
+            .schedule(NativeEventPayload::scroll(1, 0.0, 3.0))
+            .unwrap()
+            .is_none());
+        assert_eq!(event(a).scroll_y, 3.0);
+        assert_eq!(event(b).scroll_y, 2.0);
+    }
+
+    #[cfg(feature = "benchmarks")]
+    #[test]
+    fn hardening_benchmark_event_delivery() {
+        use std::time::Duration;
+
+        const TARGETS: usize = 8;
+        const ROUNDS: usize = 10_000;
+        const CALLBACK_BOUND: usize = TARGETS * 2;
+        const WARMUP: usize = 3;
+        const SAMPLES: usize = 25;
+
+        fn sample(rounds_per_batch: usize) -> [Duration; 3] {
+            let mut queue = EventQueue::default();
+            let mut deliveries = Vec::with_capacity(CALLBACK_BOUND);
+            let mut consumed = Vec::with_capacity(CALLBACK_BOUND);
+            let mut schedule_time = Duration::ZERO;
+            let mut consume_time = Duration::ZERO;
+            let mut callbacks = 0;
+            for start in (0..ROUNDS).step_by(rounds_per_batch) {
+                let end = (start + rounds_per_batch).min(ROUNDS);
+                let started = Instant::now();
+                for index in start..end {
+                    for target in 1..=TARGETS as NodeId {
+                        for payload in [
+                            mouse_move_payload(target, index as f64),
+                            NativeEventPayload::scroll(target, index as f64, -(index as f64)),
+                        ] {
+                            queue
+                                .enqueue(payload, |delivery| {
+                                    deliveries.push(delivery);
+                                    Status::Ok
+                                })
+                                .unwrap();
+                        }
+                    }
+                }
+                schedule_time += started.elapsed();
+                assert_eq!(deliveries.len(), CALLBACK_BOUND);
+                callbacks += deliveries.len();
+                let pending = queue.continuous.as_ref().unwrap();
+                assert_eq!(pending.lock().unwrap().len(), CALLBACK_BOUND);
+
+                let started = Instant::now();
+                consumed.extend(deliveries.drain(..).map(event));
+                consume_time += started.elapsed();
+                assert!(pending.lock().unwrap().is_empty());
+                assert_eq!(Arc::strong_count(pending), 1);
+                for (index, payload) in consumed.drain(..).enumerate() {
+                    assert_eq!(payload.target_id, (index / 2 + 1) as NodeId);
+                    if index % 2 == 0 {
+                        assert_eq!(payload.event_id, NativeEventId::MouseMove as u16);
+                        assert_eq!(payload.client_x, (end - 1) as f64);
+                    } else {
+                        assert_eq!(payload.event_id, NativeEventId::Scroll as u16);
+                        assert_eq!(payload.scroll_x, (end - 1) as f64);
+                        assert_eq!(payload.scroll_y, -((end - 1) as f64));
+                    }
+                }
+            }
+            assert_eq!(
+                callbacks,
+                ROUNDS.div_ceil(rounds_per_batch) * CALLBACK_BOUND
+            );
+            let pending = Arc::downgrade(queue.continuous.as_ref().unwrap());
+            drop(queue);
+            assert!(pending.upgrade().is_none());
+            [schedule_time, consume_time, schedule_time + consume_time]
+        }
+
+        // Batch boundaries model consumer cadence, not actual frames or elapsed
+        // display time. Assertions and reporting stay outside the timed phases.
+        println!(
+            "RETEND_GPUI_HARDENING_SCOPE scope=event_queue no_os_events=true no_napi=true no_js=true no_contention=true no_transport_lock=true includes_payload_construction=true debug_assertions={} percentile=nearest_rank",
+            cfg!(debug_assertions),
+        );
+        for (scenario, rounds_per_batch) in [("stalled_consumer", ROUNDS), ("per_frame", 100)] {
+            let mut samples = Vec::with_capacity(SAMPLES);
+            for iteration in 0..WARMUP + SAMPLES {
+                let timings = sample(rounds_per_batch);
+                if iteration >= WARMUP {
+                    samples.push(timings);
+                }
+            }
+            let batches = ROUNDS.div_ceil(rounds_per_batch);
+            for (index, phase) in ["schedule", "consume", "schedule_and_consume"]
+                .into_iter()
+                .enumerate()
+            {
+                let mut times: Vec<_> = samples.iter().map(|timings| timings[index]).collect();
+                times.sort_unstable();
+                let percentile = |percent: usize| {
+                    times[(SAMPLES * percent).div_ceil(100) - 1].as_secs_f64() * 1_000_000.0
+                };
+                println!(
+                    "RETEND_GPUI_HARDENING scope=event_queue scenario={scenario} phase={phase} targets={TARGETS} input_events={} batches={batches} callbacks={} pending_callback_bound={CALLBACK_BOUND} samples={SAMPLES} warmup={WARMUP} p50_us={:.3} p95_us={:.3}",
+                    ROUNDS * CALLBACK_BOUND, batches * CALLBACK_BOUND,
+                    percentile(50), percentile(95),
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn producer_and_consumer_race_without_losing_final_state() {
+        let (sender, receiver) = std::sync::mpsc::channel::<EventDelivery>();
+        let consumer = std::thread::spawn(move || {
+            let mut last = [None; 2];
+            for delivery in receiver {
+                let payload = event(delivery);
+                let index = usize::from(payload.event_id == NativeEventId::Scroll as u16);
+                let value = payload.client_x + payload.scroll_y;
+                if let Some(previous) = last[index] {
+                    assert!(value > previous);
+                }
+                last[index] = Some(value);
+            }
+            last
+        });
+        let mut queue = EventQueue::default();
+        for index in 0..20_000 {
+            for payload in [
+                mouse_move_payload(1, index as f64),
+                NativeEventPayload::scroll(1, 0.0, index as f64),
+            ] {
+                queue
+                    .enqueue(payload, |delivery| {
+                        sender.send(delivery).unwrap();
+                        Status::Ok
+                    })
+                    .unwrap();
+            }
+        }
+        drop(sender);
+        assert_eq!(consumer.join().unwrap(), [Some(19_999.0); 2]);
+        assert!(queue
+            .continuous
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .is_empty());
+    }
+
 }

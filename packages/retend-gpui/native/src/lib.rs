@@ -3,6 +3,8 @@
 #[cfg(all(test, feature = "benchmarks"))]
 mod benchmark;
 mod events;
+#[cfg(all(test, feature = "benchmarks"))]
+mod hardening_benchmark;
 mod motion;
 mod platform;
 mod protocol;
