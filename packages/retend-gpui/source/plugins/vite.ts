@@ -335,6 +335,11 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
             },
           }
         : {
+            // Keep dev asset imports as URLs too; inlining them as data URLs
+            // would not be loadable by the native renderer.
+            build: {
+              assetsInlineLimit: 0,
+            },
             resolve: {
               external: ['retend', 'retend-gpui', '@adbl/cells'],
             },
