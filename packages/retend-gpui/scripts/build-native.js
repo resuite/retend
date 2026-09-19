@@ -7,118 +7,98 @@ const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..'
 );
-const nativeRoot = path.join(packageRoot, 'native');
-const npmRoot = path.join(nativeRoot, 'npm');
+const npmRoot = path.join(packageRoot, 'native', 'npm');
 const release = process.argv.includes('--release');
-const profile = release ? 'release' : 'debug';
 
-// Every supported OS/architecture is a workspace package so the main package can
-// reference them from `optionalDependencies` while the lockfile stays stable.
-const targets = [
-  'darwin-arm64',
-  'darwin-x64',
-  'linux-arm64',
-  'linux-x64',
-  'win32-arm64',
-  'win32-x64',
-];
 const rustTriples = {
   'darwin-arm64': 'aarch64-apple-darwin',
   'darwin-x64': 'x86_64-apple-darwin',
-  'linux-arm64': 'aarch64-unknown-linux-gnu',
-  'linux-x64': 'x86_64-unknown-linux-gnu',
-  'win32-arm64': 'aarch64-pc-windows-msvc',
-  'win32-x64': 'x86_64-pc-windows-msvc',
+  'linux-arm64-gnu': 'aarch64-unknown-linux-gnu',
+  'linux-x64-gnu': 'x86_64-unknown-linux-gnu',
+  'win32-arm64-msvc': 'aarch64-pc-windows-msvc',
+  'win32-x64-msvc': 'x86_64-pc-windows-msvc',
 };
-const libraryNames = {
-  darwin: 'libretend_gpui_native.dylib',
-  linux: 'libretend_gpui_native.so',
-  win32: 'retend_gpui_native.dll',
-};
+const targets = Object.keys(rustTriples);
 
-const hostTarget = `${process.platform}-${process.arch}`;
-if (!targets.includes(hostTarget)) {
-  throw new Error(
-    `Unsupported Retend GPUI native build target: ${hostTarget}.`
-  );
+function hostTarget() {
+  switch (process.platform) {
+    case 'darwin':
+      return `darwin-${process.arch}`;
+    case 'linux':
+      return `linux-${process.arch}-gnu`;
+    case 'win32':
+      return `win32-${process.arch}-msvc`;
+    default:
+      throw new Error(
+        `Unsupported Retend GPUI native build host: ${process.platform}-${process.arch}.`
+      );
+  }
 }
 
-// The CI matrix builds one target per job. A target that matches the host is a
-// native build; a same-OS target (for example darwin-x64 on an arm64 macOS
-// runner) is a Rust cross-build. Cross-OS builds are rejected because they
-// need the target platform's linker and SDK.
+const host = hostTarget();
+if (!targets.includes(host)) {
+  throw new Error(`Unsupported Retend GPUI native build target: ${host}.`);
+}
+
 const requestedTarget = process.argv
   .find((arg) => arg.startsWith('--target='))
   ?.slice('--target='.length);
-const buildTarget = requestedTarget || hostTarget;
+const buildTarget = requestedTarget || host;
 if (!targets.includes(buildTarget)) {
   throw new Error(`Unsupported Retend GPUI native target: ${buildTarget}.`);
 }
 const targetOs = buildTarget.split('-')[0];
-const crossCompiling = buildTarget !== hostTarget;
+const crossCompiling = buildTarget !== host;
 if (crossCompiling && targetOs !== process.platform) {
   throw new Error(
-    `Retend GPUI cannot cross-build ${buildTarget} from ${hostTarget}. Run this target on a ${targetOs} runner.`
+    `Retend GPUI cannot cross-build ${buildTarget} from ${host}. Run this target on a ${targetOs} runner.`
   );
 }
 
-const rootManifest = JSON.parse(
-  fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8')
-);
-
-function packageManifestFor(target) {
-  const [os, arch] = target.split('-');
-  const binaryName = `retend-gpui-native.${target}.node`;
-  return {
-    name: `retend-gpui-native-${target}`,
-    version: rootManifest.version,
-    description: `Prebuilt Retend GPUI native addon for ${target}.`,
-    license: rootManifest.license,
-    repository: rootManifest.repository,
-    os: [os],
-    cpu: [arch],
-    main: binaryName,
-    files: [binaryName],
-    publishConfig: { access: 'public' },
-  };
-}
-
-// Rewrite all platform manifests so their versions track the main package even
-// when this run only produces one binary.
-for (const target of targets) {
-  const packageDir = path.join(npmRoot, target);
-  fs.mkdirSync(packageDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(packageDir, 'package.json'),
-    `${JSON.stringify(packageManifestFor(target), null, 2)}\n`
+function runNapi(args) {
+  const binary = path.join(
+    packageRoot,
+    'node_modules',
+    '.bin',
+    `napi${process.platform === 'win32' ? '.cmd' : ''}`
   );
+  const result = spawnSync(binary, args, {
+    cwd: packageRoot,
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const cargoArgs = [
+// Regenerate the platform manifests so their versions track the main package
+// even when this run only produces one binary.
+runNapi(['create-npm-dirs', '--npm-dir', 'native/npm']);
+
+const napiArgs = [
   'build',
+  '--platform',
+  '--target',
+  rustTriples[buildTarget],
   '--manifest-path',
-  path.join(nativeRoot, 'Cargo.toml'),
+  'native/Cargo.toml',
+  '--output-dir',
+  path.join('native', 'npm', buildTarget),
+  '--no-js',
 ];
-if (crossCompiling) cargoArgs.push('--target', rustTriples[buildTarget]);
-if (release) cargoArgs.push('--release');
+if (release) napiArgs.push('--release');
 // Release CI passes `--locked` so the published binaries come from the
 // committed Cargo.lock rather than a freshly resolved graph.
-if (process.argv.includes('--locked')) cargoArgs.push('--locked');
+if (process.argv.includes('--locked')) napiArgs.push('--', '--locked');
+runNapi(napiArgs);
 
-const result = spawnSync('cargo', cargoArgs, {
-  cwd: packageRoot,
-  stdio: 'inherit',
-});
-if (result.status !== 0) process.exit(result.status ?? 1);
+const outputDir = path.join(npmRoot, buildTarget);
+for (const generated of fs.readdirSync(outputDir)) {
+  if (generated.endsWith('.js') || generated.endsWith('.d.ts')) {
+    fs.rmSync(path.join(outputDir, generated));
+  }
+}
 
-const outputDir = crossCompiling
-  ? path.join(nativeRoot, 'target', rustTriples[buildTarget], profile)
-  : path.join(nativeRoot, 'target', profile);
-const source = path.join(outputDir, libraryNames[targetOs]);
 const targetName = `retend-gpui-native.${buildTarget}.node`;
-const packageDir = path.join(npmRoot, buildTarget);
-const packageDestination = path.join(packageDir, targetName);
-fs.copyFileSync(source, packageDestination);
+const packageDestination = path.join(npmRoot, buildTarget, targetName);
 if (targetOs === 'darwin' && process.platform === 'darwin') {
   const signed = spawnSync('codesign', [
     '--force',

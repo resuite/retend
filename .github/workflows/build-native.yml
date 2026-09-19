@@ -24,13 +24,13 @@ jobs:
           - target: darwin-x64
             runner: macos-15
             rust-target: x86_64-apple-darwin
-          - target: linux-x64
+          - target: linux-x64-gnu
             runner: ubuntu-24.04
-          - target: linux-arm64
+          - target: linux-arm64-gnu
             runner: ubuntu-24.04-arm
-          - target: win32-x64
+          - target: win32-x64-msvc
             runner: windows-2022
-          - target: win32-arm64
+          - target: win32-arm64-msvc
             runner: windows-11-arm
 
     steps:

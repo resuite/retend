@@ -12,7 +12,7 @@ import {
 } from '../application.js';
 import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
-import { setNativeAddonPath } from '../native/addon.js';
+import { nativeTargetPlatform, setNativeAddonPath } from '../native/addon.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -42,8 +42,8 @@ export interface ProductionAppDefinition<Context extends object> {
 
 /** Finds the bundled addon in the app bundle or beside the entry. */
 function resolveNativeAddonPath(explicit?: string): string | undefined {
-  const target = `${process.platform}-${process.arch}`;
-  const binaryName = `retend-gpui-native.${target}.node`;
+  const platform = nativeTargetPlatform();
+  const binaryName = `retend-gpui-native.${platform}.node`;
   const bundleDir = fileURLToPath(new URL('.', import.meta.url));
   const executableDir = path.dirname(process.execPath);
   const candidates = [

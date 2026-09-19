@@ -154,16 +154,31 @@ interface NativeAddon {
 
 const require = createRequire(import.meta.url);
 let nativeAddonPathOverride: string | undefined;
-const supportedTargets = [
-  'darwin-arm64',
-  'darwin-x64',
-  'linux-arm64',
-  'linux-x64',
-  'win32-arm64',
-  'win32-x64',
-];
+// Maps `${process.platform}-${process.arch}` onto the napi-rs platform strings
+// used for binary and package names (`linux-x64-gnu`, `win32-x64-msvc`).
+const nativePlatforms: Record<string, string> = {
+  'darwin-arm64': 'darwin-arm64',
+  'darwin-x64': 'darwin-x64',
+  'linux-arm64': 'linux-arm64-gnu',
+  'linux-x64': 'linux-x64-gnu',
+  'win32-arm64': 'win32-arm64-msvc',
+  'win32-x64': 'win32-x64-msvc',
+};
+const supportedTargets = Object.keys(nativePlatforms);
 const supportedTarget = new RegExp(`^(${supportedTargets.join('|')})$`);
 let nativeAddon: NativeAddon | undefined;
+
+export function nativeTargetPlatform(
+  target = `${process.platform}-${process.arch}`
+): string {
+  const platform = nativePlatforms[target];
+  if (!platform) {
+    throw new Error(
+      `Retend GPUI does not support native target ${target}. Supported targets are ${supportedTargets.join(', ')}.`
+    );
+  }
+  return platform;
+}
 
 const FAILURE_PREFIX = 'RETEND_GPUI_FAILURE:';
 
@@ -211,9 +226,10 @@ export function loadNativeAddon(): NativeAddon {
     return nativeAddon;
   }
   const target = `${process.platform}-${process.arch}`;
+  const platform = nativeTargetPlatform(target);
   const localPath = fileURLToPath(
     new URL(
-      `../../native/npm/${target}/retend-gpui-native.${target}.node`,
+      `../../native/npm/${platform}/retend-gpui-native.${platform}.node`,
       import.meta.url
     )
   );
@@ -227,12 +243,12 @@ export function loadNativeAddon(): NativeAddon {
       `Retend GPUI does not support native target ${target}. Supported targets are ${supportedTargets.join(', ')}.`
     );
   }
-  const packageName = `retend-gpui-native-${target}`;
+  const packageName = `retend-gpui-native-${platform}`;
   try {
     nativeAddon = require(packageName) as NativeAddon;
     return nativeAddon;
   } catch (error) {
-    if (isMissingNativeBinary(error, packageName, target)) {
+    if (isMissingNativeBinary(error, packageName, platform)) {
       throw new Error(
         `Retend GPUI native binary is missing for ${target}. Run the native build or install ${packageName}.`,
         { cause: error }

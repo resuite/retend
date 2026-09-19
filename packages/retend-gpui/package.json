@@ -4,11 +4,11 @@
   "private": false,
   "description": "Native desktop rendering for the Retend UI framework through GPUI.",
   "keywords": [
+    "desktop",
+    "gpui",
     "javascript",
     "jsx",
-    "native",
-    "desktop",
-    "gpui"
+    "native"
   ],
   "homepage": "https://github.com/resuite/retend#readme",
   "bugs": {
@@ -23,6 +23,9 @@
   "bin": {
     "retend-gpui": "./dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -42,9 +45,6 @@
       "import": "./dist/plugins/hmr.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "publishConfig": {
     "access": "public"
   },
@@ -69,6 +69,7 @@
     "test:all": "pnpm run test && pnpm run test:native"
   },
   "devDependencies": {
+    "@napi-rs/cli": "^3",
     "@types/node": "^22.7.5",
     "retend": "workspace:*",
     "retend-oxlint-plugin": "workspace:*",
@@ -83,9 +84,22 @@
   "optionalDependencies": {
     "retend-gpui-native-darwin-arm64": "workspace:*",
     "retend-gpui-native-darwin-x64": "workspace:*",
-    "retend-gpui-native-linux-arm64": "workspace:*",
-    "retend-gpui-native-linux-x64": "workspace:*",
-    "retend-gpui-native-win32-arm64": "workspace:*",
-    "retend-gpui-native-win32-x64": "workspace:*"
+    "retend-gpui-native-linux-arm64-gnu": "workspace:*",
+    "retend-gpui-native-linux-x64-gnu": "workspace:*",
+    "retend-gpui-native-win32-arm64-msvc": "workspace:*",
+    "retend-gpui-native-win32-x64-msvc": "workspace:*"
+  },
+  "napi": {
+    "binaryName": "retend-gpui-native",
+    "npmClient": "pnpm",
+    "packageName": "retend-gpui-native",
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-pc-windows-msvc",
+      "x86_64-pc-windows-msvc"
+    ]
   }
 }

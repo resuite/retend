@@ -1,12 +1,12 @@
 {
-  "name": "retend-gpui-native-darwin-arm64",
+  "name": "retend-gpui-native-linux-arm64-gnu",
   "version": "0.0.34",
   "cpu": [
     "arm64"
   ],
-  "main": "retend-gpui-native.darwin-arm64.node",
+  "main": "retend-gpui-native.linux-arm64-gnu.node",
   "files": [
-    "retend-gpui-native.darwin-arm64.node"
+    "retend-gpui-native.linux-arm64-gnu.node"
   ],
   "description": "Native desktop rendering for the Retend UI framework through GPUI.",
   "keywords": [
@@ -30,6 +30,9 @@
     "access": "public"
   },
   "os": [
-    "darwin"
+    "linux"
+  ],
+  "libc": [
+    "glibc"
   ]
 }

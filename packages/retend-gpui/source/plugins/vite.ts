@@ -13,6 +13,7 @@ import {
 
 import type { DevRuntimeConfig } from '../runtime/protocol.js';
 
+import { nativeTargetPlatform } from '../native/addon.js';
 import { buildDmg, buildMacApp } from '../packaging/macos.js';
 import {
   acquireNodeRuntime,
@@ -179,6 +180,7 @@ function productionEntrySource(
     title: options.window.title ?? options.app.name,
     location: options.window.location ?? '/',
   };
+  const platform = nativeTargetPlatform(target);
   return `import { fileURLToPath } from 'node:url';
 import Application from ${JSON.stringify(modulePath(options.application))};
 import Root from ${JSON.stringify(modulePath(options.entry))};
@@ -190,7 +192,7 @@ await startProductionApp({
   appName: ${JSON.stringify(options.app.name)},
   options: ${JSON.stringify(windowOptions)},
   nativeAddonPath: fileURLToPath(
-    new URL('./native/retend-gpui-native.${target}.node', import.meta.url)
+    new URL('./native/retend-gpui-native.${platform}.node', import.meta.url)
   ),
 });
 `;
@@ -456,16 +458,14 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         return;
       }
       productionAddonCopied = true;
-      const binaryName = `retend-gpui-native.${productionTarget}.node`;
+      const platform = nativeTargetPlatform(productionTarget);
+      const binaryName = `retend-gpui-native.${platform}.node`;
       const source = fileURLToPath(
-        new URL(
-          `../../native/npm/${productionTarget}/${binaryName}`,
-          import.meta.url
-        )
+        new URL(`../../native/npm/${platform}/${binaryName}`, import.meta.url)
       );
       if (!fs.existsSync(source)) {
         throw new Error(
-          `Retend GPUI is missing the prebuilt ${productionTarget} addon. Run \`retend-gpui native:build\` or install retend-gpui-native-${productionTarget}.`
+          `Retend GPUI is missing the prebuilt ${productionTarget} addon. Run \`retend-gpui native:build\` or install retend-gpui-native-${platform}.`
         );
       }
       const destination = path.join(productionOutputDir, 'native', binaryName);
