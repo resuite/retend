@@ -238,7 +238,7 @@ Goal: make the Retend-owned bridge the normal renderer path for Retend GPUI, wit
 - [x] Add event bubbling/non-bubbling tests.
 - [x] Add listener snapshot/mutation-during-dispatch tests.
 - [x] Add stale-event and mousemove-coalescing tests.
-- [ ] Add runtime-level multi-window isolation and Vite full-reload preservation tests.
+- [x] Add runtime-level multi-window isolation and Vite full-reload preservation tests.
 - [x] Add native resize-event tests.
 
 ### Phase 2 completion gate
@@ -478,15 +478,15 @@ Goal: complete the v1 feature surface, stabilize and harden the protocol after r
 
 ### Final conformance suite
 
-- [ ] Run protocol golden-vector tests in TypeScript and Rust.
-- [ ] Run Rust decoder fuzz/property tests.
-- [ ] Run native integration tests on macOS.
+- [x] Run protocol golden-vector tests in TypeScript and Rust.
+- [x] Run Rust decoder fuzz/property tests.
+- [x] Run native integration tests on macOS.
 - [ ] Run native integration tests on Windows.
 - [ ] Run native integration tests on Linux.
-- [ ] Run multi-window tests.
-- [ ] Run Vite HMR/full-reload/dev-fatal tests.
-- [ ] Run motion retargeting/cancellation/pseudo-state tests.
-- [ ] Run input/IME/focus/scroll integration tests.
+- [x] Run multi-window tests.
+- [x] Run Vite HMR/full-reload/dev-fatal tests.
+- [x] Run motion retargeting/cancellation/pseudo-state tests.
+- [x] Run input/IME/focus/scroll integration tests.
 - [ ] Build all examples against the new bridge.
 - [x] Confirm no source/runtime dependency on `@gpuix/native` remains.
 
