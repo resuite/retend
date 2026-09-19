@@ -2555,6 +2555,137 @@ mod tests {
     }
 
     #[test]
+    fn repeated_detach_reattach_settle_cycles_leave_no_residue() {
+        let (mut tree, window, root) = setup();
+        let mut commands = vec![Command::CreateNode {
+            id: 2,
+            kind: ElementKind::Container,
+        }];
+        for id in 3u32..=52 {
+            commands.push(Command::CreateNode {
+                id,
+                kind: ElementKind::Container,
+            });
+            commands.push(Command::InsertChild {
+                parent_id: 2,
+                child_id: id,
+                before_id: 0,
+            });
+        }
+        commands.push(Command::InsertChild {
+            parent_id: root,
+            child_id: 2,
+            before_id: 0,
+        });
+        tree.apply_commands(window, commands).unwrap();
+        let baseline = tree.nodes.len();
+        assert_eq!(baseline, 52);
+
+        for _ in 0..50 {
+            tree.apply_commands(
+                window,
+                vec![Command::RemoveChild {
+                    parent_id: root,
+                    child_id: 2,
+                }],
+            )
+            .unwrap();
+            tree.apply_commands(
+                window,
+                vec![Command::InsertChild {
+                    parent_id: root,
+                    child_id: 2,
+                    before_id: 0,
+                }],
+            )
+            .unwrap();
+
+            let destroyed = tree.settle(window).unwrap();
+            assert!(destroyed.is_empty());
+        }
+
+        assert_eq!(tree.nodes.len(), baseline);
+        assert!(tree.windows[&window].pending_detached.is_empty());
+        assert!(tree.nodes.contains_key(&2));
+    }
+
+    #[test]
+    fn repeated_create_detach_settle_cycles_return_to_baseline() {
+        let (mut tree, window, root) = setup();
+        let baseline = tree.nodes.len();
+
+        for _ in 0..50 {
+            let mut commands = vec![Command::CreateNode {
+                id: 2,
+                kind: ElementKind::Container,
+            }];
+            for id in 3u32..=12 {
+                commands.push(Command::CreateNode {
+                    id,
+                    kind: ElementKind::Container,
+                });
+                commands.push(Command::InsertChild {
+                    parent_id: 2,
+                    child_id: id,
+                    before_id: 0,
+                });
+            }
+            commands.push(Command::InsertChild {
+                parent_id: root,
+                child_id: 2,
+                before_id: 0,
+            });
+            tree.apply_commands(window, commands).unwrap();
+
+            tree.apply_commands(
+                window,
+                vec![Command::RemoveChild {
+                    parent_id: root,
+                    child_id: 2,
+                }],
+            )
+            .unwrap();
+            let destroyed = tree.settle(window).unwrap();
+            assert_eq!(destroyed.len(), 11);
+        }
+
+        assert_eq!(tree.nodes.len(), baseline);
+        assert!(tree.windows[&window].pending_detached.is_empty());
+    }
+
+    #[test]
+    fn repeated_window_create_close_cycles_release_every_node() {
+        let (mut tree, _window, _root) = setup();
+        let baseline = tree.nodes.len();
+
+        for cycle in 0..20u32 {
+            let root_id = 1000 + cycle * 10;
+            let window_id = tree.create_window(root_id).unwrap();
+            tree.apply_commands(
+                window_id,
+                vec![
+                    Command::CreateNode {
+                        id: root_id + 1,
+                        kind: ElementKind::Container,
+                    },
+                    Command::InsertChild {
+                        parent_id: root_id,
+                        child_id: root_id + 1,
+                        before_id: 0,
+                    },
+                ],
+            )
+            .unwrap();
+
+            let destroyed = tree.close_window(window_id);
+            assert_eq!(destroyed.len(), 2);
+        }
+
+        assert_eq!(tree.nodes.len(), baseline);
+        assert_eq!(tree.windows.len(), 1);
+    }
+
+    #[test]
     fn settlement_destroys_nested_detached_roots_once() {
         let (mut tree, window, root) = setup();
         tree.apply_commands(
