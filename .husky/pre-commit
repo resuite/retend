@@ -1,8 +1,10 @@
 # Format staged source files and re-stage any formatter changes.
-files="$(git diff --cached --name-only --diff-filter=ACMR -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' '*.mts' '*.cts')"
-if [ -n "$files" ]; then
-  pnpm exec oxfmt $files
-  git add $files
+# NOTE: file lists are passed NUL-delimited via `xargs -0` so paths with
+# spaces are handled. Never expand an unquoted `$files` variable here.
+staged="$(git diff --cached --name-only --diff-filter=ACMR -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' '*.mts' '*.cts')"
+if [ -n "$staged" ]; then
+  git diff --cached --name-only -z --diff-filter=ACMR -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' '*.mts' '*.cts' | xargs -0 pnpm exec oxfmt
+  git diff --cached --name-only -z --diff-filter=ACMR -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' '*.mts' '*.cts' | xargs -0 git add --
 fi
 
 # `pnpm lint` (oxlint) cannot run on Android/Termux: its JS-plugin support
@@ -14,8 +16,14 @@ fi
 # panics on Android (try `oxlint packages/retend-web-devtools`) before
 # removing this skip. If it works, re-enable lint on all platforms.
 if [ -n "$ANDROID_ROOT" ] || [ "$(node -p 'process.platform' 2>/dev/null)" = "android" ]; then
-  echo "Skipping pnpm lint on Android (oxlint JS-plugin allocator is unsupported on bionic)"
+  echo "Skipping lint on Android (oxlint JS-plugin allocator is unsupported on bionic)"
   exit 0
 fi
 
-pnpm lint
+# Lint only staged files instead of the whole repo. Full-repo `pnpm lint`
+# (see the `lint` script in package.json) re-scans thousands of files on
+# every commit, which is slow and can exhaust MSYS fork resources on
+# Windows and hang the hook.
+if [ -n "$staged" ]; then
+  git diff --cached --name-only -z --diff-filter=ACMR -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.mjs' '*.cjs' '*.mts' '*.cts' | xargs -0 pnpm exec oxlint
+fi

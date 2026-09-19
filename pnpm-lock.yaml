@@ -120,6 +120,25 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
+  experiments/retend-canvas-2d-tests:
+    dependencies:
+      retend:
+        specifier: workspace:*
+        version: link:../../packages/retend
+      retend-canvas-2d:
+        specifier: workspace:*
+        version: link:../retend-canvas-2d
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@26.1.2)(@vitest/browser@3.2.4)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)
+    devDependencies:
+      '@vitest/browser':
+        specifier: ^3.2.4
+        version: 3.2.4(playwright@1.58.2)(vite@7.3.1(@types/node@26.1.2)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0))(vitest@3.2.4)
+      playwright:
+        specifier: ^1.58.1
+        version: 1.58.2
+
   experiments/retend-canvas-examples:
     devDependencies:
       retend:
@@ -438,9 +457,6 @@ importers:
       retend:
         specifier: workspace:*
         version: link:../packages/retend
-      retend-canvas-2d:
-        specifier: workspace:*
-        version: link:../experiments/retend-canvas-2d
       retend-server:
         specifier: workspace:*
         version: link:../packages/retend-server

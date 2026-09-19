@@ -5,7 +5,6 @@
   "module": "index.ts",
   "dependencies": {
     "retend": "workspace:*",
-    "retend-canvas-2d": "workspace:*",
     "retend-server": "workspace:*",
     "retend-utils": "workspace:*",
     "retend-web": "workspace:*",

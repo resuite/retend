@@ -1,3 +1,4 @@
 - Use pnpm only.
+- First-time setup: `pnpm run bootstrap` (installs deps + Playwright browsers + builds all packages).
 - Packages must be rebuilt after changes before running tests.
 - Use `pnpm run test` to run tests.

@@ -4,3 +4,7 @@ packages:
   - packages/retend-gpui/native/npm/*
   - tests
   - experiments/*
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - workerd
