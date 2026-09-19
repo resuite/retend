@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    path::PathBuf,
 };
 
 use serde::Serialize;
@@ -89,6 +90,31 @@ pub enum ImageObjectFit {
     Cover,
     ScaleDown,
     None,
+}
+
+/// Where an image source loads from. Parsed when the property is applied so
+/// rendering does not re-parse the string every frame.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum ImageLocation {
+    #[default]
+    Unset,
+    /// Remote URL, loaded through GPUI's asset source.
+    Uri,
+    /// Local file, loaded from disk.
+    Path(PathBuf),
+}
+
+impl ImageLocation {
+    fn parse(value: &str) -> Self {
+        let Ok(url) = url::Url::parse(value) else {
+            return Self::Unset;
+        };
+        match url.scheme() {
+            "http" | "https" => Self::Uri,
+            "file" => url.to_file_path().map_or(Self::Unset, Self::Path),
+            _ => Self::Unset,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -339,6 +365,7 @@ pub enum NodeData {
         src: Option<String>,
         object_fit: Option<ImageObjectFit>,
         alt: Option<String>,
+        location: ImageLocation,
     },
     TextControl {
         kind: TextControlKind,
@@ -1046,6 +1073,7 @@ impl NativeTree {
                         src: None,
                         object_fit: None,
                         alt: None,
+                        location: ImageLocation::Unset,
                     },
                     ElementKind::Button => NodeData::Button,
                     ElementKind::Input | ElementKind::Textarea => NodeData::TextControl {
@@ -1194,17 +1222,21 @@ impl NativeTree {
                         *rows = textarea_rows(index, value)?;
                         Ok(())
                     }
-                    (PropertyId::Src, NodeData::Image { src, .. }) => {
-                        *src = nullable_string(
+                    (PropertyId::Src, NodeData::Image { src, location, .. }) => {
+                        let parsed = nullable_string(
                             index,
                             value,
                             "Image src must be a URL string or null.",
-                        )?
-                        .filter(|value| {
-                            url::Url::parse(value).is_ok_and(|url| {
-                                matches!(url.scheme(), "http" | "https" | "file")
-                            })
-                        });
+                        )?;
+                        let parsed_location = parsed
+                            .as_deref()
+                            .map_or(ImageLocation::Unset, ImageLocation::parse);
+                        *src = if matches!(&parsed_location, ImageLocation::Unset) {
+                            None
+                        } else {
+                            parsed
+                        };
+                        *location = parsed_location;
                         Ok(())
                     }
                     (PropertyId::Alt, NodeData::Image { alt, .. }) => {
