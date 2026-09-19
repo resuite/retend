@@ -82,6 +82,7 @@
     "LineHeight": 44,
     "WhiteSpace": 45,
     "Overflow": 46,
+    "Alt": 49,
     "Src": 50,
     "ObjectFit": 51,
     "Value": 52,

@@ -374,10 +374,12 @@ export type GpuiElementType = (typeof GPUI_ELEMENT_TYPES)[number];
  * Custom props for `<img>`.
  */
 export interface GpuiImgCustomProps {
-  /** HTTP(S) image URL. Bundled asset imports are added with the native Vite asset pipeline. */
+  /** Image source: an HTTP(S) URL, a `file:` URL, or an imported asset. */
   src?: string;
   /** How the image should scale within its bounds. */
   objectFit?: 'fill' | 'contain' | 'cover' | 'scaleDown' | 'none';
+  /** Accessible text announced for the image. */
+  alt?: string;
 }
 
 export interface GpuiInputCustomProps {

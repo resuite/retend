@@ -11,7 +11,7 @@ export default function App() {
         alignItems: 'center',
       }}
     >
-      <img src={appIcon} style={{ width: 64, height: 64 }} />
+      <img src={appIcon} alt="Retend GPUI" style={{ width: 64, height: 64 }} />
       <div
         style={{
           backgroundColor: 'blue',

@@ -338,6 +338,7 @@ pub enum NodeData {
     Image {
         src: Option<String>,
         object_fit: Option<ImageObjectFit>,
+        alt: Option<String>,
     },
     TextControl {
         kind: TextControlKind,
@@ -1044,6 +1045,7 @@ impl NativeTree {
                     ElementKind::Image => NodeData::Image {
                         src: None,
                         object_fit: None,
+                        alt: None,
                     },
                     ElementKind::Button => NodeData::Button,
                     ElementKind::Input | ElementKind::Textarea => NodeData::TextControl {
@@ -1203,6 +1205,14 @@ impl NativeTree {
                                 matches!(url.scheme(), "http" | "https" | "file")
                             })
                         });
+                        Ok(())
+                    }
+                    (PropertyId::Alt, NodeData::Image { alt, .. }) => {
+                        *alt = nullable_string(
+                            index,
+                            value,
+                            "Image alt must be a string or null.",
+                        )?;
                         Ok(())
                     }
                     (PropertyId::ObjectFit, NodeData::Image { object_fit, .. }) => {
@@ -2354,6 +2364,45 @@ mod tests {
                     == Some("file:///Applications/App.app/Contents/Resources/assets/icon.png")
         ));
         assert!(tree.windows[&window].fatal.is_none());
+    }
+
+    #[test]
+    fn image_alt_is_retained_and_cleared_without_poisoning() {
+        let (mut tree, window, _) = setup();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Image,
+                },
+                Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Alt,
+                    value: PropertyValue::String("A red square".into()),
+                },
+            ],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { alt, .. } if alt.as_deref() == Some("A red square")
+        ));
+        assert!(tree.windows[&window].fatal.is_none());
+
+        tree.apply_commands(
+            window,
+            vec![Command::SetProperty {
+                id: 2,
+                property: PropertyId::Alt,
+                value: PropertyValue::Null,
+            }],
+        )
+        .unwrap();
+        assert!(matches!(
+            &tree.nodes[&2].data,
+            NodeData::Image { alt, .. } if alt.is_none()
+        ));
     }
 
     #[test]

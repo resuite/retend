@@ -5,7 +5,7 @@ use gpui::{
     Bounds, ClickEvent, Element, ElementId, GlobalElementId, ImageCacheError, ImageSource,
     InspectorElementId, KeyBinding, KeyDownEvent, KeyUpEvent, LayoutId, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, Point, Resource,
-    StyledImage, Text, Window,
+    Role, StyledImage, Text, Window,
 };
 
 use crate::{
@@ -960,7 +960,11 @@ where
             }
         }
         NodeData::Text(_) => unreachable!("text leaves return before bounds tracking"),
-        NodeData::Image { src, object_fit } => {
+        NodeData::Image {
+            src,
+            object_fit,
+            alt,
+        } => {
             let source = src
                 .as_deref()
                 .map(image_source_from)
@@ -976,6 +980,9 @@ where
             };
             if let Some(object_fit) = object_fit {
                 image = image.object_fit(to_gpui_object_fit(*object_fit));
+            }
+            if let Some(alt) = alt {
+                image = image.role(Role::Image).aria_label(alt.clone());
             }
             let image = with_native_events(
                 image.id(ElementId::Integer(u64::from(id))),

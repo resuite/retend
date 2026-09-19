@@ -573,15 +573,16 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     expect(collectText(tree)).toEqual(['before', 'after']);
   });
 
-  it('maps image src and objectFit through the native property vocabulary', () => {
+  it('maps image src, objectFit, and alt through the native property vocabulary', () => {
     const renderer = createRenderer();
     const imageRef = Cell.source<GpuiElement | null>(null);
     const setProperty = vi.spyOn(renderer.host, 'setProperty');
     const src = Cell.source('https://example.com/first.png');
     const objectFit = Cell.source<'contain' | 'cover'>('contain');
+    const alt = Cell.source('First image');
 
     renderer.render(() => (
-      <img ref={imageRef} src={src} objectFit={objectFit} />
+      <img ref={imageRef} src={src} objectFit={objectFit} alt={alt} />
     ));
     const image = imageRef.get();
     if (!image) throw new Error('Expected image ref to resolve.');
@@ -596,10 +597,16 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       PropertyId.ObjectFit,
       'contain'
     );
+    expect(setProperty).toHaveBeenCalledWith(
+      image.id,
+      PropertyId.Alt,
+      'First image'
+    );
 
     Cell.batch(() => {
       src.set('https://example.com/second.png');
       objectFit.set('cover');
+      alt.set('Second image');
     });
     const tree = debugTree(renderer);
     expect(nodeMap(tree).get(image.id)?.src).toBe(
@@ -609,6 +616,11 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       image.id,
       PropertyId.ObjectFit,
       'cover'
+    );
+    expect(setProperty).toHaveBeenCalledWith(
+      image.id,
+      PropertyId.Alt,
+      'Second image'
     );
   });
 
