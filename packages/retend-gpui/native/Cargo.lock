@@ -2269,7 +2269,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=c62005e017a0518da406df2f9976fcc540f1137b#c62005e017a0518da406df2f9976fcc540f1137b"
+source = "git+https://github.com/resuite/gpui-pre?rev=c124216f65f76d70df27bec8127ff7731ea5c69e#c124216f65f76d70df27bec8127ff7731ea5c69e"
 dependencies = [
  "accesskit",
  "anyhow",
@@ -2342,7 +2342,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-apple"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=c62005e017a0518da406df2f9976fcc540f1137b#c62005e017a0518da406df2f9976fcc540f1137b"
+source = "git+https://github.com/resuite/gpui-pre?rev=c124216f65f76d70df27bec8127ff7731ea5c69e#c124216f65f76d70df27bec8127ff7731ea5c69e"
 dependencies = [
  "anyhow",
  "block",
@@ -2467,7 +2467,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-macos"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=c62005e017a0518da406df2f9976fcc540f1137b#c62005e017a0518da406df2f9976fcc540f1137b"
+source = "git+https://github.com/resuite/gpui-pre?rev=c124216f65f76d70df27bec8127ff7731ea5c69e#c124216f65f76d70df27bec8127ff7731ea5c69e"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2731,7 +2731,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-wgpu"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=c62005e017a0518da406df2f9976fcc540f1137b#c62005e017a0518da406df2f9976fcc540f1137b"
+source = "git+https://github.com/resuite/gpui-pre?rev=c124216f65f76d70df27bec8127ff7731ea5c69e#c124216f65f76d70df27bec8127ff7731ea5c69e"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -2757,8 +2757,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-windows"
 version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45918b16e62e89ef4952a6e140297f716934bf6f9b21206ad6ce54faa7316005"
+source = "git+https://github.com/resuite/gpui-pre?rev=c124216f65f76d70df27bec8127ff7731ea5c69e#c124216f65f76d70df27bec8127ff7731ea5c69e"
 dependencies = [
  "accesskit",
  "accesskit_windows",
