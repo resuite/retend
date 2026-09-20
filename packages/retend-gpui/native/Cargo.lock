@@ -2269,7 +2269,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56#b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56"
+source = "git+https://github.com/resuite/gpui-pre?rev=2aa57ca6b17b873b7d0724fca86d9779e62e88b3#2aa57ca6b17b873b7d0724fca86d9779e62e88b3"
 dependencies = [
  "accesskit",
  "anyhow",
@@ -2342,7 +2342,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-apple"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56#b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56"
+source = "git+https://github.com/resuite/gpui-pre?rev=2aa57ca6b17b873b7d0724fca86d9779e62e88b3#2aa57ca6b17b873b7d0724fca86d9779e62e88b3"
 dependencies = [
  "anyhow",
  "block",
@@ -2467,7 +2467,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-macos"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56#b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56"
+source = "git+https://github.com/resuite/gpui-pre?rev=2aa57ca6b17b873b7d0724fca86d9779e62e88b3#2aa57ca6b17b873b7d0724fca86d9779e62e88b3"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2731,7 +2731,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-wgpu"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56#b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56"
+source = "git+https://github.com/resuite/gpui-pre?rev=2aa57ca6b17b873b7d0724fca86d9779e62e88b3#2aa57ca6b17b873b7d0724fca86d9779e62e88b3"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -2757,7 +2757,7 @@ dependencies = [
 [[package]]
 name = "gpui-pre-windows"
 version = "0.3.4"
-source = "git+https://github.com/resuite/gpui-pre?rev=b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56#b7f00bdc5dd3bdd2c4d3eef3295e443625a91e56"
+source = "git+https://github.com/resuite/gpui-pre?rev=2aa57ca6b17b873b7d0724fca86d9779e62e88b3#2aa57ca6b17b873b7d0724fca86d9779e62e88b3"
 dependencies = [
  "accesskit",
  "accesskit_windows",
