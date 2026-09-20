@@ -5,10 +5,13 @@ const cwd = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
 
 function run(command, commandArgs, env = process.env) {
+  // Windows cannot spawn .cmd shims (pnpm, napi) without a shell
+  // (Node ≥22 reports EINVAL), so route through cmd.exe there.
   const result = spawnSync(command, commandArgs, {
     cwd,
     env,
     stdio: 'inherit',
+    shell: process.platform === 'win32',
   });
   if (result.error) console.error(result.error.message);
   if (result.status !== 0) process.exit(result.status ?? 1);

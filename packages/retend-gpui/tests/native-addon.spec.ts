@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 
+import { nativeTargetPlatform } from '../source/native/addon';
+
 const native = vi.hoisted(() => ({
   exists: vi.fn(() => true),
   require: vi.fn(),
@@ -7,6 +9,11 @@ const native = vi.hoisted(() => ({
 
 vi.mock('node:fs', () => ({ default: { existsSync: native.exists } }));
 vi.mock('node:module', () => ({ createRequire: () => native.require }));
+
+// `process.platform-process.arch` (`win32-x64`) maps onto the napi-rs
+// platform strings (`win32-x64-msvc`) used for binary and package names.
+const target = `${process.platform}-${process.arch}`;
+const platform = nativeTargetPlatform(target);
 
 beforeEach(() => {
   vi.resetModules();
@@ -22,25 +29,24 @@ it('resolves a successfully loaded workspace addon only once', async () => {
   expect(loadNativeAddon()).toBe(addon);
   expect(native.exists).toHaveBeenCalledOnce();
   expect(native.require).toHaveBeenCalledOnce();
-  expect(String(native.require.mock.calls[0]?.[0])).toContain(
-    `native/npm/${process.platform}-${process.arch}/retend-gpui-native.${process.platform}-${process.arch}.node`
-  );
+  // Native paths use backslashes on Windows; normalize before matching.
+  expect(
+    String(native.require.mock.calls[0]?.[0]).replaceAll('\\', '/')
+  ).toContain(`native/npm/${platform}/retend-gpui-native.${platform}.node`);
 });
 
 it('loads the matching platform package when no workspace addon exists', async () => {
   const addon = { startEventPump: vi.fn(), stopEventPump: vi.fn() };
-  const target = `${process.platform}-${process.arch}`;
   native.exists.mockReturnValue(false);
   native.require.mockReturnValue(addon);
 
   const { loadNativeAddon } = await import('../source/native/addon');
   expect(loadNativeAddon()).toBe(addon);
-  expect(native.require).toHaveBeenCalledWith(`retend-gpui-native-${target}`);
+  expect(native.require).toHaveBeenCalledWith(`retend-gpui-native-${platform}`);
 });
 
 it('reports a useful error when the matching platform package is missing', async () => {
-  const target = `${process.platform}-${process.arch}`;
-  const packageName = `retend-gpui-native-${target}`;
+  const packageName = `retend-gpui-native-${platform}`;
   const missing = Object.assign(
     new Error(`Cannot find module '${packageName}'`),
     { code: 'MODULE_NOT_FOUND' }
@@ -57,10 +63,9 @@ it('reports a useful error when the matching platform package is missing', async
 });
 
 it('reports a useful error when the platform package is present but its binary is missing', async () => {
-  const target = `${process.platform}-${process.arch}`;
   const missing = Object.assign(
     new Error(
-      `Cannot find module '/some/path/retend-gpui-native.${target}.node'`
+      `Cannot find module '/some/path/retend-gpui-native.${platform}.node'`
     ),
     { code: 'MODULE_NOT_FOUND' }
   );

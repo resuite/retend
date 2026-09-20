@@ -737,8 +737,7 @@ mod imp {
                                     } => {
                                         let result = cx
                                             .update(|cx| open_gpui_window(window_id, options, cx))
-                                            .map_err(|error| error.to_string())
-                                            .and_then(|result| result);
+                                            .map_err(|error| error.to_string());
                                         let quit = result.is_err() && windows.is_empty();
                                         if let Ok(window) = result.as_ref() {
                                             windows.insert(window_id, *window);

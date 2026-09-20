@@ -48,5 +48,10 @@ if (dryRun) args.push('--dry-run');
 const result = spawnSync(napiBinary, args, {
   cwd: packageRoot,
   stdio: 'inherit',
+  // Windows cannot spawn .cmd shims without a shell (Node ≥22 reports
+  // EINVAL), so route through cmd.exe there. The binary path is absolute,
+  // which keeps shell quoting unambiguous.
+  shell: process.platform === 'win32',
 });
+if (result.error) console.error(result.error.message);
 if (result.status !== 0) process.exit(result.status ?? 1);

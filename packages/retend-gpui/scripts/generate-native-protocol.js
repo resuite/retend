@@ -42,7 +42,15 @@ for (const [relativePath, content] of outputs) {
     }
   } else {
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-    fs.writeFileSync(outputPath, content);
+    // Only write when the content changed: unconditional writes bump mtimes
+    // and force downstream rebuilds (cargo recompiles the native crate,
+    // ~15 minutes) on every invocation.
+    if (
+      !fs.existsSync(outputPath) ||
+      fs.readFileSync(outputPath, 'utf8') !== content
+    ) {
+      fs.writeFileSync(outputPath, content);
+    }
   }
 }
 if (stale) process.exit(1);

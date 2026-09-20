@@ -14,10 +14,20 @@ it('passes remote, data, and file sources through unchanged', () => {
 });
 
 it('resolves root-relative asset URLs against the asset base', () => {
-  setAssetBase('/Applications/Demo.app/Contents/Resources');
-  expect(resolveAssetSource('/assets/icon-abc.svg')).toBe(
-    'file:///Applications/Demo.app/Contents/Resources/assets/icon-abc.svg'
-  );
+  // Asset bases are OS paths (bundle resource dirs), so expectations differ
+  // by platform: POSIX joins keep the path intact, while Windows joins
+  // resolve the drive.
+  if (process.platform === 'win32') {
+    setAssetBase('C:\\Demo\\Resources');
+    expect(resolveAssetSource('/assets/icon-abc.svg')).toBe(
+      'file:///C:/Demo/Resources/assets/icon-abc.svg'
+    );
+  } else {
+    setAssetBase('/Applications/Demo.app/Contents/Resources');
+    expect(resolveAssetSource('/assets/icon-abc.svg')).toBe(
+      'file:///Applications/Demo.app/Contents/Resources/assets/icon-abc.svg'
+    );
+  }
 });
 
 it('leaves sources alone when no base is set or the path is relative', () => {

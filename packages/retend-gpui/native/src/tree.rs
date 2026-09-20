@@ -2373,6 +2373,13 @@ mod tests {
     #[test]
     fn file_image_src_is_retained_for_bundled_assets() {
         let (mut tree, window, _) = setup();
+        // Bundled-asset URLs are platform paths: a macOS bundle on macOS,
+        // a drive-absolute path on Windows.
+        let url = if cfg!(windows) {
+            "file:///C:/App/App/Assets/icon.png"
+        } else {
+            "file:///Applications/App.app/Contents/Resources/assets/icon.png"
+        };
         tree.apply_commands(
             window,
             vec![
@@ -2383,7 +2390,7 @@ mod tests {
                 Command::SetProperty {
                     id: 2,
                     property: PropertyId::Src,
-                    value: PropertyValue::String("file:///Applications/App.app/Contents/Resources/assets/icon.png".into()),
+                    value: PropertyValue::String(url.into()),
                 },
             ],
         )
@@ -2392,8 +2399,7 @@ mod tests {
         assert!(matches!(
             &tree.nodes[&2].data,
             NodeData::Image { src, .. }
-                if src.as_deref()
-                    == Some("file:///Applications/App.app/Contents/Resources/assets/icon.png")
+                if src.as_deref() == Some(url)
         ));
         assert!(tree.windows[&window].fatal.is_none());
     }
@@ -2715,8 +2721,17 @@ mod tests {
             ));
 
             let uri = format!("https://example.com/image-{cycle}.png");
-            let path = format!("/tmp/image-{cycle}.png");
-            let file_uri = format!("file://{path}");
+            // `file:` URLs must carry a drive on Windows for
+            // `Url::to_file_path` to resolve them to a local path.
+            let (path, file_uri) = if cfg!(windows) {
+                let path = format!("C:/tmp/image-{cycle}.png");
+                let uri = format!("file:///{path}");
+                (path, uri)
+            } else {
+                let path = format!("/tmp/image-{cycle}.png");
+                let uri = format!("file://{path}");
+                (path, uri)
+            };
             for (source, expected_location) in [
                 (Some(uri.clone()), ImageLocation::Uri),
                 (Some(file_uri), ImageLocation::Path(path.into())),

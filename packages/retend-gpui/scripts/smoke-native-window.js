@@ -2,12 +2,6 @@ import assert from 'node:assert/strict';
 
 import { RetendGpuiRenderer } from '../dist/gpui-renderer.js';
 
-const failureTimer = setTimeout(() => {
-  console.error('Retend GPUI native window teardown did not complete.');
-  process.exit(1);
-}, 5_000);
-failureTimer.unref();
-
 const renderer = new RetendGpuiRenderer();
 renderer.init({ title: 'Retend GPUI smoke', width: 640, height: 420 });
 assert.ok(renderer.host.rootId > 0, 'native window must have a root node ID');
@@ -36,6 +30,14 @@ assert.equal(
 
 renderer.host.setWindowTitle('Retend GPUI smoke updated');
 await new Promise((resolve) => setTimeout(resolve, 32));
+// Arm the watchdog only around teardown: cold starts (GPU pipeline and
+// shader compilation) can take several seconds before we get here, but
+// disposal itself must complete promptly.
+const failureTimer = setTimeout(() => {
+  console.error('Retend GPUI native window teardown did not complete.');
+  process.exit(1);
+}, 5_000);
+failureTimer.unref();
 renderer.dispose();
 assert.throws(
   () => renderer.init(),
