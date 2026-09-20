@@ -1,0 +1,72 @@
+name: Build Native Addon
+
+on:
+  # Publishing is manual for now, so artifact builds are opt-in rather than
+  # tied to a release event. Re-add `release: types: [published]` when
+  # publishing moves into CI.
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    # Windows and Linux build/runtime behavior is not validated yet. Keep those
+    # targets from blocking releases until the platform work lands.
+    continue-on-error: ${{ !startsWith(matrix.target, 'darwin') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-15
+          # No free Intel macOS standard runner remains after macos-13 was
+          # retired, so darwin-x64 is cross-built on the arm64 runner.
+          - target: darwin-x64
+            runner: macos-15
+            rust-target: x86_64-apple-darwin
+          - target: linux-x64-gnu
+            runner: ubuntu-24.04
+          - target: linux-arm64-gnu
+            runner: ubuntu-24.04-arm
+          - target: win32-x64-msvc
+            runner: windows-2022
+          - target: win32-arm64-msvc
+            runner: windows-11-arm
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Add cross-compilation target
+        if: matrix.rust-target
+        run: rustup target add ${{ matrix.rust-target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/retend-gpui/native
+      - name: Install Linux system dependencies
+        if: startsWith(matrix.target, 'linux')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config cmake clang libclang-dev \
+            libssl-dev zlib1g-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev \
+            libwayland-dev \
+            libfontconfig1-dev libfreetype6-dev
+
+      - run: pnpm install --frozen-lockfile
+      - name: Build release addon
+        run: pnpm --dir packages/retend-gpui run native:build:release -- --target=${{ matrix.target }} --locked
+      - name: Upload addon
+        uses: actions/upload-artifact@v4
+        with:
+          name: retend-gpui-native-${{ matrix.target }}
+          path: packages/retend-gpui/native/npm/${{ matrix.target }}/retend-gpui-native.${{ matrix.target }}.node
+          if-no-files-found: error
