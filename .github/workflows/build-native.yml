@@ -7,6 +7,48 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Fast HLSL validation with Microsoft's compiler on Linux. Catches
+  # shader errors in ~1 minute instead of a full Windows release build.
+  # Uses a modern profile purely for validation; the Windows job still
+  # compiles the final shaders with fxc.
+  validate-shaders:
+    name: validate-shaders
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned fork revision
+        run: |
+          REV=$(sed -n 's/.*gpui-pre-windows = { git = "[^"]*", rev = "\([0-9a-f]\{40\}\)".*/\1/p' packages/retend-gpui/native/Cargo.toml | head -1)
+          echo "Fork rev: $REV"
+          test -n "$REV"
+          git clone --quiet https://github.com/resuite/gpui-pre /tmp/gpui-pre
+          git -C /tmp/gpui-pre checkout --quiet "$REV"
+          echo "SHADER_DIR=/tmp/gpui-pre/crates/gpui-pre-windows/src" >> "$GITHUB_ENV"
+      - name: Install DirectXShaderCompiler
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.9.2607 --repo microsoft/DirectXShaderCompiler --pattern 'linux_dxc_*.tar.gz' --dir /tmp
+          tar -xzf /tmp/linux_dxc_*.tar.gz -C /tmp
+          /tmp/bin/dxc --version
+      - name: Compile all HLSL entry points
+        run: |
+          DXC=/tmp/bin/dxc
+          fail=0
+          check() {
+            if ! "$DXC" -T "$1" -E "$2" -I "$SHADER_DIR" "$3" -Fo /dev/null; then
+              echo "FAILED: $2 ($1)"
+              fail=1
+            fi
+          }
+          for m in quad quad_transformed shadow shadow_transformed path_rasterization path_sprite underline underline_transformed monochrome_sprite monochrome_sprite_transformed subpixel_sprite polychrome_sprite polychrome_sprite_transformed; do
+            check vs_6_0 "${m}_vertex" "$SHADER_DIR/shaders.hlsl"
+            check ps_6_0 "${m}_fragment" "$SHADER_DIR/shaders.hlsl"
+          done
+          check vs_6_0 emoji_rasterization_vertex "$SHADER_DIR/color_text_raster.hlsl"
+          check ps_6_0 emoji_rasterization_fragment "$SHADER_DIR/color_text_raster.hlsl"
+          exit $fail
+
   build:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
