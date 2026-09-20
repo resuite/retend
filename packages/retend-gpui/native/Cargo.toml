@@ -37,11 +37,11 @@ gpui = { package = "gpui-pre", version = "=0.3.4", default-features = false, fea
 proptest = "1"
 
 [patch.crates-io]
-gpui-pre = { git = "https://github.com/resuite/gpui-pre", rev = "00b2e1fedaed632af9ff49861748e7c9fd3db315" }
-gpui-pre-macos = { git = "https://github.com/resuite/gpui-pre", rev = "00b2e1fedaed632af9ff49861748e7c9fd3db315" }
-gpui-pre-apple = { git = "https://github.com/resuite/gpui-pre", rev = "00b2e1fedaed632af9ff49861748e7c9fd3db315" }
-gpui-pre-wgpu = { git = "https://github.com/resuite/gpui-pre", rev = "00b2e1fedaed632af9ff49861748e7c9fd3db315" }
-gpui-pre-windows = { git = "https://github.com/resuite/gpui-pre", rev = "00b2e1fedaed632af9ff49861748e7c9fd3db315" }
+gpui-pre = { git = "https://github.com/resuite/gpui-pre", rev = "ab1d3a82c8164bdf510385a6c7c898d595b71a55" }
+gpui-pre-macos = { git = "https://github.com/resuite/gpui-pre", rev = "ab1d3a82c8164bdf510385a6c7c898d595b71a55" }
+gpui-pre-apple = { git = "https://github.com/resuite/gpui-pre", rev = "ab1d3a82c8164bdf510385a6c7c898d595b71a55" }
+gpui-pre-wgpu = { git = "https://github.com/resuite/gpui-pre", rev = "ab1d3a82c8164bdf510385a6c7c898d595b71a55" }
+gpui-pre-windows = { git = "https://github.com/resuite/gpui-pre", rev = "ab1d3a82c8164bdf510385a6c7c898d595b71a55" }
 
 [profile.release]
 lto = true
