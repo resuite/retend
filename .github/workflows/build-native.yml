@@ -16,22 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # TEMPORARY: Windows x64 only while diagnosing D3D11 transforms.
+        # Restore the full matrix before merging.
         include:
-          - target: darwin-arm64
-            runner: macos-15
-          # No free Intel macOS standard runner remains after macos-13 was
-          # retired, so darwin-x64 is cross-built on the arm64 runner.
-          - target: darwin-x64
-            runner: macos-15
-            rust-target: x86_64-apple-darwin
-          - target: linux-x64-gnu
-            runner: ubuntu-24.04
-          - target: linux-arm64-gnu
-            runner: ubuntu-24.04-arm
           - target: win32-x64-msvc
             runner: windows-2022
-          - target: win32-arm64-msvc
-            runner: windows-11-arm
 
     steps:
       - uses: actions/checkout@v4
