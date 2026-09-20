@@ -30,10 +30,10 @@ jobs:
         run: |
           gh release download v1.9.2607 --repo microsoft/DirectXShaderCompiler --pattern 'linux_dxc_*.tar.gz' --dir /tmp
           tar -xzf /tmp/linux_dxc_*.tar.gz -C /tmp
-          /tmp/bin/dxc --version
+          echo "DXC=$(echo /tmp/*/bin/dxc)" >> "$GITHUB_ENV"
       - name: Compile all HLSL entry points
         run: |
-          DXC=/tmp/bin/dxc
+          "$DXC" --version
           fail=0
           check() {
             if ! "$DXC" -T "$1" -E "$2" -I "$SHADER_DIR" "$3" -Fo /dev/null; then
