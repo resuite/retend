@@ -95,7 +95,12 @@ jobs:
             libwayland-dev \
             libfontconfig1-dev libfreetype6-dev
 
-      - run: pnpm install --frozen-lockfile
+      # `--ignore-scripts`: the repo-root `wrangler` devDependency pulls in
+      # `workerd`, whose postinstall throws `Unsupported platform` on
+      # Windows ARM and fails the whole install before cargo ever runs. The
+      # native build needs no postinstall artifacts (napi CLI is a plain
+      # bin, Rust comes from the toolchain action), so scripts are skipped.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build release addon
         run: pnpm --dir packages/retend-gpui run native:build:release -- --target=${{ matrix.target }} --locked
       - name: Upload addon
