@@ -2,11 +2,16 @@
   "name": "retend",
   "version": "0.0.33",
   "private": false,
-  "description": "A library for reactive user interfaces",
+  "description": "A reactive UI framework with a renderer-independent core.",
   "keywords": [
+    "framework",
     "javascript",
     "jsx",
-    "pwa",
+    "reactive",
+    "reactivity",
+    "renderer",
+    "ssr",
+    "ui",
     "web"
   ],
   "homepage": "https://github.com/resuite/retend#readme",

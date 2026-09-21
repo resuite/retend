@@ -2,11 +2,15 @@
   "name": "retend-web",
   "version": "0.0.33",
   "private": false,
-  "description": "A modern reactive framework for fluid, dynamic web apps.",
+  "description": "DOM renderer for Retend: reactive JSX web apps with fine-grained updates.",
   "keywords": [
+    "dom",
     "javascript",
     "jsx",
-    "pwa",
+    "reactive",
+    "renderer",
+    "ssr",
+    "ui",
     "web"
   ],
   "homepage": "https://github.com/resuite/retend#readme",

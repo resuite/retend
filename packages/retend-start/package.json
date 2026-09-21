@@ -2,12 +2,15 @@
   "name": "retend-start",
   "version": "0.0.33",
   "private": false,
-  "description": "Scaffold a new project with retend",
+  "description": "Scaffold a new Retend project with TypeScript, routing, and a dev server.",
   "keywords": [
+    "cli",
     "javascript",
     "jsx",
-    "reactivity",
-    "web"
+    "retend",
+    "scaffold",
+    "typescript",
+    "vite"
   ],
   "homepage": "https://github.com/resuite/retend#readme",
   "bugs": {

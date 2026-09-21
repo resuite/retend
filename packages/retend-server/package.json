@@ -2,7 +2,17 @@
   "name": "retend-server",
   "version": "0.0.33",
   "private": false,
-  "description": "Static site generation for the retend UI framework.",
+  "description": "Server-side rendering, static site generation, and hydration for Retend.",
+  "keywords": [
+    "hydration",
+    "javascript",
+    "jsx",
+    "renderer",
+    "retend",
+    "server-rendering",
+    "ssg",
+    "ssr"
+  ],
   "type": "module",
   "exports": {
     ".": {

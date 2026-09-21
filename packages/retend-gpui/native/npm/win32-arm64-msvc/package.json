@@ -1,13 +1,6 @@
 {
   "name": "retend-gpui-native-win32-arm64-msvc",
   "version": "0.0.34",
-  "cpu": [
-    "arm64"
-  ],
-  "main": "retend-gpui-native.win32-arm64-msvc.node",
-  "files": [
-    "retend-gpui-native.win32-arm64-msvc.node"
-  ],
   "description": "Native desktop rendering for the Retend UI framework through GPUI.",
   "keywords": [
     "desktop",
@@ -16,20 +9,27 @@
     "jsx",
     "native"
   ],
-  "author": "Adebola Akomolafe",
   "homepage": "https://github.com/resuite/retend#readme",
+  "bugs": {
+    "url": "https://github.com/resuite/retend/issues"
+  },
   "license": "MIT",
+  "author": "Adebola Akomolafe",
   "repository": {
     "type": "git",
     "directory": "github.com/resuite/retend"
   },
-  "bugs": {
-    "url": "https://github.com/resuite/retend/issues"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
+  "files": [
+    "retend-gpui-native.win32-arm64-msvc.node"
+  ],
   "os": [
     "win32"
-  ]
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "retend-gpui-native.win32-arm64-msvc.node",
+  "publishConfig": {
+    "access": "public"
+  }
 }

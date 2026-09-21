@@ -2,12 +2,15 @@
   "name": "retend-utils",
   "version": "0.0.33",
   "private": false,
-  "description": "A collection of utility functions for Retend.",
+  "description": "Hooks, utilities, and reusable components for Retend applications.",
   "keywords": [
+    "components",
+    "hooks",
     "javascript",
     "jsx",
-    "pwa",
-    "web"
+    "reactive",
+    "retend",
+    "utilities"
   ],
   "homepage": "https://github.com/resuite/retend#readme",
   "bugs": {

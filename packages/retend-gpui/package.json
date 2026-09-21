@@ -8,7 +8,8 @@
     "gpui",
     "javascript",
     "jsx",
-    "native"
+    "native",
+    "renderer"
   ],
   "homepage": "https://github.com/resuite/retend#readme",
   "bugs": {
