@@ -304,9 +304,6 @@ importers:
       retend-gpui-native-darwin-arm64:
         specifier: workspace:*
         version: link:native/npm/darwin-arm64
-      retend-gpui-native-darwin-x64:
-        specifier: workspace:*
-        version: link:native/npm/darwin-x64
       retend-gpui-native-linux-arm64-gnu:
         specifier: workspace:*
         version: link:native/npm/linux-arm64-gnu
@@ -321,8 +318,6 @@ importers:
         version: link:native/npm/win32-x64-msvc
 
   packages/retend-gpui/native/npm/darwin-arm64: {}
-
-  packages/retend-gpui/native/npm/darwin-x64: {}
 
   packages/retend-gpui/native/npm/linux-arm64-gnu: {}
 
