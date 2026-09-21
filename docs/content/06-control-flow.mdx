@@ -45,7 +45,7 @@ To provide only the `true` branch:
 }
 ```
 
-_Standard JavaScript `if` statements and `&&` operators do not connect to Retend's reactivity system when the data changes. Use `If` for conditional interface content that can change._
+_Standard JavaScript ternary statements (`isOn ? true : false`) and `&&` operators do not connect to Retend's reactivity system when the data changes. Always use `If` for conditional interface content that can change._
 
 ### Shorthand Syntax
 
@@ -57,15 +57,14 @@ For a truthy branch without a false branch, pass a function instead of an object
 }
 ```
 
-Pass a third argument to define the falsy branch:
+You can pass an object with `true` and `false` branches instead of separate callbacks.
 
 ```tsx
 {
-  If(
-    show,
-    () => <p>Visible!</p>,
-    () => <p>Hidden.</p>
-  );
+  If(show, {
+    true: () => <p>Visible!</p>,
+    false: () => <p>Hidden.</p>,
+  });
 }
 ```
 

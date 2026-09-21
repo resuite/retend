@@ -63,26 +63,20 @@ import { Cell } from 'retend';
 
 export function LoginForm() {
   const router = useRouter();
-  const isSubmitting = Cell.source(false);
 
-  const handleSubmit = async () => {
-    isSubmitting.set(true);
+  const loginTask = Cell.task(async () => {
+    await performLogin();
+    await router.navigate('/dashboard');
+  });
 
-    try {
-      await performLogin();
-      // After login is successful, automatically navigate to the dashboard
-      await router.navigate('/dashboard');
-    } catch (error) {
-      console.error('Login failed', error);
-    } finally {
-      isSubmitting.set(false);
-    }
+  const handleSubmit = () => {
+    loginTask.runWith(undefined);
   };
 
   return (
     <form onSubmit--prevent={handleSubmit}>
       {/* ... form fields ... */}
-      <button type="submit" disabled={isSubmitting}>
+      <button type="submit" disabled={loginTask.pending}>
         Log In
       </button>
     </form>

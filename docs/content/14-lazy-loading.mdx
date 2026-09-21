@@ -17,7 +17,9 @@ Use `lazy()` to lazy-load a route component. Pass it a function that returns a d
 import { defineRoutes, lazy } from 'retend/router';
 
 // This component is included in the main initial download
-const Home = () => <div>Home</div>;
+function Home() {
+  return <div>Home</div>;
+}
 
 // This component is separated into its own file and downloaded only when needed
 const SettingsLazy = lazy(() => import('./views/Settings'));
@@ -58,12 +60,14 @@ Lazy loading also applies to nested routes. The parent layout, child pages, or b
 ```tsx
 import { defineRoutes, lazy, Outlet } from 'retend/router';
 
-const DashboardLayout = () => (
-  <div>
-    <h1>Dashboard</h1>
-    <Outlet />
-  </div>
-);
+function DashboardLayout() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <Outlet />
+    </div>
+  );
+}
 
 // The child page is lazy-loaded
 const UserProfileLazy = lazy(() => import('./views/dashboard/UserProfile'));

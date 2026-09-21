@@ -1,4 +1,5 @@
 import type { DOMRenderer } from 'retend-web';
+import type { RouteChangeEvent } from 'retend/router';
 
 import { getActiveRenderer } from 'retend';
 import { Router, createRouterRoot, useRouter } from 'retend/router';
@@ -64,8 +65,8 @@ const runFlatTests = () => {
     await router.navigate('/about');
     await router.navigate('/contact');
     const preventBack = (event: Event) => {
-      const routeChange = event as CustomEvent<{ to: string }>;
-      if (routeChange.detail.to === '/about') event.preventDefault();
+      const routeChange = event as RouteChangeEvent;
+      if (routeChange.to === '/about') event.preventDefault();
     };
 
     router.addEventListener('routechange', preventBack);

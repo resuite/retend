@@ -89,7 +89,7 @@ describe('router.lock()', () => {
     await router.navigate('/about');
 
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener.mock.calls[0][0].detail.attemptedPath).toBe('/about');
+    expect(listener.mock.calls[0][0].attemptedPath).toBe('/about');
 
     router.unlock();
     router.removeEventListener('routelockprevented', listener);
@@ -117,7 +117,7 @@ describe('router.lock()', () => {
     await router.replace('/about');
 
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener.mock.calls[0][0].detail.attemptedPath).toBe('/about');
+    expect(listener.mock.calls[0][0].attemptedPath).toBe('/about');
 
     router.unlock();
     router.removeEventListener('routelockprevented', listener);

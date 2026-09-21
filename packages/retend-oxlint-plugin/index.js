@@ -2343,7 +2343,7 @@ const noListenInOnSetup = {
     schema: [],
     messages: {
       unexpected:
-        'Call .listen() directly in the component body instead of wrapping it in onSetup().',
+        '`.listen()` is bound to the component and cleaned up automatically on unmount when called in the component body. `onSetup()` runs after the first render, so a listener wrapped in it is registered late and requires manual cleanup. Call `.listen()` directly in the component body instead.',
     },
   },
   createOnce(context) {
