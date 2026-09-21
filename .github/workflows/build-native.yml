@@ -61,11 +61,6 @@ jobs:
         include:
           - target: darwin-arm64
             runner: macos-15
-          # No free Intel macOS standard runner remains after macos-13 was
-          # retired, so darwin-x64 is cross-built on the arm64 runner.
-          - target: darwin-x64
-            runner: macos-15
-            rust-target: x86_64-apple-darwin
           - target: linux-x64-gnu
             runner: ubuntu-24.04
           - target: linux-arm64-gnu
@@ -85,9 +80,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
-      - name: Add cross-compilation target
-        if: matrix.rust-target
-        run: rustup target add ${{ matrix.rust-target }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/retend-gpui/native

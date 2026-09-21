@@ -84,7 +84,6 @@
   },
   "optionalDependencies": {
     "retend-gpui-native-darwin-arm64": "workspace:*",
-    "retend-gpui-native-darwin-x64": "workspace:*",
     "retend-gpui-native-linux-arm64-gnu": "workspace:*",
     "retend-gpui-native-linux-x64-gnu": "workspace:*",
     "retend-gpui-native-win32-arm64-msvc": "workspace:*",
@@ -96,7 +95,6 @@
     "packageName": "retend-gpui-native",
     "targets": [
       "aarch64-apple-darwin",
-      "x86_64-apple-darwin",
       "aarch64-unknown-linux-gnu",
       "x86_64-unknown-linux-gnu",
       "aarch64-pc-windows-msvc",

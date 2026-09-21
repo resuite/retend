@@ -194,6 +194,8 @@ Initial width, height, title, resizable state, fullscreen/maximized state, and m
 
 ## Platform notes
 
+macOS support requires Apple Silicon (arm64). Intel Macs are not supported: there is no Intel CI hardware left to validate on, and Apple has frozen Intel macOS releases.
+
 The macOS GPUI backend is a patched `gpui-pre-macos` 0.3.4 snapshot. The patched crate lives in the sibling `gpui-pre` repo (`crates/gpui-pre-macos`), not in this tree. The patch adds an embedded NSApplication / CFRunLoop pump so GPUI can run inside the Node/napi process.
 
 The Retend-owned runtime owns process keep-alive while native windows exist. On macOS a `CVDisplayLink` hops onto the process main thread to pump AppKit/GPUI at display refresh; applications do not run a JavaScript frame timer. `retend-gpui` is a native renderer and does not run in a browser.

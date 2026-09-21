@@ -34,7 +34,6 @@ const PRODUCTION_ENTRY_ID = 'virtual:retend-gpui/production-entry';
 const RESOLVED_PRODUCTION_ENTRY_ID = `\0${PRODUCTION_ENTRY_ID}`;
 const SUPPORTED_TARGETS = [
   'darwin-arm64',
-  'darwin-x64',
   'linux-arm64',
   'linux-x64',
   'win32-arm64',
@@ -71,7 +70,8 @@ export interface RetendGpuiAppMetadata {
   name: string;
   identifier: string;
   version: string;
-  icon: string;
+  /** Application icon source (`.icns`, `.png`, or `.svg`). Optional; production macOS builds without one simply ship no icon. */
+  icon?: string;
   description?: string;
   publisher?: string;
   macos?: RetendGpuiPlatformMetadata;
@@ -138,10 +138,7 @@ export type RetendGpuiPlugin = Plugin & { api: RetendGpuiPluginApi };
 
 function validateOptions(options: RetendGpuiOptions): void {
   if (!options.app) throw new Error('retendGpui() requires `app` metadata.');
-  for (const name of ['name', 'icon'] as const) {
-    if (!options.app[name])
-      throw new Error(`retendGpui() requires \`app.${name}\`.`);
-  }
+  if (!options.app.name) throw new Error('retendGpui() requires `app.name`.');
   if (!/^[a-zA-Z][\w-]*(\.[a-zA-Z][\w-]*)+$/.test(options.app.identifier)) {
     throw new Error(
       'retendGpui() requires `app.identifier` to be a reverse-DNS identifier.'

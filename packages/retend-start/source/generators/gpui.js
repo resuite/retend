@@ -313,6 +313,7 @@ async function createPackageJson(projectDir, answers, cliOptions) {
     type: 'module',
     scripts: {
       dev: 'retend-gpui dev',
+      build: 'vite build',
       typecheck: 'tsc --noEmit',
       lint: 'oxlint .',
     },

@@ -90,7 +90,7 @@ it('names the supported targets when the platform is unsupported', async () => {
     native.exists.mockReturnValue(false);
     const { loadNativeAddon } = await import('../source/native/addon');
     expect(() => loadNativeAddon()).toThrow(
-      `Retend GPUI does not support native target sunos-${process.arch}. Supported targets are darwin-arm64, darwin-x64, linux-arm64, linux-x64, win32-arm64, win32-x64.`
+      `Retend GPUI does not support native target sunos-${process.arch}. Supported targets are darwin-arm64, linux-arm64, linux-x64, win32-arm64, win32-x64.`
     );
   } finally {
     Object.defineProperty(process, 'platform', platform);
