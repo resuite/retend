@@ -5518,6 +5518,7 @@ dependencies = [
 name = "retend-gpui-native"
 version = "0.0.0"
 dependencies = [
+ "cocoa 0.26.0",
  "core-graphics 0.24.0",
  "core-text",
  "futures",
@@ -5529,6 +5530,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "objc",
  "proptest",
  "serde",
  "serde_json",

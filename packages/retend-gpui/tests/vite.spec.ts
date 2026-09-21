@@ -98,6 +98,36 @@ describe('retendGpui Vite plugin', () => {
     expect(declaration).toContain('interface GpuiAppContextTypes');
   });
 
+  it('exposes the configured identity to the development runtime', () => {
+    const plugin = retendGpui(options());
+    const root = resolvePlugin(plugin);
+
+    expect(plugin.api.launch).toMatchObject({
+      appName: 'Test',
+      icon: path.join(root, 'icon.svg'),
+    });
+  });
+
+  it('prefers the platform icon override for the development runtime', () => {
+    const plugin = retendGpui({
+      ...options(),
+      app: { ...options().app, macos: { icon: './mac-icon.png' } },
+    });
+    const root = resolvePlugin(plugin);
+
+    expect(plugin.api.launch?.icon).toBe(path.join(root, 'mac-icon.png'));
+  });
+
+  it('reports a null development icon when the application defines none', () => {
+    const plugin = retendGpui({
+      ...options(),
+      app: { ...options().app, icon: undefined },
+    });
+    resolvePlugin(plugin);
+
+    expect(plugin.api.launch?.icon).toBeNull();
+  });
+
   it('configures a single-environment production build', () => {
     const plugin = retendGpui({ ...options(), target: 'darwin-arm64' });
     const config = plugin.config as unknown as (

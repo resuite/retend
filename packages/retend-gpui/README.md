@@ -222,7 +222,7 @@ If the renderer throws an error for an element, check that the tag is in the sup
 
 ### Development Dock identity on macOS
 
-The dev child sets its process title from `app.name`, but native application bundle identity and Dock-icon integration are not implemented yet. The Dock may therefore still show Node's icon/identity even when `app.name` and `app.icon` are configured. Those fields remain canonical production metadata.
+The dev child applies `app.name` as its process title and sets the Dock icon from `app.icon` (or the `app.macos.icon` override) before the first window opens, so the Dock and Activity Monitor show the application instead of Node. The menu-bar application name still comes from the app bundle, so it may read as `node` in development. Native bundle identity remains the packaged `.app`; Windows and Linux apply identity as part of their packaging work.
 
 ### JSX types are missing
 

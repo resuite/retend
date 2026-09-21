@@ -20,7 +20,15 @@ gpui = { package = "gpui-pre", version = "=0.3.4", default-features = false, fea
 gpui-base = "0.6.0"
 reqwest_client = { package = "gpui-pre-reqwest-client", version = "=0.3.4" }
 
+[lints.rust]
+# `objc` 0.2's `sel_impl` macro emits `cfg(feature, "cargo-clippy")`, which
+# newer rustc flags as unexpected. Declared here so the lint stays active for
+# genuinely unknown cfgs.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("cargo-clippy"))'] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "=0.26.0"
+objc = "0.2.7"
 core-text = "=21.0.0"
 core-graphics = "=0.24.0"
 gpui_macos = { package = "gpui-pre-macos", version = "=0.3.4", default-features = false, features = ["font-kit"] }

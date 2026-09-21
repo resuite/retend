@@ -14,7 +14,10 @@ import {
 } from '../application.js';
 import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
-import { NativeRendererFatalError } from '../native/addon.js';
+import {
+  NativeRendererFatalError,
+  setApplicationIdentity,
+} from '../native/addon.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -370,6 +373,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
   process.on('disconnect', onDisconnect);
 
   try {
+    setApplicationIdentity(message.icon);
     runner = new ModuleRunner(
       {
         transport,

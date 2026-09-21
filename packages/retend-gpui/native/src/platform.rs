@@ -425,6 +425,10 @@ fn open_gpui_window(
     options: NativeWindowOptions,
     cx: &mut App,
 ) -> Result<WindowHandle<RetendRootView>, String> {
+    // The identity is staged before the first window and applied here, once the
+    // native application exists, so the Dock/taskbar identity is correct from
+    // the first frame.
+    imp::apply_pending_application_identity();
     let constraints = WindowSizeConstraints {
         min_width: window_dimension(options.min_width)?,
         min_height: window_dimension(options.min_height)?,
@@ -504,7 +508,7 @@ fn mark_window_closed(window_id: WindowId) {
 
 #[cfg(target_os = "macos")]
 mod imp {
-    use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+    use std::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Mutex};
 
     use gpui::{Application, ApplicationHandle, QuitMode};
 
@@ -686,6 +690,54 @@ mod imp {
         }
         running
     }
+
+    /// Icon path staged before the native platform is ready.
+    ///
+    /// `NSApplication` must be the `GPUIApplication` subclass that GPUI installs
+    /// during `Platform::run`; resolving it earlier would create the base class
+    /// and break GPUI's ivar registration. The path is therefore stored here and
+    /// applied from [`apply_pending_application_identity`] during the first
+    /// window creation.
+    static PENDING_ICON_PATH: Mutex<Option<String>> = Mutex::new(None);
+
+    /// Stages the process-wide macOS application icon.
+    ///
+    /// A non-bundled process (development) otherwise keeps the icon of the
+    /// hosting executable, i.e. `node`.
+    pub fn set_application_identity(icon_path: Option<&str>) {
+        if let Ok(mut pending) = PENDING_ICON_PATH.lock() {
+            *pending = icon_path.map(str::to_string);
+        }
+    }
+
+    pub(crate) fn apply_pending_application_identity() {
+        let Some(icon_path) = PENDING_ICON_PATH
+            .lock()
+            .ok()
+            .and_then(|mut pending| pending.take())
+        else {
+            return;
+        };
+        use cocoa::appkit::{NSApplication, NSImage};
+        use cocoa::base::{id, nil};
+        use cocoa::foundation::NSString;
+        use objc::{msg_send, sel, sel_impl};
+
+        unsafe {
+            let app: id = NSApplication::sharedApplication(nil);
+            let ns_path = NSString::alloc(nil).init_str(&icon_path);
+            let image: id = NSImage::alloc(nil).initWithContentsOfFile_(ns_path);
+            if image != nil {
+                app.setApplicationIconImage_(image);
+                let _: () = msg_send![image, release];
+            } else {
+                eprintln!(
+                    "[retend-gpui] could not load the application icon at {icon_path}"
+                );
+            }
+            let _: () = msg_send![ns_path, release];
+        }
+    }
 }
 
 #[cfg(any(target_os = "windows", target_os = "linux"))]
@@ -812,6 +864,11 @@ mod imp {
     pub fn remove_registered_window(window_id: WindowId) {
         send(UiCommand::Forget(window_id));
     }
+
+    /// No-op: Windows and Linux icon plumbing lands with their packaging work.
+    pub fn set_application_identity(_icon_path: Option<&str>) {}
+
+    pub(crate) fn apply_pending_application_identity() {}
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
@@ -828,13 +885,17 @@ mod imp {
 
     pub fn close_window(_window_id: WindowId) {}
     pub fn remove_registered_window(_window_id: WindowId) {}
+
+    pub fn set_application_identity(_icon_path: Option<&str>) {}
+
+    pub(crate) fn apply_pending_application_identity() {}
 }
 
 pub(crate) use imp::dispatch;
 use imp::remove_registered_window;
 #[cfg(target_os = "macos")]
 pub use imp::tick;
-pub use imp::{close_window, open_window};
+pub use imp::{close_window, open_window, set_application_identity};
 
 #[cfg(test)]
 thread_local! {

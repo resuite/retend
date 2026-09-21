@@ -97,6 +97,21 @@ it('names the supported targets when the platform is unsupported', async () => {
   }
 });
 
+it('forwards the application icon to the native addon', async () => {
+  const setApplicationIdentity = vi.fn();
+  native.require.mockReturnValue({
+    startEventPump: vi.fn(),
+    stopEventPump: vi.fn(),
+    setApplicationIdentity,
+  });
+  const { setApplicationIdentity: applyIdentity } =
+    await import('../source/native/addon');
+
+  applyIdentity('/tmp/icon.svg');
+
+  expect(setApplicationIdentity).toHaveBeenCalledWith('/tmp/icon.svg');
+});
+
 it('does not cache a failed workspace load', async () => {
   const addon = { startEventPump: vi.fn(), stopEventPump: vi.fn() };
   native.require

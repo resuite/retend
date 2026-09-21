@@ -417,6 +417,16 @@ pub fn stop_event_pump() -> Result<()> {
     pump::stop()
 }
 
+/// Stages the application icon applied by the Retend bridge.
+///
+/// The icon is applied once, on the main thread, before the first window
+/// opens. Platforms without an implementation treat this as a no-op.
+#[napi]
+pub fn set_application_identity(icon_path: Option<String>) -> Result<()> {
+    platform::set_application_identity(icon_path.as_deref());
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};

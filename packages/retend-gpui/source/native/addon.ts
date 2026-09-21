@@ -150,6 +150,7 @@ interface NativeAddon {
 
   startEventPump(notify: () => void): void;
   stopEventPump(): void;
+  setApplicationIdentity(iconPath?: string): void;
 }
 
 const require = createRequire(import.meta.url);
@@ -257,4 +258,15 @@ export function loadNativeAddon(): NativeAddon {
       cause: error,
     });
   }
+}
+
+/**
+ * Stages the application icon so the Dock shows the application instead of
+ * the Node runtime. Must run before the first window opens. No-op on
+ * platforms without a native implementation.
+ */
+export function setApplicationIdentity(
+  iconPath: string | null | undefined
+): void {
+  loadNativeAddon().setApplicationIdentity(iconPath ?? undefined);
 }

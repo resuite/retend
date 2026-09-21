@@ -70,7 +70,11 @@ export interface RetendGpuiAppMetadata {
   name: string;
   identifier: string;
   version: string;
-  /** Application icon source (`.icns`, `.png`, or `.svg`). Optional; production macOS builds without one simply ship no icon. */
+  /**
+   * Application icon source (`.icns`, `.png`, or `.svg`). Used for the macOS
+   * Dock icon in development and for the `.icns` in packaged macOS builds;
+   * production builds without one simply ship no icon.
+   */
   icon?: string;
   description?: string;
   publisher?: string;
@@ -402,8 +406,10 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         plugin.api.launch = null;
         return;
       }
+      const icon = options.app.macos?.icon ?? options.app.icon;
       plugin.api.launch = {
         appName: options.app.name,
+        icon: icon ? path.resolve(config.root, icon) : null,
         root: config.root,
         application: normalizePath(
           path.resolve(config.root, options.application)
