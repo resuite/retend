@@ -108,3 +108,30 @@ jobs:
           name: retend-gpui-native-${{ matrix.target }}
           path: packages/retend-gpui/native/npm/${{ matrix.target }}/retend-gpui-native.${{ matrix.target }}.node
           if-no-files-found: error
+      - name: Build JavaScript packages
+        if: matrix.target == 'win32-x64-msvc'
+        run: |
+          pnpm run build-core
+          pnpm run build-gpui
+      - name: Package GPUI smoke app
+        if: matrix.target == 'win32-x64-msvc'
+        run: pnpm --dir packages/retend-gpui exec vite build --config tests/fixtures/windows-smoke/vite.config.ts
+      - name: Verify packaged icon and metadata
+        if: matrix.target == 'win32-x64-msvc'
+        run: node packages/retend-gpui/tests/fixtures/windows-smoke/verify-package.mjs
+      - name: Launch packaged app
+        if: matrix.target == 'win32-x64-msvc'
+        timeout-minutes: 2
+        shell: pwsh
+        env:
+          RETEND_GPUI_SMOKE_MARKER: ${{ runner.temp }}\gpui-smoke.txt
+        run: |
+          $exe = (Resolve-Path 'packages/retend-gpui/tests/fixtures/windows-smoke/dist/win32-x64/GpuiSmoke.exe').Path
+          $stdout = Join-Path $env:RUNNER_TEMP 'gpui-smoke-stdout.txt'
+          $stderr = Join-Path $env:RUNNER_TEMP 'gpui-smoke-stderr.txt'
+          $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -RedirectStandardOutput $stdout -RedirectStandardError $stderr -Wait -PassThru
+          if (Test-Path $stdout) { Get-Content $stdout }
+          if (Test-Path $stderr) { Get-Content $stderr }
+          if ($app.ExitCode -ne 0) { throw "Packaged app exited with $($app.ExitCode)" }
+          if (!(Test-Path $env:RETEND_GPUI_SMOKE_MARKER)) { throw 'GPUI window did not render' }
+          if ((Get-Content $env:RETEND_GPUI_SMOKE_MARKER -Raw) -ne 'mounted') { throw 'Unexpected smoke marker' }

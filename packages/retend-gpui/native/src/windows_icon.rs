@@ -45,9 +45,7 @@ pub(super) fn load(path: &str) -> Result<(), String> {
 }
 
 pub(super) fn apply(window: &Window) {
-    let handle = window
-        .window_handle()
-        .expect("GPUI window has a native handle");
+    let handle = HasWindowHandle::window_handle(window).expect("GPUI window has a native handle");
     let RawWindowHandle::Win32(handle) = handle.as_raw() else {
         panic!("GPUI Windows window has a Win32 handle");
     };
