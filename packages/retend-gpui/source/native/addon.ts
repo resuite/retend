@@ -150,7 +150,11 @@ interface NativeAddon {
 
   startEventPump(notify: () => void): void;
   stopEventPump(): void;
-  setApplicationIdentity(iconPath?: string): void;
+  setApplicationIdentity(
+    iconPath?: string,
+    identifier?: string,
+    name?: string
+  ): void;
 }
 
 const require = createRequire(import.meta.url);
@@ -261,12 +265,19 @@ export function loadNativeAddon(): NativeAddon {
 }
 
 /**
- * Stages the application icon so the Dock shows the application instead of
- * the Node runtime. Must run before the first window opens. No-op on
- * platforms without a native implementation.
+ * Stages the process-wide application identity before the first window opens.
+ * macOS uses the icon path for the development Dock icon; Windows uses the
+ * identifier/name pair for the explicit AppUserModelID. No-op on platforms
+ * without a native implementation.
  */
 export function setApplicationIdentity(
-  iconPath: string | null | undefined
+  iconPath: string | null | undefined,
+  identifier?: string | null,
+  name?: string | null
 ): void {
-  loadNativeAddon().setApplicationIdentity(iconPath ?? undefined);
+  loadNativeAddon().setApplicationIdentity(
+    iconPath ?? undefined,
+    identifier ?? undefined,
+    name ?? undefined
+  );
 }

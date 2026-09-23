@@ -5,6 +5,8 @@ export interface DevRuntimeInitMessage {
   type: 'init';
   appName: string;
   icon: string | null;
+  /** Reverse-DNS identifier; used as the Windows AppUserModelID in development. */
+  identifier: string;
   /** Vite root; root-relative asset URLs resolve against it in development. */
   root: string;
   application: string;

@@ -104,6 +104,7 @@ describe('retendGpui Vite plugin', () => {
 
     expect(plugin.api.launch).toMatchObject({
       appName: 'Test',
+      identifier: 'dev.retend.test',
       icon: path.join(root, 'icon.svg'),
     });
   });

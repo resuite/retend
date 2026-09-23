@@ -373,7 +373,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
   process.on('disconnect', onDisconnect);
 
   try {
-    setApplicationIdentity(message.icon);
+    setApplicationIdentity(message.icon, message.identifier, message.appName);
     runner = new ModuleRunner(
       {
         transport,

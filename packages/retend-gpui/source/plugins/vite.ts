@@ -409,6 +409,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       const icon = options.app.macos?.icon ?? options.app.icon;
       plugin.api.launch = {
         appName: options.app.name,
+        identifier: options.app.identifier,
         icon: icon ? path.resolve(config.root, icon) : null,
         root: config.root,
         application: normalizePath(

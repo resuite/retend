@@ -107,9 +107,13 @@ it('forwards the application icon to the native addon', async () => {
   const { setApplicationIdentity: applyIdentity } =
     await import('../source/native/addon');
 
-  applyIdentity('/tmp/icon.svg');
+  applyIdentity('/tmp/icon.svg', 'dev.retend.test', 'Test');
 
-  expect(setApplicationIdentity).toHaveBeenCalledWith('/tmp/icon.svg');
+  expect(setApplicationIdentity).toHaveBeenCalledWith(
+    '/tmp/icon.svg',
+    'dev.retend.test',
+    'Test'
+  );
 });
 
 it('does not cache a failed workspace load', async () => {

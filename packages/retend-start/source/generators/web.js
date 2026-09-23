@@ -192,6 +192,7 @@ import { createRouter } from './router';
 
 hydrate(createRouter, {
   wrap(root) {
+    // RetendDevTools only runs while you're developing your app. It is automatically removed from the version you publish.
     return <RetendDevTools>{root}</RetendDevTools>;
   },
 })
@@ -212,6 +213,7 @@ router.attachWindowListeners(window);
 
 const root = window.document.getElementById('app');
 const renderApp = () => (
+  // RetendDevTools only runs while you're developing your app. It is automatically removed from the version you publish.
   <RetendDevTools>{() => createRouterRoot(router)}</RetendDevTools>
 );
 
