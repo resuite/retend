@@ -5527,14 +5527,18 @@ dependencies = [
  "gpui-pre-macos",
  "gpui-pre-platform",
  "gpui-pre-reqwest-client",
+ "image",
  "napi",
  "napi-build",
  "napi-derive",
  "objc",
  "proptest",
+ "raw-window-handle",
+ "resvg",
  "serde",
  "serde_json",
  "url",
+ "windows 0.61.3",
 ]
 
 [[package]]

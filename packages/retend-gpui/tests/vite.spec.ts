@@ -119,6 +119,24 @@ describe('retendGpui Vite plugin', () => {
     expect(plugin.api.launch?.icon).toBe(path.join(root, 'mac-icon.png'));
   });
 
+  it('prefers the Windows icon override for the development runtime', () => {
+    const plugin = retendGpui({
+      ...options(),
+      app: { ...options().app, windows: { icon: './win-icon.ico' } },
+    });
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+    try {
+      Object.defineProperty(process, 'platform', {
+        ...platform,
+        value: 'win32',
+      });
+      const root = resolvePlugin(plugin);
+      expect(plugin.api.launch?.icon).toBe(path.join(root, 'win-icon.ico'));
+    } finally {
+      Object.defineProperty(process, 'platform', platform);
+    }
+  });
+
   it('reports a null development icon when the application defines none', () => {
     const plugin = retendGpui({
       ...options(),
@@ -165,6 +183,37 @@ describe('retendGpui Vite plugin', () => {
     expect(source).toContain('from "/source/main.ts"');
     expect(source).toContain('startProductionApp');
     expect(source).toContain('retend-gpui-native.darwin-arm64.node');
+  });
+
+  it('copies the Windows icon into the production bundle', async () => {
+    const plugin = retendGpui({
+      ...options(),
+      target: 'win32-x64',
+      app: {
+        ...options().app,
+        windows: { icon: './windows-icon.svg' },
+      },
+    });
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'retend-gpui-win-'));
+    temporaryRoots.push(root);
+    fs.writeFileSync(path.join(root, 'windows-icon.svg'), '<svg/>');
+    const config = plugin.config as unknown as (
+      config: TestConfigInput,
+      env: TestCommandEnv
+    ) => unknown;
+    config({ root }, { command: 'build' });
+    const configResolved = plugin.configResolved as (
+      config: ResolvedConfig
+    ) => void;
+    configResolved({ command: 'build', root } as ResolvedConfig);
+
+    const output = path.join(root, 'dist', 'win32-x64');
+    fs.mkdirSync(output, { recursive: true });
+    const writeBundle = plugin.writeBundle as Function;
+    await Reflect.apply(writeBundle, { info: vi.fn() }, [{ dir: output }, {}]);
+    expect(fs.readFileSync(path.join(output, 'AppIcon.svg'), 'utf8')).toBe(
+      '<svg/>'
+    );
   });
 
   it('treats a non-JSX configured entry as an HMR boundary', () => {

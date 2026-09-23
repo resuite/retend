@@ -1,5 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
+#[cfg(target_os = "windows")]
+#[path = "windows_icon.rs"]
+mod windows_icon;
+
 use gpui::{
     div, prelude::*, px, rgb, size, App, Bounds, Context, Render, Subscription, Window,
     WindowBounds, WindowHandle, WindowOptions,
@@ -428,7 +432,7 @@ fn open_gpui_window(
     // The identity is staged before the first window and applied here, once the
     // native application exists, so the Dock/taskbar identity is correct from
     // the first frame.
-    imp::apply_pending_application_identity(cx);
+    imp::apply_pending_application_identity(cx)?;
     let constraints = WindowSizeConstraints {
         min_width: window_dimension(options.min_width)?,
         min_height: window_dimension(options.min_height)?,
@@ -465,6 +469,8 @@ fn open_gpui_window(
         }
     }
     cx.open_window(window_options, move |window, cx| {
+        #[cfg(target_os = "windows")]
+        windows_icon::apply(window);
         window.on_window_should_close(cx, move |_window, _cx| {
             mark_window_closed(window_id);
             true
@@ -715,13 +721,13 @@ mod imp {
         }
     }
 
-    pub(crate) fn apply_pending_application_identity(_cx: &mut App) {
+    pub(crate) fn apply_pending_application_identity(_cx: &mut App) -> Result<(), String> {
         let Some(icon_path) = PENDING_ICON_PATH
             .lock()
             .ok()
             .and_then(|mut pending| pending.take())
         else {
-            return;
+            return Ok(());
         };
         use cocoa::appkit::{NSApplication, NSImage};
         use cocoa::base::{id, nil};
@@ -742,6 +748,7 @@ mod imp {
             }
             let _: () = msg_send![ns_path, release];
         }
+        Ok(())
     }
 }
 
@@ -766,13 +773,13 @@ mod imp {
 
     static COMMANDS: Mutex<Option<mpsc::UnboundedSender<UiCommand>>> = Mutex::new(None);
 
-    /// AppUserModelID + display name staged before the UI thread exists.
+    /// AppUserModelID, display name, and icon staged before the UI thread exists.
     ///
     /// Applied once from [`apply_pending_application_identity`] during the
     /// first window creation, before any taskbar button exists. Windows-only;
     /// Linux keeps identity with its packaging work (desktop entry).
     #[cfg(target_os = "windows")]
-    static PENDING_APP_IDENTITY: Mutex<Option<(String, String)>> = Mutex::new(None);
+    static PENDING_APP_IDENTITY: Mutex<Option<(Option<String>, String, String)>> = Mutex::new(None);
 
     fn command_sender() -> Result<mpsc::UnboundedSender<UiCommand>, String> {
         let mut stored = COMMANDS
@@ -881,7 +888,8 @@ mod imp {
     /// No-op: Linux identity (desktop entry, window class) lands with its
     /// packaging work. The identifier/name pair is consumed by Windows below.
     pub fn set_application_identity(
-        _icon_path: Option<&str>,
+        #[cfg(target_os = "windows")] icon_path: Option<&str>,
+        #[cfg(not(target_os = "windows"))] _icon_path: Option<&str>,
         #[cfg(target_os = "windows")] identifier: Option<&str>,
         #[cfg(target_os = "windows")] name: Option<&str>,
         #[cfg(not(target_os = "windows"))] _identifier: Option<&str>,
@@ -891,6 +899,7 @@ mod imp {
         if let Ok(mut pending) = PENDING_APP_IDENTITY.lock() {
             *pending = match (identifier, name) {
                 (Some(identifier), Some(name)) => Some((
+                    icon_path.map(str::to_string),
                     identifier.to_string(),
                     name.to_string(),
                 )),
@@ -899,18 +908,22 @@ mod imp {
         }
     }
 
-    pub(crate) fn apply_pending_application_identity(_cx: &mut App) {
+    pub(crate) fn apply_pending_application_identity(_cx: &mut App) -> Result<(), String> {
         // `SetCurrentProcessExplicitAppUserModelID` must precede taskbar
         // button creation, so this runs at the top of the first window open
         // on the UI thread. Later windows find nothing pending and skip.
         #[cfg(target_os = "windows")]
-        if let Some((identifier, name)) = PENDING_APP_IDENTITY
+        if let Some((icon_path, identifier, name)) = PENDING_APP_IDENTITY
             .lock()
             .ok()
             .and_then(|mut pending| pending.take())
         {
             _cx.set_app_identity(&identifier, &name);
+            if let Some(icon_path) = icon_path {
+                windows_icon::load(&icon_path)?;
+            }
         }
+        Ok(())
     }
 }
 
@@ -935,7 +948,9 @@ mod imp {
         _name: Option<&str>,
     ) {}
 
-    pub(crate) fn apply_pending_application_identity(_cx: &mut App) {}
+    pub(crate) fn apply_pending_application_identity(_cx: &mut App) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 pub(crate) use imp::dispatch;

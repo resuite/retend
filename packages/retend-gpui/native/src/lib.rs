@@ -420,7 +420,8 @@ pub fn stop_event_pump() -> Result<()> {
 /// Stages the application identity applied by the Retend bridge.
 ///
 /// macOS consumes the icon path (Dock icon for non-bundled processes);
-/// Windows consumes the identifier/name pair (explicit AppUserModelID).
+/// Windows consumes the identifier/name pair (explicit AppUserModelID) and
+/// the icon path for window and taskbar icons.
 /// The identity is applied once, on the main/UI thread, before the first
 /// window opens. Platforms without an implementation treat this as a no-op.
 #[napi]

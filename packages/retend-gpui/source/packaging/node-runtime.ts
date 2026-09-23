@@ -14,7 +14,9 @@ interface NodeRuntimeRequest {
 function nodeArchiveUrl(version: string, target: string): string {
   const os = target.split('-')[0];
   const extension = os === 'win32' ? 'zip' : 'tar.gz';
-  return `https://nodejs.org/dist/v${version}/node-v${version}-${target}.${extension}`;
+  const archiveTarget =
+    os === 'win32' ? target.replace('win32-', 'win-') : target;
+  return `https://nodejs.org/dist/v${version}/node-v${version}-${archiveTarget}.${extension}`;
 }
 
 function runtimeRoot(
@@ -34,25 +36,18 @@ export async function acquireNodeRuntime(
   request: NodeRuntimeRequest
 ): Promise<string> {
   const { version, target, cacheDir } = request;
+  const [os, arch] = target.split('-');
+  if (os !== process.platform || arch !== process.arch) {
+    throw new Error(
+      `Retend GPUI can package ${target} only on a matching ${target} host (current: ${process.platform}-${process.arch}).`
+    );
+  }
   const root = runtimeRoot(cacheDir, version, target);
   const executable = path.join(
     root,
-    'bin',
-    target.startsWith('win32') ? 'node.exe' : 'node'
+    ...(target.startsWith('win32') ? ['node.exe'] : ['bin', 'node'])
   );
   if (fs.existsSync(executable)) return executable;
-
-  const os = target.split('-')[0];
-  if (os === 'win32') {
-    throw new Error(
-      `Packaging a Windows application bundle is not implemented yet (${target}).`
-    );
-  }
-  if (os !== process.platform) {
-    throw new Error(
-      `Retend GPUI cannot package ${target} from ${process.platform}; run the build on a ${os} host.`
-    );
-  }
 
   const url = nodeArchiveUrl(version, target);
   const response = await fetch(url);
@@ -69,7 +64,13 @@ export async function acquireNodeRuntime(
 
   const extracted = spawnSync(
     'tar',
-    ['-xzf', archivePath, '-C', root, '--strip-components=1'],
+    [
+      os === 'win32' ? '-xf' : '-xzf',
+      archivePath,
+      '-C',
+      root,
+      '--strip-components=1',
+    ],
     {
       stdio: 'inherit',
     }

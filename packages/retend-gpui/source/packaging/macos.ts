@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { executableName } from './executable-name.js';
+
 /** macOS application bundle builder. */
 export interface MacAppRequest {
   appName: string;
@@ -54,11 +56,6 @@ function run(command: string, args: string[], failure: string): void {
   if (result.status !== 0) {
     throw new Error(`${failure} (${command} exited with ${result.status}).`);
   }
-}
-
-function executableName(appName: string): string {
-  const sanitized = appName.replace(/[^A-Za-z0-9._-]/g, '');
-  return sanitized || 'app';
 }
 
 function plistString(value: string): string {
@@ -162,7 +159,7 @@ export function buildMacApp(request: MacAppRequest): string {
     );
   }
 
-  const executable = executableName(request.appName);
+  const executable = executableName(request.appName, 'darwin');
   const appDir = path.join(request.outputDir, `${request.appName}.app`);
   const contents = path.join(appDir, 'Contents');
   const macosDir = path.join(contents, 'MacOS');

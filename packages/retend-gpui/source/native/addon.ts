@@ -267,7 +267,8 @@ export function loadNativeAddon(): NativeAddon {
 /**
  * Stages the process-wide application identity before the first window opens.
  * macOS uses the icon path for the development Dock icon; Windows uses the
- * identifier/name pair for the explicit AppUserModelID. No-op on platforms
+ * identifier/name pair for the explicit AppUserModelID and the icon path for
+ * every window. No-op on platforms
  * without a native implementation.
  */
 export function setApplicationIdentity(

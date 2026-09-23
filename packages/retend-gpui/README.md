@@ -222,7 +222,7 @@ If the renderer throws an error for an element, check that the tag is in the sup
 
 ### Development Dock identity on macOS
 
-The dev child applies `app.name` as its process title and sets the Dock icon from `app.icon` (or the `app.macos.icon` override) before the first window opens, so the Dock and Activity Monitor show the application instead of Node. On Windows the dev child additionally sets the explicit AppUserModelID from `app.identifier`, so taskbar buttons group under the application instead of Node; the button icon still comes from the host executable until window-icon support lands. The menu-bar application name still comes from the app bundle, so it may read as `node` in development. Native bundle identity remains the packaged `.app`; Linux applies identity as part of its packaging work.
+The dev child applies `app.name` as its process title and sets the Dock icon from `app.icon` (or the `app.macos.icon` override) before the first window opens. On Windows, it sets the explicit AppUserModelID from `app.identifier` and applies `app.icon` (or `app.windows.icon`) to every window and taskbar button. Windows icons may be `.ico`, `.png`, or `.svg`. A Windows build creates `dist/win32-x64/<AppName>.exe` (or `win32-arm64`) with the icon embedded in the executable. Keep the adjacent `native/`, `assets/`, and `AppIcon.*` files with the executable when testing or distributing it. The macOS menu-bar name still comes from the app bundle, so it may read as `node` in development. Native bundle identity remains the packaged `.app`; Linux applies identity as part of its packaging work.
 
 ### JSX types are missing
 

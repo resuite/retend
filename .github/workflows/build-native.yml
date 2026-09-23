@@ -52,9 +52,8 @@ jobs:
   build:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    # Windows and Linux build/runtime behavior is not validated yet. Keep those
-    # targets from blocking releases until the platform work lands.
-    continue-on-error: ${{ !startsWith(matrix.target, 'darwin') }}
+    # Linux remains experimental; Windows native builds must be green.
+    continue-on-error: ${{ startsWith(matrix.target, 'linux') }}
     strategy:
       fail-fast: false
       matrix:

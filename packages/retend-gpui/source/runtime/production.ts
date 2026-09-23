@@ -12,7 +12,11 @@ import {
 } from '../application.js';
 import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
-import { nativeTargetPlatform, setNativeAddonPath } from '../native/addon.js';
+import {
+  nativeTargetPlatform,
+  setApplicationIdentity,
+  setNativeAddonPath,
+} from '../native/addon.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -34,6 +38,10 @@ export interface ProductionAppDefinition<Context extends object> {
   Root: __HMR_UpdatableFn;
   /** Application name used as the default window title. */
   appName: string;
+  /** Explicit Windows taskbar application identity. */
+  identifier: string;
+  /** Icon copied beside the production entry for Windows builds. */
+  iconPath?: string;
   /** Initial window options resolved from the Vite plugin configuration. */
   options: ProductionWindowOptions;
   /** Absolute path to the bundled native addon. */
@@ -83,6 +91,13 @@ export async function startProductionApp<Context extends object>(
   const nativeAddonPath = resolveNativeAddonPath(definition.nativeAddonPath);
   if (nativeAddonPath) {
     setNativeAddonPath(nativeAddonPath);
+  }
+  if (process.platform === 'win32') {
+    setApplicationIdentity(
+      definition.iconPath,
+      definition.identifier,
+      definition.appName
+    );
   }
   setAssetBase(resolveAssetBase());
 

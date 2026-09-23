@@ -71,15 +71,23 @@ export interface RetendGpuiAppMetadata {
   identifier: string;
   version: string;
   /**
-   * Application icon source (`.icns`, `.png`, or `.svg`). Used for the macOS
-   * Dock icon in development and for the `.icns` in packaged macOS builds;
-   * production builds without one simply ship no icon.
+   * Application icon source. macOS accepts `.icns`, `.png`, or `.svg`;
+   * Windows accepts `.ico`, `.png`, or `.svg` for window and taskbar icons.
    */
   icon?: string;
   description?: string;
   publisher?: string;
   macos?: RetendGpuiPlatformMetadata;
   windows?: RetendGpuiPlatformMetadata;
+}
+
+function applicationIcon(
+  app: RetendGpuiAppMetadata,
+  platform: 'darwin' | 'win32'
+): string | undefined {
+  return (
+    (platform === 'win32' ? app.windows?.icon : app.macos?.icon) ?? app.icon
+  );
 }
 
 /** Initial Vite-managed window configuration. */
@@ -182,6 +190,10 @@ function productionEntrySource(
     location: options.window.location ?? '/',
   };
   const platform = nativeTargetPlatform(target);
+  const windowsIcon = target.startsWith('win32-')
+    ? applicationIcon(options.app, 'win32')
+    : undefined;
+  const iconFile = windowsIcon ? `AppIcon${path.extname(windowsIcon)}` : null;
   return `import { fileURLToPath } from 'node:url';
 import Application from ${JSON.stringify(modulePath(options.application))};
 import Root from ${JSON.stringify(modulePath(options.entry))};
@@ -191,6 +203,8 @@ await startProductionApp({
   Application,
   Root,
   appName: ${JSON.stringify(options.app.name)},
+  identifier: ${JSON.stringify(options.app.identifier)},
+  iconPath: ${iconFile ? `fileURLToPath(new URL(${JSON.stringify(`./${iconFile}`)}, import.meta.url))` : 'undefined'},
   options: ${JSON.stringify(windowOptions)},
   nativeAddonPath: fileURLToPath(
     new URL('./native/retend-gpui-native.${platform}.node', import.meta.url)
@@ -406,7 +420,10 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         plugin.api.launch = null;
         return;
       }
-      const icon = options.app.macos?.icon ?? options.app.icon;
+      const icon = applicationIcon(
+        options.app,
+        process.platform === 'win32' ? 'win32' : 'darwin'
+      );
       plugin.api.launch = {
         appName: options.app.name,
         identifier: options.app.identifier,
@@ -456,6 +473,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       if (
         !productionTarget ||
         productionAddonCopied ||
+        !productionRoot ||
         !productionOutputDir ||
         outputOptions.dir !== productionOutputDir
       ) {
@@ -476,8 +494,48 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(source, destination);
 
-      // Application bundles are only produced for Apple-silicon macOS. Every
-      // other target stops at the runnable bundle directory assembled above.
+      if (productionTarget.startsWith('win32-')) {
+        const icon = applicationIcon(options.app, 'win32');
+        const root = productionRoot;
+        const iconSource = icon ? path.resolve(root, icon) : undefined;
+        if (iconSource) {
+          if (!fs.existsSync(iconSource)) {
+            throw new Error(
+              `retend-gpui: application icon not found: ${iconSource}`
+            );
+          }
+          fs.copyFileSync(
+            iconSource,
+            path.join(productionOutputDir, `AppIcon${path.extname(iconSource)}`)
+          );
+        }
+        if (process.platform !== 'win32') {
+          this.info(
+            `retend-gpui: emitted the ${productionTarget} bundle; build it on Windows to package the executable.`
+          );
+          return;
+        }
+        const nodeBinary = await acquireNodeRuntime({
+          version: options.node ?? DEFAULT_NODE_VERSION,
+          target: productionTarget,
+          cacheDir: path.join(root, 'node_modules', '.cache', 'retend-gpui'),
+        });
+        const { buildWindowsApp } = await import('../packaging/windows.js');
+        const executable = await buildWindowsApp({
+          appName: options.app.name,
+          version: options.app.version,
+          publisher: options.app.publisher,
+          description: options.app.description,
+          bundleEntry: path.join(productionOutputDir, 'index.js'),
+          outputDir: productionOutputDir,
+          nodeBinary,
+          icon: iconSource,
+        });
+        this.info(`retend-gpui: packaged ${path.relative(root, executable)}`);
+        return;
+      }
+
+      // Application bundles are only produced for Apple-silicon macOS.
       if (productionTarget !== 'darwin-arm64') {
         this.info(
           `retend-gpui: application packaging is not implemented for ${productionTarget}; emitted the bundle directory instead.`
@@ -491,7 +549,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
         target: productionTarget,
         cacheDir: path.join(root, 'node_modules', '.cache', 'retend-gpui'),
       });
-      const iconSetting = options.app.macos?.icon ?? options.app.icon;
+      const iconSetting = applicationIcon(options.app, 'darwin');
       const signingOptions = options.signing;
       const identity =
         signingOptions?.identity ?? process.env.RETEND_GPUI_SIGN_IDENTITY;
