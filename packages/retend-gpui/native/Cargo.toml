@@ -74,6 +74,13 @@ gpui-pre-apple = { git = "https://github.com/resuite/gpui-pre", rev = "a1a742703
 gpui-pre-wgpu = { git = "https://github.com/resuite/gpui-pre", rev = "a1a7427033d2af951057229604448c16e8cde181" }
 gpui-pre-windows = { git = "https://github.com/resuite/gpui-pre", rev = "a1a7427033d2af951057229604448c16e8cde181" }
 
+# Dependency debug info isn't needed for dev builds. Dropping it cuts
+# target/ size and link memory, and matches the dev profile Squire's
+# workspaces use (its server already sets this), so shared dependency
+# compilations can hit the same mbx cache keys where inputs line up.
+[profile.dev.package."*"]
+debug = false
+
 [profile.release]
 lto = true
 strip = "symbols"
