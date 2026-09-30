@@ -51,23 +51,25 @@ export abstract class GpuiNode implements EventTarget {
   parent: GpuiParentNode | null = null;
   /** Abort signal that fires when the node is destroyed; use for reactive subscriptions. */
   readonly lifecycle = new AbortController();
-  #host?: GpuiHost;
-  #renderer?: RetendGpuiRenderer;
+  // Released by `markDestroyed()` so a retained reference to a destroyed node
+  // does not keep its window's host and renderer alive.
+  #host: GpuiHost | undefined;
+  #renderer: RetendGpuiRenderer | undefined;
   #destroyed = false;
   #cleanup = new Map<unknown, () => void>();
   #listeners = new Map<string, Set<ListenerRecord>>();
 
-  constructor(host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+  constructor(host: GpuiHost, renderer: RetendGpuiRenderer) {
     this.#host = host;
     this.#renderer = renderer;
   }
 
-  /** Native host shared by related logical nodes. */
+  /** Native host shared by related logical nodes; `undefined` once destroyed. */
   get host(): GpuiHost | undefined {
     return this.#host;
   }
 
-  /** Renderer responsible for logical tree changes and subscriptions. */
+  /** Renderer for logical tree changes and subscriptions; `undefined` once destroyed. */
   get renderer(): RetendGpuiRenderer | undefined {
     return this.#renderer;
   }
@@ -246,6 +248,9 @@ export abstract class GpuiNode implements EventTarget {
     state: DispatchState
   ): void {
     if (!this.#listeners.get(type)?.has(record)) return;
+    // A node with listeners is live, so it has a renderer. Capture it before
+    // the call: the listener may destroy this node, which releases it.
+    const renderer = this.#renderer;
     if (record.once) this.#removeRecord(type, record);
     state.passive = record.passive;
     try {
@@ -253,8 +258,7 @@ export abstract class GpuiNode implements EventTarget {
         record.callback.call(this, event);
       else record.callback.handleEvent(event);
     } catch (error) {
-      if (this.#renderer) this.#renderer.reportListenerError(error);
-      else console.error('[retend-gpui] event listener failed:', error);
+      renderer?.reportListenerError(error);
     } finally {
       state.passive = false;
     }
@@ -369,88 +373,77 @@ export abstract class GpuiElement extends GpuiParentNode {
   constructor(
     readonly id: number,
     readonly tagName: string,
-    readonly acceptsChildren = true,
-    host?: GpuiHost,
-    renderer?: RetendGpuiRenderer
+    readonly acceptsChildren: boolean,
+    host: GpuiHost,
+    renderer: RetendGpuiRenderer
   ) {
     super(host, renderer);
   }
 
-  protected assertAlive(action: string): void {
-    if (this.destroyed)
-      throw new Error(`Cannot ${action} a destroyed Retend GPUI node.`);
-  }
-
-  protected requireHost(action: string): GpuiHost {
-    this.assertAlive(action);
+  /**
+   * The host for a native operation. Every element is created with its host
+   * and only releases it on destruction, so a missing host means destroyed.
+   */
+  protected liveHost(action: string): GpuiHost {
     const host = this.host;
-    if (!host)
-      throw new Error(
-        `Cannot ${action} a Retend GPUI node without a native host.`
-      );
+    if (this.destroyed || !host)
+      throw new Error(`Cannot ${action} a destroyed Retend GPUI node.`);
     return host;
   }
 
   /** Requests native keyboard focus for this element. */
   focus(): void {
-    this.assertAlive('focus');
-    this.host?.focusNode(this.id);
+    this.liveHost('focus').focusNode(this.id);
   }
 
   /** Releases native keyboard focus when this element currently owns it. */
   blur(): void {
-    this.assertAlive('blur');
-    this.host?.blurNode(this.id);
+    this.liveHost('blur').blurNode(this.id);
   }
 
   /** Scrolls this element to an absolute native scroll offset. */
   scrollTo(x: number, y: number): void {
-    this.assertAlive('scroll');
-    this.host?.scrollToNode(this.id, x, y);
+    this.liveHost('scroll').scrollToNode(this.id, x, y);
   }
 
   /** Scrolls this element relative to its current native scroll offset. */
   scrollBy(x: number, y: number): void {
-    this.assertAlive('scroll');
-    this.host?.scrollByNode(this.id, x, y);
+    this.liveHost('scroll').scrollByNode(this.id, x, y);
   }
 
   /** Scrolls the nearest native scroll containers enough to reveal this element. */
   scrollIntoView(): void {
-    this.assertAlive('scroll into view');
-    this.host?.scrollIntoViewNode(this.id);
+    this.liveHost('scroll into view').scrollIntoViewNode(this.id);
   }
 
   /** Reads the current authoritative native scroll offset. */
   async getScrollOffset(): Promise<GpuiScrollOffset> {
-    return this.requireHost('read scroll state from').getScrollOffsetNode(
-      this.id
-    );
+    return this.liveHost('read scroll state from').getScrollOffsetNode(this.id);
   }
 
   /** Reads the painted, transformed border box (like `getBoundingClientRect`) and scroll-content extent. */
   async measure(): Promise<GpuiMeasurement> {
-    return this.requireHost('measure').measureNode(this.id);
+    return this.liveHost('measure').measureNode(this.id);
   }
 }
 
 /** Native `<div>` element. */
 export class GpuiDivElement extends GpuiElement {
-  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
     super(id, 'div', true, host, renderer);
   }
 }
 
 /** Native `<anchored>` floating-layer element. */
 export class GpuiAnchoredElement extends GpuiElement {
-  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
     super(id, 'anchored', true, host, renderer);
   }
 }
 
 /** Native `<img>` element. */
 export class GpuiImageElement extends GpuiElement {
-  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
     super(id, 'img', false, host, renderer);
   }
 }
@@ -458,7 +451,7 @@ export class GpuiImageElement extends GpuiElement {
 abstract class GpuiTextControlElement extends GpuiElement {
   /** Sets the authoritative native text selection using UTF-16 offsets. */
   setSelectionRange(start: number, end: number): void {
-    this.requireHost('set selection on').setSelectionRangeNode(
+    this.liveHost('set selection on').setSelectionRangeNode(
       this.id,
       start,
       end
@@ -467,32 +460,32 @@ abstract class GpuiTextControlElement extends GpuiElement {
 
   /** Selects all native text in this control. */
   select(): void {
-    this.requireHost('select text in').selectNode(this.id);
+    this.liveHost('select text in').selectNode(this.id);
   }
 
   /** Reads the authoritative native text selection. */
   async getSelection(): Promise<GpuiSelection> {
-    return this.requireHost('read selection from').getSelectionNode(this.id);
+    return this.liveHost('read selection from').getSelectionNode(this.id);
   }
 }
 
 /** Native `<input>` element. */
 export class GpuiInputElement extends GpuiTextControlElement {
-  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
     super(id, 'input', false, host, renderer);
   }
 }
 
 /** Native `<textarea>` element. */
 export class GpuiTextareaElement extends GpuiTextControlElement {
-  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
     super(id, 'textarea', false, host, renderer);
   }
 }
 
 /** Native `<button>` element. Renders its children as the button label. */
 export class GpuiButtonElement extends GpuiElement {
-  constructor(id: number, host?: GpuiHost, renderer?: RetendGpuiRenderer) {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
     super(id, 'button', true, host, renderer);
   }
 }
@@ -511,8 +504,8 @@ export class GpuiText extends GpuiNode {
   constructor(
     readonly id: number,
     public content: string,
-    host?: GpuiHost,
-    renderer?: RetendGpuiRenderer
+    host: GpuiHost,
+    renderer: RetendGpuiRenderer
   ) {
     super(host, renderer);
   }

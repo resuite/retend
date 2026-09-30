@@ -170,7 +170,6 @@ const nativePlatforms: Record<string, string> = {
   'win32-x64': 'win32-x64-msvc',
 };
 const supportedTargets = Object.keys(nativePlatforms);
-const supportedTarget = new RegExp(`^(${supportedTargets.join('|')})$`);
 let nativeAddon: NativeAddon | undefined;
 
 export function nativeTargetPlatform(
@@ -243,11 +242,6 @@ export function loadNativeAddon(): NativeAddon {
     return nativeAddon;
   }
 
-  if (!supportedTarget.test(target)) {
-    throw new Error(
-      `Retend GPUI does not support native target ${target}. Supported targets are ${supportedTargets.join(', ')}.`
-    );
-  }
   const packageName = `retend-gpui-native-${platform}`;
   try {
     nativeAddon = require(packageName) as NativeAddon;

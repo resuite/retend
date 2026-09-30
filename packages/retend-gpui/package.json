@@ -44,6 +44,10 @@
     "./plugins/hmr": {
       "types": "./dist/plugins/hmr.d.ts",
       "import": "./dist/plugins/hmr.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/production.d.ts",
+      "import": "./dist/runtime/production.js"
     }
   },
   "publishConfig": {

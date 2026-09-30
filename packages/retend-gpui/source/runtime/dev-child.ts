@@ -398,13 +398,21 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
 
     await loadApplication();
 
-    const Root = await loadEntry().catch((error: unknown) => {
-      console.error('[retend-gpui] application entry failed:', error);
-      return undefined;
-    });
+    const entry = await loadEntry().then(
+      (Root) => ({ ok: true as const, Root }),
+      (error: unknown) => ({ ok: false as const, error })
+    );
 
     const initialWindow = createWindow(message.options);
-    await recoverWindow(initialWindow, Root, true);
+    // Show a failed entry once. The module runner replays the same rejection
+    // until Vite invalidates the module, so loading it again (as
+    // `recoverWindow` does when given no root) could only repeat the failure.
+    if (entry.ok) {
+      await recoverWindow(initialWindow, entry.Root, true);
+    } else {
+      console.error('[retend-gpui] application entry failed:', entry.error);
+      showDevelopmentError(entry.error, [initialWindow]);
+    }
 
     sendControl({ channel: 'retend-gpui', type: 'application-ready' });
   } catch (error) {

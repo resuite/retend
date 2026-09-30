@@ -206,21 +206,29 @@ export function buildMacApp(request: MacAppRequest): string {
   );
   fs.copyFileSync(request.addonPath, addonDestination);
 
+  // A configured icon is part of the app's contract: fail the build rather
+  // than ship without it, as Windows packaging does.
   let iconFile: string | undefined;
-  if (request.icon && fs.existsSync(request.icon)) {
+  if (request.icon) {
+    if (!fs.existsSync(request.icon)) {
+      throw new Error(
+        `retend-gpui: application icon not found: ${request.icon}`
+      );
+    }
+    const destination = path.join(resourcesDir, 'AppIcon.icns');
     try {
-      const destination = path.join(resourcesDir, 'AppIcon.icns');
       if (path.extname(request.icon).toLowerCase() === '.icns') {
         fs.copyFileSync(request.icon, destination);
       } else {
         buildIcns(request.icon, destination);
       }
-      iconFile = 'AppIcon';
     } catch (error) {
-      request.log(
-        `retend-gpui: skipped the application icon (${error instanceof Error ? error.message : String(error)}).`
+      throw new Error(
+        `retend-gpui: could not build the application icon from ${request.icon}.`,
+        { cause: error }
       );
     }
+    iconFile = 'AppIcon';
   }
 
   fs.writeFileSync(

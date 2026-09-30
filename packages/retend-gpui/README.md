@@ -93,8 +93,7 @@ export default defineConfig({
 
 Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. Vite full reloads recreate application/module state and remount every live window without replacing its native window or navigation history; Vite/config restarts replace the whole application process.
 
-Components read process-wide resources with `useAppContext()`. The development command generates the configured context type under `node_modules/@types/retend-gpui-app`.
-TypeScript discovers it automatically unless `compilerOptions.types` limits the loaded packages. In that case, add `"retend-gpui-app"` to that list after the existing GPUI JSX type.
+Components read process-wide resources with `useAppContext()`. Every dev and build run writes `retend-gpui-env.d.ts` at the project root, typing the context from the configured `application` module. Add it to your tsconfig `include` (projects created by `retend-start` already do); like `next-env.d.ts`, it can be committed.
 
 ```tsx
 import { useAppContext, useWindow } from 'retend-gpui';

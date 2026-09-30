@@ -126,8 +126,8 @@ function protocolStyleValue(
 
 type ElementFactory = new (
   id: number,
-  host?: GpuiHost,
-  renderer?: RetendGpuiRenderer
+  host: GpuiHost,
+  renderer: RetendGpuiRenderer
 ) => GpuiElement;
 
 const ELEMENTS = {

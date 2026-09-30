@@ -16,6 +16,14 @@ afterEach(() => {
   native.stopEventPump.mockReset();
 });
 
+describe('NativeRuntime accounting', () => {
+  it('rejects a release without a matching acquire', () => {
+    expect(() => nativeRuntime.release()).toThrow(
+      'more times than it was acquired'
+    );
+  });
+});
+
 describe.runIf(process.platform === 'darwin')('NativeRuntime', () => {
   it('starts the native pump once while any window is acquired', () => {
     nativeRuntime.acquire();

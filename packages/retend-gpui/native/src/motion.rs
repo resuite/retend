@@ -299,10 +299,8 @@ fn parse_time(value: &PropertyValue, clamp_negative: bool) -> Option<Duration> {
     let value = value.trim();
     let (number, multiplier) = if let Some(number) = value.strip_suffix("ms") {
         (number, 0.001)
-    } else if let Some(number) = value.strip_suffix('s') {
-        (number, 1.0)
     } else {
-        return None;
+        (value.strip_suffix('s')?, 1.0)
     };
     let mut seconds = parse_js_number(number.trim())? * multiplier;
     if !seconds.is_finite() {
@@ -460,16 +458,18 @@ fn reconcile_lifecycle(
     }
 }
 
+/// Samples the channel for `AnimatableProperty::ALL[index]` and reconciles its
+/// open lifecycle with the result.
 fn settle_lifecycle(
     events: &mut Vec<TransitionLifecycleEvent>,
     index: usize,
-    property: AnimatableProperty,
     element_id: &ElementId,
     target: TransitionValue,
     lifecycle: ActiveLifecycle,
     window: &mut Window,
     cx: &mut App,
 ) -> Option<ActiveLifecycle> {
+    let property = AnimatableProperty::ALL[index];
     let sampled = transition_with_status(
         (element_id.clone(), property.channel()),
         target,
@@ -483,18 +483,13 @@ fn settle_lifecycle(
 fn cancel_lifecycle(
     events: &mut Vec<TransitionLifecycleEvent>,
     index: usize,
-    property: AnimatableProperty,
     element_id: &ElementId,
     target: TransitionValue,
     lifecycle: ActiveLifecycle,
     window: &mut Window,
     cx: &mut App,
 ) {
-    if settle_lifecycle(
-        events, index, property, element_id, target, lifecycle, window, cx,
-    )
-    .is_some()
-    {
+    if settle_lifecycle(events, index, element_id, target, lifecycle, window, cx).is_some() {
         emit(events, NativeEventId::TransitionCancel, index, 0.0);
     }
 }
@@ -599,12 +594,11 @@ pub fn resolve_style(
     let initialized = state.initialized.replace(true);
 
     let Some(config) = config.filter(|_| current_mask != 0) else {
-        for (index, property) in AnimatableProperty::ALL.into_iter().enumerate() {
-            if let Some(lifecycle) = lifecycles[index] {
+        for (index, lifecycle) in lifecycles.into_iter().enumerate() {
+            if let Some(lifecycle) = lifecycle {
                 cancel_lifecycle(
                     &mut events,
                     index,
-                    property,
                     &element_id,
                     previous_targets[index],
                     lifecycle,
@@ -633,7 +627,6 @@ pub fn resolve_style(
                 cancel_lifecycle(
                     &mut events,
                     index,
-                    property,
                     &element_id,
                     previous_target,
                     lifecycle,
@@ -668,7 +661,6 @@ pub fn resolve_style(
                 cancel_lifecycle(
                     &mut events,
                     index,
-                    property,
                     &element_id,
                     previous_target,
                     lifecycle,
@@ -725,6 +717,9 @@ mod tests {
     use gpui::{div, AppContext, Context, Render, TestAppContext};
 
     use super::*;
+
+    /// Lifecycle events a probe records: kind, property name, elapsed seconds.
+    type RecordedEvents = Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>;
 
     struct TransformProbe {
         property: AnimatableProperty,
@@ -1287,7 +1282,7 @@ mod tests {
         enabled: bool,
         delay: Option<String>,
         duration: Option<String>,
-        events: Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
+        events: RecordedEvents,
         motion: MotionBridgeState,
     }
 
@@ -1324,15 +1319,11 @@ mod tests {
         }
     }
 
-    fn drain(
-        events: &Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
-    ) -> Vec<(NativeEventId, &'static str, f64)> {
+    fn drain(events: &RecordedEvents) -> Vec<(NativeEventId, &'static str, f64)> {
         std::mem::take(&mut *events.borrow_mut())
     }
 
-    fn kinds(
-        events: &Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
-    ) -> Vec<(NativeEventId, &'static str)> {
+    fn kinds(events: &RecordedEvents) -> Vec<(NativeEventId, &'static str)> {
         drain(events)
             .into_iter()
             .map(|(event, name, _)| (event, name))
@@ -1672,7 +1663,7 @@ mod tests {
 
     struct UnsupportedLifecycleProbe {
         width: PropertyValue,
-        events: Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>>,
+        events: RecordedEvents,
         sampled: Rc<Cell<SampledWidth>>,
         motion: MotionBridgeState,
     }
@@ -1704,8 +1695,7 @@ mod tests {
     #[gpui::test]
     fn unsupported_endpoint_snaps_without_later_lifecycle(cx: &mut TestAppContext) {
         use NativeEventId as E;
-        let events: Rc<std::cell::RefCell<Vec<(NativeEventId, &'static str, f64)>>> =
-            Rc::new(std::cell::RefCell::new(Vec::new()));
+        let events: RecordedEvents = Rc::new(std::cell::RefCell::new(Vec::new()));
         let sampled = Rc::new(Cell::new(SampledWidth::Unset));
         let window = cx.add_window({
             let events = events.clone();

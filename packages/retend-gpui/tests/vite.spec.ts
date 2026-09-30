@@ -88,14 +88,18 @@ describe('retendGpui Vite plugin', () => {
   it('generates the configured application context declaration', () => {
     const root = resolvePlugin(retendGpui(options()));
     const declaration = fs.readFileSync(
-      path.join(root, 'node_modules/@types/retend-gpui-app/index.d.ts'),
+      path.join(root, 'retend-gpui-env.d.ts'),
       'utf8'
     );
 
     expect(declaration).toContain(
+      'import type Application from "./source/application.ts"'
+    );
+    expect(declaration).toContain(
       "InstanceType<typeof Application>['context']"
     );
     expect(declaration).toContain('interface GpuiAppContextTypes');
+    expect(fs.existsSync(path.join(root, 'node_modules'))).toBe(false);
   });
 
   it('exposes the configured identity to the development runtime', () => {
@@ -166,7 +170,7 @@ describe('retendGpui Vite plugin', () => {
     );
   });
 
-  it('loads a production entry that boots the configured application', () => {
+  it('generates a production entry that imports the configured modules and the runtime bootstrap', () => {
     const plugin = retendGpui({ ...options(), target: 'darwin-arm64' });
     const config = plugin.config as unknown as (
       config: TestConfigInput,
@@ -181,7 +185,9 @@ describe('retendGpui Vite plugin', () => {
     const source = load('\0virtual:retend-gpui/production-entry') ?? '';
     expect(source).toContain('from "/source/application.ts"');
     expect(source).toContain('from "/source/main.ts"');
-    expect(source).toContain('startProductionApp');
+    expect(source).toContain(
+      "import { startProductionApp } from 'retend-gpui/runtime';"
+    );
     expect(source).toContain('retend-gpui-native.darwin-arm64.node');
   });
 
@@ -214,6 +220,55 @@ describe('retendGpui Vite plugin', () => {
     expect(fs.readFileSync(path.join(output, 'AppIcon.svg'), 'utf8')).toBe(
       '<svg/>'
     );
+  });
+
+  it('packages again on every build, including after a failed attempt', async () => {
+    const plugin = retendGpui({
+      ...options(),
+      target: 'win32-x64',
+      app: {
+        ...options().app,
+        windows: { icon: './windows-icon.svg' },
+      },
+    });
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'retend-gpui-rebuild-'));
+    temporaryRoots.push(root);
+    const config = plugin.config as unknown as (
+      config: TestConfigInput,
+      env: TestCommandEnv
+    ) => unknown;
+    config({ root }, { command: 'build' });
+    const configResolved = plugin.configResolved as (
+      config: ResolvedConfig
+    ) => void;
+    configResolved({ command: 'build', root } as ResolvedConfig);
+
+    const output = path.join(root, 'dist', 'win32-x64');
+    const addon = path.join(
+      output,
+      'native',
+      'retend-gpui-native.win32-x64-msvc.node'
+    );
+    const writeBundle = plugin.writeBundle as Function;
+    const build = async (): Promise<void> => {
+      // `emptyOutDir` clears the output before every build.
+      fs.rmSync(output, { recursive: true, force: true });
+      fs.mkdirSync(output, { recursive: true });
+      await Reflect.apply(writeBundle, { info: vi.fn() }, [
+        { dir: output },
+        {},
+      ]);
+    };
+
+    // The configured icon does not exist yet, so the first build fails.
+    await expect(build()).rejects.toThrow('application icon not found');
+
+    fs.writeFileSync(path.join(root, 'windows-icon.svg'), '<svg/>');
+    for (let rebuild = 0; rebuild < 2; rebuild++) {
+      await build();
+      expect(fs.existsSync(addon)).toBe(true);
+      expect(fs.existsSync(path.join(output, 'AppIcon.svg'))).toBe(true);
+    }
   });
 
   it('treats a non-JSX configured entry as an HMR boundary', () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   GpuiFocusEvent,
@@ -14,11 +14,22 @@ import { RetendGpuiRenderer } from '../source/gpui-renderer';
 import { NativeEventId } from '../source/native/protocol.generated';
 import { GpuiDivElement, type GpuiElement } from '../source/tree/nodes';
 import { appendNodes } from '../source/tree/operations';
+import { createRenderer, disposeRenderers } from './helpers';
+
+afterEach(disposeRenderers);
+
+/** Detached `<div>` elements created the way the renderer creates them. */
+function divs(count: number): GpuiElement[] {
+  const renderer = createRenderer();
+  return Array.from({ length: count }, () => renderer.createContainer('div'));
+}
+
+function div(): GpuiElement {
+  return divs(1)[0];
+}
 
 function tree(): [GpuiElement, GpuiElement, GpuiElement] {
-  const root = new GpuiDivElement(1);
-  const parent = new GpuiDivElement(2);
-  const target = new GpuiDivElement(3);
+  const [root, parent, target] = divs(3);
   appendNodes(root, parent);
   appendNodes(parent, target);
   return [root, parent, target];
@@ -61,7 +72,7 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('snapshots each node listener list while honoring removals before their turn', () => {
-    const target = new GpuiDivElement(1);
+    const target = div();
     const calls: string[] = [];
     const removed = () => calls.push('removed');
     const added = () => calls.push('added');
@@ -94,7 +105,7 @@ describe('Retend GPUI event dispatch', () => {
     expect(calls).toEqual(['parent-1', 'parent-2']);
 
     calls.length = 0;
-    const target2 = new GpuiDivElement(4);
+    const target2 = div();
     target2.addEventListener('click', (event) => {
       calls.push('target-1');
       event.stopImmediatePropagation();
@@ -117,7 +128,7 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('returns false only when a cancelable Retend-side default is prevented', () => {
-    const target = new GpuiDivElement(1);
+    const target = div();
     target.addEventListener('custom', (event) => event.preventDefault());
 
     expect(
@@ -127,8 +138,7 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('restores dispatch state so the same Event can be dispatched again', () => {
-    const first = new GpuiDivElement(1);
-    const second = new GpuiDivElement(2);
+    const [first, second] = divs(2);
     const event = new Event('custom');
 
     first.dispatchEvent(event);
@@ -253,7 +263,7 @@ describe('Retend GPUI event dispatch', () => {
   });
 
   it('makes passive listeners unable to prevent default', () => {
-    const target = new GpuiDivElement(1);
+    const target = div();
     const event = new Event('custom', { cancelable: true });
     target.addEventListener('custom', (current) => current.preventDefault(), {
       passive: true,

@@ -28,6 +28,38 @@ function flattenContent(input: readonly GpuiNode[]): GpuiNode[] {
   return nodes;
 }
 
+/**
+ * Throws if inserting `input` under `parent` would place a node inside itself.
+ *
+ * Checks the content and every group it flattens through against `parent` and
+ * its ancestors, before anything moves: flattening detaches groups, so a
+ * rejection after that point would leave the logical tree half-mutated and out
+ * of step with the native tree.
+ */
+function assertNoCycle(
+  parent: GpuiParentNode,
+  input: readonly GpuiNode[]
+): void {
+  const ancestors = new Set<GpuiNode>();
+  for (
+    let current: GpuiParentNode | null = parent;
+    current;
+    current = current.parent
+  ) {
+    ancestors.add(current);
+  }
+  const pending = [...input];
+  while (pending.length > 0) {
+    const node = pending.pop()!;
+    if (ancestors.has(node)) {
+      throw new Error(
+        'A GPUI node cannot be inserted into itself or one of its descendants.'
+      );
+    }
+    if (node instanceof GpuiGroup) pending.push(...node.children);
+  }
+}
+
 function insertNode(
   parent: GpuiParentNode,
   node: GpuiNode,
@@ -52,16 +84,17 @@ export function appendNodes(
   input: GpuiNode | readonly GpuiNode[]
 ): void {
   const roots = Array.isArray(input) ? input : [input];
-  if (roots.includes(parent)) {
-    throw new Error('A GPUI node cannot be appended to itself.');
-  }
-
+  assertNoCycle(parent, roots);
   for (const node of flattenContent(roots)) insertNode(parent, node);
 }
 
 export function createRange(group: GpuiGroup): GpuiRange {
-  const start = new GpuiAnchor(group.host, group.renderer);
-  const end = new GpuiAnchor(group.host, group.renderer);
+  const { host, renderer } = group;
+  if (!host || !renderer) {
+    throw new Error('Cannot create a range in a destroyed GPUI group.');
+  }
+  const start = new GpuiAnchor(host, renderer);
+  const end = new GpuiAnchor(host, renderer);
   start.parent = group;
   end.parent = group;
   group.children.unshift(start);
@@ -99,6 +132,7 @@ export function writeRange(
   if (newContent.includes(start) || newContent.includes(end)) {
     throw new Error('A GPUI range cannot contain its boundary anchors.');
   }
+  assertNoCycle(parent, newContent);
 
   const current = parent.children.slice(startIndex + 1, endIndex);
   const nodes = flattenContent(newContent);

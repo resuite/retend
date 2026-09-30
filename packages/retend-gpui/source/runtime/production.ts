@@ -12,11 +12,7 @@ import {
 } from '../application.js';
 import { setAssetBase } from '../assets.js';
 import { RetendGpuiRenderer } from '../gpui-renderer.js';
-import {
-  nativeTargetPlatform,
-  setApplicationIdentity,
-  setNativeAddonPath,
-} from '../native/addon.js';
+import { setApplicationIdentity, setNativeAddonPath } from '../native/addon.js';
 import {
   RuntimeGpuiWindow,
   WindowScope,
@@ -30,7 +26,12 @@ const DEFAULT_HEIGHT = 600;
 type ProductionWindowOptions = GpuiWindowOptions &
   Required<Pick<GpuiWindowOptions, 'title' | 'location'>>;
 
-/** @internal Inputs baked into a packaged `retend-gpui` application entry. */
+/**
+ * Inputs baked into a packaged `retend-gpui` application entry.
+ *
+ * Exported from `retend-gpui/runtime` for the entry the Vite plugin generates;
+ * applications do not call {@link startProductionApp} themselves.
+ */
 export interface ProductionAppDefinition<Context extends object> {
   /** Application class default-exported by the configured `application` module. */
   Application: new () => GpuiApplication<Context>;
@@ -44,28 +45,35 @@ export interface ProductionAppDefinition<Context extends object> {
   iconPath?: string;
   /** Initial window options resolved from the Vite plugin configuration. */
   options: ProductionWindowOptions;
-  /** Absolute path to the bundled native addon. */
-  nativeAddonPath?: string;
+  /** Path of the addon beside the bundled entry, `native/<binary>`. */
+  nativeAddonPath: string;
 }
 
-/** Finds the bundled addon in the app bundle or beside the entry. */
-function resolveNativeAddonPath(explicit?: string): string | undefined {
-  const platform = nativeTargetPlatform();
-  const binaryName = `retend-gpui-native.${platform}.node`;
-  const bundleDir = fileURLToPath(new URL('.', import.meta.url));
+/**
+ * Locates the packaged addon in one of the layouts the packagers produce:
+ * beside the bundled entry (`dist/<target>`), beside a Windows executable, or
+ * in a macOS app's `Contents/Resources`. The executable-relative layouts cover
+ * single-executable apps, where the entry's own URL is not a file on disk.
+ *
+ * A package without its own addon is broken. Falling back to ordinary package
+ * resolution would load whatever addon Node finds instead, which on a
+ * developer machine can hide the missing file, so this throws.
+ */
+function resolveNativeAddonPath(besideEntry: string): string {
+  const binaryName = path.basename(besideEntry);
   const executableDir = path.dirname(process.execPath);
   const candidates = [
-    explicit,
-    process.env.RETEND_GPUI_NATIVE_ADDON,
-    path.join(bundleDir, 'native', binaryName),
-    path.join(bundleDir, '..', 'Resources', 'native', binaryName),
+    besideEntry,
     path.join(executableDir, 'native', binaryName),
     path.join(executableDir, '..', 'Resources', 'native', binaryName),
   ];
-  return candidates.find(
-    (candidate): candidate is string =>
-      typeof candidate === 'string' && fs.existsSync(candidate)
-  );
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!found) {
+    throw new Error(
+      `Retend GPUI could not find the packaged native addon ${binaryName}. Looked in:\n${candidates.join('\n')}`
+    );
+  }
+  return found;
 }
 
 /** Directory holding emitted assets: Resources in an app, else the bundle dir. */
@@ -88,10 +96,7 @@ function resolveAssetBase(): string {
 export async function startProductionApp<Context extends object>(
   definition: ProductionAppDefinition<Context>
 ): Promise<void> {
-  const nativeAddonPath = resolveNativeAddonPath(definition.nativeAddonPath);
-  if (nativeAddonPath) {
-    setNativeAddonPath(nativeAddonPath);
-  }
+  setNativeAddonPath(resolveNativeAddonPath(definition.nativeAddonPath));
   if (process.platform === 'win32') {
     setApplicationIdentity(
       definition.iconPath,

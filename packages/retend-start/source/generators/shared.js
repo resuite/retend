@@ -39,7 +39,7 @@ export async function writeJsonFile(projectDir, fileName, content) {
 /**
  * @param {string} projectDir
  * @param {Answers} answers
- * @param {{ jsxImportSource: string, types: Array<string> }} options
+ * @param {{ jsxImportSource: string, types: Array<string>, include?: Array<string> }} options
  * @returns {Promise<void>}
  */
 export async function createTsConfig(projectDir, answers, options) {
@@ -68,7 +68,7 @@ export async function createTsConfig(projectDir, answers, options) {
         '@/*': ['./source/*'],
       },
     },
-    include: ['source'],
+    include: ['source', ...(options.include ?? [])],
   };
 
   if (isTypeScript) {
