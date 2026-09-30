@@ -136,6 +136,7 @@
     "TransitionEnd": 18,
     "TransitionCancel": 19,
     "Load": 20,
-    "Error": 21
+    "Error": 21,
+    "ContextMenu": 22
   }
 }

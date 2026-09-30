@@ -298,6 +298,49 @@ describe('native event delivery', () => {
     expect(received?.timeStamp).toBe(12.5);
   });
 
+  it('subscribes onContextMenu natively and bubbles contextmenu from the native target', () => {
+    const current = createRenderer();
+    const subscriptionChanged = vi.spyOn(current, 'nativeSubscriptionChanged');
+    const parent = current.createContainer('div');
+    const child = current.createContainer('div');
+    current.append(parent, child);
+
+    const received: GpuiMouseEvent[] = [];
+    const targets: unknown[] = [];
+    current.setProperty(parent, 'onContextMenu', (event: GpuiMouseEvent) => {
+      received.push(event);
+      targets.push(event.target);
+    });
+    current.render(() => parent);
+
+    expect(subscriptionChanged).toHaveBeenCalledWith(
+      parent,
+      NativeEventId.ContextMenu,
+      true
+    );
+
+    native.onEvent?.({
+      event: {
+        ...mouseEvent(NativeEventId.ContextMenu, child.id),
+        button: 2,
+        buttons: 2,
+      },
+    });
+
+    expect(received).toHaveLength(1);
+    expect(targets).toEqual([child]);
+    expect(received[0]).toBeInstanceOf(GpuiMouseEvent);
+    expect(received[0]).toMatchObject({
+      type: 'contextmenu',
+      bubbles: true,
+      cancelable: true,
+      clientX: 20,
+      clientY: 30,
+      button: 2,
+      buttons: 2,
+    });
+  });
+
   it('delivers mixed continuous bursts in callback order with target and propagation semantics intact', () => {
     const current = createRenderer();
     const parent = current.createContainer('div');

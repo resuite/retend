@@ -428,7 +428,7 @@ export abstract class GpuiElement extends GpuiParentNode {
     );
   }
 
-  /** Reads committed native border-box and scroll-content layout. */
+  /** Reads the painted, transformed border box (like `getBoundingClientRect`) and scroll-content extent. */
   async measure(): Promise<GpuiMeasurement> {
     return this.requireHost('measure').measureNode(this.id);
   }

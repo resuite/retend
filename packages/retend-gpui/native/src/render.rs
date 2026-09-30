@@ -63,6 +63,7 @@ const RENDER_EVENT_MASK: u32 = event_bit(NativeEventId::MouseDown)
     | event_bit(NativeEventId::MouseMove)
     | event_bit(NativeEventId::Click)
     | event_bit(NativeEventId::DblClick)
+    | event_bit(NativeEventId::ContextMenu)
     | event_bit(NativeEventId::MouseEnter)
     | event_bit(NativeEventId::MouseLeave)
     | event_bit(NativeEventId::KeyDown)
@@ -97,6 +98,10 @@ impl EventInterest {
     }
 }
 
+/// Browsers fire a mouse-triggered `contextmenu` on the secondary-button press
+/// on macOS and Linux, and on its release on Windows.
+const CONTEXT_MENU_ON_PRESS: bool = !cfg!(target_os = "windows");
+
 fn emit_mouse_down(
     window_id: WindowId,
     target_id: NodeId,
@@ -104,13 +109,13 @@ fn emit_mouse_down(
     window: &mut Window,
     cx: &mut App,
 ) {
-    let (subscribed, outside, changed) = crate::runtime()
+    let (subscriptions, outside, changed) = crate::runtime()
         .lock()
         .map(|mut tree| {
             let changed =
                 event.button == MouseButton::Left && tree.press_node(window_id, target_id);
             (
-                tree.has_subscription_in_path(window_id, target_id, NativeEventId::MouseDown),
+                tree.subscription_mask_in_path(window_id, target_id),
                 tree.outside_subscribers(window_id, target_id),
                 changed,
             )
@@ -119,6 +124,15 @@ fn emit_mouse_down(
     if changed {
         window.refresh();
     }
+    let subscribed = subscriptions & event_bit(NativeEventId::MouseDown) != 0;
+    // Where the press is the trigger, `contextmenu` is emitted from this same
+    // listener, after `mousedown` as on the web. GPUI runs a node's mouse
+    // listeners in reverse registration order and stops at the first
+    // `stop_propagation`, so a separate listener would fire first and could
+    // swallow `mousedown`. macOS ctrl-click arrives here as a right press.
+    let context_menu = CONTEXT_MENU_ON_PRESS
+        && event.button == MouseButton::Right
+        && subscriptions & event_bit(NativeEventId::ContextMenu) != 0;
     if subscribed {
         events::emit(
             window_id,
@@ -137,7 +151,16 @@ fn emit_mouse_down(
             ),
         );
     }
-    if subscribed || !outside.is_empty() {
+    if context_menu {
+        events::emit(
+            window_id,
+            events::in_window(
+                events::mouse_down(NativeEventId::ContextMenu, target_id, event),
+                window,
+            ),
+        );
+    }
+    if subscribed || !outside.is_empty() || context_menu {
         cx.stop_propagation();
     }
 }
@@ -156,8 +179,6 @@ macro_rules! bubbling_events {
 }
 
 bubbling_events! {
-    emit_key_down(window_id, id, event: KeyDownEvent): KeyDown =>
-        events::key_event(NativeEventId::KeyDown, id, &event.keystroke, event.is_held);
     emit_key_up(window_id, id, event: KeyUpEvent): KeyUp =>
         events::key_event(NativeEventId::KeyUp, id, &event.keystroke, false);
     emit_mouse_move(window_id, id, event: MouseMoveEvent, window: &Window): MouseMove =>
@@ -207,6 +228,106 @@ fn emit_click(
         events::emit(window_id, payload(NativeEventId::DblClick));
     }
     if click || double_click {
+        cx.stop_propagation();
+    }
+}
+
+fn emit_aux_click(
+    window_id: WindowId,
+    target_id: NodeId,
+    event: &ClickEvent,
+    window: &Window,
+    cx: &mut App,
+) {
+    // GPUI routes every non-primary button through `on_aux_click`; only a
+    // secondary activation (right-button press/release, macOS ctrl-click, or
+    // touch long-press) maps onto the web `contextmenu` event. Middle-clicks
+    // and navigation buttons are intentionally ignored here. Keyboard
+    // triggers never produce a `ClickEvent` (`is_secondary()` is always false
+    // for them), so they are handled on the key-down path by `emit_key_down`.
+    if !event.is_secondary() {
+        return;
+    }
+    // Aux clicks complete on release. Where the press is the trigger, the
+    // mouse case was already emitted by `emit_mouse_down`; only touch
+    // long-presses, which have no press to report, are emitted here.
+    if CONTEXT_MENU_ON_PRESS && matches!(event, ClickEvent::Mouse(_)) {
+        return;
+    }
+    if event_interest(window_id, target_id, NativeEventId::ContextMenu) {
+        let payload = events::click(NativeEventId::ContextMenu, target_id, event);
+        events::emit(window_id, events::in_window(payload, window));
+        cx.stop_propagation();
+    }
+}
+
+/// Web `contextmenu` also fires from the keyboard: the Windows
+/// menu/application key (GPUI keystroke `"menu"`, sourced from `VK_APPS`)
+/// and the Shift+F10 accelerator.
+fn is_context_menu_key(keystroke: &gpui::Keystroke) -> bool {
+    let modifiers = keystroke.modifiers;
+    match keystroke.key.as_str() {
+        "menu" => !modifiers.modified(),
+        "f10" => modifiers.shift && modifiers.number_of_modifiers() == 1,
+        _ => false,
+    }
+}
+
+fn emit_key_down(
+    window_id: WindowId,
+    target_id: NodeId,
+    event: &KeyDownEvent,
+    runtime: &RuntimeStateRegistry,
+    cx: &mut App,
+) {
+    // `keydown` and keyboard `contextmenu` share one listener. GPUI calls a
+    // node's key listeners in registration order and stops at the first
+    // `stop_propagation`, so separate listeners would let one event swallow
+    // the other. One listener also keeps web order: `keydown` first.
+    let subscriptions = crate::runtime()
+        .lock()
+        .map(|tree| tree.subscription_mask_in_path(window_id, target_id))
+        .unwrap_or_default();
+    let key_down = subscriptions & event_bit(NativeEventId::KeyDown) != 0;
+    // Auto-repeat must not reopen the menu on every repeated key-down.
+    let context_menu = subscriptions & event_bit(NativeEventId::ContextMenu) != 0
+        && !event.is_held
+        && is_context_menu_key(&event.keystroke);
+    if key_down {
+        events::emit(
+            window_id,
+            events::key_event(
+                NativeEventId::KeyDown,
+                target_id,
+                &event.keystroke,
+                event.is_held,
+            ),
+        );
+    }
+    if context_menu {
+        // No pointer is involved, so anchor at the bottom-left of the target's
+        // painted client box (the rect `measure` reports, transforms
+        // included), as GPUI does for keyboard `ClickEvent`s. This listener
+        // only exists on an element painted in the current frame, and that
+        // paint recorded its geometry; if it is missing, that invariant broke.
+        // Report it and drop the event rather than invent a position.
+        match runtime.client_bounds(target_id) {
+            Some(bounds) => events::emit(
+                window_id,
+                events::mouse_event(
+                    NativeEventId::ContextMenu,
+                    target_id,
+                    bounds.bottom_left(),
+                    event.keystroke.modifiers,
+                ),
+            ),
+            None => eprintln!(
+                "[retend-gpui] keyboard contextmenu for node {target_id} dropped: \
+                 the focused element has no painted geometry"
+            ),
+        }
+    }
+    if key_down || context_menu {
         cx.stop_propagation();
     }
 }
@@ -272,10 +393,17 @@ fn with_native_events<T: StatefulInteractiveElement>(
     }
     if interest.has(NativeEventId::MouseDown) || interest.outside_mouse_down {
         with_mouse_buttons!(element, on_mouse_down, emit_mouse_down, window_id, id);
-    } else if pseudo.active {
-        element = element.on_mouse_down(MouseButton::Left, move |event, window, cx| {
-            emit_mouse_down(window_id, id, event, window, cx)
-        });
+    } else {
+        if pseudo.active {
+            element = element.on_mouse_down(MouseButton::Left, move |event, window, cx| {
+                emit_mouse_down(window_id, id, event, window, cx)
+            });
+        }
+        if CONTEXT_MENU_ON_PRESS && interest.has(NativeEventId::ContextMenu) {
+            element = element.on_mouse_down(MouseButton::Right, move |event, window, cx| {
+                emit_mouse_down(window_id, id, event, window, cx)
+            });
+        }
     }
     if interest.has(NativeEventId::MouseUp) {
         with_mouse_buttons!(element, on_mouse_up, emit_mouse_up, window_id, id);
@@ -298,6 +426,10 @@ fn with_native_events<T: StatefulInteractiveElement>(
         element =
             element.on_click(move |event, window, cx| emit_click(window_id, id, event, window, cx));
     }
+    if interest.has(NativeEventId::ContextMenu) {
+        element = element
+            .on_aux_click(move |event, window, cx| emit_aux_click(window_id, id, event, window, cx));
+    }
     if pseudo.hover
         || interest.has(NativeEventId::MouseEnter)
         || interest.has(NativeEventId::MouseLeave)
@@ -305,8 +437,10 @@ fn with_native_events<T: StatefulInteractiveElement>(
         element =
             element.on_hover(move |hovered, window, _| emit_hover(window_id, id, *hovered, window));
     }
-    if interest.has(NativeEventId::KeyDown) {
-        element = element.on_key_down(move |event, _, cx| emit_key_down(window_id, id, event, cx));
+    if interest.has(NativeEventId::KeyDown) || interest.has(NativeEventId::ContextMenu) {
+        let runtime = runtime.clone();
+        element = element
+            .on_key_down(move |event, _, cx| emit_key_down(window_id, id, event, &runtime, cx));
     }
     if interest.has(NativeEventId::KeyUp) {
         element = element.on_key_up(move |event, _, cx| emit_key_up(window_id, id, event, cx));
@@ -560,10 +694,28 @@ impl PaintCallback {
                     generation,
                     id,
                     bounds,
+                    window_transform(window),
                     bottom_right.map(|bottom_right| bottom_right - bounds.origin),
                 );
             }
         }
+    }
+}
+
+/// The layout-to-window transform active for the element being painted: its
+/// own CSS transform composed with its ancestors'. GPUI keeps the matrix
+/// private, but `point_to_window` applies it and is affine, so three probes
+/// recover it exactly (an untransformed element yields the unit matrix).
+fn window_transform(window: &Window) -> gpui::TransformationMatrix {
+    let origin = window.point_to_window(gpui::point(px(0.0), px(0.0)));
+    let x_axis = window.point_to_window(gpui::point(px(1.0), px(0.0))) - origin;
+    let y_axis = window.point_to_window(gpui::point(px(0.0), px(1.0))) - origin;
+    gpui::TransformationMatrix {
+        rotation_scale: [
+            [f32::from(x_axis.x), f32::from(y_axis.x)],
+            [f32::from(x_axis.y), f32::from(y_axis.y)],
+        ],
+        translation: [f32::from(origin.x), f32::from(origin.y)],
     }
 }
 
@@ -2040,8 +2192,355 @@ mod tests {
         );
     }
 
+    fn assert_measured(measured: Measurement, expected: (f64, f64, f64, f64)) {
+        let actual = (measured.x, measured.y, measured.width, measured.height);
+        let close = |a: f64, b: f64| (a - b).abs() < 0.01;
+        assert!(
+            close(actual.0, expected.0)
+                && close(actual.1, expected.1)
+                && close(actual.2, expected.2)
+                && close(actual.3, expected.3),
+            "measured {actual:?}, expected {expected:?}"
+        );
+    }
+
     #[gpui::test]
-    fn transforms_preserve_layout_and_hit_test_in_window_coordinates(cx: &mut TestAppContext) {
+    fn scaled_ancestor_and_translated_child_measure_like_bounding_client_rect(
+        cx: &mut TestAppContext,
+    ) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let parent_id = root_id + 1;
+        let child_id = root_id + 2;
+        let (window_id, runtime_state, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(parent_id),
+                // 100x100 at (100, 100), scaled 2x about its center (150, 150).
+                Command::SetStyle {
+                    id: parent_id,
+                    properties: vec![
+                        (
+                            PropertyId::Position,
+                            PropertyValue::String("absolute".into()),
+                        ),
+                        (PropertyId::Left, PropertyValue::Number(100.0)),
+                        (PropertyId::Top, PropertyValue::Number(100.0)),
+                        (PropertyId::Width, PropertyValue::Number(100.0)),
+                        (PropertyId::Height, PropertyValue::Number(100.0)),
+                        (PropertyId::Scale, PropertyValue::String("2".into())),
+                    ],
+                },
+                container(child_id),
+                Command::SetStyle {
+                    id: child_id,
+                    properties: vec![
+                        (
+                            PropertyId::Position,
+                            PropertyValue::String("absolute".into()),
+                        ),
+                        (PropertyId::Left, PropertyValue::Number(10.0)),
+                        (PropertyId::Top, PropertyValue::Number(10.0)),
+                        (PropertyId::Width, PropertyValue::Number(20.0)),
+                        (PropertyId::Height, PropertyValue::Number(20.0)),
+                        (
+                            PropertyId::Translate,
+                            PropertyValue::String("5px 0px".into()),
+                        ),
+                    ],
+                },
+                focusable(child_id),
+                subscribe(child_id, NativeEventId::ContextMenu),
+                insert(root_id, parent_id),
+                insert(parent_id, child_id),
+            ],
+        );
+
+        let parent = request_measure(&runtime_state, parent_id);
+        let child = request_measure(&runtime_state, child_id);
+        cx.update(|window, _| window.refresh());
+        finish_test_frames(cx);
+        // Parent: 100x100 at (100, 100) scaled 2x about (150, 150).
+        assert_measured(parent.try_recv().unwrap().unwrap(), (50.0, 50.0, 200.0, 200.0));
+        // Child layout (110, 110, 20x20), shifted 5px right, then scaled with
+        // the parent: (115 - 150) * 2 + 150 = 80, (110 - 150) * 2 + 150 = 70.
+        let child = child.try_recv().unwrap().unwrap();
+        assert_measured(child, (80.0, 70.0, 40.0, 40.0));
+
+        // The keyboard `contextmenu` anchor is the same client rect's bottom-left.
+        focus_node(cx, &runtime_state, child_id);
+        cx.simulate_keystrokes("shift-f10");
+        let menu = crate::events::take_test_emitted_events()
+            .into_iter()
+            .map(|(_, event)| event)
+            .find(|event| event.event_id == NativeEventId::ContextMenu as u16)
+            .expect("shift-f10 must emit contextmenu");
+        assert!((menu.client_x - child.x).abs() < 0.01);
+        assert!((menu.client_y - (child.y + child.height)).abs() < 0.01);
+
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn scroll_into_view_reveals_the_painted_box(cx: &mut TestAppContext) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    container(4),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                        ],
+                    },
+                    // Laid out at the top of the viewport, painted 100px lower.
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                            (
+                                PropertyId::Translate,
+                                PropertyValue::String("0px 100px".into()),
+                            ),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(200.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(2, 4),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        // Painted at 100..120 in a 50px viewport: scroll by 120 - 50 = 70.
+        request_scroll_into_view(&runtime_state, 3);
+        let offset = request_scroll_offset(&runtime_state, 2);
+        let measured = request_measure(&runtime_state, 3);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_eq!(offset.try_recv().unwrap().unwrap().y, 70.0);
+        // After scrolling, the painted box sits at the bottom of the viewport.
+        let measured = measured.try_recv().unwrap().unwrap();
+        assert!((measured.y + measured.height - 50.0).abs() < 0.01);
+    }
+
+    /// A 100x100 scroll container (node 2) holding a 20x20 target (node 4)
+    /// below a `lead`-px spacer (node 3), followed by a 200px spacer (node 5).
+    fn scroll_into_view_fixture(
+        viewport_style: (PropertyId, &str),
+        lead: f64,
+    ) -> (Rc<RefCell<NativeTree>>, WindowId) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        let fixed = |id, height| Command::SetStyle {
+            id,
+            properties: vec![
+                (PropertyId::Width, PropertyValue::Number(20.0)),
+                (PropertyId::Height, PropertyValue::Number(height)),
+                (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+            ],
+        };
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    container(4),
+                    container(5),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(100.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                            (
+                                viewport_style.0,
+                                PropertyValue::String(viewport_style.1.into()),
+                            ),
+                        ],
+                    },
+                    fixed(3, lead),
+                    fixed(4, 20.0),
+                    fixed(5, 200.0),
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(2, 4),
+                    insert(2, 5),
+                ],
+            )
+            .unwrap();
+        (tree, window_id)
+    }
+
+    fn scroll_offset_after_scroll_into_view(
+        cx: &mut TestAppContext,
+        tree: Rc<RefCell<NativeTree>>,
+        window_id: WindowId,
+    ) -> f64 {
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+        request_scroll_into_view(&runtime_state, 4);
+        let offset = request_scroll_offset(&runtime_state, 2);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        offset.try_recv().unwrap().unwrap().y
+    }
+
+    #[gpui::test]
+    fn scroll_into_view_leaves_visible_content_in_a_rotated_viewport(cx: &mut TestAppContext) {
+        // The target sits at 75..95 of a 100px viewport: already visible. The
+        // viewport is rotated 45deg, so its window-space bounding box, bounded
+        // again after mapping back, would reach past 100 and scroll by ~5.
+        let (tree, window_id) =
+            scroll_into_view_fixture((PropertyId::Rotate, "45deg"), 75.0);
+        assert_eq!(
+            scroll_offset_after_scroll_into_view(cx, tree, window_id),
+            0.0
+        );
+    }
+
+    #[gpui::test]
+    fn scroll_into_view_skips_a_viewport_with_a_singular_transform(cx: &mut TestAppContext) {
+        // The target is laid out below the viewport, but `scale: 0` collapses
+        // the viewport and its content: there is no painted position to
+        // reveal, so layout coordinates must not be used as a substitute.
+        let (tree, window_id) = scroll_into_view_fixture((PropertyId::Scale, "0"), 150.0);
+        assert_eq!(
+            scroll_offset_after_scroll_into_view(cx, tree, window_id),
+            0.0
+        );
+    }
+
+    #[gpui::test]
+    fn programmatic_scroll_moves_scaled_descendants_by_the_scroll_distance(
+        cx: &mut TestAppContext,
+    ) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![
+                    container(2),
+                    container(3),
+                    container(4),
+                    Command::SetStyle {
+                        id: 2,
+                        properties: vec![
+                            (PropertyId::Display, PropertyValue::String("flex".into())),
+                            (
+                                PropertyId::FlexDirection,
+                                PropertyValue::String("column".into()),
+                            ),
+                            (PropertyId::Width, PropertyValue::Number(100.0)),
+                            (PropertyId::Height, PropertyValue::Number(50.0)),
+                            (PropertyId::Overflow, PropertyValue::String("scroll".into())),
+                        ],
+                    },
+                    // 100x20 at the top, scaled 2x about its own center.
+                    Command::SetStyle {
+                        id: 3,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(20.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                            (PropertyId::Scale, PropertyValue::String("2".into())),
+                        ],
+                    },
+                    Command::SetStyle {
+                        id: 4,
+                        properties: vec![
+                            (PropertyId::Height, PropertyValue::Number(200.0)),
+                            (PropertyId::FlexShrink, PropertyValue::Number(0.0)),
+                        ],
+                    },
+                    insert(1, 2),
+                    insert(2, 3),
+                    insert(2, 4),
+                ],
+            )
+            .unwrap();
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (view, cx) = cx.add_window_view({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| QueryLayoutTestView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        finish_test_frames(cx);
+
+        let before = request_measure(&runtime_state, 3);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let before = before.try_recv().unwrap().unwrap();
+        assert_measured(before, (before.x, before.y, 200.0, 40.0));
+
+        // Measured in the same flush as the scroll, before any repaint: the
+        // painted box moves by the scroll distance, not by scale x distance.
+        scroll(&runtime_state, 2, 10.0, false);
+        let shifted = request_measure(&runtime_state, 3);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        let expected = (before.x, before.y - 10.0, 200.0, 40.0);
+        assert_measured(shifted.try_recv().unwrap().unwrap(), expected);
+
+        // A fresh paint at the new offset agrees.
+        let repainted = request_measure(&runtime_state, 3);
+        view.update(cx, |_, cx| cx.notify());
+        finish_test_frames(cx);
+        assert_measured(repainted.try_recv().unwrap().unwrap(), expected);
+    }
+
+    #[gpui::test]
+    fn transforms_measure_and_hit_test_in_window_coordinates(cx: &mut TestAppContext) {
         cx.update(init);
         let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
         let target_id = root_id + 1;
@@ -2091,17 +2590,17 @@ mod tests {
         });
         finish_test_frames(cx);
 
-        // Layout is untouched: painting and hit-testing are the only transformed parts.
+        // A 90deg turn about the border-box center (70, 120) plus a 150px shift
+        // moves the center to (220, 120) and swaps the axes. Like
+        // `getBoundingClientRect`, `measure` reports that painted box.
         let measured = request_measure(&runtime_state, target_id);
         view.update(cx, |_, cx| cx.notify());
         finish_test_frames(cx);
-        let measured = measured.try_recv().unwrap().unwrap();
-        assert_eq!((measured.x, measured.y), (20.0, 100.0));
-        assert_eq!((measured.width, measured.height), (100.0, 40.0));
+        assert_measured(
+            measured.try_recv().unwrap().unwrap(),
+            (200.0, 70.0, 40.0, 100.0),
+        );
         crate::events::take_test_emitted_events();
-
-        // A 90deg turn about the border-box center (70, 120) plus a 150px shift
-        // moves the center to (220, 120) and swaps the axes.
         cx.simulate_click(point(px(220.0), px(160.0)), Modifiers::default());
         finish_test_frames(cx);
         let clicks: Vec<_> = crate::events::take_test_emitted_events()
@@ -2231,6 +2730,410 @@ mod tests {
             .lock()
             .expect("global native tree must remain available in render tests")
             .close_window(window_id);
+    }
+
+    #[gpui::test]
+    fn secondary_mouse_click_emits_context_menu(cx: &mut TestAppContext) {
+        cx.update(init);
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let window_id = {
+            let mut tree = crate::runtime()
+                .lock()
+                .expect("global native tree must remain available in render tests");
+            let window_id = tree.create_window(root_id).unwrap();
+            tree.apply_commands(
+                window_id,
+                vec![
+                    container(target_id),
+                    Command::SetStyle {
+                        id: target_id,
+                        properties: vec![
+                            (
+                                PropertyId::Position,
+                                PropertyValue::String("absolute".into()),
+                            ),
+                            (PropertyId::Left, PropertyValue::Number(120.0)),
+                            (PropertyId::Top, PropertyValue::Number(120.0)),
+                            (PropertyId::Width, PropertyValue::Number(80.0)),
+                            (PropertyId::Height, PropertyValue::Number(80.0)),
+                        ],
+                    },
+                    Command::SubscribeEvent {
+                        id: target_id,
+                        event: NativeEventId::ContextMenu,
+                    },
+                    insert(root_id, target_id),
+                ],
+            )
+            .unwrap();
+            window_id
+        };
+
+        let runtime_state = RuntimeStateRegistry::default();
+        let (_view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| GlobalTreeTestView {
+                runtime_state,
+                window_id,
+                root_id,
+            }
+        });
+        finish_test_frames(cx);
+        crate::events::take_test_emitted_events();
+
+        // Right-button press/release is a secondary activation: exactly one
+        // `contextmenu` carrying the right-button code, and no primary click.
+        // It fires on the press on macOS/Linux and on the release on Windows.
+        let target = point(px(140.0), px(140.0));
+        let menus = |events: &[(WindowId, events::NativeEventPayload)]| -> Vec<_> {
+            events
+                .iter()
+                .filter(|(_, event)| event.event_id == NativeEventId::ContextMenu as u16)
+                .map(|(_, event)| (event.target_id, event.button))
+                .collect()
+        };
+        cx.simulate_mouse_down(target, MouseButton::Right, Modifiers::default());
+        finish_test_frames(cx);
+        let pressed = crate::events::take_test_emitted_events();
+        cx.simulate_mouse_up(target, MouseButton::Right, Modifiers::default());
+        finish_test_frames(cx);
+        let released = crate::events::take_test_emitted_events();
+        let one = vec![(target_id, 2)];
+        if CONTEXT_MENU_ON_PRESS {
+            assert_eq!(menus(&pressed), one, "macOS/Linux fire on press");
+            assert!(menus(&released).is_empty(), "and not again on release");
+        } else {
+            assert!(menus(&pressed).is_empty(), "Windows waits for release");
+            assert_eq!(menus(&released), one, "Windows fires on release");
+        }
+        assert!(
+            pressed
+                .iter()
+                .chain(&released)
+                .all(|(_, event)| event.event_id != NativeEventId::Click as u16),
+            "secondary clicks must not produce a primary click"
+        );
+
+        // Middle-clicks share the aux-click channel but are not secondary
+        // activations, so they must not produce `contextmenu`.
+        cx.simulate_mouse_down(target, MouseButton::Middle, Modifiers::default());
+        cx.simulate_mouse_up(target, MouseButton::Middle, Modifiers::default());
+        finish_test_frames(cx);
+        assert!(
+            crate::events::take_test_emitted_events()
+                .into_iter()
+                .all(|(_, event)| event.event_id != NativeEventId::ContextMenu as u16),
+            "middle-clicks must not produce contextmenu"
+        );
+
+        crate::runtime()
+            .lock()
+            .expect("global native tree must remain available in render tests")
+            .close_window(window_id);
+    }
+
+    fn absolute_box(id: NodeId, left: f64, top: f64, size: f64) -> Command {
+        Command::SetStyle {
+            id,
+            properties: vec![
+                (
+                    PropertyId::Position,
+                    PropertyValue::String("absolute".into()),
+                ),
+                (PropertyId::Left, PropertyValue::Number(left)),
+                (PropertyId::Top, PropertyValue::Number(top)),
+                (PropertyId::Width, PropertyValue::Number(size)),
+                (PropertyId::Height, PropertyValue::Number(size)),
+            ],
+        }
+    }
+
+    fn subscribe(id: NodeId, event: NativeEventId) -> Command {
+        Command::SubscribeEvent { id, event }
+    }
+
+    fn focusable(id: NodeId) -> Command {
+        Command::SetProperty {
+            id,
+            property: PropertyId::TabIndex,
+            value: PropertyValue::Number(0.0),
+        }
+    }
+
+    /// Opens a window over the global tree with `root_id` and the given
+    /// commands applied, then drains events emitted by the first frames.
+    fn open_global_window(
+        cx: &mut TestAppContext,
+        root_id: NodeId,
+        commands: Vec<Command>,
+    ) -> (WindowId, RuntimeStateRegistry, &mut gpui::VisualTestContext) {
+        cx.update(init);
+        let window_id = {
+            let mut tree = crate::runtime()
+                .lock()
+                .expect("global native tree must remain available in render tests");
+            let window_id = tree.create_window(root_id).unwrap();
+            tree.apply_commands(window_id, commands).unwrap();
+            window_id
+        };
+        let runtime_state = RuntimeStateRegistry::default();
+        let (_view, cx) = cx.add_window_view({
+            let runtime_state = runtime_state.clone();
+            move |_, _| GlobalTreeTestView {
+                runtime_state,
+                window_id,
+                root_id,
+            }
+        });
+        finish_test_frames(cx);
+        crate::events::take_test_emitted_events();
+        (window_id, runtime_state, cx)
+    }
+
+    fn close_global_window(window_id: WindowId) {
+        crate::runtime()
+            .lock()
+            .expect("global native tree must remain available in render tests")
+            .close_window(window_id);
+    }
+
+    fn focus_node(
+        cx: &mut gpui::VisualTestContext,
+        runtime_state: &RuntimeStateRegistry,
+        id: NodeId,
+    ) {
+        let handle = runtime_state
+            .focus_handle(id)
+            .expect("focusable test node must have a focus handle after the first frame");
+        cx.update(|window, cx| handle.focus(window, cx));
+        finish_test_frames(cx);
+        crate::events::take_test_emitted_events();
+    }
+
+    fn node_bounds(cx: &mut gpui::VisualTestContext, id: NodeId) -> Bounds<Pixels> {
+        // `debug_bounds` only accepts `'static` selectors; leaking is fine in tests.
+        let selector: &'static str = Box::leak(format!("retend-node-{id}").into_boxed_str());
+        cx.debug_bounds(selector)
+            .expect("test node must have painted debug bounds")
+    }
+
+    /// Emitted `(event, target)` pairs for the given kinds, in emission order.
+    fn emitted(kinds: &[NativeEventId]) -> Vec<(NativeEventId, NodeId)> {
+        crate::events::take_test_emitted_events()
+            .into_iter()
+            .filter_map(|(_, event)| {
+                kinds
+                    .iter()
+                    .find(|kind| **kind as u16 == event.event_id)
+                    .map(|kind| (*kind, event.target_id))
+            })
+            .collect()
+    }
+
+    #[gpui::test]
+    fn keyboard_context_menu_follows_keydown_and_ignores_repeat(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let (window_id, runtime_state, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(target_id),
+                absolute_box(target_id, 120.0, 120.0, 80.0),
+                focusable(target_id),
+                subscribe(target_id, NativeEventId::KeyDown),
+                subscribe(target_id, NativeEventId::ContextMenu),
+                insert(root_id, target_id),
+            ],
+        );
+        focus_node(cx, &runtime_state, target_id);
+        let kinds = [NativeEventId::KeyDown, NativeEventId::ContextMenu];
+        let both = vec![
+            (NativeEventId::KeyDown, target_id),
+            (NativeEventId::ContextMenu, target_id),
+        ];
+        let key_down_only = vec![(NativeEventId::KeyDown, target_id)];
+
+        // Both triggers deliver `keydown` first and never swallow it.
+        for trigger in ["shift-f10", "menu"] {
+            cx.simulate_keystrokes(trigger);
+            assert_eq!(emitted(&kinds), both, "{trigger}");
+        }
+
+        // The keyboard menu anchors at the target's bottom-left, not (0,0).
+        cx.simulate_keystrokes("shift-f10");
+        let menu = crate::events::take_test_emitted_events()
+            .into_iter()
+            .map(|(_, event)| event)
+            .find(|event| event.event_id == NativeEventId::ContextMenu as u16)
+            .expect("shift-f10 must emit contextmenu");
+        let anchor = node_bounds(cx, target_id).bottom_left();
+        assert_eq!(
+            (menu.client_x, menu.client_y),
+            (
+                f64::from(f32::from(anchor.x)),
+                f64::from(f32::from(anchor.y))
+            )
+        );
+        assert_eq!((menu.button, menu.shift_key), (0, true));
+
+        // Auto-repeat still reports `keydown` but must not reopen the menu.
+        cx.simulate_event(KeyDownEvent {
+            keystroke: gpui::Keystroke::parse("shift-f10").unwrap(),
+            is_held: true,
+            prefer_character_input: false,
+        });
+        assert_eq!(emitted(&kinds), key_down_only);
+
+        // Other keys and modifier combinations are not menu triggers.
+        for other in ["f10", "ctrl-shift-f10", "ctrl-menu", "a"] {
+            cx.simulate_keystrokes(other);
+            assert_eq!(emitted(&kinds), key_down_only, "{other}");
+        }
+
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn keyboard_context_menu_without_keydown_subscription(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let (window_id, runtime_state, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(target_id),
+                absolute_box(target_id, 120.0, 120.0, 80.0),
+                focusable(target_id),
+                subscribe(target_id, NativeEventId::ContextMenu),
+                insert(root_id, target_id),
+            ],
+        );
+        focus_node(cx, &runtime_state, target_id);
+        let kinds = [NativeEventId::KeyDown, NativeEventId::ContextMenu];
+
+        cx.simulate_keystrokes("menu");
+        assert_eq!(
+            emitted(&kinds),
+            vec![(NativeEventId::ContextMenu, target_id)]
+        );
+        cx.simulate_keystrokes("a");
+        assert!(emitted(&kinds).is_empty());
+
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn ancestor_context_menu_subscription_targets_the_inner_node(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let parent_id = root_id + 1;
+        let child_id = root_id + 2;
+        let (window_id, runtime_state, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(parent_id),
+                absolute_box(parent_id, 100.0, 100.0, 200.0),
+                subscribe(parent_id, NativeEventId::ContextMenu),
+                container(child_id),
+                absolute_box(child_id, 20.0, 20.0, 60.0),
+                focusable(child_id),
+                insert(root_id, parent_id),
+                insert(parent_id, child_id),
+            ],
+        );
+        let kinds = [NativeEventId::ContextMenu];
+        let child = node_bounds(cx, child_id);
+
+        // The child reports itself once; JS bubbling delivers it to the parent.
+        cx.simulate_mouse_down(child.center(), MouseButton::Right, Modifiers::default());
+        cx.simulate_mouse_up(child.center(), MouseButton::Right, Modifiers::default());
+        finish_test_frames(cx);
+        assert_eq!(emitted(&kinds), vec![(NativeEventId::ContextMenu, child_id)]);
+
+        focus_node(cx, &runtime_state, child_id);
+        cx.simulate_keystrokes("shift-f10");
+        assert_eq!(emitted(&kinds), vec![(NativeEventId::ContextMenu, child_id)]);
+
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn right_press_delivers_mousedown_before_context_menu(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let (window_id, _runtime_state, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(target_id),
+                absolute_box(target_id, 120.0, 120.0, 80.0),
+                subscribe(target_id, NativeEventId::MouseDown),
+                subscribe(target_id, NativeEventId::ContextMenu),
+                insert(root_id, target_id),
+            ],
+        );
+        let kinds = [NativeEventId::MouseDown, NativeEventId::ContextMenu];
+        let target = point(px(140.0), px(140.0));
+
+        // Neither event may swallow the other, and `mousedown` comes first.
+        cx.simulate_mouse_down(target, MouseButton::Right, Modifiers::default());
+        finish_test_frames(cx);
+        let pressed = emitted(&kinds);
+        cx.simulate_mouse_up(target, MouseButton::Right, Modifiers::default());
+        finish_test_frames(cx);
+        let released = emitted(&kinds);
+        let mouse_down = (NativeEventId::MouseDown, target_id);
+        let context_menu = (NativeEventId::ContextMenu, target_id);
+        if CONTEXT_MENU_ON_PRESS {
+            assert_eq!(pressed, vec![mouse_down, context_menu]);
+            assert!(released.is_empty());
+        } else {
+            assert_eq!(pressed, vec![mouse_down]);
+            assert_eq!(released, vec![context_menu]);
+        }
+
+        close_global_window(window_id);
+    }
+
+    #[gpui::test]
+    fn right_click_reopens_context_menu_while_outside_listener_is_active(
+        cx: &mut TestAppContext,
+    ) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let target_id = root_id + 1;
+        let menu_id = root_id + 2;
+        let (window_id, _runtime_state, cx) = open_global_window(
+            cx,
+            root_id,
+            vec![
+                container(target_id),
+                absolute_box(target_id, 120.0, 120.0, 80.0),
+                subscribe(target_id, NativeEventId::ContextMenu),
+                // An open menu elsewhere that closes on outside presses.
+                container(menu_id),
+                absolute_box(menu_id, 300.0, 120.0, 80.0),
+                subscribe(menu_id, NativeEventId::MouseDownOutside),
+                insert(root_id, target_id),
+                insert(root_id, menu_id),
+            ],
+        );
+        let kinds = [NativeEventId::MouseDownOutside, NativeEventId::ContextMenu];
+        let target = point(px(140.0), px(140.0));
+
+        cx.simulate_mouse_down(target, MouseButton::Right, Modifiers::default());
+        cx.simulate_mouse_up(target, MouseButton::Right, Modifiers::default());
+        finish_test_frames(cx);
+        assert_eq!(
+            emitted(&kinds),
+            vec![
+                (NativeEventId::MouseDownOutside, menu_id),
+                (NativeEventId::ContextMenu, target_id),
+            ]
+        );
+
+        close_global_window(window_id);
     }
 
     #[gpui::test]

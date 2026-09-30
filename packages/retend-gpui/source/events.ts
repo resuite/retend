@@ -67,6 +67,7 @@ const NATIVE_EVENTS = {
   ],
   [NativeEventId.Load]: ['load', 'image', false, true],
   [NativeEventId.Error]: ['error', 'image', false, true],
+  [NativeEventId.ContextMenu]: ['contextmenu', 'mouse', true, true],
 } as const satisfies Record<NativeTransportEventId, NativeEventDefinition>;
 
 const EVENT_METADATA = new Map<string, GpuiNativeEventMetadata>(

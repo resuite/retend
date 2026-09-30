@@ -80,6 +80,7 @@ declare module 'retend/jsx-runtime' {
       onMouseLeave?: ReactiveValue<(event: GpuiMouseEvent) => void>;
       onMouseMove?: ReactiveValue<(event: GpuiMouseEvent) => void>;
       onMouseDownOutside?: ReactiveValue<(event: GpuiMouseEvent) => void>;
+      onContextMenu?: ReactiveValue<(event: GpuiMouseEvent) => void>;
       onKeyDown?: ReactiveValue<(event: GpuiKeyboardEvent) => void>;
       onKeyUp?: ReactiveValue<(event: GpuiKeyboardEvent) => void>;
       onFocus?: ReactiveValue<(event: GpuiFocusEvent) => void>;

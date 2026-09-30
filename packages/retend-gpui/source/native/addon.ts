@@ -42,6 +42,7 @@ type NativeMouseEventId = NativeEventIds<
   | 'MouseLeave'
   | 'MouseMove'
   | 'MouseDownOutside'
+  | 'ContextMenu'
 >;
 type NativeKeyboardEventId = NativeEventIds<'KeyDown' | 'KeyUp'>;
 type NativeTextEventId = NativeEventIds<'Input' | 'Change'>;

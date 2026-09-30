@@ -7,7 +7,7 @@ use std::{
 
 use gpui::{
     point, px, App, AppContext, Bounds, Context, Entity, EntityInputHandler, FocusHandle,
-    Focusable, Pixels, Point, ScrollHandle, Subscription, Window,
+    Focusable, Pixels, Point, ScrollHandle, Subscription, TransformationMatrix, Window,
 };
 use gpui_base::input::{
     InputBaseState, InputEditorStyle, InputEvent, InputModeKind, InputState, TextareaState,
@@ -156,11 +156,24 @@ struct FrameLayout {
 struct FrameNode {
     parent: Option<NodeId>,
     children: Vec<NodeId>,
+    // Untransformed layout box. Scroll-extent maths stays in this space.
     bounds: Option<Bounds<Pixels>>,
+    // Maps `bounds` to window coordinates: this node's own CSS transform
+    // composed with every ancestor's, as active when the node painted.
+    transform: TransformationMatrix,
     // Window-positioned anchored subtrees do not move with logical ancestors.
     fixed_to_window: bool,
     // Parent-owned child bottom-right, relative to its box before its own scroll.
     content_extent: Option<Point<Pixels>>,
+}
+
+impl FrameNode {
+    /// The painted box in window coordinates: the axis-aligned enclosure of
+    /// the transformed border box, as `getBoundingClientRect` reports it.
+    fn client_bounds(&self) -> Option<Bounds<Pixels>> {
+        self.bounds
+            .map(|bounds| self.transform.transform_bounds(bounds))
+    }
 }
 
 #[derive(Clone)]
@@ -499,6 +512,17 @@ impl RuntimeStateRegistry {
             .map(|scroll| scroll.handle.clone())
     }
 
+    /// The most recently painted box in window coordinates, transforms
+    /// included; the same rectangle `measure` reports.
+    pub fn client_bounds(&self, id: NodeId) -> Option<Bounds<Pixels>> {
+        self.0
+            .borrow()
+            .frame
+            .nodes
+            .get(&id)
+            .and_then(FrameNode::client_bounds)
+    }
+
     pub fn needs_preparation(&self, tree: &NativeTree, window_id: WindowId) -> bool {
         let revision = (window_id, tree.windows[&window_id].revision);
         let mut state = self.0.borrow_mut();
@@ -539,23 +563,27 @@ impl RuntimeStateRegistry {
         // Layout can change without a tree mutation. Never retain unpainted geometry.
         for node in state.frame.nodes.values_mut() {
             node.bounds = None;
+            node.transform = TransformationMatrix::unit();
             node.content_extent = None;
         }
         generation
     }
 
-    /// Publishes bounds and the optional content extent from one paint.
+    /// Publishes bounds, their window transform and the optional content
+    /// extent from one paint.
     pub fn record_geometry(
         &self,
         generation: u64,
         id: NodeId,
         bounds: Bounds<Pixels>,
+        transform: TransformationMatrix,
         content_extent: Option<Point<Pixels>>,
     ) {
         let mut state = self.0.borrow_mut();
         if state.generation == generation {
             if let Some(node) = state.frame.nodes.get_mut(&id) {
                 node.bounds = Some(bounds);
+                node.transform = transform;
                 node.content_extent = content_extent;
             }
         }
@@ -866,6 +894,17 @@ fn shift_descendant_bounds(state: &mut RuntimeState, ancestor: NodeId, dx: f32, 
     if dx == 0.0 && dy == 0.0 {
         return;
     }
+    // Scrolling by d moves content by -d in the scroller's own space, which is
+    // -Ls·d in window space (Ls: the scroller transform's linear part). Each
+    // descendant transform is defined around its own layout box, so shifting
+    // the box by -d moves its client box by -Lc·d instead. Adding (Lc - Ls)·d
+    // to the translation keeps `client_bounds` exact until the next paint.
+    let scroller = state
+        .frame
+        .nodes
+        .get(&ancestor)
+        .map(|node| node.transform.rotation_scale)
+        .unwrap_or(TransformationMatrix::unit().rotation_scale);
     let mut pending = state
         .frame
         .nodes
@@ -883,6 +922,11 @@ fn shift_descendant_bounds(state: &mut RuntimeState, ancestor: NodeId, dx: f32, 
         if let Some(bounds) = node.bounds.as_mut() {
             bounds.origin.x = px(f32::from(bounds.origin.x) - dx);
             bounds.origin.y = px(f32::from(bounds.origin.y) - dy);
+            let linear = node.transform.rotation_scale;
+            for (row, translation) in node.transform.translation.iter_mut().enumerate() {
+                *translation += (linear[row][0] - scroller[row][0]) * dx
+                    + (linear[row][1] - scroller[row][1]) * dy;
+            }
         }
     }
 }
@@ -915,12 +959,31 @@ fn scroll_into_view(state: &mut RuntimeState, id: NodeId) -> bool {
             break;
         }
         current = state.frame.nodes.get(&parent).and_then(|node| node.parent);
-        let Some(viewport) = state.frame.nodes.get(&parent).and_then(|node| node.bounds) else {
+        let Some((viewport, viewport_transform)) = state
+            .frame
+            .nodes
+            .get(&parent)
+            .and_then(|node| Some((node.bounds?, node.transform)))
+        else {
             continue;
         };
-        let target = state.frame.nodes[&id]
-            .bounds
-            .expect("validated target bounds must remain available");
+        // A singular viewport transform (e.g. `scale: 0`) collapses the
+        // viewport and everything inside it to a line or point. Nothing in it
+        // has a visible position to reveal, so this scroller is left alone.
+        let Some(into_viewport) = viewport_transform.inverse() else {
+            continue;
+        };
+        // Reveal where the target is painted, measured in the viewport's own
+        // layout space: transforms between the two count, and the viewport's
+        // own transform (which moves both) does not. The relative transform
+        // is composed first so the target's box is projected exactly once;
+        // bounding an already-bounded box would inflate rotated targets.
+        let target_node = &state.frame.nodes[&id];
+        let target = into_viewport.compose(target_node.transform).transform_bounds(
+            target_node
+                .bounds
+                .expect("validated target bounds must remain available"),
+        );
         let dx = nearest_scroll_delta(
             f32::from(target.left()),
             f32::from(target.right()),
@@ -961,7 +1024,10 @@ fn set_logical_scroll_offset(handle: &ScrollHandle, x: f32, y: f32) -> ScrollOff
 
 fn measure(state: &RuntimeState, id: NodeId) -> Measurement {
     let frame = &state.frame;
-    let Some(target) = frame.nodes.get(&id).and_then(|node| node.bounds) else {
+    let Some(target_node) = frame.nodes.get(&id) else {
+        return Measurement::default();
+    };
+    let Some(target) = target_node.bounds else {
         return Measurement::default();
     };
 
@@ -1000,11 +1066,12 @@ fn measure(state: &RuntimeState, id: NodeId) -> Measurement {
         ((right - x).max(width), (bottom - y).max(height))
     };
 
+    let client = target_node.transform.transform_bounds(target);
     Measurement {
-        x: f64::from(x),
-        y: f64::from(y),
-        width: f64::from(width),
-        height: f64::from(height),
+        x: f64::from(f32::from(client.origin.x)),
+        y: f64::from(f32::from(client.origin.y)),
+        width: f64::from(f32::from(client.size.width)),
+        height: f64::from(f32::from(client.size.height)),
         scroll_width: f64::from(scroll_width),
         scroll_height: f64::from(scroll_height),
     }
@@ -1081,6 +1148,7 @@ mod frame_tests {
             generation,
             2,
             Bounds::default(),
+            TransformationMatrix::unit(),
             Some(point(px(10.0), px(20.0))),
         );
         runtime.begin_frame(&tree, window);
@@ -1091,7 +1159,13 @@ mod frame_tests {
             assert!(state.frame.nodes[&2].content_extent.is_none());
         }
         // A callback from the previous paint cannot restore stale geometry.
-        runtime.record_geometry(generation, 2, Bounds::default(), None);
+        runtime.record_geometry(
+            generation,
+            2,
+            Bounds::default(),
+            TransformationMatrix::unit(),
+            None,
+        );
         assert!(runtime.0.borrow().frame.nodes[&2].bounds.is_none());
 
         tree.apply_commands(
@@ -1136,13 +1210,19 @@ mod frame_tests {
         let runtime = RuntimeStateRegistry::default();
         let generation = runtime.begin_frame(&tree, window);
         let first_bounds = Bounds::new(point(px(1.0), px(2.0)), gpui::size(px(5.0), px(6.0)));
-        runtime.record_geometry(generation, 2, first_bounds, Some(point(px(5.0), px(6.0))));
+        runtime.record_geometry(
+            generation,
+            2,
+            first_bounds,
+            TransformationMatrix::unit(),
+            Some(point(px(5.0), px(6.0))),
+        );
         assert!(runtime.0.borrow().frame.nodes[&2].content_extent.is_some());
 
         // A later callback in the same presentation that publishes no extent must
         // not leave the earlier extent visible to queries.
         let repainted = Bounds::new(point(px(3.0), px(4.0)), gpui::size(px(7.0), px(8.0)));
-        runtime.record_geometry(generation, 2, repainted, None);
+        runtime.record_geometry(generation, 2, repainted, TransformationMatrix::unit(), None);
         let state = runtime.0.borrow();
         assert_eq!(state.frame.nodes[&2].bounds, Some(repainted));
         assert!(state.frame.nodes[&2].content_extent.is_none());
@@ -1177,6 +1257,7 @@ mod frame_tests {
                 stale_generation,
                 2,
                 Bounds::default(),
+                TransformationMatrix::unit(),
                 Some(point(px(10.0), px(20.0))),
             );
             let (sender, receiver) = mpsc::channel();
@@ -1259,6 +1340,7 @@ mod frame_tests {
                 stale_generation,
                 2,
                 Bounds::default(),
+                TransformationMatrix::unit(),
                 Some(point(px(1.0), px(2.0))),
             );
             assert!(!runtime.finish_frame(stale_generation));

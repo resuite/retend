@@ -336,24 +336,24 @@ export interface GpuiStyle extends GpuiStyleDeclarations {
   active?: GpuiStyleDeclarations;
 }
 
-/** Border-box layout data returned by {@link GpuiElement.measure}. */
+/** Logical scroll offset of a native scroll container. */
 export interface GpuiScrollOffset {
   x: number;
   y: number;
 }
 
 export interface GpuiMeasurement {
-  /** Left edge in window coordinates. */
+  /** Left edge of the transformed border box, in window coordinates. */
   x: number;
-  /** Top edge in window coordinates. */
+  /** Top edge of the transformed border box, in window coordinates. */
   y: number;
-  /** Border-box width. */
+  /** Width of the transformed border box's axis-aligned bounds. */
   width: number;
-  /** Border-box height. */
+  /** Height of the transformed border box's axis-aligned bounds. */
   height: number;
-  /** Width of the element's scrollable content extent. */
+  /** Width of the element's scrollable content extent; ignores descendant transforms. */
   scrollWidth: number;
-  /** Height of the element's scrollable content extent. */
+  /** Height of the element's scrollable content extent; ignores descendant transforms. */
   scrollHeight: number;
 }
 
