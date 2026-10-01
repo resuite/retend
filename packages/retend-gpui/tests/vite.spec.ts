@@ -66,6 +66,7 @@ function resolvePlugin(plugin: RetendGpuiPlugin, command = 'serve'): string {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of temporaryRoots.splice(0)) {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -85,7 +86,7 @@ describe('retendGpui Vite plugin', () => {
     ).toThrow('valid SemVer');
   });
 
-  it('generates the configured application context declaration', () => {
+  it('generates the configured application context declaration when it is missing', () => {
     const root = resolvePlugin(retendGpui(options()));
     const declaration = fs.readFileSync(
       path.join(root, 'retend-gpui-env.d.ts'),
@@ -100,6 +101,31 @@ describe('retendGpui Vite plugin', () => {
     );
     expect(declaration).toContain('interface GpuiAppContextTypes');
     expect(fs.existsSync(path.join(root, 'node_modules'))).toBe(false);
+  });
+
+  it('repairs a stale application context declaration', () => {
+    const plugin = retendGpui(options());
+    const root = resolvePlugin(plugin);
+    const declarationPath = path.join(root, 'retend-gpui-env.d.ts');
+    fs.writeFileSync(declarationPath, 'stale\n');
+
+    const hook = plugin.configResolved as (config: ResolvedConfig) => void;
+    hook({ command: 'serve', root } as ResolvedConfig);
+
+    expect(fs.readFileSync(declarationPath, 'utf8')).toContain(
+      'import type Application from "./source/application.ts"'
+    );
+  });
+
+  it('does not rewrite an unchanged application context declaration', () => {
+    const plugin = retendGpui(options());
+    const root = resolvePlugin(plugin);
+    const writeFileSync = vi.spyOn(fs, 'writeFileSync');
+
+    const hook = plugin.configResolved as (config: ResolvedConfig) => void;
+    hook({ command: 'serve', root } as ResolvedConfig);
+
+    expect(writeFileSync).not.toHaveBeenCalled();
   });
 
   it('exposes the configured identity and system options to the development runtime', () => {
