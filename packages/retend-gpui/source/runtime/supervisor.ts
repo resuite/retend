@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import type { RetendGpuiPluginApi } from '../plugins/vite.js';
 
+import { createMacosDevelopmentExecutable } from './macos-dev-executable.js';
 import { isGpuiControlMessage, type GpuiControlMessage } from './protocol.js';
 
 const FORCE_CLOSE_MS = 1_000;
@@ -121,10 +122,21 @@ export function startDevApplication(
   if (!launch) {
     throw new Error('Retend GPUI Vite configuration has not been resolved.');
   }
-  const child = fork(CHILD_ENTRY, [], {
-    cwd: root,
-    stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
-  });
+  const developmentExecutable =
+    process.platform === 'darwin'
+      ? createMacosDevelopmentExecutable(launch.appName)
+      : null;
+  let child: ReturnType<typeof fork>;
+  try {
+    child = fork(CHILD_ENTRY, [], {
+      cwd: root,
+      execPath: developmentExecutable?.path ?? process.execPath,
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
+    });
+  } catch (error) {
+    developmentExecutable?.dispose();
+    throw error;
+  }
   const ready = Promise.withResolvers<void>();
   const done = Promise.withResolvers<void>();
   let intentionalExit = false;
@@ -136,6 +148,7 @@ export function startDevApplication(
   };
 
   const onChildError = (error: Error): void => {
+    developmentExecutable?.dispose();
     ready.reject(error);
     if (intentionalExit) done.resolve();
     else done.reject(error);
@@ -155,6 +168,7 @@ export function startDevApplication(
 
   child.once('exit', (code, signal) => {
     child.off('error', onChildError);
+    developmentExecutable?.dispose();
     const description = signal ?? code ?? 'unknown';
     ready.reject(
       new Error(
