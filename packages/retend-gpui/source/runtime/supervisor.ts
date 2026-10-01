@@ -124,7 +124,7 @@ export function startDevApplication(
   }
   const developmentExecutable =
     process.platform === 'darwin'
-      ? createMacosDevelopmentExecutable(launch.appName)
+      ? createMacosDevelopmentExecutable(launch.appName, launch.identifier)
       : null;
   let child: ReturnType<typeof fork>;
   try {
