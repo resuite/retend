@@ -10,6 +10,7 @@ import type {
   StyleState as StyleStateValue,
 } from './native/protocol.generated.js';
 import type { ProtocolPropertyValue } from './native/protocol.js';
+import type { GpuiSystemOptions } from './system.js';
 import type {
   GpuiMeasurement,
   GpuiScrollOffset,
@@ -157,7 +158,7 @@ export class GpuiHost extends EventTarget {
     return this.#rootId;
   }
 
-  init(options: GpuiWindowOptions = {}): void {
+  init(options: GpuiWindowOptions = {}, system: GpuiSystemOptions = {}): void {
     if (this.#binding)
       throw new Error('Retend GPUI host is already initialized.');
     validateGpuiWindowOptions(options);
@@ -169,7 +170,7 @@ export class GpuiHost extends EventTarget {
     this.#binding = new (loadNativeAddon().NativeRendererBinding)(
       this.#rootId,
       this.#headless,
-      options,
+      { ...options, transparentTitlebar: system.transparentTitlebar },
       (payload) => this.#handleNativeEvent(payload)
     );
     if (options.location !== undefined)

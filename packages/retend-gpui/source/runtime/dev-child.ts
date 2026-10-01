@@ -225,7 +225,7 @@ async function runApplication(message: DevRuntimeInitMessage): Promise<void> {
     const renderer = new RetendGpuiRenderer({ hmr: true });
 
     try {
-      renderer.init(options);
+      renderer.init(options, message.system);
     } catch (error) {
       renderer.dispose();
       throw error;

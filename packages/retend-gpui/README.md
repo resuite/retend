@@ -85,13 +85,14 @@ export default defineConfig({
       },
       application: './source/application.ts',
       entry: './source/main.tsx',
+      system: { transparentTitlebar: true },
       window: { width: 900, height: 640 },
     }),
   ],
 });
 ```
 
-Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. Vite full reloads recreate application/module state and remount every live window without replacing its native window or navigation history; Vite/config restarts replace the whole application process.
+Run `retend-gpui dev`. It starts Vite without an HTTP listener and forks one Node.js application process with the configured initial window. Applications can open additional independent windows through `useWindow().open(options)`. `system.transparentTitlebar` makes the native titlebar transparent on macOS and Windows and applies to every window in the application. Vite full reloads recreate application/module state and remount every live window without replacing its native window or navigation history; Vite/config restarts replace the whole application process.
 
 Components read process-wide resources with `useAppContext()`. Every dev and build run writes `retend-gpui-env.d.ts` at the project root, typing the context from the configured `application` module. Add it to your tsconfig `include` (projects created by `retend-start` already do); like `next-env.d.ts`, it can be committed.
 
@@ -221,7 +222,7 @@ If the renderer throws an error for an element, check that the tag is in the sup
 
 ### Development Dock identity on macOS
 
-The dev child applies `app.name` as its process title and sets the Dock icon from `app.icon` (or the `app.macos.icon` override) before the first window opens. On Windows, it sets the explicit AppUserModelID from `app.identifier` and applies `app.icon` (or `app.windows.icon`) to every window and taskbar button. Windows icons may be `.ico`, `.png`, or `.svg`. A Windows build creates `dist/win32-x64/<AppName>.exe` (or `win32-arm64`) with the icon embedded in the executable. Keep the adjacent `native/`, `assets/`, and `AppIcon.*` files with the executable when testing or distributing it. The macOS menu-bar name still comes from the app bundle, so it may read as `node` in development. Native bundle identity remains the packaged `.app`; Linux applies identity as part of its packaging work.
+The dev child applies `app.name` as its process title, installs the native macOS application menu, and sets the Dock icon from `app.icon` (or the `app.macos.icon` override) before the first window opens. The native menu is also initialized in packaged macOS apps so AppKit can provide standard fullscreen menu-bar/titlebar reveal behavior. On Windows, Retend sets the explicit AppUserModelID from `app.identifier` and applies `app.icon` (or `app.windows.icon`) to every window and taskbar button. Windows icons may be `.ico`, `.png`, or `.svg`. A Windows build creates `dist/win32-x64/<AppName>.exe` (or `win32-arm64`) with the icon embedded in the executable. Keep the adjacent `native/`, `assets/`, and `AppIcon.*` files with the executable when testing or distributing it. The macOS menu-bar name still comes from the app bundle, so it may read as `node` in development. Native bundle identity remains the packaged `.app`; Linux applies identity as part of its packaging work.
 
 ### JSX types are missing
 

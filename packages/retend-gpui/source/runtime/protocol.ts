@@ -1,3 +1,4 @@
+import type { GpuiSystemOptions } from '../system.js';
 import type { GpuiWindowOptions } from '../window.js';
 
 export interface DevRuntimeInitMessage {
@@ -11,6 +12,7 @@ export interface DevRuntimeInitMessage {
   root: string;
   application: string;
   entry: string;
+  system: GpuiSystemOptions;
   options: GpuiWindowOptions &
     Required<Pick<GpuiWindowOptions, 'title' | 'location'>>;
 }

@@ -5,6 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setGlobalContext } from 'retend/context';
 
+import type { GpuiSystemOptions } from '../system.js';
+
 import {
   setAppContext,
   clearAppContext,
@@ -43,6 +45,8 @@ export interface ProductionAppDefinition<Context extends object> {
   identifier: string;
   /** Icon copied beside the production entry for Windows builds. */
   iconPath?: string;
+  /** Process-wide native system integration options. */
+  system?: GpuiSystemOptions;
   /** Initial window options resolved from the Vite plugin configuration. */
   options: ProductionWindowOptions;
   /** Path of the addon beside the bundled entry, `native/<binary>`. */
@@ -97,13 +101,11 @@ export async function startProductionApp<Context extends object>(
   definition: ProductionAppDefinition<Context>
 ): Promise<void> {
   setNativeAddonPath(resolveNativeAddonPath(definition.nativeAddonPath));
-  if (process.platform === 'win32') {
-    setApplicationIdentity(
-      definition.iconPath,
-      definition.identifier,
-      definition.appName
-    );
-  }
+  setApplicationIdentity(
+    definition.iconPath,
+    definition.identifier,
+    definition.appName
+  );
   setAssetBase(resolveAssetBase());
 
   const globalData = new Map<PropertyKey, unknown>();
@@ -163,7 +165,7 @@ export async function startProductionApp<Context extends object>(
   ): RuntimeGpuiWindow => {
     const renderer = new RetendGpuiRenderer();
     try {
-      renderer.init(options);
+      renderer.init(options, definition.system);
     } catch (error) {
       renderer.dispose();
       throw error;

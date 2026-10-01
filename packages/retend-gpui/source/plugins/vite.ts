@@ -12,6 +12,7 @@ import {
 } from 'vite';
 
 import type { DevRuntimeConfig } from '../runtime/protocol.js';
+import type { GpuiSystemOptions } from '../system.js';
 
 import { nativeTargetPlatform } from '../native/addon.js';
 import { buildDmg, buildMacApp } from '../packaging/macos.js';
@@ -108,6 +109,8 @@ export interface RetendGpuiOptions {
   entry: string;
   /** Default window options used for the initial dev window spawned by the supervisor. */
   window: RetendGpuiInitialWindowOptions;
+  /** Process-wide native system integration options inherited by every window. */
+  system?: GpuiSystemOptions;
   /** Build target as `<platform>-<arch>`; defaults to the host. */
   target?: string;
   /** Embedded Node.js version; defaults to `DEFAULT_NODE_VERSION`. */
@@ -205,6 +208,7 @@ await startProductionApp({
   appName: ${JSON.stringify(options.app.name)},
   identifier: ${JSON.stringify(options.app.identifier)},
   iconPath: ${iconFile ? `fileURLToPath(new URL(${JSON.stringify(`./${iconFile}`)}, import.meta.url))` : 'undefined'},
+  system: ${JSON.stringify(options.system ?? {})},
   options: ${JSON.stringify(windowOptions)},
   nativeAddonPath: fileURLToPath(
     new URL('./native/retend-gpui-native.${platform}.node', import.meta.url)
@@ -434,6 +438,7 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
           path.resolve(config.root, options.application)
         ),
         entry: normalizePath(path.resolve(config.root, options.entry)),
+        system: { ...options.system },
         options: {
           ...options.window,
           title: options.window.title ?? options.app.name,

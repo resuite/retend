@@ -17,6 +17,7 @@ export type {
   GpuiApplication,
 } from './application.js';
 export * from './types.js';
+export type { GpuiSystemOptions } from './system.js';
 export { useWindow } from './window.js';
 export type {
   GpuiWindow,

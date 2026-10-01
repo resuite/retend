@@ -463,8 +463,9 @@ fn open_gpui_window(
             }),
         ..Default::default()
     };
-    if let Some(title) = options.title {
-        if let Some(titlebar) = window_options.titlebar.as_mut() {
+    if let Some(titlebar) = window_options.titlebar.as_mut() {
+        titlebar.appears_transparent = options.transparent_titlebar.unwrap_or(false);
+        if let Some(title) = options.title {
             titlebar.title = Some(title.into());
         }
     }
@@ -516,7 +517,7 @@ fn mark_window_closed(window_id: WindowId) {
 mod imp {
     use std::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Mutex};
 
-    use gpui::{Application, ApplicationHandle, QuitMode};
+    use gpui::{Application, ApplicationHandle, Menu, QuitMode};
 
     use super::*;
 
@@ -697,38 +698,54 @@ mod imp {
         running
     }
 
-    /// Icon path staged before the native platform is ready.
+    /// Application identity staged before the native platform is ready.
     ///
     /// `NSApplication` must be the `GPUIApplication` subclass that GPUI installs
     /// during `Platform::run`; resolving it earlier would create the base class
-    /// and break GPUI's ivar registration. The path is therefore stored here and
-    /// applied from [`apply_pending_application_identity`] during the first
+    /// and break GPUI's ivar registration. The identity is therefore stored here
+    /// and applied from [`apply_pending_application_identity`] during the first
     /// window creation.
-    static PENDING_ICON_PATH: Mutex<Option<String>> = Mutex::new(None);
+    static PENDING_APP_IDENTITY: Mutex<Option<(Option<String>, String)>> = Mutex::new(None);
 
-    /// Stages the process-wide macOS application icon.
+    /// Stages the process-wide macOS application identity.
     ///
-    /// A non-bundled process (development) otherwise keeps the icon of the
-    /// hosting executable, i.e. `node`. The identifier/name pair is consumed
-    /// by the Windows backend; this platform ignores it.
+    /// A non-bundled process (development) otherwise keeps the Dock icon of the
+    /// hosting executable, i.e. `node`. Retend also installs a native main menu
+    /// before the first window opens; AppKit requires one for standard native
+    /// fullscreen menu-bar/titlebar reveal behavior.
     pub fn set_application_identity(
         icon_path: Option<&str>,
         _identifier: Option<&str>,
-        _name: Option<&str>,
+        name: Option<&str>,
     ) {
-        if let Ok(mut pending) = PENDING_ICON_PATH.lock() {
-            *pending = icon_path.map(str::to_string);
+        if let Ok(mut pending) = PENDING_APP_IDENTITY.lock() {
+            *pending = match (icon_path, name) {
+                (None, None) => None,
+                (icon_path, name) => Some((
+                    icon_path.map(str::to_string),
+                    name.unwrap_or("Application").to_string(),
+                )),
+            };
         }
     }
 
-    pub(crate) fn apply_pending_application_identity(_cx: &mut App) -> Result<(), String> {
-        let Some(icon_path) = PENDING_ICON_PATH
+    pub(crate) fn apply_pending_application_identity(cx: &mut App) -> Result<(), String> {
+        let Some((icon_path, app_name)) = PENDING_APP_IDENTITY
             .lock()
             .ok()
             .and_then(|mut pending| pending.take())
         else {
             return Ok(());
         };
+
+        if cx.get_menus().is_none() {
+            cx.set_menus([Menu::new(app_name)]);
+        }
+
+        let Some(icon_path) = icon_path else {
+            return Ok(());
+        };
+
         use cocoa::appkit::{NSApplication, NSImage};
         use cocoa::base::{id, nil};
         use cocoa::foundation::NSString;

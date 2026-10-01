@@ -102,14 +102,18 @@ describe('retendGpui Vite plugin', () => {
     expect(fs.existsSync(path.join(root, 'node_modules'))).toBe(false);
   });
 
-  it('exposes the configured identity to the development runtime', () => {
-    const plugin = retendGpui(options());
+  it('exposes the configured identity and system options to the development runtime', () => {
+    const plugin = retendGpui({
+      ...options(),
+      system: { transparentTitlebar: true },
+    });
     const root = resolvePlugin(plugin);
 
     expect(plugin.api.launch).toMatchObject({
       appName: 'Test',
       identifier: 'dev.retend.test',
       icon: path.join(root, 'icon.svg'),
+      system: { transparentTitlebar: true },
     });
   });
 
@@ -171,7 +175,11 @@ describe('retendGpui Vite plugin', () => {
   });
 
   it('generates a production entry that imports the configured modules and the runtime bootstrap', () => {
-    const plugin = retendGpui({ ...options(), target: 'darwin-arm64' });
+    const plugin = retendGpui({
+      ...options(),
+      target: 'darwin-arm64',
+      system: { transparentTitlebar: true },
+    });
     const config = plugin.config as unknown as (
       config: TestConfigInput,
       env: TestCommandEnv
@@ -189,6 +197,7 @@ describe('retendGpui Vite plugin', () => {
       "import { startProductionApp } from 'retend-gpui/runtime';"
     );
     expect(source).toContain('retend-gpui-native.darwin-arm64.node');
+    expect(source).toContain('system: {"transparentTitlebar":true}');
   });
 
   it('copies the Windows icon into the production bundle', async () => {

@@ -29,6 +29,7 @@ import type {
   ProtocolPointValue,
   ProtocolPropertyValue,
 } from './native/protocol.js';
+import type { GpuiSystemOptions } from './system.js';
 import type { GpuiElementType, GpuiStyle } from './types.js';
 import type { GpuiWindowOptions } from './window.js';
 
@@ -389,14 +390,15 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
    * Initializes the underlying host and native renderer.
    *
    * @param options - Native window options forwarded to `GpuiHost.init`.
+   * @param system - Process-wide native system integration options.
    */
-  init(options?: GpuiWindowOptions): void {
+  init(options?: GpuiWindowOptions, system?: GpuiSystemOptions): void {
     if (this.#disposed) {
       throw new Error(
         'A disposed RetendGpuiRenderer cannot be initialized again.'
       );
     }
-    this.host.init(options);
+    this.host.init(options, system);
   }
 
   /**

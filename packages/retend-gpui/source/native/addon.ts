@@ -20,7 +20,9 @@ export interface NativeBridgeFailure {
 export type NativeWindowOptions = Omit<
   GpuiWindowOptions,
   'location' | 'closeWithOpener'
->;
+> & {
+  transparentTitlebar?: boolean;
+};
 
 interface NativeEventBase {
   targetId: number;
@@ -261,9 +263,9 @@ export function loadNativeAddon(): NativeAddon {
 
 /**
  * Stages the process-wide application identity before the first window opens.
- * macOS uses the icon path for the development Dock icon; Windows uses the
- * identifier/name pair for the explicit AppUserModelID and the icon path for
- * every window. No-op on platforms
+ * macOS uses the name to install the native application menu and the icon path
+ * for the development Dock icon; Windows uses the identifier/name pair for the
+ * explicit AppUserModelID and the icon path for every window. No-op on platforms
  * without a native implementation.
  */
 export function setApplicationIdentity(
