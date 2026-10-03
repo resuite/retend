@@ -17,6 +17,7 @@ import type {
   GpuiSelection,
 } from './types.js';
 
+import { GpuiApplicationErrorEvent, GpuiResizeEvent } from './events.js';
 import {
   loadNativeAddon,
   NativeRendererFatalError,
@@ -125,6 +126,18 @@ export interface GpuiHostOptions {
   onNativeEvent?: (event: NativeEventPayload) => void;
 }
 
+/** Events dispatched by a window host for the lifetime of its native window. */
+export interface GpuiHostEventMap {
+  resize: GpuiResizeEvent;
+  focus: Event;
+  blur: Event;
+  reload: Event;
+  close: Event;
+  fatal: Event;
+  applicationerror: GpuiApplicationErrorEvent;
+  popstate: Event;
+}
+
 /**
  * Window-local Retend host backed directly by the Retend-owned native command
  * protocol. Navigation remains JavaScript-owned.
@@ -142,6 +155,24 @@ export class GpuiHost extends EventTarget {
 
   readonly location = this.#navigation;
   readonly history = this.#navigation;
+
+  override addEventListener<K extends keyof GpuiHostEventMap>(
+    type: K,
+    listener: (this: GpuiHost, event: GpuiHostEventMap[K]) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  override addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  override addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject | null,
+    options?: boolean | AddEventListenerOptions
+  ): void {
+    super.addEventListener(type, listener, options);
+  }
 
   constructor(options: GpuiHostOptions = {}) {
     super();
@@ -183,9 +214,7 @@ export class GpuiHost extends EventTarget {
 
   /** @internal Reports a recoverable application error to this window runtime. */
   reportApplicationError(error: unknown): void {
-    this.dispatchEvent(
-      new CustomEvent('applicationerror', { detail: error, cancelable: false })
-    );
+    this.dispatchEvent(new GpuiApplicationErrorEvent(error));
   }
 
   resetLocation(path: string): void {
@@ -417,11 +446,7 @@ export class GpuiHost extends EventTarget {
         this.#handleNativeClose();
         return;
       case 'resize':
-        this.dispatchEvent(
-          new CustomEvent('resize', {
-            detail: { width: event.width, height: event.height },
-          })
-        );
+        this.dispatchEvent(new GpuiResizeEvent(event.width, event.height));
         this.flush();
         return;
       case 'focus':

@@ -1,10 +1,12 @@
 export {
+  GpuiApplicationErrorEvent,
   GpuiEvent,
   GpuiFocusEvent,
   GpuiImageEvent,
   GpuiInputEvent,
   GpuiKeyboardEvent,
   GpuiMouseEvent,
+  GpuiResizeEvent,
   GpuiScrollEvent,
   GpuiTransitionEvent,
 } from './events.js';

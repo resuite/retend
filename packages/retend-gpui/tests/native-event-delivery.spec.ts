@@ -219,8 +219,8 @@ describe('native event delivery', () => {
     const blur = vi.fn();
     const reload = vi.fn();
     const close = vi.fn();
-    renderer.host.addEventListener('resize', (event) => {
-      sizes.push((event as CustomEvent<unknown>).detail);
+    renderer.host.addEventListener('resize', ({ width, height }) => {
+      sizes.push({ width, height });
     });
     renderer.host.addEventListener('focus', focus);
     renderer.host.addEventListener('blur', blur);

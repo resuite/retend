@@ -274,3 +274,25 @@ export function createNativeEvent(payload: NativeEventPayload): Event {
       );
   }
 }
+
+/** Dispatched by a window host when the native content size changes. */
+export class GpuiResizeEvent extends Event {
+  readonly width: number;
+  readonly height: number;
+
+  constructor(width: number, height: number) {
+    super('resize');
+    this.width = width;
+    this.height = height;
+  }
+}
+
+/** Dispatched when a recoverable application error reaches a window host. */
+export class GpuiApplicationErrorEvent extends Event {
+  readonly error: unknown;
+
+  constructor(error: unknown) {
+    super('applicationerror');
+    this.error = error;
+  }
+}

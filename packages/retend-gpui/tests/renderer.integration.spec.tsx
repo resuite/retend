@@ -395,7 +395,7 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     const applicationErrors: unknown[] = [];
     const afterFailure = vi.fn();
     renderer.host.addEventListener('applicationerror', (event) => {
-      applicationErrors.push((event as CustomEvent<unknown>).detail);
+      applicationErrors.push(event.error);
     });
     renderer.render(() => <div ref={ref}>event target</div>);
     const node = ref.get();

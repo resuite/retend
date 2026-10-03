@@ -31,6 +31,8 @@
     "build-ssg": "pnpm --filter retend-server run build",
     "build-utils": "pnpm --filter retend-utils run build",
     "build-gpui": "pnpm --filter retend-gpui run build",
+    "build-gpui-native": "pnpm --filter retend-gpui run native:build",
+    "build-gpui-native:release": "pnpm --filter retend-gpui run native:build:release",
     "lint": "oxlint packages docs tests experiments",
     "format": "oxfmt --write packages docs tests experiments",
     "format:check": "oxfmt --check packages docs tests experiments",

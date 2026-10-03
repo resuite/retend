@@ -133,8 +133,7 @@ export class RuntimeGpuiWindow extends EventTarget implements GpuiWindow {
     this.#detachTitleListener = this.title.listen((title) =>
       renderer.host.setWindowTitle(title)
     );
-    renderer.host.addEventListener('resize', (event) => {
-      const { width, height } = (event as CustomEvent).detail;
+    renderer.host.addEventListener('resize', ({ width, height }) => {
       this.width.set(width);
       this.height.set(height);
     });
