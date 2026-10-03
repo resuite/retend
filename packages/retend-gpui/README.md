@@ -4,11 +4,39 @@
 
 ## Status
 
-This package is experimental. The Retend-owned native protocol and renderer API are still under development.
+This package is experimental. It is usable for real applications, but the native protocol and renderer API may still change between `0.0.x` releases. Pin an exact version, and expect breaking changes until `0.1`.
+
+Bug reports and rough edges are welcome at [github.com/resuite/retend/issues](https://github.com/resuite/retend/issues).
 
 ## Install
 
-`retend-gpui` is not published yet. Until the Phase 4 native packaging work is complete, use the workspace package and examples in this repository; registry installation is not supported.
+Scaffold a new desktop project:
+
+```sh
+npx retend-start@latest my-app --target=gpui
+cd my-app
+npm run dev
+```
+
+Or add it to an existing Retend project:
+
+```sh
+npm install retend retend-gpui vite
+```
+
+The prebuilt native addon for your platform is installed automatically as an optional dependency. See [Platform notes](#platform-notes) for supported platforms.
+
+## Not supported yet
+
+`retend-gpui` covers the renderer: elements, layout, styling, events, windows, and packaging. Several things desktop apps commonly need are not available yet:
+
+- **SVG elements.** `<img>` and app icons work, but there is no inline `<svg>` or vector icon element.
+- **System integration.** There are no APIs for the system tray or menu bar, global keyboard shortcuts, the clipboard, native file dialogs, or OS notifications.
+- **OS permission prompts.** Apps that need Microphone, Accessibility, or similar permissions must manage them outside `retend-gpui`.
+- **Browser elements and APIs.** Only the elements listed under [Elements](#elements) exist. There is no DOM, so tags like `span`, `a`, and `section` are not available.
+- **IME composition events.** Composition stays inside the native editor; no JavaScript composition lifecycle events are fired.
+
+If one of these blocks you, please open an issue describing the use case. That is how these get prioritized.
 
 ## Quick start
 
