@@ -68,6 +68,9 @@
  * @property {boolean} [useViewTransitions]
  * If set to `true`, the router will use browser view transitions when navigating between routes.
  *
+ * @property {string} [linkTag]
+ * The tag name used to render router links. Defaults to `a`. Non-DOM renderers should
+ * set this to a native tag.
  */
 
 /**

@@ -8,7 +8,7 @@
 
 > Retend is alpha software. APIs may change before the first stable release.
 
-Retend uses JSX and reactive [`Cell`](https://github.com/adebola-io/cells) values to build interfaces for a chosen host environment. The core does not depend on the browser or the DOM. Instead, a renderer implements the operations needed to create nodes, set properties, insert content, and update existing output.
+Retend uses JSX and reactive [`Cell`](https://github.com/adebola-io/cells) values to build interfaces for a chosen host environment. The core does not depend on the browser APIs. Instead, a renderer implements the operations needed to create nodes, set properties, insert content, and update existing output.
 
 Component functions run when their instances are mounted. Retend does not re-run an entire component tree when state changes. It tracks the reactive values used by each binding and updates the affected output directly. Dynamic collections use the renderer’s reconciliation API when their contents change.
 
@@ -37,7 +37,7 @@ const App = () => {
 };
 ```
 
-For a browser application, use the DOM renderer’s `renderToDOM` helper to mount the component:
+For a browser application, use retend-web's `renderToDOM` helper to mount the component:
 
 ```tsx
 import { renderToDOM } from 'retend-web';
@@ -65,7 +65,7 @@ CLI options include `--tailwind`, `--ssg`, `--javascript`, `--docs`, and `--defa
 The project is split into packages with separate responsibilities:
 
 - **`retend`**: The renderer-independent core, including reactivity, JSX, control flow, and routing.
-- **`retend-web`**: The DOM renderer for browser applications.
+- **`retend-web`**: The web renderer for browser applications.
 - **`retend-server`**: Server-side rendering and static site generation support.
 - **`retend-start`**: CLI for scaffolding new Retend projects.
 - **`retend-utils`**: Utility functions, hooks, and reusable components.

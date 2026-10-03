@@ -84,10 +84,11 @@ import { DOMRenderer } from 'retend-web';
 function App() {
   const count = Cell.source(0);
 
-  document.title = `Count: ${count.get()}`;
-  count.listen((newCount) => {
-    document.title = `Count: ${newCount}`;
-  });
+  const setDocumentTitle = () => {
+    document.title = `Count: ${count.get()}`;
+  };
+
+  count.runAndListen(setDocumentTitle);
 
   return (
     <button onClick={() => count.set(count.get() + 1)}>Count: {count}</button>

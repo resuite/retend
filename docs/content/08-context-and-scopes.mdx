@@ -5,11 +5,79 @@ description: 'Share data with nested components through scopes.'
 
 # Context and Scopes
 
-A deeply nested component may need data owned by a higher-level component.
+## The Problem: Prop Drilling
 
-Passing that data through every intermediate component adds props that those components do not use. Retend provides **Scopes** for sharing data with descendants.
+Some data can be needed in many places but declared in one, e.g. a theme, the logged-in user, the current locale. The top-level component may own it, yet components several levels down need to read it.
 
-A Scope makes a value available to descendant components. A child can read the value without receiving it through each intermediate component.
+Without a way to share data, the only option is to pass it down as props through every layer in between:
+
+```tsx
+function App() {
+  const theme = 'dark';
+  return <MainLayout theme={theme} />;
+}
+
+function MainLayout({ theme }) {
+  // MainLayout doesn't care about the theme...
+  return <Sidebar theme={theme} />;
+}
+
+function Sidebar({ theme }) {
+  // ...neither does Sidebar. It only forwards it.
+  return <ThemedButton theme={theme} />;
+}
+
+function ThemedButton({ theme }) {
+  // This is the component that actually uses it.
+  return (
+    <button class={theme === 'dark' ? 'btn-dark' : 'btn-light'}>
+      Click Me
+    </button>
+  );
+}
+```
+
+This is called **prop drilling**, and it has real costs:
+
+- **Noise**: `MainLayout` and `Sidebar` carry a prop they never use, and every new intermediate component must remember to forward it.
+- **Fragility**: renaming or reshaping the value means touching every component in the chain, even the ones that don't care about it.
+- **Coupling**: intermediate components become aware of data that is none of their business, making them harder to reuse elsewhere.
+
+## The Solution: Scopes
+
+Retend provides **Scopes** for sharing data with descendants. A Scope makes a value available to every component below a `Provider`, so a child can read it directly without the intermediate components knowing it exists.
+
+The same tree, without prop drilling:
+
+```tsx
+function App() {
+  const theme = 'dark';
+  return (
+    <ThemeScope.Provider value={theme}>
+      <MainLayout />
+    </ThemeScope.Provider>
+  );
+}
+
+function MainLayout() {
+  // No theme prop. No forwarding.
+  return <Sidebar />;
+}
+
+function Sidebar() {
+  return <ThemedButton />;
+}
+
+function ThemedButton() {
+  // Reads the theme directly, no matter how deep it is.
+  const theme = useScopeContext(ThemeScope);
+  return (
+    <button class={theme === 'dark' ? 'btn-dark' : 'btn-light'}>
+      Click Me
+    </button>
+  );
+}
+```
 
 ## Creating and Using Scopes
 
@@ -113,13 +181,31 @@ function UserProfile() {
 }
 ```
 
-## Scopes and Global Variables
+## Scopes vs. Global Variables
 
-A `Cell` in a separate module can also be imported wherever it is needed.
+Since a Scope is just shared data, it is tempting to skip the Provider entirely and export a module-level `Cell` instead:
 
-Scopes provide two additional properties:
+```tsx
+// user.js
+export const currentUser = Cell.source({ name: 'Alice', role: 'guest' });
 
-1. **Independent instances**: Multiple Providers can exist on the same page, and each has isolated state.
-2. **Automatic cleanup**: When the part of the component tree containing a Provider is removed, Retend cleans up the scoped data. A module-level global remains available until the page is unloaded.
+// Anywhere else
+import { currentUser } from './user.js';
 
-Scopes associate shared data with a part of the component tree.
+function UserProfile() {
+  const name = Cell.derived(() => currentUser.get().name);
+  return <p>Hello, {name}</p>;
+}
+```
+
+Avoid this. Module globals have problems that Scopes are designed to solve:
+
+1. **One instance, ever.** A module global is a singleton, you cannot render two instances of the same widget on one page with independent state — both would read and write the same `Cell`. A Scope's state lives with its `Provider`, so each Provider on the page gets its own isolated copy.
+
+2. **No lifecycle.** A module global lives until the page is unloaded. If the part of the tree that owns the data is removed, the global silently keeps its state (and any listeners) around. Retend cleans up scoped data when the subtree containing the Provider is removed.
+
+3. **Harder to test.** Tests that import a module global share state between cases unless each test manually resets it. Tests that render a component under a fresh Provider start from a clean value every time.
+
+4. **Hidden dependencies.** A component that imports a global doesn't declare that it depends on shared state — the import is invisible in its signature. A component that calls `useScopeContext(ThemeScope)` makes its dependency explicit, and fails loudly if no Provider supplies the value.
+
+Even for data that seems genuinely app-wide, prefer a Scope: wrap your root in the Provider once, and you keep the same convenience as a global while retaining isolation, cleanup, and testability.
