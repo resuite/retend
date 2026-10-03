@@ -1,26 +1,6 @@
 // @ts-nocheck: globalThis is not typed.
 /** @import { Renderer } from '../library/renderer.js' */
 
-/** @type {typeof globalThis.CustomEvent} */
-export const CustomEvent =
-  globalThis.CustomEvent ??
-  class CustomEvent extends Event {
-    /** @type {any} */
-    #detail;
-    /**
-     * @param {string} type
-     * @param {CustomEventInit} eventInitDict
-     */
-    constructor(type, eventInitDict) {
-      super(type, eventInitDict);
-      this.#detail = eventInitDict?.detail ?? null;
-    }
-
-    get detail() {
-      return this.#detail;
-    }
-  };
-
 /**
  * Environment configuration that pairs a mode with its corresponding window implementation.
  * Each environment provides its own window interface optimized for that context.

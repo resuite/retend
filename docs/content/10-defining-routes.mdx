@@ -20,8 +20,13 @@ import { Router, defineRoutes, createRouterRoot } from 'retend/router';
 import { renderToDOM } from 'retend-web';
 
 // 1. Create your page components
-const Home = () => <div>Welcome to the Home Page</div>;
-const About = () => <div>About Us</div>;
+function Home() {
+  return <div>Welcome to the Home Page</div>;
+}
+
+function About() {
+  return <div>About Us</div>;
+}
 
 // 2. Define your routes
 const routes = defineRoutes([
@@ -60,8 +65,13 @@ function DashboardLayout() {
   );
 }
 
-const Overview = () => <h2>Dashboard Overview</h2>;
-const Settings = () => <h2>User Settings</h2>;
+function Overview() {
+  return <h2>Dashboard Overview</h2>;
+}
+
+function Settings() {
+  return <h2>User Settings</h2>;
+}
 
 const routes = defineRoutes([
   {

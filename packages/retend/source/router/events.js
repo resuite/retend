@@ -1,6 +1,5 @@
 /** @import { Router } from './router.js' */
 /** @import { NavigationOptions } from './types.js'; */
-import { CustomEvent } from '../context/index.js';
 
 /**
  * @typedef {{
@@ -16,102 +15,70 @@ import { CustomEvent } from '../context/index.js';
  * @typedef {keyof RouterEventHandlerMap} RouterEventTypes
  */
 
-/**
- * @typedef RouteChangeEventDetail
- *
- * @property {string | undefined} from
- * The path of the route that was leaving.
- *
- * @property {string} to
- * The path of the route that was entering.
- */
-
-/**
- * @extends {CustomEvent<RouteChangeEventDetail>}
- */
-export class RouteChangeEvent extends CustomEvent {
+export class RouteChangeEvent extends Event {
   /**
-   * @param {RouteChangeEventDetail} eventInitDict
+   * @param {string | undefined} from
+   * @param {string} to
    */
-  constructor(eventInitDict) {
-    super('routechange', {
-      cancelable: true,
-      bubbles: false,
-      detail: eventInitDict,
-    });
+  constructor(from, to) {
+    super('routechange', { cancelable: true, bubbles: false });
+    /**
+     * The path of the route that was leaving.
+     */
+    this.from = from;
+    /**
+     * The path of the route that was entering.
+     */
+    this.to = to;
   }
 }
 
-/**
- * @typedef RouteLockPreventedEventDetail
- *
- * @property {string} lockedPath
- * The path of the route that was locked.
- *
- * @property {string} attemptedPath
- * The path that navigation was attempted to, but prevented by the lock.
- */
-
-/**
- * @extends {CustomEvent<RouteLockPreventedEventDetail>}
- */
-export class RouteLockPreventedEvent extends CustomEvent {
-  /** @param {RouteLockPreventedEventDetail} eventInitDict */
-  constructor(eventInitDict) {
-    super('routelockprevented', {
-      cancelable: false, // Lock prevention is not cancelable
-      bubbles: false,
-      detail: eventInitDict,
-    });
+export class RouteLockPreventedEvent extends Event {
+  /**
+   * @param {string} lockedPath
+   * @param {string} attemptedPath
+   */
+  constructor(lockedPath, attemptedPath) {
+    super('routelockprevented', { cancelable: false, bubbles: false }); // Lock prevention is not cancelable
+    /**
+     * The path of the route that was locked.
+     */
+    this.lockedPath = lockedPath;
+    /**
+     * The path that navigation was attempted to, but prevented by the lock.
+     */
+    this.attemptedPath = attemptedPath;
   }
 }
 
-/**
- * @typedef RouteErrorEventDetail
- *
- * @property {Error} error
- * The error object.
- */
-
-/**
- * @extends {CustomEvent<RouteErrorEventDetail>}
- */
-export class RouteErrorEvent extends CustomEvent {
+export class RouteErrorEvent extends Event {
   /**
-   * @param {RouteErrorEventDetail} eventInitDict
+   * @param {Error} error
    */
-  constructor(eventInitDict) {
-    super('routeerror', {
-      cancelable: false,
-      bubbles: false,
-      detail: eventInitDict,
-    });
+  constructor(error) {
+    super('routeerror', { cancelable: false, bubbles: false });
+    /**
+     * The error that occurred during route loading.
+     */
+    this.error = error;
   }
 }
 
-/**
- * @typedef BeforeNavigateEventDetail
- *
- * @property {string | undefined} from
- * The path of the route that was leaving.
- *
- * @property {string} to
- * The path of the route that was entering.
- */
-
-/**
- * @extends {CustomEvent<BeforeNavigateEventDetail>}
- */
-export class BeforeNavigateEvent extends CustomEvent {
+export class BeforeNavigateEvent extends Event {
   /**
-   * @param {BeforeNavigateEventDetail} eventInitDict
+   * @param {string | undefined} from
+   * @param {string} to
    */
-  constructor(eventInitDict) {
-    super('beforenavigate', {
-      cancelable: true,
-      bubbles: false,
-      detail: eventInitDict,
-    });
+  constructor(from, to) {
+    super('beforenavigate', { cancelable: true, bubbles: false });
+    /**
+     * The path of the route that was leaving.
+     */
+    this.from = from;
+    /**
+     * The path of the route that was entering.
+     */
+    this.to = to;
   }
 }
 
@@ -119,34 +86,38 @@ export class BeforeNavigateEvent extends CustomEvent {
  * @typedef RouteLoadCompletedEventDetail
  *
  * @property {string} fullPath
- * The path of the route that was loaded.
- *
  * @property {string} title
- * The title of the route that was loaded.
- *
  * @property {number} newHistoryLength
- * The new length of the history stack.
- *
  * @property {number} oldHistoryLength
- * The old length of the history stack.
- *
  * @property {boolean} replace
- * Whether the navigation should replace the current history entry.
  */
 
-/**
- * @extends {CustomEvent<RouteLoadCompletedEventDetail>}
- */
-export class RouteLoadCompletedEvent extends CustomEvent {
+export class RouteLoadCompletedEvent extends Event {
   /**
    * @param {RouteLoadCompletedEventDetail} eventInitDict
    */
   constructor(eventInitDict) {
-    super('routeloadcompleted', {
-      cancelable: false,
-      bubbles: false,
-      detail: eventInitDict,
-    });
+    super('routeloadcompleted', { cancelable: false, bubbles: false });
+    /**
+     * The path of the route that was loaded.
+     */
+    this.fullPath = eventInitDict.fullPath;
+    /**
+     * The title of the route that was loaded.
+     */
+    this.title = eventInitDict.title;
+    /**
+     * The new length of the history stack.
+     */
+    this.newHistoryLength = eventInitDict.newHistoryLength;
+    /**
+     * The old length of the history stack.
+     */
+    this.oldHistoryLength = eventInitDict.oldHistoryLength;
+    /**
+     * Whether the navigation should replace the current history entry.
+     */
+    this.replace = eventInitDict.replace;
   }
 }
 
@@ -154,5 +125,20 @@ export class RouteLoadCompletedEvent extends CustomEvent {
  * @typedef {NavigationOptions & { href: string }} RouterNavigationEventDetail
  */
 
-/** @extends {CustomEvent<RouterNavigationEventDetail>} */
-export class RouterNavigationEvent extends CustomEvent {}
+export class RouterNavigationEvent extends Event {
+  /**
+   * @param {'beforenavigate' | 'afternavigate'} type
+   * @param {RouterNavigationEventDetail} eventInitDict
+   */
+  constructor(type, eventInitDict, cancelable = false) {
+    super(type, { cancelable, bubbles: false });
+    /**
+     * The href of the navigation.
+     */
+    this.href = eventInitDict.href;
+    /**
+     * Whether the navigation should replace the current history entry.
+     */
+    this.replace = eventInitDict.replace;
+  }
+}

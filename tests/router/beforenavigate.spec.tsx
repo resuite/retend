@@ -25,13 +25,13 @@ describe('beforenavigate event', () => {
 
     await router.navigate('/');
     expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener.mock.calls[0][0].detail.from).toBeUndefined();
-    expect(listener.mock.calls[0][0].detail.to).toBe('/');
+    expect(listener.mock.calls[0][0].from).toBeUndefined();
+    expect(listener.mock.calls[0][0].to).toBe('/');
 
     await router.navigate('/about');
     expect(listener).toHaveBeenCalledTimes(2);
-    expect(listener.mock.calls[1][0].detail.from).toBe('/');
-    expect(listener.mock.calls[1][0].detail.to).toBe('/about');
+    expect(listener.mock.calls[1][0].from).toBe('/');
+    expect(listener.mock.calls[1][0].to).toBe('/about');
 
     router.removeEventListener('beforenavigate', listener);
   });
@@ -40,7 +40,7 @@ describe('beforenavigate event', () => {
     const renderer = getActiveRenderer() as DOMRenderer;
     const { host: window } = renderer;
     const listener = vi.fn((event) => {
-      if (event.detail.to === '/about') {
+      if (event.to === '/about') {
         event.preventDefault();
       }
     });
@@ -86,8 +86,8 @@ describe('beforenavigate event', () => {
 
     router.replace('/about');
     expect(listener).toHaveBeenCalledTimes(2);
-    expect(listener.mock.calls[1][0].detail.from).toBe('/');
-    expect(listener.mock.calls[1][0].detail.to).toBe('/about');
+    expect(listener.mock.calls[1][0].from).toBe('/');
+    expect(listener.mock.calls[1][0].to).toBe('/about');
 
     router.removeEventListener('beforenavigate', listener);
   });
