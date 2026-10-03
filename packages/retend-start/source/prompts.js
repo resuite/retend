@@ -129,7 +129,9 @@ export async function collectAnswers() {
 
     if (questionsToAsk.length > 0) {
       const prompt = createPromptModule({ output: process.stdout });
-      const promptAnswers = await prompt(questionsToAsk);
+      // Pass the CLI-provided answers so `when` conditions (such as skipping
+      // web-only questions for --target=gpui) can see them.
+      const promptAnswers = await prompt(questionsToAsk, answers);
       Object.assign(answers, promptAnswers);
     }
   }

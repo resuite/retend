@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   DevEnvironment,
   normalizePath,
@@ -14,7 +13,10 @@ import {
 import type { DevRuntimeConfig } from '../runtime/protocol.js';
 import type { GpuiSystemOptions } from '../system.js';
 
-import { nativeTargetPlatform } from '../native/addon.js';
+import {
+  nativeTargetPlatform,
+  resolveNativeAddonFile,
+} from '../native/addon.js';
 import { buildDmg, buildMacApp } from '../packaging/macos.js';
 import {
   acquireNodeRuntime,
@@ -498,10 +500,8 @@ export function retendGpui(options: RetendGpuiOptions): RetendGpuiPlugin {
       }
       const platform = nativeTargetPlatform(productionTarget);
       const binaryName = `retend-gpui-native.${platform}.node`;
-      const source = fileURLToPath(
-        new URL(`../../native/npm/${platform}/${binaryName}`, import.meta.url)
-      );
-      if (!fs.existsSync(source)) {
+      const source = resolveNativeAddonFile(platform);
+      if (!source) {
         throw new Error(
           `Retend GPUI is missing the prebuilt ${productionTarget} addon. Run \`retend-gpui native:build\` or install retend-gpui-native-${platform}.`
         );

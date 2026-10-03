@@ -220,6 +220,28 @@ export function parseNativeBridgeFailure(
   }
 }
 
+/**
+ * Locates the prebuilt addon file for a native platform: the in-repo build
+ * output when developing retend-gpui itself, otherwise the installed
+ * `retend-gpui-native-<platform>` package. Returns `undefined` when neither is
+ * present.
+ */
+export function resolveNativeAddonFile(platform: string): string | undefined {
+  const localPath = fileURLToPath(
+    new URL(
+      `../../native/npm/${platform}/retend-gpui-native.${platform}.node`,
+      import.meta.url
+    )
+  );
+  if (fs.existsSync(localPath)) return localPath;
+  try {
+    // The platform package's `main` is its `.node` file.
+    return require.resolve(`retend-gpui-native-${platform}`);
+  } catch {
+    return undefined;
+  }
+}
+
 /** Points the loader at a bundled addon instead of package resolution. */
 export function setNativeAddonPath(path: string | undefined): void {
   nativeAddonPathOverride = path;

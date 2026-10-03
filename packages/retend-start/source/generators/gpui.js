@@ -223,7 +223,7 @@ export default function App() {
     >
       <div style={{ fontSize: 28 }}>${toDisplayName(answers.projectName)}</div>
       <div>Welcome to your new Retend desktop app!</div>
-      <button type="button" onClick={incrementCount}>
+      <button onClick={incrementCount}>
         Counter: {count}
       </button>
     </div>
