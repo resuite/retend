@@ -1,6 +1,6 @@
 {
   "name": "retend-web-devtools",
-  "version": "0.0.33",
+  "version": "0.0.35",
   "private": false,
   "description": "Inspect the component tree and live reactive state in Retend web apps.",
   "keywords": [

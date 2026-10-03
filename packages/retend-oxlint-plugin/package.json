@@ -1,6 +1,6 @@
 {
   "name": "retend-oxlint-plugin",
-  "version": "0.0.33",
+  "version": "0.0.35",
   "private": false,
   "description": "Oxlint rules that enforce Retend idioms and catch common mistakes.",
   "keywords": [

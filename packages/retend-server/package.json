@@ -1,6 +1,6 @@
 {
   "name": "retend-server",
-  "version": "0.0.33",
+  "version": "0.0.35",
   "private": false,
   "description": "Server-side rendering, static site generation, and hydration for Retend.",
   "keywords": [
