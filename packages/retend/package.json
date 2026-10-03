@@ -1,6 +1,6 @@
 {
   "name": "retend",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "private": false,
   "description": "A reactive UI framework with a renderer-independent core.",
   "keywords": [

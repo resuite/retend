@@ -1,6 +1,6 @@
 {
   "name": "retend-gpui-native-win32-arm64-msvc",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "cpu": [
     "arm64"
   ],

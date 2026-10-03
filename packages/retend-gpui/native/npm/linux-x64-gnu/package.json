@@ -1,6 +1,6 @@
 {
   "name": "retend-gpui-native-linux-x64-gnu",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "cpu": [
     "x64"
   ],

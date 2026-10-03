@@ -1,6 +1,6 @@
 {
   "name": "retend-utils",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "private": false,
   "description": "Hooks, utilities, and reusable components for Retend applications.",
   "keywords": [

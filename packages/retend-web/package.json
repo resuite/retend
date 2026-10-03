@@ -1,6 +1,6 @@
 {
   "name": "retend-web",
-  "version": "0.0.35",
+  "version": "0.0.36",
   "private": false,
   "description": "DOM renderer for Retend: reactive JSX web apps with fine-grained updates.",
   "keywords": [
