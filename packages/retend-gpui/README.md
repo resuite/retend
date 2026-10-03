@@ -30,7 +30,8 @@ The prebuilt native addon for your platform is installed automatically as an opt
 
 `retend-gpui` covers the renderer: elements, layout, styling, events, windows, and packaging. Several things desktop apps commonly need are not available yet:
 
-- **SVG elements.** `<img>` and app icons work, but there is no inline `<svg>` or vector icon element.
+- **Full-color inline SVG.** `<svg>` icons are single-color (they take the text `color`), and SVG markup cannot be written as JSX children. Full-color SVG files render through `<img>`.
+- **CSS filters.** There is no `filter` style (`blur`, `saturate`, `invert`, `contrast`, and so on).
 - **System integration.** There are no APIs for the system tray or menu bar, global keyboard shortcuts, the clipboard, native file dialogs, or OS notifications.
 - **OS permission prompts.** Apps that need Microphone, Accessibility, or similar permissions must manage them outside `retend-gpui`.
 - **Browser elements and APIs.** Only the elements listed under [Elements](#elements) exist. There is no DOM, so tags like `span`, `a`, and `section` are not available.
@@ -160,6 +161,7 @@ The currently implemented Retend GPUI intrinsic surface is deliberately small:
 - `div`
 - `anchored`
 - `img`
+- `svg`
 - `input`
 - `textarea`
 - `button`
@@ -167,6 +169,17 @@ The currently implemented Retend GPUI intrinsic surface is deliberately small:
 Text is ordinary JSX content rather than a `<text>` intrinsic. Adjacent text nodes, including JSX interpolations such as `Count: {count}`, render as one inline run that wraps with its container. `input` uses the native single-line editor, while `textarea` uses the native multi-line editor with wrapping and optional `minRows`/`maxRows` auto-sizing. Both accept a `placeholder`, shown while the control is empty.
 
 `anchored` is the native floating-layer primitive used by menus, tooltips, and similar floating controls. It delegates placement to GPUI rather than measuring in JavaScript. `side` (`top`/`right`/`bottom`/`left`), `align` (`start`/`center`/`end`), `gap`, and `offset` place content relative to its parent slot; `position={{ x, y }}` instead uses window coordinates. `fit="snap"` (the default) keeps the layer inside the window with `snapMargin`, while `fit="switch"` uses GPUI's anchor-flipping behavior. Layers are deferred and occluding by default; `deferred`, `priority`, and `occlude` expose those native controls directly. Margins are intentionally unsupported on `<anchored>` because GPUI requires an anchored child to be margin-free; use `gap`/`offset`, or put the anchored element inside a wrapper when ordinary layout margin is needed.
+
+`svg` draws a single-color vector icon in the current text `color`, like CSS `currentColor`: an icon follows the color of its container, including hover and active styles, unless it sets its own `color`. Pass SVG markup as `content` (for example from a `?raw` import) or a local file as `src`; `content` wins when both are set. Icons are 16 × 16 by default; set `width` and `height` to resize them. `alt` provides the accessible label. Use `<img>` for full-color SVG artwork.
+
+```tsx
+import check from './icons/check.svg?raw';
+
+<button style={{ color: '#555', hover: { color: '#000' } }}>
+  <svg content={check} alt="" />
+  Save
+</button>;
+```
 
 `button` is a native control with default styling: it centers its children in a padded, rounded, neutral surface with a hairline border and activates on click or Enter/Space when focused. It participates in Tab traversal by default, like native text controls. `disabled` skips it in Tab traversal, ignores pointer and keyboard activation, and renders it dimmed.
 

@@ -448,6 +448,13 @@ fn with_native_events<T: StatefulInteractiveElement>(
     element
 }
 
+/// The accessible name for `img`/`svg`, following HTML's `alt` rule: missing
+/// or empty `alt` marks the element decorative, so it gets no image role
+/// and stays out of the accessibility tree.
+fn accessible_label(alt: Option<&str>) -> Option<&str> {
+    alt.filter(|alt| !alt.is_empty())
+}
+
 /// `file:` sources load from disk; everything else is a URI.
 fn image_resource_from(location: &ImageLocation, src: &str) -> Resource {
     match location {
@@ -1131,8 +1138,8 @@ where
             if let Some(object_fit) = object_fit {
                 image = image.object_fit(to_gpui_object_fit(*object_fit));
             }
-            if let Some(alt) = alt {
-                image = image.role(Role::Image).aria_label(alt.clone());
+            if let Some(label) = accessible_label(alt.as_deref()) {
+                image = image.role(Role::Image).aria_label(label.to_string());
             }
             let image = with_native_events(
                 image.id(ElementId::Integer(u64::from(id))),
@@ -1159,6 +1166,40 @@ where
                 }
                 _ => image.into_any_element(),
             }
+        }
+        NodeData::Svg {
+            path,
+            alt,
+            content,
+            ..
+        } => {
+            // 16px matches body text; author width/height override it. The
+            // icon paints in the inherited text color (CSS `currentColor`).
+            let mut icon = gpui::svg().size(px(16.));
+            if let Some(content) = content {
+                icon = icon.shared_data(content.key.clone(), content.markup.clone());
+            } else if let Some(path) = path {
+                icon = icon.external_path(path.to_string_lossy().into_owned());
+            }
+            let icon = match resolved_style {
+                Some(style) => style.apply(icon),
+                None => icon,
+            };
+            #[cfg(test)]
+            let icon = icon.debug_selector(move || format!("retend-node-{id}"));
+            let mut icon = icon.id(ElementId::Integer(u64::from(id)));
+            if let Some(label) = accessible_label(alt.as_deref()) {
+                icon = icon.role(Role::Image).aria_label(label.to_string());
+            }
+            with_native_events(
+                icon,
+                interest,
+                node.window_id,
+                id,
+                runtime_state,
+                pseudo,
+            )
+            .into_any_element()
         }
     };
     let bounds = PaintCallback::Bounds {
@@ -3221,5 +3262,139 @@ mod tests {
         view.update(cx, |_, cx| cx.notify());
         finish_test_frames(cx);
         assert!(crate::events::take_test_emitted_events().is_empty());
+    }
+
+    const SQUARE_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16"/></svg>"#;
+
+    fn svg_node(id: NodeId, property: PropertyId, value: &str) -> [Command; 2] {
+        [
+            Command::CreateNode {
+                id,
+                kind: ElementKind::Svg,
+            },
+            Command::SetProperty {
+                id,
+                property,
+                value: PropertyValue::String(value.into()),
+            },
+        ]
+    }
+
+    fn set_style(id: NodeId, properties: Vec<(PropertyId, PropertyValue)>) -> Command {
+        Command::SetStyle { id, properties }
+    }
+
+    /// Renders the window whose root is node 1 after applying `commands`.
+    fn render_commands(
+        cx: &mut TestAppContext,
+        commands: Vec<Command>,
+    ) -> &mut gpui::VisualTestContext {
+        cx.update(init);
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        tree.borrow_mut().apply_commands(window_id, commands).unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let (_, cx) = cx.add_window_view(move |_, _| QueryLayoutTestView {
+            tree,
+            runtime_state,
+            window_id,
+        });
+        finish_test_frames(cx);
+        cx
+    }
+
+    /// Colors of painted monochrome sprites; the fixtures contain no text,
+    /// so every sprite is an SVG icon, in paint order.
+    fn painted_icon_colors(cx: &mut gpui::VisualTestContext) -> Vec<gpui::Hsla> {
+        cx.update(|window, _| {
+            window
+                .rendered_monochrome_sprites()
+                .into_iter()
+                .map(|sprite| sprite.color)
+                .collect()
+        })
+    }
+
+    #[gpui::test]
+    fn svg_paints_in_its_containers_color_unless_it_sets_its_own(cx: &mut TestAppContext) {
+        let red = PropertyValue::String("#ff0000".into());
+        let blue = PropertyValue::String("#0000ff".into());
+        let mut commands = vec![
+            container(2),
+            set_style(2, vec![(PropertyId::Color, red)]),
+            insert(1, 2),
+        ];
+        commands.extend(svg_node(3, PropertyId::Content, SQUARE_SVG));
+        commands.push(insert(2, 3));
+        commands.extend(svg_node(4, PropertyId::Content, SQUARE_SVG));
+        commands.push(set_style(4, vec![(PropertyId::Color, blue)]));
+        commands.push(insert(2, 4));
+
+        let cx = render_commands(cx, commands);
+        assert_eq!(
+            painted_icon_colors(cx),
+            vec![
+                gpui::Hsla::from(gpui::rgba(0xff0000ff)),
+                gpui::Hsla::from(gpui::rgba(0x0000ffff)),
+            ]
+        );
+    }
+
+    #[gpui::test]
+    fn svg_defaults_to_16px_and_author_size_overrides_it(cx: &mut TestAppContext) {
+        let mut commands = Vec::from(svg_node(2, PropertyId::Content, SQUARE_SVG));
+        commands.push(insert(1, 2));
+        commands.extend(svg_node(3, PropertyId::Content, SQUARE_SVG));
+        commands.push(set_style(
+            3,
+            vec![
+                (PropertyId::Width, PropertyValue::Number(24.0)),
+                (PropertyId::Height, PropertyValue::Number(24.0)),
+            ],
+        ));
+        commands.push(insert(1, 3));
+
+        let cx = render_commands(cx, commands);
+        let size_of = |cx: &mut gpui::VisualTestContext, selector| {
+            cx.debug_bounds(selector).expect("svg should be laid out").size
+        };
+        assert_eq!(size_of(cx, "retend-node-2"), gpui::size(px(16.), px(16.)));
+        assert_eq!(size_of(cx, "retend-node-3"), gpui::size(px(24.), px(24.)));
+    }
+
+    #[gpui::test]
+    fn svg_src_loads_a_local_file(cx: &mut TestAppContext) {
+        let file = std::env::temp_dir().join(format!("retend-svg-src-{}.svg", std::process::id()));
+        std::fs::write(&file, SQUARE_SVG).unwrap();
+        let src = url::Url::from_file_path(&file).unwrap().to_string();
+        let mut commands = Vec::from(svg_node(2, PropertyId::Src, &src));
+        commands.push(insert(1, 2));
+
+        let cx = render_commands(cx, commands);
+        let painted = painted_icon_colors(cx).len();
+        std::fs::remove_file(&file).ok();
+        assert_eq!(painted, 1);
+    }
+
+    #[gpui::test]
+    fn svg_content_takes_precedence_over_src(cx: &mut TestAppContext) {
+        // `src` names a file that does not exist, so only `content` can paint.
+        let mut commands = Vec::from(svg_node(2, PropertyId::Content, SQUARE_SVG));
+        commands.push(Command::SetProperty {
+            id: 2,
+            property: PropertyId::Src,
+            value: PropertyValue::String("file:///nonexistent/retend-icon.svg".into()),
+        });
+        commands.push(insert(1, 2));
+
+        let cx = render_commands(cx, commands);
+        assert_eq!(painted_icon_colors(cx).len(), 1);
+    }
+
+    #[test]
+    fn empty_or_missing_alt_is_decorative() {
+        assert_eq!(accessible_label(None), None);
+        assert_eq!(accessible_label(Some("")), None);
+        assert_eq!(accessible_label(Some("Done")), Some("Done"));
     }
 }

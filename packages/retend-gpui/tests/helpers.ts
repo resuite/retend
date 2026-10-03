@@ -14,6 +14,7 @@ export interface DebugNode {
     | 'Anchored'
     | 'Text'
     | 'Image'
+    | 'Svg'
     | 'Input'
     | 'Textarea'
     | 'Button';

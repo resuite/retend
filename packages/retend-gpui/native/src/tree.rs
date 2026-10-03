@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::Arc,
 };
 
 use serde::Serialize;
@@ -367,6 +368,14 @@ pub enum NodeData {
         alt: Option<String>,
         location: ImageLocation,
     },
+    /// Monochrome vector icon tinted by the inherited text color.
+    Svg {
+        alt: Option<String>,
+        /// Local file the icon loads from. SVG icons are local assets only.
+        path: Option<PathBuf>,
+        /// Inline markup. Takes precedence over `path` when both are set.
+        content: Option<SvgContent>,
+    },
     TextControl {
         kind: TextControlKind,
         value: String,
@@ -376,6 +385,29 @@ pub enum NodeData {
         max_rows: Option<u32>,
     },
     Button,
+}
+
+/// Inline SVG markup, prepared once when the property is set: the renderer
+/// hands these shared bytes and their cache key to GPUI on every frame
+/// without hashing or copying the markup again.
+#[derive(Clone, Debug)]
+pub struct SvgContent {
+    pub key: gpui::SharedString,
+    pub markup: Arc<[u8]>,
+}
+
+impl SvgContent {
+    fn new(markup: String) -> Self {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        markup.hash(&mut hasher);
+        Self {
+            // The prefix keeps markup keys disjoint from asset paths, which
+            // share GPUI's SVG raster cache.
+            key: format!("retend-svg-content:{:016x}", hasher.finish()).into(),
+            markup: Arc::from(markup.into_bytes()),
+        }
+    }
 }
 
 pub struct NativeNode {
@@ -996,6 +1028,9 @@ impl NativeTree {
                     NodeData::Anchored(_) => ("Anchored", None, None),
                     NodeData::Text(text) => ("Text", Some(text.as_str()), None),
                     NodeData::Image { src, .. } => ("Image", None, src.as_deref()),
+                    NodeData::Svg { path, .. } => {
+                        ("Svg", None, path.as_deref().and_then(|path| path.to_str()))
+                    }
                     NodeData::Button => ("Button", None, None),
                     NodeData::TextControl { kind, .. } => (
                         match kind {
@@ -1074,6 +1109,11 @@ impl NativeTree {
                         object_fit: None,
                         alt: None,
                         location: ImageLocation::Unset,
+                    },
+                    ElementKind::Svg => NodeData::Svg {
+                        alt: None,
+                        path: None,
+                        content: None,
                     },
                     ElementKind::Button => NodeData::Button,
                     ElementKind::Input | ElementKind::Textarea => NodeData::TextControl {
@@ -1237,6 +1277,43 @@ impl NativeTree {
                             parsed
                         };
                         *location = parsed_location;
+                        Ok(())
+                    }
+                    (PropertyId::Src, NodeData::Svg { path, .. }) => {
+                        let parsed = nullable_string(
+                            index,
+                            value,
+                            "Svg src must be a file URL string or null.",
+                        )?;
+                        *path = match parsed.as_deref().map(ImageLocation::parse) {
+                            None => None,
+                            Some(ImageLocation::Path(file)) => Some(file),
+                            Some(_) => {
+                                return invalid(
+                                    index,
+                                    "INVALID_SVG_SOURCE",
+                                    "Svg src must be a local file (a path, an imported asset, or a file: URL); remote and data: SVGs are not supported.",
+                                )
+                            }
+                        };
+                        Ok(())
+                    }
+                    (PropertyId::Content, NodeData::Svg { content, .. }) => {
+                        *content = nullable_string(
+                            index,
+                            value,
+                            "Svg content must be an SVG markup string or null.",
+                        )?
+                        .filter(|markup| !markup.is_empty())
+                        .map(SvgContent::new);
+                        Ok(())
+                    }
+                    (PropertyId::Alt, NodeData::Svg { alt, .. }) => {
+                        *alt = nullable_string(
+                            index,
+                            value,
+                            "Svg alt must be a string or null.",
+                        )?;
                         Ok(())
                     }
                     (PropertyId::Alt, NodeData::Image { alt, .. }) => {
@@ -1479,6 +1556,7 @@ impl NativeTree {
                 NodeData::Button => (true, "Button"),
                 NodeData::Text(_) => (false, "Text"),
                 NodeData::Image { .. } => (false, "Image"),
+                NodeData::Svg { .. } => (false, "Svg"),
                 NodeData::TextControl { kind, .. } => (
                     false,
                     match kind {
@@ -2310,6 +2388,33 @@ mod tests {
     }
 
     #[test]
+    fn svg_src_rejects_remote_and_data_sources() {
+        for source in [
+            "https://example.com/icon.svg",
+            "data:image/svg+xml,%3Csvg%2F%3E",
+        ] {
+            let (mut tree, window, _) = setup();
+            let error = tree
+                .apply_commands(
+                    window,
+                    vec![
+                        Command::CreateNode {
+                            id: 2,
+                            kind: ElementKind::Svg,
+                        },
+                        Command::SetProperty {
+                            id: 2,
+                            property: PropertyId::Src,
+                            value: PropertyValue::String(source.into()),
+                        },
+                    ],
+                )
+                .unwrap_err();
+            assert_eq!(error.code, "INVALID_SVG_SOURCE", "{source}");
+        }
+    }
+
+    #[test]
     fn image_object_fit_is_parsed_into_retained_image_state() {
         let (mut tree, window, _) = setup();
         tree.apply_commands(
@@ -3094,33 +3199,44 @@ mod tests {
 
     #[test]
     fn leaf_nodes_cannot_be_structural_parents() {
-        let (mut tree, window, root) = setup();
-        tree.apply_commands(
-            window,
-            vec![
-                Command::CreateText {
-                    id: 2,
-                    text: "parent".into(),
-                },
-                Command::CreateText {
-                    id: 3,
-                    text: "child".into(),
-                },
-            ],
-        )
-        .unwrap();
-        let error = tree
-            .apply_commands(
+        let text = || Command::CreateText {
+            id: 2,
+            text: "parent".into(),
+        };
+        let node = |kind| move || Command::CreateNode { id: 2, kind };
+        let leaves: [(&str, Box<dyn Fn() -> Command>); 5] = [
+            ("Text", Box::new(text)),
+            ("Image", Box::new(node(ElementKind::Image))),
+            ("Svg", Box::new(node(ElementKind::Svg))),
+            ("Input", Box::new(node(ElementKind::Input))),
+            ("Textarea", Box::new(node(ElementKind::Textarea))),
+        ];
+        for (kind, create_leaf) in leaves {
+            let (mut tree, window, root) = setup();
+            tree.apply_commands(
                 window,
-                vec![Command::InsertChild {
-                    parent_id: 2,
-                    child_id: 3,
-                    before_id: 0,
-                }],
+                vec![
+                    create_leaf(),
+                    Command::CreateText {
+                        id: 3,
+                        text: "child".into(),
+                    },
+                ],
             )
-            .unwrap_err();
-        assert_eq!(error.code, "INVALID_PARENT_KIND");
-        assert!(tree.nodes.get(&root).unwrap().children.is_empty());
+            .unwrap();
+            let error = tree
+                .apply_commands(
+                    window,
+                    vec![Command::InsertChild {
+                        parent_id: 2,
+                        child_id: 3,
+                        before_id: 0,
+                    }],
+                )
+                .unwrap_err();
+            assert_eq!(error.code, "INVALID_PARENT_KIND", "{kind}");
+            assert!(tree.nodes.get(&root).unwrap().children.is_empty(), "{kind}");
+        }
     }
 
     #[test]

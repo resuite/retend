@@ -448,6 +448,13 @@ export class GpuiImageElement extends GpuiElement {
   }
 }
 
+/** Native `<svg>` icon element. */
+export class GpuiSvgElement extends GpuiElement {
+  constructor(id: number, host: GpuiHost, renderer: RetendGpuiRenderer) {
+    super(id, 'svg', false, host, renderer);
+  }
+}
+
 abstract class GpuiTextControlElement extends GpuiElement {
   /** Sets the authoritative native text selection using UTF-16 offsets. */
   setSelectionRange(start: number, end: number): void {

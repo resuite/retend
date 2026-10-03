@@ -68,11 +68,11 @@ gpui = { package = "gpui-pre", version = "=0.3.4", default-features = false, fea
 proptest = "1"
 
 [patch.crates-io]
-gpui-pre = { git = "https://github.com/resuite/gpui-pre", rev = "a1a7427033d2af951057229604448c16e8cde181" }
-gpui-pre-macos = { git = "https://github.com/resuite/gpui-pre", rev = "a1a7427033d2af951057229604448c16e8cde181" }
-gpui-pre-apple = { git = "https://github.com/resuite/gpui-pre", rev = "a1a7427033d2af951057229604448c16e8cde181" }
-gpui-pre-wgpu = { git = "https://github.com/resuite/gpui-pre", rev = "a1a7427033d2af951057229604448c16e8cde181" }
-gpui-pre-windows = { git = "https://github.com/resuite/gpui-pre", rev = "a1a7427033d2af951057229604448c16e8cde181" }
+gpui-pre = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-macos = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-apple = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-wgpu = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-windows = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
 
 # Debug info dominates the dev target directory. Keep line tables for our own
 # crate (enough for file:line backtraces) and drop it entirely for

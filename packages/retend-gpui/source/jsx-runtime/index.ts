@@ -16,6 +16,7 @@ import type {
   GpuiDivElement,
   GpuiImageElement,
   GpuiInputElement,
+  GpuiSvgElement,
   GpuiTextareaElement,
 } from '../gpui-renderer.js';
 import type {
@@ -23,6 +24,7 @@ import type {
   GpuiButtonCustomProps,
   GpuiImgCustomProps,
   GpuiInputCustomProps,
+  GpuiSvgCustomProps,
   GpuiTextareaCustomProps,
   GpuiStyleDeclarations,
 } from '../types.js';
@@ -60,12 +62,22 @@ interface GpuiInputNativeEvents {
 
 type GpuiInputNativeEventModifiers =
   GpuiEventModifierHandlers<GpuiInputNativeEvents>;
+
+/** Resource events, delivered only by `<img>`. */
+interface GpuiImageNativeEvents {
+  onLoad?: ReactiveValue<(event: GpuiImageEvent) => void>;
+  onError?: ReactiveValue<(event: GpuiImageEvent) => void>;
+}
+
+type GpuiImageNativeEventModifiers =
+  GpuiEventModifierHandlers<GpuiImageNativeEvents>;
 export type ReactiveGpuiAnchoredCustomProps =
   ReactiveProps<GpuiAnchoredCustomProps>;
 export type ReactiveGpuiButtonCustomProps =
   ReactiveProps<GpuiButtonCustomProps>;
 export type ReactiveGpuiImgCustomProps = ReactiveProps<GpuiImgCustomProps>;
 export type ReactiveGpuiInputCustomProps = ReactiveProps<GpuiInputCustomProps>;
+export type ReactiveGpuiSvgCustomProps = ReactiveProps<GpuiSvgCustomProps>;
 export type ReactiveGpuiTextareaCustomProps =
   ReactiveProps<GpuiTextareaCustomProps>;
 
@@ -86,8 +98,6 @@ declare module 'retend/jsx-runtime' {
       onFocus?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onBlur?: ReactiveValue<(event: GpuiFocusEvent) => void>;
       onScroll?: ReactiveValue<(event: GpuiScrollEvent) => void>;
-      onLoad?: ReactiveValue<(event: GpuiImageEvent) => void>;
-      onError?: ReactiveValue<(event: GpuiImageEvent) => void>;
       onTransitionRun?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionStart?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
       onTransitionEnd?: ReactiveValue<(event: GpuiTransitionEvent) => void>;
@@ -129,7 +139,14 @@ declare module 'retend/jsx-runtime' {
         ReactiveGpuiAnchoredCustomProps {}
 
     interface GpuiImageProps
-      extends GpuiLeafProps<GpuiImageElement>, ReactiveGpuiImgCustomProps {}
+      extends
+        GpuiLeafProps<GpuiImageElement>,
+        GpuiImageNativeEvents,
+        GpuiImageNativeEventModifiers,
+        ReactiveGpuiImgCustomProps {}
+
+    interface GpuiSvgProps
+      extends GpuiLeafProps<GpuiSvgElement>, ReactiveGpuiSvgCustomProps {}
 
     interface GpuiTextControlProps<Element>
       extends
@@ -162,6 +179,7 @@ declare module 'retend/jsx-runtime' {
       div: GpuiDivProps;
       anchored: GpuiAnchoredProps;
       img: GpuiImageProps;
+      svg: GpuiSvgProps;
       input: GpuiInputProps;
       textarea: GpuiTextareaProps;
       button: GpuiButtonProps;

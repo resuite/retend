@@ -365,16 +365,19 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
     await expect(node.getScrollOffset()).resolves.toEqual({ x: 0, y: 0 });
   });
 
-  it('rejects logical children on leaf native elements before bridge submission', () => {
-    const renderer = createRenderer();
-    const image = renderer.createContainer('img');
-    const child = renderer.createText('invalid child');
+  it.each(['img', 'svg', 'input', 'textarea'])(
+    'rejects logical children on leaf <%s> before bridge submission',
+    (tag) => {
+      const renderer = createRenderer();
+      const leaf = renderer.createContainer(tag);
+      const child = renderer.createText('invalid child');
 
-    expect(() => renderer.append(image, child)).toThrow(
-      '<img> cannot contain GPUI children.'
-    );
-    expect(image.children).toEqual([]);
-  });
+      expect(() => renderer.append(leaf, child)).toThrow(
+        `<${tag}> cannot contain GPUI children.`
+      );
+      expect(leaf.children).toEqual([]);
+    }
+  );
 
   it('ignores style property assignments on text nodes without poisoning the bridge', () => {
     const renderer = createRenderer();
@@ -621,6 +624,47 @@ describe('Retend GPUI renderer on the Retend-owned native bridge', () => {
       image.id,
       PropertyId.Alt,
       'Second image'
+    );
+  });
+
+  it('maps svg content, src, and alt through the native property vocabulary', () => {
+    const renderer = createRenderer();
+    const iconRef = Cell.source<GpuiElement | null>(null);
+    const setProperty = vi.spyOn(renderer.host, 'setProperty');
+    const content = Cell.source(
+      '<svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/></svg>'
+    );
+
+    renderer.render(() => (
+      <svg
+        ref={iconRef}
+        content={content}
+        src="file:///icons/check.svg"
+        alt="Done"
+      />
+    ));
+    const icon = iconRef.get();
+    if (!icon) throw new Error('Expected svg ref to resolve.');
+
+    expect(icon.tagName).toBe('svg');
+    expect(nodeMap(debugTree(renderer)).get(icon.id)?.kind).toBe('Svg');
+    expect(setProperty).toHaveBeenCalledWith(
+      icon.id,
+      PropertyId.Content,
+      '<svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/></svg>'
+    );
+    expect(setProperty).toHaveBeenCalledWith(
+      icon.id,
+      PropertyId.Src,
+      'file:///icons/check.svg'
+    );
+    expect(setProperty).toHaveBeenCalledWith(icon.id, PropertyId.Alt, 'Done');
+
+    content.set('<svg viewBox="0 0 8 8"/>');
+    expect(setProperty).toHaveBeenLastCalledWith(
+      icon.id,
+      PropertyId.Content,
+      '<svg viewBox="0 0 8 8"/>'
     );
   });
 

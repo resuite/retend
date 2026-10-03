@@ -58,6 +58,7 @@ import {
   GpuiGroup,
   GpuiImageElement,
   GpuiInputElement,
+  GpuiSvgElement,
   GpuiTextareaElement,
   GpuiNode,
   GpuiRoot,
@@ -86,6 +87,11 @@ const TRANSFORM_PROPERTY_RANGE = [
   PropertyId.TransformOrigin,
 ] as const;
 const IMAGE_PROPERTY_RANGE = [PropertyId.Alt, PropertyId.ObjectFit] as const;
+const SVG_PROPERTY_BY_KEY = {
+  content: PropertyId.Content,
+  src: PropertyId.Src,
+  alt: PropertyId.Alt,
+} as const;
 const PSEUDO_STATES = {
   hover: StyleState.Hover,
   focused: StyleState.Focused,
@@ -138,6 +144,7 @@ const ELEMENTS = {
   textarea: [ElementKind.Textarea, GpuiTextareaElement],
   anchored: [ElementKind.Anchored, GpuiAnchoredElement],
   button: [ElementKind.Button, GpuiButtonElement],
+  svg: [ElementKind.Svg, GpuiSvgElement],
 } as const satisfies Record<
   GpuiElementType,
   readonly [ElementKindValue, ElementFactory]
@@ -471,13 +478,14 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
   createContainer(tagName: 'input'): GpuiInputElement;
   createContainer(tagName: 'textarea'): GpuiTextareaElement;
   createContainer(tagName: 'button'): GpuiButtonElement;
+  createContainer(tagName: 'svg'): GpuiSvgElement;
   createContainer(tagName: string): GpuiElement;
   createContainer(tagName: string): GpuiElement {
     const definition = ELEMENTS[tagName as GpuiElementType];
     if (!definition) {
       throw new Error(
         `Unsupported Retend GPUI intrinsic element: <${tagName}>. ` +
-          'Supported tags are <div>, <anchored>, <img>, <input>, <textarea>, and <button>; text is ordinary JSX content.'
+          'Supported tags are <div>, <anchored>, <img>, <svg>, <input>, <textarea>, and <button>; text is ordinary JSX content.'
       );
     }
 
@@ -1023,6 +1031,8 @@ export class RetendGpuiRenderer implements Renderer<GpuiRenderingTypes> {
     if (key === 'tabIndex') property = PropertyId.TabIndex;
     else if (node.tagName === 'img')
       property = propertyIdInRange(key, IMAGE_PROPERTY_RANGE);
+    else if (node.tagName === 'svg')
+      property = SVG_PROPERTY_BY_KEY[key as keyof typeof SVG_PROPERTY_BY_KEY];
     else if (
       (node.tagName === 'input' || node.tagName === 'textarea') &&
       key === 'value'
@@ -1277,6 +1287,7 @@ export {
   GpuiGroup,
   GpuiImageElement,
   GpuiInputElement,
+  GpuiSvgElement,
   GpuiTextareaElement,
   GpuiNode,
   GpuiText,

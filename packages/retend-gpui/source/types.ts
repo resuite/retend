@@ -365,6 +365,7 @@ export const GPUI_ELEMENT_TYPES = [
   'textarea',
   'anchored',
   'button',
+  'svg',
 ] as const;
 
 /** Union of currently supported intrinsic element tag names. */
@@ -379,6 +380,23 @@ export interface GpuiImgCustomProps {
   /** How the image should scale within its bounds. */
   objectFit?: 'fill' | 'contain' | 'cover' | 'scaleDown' | 'none';
   /** Accessible text announced for the image. */
+  alt?: string;
+}
+
+/**
+ * Custom props for `<svg>`: a monochrome vector icon painted in the
+ * inherited text `color`, like CSS `currentColor`. Full-color SVG artwork
+ * belongs in `<img>`.
+ */
+export interface GpuiSvgCustomProps {
+  /**
+   * Inline SVG markup, such as a string from `import icon from './icon.svg?raw'`.
+   * Takes precedence over `src` when both are set.
+   */
+  content?: string;
+  /** Local SVG file: a root-relative path, an imported asset, or a `file:` URL. */
+  src?: string;
+  /** Accessible text announced for the icon. */
   alt?: string;
 }
 
