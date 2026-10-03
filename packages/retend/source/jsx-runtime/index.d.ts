@@ -6,6 +6,13 @@ export namespace JSX {
     | import('retend').Cell<T>
     | import('retend').AsyncDerivedCell<T>;
   type ValueOrCell<T> = T | import('retend').Cell<T>;
+  type EventHandlerValue<Handler> = ValueOrCell<Handler | null | undefined>;
+  type EventModifier = 'self' | 'prevent' | 'once' | 'passive' | 'stop';
+  type EventModifierHandlers<Events extends object> = {
+    [Key in keyof Events as Key extends string
+      ? `${Key}--${EventModifier}`
+      : never]?: Events[Key];
+  };
 
   interface IntrinsicAttributes {
     children?: Children;
@@ -21,7 +28,7 @@ export namespace JSX {
   interface BaseContainerProps extends IntrinsicAttributes {}
   interface LinkElementProps extends IntrinsicAttributes {
     href?: JSX.ValueOrCell<string>;
-    onClick?: JSX.ValueOrCell<(event: Event) => void>;
+    onClick?: JSX.EventHandlerValue<(event: Event) => void>;
     active?: JSX.ValueOrCell<Booleanish>;
   }
 

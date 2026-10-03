@@ -214,7 +214,12 @@ export function runInvalidatorWithHMRBoundaries(
   completeProps,
   renderer
 ) {
-  const snapshot = branchState();
+  const base = branchState();
+  const createGeneration = () => ({
+    scopes: base.scopes,
+    node: base.node.branch(),
+    renderer: base.renderer,
+  });
 
   /** @returns {Node[]} */
   const nextComponentRender = () => {
@@ -230,65 +235,83 @@ export function runInvalidatorWithHMRBoundaries(
     );
   };
 
-  let nodes = withState(snapshot, nextComponentRender);
+  let generation = createGeneration();
+  let nodes = withState(generation, nextComponentRender);
 
   /** @type {ReactiveCellFunction<Function, Node, void>} */
   const refresh = function (fn) {
-    snapshot.node.dispose();
-    const swap = () => {
-      const hmr = __HMR_SYMBOLS.getHMRContext();
-      if (!hmr) return false;
-      if (hmr.current.peek() === fn) {
-        if (!this.isConnected) return false;
-        // If a component render instance is in an update path, there is
-        // no use updating it, since it will be (or has been) overwritten
-        // by its parent.
-        const parents = __HMR_SYMBOLS.useComponentAncestry();
-        const instanceIsInUpdatePath = parents.some((c) => {
-          return (c !== fn && hmr.old.includes(c)) || hmr.new.includes(c);
-        });
-        if (instanceIsInUpdatePath) return false;
-      }
-
-      if (this !== nodes[0]) {
-        // Hard to explain, but it means at the leaf of the render tree
-        // there was a single node, but a child component updated,
-        // changing the value of that node.
-        const staleNodes = nodes;
-        nodes = [this];
-
-        /** @type {Node | null} */
-        let next = this;
-        while (staleNodes.length !== nodes.length) {
-          next = this.nextSibling;
-          if (!next) break;
-          nodes.push(next);
+    const attempt = createGeneration();
+    let updated;
+    try {
+      updated = withState(attempt, () => {
+        const hmr = __HMR_SYMBOLS.getHMRContext();
+        if (!hmr) return false;
+        if (hmr.current.peek() === fn) {
+          if (!this.isConnected) return false;
+          // If a component render instance is in an update path, there is
+          // no use updating it, since it will be (or has been) overwritten
+          // by its parent.
+          const parents = __HMR_SYMBOLS.useComponentAncestry();
+          const instanceIsInUpdatePath = parents.some((c) => {
+            return (c !== fn && hmr.old.includes(c)) || hmr.new.includes(c);
+          });
+          if (instanceIsInUpdatePath) return false;
         }
-      }
 
-      const oldStart = nodes[0];
-      const oldEnd = nodes[nodes.length - 1];
+        if (this !== nodes[0]) {
+          // Hard to explain, but it means at the leaf of the render tree
+          // there was a single node, but a child component updated,
+          // changing the value of that node.
+          const staleNodes = nodes;
+          nodes = [this];
 
-      nodes = nextComponentRender();
-      const finalFragment = consolidateNodes(nodes, renderer);
+          /** @type {Node | null} */
+          let current = this;
+          while (staleNodes.length !== nodes.length) {
+            current = this.nextSibling;
+            if (!current) break;
+            nodes.push(current);
+          }
+        }
 
-      const range = window.document.createRange();
-      range.setStartBefore(oldStart);
-      range.setEndAfter(oldEnd);
-      range.deleteContents();
-      range.insertNode(finalFragment);
+        const oldStart = nodes[0];
+        const oldEnd = nodes[nodes.length - 1];
 
-      queueMicrotask(() => {
-        // We cannot start listening in this run of the event loop,
-        // because then we are asking the system to overwrite what
-        // we just replaced.
-        copyCellListeners(this, nodes[0]);
-        removeCellListeners(this); // prevents phantom updates.
+        const rendered = nextComponentRender();
+        const finalFragment = consolidateNodes(rendered, renderer);
+
+        const range = window.document.createRange();
+        range.setStartBefore(oldStart);
+        range.setEndAfter(oldEnd);
+        range.deleteContents();
+        range.insertNode(finalFragment);
+
+        nodes = rendered;
+        queueMicrotask(() => {
+          // We cannot start listening in this run of the event loop,
+          // because then we are asking the system to overwrite what
+          // we just replaced.
+          copyCellListeners(this, nodes[0]);
+          removeCellListeners(this); // prevents phantom updates.
+        });
+        return true;
       });
-      return true;
-    };
-    const updated = withState(snapshot, swap);
-    if (updated) snapshot.node.activate();
+    } catch (error) {
+      attempt.node.dispose();
+      throw error;
+    }
+
+    if (!updated) {
+      // The committed generation is intentionally left alive. When the
+      // update is covered by a parent render, disposing the parent's old
+      // generation cascades here; when it is not, the boundary is untouched.
+      attempt.node.dispose();
+      return;
+    }
+    const previous = generation;
+    generation = attempt;
+    previous.node.dispose();
+    void attempt.node.activate();
   };
 
   addCellListener(nodes[0], value, refresh, false);

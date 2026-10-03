@@ -23,3 +23,34 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run test
+
+  gpui:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: pnpm install --frozen-lockfile
+      # `retend` and `retend-gpui` resolve their types from `dist/`, so both
+      # must be built before typechecking (the tests fixture imports
+      # `retend-gpui` itself).
+      - run: pnpm run build-core
+      - run: pnpm run build-gpui
+      - run: pnpm --dir packages/retend-gpui run typecheck
+      - run: pnpm --dir packages/retend-gpui run lint
+      - run: pnpm --dir packages/retend-gpui run protocol:check
+      - run: pnpm --dir packages/retend-gpui run native:build
+      # The Windows packaging tests run the real `writeBundle` for win32-x64,
+      # which copies the prebuilt addon. That binary is gitignored and cannot
+      # be built on this macOS runner (the Build Native Addon workflow builds
+      # the real one), so a placeholder satisfies the file-exists check.
+      - run: touch packages/retend-gpui/native/npm/win32-x64-msvc/retend-gpui-native.win32-x64-msvc.node
+      - run: pnpm --dir packages/retend-gpui run test:all

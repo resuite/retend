@@ -1,0 +1,33 @@
+function jsxTypingProbe() {
+  const handleClick = () => {};
+  const validDiv = (
+    <div
+      style={{
+        width: 120,
+        opacity: 0.5,
+        backgroundColor: '#ff0000',
+        transitionProperty: ['width', 'opacity', 'backgroundColor'],
+        transitionDuration: '.2s',
+        transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        focused: { borderColor: '#000000' },
+      }}
+    />
+  );
+  const validTextarea = (
+    <textarea value="hello" placeholder="Write here" minRows={2} maxRows={4} />
+  );
+  const validButton = (
+    <button disabled onClick={handleClick}>
+      Save
+    </button>
+  );
+
+  // @ts-expect-error textarea values are strings
+  const invalidTextarea = <textarea value={123} />;
+  // @ts-expect-error tabIndex is numeric
+  const invalidDiv = <div tabIndex="0" />;
+
+  void [validDiv, validTextarea, validButton, invalidTextarea, invalidDiv];
+}
+
+void jsxTypingProbe;

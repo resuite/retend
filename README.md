@@ -4,7 +4,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/resuite/retend)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A renderer-independent reactive framework for building user interfaces.**
+**A reactive UI framework with a renderer-independent core.**
 
 > Retend is alpha software. APIs may change before the first stable release.
 
@@ -67,9 +67,11 @@ The project is split into packages with separate responsibilities:
 - **`retend`**: The renderer-independent core, including reactivity, JSX, control flow, and routing.
 - **`retend-web`**: The web renderer for browser applications.
 - **`retend-server`**: Server-side rendering and static site generation support.
+- **`retend-gpui`**: Experimental native desktop renderer backed by GPUI.
 - **`retend-start`**: CLI for scaffolding new Retend projects.
 - **`retend-utils`**: Utility functions, hooks, and reusable components.
 - **`retend-web-devtools`**: Development tools for inspecting Retend web applications.
+- **`retend-oxlint-plugin`**: Oxlint rules that enforce Retend idioms.
 
 ## Links
 

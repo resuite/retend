@@ -1,0 +1,113 @@
+{
+  "name": "retend-gpui",
+  "version": "0.0.35",
+  "private": false,
+  "description": "Native desktop rendering for the Retend UI framework through GPUI.",
+  "keywords": [
+    "desktop",
+    "gpui",
+    "javascript",
+    "jsx",
+    "native",
+    "renderer"
+  ],
+  "homepage": "https://github.com/resuite/retend#readme",
+  "bugs": {
+    "url": "https://github.com/resuite/retend/issues"
+  },
+  "license": "MIT",
+  "author": "Adebola Akomolafe",
+  "repository": {
+    "type": "git",
+    "directory": "github.com/resuite/retend"
+  },
+  "bin": {
+    "retend-gpui": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime/index.d.ts",
+      "import": "./dist/jsx-runtime/index.js"
+    },
+    "./plugins/vite": {
+      "types": "./dist/plugins/vite.d.ts",
+      "import": "./dist/plugins/vite.js"
+    },
+    "./plugins/hmr": {
+      "types": "./dist/plugins/hmr.d.ts",
+      "import": "./dist/plugins/hmr.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/production.d.ts",
+      "import": "./dist/runtime/production.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prebuild": "node scripts/generate-native-protocol.js",
+    "build": "node scripts/build.js",
+    "prenative:build": "node scripts/generate-native-protocol.js",
+    "native:build": "node scripts/build-native.js",
+    "prenative:build:release": "node scripts/generate-native-protocol.js",
+    "native:build:release": "node scripts/build-native.js --release",
+    "native:smoke-window": "node scripts/smoke-native-window.js",
+    "benchmark:native": "CARGO_PROFILE_RELEASE_LTO=false cargo test --manifest-path native/Cargo.toml --release --features benchmarks benchmark -- --nocapture",
+    "benchmark:native:debug": "cargo test --manifest-path native/Cargo.toml --features benchmarks benchmark -- --nocapture",
+    "protocol:generate": "node scripts/generate-native-protocol.js",
+    "protocol:check": "node scripts/generate-native-protocol.js --check",
+    "pretypecheck": "node scripts/generate-native-protocol.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint -c .oxlintrc.json .",
+    "pretest": "node scripts/generate-native-protocol.js",
+    "test": "node scripts/test.js",
+    "pretest:native": "node scripts/generate-native-protocol.js",
+    "test:native": "vitest run tests/native-bridge.integration.spec.ts",
+    "test:all": "pnpm run test && pnpm run test:native"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3",
+    "@types/node": "^22.7.5",
+    "retend": "workspace:*",
+    "retend-oxlint-plugin": "workspace:*",
+    "typescript": "^5.8.2",
+    "vite": "^8.0.0",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "retend": "*",
+    "vite": "^8.0.0"
+  },
+  "optionalDependencies": {
+    "retend-gpui-native-darwin-arm64": "workspace:*",
+    "retend-gpui-native-linux-arm64-gnu": "workspace:*",
+    "retend-gpui-native-linux-x64-gnu": "workspace:*",
+    "retend-gpui-native-win32-arm64-msvc": "workspace:*",
+    "retend-gpui-native-win32-x64-msvc": "workspace:*"
+  },
+  "napi": {
+    "binaryName": "retend-gpui-native",
+    "npmClient": "pnpm",
+    "packageName": "retend-gpui-native",
+    "targets": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-pc-windows-msvc",
+      "x86_64-pc-windows-msvc"
+    ]
+  },
+  "dependencies": {
+    "resedit": "^3.1.0",
+    "sharp": "^0.34.5"
+  }
+}

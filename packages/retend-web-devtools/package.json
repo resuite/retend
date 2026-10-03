@@ -1,8 +1,16 @@
 {
   "name": "retend-web-devtools",
-  "version": "0.0.33",
+  "version": "0.0.35",
   "private": false,
-  "description": "Retend DevTools for web apps.",
+  "description": "Inspect the component tree and live reactive state in Retend web apps.",
+  "keywords": [
+    "debugging",
+    "devtools",
+    "javascript",
+    "jsx",
+    "reactive",
+    "retend"
+  ],
   "license": "MIT",
   "author": "Adebola Akomolafe",
   "files": [

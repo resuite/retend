@@ -1,0 +1,1609 @@
+use std::{collections::HashMap, sync::Arc};
+
+#[cfg(target_os = "windows")]
+#[path = "windows_icon.rs"]
+mod windows_icon;
+
+use gpui::{
+    div, prelude::*, px, rgb, size, App, Bounds, Context, Render, Subscription, Window,
+    WindowBounds, WindowHandle, WindowOptions,
+};
+
+#[cfg(test)]
+use crate::runtime_state::MeasureResponder;
+
+use crate::{
+    protocol_generated::NativeEventId,
+    runtime_state::{
+        LayoutOperation, QueryResponder, RuntimeStateRegistry, TextControlConfig, TextControlEditor,
+    },
+    tree::{NativeTree, NodeData, NodeId, TextControlSnapshot, WindowId},
+    NativeSelection, NativeWindowOptions,
+};
+
+struct RetendRootView {
+    window_id: WindowId,
+    runtime_state: RuntimeStateRegistry,
+    last_window_size: Option<(f32, f32)>,
+    _window_observers: Option<(Subscription, Subscription)>,
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_FOCUS_EVENTS: std::cell::RefCell<Vec<(WindowId, NodeId, NativeEventId)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+fn emit_focus_event(window_id: WindowId, id: NodeId, event: NativeEventId, window: &mut Window) {
+    #[cfg(test)]
+    TEST_FOCUS_EVENTS.with(|events| events.borrow_mut().push((window_id, id, event)));
+    if crate::runtime()
+        .lock()
+        .is_ok_and(|mut tree| tree.set_focused(window_id, id, event == NativeEventId::Focus))
+    {
+        window.refresh();
+    }
+    if crate::runtime()
+        .lock()
+        .is_ok_and(|tree| tree.has_subscription_in_path(window_id, id, event))
+    {
+        crate::events::emit(window_id, crate::events::NativeEventPayload::new(event, id));
+    }
+}
+
+fn ensure_focus_state<T: 'static>(
+    runtime_state: &RuntimeStateRegistry,
+    window_id: WindowId,
+    window: &mut Window,
+    cx: &mut Context<T>,
+    id: NodeId,
+    tab_index: isize,
+    handle: Option<gpui::FocusHandle>,
+) -> gpui::FocusHandle {
+    let (handle, needs_subscriptions) = runtime_state.ensure_focus(id, tab_index, handle, cx);
+    if needs_subscriptions {
+        let focus = cx.on_focus(&handle, window, move |_, window, _| {
+            emit_focus_event(window_id, id, NativeEventId::Focus, window);
+        });
+        let blur = cx.on_blur(&handle, window, move |_, window, _| {
+            emit_focus_event(window_id, id, NativeEventId::Blur, window);
+        });
+        runtime_state.set_focus_subscriptions(id, [focus, blur]);
+    }
+    handle
+}
+
+fn ensure_text_control_entity<T: 'static>(
+    runtime_state: &RuntimeStateRegistry,
+    window_id: WindowId,
+    id: NodeId,
+    snapshot: &TextControlSnapshot,
+    window: &mut Window,
+    cx: &mut Context<T>,
+) -> TextControlEditor {
+    runtime_state.ensure_text_control(
+        window_id,
+        id,
+        TextControlConfig {
+            kind: snapshot.kind,
+            value: &snapshot.value,
+            value_revision: snapshot.value_revision,
+            placeholder: &snapshot.placeholder,
+            min_rows: snapshot.min_rows,
+            max_rows: snapshot.max_rows,
+        },
+        window,
+        cx,
+    )
+}
+
+fn focus_runtime_node<T: 'static>(
+    runtime_state: &RuntimeStateRegistry,
+    window_id: WindowId,
+    id: NodeId,
+    tab_index: isize,
+    text_control: Option<&TextControlSnapshot>,
+    window: &mut Window,
+    cx: &mut Context<T>,
+) {
+    let handle = text_control.map(|snapshot| {
+        ensure_text_control_entity(runtime_state, window_id, id, snapshot, window, cx)
+            .focus_handle(cx)
+    });
+    ensure_focus_state(runtime_state, window_id, window, cx, id, tab_index, handle)
+        .focus(window, cx);
+}
+
+pub(crate) fn prepare_frame<T: 'static>(
+    tree: &NativeTree,
+    runtime_state: &RuntimeStateRegistry,
+    window_id: WindowId,
+    window: &mut Window,
+    cx: &mut Context<T>,
+) -> u64 {
+    let generation = runtime_state.begin_frame(tree, window_id);
+    if !runtime_state.needs_preparation(tree, window_id) {
+        return generation;
+    }
+    for (&id, node) in tree
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.window_id == window_id)
+    {
+        let text_control = if let NodeData::TextControl {
+            kind,
+            value,
+            value_revision,
+            placeholder,
+            min_rows,
+            max_rows,
+        } = &node.data
+        {
+            Some(runtime_state.ensure_text_control(
+                window_id,
+                id,
+                TextControlConfig {
+                    kind: *kind,
+                    value,
+                    value_revision: *value_revision,
+                    placeholder,
+                    min_rows: *min_rows,
+                    max_rows: *max_rows,
+                },
+                window,
+                cx,
+            ))
+        } else {
+            None
+        };
+        match node.effective_tab_index() {
+            Some(tab_index) => {
+                let handle = text_control
+                    .as_ref()
+                    .map(|control| control.focus_handle(cx));
+                ensure_focus_state(runtime_state, window_id, window, cx, id, tab_index, handle);
+            }
+            None => runtime_state.disable_focus(id),
+        }
+        runtime_state.sync_scroll(
+            id,
+            node.style
+                .as_deref()
+                .map(|style| style.overflow)
+                .unwrap_or_default(),
+        );
+    }
+    generation
+}
+
+pub(crate) enum TextControlOperation {
+    SetSelection(u32, u32),
+    Select,
+    GetSelection(QueryResponder<NativeSelection>),
+}
+
+pub(crate) enum WindowOperation {
+    Invalidate,
+    Focus(NodeId, isize, Option<TextControlSnapshot>),
+    Blur(NodeId),
+    TextControl(NodeId, TextControlSnapshot, TextControlOperation),
+    Layout(LayoutOperation),
+    DestroyRuntimeNodes(Vec<NodeId>),
+    SetTitle(String),
+    Close,
+}
+
+impl WindowOperation {
+    fn reject_closed(self) {
+        match self {
+            Self::Layout(operation) => operation.reject(crate::BridgeFailure::closed_window()),
+            Self::TextControl(_, _, TextControlOperation::GetSelection(responder)) => {
+                responder.respond(Err(crate::BridgeFailure::closed_window()))
+            }
+            _ => {}
+        }
+    }
+}
+
+fn execute_window_operation(
+    window_id: WindowId,
+    window: Option<WindowHandle<RetendRootView>>,
+    operation: WindowOperation,
+    cx: &mut App,
+) {
+    let Some(window) = window else {
+        operation.reject_closed();
+        return;
+    };
+    let result = window.update(cx, |view, window, cx| {
+        let runtime = &view.runtime_state;
+        match &operation {
+            WindowOperation::Invalidate => cx.notify(),
+            WindowOperation::Focus(id, tab_index, text_control) => {
+                focus_runtime_node(
+                    runtime,
+                    window_id,
+                    *id,
+                    *tab_index,
+                    text_control.as_ref(),
+                    window,
+                    cx,
+                );
+            }
+            WindowOperation::Blur(id) => {
+                if !runtime
+                    .focus_handle(*id)
+                    .is_some_and(|handle| handle.is_focused(window))
+                {
+                    return;
+                }
+                window.blur(cx);
+            }
+            WindowOperation::TextControl(id, snapshot, operation) => {
+                let control =
+                    ensure_text_control_entity(runtime, window_id, *id, snapshot, window, cx);
+                match operation {
+                    TextControlOperation::SetSelection(start, end) => {
+                        control.set_selection(*start, *end, cx);
+                    }
+                    TextControlOperation::Select => control.select_all(window, cx),
+                    TextControlOperation::GetSelection(responder) => {
+                        responder.respond(control.selection(window, cx));
+                    }
+                }
+            }
+            WindowOperation::Layout(operation) => {
+                runtime.enqueue_layout(operation.clone());
+                cx.notify();
+            }
+            WindowOperation::DestroyRuntimeNodes(ids) => {
+                runtime.destroy_nodes(ids);
+                cx.notify();
+            }
+            WindowOperation::SetTitle(title) => window.set_window_title(title),
+            WindowOperation::Close => window.remove_window(),
+        }
+    });
+    if result.is_err() {
+        operation.reject_closed();
+    }
+}
+
+impl Drop for RetendRootView {
+    fn drop(&mut self) {
+        self.runtime_state.reject_queries(
+            "CLOSED_WINDOW",
+            "Renderer window closed before the native query completed.",
+        );
+    }
+}
+
+impl Render for RetendRootView {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let window_id = self.window_id;
+        let runtime_state = self.runtime_state.clone();
+        let content = crate::runtime().lock().ok().and_then(|tree| {
+            let native_window = tree.windows.get(&window_id)?;
+            if let Some(fatal) = native_window.fatal.as_ref() {
+                self.runtime_state.reject_queries(
+                    "POISONED_RENDERER",
+                    "Renderer became poisoned before the native query completed.",
+                );
+                let runtime_state = runtime_state.clone();
+                return Some(
+                    div()
+                        .size_full()
+                        .p_6()
+                        .bg(rgb(0x1a1111))
+                        .text_color(rgb(0xff8a8a))
+                        .child("Retend GPUI fatal renderer error")
+                        .child(fatal.native_failure.clone())
+                        .child(fatal.javascript_stack.clone())
+                        .child(div().id("retend-fatal-reload").child("Reload").on_click(
+                            move |_, _, _| {
+                                let reloaded = crate::runtime()
+                                    .lock()
+                                    .ok()
+                                    .is_some_and(|mut tree| tree.reload_window(window_id).is_ok());
+                                if reloaded {
+                                    runtime_state.clear();
+                                    crate::events::emit_window(
+                                        window_id,
+                                        crate::events::NativeWindowEventPayload::reload(),
+                                    );
+                                }
+                            },
+                        ))
+                        .into_any_element(),
+                );
+            }
+
+            let generation = prepare_frame(&tree, &self.runtime_state, window_id, window, cx);
+            Some(crate::render::build_with_runtime(
+                &tree,
+                native_window.root_id,
+                &self.runtime_state,
+                generation,
+                window,
+                cx,
+            ))
+        });
+
+        match content {
+            Some(content) => content,
+            None => crate::render::root_container().into_any_element(),
+        }
+    }
+}
+
+fn window_dimension(value: Option<f64>) -> Result<Option<f32>, String> {
+    value
+        .map(|value| {
+            if value > f64::from(f32::MAX) {
+                Err("Native window dimensions exceed GPUI limits.".to_string())
+            } else {
+                Ok(value as f32)
+            }
+        })
+        .transpose()
+}
+
+#[derive(Clone, Copy)]
+struct WindowSizeConstraints {
+    min_width: Option<f32>,
+    min_height: Option<f32>,
+    max_width: Option<f32>,
+    max_height: Option<f32>,
+}
+
+impl WindowSizeConstraints {
+    fn clamp(self, width: f32, height: f32) -> (f32, f32) {
+        (
+            width
+                .max(self.min_width.unwrap_or(0.0))
+                .min(self.max_width.unwrap_or(f32::MAX)),
+            height
+                .max(self.min_height.unwrap_or(0.0))
+                .min(self.max_height.unwrap_or(f32::MAX)),
+        )
+    }
+}
+
+impl RetendRootView {
+    fn window_size_event(
+        &mut self,
+        constraints: WindowSizeConstraints,
+        window: &mut Window,
+    ) -> Option<crate::events::NativeWindowEventPayload> {
+        let current = window.viewport_size();
+        let current = (f32::from(current.width), f32::from(current.height));
+        let size = if window.is_fullscreen() || window.is_maximized() {
+            current
+        } else {
+            let constrained = constraints.clamp(current.0, current.1);
+            if constrained != current {
+                window.resize(size(px(constrained.0), px(constrained.1)));
+            }
+            constrained
+        };
+        if self.last_window_size == Some(size) {
+            return None;
+        }
+        self.last_window_size = Some(size);
+        Some(crate::events::NativeWindowEventPayload::resize(
+            f64::from(size.0),
+            f64::from(size.1),
+        ))
+    }
+}
+
+fn install_window_observers<Emit>(
+    window_id: WindowId,
+    constraints: WindowSizeConstraints,
+    window: &mut Window,
+    cx: &mut Context<RetendRootView>,
+    emit: Emit,
+) -> (Subscription, Subscription)
+where
+    Emit: Fn(WindowId, crate::events::NativeWindowEventPayload) + Clone + 'static,
+{
+    let emit_resize = emit.clone();
+    (
+        cx.observe_window_bounds(window, move |view, window, cx| {
+            if let Some(payload) = view.window_size_event(constraints, window) {
+                emit_resize(window_id, payload);
+                cx.notify();
+            }
+        }),
+        cx.observe_window_activation(window, move |_, window, _| {
+            emit(
+                window_id,
+                crate::events::NativeWindowEventPayload::activation(window.is_window_active()),
+            );
+        }),
+    )
+}
+
+fn open_gpui_window(
+    window_id: WindowId,
+    options: NativeWindowOptions,
+    cx: &mut App,
+) -> Result<WindowHandle<RetendRootView>, String> {
+    // The identity is staged before the first window and applied here, once the
+    // native application exists, so the Dock/taskbar identity is correct from
+    // the first frame.
+    imp::apply_pending_application_identity(cx)?;
+    let constraints = WindowSizeConstraints {
+        min_width: window_dimension(options.min_width)?,
+        min_height: window_dimension(options.min_height)?,
+        max_width: window_dimension(options.max_width)?,
+        max_height: window_dimension(options.max_height)?,
+    };
+    let (width, height) = constraints.clamp(
+        window_dimension(options.width)?.unwrap_or(800.0),
+        window_dimension(options.height)?.unwrap_or(600.0),
+    );
+    let bounds = Bounds::centered(None, size(px(width), px(height)), cx);
+    let window_bounds = if options.fullscreen.unwrap_or(false) {
+        WindowBounds::Fullscreen(bounds)
+    } else if options.maximized.unwrap_or(false) {
+        WindowBounds::Maximized(bounds)
+    } else {
+        WindowBounds::Windowed(bounds)
+    };
+    let mut window_options = WindowOptions {
+        window_bounds: Some(window_bounds),
+        is_resizable: options.resizable.unwrap_or(true),
+        window_min_size: (constraints.min_width.is_some() || constraints.min_height.is_some())
+            .then(|| {
+                size(
+                    px(constraints.min_width.unwrap_or(0.0)),
+                    px(constraints.min_height.unwrap_or(0.0)),
+                )
+            }),
+        ..Default::default()
+    };
+    if let Some(titlebar) = window_options.titlebar.as_mut() {
+        titlebar.appears_transparent = options.transparent_titlebar.unwrap_or(false);
+        if let Some(title) = options.title {
+            titlebar.title = Some(title.into());
+        }
+    }
+    cx.open_window(window_options, move |window, cx| {
+        #[cfg(target_os = "windows")]
+        windows_icon::apply(window);
+        window.on_window_should_close(cx, move |_window, _cx| {
+            mark_window_closed(window_id);
+            true
+        });
+        cx.new(|cx| {
+            let mut view = RetendRootView {
+                window_id,
+                runtime_state: RuntimeStateRegistry::default(),
+                last_window_size: None,
+                _window_observers: None,
+            };
+            if let Some(payload) = view.window_size_event(constraints, window) {
+                crate::events::emit_window(window_id, payload);
+            }
+            crate::events::emit_window(
+                window_id,
+                crate::events::NativeWindowEventPayload::activation(window.is_window_active()),
+            );
+            view._window_observers = Some(install_window_observers(
+                window_id,
+                constraints,
+                window,
+                cx,
+                |window_id, payload| {
+                    crate::events::emit_window(window_id, payload);
+                },
+            ));
+            view
+        })
+    })
+    .map_err(|error| error.to_string())
+}
+
+fn mark_window_closed(window_id: WindowId) {
+    crate::events::emit_close(window_id);
+    if let Ok(mut tree) = crate::runtime().lock() {
+        tree.close_window(window_id);
+    }
+    remove_registered_window(window_id);
+}
+
+#[cfg(target_os = "macos")]
+mod imp {
+    use std::{cell::RefCell, collections::VecDeque, rc::Rc, sync::Mutex};
+
+    use gpui::{Application, ApplicationHandle, Menu, QuitMode};
+
+    use super::*;
+
+    thread_local! {
+        static PLATFORM: RefCell<Option<Rc<gpui_macos::MacPlatform>>> = const { RefCell::new(None) };
+        static APP: RefCell<Option<ApplicationHandle>> = const { RefCell::new(None) };
+        static WINDOWS: RefCell<HashMap<WindowId, WindowHandle<RetendRootView>>> = RefCell::new(HashMap::new());
+    }
+
+    /// Work requested from inside the native pump. Dispatching it directly would
+    /// re-enter the borrowed GPUI application, so it runs after the pump returns.
+    enum DeferredOperation {
+        Window(WindowId, WindowOperation),
+        Open(WindowId, NativeWindowOptions),
+        Close(WindowId),
+    }
+
+    thread_local! {
+        static DEFERRED: RefCell<VecDeque<DeferredOperation>> = const { RefCell::new(VecDeque::new()) };
+    }
+
+    fn with_app<T>(f: impl FnOnce(&ApplicationHandle) -> T) -> Option<T> {
+        APP.with(|app| app.borrow().as_ref().map(f))
+    }
+
+    fn open_window_now(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
+        if let Some(result) =
+            with_app(|app| app.update(|cx| open_gpui_window(window_id, options.clone(), cx)))
+        {
+            let window = result?;
+            WINDOWS.with(|windows| {
+                windows.borrow_mut().insert(window_id, window);
+            });
+            return Ok(());
+        }
+
+        let platform = Rc::new(gpui_macos::MacPlatform::new_embedded());
+        let open_result = Rc::new(RefCell::new(None));
+        let result_for_app = open_result.clone();
+        let app = Application::with_platform(platform.clone())
+            .with_http_client(Arc::new(reqwest_client::ReqwestClient::new()))
+            .with_quit_mode(QuitMode::LastWindowClosed);
+        let app_handle = app.run_embedded(move |cx| {
+            crate::render::init(cx);
+            let result = open_gpui_window(window_id, options, cx);
+            if result.is_ok() {
+                cx.activate(true);
+            }
+            *result_for_app.borrow_mut() = Some(result);
+        });
+
+        let window = match open_result
+            .borrow_mut()
+            .take()
+            .ok_or_else(|| "GPUI did not create the requested native window".to_string())?
+        {
+            Ok(window) => window,
+            Err(error) => {
+                app_handle.update(|cx| cx.quit());
+                return Err(error);
+            }
+        };
+
+        PLATFORM.with(|stored| *stored.borrow_mut() = Some(platform));
+        APP.with(|stored| *stored.borrow_mut() = Some(app_handle));
+        WINDOWS.with(|windows| {
+            windows.borrow_mut().insert(window_id, window);
+        });
+        Ok(())
+    }
+
+    pub fn open_window(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
+        if crate::events::in_direct_window_delivery() {
+            DEFERRED.with(|queue| {
+                queue
+                    .borrow_mut()
+                    .push_back(DeferredOperation::Open(window_id, options))
+            });
+            return Ok(());
+        }
+        open_window_now(window_id, options)
+    }
+
+    fn dispatch_now(window_id: WindowId, operation: WindowOperation) -> bool {
+        let Some(window) = WINDOWS.with(|windows| windows.borrow().get(&window_id).copied()) else {
+            operation.reject_closed();
+            return false;
+        };
+        APP.with(|app| {
+            let app = app.borrow();
+            let Some(app) = app.as_ref() else {
+                operation.reject_closed();
+                return false;
+            };
+            app.update(|cx| execute_window_operation(window_id, Some(window), operation, cx));
+            true
+        })
+    }
+
+    pub(crate) fn dispatch(window_id: WindowId, operation: WindowOperation) -> bool {
+        if crate::events::in_direct_window_delivery() {
+            DEFERRED.with(|queue| {
+                queue
+                    .borrow_mut()
+                    .push_back(DeferredOperation::Window(window_id, operation))
+            });
+            return true;
+        }
+        dispatch_now(window_id, operation)
+    }
+
+    fn close_now(window_id: WindowId) {
+        let window = WINDOWS.with(|windows| windows.borrow_mut().remove(&window_id));
+        if let Some(window) = window {
+            with_app(|app| {
+                app.update(|cx| {
+                    execute_window_operation(window_id, Some(window), WindowOperation::Close, cx)
+                });
+            });
+        }
+    }
+
+    pub fn close_window(window_id: WindowId) {
+        if crate::events::in_direct_window_delivery() {
+            DEFERRED.with(|queue| {
+                queue
+                    .borrow_mut()
+                    .push_back(DeferredOperation::Close(window_id))
+            });
+            return;
+        }
+        close_now(window_id);
+    }
+
+    /// Runs operations queued while the native pump held the application borrow.
+    fn drain_deferred() {
+        loop {
+            let next = DEFERRED.with(|queue| queue.borrow_mut().pop_front());
+            let Some(operation) = next else {
+                return;
+            };
+            match operation {
+                DeferredOperation::Window(window_id, operation) => {
+                    // Query-bearing operations reject themselves if the target window
+                    // disappeared before deferred execution.
+                    let _ = dispatch_now(window_id, operation);
+                }
+                DeferredOperation::Open(window_id, options) => {
+                    let _ = open_window_now(window_id, options);
+                }
+                DeferredOperation::Close(window_id) => close_now(window_id),
+            }
+        }
+    }
+
+    pub fn remove_registered_window(window_id: WindowId) {
+        WINDOWS.with(|windows| {
+            windows.borrow_mut().remove(&window_id);
+        });
+    }
+
+    pub fn tick() -> bool {
+        let running = PLATFORM.with(|platform| {
+            platform
+                .borrow()
+                .as_ref()
+                .map(|platform| {
+                    crate::events::with_direct_window_delivery(|| platform.pump_events())
+                })
+                .unwrap_or(false)
+        });
+        drain_deferred();
+        if !running {
+            WINDOWS.with(|windows| windows.borrow_mut().clear());
+            APP.with(|app| app.borrow_mut().take());
+            PLATFORM.with(|platform| platform.borrow_mut().take());
+        }
+        running
+    }
+
+    /// Application identity staged before the native platform is ready.
+    ///
+    /// `NSApplication` must be the `GPUIApplication` subclass that GPUI installs
+    /// during `Platform::run`; resolving it earlier would create the base class
+    /// and break GPUI's ivar registration. The identity is therefore stored here
+    /// and applied from [`apply_pending_application_identity`] during the first
+    /// window creation.
+    static PENDING_APP_IDENTITY: Mutex<Option<(Option<String>, String)>> = Mutex::new(None);
+
+    /// Stages the process-wide macOS application identity.
+    ///
+    /// A non-bundled process (development) otherwise keeps the Dock icon of the
+    /// hosting executable, i.e. `node`. Retend also installs a native main menu
+    /// before the first window opens; AppKit requires one for standard native
+    /// fullscreen menu-bar/titlebar reveal behavior.
+    pub fn set_application_identity(
+        icon_path: Option<&str>,
+        _identifier: Option<&str>,
+        name: Option<&str>,
+    ) {
+        if let Ok(mut pending) = PENDING_APP_IDENTITY.lock() {
+            *pending = match (icon_path, name) {
+                (None, None) => None,
+                (icon_path, name) => Some((
+                    icon_path.map(str::to_string),
+                    name.unwrap_or("Application").to_string(),
+                )),
+            };
+        }
+    }
+
+    pub(crate) fn apply_pending_application_identity(cx: &mut App) -> Result<(), String> {
+        let Some((icon_path, app_name)) = PENDING_APP_IDENTITY
+            .lock()
+            .ok()
+            .and_then(|mut pending| pending.take())
+        else {
+            return Ok(());
+        };
+
+        if cx.get_menus().is_none() {
+            cx.set_menus([Menu::new(app_name)]);
+        }
+
+        let Some(icon_path) = icon_path else {
+            return Ok(());
+        };
+
+        use cocoa::appkit::{NSApplication, NSImage};
+        use cocoa::base::{id, nil};
+        use cocoa::foundation::NSString;
+        use objc::{msg_send, sel, sel_impl};
+
+        unsafe {
+            let app: id = NSApplication::sharedApplication(nil);
+            let ns_path = NSString::alloc(nil).init_str(&icon_path);
+            let image: id = NSImage::alloc(nil).initWithContentsOfFile_(ns_path);
+            if image != nil {
+                app.setApplicationIconImage_(image);
+                let _: () = msg_send![image, release];
+            } else {
+                eprintln!(
+                    "[retend-gpui] could not load the application icon at {icon_path}"
+                );
+            }
+            let _: () = msg_send![ns_path, release];
+        }
+        Ok(())
+    }
+}
+
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+mod imp {
+    use std::sync::{mpsc::sync_channel, Mutex};
+    use std::thread;
+
+    use futures::{channel::mpsc, StreamExt as _};
+
+    use super::*;
+
+    enum UiCommand {
+        Open {
+            window_id: WindowId,
+            options: NativeWindowOptions,
+            response: std::sync::mpsc::SyncSender<Result<(), String>>,
+        },
+        Window(WindowId, WindowOperation),
+        Forget(WindowId),
+    }
+
+    static COMMANDS: Mutex<Option<mpsc::UnboundedSender<UiCommand>>> = Mutex::new(None);
+
+    /// AppUserModelID, display name, and icon staged before the UI thread exists.
+    ///
+    /// Applied once from [`apply_pending_application_identity`] during the
+    /// first window creation, before any taskbar button exists. Windows-only;
+    /// Linux keeps identity with its packaging work (desktop entry).
+    #[cfg(target_os = "windows")]
+    static PENDING_APP_IDENTITY: Mutex<Option<(Option<String>, String, String)>> = Mutex::new(None);
+
+    fn command_sender() -> Result<mpsc::UnboundedSender<UiCommand>, String> {
+        let mut stored = COMMANDS
+            .lock()
+            .map_err(|_| "GPUI command lock was poisoned")?;
+        if let Some(sender) = stored.as_ref() {
+            return Ok(sender.clone());
+        }
+
+        let (sender, mut receiver) = mpsc::unbounded();
+        thread::Builder::new()
+            .name("retend-gpui-ui".to_string())
+            .spawn(move || {
+                gpui_platform::application()
+                    .with_http_client(Arc::new(reqwest_client::ReqwestClient::new()))
+                    .run(move |cx| {
+                        crate::render::init(cx);
+                        cx.activate(true);
+                        cx.spawn(async move |cx| {
+                            let mut windows = HashMap::new();
+                            while let Some(command) = receiver.next().await {
+                                match command {
+                                    UiCommand::Open {
+                                        window_id,
+                                        options,
+                                        response,
+                                    } => {
+                                        let result = cx
+                                            .update(|cx| open_gpui_window(window_id, options, cx))
+                                            .map_err(|error| error.to_string());
+                                        let quit = result.is_err() && windows.is_empty();
+                                        if let Ok(window) = result.as_ref() {
+                                            windows.insert(window_id, *window);
+                                        }
+                                        let _ = response.send(result.map(|_| ()));
+                                        if quit {
+                                            if let Ok(mut commands) = COMMANDS.lock() {
+                                                commands.take();
+                                            }
+                                            break;
+                                        }
+                                    }
+                                    UiCommand::Window(window_id, operation) => {
+                                        let window = if matches!(&operation, WindowOperation::Close)
+                                        {
+                                            windows.remove(&window_id)
+                                        } else {
+                                            windows.get(&window_id).copied()
+                                        };
+                                        cx.update(|cx| {
+                                            execute_window_operation(window_id, window, operation, cx)
+                                        });
+                                    }
+                                    UiCommand::Forget(window_id) => {
+                                        windows.remove(&window_id);
+                                    }
+                                }
+                            }
+                            let _ = cx.update(|cx| cx.quit());
+                        })
+                        .detach();
+                    });
+                if let Ok(mut commands) = COMMANDS.lock() {
+                    commands.take();
+                }
+            })
+            .map_err(|error| format!("Failed to start GPUI UI thread: {error}"))?;
+        *stored = Some(sender.clone());
+        Ok(sender)
+    }
+
+    pub fn open_window(window_id: WindowId, options: NativeWindowOptions) -> Result<(), String> {
+        let (response, receiver) = sync_channel(1);
+        command_sender()?
+            .unbounded_send(UiCommand::Open {
+                window_id,
+                options,
+                response,
+            })
+            .map_err(|_| "The GPUI UI thread is not running".to_string())?;
+        receiver
+            .recv()
+            .map_err(|_| "The GPUI UI thread stopped during window creation".to_string())?
+    }
+
+    fn send(command: UiCommand) -> bool {
+        COMMANDS
+            .lock()
+            .ok()
+            .and_then(|commands| commands.as_ref().cloned())
+            .is_some_and(|sender| sender.unbounded_send(command).is_ok())
+    }
+
+    pub(crate) fn dispatch(window_id: WindowId, operation: WindowOperation) -> bool {
+        send(UiCommand::Window(window_id, operation))
+    }
+
+    pub fn close_window(window_id: WindowId) {
+        dispatch(window_id, WindowOperation::Close);
+    }
+
+    pub fn remove_registered_window(window_id: WindowId) {
+        send(UiCommand::Forget(window_id));
+    }
+
+    /// No-op: Linux identity (desktop entry, window class) lands with its
+    /// packaging work. The identifier/name pair is consumed by Windows below.
+    pub fn set_application_identity(
+        #[cfg(target_os = "windows")] icon_path: Option<&str>,
+        #[cfg(not(target_os = "windows"))] _icon_path: Option<&str>,
+        #[cfg(target_os = "windows")] identifier: Option<&str>,
+        #[cfg(target_os = "windows")] name: Option<&str>,
+        #[cfg(not(target_os = "windows"))] _identifier: Option<&str>,
+        #[cfg(not(target_os = "windows"))] _name: Option<&str>,
+    ) {
+        #[cfg(target_os = "windows")]
+        if let Ok(mut pending) = PENDING_APP_IDENTITY.lock() {
+            *pending = match (identifier, name) {
+                (Some(identifier), Some(name)) => Some((
+                    icon_path.map(str::to_string),
+                    identifier.to_string(),
+                    name.to_string(),
+                )),
+                _ => None,
+            };
+        }
+    }
+
+    pub(crate) fn apply_pending_application_identity(_cx: &mut App) -> Result<(), String> {
+        // `SetCurrentProcessExplicitAppUserModelID` must precede taskbar
+        // button creation, so this runs at the top of the first window open
+        // on the UI thread. Later windows find nothing pending and skip.
+        #[cfg(target_os = "windows")]
+        if let Some((icon_path, identifier, name)) = PENDING_APP_IDENTITY
+            .lock()
+            .ok()
+            .and_then(|mut pending| pending.take())
+        {
+            _cx.set_app_identity(&identifier, &name);
+            if let Some(icon_path) = icon_path {
+                windows_icon::load(&icon_path)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+mod imp {
+    use super::*;
+
+    pub fn open_window(_window_id: WindowId, _options: NativeWindowOptions) -> Result<(), String> {
+        Err("Retend GPUI does not support this operating system".to_string())
+    }
+
+    pub(crate) fn dispatch(_window_id: WindowId, _operation: WindowOperation) -> bool {
+        false
+    }
+
+    pub fn close_window(_window_id: WindowId) {}
+    pub fn remove_registered_window(_window_id: WindowId) {}
+
+    pub fn set_application_identity(
+        _icon_path: Option<&str>,
+        _identifier: Option<&str>,
+        _name: Option<&str>,
+    ) {}
+
+    pub(crate) fn apply_pending_application_identity(_cx: &mut App) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+pub(crate) use imp::dispatch;
+use imp::remove_registered_window;
+#[cfg(target_os = "macos")]
+pub use imp::tick;
+pub use imp::{close_window, open_window, set_application_identity};
+
+#[cfg(test)]
+thread_local! {
+    static TEST_INVALIDATIONS: std::cell::RefCell<Vec<(WindowId, Option<String>)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub fn invalidate_window(window_id: WindowId) {
+    #[cfg(test)]
+    TEST_INVALIDATIONS.with(|invalidations| {
+        let snapshot = crate::runtime()
+            .lock()
+            .ok()
+            .and_then(|tree| tree.debug_window_json(window_id).ok());
+        invalidations.borrow_mut().push((window_id, snapshot));
+    });
+    dispatch(window_id, WindowOperation::Invalidate);
+}
+
+#[cfg(test)]
+pub(crate) fn take_test_invalidations() -> Vec<(WindowId, Option<String>)> {
+    TEST_INVALIDATIONS.with(|invalidations| std::mem::take(&mut *invalidations.borrow_mut()))
+}
+
+#[cfg(test)]
+fn take_test_focus_events() -> Vec<(WindowId, NodeId, NativeEventId)> {
+    TEST_FOCUS_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        cell::RefCell,
+        rc::Rc,
+        sync::{
+            atomic::{AtomicU32, Ordering},
+            mpsc,
+        },
+    };
+
+    use gpui::{EntityInputHandler, Keystroke, TestAppContext};
+
+    use super::*;
+    use crate::{
+        protocol::{Command, PropertyValue},
+        protocol_generated::{ElementKind, PropertyId},
+        tree::NativeTree,
+    };
+
+    struct FocusTreeView {
+        tree: Rc<RefCell<NativeTree>>,
+        runtime_state: RuntimeStateRegistry,
+        window_id: WindowId,
+    }
+
+    impl Render for FocusTreeView {
+        fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+            let tree = self.tree.borrow();
+            let generation = prepare_frame(&tree, &self.runtime_state, self.window_id, window, cx);
+            crate::render::build_with_runtime(
+                &tree,
+                tree.windows[&self.window_id].root_id,
+                &self.runtime_state,
+                generation,
+                window,
+                cx,
+            )
+        }
+    }
+
+    fn focus_tree(
+        nodes: &[(NodeId, Option<isize>)],
+        edges: &[(NodeId, NodeId)],
+    ) -> (Rc<RefCell<NativeTree>>, WindowId) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        let mut commands = Vec::new();
+        for &(id, tab_index) in nodes {
+            commands.push(Command::CreateNode {
+                id,
+                kind: ElementKind::Container,
+            });
+            if let Some(tab_index) = tab_index {
+                commands.push(Command::SetProperty {
+                    id,
+                    property: PropertyId::TabIndex,
+                    value: PropertyValue::Number(tab_index as f64),
+                });
+            }
+        }
+        for &(parent_id, child_id) in edges {
+            commands.push(Command::InsertChild {
+                parent_id,
+                child_id,
+                before_id: 0,
+            });
+        }
+        tree.borrow_mut()
+            .apply_commands(window_id, commands)
+            .unwrap();
+        (tree, window_id)
+    }
+
+    fn text_control_tree(
+        kind: ElementKind,
+        value: Option<&str>,
+    ) -> (Rc<RefCell<NativeTree>>, WindowId) {
+        let tree = Rc::new(RefCell::new(NativeTree::default()));
+        let window_id = tree.borrow_mut().create_window(1).unwrap();
+        let mut commands = vec![Command::CreateNode { id: 2, kind }];
+        if let Some(value) = value {
+            commands.push(Command::SetProperty {
+                id: 2,
+                property: PropertyId::Value,
+                value: PropertyValue::String(value.into()),
+            });
+        }
+        commands.push(Command::InsertChild {
+            parent_id: 1,
+            child_id: 2,
+            before_id: 0,
+        });
+        tree.borrow_mut()
+            .apply_commands(window_id, commands)
+            .unwrap();
+        (tree, window_id)
+    }
+
+    fn input_tree(value: Option<&str>) -> (Rc<RefCell<NativeTree>>, WindowId) {
+        text_control_tree(ElementKind::Input, value)
+    }
+
+    fn textarea_tree(value: Option<&str>) -> (Rc<RefCell<NativeTree>>, WindowId) {
+        text_control_tree(ElementKind::Textarea, value)
+    }
+
+    static NEXT_GLOBAL_TEST_ROOT: AtomicU32 = AtomicU32::new(0xc000_0000);
+
+    #[gpui::test]
+    fn focus_handle_and_focus_survive_detach_reattach(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = focus_tree(&[(2, Some(0))], &[(1, 2)]);
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+            runtime_state.focus_handle(2).unwrap().focus(window, cx);
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let focus = runtime_state.focus_handle(2).unwrap();
+        take_test_focus_events();
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::RemoveChild {
+                    parent_id: 1,
+                    child_id: 2,
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(runtime_state.focus_handle(2).unwrap(), focus);
+            assert!(focus.is_focused(window));
+        })
+        .unwrap();
+        assert!(take_test_focus_events().is_empty());
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::InsertChild {
+                    parent_id: 1,
+                    child_id: 2,
+                    before_id: 0,
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+            assert_eq!(runtime_state.focus_handle(2).unwrap(), focus);
+            assert!(focus.is_focused(window));
+        })
+        .unwrap();
+        assert!(take_test_focus_events().is_empty());
+    }
+
+    #[gpui::test]
+    fn tab_navigation_and_tab_index_removal_follow_browser_mapping(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = focus_tree(
+            &[(2, Some(0)), (3, Some(1)), (4, Some(-1))],
+            &[(1, 2), (1, 3), (1, 4)],
+        );
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.executor().run_until_parked();
+
+        let tab = Keystroke::parse("tab").unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(tab.clone(), cx);
+        })
+        .unwrap();
+        cx.update_window(window.into(), |_, window, _| {
+            assert!(runtime_state.focus_handle(2).unwrap().is_focused(window));
+        })
+        .unwrap();
+
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(tab.clone(), cx);
+        })
+        .unwrap();
+        cx.update_window(window.into(), |_, window, _| {
+            assert!(runtime_state.focus_handle(3).unwrap().is_focused(window));
+            assert!(!runtime_state.focus_handle(4).unwrap().is_focused(window));
+        })
+        .unwrap();
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::TabIndex,
+                    value: PropertyValue::Null,
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        assert!(runtime_state.tracked_focus_handle(2).is_none());
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::TabIndex,
+                    value: PropertyValue::Number(-1.0),
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        assert!(runtime_state.tracked_focus_handle(2).is_some());
+
+        let shift_tab = Keystroke::parse("shift-tab").unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(shift_tab, cx);
+        })
+        .unwrap();
+        cx.update_window(window.into(), |_, window, _| {
+            assert!(runtime_state.focus_handle(3).unwrap().is_focused(window));
+            assert!(!runtime_state.focus_handle(2).unwrap().is_focused(window));
+        })
+        .unwrap();
+    }
+
+    #[gpui::test]
+    fn native_input_accepts_platform_text_and_stays_single_line(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = input_tree(Some("a"));
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+            let focus = runtime_state.focus_handle(2).unwrap();
+            window.focus(&focus, cx);
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        cx.simulate_input(window.into(), "b\nc");
+
+        let value = cx.update(|cx| runtime_state.input(2).unwrap().read(cx).value().to_string());
+        assert_eq!(value, "abc");
+    }
+
+    #[gpui::test]
+    fn native_textarea_accepts_multiline_platform_text_and_commits_on_blur(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = textarea_tree(None);
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+            runtime_state.focus_handle(2).unwrap().focus(window, cx);
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        crate::runtime_state::take_test_text_events();
+
+        cx.simulate_input(window.into(), "b");
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(Keystroke::parse("enter").unwrap(), cx);
+        })
+        .unwrap();
+        let value = cx.update(|cx| {
+            runtime_state
+                .textarea(2)
+                .unwrap()
+                .read(cx)
+                .value()
+                .to_string()
+        });
+        assert_eq!(value, "b\n");
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![
+                (window_id, 2, NativeEventId::Input, "b".into()),
+                (window_id, 2, NativeEventId::Input, "b\n".into()),
+            ]
+        );
+
+        cx.simulate_input(window.into(), "c");
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Input, "b\nc".into())]
+        );
+
+        cx.update_window(window.into(), |_, window, cx| window.blur(cx))
+            .unwrap();
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Change, "b\nc".into())]
+        );
+    }
+
+    #[gpui::test]
+    fn native_text_control_selection_uses_utf16_offsets_and_pending_controlled_value(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(crate::render::init);
+        for kind in [ElementKind::Input, ElementKind::Textarea] {
+            let (tree, window_id) = text_control_tree(kind, Some("old"));
+            let runtime_state = RuntimeStateRegistry::default();
+            let window = cx.add_window({
+                let tree = tree.clone();
+                let runtime_state = runtime_state.clone();
+                move |_, _| FocusTreeView {
+                    tree,
+                    runtime_state,
+                    window_id,
+                }
+            });
+            cx.update_window(window.into(), |_, window, cx| {
+                window.activate_window();
+                window.draw(cx).clear(cx);
+            })
+            .unwrap();
+
+            tree.borrow_mut()
+                .apply_commands(
+                    window_id,
+                    vec![Command::SetProperty {
+                        id: 2,
+                        property: PropertyId::Value,
+                        value: PropertyValue::String("a😀b".into()),
+                    }],
+                )
+                .unwrap();
+            let snapshot = tree.borrow().text_control_snapshot(window_id, 2).unwrap();
+
+            cx.update(|cx| {
+                window
+                    .update(cx, |_, window, cx| {
+                        let control = ensure_text_control_entity(
+                            &runtime_state,
+                            window_id,
+                            2,
+                            &snapshot,
+                            window,
+                            cx,
+                        );
+                        control.set_selection(3, 3, cx);
+                        assert_eq!(
+                            control.selection(window, cx).unwrap(),
+                            NativeSelection { start: 3, end: 3 }
+                        );
+
+                        control.select_all(window, cx);
+                        assert_eq!(
+                            control.selection(window, cx).unwrap(),
+                            NativeSelection { start: 0, end: 4 }
+                        );
+                    })
+                    .unwrap();
+            });
+        }
+    }
+
+    #[gpui::test]
+    fn native_input_and_change_events_follow_edit_commit_semantics(cx: &mut TestAppContext) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = input_tree(Some("a"));
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+            runtime_state.focus_handle(2).unwrap().focus(window, cx);
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        crate::runtime_state::take_test_text_events();
+
+        cx.simulate_input(window.into(), "b");
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Input, "ab".into())]
+        );
+
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(Keystroke::parse("enter").unwrap(), cx);
+        })
+        .unwrap();
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Change, "ab".into())]
+        );
+
+        cx.update_window(window.into(), |_, window, cx| {
+            window.dispatch_keystroke(Keystroke::parse("enter").unwrap(), cx);
+        })
+        .unwrap();
+        assert!(crate::runtime_state::take_test_text_events().is_empty());
+
+        cx.simulate_input(window.into(), "c");
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Input, "abc".into())]
+        );
+        cx.update_window(window.into(), |_, window, cx| window.blur(cx))
+            .unwrap();
+        assert_eq!(
+            crate::runtime_state::take_test_text_events(),
+            vec![(window_id, 2, NativeEventId::Change, "abc".into())]
+        );
+    }
+
+    #[gpui::test]
+    fn identical_controlled_input_write_preserves_selection_and_composition(
+        cx: &mut TestAppContext,
+    ) {
+        cx.update(crate::render::init);
+        let (tree, window_id) = input_tree(Some("ab"));
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let tree = tree.clone();
+            let runtime_state = runtime_state.clone();
+            move |_, _| FocusTreeView {
+                tree,
+                runtime_state,
+                window_id,
+            }
+        });
+        cx.update_window(window.into(), |_, window, cx| {
+            window.activate_window();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+
+        let input = runtime_state.input(2).unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            input.update(cx, |input, cx| {
+                input.set_selected_range(1..1, cx);
+                input.replace_and_mark_text_in_range(None, "X", Some(1..1), window, cx);
+            });
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let before = cx
+            .update_window(window.into(), |_, window, cx| {
+                input.update(cx, |input, cx| {
+                    (
+                        input.value().to_string(),
+                        input.selected_text_range(false, window, cx).unwrap().range,
+                        input.marked_text_range(window, cx),
+                    )
+                })
+            })
+            .unwrap();
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Value,
+                    value: PropertyValue::String(before.0.clone()),
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let identical = cx
+            .update_window(window.into(), |_, window, cx| {
+                input.update(cx, |input, cx| {
+                    (
+                        input.value().to_string(),
+                        input.selected_text_range(false, window, cx).unwrap().range,
+                        input.marked_text_range(window, cx),
+                    )
+                })
+            })
+            .unwrap();
+        assert_eq!(identical, before);
+
+        tree.borrow_mut()
+            .apply_commands(
+                window_id,
+                vec![Command::SetProperty {
+                    id: 2,
+                    property: PropertyId::Value,
+                    value: PropertyValue::String("z".into()),
+                }],
+            )
+            .unwrap();
+        cx.update_window(window.into(), |_, window, cx| {
+            window.refresh();
+            window.draw(cx).clear(cx);
+        })
+        .unwrap();
+        let replaced = cx
+            .update_window(window.into(), |_, window, cx| {
+                input.update(cx, |input, cx| {
+                    (
+                        input.value().to_string(),
+                        input.selected_text_range(false, window, cx).unwrap().range,
+                        input.marked_text_range(window, cx),
+                    )
+                })
+            })
+            .unwrap();
+        assert_eq!(replaced, ("z".to_string(), 1..1, None));
+    }
+
+    #[gpui::test]
+    fn pending_layout_queries_reject_when_window_closes(cx: &mut TestAppContext) {
+        let root_id = NEXT_GLOBAL_TEST_ROOT.fetch_add(8, Ordering::Relaxed);
+        let window_id = crate::runtime()
+            .lock()
+            .unwrap()
+            .create_window(root_id)
+            .unwrap();
+        let runtime_state = RuntimeStateRegistry::default();
+        let window = cx.add_window({
+            let runtime_state = runtime_state.clone();
+            move |_, _| RetendRootView {
+                window_id,
+                runtime_state,
+                last_window_size: None,
+                _window_observers: None,
+            }
+        });
+        let (sender, receiver) = mpsc::channel();
+        runtime_state.enqueue_layout(LayoutOperation::Measure(
+            root_id,
+            MeasureResponder::new(move |result| sender.send(result).unwrap()),
+        ));
+
+        cx.update_window(window.into(), |_, window, _| window.remove_window())
+            .unwrap();
+        cx.executor().run_until_parked();
+        let failure = receiver.try_recv().unwrap().unwrap_err();
+        assert_eq!(failure.code, "CLOSED_WINDOW");
+        assert!(receiver.try_recv().is_err());
+        crate::runtime().lock().unwrap().close_window(window_id);
+    }
+}

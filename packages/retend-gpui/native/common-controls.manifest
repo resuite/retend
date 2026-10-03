@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Windows-only manifest embedded into the built .node binary.
+  Declares a dependency on Common-Controls v6 so the loader resolves
+  comctl32 imports (e.g. TaskDialogIndirect, used for native prompts)
+  against the v6 side-by-side assembly. Without it, hosts without a v6
+  activation context (plain node.exe) resolve comctl32 v5, which lacks
+  those exports, and the whole addon fails to load with
+  ERROR_PROC_NOT_FOUND ("The specified procedure could not be found").
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+      />
+    </dependentAssembly>
+  </dependency>
+</assembly>

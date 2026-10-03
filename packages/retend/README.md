@@ -3,15 +3,17 @@
 [![npm version](https://img.shields.io/npm/v/retend?color=blue)](https://www.npmjs.com/package/retend)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/resuite/retend)
 
-> Retend is experimental and not ready for production use.
+> Retend is alpha software. APIs may change before the first stable release.
 
-The core reactive framework for building user interfaces with JSX. Retend provides a renderer-agnostic foundation with fine-grained reactivity and built-in routing.
+A reactive UI framework with a renderer-independent core. Retend provides the JSX runtime, reactive primitives, control flow, and routing, and stays decoupled from any platform through an abstract `Renderer` interface.
 
 ## What is Retend?
 
-Retend is a renderer-agnostic reactive UI framework. It provides the building blocks for creating dynamic interfaces while remaining decoupled from any specific platform through an abstract `Renderer` interface.
+Retend is a JSX framework whose core never touches the DOM. Write components and reactive state once, then render them to more than one host:
 
-For browser applications, use it with [`retend-web`](https://github.com/resuite/retend/tree/main/packages/retend-web) (the DOM renderer).
+- **Browser**: [`retend-web`](https://github.com/resuite/retend/tree/main/packages/retend-web) renders to DOM nodes.
+- **Server**: [`retend-server`](https://github.com/resuite/retend/tree/main/packages/retend-server) renders to HTML for SSR and static generation, then hydrates in the browser.
+- **Native desktop**: [`retend-gpui`](https://github.com/resuite/retend/tree/main/packages/retend-gpui) renders to a native OS window through GPUI. This renderer is experimental.
 
 ## Key Concepts
 

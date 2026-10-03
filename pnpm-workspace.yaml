@@ -1,6 +1,7 @@
 packages:
   - docs
   - packages/*
+  - packages/retend-gpui/native/npm/*
   - tests
   - experiments/*
 onlyBuiltDependencies:

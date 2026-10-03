@@ -1,0 +1,20 @@
+{
+  "name": "retend-gpui-examples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "retend-gpui dev",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint -c .oxlintrc.json ."
+  },
+  "dependencies": {
+    "retend": "workspace:*",
+    "retend-gpui": "workspace:*"
+  },
+  "devDependencies": {
+    "retend-oxlint-plugin": "workspace:*",
+    "typescript": "^5.8.2",
+    "vite": "^8.0.0"
+  }
+}

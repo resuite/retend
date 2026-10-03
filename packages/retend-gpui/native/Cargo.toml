@@ -1,0 +1,90 @@
+[package]
+name = "retend-gpui-native"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+benchmarks = ["gpui/profiler", "gpui/bench-support"]
+
+[dependencies]
+napi = { version = "3", features = ["napi8"] }
+napi-derive = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+gpui = { package = "gpui-pre", version = "=0.3.4", default-features = false, features = [
+  "font-kit",
+] }
+gpui-base = "0.6.0"
+reqwest_client = { package = "gpui-pre-reqwest-client", version = "=0.3.4" }
+
+[lints.rust]
+# `objc` 0.2's `sel_impl` macro emits `cfg(feature, "cargo-clippy")`, which
+# newer rustc flags as unexpected. Declared here so the lint stays active for
+# genuinely unknown cfgs.
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(feature, values("cargo-clippy"))',
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "=0.26.0"
+objc = "0.2.7"
+core-text = "=21.0.0"
+core-graphics = "=0.24.0"
+gpui_macos = { package = "gpui-pre-macos", version = "=0.3.4", default-features = false, features = [
+  "font-kit",
+] }
+
+[target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
+futures = "0.3"
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.4", default-features = false, features = [
+  "font-kit",
+  "wayland",
+  "x11",
+] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+image = { version = "0.25.10", default-features = false, features = ["ico", "png"] }
+raw-window-handle = "0.6.2"
+resvg = "0.46.0"
+windows = { version = "0.61.3", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[build-dependencies]
+napi-build = "2"
+
+[dev-dependencies]
+gpui = { package = "gpui-pre", version = "=0.3.4", default-features = false, features = [
+  "font-kit",
+  "test-support",
+] }
+proptest = "1"
+
+[patch.crates-io]
+gpui-pre = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-macos = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-apple = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-wgpu = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+gpui-pre-windows = { git = "https://github.com/resuite/gpui-pre", rev = "ad44e46c0636649e9173d0b14557ef197675a403" }
+
+# Debug info dominates the dev target directory. Keep line tables for our own
+# crate (enough for file:line backtraces) and drop it entirely for
+# dependencies. This matches the dev profile Squire's workspaces use, so
+# shared dependency compilations can hit the same mbx cache keys where inputs
+# line up.
+[profile.dev]
+debug = 1
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+lto = true
+strip = "symbols"

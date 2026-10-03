@@ -43,6 +43,32 @@ describe('Attributes', () => {
     browserSetup();
     runTests();
 
+    it('should reactively replace and remove event listeners', () => {
+      const clicks = Cell.source(0);
+      type ClickHandler = (this: HTMLButtonElement, event: MouseEvent) => void;
+      const handler = Cell.source<ClickHandler | null | undefined>(function () {
+        clicks.set(clicks.get() + 1);
+      });
+      const element = render(
+        <button type="button" onClick={handler}>
+          Click
+        </button>
+      ) as HTMLButtonElement;
+
+      element.dispatchEvent(new MouseEvent('click'));
+      expect(clicks.get()).toBe(1);
+
+      handler.set(function () {
+        clicks.set(clicks.get() + 10);
+      });
+      element.dispatchEvent(new MouseEvent('click'));
+      expect(clicks.get()).toBe(11);
+
+      handler.set(null);
+      element.dispatchEvent(new MouseEvent('click'));
+      expect(clicks.get()).toBe(11);
+    });
+
     it('should preserve SVG namespaces and interactivity through component boundaries', () => {
       const clicks = Cell.source(0);
       const IconPart = () => (

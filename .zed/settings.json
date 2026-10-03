@@ -6,7 +6,8 @@
     "oxfmt",
     "oxlint",
     "stylelint",
-    "tailwindcss-language-server"
+    "tailwindcss-language-server",
+    "rust-analyzer"
   ],
   "lsp": {
     "mdx-analyzer": {

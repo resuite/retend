@@ -7,23 +7,59 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Fast HLSL validation with Microsoft's compiler on Linux. Catches
+  # shader errors in ~1 minute instead of a full Windows release build.
+  # Uses a modern profile purely for validation; the Windows job still
+  # compiles the final shaders with fxc.
+  validate-shaders:
+    name: validate-shaders
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch pinned fork revision
+        run: |
+          REV=$(sed -n 's/.*gpui-pre-windows = { git = "[^"]*", rev = "\([0-9a-f]\{40\}\)".*/\1/p' packages/retend-gpui/native/Cargo.toml | head -1)
+          echo "Fork rev: $REV"
+          test -n "$REV"
+          git clone --quiet https://github.com/resuite/gpui-pre /tmp/gpui-pre
+          git -C /tmp/gpui-pre checkout --quiet "$REV"
+          echo "SHADER_DIR=/tmp/gpui-pre/crates/gpui-pre-windows/src" >> "$GITHUB_ENV"
+      - name: Install DirectXShaderCompiler
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.9.2607 --repo microsoft/DirectXShaderCompiler --pattern 'linux_dxc_*.tar.gz' --dir /tmp
+          tar -xzf /tmp/linux_dxc_*.tar.gz -C /tmp
+          echo "DXC=$(echo /tmp/*/bin/dxc)" >> "$GITHUB_ENV"
+      - name: Compile all HLSL entry points
+        run: |
+          "$DXC" --version
+          fail=0
+          check() {
+            if ! "$DXC" -T "$1" -E "$2" -I "$SHADER_DIR" "$3" -Fo /dev/null; then
+              echo "FAILED: $2 ($1)"
+              fail=1
+            fi
+          }
+          for m in quad quad_transformed shadow shadow_transformed path_rasterization path_sprite underline underline_transformed monochrome_sprite monochrome_sprite_transformed subpixel_sprite polychrome_sprite polychrome_sprite_transformed; do
+            check vs_6_0 "${m}_vertex" "$SHADER_DIR/shaders.hlsl"
+            check ps_6_0 "${m}_fragment" "$SHADER_DIR/shaders.hlsl"
+          done
+          check vs_6_0 emoji_rasterization_vertex "$SHADER_DIR/color_text_raster.hlsl"
+          check ps_6_0 emoji_rasterization_fragment "$SHADER_DIR/color_text_raster.hlsl"
+          exit $fail
+
   build:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    # Windows and Linux build/runtime behavior is not validated yet. Keep those
-    # targets from blocking releases until the platform work lands.
-    continue-on-error: ${{ !startsWith(matrix.target, 'darwin') }}
+    # Linux remains experimental; Windows native builds must be green.
+    continue-on-error: ${{ startsWith(matrix.target, 'linux') }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: darwin-arm64
             runner: macos-15
-          # No free Intel macOS standard runner remains after macos-13 was
-          # retired, so darwin-x64 is cross-built on the arm64 runner.
-          - target: darwin-x64
-            runner: macos-15
-            rust-target: x86_64-apple-darwin
           - target: linux-x64-gnu
             runner: ubuntu-24.04
           - target: linux-arm64-gnu
@@ -43,9 +79,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
-      - name: Add cross-compilation target
-        if: matrix.rust-target
-        run: rustup target add ${{ matrix.rust-target }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/retend-gpui/native
@@ -61,7 +94,12 @@ jobs:
             libwayland-dev \
             libfontconfig1-dev libfreetype6-dev
 
-      - run: pnpm install --frozen-lockfile
+      # `--ignore-scripts`: the repo-root `wrangler` devDependency pulls in
+      # `workerd`, whose postinstall throws `Unsupported platform` on
+      # Windows ARM and fails the whole install before cargo ever runs. The
+      # native build needs no postinstall artifacts (napi CLI is a plain
+      # bin, Rust comes from the toolchain action), so scripts are skipped.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build release addon
         run: pnpm --dir packages/retend-gpui run native:build:release -- --target=${{ matrix.target }} --locked
       - name: Upload addon
@@ -70,3 +108,30 @@ jobs:
           name: retend-gpui-native-${{ matrix.target }}
           path: packages/retend-gpui/native/npm/${{ matrix.target }}/retend-gpui-native.${{ matrix.target }}.node
           if-no-files-found: error
+      - name: Build JavaScript packages
+        if: matrix.target == 'win32-x64-msvc'
+        run: |
+          pnpm run build-core
+          pnpm run build-gpui
+      - name: Package GPUI smoke app
+        if: matrix.target == 'win32-x64-msvc'
+        run: pnpm --dir packages/retend-gpui exec vite build --config tests/fixtures/windows-smoke/vite.config.ts
+      - name: Verify packaged icon and metadata
+        if: matrix.target == 'win32-x64-msvc'
+        run: node packages/retend-gpui/tests/fixtures/windows-smoke/verify-package.mjs
+      - name: Launch packaged app
+        if: matrix.target == 'win32-x64-msvc'
+        timeout-minutes: 2
+        shell: pwsh
+        env:
+          RETEND_GPUI_SMOKE_MARKER: ${{ runner.temp }}\gpui-smoke.txt
+        run: |
+          $exe = (Resolve-Path 'packages/retend-gpui/tests/fixtures/windows-smoke/dist/win32-x64/GpuiSmoke.exe').Path
+          $stdout = Join-Path $env:RUNNER_TEMP 'gpui-smoke-stdout.txt'
+          $stderr = Join-Path $env:RUNNER_TEMP 'gpui-smoke-stderr.txt'
+          $app = Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -RedirectStandardOutput $stdout -RedirectStandardError $stderr -Wait -PassThru
+          if (Test-Path $stdout) { Get-Content $stdout }
+          if (Test-Path $stderr) { Get-Content $stderr }
+          if ($app.ExitCode -ne 0) { throw "Packaged app exited with $($app.ExitCode)" }
+          if (!(Test-Path $env:RETEND_GPUI_SMOKE_MARKER)) { throw 'GPUI window did not render' }
+          if ((Get-Content $env:RETEND_GPUI_SMOKE_MARKER -Raw) -ne 'mounted') { throw 'Unexpected smoke marker' }

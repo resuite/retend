@@ -126,8 +126,8 @@ describe('Unique', () => {
       const onStart = vi.fn();
       const onEnd = vi.fn();
       const getBoundingClientRect = vi
-        .spyOn(window.HTMLElement.prototype, 'getBoundingClientRect')
-        .mockImplementation(() => new window.DOMRect(0, 0, 20, 20));
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockImplementation(() => new DOMRect(0, 0, 20, 20));
 
       const UniqueContent = createUnique(() => {
         return (
@@ -1478,12 +1478,12 @@ describe('Unique', () => {
       await runPendingSetupEffects();
       expect(getTextContent(body)).toBe('Home ');
       const unique = body.querySelector('.shadow-host');
-      expect(unique?.shadowRoot).toBeInstanceOf(window.ShadowRoot);
+      expect(unique?.shadowRoot).toBeInstanceOf(globalThis.ShadowRoot);
 
       page.set('about');
       await runPendingSetupEffects();
       const unique2 = body.querySelector('.shadow-host');
-      expect(unique2?.shadowRoot).toBeInstanceOf(window.ShadowRoot);
+      expect(unique2?.shadowRoot).toBeInstanceOf(globalThis.ShadowRoot);
 
       body.replaceChildren();
     });
@@ -2009,9 +2009,7 @@ describe('Unique', () => {
 
       // At this point, it should be in pending teardowns.
       // We need to trigger the activate event to process teardowns.
-      body.dispatchEvent(
-        new window.CustomEvent('retend:activate', { bubbles: true })
-      );
+      body.dispatchEvent(new Event('retend:activate', { bubbles: true }));
 
       expect(cleanupFn).toHaveBeenCalledTimes(1);
       body.replaceChildren();

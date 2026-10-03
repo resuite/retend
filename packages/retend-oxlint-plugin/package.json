@@ -1,12 +1,13 @@
 {
   "name": "retend-oxlint-plugin",
-  "version": "0.0.33",
+  "version": "0.0.35",
   "private": false,
-  "description": "Oxlint rules for Retend projects.",
+  "description": "Oxlint rules that enforce Retend idioms and catch common mistakes.",
   "keywords": [
     "lint",
     "oxlint",
-    "retend"
+    "retend",
+    "rules"
   ],
   "homepage": "https://github.com/resuite/retend#readme",
   "bugs": {

@@ -1,0 +1,1508 @@
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet, VecDeque},
+    rc::{Rc, Weak},
+    sync::{Arc, Mutex},
+};
+
+use gpui::{
+    point, px, App, AppContext, Bounds, Context, Entity, EntityInputHandler, FocusHandle,
+    Focusable, Pixels, Point, ScrollHandle, Subscription, TransformationMatrix, Window,
+};
+use gpui_base::input::{
+    InputBaseState, InputEditorStyle, InputEvent, InputModeKind, InputState, TextareaState,
+};
+
+use crate::{
+    events,
+    protocol_generated::NativeEventId,
+    style::OverflowValue,
+    tree::{NativeTree, NodeData, NodeId, TextControlKind, WindowId},
+    BridgeFailure, NativeMeasurement, NativeScrollOffset, NativeSelection,
+};
+
+pub type Measurement = NativeMeasurement;
+
+type QueryCallback<T> = Box<dyn FnOnce(Result<T, BridgeFailure>) + Send>;
+
+#[derive(Clone)]
+pub struct QueryResponder<T>(Arc<Mutex<Option<QueryCallback<T>>>>);
+
+impl<T> QueryResponder<T> {
+    pub fn new(callback: impl FnOnce(Result<T, BridgeFailure>) + Send + 'static) -> Self {
+        Self(Arc::new(Mutex::new(Some(Box::new(callback)))))
+    }
+
+    pub fn respond(&self, result: Result<T, BridgeFailure>) {
+        let callback = self.0.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(callback) = callback {
+            callback(result);
+        }
+    }
+}
+
+pub type MeasureResponder = QueryResponder<Measurement>;
+
+pub type ScrollOffset = NativeScrollOffset;
+pub type ScrollResponder = QueryResponder<ScrollOffset>;
+
+#[derive(Clone, Default)]
+pub struct RuntimeStateRegistry(Rc<RefCell<RuntimeState>>);
+
+#[derive(Default)]
+struct RuntimeState {
+    focus: HashMap<NodeId, FocusState>,
+    text_control: HashMap<NodeId, TextControlRuntimeState>,
+    scroll: HashMap<NodeId, ScrollState>,
+    generation: u64,
+    prepared_revision: Option<(WindowId, u64)>,
+    frame: FrameLayout,
+    pending: VecDeque<(u64, LayoutOperation)>,
+}
+
+impl RuntimeState {
+    fn take_pending(
+        &mut self,
+        mut predicate: impl FnMut(&LayoutOperation) -> bool,
+    ) -> VecDeque<(u64, LayoutOperation)> {
+        let (taken, retained) = std::mem::take(&mut self.pending)
+            .into_iter()
+            .partition(|(_, operation)| predicate(operation));
+        self.pending = retained;
+        taken
+    }
+}
+
+struct FocusState {
+    handle: FocusHandle,
+    subscriptions: Option<[Subscription; 2]>,
+    enabled: bool,
+    owns_handle: bool,
+}
+
+pub struct TextControlConfig<'a> {
+    pub kind: TextControlKind,
+    pub value: &'a str,
+    pub value_revision: u64,
+    pub placeholder: &'a str,
+    pub min_rows: Option<u32>,
+    pub max_rows: Option<u32>,
+}
+
+#[derive(Clone)]
+pub enum TextControlEditor {
+    Input(Entity<InputState>),
+    Textarea(Entity<TextareaState>),
+}
+
+impl TextControlEditor {
+    pub fn focus_handle<T: 'static>(&self, cx: &mut Context<T>) -> FocusHandle {
+        match self {
+            Self::Input(editor) => editor.read(cx).focus_handle(cx),
+            Self::Textarea(editor) => editor.read(cx).focus_handle(cx),
+        }
+    }
+
+    pub fn set_selection(&self, start: u32, end: u32, cx: &mut App) {
+        match self {
+            Self::Input(editor) => set_editor_selection(editor, start, end, cx),
+            Self::Textarea(editor) => set_editor_selection(editor, start, end, cx),
+        }
+    }
+
+    pub fn select_all(&self, window: &mut Window, cx: &mut App) {
+        match self {
+            Self::Input(editor) => editor.update(cx, |editor, cx| editor.select_all(window, cx)),
+            Self::Textarea(editor) => editor.update(cx, |editor, cx| editor.select_all(window, cx)),
+        }
+    }
+
+    pub fn selection(
+        &self,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Result<NativeSelection, BridgeFailure> {
+        match self {
+            Self::Input(editor) => editor_selection(editor, window, cx),
+            Self::Textarea(editor) => editor_selection(editor, window, cx),
+        }
+    }
+}
+
+struct TextControlRuntimeState {
+    editor: TextControlEditor,
+    value_revision: u64,
+    placeholder: String,
+    min_rows: Option<u32>,
+    max_rows: Option<u32>,
+    last_value: String,
+    dirty: bool,
+    _events: Subscription,
+}
+
+struct ScrollState {
+    handle: ScrollHandle,
+    last_event_offset: ScrollOffset,
+}
+
+#[derive(Default)]
+struct FrameLayout {
+    window_id: Option<WindowId>,
+    revision: Option<u64>,
+    nodes: HashMap<NodeId, FrameNode>,
+}
+
+#[derive(Default)]
+struct FrameNode {
+    parent: Option<NodeId>,
+    children: Vec<NodeId>,
+    // Untransformed layout box. Scroll-extent maths stays in this space.
+    bounds: Option<Bounds<Pixels>>,
+    // Maps `bounds` to window coordinates: this node's own CSS transform
+    // composed with every ancestor's, as active when the node painted.
+    transform: TransformationMatrix,
+    // Window-positioned anchored subtrees do not move with logical ancestors.
+    fixed_to_window: bool,
+    // Parent-owned child bottom-right, relative to its box before its own scroll.
+    content_extent: Option<Point<Pixels>>,
+}
+
+impl FrameNode {
+    /// The painted box in window coordinates: the axis-aligned enclosure of
+    /// the transformed border box, as `getBoundingClientRect` reports it.
+    fn client_bounds(&self) -> Option<Bounds<Pixels>> {
+        self.bounds
+            .map(|bounds| self.transform.transform_bounds(bounds))
+    }
+}
+
+#[derive(Clone)]
+pub enum LayoutOperation {
+    Measure(NodeId, MeasureResponder),
+    ScrollOffset(NodeId, OverflowValue, ScrollResponder),
+    Scroll(NodeId, OverflowValue, f32, f32, bool),
+    ScrollIntoView(NodeId),
+}
+
+enum QueryCompletion {
+    Measure(MeasureResponder, Measurement),
+    ScrollOffset(ScrollResponder, ScrollOffset),
+}
+
+impl LayoutOperation {
+    fn id(&self) -> NodeId {
+        match self {
+            Self::Measure(id, _)
+            | Self::ScrollOffset(id, ..)
+            | Self::Scroll(id, ..)
+            | Self::ScrollIntoView(id) => *id,
+        }
+    }
+
+    pub(crate) fn reject(self, failure: BridgeFailure) {
+        match self {
+            Self::Measure(_, responder) => responder.respond(Err(failure)),
+            Self::ScrollOffset(_, _, responder) => responder.respond(Err(failure)),
+            _ => {}
+        }
+    }
+}
+
+impl QueryCompletion {
+    fn respond(self) {
+        match self {
+            Self::Measure(responder, measurement) => responder.respond(Ok(measurement)),
+            Self::ScrollOffset(responder, offset) => responder.respond(Ok(offset)),
+        }
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_TEXT_EVENTS: RefCell<Vec<(WindowId, NodeId, NativeEventId, String)>> =
+        const { RefCell::new(Vec::new()) };
+}
+
+fn emit_text_event(window_id: WindowId, id: NodeId, event: NativeEventId, value: String) {
+    #[cfg(test)]
+    TEST_TEXT_EVENTS.with(|events| {
+        events
+            .borrow_mut()
+            .push((window_id, id, event, value.clone()))
+    });
+    if crate::runtime()
+        .lock()
+        .is_ok_and(|tree| tree.has_subscription_in_path(window_id, id, event))
+    {
+        events::emit(
+            window_id,
+            events::NativeEventPayload::text(event, id, value),
+        );
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn take_test_text_events() -> Vec<(WindowId, NodeId, NativeEventId, String)> {
+    TEST_TEXT_EVENTS.with(|events| std::mem::take(&mut *events.borrow_mut()))
+}
+
+fn emit_scroll_event(window_id: WindowId, id: NodeId, offset: ScrollOffset) {
+    if crate::runtime()
+        .lock()
+        .is_ok_and(|tree| tree.has_subscription_in_path(window_id, id, NativeEventId::Scroll))
+    {
+        events::emit(
+            window_id,
+            events::NativeEventPayload::scroll(id, offset.x, offset.y),
+        );
+    }
+}
+
+impl RuntimeStateRegistry {
+    pub fn is_interactive(&self, id: NodeId) -> bool {
+        let state = self.0.borrow();
+        state.focus.get(&id).is_some_and(|focus| focus.enabled) || state.scroll.contains_key(&id)
+    }
+
+    pub fn ensure_focus(
+        &self,
+        id: NodeId,
+        tab_index: isize,
+        handle: Option<FocusHandle>,
+        cx: &mut App,
+    ) -> (FocusHandle, bool) {
+        let mut state = self.0.borrow_mut();
+        let owns_handle = handle.is_none();
+        let focus = state.focus.entry(id).or_insert_with(|| FocusState {
+            handle: handle.clone().unwrap_or_else(|| cx.focus_handle()),
+            subscriptions: None,
+            enabled: true,
+            owns_handle,
+        });
+        if let Some(handle) = handle {
+            if focus.handle != handle {
+                focus.handle = handle;
+                focus.subscriptions = None;
+            }
+            focus.owns_handle = false;
+        }
+        focus.handle = focus
+            .handle
+            .clone()
+            .tab_index(tab_index)
+            .tab_stop(tab_index >= 0);
+        focus.enabled = true;
+        (focus.handle.clone(), focus.subscriptions.is_none())
+    }
+
+    pub fn set_focus_subscriptions(&self, id: NodeId, subscriptions: [Subscription; 2]) {
+        if let Some(focus) = self.0.borrow_mut().focus.get_mut(&id) {
+            focus.subscriptions = Some(subscriptions);
+        }
+    }
+
+    pub fn disable_focus(&self, id: NodeId) {
+        if let Some(focus) = self.0.borrow_mut().focus.get_mut(&id) {
+            focus.enabled = false;
+            focus.handle = focus.handle.clone().tab_stop(false);
+        }
+    }
+
+    pub fn focus_handle(&self, id: NodeId) -> Option<FocusHandle> {
+        self.0
+            .borrow()
+            .focus
+            .get(&id)
+            .map(|focus| focus.handle.clone())
+    }
+
+    pub fn tracked_focus_handle(&self, id: NodeId) -> Option<FocusHandle> {
+        self.0
+            .borrow()
+            .focus
+            .get(&id)
+            .filter(|focus| focus.enabled && focus.owns_handle)
+            .map(|focus| focus.handle.clone())
+    }
+
+    pub fn external_focus_handle(&self, id: NodeId) -> Option<FocusHandle> {
+        self.0
+            .borrow()
+            .focus
+            .get(&id)
+            .filter(|focus| focus.enabled && !focus.owns_handle)
+            .map(|focus| focus.handle.clone())
+    }
+
+    pub fn ensure_text_control<T: 'static>(
+        &self,
+        window_id: WindowId,
+        id: NodeId,
+        config: TextControlConfig<'_>,
+        window: &mut Window,
+        cx: &mut Context<T>,
+    ) -> TextControlEditor {
+        let TextControlConfig {
+            kind,
+            value,
+            value_revision,
+            placeholder,
+            min_rows,
+            max_rows,
+        } = config;
+        let placeholder = text_control_value(kind, placeholder);
+        let existing = self
+            .0
+            .borrow_mut()
+            .text_control
+            .get_mut(&id)
+            .map(|control| {
+                let revision_changed = control.value_revision != value_revision;
+                let rows_changed = control.min_rows != min_rows || control.max_rows != max_rows;
+                let placeholder_changed = control.placeholder != placeholder;
+                control.value_revision = value_revision;
+                control.min_rows = min_rows;
+                control.max_rows = max_rows;
+                control.placeholder.clone_from(&placeholder);
+                (
+                    control.editor.clone(),
+                    revision_changed,
+                    rows_changed,
+                    placeholder_changed,
+                )
+            });
+        if let Some((editor, revision_changed, rows_changed, placeholder_changed)) = existing {
+            if placeholder_changed {
+                match &editor {
+                    TextControlEditor::Input(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_placeholder(placeholder, window, cx)
+                    }),
+                    TextControlEditor::Textarea(editor) => editor.update(cx, |editor, cx| {
+                        editor.set_placeholder(placeholder, window, cx)
+                    }),
+                };
+            }
+            if rows_changed {
+                if let TextControlEditor::Textarea(editor) = &editor {
+                    editor.update(cx, |editor, cx| {
+                        configure_textarea(editor, min_rows, max_rows, cx)
+                    });
+                }
+            }
+            if revision_changed {
+                let value = text_control_value(kind, value);
+                let changed = match &editor {
+                    TextControlEditor::Input(editor) => {
+                        sync_editor_value(editor, &value, window, cx)
+                    }
+                    TextControlEditor::Textarea(editor) => {
+                        sync_editor_value(editor, &value, window, cx)
+                    }
+                };
+                if changed {
+                    if let Some(control) = self.0.borrow_mut().text_control.get_mut(&id) {
+                        control.last_value = value;
+                        control.dirty = false;
+                    }
+                }
+            }
+            return editor;
+        }
+
+        let value = text_control_value(kind, value);
+        // An unset selection resolves to the near-white accent, not the palette's selection token.
+        let editor_style = InputEditorStyle {
+            selection: gpui_base::Theme::global(cx).tokens.colors.selection,
+            ..Default::default()
+        };
+        let runtime = Rc::downgrade(&self.0);
+        let (editor, events) = match kind {
+            TextControlKind::Input => {
+                let editor = cx.new(|cx| {
+                    let mut editor = InputState::new(window, cx);
+                    editor.set_value(value.clone(), window, cx);
+                    editor.set_placeholder(placeholder.clone(), window, cx);
+                    editor.set_editor_style(editor_style.clone());
+                    editor
+                });
+                let events = subscribe_text_control_events(
+                    cx, &editor, window, runtime, kind, window_id, id,
+                );
+                (TextControlEditor::Input(editor), events)
+            }
+            TextControlKind::Textarea => {
+                let editor = cx.new(|cx| {
+                    let mut editor = TextareaState::new(window, cx);
+                    configure_textarea(&mut editor, min_rows, max_rows, cx);
+                    editor.set_value(value.clone(), window, cx);
+                    editor.set_placeholder(placeholder.clone(), window, cx);
+                    editor.set_editor_style(editor_style.clone());
+                    editor
+                });
+                let events = subscribe_text_control_events(
+                    cx, &editor, window, runtime, kind, window_id, id,
+                );
+                (TextControlEditor::Textarea(editor), events)
+            }
+        };
+        self.0.borrow_mut().text_control.insert(
+            id,
+            TextControlRuntimeState {
+                editor: editor.clone(),
+                value_revision,
+                placeholder,
+                min_rows,
+                max_rows,
+                last_value: value,
+                dirty: false,
+                _events: events,
+            },
+        );
+        editor
+    }
+
+    pub fn text_control(&self, id: NodeId) -> Option<TextControlEditor> {
+        self.0
+            .borrow()
+            .text_control
+            .get(&id)
+            .map(|control| control.editor.clone())
+    }
+
+    pub fn input(&self, id: NodeId) -> Option<Entity<InputState>> {
+        match self.text_control(id)? {
+            TextControlEditor::Input(editor) => Some(editor),
+            TextControlEditor::Textarea(_) => None,
+        }
+    }
+
+    pub fn textarea(&self, id: NodeId) -> Option<Entity<TextareaState>> {
+        match self.text_control(id)? {
+            TextControlEditor::Textarea(editor) => Some(editor),
+            TextControlEditor::Input(_) => None,
+        }
+    }
+
+    pub fn ensure_scroll(&self, id: NodeId) -> ScrollHandle {
+        let mut state = self.0.borrow_mut();
+        let scroll = state.scroll.entry(id).or_insert_with(|| ScrollState {
+            handle: ScrollHandle::new(),
+            last_event_offset: ScrollOffset::default(),
+        });
+        scroll.handle.clone()
+    }
+
+    pub fn sync_scroll(
+        &self,
+        id: NodeId,
+        overflow: crate::style::OverflowValue,
+    ) -> Option<ScrollHandle> {
+        if overflow.is_scroll_container() {
+            return Some(self.ensure_scroll(id));
+        }
+        self.0.borrow_mut().scroll.remove(&id);
+        None
+    }
+
+    pub fn scroll_handle(&self, id: NodeId) -> Option<ScrollHandle> {
+        self.0
+            .borrow()
+            .scroll
+            .get(&id)
+            .map(|scroll| scroll.handle.clone())
+    }
+
+    /// The most recently painted box in window coordinates, transforms
+    /// included; the same rectangle `measure` reports.
+    pub fn client_bounds(&self, id: NodeId) -> Option<Bounds<Pixels>> {
+        self.0
+            .borrow()
+            .frame
+            .nodes
+            .get(&id)
+            .and_then(FrameNode::client_bounds)
+    }
+
+    pub fn needs_preparation(&self, tree: &NativeTree, window_id: WindowId) -> bool {
+        let revision = (window_id, tree.windows[&window_id].revision);
+        let mut state = self.0.borrow_mut();
+        if state.prepared_revision == Some(revision) {
+            return false;
+        }
+        state.prepared_revision = Some(revision);
+        true
+    }
+
+    pub fn begin_frame(&self, tree: &NativeTree, window_id: WindowId) -> u64 {
+        let mut state = self.0.borrow_mut();
+        state.generation = state.generation.saturating_add(1);
+        let generation = state.generation;
+        let revision = Some(tree.windows[&window_id].revision);
+        if state.frame.window_id != Some(window_id) || state.frame.revision != revision {
+            state.frame.window_id = Some(window_id);
+            state.frame.revision = revision;
+            state.frame.nodes.retain(|id, _| {
+                tree.nodes
+                    .get(id)
+                    .is_some_and(|node| node.window_id == window_id)
+            });
+            for (&id, node) in tree
+                .nodes
+                .iter()
+                .filter(|(_, node)| node.window_id == window_id)
+            {
+                let frame_node = state.frame.nodes.entry(id).or_default();
+                frame_node.parent = node.parent;
+                frame_node.children.clone_from(&node.children);
+                frame_node.fixed_to_window = matches!(
+                    &node.data,
+                    NodeData::Anchored(config) if config.position.is_some()
+                );
+            }
+        }
+        // Layout can change without a tree mutation. Never retain unpainted geometry.
+        for node in state.frame.nodes.values_mut() {
+            node.bounds = None;
+            node.transform = TransformationMatrix::unit();
+            node.content_extent = None;
+        }
+        generation
+    }
+
+    /// Publishes bounds, their window transform and the optional content
+    /// extent from one paint.
+    pub fn record_geometry(
+        &self,
+        generation: u64,
+        id: NodeId,
+        bounds: Bounds<Pixels>,
+        transform: TransformationMatrix,
+        content_extent: Option<Point<Pixels>>,
+    ) {
+        let mut state = self.0.borrow_mut();
+        if state.generation == generation {
+            if let Some(node) = state.frame.nodes.get_mut(&id) {
+                node.bounds = Some(bounds);
+                node.transform = transform;
+                node.content_extent = content_extent;
+            }
+        }
+    }
+
+    pub fn enqueue_layout(&self, operation: LayoutOperation) {
+        match &operation {
+            LayoutOperation::Scroll(id, overflow, ..)
+            | LayoutOperation::ScrollOffset(id, overflow, ..) => {
+                self.sync_scroll(*id, *overflow);
+            }
+            _ => {}
+        }
+        let mut state = self.0.borrow_mut();
+        let generation = state.generation.saturating_add(1);
+        state.pending.push_back((generation, operation));
+    }
+
+    pub fn finish_frame(&self, generation: u64) -> bool {
+        let (completions, changed_scrolls, window_id, rerender) = {
+            let mut state = self.0.borrow_mut();
+            if state.generation != generation {
+                return false;
+            }
+
+            let mut completions = Vec::new();
+            let mut rerender = false;
+            // FIFO order makes each query observe exactly the preceding scrolls.
+            while state
+                .pending
+                .front()
+                .is_some_and(|(minimum, _)| *minimum <= generation)
+            {
+                let (_, operation) = state
+                    .pending
+                    .pop_front()
+                    .expect("front operation must exist");
+                match operation {
+                    LayoutOperation::Measure(id, responder) => {
+                        completions.push(QueryCompletion::Measure(responder, measure(&state, id)));
+                    }
+                    LayoutOperation::ScrollOffset(id, _, responder) => {
+                        completions.push(QueryCompletion::ScrollOffset(
+                            responder,
+                            scroll_offset(&state, id),
+                        ));
+                    }
+                    LayoutOperation::Scroll(id, _, x, y, relative) => {
+                        rerender |= scroll_offset_command(&mut state, id, x, y, relative);
+                    }
+                    LayoutOperation::ScrollIntoView(id) => {
+                        rerender |= scroll_into_view(&mut state, id)
+                    }
+                }
+            }
+            rerender |= !state.pending.is_empty();
+
+            let mut changed_scrolls = Vec::new();
+            for (&id, scroll) in &mut state.scroll {
+                let offset = logical_scroll_offset(&scroll.handle);
+                if offset != scroll.last_event_offset {
+                    scroll.last_event_offset = offset;
+                    changed_scrolls.push((id, offset));
+                }
+            }
+            (
+                completions,
+                changed_scrolls,
+                state.frame.window_id,
+                rerender,
+            )
+        };
+
+        for completion in completions {
+            completion.respond();
+        }
+        if let Some(window_id) = window_id {
+            for (id, offset) in changed_scrolls {
+                emit_scroll_event(window_id, id, offset);
+            }
+        }
+        rerender
+    }
+
+    pub fn destroy_nodes(&self, ids: &[NodeId]) {
+        let ids: HashSet<_> = ids.iter().copied().collect();
+        let rejected = {
+            let mut state = self.0.borrow_mut();
+            for id in &ids {
+                state.focus.remove(id);
+                state.text_control.remove(id);
+                state.scroll.remove(id);
+                state.frame.nodes.remove(id);
+            }
+            state.take_pending(|operation| ids.contains(&operation.id()))
+        };
+
+        for (_, operation) in rejected {
+            let id = operation.id();
+            operation.reject(BridgeFailure::destroyed_node(id));
+        }
+    }
+
+    pub fn reject_queries(&self, code: &'static str, message: impl Into<String>) {
+        let message = message.into();
+        let queries = {
+            let mut state = self.0.borrow_mut();
+            state.take_pending(|operation| {
+                matches!(
+                    operation,
+                    LayoutOperation::Measure(..) | LayoutOperation::ScrollOffset(..)
+                )
+            })
+        };
+        for (_, operation) in queries {
+            operation.reject(BridgeFailure::new(code, message.clone()));
+        }
+    }
+
+    pub fn clear(&self) {
+        self.reject_queries(
+            "POISONED_RENDERER",
+            "Renderer state changed before the native query completed.",
+        );
+        let mut state = self.0.borrow_mut();
+        state.focus.clear();
+        state.text_control.clear();
+        state.scroll.clear();
+        state.pending.clear();
+        state.frame = FrameLayout::default();
+        state.prepared_revision = None;
+    }
+}
+
+fn utf16_to_utf8_offset(value: &str, target: usize) -> usize {
+    let mut utf16 = 0;
+    for (byte, character) in value.char_indices() {
+        let next = utf16 + character.len_utf16();
+        if target < next {
+            return byte;
+        }
+        if target == next {
+            return byte + character.len_utf8();
+        }
+        utf16 = next;
+    }
+    value.len()
+}
+
+fn sync_editor_value<M: InputModeKind + 'static>(
+    editor: &Entity<InputBaseState<M>>,
+    value: &str,
+    window: &mut Window,
+    cx: &mut App,
+) -> bool {
+    if editor.read(cx).value().as_ref() == value {
+        return false;
+    }
+    editor.update(cx, |editor, cx| {
+        editor.set_value(value.to_owned(), window, cx)
+    });
+    true
+}
+
+fn set_editor_selection<M: InputModeKind + 'static>(
+    editor: &Entity<InputBaseState<M>>,
+    start: u32,
+    end: u32,
+    cx: &mut App,
+) {
+    editor.update(cx, |editor, cx| {
+        let start = start.min(end) as usize;
+        let end = end as usize;
+        let value = editor.value();
+        editor.set_selected_range(
+            utf16_to_utf8_offset(value.as_ref(), start)..utf16_to_utf8_offset(value.as_ref(), end),
+            cx,
+        );
+    });
+}
+
+fn editor_selection<M: InputModeKind + 'static>(
+    editor: &Entity<InputBaseState<M>>,
+    window: &mut Window,
+    cx: &mut App,
+) -> Result<NativeSelection, BridgeFailure> {
+    editor.update(cx, |editor, cx| {
+        let selection = editor
+            .selected_text_range(false, window, cx)
+            .ok_or_else(|| {
+                BridgeFailure::new(
+                    "SELECTION_UNAVAILABLE",
+                    "Native text-control selection is unavailable.",
+                )
+            })?;
+        let offset = |value| {
+            u32::try_from(value).map_err(|_| {
+                BridgeFailure::new(
+                    "SELECTION_RANGE_EXHAUSTED",
+                    "Native text-control selection exceeds the bridge UTF-16 offset range.",
+                )
+            })
+        };
+        Ok(NativeSelection {
+            start: offset(selection.range.start)?,
+            end: offset(selection.range.end)?,
+        })
+    })
+}
+
+fn subscribe_text_control_events<T: 'static, M: InputModeKind + 'static>(
+    cx: &mut Context<T>,
+    editor: &Entity<InputBaseState<M>>,
+    window: &mut Window,
+    runtime: Weak<RefCell<RuntimeState>>,
+    kind: TextControlKind,
+    window_id: WindowId,
+    id: NodeId,
+) -> Subscription {
+    cx.subscribe_in(editor, window, move |_, editor, event, _, cx| {
+        let value =
+            matches!(event, InputEvent::Change).then(|| editor.read(cx).value().to_string());
+        let Some(runtime) = runtime.upgrade() else {
+            return;
+        };
+        let mut state = runtime.borrow_mut();
+        let Some(control) = state.text_control.get_mut(&id) else {
+            return;
+        };
+        let event = if let Some(value) = value {
+            if control.last_value == value {
+                return;
+            }
+            control.last_value = value;
+            control.dirty = true;
+            NativeEventId::Input
+        } else {
+            match event {
+                InputEvent::PressEnter { .. } if kind == TextControlKind::Input => {}
+                InputEvent::Blur => {}
+                _ => return,
+            }
+            if !std::mem::take(&mut control.dirty) {
+                return;
+            }
+            NativeEventId::Change
+        };
+        let value = control.last_value.clone();
+        drop(state);
+        emit_text_event(window_id, id, event, value);
+    })
+}
+
+fn configure_textarea(
+    editor: &mut TextareaState,
+    min_rows: Option<u32>,
+    max_rows: Option<u32>,
+    cx: &mut Context<TextareaState>,
+) {
+    let (min_rows, max_rows) = match (min_rows, max_rows) {
+        (None, None) => (2, 2),
+        (min_rows, max_rows) => (min_rows.unwrap_or(1), max_rows.unwrap_or(u32::MAX)),
+    };
+    editor.set_auto_grow(min_rows as usize, max_rows as usize, cx);
+}
+
+fn text_control_value(kind: TextControlKind, value: &str) -> String {
+    match kind {
+        TextControlKind::Input => single_line(value),
+        TextControlKind::Textarea => value.to_owned(),
+    }
+}
+
+fn single_line(value: &str) -> String {
+    value
+        .chars()
+        .filter(|character| !matches!(character, '\r' | '\n'))
+        .collect()
+}
+
+fn scroll_offset_command(
+    state: &mut RuntimeState,
+    id: NodeId,
+    x: f32,
+    y: f32,
+    relative: bool,
+) -> bool {
+    let Some(handle) = state.scroll.get(&id).map(|scroll| scroll.handle.clone()) else {
+        return false;
+    };
+    let old = logical_scroll_offset(&handle);
+    let (x, y) = if relative {
+        (old.x as f32 + x, old.y as f32 + y)
+    } else {
+        (x, y)
+    };
+    let new = set_logical_scroll_offset(&handle, x, y);
+    shift_descendant_bounds(
+        state,
+        id,
+        new.x as f32 - old.x as f32,
+        new.y as f32 - old.y as f32,
+    );
+    new != old
+}
+
+fn shift_descendant_bounds(state: &mut RuntimeState, ancestor: NodeId, dx: f32, dy: f32) {
+    if dx == 0.0 && dy == 0.0 {
+        return;
+    }
+    // Scrolling by d moves content by -d in the scroller's own space, which is
+    // -Ls·d in window space (Ls: the scroller transform's linear part). Each
+    // descendant transform is defined around its own layout box, so shifting
+    // the box by -d moves its client box by -Lc·d instead. Adding (Lc - Ls)·d
+    // to the translation keeps `client_bounds` exact until the next paint.
+    let scroller = state
+        .frame
+        .nodes
+        .get(&ancestor)
+        .map(|node| node.transform.rotation_scale)
+        .unwrap_or(TransformationMatrix::unit().rotation_scale);
+    let mut pending = state
+        .frame
+        .nodes
+        .get(&ancestor)
+        .map(|node| node.children.clone())
+        .unwrap_or_default();
+    while let Some(id) = pending.pop() {
+        let Some(node) = state.frame.nodes.get_mut(&id) else {
+            continue;
+        };
+        if node.fixed_to_window {
+            continue;
+        }
+        pending.extend(node.children.iter().copied());
+        if let Some(bounds) = node.bounds.as_mut() {
+            bounds.origin.x = px(f32::from(bounds.origin.x) - dx);
+            bounds.origin.y = px(f32::from(bounds.origin.y) - dy);
+            let linear = node.transform.rotation_scale;
+            for (row, translation) in node.transform.translation.iter_mut().enumerate() {
+                *translation += (linear[row][0] - scroller[row][0]) * dx
+                    + (linear[row][1] - scroller[row][1]) * dy;
+            }
+        }
+    }
+}
+
+fn scroll_into_view(state: &mut RuntimeState, id: NodeId) -> bool {
+    if state
+        .frame
+        .nodes
+        .get(&id)
+        .and_then(|node| node.bounds)
+        .is_none()
+    {
+        return false;
+    }
+    let fixed_parent = std::iter::successors(Some(id), |id| {
+        state.frame.nodes.get(id).and_then(|node| node.parent)
+    })
+    .find(|id| {
+        state
+            .frame
+            .nodes
+            .get(id)
+            .is_some_and(|node| node.fixed_to_window)
+    })
+    .and_then(|id| state.frame.nodes.get(&id).and_then(|node| node.parent));
+    let mut current = state.frame.nodes.get(&id).and_then(|node| node.parent);
+    let mut changed = false;
+    while let Some(parent) = current {
+        if Some(parent) == fixed_parent {
+            break;
+        }
+        current = state.frame.nodes.get(&parent).and_then(|node| node.parent);
+        let Some((viewport, viewport_transform)) = state
+            .frame
+            .nodes
+            .get(&parent)
+            .and_then(|node| Some((node.bounds?, node.transform)))
+        else {
+            continue;
+        };
+        // A singular viewport transform (e.g. `scale: 0`) collapses the
+        // viewport and everything inside it to a line or point. Nothing in it
+        // has a visible position to reveal, so this scroller is left alone.
+        let Some(into_viewport) = viewport_transform.inverse() else {
+            continue;
+        };
+        // Reveal where the target is painted, measured in the viewport's own
+        // layout space: transforms between the two count, and the viewport's
+        // own transform (which moves both) does not. The relative transform
+        // is composed first so the target's box is projected exactly once;
+        // bounding an already-bounded box would inflate rotated targets.
+        let target_node = &state.frame.nodes[&id];
+        let target = into_viewport.compose(target_node.transform).transform_bounds(
+            target_node
+                .bounds
+                .expect("validated target bounds must remain available"),
+        );
+        let dx = nearest_scroll_delta(
+            f32::from(target.left()),
+            f32::from(target.right()),
+            f32::from(viewport.left()),
+            f32::from(viewport.right()),
+        );
+        let dy = nearest_scroll_delta(
+            f32::from(target.top()),
+            f32::from(target.bottom()),
+            f32::from(viewport.top()),
+            f32::from(viewport.bottom()),
+        );
+        changed |= scroll_offset_command(state, parent, dx, dy, true);
+    }
+    changed
+}
+
+fn nearest_scroll_delta(start: f32, end: f32, viewport_start: f32, viewport_end: f32) -> f32 {
+    if end - start > viewport_end - viewport_start || start < viewport_start {
+        start - viewport_start
+    } else if end > viewport_end {
+        end - viewport_end
+    } else {
+        0.0
+    }
+}
+
+fn set_logical_scroll_offset(handle: &ScrollHandle, x: f32, y: f32) -> ScrollOffset {
+    let maximum = handle.max_offset();
+    let x = x.clamp(0.0, f32::from(maximum.x));
+    let y = y.clamp(0.0, f32::from(maximum.y));
+    handle.set_offset(point(px(-x), px(-y)));
+    ScrollOffset {
+        x: f64::from(x),
+        y: f64::from(y),
+    }
+}
+
+fn measure(state: &RuntimeState, id: NodeId) -> Measurement {
+    let frame = &state.frame;
+    let Some(target_node) = frame.nodes.get(&id) else {
+        return Measurement::default();
+    };
+    let Some(target) = target_node.bounds else {
+        return Measurement::default();
+    };
+
+    let x = f32::from(target.origin.x);
+    let y = f32::from(target.origin.y);
+    let width = f32::from(target.size.width);
+    let height = f32::from(target.size.height);
+    let (scroll_width, scroll_height) = if let Some(scroll) = state.scroll.get(&id) {
+        let maximum = scroll.handle.max_offset();
+        (width + f32::from(maximum.x), height + f32::from(maximum.y))
+    } else {
+        let mut right = x + width;
+        let mut bottom = y + height;
+        for candidate_id in std::iter::once(id).chain(descendant_ids(frame, id)) {
+            let Some(node) = frame.nodes.get(&candidate_id) else {
+                continue;
+            };
+            let Some(bounds) = node.bounds else {
+                continue;
+            };
+            right = right.max(f32::from(bounds.right()));
+            bottom = bottom.max(f32::from(bounds.bottom()));
+            if let Some(extent) = node.content_extent {
+                // Commands between query barriers can change this offset after paint.
+                // Ancestor scrolling already shifts the recorded parent origin.
+                let offset = state
+                    .scroll
+                    .get(&candidate_id)
+                    .map(|scroll| scroll.handle.offset())
+                    .unwrap_or_default();
+                let bottom_right = bounds.origin + extent + offset;
+                right = right.max(f32::from(bottom_right.x));
+                bottom = bottom.max(f32::from(bottom_right.y));
+            }
+        }
+        ((right - x).max(width), (bottom - y).max(height))
+    };
+
+    let client = target_node.transform.transform_bounds(target);
+    Measurement {
+        x: f64::from(f32::from(client.origin.x)),
+        y: f64::from(f32::from(client.origin.y)),
+        width: f64::from(f32::from(client.size.width)),
+        height: f64::from(f32::from(client.size.height)),
+        scroll_width: f64::from(scroll_width),
+        scroll_height: f64::from(scroll_height),
+    }
+}
+
+fn scroll_offset(state: &RuntimeState, id: NodeId) -> ScrollOffset {
+    state
+        .scroll
+        .get(&id)
+        .map(|scroll| logical_scroll_offset(&scroll.handle))
+        .unwrap_or_default()
+}
+
+fn logical_scroll_offset(handle: &ScrollHandle) -> ScrollOffset {
+    let offset: Point<Pixels> = handle.offset();
+    ScrollOffset {
+        x: f64::from((-f32::from(offset.x)).max(0.0)),
+        y: f64::from((-f32::from(offset.y)).max(0.0)),
+    }
+}
+
+fn descendant_ids(frame: &FrameLayout, ancestor: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+    let mut pending = frame
+        .nodes
+        .get(&ancestor)
+        .map(|node| node.children.clone())
+        .unwrap_or_default();
+    std::iter::from_fn(move || {
+        while let Some(id) = pending.pop() {
+            let Some(node) = frame.nodes.get(&id) else {
+                continue;
+            };
+            if node.fixed_to_window {
+                continue;
+            }
+            pending.extend(node.children.iter().copied());
+            return Some(id);
+        }
+        None
+    })
+}
+
+#[cfg(test)]
+mod frame_tests {
+    use super::*;
+    use crate::protocol::Command;
+    use crate::protocol_generated::ElementKind;
+
+    #[test]
+    fn unchanged_frames_reuse_topology_but_clear_geometry() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::InsertChild {
+                    parent_id: 1,
+                    child_id: 2,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+        let runtime = RuntimeStateRegistry::default();
+        let generation = runtime.begin_frame(&tree, window);
+        assert!(runtime.needs_preparation(&tree, window));
+        assert!(!runtime.needs_preparation(&tree, window));
+        let children = runtime.0.borrow().frame.nodes[&1].children.as_ptr();
+        runtime.record_geometry(
+            generation,
+            2,
+            Bounds::default(),
+            TransformationMatrix::unit(),
+            Some(point(px(10.0), px(20.0))),
+        );
+        runtime.begin_frame(&tree, window);
+        {
+            let state = runtime.0.borrow();
+            assert_eq!(children, state.frame.nodes[&1].children.as_ptr());
+            assert!(state.frame.nodes[&2].bounds.is_none());
+            assert!(state.frame.nodes[&2].content_extent.is_none());
+        }
+        // A callback from the previous paint cannot restore stale geometry.
+        runtime.record_geometry(
+            generation,
+            2,
+            Bounds::default(),
+            TransformationMatrix::unit(),
+            None,
+        );
+        assert!(runtime.0.borrow().frame.nodes[&2].bounds.is_none());
+
+        tree.apply_commands(
+            window,
+            vec![Command::RemoveChild {
+                parent_id: 1,
+                child_id: 2,
+            }],
+        )
+        .unwrap();
+        runtime.begin_frame(&tree, window);
+        assert!(runtime.needs_preparation(&tree, window));
+        assert!(runtime.0.borrow().frame.nodes[&1].children.is_empty());
+        assert_eq!(runtime.0.borrow().frame.nodes[&2].parent, None);
+        tree.settle(window).unwrap();
+        runtime.begin_frame(&tree, window);
+        assert!(!runtime.0.borrow().frame.nodes.contains_key(&2));
+        runtime.clear();
+        assert!(runtime.needs_preparation(&tree, window));
+    }
+
+    #[test]
+    fn repainting_without_a_content_extent_clears_the_previous_one() {
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        tree.apply_commands(
+            window,
+            vec![
+                Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                },
+                Command::InsertChild {
+                    parent_id: 1,
+                    child_id: 2,
+                    before_id: 0,
+                },
+            ],
+        )
+        .unwrap();
+
+        let runtime = RuntimeStateRegistry::default();
+        let generation = runtime.begin_frame(&tree, window);
+        let first_bounds = Bounds::new(point(px(1.0), px(2.0)), gpui::size(px(5.0), px(6.0)));
+        runtime.record_geometry(
+            generation,
+            2,
+            first_bounds,
+            TransformationMatrix::unit(),
+            Some(point(px(5.0), px(6.0))),
+        );
+        assert!(runtime.0.borrow().frame.nodes[&2].content_extent.is_some());
+
+        // A later callback in the same presentation that publishes no extent must
+        // not leave the earlier extent visible to queries.
+        let repainted = Bounds::new(point(px(3.0), px(4.0)), gpui::size(px(7.0), px(8.0)));
+        runtime.record_geometry(generation, 2, repainted, TransformationMatrix::unit(), None);
+        let state = runtime.0.borrow();
+        assert_eq!(state.frame.nodes[&2].bounds, Some(repainted));
+        assert!(state.frame.nodes[&2].content_extent.is_none());
+    }
+
+    #[test]
+    fn repeated_destroy_and_clear_reject_queries_once_and_ignore_stale_frames() {
+        use std::sync::mpsc;
+
+        let mut tree = NativeTree::default();
+        let window = tree.create_window(1).unwrap();
+        let runtime = RuntimeStateRegistry::default();
+        for _ in 0..64 {
+            tree.apply_commands(
+                window,
+                vec![
+                    Command::CreateNode {
+                        id: 2,
+                        kind: ElementKind::Container,
+                    },
+                    Command::InsertChild {
+                        parent_id: 1,
+                        child_id: 2,
+                        before_id: 0,
+                    },
+                ],
+            )
+            .unwrap();
+            let stale_generation = runtime.begin_frame(&tree, window);
+            assert!(runtime.needs_preparation(&tree, window));
+            runtime.record_geometry(
+                stale_generation,
+                2,
+                Bounds::default(),
+                TransformationMatrix::unit(),
+                Some(point(px(10.0), px(20.0))),
+            );
+            let (sender, receiver) = mpsc::channel();
+            for id in [1, 2] {
+                let sender = sender.clone();
+                runtime.enqueue_layout(LayoutOperation::Measure(
+                    id,
+                    MeasureResponder::new(move |result| {
+                        sender.send((id, result.unwrap_err().code)).unwrap();
+                    }),
+                ));
+            }
+            let scroll_sender = sender.clone();
+            runtime.enqueue_layout(LayoutOperation::ScrollOffset(
+                2,
+                OverflowValue::Scroll,
+                ScrollResponder::new(move |result| {
+                    scroll_sender.send((2, result.unwrap_err().code)).unwrap();
+                }),
+            ));
+            runtime.enqueue_layout(LayoutOperation::Scroll(
+                2,
+                OverflowValue::Scroll,
+                0.0,
+                10.0,
+                false,
+            ));
+            runtime.enqueue_layout(LayoutOperation::ScrollIntoView(2));
+            assert_eq!(runtime.0.borrow().pending.len(), 5);
+
+            tree.apply_commands(
+                window,
+                vec![Command::RemoveChild {
+                    parent_id: 1,
+                    child_id: 2,
+                }],
+            )
+            .unwrap();
+            let destroyed = tree.settle(window).unwrap();
+            runtime.destroy_nodes(&destroyed);
+            runtime.destroy_nodes(&destroyed);
+            for _ in 0..2 {
+                assert_eq!(receiver.try_recv().unwrap(), (2, "DESTROYED_NODE"));
+            }
+            assert!(receiver.try_recv().is_err());
+            {
+                let state = runtime.0.borrow();
+                assert_eq!(
+                    state.pending.len(),
+                    1,
+                    "the root query must survive child destruction"
+                );
+                assert_eq!(state.frame.nodes.len(), 1);
+                assert!(state.scroll.is_empty());
+            }
+            runtime.clear();
+            runtime.clear();
+            assert_eq!(receiver.try_recv().unwrap(), (1, "POISONED_RENDERER"));
+            assert!(receiver.try_recv().is_err());
+            {
+                let state = runtime.0.borrow();
+                assert!(state.pending.is_empty());
+                assert!(state.frame.nodes.is_empty());
+                assert!(state.frame.window_id.is_none());
+                assert!(state.prepared_revision.is_none());
+            }
+
+            // Reusing the node ID must not let an old paint populate its replacement.
+            tree.apply_commands(
+                window,
+                vec![Command::CreateNode {
+                    id: 2,
+                    kind: ElementKind::Container,
+                }],
+            )
+            .unwrap();
+            let generation = runtime.begin_frame(&tree, window);
+            assert!(generation > stale_generation);
+            runtime.record_geometry(
+                stale_generation,
+                2,
+                Bounds::default(),
+                TransformationMatrix::unit(),
+                Some(point(px(1.0), px(2.0))),
+            );
+            assert!(!runtime.finish_frame(stale_generation));
+            assert!(runtime.0.borrow().frame.nodes[&2].bounds.is_none());
+            assert!(runtime.0.borrow().frame.nodes[&2].content_extent.is_none());
+            tree.poison_native(window, &"reload").unwrap();
+            tree.reload_window(window).unwrap();
+            runtime.clear();
+            assert_eq!(tree.nodes.len(), 1);
+        }
+    }
+
+    struct RuntimeLifecycleTestView;
+
+    impl gpui::Render for RuntimeLifecycleTestView {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl gpui::IntoElement {
+            gpui::div()
+        }
+    }
+
+    #[gpui::test]
+    fn repeated_control_focus_and_scroll_cleanup_releases_entities_and_subscriptions(
+        cx: &mut gpui::TestAppContext,
+    ) {
+        cx.update(crate::render::init);
+        let window = cx.add_window(|_, _| RuntimeLifecycleTestView);
+        let runtime = RuntimeStateRegistry::default();
+        let peer = RuntimeStateRegistry::default();
+        let peer_focus = cx.update(|cx| peer.ensure_focus(2, 0, None, cx).0);
+        peer.ensure_scroll(2).set_offset(point(px(-7.0), px(-9.0)));
+
+        for cycle in 0..32 {
+            let subscription_owner = Rc::new(());
+            let (input, textarea) = window
+                .update(cx, |_, window, cx| {
+                    for (id, kind) in [(2, TextControlKind::Input), (3, TextControlKind::Textarea)]
+                    {
+                        let value = format!("value 🦀 {cycle}");
+                        let editor = runtime.ensure_text_control(
+                            1,
+                            id,
+                            TextControlConfig {
+                                kind,
+                                value: &value,
+                                value_revision: 1,
+                                placeholder: "placeholder",
+                                min_rows: Some(2),
+                                max_rows: Some(4),
+                            },
+                            window,
+                            cx,
+                        );
+                        let handle = editor.focus_handle(cx);
+                        assert!(runtime.ensure_focus(id, 0, Some(handle.clone()), cx).1);
+                        let focus_owner = subscription_owner.clone();
+                        let blur_owner = subscription_owner.clone();
+                        runtime.set_focus_subscriptions(
+                            id,
+                            [
+                                cx.on_focus(&handle, window, move |_, _, _| {
+                                    let _ = &focus_owner;
+                                }),
+                                cx.on_blur(&handle, window, move |_, _, _| {
+                                    let _ = &blur_owner;
+                                }),
+                            ],
+                        );
+                        assert!(!runtime.ensure_focus(id, 0, Some(handle.clone()), cx).1);
+                        runtime.disable_focus(id);
+                        assert!(runtime.external_focus_handle(id).is_none());
+                        runtime.ensure_focus(id, 0, Some(handle.clone()), cx);
+                        assert_eq!(runtime.external_focus_handle(id), Some(handle));
+                        assert!(runtime.tracked_focus_handle(id).is_none());
+                        editor.set_selection(0, 5, cx);
+                        runtime.ensure_text_control(
+                            1,
+                            id,
+                            TextControlConfig {
+                                kind,
+                                value: "must not replace the same revision",
+                                value_revision: 1,
+                                placeholder: "new placeholder",
+                                min_rows: Some(3),
+                                max_rows: Some(5),
+                            },
+                            window,
+                            cx,
+                        );
+                        let selection = editor.selection(window, cx).unwrap();
+                        assert_eq!((selection.start, selection.end), (0, 5));
+                        let state = runtime.0.borrow();
+                        let control = &state.text_control[&id];
+                        assert_eq!(control.last_value, value);
+                        assert_eq!(control.placeholder, "new placeholder");
+                        assert_eq!((control.min_rows, control.max_rows), (Some(3), Some(5)));
+                    }
+                    (
+                        runtime.input(2).unwrap().downgrade(),
+                        runtime.textarea(3).unwrap().downgrade(),
+                    )
+                })
+                .unwrap();
+            for id in [2, 3] {
+                let scroll = runtime.ensure_scroll(id);
+                assert_eq!(logical_scroll_offset(&scroll), ScrollOffset::default());
+                scroll.set_offset(point(px(-10.0), px(-20.0)));
+                assert_eq!(
+                    logical_scroll_offset(&runtime.ensure_scroll(id)),
+                    ScrollOffset { x: 10.0, y: 20.0 }
+                );
+            }
+            assert_eq!(runtime.0.borrow().focus.len(), 2);
+            assert_eq!(runtime.0.borrow().text_control.len(), 2);
+            assert_eq!(runtime.0.borrow().scroll.len(), 2);
+
+            assert!(Rc::strong_count(&subscription_owner) > 1);
+            if cycle % 2 == 0 {
+                runtime.destroy_nodes(&[2, 3]);
+                runtime.destroy_nodes(&[2, 3]);
+            } else {
+                runtime.clear();
+                runtime.clear();
+            }
+            cx.run_until_parked();
+            assert!(
+                input.upgrade().is_none(),
+                "destroyed input entity must be released"
+            );
+            assert!(
+                textarea.upgrade().is_none(),
+                "destroyed textarea entity must be released"
+            );
+            assert_eq!(Rc::strong_count(&subscription_owner), 1);
+            assert!(runtime.0.borrow().focus.is_empty());
+            assert!(runtime.0.borrow().text_control.is_empty());
+            assert!(runtime.0.borrow().scroll.is_empty());
+            assert!(!runtime.is_interactive(2));
+            assert_eq!(peer.focus_handle(2), Some(peer_focus.clone()));
+            assert_eq!(
+                logical_scroll_offset(&peer.scroll_handle(2).unwrap()),
+                ScrollOffset { x: 7.0, y: 9.0 }
+            );
+        }
+        peer.clear();
+    }
+
+    #[test]
+    fn preparation_revision_is_window_local() {
+        let mut tree = NativeTree::default();
+        let first = tree.create_window(1).unwrap();
+        let second = tree.create_window(2).unwrap();
+        let runtime = RuntimeStateRegistry::default();
+        assert!(runtime.needs_preparation(&tree, first));
+        tree.apply_commands(
+            second,
+            vec![Command::CreateText {
+                id: 3,
+                text: "other window".into(),
+            }],
+        )
+        .unwrap();
+        assert!(!runtime.needs_preparation(&tree, first));
+        assert!(runtime.needs_preparation(&tree, second));
+    }
+}
