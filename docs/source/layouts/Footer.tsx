@@ -1,116 +1,116 @@
+import { For } from 'retend';
 import { Link } from 'retend/router';
+
+import { AnyLink } from '@/components/AnyLink';
+import { paintings } from '@/routes/home/paintings';
+
+interface FooterLink {
+  label: string;
+  href: string;
+  external?: boolean;
+}
+
+interface FooterColumn {
+  title: string;
+  links: FooterLink[];
+}
+
+const npm = (name: string): FooterLink => ({
+  label: name,
+  href: `https://npmjs.com/package/${name}`,
+  external: true,
+});
+
+const github = (label: string, path = ''): FooterLink => ({
+  label,
+  href: `https://github.com/resuite/retend${path}`,
+  external: true,
+});
+
+const columns: FooterColumn[] = [
+  {
+    title: 'Learn',
+    links: [
+      { label: 'Getting started', href: '/docs/getting-started' },
+      { label: 'Reactivity and Cells', href: '/docs/reactivity-and-cells' },
+      { label: 'Routing', href: '/docs/defining-routes' },
+      { label: 'Rendering', href: '/docs/rendering-architecture' },
+    ],
+  },
+  {
+    title: 'Packages',
+    links: [
+      npm('retend'),
+      npm('retend-web'),
+      npm('retend-gpui'),
+      npm('retend-server'),
+    ],
+  },
+  {
+    title: 'Project',
+    links: [
+      github('GitHub'),
+      github('Releases', '/releases'),
+      github('Issues', '/issues'),
+    ],
+  },
+];
+
+const LINK_CLASS =
+  'text-small text-ink hover:text-ink-soft motion-safe:transition-colors';
 
 export function Footer() {
   return (
-    <footer class="relative mt-10 flex flex-col pt-32 sm:mt-20">
-      <div class="relative z-10 mx-auto w-full max-w-285 px-5 sm:px-6 md:px-10">
-        <div class="flex flex-col justify-between gap-16 lg:flex-row">
-          <div class="flex flex-col justify-between gap-6">
-            <Link
-              class="text-fg flex items-center gap-2 text-xl font-medium tracking-tight"
-              href="/"
-              aria-label="Retend home"
-            >
-              retend
-            </Link>
-            <p class="text-fg-muted text-sm">
-              © 2026 Retend. All rights reserved.
-            </p>
-          </div>
+    <footer class="border-line border-t">
+      <div class="flex flex-col justify-between gap-12 px-5 py-14 sm:px-8 md:flex-row md:px-10">
+        <div class="flex max-w-xs flex-col gap-3">
+          <Link
+            class="text-ink text-xl tracking-[-0.02em]"
+            href="/"
+            aria-label="Retend home"
+          >
+            retend
+          </Link>
+          <p class="text-small text-ink-faint">
+            A reactive framework for user interfaces, on the web and the
+            desktop.
+          </p>
+        </div>
 
-          <div class="grid grid-cols-2 gap-8 sm:grid-cols-4 sm:gap-16">
+        <div class="grid grid-cols-2 gap-8 sm:grid-cols-3 sm:gap-16">
+          {For(columns, (column) => (
             <div class="flex flex-col gap-4">
-              <h4 class="text-fg-muted text-sm font-medium">Framework</h4>
-              <ul class="flex flex-col gap-4">
-                <li>
-                  <Link
-                    href="/docs/getting-started"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    Getting Started
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/docs/jsx-and-components"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    Core Concepts
-                  </Link>
-                </li>
+              <h3 class="text-small text-ink-faint">{column.title}</h3>
+              <ul class="flex flex-col gap-3">
+                {For(column.links, (link) => (
+                  <li>
+                    <AnyLink
+                      href={link.href}
+                      external={link.external}
+                      class={LINK_CLASS}
+                    >
+                      {link.label}
+                    </AnyLink>
+                  </li>
+                ))}
               </ul>
             </div>
-            <div class="flex flex-col gap-4">
-              <h4 class="text-fg-muted text-sm font-medium">Ecosystem</h4>
-              <ul class="flex flex-col gap-4">
-                <li>
-                  <a
-                    href="https://npmjs.com/package/retend"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    Router
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://npmjs.com/package/retend-server"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    Server
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://npmjs.com/package/retend-utils"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    Utils
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div class="flex flex-col gap-4">
-              <h4 class="text-fg-muted text-sm font-medium">Resources</h4>
-              <ul class="flex flex-col gap-4">
-                <li>
-                  <a
-                    href="https://github.com/resuite/retend"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    GitHub
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://npmjs.com/package/retend"
-                    target="_blank"
-                    rel="noreferrer"
-                    class="text-fg hover:text-brand text-sm transition-colors"
-                  >
-                    NPM
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      <div class="relative z-10 mt-20 flex justify-center overflow-hidden px-4 sm:mt-32">
-        <h1
-          class="from-fg/90 to-fg/5 bg-linear-to-b bg-clip-text text-center text-[24vw] leading-none font-medium tracking-tighter text-transparent select-none"
-          style={{ marginBottom: '-6.5vw' }}
-        >
-          retend
-        </h1>
+      <div class="relative isolate h-56 overflow-hidden md:h-72">
+        <img
+          src={paintings.sunset}
+          alt=""
+          loading="lazy"
+          class="home-painting absolute inset-0 -z-10 size-full object-cover object-[50%_18%]"
+        />
+        <div class="text-small flex h-full items-end justify-end px-5 pb-4 text-white/90 [text-shadow:0_1px_2px_rgb(0_0_0/0.4)] sm:px-8 md:px-10">
+          <a href="#top" class="hover:text-white">
+            (Back to top)
+          </a>
+        </div>
       </div>
     </footer>
   );

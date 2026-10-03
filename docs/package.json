@@ -9,12 +9,14 @@
     "build-docs": "vite build",
     "build-docs-clean": "rm -rf dist .wrangler && vite build",
     "lint": "oxlint -c .oxlintrc.json .",
+    "typecheck": "WRANGLER_LOG_PATH=.wrangler/logs tsc --noEmit",
     "preview": "vite preview",
     "deploy": "pnpm run build && WRANGLER_LOG_PATH=.wrangler/logs npx wrangler deploy"
   },
   "dependencies": {
     "@mdx-js/rollup": "^3.1.1",
     "@tailwindcss/vite": "^4.2.1",
+    "innate-ui": "https://pkg.pr.new/adebola-io/innate-ui@b3c284f9adfc74466e5ebb0faa8348c8447ed573",
     "remark-gfm": "^4.0.1",
     "retend": "workspace:*",
     "retend-server": "workspace:*",

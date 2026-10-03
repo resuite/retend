@@ -15,6 +15,10 @@ export default defineConfig({
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './source') },
+    dedupe: ['retend', 'retend-web', 'retend-utils'],
+  },
+  optimizeDeps: {
+    exclude: ['innate-ui', 'retend', 'retend-web', 'retend-utils'],
   },
   plugins: [
     tailwindcss(),
