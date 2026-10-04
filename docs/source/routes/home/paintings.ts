@@ -6,6 +6,7 @@
 import octoberDay from '../../../assets/landing/cazin-october-day.webp';
 import tobias from '../../../assets/landing/cazin-tobias.webp';
 import vianen from '../../../assets/landing/cuyp-view-of-vianen.webp';
+import mistRising from '../../../assets/landing/gifford-mist-rising.webp';
 import autumnWoods from '../../../assets/landing/inness-autumn-woods.webp';
 import catskills from '../../../assets/landing/inness-catskill-mountains.webp';
 import homeOfTheHeron from '../../../assets/landing/inness-home-of-the-heron.webp';
@@ -23,4 +24,5 @@ export const paintings = {
   rousseau,
   vianen,
   tobias,
+  mistRising,
 };

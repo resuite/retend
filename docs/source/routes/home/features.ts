@@ -121,7 +121,8 @@ function App() {
 
 function Greeting() {
   const user = useScopeContext(UserScope);
-  return <p>Hello, {Cell.derived(() => user.get().name)}</p>;
+  const name = Cell.derived(() => user.get().name);
+  return <p>Hello, {name}</p>;
 }
 `,
   },

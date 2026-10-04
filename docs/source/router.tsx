@@ -15,6 +15,10 @@ export function createRouter() {
           path: '/design',
           component: lazy(() => import('@/routes/Design')),
         },
+        {
+          path: '/og-preview',
+          component: lazy(() => import('@/routes/OgPreview')),
+        },
       ]
     : [];
 

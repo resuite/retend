@@ -32,6 +32,22 @@ html.dark .home {
   background-position: -1px -1px;
 }
 
+/* A heavier grid for the social preview image, which is seen small. */
+.og-grid {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--ds-ink) 9%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--ds-ink) 9%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 30px 30px;
+  background-position: -1px -1px;
+}
+
 /* The page's content sheet: plain paper over the grid. */
 .home-sheet {
   background-color: var(--ds-paper);

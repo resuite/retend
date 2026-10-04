@@ -32,11 +32,6 @@ for (const [filePath, metadata] of Object.entries(__DOC_METADATA__)) {
   ogMetadataBySlug.set(lastSegment.replace(/^\d+-/u, ''), metadata);
 }
 
-const overviewMetadata: OgMetadata = {
-  title: 'retend.',
-  description: 'Build incredibly fast, reactive applications',
-};
-
 let wasmReady: Promise<void> | undefined;
 let fontReady: Promise<Uint8Array> | undefined;
 
@@ -48,6 +43,19 @@ export async function handleOgRequest(
 ): Promise<Response | null> {
   if (!(url.pathname.startsWith('/og/') && url.pathname.endsWith('.png'))) {
     return null;
+  }
+
+  // The landing page's preview is a designed image in public/og, captured
+  // from the dev-only /og-preview route. Docs pages keep the generated card.
+  const slug = url.pathname.slice(4, -4);
+  if (slug === 'overview' || slug === 'preview') {
+    const asset = await env.ASSETS.fetch(
+      new URL('/og/overview.png', url.origin)
+    );
+    return new Response(asset.body, {
+      status: asset.status,
+      headers: ogHeaders,
+    });
   }
 
   const cached = await caches.default.match(request);
@@ -66,11 +74,7 @@ export async function handleOgRequest(
   }
   const font = await fontReady;
 
-  const slug = url.pathname.slice(4, -4);
-  let metadata = ogMetadataBySlug.get(slug);
-  if (slug === 'overview' || slug === 'preview') {
-    metadata = overviewMetadata;
-  }
+  const metadata = ogMetadataBySlug.get(slug);
   if (!metadata || !font) {
     return new Response('Not found', { status: 404 });
   }

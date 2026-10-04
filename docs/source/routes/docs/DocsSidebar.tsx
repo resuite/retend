@@ -83,6 +83,18 @@ const groups = [
     ]),
     items: [] as SidebarItem[],
   },
+  {
+    label: 'Desktop (GPUI)',
+    itemLabels: new Set([
+      'GPUI Overview',
+      'GPUI Elements',
+      'GPUI Styling',
+      'GPUI Events',
+      'GPUI Windows',
+      'GPUI Packaging',
+    ]),
+    items: [] as SidebarItem[],
+  },
 ];
 
 for (const doc of flatDocs) {

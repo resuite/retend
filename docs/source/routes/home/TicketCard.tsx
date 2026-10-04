@@ -3,6 +3,8 @@ import { Cell, For, If } from 'retend';
 
 import type { ClassValue } from './constants';
 
+import { paintings } from './paintings';
+
 interface TicketCardProps {
   quantity: Cell<number>;
   seatsLeft: Cell<number>;
@@ -36,11 +38,6 @@ export function TicketCard(props: TicketCardProps) {
   const reserved = Cell.source(false);
   const atMin = Cell.derived(() => quantity.get() <= 1);
   const atMax = Cell.derived(() => quantity.get() >= 8);
-  const seatBars = Array.from({ length: seats }, (_, seat) => {
-    const taken = Cell.derived(() => seat < quantity.get());
-    const free = Cell.derived(() => !taken.get());
-    return { taken, free };
-  });
 
   const change = (by: number) => {
     onChange(by);
@@ -50,11 +47,16 @@ export function TicketCard(props: TicketCardProps) {
   return (
     <div
       class={[
-        'home-card bg-raised flex flex-col rounded-[14px] px-5 pt-2 pb-5 sm:px-6 md:pb-10',
+        'home-card bg-raised flex flex-col rounded-[14px] px-3 pt-3 pb-4',
         className,
       ]}
     >
-      <div class="divide-line divide-y text-[0.9375rem]">
+      <img
+        src={paintings.mistRising}
+        alt=""
+        class="h-32 w-full rounded-[10px] object-cover object-[50%_45%] sm:h-36"
+      />
+      <div class="divide-line divide-y px-2 text-[0.9375rem] sm:px-3">
         <div class={ROW}>
           <span class="text-ink-faint">Trip</span>
           <span class="text-ink">Night train to Lisbon</span>
@@ -96,7 +98,7 @@ export function TicketCard(props: TicketCardProps) {
         </div>
       </div>
 
-      <div class="mt-4 flex items-center gap-4">
+      <div class="mt-3 flex items-center gap-4 px-2 sm:px-3">
         <Button
           class="bg-ink text-small text-paper hover:bg-ink/85 focus-visible:outline-accent flex h-10 shrink-0 items-center justify-center rounded-full px-5 focus-visible:outline-2 focus-visible:outline-offset-2"
           onClick={() => reserved.set(true)}
@@ -106,17 +108,36 @@ export function TicketCard(props: TicketCardProps) {
             false: () => <span>Pay ${total}</span>,
           })}
         </Button>
-        <span aria-hidden="true" class="flex h-7 flex-1 items-center gap-[7px]">
-          {For(seatBars, (bar) => (
-            <span
-              class={[
-                'h-full w-[3px] rounded-full motion-safe:transition-colors',
-                { 'bg-ink': bar.taken, 'bg-line-strong': bar.free },
-              ]}
-            />
-          ))}
-        </span>
+        <SeatBars quantity={quantity} seats={seats} />
       </div>
     </div>
+  );
+}
+
+interface SeatBarsProps {
+  quantity: Cell<number>;
+  seats: number;
+}
+
+/** One thin bar per seat; the ones you are booking turn dark. */
+function SeatBars(props: SeatBarsProps) {
+  const { quantity, seats } = props;
+  const bars = Array.from({ length: seats }, (_, seat) => {
+    const taken = Cell.derived(() => seat < quantity.get());
+    const free = Cell.derived(() => !taken.get());
+    return { taken, free };
+  });
+
+  return (
+    <span aria-hidden="true" class="flex h-7 flex-1 items-center gap-[7px]">
+      {For(bars, (bar) => (
+        <span
+          class={[
+            'h-full w-[3px] rounded-full motion-safe:transition-colors',
+            { 'bg-ink': bar.taken, 'bg-line-strong': bar.free },
+          ]}
+        />
+      ))}
+    </span>
   );
 }

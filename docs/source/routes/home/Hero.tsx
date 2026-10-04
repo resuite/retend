@@ -8,27 +8,7 @@ import { PaintingPanel } from './Painting';
 import { paintings } from './paintings';
 import { PillLink } from './PillLink';
 import { TicketCard } from './TicketCard';
-
-const SEATS = 12;
-const PRICE = 48;
-
-const ticketsCode = `
-function Tickets() {
-  const quantity = Cell.source(2);
-  const seatsLeft = Cell.derived(() => 12 - quantity.get());
-  const total = Cell.derived(() => quantity.get() * 48);
-
-  const add = () => quantity.set(quantity.get() + 1);
-
-  return (
-    <>
-      <button onClick={add}>Add a ticket</button>
-      <p>{seatsLeft} of 12 seats left</p>
-      <button type="submit">Pay \${total}</button>
-    </>
-  );
-}
-`;
+import { PRICE, SEATS, ticketsCode } from './tickets';
 
 export function Hero() {
   const quantity = Cell.source(2);
@@ -89,7 +69,7 @@ export function Hero() {
           seats={SEATS}
           price={PRICE}
           onChange={changeQuantity}
-          class="md:absolute md:top-[20%] md:right-[5%] md:-bottom-6 md:w-[44%]"
+          class="md:absolute md:top-[15%] md:right-[5%] md:w-[42%]"
         />
       </PaintingPanel>
     </section>
