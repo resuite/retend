@@ -1,6 +1,6 @@
 ---
 title: 'Context and Scopes'
-description: 'Share data with nested components through scopes.'
+description: 'Sharing data with nested components through scopes.'
 ---
 
 # Context and Scopes
@@ -39,7 +39,7 @@ function ThemedButton({ theme }) {
 
 This is called **prop drilling**, and it has real costs:
 
-- **Noise**: `MainLayout` and `Sidebar` carry a prop they never use, and every new intermediate component must remember to forward it.
+- **Noise**: `MainLayout` and `Sidebar` carry a prop they never use, and every new intermediate component has to forward it as well.
 - **Fragility**: renaming or reshaping the value means touching every component in the chain, even the ones that don't care about it.
 - **Coupling**: intermediate components become aware of data that is none of their business, making them harder to reuse elsewhere.
 
@@ -81,7 +81,7 @@ function ThemedButton() {
 
 ## Creating and Using Scopes
 
-Create a Scope with `createScope()`:
+A Scope is created with `createScope()`:
 
 ```tsx
 import { createScope } from 'retend';
@@ -90,7 +90,7 @@ import { createScope } from 'retend';
 export const ThemeScope = createScope('Theme');
 ```
 
-The returned Scope object contains a `Provider` component. Wrap the relevant layout in the Provider and pass the shared data through its `value` prop:
+The returned Scope object contains a `Provider` component. The relevant layout is wrapped in the Provider, and the shared data is passed through its `value` prop:
 
 ```tsx
 import { ThemeScope } from './scopes';
@@ -134,7 +134,7 @@ If no Provider exists above a component that reads a Scope, Retend throws an err
 
 ## Passing Reactive Data (Cells)
 
-Shared data can be reactive, such as login state or shopping cart contents. Pass a `Cell` to a Scope like any other value:
+Shared data can be reactive, such as login state or shopping cart contents. A `Cell` is passed to a Scope like any other value:
 
 ```tsx
 import { Cell, createScope, useScopeContext } from 'retend';
@@ -154,7 +154,7 @@ function App() {
 }
 ```
 
-Child components can read the Cell from the Scope, use `.get()` to read its value, and use `.set()` to update it. Updates are reflected wherever the Cell is used.
+Child components can read the Cell from the Scope, with `.get()` reading its value and `.set()` updating it. Updates are reflected wherever the Cell is used.
 
 ```tsx
 function UserProfile() {
@@ -198,9 +198,9 @@ function UserProfile() {
 }
 ```
 
-Avoid this. Module globals have problems that Scopes are designed to solve:
+Skipping the Provider this way is discouraged. Module globals have problems that Scopes are designed to solve:
 
-1. **One instance, ever.** A module global is a singleton, you cannot render two instances of the same widget on one page with independent state — both would read and write the same `Cell`. A Scope's state lives with its `Provider`, so each Provider on the page gets its own isolated copy.
+1. **One instance, ever.** A module global is a singleton, so two instances of the same widget cannot be rendered on one page with independent state — both would read and write the same `Cell`. A Scope's state lives with its `Provider`, so each Provider on the page gets its own isolated copy.
 
 2. **No lifecycle.** A module global lives until the page is unloaded. If the part of the tree that owns the data is removed, the global silently keeps its state (and any listeners) around. Retend cleans up scoped data when the subtree containing the Provider is removed.
 
@@ -208,4 +208,4 @@ Avoid this. Module globals have problems that Scopes are designed to solve:
 
 4. **Hidden dependencies.** A component that imports a global doesn't declare that it depends on shared state — the import is invisible in its signature. A component that calls `useScopeContext(ThemeScope)` makes its dependency explicit, and fails loudly if no Provider supplies the value.
 
-Even for data that seems genuinely app-wide, prefer a Scope: wrap your root in the Provider once, and you keep the same convenience as a global while retaining isolation, cleanup, and testability.
+Even for data that seems genuinely app-wide, a Scope is preferable: wrapping the root in the Provider once keeps the same convenience as a global while retaining isolation, cleanup, and testability.

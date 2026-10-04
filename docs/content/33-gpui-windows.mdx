@@ -1,11 +1,11 @@
 ---
 title: 'GPUI Windows'
-description: 'Configure the application, open and control windows, and share process-wide state.'
+description: 'Configuring the application, opening and controlling windows, and sharing process-wide state.'
 ---
 
 # GPUI Windows
 
-A `retend-gpui` application has two layers. The **application** is one Node.js process that owns shared resources such as a database connection. Each **window** is an independent Retend root that renders your entry component.
+A `retend-gpui` application has two layers. The **application** is one Node.js process that owns shared resources such as a database connection. Each **window** is an independent Retend root that renders the entry component.
 
 ## Configuring the Plugin
 
@@ -85,7 +85,7 @@ export default class Application implements GpuiApplication<AppContext> {
 
 - `init()` runs once, when the application starts.
 - `cleanup()` runs when the application shuts down.
-- `context` keeps the same object identity from construction through cleanup. Mutate it and do not replace it.
+- `context` keeps the same object identity from construction through cleanup. It is mutated rather than replaced.
 
 Both methods may be asynchronous.
 
@@ -104,7 +104,7 @@ export default function App() {
 }
 ```
 
-The context is typed from your application class. `retend-start` creates `retend-gpui-env.d.ts` for this, and every dev or build startup checks it and rewrites it only when it is missing or stale. Changing the `application` path repairs the types automatically. Add the file to your tsconfig `include` if you maintain the project by hand, and commit it, as you would `next-env.d.ts`.
+The context is typed from the application class. `retend-start` creates `retend-gpui-env.d.ts` for this, and every dev or build startup checks it and rewrites it only when it is missing or stale. Changing the `application` path repairs the types automatically. For projects maintained by hand, the file is added to the tsconfig `include` and committed, as with `next-env.d.ts`.
 
 `useAppContext()` throws when no application is active.
 
@@ -156,11 +156,11 @@ The `window` option in the plugin config and the `options` argument to `open()` 
 | `location`        | `string`  | The initial route. Defaults to `/`.                                           |
 | `closeWithOpener` | `boolean` | Whether the window closes when the window that opened it closes. Defaults to `true`. |
 
-Sizes must be finite positive numbers, and each minimum cannot exceed its maximum.
+Sizes are finite positive numbers, and each minimum cannot exceed its maximum.
 
 ## Opening More Windows
 
-`open()` creates another native window with its own Retend root. Pass `location` to start it on a specific route:
+`open()` creates another native window with its own Retend root. A `location` value starts it on a specific route:
 
 ```tsx
 import { useWindow } from 'retend-gpui';
@@ -182,7 +182,7 @@ function OpenSettings() {
 }
 ```
 
-The returned handle has a `close()` method and fires a `close` event. By default a child window closes with the window that opened it. Set `closeWithOpener: false` to keep it open independently.
+The returned handle has a `close()` method and fires a `close` event. By default a child window closes with the window that opened it. `closeWithOpener: false` keeps it open independently.
 
 ## Routing
 
@@ -234,7 +234,7 @@ See [Defining Routes](/docs/defining-routes) for the router itself.
 
 ## Development Reloads
 
-During `retend-gpui dev`, Vite runs without an HTTP server and starts one Node.js application process with your initial window.
+During `retend-gpui dev`, Vite runs without an HTTP server and starts one Node.js application process with the initial window.
 
 - Editing a component updates it in place.
 - Editing the application module, or a module it imports, triggers a full reload. This recreates application and module state and remounts every open window without replacing the native windows or their navigation history.

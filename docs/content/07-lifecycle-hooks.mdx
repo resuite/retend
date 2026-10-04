@@ -1,6 +1,6 @@
 ---
 title: 'Lifecycle Hooks'
-description: 'Run setup and cleanup logic for component instances and connected elements.'
+description: 'Lifecycle hooks run setup and cleanup logic for component instances and connected elements.'
 ---
 
 # Lifecycle Hooks
@@ -11,7 +11,7 @@ Retend provides `onSetup` and `onConnected`. `onSetup` runs once per component i
 
 ## `onSetup`
 
-Use `onSetup` for logic that does not need rendered elements, such as starting timers, fetching initial data, or subscribing to external events.
+`onSetup` handles logic that does not need rendered elements, such as starting timers, fetching initial data, or subscribing to external events.
 
 ```tsx
 import { onSetup, Cell } from 'retend';
@@ -32,13 +32,13 @@ function LiveClock() {
 }
 ```
 
-Return a cleanup function for timers, event listeners, and other resources. It runs when the component is destroyed and prevents those resources from remaining active.
+A cleanup function is returned for timers, event listeners, and other resources. It runs when the component is destroyed and prevents those resources from remaining active.
 
 ## `onConnected`
 
-Use `onConnected` when code must interact with a rendered element, such as measuring its size, drawing on a canvas, or attaching a third-party library.
+`onConnected` handles code that interacts with a rendered element, such as measuring its size, drawing on a canvas, or attaching a third-party library.
 
-`onConnected` ties your code to a specific element's connection. You give it a reference to an element, and your callback runs with the element itself whenever the element becomes connected. If the element is removed and added back, the callback runs again — and the cleanup you return runs whenever the element is no longer connected. On the web, "connected" means the element is currently part of the DOM tree.
+`onConnected` ties code to a specific element's connection. It receives a reference to an element, and the callback runs with the element itself whenever the element becomes connected. If the element is removed and added back, the callback runs again — and the returned cleanup runs whenever the element is no longer connected. On the web, "connected" means the element is currently part of the DOM tree.
 
 ```tsx
 import { onConnected, Cell } from 'retend';
@@ -69,11 +69,11 @@ function CanvasDrawer() {
 
 A consistent component structure can make lifecycle-related code easier to read:
 
-1. **State:** Define your `Cell.source()` values at the top.
-2. **Derived:** Add any `Cell.derived()` computations.
-3. **Handlers:** Write your event handler functions (like `onClick`).
-4. **Lifecycle:** Place your `onSetup` and `onConnected` blocks.
-5. **Return:** End by returning your JSX.
+1. **State:** `Cell.source()` values are defined at the top.
+2. **Derived:** `Cell.derived()` computations are added.
+3. **Handlers:** Event handler functions (like `onClick`) are written.
+4. **Lifecycle:** The `onSetup` and `onConnected` blocks are placed.
+5. **Return:** The JSX is returned last.
 
 This order defines the data and handlers before the lifecycle blocks and JSX.
 

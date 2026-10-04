@@ -1,6 +1,6 @@
 ---
 title: 'Defining Routes'
-description: 'Map URL paths to components with Retend’s router.'
+description: 'Mapping URL paths to components with Retend’s router.'
 ---
 
 # Defining Routes
@@ -11,9 +11,9 @@ The router tracks the current URL and selects the matching components. Retend in
 
 ## Setting Up Routes
 
-Define an array of **Route Records** to configure application routing. Each record maps a URL path to a component.
+An array of **Route Records** configures application routing. Each record maps a URL path to a component.
 
-Use the `defineRoutes` helper to create the array:
+The `defineRoutes` helper creates the array:
 
 ```tsx
 import { Router, defineRoutes, createRouterRoot } from 'retend/router';
@@ -48,7 +48,7 @@ The `createRouterRoot` function converts the router into a renderable component.
 
 Applications often share layout elements, such as a header or navigation sidebar, across pages.
 
-**Nested Routes** let a parent route provide the layout for its child routes. Use `<Outlet />` to mark where the child component is rendered.
+**Nested Routes** let a parent route provide the layout for its child routes. `<Outlet />` marks where the child component is rendered.
 
 ```tsx
 import { defineRoutes, Outlet } from 'retend/router';
@@ -89,7 +89,7 @@ At `/dashboard/overview`, the router renders `DashboardLayout` and places `Overv
 
 ### Default Child Routes
 
-At `/dashboard`, `<Outlet />` is empty if no child route matches. Define a default child route with an empty path (`''`):
+At `/dashboard`, `<Outlet />` is empty if no child route matches. A default child route is defined with an empty path (`''`):
 
 ```tsx
 const routes = defineRoutes([
@@ -106,7 +106,7 @@ const routes = defineRoutes([
 
 ## Dynamic URLs
 
-Use dynamic routes when a URL contains variable data, such as a user ID or post title. Prefix a path segment with a colon (`:`):
+Dynamic routes are used when a URL contains variable data, such as a user ID or post title. A path segment is prefixed with a colon (`:`):
 
 ```tsx
 const routes = defineRoutes([
@@ -122,9 +122,9 @@ The following sections describe how to read values such as `userId` from compone
 
 ## Handling "404 Not Found"
 
-Define a custom "Not Found" page for URLs that do not match another route by using an asterisk (`*`) as the path.
+A custom "Not Found" page is defined for URLs that do not match another route by using an asterisk (`*`) as the path.
 
-The router checks routes from top to bottom, so place the catch-all route last:
+The router checks routes from top to bottom, so the catch-all route is placed last:
 
 ```tsx
 const routes = defineRoutes([

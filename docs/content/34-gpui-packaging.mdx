@@ -1,11 +1,11 @@
 ---
 title: 'GPUI Packaging'
-description: 'Build and distribute a GPUI application for macOS and Windows.'
+description: 'Building and distributing a GPUI application for macOS and Windows.'
 ---
 
 # GPUI Packaging
 
-A GPUI application is built with Vite. The `retendGpui` plugin bundles your code, copies in the native addon, and packages the result for the target platform.
+A GPUI application is built with Vite. The `retendGpui` plugin bundles the code, copies in the native addon, and packages the result for the target platform.
 
 ```sh
 npm run build
@@ -29,7 +29,7 @@ Supported targets are `darwin-arm64`, `linux-arm64`, `linux-x64`, `win32-arm64`,
 
 A packaged macOS or Windows app embeds its own Node.js runtime, so users do not need Node installed. The runtime is downloaded on the first build and cached in `node_modules/.cache/retend-gpui`.
 
-A build needs the prebuilt native addon for its target. The addon for your own platform installs automatically. To build for another platform, install that platform's package, such as `retend-gpui-native-win32-x64-msvc`.
+A build needs the prebuilt native addon for its target. The addon for the host platform installs automatically. Building for another platform requires that platform's package, such as `retend-gpui-native-win32-x64-msvc`.
 
 ## What Each Platform Produces
 
@@ -49,7 +49,7 @@ The build creates `<AppName>.app` and a `.dmg` that contains it. The app icon ca
 
 ### Signing and notarization
 
-Without a signing identity, the app is signed ad hoc. It runs on the machine that built it, but anyone who downloads it from the web will see macOS refuse to open it with an "Apple could not verify" dialog. To distribute an app, sign it with a Developer ID certificate and notarize it.
+Without a signing identity, the app is signed ad hoc. It runs on the machine that built it, but anyone who downloads it from the web will see macOS refuse to open it with an "Apple could not verify" dialog. Distributing an app requires signing it with a Developer ID certificate and notarizing it.
 
 ```ts
 retendGpui({
@@ -74,9 +74,9 @@ The build warns when the app is signed ad hoc, and when it is signed but missing
 
 The app icon can be `.ico`, `.png`, or `.svg`. It is applied to every window and to the taskbar button, and embedded in the executable.
 
-The `.exe` is only built when `vite build` runs on Windows. Building a Windows target on another system emits the bundle and logs a message. Run the build on Windows to produce the executable.
+The `.exe` is only built when `vite build` runs on Windows. Building a Windows target on another system emits the bundle and logs a message. Running the build on Windows produces the executable.
 
-The result is `dist/win32-x64/<AppName>.exe` (or `win32-arm64`). Keep the `native/` and `assets/` folders and the `AppIcon.*` file next to the executable when you test or distribute it.
+The result is `dist/win32-x64/<AppName>.exe` (or `win32-arm64`). The `native/` and `assets/` folders and the `AppIcon.*` file belong next to the executable when it is tested or distributed.
 
 ## Linux
 
@@ -84,15 +84,15 @@ Linux builds emit the bundle directory.
 
 ## Application Identity During Development
 
-In development the app should look like a real application, not a Node process.
+In development the app presents itself as a real application, not a Node process.
 
-- **macOS.** The dev process runs inside a minimal temporary `.app` bundle that carries `app.name` and `app.identifier`. It installs the native application menu and sets the Dock icon from `app.icon` (or `app.macos.icon`) before the first window opens. The Dock and Mission Control then show your app's identity.
+- **macOS.** The dev process runs inside a minimal temporary `.app` bundle that carries `app.name` and `app.identifier`. It installs the native application menu and sets the Dock icon from `app.icon` (or `app.macos.icon`) before the first window opens. The Dock and Mission Control then show the app's identity.
 - **Windows.** Retend sets the AppUserModelID from `app.identifier` and applies `app.icon` (or `app.windows.icon`) to every window and taskbar button.
 
 ## Checklist Before You Ship
 
-- Set a real `app.identifier` and `app.version`.
-- Add an icon in the format your target platform accepts.
-- On macOS, provide a signing identity and notarization credentials.
-- Build on each platform you ship for, since Windows executables need a Windows build.
-- Pin the exact `retend-gpui` version while it is in `0.0.x`.
+- A real `app.identifier` and `app.version` are set.
+- An icon in the format the target platform accepts is added.
+- On macOS, a signing identity and notarization credentials are provided.
+- A build runs on each platform shipped for, since Windows executables need a Windows build.
+- The exact `retend-gpui` version is pinned while it is in `0.0.x`.

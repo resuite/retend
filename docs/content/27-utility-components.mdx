@@ -9,7 +9,7 @@ All components and factory functions listed on this page are imported from `rete
 
 ## Input
 
-An input component with two-way data binding. The `model` prop accepts a `Cell` whose value is synchronized with the input element. The cell type should correspond to the input type.
+An input component with two-way data binding. The `model` prop accepts a `Cell` whose value is synchronized with the input element. The cell type is expected to correspond to the input type.
 
 **Props:**
 
@@ -103,7 +103,7 @@ function TaskBoard() {
 
 Animates the children of a `createUnique()` component with FLIP animation. When the unique instance moves in the tree, `UniqueTransition` animates its children from their previous position and size to their new position and size using CSS transforms.
 
-Use this component within a `createUnique` component. See [Unique Instances](/docs/unique) for details.
+This component is used within a `createUnique` component. Details are in [Unique Instances](/docs/unique).
 
 **Props:**
 
@@ -195,7 +195,7 @@ function App() {
 
 ### Preserving State During Transitions
 
-Use the `onMove` hook from `retend` to capture and restore element state, such as scroll position, across transitions.
+The `onMove` hook from `retend` captures and restores element state, such as scroll position, across transitions.
 
 ```tsx
 import { Cell, createUnique, onMove } from 'retend';

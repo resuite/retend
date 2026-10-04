@@ -1,6 +1,6 @@
 ---
 title: 'GPUI Events'
-description: 'Handle pointer, keyboard, focus, input, and scroll events in GPUI applications.'
+description: 'Handling pointer, keyboard, focus, input, and scroll events in GPUI applications.'
 ---
 
 # GPUI Events
@@ -51,7 +51,7 @@ Every event also has the standard `type`, `target`, `currentTarget`, `timeStamp`
 
 `key` is the key identifier reported by GPUI. Letter keys are lowercase, for example `a`. `keyChar` is the character the key press produced, when there is one, such as `A` while Shift is held.
 
-Log `event.key` once to find the identifier for keys such as arrows or Escape.
+Logging `event.key` once reveals the identifier for keys such as arrows or Escape.
 
 ```tsx
 import type { GpuiKeyboardEvent } from 'retend-gpui';
@@ -84,7 +84,7 @@ Retend runs capture, target, and bubble phases over the logical node tree, as in
 
 ## Event Modifiers
 
-Modifier suffixes work on GPUI handlers. Chain them with `--`:
+Modifier suffixes work on GPUI handlers. They are chained with `--`:
 
 ```tsx
 <div onClick--self--stop={handleClick}>Only clicks on this element</div>

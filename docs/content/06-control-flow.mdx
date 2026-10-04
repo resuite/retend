@@ -1,15 +1,15 @@
 ---
 title: 'Control Flow'
-description: 'Render conditionals and lists with If, For, and Switch.'
+description: 'Conditionals and lists are rendered with If, For, and Switch.'
 ---
 
 # Control Flow
 
-Use the `If`, `For`, and `Switch` functions to render conditionals and lists. They can read Cells and update the rendered output when their values change.
+The `If`, `For`, and `Switch` functions render conditionals and lists. They can read Cells and update the rendered output when their values change.
 
 ## Conditional Rendering with `If`
 
-Use `If` to show or hide interface content based on a condition.
+`If` shows or hides interface content based on a condition.
 
 It takes a Cell (or any regular value) and branches based on whether the value is true or false.
 
@@ -35,7 +35,7 @@ function ToggleMessage() {
 }
 ```
 
-To provide only the `true` branch:
+When only the `true` branch is provided:
 
 ```tsx
 {
@@ -45,11 +45,11 @@ To provide only the `true` branch:
 }
 ```
 
-_Standard JavaScript ternary statements (`isOn ? true : false`) and `&&` operators do not connect to Retend's reactivity system when the data changes. Always use `If` for conditional interface content that can change._
+_Standard JavaScript ternary statements (`isOn ? true : false`) and `&&` operators do not connect to Retend's reactivity system when the data changes. `If` is used for conditional interface content that can change._
 
 ### Shorthand Syntax
 
-For a truthy branch without a false branch, pass a function instead of an object:
+For a truthy branch without a false branch, a function is passed instead of an object:
 
 ```tsx
 {
@@ -57,7 +57,7 @@ For a truthy branch without a false branch, pass a function instead of an object
 }
 ```
 
-You can pass an object with `true` and `false` branches instead of separate callbacks.
+An object with `true` and `false` branches can be passed instead of separate callbacks.
 
 ```tsx
 {
@@ -70,9 +70,9 @@ You can pass an object with `true` and `false` branches instead of separate call
 
 ## Rendering Lists with `For`
 
-Use `For` to render an array as a list of elements.
+`For` renders an array as a list of elements.
 
-Pass the array and a callback that returns the JSX for each item.
+It takes the array and a callback that returns the JSX for each item.
 
 ```tsx
 import { For, Cell } from 'retend';
@@ -99,17 +99,17 @@ function ItemList() {
 }
 ```
 
-_The `index` parameter is a reactive `Cell<number>`, not a plain number. You can pass it directly into JSX. Call `index.get()` before using it in a calculation._
+_The `index` parameter is a reactive `Cell<number>`, not a plain number. It can be passed directly into JSX. `index.get()` is called before using it in a calculation._
 
 ### Keys in Lists
 
-When rendering a list of objects that can change, provide a `key` in the final options object.
+When rendering a list of objects that can change, a `key` is provided in the final options object.
 
-The `key` identifies each item so Retend can update the list. Set it to the name of a unique ID property, such as `key: 'id'`.
+The `key` identifies each item so Retend can update the list. It is set to the name of a unique ID property, such as `key: 'id'`.
 
 ## Multi-State Rendering with `Switch`
 
-Use `Switch` when a value can have more than two states, such as `loading`, `success`, and `error`.
+`Switch` handles a value with more than two states, such as `loading`, `success`, and `error`.
 
 ```tsx
 import { Switch, Cell } from 'retend';
@@ -129,11 +129,11 @@ function DataFetcher() {
 }
 ```
 
-`Switch` looks at the value inside your Cell and runs the matching branch. If the status is "success", it only renders the `success` branch.
+`Switch` looks at the value inside the Cell and runs the matching branch. If the status is "success", it only renders the `success` branch.
 
 ### Default Case
 
-Pass a third argument as a fallback when the value does not match a defined branch:
+A third argument serves as a fallback when the value does not match a defined branch:
 
 ```tsx
 {

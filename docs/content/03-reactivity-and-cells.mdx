@@ -1,6 +1,6 @@
 ---
 title: 'Reactivity and Cells'
-description: 'Use Cells to update the interface when data changes.'
+description: 'Cells update the interface when data changes.'
 ---
 
 # Reactivity and Cells
@@ -11,7 +11,7 @@ Application data can change in response to user input, completed requests, or ti
 
 Retend implements reactivity with **Cells**. A Cell stores a value and updates the rendered locations that use it when the value changes.
 
-You create a new reactive value using `Cell.source()`:
+A reactive value is created with `Cell.source()`:
 
 ```tsx
 import { Cell } from 'retend';
@@ -21,7 +21,7 @@ const isOn = Cell.source(false);
 
 ### Getting and Setting Values
 
-To read a value from a Cell, call `.get()`. To update it, call `.set()`:
+A value is read from a Cell with `.get()`, and updated with `.set()`:
 
 ```tsx
 import { Cell } from 'retend';
@@ -39,7 +39,7 @@ console.log(isOn.get()); // → true
 
 ## Using Cells in JSX
 
-When using a Cell in JSX, **pass the Cell itself, not its value**. Do not call `.get()` in the JSX expression.
+When a Cell is used in JSX, **the Cell itself is passed, not its value**. Calling `.get()` in the JSX expression isn't necessary.
 
 ```tsx
 import { Cell } from 'retend';
@@ -70,7 +70,7 @@ Passing a Cell into JSX creates a binding to the rendered output. Each call to `
 
 ## Derived Cells for Computed Values
 
-Use `Cell.derived()` for a value computed from other Cells. For example, `fullName` can depend on `firstName` and `lastName`.
+`Cell.derived()` produces a value computed from other Cells. For example, `fullName` can depend on `firstName` and `lastName`.
 
 ```tsx
 import { Cell } from 'retend';
@@ -91,16 +91,16 @@ function UserProfile() {
 
 ### Rules for Derived Cells
 
-- **No dependency arrays.** Retend figures out what you depend on by watching `.get()` calls.
-- **Read-only.** You can't call `.set()` on a derived Cell. They're for computing, not storing.
-- **Keep them pure.** Don't mutate the DOM, make network requests, or call `.set()` on other Cells inside a derivation.
-- **Hoist them before JSX.** Create the derived Cell in the component scope, then pass that Cell into JSX instead of calling `Cell.derived()` inline.
+- **No dependency arrays.** Retend determines its dependencies by watching `.get()` calls.
+- **Read-only.** A derived Cell has no `.set()`. They compute values rather than store them.
+- **Pure by design.** Derivations don't mutate the DOM, make network requests, or call `.set()` on other Cells.
+- **Hoisted before JSX.** A derived Cell is created in the component scope and passed into JSX, rather than calling `Cell.derived()` inline.
 
 ---
 
 ## Side Effects with `.listen()`
 
-Use `.listen()` to run code when a Cell changes, such as logging a value, synchronizing `localStorage`, or performing a manual update:
+`.listen()` runs code when a Cell changes, such as logging a value, synchronizing `localStorage`, or performing a manual update:
 
 ```tsx
 import { Cell } from 'retend';
@@ -113,7 +113,7 @@ theme.listen((newTheme) => {
 });
 ```
 
-Every time you call `.set()` on the Cell, your listener function runs with the new value. Unlike derived Cells, listeners are designed explicitly for side effects.
+Every time `.set()` is called on the Cell, the listener function runs with the new value. Unlike derived Cells, listeners are designed explicitly for side effects.
 
 ---
 

@@ -1,11 +1,11 @@
 ---
 title: 'Queries and Params'
-description: 'Read and update URL parameters and query parameters.'
+description: 'Reading and updating URL parameters and query parameters.'
 ---
 
 # Queries and Params
 
-Store state in the URL when links should preserve a page, product, or search result.
+State is stored in the URL when links need to preserve a page, product, or search result.
 
 Retend provides two URL data sources: **URL Parameters** for route variables such as IDs, and **Query Parameters** for optional values such as search filters.
 
@@ -13,7 +13,7 @@ Retend provides two URL data sources: **URL Parameters** for route variables suc
 
 In a dynamic route such as `/users/:userId`, the `:userId` segment is a **URL Parameter**. For `/users/123`, its value is `123`.
 
-Use the `useCurrentRoute()` hook to read the parameter in a component. The hook returns a reactive Cell containing the current route.
+The `useCurrentRoute()` hook reads the parameter in a component. The hook returns a reactive Cell containing the current route.
 
 ```tsx
 import { useCurrentRoute } from 'retend/router';
@@ -42,7 +42,7 @@ The route object contains:
 - **`path`**: The matched path pattern (e.g., `/users/:userId`).
 - **`fullPath`**: The full URL path including query string and hash.
 
-_URL data is always returned as a string. Convert it explicitly with `parseInt` or `Number` when a number is required._
+_URL data is always returned as a string. It is converted explicitly with `parseInt` or `Number` when a number is required._
 
 ## Query Parameters
 
@@ -52,7 +52,7 @@ Unlike URL parameters, query parameters do not need to be declared in routes. An
 
 ### Reading Query Values
 
-Use the `useRouteQuery()` hook to read query parameters.
+The `useRouteQuery()` hook reads query parameters.
 
 ```tsx
 import { useRouteQuery } from 'retend/router';
@@ -79,7 +79,7 @@ export function SearchResults() {
 }
 ```
 
-If a URL has multiple values for the same key (like `?tags=red&tags=blue`), you can use `query.getAll('tags')` to get an array of all the values.
+If a URL has multiple values for the same key (like `?tags=red&tags=blue`), `query.getAll('tags')` returns an array of all the values.
 
 ### Updating Query Parameters
 

@@ -1,6 +1,6 @@
 ---
 title: 'Shadow Root'
-description: 'Isolate component styles and markup with a shadow root.'
+description: 'Isolates component styles and markup with a shadow root.'
 ---
 
 # Shadow Root
@@ -11,7 +11,7 @@ The browser’s **Shadow DOM** provides this isolation with a separate DOM tree.
 
 ## Using ShadowRoot
 
-Wrap the content to isolate in `<ShadowRoot>`. Import it from `retend-web`, because it is browser-specific.
+The content to isolate is wrapped in `<ShadowRoot>`. It comes from `retend-web`, because it is browser-specific.
 
 ```tsx
 import { ShadowRoot } from 'retend-web';
@@ -58,7 +58,7 @@ The global `.test` class does not affect the inner `div`, and the inner `<style>
 
 The HTML is isolated from the rest of the page, but Retend’s component behavior remains available across the shadow boundary:
 
-- **Reactivity:** You can use Cells and control flow functions (`If`, `For`) naturally.
+- **Reactivity:** Cells and control flow functions (`If`, `For`) work naturally.
 - **Context and Scopes:** Context from `createScope()` flows down through the shadow boundary perfectly.
 - **Events:** Event listeners like `onClick` work right out of the box.
 
@@ -95,7 +95,7 @@ function IsolatedToggle() {
 
 ## Important Rules
 
-When using `<ShadowRoot>`, follow these rules:
+When using `<ShadowRoot>`, the following rules apply:
 
-1. **It must be inside an HTML element:** The `<ShadowRoot>` attaches to its direct parent. That parent must be a standard HTML element (like a `<div>`, `<section>`, or `<article>`).
-2. **Only one per parent:** You should never place two `<ShadowRoot>` components directly inside the exact same parent element.
+1. **It lives inside an HTML element:** The `<ShadowRoot>` attaches to its direct parent. That parent is a standard HTML element (like a `<div>`, `<section>`, or `<article>`).
+2. **Only one per parent:** Two `<ShadowRoot>` components cannot share the exact same direct parent element.

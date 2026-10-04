@@ -1,6 +1,6 @@
 ---
 title: 'Middleware'
-description: 'Inspect navigation and redirect before a route is activated.'
+description: 'Inspecting navigation and redirecting before a route is activated.'
 ---
 
 # Middleware
@@ -11,7 +11,7 @@ Some routes require checks before they can be accessed, such as verifying that a
 
 ## Creating Middleware
 
-Create middleware with `defineRouterMiddleware`. It accepts a function that runs before navigation:
+Middleware is created with `defineRouterMiddleware`. It accepts a function that runs before navigation:
 
 ```tsx
 import { defineRouterMiddleware } from 'retend/router';
@@ -22,14 +22,14 @@ const loggingMiddleware = defineRouterMiddleware((details) => {
 });
 ```
 
-The `details` object passed to your function contains two important properties:
+The `details` object passed to the function contains two important properties:
 
 - **`to`**: Information about where the user is trying to go.
 - **`from`**: Information about the current page they are leaving.
 
 ## Protecting Routes (Redirects)
 
-A common use for middleware is authentication. If a user requests a protected route without an active session, return a redirect to the login page:
+A common use for middleware is authentication. If a user requests a protected route without an active session, a redirect to the login page is returned:
 
 ```tsx
 import { defineRouterMiddleware, redirect } from 'retend/router';
@@ -53,7 +53,7 @@ When middleware returns `redirect()`, Retend cancels the original navigation and
 
 ## Asynchronous Checks
 
-When access depends on a server check, such as session-token verification, define the middleware function as `async`:
+When access depends on a server check, such as session-token verification, the middleware function is defined as `async`:
 
 ```tsx
 import { defineRouterMiddleware, redirect } from 'retend/router';
@@ -89,4 +89,4 @@ const router = new Router({
 });
 ```
 
-Separate concerns by assigning each check to its own middleware function. For example, logging middleware can run independently of authentication middleware.
+Concerns are separated by assigning each check to its own middleware function. For example, logging middleware can run independently of authentication middleware.

@@ -17,7 +17,7 @@ GPUI components use native intrinsic elements for layout, controls, images, icon
 | `svg`      | A single-color vector icon.                     | No       |
 | `anchored` | A floating layer for menus, tooltips, and more. | Yes      |
 
-Text is not an element. Write it as ordinary JSX content. Adjacent text nodes, including interpolations such as `Count: {count}`, render as one inline run that wraps with its container.
+Text is not an element. It is written as ordinary JSX content. Adjacent text nodes, including interpolations such as `Count: {count}`, render as one inline run that wraps with its container.
 
 ## Shared Props
 
@@ -34,7 +34,7 @@ Any prop can be a Cell, so values can change reactively.
 
 ## div
 
-A `div` has no default styling. Use `style` for layout:
+A `div` has no default styling. Layout is expressed through `style`:
 
 ```tsx
 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16 }}>
@@ -58,7 +58,7 @@ return (
 );
 ```
 
-Set `disabled` to skip the button in Tab traversal, ignore pointer and keyboard activation, and render it dimmed.
+Setting `disabled` skips the button in Tab traversal, ignores pointer and keyboard activation, and renders it dimmed.
 
 ## input and textarea
 
@@ -85,7 +85,7 @@ return (
 );
 ```
 
-The controls come with default styling: comfortable padding, a 6px corner radius, a white surface, and a hairline border. Properties in your `style` override these defaults one at a time, so a form field needs no surface styling of its own:
+The controls come with default styling: comfortable padding, a 6px corner radius, a white surface, and a hairline border. Properties in the `style` override these defaults one at a time, so a form field needs no surface styling of its own:
 
 ```tsx
 <input
@@ -108,7 +108,7 @@ The controls come with default styling: comfortable padding, a 6px corner radius
 
 An `img` fires `load` and `error` events.
 
-Give an image a size through `style`:
+An image is given a size through `style`:
 
 ```tsx
 import logo from './logo.png';
@@ -122,7 +122,7 @@ Root-relative paths such as `/assets/logo.png` resolve against the Vite root dur
 
 An `svg` draws a single-color vector icon in the current text `color`, like `currentColor` in CSS. An icon follows the color of its container, including hover and active styles, unless it sets its own `color`.
 
-Pass the markup as `content`, for example from a `?raw` import, or point `src` at a local file. When both are set, `content` wins.
+The markup is passed as `content`, for example from a `?raw` import, or `src` points at a local file. When both are set, `content` wins.
 
 ```tsx
 import check from './icons/check.svg?raw';
@@ -133,9 +133,9 @@ import check from './icons/check.svg?raw';
 </button>;
 ```
 
-Icons are 16 × 16 by default. Set `width` and `height` in `style` to resize them. `alt` provides the accessible label.
+Icons are 16 × 16 by default. `width` and `height` in `style` resize them. `alt` provides the accessible label.
 
-Use `img` for full-color SVG artwork. Pass icon markup through `content` or `src` rather than JSX children.
+`img` is used for full-color SVG artwork. Icon markup passes through `content` or `src` rather than JSX children.
 
 ## anchored
 
@@ -180,11 +180,11 @@ function Menu() {
 
 `mousedownoutside` fires when the pointer is pressed anywhere outside the element, which makes it the natural way to dismiss a floating layer.
 
-Keep an `anchored` child margin-free. Use `gap` and `offset`, or put it inside a wrapper when you need layout margin.
+An `anchored` child stays margin-free. `gap` and `offset` handle spacing, or the child is placed inside a wrapper when layout margin is needed.
 
 ## Refs and Imperative Methods
 
-Pass a Cell to `ref` to receive the element. Elements expose methods for focus, scrolling, and measuring:
+A Cell passed to `ref` receives the element. Elements expose methods for focus, scrolling, and measuring:
 
 ```tsx
 import { Cell } from 'retend';

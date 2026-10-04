@@ -1,11 +1,11 @@
 ---
 title: 'GPUI Styling'
-description: 'Style GPUI elements with typed style objects, pseudo-states, and transitions.'
+description: 'Styling GPUI elements with typed style objects, pseudo-states, and transitions.'
 ---
 
 # GPUI Styling
 
-GPUI elements are styled with a typed `style` object. Your editor can autocomplete the available properties and validate their values.
+GPUI elements are styled with a typed `style` object. Editors autocomplete the available properties and validate their values.
 
 ```tsx
 <div
@@ -28,13 +28,13 @@ GPUI elements are styled with a typed `style` object. Your editor can autocomple
 
 **Dimensions** (`width`, `height`, `minWidth`, `minHeight`, `maxWidth`, `maxHeight`, `top`, `right`, `bottom`, `left`) accept a number, `'auto'`, a pixel string such as `'320px'`, or a percentage such as `'50%'`.
 
-**Spacing uses numbers.** `padding`, `margin`, `gap`, `borderWidth`, and `borderRadius` take a single number. For different values per axis or side, use `paddingInline`, `paddingBlock`, or the individual side properties.
+**Spacing uses numbers.** `padding`, `margin`, `gap`, `borderWidth`, and `borderRadius` take a single number. For different values per axis or side, `paddingInline`, `paddingBlock`, or the individual side properties are used.
 
 **Line height is in pixels.** Unlike CSS, `lineHeight: 24` means 24 logical pixels, not a multiplier. A value like `1.5` would be a line height of one and a half pixels.
 
 **Colors** are hex strings (`#rrggbb` or `#rrggbbaa`) or CSS named colors such as `'tomato'`, including `'transparent'`.
 
-The application root defaults to a white background with black text. Set `backgroundColor` and `color` on your root element to override them. Text styles such as `color` and `fontSize` are inherited by descendants.
+The application root defaults to a white background with black text. `backgroundColor` and `color` on the root element override them. Text styles such as `color` and `fontSize` are inherited by descendants.
 
 ## Reactive Styles
 
@@ -107,7 +107,7 @@ The whole `style` object can also be a Cell. Each new style value replaces the p
 
 ### Overflow
 
-`overflow` accepts `visible`, `clip`, `hidden`, `auto`, or `scroll`. Elements with `auto` or `scroll` become native scroll containers. Listen for their `scroll` events and read or set the offset through the [element methods](/docs/gpui-elements#refs-and-imperative-methods).
+`overflow` accepts `visible`, `clip`, `hidden`, `auto`, or `scroll`. Elements with `auto` or `scroll` become native scroll containers. Their `scroll` events are observed, and the offset is read or set through the [element methods](/docs/gpui-elements#refs-and-imperative-methods).
 
 ### Transforms
 

@@ -1,6 +1,6 @@
 ---
 title: 'Unique Instances'
-description: 'Preserve component instances across navigation and moves.'
+description: 'Preserves component instances across navigation and moves.'
 ---
 
 # Unique Instances
@@ -13,7 +13,7 @@ Recreation resets internal state in interactive elements. For example, a playing
 
 ## Creating Persistent Components
 
-Wrap a component function in `createUnique()` to preserve its instance:
+Wrapping a component function in `createUnique()` preserves its instance:
 
 ```tsx
 import { createUnique } from 'retend';
@@ -33,7 +33,7 @@ If `<PersistentVideo />` is rendered on the Home page and then on the About page
 
 By default, uses of a unique component share one underlying instance. If `<PersistentVideo />` is rendered in two places at the same time, the instance moves to the last rendered location.
 
-To create independent instances that can coexist, give each use a unique `id` prop:
+Independent instances that can coexist are created with a unique `id` prop on each use:
 
 ```tsx
 // Two separate video players, each with their own state
@@ -75,7 +75,7 @@ const UniquePanel = createUnique((props) => {
 
 `createUnique` preserves the component instance, but some DOM state, such as scroll position, resets when the component moves between locations.
 
-Use the `onMove` hook to save and restore that state:
+The `onMove` hook saves and restores that state:
 
 ```tsx
 import { createUnique, onMove, Cell } from 'retend';
@@ -100,6 +100,6 @@ const ScrollableArea = createUnique(() => {
 });
 ```
 
-The `onMove` hook runs before the unique component moves. Return a function from the hook to run after the move completes.
+The `onMove` hook runs before the unique component moves. A function returned from the hook runs after the move completes.
 
-Use unique instances when a component must retain internal state across navigation.
+Unique instances suit components that retain internal state across navigation.

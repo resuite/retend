@@ -1,6 +1,6 @@
 ---
 title: 'Hydration'
-description: 'Attach client behavior to server-rendered HTML.'
+description: 'Attaches client behavior to server-rendered HTML.'
 ---
 
 # Hydration
@@ -9,7 +9,7 @@ After the server generates static HTML, the browser attaches event listeners and
 
 ## Basic Setup
 
-In your client-side entry point, import `hydrate` from `retend-server/client` and pass it your router factory function:
+In the client-side entry point, `hydrate` is imported from `retend-server/client` and passed the router factory function:
 
 ```tsx
 // source/main.ts
@@ -52,7 +52,7 @@ hydrate(createRouter, {
 
 ### Wrapping the App
 
-If your app needs a global provider (like a theme or auth context) that wraps the entire router, use the `wrap` option:
+If an app needs a global provider (like a theme or auth context) that wraps the entire router, the `wrap` option provides it:
 
 ```tsx
 import { ThemeScope } from './scopes';
